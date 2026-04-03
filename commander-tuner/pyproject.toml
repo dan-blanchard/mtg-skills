@@ -58,3 +58,9 @@ ignore = [
     "E501",    # line length — test data and assertions can be long
     "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
 ]
+"../tests/*" = [
+    "SLF001",  # private member access — tests need to test internals
+    "E501",    # line length — test data and assertions can be long
+    "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
+    "N999",    # invalid module name — directory uses hyphen convention
+]
