@@ -21,6 +21,7 @@ deck-diff = "commander_utils.deck_diff:main"
 set-commander = "commander_utils.set_commander:main"
 mana-audit = "commander_utils.mana_audit:main"
 cut-check = "commander_utils.cut_check:main"
+build-deck = "commander_utils.build_deck:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
