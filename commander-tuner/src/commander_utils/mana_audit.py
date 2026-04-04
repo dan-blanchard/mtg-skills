@@ -248,16 +248,18 @@ def main(
         new_deck = json.loads(new_deck_path.read_text(encoding="utf-8"))
         new_hydrated = json.loads(new_hydrated_path.read_text(encoding="utf-8"))
 
-        before = mana_audit(deck, hydrated)
-        after = mana_audit(new_deck, new_hydrated)
+        primary = mana_audit(deck, hydrated)
+        primary["source"] = deck_path.name
+        comparison = mana_audit(new_deck, new_hydrated)
+        comparison["source"] = new_deck_path.name
 
         result = {
-            "before": before,
-            "after": after,
+            "primary": primary,
+            "comparison": comparison,
             "delta": {
-                "land_count": after["land_count"] - before["land_count"],
-                "avg_cmc": round(after["avg_cmc"] - before["avg_cmc"], 2),
-                "ramp_count": after["ramp_count"] - before["ramp_count"],
+                "land_count": comparison["land_count"] - primary["land_count"],
+                "avg_cmc": round(comparison["avg_cmc"] - primary["avg_cmc"], 2),
+                "ramp_count": comparison["ramp_count"] - primary["ramp_count"],
             },
         }
     else:

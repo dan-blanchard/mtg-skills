@@ -224,9 +224,62 @@ class TestCLI:
         )
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
-        assert "before" in data
-        assert "after" in data
+        assert "primary" in data
+        assert "comparison" in data
         assert "delta" in data
         assert "land_count" in data["delta"]
         assert "avg_cmc" in data["delta"]
         assert "ramp_count" in data["delta"]
+
+
+class TestCompareLabels:
+    def test_uses_primary_comparison_keys(self, tmp_path):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Mountain", "quantity": 37}],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Legendary Creature", "mana_cost": "{2}{B}{R}{G}", "keywords": [], "color_identity": ["B", "R", "G"]},
+            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain", "oracle_text": "({T}: Add {R}.)", "keywords": []},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [str(deck_path), str(hydrated_path), "--compare", str(deck_path), str(hydrated_path)],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "primary" in data
+        assert "comparison" in data
+        assert "before" not in data
+        assert "after" not in data
+
+    def test_includes_source_filenames(self, tmp_path):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Mountain", "quantity": 37}],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Legendary Creature", "mana_cost": "{2}{B}{R}{G}", "keywords": [], "color_identity": ["B", "R", "G"]},
+            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain", "oracle_text": "({T}: Add {R}.)", "keywords": []},
+        ]
+        deck_path = tmp_path / "primary.json"
+        deck_path.write_text(json.dumps(deck))
+        compare_path = tmp_path / "comparison.json"
+        compare_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [str(deck_path), str(hydrated_path), "--compare", str(compare_path), str(hydrated_path)],
+        )
+        data = json.loads(result.output)
+        assert data["primary"]["source"] == "primary.json"
+        assert data["comparison"]["source"] == "comparison.json"
