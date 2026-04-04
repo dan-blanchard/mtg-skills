@@ -17,12 +17,29 @@ from commander_utils.card_classify import (
     is_ramp,
 )
 
-
 ALTERNATIVE_COST_KEYWORDS = {
-    "suspend", "evoke", "foretell", "flashback", "escape", "dash",
-    "disturb", "madness", "miracle", "blitz", "prototype", "spectacle",
-    "emerge", "ninjutsu", "overload", "plot", "bestow", "mutate",
-    "prowl", "retrace", "surge", "buyback",
+    "suspend",
+    "evoke",
+    "foretell",
+    "flashback",
+    "escape",
+    "dash",
+    "disturb",
+    "madness",
+    "miracle",
+    "blitz",
+    "prototype",
+    "spectacle",
+    "emerge",
+    "ninjutsu",
+    "overload",
+    "plot",
+    "bestow",
+    "mutate",
+    "prowl",
+    "retrace",
+    "surge",
+    "buyback",
 }
 
 _MORPH_KEYWORDS = {"morph", "disguise", "megamorph"}
@@ -51,21 +68,26 @@ def _detect_alternative_costs(card: dict) -> list[dict]:
             )
             match = pattern.search(oracle)
             if match:
-                alt_costs.append({"type": f"{kw} (face up)", "cost": match.group(1).strip()})
+                cost = match.group(1).strip()
+                alt_costs.append({"type": f"{kw} (face up)", "cost": cost})
 
     # Card faces: adventure and MDFC
     card_faces = card.get("card_faces")
     layout = card.get("layout", "")
     if card_faces and layout == "adventure" and len(card_faces) >= 2:
-        alt_costs.append({
-            "type": "adventure",
-            "cost": card_faces[1].get("mana_cost", ""),
-        })
+        alt_costs.append(
+            {
+                "type": "adventure",
+                "cost": card_faces[1].get("mana_cost", ""),
+            }
+        )
     elif card_faces and layout == "modal_dfc" and len(card_faces) >= 2:
-        alt_costs.append({
-            "type": "mdfc_back",
-            "cost": card_faces[1].get("mana_cost", ""),
-        })
+        alt_costs.append(
+            {
+                "type": "mdfc_back",
+                "cost": card_faces[1].get("mana_cost", ""),
+            }
+        )
 
     return alt_costs
 
@@ -128,11 +150,13 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
             continue
         alt_costs = _detect_alternative_costs(card)
         if alt_costs:
-            alternative_cost_cards.append({
-                "name": name,
-                "cmc": card.get("cmc", 0.0),
-                "alt_costs": alt_costs,
-            })
+            alternative_cost_cards.append(
+                {
+                    "name": name,
+                    "cmc": card.get("cmc", 0.0),
+                    "alt_costs": alt_costs,
+                }
+            )
 
     return {
         "total_cards": total_cards,

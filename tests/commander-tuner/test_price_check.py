@@ -21,7 +21,7 @@ class TestCheckPrices:
             {"name": "No Price Card", "prices": {"usd": None, "usd_foil": None}},
         ]
         with patch("commander_utils.price_check.lookup_single") as mock_lookup:
-            mock_lookup.side_effect = lambda name, **kw: next(
+            mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
             result = check_prices(["Cheap Card", "No Price Card"])
@@ -59,14 +59,22 @@ class TestCheckPrices:
         assert "Sol Ring" in names
 
     def test_api_fallback_for_null_prices(self):
-        bulk_card = {"name": "Priceless Card", "prices": {"usd": None, "usd_foil": None}}
+        bulk_card = {
+            "name": "Priceless Card",
+            "prices": {"usd": None, "usd_foil": None},
+        }
         api_resp = MagicMock()
         api_resp.status_code = 200
-        api_resp.json.return_value = {"name": "Priceless Card", "prices": {"usd": "42.00", "usd_foil": "80.00"}}
+        api_resp.json.return_value = {
+            "name": "Priceless Card",
+            "prices": {"usd": "42.00", "usd_foil": "80.00"},
+        }
         api_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.price_check.lookup_single", return_value=bulk_card), \
-             patch("commander_utils.price_check.requests") as mock_requests:
+        with (
+            patch("commander_utils.price_check.lookup_single", return_value=bulk_card),
+            patch("commander_utils.price_check.requests") as mock_requests,
+        ):
             mock_session = MagicMock()
             mock_session.get.return_value = api_resp
             mock_requests.Session.return_value = mock_session

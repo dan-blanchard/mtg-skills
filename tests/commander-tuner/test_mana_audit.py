@@ -239,8 +239,21 @@ class TestCompareLabels:
             "cards": [{"name": "Mountain", "quantity": 37}],
         }
         hydrated = [
-            {"name": "Korvold", "cmc": 5, "type_line": "Legendary Creature", "mana_cost": "{2}{B}{R}{G}", "keywords": [], "color_identity": ["B", "R", "G"]},
-            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain", "oracle_text": "({T}: Add {R}.)", "keywords": []},
+            {
+                "name": "Korvold",
+                "cmc": 5,
+                "type_line": "Legendary Creature",
+                "mana_cost": "{2}{B}{R}{G}",
+                "keywords": [],
+                "color_identity": ["B", "R", "G"],
+            },
+            {
+                "name": "Mountain",
+                "cmc": 0,
+                "type_line": "Basic Land — Mountain",
+                "oracle_text": "({T}: Add {R}.)",
+                "keywords": [],
+            },
         ]
         deck_path = tmp_path / "deck.json"
         deck_path.write_text(json.dumps(deck))
@@ -250,7 +263,13 @@ class TestCompareLabels:
         runner = CliRunner()
         result = runner.invoke(
             main,
-            [str(deck_path), str(hydrated_path), "--compare", str(deck_path), str(hydrated_path)],
+            [
+                str(deck_path),
+                str(hydrated_path),
+                "--compare",
+                str(deck_path),
+                str(hydrated_path),
+            ],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -265,8 +284,21 @@ class TestCompareLabels:
             "cards": [{"name": "Mountain", "quantity": 37}],
         }
         hydrated = [
-            {"name": "Korvold", "cmc": 5, "type_line": "Legendary Creature", "mana_cost": "{2}{B}{R}{G}", "keywords": [], "color_identity": ["B", "R", "G"]},
-            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain", "oracle_text": "({T}: Add {R}.)", "keywords": []},
+            {
+                "name": "Korvold",
+                "cmc": 5,
+                "type_line": "Legendary Creature",
+                "mana_cost": "{2}{B}{R}{G}",
+                "keywords": [],
+                "color_identity": ["B", "R", "G"],
+            },
+            {
+                "name": "Mountain",
+                "cmc": 0,
+                "type_line": "Basic Land — Mountain",
+                "oracle_text": "({T}: Add {R}.)",
+                "keywords": [],
+            },
         ]
         deck_path = tmp_path / "primary.json"
         deck_path.write_text(json.dumps(deck))
@@ -278,7 +310,13 @@ class TestCompareLabels:
         runner = CliRunner()
         result = runner.invoke(
             main,
-            [str(deck_path), str(hydrated_path), "--compare", str(compare_path), str(hydrated_path)],
+            [
+                str(deck_path),
+                str(hydrated_path),
+                "--compare",
+                str(compare_path),
+                str(hydrated_path),
+            ],
         )
         data = json.loads(result.output)
         assert data["primary"]["source"] == "primary.json"

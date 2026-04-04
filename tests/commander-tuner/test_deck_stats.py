@@ -84,7 +84,9 @@ class TestAlternativeCostCards:
         }
         result = deck_stats(deck, alt_cost_cards)
         alt = {c["name"]: c for c in result["alternative_cost_cards"]}
-        star_whale_suspend = [a for a in alt["Star Whale"]["alt_costs"] if a["type"] == "suspend"][0]
+        star_whale_suspend = next(
+            a for a in alt["Star Whale"]["alt_costs"] if a["type"] == "suspend"
+        )
         assert "{1}{U}" in star_whale_suspend["cost"]
 
     def test_detects_evoke(self, alt_cost_cards):

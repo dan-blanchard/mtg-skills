@@ -81,11 +81,13 @@ def check_prices(
         if price is not None:
             running_total += price
 
-        cards_out.append({
-            "name": name,
-            "price_usd": price,
-            "running_total": round(running_total, 2),
-        })
+        cards_out.append(
+            {
+                "name": name,
+                "price_usd": price,
+                "running_total": round(running_total, 2),
+            }
+        )
 
     result: dict = {
         "cards": cards_out,

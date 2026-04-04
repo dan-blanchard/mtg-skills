@@ -17,7 +17,10 @@ def _normalize_entry(entry: str | dict) -> dict:
         return {"name": entry, "quantity": 1}
     if isinstance(entry, dict) and "name" in entry:
         return entry
-    msg = f'Expected card name string or {{"name": ..., "quantity": ...}} dict, got: {entry!r}'
+    msg = (
+        f"Expected card name string or "
+        f'{{"name": ..., "quantity": ...}} dict, got: {entry!r}'
+    )
     raise ValueError(msg)
 
 
@@ -110,14 +113,10 @@ def main(
     deck = json.loads(deck_json.read_text(encoding="utf-8"))
     hydrated: list[dict | None] = json.loads(hydrated_json.read_text(encoding="utf-8"))
 
-    cuts: list[dict] = [
-        _normalize_entry(c)
-        for c in (json.loads(cuts_json.read_text(encoding="utf-8")) if cuts_json else [])
-    ]
-    adds: list[dict] = [
-        _normalize_entry(a)
-        for a in (json.loads(adds_json.read_text(encoding="utf-8")) if adds_json else [])
-    ]
+    raw_cuts = json.loads(cuts_json.read_text(encoding="utf-8")) if cuts_json else []
+    cuts: list[dict] = [_normalize_entry(c) for c in raw_cuts]
+    raw_adds = json.loads(adds_json.read_text(encoding="utf-8")) if adds_json else []
+    adds: list[dict] = [_normalize_entry(a) for a in raw_adds]
 
     # Look up any added cards not already in hydrated
     hydrated_names = {c["name"] for c in hydrated if c}
