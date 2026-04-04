@@ -64,6 +64,16 @@ class TestSetCommander:
         assert sample_deck["commanders"] == original_commanders
         assert sample_deck["cards"] == original_cards
 
+    def test_duplicate_commander_raises(self):
+        deck = {
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        import pytest
+
+        with pytest.raises(ValueError, match="already in commander zone"):
+            set_commander(deck, ["Korvold, Fae-Cursed King"])
+
 
 class TestCLI:
     def test_outputs_modified_json(self, sample_deck, tmp_path):

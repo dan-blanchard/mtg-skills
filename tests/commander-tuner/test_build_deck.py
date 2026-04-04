@@ -1,6 +1,11 @@
 """Tests for build_deck module."""
 
-from commander_utils.build_deck import build_deck
+import json
+from unittest.mock import patch
+
+from click.testing import CliRunner
+
+from commander_utils.build_deck import build_deck, main
 
 
 class TestBuildDeck:
@@ -84,3 +89,68 @@ class TestBuildDeck:
         )
         names = [c["name"] for c in new_hydrated if c]
         assert "New Card" in names
+
+
+class TestCLI:
+    def test_cli_writes_output_files(self, tmp_path):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Bad Card", "quantity": 1}],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
+        ]
+        cuts = [{"name": "Bad Card", "quantity": 1}]
+        adds = [{"name": "Good Card", "quantity": 1}]
+
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(cuts))
+        adds_path = tmp_path / "adds.json"
+        adds_path.write_text(json.dumps(adds))
+        output_dir = tmp_path / "output"
+
+        good_card_data = {
+            "name": "Good Card",
+            "cmc": 2,
+            "type_line": "Instant",
+            "oracle_text": "Draw a card.",
+            "mana_cost": "{1}{U}",
+            "keywords": [],
+            "colors": ["U"],
+            "color_identity": ["U"],
+            "prices": {"usd": "0.50"},
+            "legalities": {"commander": "legal"},
+        }
+
+        with patch(
+            "commander_utils.build_deck.lookup_single", return_value=good_card_data
+        ):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--cuts",
+                    str(cuts_path),
+                    "--adds",
+                    str(adds_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+            )
+
+        assert result.exit_code == 0
+        new_deck = json.loads((output_dir / "new-deck.json").read_text())
+        card_names = [c["name"] for c in new_deck["cards"]]
+        assert "Good Card" in card_names
+        assert "Bad Card" not in card_names
+
+        new_hydrated = json.loads((output_dir / "new-hydrated.json").read_text())
+        hydrated_names = [c["name"] for c in new_hydrated if c]
+        assert "Good Card" in hydrated_names

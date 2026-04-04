@@ -14,13 +14,18 @@ def set_commander(deck: dict, commander_names: list[str]) -> dict:
 
     Raises ValueError if any name is not found in the cards list.
     """
+    new_commanders = list(deck.get("commanders", []))
+    existing_names = {c["name"] for c in new_commanders}
+    for name in commander_names:
+        if name in existing_names:
+            msg = f"Card already in commander zone: {name}"
+            raise ValueError(msg)
+
     card_names = {card["name"] for card in deck.get("cards", [])}
     for name in commander_names:
         if name not in card_names:
             msg = f"'{name}' not found in deck cards"
             raise ValueError(msg)
-
-    new_commanders = list(deck.get("commanders", []))
     new_cards = []
     for card in deck.get("cards", []):
         if card["name"] in commander_names:

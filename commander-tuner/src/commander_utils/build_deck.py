@@ -79,7 +79,6 @@ def _count_total(deck: dict) -> int:
     "--adds", "adds_json", type=click.Path(exists=True, path_type=Path), default=None
 )
 @click.option("--bulk-data", type=click.Path(exists=True, path_type=Path), default=None)
-@click.option("--cache-dir", type=click.Path(path_type=Path), default=None)
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
@@ -92,7 +91,6 @@ def main(
     cuts_json: Path | None,
     adds_json: Path | None,
     bulk_data: Path | None,
-    cache_dir: Path | None,  # noqa: ARG001
     output_dir: Path,
 ) -> None:
     """Apply cuts and adds to a deck, writing new-deck.json and new-hydrated.json."""

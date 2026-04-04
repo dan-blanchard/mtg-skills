@@ -154,3 +154,11 @@ class TestColorSourcesFetchLands:
             "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
         }
         assert color_sources(card) == {"U", "B", "R"}
+
+    def test_basic_land_type_fetch(self):
+        """Verify 'basic Mountain card' wording is handled."""
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic Mountain card, put it onto the battlefield tapped, then shuffle.",
+        }
+        assert color_sources(card) == {"R"}
