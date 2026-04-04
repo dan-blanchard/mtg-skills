@@ -11,6 +11,16 @@ import click
 from commander_utils.scryfall_lookup import lookup_single
 
 
+def _normalize_entry(entry: str | dict) -> dict:
+    """Normalize a cut/add entry to {"name": str, "quantity": int}."""
+    if isinstance(entry, str):
+        return {"name": entry, "quantity": 1}
+    if isinstance(entry, dict) and "name" in entry:
+        return entry
+    msg = f'Expected card name string or {{"name": ..., "quantity": ...}} dict, got: {entry!r}'
+    raise ValueError(msg)
+
+
 def build_deck(
     deck: dict,
     hydrated: list[dict | None],
@@ -25,6 +35,9 @@ def build_deck(
     """
     new_deck = copy.deepcopy(deck)
     new_hydrated = list(hydrated)
+
+    cuts = [_normalize_entry(c) for c in cuts]
+    adds = [_normalize_entry(a) for a in adds]
 
     # Merge extra_hydrated for newly added cards
     if extra_hydrated:
@@ -97,12 +110,14 @@ def main(
     deck = json.loads(deck_json.read_text(encoding="utf-8"))
     hydrated: list[dict | None] = json.loads(hydrated_json.read_text(encoding="utf-8"))
 
-    cuts: list[dict] = (
-        json.loads(cuts_json.read_text(encoding="utf-8")) if cuts_json else []
-    )
-    adds: list[dict] = (
-        json.loads(adds_json.read_text(encoding="utf-8")) if adds_json else []
-    )
+    cuts: list[dict] = [
+        _normalize_entry(c)
+        for c in (json.loads(cuts_json.read_text(encoding="utf-8")) if cuts_json else [])
+    ]
+    adds: list[dict] = [
+        _normalize_entry(a)
+        for a in (json.loads(adds_json.read_text(encoding="utf-8")) if adds_json else [])
+    ]
 
     # Look up any added cards not already in hydrated
     hydrated_names = {c["name"] for c in hydrated if c}

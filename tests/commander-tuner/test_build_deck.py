@@ -3,6 +3,7 @@
 import json
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from commander_utils.build_deck import build_deck, main
@@ -154,3 +155,63 @@ class TestCLI:
         new_hydrated = json.loads((output_dir / "new-hydrated.json").read_text())
         hydrated_names = [c["name"] for c in new_hydrated if c]
         assert "Good Card" in hydrated_names
+
+
+class TestFlexibleInput:
+    def test_accepts_string_cuts(self):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Bad Card", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+            {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
+        ]
+        cuts = ["Bad Card"]
+        new_deck, _ = build_deck(deck, hydrated, cuts, [])
+        card_names = [c["name"] for c in new_deck["cards"]]
+        assert "Bad Card" not in card_names
+
+    def test_accepts_string_adds(self):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Good Card", "cmc": 2, "type_line": "Instant"},
+        ]
+        adds = ["Good Card"]
+        new_deck, _ = build_deck(deck, hydrated, [], adds)
+        card_names = [c["name"] for c in new_deck["cards"]]
+        assert "Good Card" in card_names
+
+    def test_accepts_mixed_string_and_dict(self):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Bad Card", "quantity": 1}],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
+            {"name": "Good Card", "cmc": 2, "type_line": "Instant"},
+        ]
+        cuts = ["Bad Card"]
+        adds = [{"name": "Good Card", "quantity": 1}]
+        new_deck, _ = build_deck(deck, hydrated, cuts, adds)
+        card_names = [c["name"] for c in new_deck["cards"]]
+        assert "Bad Card" not in card_names
+        assert "Good Card" in card_names
+
+    def test_rejects_invalid_entry(self):
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [],
+        }
+        hydrated = [{"name": "Korvold", "cmc": 5, "type_line": "Creature"}]
+        with pytest.raises(ValueError, match="Expected card name string"):
+            build_deck(deck, hydrated, [42], [])
