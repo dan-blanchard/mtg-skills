@@ -143,6 +143,8 @@ For example: "Based on Alibou's oracle text, the deck wants: (1) high artifact d
 
 This catches blind spots — the user may see synergies you missed (like trigger-copying effects, combo lines, or political angles). Don't start evaluating cards until you and the user agree on what "good" looks like for this specific commander.
 
+Present your estimated trigger multiplier range for `cut-check` analysis (e.g., "Based on Obeka's 3 base power with typical pump, I'm estimating 3-7 extra upkeeps per hit"). **Ask the user to validate this range.** The multiplier range feeds into `cut-check` and determines how trigger values are evaluated.
+
 ## Step 5.5: Commander Interaction Audit
 
 Before evaluating individual cards, systematically check for mechanical interactions between the commander and every card in the deck. This step catches synergies that are invisible when reading cards in isolation.
@@ -191,13 +193,9 @@ Before evaluating individual cards, count the deck's mana infrastructure:
 - **Average CMC** of nonland cards
 - **Curve distribution** (how many cards at each mana value)
 
-**Land count guidelines** (based on Frank Karsten's simulations and community consensus):
-- Start from **42 lands + Sol Ring**, cut 1 land per 2-3 mana rocks
-- **Burgess formula:** `Lands = 31 + colors in identity + commander CMC` (good for non-cEDH)
-- Low curve (avg CMC <2.5, heavy ramp): 33-36 lands
-- Typical curve (avg CMC 2.5-3.5): 36-38 lands
-- High curve (avg CMC 3.5+) or 4-5 colors: 38-40+ lands
-- **Never go below 36 lands** unless the deck is specifically built for it (cEDH, heavy ramp/cantrips)
+**Land count is a hard constraint, not a suggestion.** Calculate the Burgess formula result (`31 + colors_in_identity + commander_cmc`) and treat it as the target. The `mana-audit` script enforces this — if it returns FAIL, you must add lands or cut fewer lands.
+
+Proposing a land count below the Burgess formula result requires the `mana-audit` script to return PASS or WARN (not FAIL). Proposing a land count below 36 is almost always a FAIL. Do not rationalize — fix it.
 
 Flag any existing problems: too few lands, curve too high, not enough ramp for the curve, color fixing gaps.
 
@@ -247,8 +245,23 @@ After drafting all cuts and additions, verify the swaps don't break the mana bas
 - **Mana curve must not get worse.** If you're cutting a 2-drop for a 5-drop, note the curve impact. Swaps that raise the average CMC need justification.
 - **Color balance matters.** Don't cut the deck's only source of a color. Check that color-producing land count supports the color requirements of the additions.
 - **Ramp count must stay stable.** Don't cut ramp pieces unless the deck has too many or you're adding equivalent ramp.
+- **Color balance must be verified quantitatively.** After drafting all swaps, run `mana-audit --compare` with the old and new deck. If any color's land percentage drops below its pip demand percentage, adjust the mana base (swap a basic land for a different basic, replace a dual land, etc.). Do not present swaps that create a color deficit.
 
 If the swaps would damage the mana base, revise before presenting. It is better to make fewer swaps than to break the deck's ability to cast its spells.
+
+## Step 6.5: Mechanical Cut Check
+
+Before launching the self-grill, run `cut-check` on every proposed cut. Read the output.
+
+For each proposed cut, write out (internally, not presented to user):
+1. **Multiplied value:** [from cut-check output, or "no matching triggers"]
+2. **Pain point regression:** Does cutting this card make the user's stated problem worse? [yes/no + one sentence why]
+3. **Defensive value:** What does this card prevent, deter, or protect? [one sentence, or "none"]
+4. **Replacement justification:** What specific card in the additions replaces this card's role? [name + one sentence]
+
+If you cannot fill in all four fields, you have not evaluated the card. Do not proceed to the self-grill.
+
+Review the multiplied trigger values from `cut-check` output. Any cut where the multiplied output is significant for the user's stated goals requires explicit justification for why the replacement is better *for the user's pain point*. If you cannot articulate this, do not cut it.
 
 ## Step 7: Self-Grill (Two-Agent Debate)
 
@@ -258,10 +271,15 @@ Before presenting to the user, launch **two subagents** that debate the proposed
 - The proposed cuts and additions with full reasoning
 - The hydrated card data for all cards involved (cuts, adds, and the commander)
 - The user's stated goals, pain points, and budget
+- The `cut-check` output for all proposed cuts
+- The `mana-audit` output for the proposed deck
+- Framing: "These are the flags from mechanical analysis. You addressed them in your proposal. Defend your reasoning against challenges. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Pushing back is your job."
 
 **Challenger agent** receives:
 - The same data as the proposer
-- The grill-me skill text (read from the grill-me skill file)
+- The `cut-check` output for all proposed cuts and the `mana-audit` output
+- Verify the proposer addressed every `cut-check` flag. Any unaddressed flag is an automatic challenge.
+- Verify `mana-audit` shows PASS. Any WARN or FAIL is an automatic challenge.
 - The red flags table from this skill
 - Explicit instructions to:
   - Re-read the oracle text of every proposed cut and challenge whether it's truly weak with THIS commander
@@ -279,6 +297,10 @@ The challenger reports issues. The proposer responds or revises. Repeat until th
 **This is not a formality.** If both agents agree immediately, something is wrong — the challenger isn't pushing hard enough. Expect at least 2-3 rounds of challenges.
 
 ## Step 8: Propose Changes
+
+**Before presenting any proposal to the user, run `mana-audit` on the proposed new deck (using `build-deck` output). If `mana-audit` returns FAIL, revise cuts/adds until it passes. Do not present a failing proposal.**
+
+This is not a guideline. It is a gate. A proposal with FAIL status does not leave this step.
 
 **The user has not seen the debate.** Present the post-debate proposal as a complete, self-contained recommendation with full reasoning for every swap. Do not reference the debate, do not say "after reviewing" or "the revised list" — present it as your recommendation with the reasoning baked in.
 
@@ -343,6 +365,7 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 | "This trigger is too small to matter" | Multiply by expected extra triggers AND by number of opponents. 1 damage × 5 upkeeps × 3 opponents = 15. Do the math. |
 | "I've read this card" | Did you read every clause? Defensive restrictions, type-changing effects, self-recurring mechanics, and static effects on other permanents are commonly missed. |
 | "This is redundant evasion/protection" | Redundancy in the deck's most important effects is intentional. Before cutting, check whether the card creates a unique mechanical interaction (e.g., blocking restriction + menace = unblockable) that no other card replicates. |
+| "I can cut one more land, the ramp covers it" | Run `mana-audit`. If it says FAIL, you cannot. Ramp does not replace lands — it supplements them. |
 
 ## Experience Level Adaptation
 
