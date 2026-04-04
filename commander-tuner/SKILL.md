@@ -86,9 +86,11 @@ This auto-detects format (Moxfield, MTGO, plain text, CSV) and outputs JSON with
 
 If `commanders` is empty (common with Moxfield exports that lack `//Commander` headers), ask the user who the commander is. Don't guess — the first card in the list is often the commander, but not always. Supports partner commanders, friends forever, and background pairings.
 
+Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards list to the commanders list. This outputs updated JSON to stdout. Supports partner commanders, friends forever, and background pairings.
+
 ## Step 2: Hydrate Card Data
 
-Run: `uv run --directory <skill-install-dir> scryfall-lookup --batch <names-json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`
+Run: `uv run --directory <skill-install-dir> scryfall-lookup --batch <parsed-deck-json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`
 
 Looks up every card (including the commander) in Scryfall bulk data. Falls back to Scryfall API for cards not found locally. Results are cached persistently in the skill's install directory so repeat analyses are instant. If bulk data is missing or stale, download it first:
 
@@ -105,6 +107,8 @@ Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> 
 Run: `uv run --directory <skill-install-dir> deck-stats <parsed-deck-json> <hydrated-cards-json>`
 
 Review the card summary output to build your understanding of every card's oracle text. Use the deck stats to note the starting land count, ramp count, creature count, average CMC, curve distribution, and total card count. Flag immediately if the total card count is not exactly 100 (illegal deck size).
+
+Review the `alternative_cost_cards` section in deck-stats output. For any card with alternative costs (suspend, adventure, foretell, etc.), note the cost most likely to be used in this deck. Do not evaluate these cards at their CMC alone.
 
 ## Step 3: User Intake
 
@@ -216,6 +220,10 @@ Sources: [EDHREC Superior Numbers](https://edhrec.com/articles/superior-numbers-
 
 Before recommending ANY cut, work through this checklist for every candidate. Skipping items is how cards get misjudged.
 
+0. **Full oracle text verification.** Before evaluating any card for a cut, look up its complete oracle text via `scryfall-lookup <card name>`. The `card-summary` table truncates oracle text and is for scanning only, not for evaluating individual cards. Never base a cut decision on truncated oracle text.
+
+0.5. **Alternative cost check.** If the card has suspend, foretell, adventure, evoke, flashback, escape, or other alternative casting costs, evaluate at the cost most likely to be used in this deck, not the printed CMC. A suspend card in an extra-upkeep deck is not an 8-drop.
+
 1. **Clause-by-clause oracle text analysis.** Read each sentence of the card's oracle text independently. Ask: "How does THIS specific clause interact with my commander and the deck's strategy?" Cards often have 3-4 separate abilities. If you only evaluated one, you haven't read the card. Common missed clauses:
    - Attack/block restrictions ("can't attack its owner," "can't be blocked by more than one creature")
    - Type-changing effects ("is a Mercenary in addition to its other types")
@@ -251,6 +259,8 @@ If the swaps would damage the mana base, revise before presenting. It is better 
 
 ## Step 6.5: Mechanical Cut Check
 
+Run `price-check` on all proposed additions with the user's budget (`uv run --directory <skill-install-dir> price-check <adds-names-json> --budget <budget> --bulk-data <bulk-data-path>`). If any single card or the total exceeds budget, find cheaper alternatives before proceeding. Do not send cards to the self-grill that the user cannot afford.
+
 Before launching the self-grill, run `cut-check` on every proposed cut. Read the output.
 
 For each proposed cut, write out (internally, not presented to user):
@@ -273,11 +283,13 @@ Before presenting to the user, launch **two subagents** that debate the proposed
 - The user's stated goals, pain points, and budget
 - The `cut-check` output for all proposed cuts
 - The `mana-audit` output for the proposed deck
+- The `price-check` output for all proposed additions
 - Framing: "These are the flags from mechanical analysis. You addressed them in your proposal. Defend your reasoning against challenges. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Pushing back is your job."
 
 **Challenger agent** receives:
 - The same data as the proposer
 - The `cut-check` output for all proposed cuts and the `mana-audit` output
+- The `price-check` output for all proposed additions
 - Verify the proposer addressed every `cut-check` flag. Any unaddressed flag is an automatic challenge.
 - Verify `mana-audit` shows PASS. Any WARN or FAIL is an automatic challenge.
 - The red flags table from this skill
@@ -287,6 +299,7 @@ Before presenting to the user, launch **two subagents** that debate the proposed
   - Verify the swap balance (land count, curve, ramp, color balance)
   - Look for missing synergy angles the proposer didn't consider
   - Challenge budget allocation (is the most expensive card really the highest priority?)
+  - Verify total cost does not exceed budget and flag any card that consumes a disproportionate share of the budget
   - Receive and independently re-read the full hydrated oracle text for every proposed cut — do NOT rely on the proposer's paraphrasing. Any discrepancy between the proposer's description and the actual oracle text is an automatic flag
   - Check every clause of every cut card's oracle text, not just the primary ability — look for defensive clauses, type-changing effects, self-recurring mechanics, and static effects on other permanents
   - Verify keyword interactions between the commander and each cut card (see Step 5.5)
@@ -375,3 +388,15 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 | Explanations | Why each card matters | Focus on non-obvious interactions | Just the synergy line |
 | Mana curve | Explain what good curve looks like | Note problems | Numbers only |
 | Presentation | Narrative with examples | Grouped analysis | Concise tables |
+
+## Script Input Formats
+
+- `parse-deck <path>` — outputs `{"commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`
+- `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout
+- `scryfall-lookup "Card Name"` — outputs single card JSON to stdout
+- `scryfall-lookup --batch <path>` — accepts either a JSON list of name strings or a parsed deck JSON; outputs list of card JSONs
+- `price-check <path> [--budget N]` — accepts either a JSON list of name strings or a parsed deck JSON; outputs prices and running total
+- `build-deck --cuts/--adds <path>` — accepts list of `{"name": str, "quantity": int}` dicts or plain name strings (quantity defaults to 1)
+- `cut-check --cuts <path>` — expects JSON list of name strings
+- `deck-stats` — outputs `{..., "alternative_cost_cards": [{"name": str, "cmc": float, "alt_costs": [{"type": str, "cost": str}]}]}`
+- `mana-audit --compare` — outputs `{"primary": {"source": str, ...}, "comparison": {"source": str, ...}, "delta": {...}}`

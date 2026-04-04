@@ -161,6 +161,10 @@ def parse_deck(path: Path) -> dict:
     for card in result["cards"]:
         card["name"] = _strip_set_code(card["name"])
 
+    result["total_cards"] = sum(
+        c.get("quantity", 1) for c in result["commanders"]
+    ) + sum(c.get("quantity", 1) for c in result["cards"])
+
     return result
 
 

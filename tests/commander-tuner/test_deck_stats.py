@@ -66,6 +66,63 @@ class TestDeckStats:
         assert "G" in result["color_sources"]
 
 
+class TestAlternativeCostCards:
+    def test_detects_suspend_cards(self, alt_cost_cards):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
+        }
+        result = deck_stats(deck, alt_cost_cards)
+        alt = {c["name"]: c for c in result["alternative_cost_cards"]}
+        assert "Star Whale" in alt
+        assert any(a["type"] == "suspend" for a in alt["Star Whale"]["alt_costs"])
+
+    def test_detects_suspend_cost(self, alt_cost_cards):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
+        }
+        result = deck_stats(deck, alt_cost_cards)
+        alt = {c["name"]: c for c in result["alternative_cost_cards"]}
+        star_whale_suspend = next(
+            a for a in alt["Star Whale"]["alt_costs"] if a["type"] == "suspend"
+        )
+        assert "{1}{U}" in star_whale_suspend["cost"]
+
+    def test_detects_evoke(self, alt_cost_cards):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
+        }
+        result = deck_stats(deck, alt_cost_cards)
+        alt = {c["name"]: c for c in result["alternative_cost_cards"]}
+        assert "Fury" in alt
+        assert any(a["type"] == "evoke" for a in alt["Fury"]["alt_costs"])
+
+    def test_excludes_non_alt_cost_keywords(self, alt_cost_cards):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
+        }
+        result = deck_stats(deck, alt_cost_cards)
+        alt = {c["name"]: c for c in result["alternative_cost_cards"]}
+        # Ward, Flying, Vigilance, Trample, Double strike, Delve are NOT alternative costs
+        assert "Sol Ring" not in alt
+        assert "Command Tower" not in alt
+        assert "Goldvein Hydra" not in alt
+        assert "Murderous Cut" not in alt
+
+    def test_omits_cards_without_alt_costs(self, alt_cost_cards):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
+        }
+        result = deck_stats(deck, alt_cost_cards)
+        alt_names = {c["name"] for c in result["alternative_cost_cards"]}
+        assert "Sol Ring" not in alt_names
+        assert "Command Tower" not in alt_names
+
+
 class TestCLI:
     def test_outputs_valid_json(self, moxfield_deck, hydrated_cards, tmp_path):
         deck = parse_deck(moxfield_deck)

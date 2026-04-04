@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -15,6 +16,80 @@ from commander_utils.card_classify import (
     is_land,
     is_ramp,
 )
+
+ALTERNATIVE_COST_KEYWORDS = {
+    "suspend",
+    "evoke",
+    "foretell",
+    "flashback",
+    "escape",
+    "dash",
+    "disturb",
+    "madness",
+    "miracle",
+    "blitz",
+    "prototype",
+    "spectacle",
+    "emerge",
+    "ninjutsu",
+    "overload",
+    "plot",
+    "bestow",
+    "mutate",
+    "prowl",
+    "retrace",
+    "surge",
+    "buyback",
+}
+
+_MORPH_KEYWORDS = {"morph", "disguise", "megamorph"}
+
+
+def _detect_alternative_costs(card: dict) -> list[dict]:
+    """Detect alternative casting costs from keywords and oracle text."""
+    keywords = [kw.lower() for kw in card.get("keywords", [])]
+    oracle = card.get("oracle_text", "") or ""
+    alt_costs: list[dict] = []
+
+    for kw in keywords:
+        if kw in ALTERNATIVE_COST_KEYWORDS:
+            pattern = re.compile(
+                rf"{re.escape(kw)}(?:\s|—|\u2014)\s*(.+?)(?:\n|\.|$|\()",
+                re.IGNORECASE,
+            )
+            match = pattern.search(oracle)
+            if match:
+                alt_costs.append({"type": kw, "cost": match.group(1).strip()})
+        elif kw in _MORPH_KEYWORDS:
+            alt_costs.append({"type": kw, "cost": "{3} (face down)"})
+            pattern = re.compile(
+                rf"{re.escape(kw)}(?:\s|—|\u2014)\s*(.+?)(?:\n|\.|$|\()",
+                re.IGNORECASE,
+            )
+            match = pattern.search(oracle)
+            if match:
+                cost = match.group(1).strip()
+                alt_costs.append({"type": f"{kw} (face up)", "cost": cost})
+
+    # Card faces: adventure and MDFC
+    card_faces = card.get("card_faces")
+    layout = card.get("layout", "")
+    if card_faces and layout == "adventure" and len(card_faces) >= 2:
+        alt_costs.append(
+            {
+                "type": "adventure",
+                "cost": card_faces[1].get("mana_cost", ""),
+            }
+        )
+    elif card_faces and layout == "modal_dfc" and len(card_faces) >= 2:
+        alt_costs.append(
+            {
+                "type": "mdfc_back",
+                "cost": card_faces[1].get("mana_cost", ""),
+            }
+        )
+
+    return alt_costs
 
 
 def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
@@ -66,6 +141,23 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
 
     avg_cmc = sum(nonland_cmcs) / len(nonland_cmcs) if nonland_cmcs else 0.0
 
+    # Detect alternative costs
+    alternative_cost_cards: list[dict] = []
+    for entry in all_entries:
+        name = entry["name"]
+        card = card_lookup.get(name)
+        if card is None or is_land(card):
+            continue
+        alt_costs = _detect_alternative_costs(card)
+        if alt_costs:
+            alternative_cost_cards.append(
+                {
+                    "name": name,
+                    "cmc": card.get("cmc", 0.0),
+                    "alt_costs": alt_costs,
+                }
+            )
+
     return {
         "total_cards": total_cards,
         "land_count": land_count,
@@ -75,6 +167,7 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
         "avg_cmc": round(avg_cmc, 2),
         "curve": dict(sorted(curve.items())),
         "color_sources": dict(sorted(sources.items())),
+        "alternative_cost_cards": alternative_cost_cards,
     }
 
 
