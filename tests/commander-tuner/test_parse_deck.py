@@ -120,6 +120,32 @@ class TestFormatDetection:
         assert len(result["cards"]) > 0
 
 
+class TestTotalCards:
+    def test_moxfield_total_cards(self, moxfield_deck):
+        result = parse_deck(moxfield_deck)
+        expected = sum(c["quantity"] for c in result["commanders"]) + sum(
+            c["quantity"] for c in result["cards"]
+        )
+        assert result["total_cards"] == expected
+
+    def test_mtgo_total_cards(self, mtgo_deck):
+        result = parse_deck(mtgo_deck)
+        expected = sum(c["quantity"] for c in result["cards"])
+        assert result["total_cards"] == expected
+
+    def test_total_cards_counts_multiples(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text("2 Island\n3 Mountain\n1 Sol Ring\n")
+        result = parse_deck(deck_path)
+        assert result["total_cards"] == 6
+
+    def test_cli_includes_total_cards(self, moxfield_deck):
+        runner = CliRunner()
+        result = runner.invoke(main, [str(moxfield_deck)])
+        data = json.loads(result.output)
+        assert "total_cards" in data
+
+
 class TestCLI:
     def test_outputs_json(self, moxfield_deck):
         runner = CliRunner()
