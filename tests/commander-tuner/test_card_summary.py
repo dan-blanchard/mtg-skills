@@ -59,15 +59,30 @@ class TestCardSummary:
         output = card_summary(hydrated)
         assert "Sol Ring" in output
 
-    def test_truncates_long_oracle_text(self):
-        long_text = "x" * 200
+    def test_does_not_truncate_moderate_oracle_text(self):
+        text_500 = "x" * 500
         hydrated = [
             {
                 "name": "Test Card",
                 "mana_cost": "{1}",
                 "cmc": 1.0,
                 "type_line": "Instant",
-                "oracle_text": long_text,
+                "oracle_text": text_500,
+            }
+        ]
+        output = card_summary(hydrated)
+        assert "..." not in output
+        assert text_500 in output
+
+    def test_truncates_very_long_oracle_text(self):
+        text_1500 = "x" * 1500
+        hydrated = [
+            {
+                "name": "Test Card",
+                "mana_cost": "{1}",
+                "cmc": 1.0,
+                "type_line": "Instant",
+                "oracle_text": text_1500,
             }
         ]
         output = card_summary(hydrated)

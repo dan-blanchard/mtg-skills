@@ -36,8 +36,8 @@ def card_summary(
     rows: list[list[str]] = []
     for card in cards:
         oracle = card.get("oracle_text", "") or ""
-        if len(oracle) > 100:
-            oracle = oracle[:100] + "..."
+        if len(oracle) > 1000:
+            oracle = oracle[:1000] + "..."
         # Replace newlines with spaces for table display
         oracle = oracle.replace("\n", " ")
         rows.append(
