@@ -41,10 +41,14 @@ def _fetch_with_curl(url: str) -> str:
     """Fetch via curl — bypasses TLS fingerprinting that blocks requests."""
     result = subprocess.run(
         [
-            "curl", "-sL",
-            "-H", f"User-Agent: {BROWSER_HEADERS['User-Agent']}",
-            "-H", f"Accept: {BROWSER_HEADERS['Accept']}",
-            "-H", f"Accept-Language: {BROWSER_HEADERS['Accept-Language']}",
+            "curl",
+            "-sL",
+            "-H",
+            f"User-Agent: {BROWSER_HEADERS['User-Agent']}",
+            "-H",
+            f"Accept: {BROWSER_HEADERS['Accept']}",
+            "-H",
+            f"Accept-Language: {BROWSER_HEADERS['Accept-Language']}",
             "--compressed",
             url,
         ],

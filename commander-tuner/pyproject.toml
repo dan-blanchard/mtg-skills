@@ -15,6 +15,9 @@ scryfall-lookup = "commander_utils.scryfall_lookup:main"
 edhrec-lookup = "commander_utils.edhrec_lookup:main"
 download-bulk = "commander_utils.download_bulk:main"
 web-fetch = "commander_utils.web_fetch:main"
+deck-stats = "commander_utils.deck_stats:main"
+card-summary = "commander_utils.card_summary:main"
+deck-diff = "commander_utils.deck_diff:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

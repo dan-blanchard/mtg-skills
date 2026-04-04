@@ -96,6 +96,16 @@ Run: `uv run --directory <skill-install-dir> download-bulk --output-dir <skill-i
 
 **Read the hydrated data.** Before any analysis, read the oracle text for every card, especially the commander. This is where you build your understanding of the deck.
 
+## Step 2.5: Baseline Metrics
+
+Run the deck stats and card summary scripts to establish a quantitative baseline and get readable oracle text:
+
+Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> --nonlands-only`
+Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> --lands-only`
+Run: `uv run --directory <skill-install-dir> deck-stats <parsed-deck-json> <hydrated-cards-json>`
+
+Review the card summary output to build your understanding of every card's oracle text. Use the deck stats to note the starting land count, ramp count, creature count, average CMC, curve distribution, and total card count. Flag immediately if the total card count is not exactly 100 (illegal deck size).
+
 ## Step 3: User Intake
 
 Ask all of these in a single message:
@@ -133,6 +143,41 @@ For example: "Based on Alibou's oracle text, the deck wants: (1) high artifact d
 
 This catches blind spots — the user may see synergies you missed (like trigger-copying effects, combo lines, or political angles). Don't start evaluating cards until you and the user agree on what "good" looks like for this specific commander.
 
+## Step 5.5: Commander Interaction Audit
+
+Before evaluating individual cards, systematically check for mechanical interactions between the commander and every card in the deck. This step catches synergies that are invisible when reading cards in isolation.
+
+### Keyword Combinations
+
+List the commander's keywords and any keywords granted by cards in the deck. Check every pair for emergent effects:
+- **Evasion stacking:** menace + "can't be blocked by more than one creature" = unblockable. Any blocking restriction combined with a conflicting blocking requirement may create unblockable.
+- **Damage multiplication:** double strike + combat damage triggers = double triggers. Double strike + lifelink = double life. Trample + deathtouch = 1 damage kills, rest tramples over.
+- **Protection stacking:** ward + hexproof, indestructible + regenerate — identify which are redundant vs. complementary.
+
+This applies to all cards, not just the commander. Equipment and auras that grant keywords to the commander are especially important.
+
+### Trigger Multiplication
+
+Identify the commander's core multiplier (extra upkeeps, extra combats, extra turns, extra phases, trigger copying, token doubling, etc.). For EVERY triggered ability in the deck that fires during the multiplied window, calculate its output at 1x, 3x, and 5x the base rate. Present and evaluate the **multiplied** value, not the base value.
+
+A "1 damage to each opponent" trigger looks marginal at 1x. At 5x with 3 opponents, it's 15 damage + 15 life — a legitimate win condition. Evaluate accordingly.
+
+For commanders whose trigger scales with combat damage dealt, explicitly identify **pump as a strategic pillar**. Each +1 power is not just +1 damage — it's +1 trigger of every effect in the multiplied window.
+
+### Feedback Loops
+
+For each card, ask: "Does this card's output feed back into its own input or the commander's trigger condition?" Examples:
+- A +1/+1 counter source on a commander whose trigger scales with power (more counters → more damage → more triggers → more counters)
+- A token creator that increases a count used by another card's scaling ability
+- A theft effect where stolen permanents change type to match a tribal count, increasing future theft
+- A card that draws cards in a hand-size-matters deck
+
+Cards with feedback loops are almost always stronger than they appear in isolation. Flag them before the analysis phase.
+
+### Recurring Cards
+
+Identify all cards that return themselves to a usable zone: re-suspend, buyback, retrace, escape, flashback, "return to hand" clauses, "exile with time counters" effects. Evaluate these on their per-game value (total free casts over a typical game), not their per-cast value. A 6-mana spell that re-suspends and gets cast for free every 1-2 turns is a permanent with a triggered ability, not a one-shot.
+
 ## Step 6: Analysis
 
 Group cards by commander-aware roles — roles defined by how they work with THIS commander, not generic categories. Analyze each group as a unit.
@@ -168,6 +213,24 @@ Sources: [EDHREC Superior Numbers](https://edhrec.com/articles/superior-numbers-
 - Mana base quality
 - Bracket compliance (count Game Changers vs. target bracket)
 - Pain point focus (weight toward user-identified issues)
+
+### Cut Checklist
+
+Before recommending ANY cut, work through this checklist for every candidate. Skipping items is how cards get misjudged.
+
+1. **Clause-by-clause oracle text analysis.** Read each sentence of the card's oracle text independently. Ask: "How does THIS specific clause interact with my commander and the deck's strategy?" Cards often have 3-4 separate abilities. If you only evaluated one, you haven't read the card. Common missed clauses:
+   - Attack/block restrictions ("can't attack its owner," "can't be blocked by more than one creature")
+   - Type-changing effects ("is a Mercenary in addition to its other types")
+   - Self-recurring mechanics (re-suspend, return to hand, exile with counters)
+   - Static effects on other permanents ("creatures you control but don't own are...")
+
+2. **Defensive value check.** Does this card reduce incoming damage or attacks? Protect other permanents? Deter opponents politically? Force opponents to attack each other? If the user's pain point involves survivability, weight defensive value higher than offensive value.
+
+3. **Feedback loop check.** Does removing this card break a self-reinforcing cycle? (See Step 5.5.) If so, the cut needs much stronger justification.
+
+4. **Pain point regression check.** Does cutting this card make the user's stated problem worse? A card that gains life in a deck whose pilot gets ganged up on may be load-bearing even if it looks underpowered.
+
+5. **Multiplied value calculation.** Calculate the card's output at the commander's expected trigger multiplier (see Step 5.5). If a trigger looks weak at 1x but kills a player at 5x, it is a win condition, not a role player. Do not cut win conditions for utility unless replacing with a better win condition.
 
 ### Cuts — Be Careful
 
@@ -206,6 +269,10 @@ Before presenting to the user, launch **two subagents** that debate the proposed
   - Verify the swap balance (land count, curve, ramp, color balance)
   - Look for missing synergy angles the proposer didn't consider
   - Challenge budget allocation (is the most expensive card really the highest priority?)
+  - Receive and independently re-read the full hydrated oracle text for every proposed cut — do NOT rely on the proposer's paraphrasing. Any discrepancy between the proposer's description and the actual oracle text is an automatic flag
+  - Check every clause of every cut card's oracle text, not just the primary ability — look for defensive clauses, type-changing effects, self-recurring mechanics, and static effects on other permanents
+  - Verify keyword interactions between the commander and each cut card (see Step 5.5)
+  - Calculate the multiplied value of any upkeep/combat/phase triggers being cut and challenge whether the proposer evaluated at the correct multiplier
 
 The challenger reports issues. The proposer responds or revises. Repeat until the challenger has no remaining objections. Then present the surviving proposal to the user.
 
@@ -226,6 +293,20 @@ Present changes adapted to the user's experience level:
 - **Advanced:** Concise tables, minimal explanation
 
 Format: paired swaps where possible (cut X → add Y). Show running price total and swap count vs. budget.
+
+## Step 8.5: Impact Verification
+
+Before presenting close calls, verify the proposal's impact on deck metrics:
+
+Run: `uv run --directory <skill-install-dir> deck-diff <old-deck.json> <new-deck.json> <old-hydrated.json> <new-hydrated.json>`
+
+Confirm:
+- Total card count remains exactly 100
+- Land count stays in a healthy range
+- Average CMC didn't increase unexpectedly
+- Ramp count didn't decrease
+
+If any metric is off, revise the proposal before continuing.
 
 ## Step 9: Close Calls
 
@@ -258,6 +339,10 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 | "This step seems unnecessary for this deck" | Follow every step. The process exists because shortcuts cause mistakes. |
 | "Cutting this land for a nonland is fine, the deck has enough" | Count the lands. Count the ramp. Do the math. Don't eyeball mana bases. |
 | "I understand what this commander wants" | You might be missing angles. Present your strategic read and ask the user before analyzing. They play the deck — you don't. |
+| "This card only works with N other cards in the deck" | Check whether the card creates its own enablers — theft effects that change types, token creators that increase counts, self-recurring cards that sustain themselves. |
+| "This trigger is too small to matter" | Multiply by expected extra triggers AND by number of opponents. 1 damage × 5 upkeeps × 3 opponents = 15. Do the math. |
+| "I've read this card" | Did you read every clause? Defensive restrictions, type-changing effects, self-recurring mechanics, and static effects on other permanents are commonly missed. |
+| "This is redundant evasion/protection" | Redundancy in the deck's most important effects is intentional. Before cutting, check whether the card creates a unique mechanical interaction (e.g., blocking restriction + menace = unblockable) that no other card replicates. |
 
 ## Experience Level Adaptation
 

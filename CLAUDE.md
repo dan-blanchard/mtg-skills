@@ -18,13 +18,20 @@ Mono-repo for MTG-related Claude Code skills. Each skill lives in its own direct
 
 ### commander-tuner
 
-Five CLI scripts backed by library modules, orchestrated by SKILL.md:
+Eight CLI scripts backed by library modules, orchestrated by SKILL.md:
 
 - **`parse_deck.py`** — Multi-format deck list parser. Strips Moxfield set code suffixes.
 - **`scryfall_lookup.py`** — Card lookup against Scryfall bulk data with API fallback and persistent caching.
 - **`edhrec_lookup.py`** — EDHREC JSON endpoint client for commander recommendations.
 - **`download_bulk.py`** — Scryfall bulk data downloader with 24h freshness check.
 - **`web_fetch.py`** — Web page fetcher with browser headers and curl fallback.
+- **`deck_stats.py`** — Deck statistics: land/ramp/creature counts, avg CMC, curve, color sources, total card count.
+- **`card_summary.py`** — Compact human-readable card table with filter flags (`--lands-only`, `--nonlands-only`, `--type`).
+- **`deck_diff.py`** — Deck comparison: added/removed cards, count/CMC/land/ramp deltas.
+
+Shared library module (not a CLI script):
+
+- **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`.
 
 ## Testing
 

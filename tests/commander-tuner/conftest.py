@@ -347,6 +347,12 @@ def sample_bulk_data(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def hydrated_cards(sample_bulk_data: Path) -> list[dict]:
+    """Load sample bulk data as a hydrated card list."""
+    return json.loads(sample_bulk_data.read_text(encoding="utf-8"))
+
+
+@pytest.fixture
 def sample_edhrec_response() -> dict:
     """Sample EDHREC JSON response for Korvold."""
     return {
