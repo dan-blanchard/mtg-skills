@@ -18,7 +18,7 @@ Mono-repo for MTG-related Claude Code skills. Each skill lives in its own direct
 
 ### commander-tuner
 
-Eight CLI scripts backed by library modules, orchestrated by SKILL.md:
+Twelve CLI scripts backed by library modules, orchestrated by SKILL.md:
 
 - **`parse_deck.py`** — Multi-format deck list parser. Strips Moxfield set code suffixes.
 - **`scryfall_lookup.py`** — Card lookup against Scryfall bulk data with API fallback and persistent caching.
@@ -28,6 +28,10 @@ Eight CLI scripts backed by library modules, orchestrated by SKILL.md:
 - **`deck_stats.py`** — Deck statistics: land/ramp/creature counts, avg CMC, curve, color sources, total card count.
 - **`card_summary.py`** — Compact human-readable card table with filter flags (`--lands-only`, `--nonlands-only`, `--type`).
 - **`deck_diff.py`** — Deck comparison: added/removed cards, count/CMC/land/ramp deltas.
+- **`set_commander.py`** — Move cards from cards list to commanders list in parsed deck JSON.
+- **`mana_audit.py`** — Mana base health audit: land count (Burgess/Karsten), color balance (pip demand vs. land production), PASS/WARN/FAIL gates, comparison mode.
+- **`cut_check.py`** — Mechanical pre-grill: trigger detection and multiplied values, keyword interaction detection, self-recurring card detection.
+- **`build_deck.py`** — Apply cuts/adds to a deck, output new deck JSON + merged hydrated data.
 
 Shared library module (not a CLI script):
 

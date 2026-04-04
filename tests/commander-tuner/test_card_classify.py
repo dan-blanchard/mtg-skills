@@ -110,3 +110,55 @@ class TestColorSources:
             "oracle_text": "{T}: Add {W}.",
         }
         assert color_sources(card) == {"W"}
+
+
+class TestColorSourcesFetchLands:
+    def test_polluted_delta(self):
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.",
+        }
+        assert color_sources(card) == {"U", "B"}
+
+    def test_prismatic_vista(self):
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+        }
+        assert color_sources(card) == {"any"}
+
+    def test_verdant_catacombs(self):
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Swamp or Forest card, put it onto the battlefield, then shuffle.",
+        }
+        assert color_sources(card) == {"B", "G"}
+
+    def test_flooded_strand(self):
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
+        }
+        assert color_sources(card) == {"W", "U"}
+
+    def test_fabled_passage(self):
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
+        }
+        assert color_sources(card) == {"any"}
+
+    def test_seething_landscape(self):
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
+        }
+        assert color_sources(card) == {"U", "B", "R"}
+
+    def test_basic_land_type_fetch(self):
+        """Verify 'basic Mountain card' wording is handled."""
+        card = {
+            "type_line": "Land",
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic Mountain card, put it onto the battlefield tapped, then shuffle.",
+        }
+        assert color_sources(card) == {"R"}

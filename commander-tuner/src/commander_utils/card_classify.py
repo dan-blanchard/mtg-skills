@@ -46,6 +46,14 @@ def is_ramp(card: dict) -> bool:
 _ADD_MANA_PATTERN = re.compile(r"[Aa]dd\s+(\{[^}]+\}(?:\s*(?:or\s+)?\{[^}]+\})*)")
 _MANA_SYMBOL_PATTERN = re.compile(r"\{([WUBRGC])\}")
 
+_FETCH_ANY_BASIC_PATTERN = re.compile(r"[Ss]earch your library for a basic land card")
+_FETCH_BASIC_LAND_PATTERN = re.compile(
+    r"[Ss]earch your library for (?:a |an )?(?:basic )?"
+    r"((?:Plains|Island|Swamp|Mountain|Forest)"
+    r"(?:(?:,|,? or) (?:Plains|Island|Swamp|Mountain|Forest))*)"
+    r"(?: card| land)"
+)
+
 _BASIC_LAND_TYPES: dict[str, str] = {
     "Plains": "W",
     "Island": "U",
@@ -64,6 +72,17 @@ def color_sources(card: dict) -> set[str]:
     # Check for "any color" first
     if re.search(r"[Aa]dd.*\bany color\b", oracle):
         return {"any"}
+
+    # Check for "basic land card" fetch (any color)
+    if _FETCH_ANY_BASIC_PATTERN.search(oracle):
+        return {"any"}
+
+    # Check for specific land type fetches
+    for match in _FETCH_BASIC_LAND_PATTERN.finditer(oracle):
+        types_text = match.group(1)
+        for land_type, color in _BASIC_LAND_TYPES.items():
+            if land_type in types_text:
+                colors.add(color)
 
     # Check explicit Add {X} patterns
     for match in _ADD_MANA_PATTERN.finditer(oracle):

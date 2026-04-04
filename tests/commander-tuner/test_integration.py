@@ -12,12 +12,15 @@ class TestFullPipeline:
         """Parse a deck list, then look up each card in Scryfall."""
         deck = parse_deck(moxfield_deck)
         assert len(deck["commanders"]) == 1
-        assert deck["commanders"][0] == "Korvold, Fae-Cursed King"
+        assert deck["commanders"][0] == {
+            "name": "Korvold, Fae-Cursed King",
+            "quantity": 1,
+        }
 
         bulk_index = _load_bulk_index(sample_bulk_data)
 
         # Look up commander
-        commander = lookup_single(deck["commanders"][0], bulk_index=bulk_index)
+        commander = lookup_single(deck["commanders"][0]["name"], bulk_index=bulk_index)
         assert commander is not None
         assert "Flying" in commander["oracle_text"]
         assert "sacrifice" in commander["oracle_text"].lower()
@@ -38,7 +41,7 @@ class TestFullPipeline:
         deck = parse_deck(moxfield_deck)
         bulk_index = _load_bulk_index(sample_bulk_data)
 
-        commander = lookup_single(deck["commanders"][0], bulk_index=bulk_index)
+        commander = lookup_single(deck["commanders"][0]["name"], bulk_index=bulk_index)
         commander_identity = set(commander["color_identity"])  # {B, G, R}
 
         for card in deck["cards"]:

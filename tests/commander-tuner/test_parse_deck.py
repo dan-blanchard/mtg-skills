@@ -10,7 +10,9 @@ from commander_utils.parse_deck import main, parse_deck
 class TestParseMoxfield:
     def test_parses_commander(self, moxfield_deck):
         result = parse_deck(moxfield_deck)
-        assert result["commanders"] == ["Korvold, Fae-Cursed King"]
+        assert result["commanders"] == [
+            {"name": "Korvold, Fae-Cursed King", "quantity": 1}
+        ]
 
     def test_parses_cards(self, moxfield_deck):
         result = parse_deck(moxfield_deck)
@@ -32,10 +34,8 @@ class TestParseMoxfield:
 
     def test_partner_commanders(self, partner_deck):
         result = parse_deck(partner_deck)
-        assert sorted(result["commanders"]) == [
-            "Thrasios, Triton Hero",
-            "Tymna the Weaver",
-        ]
+        names = sorted(c["name"] for c in result["commanders"])
+        assert names == ["Thrasios, Triton Hero", "Tymna the Weaver"]
 
 
 class TestParseMTGO:
@@ -76,6 +76,23 @@ class TestParseCSV:
         cards_by_name = {c["name"]: c for c in result["cards"]}
         assert "Korvold, Fae-Cursed King" in cards_by_name
         assert cards_by_name["Korvold, Fae-Cursed King"]["quantity"] == 1
+
+
+class TestCommanderDictFormat:
+    def test_commanders_are_dicts(self, moxfield_deck):
+        result = parse_deck(moxfield_deck)
+        assert len(result["commanders"]) == 1
+        assert result["commanders"][0] == {
+            "name": "Korvold, Fae-Cursed King",
+            "quantity": 1,
+        }
+
+    def test_partner_commanders_are_dicts(self, partner_deck):
+        result = parse_deck(partner_deck)
+        names = sorted(c["name"] for c in result["commanders"])
+        assert names == ["Thrasios, Triton Hero", "Tymna the Weaver"]
+        for cmd in result["commanders"]:
+            assert cmd["quantity"] == 1
 
 
 class TestSetCodeStripping:

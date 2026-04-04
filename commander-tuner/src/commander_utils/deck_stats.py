@@ -22,9 +22,7 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
     card_lookup = build_card_lookup(hydrated)
 
     # Collect all entries (commanders + cards)
-    all_entries: list[dict] = [
-        {"name": name, "quantity": 1} for name in deck.get("commanders", [])
-    ]
+    all_entries: list[dict] = list(deck.get("commanders", []))
     all_entries.extend(deck.get("cards", []))
 
     total_cards = 0

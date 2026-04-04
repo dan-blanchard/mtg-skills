@@ -18,6 +18,10 @@ web-fetch = "commander_utils.web_fetch:main"
 deck-stats = "commander_utils.deck_stats:main"
 card-summary = "commander_utils.card_summary:main"
 deck-diff = "commander_utils.deck_diff:main"
+set-commander = "commander_utils.set_commander:main"
+mana-audit = "commander_utils.mana_audit:main"
+cut-check = "commander_utils.cut_check:main"
+build-deck = "commander_utils.build_deck:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -50,6 +54,7 @@ ignore = [
     "C901",    # complexity — Click commands are inherently branchy
     "PLR0912", # too many branches
     "PLR0913", # too many arguments — Click commands need many params
+    "PLR0911", # too many return statements — parser helpers are naturally multi-exit
     "TC",      # type-checking imports
     "PLC0415", # non-top-level import
     "ARG002",  # unused method argument — mock patches require positional args

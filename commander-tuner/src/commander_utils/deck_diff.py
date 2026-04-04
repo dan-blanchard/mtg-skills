@@ -13,8 +13,10 @@ from commander_utils.card_classify import build_card_lookup, is_land, is_ramp
 def _build_name_qty(deck: dict) -> dict[str, int]:
     """Build name -> total quantity mapping from a parsed deck."""
     counts: dict[str, int] = {}
-    for name in deck.get("commanders", []):
-        counts[name] = counts.get(name, 0) + 1
+    for cmd in deck.get("commanders", []):
+        name = cmd["name"]
+        qty = cmd.get("quantity", 1)
+        counts[name] = counts.get(name, 0) + qty
     for card in deck.get("cards", []):
         name = card["name"]
         qty = card.get("quantity", 1)
