@@ -402,6 +402,69 @@ def sample_edhrec_response() -> dict:
 
 
 @pytest.fixture
+def alt_cost_cards():
+    """Cards with various alternative casting costs."""
+    return [
+        {
+            "name": "Star Whale",
+            "cmc": 8.0,
+            "type_line": "Creature — Alien Whale",
+            "oracle_text": "Flying, vigilance\nOther creatures you control have ward {2}.\nSuspend 6—{1}{U}",
+            "mana_cost": "{6}{U}{U}",
+            "keywords": ["Flying", "Vigilance", "Ward", "Suspend"],
+        },
+        {
+            "name": "Ancestral Vision",
+            "cmc": 0.0,
+            "type_line": "Sorcery",
+            "oracle_text": "Suspend 4—{U}\nTarget player draws three cards.",
+            "mana_cost": "",
+            "keywords": ["Suspend"],
+        },
+        {
+            "name": "Fury",
+            "cmc": 5.0,
+            "type_line": "Creature — Elemental Incarnation",
+            "oracle_text": "Double strike\nWhen this creature enters, it deals 4 damage divided as you choose among any number of targets.\nEvoke—Exile a red card from your hand.",
+            "mana_cost": "{3}{R}{R}",
+            "keywords": ["Double strike", "Evoke"],
+        },
+        {
+            "name": "Goldvein Hydra",
+            "cmc": 1.0,
+            "type_line": "Creature — Hydra",
+            "oracle_text": "Trample\nGoldvein Hydra enters with X +1/+1 counters on it.\nWhen Goldvein Hydra dies, create a number of Treasure tokens equal to its power.",
+            "mana_cost": "{X}{G}",
+            "keywords": ["Trample"],
+        },
+        {
+            "name": "Sol Ring",
+            "cmc": 1.0,
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add {C}{C}.",
+            "mana_cost": "{1}",
+            "keywords": [],
+        },
+        {
+            "name": "Command Tower",
+            "cmc": 0.0,
+            "type_line": "Land",
+            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+            "mana_cost": "",
+            "keywords": [],
+        },
+        {
+            "name": "Murderous Cut",
+            "cmc": 5.0,
+            "type_line": "Instant",
+            "oracle_text": "Delve\nDestroy target creature.",
+            "mana_cost": "{4}{B}",
+            "keywords": ["Delve"],
+        },
+    ]
+
+
+@pytest.fixture
 def trigger_test_cards() -> list[dict]:
     """Cards with known trigger types and numeric values for cut-check testing."""
     return [
