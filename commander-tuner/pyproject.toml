@@ -19,6 +19,7 @@ deck-stats = "commander_utils.deck_stats:main"
 card-summary = "commander_utils.card_summary:main"
 deck-diff = "commander_utils.deck_diff:main"
 set-commander = "commander_utils.set_commander:main"
+mana-audit = "commander_utils.mana_audit:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
