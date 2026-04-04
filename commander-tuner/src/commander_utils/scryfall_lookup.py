@@ -80,13 +80,30 @@ def lookup_single(
     return _api_lookup(name)
 
 
+def _extract_names(data: list | dict) -> list[str]:
+    """Extract card names from either a name list or parsed deck JSON."""
+    if isinstance(data, list):
+        return data
+    # Deck JSON format: {"commanders": [...], "cards": [...]}
+    names: list[str] = []
+    seen: set[str] = set()
+    for section in ("commanders", "cards"):
+        for entry in data.get(section, []):
+            name = entry["name"]
+            if name not in seen:
+                names.append(name)
+                seen.add(name)
+    return names
+
+
 def lookup_cards(
     names_path: Path,
     bulk_path: Path | None = None,
     cache_dir: Path | None = None,
 ) -> list[dict | None]:
     content = names_path.read_text(encoding="utf-8")
-    names = json.loads(content)
+    raw = json.loads(content)
+    names = _extract_names(raw)
 
     # Check cache
     if cache_dir is not None:
