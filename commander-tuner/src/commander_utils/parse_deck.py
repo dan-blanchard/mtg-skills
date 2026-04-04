@@ -32,7 +32,7 @@ def _detect_format(content: str) -> str:
 
 
 def _parse_moxfield(content: str) -> dict:
-    commanders: list[str] = []
+    commanders: list[dict] = []
     cards: list[dict] = []
     current_section = ""
 
@@ -54,7 +54,7 @@ def _parse_moxfield(content: str) -> dict:
             name = line
 
         if current_section == "commander":
-            commanders.append(name)
+            commanders.append({"name": name, "quantity": quantity})
         else:
             cards.append({"name": name, "quantity": quantity})
 
@@ -156,7 +156,8 @@ def parse_deck(path: Path) -> dict:
     result = _PARSERS[fmt](content)
 
     # Strip Moxfield-style set codes from all names
-    result["commanders"] = [_strip_set_code(c) for c in result["commanders"]]
+    for cmd in result["commanders"]:
+        cmd["name"] = _strip_set_code(cmd["name"])
     for card in result["cards"]:
         card["name"] = _strip_set_code(card["name"])
 
