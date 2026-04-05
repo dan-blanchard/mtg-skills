@@ -8,6 +8,8 @@ from pathlib import Path
 
 import click
 
+from commander_utils.format_config import FORMAT_CONFIGS
+
 
 def _color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:
     return set(card_identity).issubset(allowed)
@@ -121,8 +123,6 @@ def search_cards(
     format: str | None = None,  # noqa: A002
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters."""
-    from commander_utils.format_config import FORMAT_CONFIGS
-
     if format is not None:
         legality_key = FORMAT_CONFIGS[format]["legality_key"]
     else:

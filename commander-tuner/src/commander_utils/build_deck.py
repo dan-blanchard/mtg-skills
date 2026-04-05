@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 
+from commander_utils.format_config import get_format_config
 from commander_utils.scryfall_lookup import lookup_single
 
 
@@ -133,8 +134,6 @@ def main(
     new_deck, new_hydrated = build_deck(
         deck, hydrated, cuts, adds, extra_hydrated=extra_hydrated
     )
-
-    from commander_utils.format_config import get_format_config
 
     total = _count_total(new_deck)
     deck_size = get_format_config(new_deck)["deck_size"]

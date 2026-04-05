@@ -9,6 +9,8 @@ from pathlib import Path
 
 import click
 
+from commander_utils.format_config import FORMAT_CONFIGS
+
 
 def _detect_format(content: str) -> str:
     lines = content.strip().splitlines()
@@ -171,8 +173,6 @@ def parse_deck(
     ) + sum(c.get("quantity", 1) for c in result["cards"])
 
     result.setdefault("owned_cards", [])
-
-    from commander_utils.format_config import FORMAT_CONFIGS
 
     result["format"] = format
     if deck_size is not None:

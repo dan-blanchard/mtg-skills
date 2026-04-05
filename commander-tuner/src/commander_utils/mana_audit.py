@@ -15,6 +15,7 @@ from commander_utils.card_classify import (
     is_land,
     is_ramp,
 )
+from commander_utils.format_config import get_format_config
 
 _PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
@@ -174,8 +175,6 @@ def _overall_status(statuses: list[str]) -> str:
 def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     """Run a full mana base audit on the deck."""
     card_lookup = build_card_lookup(hydrated)
-
-    from commander_utils.format_config import get_format_config
 
     config = get_format_config(deck)
     deck_size = config["deck_size"]

@@ -7,6 +7,8 @@ from pathlib import Path
 import click
 import requests
 
+from commander_utils.format_config import get_format_config
+
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 USER_AGENT = "commander-utils/0.1.0"
 
@@ -54,8 +56,6 @@ def combo_search(
     Returns {"combos": [...], "near_misses": [...]}.
     On API error, returns empty results.
     """
-    from commander_utils.format_config import get_format_config
-
     config = get_format_config(deck)
     legality_key = config["legality_key"]
 
