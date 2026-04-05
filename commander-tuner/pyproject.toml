@@ -23,6 +23,7 @@ mana-audit = "commander_utils.mana_audit:main"
 cut-check = "commander_utils.cut_check:main"
 build-deck = "commander_utils.build_deck:main"
 price-check = "commander_utils.price_check:main"
+combo-search = "commander_utils.combo_search:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
