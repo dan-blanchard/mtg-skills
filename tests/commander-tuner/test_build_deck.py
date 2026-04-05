@@ -215,3 +215,100 @@ class TestFlexibleInput:
         hydrated = [{"name": "Korvold", "cmc": 5, "type_line": "Creature"}]
         with pytest.raises(ValueError, match="Expected card name string"):
             build_deck(deck, hydrated, [42], [])
+
+
+class TestDeckSizeWarning:
+    def test_warns_at_non_default_deck_size(self, tmp_path):
+        """A 60-card Brawl deck with 2 cards should warn 'expected 60'."""
+        deck = {
+            "format": "brawl",
+            "deck_size": 60,
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        with patch("commander_utils.build_deck.lookup_single", return_value=None):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--output-dir",
+                    str(tmp_path / "out"),
+                ],
+            )
+
+        assert "expected 60" in result.output
+
+    def test_no_warning_at_correct_deck_size(self, tmp_path):
+        """A deck at its expected size should not warn."""
+        deck = {
+            "format": "commander",
+            "deck_size": 3,
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Mountain", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain"},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        with patch("commander_utils.build_deck.lookup_single", return_value=None):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--output-dir",
+                    str(tmp_path / "out"),
+                ],
+            )
+
+        assert "Warning: deck has" not in result.output
+
+    def test_default_deck_size_is_100(self, tmp_path):
+        """A deck without format/deck_size fields should warn against 100."""
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        with patch("commander_utils.build_deck.lookup_single", return_value=None):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--output-dir",
+                    str(tmp_path / "out"),
+                ],
+            )
+
+        assert "expected 100" in result.output

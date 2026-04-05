@@ -134,10 +134,13 @@ def main(
         deck, hydrated, cuts, adds, extra_hydrated=extra_hydrated
     )
 
+    from commander_utils.format_config import get_format_config
+
     total = _count_total(new_deck)
-    if total != 100:
+    deck_size = get_format_config(new_deck)["deck_size"]
+    if total != deck_size:
         click.echo(
-            f"Warning: deck has {total} cards (expected 100)",
+            f"Warning: deck has {total} cards (expected {deck_size})",
             err=True,
         )
 
