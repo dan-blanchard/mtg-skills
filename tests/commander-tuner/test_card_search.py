@@ -234,6 +234,84 @@ class TestFormatResults:
         assert "Sol Ring" in result
 
 
+class TestFormatLegalityFilter:
+    def test_format_filters_by_legality(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Standard Legal",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+            _make_card(
+                name="Commander Only",
+                legalities={"commander": "legal", "standardbrawl": "not_legal"},
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, format="brawl")
+        names = [c["name"] for c in results]
+        assert "Standard Legal" in names
+        assert "Commander Only" not in names
+
+    def test_no_format_keeps_commander_default(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Commander Legal",
+                legalities={"commander": "legal", "standardbrawl": "not_legal"},
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path)
+        assert len(results) == 1
+
+    def test_historic_brawl_format(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Historic Card",
+                legalities={"commander": "legal", "brawl": "legal"},
+            ),
+            _make_card(
+                name="Not In Brawl",
+                legalities={"commander": "legal", "brawl": "not_legal"},
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, format="historic_brawl")
+        names = [c["name"] for c in results]
+        assert "Historic Card" in names
+        assert "Not In Brawl" not in names
+
+    def test_cli_format_flag(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Brawl Legal",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+            _make_card(
+                name="Not Brawl Legal",
+                legalities={"commander": "legal", "standardbrawl": "not_legal"},
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["--bulk-data", str(bulk_path), "--format", "brawl", "--json"],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        names = [c["name"] for c in data]
+        assert "Brawl Legal" in names
+        assert "Not Brawl Legal" not in names
+
+
 class TestCLI:
     def test_json_output(self, tmp_path):
         cards = [_make_card(name="Test")]

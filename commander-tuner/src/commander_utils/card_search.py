@@ -42,6 +42,7 @@ def _matches_filters(
     cmc_max: float | None,
     price_min: float | None,
     price_max: float | None,
+    legality_key: str = "commander",
 ) -> bool:
     # Skip non-paper cards and tokens
     if card.get("layout") in (
@@ -53,7 +54,7 @@ def _matches_filters(
     if card.get("set_type") in ("token", "memorabilia"):
         return False
     legalities = card.get("legalities", {})
-    if legalities.get("commander") not in ("legal", "restricted"):
+    if legalities.get(legality_key) not in ("legal", "restricted"):
         return False
 
     if allowed_colors is not None and not _color_identity_subset(
@@ -117,8 +118,16 @@ def search_cards(
     price_max: float | None = None,
     sort: str = "price-desc",
     limit: int = 25,
+    format: str | None = None,  # noqa: A002
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters."""
+    from commander_utils.format_config import FORMAT_CONFIGS
+
+    if format is not None:
+        legality_key = FORMAT_CONFIGS[format]["legality_key"]
+    else:
+        legality_key = "commander"
+
     allowed_colors = set(color_identity.upper()) if color_identity else None
     try:
         oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
@@ -143,6 +152,7 @@ def search_cards(
             cmc_max=cmc_max,
             price_min=price_min,
             price_max=price_max,
+            legality_key=legality_key,
         )
     ]
 
@@ -239,6 +249,13 @@ def format_results(cards: list[dict]) -> str:
     help="Sort field: price, cmc, name. Suffix: -desc, -asc.",
 )
 @click.option("--limit", default=25, show_default=True)
+@click.option(
+    "--format",
+    "card_format",
+    type=click.Choice(["commander", "brawl", "historic_brawl"]),
+    default=None,
+    help="Filter by format legality.",
+)
 @click.option("--json", "as_json", is_flag=True)
 def main(
     bulk_data: Path,
@@ -253,6 +270,7 @@ def main(
     limit: int,
     *,
     as_json: bool,
+    card_format: str | None,
 ) -> None:
     """Search Scryfall bulk data for cards matching filters."""
     results = search_cards(
@@ -266,6 +284,7 @@ def main(
         price_max=price_max,
         sort=sort,
         limit=limit,
+        format=card_format,
     )
     if as_json:
         from commander_utils.scryfall_lookup import _extract_fields
