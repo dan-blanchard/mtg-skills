@@ -158,6 +158,56 @@ class TestComboSearch:
 
         assert len(result["combos"]) == 0
 
+    def test_handles_feature_dict_in_produces(self):
+        """Test that produces entries with feature dict format are handled."""
+        response = {
+            "results": {
+                "included": [
+                    {
+                        "uses": [
+                            {"card": {"name": "Card A"}, "zoneLocations": "B"},
+                            {"card": {"name": "Card B"}, "zoneLocations": "B"},
+                        ],
+                        "produces": [
+                            {"feature": {"name": "Infinite mana"}},
+                            {"feature": {"name": "Infinite damage"}},
+                        ],
+                        "description": "Combo desc",
+                        "identity": "BR",
+                        "manaNeeded": "{B}{R}",
+                        "bracketTag": "B3",
+                        "popularity": 5000,
+                        "legalities": {"commander": True},
+                    }
+                ],
+                "almostIncluded": [],
+            }
+        }
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = response
+        mock_resp.raise_for_status = MagicMock()
+
+        deck = {
+            "commanders": [],
+            "cards": [
+                {"name": "Card A", "quantity": 1},
+                {"name": "Card B", "quantity": 1},
+            ],
+        }
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            result = combo_search(deck)
+
+        assert len(result["combos"]) == 1
+        assert "Infinite mana" in result["combos"][0]["result"]
+        assert "Infinite damage" in result["combos"][0]["result"]
+
     def test_sends_correct_post_body(self, sample_combo_response):
         mock_resp = MagicMock()
         mock_resp.status_code = 200

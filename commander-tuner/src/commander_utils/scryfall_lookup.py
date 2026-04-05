@@ -93,6 +93,7 @@ def _extract_names(data: list | dict) -> list[str]:
     """Extract card names from either a name list or parsed deck JSON."""
     if isinstance(data, list):
         # Handle both ["name", ...] and [{"name": "...", ...}, ...]
+        # Assumes uniform list — all strings or all dicts, not mixed.
         if data and isinstance(data[0], dict):
             return [entry["name"] for entry in data]
         return data

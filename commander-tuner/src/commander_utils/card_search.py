@@ -28,7 +28,7 @@ def _get_oracle_text(card: dict) -> str:
     oracle = card.get("oracle_text") or ""
     if not oracle:
         faces = card.get("card_faces", [])
-        oracle = " ".join(f.get("oracle_text", "") for f in faces)
+        oracle = "\n// \n".join(f.get("oracle_text", "") for f in faces)
     return oracle
 
 
@@ -84,9 +84,17 @@ def _matches_filters(
     return not (price_max is not None and (price is None or price > price_max))
 
 
+_SORT_DEFAULTS = {
+    "price": True,  # descending
+    "cmc": False,  # ascending
+    "name": False,  # ascending
+}
+
+
 def _parse_sort(sort: str):
     field, _, direction = sort.partition("-")
-    reverse = direction != "asc"
+
+    reverse = direction != "asc" if direction else _SORT_DEFAULTS.get(field, True)
 
     if field == "price":
         return lambda c: _extract_price(c) or 0.0, reverse
@@ -112,7 +120,11 @@ def search_cards(
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters."""
     allowed_colors = set(color_identity.upper()) if color_identity else None
-    oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
+    try:
+        oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
+    except re.error as e:
+        msg = f"Invalid oracle regex: {e}"
+        raise click.BadParameter(msg, param_hint="--oracle") from e
     type_lower = card_type.lower() if card_type else None
 
     with bulk_path.open(encoding="utf-8") as f:
@@ -134,14 +146,18 @@ def search_cards(
         )
     ]
 
-    # Deduplicate by name
-    seen: set[str] = set()
-    deduped: list[dict] = []
+    # Deduplicate by name, keeping the cheapest printing
+    best: dict[str, dict] = {}
     for card in matched:
         name = card.get("name", "")
-        if name not in seen:
-            seen.add(name)
-            deduped.append(card)
+        if name not in best:
+            best[name] = card
+        else:
+            cur_price = _extract_price(best[name])
+            new_price = _extract_price(card)
+            if new_price is not None and (cur_price is None or new_price < cur_price):
+                best[name] = card
+    deduped = list(best.values())
 
     # Sort
     sort_key, sort_reverse = _parse_sort(sort)

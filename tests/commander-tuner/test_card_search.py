@@ -2,6 +2,8 @@
 
 import json
 
+import click
+import pytest
 from click.testing import CliRunner
 
 from commander_utils.card_search import (
@@ -159,16 +161,18 @@ class TestSearchCards:
         assert len(results) == 1
         assert results[0]["name"] == "Good Card"
 
-    def test_deduplicates_by_name(self, tmp_path):
+    def test_deduplicates_keeps_cheapest(self, tmp_path):
         cards = [
+            _make_card(name="Sol Ring", price_usd="5.00"),
             _make_card(name="Sol Ring", price_usd="1.00"),
-            _make_card(name="Sol Ring", price_usd="2.00"),
+            _make_card(name="Sol Ring", price_usd="3.00"),
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
 
         results = search_cards(bulk_path)
         assert len(results) == 1
+        assert _extract_price(results[0]) == 1.0
 
     def test_respects_limit(self, tmp_path):
         cards = [_make_card(name=f"Card {i}") for i in range(10)]
@@ -190,6 +194,27 @@ class TestSearchCards:
         results = search_cards(bulk_path, sort="price-desc")
         assert results[0]["name"] == "Expensive"
         assert results[-1]["name"] == "Cheap"
+
+    def test_invalid_regex_raises_bad_parameter(self, tmp_path):
+        cards = [_make_card()]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        with pytest.raises(click.BadParameter, match="Invalid oracle regex"):
+            search_cards(bulk_path, oracle="[invalid")
+
+    def test_sort_name_defaults_ascending(self, tmp_path):
+        cards = [
+            _make_card(name="Zebra"),
+            _make_card(name="Alpha"),
+            _make_card(name="Middle"),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, sort="name")
+        assert results[0]["name"] == "Alpha"
+        assert results[-1]["name"] == "Zebra"
 
 
 class TestFormatResults:

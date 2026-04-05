@@ -26,7 +26,7 @@ Mono-repo for MTG-related Claude Code skills. Each skill lives in its own direct
 
 ### commander-tuner
 
-Fourteen CLI scripts backed by library modules, orchestrated by SKILL.md:
+Sixteen CLI scripts backed by library modules, orchestrated by SKILL.md:
 
 - **`parse_deck.py`** — Multi-format deck list parser. Strips Moxfield set code suffixes.
 - **`scryfall_lookup.py`** — Card lookup against Scryfall bulk data with API fallback and persistent caching.
@@ -40,6 +40,7 @@ Fourteen CLI scripts backed by library modules, orchestrated by SKILL.md:
 - **`mana_audit.py`** — Mana base health audit: land count (Burgess/Karsten), color balance (pip demand vs. land production), PASS/WARN/FAIL gates, comparison mode.
 - **`cut_check.py`** — Mechanical pre-grill: trigger detection and multiplied values, keyword interaction detection, self-recurring card detection.
 - **`build_deck.py`** — Apply cuts/adds to a deck, output new deck JSON + merged hydrated data.
+- **`price_check.py`** — Price validation against budget using Scryfall bulk data with API fallback.
 - **`combo_search.py`** — Commander Spellbook API wrapper: combo detection and near-miss identification.
 - **`export_deck.py`** — Export parsed deck JSON to Moxfield import format (`N CardName` lines).
 - **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range. Compact table or JSON output.
