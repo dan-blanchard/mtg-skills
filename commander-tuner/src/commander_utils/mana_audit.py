@@ -19,19 +19,24 @@ from commander_utils.card_classify import (
 _PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
 
-def burgess_formula(*, colors: int, commander_cmc: int) -> int:
-    """Return Burgess recommended land count: 31 + colors + commander_cmc."""
-    return 31 + colors + commander_cmc
+def burgess_formula(*, colors: int, commander_cmc: int, deck_size: int = 100) -> int:
+    """Return Burgess recommended land count, scaled to deck size."""
+    base = 31 + colors + commander_cmc
+    return round(base * deck_size / 100)
 
 
-def karsten_adjustment(*, ramp_count: int) -> int:
-    """Return Karsten-adjusted land count based on ramp piece count."""
-    return max(36, 42 - math.floor(ramp_count / 2.5))
+def karsten_adjustment(*, ramp_count: int, deck_size: int = 100) -> int:
+    """Return Karsten-adjusted land count, scaled to deck size."""
+    base = max(36, 42 - math.floor(ramp_count / 2.5))
+    return round(base * deck_size / 100)
 
 
-def land_count_status(*, land_count: int, recommended: int) -> str:
+def land_count_status(
+    *, land_count: int, recommended: int, deck_size: int = 100
+) -> str:
     """Return PASS/WARN/FAIL status for land count."""
-    if land_count < 36:
+    floor = round(36 * deck_size / 100)
+    if land_count < floor:
         return "FAIL"
     if land_count < recommended:
         return "WARN"
@@ -170,6 +175,11 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     """Run a full mana base audit on the deck."""
     card_lookup = build_card_lookup(hydrated)
 
+    from commander_utils.format_config import get_format_config
+
+    config = get_format_config(deck)
+    deck_size = config["deck_size"]
+
     commanders = deck.get("commanders", [])
     all_entries = list(commanders) + list(deck.get("cards", []))
 
@@ -185,10 +195,14 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
 
     avg_cmc = round(sum(nonland_cmcs) / len(nonland_cmcs), 2) if nonland_cmcs else 0.0
 
-    burgess_result = burgess_formula(colors=colors, commander_cmc=commander_cmc)
-    karsten_result = karsten_adjustment(ramp_count=ramp_count)
+    burgess_result = burgess_formula(
+        colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
+    )
+    karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
     recommended = max(burgess_result, karsten_result)
-    lc_status = land_count_status(land_count=land_count, recommended=recommended)
+    lc_status = land_count_status(
+        land_count=land_count, recommended=recommended, deck_size=deck_size
+    )
 
     pips = pip_demand(pip_cards)
     total_pips = sum(pips.values())

@@ -232,6 +232,65 @@ class TestCLI:
         assert "ramp_count" in data["delta"]
 
 
+class TestScaledFormulas:
+    def test_burgess_scaled_to_60(self):
+        # 3 colors, CMC 4: base = 31+3+4 = 38, scaled = round(38 * 60/100) = 23
+        result = burgess_formula(colors=3, commander_cmc=4, deck_size=60)
+        assert result == 23
+
+    def test_burgess_unscaled_at_100(self):
+        assert burgess_formula(colors=3, commander_cmc=4) == 38
+
+    def test_karsten_scaled_to_60(self):
+        # 0 ramp: base = max(36, 42) = 42, scaled = round(42 * 60/100) = 25
+        result = karsten_adjustment(ramp_count=0, deck_size=60)
+        assert result == 25
+
+    def test_karsten_unscaled_at_100(self):
+        assert karsten_adjustment(ramp_count=0) == 42
+
+    def test_land_count_status_scaled_floor(self):
+        # For 60-card: floor = round(36 * 60/100) = 22
+        assert land_count_status(land_count=21, recommended=23, deck_size=60) == "FAIL"
+        assert land_count_status(land_count=22, recommended=23, deck_size=60) == "WARN"
+        assert land_count_status(land_count=23, recommended=23, deck_size=60) == "PASS"
+
+    def test_land_count_status_default_100(self):
+        assert land_count_status(land_count=35, recommended=38) == "FAIL"
+
+
+class TestManaAuditWithFormat:
+    def test_audit_reads_deck_size(self):
+        """Mana audit on a 60-card Brawl deck uses scaled formulas."""
+        deck = {
+            "format": "brawl",
+            "deck_size": 60,
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Mountain", "quantity": 22}],
+        }
+        hydrated = [
+            {
+                "name": "Korvold",
+                "cmc": 5,
+                "type_line": "Legendary Creature",
+                "mana_cost": "{2}{B}{R}{G}",
+                "keywords": [],
+                "color_identity": ["B", "R", "G"],
+            },
+            {
+                "name": "Mountain",
+                "cmc": 0,
+                "type_line": "Basic Land — Mountain",
+                "oracle_text": "({T}: Add {R}.)",
+                "keywords": [],
+            },
+        ]
+        result = mana_audit(deck, hydrated)
+        assert result["land_count"] == 22
+        # Burgess for 60-card: round((31+3+5) * 60/100) = round(23.4) = 23
+        assert result["burgess_formula"]["result"] == 23
+
+
 class TestCompareLabels:
     def test_uses_primary_comparison_keys(self, tmp_path):
         deck = {
