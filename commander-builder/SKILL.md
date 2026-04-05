@@ -1,6 +1,6 @@
 ---
 name: commander-builder
-description: Use when building a new MTG Commander/EDH deck from scratch — covers commander selection, deck skeleton generation, and handoff to commander-tuner for refinement
+description: Use when building a new MTG Commander deck from scratch (Commander/EDH, Brawl, Historic Brawl) — covers commander selection, deck skeleton generation, and handoff to commander-tuner for refinement
 compatibility: Requires Python 3.12+ and uv. Recommend installing commander-tuner skill alongside for deck refinement.
 license: 0BSD
 ---
@@ -88,9 +88,26 @@ Ask: "Do you know what commander you want to build a deck for?"
 - Take the commander name.
 - Look up via `scryfall-lookup` to validate it exists.
 - Verify it's a legal commander using Scryfall's `is:commander` filter (the source of truth for commander legality — don't try to reimplement the rules).
+- For Brawl and Historic Brawl, also check that the card is legal in the deck's format using the Scryfall `legalities` field (key `standardbrawl` for Brawl, `brawl` for Historic Brawl).
 - Check the commander's oracle text for partner, friends forever, or choose a background. If present, ask: "This commander supports a pairing — do you have a partner/background in mind, or would you like a recommendation?" Look up and validate the second commander the same way.
 - For partner/background pairs, the deck's color identity is the combined identity of both commanders. Use the combined identity for all subsequent steps.
 - Proceed to shared questions.
+
+### Format Selection
+
+Ask: "What format are you building for?"
+
+- **Commander/EDH** (default) — 100 cards, 40 life
+- **Brawl** — 60 cards, Standard card pool, 25/30 life, no commander damage
+- **Historic Brawl** — 100 cards (or 60), Arena card pool, 25/30 life, no commander damage
+
+If Brawl: any legendary planeswalker can be your commander (not just those with "can be your commander" text). Vehicles and Spacecraft with power/toughness are also eligible in all formats.
+
+If Historic Brawl: ask if they want the default 100 cards or 60 cards.
+
+**Colorless commanders in Brawl:** If the chosen commander has no colors in its color identity, note that the deck may include any number of basic lands of one chosen basic land type. This is a Brawl-specific exception.
+
+**Partner mechanics** are available in all formats.
 
 **If no — Guided Interview (one question at a time):**
 
@@ -161,19 +178,21 @@ The goal is building enough understanding to make smart category fills — not d
 
 ## Step 3: Skeleton Generation
 
-### Default Template (100 cards total)
+### Default Template
 
-| Category | Count | Notes |
-|----------|-------|-------|
-| Commander(s) | 1-2 | Already selected |
-| Lands | 36-38 | Calculated via Burgess formula: `31 + colors_in_identity + commander_cmc` |
-| Ramp | 10 | Mana rocks, dorks, land-fetch spells — prefer synergistic choices |
-| Card draw | 10 | Prefer draw that aligns with strategy |
-| Targeted removal/disruption | 5-12 | Scaled to bracket (see table below). Includes counterspells if in blue. |
-| Board wipes | 2-5 | Scaled to bracket (see table below) |
-| Win conditions | 3-5 | Cards that close out a game — combos, overwhelming board states, direct damage engines |
-| Engine/synergy pieces | 15-20 | Cards that work with the commander's strategy — enablers, payoffs, value engines |
-| Protection/utility | 8-10 | Counterspells, hexproof/indestructible granters, recursion, political tools |
+Card counts scale with deck size. The base counts below are for 100-card decks; for 60-card decks, multiply each count by 0.6 and round to the nearest integer.
+
+| Category | 100-card | 60-card | Notes |
+|----------|----------|---------|-------|
+| Commander(s) | 1-2 | 1-2 | Already selected |
+| Lands | 36-38 | 22-23 | Burgess formula scaled: `round((31 + colors + cmc) * deck_size / 100)` |
+| Ramp | 10 | 6 | Mana rocks, dorks, land-fetch spells |
+| Card draw | 10 | 6 | Prefer draw that aligns with strategy |
+| Targeted removal/disruption | 5-12 | 3-7 | Scaled to bracket |
+| Board wipes | 2-5 | 1-3 | Scaled to bracket |
+| Win conditions | 3-5 | 2-3 | Cards that close out a game |
+| Engine/synergy pieces | 15-20 | 9-12 | Cards that work with the commander |
+| Protection/utility | 8-10 | 5-6 | Counterspells, hexproof, recursion |
 
 ### Template Flexibility
 
@@ -185,7 +204,7 @@ The category counts above are defaults — adjust them after strategy validation
 - **Control:** Increase interaction across the board, reduce engine pieces
 - **Group hug/politics:** Reduce targeted removal, add political tools to utility
 
-**Hard constraints that don't flex:** Lands and ramp stay at Burgess formula minimums regardless of strategy. Total card count must be exactly 100.
+**Hard constraints that don't flex:** Lands and ramp stay at Burgess formula minimums regardless of strategy. Total card count must match the deck's expected size (100 for Commander/Historic Brawl, 60 for Brawl, or the user's specified size).
 
 ### Land Base Composition
 
@@ -254,7 +273,7 @@ After filling, run these checks in order:
 
 1. **Deck stats** — Run: `uv run --directory <skill-install-dir> deck-stats <deck.json> <hydrated.json>`
 
-   Verify total card count is exactly 100, review curve and category counts.
+   Verify total card count matches the deck's expected size, review curve and category counts.
 
 2. **Mana audit** — Run: `uv run --directory <skill-install-dir> mana-audit <deck.json> <hydrated.json>`
 
@@ -286,7 +305,7 @@ If the user requests changes, apply them, re-run structural verification, and pr
 
    Run: `uv run --directory <skill-install-dir> export-deck <deck.json> > <deck-moxfield.txt>`
 
-   The deck JSON format: `{"commanders": [{"name": str, "quantity": int}], "cards": [{"name": str, "quantity": int}, ...], "total_cards": int}`
+   The deck JSON format: `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [{"name": str, "quantity": int}, ...], "total_cards": int}`
 
 2. **Invoke commander-tuner** — Invoke `/commander-tuner` with the generated deck. If commander-tuner is not available, tell the user:
 
@@ -298,6 +317,7 @@ If the user requests changes, apply them, re-run structural verification, and pr
    - Any cards the user already owns (these should not count toward either budget figure)
    - Experience level
    - Suggested max swaps: 20 (user can adjust during commander-tuner's intake)
+   - Format and deck size (e.g., "Format: brawl, deck size: 60")
    - Pain points: "This is a freshly generated skeleton — general optimization is the goal"
 
 ## Red Flags — STOP If You Catch Yourself Thinking These
@@ -337,8 +357,8 @@ All scripts are run via `uv run --directory <skill-install-dir>`:
 - `mana-audit <deck.json> <hydrated.json>` — mana base health audit
 - `price-check <deck.json> [--budget N] --bulk-data <bulk-data-path>` — price validation
 - `set-commander <deck.json> "Name"` — move card to commanders list
-- `parse-deck <path-to-deck-file>` — multi-format deck list parser (Moxfield, MTGO, plain text, CSV)
+- `parse-deck <path-to-deck-file> [--format FORMAT] [--deck-size N]` — multi-format deck list parser with format tagging
 - `combo-search <deck.json> [--max-near-misses N]` — search Commander Spellbook for combos and near-misses in the deck
 - `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json>` — apply changes to deck
 - `export-deck <deck.json>` — export deck JSON to Moxfield import format (N CardName lines to stdout)
-- `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json]` — search bulk data for cards matching filters
+- `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT]` — search bulk data for cards matching filters; --format filters by format legality
