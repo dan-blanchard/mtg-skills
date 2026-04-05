@@ -88,7 +88,8 @@ Ask: "Do you know what commander you want to build a deck for?"
 - Take the commander name.
 - Look up via `scryfall-lookup` to validate it exists.
 - Verify it's a legal commander using Scryfall's `is:commander` filter (the source of truth for commander legality — don't try to reimplement the rules).
-- Ask about partner/friends forever/choose a background pairings if applicable.
+- Check the commander's oracle text for partner, friends forever, or choose a background. If present, ask: "This commander supports a pairing — do you have a partner/background in mind, or would you like a recommendation?" Look up and validate the second commander the same way.
+- For partner/background pairs, the deck's color identity is the combined identity of both commanders. Use the combined identity for all subsequent steps.
 - Proceed to shared questions.
 
 **If no — Guided Interview (one question at a time):**
@@ -117,7 +118,7 @@ Ask: "Do you know what commander you want to build a deck for?"
 
 ### Commander Recommendation
 
-After the guided interview, recommend 3-5 commanders that fit. You may use training data to generate a shortlist — this is commander *discovery*, not card evaluation, so the Iron Rule does not apply at this stage. However, every recommended commander MUST be verified via `scryfall-lookup` before presenting (to confirm it exists, is a legal commander, and its oracle text matches the claimed strategy). Check EDHREC deck counts where possible to gauge how well-supported each commander is.
+After the guided interview, recommend 3-5 commanders that fit. Partner pairs and commander + background pairings are valid recommendations — present each pair as a single option with their combined color identity. You may use training data to generate a shortlist — this is commander *discovery*, not card evaluation, so the Iron Rule does not apply at this stage. However, every recommended commander MUST be verified via `scryfall-lookup` before presenting (to confirm it exists, is a legal commander, and its oracle text matches the claimed strategy). Check EDHREC deck counts where possible to gauge how well-supported each commander is.
 
 Present each recommendation with:
 - Card name and color identity
@@ -142,7 +143,7 @@ For pet cards: look up each via `scryfall-lookup` to verify it exists and is wit
 
 1. **Scryfall lookup** — Run: `uv run --directory <skill-install-dir> scryfall-lookup "<Commander Name>"`
 
-   Read the full oracle text, color identity, CMC, and types.
+   Read the full oracle text, color identity, CMC, and types. For partner/background pairs, look up both commanders and note how they interact with each other.
 
 2. **EDHREC research** — Run: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander Name>"`
 
@@ -154,7 +155,7 @@ For pet cards: look up each via `scryfall-lookup` to verify it exists and is wit
 
    Run: `uv run --directory <skill-install-dir> web-fetch "<url>" --max-length 10000`
 
-4. **Strategy synthesis** — Summarize the commander's key mechanics, primary strategies, and synergy axes. Present to the user for validation. If the user defers or has no preference, default to the commander's most popular theme on EDHREC and move forward.
+4. **Strategy synthesis** — Summarize the commander's key mechanics, primary strategies, and synergy axes. For partner/background pairs, identify how both commanders contribute to the strategy and where their mechanics overlap or complement each other. Present to the user for validation. If the user defers or has no preference, default to the commander's most popular theme on EDHREC and move forward.
 
 The goal is building enough understanding to make smart category fills — not deep analysis (commander-tuner handles that).
 
