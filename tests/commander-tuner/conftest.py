@@ -565,3 +565,90 @@ def trigger_test_cards() -> list[dict]:
             "legalities": {"commander": "legal"},
         },
     ]
+
+
+@pytest.fixture
+def sample_combo_response() -> dict:
+    """Sample Commander Spellbook /find-my-combos response."""
+    return {
+        "results": {
+            "included": [
+                {
+                    "id": "combo-1",
+                    "uses": [
+                        {"card": {"name": "Viscera Seer"}, "quantity": 1, "zoneLocations": "B"},
+                        {"card": {"name": "Blood Artist"}, "quantity": 1, "zoneLocations": "B"},
+                        {"card": {"name": "Reassembling Skeleton"}, "quantity": 1, "zoneLocations": "B"},
+                        {"card": {"name": "Ashnod's Altar"}, "quantity": 1, "zoneLocations": "B"},
+                    ],
+                    "produces": [
+                        {"name": "Infinite ETB"},
+                        {"name": "Infinite death triggers"},
+                        {"name": "Infinite colorless mana"},
+                    ],
+                    "description": "1. Sacrifice Reassembling Skeleton to Ashnod's Altar for {C}{C}.\n2. Pay {1}{B} to return Skeleton from graveyard to battlefield.\n3. Blood Artist triggers on each death.\n4. Repeat.",
+                    "identity": "B",
+                    "manaNeeded": "{1}{B}",
+                    "popularity": 5000,
+                    "bracketTag": "B3",
+                    "legalities": {"commander": True},
+                },
+            ],
+            "almostIncluded": [
+                {
+                    "id": "combo-2",
+                    "uses": [
+                        {"card": {"name": "Viscera Seer"}, "quantity": 1, "zoneLocations": "B"},
+                        {"card": {"name": "Blood Artist"}, "quantity": 1, "zoneLocations": "B"},
+                        {"card": {"name": "Gravecrawler"}, "quantity": 1, "zoneLocations": "B"},
+                    ],
+                    "produces": [
+                        {"name": "Infinite death triggers"},
+                        {"name": "Infinite ETB"},
+                    ],
+                    "description": "1. Sacrifice Gravecrawler to Viscera Seer.\n2. Recast Gravecrawler from graveyard.\n3. Blood Artist triggers.\n4. Repeat.",
+                    "identity": "B",
+                    "manaNeeded": "{B}",
+                    "popularity": 8000,
+                    "bracketTag": "B3",
+                    "legalities": {"commander": True},
+                },
+                {
+                    "id": "combo-3",
+                    "uses": [
+                        {"card": {"name": "Sol Ring"}, "quantity": 1, "zoneLocations": "B"},
+                        {"card": {"name": "Dramatic Reversal"}, "quantity": 1, "zoneLocations": "H"},
+                        {"card": {"name": "Isochron Scepter"}, "quantity": 1, "zoneLocations": "B"},
+                    ],
+                    "produces": [
+                        {"name": "Infinite colorless mana"},
+                    ],
+                    "description": "1. Imprint Dramatic Reversal on Isochron Scepter.\n2. Activate Scepter to untap all nonland permanents.\n3. Tap Sol Ring for mana.\n4. Repeat.",
+                    "identity": "",
+                    "manaNeeded": "{2}",
+                    "popularity": 12000,
+                    "bracketTag": "B4",
+                    "legalities": {"commander": True},
+                },
+            ],
+            "almostIncludedByAddingColors": [],
+            "includedByChangingCommanders": [],
+            "almostIncludedByChangingCommanders": [],
+            "almostIncludedByAddingColorsAndChangingCommanders": [],
+        }
+    }
+
+
+@pytest.fixture
+def sample_combo_empty_response() -> dict:
+    """Empty Commander Spellbook response."""
+    return {
+        "results": {
+            "included": [],
+            "almostIncluded": [],
+            "almostIncludedByAddingColors": [],
+            "includedByChangingCommanders": [],
+            "almostIncludedByChangingCommanders": [],
+            "almostIncludedByAddingColorsAndChangingCommanders": [],
+        }
+    }
