@@ -227,6 +227,92 @@ class TestComboSearch:
         assert "Viscera Seer" in str(body["main"])
 
 
+class TestFormatAwareLegality:
+    def test_filters_by_deck_format(self, sample_combo_response):
+        """When deck has format='brawl', check standardbrawl legality key."""
+        sample_combo_response["results"]["included"][0]["legalities"][
+            "standardbrawl"
+        ] = True
+        sample_combo_response["results"]["included"][0]["legalities"]["commander"] = (
+            False
+        )
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = sample_combo_response
+        mock_resp.raise_for_status = MagicMock()
+
+        brawl_deck = {
+            "format": "brawl",
+            "deck_size": 60,
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+            "cards": [
+                {"name": "Viscera Seer", "quantity": 1},
+                {"name": "Blood Artist", "quantity": 1},
+                {"name": "Reassembling Skeleton", "quantity": 1},
+                {"name": "Ashnod's Altar", "quantity": 1},
+            ],
+        }
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            result = combo_search(brawl_deck)
+
+        assert len(result["combos"]) == 1
+
+    def test_defaults_to_commander_legality(self, sample_combo_response):
+        """Deck without format field uses commander legality."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = sample_combo_response
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            result = combo_search(SAMPLE_DECK)
+
+        assert len(result["combos"]) == 1
+
+    def test_near_misses_use_format_legality(self, sample_combo_response):
+        """Near-misses also filter by format legality."""
+        for nm in sample_combo_response["results"]["almostIncluded"]:
+            nm["legalities"]["commander"] = False
+            nm["legalities"]["standardbrawl"] = True
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = sample_combo_response
+        mock_resp.raise_for_status = MagicMock()
+
+        brawl_deck = {
+            "format": "brawl",
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+            "cards": [
+                {"name": "Viscera Seer", "quantity": 1},
+                {"name": "Blood Artist", "quantity": 1},
+                {"name": "Reassembling Skeleton", "quantity": 1},
+                {"name": "Ashnod's Altar", "quantity": 1},
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Isochron Scepter", "quantity": 1},
+            ],
+        }
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            result = combo_search(brawl_deck)
+
+        assert len(result["near_misses"]) == 2
+
+
 class TestCLI:
     def test_outputs_json(self, tmp_path, sample_combo_response):
         deck_path = tmp_path / "deck.json"

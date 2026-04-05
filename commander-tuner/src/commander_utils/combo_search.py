@@ -38,10 +38,10 @@ def _find_missing_card(variant: dict, deck_card_names: set[str]) -> str | None:
     return None
 
 
-def _is_commander_legal(variant: dict) -> bool:
-    """Check if a combo is legal in Commander format."""
+def _is_format_legal(variant: dict, legality_key: str = "commander") -> bool:
+    """Check if a combo is legal in the given format."""
     legalities = variant.get("legalities", {})
-    return legalities.get("commander", False)
+    return legalities.get(legality_key, False)
 
 
 def combo_search(
@@ -54,6 +54,11 @@ def combo_search(
     Returns {"combos": [...], "near_misses": [...]}.
     On API error, returns empty results.
     """
+    from commander_utils.format_config import get_format_config
+
+    config = get_format_config(deck)
+    legality_key = config["legality_key"]
+
     commanders = [entry["name"] for entry in deck.get("commanders", [])]
     cards = [entry["name"] for entry in deck.get("cards", [])]
     all_card_names = set(commanders + cards)
@@ -81,12 +86,12 @@ def combo_search(
     combos = [
         _extract_combo(variant)
         for variant in results.get("included", [])
-        if _is_commander_legal(variant)
+        if _is_format_legal(variant, legality_key)
     ]
 
     near_misses = []
     for variant in results.get("almostIncluded", []):
-        if not _is_commander_legal(variant):
+        if not _is_format_legal(variant, legality_key):
             continue
         missing = _find_missing_card(variant, all_card_names)
         if missing is None:
