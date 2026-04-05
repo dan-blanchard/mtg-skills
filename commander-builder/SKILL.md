@@ -264,3 +264,73 @@ After filling, run these checks in order:
    Verify total cost is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. Re-run until the total is within budget.
 
 **This is a gate — do not present a skeleton that fails any of these checks.**
+
+## Step 4: Present Skeleton
+
+Present the skeleton to the user as a markdown list organized by the builder's categories (lands, ramp, card draw, removal, board wipes, win conditions, engine/synergy, protection/utility). Include brief notes on why key synergy cards were included.
+
+Show a summary:
+- Total card count
+- Land count and Burgess formula target
+- Total estimated cost vs. budget
+- Category breakdown
+
+Ask: "Want to make any adjustments before I hand this off for tuning?"
+
+If the user requests changes, apply them, re-run structural verification, and present again.
+
+## Step 5: Hand Off to Commander-Tuner
+
+1. **Write output files** — Save the parsed deck JSON and hydrated card JSON to the working directory.
+
+   The deck JSON format: `{"commanders": [{"name": str, "quantity": int}], "cards": [{"name": str, "quantity": int}, ...], "total_cards": int}`
+
+2. **Invoke commander-tuner** — Invoke `/commander-tuner` with the generated deck. If commander-tuner is not available, tell the user:
+
+   > "I recommend installing the commander-tuner skill to refine this deck further. You can install it with `npx skills install <source>`. The skeleton is a playable starting point, but tuning will significantly improve it."
+
+3. **Carry forward context** — When invoking commander-tuner, provide the following so it can skip re-asking:
+   - Bracket target
+   - Budget (note how much was spent on the skeleton — remaining budget is for upgrades)
+   - Experience level
+   - Suggested max swaps: 20 (user can adjust during commander-tuner's intake)
+   - Pain points: "This is a freshly generated skeleton — general optimization is the goal"
+
+## Red Flags — STOP If You Catch Yourself Thinking These
+
+| Thought | Reality |
+|---------|---------|
+| "I know what this card does" | You don't. Look it up. Training data is not oracle text. |
+| "EDHREC recommends it so it must be good here" | EDHREC is aggregated data, not analysis. Evaluate for THIS build. |
+| "This card is generally good in Commander" | Generic staples aren't always right. Check synergy with THIS commander. |
+| "We're over budget but this card is too good to skip" | Budget is a hard constraint. Find a cheaper alternative. |
+| "I'll just fill the rest with staples" | Every card should have a reason. Staples are a last resort, not a shortcut. |
+| "The mana base is probably fine" | Run `mana-audit`. Don't eyeball mana bases. |
+| "This step seems unnecessary for this deck" | Follow every step. The process exists because shortcuts cause mistakes. |
+| "I can skip oracle text verification for well-known cards" | No. Look up every card. Even Sol Ring has oracle text worth reading. |
+
+## Experience Level Adaptation
+
+| Aspect | Beginner | Intermediate | Advanced |
+|--------|----------|--------------|----------|
+| Interview | Explain all terms, give examples | Use terms with brief context | Use shorthand |
+| Recommendations | Explain why each card matters | Focus on synergy highlights | Category list with brief notes |
+| Strategy | Explain what the strategy does and why | Explain key interactions | Name the archetype and key cards |
+| Presentation | Narrative walkthrough of the deck | Grouped by category with notes | Concise tables |
+
+## Script Reference
+
+All scripts are run via `uv run --directory <skill-install-dir>`:
+
+- `scryfall-lookup "Card Name"` — single card oracle text lookup
+- `scryfall-lookup --batch <path> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache` — batch lookup from JSON name list or parsed deck JSON
+- `edhrec-lookup "<Commander Name>"` — EDHREC recommendations for a commander
+- `edhrec-lookup "<Commander 1>" "<Commander 2>"` — partner commander EDHREC lookup
+- `download-bulk --output-dir <skill-install-dir>` — download/refresh Scryfall bulk data
+- `web-fetch "<url>" --max-length 10000` — fetch web page content
+- `deck-stats <deck.json> <hydrated.json>` — deck statistics and curve
+- `card-summary <hydrated.json>` — compact card table (with `--lands-only` or `--nonlands-only`)
+- `mana-audit <deck.json> <hydrated.json>` — mana base health audit
+- `price-check <deck.json> [--budget N] --bulk-data <bulk-data-path>` — price validation
+- `set-commander <deck.json> "Name"` — move card to commanders list
+- `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json>` — apply changes to deck
