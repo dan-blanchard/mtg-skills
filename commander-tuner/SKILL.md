@@ -188,6 +188,24 @@ Cards with feedback loops are almost always stronger than they appear in isolati
 
 Identify all cards that return themselves to a usable zone: re-suspend, buyback, retrace, escape, flashback, "return to hand" clauses, "exile with time counters" effects. Evaluate these on their per-game value (total free casts over a typical game), not their per-cast value. A 6-mana spell that re-suspends and gets cast for free every 1-2 turns is a permanent with a triggered ability, not a one-shot.
 
+### Commander Multiplication
+
+Identify cards in the deck that multiply the commander's impact by creating copies or duplicating abilities. These fall into two categories:
+
+**Commander Copies** — Cards that create token copies or become copies of the commander (e.g., Helm of the Host, Spark Double, Clone effects). Non-legendary copies bypass the legend rule, so each copy retains all triggered and activated abilities and functions independently. A commander with three triggered abilities effectively becomes two commanders when copied.
+
+**Ability Copiers** — Cards that copy or double the commander's triggered or activated abilities (e.g., Strionic Resonator, Rings of Brighthearth, Panharmonicon for ETB commanders, Teysa Karlov for death trigger commanders, Isshin for attack trigger commanders). These double specific abilities and are most powerful when the commander's abilities have high base value.
+
+For each identified multiplier card, note:
+1. What it copies (the full commander, or specific triggered/activated abilities)
+2. How many additional copies/triggers it provides per activation or per trigger event
+3. Whether it bypasses the legend rule (for copy effects)
+4. Which specific commander abilities benefit
+
+**These cards are force-multipliers.** During cut analysis, flag any commander-multiplication card as high-value — it should not be cut without explicit justification that the replacement provides comparable or better strategic value.
+
+Run `cut-check` to identify these cards mechanically. The `commander_multiplication` field in the output flags copy and ability-doubler effects.
+
 ### Combo Detection
 
 Run the combo search on the deck:

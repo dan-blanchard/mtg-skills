@@ -38,7 +38,7 @@ Sixteen CLI scripts backed by library modules, orchestrated by SKILL.md:
 - **`deck_diff.py`** — Deck comparison: added/removed cards, count/CMC/land/ramp deltas.
 - **`set_commander.py`** — Move cards from cards list to commanders list in parsed deck JSON.
 - **`mana_audit.py`** — Mana base health audit: land count (Burgess/Karsten), color balance (pip demand vs. land production), PASS/WARN/FAIL gates, comparison mode.
-- **`cut_check.py`** — Mechanical pre-grill: trigger detection and multiplied values, keyword interaction detection, self-recurring card detection.
+- **`cut_check.py`** — Mechanical pre-grill: trigger detection and multiplied values, keyword interaction detection, self-recurring card detection, commander copy/ability multiplication detection.
 - **`build_deck.py`** — Apply cuts/adds to a deck, output new deck JSON + merged hydrated data.
 - **`price_check.py`** — Price validation against budget using Scryfall bulk data with API fallback.
 - **`combo_search.py`** — Commander Spellbook API wrapper: combo detection and near-miss identification.

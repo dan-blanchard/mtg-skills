@@ -250,6 +250,62 @@ def detect_keyword_interactions(card: dict, commander: dict) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Commander multiplication patterns
+# ---------------------------------------------------------------------------
+
+# Commander copy patterns — cards that create a permanent copy
+_COMMANDER_COPY_PATTERNS: dict[str, re.Pattern[str]] = {
+    "create_token_copy": re.compile(
+        r"create[s]?\s+(?:a|an|one|two|\d+)\s+(?:\S+\s+)*?tokens?\s+"
+        r"(?:that(?:'s|\s+is)\s+(?:a\s+)?)?cop(?:y|ies)\s+of",
+        re.IGNORECASE,
+    ),
+    "becomes_copy": re.compile(
+        r"(?:enter[s]?\s+(?:the\s+battlefield\s+)?as\s+(?:a\s+)?copy\s+of"
+        r"|becomes?\s+a\s+copy\s+of)",
+        re.IGNORECASE,
+    ),
+    "create_copy": re.compile(
+        r"create[s]?\s+(?:a|an|one|two|\d+)\s+cop(?:y|ies)\s+of",
+        re.IGNORECASE,
+    ),
+    "copy_creature_spell": re.compile(
+        r"copy\s+target\s+creature\s+spell.*?isn(?:'t| not)\s+legendary",
+        re.IGNORECASE,
+    ),
+}
+
+# Ability copy patterns — cards that copy or double abilities
+_ABILITY_COPY_PATTERNS: dict[str, re.Pattern[str]] = {
+    "copy_triggered_ability": re.compile(
+        r"copy\s+target\s+triggered\s+ability",
+        re.IGNORECASE,
+    ),
+    "copy_activated_or_triggered": re.compile(
+        r"copy\s+target\s+activated\s+or\s+triggered\s+ability",
+        re.IGNORECASE,
+    ),
+    "copy_activated_ability": re.compile(
+        r"copy\s+that\s+ability",
+        re.IGNORECASE,
+    ),
+    "trigger_doubler": re.compile(
+        r"triggers?\s+an\s+additional\s+time",
+        re.IGNORECASE,
+    ),
+}
+
+# Legend-rule bypass patterns
+_LEGEND_BYPASS_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"isn(?:'t| not)\s+legendary", re.IGNORECASE),
+    re.compile(r"legend\s+rule.*?doesn(?:'t| not)\s+apply", re.IGNORECASE),
+]
+
+# Activated ability pattern — {cost}: effect (excluding mana abilities)
+_ACTIVATED_ABILITY_RE = re.compile(r"\{[^}]+\}.*?:")
+_MANA_ABILITY_RE = re.compile(r"^\{[^}]*\}(?:,\s*\{[^}]*\})*:\s*Add\s", re.IGNORECASE)
+
+# ---------------------------------------------------------------------------
 # Self-recurring detection
 # ---------------------------------------------------------------------------
 
@@ -279,6 +335,79 @@ def detect_self_recurring(card: dict) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Commander multiplication detection
+# ---------------------------------------------------------------------------
+
+
+def _extract_activated_abilities(oracle_text: str) -> list[str]:
+    """Extract non-mana activated abilities from oracle text."""
+    abilities: list[str] = []
+    for line in oracle_text.splitlines():
+        stripped = line.strip()
+        if _ACTIVATED_ABILITY_RE.match(stripped) and not _MANA_ABILITY_RE.match(
+            stripped
+        ):
+            abilities.append(stripped)
+    return abilities
+
+
+def detect_commander_multiplication(card: dict, commander: dict) -> dict:
+    """Detect whether a card can copy the commander or its abilities.
+
+    Returns a dict with:
+        - commander_copy: list of matched copy effects
+        - ability_copy: list of matched ability-copy/doubler effects
+        - legend_bypass: whether the card bypasses the legend rule
+        - commander_triggers_affected: commander trigger types that would be multiplied
+        - commander_activated_abilities: non-mana activated abilities on the commander
+    """
+    card_oracle = card.get("oracle_text", "") or ""
+    cmd_oracle = commander.get("oracle_text", "") or ""
+
+    commander_copy: list[dict] = []
+    ability_copy: list[dict] = []
+    legend_bypass = False
+
+    for label, pattern in _COMMANDER_COPY_PATTERNS.items():
+        m = pattern.search(card_oracle)
+        if m:
+            commander_copy.append({"type": label, "matched_text": m.group(0)})
+
+    for label, pattern in _ABILITY_COPY_PATTERNS.items():
+        m = pattern.search(card_oracle)
+        if m:
+            ability_copy.append({"type": label, "matched_text": m.group(0)})
+
+    for pattern in _LEGEND_BYPASS_PATTERNS:
+        if pattern.search(card_oracle):
+            legend_bypass = True
+            break
+
+    # Identify commander triggers that would be affected
+    commander_triggers_affected: list[str] = []
+    if commander_copy or ability_copy:
+        cmd_sentences = _split_trigger_sentences(cmd_oracle)
+        all_types = list(_TRIGGER_PATTERNS.keys())
+        for sentence in cmd_sentences:
+            _matches, matched_type = _match_trigger_type(sentence, all_types)
+            if matched_type and matched_type not in commander_triggers_affected:
+                commander_triggers_affected.append(matched_type)
+
+    # Identify commander activated abilities
+    commander_activated_abilities: list[str] = []
+    if commander_copy or ability_copy:
+        commander_activated_abilities = _extract_activated_abilities(cmd_oracle)
+
+    return {
+        "commander_copy": commander_copy,
+        "ability_copy": ability_copy,
+        "legend_bypass": legend_bypass,
+        "commander_triggers_affected": commander_triggers_affected,
+        "commander_activated_abilities": commander_activated_abilities,
+    }
+
+
+# ---------------------------------------------------------------------------
 # run_cut_check
 # ---------------------------------------------------------------------------
 
@@ -305,6 +434,7 @@ def run_cut_check(
         )
         keyword_interactions = detect_keyword_interactions(card, commander)
         self_recurring = detect_self_recurring(card)
+        commander_multiplication = detect_commander_multiplication(card, commander)
 
         # Add multiplied values for parseable matching triggers
         enriched_triggers: list[dict] = []
@@ -325,6 +455,7 @@ def run_cut_check(
                 "triggers": enriched_triggers,
                 "keyword_interactions": keyword_interactions,
                 "self_recurring": self_recurring,
+                "commander_multiplication": commander_multiplication,
             }
         )
 

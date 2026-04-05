@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from commander_utils.cut_check import (
+    detect_commander_multiplication,
     detect_keyword_interactions,
     detect_self_recurring,
     detect_triggers,
@@ -88,6 +89,94 @@ class TestDetectSelfRecurring:
     def test_non_recurring_card(self, trigger_test_cards):
         card = next(c for c in trigger_test_cards if c["name"] == "Upkeep Drainer")
         assert detect_self_recurring(card) is False
+
+
+class TestDetectCommanderMultiplication:
+    def _get_card(self, cards, name):
+        return next(c for c in cards if c["name"] == name)
+
+    def test_helm_of_the_host_commander_copy(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Helm of the Host")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["commander_copy"]) > 0
+        assert result["legend_bypass"] is True
+
+    def test_spark_double_commander_copy(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Spark Double")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["commander_copy"]) > 0
+        assert result["legend_bypass"] is True
+
+    def test_strionic_resonator_ability_copy(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Strionic Resonator")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["ability_copy"]) > 0
+        assert len(result["commander_copy"]) == 0
+
+    def test_panharmonicon_trigger_doubler(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Panharmonicon")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["ability_copy"]) > 0
+        assert any(e["type"] == "trigger_doubler" for e in result["ability_copy"])
+
+    def test_rings_of_brighthearth_activated_copy(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Rings of Brighthearth")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["ability_copy"]) > 0
+        assert any(
+            e["type"] == "copy_activated_ability" for e in result["ability_copy"]
+        )
+
+    def test_commander_triggers_affected(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Strionic Resonator")
+        result = detect_commander_multiplication(card, commander)
+        assert "combat-damage" in result["commander_triggers_affected"]
+
+    def test_commander_activated_abilities(self, trigger_test_cards, hydrated_cards):
+        # Thrasios has "{4}: Scry 1, then reveal..."
+        thrasios = next(
+            c for c in hydrated_cards if c["name"] == "Thrasios, Triton Hero"
+        )
+        card = self._get_card(trigger_test_cards, "Rings of Brighthearth")
+        result = detect_commander_multiplication(card, thrasios)
+        assert len(result["commander_activated_abilities"]) > 0
+
+    def test_no_false_positive_counterspell(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Counterspell")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["commander_copy"]) == 0
+        assert len(result["ability_copy"]) == 0
+        assert result["legend_bypass"] is False
+
+    def test_no_false_positive_upkeep_drainer(self, trigger_test_cards):
+        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
+        card = self._get_card(trigger_test_cards, "Upkeep Drainer")
+        result = detect_commander_multiplication(card, commander)
+        assert len(result["commander_copy"]) == 0
+        assert len(result["ability_copy"]) == 0
+
+    def test_run_cut_check_includes_multiplication(self, trigger_test_cards):
+        results = run_cut_check(
+            hydrated=trigger_test_cards,
+            commander_name="Obeka, Splitter of Seconds",
+            cut_names=["Helm of the Host", "Strionic Resonator"],
+            trigger_types=["upkeep"],
+            multiplier_low=3,
+            multiplier_high=7,
+            opponents=3,
+        )
+        helm = next(r for r in results if r["name"] == "Helm of the Host")
+        assert "commander_multiplication" in helm
+        assert len(helm["commander_multiplication"]["commander_copy"]) > 0
+        resonator = next(r for r in results if r["name"] == "Strionic Resonator")
+        assert len(resonator["commander_multiplication"]["ability_copy"]) > 0
 
 
 class TestRunCutCheck:
