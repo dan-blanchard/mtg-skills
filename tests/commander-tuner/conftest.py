@@ -576,10 +576,26 @@ def sample_combo_response() -> dict:
                 {
                     "id": "combo-1",
                     "uses": [
-                        {"card": {"name": "Viscera Seer"}, "quantity": 1, "zoneLocations": "B"},
-                        {"card": {"name": "Blood Artist"}, "quantity": 1, "zoneLocations": "B"},
-                        {"card": {"name": "Reassembling Skeleton"}, "quantity": 1, "zoneLocations": "B"},
-                        {"card": {"name": "Ashnod's Altar"}, "quantity": 1, "zoneLocations": "B"},
+                        {
+                            "card": {"name": "Viscera Seer"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
+                        {
+                            "card": {"name": "Blood Artist"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
+                        {
+                            "card": {"name": "Reassembling Skeleton"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
+                        {
+                            "card": {"name": "Ashnod's Altar"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
                     ],
                     "produces": [
                         {"name": "Infinite ETB"},
@@ -598,9 +614,21 @@ def sample_combo_response() -> dict:
                 {
                     "id": "combo-2",
                     "uses": [
-                        {"card": {"name": "Viscera Seer"}, "quantity": 1, "zoneLocations": "B"},
-                        {"card": {"name": "Blood Artist"}, "quantity": 1, "zoneLocations": "B"},
-                        {"card": {"name": "Gravecrawler"}, "quantity": 1, "zoneLocations": "B"},
+                        {
+                            "card": {"name": "Viscera Seer"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
+                        {
+                            "card": {"name": "Blood Artist"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
+                        {
+                            "card": {"name": "Gravecrawler"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
                     ],
                     "produces": [
                         {"name": "Infinite death triggers"},
@@ -616,9 +644,21 @@ def sample_combo_response() -> dict:
                 {
                     "id": "combo-3",
                     "uses": [
-                        {"card": {"name": "Sol Ring"}, "quantity": 1, "zoneLocations": "B"},
-                        {"card": {"name": "Dramatic Reversal"}, "quantity": 1, "zoneLocations": "H"},
-                        {"card": {"name": "Isochron Scepter"}, "quantity": 1, "zoneLocations": "B"},
+                        {
+                            "card": {"name": "Sol Ring"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
+                        {
+                            "card": {"name": "Dramatic Reversal"},
+                            "quantity": 1,
+                            "zoneLocations": "H",
+                        },
+                        {
+                            "card": {"name": "Isochron Scepter"},
+                            "quantity": 1,
+                            "zoneLocations": "B",
+                        },
                     ],
                     "produces": [
                         {"name": "Infinite colorless mana"},

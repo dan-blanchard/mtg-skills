@@ -38,7 +38,10 @@ class TestComboSearch:
         assert len(result["combos"]) == 1
         combo = result["combos"][0]
         assert combo["cards"] == [
-            "Viscera Seer", "Blood Artist", "Reassembling Skeleton", "Ashnod's Altar",
+            "Viscera Seer",
+            "Blood Artist",
+            "Reassembling Skeleton",
+            "Ashnod's Altar",
         ]
         assert "Infinite colorless mana" in combo["result"]
         assert combo["bracket_tag"] == "B3"
@@ -77,7 +80,10 @@ class TestComboSearch:
             result = combo_search(SAMPLE_DECK)
 
         # combo-3 (popularity 12000) should come before combo-2 (popularity 8000)
-        assert result["near_misses"][0]["popularity"] > result["near_misses"][1]["popularity"]
+        assert (
+            result["near_misses"][0]["popularity"]
+            > result["near_misses"][1]["popularity"]
+        )
 
     def test_respects_max_near_misses(self, sample_combo_response):
         mock_resp = MagicMock()
@@ -134,7 +140,9 @@ class TestComboSearch:
         assert result == {"combos": [], "near_misses": []}
 
     def test_filters_to_commander_legal_only(self, sample_combo_response):
-        sample_combo_response["results"]["included"][0]["legalities"]["commander"] = False
+        sample_combo_response["results"]["included"][0]["legalities"]["commander"] = (
+            False
+        )
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200

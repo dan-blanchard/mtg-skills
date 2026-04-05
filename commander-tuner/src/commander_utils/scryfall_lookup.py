@@ -47,7 +47,16 @@ def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
 
 
 def _extract_fields(card: dict) -> dict:
-    return {field: card.get(field) for field in CARD_FIELDS}
+    result = {field: card.get(field) for field in CARD_FIELDS}
+    # For MDFCs, Scryfall stores oracle_text on card_faces, not the top level.
+    # Combine face oracle texts so downstream consumers (color_sources, etc.) work.
+    if result["oracle_text"] is None:
+        faces = card.get("card_faces", [])
+        if faces:
+            texts = [f.get("oracle_text", "") for f in faces if f.get("oracle_text")]
+            if texts:
+                result["oracle_text"] = "\n// \n".join(texts)
+    return result
 
 
 def _api_lookup(name: str) -> dict | None:
@@ -83,6 +92,9 @@ def lookup_single(
 def _extract_names(data: list | dict) -> list[str]:
     """Extract card names from either a name list or parsed deck JSON."""
     if isinstance(data, list):
+        # Handle both ["name", ...] and [{"name": "...", ...}, ...]
+        if data and isinstance(data[0], dict):
+            return [entry["name"] for entry in data]
         return data
     # Deck JSON format: {"commanders": [...], "cards": [...]}
     names: list[str] = []

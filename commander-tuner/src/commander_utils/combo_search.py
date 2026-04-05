@@ -15,7 +15,9 @@ def _extract_combo(variant: dict) -> dict:
     """Extract a normalized combo dict from a Spellbook variant."""
     cards = [use["card"]["name"] for use in variant.get("uses", [])]
     produces = variant.get("produces", [])
-    result = [p["name"] for p in produces]
+    result = [
+        p.get("name") or p.get("feature", {}).get("name", str(p)) for p in produces
+    ]
     return {
         "cards": cards,
         "description": variant.get("description", ""),

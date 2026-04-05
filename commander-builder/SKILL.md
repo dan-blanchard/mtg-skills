@@ -219,7 +219,7 @@ Sources: [Command Zone #658](https://edhrec.com/articles/the-command-zone-comman
 
 If EDHREC has no data for the commander (new or obscure cards), fall back to:
 
-1. **Scryfall keyword search** — Search for cards that mechanically synergize with the commander's keywords/oracle text within the commander's color identity (e.g., if the commander cares about +1/+1 counters, search for "+1/+1 counter" in oracle text using `is:commander ci:XX`).
+1. **Local bulk data search** — Use `card-search` to find cards that mechanically synergize with the commander's keywords/oracle text within the commander's color identity. For example, if the commander cares about +1/+1 counters: `uv run --directory <skill-install-dir> card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "\+1/\+1 counter" --type Creature --price-max <budget-per-card>`. This searches the full Scryfall database locally — no API calls needed.
 2. **EDHREC theme/archetype data** — Look up the commander's archetype (e.g., "tokens," "voltron," "+1/+1 counters") rather than the specific commander.
 3. **Format staples** — Fill remaining slots with well-known staples for the color identity and bracket.
 
@@ -239,7 +239,7 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 
 **Per category:**
 
-1. Pull candidates from EDHREC high-synergy and top cards for this commander.
+1. Pull candidates from EDHREC high-synergy and top cards for this commander. Supplement with `card-search` to find synergistic cards EDHREC may not surface: `uv run --directory <skill-install-dir> card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --type <category-type> --price-max <budget-per-card>`.
 2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `uv run --directory <skill-install-dir> scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Read the oracle text for every candidate — verify the card actually belongs in this category and works with this commander.
 3. Filter by budget (cheapest printings, track running price total against remaining budget).
 4. Filter by bracket (avoid Game Changers above target bracket).
@@ -282,7 +282,9 @@ If the user requests changes, apply them, re-run structural verification, and pr
 
 ## Step 5: Hand Off to Commander-Tuner
 
-1. **Write output files** — Save the parsed deck JSON and hydrated card JSON to the working directory.
+1. **Write output files** — Save the parsed deck JSON and hydrated card JSON to the working directory. Also export a Moxfield-importable text file:
+
+   Run: `uv run --directory <skill-install-dir> export-deck <deck.json> > <deck-moxfield.txt>`
 
    The deck JSON format: `{"commanders": [{"name": str, "quantity": int}], "cards": [{"name": str, "quantity": int}, ...], "total_cards": int}`
 
@@ -337,3 +339,5 @@ All scripts are run via `uv run --directory <skill-install-dir>`:
 - `parse-deck <path-to-deck-file>` — multi-format deck list parser (Moxfield, MTGO, plain text, CSV)
 - `combo-search <deck.json> [--max-near-misses N]` — search Commander Spellbook for combos and near-misses in the deck
 - `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json>` — apply changes to deck
+- `export-deck <deck.json>` — export deck JSON to Moxfield import format (N CardName lines to stdout)
+- `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json]` — search bulk data for cards matching filters

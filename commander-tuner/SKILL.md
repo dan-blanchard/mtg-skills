@@ -286,7 +286,11 @@ Before recommending ANY cut, re-read the oracle text of BOTH the card and the co
 
 ### Additions
 
-Source from EDHREC high-synergy cards and web research. Recommend the cheapest available printing. Track running cost against budget.
+Source from EDHREC high-synergy cards and web research. Supplement with `card-search` to find synergistic cards EDHREC may not surface — search the local bulk data by color identity, oracle text, type, CMC, and price:
+
+Run: `uv run --directory <skill-install-dir> card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --price-max <budget-per-card>`
+
+Recommend the cheapest available printing. Track running cost against budget.
 
 ### Swap Balance Check
 
@@ -414,7 +418,9 @@ If the challenger flagged the commander during the self-grill, present it as a c
 
 ## Step 10: Finalize
 
-Output the updated deck list in the same format as the input. Offer Moxfield export if the input format was minimal.
+Output the updated deck list in the same format as the input. Export a Moxfield-importable text file:
+
+Run: `uv run --directory <skill-install-dir> export-deck <new-deck.json>`
 
 Include: summary of changes, total cost, swap count vs. budget.
 
@@ -459,3 +465,5 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 - `cut-check --cuts <path>` — expects JSON list of name strings
 - `deck-stats` — outputs `{..., "alternative_cost_cards": [{"name": str, "cmc": float, "alt_costs": [{"type": str, "cost": str}]}]}`
 - `mana-audit --compare` — outputs `{"primary": {"source": str, ...}, "comparison": {"source": str, ...}, "delta": {...}}`
+- `export-deck <deck.json>` — outputs Moxfield import format (`N CardName` lines) to stdout
+- `card-search --bulk-data <path> [--color-identity CI] [--oracle REGEX] [--type TYPE] [--cmc-min N] [--cmc-max N] [--price-min N] [--price-max N] [--sort price-desc] [--limit 25] [--json]` — searches local bulk data for cards matching filters; default output is a compact table sorted by price descending
