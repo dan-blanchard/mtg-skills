@@ -2,7 +2,7 @@
 
 ## Commands
 
-Run all commands from the `commander-tuner/` directory:
+### commander-tuner
 
 ```bash
 cd commander-tuner
@@ -10,6 +10,14 @@ uv sync                              # Install dependencies
 uv run pytest ../tests/commander-tuner/ -v  # Run tests
 uv run ruff check src/ ../tests/commander-tuner/  # Lint
 uv run ruff format src/ ../tests/commander-tuner/  # Format
+```
+
+### commander-builder
+
+```bash
+cd commander-builder
+uv sync                              # Install dependencies (follows symlink to commander-tuner/src)
+uv run pytest ../tests/commander-builder/ -v  # Run smoke tests
 ```
 
 ## Architecture
@@ -36,6 +44,10 @@ Twelve CLI scripts backed by library modules, orchestrated by SKILL.md:
 Shared library module (not a CLI script):
 
 - **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`.
+
+### commander-builder
+
+SKILL.md-only workflow (no Python scripts of its own). Shares `commander_utils` via symlink to `commander-tuner/src`. Guides users through commander selection and deck skeleton generation, then hands off to commander-tuner for refinement.
 
 ## Testing
 
