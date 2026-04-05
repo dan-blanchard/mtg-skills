@@ -327,12 +327,14 @@ Before presenting to the user, launch **two subagents** that debate the proposed
 - The `cut-check` output for all proposed cuts
 - The `mana-audit` output for the proposed deck
 - The `price-check` output for all proposed additions
+- The `combo-search` output for the current deck (existing combos and near-misses)
 - Framing: "These are the flags from mechanical analysis. You addressed them in your proposal. Defend your reasoning against challenges. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Pushing back is your job."
 
 **Challenger agent** receives:
 - The same data as the proposer
 - The `cut-check` output for all proposed cuts and the `mana-audit` output
 - The `price-check` output for all proposed additions
+- The `combo-search` output for the current deck
 - Verify the proposer addressed every `cut-check` flag. Any unaddressed flag is an automatic challenge.
 - Verify `mana-audit` shows PASS. Any WARN or FAIL is an automatic challenge.
 - The red flags table from this skill
@@ -347,6 +349,12 @@ Before presenting to the user, launch **two subagents** that debate the proposed
   - Check every clause of every cut card's oracle text, not just the primary ability — look for defensive clauses, type-changing effects, self-recurring mechanics, and static effects on other permanents
   - Verify keyword interactions between the commander and each cut card (see Step 5.5)
   - Calculate the multiplied value of any upkeep/combat/phase triggers being cut and challenge whether the proposer evaluated at the correct multiplier
+  - Verify no proposed cut breaks a game-winning combo without explicit justification from the proposer. Any unaddressed combo break is an automatic challenge.
+  - **Commander fitness evaluation:** Evaluate whether the commander itself is the weakest link. Apply the **commander identity test:** "If this deck's commander were hidden, could you guess what it is from the cards?" If the deck's strategy doesn't clearly point back to the commander, the commander may not be driving the strategy. Specifically:
+    - Evaluate how many cards mechanically interact with the commander's oracle text (triggered/activated ability synergies, not just thematic overlap)
+    - Compare the commander's CMC and casting requirements against the deck's mana base
+    - Consider whether the user's stated pain points trace back to the commander (e.g., "I can never get going" + 7-CMC commander)
+    - If the commander appears to be underperforming, use training data to shortlist 1-2 alternative commanders whose color identity covers all cards currently in the deck. Verify each alternative via `scryfall-lookup` before presenting. The Iron Rule exception for commander discovery applies: training data may inform the shortlist, but oracle text must be verified. A narrower color identity is technically possible if no cards require the dropped color, but flag this prominently as it would require cutting cards.
 
 The challenger reports issues. The proposer responds or revises. Repeat until the challenger has no remaining objections. Then present the surviving proposal to the user.
 
@@ -395,6 +403,14 @@ After presenting the proposal, surface any **close calls from the debate** — s
 > - "I considered Card Y as an addition but it costs $Z. Worth it, or would you rather save the budget?"
 
 This gives the user final say on the genuinely debatable choices without making them re-evaluate every swap. Adjust the proposal based on their answers.
+
+### Commander Swap Consideration
+
+If the challenger flagged the commander during the self-grill, present it as a close call — never as a firm recommendation:
+
+> "One thing worth considering: [specific observation about why the commander underperforms with this deck's composition]. [Alternative Commander] in the same colors does [specific oracle text interaction] which fits better with what the deck is actually doing. This would be a significant change though — worth exploring, or do you want to keep [current commander]?"
+
+**This is always a close call.** The user chose their commander for a reason. The skill surfaces the information; the user decides.
 
 ## Step 10: Finalize
 
