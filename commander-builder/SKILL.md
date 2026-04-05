@@ -294,7 +294,8 @@ If the user requests changes, apply them, re-run structural verification, and pr
 
 3. **Carry forward context** — When invoking commander-tuner, provide the following so it can skip re-asking:
    - Bracket target
-   - Budget (note how much was spent on the skeleton — remaining budget is for upgrades)
+   - **Total budget** and **amount spent on skeleton** (e.g., "Total budget: $500, skeleton cost: $406, remaining for upgrades: $94"). Pass both numbers so the tuner can show a complete budget picture at the end.
+   - Any cards the user already owns (these should not count toward either budget figure)
    - Experience level
    - Suggested max swaps: 20 (user can adjust during commander-tuner's intake)
    - Pain points: "This is a freshly generated skeleton — general optimization is the goal"

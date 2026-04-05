@@ -123,7 +123,9 @@ Ask all of these in a single message:
 
 Handle partial or natural language answers. Fill sensible defaults for anything not specified. Only follow up if something is truly ambiguous.
 
-If any of these values were already provided earlier in the conversation (e.g., from a commander-builder handoff), confirm them with the user rather than re-asking. Example: "I see you're targeting bracket 3 with a $100 budget — still correct?"
+If any of these values were already provided earlier in the conversation (e.g., from a commander-builder handoff), confirm them with the user rather than re-asking. Example: "I see you're targeting bracket 3 with $94 remaining for upgrades (from a $500 total budget) — still correct?"
+
+When receiving a builder handoff, note both the **total budget** and the **upgrade budget** (total minus skeleton cost). Use the upgrade budget for swap decisions during analysis. Track owned cards separately — they don't count toward either budget. The total budget will be used in Step 10 for the final summary.
 
 ## Step 4: Research
 
@@ -422,7 +424,27 @@ Output the updated deck list in the same format as the input. Export a Moxfield-
 
 Run: `uv run --directory <skill-install-dir> export-deck <new-deck.json>`
 
-Include: summary of changes, total cost, swap count vs. budget.
+### Final Budget Summary
+
+Run `price-check` on the complete final deck to get the total cost:
+
+Run: `uv run --directory <skill-install-dir> price-check <new-deck.json> --bulk-data <bulk-data-path>`
+
+Present a budget summary that shows the full picture:
+
+> **Budget Summary**
+> | | Cost |
+> |---|---|
+> | Skeleton (from builder) | $X |
+> | Upgrades (this session) | $Y |
+> | **Total deck cost** | **$Z** |
+> | Owned cards (not counted) | card1, card2, ... |
+> | Total budget | $B |
+> | **Remaining** | **$R** |
+
+If the total budget was not provided (standalone tuner session without builder), show just the upgrade cost and total deck cost.
+
+Include: summary of changes, swap count.
 
 Offer (don't force): mana curve before/after, category breakdown comparison, "next upgrades" list for future budget.
 
