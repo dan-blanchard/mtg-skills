@@ -139,6 +139,10 @@ class TestTotalCards:
         result = parse_deck(deck_path)
         assert result["total_cards"] == 6
 
+    def test_owned_cards_initialized_empty(self, moxfield_deck):
+        result = parse_deck(moxfield_deck)
+        assert result["owned_cards"] == []
+
     def test_cli_includes_total_cards(self, moxfield_deck):
         runner = CliRunner()
         result = runner.invoke(main, [str(moxfield_deck)])

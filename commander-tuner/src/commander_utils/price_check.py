@@ -62,13 +62,20 @@ def check_prices(
     """Check prices for a list of card names or a parsed deck JSON."""
     names = _extract_names(names_or_deck)
 
+    # Extract owned cards from deck JSON if present
+    owned_set: set[str] = set()
+    if isinstance(names_or_deck, dict):
+        owned_set = {n.lower() for n in names_or_deck.get("owned_cards", [])}
+
     # Build bulk index once if available
     bulk_index = None
     if bulk_path is not None:
         bulk_index = _load_bulk_index(bulk_path)
 
     cards_out: list[dict] = []
-    running_total = 0.0
+    total_cost = 0.0
+    total_value = 0.0
+    owned_count = 0
 
     for name in names:
         card = lookup_single(name, bulk_index=bulk_index)
@@ -78,25 +85,35 @@ def check_prices(
         if price is None and card is not None:
             price = _api_price_lookup(name)
 
+        owned = name.lower() in owned_set
+
         if price is not None:
-            running_total += price
+            total_value += price
+            if not owned:
+                total_cost += price
+
+        if owned:
+            owned_count += 1
 
         cards_out.append(
             {
                 "name": name,
                 "price_usd": price,
-                "running_total": round(running_total, 2),
+                "owned": owned,
+                "running_total": round(total_cost, 2),
             }
         )
 
     result: dict = {
         "cards": cards_out,
-        "total": round(running_total, 2),
+        "total_cost": round(total_cost, 2),
+        "total_value": round(total_value, 2),
+        "owned_cards_count": owned_count,
     }
 
     if budget is not None:
         result["budget"] = budget
-        result["over_budget"] = running_total > budget
+        result["over_budget"] = total_cost > budget
 
     return result
 

@@ -26,7 +26,7 @@ class TestCheckPrices:
             )
             result = check_prices(["Cheap Card", "No Price Card"])
 
-        assert result["total"] == 1.50
+        assert result["total_cost"] == 1.50
         assert result["cards"][1]["price_usd"] is None
 
     def test_falls_back_to_usd_foil(self):
@@ -58,6 +58,64 @@ class TestCheckPrices:
         assert "Korvold, Fae-Cursed King" in names
         assert "Sol Ring" in names
 
+    def test_owned_cards_excluded_from_cost(self):
+        cards_data = [
+            {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
+            {"name": "Owned Card", "prices": {"usd": "10.00", "usd_foil": None}},
+        ]
+        deck = {
+            "commanders": [],
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Owned Card", "quantity": 1},
+            ],
+            "owned_cards": ["Owned Card"],
+        }
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(deck)
+
+        assert result["total_cost"] == 2.00
+        assert result["total_value"] == 12.00
+        assert result["owned_cards_count"] == 1
+        assert result["cards"][1]["owned"] is True
+        assert result["cards"][0]["owned"] is False
+
+    def test_owned_cards_case_insensitive(self):
+        cards_data = [
+            {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
+        ]
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+            "owned_cards": ["sol ring"],
+        }
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(deck)
+
+        assert result["cards"][0]["owned"] is True
+        assert result["total_cost"] == 0.0
+        assert result["total_value"] == 2.00
+
+    def test_no_owned_cards_field_works(self):
+        cards_data = [
+            {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
+        ]
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(["Sol Ring"])
+
+        assert result["total_cost"] == 2.00
+        assert result["total_value"] == 2.00
+        assert result["owned_cards_count"] == 0
+
     def test_api_fallback_for_null_prices(self):
         bulk_card = {
             "name": "Priceless Card",
@@ -82,7 +140,7 @@ class TestCheckPrices:
             result = check_prices(["Priceless Card"])
 
         assert result["cards"][0]["price_usd"] == 42.00
-        assert result["total"] == 42.00
+        assert result["total_cost"] == 42.00
 
 
 class TestCLI:

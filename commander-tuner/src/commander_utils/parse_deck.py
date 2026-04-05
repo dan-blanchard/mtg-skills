@@ -165,6 +165,8 @@ def parse_deck(path: Path) -> dict:
         c.get("quantity", 1) for c in result["commanders"]
     ) + sum(c.get("quantity", 1) for c in result["cards"])
 
+    result.setdefault("owned_cards", [])
+
     return result
 
 
