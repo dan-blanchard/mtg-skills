@@ -14,6 +14,7 @@ def test_commander_utils_importable():
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0, f"Import failed: {result.stderr}"
 
@@ -42,6 +43,7 @@ def test_cli_entry_points_available():
             [sys.executable, "-m", "commander_utils." + entry_point.replace("-", "_"), "--help"],
             capture_output=True,
             text=True,
+            check=False,
         )
         # Click commands exposed via [project.scripts] may not work with -m,
         # so fall back to checking the module is at least importable
@@ -51,6 +53,7 @@ def test_cli_entry_points_available():
                 [sys.executable, "-c", f"from commander_utils.{mod} import main; assert callable(main)"],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             assert result2.returncode == 0, (
                 f"Entry point '{entry_point}' not available: {result.stderr} / {result2.stderr}"
