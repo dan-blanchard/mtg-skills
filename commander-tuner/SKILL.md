@@ -186,6 +186,27 @@ Cards with feedback loops are almost always stronger than they appear in isolati
 
 Identify all cards that return themselves to a usable zone: re-suspend, buyback, retrace, escape, flashback, "return to hand" clauses, "exile with time counters" effects. Evaluate these on their per-game value (total free casts over a typical game), not their per-cast value. A 6-mana spell that re-suspends and gets cast for free every 1-2 turns is a permanent with a triggered ability, not a one-shot.
 
+### Combo Detection
+
+Run the combo search on the deck:
+
+Run: `uv run --directory <skill-install-dir> combo-search <parsed-deck-json>`
+
+Review the output:
+
+**Existing combos:** List each combo with its cards, result, and bracket tag. Flag all cards involved as combo pieces — these cards must not be evaluated in isolation during analysis. Distinguish between:
+- **Game-winning combos** (result contains "infinite" or "win the game"): flag prominently, these are critical to protect during analysis.
+- **Value interactions** (non-infinite synergies): note as context, but these don't block cuts.
+
+**Near-misses:** List combos the deck is one card away from completing, with the missing card identified. These are potential additions to evaluate in Step 6.
+
+**Bracket compliance:** Check combo results against the user's target bracket:
+- **Bracket 1-2:** Intentional two-card infinite combos are prohibited. Flag existing infinite combos as bracket violations — they must be cut or the user must acknowledge they're playing above bracket. Do NOT suggest near-miss infinite combos as additions.
+- **Bracket 3:** Infinite combos are allowed but should not reliably fire before turn 6. Flag low-CMC/easily-tutored infinite combos as potential bracket concerns.
+- **Bracket 4:** No restrictions on combos.
+
+If `combo-search` returns empty results (API unavailable), proceed without combo data — the analysis works fine without it.
+
 ## Step 6: Analysis
 
 Group cards by commander-aware roles — roles defined by how they work with THIS commander, not generic categories. Analyze each group as a unit.
@@ -231,6 +252,7 @@ Sources: [Command Zone #658](https://edhrec.com/articles/the-command-zone-comman
 - Mana base quality
 - Bracket compliance (count Game Changers vs. target bracket)
 - Pain point focus (weight toward user-identified issues)
+- Combo awareness (reference combo data from Step 5.5 — combo pieces should be evaluated in context of the combo, not in isolation; near-miss cards are candidates for additions)
 
 ### Cut Checklist
 
@@ -253,6 +275,10 @@ Before recommending ANY cut, work through this checklist for every candidate. Sk
 4. **Pain point regression check.** Does cutting this card make the user's stated problem worse? A card that gains life in a deck whose pilot gets ganged up on may be load-bearing even if it looks underpowered.
 
 5. **Multiplied value calculation.** Calculate the card's output at the commander's expected trigger multiplier (see Step 5.5). If a trigger looks weak at 1x but kills a player at 5x, it is a win condition, not a role player. Do not cut win conditions for utility unless replacing with a better win condition.
+
+6. **Combo piece check.** Is this card part of an existing combo line (from the Step 5.5 combo search)? If so, cutting it breaks that combo. Distinguish based on the `result` field:
+   - **Game-winning combos** (result contains "infinite" or "win the game"): hard to justify cutting. Requires explicit justification — "this combo is too slow for the bracket" or "this combo is a bracket violation" are valid. "I didn't notice it was a combo piece" is not. If cutting, note which combo it breaks and verify the replacement strategy still has a viable win condition.
+   - **Value interactions** (non-infinite synergies): note the interaction but treat as a soft consideration, not a hard gate.
 
 ### Cuts — Be Careful
 
@@ -284,8 +310,9 @@ For each proposed cut, write out (internally, not presented to user):
 2. **Pain point regression:** Does cutting this card make the user's stated problem worse? [yes/no + one sentence why]
 3. **Defensive value:** What does this card prevent, deter, or protect? [one sentence, or "none"]
 4. **Replacement justification:** What specific card in the additions replaces this card's role? [name + one sentence]
+5. **Combo line:** Is this card part of a combo from Step 5.5? [combo name + result, or "not a combo piece"]. If game-winning, justify why cutting is acceptable.
 
-If you cannot fill in all four fields, you have not evaluated the card. Do not proceed to the self-grill.
+If you cannot fill in all five fields, you have not evaluated the card. Do not proceed to the self-grill.
 
 Review the multiplied trigger values from `cut-check` output. Any cut where the multiplied output is significant for the user's stated goals requires explicit justification for why the replacement is better *for the user's pain point*. If you cannot articulate this, do not cut it.
 
