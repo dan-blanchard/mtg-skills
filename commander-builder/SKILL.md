@@ -172,7 +172,7 @@ The goal is building enough understanding to make smart category fills — not d
 | Board wipes | 2-5 | Scaled to bracket (see table below) |
 | Win conditions | 3-5 | Cards that close out a game — combos, overwhelming board states, direct damage engines |
 | Engine/synergy pieces | 15-20 | Cards that work with the commander's strategy — enablers, payoffs, value engines |
-| Protection/utility | 8-10 | Hexproof/indestructible granters, recursion, political tools |
+| Protection/utility | 8-10 | Counterspells, hexproof/indestructible granters, recursion, political tools |
 
 ### Template Flexibility
 
@@ -333,4 +333,5 @@ All scripts are run via `uv run --directory <skill-install-dir>`:
 - `mana-audit <deck.json> <hydrated.json>` — mana base health audit
 - `price-check <deck.json> [--budget N] --bulk-data <bulk-data-path>` — price validation
 - `set-commander <deck.json> "Name"` — move card to commanders list
+- `parse-deck <path-to-deck-file>` — multi-format deck list parser (Moxfield, MTGO, plain text, CSV)
 - `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json>` — apply changes to deck
