@@ -1,6 +1,6 @@
 ---
 name: commander-tuner
-description: Use when analyzing, evaluating, or tuning an MTG Commander/EDH deck list — covers card lookup, synergy analysis, budget-aware recommendations, and deck optimization
+description: Use when analyzing, evaluating, or tuning an MTG Commander deck list (Commander/EDH, Brawl, Historic Brawl) — covers card lookup, synergy analysis, budget-aware recommendations, and deck optimization
 compatibility: Requires Python 3.12+ and uv
 license: 0BSD
 ---
@@ -80,7 +80,11 @@ digraph tuner {
 
 ## Step 1: Parse Deck List
 
-Run: `uv run --directory <skill-install-dir> parse-deck <path-to-deck-file>`
+Run: `uv run --directory <skill-install-dir> parse-deck <path-to-deck-file> [--format <format>] [--deck-size <N>]`
+
+Supported formats: `commander` (default, 100 cards), `brawl` (60 cards, Standard card pool), `historic_brawl` (100 cards, Historic/Arena card pool). Use `--deck-size` to override the default deck size (e.g., `--format historic_brawl --deck-size 60` for 60-card Historic Brawl).
+
+If the format is not obvious from context, ask the user: "What format is this deck for? (Commander, Brawl, Historic Brawl)"
 
 This auto-detects format (Moxfield, MTGO, plain text, CSV) and outputs JSON with `commanders` and `cards`. Automatically strips Moxfield set code suffixes like `(OTJ) 222` from card names.
 
@@ -106,7 +110,7 @@ Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> 
 Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> --lands-only`
 Run: `uv run --directory <skill-install-dir> deck-stats <parsed-deck-json> <hydrated-cards-json>`
 
-Review the card summary output to build your understanding of every card's oracle text. Use the deck stats to note the starting land count, ramp count, creature count, average CMC, curve distribution, and total card count. Flag immediately if the total card count is not exactly 100 (illegal deck size).
+Review the card summary output to build your understanding of every card's oracle text. Use the deck stats to note the starting land count, ramp count, creature count, average CMC, curve distribution, and total card count. Flag immediately if the total card count does not match the deck's expected size (100 for Commander/Historic Brawl, 60 for Brawl, or the user's specified deck size).
 
 Review the `alternative_cost_cards` section in deck-stats output. For any card with alternative costs (suspend, adventure, foretell, etc.), note the cost most likely to be used in this deck. Do not evaluate these cards at their CMC alone.
 
@@ -122,6 +126,11 @@ Ask all of these in a single message:
 > 5. Any specific pain points (e.g., "I run out of gas," "mana base is inconsistent"), or just general optimization?
 
 Handle partial or natural language answers. Fill sensible defaults for anything not specified. Only follow up if something is truly ambiguous.
+
+**Format-specific context to mention when relevant:**
+- **Brawl/Historic Brawl:** No commander damage (Voltron strategies are weaker), starting life is 25 (2-player) or 30 (multiplayer) instead of 40, free first mulligan
+- **Brawl:** Standard card pool — many Commander staples are not legal. Colorless commanders can include any number of basics of one chosen type.
+- **Historic Brawl:** Arena Brawl card pool — broader than Standard but different ban list from Commander
 
 If any of these values were already provided earlier in the conversation (e.g., from a commander-builder handoff), confirm them with the user rather than re-asking. Example: "I see you're targeting bracket 3 with $94 remaining for upgrades (from a $500 total budget) — still correct?"
 
@@ -142,6 +151,8 @@ Run: `uv run --directory <skill-install-dir> web-fetch "<url>" --max-length 1000
 This uses browser-like headers and falls back to `curl` for sites that block Python requests via TLS fingerprinting (e.g., Commander's Herald). Use `--max-length` to avoid overwhelming context with full page content.
 
 **Key principle:** Research informs but doesn't dictate. EDHREC popularity doesn't automatically make a card right, and unpopularity doesn't make it wrong.
+
+**Brawl format note:** EDHREC data is sourced from Commander/EDH decks. When tuning a Brawl deck, EDHREC recommendations must be legality-checked against the deck's format before recommending. Use `card-search --format <format>` to verify candidates are legal.
 
 ## Step 5: Strategy Alignment Check
 
@@ -374,6 +385,7 @@ Before presenting to the user, launch **two subagents** that debate the proposed
   - Verify keyword interactions between the commander and each cut card (see Step 5.5)
   - Calculate the multiplied value of any upkeep/combat/phase triggers being cut and challenge whether the proposer evaluated at the correct multiplier
   - Verify no proposed cut breaks a game-winning combo without explicit justification from the proposer. Any unaddressed combo break is an automatic challenge.
+  - For Brawl formats: verify that strategic evaluations account for format-specific rules (no commander damage, lower life totals, free mulligan). Voltron strategies should be scrutinized more heavily in Brawl since commander damage doesn't apply.
   - **Commander fitness evaluation:** Evaluate whether the commander itself is the weakest link. Apply the **commander identity test:** "If this deck's commander were hidden, could you guess what it is from the cards?" If the deck's strategy doesn't clearly point back to the commander, the commander may not be driving the strategy. Specifically:
     - Evaluate how many cards mechanically interact with the commander's oracle text (triggered/activated ability synergies, not just thematic overlap)
     - Compare the commander's CMC and casting requirements against the deck's mana base
@@ -411,7 +423,7 @@ Before presenting close calls, verify the proposal's impact on deck metrics:
 Run: `uv run --directory <skill-install-dir> deck-diff <old-deck.json> <new-deck.json> <old-hydrated.json> <new-hydrated.json>`
 
 Confirm:
-- Total card count remains exactly 100
+- Total card count matches the deck's expected size
 - Land count stays in a healthy range
 - Average CMC didn't increase unexpectedly
 - Ramp count didn't decrease
@@ -496,7 +508,7 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 
 ## Script Input Formats
 
-- `parse-deck <path>` — outputs `{"commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`
+- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`
 - `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout
 - `scryfall-lookup "Card Name"` — outputs single card JSON to stdout
 - `scryfall-lookup --batch <path>` — accepts either a JSON list of name strings or a parsed deck JSON; outputs list of card JSONs
@@ -506,4 +518,4 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 - `deck-stats` — outputs `{..., "alternative_cost_cards": [{"name": str, "cmc": float, "alt_costs": [{"type": str, "cost": str}]}]}`
 - `mana-audit --compare` — outputs `{"primary": {"source": str, ...}, "comparison": {"source": str, ...}, "delta": {...}}`
 - `export-deck <deck.json>` — outputs Moxfield import format (`N CardName` lines) to stdout
-- `card-search --bulk-data <path> [--color-identity CI] [--oracle REGEX] [--type TYPE] [--cmc-min N] [--cmc-max N] [--price-min N] [--price-max N] [--sort price-desc] [--limit 25] [--json]` — searches local bulk data for cards matching filters; default output is a compact table sorted by price descending
+- `card-search --bulk-data <path> [--color-identity CI] [--oracle REGEX] [--type TYPE] [--cmc-min N] [--cmc-max N] [--price-min N] [--price-max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT]` — searches local bulk data for cards matching filters; `--format` filters by format legality (commander, brawl, historic_brawl); default output is a compact table sorted by price descending
