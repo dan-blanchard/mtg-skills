@@ -40,6 +40,7 @@ Twelve CLI scripts backed by library modules, orchestrated by SKILL.md:
 - **`mana_audit.py`** — Mana base health audit: land count (Burgess/Karsten), color balance (pip demand vs. land production), PASS/WARN/FAIL gates, comparison mode.
 - **`cut_check.py`** — Mechanical pre-grill: trigger detection and multiplied values, keyword interaction detection, self-recurring card detection.
 - **`build_deck.py`** — Apply cuts/adds to a deck, output new deck JSON + merged hydrated data.
+- **`combo_search.py`** — Commander Spellbook API wrapper: combo detection and near-miss identification.
 
 Shared library module (not a CLI script):
 

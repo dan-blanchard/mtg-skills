@@ -334,4 +334,5 @@ All scripts are run via `uv run --directory <skill-install-dir>`:
 - `price-check <deck.json> [--budget N] --bulk-data <bulk-data-path>` — price validation
 - `set-commander <deck.json> "Name"` — move card to commanders list
 - `parse-deck <path-to-deck-file>` — multi-format deck list parser (Moxfield, MTGO, plain text, CSV)
+- `combo-search <deck.json> [--max-near-misses N]` — search Commander Spellbook for combos and near-misses in the deck
 - `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json>` — apply changes to deck
