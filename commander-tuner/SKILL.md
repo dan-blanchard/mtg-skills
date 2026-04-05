@@ -123,6 +123,8 @@ Ask all of these in a single message:
 
 Handle partial or natural language answers. Fill sensible defaults for anything not specified. Only follow up if something is truly ambiguous.
 
+If any of these values were already provided earlier in the conversation (e.g., from a commander-builder handoff), confirm them with the user rather than re-asking. Example: "I see you're targeting bracket 3 with a $100 budget — still correct?"
+
 ## Step 4: Research
 
 Run: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander Name>"`
@@ -204,6 +206,20 @@ Proposing a land count below the Burgess formula result requires the `mana-audit
 Flag any existing problems: too few lands, curve too high, not enough ramp for the curve, color fixing gaps.
 
 Sources: [EDHREC Superior Numbers](https://edhrec.com/articles/superior-numbers-land-counts), [Draftsim Land Count Guide](https://draftsim.com/mtg-edh-deck-number-of-lands/), Frank Karsten's Commander mana base simulations.
+
+### Interaction Audit
+
+Count the deck's removal and interaction pieces. Compare against bracket-appropriate targets:
+
+| Category | Bracket 1-2 (Casual) | Bracket 3 (Upgraded) | Bracket 4 (Optimized) |
+|----------|----------------------|----------------------|----------------------|
+| Targeted removal/disruption | 5-7 | 8-10 | 10-12 |
+| Board wipes | 2-3 | 3-4 | 4-5 |
+| Total interaction | 8-10 | 12-14 | 15-18 |
+
+"Disruption" includes counterspells, discard, and stax pieces — not just creature/artifact removal. Flag decks that fall below the low end of their bracket's range.
+
+Sources: [Command Zone #658](https://edhrec.com/articles/the-command-zone-commander-deckbuilding-template-for-the-new-era-the-command-zone-658-mtg-edh-magic-gathering), [EDHREC Solve the Equation](https://edhrec.com/articles/solve-the-equation-choosing-and-using-your-interaction), [MTGGoldfish Deckbuilding Checklist](https://www.mtggoldfish.com/articles/the-power-of-a-deckbuilding-checklist-commander-quickie)
 
 ### Analysis Dimensions
 
