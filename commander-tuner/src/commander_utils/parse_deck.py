@@ -150,7 +150,12 @@ _PARSERS = {
 }
 
 
-def parse_deck(path: Path) -> dict:
+def parse_deck(
+    path: Path,
+    *,
+    format: str = "commander",  # noqa: A002
+    deck_size: int | None = None,
+) -> dict:
     content = path.read_text(encoding="utf-8")
     fmt = _detect_format(content)
     result = _PARSERS[fmt](content)
@@ -167,12 +172,34 @@ def parse_deck(path: Path) -> dict:
 
     result.setdefault("owned_cards", [])
 
+    from commander_utils.format_config import FORMAT_CONFIGS
+
+    result["format"] = format
+    if deck_size is not None:
+        result["deck_size"] = deck_size
+    else:
+        result["deck_size"] = FORMAT_CONFIGS[format]["deck_size"]
+
     return result
 
 
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
-def main(deck_path: Path):
+@click.option(
+    "--format",
+    "deck_format",
+    type=click.Choice(["commander", "brawl", "historic_brawl"]),
+    default="commander",
+    show_default=True,
+    help="Game format.",
+)
+@click.option(
+    "--deck-size",
+    type=int,
+    default=None,
+    help="Override deck size (default: derived from format).",
+)
+def main(deck_path: Path, deck_format: str, deck_size: int | None):
     """Parse a deck list file and output JSON."""
-    result = parse_deck(deck_path)
+    result = parse_deck(deck_path, format=deck_format, deck_size=deck_size)
     click.echo(json.dumps(result, indent=2))

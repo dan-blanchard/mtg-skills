@@ -158,3 +158,44 @@ class TestCLI:
         data = json.loads(result.output)
         assert "commanders" in data
         assert "cards" in data
+
+
+class TestFormatAndDeckSize:
+    def test_default_format_is_commander(self, moxfield_deck):
+        result = parse_deck(moxfield_deck)
+        assert result["format"] == "commander"
+        assert result["deck_size"] == 100
+
+    def test_format_brawl(self, moxfield_deck):
+        result = parse_deck(moxfield_deck, format="brawl")
+        assert result["format"] == "brawl"
+        assert result["deck_size"] == 60
+
+    def test_format_historic_brawl(self, moxfield_deck):
+        result = parse_deck(moxfield_deck, format="historic_brawl")
+        assert result["format"] == "historic_brawl"
+        assert result["deck_size"] == 100
+
+    def test_explicit_deck_size_overrides_format(self, moxfield_deck):
+        result = parse_deck(moxfield_deck, format="historic_brawl", deck_size=60)
+        assert result["format"] == "historic_brawl"
+        assert result["deck_size"] == 60
+
+    def test_cli_format_flag(self, moxfield_deck):
+        runner = CliRunner()
+        result = runner.invoke(main, [str(moxfield_deck), "--format", "brawl"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["format"] == "brawl"
+        assert data["deck_size"] == 60
+
+    def test_cli_deck_size_flag(self, moxfield_deck):
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [str(moxfield_deck), "--format", "historic_brawl", "--deck-size", "60"],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["format"] == "historic_brawl"
+        assert data["deck_size"] == 60
