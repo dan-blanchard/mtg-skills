@@ -137,3 +137,130 @@ Ask all of these (skipping any already answered during the guided interview):
 - **Pet cards:** "Any cards you definitely want included?" (pet cards, combos they want to build around)
 
 For pet cards: look up each via `scryfall-lookup` to verify it exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
+
+## Step 2: Commander Analysis
+
+1. **Scryfall lookup** — Run: `uv run --directory <skill-install-dir> scryfall-lookup "<Commander Name>"`
+
+   Read the full oracle text, color identity, CMC, and types.
+
+2. **EDHREC research** — Run: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander Name>"`
+
+   For partner commanders: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander 1>" "<Commander 2>"`
+
+   Review top cards, high synergy cards, and themes.
+
+3. **Web research** — Use `WebSearch` for the commander + "deck tech", "strategy", "guide". Use `WebFetch` or the helper script to read strategy articles:
+
+   Run: `uv run --directory <skill-install-dir> web-fetch "<url>" --max-length 10000`
+
+4. **Strategy synthesis** — Summarize the commander's key mechanics, primary strategies, and synergy axes. Present to the user for validation. If the user defers or has no preference, default to the commander's most popular theme on EDHREC and move forward.
+
+The goal is building enough understanding to make smart category fills — not deep analysis (commander-tuner handles that).
+
+## Step 3: Skeleton Generation
+
+### Default Template (100 cards total)
+
+| Category | Count | Notes |
+|----------|-------|-------|
+| Commander(s) | 1-2 | Already selected |
+| Lands | 36-38 | Calculated via Burgess formula: `31 + colors_in_identity + commander_cmc` |
+| Ramp | 10 | Mana rocks, dorks, land-fetch spells — prefer synergistic choices |
+| Card draw | 10 | Prefer draw that aligns with strategy |
+| Targeted removal/disruption | 5-12 | Scaled to bracket (see table below). Includes counterspells if in blue. |
+| Board wipes | 2-5 | Scaled to bracket (see table below) |
+| Win conditions | 3-5 | Cards that close out a game — combos, overwhelming board states, direct damage engines |
+| Engine/synergy pieces | 15-20 | Cards that work with the commander's strategy — enablers, payoffs, value engines |
+| Protection/utility | 8-10 | Hexproof/indestructible granters, recursion, political tools |
+
+### Template Flexibility
+
+The category counts above are defaults — adjust them after strategy validation to match the user's confirmed direction. Examples:
+
+- **Voltron:** Increase protection/utility, shift engine slots toward equipment/auras
+- **Combo:** Increase card draw and win conditions, add tutor slots
+- **Aggro/tokens:** Reduce board wipes (they hurt you too), increase engine pieces
+- **Control:** Increase interaction across the board, reduce engine pieces
+- **Group hug/politics:** Reduce targeted removal, add political tools to utility
+
+**Hard constraints that don't flex:** Lands and ramp stay at Burgess formula minimums regardless of strategy. Total card count must be exactly 100.
+
+### Land Base Composition
+
+The land count comes from the Burgess formula, but composition matters. Guidelines:
+
+- **Basics:** Enough to be fetched by ramp spells (Cultivate, Kodama's Reach, etc.) and not punished by Blood Moon/Back to Basics. Mono/two-color decks lean heavier on basics.
+- **Color fixing:** Scale to budget and color count:
+  - **Budget ($25-75):** Gain lands, temples (scry lands), tri-lands, check lands, pain lands
+  - **Mid ($75-200):** Add filter lands, battle lands, pathway lands, talismans
+  - **High ($200+):** Shocks, fetches, original duals if budget allows
+- **Utility lands (2-4):** Lands that synergize with the strategy (e.g., creature lands for aggro, Reliquary Tower for draw-heavy, Rogue's Passage for voltron). Don't overload — utility lands that enter tapped or produce colorless hurt consistency.
+- **Command Tower and Sol Ring:** Auto-includes in virtually every deck.
+
+Run `mana-audit` after filling to verify color balance. If any color's land production falls below its pip demand, swap basics or upgrade fixing.
+
+### Interaction Scaling by Bracket
+
+Based on Command Zone #658 (2025), EDHREC, and MTGGoldfish guidelines:
+
+| Category | Bracket 1-2 (Casual) | Bracket 3 (Upgraded) | Bracket 4 (Optimized) |
+|----------|----------------------|----------------------|----------------------|
+| Targeted removal/disruption | 5-7 | 8-10 | 10-12 |
+| Board wipes | 2-3 | 3-4 | 4-5 |
+| Total interaction | 8-10 | 12-14 | 15-18 |
+
+"Disruption" includes counterspells, discard, and stax pieces — not just creature/artifact removal. Extra interaction slots come out of the engine/synergy budget.
+
+Sources: [Command Zone #658](https://edhrec.com/articles/the-command-zone-commander-deckbuilding-template-for-the-new-era-the-command-zone-658-mtg-edh-magic-gathering), [EDHREC Solve the Equation](https://edhrec.com/articles/solve-the-equation-choosing-and-using-your-interaction), [MTGGoldfish Deckbuilding Checklist](https://www.mtggoldfish.com/articles/the-power-of-a-deckbuilding-checklist-commander-quickie)
+
+### EDHREC Fallback
+
+If EDHREC has no data for the commander (new or obscure cards), fall back to:
+
+1. **Scryfall keyword search** — Search for cards that mechanically synergize with the commander's keywords/oracle text within the commander's color identity (e.g., if the commander cares about +1/+1 counters, search for "+1/+1 counter" in oracle text using `is:commander ci:XX`).
+2. **EDHREC theme/archetype data** — Look up the commander's archetype (e.g., "tokens," "voltron," "+1/+1 counters") rather than the specific commander.
+3. **Format staples** — Fill remaining slots with well-known staples for the color identity and bracket.
+
+This fallback path produces a more generic skeleton, but commander-tuner's refinement step will tighten it.
+
+### Filling Process
+
+**Category fill order matters.** Fill foundational categories first to ensure the mana base and core infrastructure are solid before spending budget on synergy:
+
+1. **Lands** (cheapest to fill, most important to get right)
+2. **Ramp**
+3. **Card draw**
+4. **Targeted removal and board wipes**
+5. **Protection/utility**
+6. **Engine/synergy pieces**
+7. **Win conditions**
+
+**Per category:**
+
+1. Pull candidates from EDHREC high-synergy and top cards for this commander.
+2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `uv run --directory <skill-install-dir> scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Read the oracle text for every candidate — verify the card actually belongs in this category and works with this commander.
+3. Filter by budget (cheapest printings, track running price total against remaining budget).
+4. Filter by bracket (avoid Game Changers above target bracket).
+5. Weight by interview preferences (e.g., if user said "I enjoy graveyard strategies," prefer self-mill draw engines over generic draw).
+6. Weight by commander synergy (from the analysis step).
+7. Include any pet cards the user requested, slotting them into the appropriate category.
+8. Fill remaining slots with format staples appropriate to the color identity and budget.
+
+### Structural Verification
+
+After filling, run these checks in order:
+
+1. **Deck stats** — Run: `uv run --directory <skill-install-dir> deck-stats <deck.json> <hydrated.json>`
+
+   Verify total card count is exactly 100, review curve and category counts.
+
+2. **Mana audit** — Run: `uv run --directory <skill-install-dir> mana-audit <deck.json> <hydrated.json>`
+
+   Verify land count and color balance. Fix any FAIL results before proceeding.
+
+3. **Price check** — Run: `uv run --directory <skill-install-dir> price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path>`
+
+   Verify total cost is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. Re-run until the total is within budget.
+
+**This is a gate — do not present a skeleton that fails any of these checks.**
