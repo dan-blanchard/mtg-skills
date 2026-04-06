@@ -348,3 +348,115 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Test" in result.output
         assert "---" in result.output
+
+
+class TestIsCommanderFilter:
+    def test_filters_to_commander_eligible(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Atraxa",
+                type_line="Legendary Creature — Phyrexian Angel",
+            ),
+            _make_card(
+                name="Lightning Bolt",
+                type_line="Instant",
+            ),
+            _make_card(
+                name="Goblin Guide",
+                type_line="Creature — Goblin Scout",
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, is_commander_filter=True)
+        names = [c["name"] for c in results]
+        assert "Atraxa" in names
+        assert "Lightning Bolt" not in names
+        assert "Goblin Guide" not in names
+
+    def test_brawl_includes_planeswalkers(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Teferi",
+                type_line="Legendary Planeswalker — Teferi",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+            _make_card(
+                name="Atraxa",
+                type_line="Legendary Creature — Phyrexian Angel",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+            _make_card(
+                name="Sol Ring",
+                type_line="Artifact",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, format="brawl", is_commander_filter=True)
+        names = [c["name"] for c in results]
+        assert "Teferi" in names
+        assert "Atraxa" in names
+        assert "Sol Ring" not in names
+
+    def test_cli_is_commander_flag(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Atraxa",
+                type_line="Legendary Creature — Phyrexian Angel",
+            ),
+            _make_card(
+                name="Sol Ring",
+                type_line="Artifact",
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["--bulk-data", str(bulk_path), "--is-commander", "--json"],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        names = [c["name"] for c in data]
+        assert "Atraxa" in names
+        assert "Sol Ring" not in names
+
+    def test_cli_is_commander_with_brawl_format(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Teferi",
+                type_line="Legendary Planeswalker — Teferi",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+            _make_card(
+                name="Sol Ring",
+                type_line="Artifact",
+                legalities={"commander": "legal", "standardbrawl": "legal"},
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--bulk-data",
+                str(bulk_path),
+                "--is-commander",
+                "--format",
+                "brawl",
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        names = [c["name"] for c in data]
+        assert "Teferi" in names
+        assert "Sol Ring" not in names

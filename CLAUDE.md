@@ -41,7 +41,7 @@ Sixteen CLI scripts backed by library modules, orchestrated by SKILL.md:
 - **`cut_check.py`** — Mechanical pre-grill: trigger detection and multiplied values, keyword interaction detection, self-recurring card detection, commander copy/ability multiplication detection.
 - **`build_deck.py`** — Apply cuts/adds to a deck, output new deck JSON + merged hydrated data.
 - **`price_check.py`** — Price validation against budget using Scryfall bulk data with API fallback.
-- **`combo_search.py`** — Commander Spellbook API wrapper: combo detection and near-miss identification.
+- **`combo_search.py`** — Commander Spellbook API wrapper: `combo-search` for deck combo detection and near-miss identification; `combo-discover` for discovering combos by outcome, card name, or color identity.
 - **`export_deck.py`** — Export parsed deck JSON to Moxfield import format (`N CardName` lines).
 - **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range. Compact table or JSON output.
 

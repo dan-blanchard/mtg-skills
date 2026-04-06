@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 
+from commander_utils.card_classify import is_commander
 from commander_utils.format_config import FORMAT_CONFIGS
 
 
@@ -47,6 +48,8 @@ def _matches_filters(
     legality_key: str = "commander",
     arena_only: bool = False,
     paper_only: bool = False,
+    is_commander_filter: bool = False,
+    commander_format: str = "commander",
 ) -> bool:
     # Skip tokens and non-game cards
     if card.get("layout") in (
@@ -91,7 +94,13 @@ def _matches_filters(
     if price_min is not None and (price is None or price < price_min):
         return False
 
-    return not (price_max is not None and (price is None or price > price_max))
+    if price_max is not None and (price is None or price > price_max):
+        return False
+
+    if is_commander_filter:
+        return is_commander(card, format=commander_format)["eligible"]
+
+    return True
 
 
 _SORT_DEFAULTS = {
@@ -130,6 +139,7 @@ def search_cards(
     format: str | None = None,  # noqa: A002
     arena_only: bool = False,
     paper_only: bool = False,
+    is_commander_filter: bool = False,
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters."""
     if format is not None:
@@ -164,6 +174,8 @@ def search_cards(
             legality_key=legality_key,
             arena_only=arena_only,
             paper_only=paper_only,
+            is_commander_filter=is_commander_filter,
+            commander_format=format or "commander",
         )
     ]
 
@@ -270,6 +282,11 @@ def format_results(cards: list[dict]) -> str:
     default=None,
     help="Filter by format legality.",
 )
+@click.option(
+    "--is-commander",
+    is_flag=True,
+    help="Only include cards eligible to be a commander.",
+)
 @click.option("--json", "as_json", is_flag=True)
 @click.option(
     "--arena-only",
@@ -293,6 +310,7 @@ def main(
     sort: str,
     limit: int,
     *,
+    is_commander: bool,
     as_json: bool,
     card_format: str | None,
     arena_only: bool,
@@ -315,6 +333,7 @@ def main(
         format=card_format,
         arena_only=arena_only,
         paper_only=paper_only,
+        is_commander_filter=is_commander,
     )
     if as_json:
         from commander_utils.scryfall_lookup import _extract_fields

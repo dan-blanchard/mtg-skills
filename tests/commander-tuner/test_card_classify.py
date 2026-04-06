@@ -1,6 +1,12 @@
 """Tests for card classification helpers."""
 
-from commander_utils.card_classify import color_sources, is_creature, is_land, is_ramp
+from commander_utils.card_classify import (
+    color_sources,
+    is_commander,
+    is_creature,
+    is_land,
+    is_ramp,
+)
 
 
 class TestIsLand:
@@ -198,3 +204,78 @@ class TestColorSourcesFetchLands:
             "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic Mountain card, put it onto the battlefield tapped, then shuffle.",
         }
         assert color_sources(card) == {"R"}
+
+
+class TestIsCommander:
+    def test_legendary_creature(self):
+        card = {"type_line": "Legendary Creature — Dragon Noble"}
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": False}
+
+    def test_legendary_vehicle(self):
+        card = {"type_line": "Legendary Artifact — Vehicle"}
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": False}
+
+    def test_legendary_spacecraft_with_pt(self):
+        card = {
+            "type_line": "Legendary Artifact — Spacecraft",
+            "power": "3",
+            "toughness": "5",
+        }
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": False}
+
+    def test_legendary_spacecraft_without_pt(self):
+        card = {"type_line": "Legendary Artifact — Spacecraft"}
+        result = is_commander(card)
+        assert result == {"eligible": False, "requires_partner": False}
+
+    def test_legendary_planeswalker_commander_format(self):
+        card = {"type_line": "Legendary Planeswalker — Jace"}
+        result = is_commander(card, format="commander")
+        assert result == {"eligible": False, "requires_partner": False}
+
+    def test_legendary_planeswalker_brawl_format(self):
+        card = {"type_line": "Legendary Planeswalker — Jace"}
+        result = is_commander(card, format="brawl")
+        assert result == {"eligible": True, "requires_partner": False}
+
+    def test_can_be_your_commander_text(self):
+        card = {
+            "type_line": "Legendary Enchantment",
+            "oracle_text": "Leyline of the Guildpact can be your commander.",
+        }
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": False}
+
+    def test_choose_a_background(self):
+        card = {
+            "type_line": "Legendary Creature — Human Ranger",
+            "oracle_text": "Choose a Background",
+        }
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": True}
+
+    def test_choose_a_background_non_creature(self):
+        card = {
+            "type_line": "Legendary Enchantment",
+            "oracle_text": "Choose a Background\nSome other text.",
+        }
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": True}
+
+    def test_legendary_background_enchantment(self):
+        card = {"type_line": "Legendary Enchantment — Background"}
+        result = is_commander(card)
+        assert result == {"eligible": True, "requires_partner": True}
+
+    def test_non_legendary_creature(self):
+        card = {"type_line": "Creature — Goblin Warrior"}
+        result = is_commander(card)
+        assert result == {"eligible": False, "requires_partner": False}
+
+    def test_instant(self):
+        card = {"type_line": "Instant"}
+        result = is_commander(card)
+        assert result == {"eligible": False, "requires_partner": False}

@@ -41,6 +41,7 @@ Subsequent runs skip these steps if the `.venv` exists and bulk data is fresh (<
 digraph builder {
     "1. Interview" [shape=box];
     "Commander known?" [shape=diamond];
+    "Outside the box?" [shape=diamond];
     "1b. Guided interview" [shape=box];
     "Recommend 3-5 commanders" [shape=box];
     "User picks commander" [shape=box];
@@ -48,7 +49,11 @@ digraph builder {
     "2. Commander analysis" [shape=box];
     "Strategy validation" [shape=diamond];
     "Default to EDHREC top theme" [shape=box];
+    "1b-alt. Mechanics interview" [shape=box];
+    "2-alt. Combo discovery" [shape=box];
+    "2b-alt. Commander fitting" [shape=box];
     "3. Skeleton generation" [shape=box];
+    "3-alt. Skeleton with combo core" [shape=box];
     "Structural verification" [shape=diamond];
     "Fix issues" [shape=box];
     "4. Present skeleton" [shape=box];
@@ -58,7 +63,9 @@ digraph builder {
 
     "1. Interview" -> "Commander known?";
     "Commander known?" -> "Shared questions" [label="yes"];
-    "Commander known?" -> "1b. Guided interview" [label="no"];
+    "Commander known?" -> "Outside the box?" [label="no"];
+    "Outside the box?" -> "1b. Guided interview" [label="standard"];
+    "Outside the box?" -> "1b-alt. Mechanics interview" [label="outside the box"];
     "1b. Guided interview" -> "Recommend 3-5 commanders";
     "Recommend 3-5 commanders" -> "User picks commander";
     "User picks commander" -> "Shared questions";
@@ -66,8 +73,14 @@ digraph builder {
     "2. Commander analysis" -> "Strategy validation";
     "Strategy validation" -> "3. Skeleton generation" [label="user approves"];
     "Strategy validation" -> "Default to EDHREC top theme" [label="user defers"];
+    "Strategy validation" -> "2-alt. Combo discovery" [label="outside the box"];
     "Default to EDHREC top theme" -> "3. Skeleton generation";
+    "1b-alt. Mechanics interview" -> "2-alt. Combo discovery";
+    "2-alt. Combo discovery" -> "2b-alt. Commander fitting" [label="no commander"];
+    "2-alt. Combo discovery" -> "3-alt. Skeleton with combo core" [label="commander known"];
+    "2b-alt. Commander fitting" -> "3-alt. Skeleton with combo core";
     "3. Skeleton generation" -> "Structural verification";
+    "3-alt. Skeleton with combo core" -> "Structural verification";
     "Structural verification" -> "4. Present skeleton" [label="PASS"];
     "Structural verification" -> "Fix issues" [label="FAIL"];
     "Fix issues" -> "Structural verification";
@@ -91,7 +104,9 @@ Ask: "Do you know what commander you want to build a deck for?"
 - For Brawl and Historic Brawl, also check that the card is legal in the deck's format using the Scryfall `legalities` field (key `standardbrawl` for Brawl, `brawl` for Historic Brawl).
 - Check the commander's oracle text for partner, friends forever, or choose a background. If present, ask: "This commander supports a pairing — do you have a partner/background in mind, or would you like a recommendation?" Look up and validate the second commander the same way.
 - For partner/background pairs, the deck's color identity is the combined identity of both commanders. Use the combined identity for all subsequent steps.
-- Proceed to shared questions.
+- Ask: "Want a standard build or go outside the box with unusual combos?"
+  - **Standard:** Proceed to shared questions.
+  - **Outside the box:** Proceed to shared questions, then follow the "Outside the Box" workflow (Step 2-alt) after commander analysis.
 
 ### Format Selection
 
@@ -113,7 +128,12 @@ If Brawl: any legendary planeswalker can be your commander (not just those with 
 
 **Partner mechanics** are available in all formats.
 
-**If no — Guided Interview (one question at a time):**
+**If no:** Ask: "Want to explore standard archetypes or go outside the box with unusual combos?"
+
+- **Standard archetypes:** Continue with the guided interview below, then standard workflow.
+- **Outside the box:** Skip to the "Outside the Box" workflow (Step 1b-alt) after format selection and shared questions.
+
+**Guided Interview (one question at a time, for standard archetypes):**
 
 1. **Colors** — "What colors do you enjoy playing? (Pick any combination, or 'no preference')"
 
@@ -337,6 +357,75 @@ If the user requests changes, apply them, re-run structural verification, and pr
    - Format, deck size, and **Arena or paper** (e.g., "Format: historic_brawl, deck size: 100, Arena")
    - Pain points: "This is a freshly generated skeleton — general optimization is the goal"
 
+## "Outside the Box" Workflow (Combo-First Deck Building)
+
+This alternative workflow builds decks from combos and mechanics first, then finds a commander to house them. It produces decks that don't fit standard EDHREC archetypes.
+
+### Step 1b-alt: Mechanics/Outcome Interview (no commander known)
+
+Ask (accepting either or both):
+- "What mechanics excite you?" (open-ended — map to `card-search` oracle patterns and `combo-discover --card` queries)
+- "What kind of outcome do you want?" (map to `combo-discover --result` query, e.g., "infinite tokens", "infinite mana", "mill entire library")
+- "Color preferences?" (or "no preference")
+- "How obscure do you want to go?" (somewhat unusual / very obscure / wildest thing you can find)
+- "How many cards can your combo use?" (tight 2-3 card combos / allow bigger combos / full Rube Goldberg)
+
+**Two discovery strategies based on user input:**
+1. **Mechanics-first:** Use `card-search` with oracle text to find cards matching mechanics → feed card names to `combo-discover --card "X" --card "Y"` to find combos involving those cards
+2. **Outcome-first:** Use `combo-discover --result "Infinite X"` directly
+3. **Both:** Combine `--result` and `--card` filters
+
+**Obscurity → popularity mapping:**
+- Somewhat unusual: `--sort -popularity`, skip top results, popularity 1000-10000
+- Very obscure: `--sort popularity`, skip 0s, popularity 100-1000
+- Wildest thing: `--sort popularity`, popularity 0-100
+
+**Jankiness → max combo size:**
+- Tight: filter to combos with ≤3 cards
+- Allow bigger: ≤4-5 cards
+- Full Rube Goldberg: no limit
+
+### Step 2-alt: Combo Discovery (both paths)
+
+For **commander known + outside the box:** use `combo-discover --color-identity <commander-CI>` to constrain to the commander's colors.
+
+Present 3-5 interesting combos with:
+- Cards involved and oracle text (verified via `scryfall-lookup`)
+- What the combo produces
+- Color identity
+- Popularity score (lower = more obscure)
+- Number of cards (jankiness indicator)
+- For each combo piece: note standalone utility (e.g., "Viscera Seer is also a sac outlet for value even without the combo"). Combo pieces that are dead outside the combo are a risk — flag them.
+
+Ask: "Want to build around one of these, or combine multiple?" If combining, verify color identities are compatible (can be covered by a single commander's identity) and check total combo piece count isn't excessive for one deck.
+
+### Step 2b-alt: Commander Fitting (skip if commander already known)
+
+Two-wave search for each selected combo:
+1. **Mechanical fit:** `card-search --is-commander --color-identity <combo-CI> --oracle "<combo-keyword>"` — commanders whose oracle text mentions the combo's mechanics
+2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Verify each via `scryfall-lookup` (Iron Rule applies).
+
+Also check if any combo piece IS a legendary creature that could be the commander.
+
+Present 2-3 commander options with:
+- How the commander mechanically supports the combo
+- Whether the commander adds a secondary strategy axis
+- EDHREC data if available (may be sparse for obscure commanders)
+
+User picks a combo + commander pairing.
+
+### Step 3-alt: Skeleton with Combo Core
+
+- Slot combo pieces first (they're the deck's reason to exist)
+- Use `card-search` to find supporting cards: tutors that find combo pieces, protection for combo pieces, redundant effects
+- Note which combo pieces pull double duty vs. which are dead outside the combo
+- Fill remaining categories (ramp, draw, removal, lands) weighted toward the combo's mechanics
+- Standard structural verification applies (Step 3: Structural Verification)
+
+### Steps 4-5-alt: Standard presentation and handoff
+
+Same as the normal flow. When handing off to commander-tuner, note in the pain points: "Deck built around [combo description] — protect combo pieces and ensure the combo can be assembled reliably."
+
 ## Red Flags — STOP If You Catch Yourself Thinking These
 
 | Thought | Reality |
@@ -376,6 +465,7 @@ All scripts are run via `uv run --directory <skill-install-dir>`:
 - `set-commander <deck.json> "Name"` — move card to commanders list
 - `parse-deck <path-to-deck-file> [--format FORMAT] [--deck-size N]` — multi-format deck list parser; supports Moxfield, Arena (bare Commander/Deck headers), MTGO, plain text, CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
 - `combo-search <deck.json> [--max-near-misses N]` — search Commander Spellbook for combos and near-misses in the deck
+- `combo-discover [--result "Infinite X"] [--card "Card Name"] [--color-identity CI] [--sort popularity] [--limit 10] [--format FORMAT] [--arena-only] [--paper-only] [--bulk-data PATH]` — discover combos from Commander Spellbook by outcome, card name, or color identity; `--sort popularity` returns obscure combos first; `--arena-only`/`--paper-only` filter pieces by platform
 - `build-deck <deck.json> <hydrated.json> [--cuts <cuts.json>] [--adds <adds.json>] [--output-dir DIR]` — apply changes to deck; output defaults to same directory as `<deck.json>`
 - `export-deck <deck.json>` — export deck JSON to Moxfield import format (N CardName lines to stdout)
-- `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT] [--arena-only] [--paper-only]` — search bulk data for cards matching filters; `--format` filters by format legality; `--arena-only` restricts to cards on MTG Arena; `--paper-only` excludes Arena-only digital cards; output includes rarity column (C/U/R/M)
+- `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT] [--arena-only] [--paper-only] [--is-commander]` — search bulk data for cards matching filters; `--format` filters by format legality; `--arena-only` restricts to cards on MTG Arena; `--paper-only` excludes Arena-only digital cards; `--is-commander` filters to commander-eligible cards (format-aware); output includes rarity column (C/U/R/M)

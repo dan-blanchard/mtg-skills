@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.combo_search import combo_search, main
+from commander_utils.combo_search import (
+    combo_search,
+    discover_main,
+    main,
+    search_combos,
+)
 
 SAMPLE_DECK = {
     "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
@@ -356,3 +361,212 @@ class TestCLI:
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert len(data["near_misses"]) == 1
+
+
+SAMPLE_VARIANTS_RESPONSE = {
+    "results": [
+        {
+            "uses": [
+                {"card": {"name": "Scurry Oak"}, "quantity": 1, "zoneLocations": "B"},
+                {
+                    "card": {"name": "Ivy Lane Denizen"},
+                    "quantity": 1,
+                    "zoneLocations": "B",
+                },
+            ],
+            "produces": [
+                {"name": "Infinite creature tokens"},
+            ],
+            "description": "1. Scurry Oak + Ivy Lane Denizen = infinite tokens.",
+            "identity": "G",
+            "manaNeeded": "",
+            "bracketTag": "B3",
+            "popularity": 24384,
+            "legalities": {"commander": True, "standardbrawl": False, "brawl": True},
+        },
+    ],
+}
+
+
+class TestSearchCombos:
+    def _mock_get(self, response_data, status_code=200, *, raise_error=False):
+        """Create a mock session whose .get() returns the given response."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = status_code
+        mock_resp.json.return_value = response_data
+        if raise_error:
+            mock_resp.raise_for_status.side_effect = Exception("Server Error")
+        else:
+            mock_resp.raise_for_status = MagicMock()
+        return mock_resp
+
+    def test_builds_query_from_result(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(result="Infinite creature tokens")
+
+        call_kwargs = mock_session.get.call_args
+        q = (
+            call_kwargs[1]["params"]["q"]
+            if "params" in call_kwargs[1]
+            else call_kwargs[0][1]["q"]
+        )
+        assert 'result:"Infinite creature tokens"' in q
+
+    def test_builds_query_from_card(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(cards=["Scurry Oak"])
+
+        call_kwargs = mock_session.get.call_args
+        q = call_kwargs[1]["params"]["q"]
+        assert 'card:"Scurry Oak"' in q
+
+    def test_builds_query_from_multiple_cards(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(cards=["Scurry Oak", "Ivy Lane Denizen"])
+
+        call_kwargs = mock_session.get.call_args
+        q = call_kwargs[1]["params"]["q"]
+        assert 'card:"Scurry Oak"' in q
+        assert 'card:"Ivy Lane Denizen"' in q
+
+    def test_builds_query_with_color_identity(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(color_identity="BG")
+
+        call_kwargs = mock_session.get.call_args
+        q = call_kwargs[1]["params"]["q"]
+        assert "ci:BG" in q
+
+    def test_combines_all_query_parts(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(
+                result="Infinite creature tokens",
+                cards=["Scurry Oak"],
+                color_identity="G",
+            )
+
+        call_kwargs = mock_session.get.call_args
+        q = call_kwargs[1]["params"]["q"]
+        assert 'result:"Infinite creature tokens"' in q
+        assert 'card:"Scurry Oak"' in q
+        assert "ci:G" in q
+
+    def test_normalizes_response(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            combos = search_combos(result="Infinite creature tokens")
+
+        assert len(combos) == 1
+        combo = combos[0]
+        assert combo["cards"] == ["Scurry Oak", "Ivy Lane Denizen"]
+        assert combo["result"] == ["Infinite creature tokens"]
+        assert combo["identity"] == "G"
+        assert combo["mana_needed"] == ""
+        assert combo["bracket_tag"] == "B3"
+        assert combo["popularity"] == 24384
+
+    def test_returns_empty_on_api_error(self):
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.side_effect = Exception("Connection refused")
+            mock_requests.Session.return_value = mock_session
+
+            result = search_combos(result="Infinite creature tokens")
+
+        assert result == []
+
+    def test_returns_empty_on_http_error(self):
+        mock_resp = self._mock_get({}, status_code=500, raise_error=True)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            result = search_combos(result="Infinite creature tokens")
+
+        assert result == []
+
+    def test_respects_ordering_param(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(result="Infinite creature tokens", ordering="-popularity")
+
+        call_kwargs = mock_session.get.call_args
+        assert call_kwargs[1]["params"]["ordering"] == "-popularity"
+
+    def test_respects_limit_param(self):
+        mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            search_combos(result="Infinite creature tokens", limit=25)
+
+        call_kwargs = mock_session.get.call_args
+        assert call_kwargs[1]["params"]["limit"] == 25
+
+
+class TestDiscoverCLI:
+    def test_outputs_json(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = SAMPLE_VARIANTS_RESPONSE
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("commander_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            runner = CliRunner()
+            result = runner.invoke(
+                discover_main, ["--result", "Infinite creature tokens"]
+            )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert len(data) == 1
+        assert data[0]["cards"] == ["Scurry Oak", "Ivy Lane Denizen"]

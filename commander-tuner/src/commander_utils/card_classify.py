@@ -109,3 +109,48 @@ def color_sources(card: dict) -> set[str]:
     # Remove C if we also found real colors
     colors.discard("C")
     return colors
+
+
+def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
+    """Check if a card is eligible to be a commander in the given format.
+
+    Returns {"eligible": bool, "requires_partner": bool}.
+    """
+    type_line = card.get("type_line", "")
+    oracle = (card.get("oracle_text", "") or "").lower()
+
+    if "Legendary" not in type_line:
+        return {"eligible": False, "requires_partner": False}
+
+    # Legendary Creature — always eligible
+    # Check "choose a background" before returning, since those creatures
+    # support (but don't require) a Background partner.
+    if "Creature" in type_line:
+        requires_partner = "choose a background" in oracle
+        return {"eligible": True, "requires_partner": requires_partner}
+
+    # Legendary Vehicle — always eligible
+    if "Vehicle" in type_line:
+        return {"eligible": True, "requires_partner": False}
+
+    # Legendary Spacecraft with P/T — always eligible
+    if "Spacecraft" in type_line and card.get("power") and card.get("toughness"):
+        return {"eligible": True, "requires_partner": False}
+
+    # Brawl formats: Legendary Planeswalker — eligible
+    if format in ("brawl", "historic_brawl") and "Planeswalker" in type_line:
+        return {"eligible": True, "requires_partner": False}
+
+    # "can be your commander" oracle text — eligible
+    if "can be your commander" in oracle:
+        return {"eligible": True, "requires_partner": False}
+
+    # "Choose a Background" — eligible but needs Background partner
+    if "choose a background" in oracle:
+        return {"eligible": True, "requires_partner": True}
+
+    # Legendary Background enchantment — eligible only as partner
+    if "Background" in type_line and "Enchantment" in type_line:
+        return {"eligible": True, "requires_partner": True}
+
+    return {"eligible": False, "requires_partner": False}
