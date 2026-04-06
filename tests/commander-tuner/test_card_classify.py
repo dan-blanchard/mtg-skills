@@ -74,6 +74,42 @@ class TestIsRamp:
         }
         assert is_ramp(card) is False
 
+    def test_birds_of_paradise(self):
+        card = {
+            "type_line": "Creature — Bird",
+            "oracle_text": "Flying\n{T}: Add one mana of any color.",
+        }
+        assert is_ramp(card) is True
+
+    def test_arcane_signet(self):
+        card = {
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+        }
+        assert is_ramp(card) is True
+
+    def test_bloom_tender(self):
+        card = {
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "Vivid — {T}: For each color among permanents you control, add one mana of that color.",
+        }
+        assert is_ramp(card) is True
+
+    def test_lotus_cobra(self):
+        card = {
+            "type_line": "Creature — Snake",
+            "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
+        }
+        assert is_ramp(card) is True
+
+    def test_three_tree_city_land_not_ramp(self):
+        """Lands that produce mana should not be classified as ramp."""
+        card = {
+            "type_line": "Legendary Land",
+            "oracle_text": "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.",
+        }
+        assert is_ramp(card) is False
+
 
 class TestColorSources:
     def test_overgrown_tomb(self):

@@ -99,8 +99,8 @@ def _count_total(deck: dict) -> int:
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=".",
-    show_default=True,
+    default=None,
+    help="Output directory (default: same directory as DECK_JSON).",
 )
 def main(
     deck_json: Path,
@@ -111,6 +111,9 @@ def main(
     output_dir: Path,
 ) -> None:
     """Apply cuts and adds to a deck, writing new-deck.json and new-hydrated.json."""
+    if output_dir is None:
+        output_dir = deck_json.parent
+
     deck = json.loads(deck_json.read_text(encoding="utf-8"))
     hydrated: list[dict | None] = json.loads(hydrated_json.read_text(encoding="utf-8"))
 

@@ -23,8 +23,18 @@ CARD_FIELDS = [
     "color_identity",
     "prices",
     "legalities",
+    "rarity",
     "game_changer",
 ]
+
+RARITY_ORDER = {
+    "common": 0,
+    "uncommon": 1,
+    "rare": 2,
+    "mythic": 3,
+    "special": 2,
+    "bonus": 2,
+}
 
 
 def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
@@ -44,6 +54,58 @@ def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
                 index[front_face.lower()] = card
 
     return index
+
+
+def build_rarity_index(
+    bulk_path: Path,
+    legality_key: str,
+    *,
+    arena_only: bool = False,
+) -> dict[str, str]:
+    """Build name→lowest_rarity mapping across all printings legal in a format.
+
+    For Arena formats, a card's wildcard cost equals its lowest rarity among
+    printings available in that format.  When *arena_only* is True, only
+    printings that exist on Arena (``"arena" in games``) are considered.
+    """
+    with bulk_path.open(encoding="utf-8") as f:
+        cards = json.load(f)
+
+    best: dict[str, int] = {}  # name_lower -> best rarity rank
+    best_label: dict[str, str] = {}  # name_lower -> rarity string
+
+    for card in cards:
+        # Skip tokens and non-game cards
+        if card.get("layout") in (
+            "token",
+            "double_faced_token",
+            "art_series",
+        ):
+            continue
+        legalities = card.get("legalities", {})
+        if legalities.get(legality_key) not in ("legal", "restricted"):
+            continue
+        if arena_only and "arena" not in (card.get("games") or []):
+            continue
+
+        name = card.get("name", "")
+        name_lower = name.lower()
+        rarity = card.get("rarity", "rare")
+        rank = RARITY_ORDER.get(rarity, 2)
+        normalized = "rare" if rarity in ("special", "bonus") else rarity
+
+        # Index full name and front face (for split/MDFC cards)
+        keys = [name_lower]
+        if " // " in name:
+            front = name.split(" // ")[0].lower()
+            keys.append(front)
+
+        for key in keys:
+            if key not in best or rank < best[key]:
+                best[key] = rank
+                best_label[key] = normalized
+
+    return best_label
 
 
 def _extract_fields(card: dict) -> dict:

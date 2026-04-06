@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.scryfall_lookup import lookup_cards, lookup_single, main
+from commander_utils.scryfall_lookup import (
+    build_rarity_index,
+    lookup_cards,
+    lookup_single,
+    main,
+)
 
 
 class TestLookupSingle:
@@ -164,6 +169,81 @@ class TestLookupBatchDeckJSON:
 
         results = lookup_cards(names_path, bulk_path=sample_bulk_data)
         assert len(results) == 2
+
+
+class TestRarityField:
+    def test_lookup_includes_rarity(self, sample_bulk_data):
+        result = lookup_single("Sol Ring", bulk_path=sample_bulk_data)
+        assert "rarity" in result
+
+
+class TestBuildRarityIndex:
+    def test_finds_lowest_rarity(self, tmp_path):
+        cards = [
+            {
+                "name": "Dual Card",
+                "rarity": "rare",
+                "legalities": {"commander": "legal"},
+            },
+            {
+                "name": "Dual Card",
+                "rarity": "uncommon",
+                "legalities": {"commander": "legal"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = build_rarity_index(bulk_path, "commander")
+        assert index["dual card"] == "uncommon"
+
+    def test_filters_by_legality(self, tmp_path):
+        cards = [
+            {
+                "name": "Arena Card",
+                "rarity": "common",
+                "legalities": {"brawl": "legal", "commander": "not_legal"},
+            },
+            {
+                "name": "Arena Card",
+                "rarity": "rare",
+                "legalities": {"brawl": "legal", "commander": "not_legal"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        # Legal in brawl — should find common
+        index = build_rarity_index(bulk_path, "brawl")
+        assert index["arena card"] == "common"
+        # Not legal in commander — should be absent
+        index = build_rarity_index(bulk_path, "commander")
+        assert "arena card" not in index
+
+    def test_treats_special_as_rare(self, tmp_path):
+        cards = [
+            {
+                "name": "Special Card",
+                "rarity": "special",
+                "legalities": {"commander": "legal"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = build_rarity_index(bulk_path, "commander")
+        assert index["special card"] == "rare"
+
+    def test_indexes_front_face_of_split_cards(self, tmp_path):
+        cards = [
+            {
+                "name": "Fire // Ice",
+                "rarity": "uncommon",
+                "legalities": {"commander": "legal"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = build_rarity_index(bulk_path, "commander")
+        assert index["fire // ice"] == "uncommon"
+        assert index["fire"] == "uncommon"
 
 
 class TestCLI:

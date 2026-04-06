@@ -32,13 +32,17 @@ def is_ramp(card: dict) -> bool:
         return False
 
     oracle = card.get("oracle_text", "") or ""
+    oracle_lower = oracle.lower()
 
-    # Non-land cards with 'Add {' in oracle_text (mana rocks, dorks, altars)
-    if "Add {" in oracle:
+    # Non-land cards that add mana in any form:
+    #   "Add {C}{C}" / "Add {G}" — mana symbols
+    #   "Add one mana of any color" — flexible mana (e.g. Birds of Paradise)
+    #   "add mana of that color" — conditional mana (e.g. Bloom Tender)
+    #   "Add X mana" — scaled mana (e.g. Nykthos)
+    if re.search(r"add\s+(?:\{|one mana|mana of|an amount of mana)", oracle_lower):
         return True
 
     # Cards that search library for lands
-    oracle_lower = oracle.lower()
     return "search your library for" in oracle_lower and "land" in oracle_lower
 
 

@@ -121,7 +121,7 @@ Ask all of these in a single message:
 > Before I start analyzing, a few quick questions:
 > 1. What's your Commander experience level? (beginner / intermediate / advanced)
 > 2. What power bracket are you targeting? (1-5, or casual/core/upgraded/optimized/cEDH)
-> 3. Budget for upgrades? (dollar amount)
+> 3. Budget for upgrades? (dollar amount, or wildcard counts for Arena)
 > 4. Max number of card swaps?
 > 5. Any specific pain points (e.g., "I run out of gas," "mana base is inconsistent"), or just general optimization?
 
@@ -132,7 +132,11 @@ Handle partial or natural language answers. Fill sensible defaults for anything 
 - **Brawl:** Standard card pool — many Commander staples are not legal. Colorless commanders can include any number of basics of one chosen type.
 - **Historic Brawl:** Arena Brawl card pool — broader than Standard but different ban list from Commander
 
-If any of these values were already provided earlier in the conversation (e.g., from a commander-builder handoff), confirm them with the user rather than re-asking. Example: "I see you're targeting bracket 3 with $94 remaining for upgrades (from a $500 total budget) — still correct?"
+**Arena vs. paper:** Brawl and Historic Brawl can be played on Arena or in paper. When searching for cards, use `--arena-only` for Arena players (excludes paper-only cards) and `--paper-only` for paper players (excludes Arena-only digital cards like conjure/perpetual cards). If unclear, ask: "Are you playing on Arena or in paper?"
+
+**Arena wildcard budgets:** For Arena Brawl players, budget is typically in wildcards (e.g., "1 mythic, 2 rare, 11 uncommon, 38 common") rather than dollars. If the user provides wildcard counts, track them per-rarity throughout the analysis. Use `price-check --format <format>` with `--bulk-data` to get wildcard costs — it reports the lowest rarity available across all Arena printings legal in the format.
+
+If any of these values were already provided earlier in the conversation (e.g., from a commander-builder handoff), confirm them with the user rather than re-asking. Example: "I see you're targeting bracket 3 with $94 remaining for upgrades (from a $500 total budget) — still correct?" For Arena handoffs, the builder uses compact wildcard notation: `NM/NR/NU/NC` (e.g., "remaining: 2M/2R/3U/10C" means 2 mythic, 2 rare, 3 uncommon, 10 common wildcards).
 
 When receiving a builder handoff, note both the **total budget** and the **upgrade budget** (total minus skeleton cost). Use the upgrade budget for swap decisions during analysis. Track owned cards separately — they don't count toward either budget. The total budget will be used in Step 10 for the final summary.
 
@@ -152,7 +156,7 @@ This uses browser-like headers and falls back to `curl` for sites that block Pyt
 
 **Key principle:** Research informs but doesn't dictate. EDHREC popularity doesn't automatically make a card right, and unpopularity doesn't make it wrong.
 
-**Brawl format note:** EDHREC data is sourced from Commander/EDH decks. When tuning a Brawl deck, EDHREC recommendations must be legality-checked against the deck's format before recommending. Use `card-search --format <format>` to verify candidates are legal.
+**Brawl format note:** EDHREC data is sourced from Commander/EDH decks. When tuning a Brawl deck, EDHREC recommendations must be legality-checked against the deck's format before recommending. Use `card-search --format <format>` to verify candidates are legal. For Arena decks, also use `--arena-only` to ensure cards are actually available on MTG Arena — some cards are legal in Brawl/Historic but have no Arena printing.
 
 ## Step 5: Strategy Alignment Check
 
@@ -215,7 +219,11 @@ For each identified multiplier card, note:
 
 **These cards are force-multipliers.** During cut analysis, flag any commander-multiplication card as high-value — it should not be cut without explicit justification that the replacement provides comparable or better strategic value.
 
-Run `cut-check` to identify these cards mechanically. The `commander_multiplication` field in the output flags copy and ability-doubler effects.
+Run `cut-check` to identify these cards mechanically:
+
+Run: `uv run --directory <skill-install-dir> cut-check <hydrated-cards-json> "<Commander Name>" --cuts <cuts-names-json> --multiplier-low <low> --multiplier-high <high> --opponents <N>`
+
+The `commander_multiplication` field in the output flags copy and ability-doubler effects.
 
 ### Combo Detection
 
@@ -336,9 +344,9 @@ If the swaps would damage the mana base, revise before presenting. It is better 
 
 ## Step 6.5: Mechanical Cut Check
 
-Run `price-check` on all proposed additions with the user's budget (`uv run --directory <skill-install-dir> price-check <adds-names-json> --budget <budget> --bulk-data <bulk-data-path>`). If any single card or the total exceeds budget, find cheaper alternatives before proceeding. Do not send cards to the self-grill that the user cannot afford.
+Run `price-check` on all proposed additions with the user's budget (`uv run --directory <skill-install-dir> price-check <adds-names-json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`). For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs (lowest rarity per card) instead of USD prices. If any single card or the total exceeds budget, find cheaper alternatives before proceeding. Do not send cards to the self-grill that the user cannot afford.
 
-Before launching the self-grill, run `cut-check` on every proposed cut. Read the output.
+Before launching the self-grill, run `cut-check` on every proposed cut (`uv run --directory <skill-install-dir> cut-check <hydrated-cards-json> "<Commander Name>" --cuts <cuts-names-json> --multiplier-low <low> --multiplier-high <high> --opponents <N>`). Read the output.
 
 For each proposed cut, write out (internally, not presented to user):
 1. **Multiplied value:** [from cut-check output, or "no matching triggers"]
@@ -458,9 +466,11 @@ Run: `uv run --directory <skill-install-dir> export-deck <new-deck.json>`
 
 Run `price-check` on the complete final deck to get the total cost:
 
-Run: `uv run --directory <skill-install-dir> price-check <new-deck.json> --bulk-data <bulk-data-path>`
+Run: `uv run --directory <skill-install-dir> price-check <new-deck.json> --bulk-data <bulk-data-path> [--format <format>]`
 
-Present a budget summary that shows the full picture:
+For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs.
+
+Present a budget summary that shows the full picture. For paper/Commander:
 
 > **Budget Summary**
 > | | Cost |
@@ -471,6 +481,16 @@ Present a budget summary that shows the full picture:
 > | Owned cards (not counted) | card1, card2, ... |
 > | Total budget | $B |
 > | **Remaining** | **$R** |
+
+For Arena (Brawl/Historic Brawl with wildcard budget):
+
+> **Wildcard Summary**
+> | Rarity | Used | Available | Remaining |
+> |--------|------|-----------|-----------|
+> | Mythic | X | Y | Z |
+> | Rare | X | Y | Z |
+> | Uncommon | X | Y | Z |
+> | Common | X | Y | Z |
 
 If the total budget was not provided (standalone tuner session without builder), show just the upgrade cost and total deck cost.
 
@@ -508,14 +528,14 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 
 ## Script Input Formats
 
-- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`
+- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`. Supports Moxfield (`//Commander` headers), Arena (bare `Commander`/`Deck` headers), MTGO, plain text, and CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
 - `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout
 - `scryfall-lookup "Card Name"` — outputs single card JSON to stdout
 - `scryfall-lookup --batch <path>` — accepts either a JSON list of name strings or a parsed deck JSON; outputs list of card JSONs
-- `price-check <path> [--budget N]` — accepts either a JSON list of name strings or a parsed deck JSON; outputs prices and running total
-- `build-deck --cuts/--adds <path>` — accepts list of `{"name": str, "quantity": int}` dicts or plain name strings (quantity defaults to 1)
-- `cut-check --cuts <path>` — expects JSON list of name strings
+- `price-check <path> [--budget N] [--bulk-data <path>] [--format FORMAT]` — accepts either a JSON list of name strings or a parsed deck JSON; outputs prices and running total. For Arena formats (`brawl`, `historic_brawl`), outputs `wildcard_cost` by rarity (using lowest rarity across legal printings) instead of USD prices. Auto-detects format from deck JSON if not specified.
+- `build-deck <deck-json> <hydrated-json> [--cuts <path>] [--adds <path>] [--bulk-data <path>] [--output-dir <dir>]` — applies cuts/adds, writes `new-deck.json` and `new-hydrated.json`. Cuts/adds accept list of `{"name": str, "quantity": int}` dicts or plain name strings (quantity defaults to 1). Output defaults to the same directory as `<deck-json>`.
+- `cut-check <hydrated-json> "<Commander Name>" --cuts <path> --multiplier-low N --multiplier-high N [--trigger-type TYPE ...] [--opponents N]` — mechanical pre-grill analysis; `--cuts` expects JSON list of name strings; `--multiplier-low`/`--multiplier-high` are required; `--opponents` defaults to 3
 - `deck-stats` — outputs `{..., "alternative_cost_cards": [{"name": str, "cmc": float, "alt_costs": [{"type": str, "cost": str}]}]}`
 - `mana-audit --compare` — outputs `{"primary": {"source": str, ...}, "comparison": {"source": str, ...}, "delta": {...}}`
 - `export-deck <deck.json>` — outputs Moxfield import format (`N CardName` lines) to stdout
-- `card-search --bulk-data <path> [--color-identity CI] [--oracle REGEX] [--type TYPE] [--cmc-min N] [--cmc-max N] [--price-min N] [--price-max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT]` — searches local bulk data for cards matching filters; `--format` filters by format legality (commander, brawl, historic_brawl); default output is a compact table sorted by price descending
+- `card-search --bulk-data <path> [--color-identity CI] [--oracle REGEX] [--type TYPE] [--cmc-min N] [--cmc-max N] [--price-min N] [--price-max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT] [--arena-only] [--paper-only]` — searches local bulk data for cards matching filters; `--format` filters by format legality (commander, brawl, historic_brawl); `--arena-only` restricts to cards on MTG Arena; `--paper-only` excludes Arena-only digital cards; output includes rarity column (C/U/R/M); default output is a compact table sorted by price descending

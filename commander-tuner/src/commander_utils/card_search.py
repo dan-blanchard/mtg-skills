@@ -45,8 +45,10 @@ def _matches_filters(
     price_min: float | None,
     price_max: float | None,
     legality_key: str = "commander",
+    arena_only: bool = False,
+    paper_only: bool = False,
 ) -> bool:
-    # Skip non-paper cards and tokens
+    # Skip tokens and non-game cards
     if card.get("layout") in (
         "token",
         "double_faced_token",
@@ -57,6 +59,11 @@ def _matches_filters(
         return False
     legalities = card.get("legalities", {})
     if legalities.get(legality_key) not in ("legal", "restricted"):
+        return False
+    games = card.get("games") or []
+    if arena_only and "arena" not in games:
+        return False
+    if paper_only and "paper" not in games:
         return False
 
     if allowed_colors is not None and not _color_identity_subset(
@@ -121,6 +128,8 @@ def search_cards(
     sort: str = "price-desc",
     limit: int = 25,
     format: str | None = None,  # noqa: A002
+    arena_only: bool = False,
+    paper_only: bool = False,
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters."""
     if format is not None:
@@ -153,6 +162,8 @@ def search_cards(
             price_min=price_min,
             price_max=price_max,
             legality_key=legality_key,
+            arena_only=arena_only,
+            paper_only=paper_only,
         )
     ]
 
@@ -181,17 +192,20 @@ def format_results(cards: list[dict]) -> str:
     if not cards:
         return "No results found."
 
-    headers = ["Name", "Price", "CMC", "Type", "Oracle Text"]
+    headers = ["Name", "Price", "Rarity", "CMC", "Type", "Oracle Text"]
     rows: list[list[str]] = []
     for card in cards:
         price = _extract_price(card)
         oracle = _get_oracle_text(card).replace("\n", " ")
         if len(oracle) > 80:
             oracle = oracle[:77] + "..."
+        rarity = card.get("rarity", "")
+        rarity_short = rarity[0].upper() if rarity else "?"
         rows.append(
             [
                 card.get("name", ""),
                 f"${price:.2f}" if price is not None else "N/A",
+                rarity_short,
                 str(card.get("cmc", 0)),
                 card.get("type_line", ""),
                 oracle,
@@ -257,6 +271,16 @@ def format_results(cards: list[dict]) -> str:
     help="Filter by format legality.",
 )
 @click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--arena-only",
+    is_flag=True,
+    help="Only include cards available on MTG Arena.",
+)
+@click.option(
+    "--paper-only",
+    is_flag=True,
+    help="Exclude Arena-only digital cards (use for paper decks).",
+)
 def main(
     bulk_data: Path,
     color_identity: str | None,
@@ -271,8 +295,12 @@ def main(
     *,
     as_json: bool,
     card_format: str | None,
+    arena_only: bool,
+    paper_only: bool,
 ) -> None:
     """Search Scryfall bulk data for cards matching filters."""
+    if arena_only and paper_only:
+        raise click.UsageError("--arena-only and --paper-only are mutually exclusive.")
     results = search_cards(
         bulk_data,
         color_identity=color_identity,
@@ -285,6 +313,8 @@ def main(
         sort=sort,
         limit=limit,
         format=card_format,
+        arena_only=arena_only,
+        paper_only=paper_only,
     )
     if as_json:
         from commander_utils.scryfall_lookup import _extract_fields

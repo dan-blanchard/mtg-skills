@@ -143,6 +143,111 @@ class TestCheckPrices:
         assert result["total_cost"] == 42.00
 
 
+class TestArenaWildcardMode:
+    def test_arena_format_returns_wildcard_cost(self, sample_bulk_data):
+        names = ["Sol Ring", "Viscera Seer"]
+        result = check_prices(
+            names,
+            bulk_path=sample_bulk_data,
+            format="historic_brawl",
+        )
+        assert "wildcard_cost" in result
+        assert "total_cost" not in result
+        for card in result["cards"]:
+            assert "rarity" in card
+            assert "price_usd" not in card
+
+    def test_arena_format_tallies_wildcards(self, tmp_path):
+        """Build bulk data with cards at known rarities."""
+        cards = [
+            {
+                "name": "Common Card",
+                "rarity": "common",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+            {
+                "name": "Rare Card",
+                "rarity": "rare",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        result = check_prices(
+            ["Common Card", "Rare Card"],
+            bulk_path=bulk_path,
+            format="historic_brawl",
+        )
+        assert result["wildcard_cost"]["common"] == 1
+        assert result["wildcard_cost"]["rare"] == 1
+        assert result["wildcard_cost"]["uncommon"] == 0
+
+    def test_arena_uses_lowest_rarity_across_printings(self, tmp_path):
+        """A card printed at rare and uncommon should cost an uncommon WC."""
+        cards = [
+            {
+                "name": "Dual Print Card",
+                "rarity": "rare",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+            {
+                "name": "Dual Print Card",
+                "rarity": "uncommon",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        result = check_prices(
+            ["Dual Print Card"],
+            bulk_path=bulk_path,
+            format="historic_brawl",
+        )
+        assert result["cards"][0]["rarity"] == "uncommon"
+        assert result["wildcard_cost"]["uncommon"] == 1
+        assert result["wildcard_cost"]["rare"] == 0
+
+    def test_owned_cards_not_counted_in_wildcards(self, tmp_path):
+        cards = [
+            {
+                "name": "My Rare",
+                "rarity": "rare",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "My Rare", "quantity": 1}],
+            "owned_cards": ["My Rare"],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["rare"] == 0
+        assert result["cards"][0]["owned"] is True
+
+    def test_commander_format_still_uses_usd(self, sample_bulk_data):
+        names = ["Sol Ring"]
+        result = check_prices(names, bulk_path=sample_bulk_data, format="commander")
+        assert "total_cost" in result
+        assert "wildcard_cost" not in result
+        assert "price_usd" in result["cards"][0]
+
+
 class TestCLI:
     def test_cli_with_name_list(self, sample_bulk_data, tmp_path):
         names_path = tmp_path / "names.json"

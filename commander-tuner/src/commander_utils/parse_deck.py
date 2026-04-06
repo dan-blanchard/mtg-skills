@@ -63,21 +63,41 @@ def _parse_moxfield(content: str) -> dict:
     return {"commanders": commanders, "cards": cards}
 
 
+_ARENA_SECTION_HEADERS = frozenset(
+    {
+        "commander",
+        "companion",
+        "deck",
+        "sideboard",
+    }
+)
+
+
 def _parse_mtgo(content: str) -> dict:
+    commanders: list[dict] = []
     cards: list[dict] = []
+    current_section = ""
 
     for raw_line in content.splitlines():
         line = raw_line.strip()
         if not line:
             continue
 
+        # Recognise bare Arena section headers (e.g. "Commander", "Deck")
+        if line.lower() in _ARENA_SECTION_HEADERS:
+            current_section = line.lower()
+            continue
+
         match = re.match(r"^(\d+)\s+(.+)$", line)
         if match:
             quantity = int(match.group(1))
             name = match.group(2).strip()
-            cards.append({"name": name, "quantity": quantity})
+            if current_section == "commander":
+                commanders.append({"name": name, "quantity": quantity})
+            else:
+                cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": [], "cards": cards}
+    return {"commanders": commanders, "cards": cards}
 
 
 def _parse_csv(content: str) -> dict:
@@ -115,11 +135,18 @@ def _parse_csv(content: str) -> dict:
 
 
 def _parse_plain(content: str) -> dict:
+    commanders: list[dict] = []
     cards: list[dict] = []
+    current_section = ""
 
     for raw_line in content.splitlines():
         line = raw_line.strip()
         if not line:
+            continue
+
+        # Recognise bare Arena section headers (e.g. "Commander", "Deck")
+        if line.lower() in _ARENA_SECTION_HEADERS:
+            current_section = line.lower()
             continue
 
         match = re.match(r"^(\d+)\s+(.+)$", line)
@@ -130,9 +157,12 @@ def _parse_plain(content: str) -> dict:
             quantity = 1
             name = line
 
-        cards.append({"name": name, "quantity": quantity})
+        if current_section == "commander":
+            commanders.append({"name": name, "quantity": quantity})
+        else:
+            cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": [], "cards": cards}
+    return {"commanders": commanders, "cards": cards}
 
 
 # Matches Moxfield set code + collector number suffix: " (SET) 123" or " (SET) 123a"

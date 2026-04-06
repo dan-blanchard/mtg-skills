@@ -63,6 +63,49 @@ class TestParsePlainText:
             assert card["quantity"] == 1
 
 
+class TestArenaExport:
+    """Arena exports use bare section headers like 'Commander' and 'Deck'."""
+
+    def test_arena_commander_section(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Commander\n"
+            "1 Sliver Weftwinder (Y25) 25\n"
+            "\n"
+            "Deck\n"
+            "1 Sol Ring (C21) 263\n"
+            "1 Command Tower (C21) 284\n"
+        )
+        result = parse_deck(deck_path)
+        assert len(result["commanders"]) == 1
+        assert result["commanders"][0]["name"] == "Sliver Weftwinder"
+        card_names = [c["name"] for c in result["cards"]]
+        assert "Sol Ring" in card_names
+        assert "Command Tower" in card_names
+        # Headers must NOT appear as cards
+        assert "Commander" not in card_names
+        assert "Deck" not in card_names
+
+    def test_arena_headers_not_in_cards(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Commander\n"
+            "1 Korvold, Fae-Cursed King (ELD) 329\n"
+            "\n"
+            "Deck\n"
+            "1 Mountain (ELD) 265\n"
+            "\n"
+            "Sideboard\n"
+            "1 Island (ELD) 254\n"
+        )
+        result = parse_deck(deck_path)
+        all_names = [c["name"] for c in result["commanders"]] + [
+            c["name"] for c in result["cards"]
+        ]
+        for header in ("Commander", "Deck", "Sideboard"):
+            assert header not in all_names
+
+
 class TestParseCSV:
     def test_parses_csv(self, csv_deck):
         result = parse_deck(csv_deck)
