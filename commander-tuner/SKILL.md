@@ -26,12 +26,14 @@ uv sync --directory <skill-install-dir>
 Then download Scryfall bulk data (~500MB):
 
 ```bash
-uv run --directory <skill-install-dir> download-bulk --output-dir <skill-install-dir>
+download-bulk --output-dir <skill-install-dir>
 ```
 
 Subsequent runs skip these steps if the `.venv` exists and bulk data is fresh (<24 hours old).
 
 ## Tooling Notes
+
+**Script invocation shorthand:** All script examples below elide the `uv run --directory <skill-install-dir> ` prefix for readability. Every actual invocation must include it (e.g., `parse-deck deck.txt` shown here is run as `uv run --directory <skill-install-dir> parse-deck deck.txt`).
 
 **Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. Always use heredocs with single-quoted delimiters when writing JSON files via Bash:
 
@@ -43,56 +45,9 @@ JSONEOF
 
 Do NOT use `echo` or unquoted shell strings for JSON containing card names. For the same reason, prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
 
-## Workflow
-
-```dot
-digraph tuner {
-    "1. Parse deck list" [shape=box];
-    "Commander identified?" [shape=diamond];
-    "Ask user for commander" [shape=box];
-    "2. Hydrate card data" [shape=box];
-    "3. User intake" [shape=box];
-    "4. Research" [shape=box];
-    "5. Strategy alignment check" [shape=box];
-    "User agrees?" [shape=diamond];
-    "Revise strategy understanding" [shape=box];
-    "6. Analysis" [shape=box];
-    "7. Self-grill (subagent)" [shape=box];
-    "Survive grill?" [shape=diamond];
-    "Revise analysis" [shape=box];
-    "8. Propose changes" [shape=box];
-    "9. Close calls" [shape=box];
-    "User approves?" [shape=diamond];
-    "Revise proposal" [shape=box];
-    "10. Finalize" [shape=doublecircle];
-
-    "1. Parse deck list" -> "Commander identified?";
-    "Commander identified?" -> "2. Hydrate card data" [label="yes"];
-    "Commander identified?" -> "Ask user for commander" [label="no"];
-    "Ask user for commander" -> "2. Hydrate card data";
-    "2. Hydrate card data" -> "3. User intake";
-    "3. User intake" -> "4. Research";
-    "4. Research" -> "5. Strategy alignment check";
-    "5. Strategy alignment check" -> "User agrees?";
-    "User agrees?" -> "6. Analysis" [label="yes"];
-    "User agrees?" -> "Revise strategy understanding" [label="no / expand"];
-    "Revise strategy understanding" -> "5. Strategy alignment check";
-    "6. Analysis" -> "7. Self-grill (subagent)";
-    "7. Self-grill (subagent)" -> "Survive grill?";
-    "Survive grill?" -> "8. Propose changes" [label="yes"];
-    "Survive grill?" -> "Revise analysis" [label="no"];
-    "Revise analysis" -> "7. Self-grill (subagent)";
-    "8. Propose changes" -> "9. Close calls";
-    "9. Close calls" -> "User approves?";
-    "User approves?" -> "10. Finalize" [label="yes"];
-    "User approves?" -> "Revise proposal" [label="no"];
-    "Revise proposal" -> "8. Propose changes";
-}
-```
-
 ## Step 1: Parse Deck List
 
-Run: `uv run --directory <skill-install-dir> parse-deck <path-to-deck-file> [--format <format>] [--deck-size <N>]`
+Run: `parse-deck <path-to-deck-file> [--format <format>] [--deck-size <N>]`
 
 Supported formats: `commander` (default, 100 cards), `brawl` (60 cards, Standard card pool), `historic_brawl` (100 cards, Historic/Arena card pool). Use `--deck-size` to override the default deck size (e.g., `--format historic_brawl --deck-size 60` for 60-card Historic Brawl).
 
@@ -106,11 +61,11 @@ Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards
 
 ## Step 2: Hydrate Card Data
 
-Run: `uv run --directory <skill-install-dir> scryfall-lookup --batch <parsed-deck-json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`
+Run: `scryfall-lookup --batch <parsed-deck-json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`
 
 Looks up every card (including the commander) in Scryfall bulk data. Falls back to Scryfall API for cards not found locally. Results are cached persistently in the skill's install directory so repeat analyses are instant. If bulk data is missing or stale, download it first:
 
-Run: `uv run --directory <skill-install-dir> download-bulk --output-dir <skill-install-dir>`
+Run: `download-bulk --output-dir <skill-install-dir>`
 
 **Read the hydrated data.** Before any analysis, read the oracle text for every card, especially the commander. This is where you build your understanding of the deck.
 
@@ -118,9 +73,9 @@ Run: `uv run --directory <skill-install-dir> download-bulk --output-dir <skill-i
 
 Run the deck stats and card summary scripts to establish a quantitative baseline and get readable oracle text:
 
-Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> --nonlands-only`
-Run: `uv run --directory <skill-install-dir> card-summary <hydrated-cards-json> --lands-only`
-Run: `uv run --directory <skill-install-dir> deck-stats <parsed-deck-json> <hydrated-cards-json>`
+Run: `card-summary <hydrated-cards-json> --nonlands-only`
+Run: `card-summary <hydrated-cards-json> --lands-only`
+Run: `deck-stats <parsed-deck-json> <hydrated-cards-json>`
 
 Review the card summary output to build your understanding of every card's oracle text. Use the deck stats to note the starting land count, ramp count, creature count, average CMC, curve distribution, and total card count. Flag immediately if the total card count does not match the deck's expected size (100 for Commander/Historic Brawl, 60 for Brawl, or the user's specified deck size).
 
@@ -154,15 +109,15 @@ When receiving a builder handoff, note both the **total budget** and the **upgra
 
 ## Step 4: Research
 
-Run: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander Name>"`
+Run: `edhrec-lookup "<Commander Name>"`
 
-For partner commanders: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander 1>" "<Commander 2>"`
+For partner commanders: `edhrec-lookup "<Commander 1>" "<Commander 2>"`
 
 Also use `WebSearch` for the commander + "deck tech", "strategy", "guide" to find Command Zone, MTGGoldfish, and other content creator analysis.
 
 **Fetching strategy articles:** Use `WebFetch` first. If it returns an empty JS shell or navigation-only content, fall back to the helper script:
 
-Run: `uv run --directory <skill-install-dir> web-fetch "<url>" --max-length 10000`
+Run: `web-fetch "<url>" --max-length 10000`
 
 This uses browser-like headers and falls back to `curl` for sites that block Python requests via TLS fingerprinting (e.g., Commander's Herald). Use `--max-length` to avoid overwhelming context with full page content.
 
@@ -219,31 +174,19 @@ Identify all cards that return themselves to a usable zone: re-suspend, buyback,
 
 ### Commander Multiplication
 
-Identify cards in the deck that multiply the commander's impact by creating copies or duplicating abilities. These fall into two categories:
+Identify cards that multiply the commander's impact. Two categories:
 
-**Commander Copies** — Cards that create token copies or become copies of the commander (e.g., Helm of the Host, Spark Double, Clone effects). Non-legendary copies bypass the legend rule, so each copy retains all triggered and activated abilities and functions independently. A commander with three triggered abilities effectively becomes two commanders when copied.
+**Commander copies** — cards that create token copies or become copies of the commander (Helm of the Host, Spark Double, Clone effects, Mirror March, Followed Footsteps). Non-legendary copies bypass the legend rule and retain all triggered and activated abilities, so each copy functions independently — a commander with three triggered abilities effectively becomes two commanders when copied.
 
-**Ability Copiers** — Cards that copy or double the commander's triggered or activated abilities (e.g., Strionic Resonator, Rings of Brighthearth, Panharmonicon for ETB commanders, Teysa Karlov for death trigger commanders, Isshin for attack trigger commanders). These double specific abilities and are most powerful when the commander's abilities have high base value.
+**Ability copiers and trigger multipliers** — cards that copy or double the commander's triggered/activated abilities (Strionic Resonator, Rings of Brighthearth, Panharmonicon for ETB commanders, Teysa Karlov for death triggers, Isshin for attack triggers, Sundial of the Infinite for "until end of turn" effects, Seedborn Muse for extra activations).
 
-For each identified multiplier card, note:
-1. What it copies (the full commander, or specific triggered/activated abilities)
-2. How many additional copies/triggers it provides per activation or per trigger event
-3. Whether it bypasses the legend rule (for copy effects)
-4. Which specific commander abilities benefit
-
-**These cards are force-multipliers.** During cut analysis, flag any commander-multiplication card as high-value — it should not be cut without explicit justification that the replacement provides comparable or better strategic value.
-
-Run `cut-check` to identify these cards mechanically:
-
-Run: `uv run --directory <skill-install-dir> cut-check <hydrated-cards-json> "<Commander Name>" --cuts <cuts-names-json> --multiplier-low <low> --multiplier-high <high> --opponents <N>`
-
-The `commander_multiplication` field in the output flags copy and ability-doubler effects.
+Scan oracle text for these patterns directly — `cut-check`'s `commander_multiplication` field (which the §6.5 mechanical pass surfaces against the proposed cuts list) catches the obvious cases via keyword detection but misses oddly-worded effects. **These cards are force-multipliers.** Treat any card you flag as untouchable when drafting cuts — it should not appear on the cuts list at all without explicit justification that the replacement provides comparable strategic value.
 
 ### Combo Detection
 
 Run the combo search on the deck:
 
-Run: `uv run --directory <skill-install-dir> combo-search <parsed-deck-json>`
+Run: `combo-search <parsed-deck-json>`
 
 Review the output:
 
@@ -329,9 +272,9 @@ Before recommending ANY cut, work through this checklist for every candidate. Sk
 
 5. **Multiplied value calculation.** Calculate the card's output at the commander's expected trigger multiplier (see Step 5.5). If a trigger looks weak at 1x but kills a player at 5x, it is a win condition, not a role player. Do not cut win conditions for utility unless replacing with a better win condition.
 
-6. **Combo piece check.** Is this card part of an existing combo line (from the Step 5.5 combo search)? If so, cutting it breaks that combo. Distinguish based on the `result` field:
-   - **Game-winning combos** (result contains "infinite" or "win the game"): hard to justify cutting. Requires explicit justification — "this combo is too slow for the bracket" or "this combo is a bracket violation" are valid. "I didn't notice it was a combo piece" is not. If cutting, note which combo it breaks and verify the replacement strategy still has a viable win condition.
-   - **Value interactions** (non-infinite synergies): note the interaction but treat as a soft consideration, not a hard gate.
+6. **Combo piece check.** Is this card part of an existing combo line (from the §5.5 combo search)?
+   - **Game-winning combos** (result contains "infinite" or "win the game"): hard to justify cutting. Valid justifications include "too slow for the bracket" or "bracket violation per §5.5" — "I didn't notice it was a combo piece" is not. If cutting, note which combo it breaks and verify the replacement strategy still has a viable win condition.
+   - **Value interactions** (non-infinite synergies): a soft consideration, not a hard gate.
 
 ### Cuts — Be Careful
 
@@ -341,7 +284,7 @@ Before recommending ANY cut, re-read the oracle text of BOTH the card and the co
 
 Source from EDHREC high-synergy cards and web research. Supplement with `card-search` to find synergistic cards EDHREC may not surface — search the local bulk data by color identity, oracle text, type, CMC, and price:
 
-Run: `uv run --directory <skill-install-dir> card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --price-max <budget-per-card>`
+Run: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --price-max <budget-per-card>`
 
 Recommend the cheapest available printing. Track running cost against budget.
 
@@ -358,9 +301,9 @@ If the swaps would damage the mana base, revise before presenting. It is better 
 
 ## Step 6.5: Mechanical Cut Check
 
-Run `price-check` on all proposed additions with the user's budget (`uv run --directory <skill-install-dir> price-check <adds-names-json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`). For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs (lowest rarity per card) instead of USD prices. If any single card or the total exceeds budget, find cheaper alternatives before proceeding. Do not send cards to the self-grill that the user cannot afford.
+Run `price-check` on all proposed additions with the user's budget (`price-check <adds-names-json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`). For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs (lowest rarity per card) instead of USD prices. If any single card or the total exceeds budget, find cheaper alternatives before proceeding. Do not send cards to the self-grill that the user cannot afford.
 
-Before launching the self-grill, run `cut-check` on every proposed cut (`uv run --directory <skill-install-dir> cut-check <hydrated-cards-json> "<Commander Name>" --cuts <cuts-names-json> --multiplier-low <low> --multiplier-high <high> --opponents <N>`). Read the output.
+Before launching the self-grill, run `cut-check` on every proposed cut (`cut-check <hydrated-cards-json> "<Commander Name>" --cuts <cuts-names-json> --multiplier-low <low> --multiplier-high <high> --opponents <N>`). Read the output.
 
 For each proposed cut, write out (internally, not presented to user):
 1. **Multiplied value:** [from cut-check output, or "no matching triggers"]
@@ -375,46 +318,28 @@ Review the multiplied trigger values from `cut-check` output. Any cut where the 
 
 ## Step 7: Self-Grill (Two-Agent Debate)
 
-Before presenting to the user, launch **two subagents** that debate the proposed changes:
+Before presenting to the user, launch **two subagents** that debate the proposed changes. Both receive the same inputs: proposed cuts and additions with full reasoning, hydrated card data for every card involved (cuts, adds, commander), the user's goals/pain points/budget, and the `cut-check` / `mana-audit` / `price-check` / `combo-search` outputs. Their roles differ.
 
-**Proposer agent** receives:
-- The proposed cuts and additions with full reasoning
-- The hydrated card data for all cards involved (cuts, adds, and the commander)
-- The user's stated goals, pain points, and budget
-- The `cut-check` output for all proposed cuts
-- The `mana-audit` output for the proposed deck
-- The `price-check` output for all proposed additions
-- The `combo-search` output for the current deck (existing combos and near-misses)
-- Framing: "These are the flags from mechanical analysis. You addressed them in your proposal. Defend your reasoning against challenges. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Pushing back is your job."
+**Proposer** defends the proposal. Framing: "These are the mechanical flags. You addressed them in your proposal. Defend your reasoning against challenges. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Pushing back is your job."
 
-**Challenger agent** receives:
-- The same data as the proposer
-- The `cut-check` output for all proposed cuts and the `mana-audit` output
-- The `price-check` output for all proposed additions
-- The `combo-search` output for the current deck
-- Verify the proposer addressed every `cut-check` flag. Any unaddressed flag is an automatic challenge.
+**Challenger** attacks the proposal. Its checklist (the parent must paste these instructions into the subagent prompt — the subagent doesn't see this SKILL.md and cannot follow back-references):
+
+- Re-read the full hydrated oracle text of every proposed cut independently. Do NOT rely on the proposer's paraphrasing — any discrepancy between the proposer's description and the actual oracle text is an automatic flag.
+- Check every clause of every cut card's oracle text, not just the primary ability. Defensive restrictions, type-changing effects, self-recurring mechanics, and static effects on other permanents are commonly missed.
+- Verify keyword interactions between the commander and each cut card. Flag emergent combinations (e.g., menace + "can't be blocked by more than one creature" = unblockable; double strike + lifelink = double life).
+- Calculate the multiplied value of any upkeep/combat/phase/etb triggers being cut. A trigger that looks weak at 1x may be a win condition at 5x with 3 opponents.
+- Verify every `cut-check` flag was addressed. Any unaddressed flag is an automatic challenge.
 - Verify `mana-audit` shows PASS. Any WARN or FAIL is an automatic challenge.
-- The red flags table from this skill
-- Explicit instructions to:
-  - Re-read the oracle text of every proposed cut and challenge whether it's truly weak with THIS commander
-  - Check each proposed addition actually works the way the proposer claims
-  - Verify the swap balance (land count, curve, ramp, color balance)
-  - Look for missing synergy angles the proposer didn't consider
-  - Challenge budget allocation (is the most expensive card really the highest priority?)
-  - Verify total cost does not exceed budget and flag any card that consumes a disproportionate share of the budget
-  - Receive and independently re-read the full hydrated oracle text for every proposed cut — do NOT rely on the proposer's paraphrasing. Any discrepancy between the proposer's description and the actual oracle text is an automatic flag
-  - Check every clause of every cut card's oracle text, not just the primary ability — look for defensive clauses, type-changing effects, self-recurring mechanics, and static effects on other permanents
-  - Verify keyword interactions between the commander and each cut card (see Step 5.5)
-  - Calculate the multiplied value of any upkeep/combat/phase triggers being cut and challenge whether the proposer evaluated at the correct multiplier
-  - Verify no proposed cut breaks a game-winning combo without explicit justification from the proposer. Any unaddressed combo break is an automatic challenge.
-  - For Brawl formats: verify that strategic evaluations account for format-specific rules (no commander damage, lower life totals, free mulligan). Voltron strategies should be scrutinized more heavily in Brawl since commander damage doesn't apply.
-  - **Commander fitness evaluation:** Evaluate whether the commander itself is the weakest link. Apply the **commander identity test:** "If this deck's commander were hidden, could you guess what it is from the cards?" If the deck's strategy doesn't clearly point back to the commander, the commander may not be driving the strategy. Specifically:
-    - Evaluate how many cards mechanically interact with the commander's oracle text (triggered/activated ability synergies, not just thematic overlap)
-    - Compare the commander's CMC and casting requirements against the deck's mana base
-    - Consider whether the user's stated pain points trace back to the commander (e.g., "I can never get going" + 7-CMC commander)
-    - If the commander appears to be underperforming, use training data to shortlist 1-2 alternative commanders whose color identity covers all cards currently in the deck. Verify each alternative via `scryfall-lookup` before presenting. The Iron Rule exception for commander discovery applies: training data may inform the shortlist, but oracle text must be verified. A narrower color identity is technically possible if no cards require the dropped color, but flag this prominently as it would require cutting cards.
+- Verify the swap balance: land count, curve, ramp count, color balance.
+- Verify total cost ≤ budget. Flag any single card that consumes a disproportionate share of the budget.
+- Verify no proposed cut breaks a game-winning combo without explicit justification from the proposer. Any unaddressed combo break is an automatic challenge.
+- Look for missing synergy angles the proposer didn't consider; challenge whether the most expensive add is really the highest priority.
+- For Brawl formats, scrutinize Voltron strategies extra hard (no commander damage). Account for lower life totals and free mulligan.
+- **Commander fitness check** — apply the *commander identity test:* "If this deck's commander were hidden, could you guess what it is from the cards?" If not, the commander may not be driving the strategy. Count mechanical interactions with the commander's oracle text (not thematic overlap), compare its CMC against the mana base, and trace the user's pain points back to it. If underperforming, shortlist 1-2 alternative commanders whose identity covers the existing card pool, verify each via `scryfall-lookup`, and surface them as a close call in §9 — never as a firm recommendation.
 
-The challenger reports issues. The proposer responds or revises. Repeat until the challenger has no remaining objections. Then present the surviving proposal to the user.
+The challenger reports issues. The proposer responds or revises. Repeat until the challenger has no remaining objections.
+
+**This is not a formality.** If both agents agree immediately, something is wrong — the challenger isn't pushing hard enough. Expect at least 2-3 rounds of challenges.
 
 **This is not a formality.** If both agents agree immediately, something is wrong — the challenger isn't pushing hard enough. Expect at least 2-3 rounds of challenges.
 
@@ -442,7 +367,7 @@ Format: paired swaps where possible (cut X → add Y). Show running price total 
 
 Before presenting close calls, verify the proposal's impact on deck metrics:
 
-Run: `uv run --directory <skill-install-dir> deck-diff <old-deck.json> <new-deck.json> <old-hydrated.json> <new-hydrated.json>`
+Run: `deck-diff <old-deck.json> <new-deck.json> <old-hydrated.json> <new-hydrated.json>`
 
 Confirm:
 - Total card count matches the deck's expected size
@@ -474,13 +399,13 @@ If the challenger flagged the commander during the self-grill, present it as a c
 
 Output the updated deck list in the same format as the input. Export a Moxfield-importable text file:
 
-Run: `uv run --directory <skill-install-dir> export-deck <new-deck.json>`
+Run: `export-deck <new-deck.json>`
 
 ### Final Budget Summary
 
 Run `price-check` on the complete final deck to get the total cost:
 
-Run: `uv run --directory <skill-install-dir> price-check <new-deck.json> --bulk-data <bulk-data-path> [--format <format>]`
+Run: `price-check <new-deck.json> --bulk-data <bulk-data-path> [--format <format>]`
 
 For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs.
 
@@ -521,13 +446,11 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 | "This card is generally weak" | Weak in general ≠ weak with this commander. Read both oracle texts. |
 | "We're over budget but this card is too good to skip" | Budget is a hard constraint. Find a cheaper alternative. |
 | "My analysis is thorough enough, no need to self-grill" | The self-grill catches exactly this overconfidence. Run it every time. |
-| "I'll just recommend the EDHREC top cards" | That's not analysis, that's copying. Think about THIS deck. |
 | "This step seems unnecessary for this deck" | Follow every step. The process exists because shortcuts cause mistakes. |
 | "Cutting this land for a nonland is fine, the deck has enough" | Count the lands. Count the ramp. Do the math. Don't eyeball mana bases. |
 | "I understand what this commander wants" | You might be missing angles. Present your strategic read and ask the user before analyzing. They play the deck — you don't. |
 | "This card only works with N other cards in the deck" | Check whether the card creates its own enablers — theft effects that change types, token creators that increase counts, self-recurring cards that sustain themselves. |
 | "This trigger is too small to matter" | Multiply by expected extra triggers AND by number of opponents. 1 damage × 5 upkeeps × 3 opponents = 15. Do the math. |
-| "I've read this card" | Did you read every clause? Defensive restrictions, type-changing effects, self-recurring mechanics, and static effects on other permanents are commonly missed. |
 | "This is redundant evasion/protection" | Redundancy in the deck's most important effects is intentional. Before cutting, check whether the card creates a unique mechanical interaction (e.g., blocking restriction + menace = unblockable) that no other card replicates. |
 | "I can cut one more land, the ramp covers it" | Run `mana-audit`. If it says FAIL, you cannot. Ramp does not replace lands — it supplements them. |
 

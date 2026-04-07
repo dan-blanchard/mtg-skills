@@ -17,25 +17,13 @@ Every card recommendation MUST be grounded in actual card oracle text from Scryf
 
 **NEVER assume what a card does.** Before including any card in the skeleton, look up its oracle text via the helper scripts. Training data is not oracle text.
 
-**Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified before presenting — write all candidate names to a JSON list and batch-lookup in one call: `uv run --directory <skill-install-dir> scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
+**Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified before presenting — write all candidate names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
 
-## Setup (First Run)
+## Setup and Tooling
 
-Before first use, set up the Python environment from the skill's install directory:
+This skill shares its install with commander-tuner via symlink. For one-time setup commands (`uv sync`, `download-bulk`) and the full script reference, see `commander-tuner/SKILL.md` — those run once per install and aren't hot-path during a builder session.
 
-```bash
-uv sync --directory <skill-install-dir>
-```
-
-Then download Scryfall bulk data (~500MB):
-
-```bash
-uv run --directory <skill-install-dir> download-bulk --output-dir <skill-install-dir>
-```
-
-Subsequent runs skip these steps if the `.venv` exists and bulk data is fresh (<24 hours old).
-
-## Tooling Notes
+**Script invocation shorthand:** All script examples below elide the `uv run --directory <skill-install-dir> ` prefix for readability — every actual invocation must include it.
 
 **Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. Always use heredocs with single-quoted delimiters when writing JSON files via Bash:
 
@@ -45,65 +33,9 @@ cat > /tmp/candidates.json << 'JSONEOF'
 JSONEOF
 ```
 
-Do NOT use `echo` or unquoted shell strings for JSON containing card names. For the same reason, prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
+Do NOT use `echo` or unquoted shell strings for JSON containing card names. Prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
 
-**Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the expected deck size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and easy to miss.
-
-## Workflow
-
-```dot
-digraph builder {
-    "1. Interview" [shape=box];
-    "Commander known?" [shape=diamond];
-    "Outside the box?" [shape=diamond];
-    "1b. Guided interview" [shape=box];
-    "Recommend 3-5 commanders" [shape=box];
-    "User picks commander" [shape=box];
-    "Shared questions" [shape=box];
-    "2. Commander analysis" [shape=box];
-    "Strategy validation" [shape=diamond];
-    "Default to EDHREC top theme" [shape=box];
-    "1b-alt. Mechanics interview" [shape=box];
-    "2-alt. Combo discovery" [shape=box];
-    "2b-alt. Commander fitting" [shape=box];
-    "3. Skeleton generation" [shape=box];
-    "3-alt. Skeleton with combo core" [shape=box];
-    "Structural verification" [shape=diamond];
-    "Fix issues" [shape=box];
-    "4. Present skeleton" [shape=box];
-    "User adjustments?" [shape=diamond];
-    "Apply adjustments" [shape=box];
-    "5. Hand off to commander-tuner" [shape=doublecircle];
-
-    "1. Interview" -> "Commander known?";
-    "Commander known?" -> "Shared questions" [label="yes"];
-    "Commander known?" -> "Outside the box?" [label="no"];
-    "Outside the box?" -> "1b. Guided interview" [label="standard"];
-    "Outside the box?" -> "1b-alt. Mechanics interview" [label="outside the box"];
-    "1b. Guided interview" -> "Recommend 3-5 commanders";
-    "Recommend 3-5 commanders" -> "User picks commander";
-    "User picks commander" -> "Shared questions";
-    "Shared questions" -> "2. Commander analysis";
-    "2. Commander analysis" -> "Strategy validation";
-    "Strategy validation" -> "3. Skeleton generation" [label="user approves"];
-    "Strategy validation" -> "Default to EDHREC top theme" [label="user defers"];
-    "Strategy validation" -> "2-alt. Combo discovery" [label="outside the box"];
-    "Default to EDHREC top theme" -> "3. Skeleton generation";
-    "1b-alt. Mechanics interview" -> "2-alt. Combo discovery";
-    "2-alt. Combo discovery" -> "2b-alt. Commander fitting" [label="no commander"];
-    "2-alt. Combo discovery" -> "3-alt. Skeleton with combo core" [label="commander known"];
-    "2b-alt. Commander fitting" -> "3-alt. Skeleton with combo core";
-    "3. Skeleton generation" -> "Structural verification";
-    "3-alt. Skeleton with combo core" -> "Structural verification";
-    "Structural verification" -> "4. Present skeleton" [label="PASS"];
-    "Structural verification" -> "Fix issues" [label="FAIL"];
-    "Fix issues" -> "Structural verification";
-    "4. Present skeleton" -> "User adjustments?";
-    "User adjustments?" -> "5. Hand off to commander-tuner" [label="no"];
-    "User adjustments?" -> "Apply adjustments" [label="yes"];
-    "Apply adjustments" -> "Structural verification";
-}
-```
+**Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent.
 
 ## Step 1: Interview
 
@@ -130,9 +62,9 @@ This narrows the candidate *pool*; it does NOT replace the guided interview. Run
 
 **Workflow:**
 
-1. **Parse the collection** — `uv run --directory <skill-install-dir> parse-deck <absolute-path-to-collection.csv>` produces a parsed deck JSON. `parse-deck` already handles Moxfield CSV, Moxfield deck export, Arena, MTGO, and plain text — use it for any collection format the user gives you.
+1. **Parse the collection** — `parse-deck <absolute-path-to-collection.csv>` produces a parsed deck JSON. `parse-deck` already handles Moxfield CSV, Moxfield deck export, Arena, MTGO, and plain text — use it for any collection format the user gives you.
 
-2. **Find commander candidates** — `uv run --directory <skill-install-dir> find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> [--color-identity <ci>] [--min-quantity 1]`. Pass `--color-identity` only if the user has already stated a color preference; otherwise omit and narrow in step 4. Pass `--min-quantity 0` only if the user explicitly wants their wishlist/binder rows considered. The result is a JSON array of owned, format-legal, commander-eligible cards with per-card signals (`edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`, plus oracle text and the usual identification fields). The output already satisfies the Iron Rule — oracle text is from bulk data, not training data.
+2. **Find commander candidates** — `find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> [--color-identity <ci>] [--min-quantity 1]`. Pass `--color-identity` only if the user has already stated a color preference; otherwise omit and narrow in step 4. Pass `--min-quantity 0` only if the user explicitly wants their wishlist/binder rows considered. The result is a JSON array of owned, format-legal, commander-eligible cards with per-card signals (`edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`, plus oracle text and the usual identification fields). The output already satisfies the Iron Rule — oracle text is from bulk data, not training data.
 
 3. **Run the guided interview** (colors, playstyle, mechanics, favorite cards, play group, bracket, budget) the same as the no-collection flow. The candidate pool is the constraint; the interview answers are what differentiates one commander from another.
 
@@ -216,23 +148,23 @@ Ask all of these (skipping any already answered during the guided interview):
 - **Experience level:** "What's your Commander experience level? (beginner/intermediate/advanced)"
 - **Pet cards:** "Any cards you definitely want included?" (pet cards, combos they want to build around)
 
-For pet cards: write all pet card names to a JSON list and batch-lookup in one call: `uv run --directory <skill-install-dir> scryfall-lookup --batch <pet-cards.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Verify each exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
+For pet cards: write all pet card names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <pet-cards.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Verify each exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
 
 ## Step 2: Commander Analysis
 
-1. **Scryfall lookup** — Run: `uv run --directory <skill-install-dir> scryfall-lookup "<Commander Name>"`
+1. **Scryfall lookup** — Run: `scryfall-lookup "<Commander Name>"`
 
    Read the full oracle text, color identity, CMC, and types. For partner/background pairs, look up both commanders and note how they interact with each other.
 
-2. **EDHREC research** — Run: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander Name>"`
+2. **EDHREC research** — Run: `edhrec-lookup "<Commander Name>"`
 
-   For partner commanders: `uv run --directory <skill-install-dir> edhrec-lookup "<Commander 1>" "<Commander 2>"`
+   For partner commanders: `edhrec-lookup "<Commander 1>" "<Commander 2>"`
 
    Review top cards, high synergy cards, and themes. **Brawl/Arena note:** EDHREC data is sourced from Commander/EDH decks. For Brawl/Historic Brawl, EDHREC recommendations must be legality-checked against the deck's format before including. For Arena decks, also verify cards exist on Arena — some cards are legal in a format but have no Arena printing.
 
 3. **Web research** — Use `WebSearch` for the commander + "deck tech", "strategy", "guide". Use `WebFetch` or the helper script to read strategy articles:
 
-   Run: `uv run --directory <skill-install-dir> web-fetch "<url>" --max-length 10000`
+   Run: `web-fetch "<url>" --max-length 10000`
 
 4. **Strategy synthesis** — Summarize the commander's key mechanics, primary strategies, and synergy axes. For partner/background pairs, identify how both commanders contribute to the strategy and where their mechanics overlap or complement each other. Present to the user for validation. If the user defers or has no preference, default to the commander's most popular theme on EDHREC and move forward.
 
@@ -304,7 +236,7 @@ Sources: [Command Zone #658](https://edhrec.com/articles/the-command-zone-comman
 
 If EDHREC has no data for the commander (new or obscure cards), fall back to:
 
-1. **Local bulk data search** — Use `card-search` to find cards that mechanically synergize with the commander's keywords/oracle text within the commander's color identity. For example, if the commander cares about +1/+1 counters: `uv run --directory <skill-install-dir> card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "\+1/\+1 counter" --type Creature --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards. This searches the full Scryfall database locally — no API calls needed.
+1. **Local bulk data search** — Use `card-search` to find cards that mechanically synergize with the commander's keywords/oracle text within the commander's color identity. For example, if the commander cares about +1/+1 counters: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "\+1/\+1 counter" --type Creature --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards. This searches the full Scryfall database locally — no API calls needed.
 2. **EDHREC theme/archetype data** — Look up the commander's archetype (e.g., "tokens," "voltron," "+1/+1 counters") rather than the specific commander. For Brawl/Historic Brawl, legality-check EDHREC suggestions against the deck's format. For Arena, verify cards exist on Arena.
 3. **Format staples** — Fill remaining slots with well-known staples for the color identity and bracket.
 
@@ -324,8 +256,8 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 
 **Per category:**
 
-1. Pull candidates from EDHREC high-synergy and top cards for this commander. Supplement with `card-search` to find synergistic cards EDHREC may not surface: `uv run --directory <skill-install-dir> card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --type <category-type> --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards.
-2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `uv run --directory <skill-install-dir> scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Read the oracle text for every candidate — verify the card actually belongs in this category and works with this commander.
+1. Pull candidates from EDHREC high-synergy and top cards for this commander. Supplement with `card-search` to find synergistic cards EDHREC may not surface: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --type <category-type> --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards.
+2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Read the oracle text for every candidate — verify the card actually belongs in this category and works with this commander.
 3. Filter by budget (cheapest printings, track running price total against remaining budget). For Arena, track wildcard rarity counts against remaining wildcards instead of prices.
 4. Filter by bracket (avoid Game Changers above target bracket).
 5. Weight by interview preferences (e.g., if user said "I enjoy graveyard strategies," prefer self-mill draw engines over generic draw).
@@ -337,15 +269,15 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 
 After filling, run these checks in order:
 
-1. **Deck stats** — Run: `uv run --directory <skill-install-dir> deck-stats <deck.json> <hydrated.json>`
+1. **Deck stats** — Run: `deck-stats <deck.json> <hydrated.json>`
 
    Verify total card count matches the deck's expected size, review curve and category counts.
 
-2. **Mana audit** — Run: `uv run --directory <skill-install-dir> mana-audit <deck.json> <hydrated.json>`
+2. **Mana audit** — Run: `mana-audit <deck.json> <hydrated.json>`
 
    Verify land count and color balance. Fix any FAIL results before proceeding.
 
-3. **Price check** — Run: `uv run --directory <skill-install-dir> price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
+3. **Price check** — Run: `price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
 
    For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget.
 
@@ -378,7 +310,7 @@ If the user requests changes, apply them, re-run structural verification, and pr
 
 1. **Write output files** — Save the parsed deck JSON and hydrated card JSON to the working directory. Also export a Moxfield-importable text file:
 
-   Run: `uv run --directory <skill-install-dir> export-deck <deck.json> > <deck-moxfield.txt>`
+   Run: `export-deck <deck.json> > <deck-moxfield.txt>`
 
    The deck JSON format: `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [{"name": str, "quantity": int}, ...], "total_cards": int}`
 
@@ -427,7 +359,7 @@ Ask (accepting either or both):
 
 For **commander known + outside the box:** use `combo-discover --color-identity <commander-CI>` to constrain to the commander's colors.
 
-Before presenting, write all combo piece names across all combos to a JSON list and batch-lookup in one call: `uv run --directory <skill-install-dir> scryfall-lookup --batch <combo-pieces.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
+Before presenting, write all combo piece names across all combos to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <combo-pieces.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
 
 Present 3-5 interesting combos with:
 - Cards involved and oracle text (from the batch-lookup results)
@@ -443,7 +375,7 @@ Ask: "Want to build around one of these, or combine multiple?" If combining, ver
 
 Two-wave search for each selected combo:
 1. **Mechanical fit:** `card-search --is-commander --color-identity <combo-CI> --oracle "<combo-keyword>"` — commanders whose oracle text mentions the combo's mechanics
-2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Write all shortlisted names to a JSON list and batch-lookup: `uv run --directory <skill-install-dir> scryfall-lookup --batch <fit-candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache` (Iron Rule applies).
+2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Write all shortlisted names to a JSON list and batch-lookup: `scryfall-lookup --batch <fit-candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache` (Iron Rule applies).
 
 Also check if any combo piece IS a legendary creature that could be the commander.
 
@@ -490,23 +422,4 @@ Same as the normal flow. When handing off to commander-tuner, note in the pain p
 
 ## Script Reference
 
-All scripts are run via `uv run --directory <skill-install-dir>`:
-
-- `scryfall-lookup "Card Name"` — single card lookup (returns oracle text, rarity, prices, legalities)
-- `scryfall-lookup --batch <path> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache` — batch lookup from JSON name list or parsed deck JSON; output includes rarity per card
-- `edhrec-lookup "<Commander Name>"` — EDHREC recommendations for a commander
-- `edhrec-lookup "<Commander 1>" "<Commander 2>"` — partner commander EDHREC lookup
-- `download-bulk --output-dir <skill-install-dir>` — download/refresh Scryfall bulk data
-- `web-fetch "<url>" --max-length 10000` — fetch web page content
-- `deck-stats <deck.json> <hydrated.json>` — deck statistics and curve
-- `card-summary <hydrated.json>` — compact card table (with `--lands-only` or `--nonlands-only`)
-- `mana-audit <deck.json> <hydrated.json>` — mana base health audit
-- `price-check <deck.json> [--budget N] --bulk-data <bulk-data-path> [--format FORMAT]` — price validation; for Arena formats (`brawl`, `historic_brawl`), outputs wildcard costs by rarity (lowest rarity across legal Arena printings) instead of USD; auto-detects format from deck JSON if not specified
-- `set-commander <deck.json> "Name"` — move card to commanders list
-- `parse-deck <path-to-deck-file> [--format FORMAT] [--deck-size N]` — multi-format deck list parser; supports Moxfield, Arena (bare Commander/Deck headers), MTGO, plain text, CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
-- `combo-search <deck.json> [--max-near-misses N]` — search Commander Spellbook for combos and near-misses in the deck
-- `combo-discover [--result "Infinite X"] [--card "Card Name"] [--color-identity CI] [--sort popularity] [--limit 10] [--format FORMAT] [--arena-only] [--paper-only] [--bulk-data PATH]` — discover combos from Commander Spellbook by outcome, card name, or color identity; `--sort popularity` returns obscure combos first; `--arena-only`/`--paper-only` filter pieces by platform
-- `build-deck <deck.json> <hydrated.json> [--cuts <cuts.json>] [--adds <adds.json>] [--output-dir DIR]` — apply changes to deck; output defaults to same directory as `<deck.json>`
-- `export-deck <deck.json>` — export deck JSON to Moxfield import format (N CardName lines to stdout)
-- `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT] [--arena-only] [--paper-only] [--is-commander]` — search bulk data for cards matching filters; `--format` filters by format legality; `--arena-only` restricts to cards on MTG Arena; `--paper-only` excludes Arena-only digital cards; `--is-commander` filters to commander-eligible cards (format-aware); output includes rarity column (C/U/R/M)
-- `find-commanders <parsed.json> --bulk-data <path> [--format FORMAT] [--color-identity CI] [--min-quantity N]` — from a parsed deck/collection JSON, return commander-eligible cards the user owns as a JSON array, with per-card signals (`edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`) for agent-side ranking. Defaults: `--format commander`, `--min-quantity 1`. Use `--min-quantity 0` to include wishlist/binder rows.
+All scripts come from commander-tuner via symlink. See `commander-tuner/SKILL.md` for the full reference, or run any script with `--help`.
