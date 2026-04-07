@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -192,22 +194,42 @@ def _extract_names(data: list | dict) -> list[str]:
     return names
 
 
+def _default_cache_dir() -> Path:
+    """Return the default cache directory for hydrated card data.
+
+    Uses ``$TMPDIR/scryfall-cache`` (falls back to the platform temp dir via
+    ``tempfile.gettempdir()``). Agents and tests can override via
+    ``--cache-dir``.
+    """
+    return Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / "scryfall-cache"
+
+
 def lookup_cards(
     names_path: Path,
     bulk_path: Path | None = None,
     cache_dir: Path | None = None,
-) -> list[dict | None]:
+) -> tuple[list[dict | None], Path]:
+    """Look up every card in *names_path*, returning (results, cache_path).
+
+    Always writes the full hydrated results to a sha-keyed cache file so the
+    caller can pass the absolute path downstream without re-hydrating. When
+    ``cache_dir`` is omitted, defaults to ``_default_cache_dir()``.
+    """
+    if cache_dir is None:
+        cache_dir = _default_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
     content = names_path.read_text(encoding="utf-8")
     raw = json.loads(content)
     names = _extract_names(raw)
 
-    # Check cache
-    if cache_dir is not None:
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_key = hashlib.sha256(content.encode()).hexdigest()[:16]
-        cache_path = cache_dir / f"hydrated-{cache_key}.json"
-        if cache_path.exists():
-            return json.loads(cache_path.read_text(encoding="utf-8"))
+    cache_key = hashlib.sha256(content.encode()).hexdigest()[:16]
+    cache_path = (cache_dir / f"hydrated-{cache_key}.json").resolve()
+
+    # Cache hit: reuse prior hydration for identical input.
+    if cache_path.exists():
+        results = json.loads(cache_path.read_text(encoding="utf-8"))
+        return results, cache_path
 
     bulk_index = _load_bulk_index(bulk_path) if bulk_path else None
 
@@ -216,11 +238,85 @@ def lookup_cards(
         result = lookup_single(name, bulk_index=bulk_index)
         results.append(result)
 
-    # Write cache
-    if cache_dir is not None:
-        cache_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    cache_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    return results, cache_path
 
-    return results
+
+def _classify_type(type_line: str | None) -> str:
+    """Map a type_line to a coarse category for the digest."""
+    if not type_line:
+        return "other"
+    if "Land" in type_line:
+        return "lands"
+    if "Creature" in type_line:
+        return "creatures"
+    if "Planeswalker" in type_line:
+        return "planeswalkers"
+    if "Instant" in type_line:
+        return "instants"
+    if "Sorcery" in type_line:
+        return "sorceries"
+    if "Artifact" in type_line:
+        return "artifacts"
+    if "Enchantment" in type_line:
+        return "enchantments"
+    return "other"
+
+
+def _curve_bucket(cmc: float) -> str:
+    """Bucket a CMC into the digest curve histogram."""
+    if cmc <= 0:
+        return "0"
+    if cmc >= 7:
+        return "7+"
+    return str(int(cmc))
+
+
+def build_digest(results: list[dict | None], names: list[str]) -> dict:
+    """Compute a bounded-size digest of hydrated card data for sanity-checking.
+
+    The digest is small (~400 bytes) regardless of deck size and exists so the
+    agent can confirm hydration worked without Reading the full cache file.
+    """
+    categories: dict[str, int] = {
+        "lands": 0,
+        "creatures": 0,
+        "instants": 0,
+        "sorceries": 0,
+        "artifacts": 0,
+        "enchantments": 0,
+        "planeswalkers": 0,
+        "other": 0,
+    }
+    curve: dict[str, int] = {}
+    total_cmc = 0.0
+    nonland_count = 0
+    missing: list[str] = []
+
+    for name, card in zip(names, results, strict=False):
+        if card is None:
+            missing.append(name)
+            continue
+        category = _classify_type(card.get("type_line"))
+        categories[category] = categories.get(category, 0) + 1
+        if category != "lands":
+            cmc = float(card.get("cmc") or 0)
+            total_cmc += cmc
+            nonland_count += 1
+            bucket = _curve_bucket(cmc)
+            curve[bucket] = curve.get(bucket, 0) + 1
+
+    avg_cmc_nonland = round(total_cmc / nonland_count, 2) if nonland_count else 0.0
+
+    # Drop zero-count categories to keep the envelope compact.
+    non_empty_categories = {k: v for k, v in categories.items() if v > 0}
+
+    return {
+        "categories": non_empty_categories,
+        "avg_cmc_nonland": avg_cmc_nonland,
+        "curve": dict(sorted(curve.items())),
+        "missing": missing,
+    }
 
 
 @click.command()
@@ -236,8 +332,19 @@ def main(
 ):
     """Look up MTG card data from Scryfall."""
     if batch:
-        results = lookup_cards(batch, bulk_path=bulk_data, cache_dir=cache_dir)
-        click.echo(json.dumps(results, indent=2))
+        results, cache_path = lookup_cards(
+            batch, bulk_path=bulk_data, cache_dir=cache_dir
+        )
+        raw = json.loads(batch.read_text(encoding="utf-8"))
+        names = _extract_names(raw)
+        digest = build_digest(results, names)
+        envelope = {
+            "cache_path": str(cache_path),
+            "card_count": len(results),
+            "missing": digest.pop("missing"),
+            "digest": digest,
+        }
+        click.echo(json.dumps(envelope, indent=2))
     elif card_name:
         result = lookup_single(card_name, bulk_path=bulk_data)
         if result:

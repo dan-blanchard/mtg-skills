@@ -63,11 +63,26 @@ Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards
 
 Run: `scryfall-lookup --batch <parsed-deck-json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`
 
-Looks up every card (including the commander) in Scryfall bulk data. Falls back to Scryfall API for cards not found locally. Results are cached persistently in the skill's install directory so repeat analyses are instant. If bulk data is missing or stale, download it first:
+Looks up every card (including the commander) in Scryfall bulk data, falling back to the Scryfall API for cards not found locally. If bulk data is missing or stale, run `download-bulk --output-dir <skill-install-dir>` first.
 
-Run: `download-bulk --output-dir <skill-install-dir>`
+**Stdout is a small JSON envelope**, not the hydrated card list:
 
-**Read the hydrated data.** Before any analysis, read the oracle text for every card, especially the commander. This is where you build your understanding of the deck.
+```json
+{
+  "cache_path": "/absolute/path/to/hydrated-<sha>.json",
+  "card_count": 100,
+  "missing": [],
+  "digest": {
+    "categories": {"lands": 36, "creatures": 32, "instants": 6, ...},
+    "avg_cmc_nonland": 3.2,
+    "curve": {"1": 5, "2": 12, "3": 18, ...}
+  }
+}
+```
+
+Read the envelope to extract `cache_path` — **that file path is what you pass as `<hydrated-cards-json>` to every downstream script** (`card-summary`, `deck-stats`, `mana-audit`, `cut-check`, `build-deck`). Sanity-check the digest against the parsed deck (does land count look right for the format?) and verify `missing` is empty; anything missing is either a typo or a card absent from bulk data.
+
+**Do NOT `Read` the cache file directly.** It holds full hydrated data for every card and will flood context. The human-readable oracle text view comes from `card-summary` in Step 2.5; the full hydrated JSON should only flow through other scripts.
 
 ## Step 2.5: Baseline Metrics
 
@@ -468,7 +483,7 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 - `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`. Supports Moxfield (`//Commander` headers), Arena (bare `Commander`/`Deck` headers), MTGO, plain text, and CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
 - `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout
 - `scryfall-lookup "Card Name"` — outputs single card JSON to stdout
-- `scryfall-lookup --batch <path>` — accepts either a JSON list of name strings or a parsed deck JSON; outputs list of card JSONs
+- `scryfall-lookup --batch <path> [--cache-dir DIR]` — accepts either a JSON list of name strings or a parsed deck JSON. Stdout is a JSON envelope `{cache_path, card_count, missing, digest}`. Full hydrated card list is written to the sha-keyed `<cache_dir>/hydrated-<sha>.json` (default `<cache_dir>` is `$TMPDIR/scryfall-cache/`). Downstream scripts accept `cache_path` as `<hydrated-cards-json>`. The envelope is bounded (~400 bytes regardless of deck size) — never Read the cache file directly.
 - `price-check <path> [--budget N] [--bulk-data <path>] [--format FORMAT]` — accepts either a JSON list of name strings or a parsed deck JSON; outputs prices and running total. For Arena formats (`brawl`, `historic_brawl`), outputs `wildcard_cost` by rarity (using lowest rarity across legal printings) instead of USD prices. Auto-detects format from deck JSON if not specified.
 - `build-deck <deck-json> <hydrated-json> [--cuts <path>] [--adds <path>] [--bulk-data <path>] [--output-dir <dir>]` — applies cuts/adds, writes `new-deck.json` and `new-hydrated.json`. Cuts/adds accept list of `{"name": str, "quantity": int}` dicts or plain name strings (quantity defaults to 1). Output defaults to the same directory as `<deck-json>`.
 - `cut-check <hydrated-json> "<Commander Name>" --cuts <path> --multiplier-low N --multiplier-high N [--trigger-type TYPE ...] [--opponents N]` — mechanical pre-grill analysis; `--cuts` expects JSON list of name strings; `--multiplier-low`/`--multiplier-high` are required; `--opponents` defaults to 3

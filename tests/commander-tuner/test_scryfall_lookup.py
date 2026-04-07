@@ -1,12 +1,14 @@
 """Tests for Scryfall card lookup."""
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
 from commander_utils.scryfall_lookup import (
     _load_bulk_index,
+    build_digest,
     build_rarity_index,
     lookup_cards,
     lookup_single,
@@ -86,10 +88,14 @@ class TestLookupBatch:
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Sol Ring", "Blood Artist"]))
 
-        results = lookup_cards(names_path, bulk_path=sample_bulk_data)
+        results, cache_path = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+        )
         assert len(results) == 3
         result_names = {r["name"] for r in results}
         assert result_names == {"Viscera Seer", "Sol Ring", "Blood Artist"}
+        assert cache_path.exists()
+        assert cache_path.is_absolute()
 
     def test_caches_results(self, sample_bulk_data, tmp_path):
         names_path = tmp_path / "names.json"
@@ -97,14 +103,15 @@ class TestLookupBatch:
         cache_dir = tmp_path / "cache"
 
         # First call — populates cache
-        results1 = lookup_cards(
+        results1, path1 = lookup_cards(
             names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
         )
         assert len(results1) == 2
 
         # Second call — reads from cache (bulk_path=None would fail without cache)
-        results2 = lookup_cards(names_path, bulk_path=None, cache_dir=cache_dir)
+        results2, path2 = lookup_cards(names_path, bulk_path=None, cache_dir=cache_dir)
         assert results2 == results1
+        assert path2 == path1
 
     def test_includes_not_found_as_none(self, sample_bulk_data, tmp_path):
         names_path = tmp_path / "names.json"
@@ -117,7 +124,9 @@ class TestLookupBatch:
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            results = lookup_cards(names_path, bulk_path=sample_bulk_data)
+            results, _ = lookup_cards(
+                names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+            )
 
         found = [r for r in results if r is not None]
         assert len(found) == 1
@@ -135,7 +144,9 @@ class TestLookupBatchDeckJSON:
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results = lookup_cards(batch_path, bulk_path=sample_bulk_data)
+        results, _ = lookup_cards(
+            batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+        )
         result_names = {r["name"] for r in results if r}
         assert "Korvold, Fae-Cursed King" in result_names
         assert "Viscera Seer" in result_names
@@ -149,7 +160,9 @@ class TestLookupBatchDeckJSON:
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results = lookup_cards(batch_path, bulk_path=sample_bulk_data)
+        results, _ = lookup_cards(
+            batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+        )
         assert len(results) == 1
 
     def test_handles_empty_commanders(self, sample_bulk_data, tmp_path):
@@ -160,7 +173,9 @@ class TestLookupBatchDeckJSON:
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results = lookup_cards(batch_path, bulk_path=sample_bulk_data)
+        results, _ = lookup_cards(
+            batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+        )
         assert len(results) == 1
         assert results[0]["name"] == "Sol Ring"
 
@@ -168,7 +183,9 @@ class TestLookupBatchDeckJSON:
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Sol Ring"]))
 
-        results = lookup_cards(names_path, bulk_path=sample_bulk_data)
+        results, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+        )
         assert len(results) == 2
 
 
@@ -349,3 +366,159 @@ class TestCLI:
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["name"] == "Viscera Seer"
+
+    def test_batch_output_is_envelope(self, sample_bulk_data, tmp_path):
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Viscera Seer", "Sol Ring", "Command Tower"]))
+        cache_dir = tmp_path / "cache"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--batch",
+                str(names_path),
+                "--bulk-data",
+                str(sample_bulk_data),
+                "--cache-dir",
+                str(cache_dir),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        envelope = json.loads(result.output)
+        assert set(envelope.keys()) == {"cache_path", "card_count", "missing", "digest"}
+        assert envelope["card_count"] == 3
+        assert envelope["missing"] == []
+        assert "categories" in envelope["digest"]
+        assert "avg_cmc_nonland" in envelope["digest"]
+        assert "curve" in envelope["digest"]
+
+        # The envelope should be small — no per-card data, just aggregates.
+        assert "oracle_text" not in result.output
+        assert len(result.output) < 1500  # ~400 bytes typical, 1500 is generous
+
+        # The cache file at cache_path must exist and contain the full
+        # hydrated card list with all 12 CARD_FIELDS per card.
+        cache_path = Path(envelope["cache_path"])
+        assert cache_path.exists()
+        assert cache_path.is_absolute()
+        cached = json.loads(cache_path.read_text())
+        assert len(cached) == 3
+        viscera = next(c for c in cached if c["name"] == "Viscera Seer")
+        assert viscera["oracle_text"] == "Sacrifice a creature: Scry 1."
+        assert viscera["mana_cost"] == "{B}"
+
+    def test_batch_envelope_lists_missing_cards(self, sample_bulk_data, tmp_path):
+        names_path = tmp_path / "names.json"
+        names_path.write_text(
+            json.dumps(["Viscera Seer", "Totally Fake Card", "Sol Ring"])
+        )
+        cache_dir = tmp_path / "cache"
+
+        with patch("commander_utils.scryfall_lookup.requests") as mock_requests:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 404
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    "--batch",
+                    str(names_path),
+                    "--bulk-data",
+                    str(sample_bulk_data),
+                    "--cache-dir",
+                    str(cache_dir),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.output)
+        assert envelope["missing"] == ["Totally Fake Card"]
+        assert envelope["card_count"] == 3  # total, including the missing one
+
+    def test_batch_envelope_categorizes_deck(self, sample_bulk_data, tmp_path):
+        names_path = tmp_path / "names.json"
+        # Mix of creature, artifact, land, instant, sorcery, enchantment
+        names_path.write_text(
+            json.dumps(
+                [
+                    "Viscera Seer",  # creature
+                    "Sol Ring",  # artifact
+                    "Command Tower",  # land
+                    "Deadly Rollick",  # instant
+                    "Cultivate",  # sorcery
+                    "Dictate of Erebos",  # enchantment
+                ]
+            )
+        )
+        cache_dir = tmp_path / "cache"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--batch",
+                str(names_path),
+                "--bulk-data",
+                str(sample_bulk_data),
+                "--cache-dir",
+                str(cache_dir),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.output)
+        cats = envelope["digest"]["categories"]
+        assert cats["creatures"] >= 1
+        assert cats["artifacts"] >= 1
+        assert cats["lands"] >= 1
+        assert cats["instants"] >= 1
+        assert cats["sorceries"] >= 1
+        assert cats["enchantments"] >= 1
+
+
+class TestBuildDigest:
+    def test_classifies_types(self):
+        results = [
+            {"name": "Forest", "type_line": "Basic Land — Forest", "cmc": 0},
+            {
+                "name": "Llanowar Elves",
+                "type_line": "Creature — Elf Druid",
+                "cmc": 1,
+            },
+            {"name": "Counterspell", "type_line": "Instant", "cmc": 2},
+        ]
+        digest = build_digest(results, ["Forest", "Llanowar Elves", "Counterspell"])
+        assert digest["categories"]["lands"] == 1
+        assert digest["categories"]["creatures"] == 1
+        assert digest["categories"]["instants"] == 1
+        assert digest["missing"] == []
+
+    def test_missing_cards_populate_missing_list(self):
+        results = [{"name": "Forest", "type_line": "Basic Land", "cmc": 0}, None]
+        digest = build_digest(results, ["Forest", "Bogus"])
+        assert digest["missing"] == ["Bogus"]
+        assert digest["categories"]["lands"] == 1
+
+    def test_avg_cmc_excludes_lands(self):
+        results = [
+            {"name": "Forest", "type_line": "Basic Land", "cmc": 0},
+            {"name": "Creature", "type_line": "Creature", "cmc": 4},
+            {"name": "Instant", "type_line": "Instant", "cmc": 2},
+        ]
+        digest = build_digest(results, ["Forest", "Creature", "Instant"])
+        assert digest["avg_cmc_nonland"] == 3.0  # (4+2)/2
+
+    def test_curve_bucketing(self):
+        results = [
+            {"name": "A", "type_line": "Creature", "cmc": 1},
+            {"name": "B", "type_line": "Creature", "cmc": 1},
+            {"name": "C", "type_line": "Creature", "cmc": 9},
+        ]
+        digest = build_digest(results, ["A", "B", "C"])
+        assert digest["curve"]["1"] == 2
+        assert digest["curve"]["7+"] == 1

@@ -7,6 +7,22 @@ from pathlib import Path
 import pytest
 
 
+def json_from_cli_output(result) -> object:
+    """Load the JSON file referenced by a 'Full JSON: <path>' footer in CLI output.
+
+    Scripts emit human-readable text reports or JSON envelopes to stdout and
+    always write their full structured output to a file. Tests use this helper
+    to dual-assert: loose substring checks on the text, strict correctness
+    checks on the structured file.
+    """
+    for line in result.output.splitlines():
+        if line.startswith("Full JSON:"):
+            path = Path(line.split(":", 1)[1].strip())
+            return json.loads(path.read_text(encoding="utf-8"))
+    msg = f"No 'Full JSON:' line in CLI output:\n{result.output}"
+    raise ValueError(msg)
+
+
 @pytest.fixture
 def moxfield_deck(tmp_path: Path) -> Path:
     """Create a sample Moxfield-format deck list."""
