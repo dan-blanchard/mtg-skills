@@ -311,7 +311,7 @@ Sources: [Command Zone #658](https://edhrec.com/articles/the-command-zone-comman
 
 Before recommending ANY cut, work through this checklist for every candidate. Skipping items is how cards get misjudged.
 
-0. **Full oracle text verification.** Before evaluating any card for a cut, look up its complete oracle text via `scryfall-lookup <card name>`. The `card-summary` table truncates oracle text and is for scanning only, not for evaluating individual cards. Never base a cut decision on truncated oracle text.
+0. **Full oracle text verification.** Before evaluating any card for a cut, re-read the card's complete oracle text from the hydrated data (Step 2). The `card-summary` table truncates oracle text and is for scanning only, not for evaluating individual cards. Never base a cut decision on truncated oracle text.
 
 0.5. **Alternative cost check.** If the card has suspend, foretell, adventure, evoke, flashback, escape, or other alternative casting costs, evaluate at the cost most likely to be used in this deck, not the printed CMC. A suspend card in an extra-upkeep deck is not an 8-drop.
 

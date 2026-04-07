@@ -17,7 +17,7 @@ Every card recommendation MUST be grounded in actual card oracle text from Scryf
 
 **NEVER assume what a card does.** Before including any card in the skeleton, look up its oracle text via the helper scripts. Training data is not oracle text.
 
-**Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified via `scryfall-lookup` before presenting.
+**Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified before presenting — write all candidate names to a JSON list and batch-lookup in one call: `uv run --directory <skill-install-dir> scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
 
 ## Setup (First Run)
 
@@ -192,7 +192,7 @@ Ask all of these (skipping any already answered during the guided interview):
 - **Experience level:** "What's your Commander experience level? (beginner/intermediate/advanced)"
 - **Pet cards:** "Any cards you definitely want included?" (pet cards, combos they want to build around)
 
-For pet cards: look up each via `scryfall-lookup` to verify it exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
+For pet cards: write all pet card names to a JSON list and batch-lookup in one call: `uv run --directory <skill-install-dir> scryfall-lookup --batch <pet-cards.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Verify each exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
 
 ## Step 2: Commander Analysis
 
@@ -403,8 +403,10 @@ Ask (accepting either or both):
 
 For **commander known + outside the box:** use `combo-discover --color-identity <commander-CI>` to constrain to the commander's colors.
 
+Before presenting, write all combo piece names across all combos to a JSON list and batch-lookup in one call: `uv run --directory <skill-install-dir> scryfall-lookup --batch <combo-pieces.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
+
 Present 3-5 interesting combos with:
-- Cards involved and oracle text (verified via `scryfall-lookup`)
+- Cards involved and oracle text (from the batch-lookup results)
 - What the combo produces
 - Color identity
 - Popularity score (lower = more obscure)
@@ -417,7 +419,7 @@ Ask: "Want to build around one of these, or combine multiple?" If combining, ver
 
 Two-wave search for each selected combo:
 1. **Mechanical fit:** `card-search --is-commander --color-identity <combo-CI> --oracle "<combo-keyword>"` — commanders whose oracle text mentions the combo's mechanics
-2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Verify each via `scryfall-lookup` (Iron Rule applies).
+2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Write all shortlisted names to a JSON list and batch-lookup: `uv run --directory <skill-install-dir> scryfall-lookup --batch <fit-candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache` (Iron Rule applies).
 
 Also check if any combo piece IS a legendary creature that could be the commander.
 
