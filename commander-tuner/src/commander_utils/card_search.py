@@ -10,6 +10,7 @@ import click
 
 from commander_utils.card_classify import (
     SKIP_LAYOUTS,
+    color_identity_subset,
     extract_price,
     get_oracle_text,
     is_commander,
@@ -18,10 +19,6 @@ from commander_utils.format_config import FORMAT_CONFIGS
 
 _extract_price = extract_price
 _get_oracle_text = get_oracle_text
-
-
-def _color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:
-    return set(card_identity).issubset(allowed)
 
 
 def _matches_filters(
@@ -54,7 +51,7 @@ def _matches_filters(
     if paper_only and "paper" not in games:
         return False
 
-    if allowed_colors is not None and not _color_identity_subset(
+    if allowed_colors is not None and not color_identity_subset(
         card.get("color_identity", []),
         allowed_colors,
     ):

@@ -41,6 +41,11 @@ def build_card_lookup(hydrated: list[dict | None]) -> dict[str, dict]:
     return lookup
 
 
+def color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:
+    """Check whether a card's color identity is a subset of the allowed colors."""
+    return set(card_identity).issubset(allowed)
+
+
 def is_land(card: dict) -> bool:
     """Check if type_line contains 'Land'."""
     type_line = card.get("type_line", "")

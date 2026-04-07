@@ -122,6 +122,30 @@ Ask: "Do you know what commander you want to build a deck for?"
   - **Standard:** Proceed to shared questions.
   - **Outside the box:** Proceed to shared questions, then follow the "Outside the Box" workflow (Step 2-alt) after commander analysis.
 
+### Commander Selection from a Collection
+
+**If the user provides a Moxfield CSV (or any deck-list export) of cards they own** and wants to pick a commander from what they already have, follow this exact procedure. Do NOT write ad-hoc Python that loads the file and calls `.get()` on it — the helper scripts already handle every step correctly.
+
+This narrows the candidate *pool*; it does NOT replace the guided interview. Run the interview anyway — the answers drive ranking against the narrowed pool.
+
+**Workflow:**
+
+1. **Parse the collection** — `uv run --directory <skill-install-dir> parse-deck <absolute-path-to-collection.csv>` produces a parsed deck JSON. `parse-deck` already handles Moxfield CSV, Moxfield deck export, Arena, MTGO, and plain text — use it for any collection format the user gives you.
+
+2. **Find commander candidates** — `uv run --directory <skill-install-dir> find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> [--color-identity <ci>] [--min-quantity 1]`. Pass `--color-identity` only if the user has already stated a color preference; otherwise omit and narrow in step 4. Pass `--min-quantity 0` only if the user explicitly wants their wishlist/binder rows considered. The result is a JSON array of owned, format-legal, commander-eligible cards with per-card signals (`edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`, plus oracle text and the usual identification fields). The output already satisfies the Iron Rule — oracle text is from bulk data, not training data.
+
+3. **Run the guided interview** (colors, playstyle, mechanics, favorite cards, play group, bracket, budget) the same as the no-collection flow. The candidate pool is the constraint; the interview answers are what differentiates one commander from another.
+
+4. **Build a mixed shortlist of ~5 candidates**, weighted by interview answers. Do NOT just pick the 5 lowest `edhrec_rank` values — that produces boring recommendations. Aim for roughly:
+   - **2 staples** — well-supported commanders (low `edhrec_rank`) that obviously fit the user's stated preferences. These exist to give the user a safe pick.
+   - **2 off-meta picks** — commanders with higher or null `edhrec_rank` whose oracle text mechanically matches the interview answers (especially the mechanics question). These are usually the most interesting options.
+   - **1 wildcard** — something the user probably hasn't considered: an unusual color combo they own, a partner pairing where they own both halves, or a commander that enables a combo using cards already in their collection.
+   - For bracket gating, use the `game_changer` flag and your judgment about combo density. Do NOT use any "EDHREC bracket" field — community bracket data is user-reported and unreliable.
+
+5. **Enumerate partner pairings from within the owned pool.** Walk the candidate list once: for each card with `is_partner=true`, find compatible partners from the same list (any other `is_partner=true` card; for `partner_with` cards, look for the named target). For each card with `has_background_clause=true`, find Backgrounds (`type_line` contains both "Legendary Enchantment" and "Background") in the candidate list. Surface promising pairings as wildcard or off-meta picks — "you already own both halves" is exactly the kind of non-obvious recommendation that makes a collection-aware flow feel useful. Skip pairings where the combined color identity doesn't match the user's stated colors.
+
+6. **Present the shortlist** following the existing "Commander Recommendation" rules (verified oracle text from the script output, color identity, EDHREC count as one signal not the ranking, why-it's-on-the-list label of "staple" / "off-meta fit" / "wildcard"). Mention to the user that candidates are filtered to cards they own and that the default `--min-quantity 1` excludes any wishlist/binder rows — in case they expected to see something tracked at quantity 0. Let the user pick, then proceed to the standard shared questions and Step 2 (Commander Analysis).
+
 ### Format Selection
 
 Ask: "What format are you building for?"
@@ -485,3 +509,4 @@ All scripts are run via `uv run --directory <skill-install-dir>`:
 - `build-deck <deck.json> <hydrated.json> [--cuts <cuts.json>] [--adds <adds.json>] [--output-dir DIR]` — apply changes to deck; output defaults to same directory as `<deck.json>`
 - `export-deck <deck.json>` — export deck JSON to Moxfield import format (N CardName lines to stdout)
 - `card-search --bulk-data <path> [--color-identity BR] [--oracle "Treasure"] [--type Creature] [--cmc-min/max N] [--price-min/max N] [--sort price-desc] [--limit 25] [--json] [--format FORMAT] [--arena-only] [--paper-only] [--is-commander]` — search bulk data for cards matching filters; `--format` filters by format legality; `--arena-only` restricts to cards on MTG Arena; `--paper-only` excludes Arena-only digital cards; `--is-commander` filters to commander-eligible cards (format-aware); output includes rarity column (C/U/R/M)
+- `find-commanders <parsed.json> --bulk-data <path> [--format FORMAT] [--color-identity CI] [--min-quantity N]` — from a parsed deck/collection JSON, return commander-eligible cards the user owns as a JSON array, with per-card signals (`edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`) for agent-side ranking. Defaults: `--format commander`, `--min-quantity 1`. Use `--min-quantity 0` to include wishlist/binder rows.

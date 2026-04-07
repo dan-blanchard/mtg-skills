@@ -6,8 +6,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
+from commander_utils.card_classify import color_identity_subset
 from commander_utils.card_search import (
-    _color_identity_subset,
     _extract_price,
     _matches_filters,
     format_results,
@@ -42,16 +42,16 @@ def _make_card(
 
 class TestColorIdentitySubset:
     def test_empty_is_subset_of_any(self):
-        assert _color_identity_subset([], {"B", "R"})
+        assert color_identity_subset([], {"B", "R"})
 
     def test_mono_is_subset_of_pair(self):
-        assert _color_identity_subset(["B"], {"B", "R"})
+        assert color_identity_subset(["B"], {"B", "R"})
 
     def test_exact_match(self):
-        assert _color_identity_subset(["B", "R"], {"B", "R"})
+        assert color_identity_subset(["B", "R"], {"B", "R"})
 
     def test_superset_rejected(self):
-        assert not _color_identity_subset(["B", "R", "G"], {"B", "R"})
+        assert not color_identity_subset(["B", "R", "G"], {"B", "R"})
 
 
 class TestExtractPrice:
