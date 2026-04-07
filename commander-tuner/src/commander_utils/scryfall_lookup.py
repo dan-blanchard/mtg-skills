@@ -1,5 +1,6 @@
 """Scryfall card lookup against bulk data with API fallback."""
 
+import contextlib
 import hashlib
 import json
 import os
@@ -10,6 +11,7 @@ from pathlib import Path
 import click
 import requests
 
+from commander_utils._sidecar import atomic_write_json
 from commander_utils.bulk_loader import load_bulk_cards
 from commander_utils.card_classify import SKIP_LAYOUTS, extract_price, get_oracle_text
 
@@ -204,18 +206,46 @@ def _default_cache_dir() -> Path:
     return Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / "scryfall-cache"
 
 
+def _build_cache_key(content: str, bulk_path: Path | None) -> str:
+    """Hash batch file content together with the bulk data file identity.
+
+    The bulk data file is hashed by (mtime_ns, size) not content — it's
+    ~500MB and content-hashing on every call is expensive. Mtime+size is
+    sufficient because ``download-bulk`` rewrites the file on refresh,
+    which changes mtime. Without including bulk_path, a bulk-data refresh
+    would silently return stale hydrated data.
+    """
+    hasher = hashlib.sha256()
+    hasher.update(content.encode())
+    if bulk_path is not None:
+        try:
+            stat = bulk_path.stat()
+            hasher.update(f"|bulk:{stat.st_mtime_ns}:{stat.st_size}".encode())
+        except OSError:
+            hasher.update(b"|bulk:missing")
+    else:
+        hasher.update(b"|bulk:none")
+    return hasher.hexdigest()[:16]
+
+
 def lookup_cards(
     names_path: Path,
     bulk_path: Path | None = None,
     cache_dir: Path | None = None,
-) -> tuple[list[dict | None], Path]:
-    """Look up every card in *names_path*, returning (results, cache_path).
+) -> tuple[list[dict | None], Path, list[str]]:
+    """Look up every card in *names_path*, returning (results, cache_path, names).
 
     Always writes the full hydrated results to a sha-keyed cache file so the
-    caller can pass the absolute path downstream without re-hydrating. When
-    ``cache_dir`` is omitted, defaults to ``_default_cache_dir()``.
+    caller can pass the absolute path downstream without re-hydrating. The
+    cache key includes the bulk data file's mtime+size so refreshing bulk
+    data invalidates the cache.
+
+    Returns a 3-tuple so ``main()`` can build the digest envelope without
+    re-reading and re-parsing the batch file.
     """
-    if cache_dir is None:
+    # Guard against empty --cache-dir from a misconfigured shell var or
+    # Click passing through an empty string.
+    if cache_dir is None or str(cache_dir) in ("", "."):
         cache_dir = _default_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -223,13 +253,20 @@ def lookup_cards(
     raw = json.loads(content)
     names = _extract_names(raw)
 
-    cache_key = hashlib.sha256(content.encode()).hexdigest()[:16]
+    cache_key = _build_cache_key(content, bulk_path)
     cache_path = (cache_dir / f"hydrated-{cache_key}.json").resolve()
 
-    # Cache hit: reuse prior hydration for identical input.
+    # Cache hit: reuse prior hydration for identical input + bulk data.
+    # If the file exists but is corrupt (truncated write, disk full),
+    # unlink it and fall through to recompute.
     if cache_path.exists():
-        results = json.loads(cache_path.read_text(encoding="utf-8"))
-        return results, cache_path
+        try:
+            results = json.loads(cache_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            with contextlib.suppress(OSError):
+                cache_path.unlink()
+        else:
+            return results, cache_path, names
 
     bulk_index = _load_bulk_index(bulk_path) if bulk_path else None
 
@@ -238,8 +275,8 @@ def lookup_cards(
         result = lookup_single(name, bulk_index=bulk_index)
         results.append(result)
 
-    cache_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    return results, cache_path
+    atomic_write_json(cache_path, results)
+    return results, cache_path, names
 
 
 def _classify_type(type_line: str | None) -> str:
@@ -293,7 +330,10 @@ def build_digest(results: list[dict | None], names: list[str]) -> dict:
     nonland_count = 0
     missing: list[str] = []
 
-    for name, card in zip(names, results, strict=False):
+    # strict=True so a length mismatch becomes a loud failure — the envelope
+    # must not silently misrepresent card_count if hydration returned a
+    # different number of entries than names_in.
+    for name, card in zip(names, results, strict=True):
         if card is None:
             missing.append(name)
             continue
@@ -332,11 +372,9 @@ def main(
 ):
     """Look up MTG card data from Scryfall."""
     if batch:
-        results, cache_path = lookup_cards(
+        results, cache_path, names = lookup_cards(
             batch, bulk_path=bulk_data, cache_dir=cache_dir
         )
-        raw = json.loads(batch.read_text(encoding="utf-8"))
-        names = _extract_names(raw)
         digest = build_digest(results, names)
         envelope = {
             "cache_path": str(cache_path),

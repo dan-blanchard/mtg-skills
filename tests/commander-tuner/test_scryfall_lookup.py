@@ -88,7 +88,7 @@ class TestLookupBatch:
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Sol Ring", "Blood Artist"]))
 
-        results, cache_path = lookup_cards(
+        results, cache_path, _ = lookup_cards(
             names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
         )
         assert len(results) == 3
@@ -103,15 +103,78 @@ class TestLookupBatch:
         cache_dir = tmp_path / "cache"
 
         # First call — populates cache
-        results1, path1 = lookup_cards(
+        results1, path1, _ = lookup_cards(
             names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
         )
         assert len(results1) == 2
 
-        # Second call — reads from cache (bulk_path=None would fail without cache)
-        results2, path2 = lookup_cards(names_path, bulk_path=None, cache_dir=cache_dir)
+        # Second call with the SAME bulk_path reads from cache. (Cache key
+        # now includes bulk_path by mtime+size, so swapping bulk files
+        # correctly busts the cache — verified separately below.)
+        results2, path2, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
         assert results2 == results1
         assert path2 == path1
+
+    def test_cache_key_busted_by_bulk_data_change(self, sample_bulk_data, tmp_path):
+        """A different bulk data file must land at a different cache path."""
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Viscera Seer"]))
+        cache_dir = tmp_path / "cache"
+
+        _, path1, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
+
+        # Duplicate the bulk data to a new file with a different path
+        alt_bulk = tmp_path / "alt-bulk.json"
+        alt_bulk.write_bytes(sample_bulk_data.read_bytes())
+
+        _, path2, _ = lookup_cards(names_path, bulk_path=alt_bulk, cache_dir=cache_dir)
+
+        # Different bulk_path → different mtime → different cache key
+        assert path1 != path2
+
+    def test_corrupt_cache_is_recomputed(self, sample_bulk_data, tmp_path):
+        """A truncated/corrupt cache file is unlinked and recomputed."""
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Viscera Seer"]))
+        cache_dir = tmp_path / "cache"
+
+        # First call populates the cache
+        _, path1, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
+        assert path1.exists()
+
+        # Corrupt it
+        path1.write_text("not valid json")
+
+        # Second call notices, unlinks, recomputes
+        results, path2, _ = lookup_cards(
+            names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+        )
+        assert results[0]["name"] == "Viscera Seer"
+        assert path2 == path1
+        # File is now valid JSON again
+        json.loads(path2.read_text())
+
+    def test_empty_cache_dir_falls_back_to_default(self, sample_bulk_data, tmp_path):
+        """An empty-string cache_dir is treated as unset, not as CWD."""
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Viscera Seer"]))
+
+        # Simulate an empty-string --cache-dir coming from a misconfigured
+        # shell variable. Click would construct Path("") which is a real
+        # footgun the scryfall_lookup guard handles.
+        empty = Path("")  # noqa: PTH201 — intentional test of the guard
+        _, path, _ = lookup_cards(
+            names_path,
+            bulk_path=sample_bulk_data,
+            cache_dir=empty,
+        )
+        assert "scryfall-cache" in str(path)
 
     def test_includes_not_found_as_none(self, sample_bulk_data, tmp_path):
         names_path = tmp_path / "names.json"
@@ -124,7 +187,7 @@ class TestLookupBatch:
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            results, _ = lookup_cards(
+            results, _, _ = lookup_cards(
                 names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
             )
 
@@ -144,7 +207,7 @@ class TestLookupBatchDeckJSON:
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results, _ = lookup_cards(
+        results, _, _ = lookup_cards(
             batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
         )
         result_names = {r["name"] for r in results if r}
@@ -160,7 +223,7 @@ class TestLookupBatchDeckJSON:
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results, _ = lookup_cards(
+        results, _, _ = lookup_cards(
             batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
         )
         assert len(results) == 1
@@ -173,7 +236,7 @@ class TestLookupBatchDeckJSON:
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results, _ = lookup_cards(
+        results, _, _ = lookup_cards(
             batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
         )
         assert len(results) == 1
@@ -183,7 +246,7 @@ class TestLookupBatchDeckJSON:
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Sol Ring"]))
 
-        results, _ = lookup_cards(
+        results, _, _ = lookup_cards(
             names_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
         )
         assert len(results) == 2
