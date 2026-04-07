@@ -337,7 +337,7 @@ If the user requests changes, apply them, re-run structural verification, and pr
 
 ## Step 5: Hand Off to Commander-Tuner
 
-1. **Write output files** — Save the parsed deck JSON and hydrated card JSON to the working directory. Also export a Moxfield-importable text file:
+1. **Write output files** — Save the parsed deck JSON to the working directory (e.g., `<working-dir>/aesi-deck.json`). The hydrated card JSON already lives at `<working-dir>/.cache/hydrated-<sha>.json` from the Step 3 batch-lookup — that counts as "in the working directory" for handoff purposes; no `cp` is needed, just pass its absolute path to commander-tuner. Also export a Moxfield-importable text file:
 
    Run: `export-deck <deck.json> > <deck-moxfield.txt>`
 
