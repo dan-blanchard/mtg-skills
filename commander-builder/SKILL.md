@@ -35,6 +35,20 @@ uv run --directory <skill-install-dir> download-bulk --output-dir <skill-install
 
 Subsequent runs skip these steps if the `.venv` exists and bulk data is fresh (<24 hours old).
 
+## Tooling Notes
+
+**Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. Always use heredocs with single-quoted delimiters when writing JSON files via Bash:
+
+```bash
+cat > /tmp/candidates.json << 'JSONEOF'
+["Azor's Elocutors", "Krark's Thumb", "Fire // Ice"]
+JSONEOF
+```
+
+Do NOT use `echo` or unquoted shell strings for JSON containing card names. For the same reason, prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
+
+**Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the expected deck size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and easy to miss.
+
 ## Workflow
 
 ```dot
@@ -311,7 +325,7 @@ After filling, run these checks in order:
 
    For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget.
 
-**This is a gate — do not present a skeleton that fails any of these checks.**
+**This is a gate — do not present a skeleton that fails any of these checks.** If any check fails and you edit the deck text file to fix it, re-parse and re-run ALL checks from the top — manual edits frequently introduce card count errors.
 
 ## Step 4: Present Skeleton
 

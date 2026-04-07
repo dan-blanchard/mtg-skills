@@ -37,21 +37,63 @@ RARITY_ORDER = {
 }
 
 
+def _cheapest_usd(card: dict) -> float | None:
+    """Extract the lowest USD price from a card dict."""
+    prices = card.get("prices") or {}
+    usd = prices.get("usd")
+    if usd is not None:
+        return float(usd)
+    usd_foil = prices.get("usd_foil")
+    if usd_foil is not None:
+        return float(usd_foil)
+    return None
+
+
+_SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
+
+
 def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
     """Load bulk data and build name→card lookup.
+
     Indexes by full name and by front face name (before ' // ').
+    When multiple printings exist, prefers the one with the lowest USD price.
+    Uses two passes so standalone cards always win the front-face key over
+    split/MDFC cards (e.g., looking up "Bind" returns the standalone card,
+    not "Bind // Liberate").
     """
     with bulk_path.open(encoding="utf-8") as f:
         cards = json.load(f)
 
     index: dict[str, dict] = {}
+    split_cards: list[dict] = []
+
+    # Pass 1: index every card by its full name, preferring cheapest printing.
     for card in cards:
+        if card.get("layout") in _SKIP_LAYOUTS:
+            continue
+
         name = card.get("name", "")
-        index[name.lower()] = card
+        key = name.lower()
+
+        if key in index:
+            existing_price = _cheapest_usd(index[key])
+            new_price = _cheapest_usd(card)
+            if existing_price is not None and (
+                new_price is None or new_price >= existing_price
+            ):
+                continue  # keep existing — it's cheaper or equally priced
+
+        index[key] = card
+
         if " // " in name:
-            front_face = name.split(" // ")[0]
-            if front_face.lower() not in index:
-                index[front_face.lower()] = card
+            split_cards.append(card)
+
+    # Pass 2: add front-face aliases for split/MDFC cards, but only where
+    # no full-name entry already exists (standalone cards win).
+    for card in split_cards:
+        front_key = card["name"].split(" // ")[0].lower()
+        if front_key not in index:
+            index[front_key] = card
 
     return index
 
@@ -76,11 +118,7 @@ def build_rarity_index(
 
     for card in cards:
         # Skip tokens and non-game cards
-        if card.get("layout") in (
-            "token",
-            "double_faced_token",
-            "art_series",
-        ):
+        if card.get("layout") in _SKIP_LAYOUTS:
             continue
         legalities = card.get("legalities", {})
         if legalities.get(legality_key) not in ("legal", "restricted"):

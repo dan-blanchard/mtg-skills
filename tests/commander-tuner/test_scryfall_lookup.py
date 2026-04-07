@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from commander_utils.scryfall_lookup import (
+    _load_bulk_index,
     build_rarity_index,
     lookup_cards,
     lookup_single,
@@ -244,6 +245,99 @@ class TestBuildRarityIndex:
         index = build_rarity_index(bulk_path, "commander")
         assert index["fire // ice"] == "uncommon"
         assert index["fire"] == "uncommon"
+
+
+class TestBulkIndexCheapestPrinting:
+    def test_prefers_cheapest_printing(self, tmp_path):
+        cards = [
+            {
+                "name": "Steam Vents",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "1300.00", "usd_foil": None},
+            },
+            {
+                "name": "Steam Vents",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "13.00", "usd_foil": "20.00"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = _load_bulk_index(bulk_path)
+        assert float(index["steam vents"]["prices"]["usd"]) == 13.00
+
+    def test_prefers_priced_over_null(self, tmp_path):
+        cards = [
+            {
+                "name": "Sol Ring",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": None, "usd_foil": None},
+            },
+            {
+                "name": "Sol Ring",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "1.50", "usd_foil": "5.00"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = _load_bulk_index(bulk_path)
+        assert float(index["sol ring"]["prices"]["usd"]) == 1.50
+
+    def test_skips_tokens(self, tmp_path):
+        cards = [
+            {
+                "name": "Soldier",
+                "layout": "token",
+                "legalities": {},
+                "prices": {"usd": None},
+            },
+            {
+                "name": "Real Card",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "1.00"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = _load_bulk_index(bulk_path)
+        assert "soldier" not in index
+        assert "real card" in index
+
+    def test_standalone_wins_front_face_key_over_split(self, tmp_path):
+        """Looking up 'Bind' should return the standalone card, not 'Bind // Liberate'."""
+        cards = [
+            {
+                "name": "Bind // Liberate",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "0.50"},
+            },
+            {
+                "name": "Bind",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "1.00"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = _load_bulk_index(bulk_path)
+        assert index["bind"]["name"] == "Bind"
+        assert index["bind // liberate"]["name"] == "Bind // Liberate"
+
+    def test_split_front_face_alias_when_no_standalone(self, tmp_path):
+        """Looking up 'Fire' should return 'Fire // Ice' when no standalone 'Fire' exists."""
+        cards = [
+            {
+                "name": "Fire // Ice",
+                "legalities": {"commander": "legal"},
+                "prices": {"usd": "0.25"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = _load_bulk_index(bulk_path)
+        assert index["fire"]["name"] == "Fire // Ice"
+        assert index["fire // ice"]["name"] == "Fire // Ice"
 
 
 class TestCLI:

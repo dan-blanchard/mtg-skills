@@ -31,6 +31,18 @@ uv run --directory <skill-install-dir> download-bulk --output-dir <skill-install
 
 Subsequent runs skip these steps if the `.venv` exists and bulk data is fresh (<24 hours old).
 
+## Tooling Notes
+
+**Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. Always use heredocs with single-quoted delimiters when writing JSON files via Bash:
+
+```bash
+cat > /tmp/cuts.json << 'JSONEOF'
+["Azor's Elocutors", "Krark's Thumb"]
+JSONEOF
+```
+
+Do NOT use `echo` or unquoted shell strings for JSON containing card names. For the same reason, prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
+
 ## Workflow
 
 ```dot
