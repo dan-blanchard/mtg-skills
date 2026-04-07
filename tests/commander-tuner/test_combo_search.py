@@ -319,9 +319,12 @@ class TestFormatAwareLegality:
 
 
 class TestCLI:
-    def test_outputs_json(self, tmp_path, sample_combo_response):
+    def test_text_report_and_json_file(self, tmp_path, sample_combo_response):
+        from conftest import json_from_cli_output
+
         deck_path = tmp_path / "deck.json"
         deck_path.write_text(json.dumps(SAMPLE_DECK))
+        output_path = tmp_path / "out.json"
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -334,16 +337,22 @@ class TestCLI:
             mock_requests.Session.return_value = mock_session
 
             runner = CliRunner()
-            result = runner.invoke(main, [str(deck_path)])
+            result = runner.invoke(main, [str(deck_path), "--output", str(output_path)])
 
-        assert result.exit_code == 0
-        data = json.loads(result.output)
+        assert result.exit_code == 0, result.output
+        assert "combo-search:" in result.output
+        assert "Full JSON:" in result.output
+
+        data = json_from_cli_output(result)
         assert "combos" in data
         assert "near_misses" in data
 
     def test_max_near_misses_flag(self, tmp_path, sample_combo_response):
+        from conftest import json_from_cli_output
+
         deck_path = tmp_path / "deck.json"
         deck_path.write_text(json.dumps(SAMPLE_DECK))
+        output_path = tmp_path / "out.json"
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -356,10 +365,19 @@ class TestCLI:
             mock_requests.Session.return_value = mock_session
 
             runner = CliRunner()
-            result = runner.invoke(main, [str(deck_path), "--max-near-misses", "1"])
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    "--max-near-misses",
+                    "1",
+                    "--output",
+                    str(output_path),
+                ],
+            )
 
-        assert result.exit_code == 0
-        data = json.loads(result.output)
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
         assert len(data["near_misses"]) == 1
 
 
@@ -550,7 +568,11 @@ class TestSearchCombos:
 
 
 class TestDiscoverCLI:
-    def test_outputs_json(self):
+    def test_text_report_and_json_file(self, tmp_path):
+        from conftest import json_from_cli_output
+
+        output_path = tmp_path / "out.json"
+
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = SAMPLE_VARIANTS_RESPONSE
@@ -563,10 +585,20 @@ class TestDiscoverCLI:
 
             runner = CliRunner()
             result = runner.invoke(
-                discover_main, ["--result", "Infinite creature tokens"]
+                discover_main,
+                [
+                    "--result",
+                    "Infinite creature tokens",
+                    "--output",
+                    str(output_path),
+                ],
             )
 
-        assert result.exit_code == 0
-        data = json.loads(result.output)
+        assert result.exit_code == 0, result.output
+        assert "combo-discover:" in result.output
+        assert "Scurry Oak" in result.output
+        assert "Full JSON:" in result.output
+
+        data = json_from_cli_output(result)
         assert len(data) == 1
         assert data[0]["cards"] == ["Scurry Oak", "Ivy Lane Denizen"]

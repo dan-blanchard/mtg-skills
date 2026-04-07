@@ -1,7 +1,10 @@
 """Commander Spellbook combo search for Commander decks."""
 
+import hashlib
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import click
@@ -201,6 +204,93 @@ def search_combos(
     return combos
 
 
+def _is_game_winning(combo: dict) -> bool:
+    """Heuristic: combos whose result includes 'infinite' or 'win the game'."""
+    result_text = " ".join(str(r) for r in combo.get("result", [])).lower()
+    return "infinite" in result_text or "win the game" in result_text
+
+
+def render_combo_search_report(data: dict) -> str:
+    """Render combo-search output as a compact text report."""
+    combos = data.get("combos", [])
+    near_misses = data.get("near_misses", [])
+
+    game_winning_count = sum(1 for c in combos if _is_game_winning(c))
+    value_count = len(combos) - game_winning_count
+
+    lines: list[str] = []
+    lines.append(
+        f"combo-search: {len(combos)} existing combo"
+        f"{'s' if len(combos) != 1 else ''} "
+        f"({game_winning_count} game-winning, {value_count} value), "
+        f"{len(near_misses)} near-miss"
+        f"{'es' if len(near_misses) != 1 else ''}"
+    )
+
+    if combos:
+        lines.append("")
+        lines.append("Existing combos:")
+        for c in combos:
+            kind = "GAME_WINNING" if _is_game_winning(c) else "VALUE"
+            cards = " + ".join(c.get("cards", []))
+            result = ", ".join(str(r) for r in c.get("result", []))
+            bracket = c.get("bracket_tag", "")
+            bracket_str = f" (bracket {bracket})" if bracket else ""
+            lines.append(f"  {kind}: {cards}")
+            lines.append(f"    → {result}{bracket_str}")
+
+    if near_misses:
+        lines.append("")
+        lines.append("Near-misses (missing 1 card):")
+        for c in near_misses:
+            missing = c.get("missing_card", "?")
+            other = [card for card in c.get("cards", []) if card != missing]
+            others = " + ".join(other)
+            result = ", ".join(str(r) for r in c.get("result", []))
+            lines.append(f"  + {missing}: {others} = {result}")
+
+    return "\n".join(lines) + "\n"
+
+
+def render_combo_discover_report(combos: list[dict]) -> str:
+    """Render combo-discover output as a compact text report."""
+    if not combos:
+        return "combo-discover: 0 combos found\n"
+
+    lines: list[str] = [f"combo-discover: {len(combos)} combos found", ""]
+    for c in combos:
+        pop = c.get("popularity", 0)
+        bracket = c.get("bracket_tag", "")
+        ci = c.get("identity", "")
+        card_count = len(c.get("cards", []))
+        cards = " + ".join(c.get("cards", []))
+        result = ", ".join(str(r) for r in c.get("result", []))
+        meta = f"pop={pop}"
+        if bracket:
+            meta += f", bracket={bracket}"
+        if ci:
+            meta += f", ci={ci}"
+        meta += f", {card_count}-card"
+        lines.append(f"  [{meta}] {cards}")
+        lines.append(f"    → {result}")
+
+    return "\n".join(lines) + "\n"
+
+
+def _default_search_output_path(deck_content: str, max_near_misses: int) -> Path:
+    payload = f"{deck_content}|{max_near_misses}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"combo-search-{digest}.json").resolve()
+
+
+def _default_discover_output_path(*args) -> Path:
+    payload = "|".join(str(a) for a in args)
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"combo-discover-{digest}.json").resolve()
+
+
 @click.command()
 @click.argument("deck_json", type=click.Path(exists=True, path_type=Path))
 @click.option(
@@ -209,11 +299,28 @@ def search_combos(
     show_default=True,
     help="Maximum number of near-miss combos to return.",
 )
-def main(deck_json: Path, max_near_misses: int) -> None:
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
+def main(deck_json: Path, max_near_misses: int, output_path: Path | None) -> None:
     """Search Commander Spellbook for combos in a deck."""
-    deck = json.loads(deck_json.read_text(encoding="utf-8"))
+    deck_content = deck_json.read_text(encoding="utf-8")
+    deck = json.loads(deck_content)
     result = combo_search(deck, max_near_misses=max_near_misses)
-    click.echo(json.dumps(result, indent=2))
+
+    if output_path is None:
+        output_path = _default_search_output_path(deck_content, max_near_misses)
+    else:
+        output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    click.echo(render_combo_search_report(result), nl=False)
+    click.echo(f"\nFull JSON: {output_path}")
 
 
 @click.command()
@@ -254,6 +361,13 @@ def main(deck_json: Path, max_near_misses: int) -> None:
     type=click.Path(exists=True, path_type=Path),
     default=None,
 )
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
 def discover_main(
     result,
     cards,
@@ -264,6 +378,7 @@ def discover_main(
     arena_only,
     paper_only,
     bulk_data,
+    output_path,
 ):
     """Discover combos by mechanic, outcome, or card name."""
     if arena_only and paper_only:
@@ -279,4 +394,22 @@ def discover_main(
         paper_only=paper_only,
         bulk_path=bulk_data,
     )
-    click.echo(json.dumps(results, indent=2))
+
+    if output_path is None:
+        output_path = _default_discover_output_path(
+            result,
+            tuple(cards) if cards else (),
+            color_identity,
+            ordering,
+            limit,
+            combo_format,
+            arena_only,
+            paper_only,
+        )
+    else:
+        output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+
+    click.echo(render_combo_discover_report(results), nl=False)
+    click.echo(f"\nFull JSON: {output_path}")
