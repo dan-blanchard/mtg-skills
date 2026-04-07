@@ -19,6 +19,33 @@ Every card recommendation MUST be grounded in actual card oracle text from Scryf
 
 **Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified before presenting — write all candidate names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
 
+## Progress Tracking
+
+**Before starting Step 1, create a `TodoWrite` list with one item per top-level Step in this skill, in order:**
+
+1. Step 1: Interview
+2. Step 2: Commander Analysis
+3. Step 3: Skeleton Generation
+4. Step 4: Present Skeleton
+5. Step 5: Hand Off to Commander-Tuner
+
+Mark each item `in_progress` the moment you begin it and `completed` the moment it finishes — **do not batch updates**. The user relies on this list as a live progress indicator; batching defeats the point.
+
+**Step 3 (Skeleton Generation) is long enough that the top-level item alone leaves the user staring at an unchanging list.** When you reach it, expand it into sub-todos *at that moment* (not up front), one per category in the fill order plus the verification gate:
+
+1. Fill Lands
+2. Fill Ramp
+3. Fill Card Draw
+4. Fill Targeted Removal & Board Wipes
+5. Fill Protection/Utility
+6. Fill Engine/Synergy Pieces
+7. Fill Win Conditions
+8. Structural Verification (deck-stats, mana-audit, price-check)
+
+**If the user takes the "Outside the Box" workflow**, add or swap todos as you reach each alt step, leaving any already-completed standard steps in place. The alt steps are Step 1b-alt (Mechanics/Outcome Interview), Step 2-alt (Combo Discovery), Step 2b-alt (Commander Fitting — skip if commander already known), and Step 3-alt (Skeleton with Combo Core); Steps 4 and 5 are shared with the standard flow. Step 3-alt expands into the same fill-order sub-todos as Step 3.
+
+Do NOT create per-card sub-todos inside any fill step — that's execution detail and would flood the list.
+
 ## Setup and Tooling
 
 This skill shares its install with commander-tuner via symlink. For one-time setup commands (`uv sync`, `download-bulk`) and the full script reference, see `commander-tuner/SKILL.md` — those run once per install and aren't hot-path during a builder session.

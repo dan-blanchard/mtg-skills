@@ -15,6 +15,34 @@ Structured process for analyzing and tuning MTG Commander decks. Every recommend
 
 **NEVER assume what a card does.** Before referencing any card's abilities, look up its oracle text via the helper scripts. Training data is not oracle text.
 
+## Progress Tracking
+
+**Before starting Step 1, create a `TodoWrite` list with one item per top-level Step in this skill, in order:**
+
+1. Step 1: Parse Deck List
+2. Step 2: Hydrate Card Data
+3. Step 2.5: Baseline Metrics
+4. Step 3: User Intake
+5. Step 4: Research
+6. Step 5: Strategy Alignment Check
+7. Step 5.5: Commander Interaction Audit
+8. Step 6: Analysis
+9. Step 6.5: Mechanical Cut Check
+10. Step 7: Self-Grill (Two-Agent Debate)
+11. Step 8: Propose Changes
+12. Step 8.5: Impact Verification
+13. Step 9: Close Calls
+14. Step 10: Finalize
+
+Mark each item `in_progress` the moment you begin it and `completed` the moment it finishes — **do not batch updates**. The user relies on this list as a live progress indicator; batching defeats the point.
+
+**Step 6 and Step 7 are long enough that the top-level item alone leaves the user staring at an unchanging list.** When you reach them, expand each into sub-todos *at that moment* (not up front):
+
+- **Step 6** sub-todos: Mana Base & Curve Audit, Interaction Audit, Draft Cuts, Draft Additions, Swap Balance Check.
+- **Step 7** sub-todos: Dispatch Proposer + Challenger Subagents, Process Challenger Report, Revise Proposal.
+
+Do NOT create per-card sub-todos for the Cut Checklist inside Step 6 — that's execution detail and would flood the list.
+
 ## Setup (First Run)
 
 Before first use, set up the Python environment from the skill's install directory:
