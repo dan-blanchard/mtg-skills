@@ -4,6 +4,33 @@ from __future__ import annotations
 
 import re
 
+SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
+
+
+def get_oracle_text(card: dict) -> str:
+    """Get oracle text, falling back to joined card_faces for MDFCs/split cards."""
+    oracle = card.get("oracle_text") or ""
+    if not oracle:
+        faces = card.get("card_faces", [])
+        oracle = "\n// \n".join(
+            f.get("oracle_text", "") for f in faces if f.get("oracle_text")
+        )
+    return oracle
+
+
+def extract_price(card: dict | None) -> float | None:
+    """Extract USD price from a card dict, preferring usd over usd_foil."""
+    if card is None:
+        return None
+    prices = card.get("prices") or {}
+    usd = prices.get("usd")
+    if usd is not None:
+        return float(usd)
+    usd_foil = prices.get("usd_foil")
+    if usd_foil is not None:
+        return float(usd_foil)
+    return None
+
 
 def build_card_lookup(hydrated: list[dict | None]) -> dict[str, dict]:
     """Build name -> card dict lookup from a hydrated card list."""
@@ -31,7 +58,7 @@ def is_ramp(card: dict) -> bool:
     if is_land(card):
         return False
 
-    oracle = card.get("oracle_text", "") or ""
+    oracle = get_oracle_text(card)
     oracle_lower = oracle.lower()
 
     # Non-land cards that add mana in any form:
@@ -69,7 +96,7 @@ _BASIC_LAND_TYPES: dict[str, str] = {
 
 def color_sources(card: dict) -> set[str]:
     """Parse which colors of mana a card can produce."""
-    oracle = card.get("oracle_text", "") or ""
+    oracle = get_oracle_text(card)
     type_line = card.get("type_line", "") or ""
     colors: set[str] = set()
 
@@ -117,7 +144,7 @@ def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
     Returns {"eligible": bool, "requires_partner": bool}.
     """
     type_line = card.get("type_line", "")
-    oracle = (card.get("oracle_text", "") or "").lower()
+    oracle = get_oracle_text(card).lower()
 
     if "Legendary" not in type_line:
         return {"eligible": False, "requires_partner": False}

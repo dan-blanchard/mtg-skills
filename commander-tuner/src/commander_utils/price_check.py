@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 import requests
 
+from commander_utils.card_classify import extract_price
 from commander_utils.format_config import FORMAT_CONFIGS
 from commander_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
@@ -22,19 +23,7 @@ from commander_utils.scryfall_lookup import (
 
 _ARENA_FORMATS = frozenset({"brawl", "historic_brawl"})
 
-
-def _extract_price(card: dict | None) -> float | None:
-    """Extract USD price from a card dict, preferring usd over usd_foil."""
-    if card is None:
-        return None
-    prices = card.get("prices") or {}
-    usd = prices.get("usd")
-    if usd is not None:
-        return float(usd)
-    usd_foil = prices.get("usd_foil")
-    if usd_foil is not None:
-        return float(usd_foil)
-    return None
+_extract_price = extract_price
 
 
 def _api_price_lookup(name: str) -> float | None:
@@ -46,15 +35,7 @@ def _api_price_lookup(name: str) -> float | None:
     if resp.status_code == 404:
         return None
     resp.raise_for_status()
-    data = resp.json()
-    prices = data.get("prices", {})
-    usd = prices.get("usd")
-    if usd is not None:
-        return float(usd)
-    usd_foil = prices.get("usd_foil")
-    if usd_foil is not None:
-        return float(usd_foil)
-    return None
+    return extract_price(resp.json())
 
 
 def _check_arena_wildcards(

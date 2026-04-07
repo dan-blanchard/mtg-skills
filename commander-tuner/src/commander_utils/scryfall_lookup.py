@@ -8,6 +8,8 @@ from pathlib import Path
 import click
 import requests
 
+from commander_utils.card_classify import SKIP_LAYOUTS, extract_price, get_oracle_text
+
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 USER_AGENT = "commander-utils/0.1.0"
 RATE_LIMIT_DELAY = 0.1
@@ -37,19 +39,7 @@ RARITY_ORDER = {
 }
 
 
-def _cheapest_usd(card: dict) -> float | None:
-    """Extract the lowest USD price from a card dict."""
-    prices = card.get("prices") or {}
-    usd = prices.get("usd")
-    if usd is not None:
-        return float(usd)
-    usd_foil = prices.get("usd_foil")
-    if usd_foil is not None:
-        return float(usd_foil)
-    return None
-
-
-_SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
+_cheapest_usd = extract_price
 
 
 def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
@@ -69,7 +59,7 @@ def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
 
     # Pass 1: index every card by its full name, preferring cheapest printing.
     for card in cards:
-        if card.get("layout") in _SKIP_LAYOUTS:
+        if card.get("layout") in SKIP_LAYOUTS:
             continue
 
         name = card.get("name", "")
@@ -118,7 +108,7 @@ def build_rarity_index(
 
     for card in cards:
         # Skip tokens and non-game cards
-        if card.get("layout") in _SKIP_LAYOUTS:
+        if card.get("layout") in SKIP_LAYOUTS:
             continue
         legalities = card.get("legalities", {})
         if legalities.get(legality_key) not in ("legal", "restricted"):
@@ -148,14 +138,8 @@ def build_rarity_index(
 
 def _extract_fields(card: dict) -> dict:
     result = {field: card.get(field) for field in CARD_FIELDS}
-    # For MDFCs, Scryfall stores oracle_text on card_faces, not the top level.
-    # Combine face oracle texts so downstream consumers (color_sources, etc.) work.
     if result["oracle_text"] is None:
-        faces = card.get("card_faces", [])
-        if faces:
-            texts = [f.get("oracle_text", "") for f in faces if f.get("oracle_text")]
-            if texts:
-                result["oracle_text"] = "\n// \n".join(texts)
+        result["oracle_text"] = get_oracle_text(card) or None
     return result
 
 

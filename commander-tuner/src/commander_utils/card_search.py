@@ -8,31 +8,20 @@ from pathlib import Path
 
 import click
 
-from commander_utils.card_classify import is_commander
+from commander_utils.card_classify import (
+    SKIP_LAYOUTS,
+    extract_price,
+    get_oracle_text,
+    is_commander,
+)
 from commander_utils.format_config import FORMAT_CONFIGS
+
+_extract_price = extract_price
+_get_oracle_text = get_oracle_text
 
 
 def _color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:
     return set(card_identity).issubset(allowed)
-
-
-def _extract_price(card: dict) -> float | None:
-    prices = card.get("prices") or {}
-    usd = prices.get("usd")
-    if usd is not None:
-        return float(usd)
-    usd_foil = prices.get("usd_foil")
-    if usd_foil is not None:
-        return float(usd_foil)
-    return None
-
-
-def _get_oracle_text(card: dict) -> str:
-    oracle = card.get("oracle_text") or ""
-    if not oracle:
-        faces = card.get("card_faces", [])
-        oracle = "\n// \n".join(f.get("oracle_text", "") for f in faces)
-    return oracle
 
 
 def _matches_filters(
@@ -52,11 +41,7 @@ def _matches_filters(
     commander_format: str = "commander",
 ) -> bool:
     # Skip tokens and non-game cards
-    if card.get("layout") in (
-        "token",
-        "double_faced_token",
-        "art_series",
-    ):
+    if card.get("layout") in SKIP_LAYOUTS:
         return False
     if card.get("set_type") in ("token", "memorabilia"):
         return False
