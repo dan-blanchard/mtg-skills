@@ -567,6 +567,45 @@ class TestSearchCombos:
         assert call_kwargs[1]["params"]["limit"] == 25
 
 
+class TestGameWinningClassifier:
+    """Pin the _is_game_winning heuristic.
+
+    The classifier is deliberately narrow (matches 'infinite' and
+    'win the game'). Synonyms like 'game-ending' or 'lethal damage'
+    currently label as VALUE — this is a known limitation, not a bug.
+    If the heuristic is ever broadened, update these tests too.
+    """
+
+    def test_infinite_is_game_winning(self):
+        from commander_utils.combo_search import _is_game_winning
+
+        assert _is_game_winning({"result": ["Infinite damage"]})
+        assert _is_game_winning({"result": ["Infinite creature tokens"]})
+        assert _is_game_winning({"result": ["Infinite mana", "Draw the deck"]})
+
+    def test_win_the_game_is_game_winning(self):
+        from commander_utils.combo_search import _is_game_winning
+
+        assert _is_game_winning({"result": ["Win the game"]})
+
+    def test_non_infinite_value_interactions_are_not_game_winning(self):
+        from commander_utils.combo_search import _is_game_winning
+
+        assert not _is_game_winning({"result": ["Extra mana of any color"]})
+        assert not _is_game_winning({"result": ["Untap all lands"]})
+        assert not _is_game_winning({"result": []})
+
+    def test_narrow_heuristic_misses_synonyms(self):
+        """Document that the narrow heuristic intentionally misses synonyms
+        like 'game-ending' and 'lethal damage to each opponent'. A future
+        broadening of _is_game_winning should delete this test and replace
+        it with expanded positive cases."""
+        from commander_utils.combo_search import _is_game_winning
+
+        assert not _is_game_winning({"result": ["Game-ending pressure"]})
+        assert not _is_game_winning({"result": ["Lethal damage to each opponent"]})
+
+
 class TestDiscoverCLI:
     def test_text_report_and_json_file(self, tmp_path):
         from conftest import json_from_cli_output

@@ -337,6 +337,8 @@ Before presenting to the user, launch **two subagents** that debate the proposed
 
 **Data delivery: file paths, not pasted content.** All upstream script outputs already exist as files on disk (every script in §5.5, §6.5, and §8 writes to `$TMPDIR/...-<sha>.json` or `<cache-dir>/hydrated-<sha>.json` by default; pass `--output PATH` if you want a specific location). Build each subagent prompt with **file paths and a one-paragraph bottom-line summary**, never with pasted JSON. Both subagents have the `Read` tool and can load specific entries selectively (use `offset`/`limit` or `Grep` on the files to pull only what they need). Pasting JSON into subagent prompts wastes tokens twice — once for each subagent.
 
+**Fallback if `Read` is unavailable.** If a dispatched subagent reports it cannot `Read` the provided path (unexpected tool-set restriction, sandbox difference, etc.), the parent must paste the relevant file excerpt into a follow-up message to that subagent — never dump the entire file. Extract the specific entries the subagent asked about. This converts a silent breakage into a recoverable fallback at the cost of one extra round-trip.
+
 Required file paths to hand to both subagents:
 - The hydrated cards `cache_path` from the §2 scryfall-lookup envelope (full card data for the whole deck)
 - `cut-check` output from §6.5

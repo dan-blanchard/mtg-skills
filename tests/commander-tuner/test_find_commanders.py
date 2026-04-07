@@ -472,6 +472,49 @@ class TestCli:
         owned = _build_owned_index(parsed, min_quantity=1)
         assert owned["korvold, fae-cursed king"] == 3
 
+    def test_empty_candidate_list_still_emits_full_json_footer(
+        self, tmp_path: Path, bulk_index
+    ):
+        """When no candidates match, stdout still has 'Full JSON: <path>'
+        and the file at that path contains an empty array. Agents rely on
+        the footer's presence as a structural invariant."""
+        from conftest import json_from_cli_output
+
+        # A collection with zero commander-eligible cards
+        parsed = {
+            "commanders": [],
+            "cards": [
+                {"name": "Lightning Bolt", "quantity": 4},
+                {"name": "Sol Ring", "quantity": 1},
+            ],
+        }
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(list(bulk_index.values())))
+        parsed_path = tmp_path / "parsed.json"
+        parsed_path.write_text(json.dumps(parsed))
+        output_override = tmp_path / "empty.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(parsed_path),
+                "--bulk-data",
+                str(bulk_path),
+                "--format",
+                "commander",
+                "--output",
+                str(output_override),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Found 0 commander candidates" in result.output
+        assert "Full JSON:" in result.output
+
+        data = json_from_cli_output(result)
+        assert data == []
+        assert output_override.exists()
+
 
 class TestNameNormalization:
     def test_diacritics_are_folded(self):
