@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import tempfile
 import unicodedata
 from pathlib import Path
 
@@ -207,6 +210,67 @@ def find_commanders(
     return candidates
 
 
+def _default_output_path(
+    parsed_deck_content: str,
+    fmt: str,
+    color_identity: str | None,
+    min_quantity: int,
+) -> Path:
+    """Compute a deterministic sha-keyed output path under $TMPDIR.
+
+    Hashes the parsed-deck content together with the filter arguments so the
+    same query against the same collection always lands at the same file, but
+    different queries (different format, different color identity, different
+    min-quantity) get their own files.
+    """
+    payload = f"{parsed_deck_content}|{fmt}|{color_identity or ''}|{min_quantity}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"find-commanders-{digest}.json").resolve()
+
+
+def _render_text_table(candidates: list[dict], *, format: str) -> str:  # noqa: A002
+    """Render the candidate list as a compact human-readable table.
+
+    Column set is chosen for decision-making: EDHREC rank, color identity, CMC,
+    name, truncated type_line, and a flags column that surfaces PARTNER /
+    BACKGROUND / GC (game_changer) signals in a single glance.
+    """
+    if not candidates:
+        return f"Found 0 commander candidates in collection (format={format})\n"
+
+    lines: list[str] = []
+    lines.append(
+        f"Found {len(candidates)} commander candidates in collection (format={format})",
+    )
+    lines.append("")
+    header = f"  {'EDHREC':>6}  {'CI':<5} {'CMC':>4}  {'Name':<36}  {'Type':<36}  Flags"
+    divider = "  " + "-" * (len(header) - 2)
+    lines.append(header)
+    lines.append(divider)
+
+    for c in candidates:
+        rank = c.get("edhrec_rank")
+        rank_str = f"{rank:>6}" if rank is not None else "  ----"
+        ci = "".join(c.get("color_identity") or []) or "C"
+        cmc_val = c.get("cmc")
+        cmc_str = f"{int(cmc_val):>4}" if cmc_val is not None else "   -"
+        name = (c.get("name") or "")[:36]
+        type_line = (c.get("type_line") or "")[:36]
+        flags: list[str] = []
+        if c.get("is_partner"):
+            flags.append("PARTNER")
+        if c.get("has_background_clause"):
+            flags.append("BACKGROUND")
+        flags.append("GC=yes" if c.get("game_changer") else "GC=no")
+        flag_str = " ".join(flags)
+        lines.append(
+            f"  {rank_str}  {ci:<5} {cmc_str}  {name:<36}  {type_line:<36}  {flag_str}",
+        )
+
+    return "\n".join(lines) + "\n"
+
+
 @click.command()
 @click.argument(
     "parsed_deck_path",
@@ -238,15 +302,24 @@ def find_commanders(
     help="Minimum owned quantity to consider a card (default: 1). "
     "Use 0 to include wishlist/binder rows.",
 )
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
 def main(
     parsed_deck_path: Path,
     bulk_data: Path,
     fmt: str,
     color_identity: str | None,
     min_quantity: int,
+    output_path: Path | None,
 ):
     """Find commander-eligible cards in a parsed deck/collection JSON."""
-    parsed_deck = json.loads(parsed_deck_path.read_text(encoding="utf-8"))
+    parsed_deck_content = parsed_deck_path.read_text(encoding="utf-8")
+    parsed_deck = json.loads(parsed_deck_content)
     bulk_index = _load_bulk_index(bulk_data)
     candidates = find_commanders(
         parsed_deck,
@@ -255,4 +328,15 @@ def main(
         color_identity=color_identity,
         min_quantity=min_quantity,
     )
-    click.echo(json.dumps(candidates, indent=2))
+
+    if output_path is None:
+        output_path = _default_output_path(
+            parsed_deck_content, fmt, color_identity, min_quantity
+        )
+    else:
+        output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(candidates, indent=2), encoding="utf-8")
+
+    click.echo(_render_text_table(candidates, format=fmt), nl=False)
+    click.echo(f"\nFull JSON: {output_path}")

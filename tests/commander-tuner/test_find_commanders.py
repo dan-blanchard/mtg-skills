@@ -353,12 +353,15 @@ class TestOutputShape:
 
 class TestCli:
     def test_smoke_end_to_end(self, tmp_path: Path, bulk_index, parsed_collection):
-        # Build a fake bulk-data file from the fixture and a parsed-deck file
+        from conftest import json_from_cli_output
+
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(list(bulk_index.values())))
 
         parsed_path = tmp_path / "parsed.json"
         parsed_path.write_text(json.dumps(parsed_collection))
+
+        output_override = tmp_path / "commanders.json"
 
         runner = CliRunner()
         result = runner.invoke(
@@ -371,14 +374,84 @@ class TestCli:
                 "commander",
                 "--color-identity",
                 "BGR",
+                "--output",
+                str(output_override),
             ],
         )
         assert result.exit_code == 0, result.output
-        candidates = json.loads(result.output)
+
+        # Loose substring checks on the text table
+        assert "Korvold, Fae-Cursed King" in result.output
+        assert "Atraxa, Praetors' Voice" not in result.output  # BGUW not subset of BGR
+        assert "Lightning Bolt" not in result.output
+        assert "Found" in result.output
+        assert "Full JSON:" in result.output
+
+        # Strict correctness check via the JSON file
+        candidates = json_from_cli_output(result)
         names = {c["name"] for c in candidates}
         assert "Korvold, Fae-Cursed King" in names
-        assert "Atraxa, Praetors' Voice" not in names  # BGUW not subset of BGR
+        assert "Atraxa, Praetors' Voice" not in names
         assert "Lightning Bolt" not in names
+
+        # Verify output path override honored
+        assert output_override.exists()
+
+    def test_default_output_path_is_deterministic(
+        self, tmp_path: Path, bulk_index, parsed_collection
+    ):
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(list(bulk_index.values())))
+        parsed_path = tmp_path / "parsed.json"
+        parsed_path.write_text(json.dumps(parsed_collection))
+
+        runner = CliRunner()
+        args = [
+            str(parsed_path),
+            "--bulk-data",
+            str(bulk_path),
+            "--format",
+            "commander",
+        ]
+        r1 = runner.invoke(main, args)
+        r2 = runner.invoke(main, args)
+        assert r1.exit_code == 0
+        assert r2.exit_code == 0
+
+        def _path_from_output(output):
+            for line in output.splitlines():
+                if line.startswith("Full JSON:"):
+                    return line.split(":", 1)[1].strip()
+            return None
+
+        assert _path_from_output(r1.output) == _path_from_output(r2.output)
+
+    def test_text_table_renders_flags(
+        self, tmp_path: Path, bulk_index, parsed_collection
+    ):
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(list(bulk_index.values())))
+        parsed_path = tmp_path / "parsed.json"
+        parsed_path.write_text(json.dumps(parsed_collection))
+        output_override = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(parsed_path),
+                "--bulk-data",
+                str(bulk_path),
+                "--format",
+                "commander",
+                "--output",
+                str(output_override),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        # PARTNER flag for Thrasios; BACKGROUND for Faceless One
+        assert "PARTNER" in result.output
+        assert "BACKGROUND" in result.output
 
     def test_cross_section_takes_max_not_sum(self):
         # parse-deck can emit a card in BOTH commanders and cards if the user
