@@ -201,12 +201,15 @@ class TestRunCutCheck:
 
 
 class TestCLI:
-    def test_outputs_valid_json(self, trigger_test_cards, tmp_path):
+    def test_text_report_and_json_file(self, trigger_test_cards, tmp_path):
+        from click.testing import CliRunner
+        from conftest import json_from_cli_output
+
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Upkeep Drainer"]))
-        from click.testing import CliRunner
+        output_path = tmp_path / "out.json"
 
         runner = CliRunner()
         result = runner.invoke(
@@ -222,9 +225,86 @@ class TestCLI:
                 "3",
                 "--multiplier-high",
                 "7",
+                "--output",
+                str(output_path),
             ],
         )
-        assert result.exit_code == 0
-        data = json.loads(result.output)
+        assert result.exit_code == 0, result.output
+
+        # Loose text-report assertions
+        assert "Cut-check summary" in result.output
+        assert "Upkeep Drainer" in result.output
+        assert "Full JSON:" in result.output
+        assert "Obeka, Splitter of Seconds" in result.output
+
+        # Strict structural correctness via the JSON file
+        data = json_from_cli_output(result)
         assert len(data) == 1
         assert data[0]["name"] == "Upkeep Drainer"
+        assert output_path.exists()
+
+    def test_flags_commander_multiplication_in_text_report(
+        self, trigger_test_cards, tmp_path
+    ):
+        from click.testing import CliRunner
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(
+            json.dumps(["Helm of the Host", "Strionic Resonator", "Upkeep Drainer"])
+        )
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "COMMANDER_MULTIPLICATION" in result.output
+        assert "Helm of the Host" in result.output
+        assert "Strionic Resonator" in result.output
+
+    def test_default_output_path_is_deterministic(self, trigger_test_cards, tmp_path):
+        from click.testing import CliRunner
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(["Upkeep Drainer"]))
+
+        runner = CliRunner()
+        args = [
+            str(hydrated_path),
+            "Obeka, Splitter of Seconds",
+            "--cuts",
+            str(cuts_path),
+            "--multiplier-low",
+            "3",
+            "--multiplier-high",
+            "7",
+        ]
+        r1 = runner.invoke(main, args)
+        r2 = runner.invoke(main, args)
+        assert r1.exit_code == 0
+        assert r2.exit_code == 0
+
+        def _path(output):
+            for line in output.splitlines():
+                if line.startswith("Full JSON:"):
+                    return line.split(":", 1)[1].strip()
+            return None
+
+        assert _path(r1.output) == _path(r2.output)

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import click
@@ -463,8 +466,119 @@ def run_cut_check(
 
 
 # ---------------------------------------------------------------------------
+# Text report rendering
+# ---------------------------------------------------------------------------
+
+
+def _summarize_triggers(triggers: list[dict]) -> str:
+    """Produce a one-line fragment describing a card's flagged triggers."""
+    matching = [t for t in triggers if t.get("matches_trigger_type")]
+    if not matching:
+        return "triggers=0"
+    parts: list[str] = []
+    for t in matching:
+        mtype = t.get("matched_type") or "?"
+        low = t.get("multiplied_low")
+        high = t.get("multiplied_high")
+        if low is not None and high is not None:
+            if low == high:
+                parts.append(f"{mtype}={low}")
+            else:
+                parts.append(f"{mtype}={low}-{high}")
+        else:
+            parts.append(mtype)
+    return f"triggers={len(matching)} ({', '.join(parts)})"
+
+
+def _summarize_multiplication(mult: dict) -> str:
+    """Return 'COMMANDER_MULTIPLICATION (reasons)' or empty string."""
+    reasons: list[str] = []
+    if mult.get("commander_copy"):
+        reasons.append("commander_copy")
+    if mult.get("ability_copy"):
+        reasons.append("ability_copy")
+    if mult.get("legend_bypass"):
+        reasons.append("legend_bypass")
+    if not reasons:
+        return ""
+    return f"COMMANDER_MULTIPLICATION ({', '.join(reasons)})"
+
+
+def render_text_report(
+    results: list[dict],
+    *,
+    commander_name: str,
+    multiplier_low: int,
+    multiplier_high: int,
+    opponents: int,
+) -> str:
+    """Render run_cut_check results as a human-readable report."""
+    lines: list[str] = []
+    lines.append(
+        f"Cut-check summary ({len(results)} cards against {commander_name}, "
+        f"{multiplier_low}x-{multiplier_high}x multiplier, {opponents} opponents):"
+    )
+    lines.append("")
+
+    flag_counts = {
+        "commander_multiplication": 0,
+        "trigger": 0,
+        "self_recurring": 0,
+        "keyword_interactions": 0,
+    }
+
+    for entry in results:
+        name = entry["name"]
+        bits: list[str] = []
+        mult_str = _summarize_multiplication(entry["commander_multiplication"])
+        if mult_str:
+            bits.append(mult_str)
+            flag_counts["commander_multiplication"] += 1
+        trig_str = _summarize_triggers(entry["triggers"])
+        bits.append(trig_str)
+        if any(t.get("matches_trigger_type") for t in entry["triggers"]):
+            flag_counts["trigger"] += 1
+        if entry["self_recurring"]:
+            bits.append("self-recurring=yes")
+            flag_counts["self_recurring"] += 1
+        else:
+            bits.append("self-recurring=no")
+        ki_count = len(entry["keyword_interactions"])
+        bits.append(f"keyword-interactions={ki_count}")
+        if ki_count:
+            flag_counts["keyword_interactions"] += 1
+        lines.append(f"  {name}: {', '.join(bits)}")
+
+    lines.append("")
+    lines.append(
+        f"Flags: {flag_counts['commander_multiplication']} commander_multiplication, "
+        f"{flag_counts['trigger']} trigger, "
+        f"{flag_counts['self_recurring']} self-recurring, "
+        f"{flag_counts['keyword_interactions']} keyword-interactions"
+    )
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
+
+def _default_output_path(
+    hydrated_content: str,
+    commander_name: str,
+    cuts_content: str,
+    multiplier_low: int,
+    multiplier_high: int,
+    opponents: int,
+) -> Path:
+    payload = (
+        f"{hydrated_content}|{commander_name}|{cuts_content}"
+        f"|{multiplier_low}|{multiplier_high}|{opponents}"
+    )
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"cut-check-{digest}.json").resolve()
 
 
 @click.command()
@@ -492,6 +606,13 @@ def run_cut_check(
 @click.option(
     "--opponents", default=3, show_default=True, type=int, help="Number of opponents."
 )
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
 def main(
     hydrated_path: Path,
     commander_name: str,
@@ -500,10 +621,13 @@ def main(
     multiplier_low: int,
     multiplier_high: int,
     opponents: int,
+    output_path: Path | None,
 ) -> None:
     """Run mechanical pre-grill analysis on candidate cut cards."""
-    hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
-    cut_names = json.loads(cuts_path.read_text(encoding="utf-8"))
+    hydrated_content = hydrated_path.read_text(encoding="utf-8")
+    cuts_content = cuts_path.read_text(encoding="utf-8")
+    hydrated = json.loads(hydrated_content)
+    cut_names = json.loads(cuts_content)
 
     results = run_cut_check(
         hydrated=hydrated,
@@ -515,4 +639,28 @@ def main(
         opponents=opponents,
     )
 
-    click.echo(json.dumps(results, indent=2))
+    if output_path is None:
+        output_path = _default_output_path(
+            hydrated_content,
+            commander_name,
+            cuts_content,
+            multiplier_low,
+            multiplier_high,
+            opponents,
+        )
+    else:
+        output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+
+    click.echo(
+        render_text_report(
+            results,
+            commander_name=commander_name,
+            multiplier_low=multiplier_low,
+            multiplier_high=multiplier_high,
+            opponents=opponents,
+        ),
+        nl=False,
+    )
+    click.echo(f"\nFull JSON: {output_path}")
