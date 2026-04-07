@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
-import tempfile
 import time
 from pathlib import Path
 
 import click
 import requests
 
+from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.card_classify import extract_price
 from commander_utils.format_config import FORMAT_CONFIGS
 from commander_utils.scryfall_lookup import (
@@ -197,11 +195,9 @@ def _default_output_path(
     content: str,
     budget: float | None,
     card_format: str | None,
+    bulk_data: Path | None,
 ) -> Path:
-    payload = f"{content}|{budget}|{card_format}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"price-check-{digest}.json").resolve()
+    return sha_keyed_path("price-check", content, budget, card_format, bulk_data)
 
 
 @click.command()
@@ -239,11 +235,10 @@ def main(
     result = check_prices(raw, bulk_path=bulk_data, budget=budget, format=card_format)
 
     if output_path is None:
-        output_path = _default_output_path(content, budget, card_format)
+        output_path = _default_output_path(content, budget, card_format, bulk_data)
     else:
         output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, result)
 
     click.echo(render_text_report(result), nl=False)
     click.echo(f"\nFull JSON: {output_path}")

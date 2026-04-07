@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
-import os
 import re
-import tempfile
 from pathlib import Path
 
 import click
 
+from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.card_classify import (
     build_card_lookup,
     color_sources,
@@ -308,10 +306,7 @@ def render_text_report(result: dict) -> str:
 
 
 def _default_output_path(*args) -> Path:
-    payload = "|".join(str(a) for a in args)
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"mana-audit-{digest}.json").resolve()
+    return sha_keyed_path("mana-audit", *args)
 
 
 @click.command()
@@ -378,8 +373,7 @@ def main(
             output_path = _default_output_path(deck_content, hydrated_content)
 
     output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, result)
 
     click.echo(render_text_report(result), nl=False)
     click.echo(f"\nFull JSON: {output_path}")

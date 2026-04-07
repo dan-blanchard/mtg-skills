@@ -1,15 +1,13 @@
 """Commander Spellbook combo search for Commander decks."""
 
-import hashlib
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 
 import click
 import requests
 
+from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.format_config import get_format_config
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
@@ -278,17 +276,17 @@ def render_combo_discover_report(combos: list[dict]) -> str:
 
 
 def _default_search_output_path(deck_content: str, max_near_misses: int) -> Path:
-    payload = f"{deck_content}|{max_near_misses}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"combo-search-{digest}.json").resolve()
+    return sha_keyed_path("combo-search", deck_content, max_near_misses)
 
 
 def _default_discover_output_path(*args) -> Path:
-    payload = "|".join(str(a) for a in args)
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"combo-discover-{digest}.json").resolve()
+    """Hash all filter args including --bulk-data so a bulk refresh busts cache.
+
+    combo-discover uses bulk data for arena/paper filtering (via
+    _load_bulk_name_games); without hashing bulk_data, a refresh would
+    silently reuse stale results.
+    """
+    return sha_keyed_path("combo-discover", *args)
 
 
 @click.command()
@@ -316,8 +314,7 @@ def main(deck_json: Path, max_near_misses: int, output_path: Path | None) -> Non
         output_path = _default_search_output_path(deck_content, max_near_misses)
     else:
         output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, result)
 
     click.echo(render_combo_search_report(result), nl=False)
     click.echo(f"\nFull JSON: {output_path}")
@@ -405,11 +402,11 @@ def discover_main(
             combo_format,
             arena_only,
             paper_only,
+            bulk_data,  # Hashed by mtime+size so bulk refresh busts cache
         )
     else:
         output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, results)
 
     click.echo(render_combo_discover_report(results), nl=False)
     click.echo(f"\nFull JSON: {output_path}")

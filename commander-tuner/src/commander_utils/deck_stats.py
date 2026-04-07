@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
-import tempfile
 from collections import Counter
 from pathlib import Path
 
 import click
 
+from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.card_classify import (
     build_card_lookup,
     color_sources,
@@ -207,10 +205,7 @@ def render_text_report(stats: dict) -> str:
 
 
 def _default_output_path(deck_content: str, hydrated_content: str) -> Path:
-    payload = f"{deck_content}|{hydrated_content}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"deck-stats-{digest}.json").resolve()
+    return sha_keyed_path("deck-stats", deck_content, hydrated_content)
 
 
 @click.command()
@@ -235,8 +230,7 @@ def main(deck_path: Path, hydrated_path: Path, output_path: Path | None):
         output_path = _default_output_path(deck_content, hydrated_content)
     else:
         output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, result)
 
     click.echo(render_text_report(result), nl=False)
     click.echo(f"\nFull JSON: {output_path}")

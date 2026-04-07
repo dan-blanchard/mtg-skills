@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
-import tempfile
 from pathlib import Path
 
 import click
 
+from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.card_classify import build_card_lookup
 
 # ---------------------------------------------------------------------------
@@ -571,14 +569,25 @@ def _default_output_path(
     multiplier_low: int,
     multiplier_high: int,
     opponents: int,
+    trigger_types: tuple[str, ...],
 ) -> Path:
-    payload = (
-        f"{hydrated_content}|{commander_name}|{cuts_content}"
-        f"|{multiplier_low}|{multiplier_high}|{opponents}"
+    """Hash every argument that affects the output, including --trigger-type.
+
+    trigger_types IS consumed by run_cut_check (it filters which triggers
+    count), so two invocations with different --trigger-type lists produce
+    different results and must not share a cache file.
+    """
+    # Sort trigger_types so invocation order doesn't affect the hash.
+    return sha_keyed_path(
+        "cut-check",
+        hydrated_content,
+        commander_name,
+        cuts_content,
+        multiplier_low,
+        multiplier_high,
+        opponents,
+        tuple(sorted(trigger_types)),
     )
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"cut-check-{digest}.json").resolve()
 
 
 @click.command()
@@ -647,11 +656,11 @@ def main(
             multiplier_low,
             multiplier_high,
             opponents,
+            trigger_types,
         )
     else:
         output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, results)
 
     click.echo(
         render_text_report(

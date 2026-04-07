@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
-import tempfile
 import unicodedata
 from pathlib import Path
 
 import click
 
+from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.bulk_loader import load_bulk_cards
 from commander_utils.card_classify import (
     SKIP_LAYOUTS,
@@ -215,18 +213,24 @@ def _default_output_path(
     fmt: str,
     color_identity: str | None,
     min_quantity: int,
+    bulk_path: Path,
 ) -> Path:
     """Compute a deterministic sha-keyed output path under $TMPDIR.
 
-    Hashes the parsed-deck content together with the filter arguments so the
-    same query against the same collection always lands at the same file, but
-    different queries (different format, different color identity, different
-    min-quantity) get their own files.
+    Hashes the parsed-deck content, the filter arguments, AND the bulk data
+    file (by mtime+size) so the same query against the same collection lands
+    at the same file, but different queries OR a refreshed bulk data file
+    get their own files. Without hashing bulk_path, a `download-bulk` refresh
+    would silently return stale recommendations.
     """
-    payload = f"{parsed_deck_content}|{fmt}|{color_identity or ''}|{min_quantity}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
-    return (tmpdir / f"find-commanders-{digest}.json").resolve()
+    return sha_keyed_path(
+        "find-commanders",
+        parsed_deck_content,
+        fmt,
+        color_identity or "",
+        min_quantity,
+        bulk_path,
+    )
 
 
 def _render_text_table(candidates: list[dict], *, format: str) -> str:  # noqa: A002
@@ -331,12 +335,11 @@ def main(
 
     if output_path is None:
         output_path = _default_output_path(
-            parsed_deck_content, fmt, color_identity, min_quantity
+            parsed_deck_content, fmt, color_identity, min_quantity, bulk_data
         )
     else:
         output_path = output_path.resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(candidates, indent=2), encoding="utf-8")
+    atomic_write_json(output_path, candidates)
 
     click.echo(_render_text_table(candidates, format=fmt), nl=False)
     click.echo(f"\nFull JSON: {output_path}")
