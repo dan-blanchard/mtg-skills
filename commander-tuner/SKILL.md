@@ -333,28 +333,40 @@ Review the multiplied trigger values from `cut-check` output. Any cut where the 
 
 ## Step 7: Self-Grill (Two-Agent Debate)
 
-Before presenting to the user, launch **two subagents** that debate the proposed changes. Both receive the same inputs: proposed cuts and additions with full reasoning, hydrated card data for every card involved (cuts, adds, commander), the user's goals/pain points/budget, and the `cut-check` / `mana-audit` / `price-check` / `combo-search` outputs. Their roles differ.
+Before presenting to the user, launch **two subagents** that debate the proposed changes.
 
-**Proposer** defends the proposal. Framing: "These are the mechanical flags. You addressed them in your proposal. Defend your reasoning against challenges. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Pushing back is your job."
+**Data delivery: file paths, not pasted content.** All upstream script outputs already exist as files on disk (every script in §5.5, §6.5, and §8 writes to `$TMPDIR/...-<sha>.json` or `<cache-dir>/hydrated-<sha>.json` by default; pass `--output PATH` if you want a specific location). Build each subagent prompt with **file paths and a one-paragraph bottom-line summary**, never with pasted JSON. Both subagents have the `Read` tool and can load specific entries selectively (use `offset`/`limit` or `Grep` on the files to pull only what they need). Pasting JSON into subagent prompts wastes tokens twice — once for each subagent.
 
-**Challenger** attacks the proposal. Its checklist (the parent must paste these instructions into the subagent prompt — the subagent doesn't see this SKILL.md and cannot follow back-references):
+Required file paths to hand to both subagents:
+- The hydrated cards `cache_path` from the §2 scryfall-lookup envelope (full card data for the whole deck)
+- `cut-check` output from §6.5
+- `mana-audit` output from §6.5 and §8
+- `price-check` output from §6.5
+- `combo-search` output from §5.5
+- The proposed cuts JSON file and the proposed adds JSON file
 
-- Re-read the full hydrated oracle text of every proposed cut independently. Do NOT rely on the proposer's paraphrasing — any discrepancy between the proposer's description and the actual oracle text is an automatic flag.
+Required bottom-line summary (one paragraph) derived from the compact text reports you already read: "cut-check flagged N commander_multiplication + M triggers across the cuts; mana-audit returned PASS/WARN/FAIL; price-check total is $X of $Y budget with Z over-limit cards; combo-search found N game-winning combos in the deck, K of which are affected by the proposed cuts."
+
+**Proposer** defends the proposal. Framing to paste into the proposer prompt:
+
+> "These are the mechanical flags from analysis. You addressed them in your proposal. Defend your reasoning against the challenger's points. Do not concede a point unless the challenger provides a specific oracle text interaction or quantitative argument you missed. Use `Read` on the hydrated cache file (`<cache_path>`) to re-verify oracle text claims when needed. Pushing back is your job."
+
+**Challenger** attacks the proposal. Paste the file paths, the bottom-line summary, and this checklist verbatim (the challenger cannot follow back-references to this SKILL.md — the instructions must be self-contained):
+
+- `Read` the hydrated cache file for every proposed cut independently. Do NOT rely on the proposer's paraphrasing — any discrepancy between the proposer's description and the actual oracle text is an automatic flag. Use `offset`/`limit` to read only the cards you want to verify; the cache is large.
 - Check every clause of every cut card's oracle text, not just the primary ability. Defensive restrictions, type-changing effects, self-recurring mechanics, and static effects on other permanents are commonly missed.
 - Verify keyword interactions between the commander and each cut card. Flag emergent combinations (e.g., menace + "can't be blocked by more than one creature" = unblockable; double strike + lifelink = double life).
-- Calculate the multiplied value of any upkeep/combat/phase/etb triggers being cut. A trigger that looks weak at 1x may be a win condition at 5x with 3 opponents.
-- Verify every `cut-check` flag was addressed. Any unaddressed flag is an automatic challenge.
-- Verify `mana-audit` shows PASS. Any WARN or FAIL is an automatic challenge.
+- Calculate the multiplied value of any upkeep/combat/phase/etb triggers being cut. A trigger that looks weak at 1x may be a win condition at 5x with 3 opponents. `Read` the cut-check JSON file to pull the exact trigger text and base values for any card you want to challenge.
+- `Read` the cut-check JSON and verify every flag (commander_multiplication, parseable triggers, keyword_interactions, self_recurring) was addressed by the proposer. Any unaddressed flag is an automatic challenge.
+- `Read` the mana-audit JSON and verify `overall_status` is PASS. Any WARN or FAIL is an automatic challenge. Check `color_balance_flags` and the per-color `land_color_pct` vs. `pip_demand_pct` for any color deficits.
 - Verify the swap balance: land count, curve, ramp count, color balance.
-- Verify total cost ≤ budget. Flag any single card that consumes a disproportionate share of the budget.
-- Verify no proposed cut breaks a game-winning combo without explicit justification from the proposer. Any unaddressed combo break is an automatic challenge.
+- `Read` the price-check JSON and verify total cost ≤ budget. Flag any single card that consumes a disproportionate share of the budget.
+- `Read` the combo-search JSON and verify no proposed cut breaks a game-winning combo without explicit justification from the proposer. Any unaddressed combo break is an automatic challenge.
 - Look for missing synergy angles the proposer didn't consider; challenge whether the most expensive add is really the highest priority.
 - For Brawl formats, scrutinize Voltron strategies extra hard (no commander damage). Account for lower life totals and free mulligan.
 - **Commander fitness check** — apply the *commander identity test:* "If this deck's commander were hidden, could you guess what it is from the cards?" If not, the commander may not be driving the strategy. Count mechanical interactions with the commander's oracle text (not thematic overlap), compare its CMC against the mana base, and trace the user's pain points back to it. If underperforming, shortlist 1-2 alternative commanders whose identity covers the existing card pool, verify each via `scryfall-lookup`, and surface them as a close call in §9 — never as a firm recommendation.
 
 The challenger reports issues. The proposer responds or revises. Repeat until the challenger has no remaining objections.
-
-**This is not a formality.** If both agents agree immediately, something is wrong — the challenger isn't pushing hard enough. Expect at least 2-3 rounds of challenges.
 
 **This is not a formality.** If both agents agree immediately, something is wrong — the challenger isn't pushing hard enough. Expect at least 2-3 rounds of challenges.
 
