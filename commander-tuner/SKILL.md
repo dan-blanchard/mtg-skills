@@ -35,15 +35,13 @@ Subsequent runs skip these steps if the `.venv` exists and bulk data is fresh (<
 
 **Script invocation shorthand:** All script examples below elide the `uv run --directory <skill-install-dir> ` prefix for readability. Every actual invocation must include it (e.g., `parse-deck deck.txt` shown here is run as `uv run --directory <skill-install-dir> parse-deck deck.txt`).
 
-**Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. Always use heredocs with single-quoted delimiters when writing JSON files via Bash:
+**Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. **Use the `Write` tool** for any `/tmp/*.json` file you create — the Write tool only requires a prior `Read` for *existing* files; new files in `/tmp` work fine on the first call. Example:
 
-```bash
-cat > /tmp/cuts.json << 'JSONEOF'
-["Azor's Elocutors", "Krark's Thumb"]
-JSONEOF
-```
+> `Write(file_path="/tmp/cuts.json", content='["Azor\'s Elocutors", "Krark\'s Thumb"]')`
 
-Do NOT use `echo` or unquoted shell strings for JSON containing card names. For the same reason, prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
+Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONEOF`). Heredocs are functionally fine but they produce un-cacheable Bash permission patterns: Claude Code's permission engine bakes the heredoc body into the allow pattern, so every invocation with different content re-prompts the user. The Write tool generates a single `Write(/tmp/**)` permission that can be granted once and reused.
+
+Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
 
 ## Step 1: Parse Deck List
 
@@ -333,7 +331,9 @@ Review the multiplied trigger values from `cut-check` output. Any cut where the 
 
 ## Step 7: Self-Grill (Two-Agent Debate)
 
-Before presenting to the user, launch **two subagents** that debate the proposed changes.
+> **HARD GATE.** Step 7 is satisfied only by **two `Agent` tool invocations** (proposer + challenger) and at least one round of revision based on the challenger's report. Running the §6.5 mechanical gates (`cut-check`, `mana-audit`, `price-check`, `combo-search`) is NOT a substitute — those gates catch *mechanical* errors; the self-grill catches *strategic* errors (missed synergy angles, wrong commander fit, weak swap justification, paraphrased oracle text). If you proceed to Step 8 without the two Agent calls in this turn's tool history, you have skipped the gate. Do not rationalize this as "the gates already passed" or "the deck is freshly built and low-stakes" — the discipline failure mode for this step is *exactly* that rationalization.
+
+Before presenting to the user, launch **two subagents** that debate the proposed changes. Use `subagent_type: "general-purpose"` for both, dispatched in parallel via two `Agent` tool calls in a single message.
 
 **Data delivery: file paths, not pasted content.** All upstream script outputs already exist as files on disk (every script in §5.5, §6.5, and §8 writes to `$TMPDIR/...-<sha>.json` or `<cache-dir>/hydrated-<sha>.json` by default; pass `--output PATH` if you want a specific location). Build each subagent prompt with **file paths and a one-paragraph bottom-line summary**, never with pasted JSON. Both subagents have the `Read` tool and can load specific entries selectively (use `offset`/`limit` or `Grep` on the files to pull only what they need). Pasting JSON into subagent prompts wastes tokens twice — once for each subagent.
 
@@ -475,6 +475,9 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 | "This card is generally weak" | Weak in general ≠ weak with this commander. Read both oracle texts. |
 | "We're over budget but this card is too good to skip" | Budget is a hard constraint. Find a cheaper alternative. |
 | "My analysis is thorough enough, no need to self-grill" | The self-grill catches exactly this overconfidence. Run it every time. |
+| "I ran cut-check + mana-audit + price-check, that covers Step 7" | No. Those are §6.5 *mechanical* gates. Step 7 is the *strategic* gate and requires two Agent tool calls in this turn. Mechanical gates catch zero of: missed synergy angles, paraphrased oracle text, wrong commander fit, weak swap justification. |
+| "This deck just came from the builder, the self-grill is overkill" | The builder runs no adversarial review. A fresh skeleton is the highest-leverage moment for a challenger pass — that's when bad assumptions are cheapest to fix. Run it. |
+| "I'll dispatch the agents next turn / after the user confirms" | No. Step 7 must complete in the same turn as Step 8. Splitting it across turns means the user sees the proposal before the challenger has reviewed it, which defeats the purpose. |
 | "This step seems unnecessary for this deck" | Follow every step. The process exists because shortcuts cause mistakes. |
 | "Cutting this land for a nonland is fine, the deck has enough" | Count the lands. Count the ramp. Do the math. Don't eyeball mana bases. |
 | "I understand what this commander wants" | You might be missing angles. Present your strategic read and ask the user before analyzing. They play the deck — you don't. |

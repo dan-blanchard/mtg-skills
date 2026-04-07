@@ -25,15 +25,13 @@ This skill shares its install with commander-tuner via symlink. For one-time set
 
 **Script invocation shorthand:** All script examples below elide the `uv run --directory <skill-install-dir> ` prefix for readability — every actual invocation must include it.
 
-**Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. Always use heredocs with single-quoted delimiters when writing JSON files via Bash:
+**Writing JSON files with card names:** Card names often contain apostrophes (Azor's Elocutors, Krark's Thumb) which break shell quoting. **Use the `Write` tool** for any `/tmp/*.json` file you create — the Write tool only requires a prior `Read` for *existing* files; new files in `/tmp` work fine on the first call. Example:
 
-```bash
-cat > /tmp/candidates.json << 'JSONEOF'
-["Azor's Elocutors", "Krark's Thumb", "Fire // Ice"]
-JSONEOF
-```
+> `Write(file_path="/tmp/candidates.json", content='["Azor\'s Elocutors", "Krark\'s Thumb", "Fire // Ice"]')`
 
-Do NOT use `echo` or unquoted shell strings for JSON containing card names. Prefer Bash heredocs over the Write tool when creating temporary files in `/tmp` — the Write tool requires reading a file before writing to it, which fails for new files.
+Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONEOF`). Heredocs are functionally fine but they produce un-cacheable Bash permission patterns: Claude Code's permission engine bakes the heredoc body into the allow pattern, so every invocation with different content re-prompts the user. The Write tool generates a single `Write(/tmp/**)` permission that can be granted once and reused.
+
+Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
 
 **Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent.
 
@@ -314,9 +312,15 @@ If the user requests changes, apply them, re-run structural verification, and pr
 
    The deck JSON format: `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [{"name": str, "quantity": int}, ...], "total_cards": int}`
 
-2. **Invoke commander-tuner** — Invoke `/commander-tuner` with the generated deck. If commander-tuner is not available, tell the user:
+2. **Invoke commander-tuner via the Skill tool** — Do NOT tell the user to type `/commander-tuner` themselves, and do NOT print a "handoff" block and stop. Slash commands are user-typed and cannot be triggered by Claude; the Skill tool is the only way to chain into the next skill in the same turn.
+
+   Call the Skill tool with `skill: "commander-tuner"` and pass the carry-forward context (Step 5.3 below) inside the `args` field as a single prompt block. The commander-tuner skill will load and execute in this conversation, picking up the deck files you just wrote.
+
+   If the Skill tool reports that `commander-tuner` is not installed, fall back to telling the user:
 
    > "I recommend installing the commander-tuner skill to refine this deck further. You can install it with `npx skills install <source>`. The skeleton is a playable starting point, but tuning will significantly improve it."
+
+   Only print this fallback when the Skill tool actually fails — never as the default path.
 
 3. **Carry forward context** — When invoking commander-tuner, provide the following so it can skip re-asking:
    - Bracket target
