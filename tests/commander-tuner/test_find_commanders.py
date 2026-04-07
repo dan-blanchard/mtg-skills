@@ -384,7 +384,7 @@ class TestCli:
         assert "Korvold, Fae-Cursed King" in result.output
         assert "Atraxa, Praetors' Voice" not in result.output  # BGUW not subset of BGR
         assert "Lightning Bolt" not in result.output
-        assert "Found" in result.output
+        assert "find-commanders:" in result.output
         assert "Full JSON:" in result.output
 
         # Strict correctness check via the JSON file
@@ -508,7 +508,7 @@ class TestCli:
             ],
         )
         assert result.exit_code == 0, result.output
-        assert "Found 0 commander candidates" in result.output
+        assert "find-commanders: 0 candidates" in result.output
         assert "Full JSON:" in result.output
 
         data = json_from_cli_output(result)

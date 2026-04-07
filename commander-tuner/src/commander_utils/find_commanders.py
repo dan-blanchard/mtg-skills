@@ -241,11 +241,11 @@ def _render_text_table(candidates: list[dict], *, format: str) -> str:  # noqa: 
     BACKGROUND / GC (game_changer) signals in a single glance.
     """
     if not candidates:
-        return f"Found 0 commander candidates in collection (format={format})\n"
+        return f"find-commanders: 0 candidates (format={format})\n"
 
     lines: list[str] = []
     lines.append(
-        f"Found {len(candidates)} commander candidates in collection (format={format})",
+        f"find-commanders: {len(candidates)} candidates (format={format})",
     )
     lines.append("")
     header = f"  {'EDHREC':>6}  {'CI':<5} {'CMC':>4}  {'Name':<36}  {'Type':<36}  Flags"

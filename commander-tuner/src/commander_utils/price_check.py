@@ -179,7 +179,10 @@ def render_text_report(result: dict) -> str:
         price = entry.get("price_usd") or 0.0
         name = entry.get("name", "?")
         marker = " (owned)" if entry.get("owned") else ""
-        lines.append(f"  ${price:>7.2f}  {name}{marker}")
+        # Format the full "$N.NN" atom first, then right-align it so the
+        # dollar sign sits flush against the digits (no inner padding).
+        price_str = f"${price:.2f}"
+        lines.append(f"  {price_str:>8}  {name}{marker}")
 
     lines.append("")
     lines.append(f"Total cost: ${total_cost:.2f}  (value ${total_value:.2f})")

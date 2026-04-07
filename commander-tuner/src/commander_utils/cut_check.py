@@ -513,8 +513,8 @@ def render_text_report(
     """Render run_cut_check results as a human-readable report."""
     lines: list[str] = []
     lines.append(
-        f"Cut-check summary ({len(results)} cards against {commander_name}, "
-        f"{multiplier_low}x-{multiplier_high}x multiplier, {opponents} opponents):"
+        f"cut-check: {len(results)} cards against {commander_name} "
+        f"({multiplier_low}x-{multiplier_high}x multiplier, {opponents} opponents)"
     )
     lines.append("")
 

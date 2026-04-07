@@ -232,7 +232,7 @@ class TestCLI:
         assert result.exit_code == 0, result.output
 
         # Loose text-report assertions
-        assert "Cut-check summary" in result.output
+        assert "cut-check:" in result.output
         assert "Upkeep Drainer" in result.output
         assert "Full JSON:" in result.output
         assert "Obeka, Splitter of Seconds" in result.output
