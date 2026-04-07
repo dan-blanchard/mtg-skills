@@ -271,6 +271,16 @@ def format_results(cards: list[dict]) -> str:
 )
 @click.option("--json", "as_json", is_flag=True)
 @click.option(
+    "--fields",
+    "fields_spec",
+    default=None,
+    help=(
+        "Comma-separated list of fields to project when --json is set "
+        "(e.g. 'name,type_line,cmc,color_identity'). Omit to get the full "
+        "CARD_FIELDS set. Ignored without --json."
+    ),
+)
+@click.option(
     "--arena-only",
     is_flag=True,
     help="Only include cards available on MTG Arena.",
@@ -294,6 +304,7 @@ def main(
     *,
     is_commander: bool,
     as_json: bool,
+    fields_spec: str | None,
     card_format: str | None,
     arena_only: bool,
     paper_only: bool,
@@ -320,11 +331,10 @@ def main(
     if as_json:
         from commander_utils.scryfall_lookup import _extract_fields
 
-        click.echo(
-            json.dumps(
-                [_extract_fields(c) for c in results],
-                indent=2,
-            )
-        )
+        extracted = [_extract_fields(c) for c in results]
+        if fields_spec:
+            requested = [f.strip() for f in fields_spec.split(",") if f.strip()]
+            extracted = [{f: card.get(f) for f in requested} for card in extracted]
+        click.echo(json.dumps(extracted, indent=2))
     else:
         click.echo(format_results(results))

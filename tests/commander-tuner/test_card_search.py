@@ -460,3 +460,54 @@ class TestIsCommanderFilter:
         names = [c["name"] for c in data]
         assert "Teferi" in names
         assert "Sol Ring" not in names
+
+    def test_json_fields_projection(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Projected Card",
+                oracle_text="A big oracle text block that takes up lots of bytes.",
+                type_line="Creature",
+                cmc=3.0,
+                color_identity=["B"],
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--bulk-data",
+                str(bulk_path),
+                "--json",
+                "--fields",
+                "name,type_line,cmc,color_identity",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert len(data) == 1
+        card = data[0]
+        # Only the requested fields survive projection
+        assert set(card.keys()) == {"name", "type_line", "cmc", "color_identity"}
+        assert card["name"] == "Projected Card"
+        # oracle_text must be absent
+        assert "oracle_text" not in card
+
+    def test_json_without_fields_returns_full_dict(self, tmp_path):
+        cards = [_make_card(name="Full Card")]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["--bulk-data", str(bulk_path), "--json"],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        # Default full CARD_FIELDS projection includes oracle_text
+        assert "oracle_text" in data[0]
+        assert "type_line" in data[0]
+        assert "color_identity" in data[0]
