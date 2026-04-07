@@ -17,7 +17,7 @@ Every card recommendation MUST be grounded in actual card oracle text from Scryf
 
 **NEVER assume what a card does.** Before including any card in the skeleton, look up its oracle text via the helper scripts. Training data is not oracle text.
 
-**Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified before presenting — write all candidate names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
+**Exception:** During commander *discovery* (recommending commanders to a user who doesn't know what to build), you may use training data to generate a shortlist of candidates. But every recommended commander MUST be verified before presenting — write all candidate names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`.
 
 ## Progress Tracking
 
@@ -59,6 +59,10 @@ This skill shares its install with commander-tuner via symlink. For one-time set
 Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONEOF`). Heredocs are functionally fine but they produce un-cacheable Bash permission patterns: Claude Code's permission engine bakes the heredoc body into the allow pattern, so every invocation with different content re-prompts the user. The Write tool generates a single `Write(/tmp/**)` permission that can be granted once and reused.
 
 Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
+
+**Parsed deck JSON is the canonical pipeline intermediate.** Once you have a parsed deck JSON from `parse-deck`, pass it **directly** to `scryfall-lookup --batch` and `price-check` — both scripts accept a parsed deck JSON as `<path>`, not just a JSON list of name strings. Do NOT extract card names into a separate `/tmp/*.json` via `python3 -c` or similar. Every unnecessary extraction costs a Bash permission prompt (content-varying `python3 -c` is un-cacheable), a Write permission prompt for the temp file, and wall-clock time. If you catch yourself writing `json.load(...)` to pull out `c['name']`, stop — the script already handles that. (The exception is candidate lists that don't correspond to a parsed deck — e.g., commander discovery shortlists and combo piece lists from external research — where `/tmp/*.json` via the Write tool is still correct.)
+
+**Place `--cache-dir` inside the user's working directory, NOT the skill install.** Pass an **absolute path** inside the user's repo, e.g. `--cache-dir <working-dir>/.cache` where `<working-dir>` is the absolute path to the user's current repo (the directory they ran Claude Code from). **Do NOT use a relative path like `./.cache`** — `uv run --directory <skill-install-dir>` sets the subprocess CWD to the skill install, so relative paths resolve there, not in the user's repo. Putting the cache under the skill install (whether explicitly or implicitly via `./`) causes every downstream `Read`, `cp`, or script call against the hydrated path to trigger an outside-workspace permission prompt. Keeping the cache in the working directory also lets the hydrated file serve directly as the "write output files to the working directory" artifact in Step 5, with no `cp` needed.
 
 **Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent.
 
@@ -173,7 +177,7 @@ Ask all of these (skipping any already answered during the guided interview):
 - **Experience level:** "What's your Commander experience level? (beginner/intermediate/advanced)"
 - **Pet cards:** "Any cards you definitely want included?" (pet cards, combos they want to build around)
 
-For pet cards: write all pet card names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <pet-cards.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Verify each exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
+For pet cards: write all pet card names to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <pet-cards.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`. Verify each exists and is within the commander's color identity. Slot pet cards into the appropriate template categories — they count against those category budgets. If pet cards exceed ~10, warn the user that it limits the ability to build a balanced skeleton and ask if they want to trim. If a category overflows due to pet cards, shrink it and redistribute remaining slots.
 
 ## Step 2: Commander Analysis
 
@@ -282,7 +286,7 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 **Per category:**
 
 1. Pull candidates from EDHREC high-synergy and top cards for this commander. Supplement with `card-search` to find synergistic cards EDHREC may not surface: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --type <category-type> --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards.
-2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Stdout is a small envelope; extract `cache_path`. Run `card-summary <cache_path>` to see a compact table of every candidate with oracle text truncated to 80 chars — that's enough for category-fit scanning. Only `Read` the full cache file for the ~3-5 candidates you're actually deciding between for this slot, and use `offset`/`limit` to pull just those entries.
+2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`. Stdout is a small envelope; extract `cache_path`. Run `card-summary <cache_path>` to see a compact table of every candidate with oracle text truncated to 80 chars — that's enough for category-fit scanning. Only `Read` the full cache file for the ~3-5 candidates you're actually deciding between for this slot, and use `offset`/`limit` to pull just those entries.
 3. Filter by budget (cheapest printings, track running price total against remaining budget). For Arena, track wildcard rarity counts against remaining wildcards instead of prices.
 4. Filter by bracket (avoid Game Changers above target bracket).
 5. Weight by interview preferences (e.g., if user said "I enjoy graveyard strategies," prefer self-mill draw engines over generic draw).
@@ -292,19 +296,19 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 
 ### Structural Verification
 
-After filling, run these checks in order:
+After filling, run these checks **in this order** — the order matters, because first-draft failures are overwhelmingly price-related, and running the cheaper-to-fail check first avoids sinking effort into the other two on a draft you're about to rewrite:
 
-1. **Deck stats** — Run: `deck-stats <deck.json> <hydrated.json>`
+1. **Price check** — Run: `price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
+
+   Stdout is a compact text report with per-card price and running total. For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget. Per-category price tracking during the fill is a guide, not a substitute — real Scryfall prices drift from mental estimates, and a whole-deck draft frequently lands meaningfully over on the first pass.
+
+2. **Deck stats** — Run: `deck-stats <deck.json> <hydrated.json>`
 
    Stdout is a compact text report — read it directly to verify total card count matches the deck's expected size and review curve and category counts.
 
-2. **Mana audit** — Run: `mana-audit <deck.json> <hydrated.json>`
+3. **Mana audit** — Run: `mana-audit <deck.json> <hydrated.json>`
 
    Stdout is a compact text report with PASS/WARN/FAIL and per-color breakdown. Fix any FAIL results before proceeding.
-
-3. **Price check** — Run: `price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
-
-   Stdout is a compact text report with per-card price and running total. For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget.
 
 **This is a gate — do not present a skeleton that fails any of these checks.** If any check fails and you edit the deck text file to fix it, re-parse and re-run ALL checks from the top — manual edits frequently introduce card count errors.
 
@@ -390,7 +394,7 @@ Ask (accepting either or both):
 
 For **commander known + outside the box:** use `combo-discover --color-identity <commander-CI>` to constrain to the commander's colors.
 
-Before presenting, write all combo piece names across all combos to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <combo-pieces.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`.
+Before presenting, write all combo piece names across all combos to a JSON list and batch-lookup in one call: `scryfall-lookup --batch <combo-pieces.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`.
 
 Present 3-5 interesting combos with:
 - Cards involved and oracle text (from the batch-lookup results)
@@ -406,7 +410,7 @@ Ask: "Want to build around one of these, or combine multiple?" If combining, ver
 
 Two-wave search for each selected combo:
 1. **Mechanical fit:** `card-search --is-commander --color-identity <combo-CI> --oracle "<combo-keyword>"` — commanders whose oracle text mentions the combo's mechanics
-2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Write all shortlisted names to a JSON list and batch-lookup: `scryfall-lookup --batch <fit-candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache` (Iron Rule applies).
+2. **Strategic fit:** Use training data to shortlist commanders providing tutoring, draw, recursion, or protection in the combo's color identity. Write all shortlisted names to a JSON list and batch-lookup: `scryfall-lookup --batch <fit-candidates.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache` (Iron Rule applies).
 
 Also check if any combo piece IS a legendary creature that could be the commander.
 

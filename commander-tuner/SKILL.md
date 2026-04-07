@@ -71,6 +71,10 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 
 Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
 
+**Parsed deck JSON is the canonical pipeline intermediate.** Once you have a parsed deck JSON from `parse-deck`, pass it **directly** to `scryfall-lookup --batch` and `price-check` — both scripts accept a parsed deck JSON as `<path>`, not just a JSON list of name strings. Do NOT extract card names into a separate `/tmp/*.json` via `python3 -c` or similar. Every unnecessary extraction costs a Bash permission prompt (content-varying `python3 -c` is un-cacheable), a Write permission prompt for the temp file, and wall-clock time. If you catch yourself writing `json.load(...)` to pull out `c['name']`, stop — the script already handles that. (The exception is scripts whose input is a *subset* of the deck — `cut-check --cuts <path>` and `build-deck --cuts <path> --adds <path>` expect JSON lists of name strings, not parsed deck JSON, because the caller is specifying which cards to act on. Writing a small `/tmp/cuts.json` via the Write tool is correct in those cases.)
+
+**Place `--cache-dir` inside the user's working directory, NOT the skill install.** Pass an **absolute path** inside the user's repo, e.g. `--cache-dir <working-dir>/.cache` where `<working-dir>` is the absolute path to the user's current repo (the directory they ran Claude Code from). **Do NOT use a relative path like `./.cache`** — `uv run --directory <skill-install-dir>` sets the subprocess CWD to the skill install, so relative paths resolve there, not in the user's repo. Putting the cache under the skill install (whether explicitly or implicitly via `./`) causes every downstream `Read`, `cp`, or script call against the hydrated path to trigger an outside-workspace permission prompt. Keeping the cache in the working directory eliminates that friction and lets the hydrated file serve directly as the "write output files to the working directory" artifact when handing off between skills.
+
 ## Step 1: Parse Deck List
 
 Run: `parse-deck <path-to-deck-file> [--format <format>] [--deck-size <N>]`
@@ -87,7 +91,7 @@ Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards
 
 ## Step 2: Hydrate Card Data
 
-Run: `scryfall-lookup --batch <parsed-deck-json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`
+Run: `scryfall-lookup --batch <parsed-deck-json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`
 
 Looks up every card (including the commander) in Scryfall bulk data, falling back to the Scryfall API for cards not found locally. If bulk data is missing or stale, run `download-bulk --output-dir <skill-install-dir>` first.
 
