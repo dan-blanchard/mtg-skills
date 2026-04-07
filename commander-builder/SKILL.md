@@ -257,7 +257,7 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 **Per category:**
 
 1. Pull candidates from EDHREC high-synergy and top cards for this commander. Supplement with `card-search` to find synergistic cards EDHREC may not surface: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --type <category-type> --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards.
-2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Read the oracle text for every candidate — verify the card actually belongs in this category and works with this commander.
+2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <skill-install-dir>/.cache`. Stdout is a small envelope; extract `cache_path`. Run `card-summary <cache_path>` to see a compact table of every candidate with oracle text truncated to 80 chars — that's enough for category-fit scanning. Only `Read` the full cache file for the ~3-5 candidates you're actually deciding between for this slot, and use `offset`/`limit` to pull just those entries.
 3. Filter by budget (cheapest printings, track running price total against remaining budget). For Arena, track wildcard rarity counts against remaining wildcards instead of prices.
 4. Filter by bracket (avoid Game Changers above target bracket).
 5. Weight by interview preferences (e.g., if user said "I enjoy graveyard strategies," prefer self-mill draw engines over generic draw).
@@ -271,15 +271,15 @@ After filling, run these checks in order:
 
 1. **Deck stats** — Run: `deck-stats <deck.json> <hydrated.json>`
 
-   Verify total card count matches the deck's expected size, review curve and category counts.
+   Stdout is a compact text report — read it directly to verify total card count matches the deck's expected size and review curve and category counts.
 
 2. **Mana audit** — Run: `mana-audit <deck.json> <hydrated.json>`
 
-   Verify land count and color balance. Fix any FAIL results before proceeding.
+   Stdout is a compact text report with PASS/WARN/FAIL and per-color breakdown. Fix any FAIL results before proceeding.
 
 3. **Price check** — Run: `price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
 
-   For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget.
+   Stdout is a compact text report with per-card price and running total. For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget.
 
 **This is a gate — do not present a skeleton that fails any of these checks.** If any check fails and you edit the deck text file to fix it, re-parse and re-run ALL checks from the top — manual edits frequently introduce card count errors.
 
