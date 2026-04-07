@@ -124,7 +124,9 @@ class TestAlternativeCostCards:
 
 
 class TestCLI:
-    def test_outputs_valid_json(self, moxfield_deck, hydrated_cards, tmp_path):
+    def test_text_report_and_json_file(self, moxfield_deck, hydrated_cards, tmp_path):
+        from conftest import json_from_cli_output
+
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
 
@@ -132,11 +134,18 @@ class TestCLI:
         deck_path.write_text(json.dumps(deck))
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
+        output_path = tmp_path / "out.json"
 
         runner = CliRunner()
-        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        result = runner.invoke(
+            main, [str(deck_path), str(hydrated_path), "--output", str(output_path)]
+        )
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        assert "deck-stats:" in result.output
+        assert "Avg CMC" in result.output
+        assert "Full JSON:" in result.output
+
+        data = json_from_cli_output(result)
         assert "total_cards" in data
         assert "land_count" in data
         assert "avg_cmc" in data

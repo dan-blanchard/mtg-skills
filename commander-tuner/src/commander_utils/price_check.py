@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -137,6 +140,70 @@ def check_prices(
     return result
 
 
+def render_text_report(result: dict) -> str:
+    lines: list[str] = []
+    if "wildcard_cost" in result:
+        # Arena wildcard mode
+        wc = result["wildcard_cost"]
+        total = sum(wc.values())
+        lines.append(
+            f"price-check: {total} wildcards needed "
+            f"({result.get('owned_cards_count', 0)} owned)"
+        )
+        lines.append("")
+        for rarity in ("mythic", "rare", "uncommon", "common"):
+            count = wc.get(rarity, 0)
+            lines.append(f"  {rarity}: {count}")
+        return "\n".join(lines) + "\n"
+
+    # USD mode
+    total_cost = result.get("total_cost", 0.0)
+    total_value = result.get("total_value", 0.0)
+    owned = result.get("owned_cards_count", 0)
+    card_count = len(result.get("cards") or [])
+    budget = result.get("budget")
+    over_budget = result.get("over_budget")
+
+    header = f"price-check: ${total_cost:.2f}"
+    if budget is not None:
+        header += f" of ${budget:.2f} budget"
+    header += f" ({card_count} cards, {owned} owned)"
+    lines.append(header)
+    lines.append("")
+
+    # Sort by price desc so the most expensive lines surface first
+    cards = sorted(
+        (c for c in (result.get("cards") or []) if c.get("price_usd") is not None),
+        key=lambda c: c.get("price_usd") or 0,
+        reverse=True,
+    )
+    for entry in cards:
+        price = entry.get("price_usd") or 0.0
+        name = entry.get("name", "?")
+        marker = " (owned)" if entry.get("owned") else ""
+        lines.append(f"  ${price:>7.2f}  {name}{marker}")
+
+    lines.append("")
+    lines.append(f"Total cost: ${total_cost:.2f}  (value ${total_value:.2f})")
+    if budget is not None:
+        remaining = budget - total_cost
+        status = "OVER BUDGET" if over_budget else "OK"
+        lines.append(f"Budget: ${budget:.2f}  Remaining: ${remaining:.2f}  [{status}]")
+
+    return "\n".join(lines) + "\n"
+
+
+def _default_output_path(
+    content: str,
+    budget: float | None,
+    card_format: str | None,
+) -> Path:
+    payload = f"{content}|{budget}|{card_format}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"price-check-{digest}.json").resolve()
+
+
 @click.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.option("--budget", type=float, default=None, help="Budget in USD.")
@@ -152,13 +219,31 @@ def check_prices(
     default=None,
     help="Game format. Arena formats (brawl, historic_brawl) use wildcards.",
 )
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
 def main(
     path: Path,
     budget: float | None,
     bulk_data: Path | None,
     card_format: str | None,
+    output_path: Path | None,
 ) -> None:
     """Check card prices against a budget."""
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    content = path.read_text(encoding="utf-8")
+    raw = json.loads(content)
     result = check_prices(raw, bulk_path=bulk_data, budget=budget, format=card_format)
-    click.echo(json.dumps(result, indent=2))
+
+    if output_path is None:
+        output_path = _default_output_path(content, budget, card_format)
+    else:
+        output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    click.echo(render_text_report(result), nl=False)
+    click.echo(f"\nFull JSON: {output_path}")

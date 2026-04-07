@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import tempfile
 from collections import Counter
 from pathlib import Path
 
@@ -171,12 +174,69 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
     }
 
 
+def render_text_report(stats: dict) -> str:
+    lines: list[str] = []
+    lines.append(f"deck-stats: {stats.get('total_cards', 0)} cards total")
+    lines.append("")
+    lines.append(
+        f"Lands: {stats.get('land_count', 0)}, "
+        f"Creatures: {stats.get('creature_count', 0)}, "
+        f"Ramp: {stats.get('ramp_count', 0)}, "
+        f"Game Changers: {stats.get('game_changer_count', 0)}"
+    )
+    lines.append(f"Avg CMC (nonland): {stats.get('avg_cmc', 0)}")
+
+    curve = stats.get("curve") or {}
+    if curve:
+        curve_str = " | ".join(f"{k}:{v}" for k, v in sorted(curve.items()))
+        lines.append(f"Curve: {curve_str}")
+
+    sources = stats.get("color_sources") or {}
+    if sources:
+        src_str = ", ".join(f"{k}={v}" for k, v in sorted(sources.items()))
+        lines.append(f"Color sources: {src_str}")
+
+    alt_cost = stats.get("alternative_cost_cards") or []
+    if alt_cost:
+        lines.append(f"Alternative-cost cards: {len(alt_cost)}")
+        for entry in alt_cost:
+            costs = ", ".join(c["type"] for c in entry.get("alt_costs", []))
+            lines.append(f"  - {entry['name']} (CMC {entry['cmc']}, {costs})")
+
+    return "\n".join(lines) + "\n"
+
+
+def _default_output_path(deck_content: str, hydrated_content: str) -> Path:
+    payload = f"{deck_content}|{hydrated_content}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"deck-stats-{digest}.json").resolve()
+
+
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
-def main(deck_path: Path, hydrated_path: Path):
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
+def main(deck_path: Path, hydrated_path: Path, output_path: Path | None):
     """Compute deck statistics from parsed deck and hydrated card data."""
-    deck = json.loads(deck_path.read_text(encoding="utf-8"))
-    hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
+    deck_content = deck_path.read_text(encoding="utf-8")
+    hydrated_content = hydrated_path.read_text(encoding="utf-8")
+    deck = json.loads(deck_content)
+    hydrated = json.loads(hydrated_content)
     result = deck_stats(deck, hydrated)
-    click.echo(json.dumps(result, indent=2))
+
+    if output_path is None:
+        output_path = _default_output_path(deck_content, hydrated_content)
+    else:
+        output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    click.echo(render_text_report(result), nl=False)
+    click.echo(f"\nFull JSON: {output_path}")

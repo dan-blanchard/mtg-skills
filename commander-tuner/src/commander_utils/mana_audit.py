@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import click
@@ -236,6 +239,81 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     }
 
 
+def _render_single_audit(audit: dict) -> list[str]:
+    lines: list[str] = []
+    status = audit.get("overall_status", "?")
+    land_count = audit.get("land_count", 0)
+    colors = set(audit.get("pip_demand") or {})
+    colors_str = "".join(sorted(colors)) if colors else "C"
+    lines.append(f"mana-audit: {status} — {land_count} lands ({colors_str} deck)")
+    lines.append("")
+    burgess = audit.get("burgess_formula") or {}
+    lines.append(
+        f"Land count: {land_count} "
+        f"(Burgess target: {burgess.get('result', '?')}, "
+        f"Karsten adj: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
+        f"status: {audit.get('land_count_status', '?')})"
+    )
+    lines.append(f"Ramp count: {audit.get('ramp_count', 0)}")
+    lines.append(f"Avg CMC: {audit.get('avg_cmc', 0)}")
+
+    pip_demand_pct = audit.get("pip_demand_pct") or {}
+    land_color_pct = audit.get("land_color_pct") or {}
+    rock_color_pct = audit.get("rock_color_pct") or {}
+    all_colors = sorted(set(pip_demand_pct) | set(land_color_pct) | set(rock_color_pct))
+    if all_colors:
+        lines.append("Color balance:")
+        for c in all_colors:
+            pd = pip_demand_pct.get(c, 0)
+            lp = land_color_pct.get(c, 0)
+            rp = rock_color_pct.get(c, 0)
+            lines.append(
+                f"  {c}: pip demand={pd}%, land production={lp}%, rock production={rp}%"
+            )
+    cb_status = audit.get("color_balance_status", "?")
+    cb_flags = audit.get("color_balance_flags") or []
+    lines.append(f"Color balance status: {cb_status}")
+    if cb_flags:
+        lines.extend(f"  ! {flag}" for flag in cb_flags)
+    return lines
+
+
+def render_text_report(result: dict) -> str:
+    """Render mana_audit() output as a human-readable text report."""
+    if "primary" in result and "comparison" in result:
+        # --compare mode
+        primary = result["primary"]
+        comparison = result["comparison"]
+        delta = result.get("delta", {})
+        lines: list[str] = []
+        lines.append(
+            f"mana-audit --compare: {primary.get('source', 'primary')} "
+            f"vs {comparison.get('source', 'comparison')}"
+        )
+        lines.append("")
+        lines.append("--- Primary ---")
+        lines.extend(_render_single_audit(primary))
+        lines.append("")
+        lines.append("--- Comparison ---")
+        lines.extend(_render_single_audit(comparison))
+        lines.append("")
+        lines.append(
+            f"Delta: land_count={delta.get('land_count', 0):+d}, "
+            f"avg_cmc={delta.get('avg_cmc', 0):+.2f}, "
+            f"ramp_count={delta.get('ramp_count', 0):+d}"
+        )
+        return "\n".join(lines) + "\n"
+
+    return "\n".join(_render_single_audit(result)) + "\n"
+
+
+def _default_output_path(*args) -> Path:
+    payload = "|".join(str(a) for a in args)
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    return (tmpdir / f"mana-audit-{digest}.json").resolve()
+
+
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
@@ -247,19 +325,31 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     default=None,
     help="Compare against another deck version.",
 )
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the default sha-keyed path for the full JSON output.",
+)
 def main(
     deck_path: Path,
     hydrated_path: Path,
     compare: tuple[Path, Path] | None,
+    output_path: Path | None,
 ):
     """Audit a deck's mana base for land count and color balance."""
-    deck = json.loads(deck_path.read_text(encoding="utf-8"))
-    hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
+    deck_content = deck_path.read_text(encoding="utf-8")
+    hydrated_content = hydrated_path.read_text(encoding="utf-8")
+    deck = json.loads(deck_content)
+    hydrated = json.loads(hydrated_content)
 
     if compare:
         new_deck_path, new_hydrated_path = compare
-        new_deck = json.loads(new_deck_path.read_text(encoding="utf-8"))
-        new_hydrated = json.loads(new_hydrated_path.read_text(encoding="utf-8"))
+        new_deck_content = new_deck_path.read_text(encoding="utf-8")
+        new_hydrated_content = new_hydrated_path.read_text(encoding="utf-8")
+        new_deck = json.loads(new_deck_content)
+        new_hydrated = json.loads(new_hydrated_content)
 
         primary = mana_audit(deck, hydrated)
         primary["source"] = deck_path.name
@@ -275,7 +365,21 @@ def main(
                 "ramp_count": comparison["ramp_count"] - primary["ramp_count"],
             },
         }
+        if output_path is None:
+            output_path = _default_output_path(
+                deck_content,
+                hydrated_content,
+                new_deck_content,
+                new_hydrated_content,
+            )
     else:
         result = mana_audit(deck, hydrated)
+        if output_path is None:
+            output_path = _default_output_path(deck_content, hydrated_content)
 
-    click.echo(json.dumps(result, indent=2))
+    output_path = output_path.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    click.echo(render_text_report(result), nl=False)
+    click.echo(f"\nFull JSON: {output_path}")

@@ -187,7 +187,9 @@ class TestManaAudit:
 
 
 class TestCLI:
-    def test_outputs_valid_json(self, moxfield_deck, hydrated_cards, tmp_path):
+    def test_text_report_and_json_file(self, moxfield_deck, hydrated_cards, tmp_path):
+        from conftest import json_from_cli_output
+
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
 
@@ -195,14 +197,24 @@ class TestCLI:
         deck_path.write_text(json.dumps(deck))
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
+        output_path = tmp_path / "out.json"
 
         runner = CliRunner()
-        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        result = runner.invoke(
+            main,
+            [str(deck_path), str(hydrated_path), "--output", str(output_path)],
+        )
         assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
+        assert "mana-audit:" in result.output
+        assert "Land count:" in result.output
+        assert "Full JSON:" in result.output
+
+        data = json_from_cli_output(result)
         assert "overall_status" in data
 
     def test_compare_mode(self, moxfield_deck, hydrated_cards, tmp_path):
+        from conftest import json_from_cli_output
+
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
 
@@ -210,6 +222,7 @@ class TestCLI:
         deck_path.write_text(json.dumps(deck))
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
+        output_path = tmp_path / "out.json"
 
         runner = CliRunner()
         result = runner.invoke(
@@ -220,10 +233,15 @@ class TestCLI:
                 "--compare",
                 str(deck_path),
                 str(hydrated_path),
+                "--output",
+                str(output_path),
             ],
         )
         assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
+        assert "mana-audit --compare" in result.output
+        assert "Delta:" in result.output
+
+        data = json_from_cli_output(result)
         assert "primary" in data
         assert "comparison" in data
         assert "delta" in data
@@ -319,6 +337,9 @@ class TestCompareLabels:
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
 
+        from conftest import json_from_cli_output
+
+        output_path = tmp_path / "out.json"
         runner = CliRunner()
         result = runner.invoke(
             main,
@@ -328,10 +349,12 @@ class TestCompareLabels:
                 "--compare",
                 str(deck_path),
                 str(hydrated_path),
+                "--output",
+                str(output_path),
             ],
         )
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json_from_cli_output(result)
         assert "primary" in data
         assert "comparison" in data
         assert "before" not in data
@@ -366,6 +389,9 @@ class TestCompareLabels:
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
 
+        from conftest import json_from_cli_output
+
+        output_path = tmp_path / "out.json"
         runner = CliRunner()
         result = runner.invoke(
             main,
@@ -375,8 +401,10 @@ class TestCompareLabels:
                 "--compare",
                 str(compare_path),
                 str(hydrated_path),
+                "--output",
+                str(output_path),
             ],
         )
-        data = json.loads(result.output)
+        data = json_from_cli_output(result)
         assert data["primary"]["source"] == "primary.json"
         assert data["comparison"]["source"] == "comparison.json"

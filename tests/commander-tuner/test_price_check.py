@@ -250,26 +250,51 @@ class TestArenaWildcardMode:
 
 class TestCLI:
     def test_cli_with_name_list(self, sample_bulk_data, tmp_path):
+        from conftest import json_from_cli_output
+
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Sol Ring"]))
-
-        runner = CliRunner()
-        result = runner.invoke(
-            main, [str(names_path), "--bulk-data", str(sample_bulk_data)]
-        )
-        assert result.exit_code == 0
-        data = json.loads(result.output)
-        assert len(data["cards"]) == 1
-
-    def test_cli_with_budget(self, sample_bulk_data, tmp_path):
-        names_path = tmp_path / "names.json"
-        names_path.write_text(json.dumps(["Sol Ring"]))
+        output_path = tmp_path / "out.json"
 
         runner = CliRunner()
         result = runner.invoke(
             main,
-            [str(names_path), "--budget", "100", "--bulk-data", str(sample_bulk_data)],
+            [
+                str(names_path),
+                "--bulk-data",
+                str(sample_bulk_data),
+                "--output",
+                str(output_path),
+            ],
         )
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        assert "price-check:" in result.output
+        assert "Sol Ring" in result.output
+        assert "Full JSON:" in result.output
+        data = json_from_cli_output(result)
+        assert len(data["cards"]) == 1
+
+    def test_cli_with_budget(self, sample_bulk_data, tmp_path):
+        from conftest import json_from_cli_output
+
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Sol Ring"]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(names_path),
+                "--budget",
+                "100",
+                "--bulk-data",
+                str(sample_bulk_data),
+                "--output",
+                str(output_path),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "of $100.00 budget" in result.output
+        data = json_from_cli_output(result)
         assert data["over_budget"] is False
