@@ -109,8 +109,9 @@ def combo_search(
 
 def _load_bulk_name_games(bulk_path: Path) -> dict[str, list[str]]:
     """Load bulk data and build a name→games lookup."""
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    from commander_utils.bulk_loader import load_bulk_cards
+
+    cards = load_bulk_cards(bulk_path)
     index: dict[str, list[str]] = {}
     for card in cards:
         name = card.get("name", "")

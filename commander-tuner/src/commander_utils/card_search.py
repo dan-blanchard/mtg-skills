@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 
+from commander_utils.bulk_loader import load_bulk_cards
 from commander_utils.card_classify import (
     SKIP_LAYOUTS,
     color_identity_subset,
@@ -137,8 +138,7 @@ def search_cards(
         raise click.BadParameter(msg, param_hint="--oracle") from e
     type_lower = card_type.lower() if card_type else None
 
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    cards = load_bulk_cards(bulk_path)
 
     # Filter
     matched = [

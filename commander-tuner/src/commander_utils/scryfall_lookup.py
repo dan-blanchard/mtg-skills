@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 import requests
 
+from commander_utils.bulk_loader import load_bulk_cards
 from commander_utils.card_classify import SKIP_LAYOUTS, extract_price, get_oracle_text
 
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
@@ -51,8 +52,7 @@ def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
     split/MDFC cards (e.g., looking up "Bind" returns the standalone card,
     not "Bind // Liberate").
     """
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    cards = load_bulk_cards(bulk_path)
 
     index: dict[str, dict] = {}
     split_cards: list[dict] = []
@@ -100,8 +100,7 @@ def build_rarity_index(
     printings available in that format.  When *arena_only* is True, only
     printings that exist on Arena (``"arena" in games``) are considered.
     """
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    cards = load_bulk_cards(bulk_path)
 
     best: dict[str, int] = {}  # name_lower -> best rarity rank
     best_label: dict[str, str] = {}  # name_lower -> rarity string

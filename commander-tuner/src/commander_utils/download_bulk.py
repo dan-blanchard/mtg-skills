@@ -1,10 +1,13 @@
 """Scryfall bulk data downloader."""
 
+import contextlib
 import time
 from pathlib import Path
 
 import click
 import requests
+
+from commander_utils.bulk_loader import build_sidecar
 
 SCRYFALL_BULK_URL = "https://api.scryfall.com/bulk-data"
 USER_AGENT = "commander-utils/0.1.0"
@@ -64,6 +67,13 @@ def download_bulk(
         with output_path.open("wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 f.write(chunk)
+
+    # Eagerly build the pickled sidecar so the first script call after
+    # download doesn't pay the parse cost. Failures here are non-fatal —
+    # the bulk JSON itself is already on disk and load_bulk_cards will
+    # rebuild the sidecar lazily on next use.
+    with contextlib.suppress(OSError):
+        build_sidecar(output_path)
 
     return output_path
 

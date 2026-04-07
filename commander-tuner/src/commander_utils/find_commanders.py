@@ -9,6 +9,7 @@ from pathlib import Path
 
 import click
 
+from commander_utils.bulk_loader import load_bulk_cards
 from commander_utils.card_classify import (
     SKIP_LAYOUTS,
     color_identity_subset,
@@ -119,8 +120,7 @@ def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
     the card object since find-commanders needs edhrec_rank and other
     fields stripped by scryfall_lookup's CARD_FIELDS projection.
     """
-    with bulk_path.open(encoding="utf-8") as f:
-        cards = json.load(f)
+    cards = load_bulk_cards(bulk_path)
 
     index: dict[str, dict] = {}
     for card in cards:
