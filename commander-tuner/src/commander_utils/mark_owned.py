@@ -24,7 +24,11 @@ from commander_utils._sidecar import atomic_write_json
 from commander_utils.names import normalize_card_name
 
 
-def _collect_entries(parsed: dict) -> dict[str, tuple[str, int]]:
+def _collect_entries(
+    parsed: dict,
+    *,
+    sum_duplicates: bool,
+) -> dict[str, tuple[str, int]]:
     """Return normalized-key -> (original-name, quantity) for every card.
 
     Walks both ``commanders`` and ``cards``. The original name is
@@ -33,11 +37,22 @@ def _collect_entries(parsed: dict) -> dict[str, tuple[str, int]]:
     defensively (parse-deck already does this, but hand-crafted JSON
     might not) and defaults to 1 on malformed input.
 
-    First-seen wins on name spelling; quantity is ``max`` across
-    duplicate entries. The max-not-sum choice mirrors
-    ``find_commanders._build_owned_index``: a card that appears in
-    both ``commanders`` and ``cards`` of a single parsed pile is
-    almost always the same physical copy listed twice, not two copies.
+    ``sum_duplicates`` controls how to reconcile multiple entries for
+    the same card:
+
+    - ``sum_duplicates=True`` (collection side): add the quantities.
+      A Moxfield collection export splits the same card across its
+      different printings, so e.g. 51 distinct Island rows represent
+      205 physical Islands, and only ``sum`` gives the correct owned
+      count. Undercounting basics here would make ``price-check``
+      think the deck is short on lands it actually has.
+
+    - ``sum_duplicates=False`` (deck side): take the ``max``. Parse-
+      deck can emit a card in both ``commanders`` and ``cards`` if the
+      user listed their commander in the mainboard for any reason,
+      and those two rows describe the same physical copy — summing
+      would double-count. The sibling ``find_commanders._build_owned_index``
+      applies the same reasoning to its owned index.
     """
     out: dict[str, tuple[str, int]] = {}
     for section in ("commanders", "cards"):
@@ -55,6 +70,8 @@ def _collect_entries(parsed: dict) -> dict[str, tuple[str, int]]:
             existing = out.get(key)
             if existing is None:
                 out[key] = (name, qty)
+            elif sum_duplicates:
+                out[key] = (existing[0], existing[1] + qty)
             else:
                 out[key] = (existing[0], max(existing[1], qty))
     return out
@@ -79,8 +96,8 @@ def mark_owned(deck: dict, collection: dict) -> dict:
       rows) are excluded; owning "zero copies" is not owning the card.
     - Output is sorted by lowercased name for deterministic diffs.
     """
-    collection_entries = _collect_entries(collection)
-    deck_entries = _collect_entries(deck)
+    collection_entries = _collect_entries(collection, sum_duplicates=True)
+    deck_entries = _collect_entries(deck, sum_duplicates=False)
     owned: list[dict] = []
     for key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
         coll = collection_entries.get(key)
@@ -132,7 +149,7 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
     # would be a bad trade.
     atomic_write_json(target, result)
 
-    deck_unique = len(_collect_entries(deck))
+    deck_unique = len(_collect_entries(deck, sum_duplicates=False))
     owned_count = len(result["owned_cards"])
     click.echo(
         f"mark-owned: {owned_count} of {deck_unique} "

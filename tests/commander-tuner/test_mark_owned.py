@@ -90,6 +90,51 @@ class TestMarkOwned:
             for entry in result["owned_cards"]
         )
 
+    def test_collection_sums_split_printing_quantities(self):
+        """A Moxfield collection splits the same card across its distinct
+        printings (different set codes / collector numbers / languages),
+        so the same card name appears as many separate rows. ``mark-owned``
+        must SUM those rows on the collection side — taking the max of
+        any single printing would make a deck wanting 7 basics look like
+        it's short by N copies the user actually owns.
+        """
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Island", "quantity": 7}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {"name": "Island", "quantity": 3},  # e.g. RAV set
+                {"name": "Island", "quantity": 2},  # e.g. ZEN set
+                {"name": "Island", "quantity": 4},  # e.g. UNF set
+            ],
+        }
+        result = mark_owned(deck, collection)
+        # Sum = 9, deck needs 7, so Island is fully owned at quantity 9.
+        assert result["owned_cards"] == [{"name": "Island", "quantity": 9}]
+
+    def test_deck_commander_listed_in_both_sections_uses_max(self):
+        """``parse-deck`` can emit a legendary creature in both
+        ``commanders`` and ``cards`` if the source file quirkily listed
+        it twice. Those rows describe the same physical copy — deck-side
+        reconciliation must use ``max``, not ``sum``, or the quantity
+        recorded in owned_cards would wrongly describe two copies.
+        """
+        deck = {
+            "commanders": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
+            "cards": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
+        }
+        result = mark_owned(deck, collection)
+        # Owned qty is 1 (from the collection side), not 2.
+        assert result["owned_cards"] == [
+            {"name": "Atraxa, Praetors' Voice", "quantity": 1},
+        ]
+
     def test_zero_quantity_collection_row_is_not_owned(self):
         """A Moxfield wishlist/binder row exported at ``quantity=0`` is
         NOT marked as owned: "zero copies" is not owning the card. The
