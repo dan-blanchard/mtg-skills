@@ -134,6 +134,23 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
     result is written to ``--output`` if provided, otherwise back to
     DECK_PATH in place, and a one-line summary is echoed to stdout.
     """
+    # Refuse to overwrite the collection file with itself: if a user
+    # accidentally passes their collection as DECK_PATH (with no --output),
+    # the default in-place write would clobber their collection with an
+    # intersection-of-itself and the "N of M owned" summary would look
+    # suspiciously reasonable (100% owned). Compare resolved paths so
+    # symlinks and relative paths that name the same file are caught.
+    resolved_deck = deck_path.resolve()
+    resolved_collection = collection_path.resolve()
+    if resolved_deck == resolved_collection and output_path is None:
+        click.echo(
+            "mark-owned: DECK_PATH and COLLECTION_PATH resolve to the same "
+            "file; pass --output to write elsewhere, or supply two distinct "
+            "parsed-deck JSON files.",
+            err=True,
+        )
+        sys.exit(1)
+
     try:
         deck = json.loads(deck_path.read_text(encoding="utf-8"))
         collection = json.loads(collection_path.read_text(encoding="utf-8"))
@@ -141,7 +158,7 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
         click.echo(f"mark-owned: invalid JSON — {exc}", err=True)
         sys.exit(1)
 
-    result = mark_owned(deck, collection)
+    result, deck_unique = _mark_owned_with_count(deck, collection)
     target = output_path.resolve() if output_path else deck_path
     # Atomic write via tempfile + rename so an interrupted run never leaves
     # the user's parsed deck JSON half-overwritten — the default mode IS
@@ -149,9 +166,29 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
     # would be a bad trade.
     atomic_write_json(target, result)
 
-    deck_unique = len(_collect_entries(deck, sum_duplicates=False))
     owned_count = len(result["owned_cards"])
     click.echo(
         f"mark-owned: {owned_count} of {deck_unique} "
         f"unique deck cards owned -> {target}"
     )
+
+
+def _mark_owned_with_count(deck: dict, collection: dict) -> tuple[dict, int]:
+    """``mark_owned()`` plus the deck's unique-card count, without re-walking.
+
+    The CLI summary needs both the result and the denominator ``N of M``;
+    computing them together avoids walking the deck twice.
+    """
+    collection_entries = _collect_entries(collection, sum_duplicates=True)
+    deck_entries = _collect_entries(deck, sum_duplicates=False)
+    owned: list[dict] = []
+    for key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
+        coll = collection_entries.get(key)
+        if coll is None:
+            continue
+        _coll_name, coll_qty = coll
+        if coll_qty < 1:
+            continue
+        original_name, _deck_qty = deck_entries[key]
+        owned.append({"name": original_name, "quantity": coll_qty})
+    return {**deck, "owned_cards": owned}, len(deck_entries)

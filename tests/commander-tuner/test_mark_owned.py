@@ -202,6 +202,71 @@ class TestCLI:
         # _collect_entries can't silently regress the stdout contract.
         assert "1 of 1 unique deck cards owned" in result.output
 
+    def test_refuses_same_file_without_output(self, tmp_path):
+        """Passing the same file as both DECK_PATH and COLLECTION_PATH with
+        no ``--output`` would corrupt the user's file via an intersection-
+        of-itself in-place overwrite. The CLI must refuse and exit non-zero,
+        leaving the file untouched.
+        """
+        same_path = tmp_path / "collection.json"
+        original = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        same_path.write_text(json.dumps(original))
+
+        runner = CliRunner()
+        result = runner.invoke(main, [str(same_path), str(same_path)])
+        assert result.exit_code != 0
+        assert "same file" in result.output or "same file" in (result.stderr or "")
+        # File contents must be untouched.
+        assert json.loads(same_path.read_text()) == original
+
+    def test_refuses_same_file_via_symlink_without_output(self, tmp_path):
+        """The same-file guard must compare *resolved* paths so a symlink
+        pointing at the collection can't slip through."""
+        real_path = tmp_path / "collection.json"
+        link_path = tmp_path / "deck.json"
+        real_path.write_text(
+            json.dumps(
+                {
+                    "commanders": [],
+                    "cards": [{"name": "Sol Ring", "quantity": 1}],
+                },
+            ),
+        )
+        link_path.symlink_to(real_path)
+
+        runner = CliRunner()
+        result = runner.invoke(main, [str(link_path), str(real_path)])
+        assert result.exit_code != 0
+
+    def test_same_file_allowed_with_explicit_output(self, tmp_path):
+        """The same-file case is only dangerous because the default is
+        in-place overwrite. With an explicit ``--output``, a user can
+        legitimately intersect a collection with itself (e.g., to
+        populate owned_cards on a collection-as-deck view).
+        """
+        same_path = tmp_path / "collection.json"
+        out_path = tmp_path / "out.json"
+        same_path.write_text(
+            json.dumps(
+                {
+                    "commanders": [],
+                    "cards": [{"name": "Sol Ring", "quantity": 1}],
+                },
+            ),
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [str(same_path), str(same_path), "--output", str(out_path)],
+        )
+        assert result.exit_code == 0, result.output
+        written = json.loads(out_path.read_text())
+        assert written["owned_cards"] == [{"name": "Sol Ring", "quantity": 1}]
+
     def test_in_place_overwrite(self, tmp_path):
         deck_path = tmp_path / "deck.json"
         coll_path = tmp_path / "collection.json"
