@@ -64,15 +64,36 @@ class TestSetCommander:
         assert sample_deck["commanders"] == original_commanders
         assert sample_deck["cards"] == original_cards
 
-    def test_duplicate_commander_raises(self):
+    def test_already_commander_is_noop(self):
+        """Calling set-commander on a card already in the commander zone is a
+        no-op, not an error. This makes ``parse-deck | set-commander`` safe to
+        chain when parse-deck already honored a Moxfield ``Commander`` header.
+        """
         deck = {
             "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
             "cards": [{"name": "Sol Ring", "quantity": 1}],
         }
-        import pytest
+        result = set_commander(deck, ["Korvold, Fae-Cursed King"])
+        commander_names = [c["name"] for c in result["commanders"]]
+        assert commander_names == ["Korvold, Fae-Cursed King"]
+        assert [c["name"] for c in result["cards"]] == ["Sol Ring"]
 
-        with pytest.raises(ValueError, match="already in commander zone"):
-            set_commander(deck, ["Korvold, Fae-Cursed King"])
+    def test_mixed_idempotent_and_move(self):
+        """Partner pair where one commander is already set and the other is in
+        cards — the already-set one is untouched, the other is moved.
+        """
+        deck = {
+            "commanders": [{"name": "Thrasios, Triton Hero", "quantity": 1}],
+            "cards": [
+                {"name": "Tymna the Weaver", "quantity": 1},
+                {"name": "Sol Ring", "quantity": 1},
+            ],
+        }
+        result = set_commander(deck, ["Thrasios, Triton Hero", "Tymna the Weaver"])
+        commander_names = {c["name"] for c in result["commanders"]}
+        card_names = {c["name"] for c in result["cards"]}
+        assert commander_names == {"Thrasios, Triton Hero", "Tymna the Weaver"}
+        assert card_names == {"Sol Ring"}
 
 
 class TestCLI:
