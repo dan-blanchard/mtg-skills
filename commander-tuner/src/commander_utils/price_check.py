@@ -44,24 +44,45 @@ def _check_arena_wildcards(
     owned_set: set[str],
     rarity_index: dict[str, str],
 ) -> dict:
-    """Build wildcard-based price result for Arena formats."""
+    """Build wildcard-based price result for Arena formats.
+
+    Cards absent from the Arena rarity index are reported in the separate
+    ``illegal_or_missing`` list and contribute zero wildcards — they're
+    either banned in-format, not on Arena, or genuinely missing from bulk
+    data. Silently defaulting them to "rare" would mask banned cards like
+    Sol Ring and Skullclamp in budget checks.
+    """
     cards_out: list[dict] = []
     wildcard_cost = {"mythic": 0, "rare": 0, "uncommon": 0, "common": 0}
     owned_count = 0
+    illegal_or_missing: list[dict] = []
 
     for name in names:
         owned = name.lower() in owned_set
         if owned:
             owned_count += 1
-        rarity = rarity_index.get(name.lower(), "rare")
+        rarity = rarity_index.get(name.lower())
+        if rarity is None:
+            # Not in the format-filtered Arena rarity index.
+            illegal_or_missing.append(
+                {"name": name, "reason": "not_in_arena_rarity_index"},
+            )
+            cards_out.append(
+                {"name": name, "rarity": None, "owned": owned, "legal": False},
+            )
+            continue
+
         if not owned:
             wildcard_cost[rarity] = wildcard_cost.get(rarity, 0) + 1
-        cards_out.append({"name": name, "rarity": rarity, "owned": owned})
+        cards_out.append(
+            {"name": name, "rarity": rarity, "owned": owned, "legal": True},
+        )
 
     return {
         "cards": cards_out,
         "wildcard_cost": wildcard_cost,
         "owned_cards_count": owned_count,
+        "illegal_or_missing": illegal_or_missing,
     }
 
 
@@ -152,6 +173,16 @@ def render_text_report(result: dict) -> str:
         for rarity in ("mythic", "rare", "uncommon", "common"):
             count = wc.get(rarity, 0)
             lines.append(f"  {rarity}: {count}")
+        illegal = result.get("illegal_or_missing") or []
+        if illegal:
+            lines.append("")
+            names = ", ".join(entry["name"] for entry in illegal[:10])
+            more = len(illegal) - 10
+            suffix = f", +{more} more" if more > 0 else ""
+            lines.append(
+                f"WARNING: {len(illegal)} cards illegal or not on Arena: "
+                f"{names}{suffix}",
+            )
         return "\n".join(lines) + "\n"
 
     # USD mode

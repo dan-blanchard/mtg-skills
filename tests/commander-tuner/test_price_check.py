@@ -248,6 +248,117 @@ class TestArenaWildcardMode:
         assert "price_usd" in result["cards"][0]
 
 
+class TestArenaIllegalOrMissing:
+    """Cards absent from the Arena rarity index must surface explicitly.
+
+    The previous behavior silently defaulted them to "rare" wildcards,
+    which masked banned cards (Sol Ring, Skullclamp, etc.) in Brawl /
+    Historic Brawl budget checks.
+    """
+
+    def _bulk_with(self, tmp_path, cards):
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        return bulk_path
+
+    def test_illegal_card_goes_to_illegal_or_missing(self, tmp_path):
+        # Sol Ring is only Commander-legal; not in the Brawl rarity index.
+        bulk = [
+            {
+                "name": "Sol Ring",
+                "rarity": "uncommon",
+                "legalities": {"commander": "legal", "brawl": "not_legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = self._bulk_with(tmp_path, bulk)
+
+        result = check_prices(
+            ["Sol Ring"],
+            bulk_path=bulk_path,
+            format="historic_brawl",
+        )
+        assert "illegal_or_missing" in result
+        names = [c["name"] for c in result["illegal_or_missing"]]
+        assert "Sol Ring" in names
+
+    def test_illegal_card_not_counted_in_wildcards(self, tmp_path):
+        """A banned card must not inflate the rare wildcard count."""
+        bulk = [
+            {
+                "name": "Sol Ring",
+                "rarity": "uncommon",
+                "legalities": {"commander": "legal", "brawl": "not_legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+            {
+                "name": "Cultivate",
+                "rarity": "common",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = self._bulk_with(tmp_path, bulk)
+
+        result = check_prices(
+            ["Sol Ring", "Cultivate"],
+            bulk_path=bulk_path,
+            format="historic_brawl",
+        )
+        # Sol Ring is illegal: 0 contribution. Cultivate is a legal common.
+        assert result["wildcard_cost"]["rare"] == 0
+        assert result["wildcard_cost"]["common"] == 1
+        assert len(result["illegal_or_missing"]) == 1
+
+    def test_illegal_card_entry_marked_not_legal(self, tmp_path):
+        bulk = [
+            {
+                "name": "Sol Ring",
+                "rarity": "uncommon",
+                "legalities": {"commander": "legal", "brawl": "not_legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = self._bulk_with(tmp_path, bulk)
+
+        result = check_prices(
+            ["Sol Ring"],
+            bulk_path=bulk_path,
+            format="historic_brawl",
+        )
+        entry = next(c for c in result["cards"] if c["name"] == "Sol Ring")
+        assert entry["legal"] is False
+        assert entry["rarity"] is None
+
+    def test_text_report_warns_about_illegal_cards(self, tmp_path):
+        from commander_utils.price_check import render_text_report
+
+        bulk = [
+            {
+                "name": "Sol Ring",
+                "rarity": "uncommon",
+                "legalities": {"brawl": "not_legal"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = self._bulk_with(tmp_path, bulk)
+
+        result = check_prices(
+            ["Sol Ring"],
+            bulk_path=bulk_path,
+            format="historic_brawl",
+        )
+        text = render_text_report(result)
+        assert "WARNING" in text
+        assert "Sol Ring" in text
+        assert "illegal or not on Arena" in text
+
+
 class TestCLI:
     def test_cli_with_name_list(self, sample_bulk_data, tmp_path):
         from conftest import json_from_cli_output
