@@ -31,6 +31,8 @@ Every card recommendation MUST be grounded in actual card oracle text from Scryf
 
 Mark each item `in_progress` the moment you begin it and `completed` the moment it finishes — **do not batch updates**. The user relies on this list as a live progress indicator; batching defeats the point.
 
+**If you draft the whole skeleton in a single batch instead of walking the fill order category-by-category, you still must not batch the sub-todo completions.** Either (a) skip creating the fill-order sub-todos entirely for that session (mark only the top-level Step 3 as it starts and completes) or (b) close each sub-todo individually at draft time as you mentally finish that category. Leaving eight "Fill Lands / Fill Ramp / ..." sub-todos open the whole session and then collapsing them into a batch "all done" when Step 3's parent closes is the failure mode — it silently hides the stale progress indicator from the user until they notice.
+
 **Step 3 (Skeleton Generation) is long enough that the top-level item alone leaves the user staring at an unchanging list.** When you reach it, expand it into sub-todos *at that moment* (not up front), one per category in the fill order plus the verification gate:
 
 1. Fill Lands
@@ -58,11 +60,19 @@ This skill shares its install with commander-tuner via symlink. For one-time set
 
 Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONEOF`). Heredocs are functionally fine but they produce un-cacheable Bash permission patterns: Claude Code's permission engine bakes the heredoc body into the allow pattern, so every invocation with different content re-prompts the user. The Write tool generates a single `Write(/tmp/**)` permission that can be granted once and reused.
 
+**The same caching trap applies to `python3 -c "..."`, `awk '...'`, `jq '...'`, and any other Bash pattern where the code body varies between invocations.** Each unique body is a fresh permission pattern. If you need to extract one field from a JSON file, prefer: (a) passing the file directly to a script that already knows how to parse it (see "Parsed deck JSON is the canonical pipeline intermediate" below), (b) `Read` with `offset`/`limit` on the JSON file, or (c) `Grep` on the file. Reach for `python3 -c` only when those options genuinely don't cover the case, and accept the re-prompt cost when you do.
+
+**Scratch-file reuse.** Reuse a small set of stable `/tmp/*.json` paths (e.g., `/tmp/candidates.json`, `/tmp/pet-cards.json`, `/tmp/cuts.json`) across a session rather than minting a new file name each time. Write-tool permissions are granted per path; six distinct scratch paths is six permission prompts, while reusing three paths collapses to three.
+
 Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
 
 **Parsed deck JSON is the canonical pipeline intermediate.** Once you have a parsed deck JSON from `parse-deck`, pass it **directly** to `scryfall-lookup --batch` and `price-check` — both scripts accept a parsed deck JSON as `<path>`, not just a JSON list of name strings. Do NOT extract card names into a separate `/tmp/*.json` via `python3 -c` or similar. Every unnecessary extraction costs a Bash permission prompt (content-varying `python3 -c` is un-cacheable), a Write permission prompt for the temp file, and wall-clock time. If you catch yourself writing `json.load(...)` to pull out `c['name']`, stop — the script already handles that. (The exception is candidate lists that don't correspond to a parsed deck — e.g., commander discovery shortlists and combo piece lists from external research — where `/tmp/*.json` via the Write tool is still correct.)
 
-**Place `--cache-dir` inside the user's working directory, NOT the skill install.** Pass an **absolute path** inside the user's repo, e.g. `--cache-dir <working-dir>/.cache` where `<working-dir>` is the absolute path to the user's current repo (the directory they ran Claude Code from). **Do NOT use a relative path like `./.cache`** — `uv run --directory <skill-install-dir>` sets the subprocess CWD to the skill install, so relative paths resolve there, not in the user's repo. Putting the cache under the skill install (whether explicitly or implicitly via `./`) causes every downstream `Read`, `cp`, or script call against the hydrated path to trigger an outside-workspace permission prompt. Keeping the cache in the working directory also lets the hydrated file serve directly as the "write output files to the working directory" artifact in Step 5, with no `cp` needed.
+**Always use absolute paths for every positional argument and file-path flag.** Not just `--cache-dir`. `uv run --directory <skill-install-dir>` rebinds the subprocess CWD to the skill install, so a relative path like `my-deck.txt` passed to `parse-deck` resolves against the skill install dir and fails with a misleading "Path does not exist" error. This applies to `parse-deck <path>`, `card-search --bulk-data <path>`, `scryfall-lookup --batch <path>`, `price-check <path>` — every path the caller supplies. Resolve paths against the user's working directory first.
+
+**Place `--cache-dir` inside the user's working directory, NOT the skill install.** Pass an absolute path inside the user's repo, e.g. `--cache-dir <working-dir>/.cache` where `<working-dir>` is the absolute path to the user's current repo (the directory they ran Claude Code from). Putting the cache under the skill install (whether explicitly or implicitly via `./`) causes every downstream `Read`, `cp`, or script call against the hydrated path to trigger an outside-workspace permission prompt. Keeping the cache in the working directory also lets the hydrated file serve directly as the "write output files to the working directory" artifact in Step 5, with no `cp` needed.
+
+**Re-hydrate after every deck edit.** The hydrated cache path is SHA-keyed against the deck JSON's content, so editing the deck text file (or re-running `parse-deck`) produces a new SHA. If you keep using the old `cache_path`, downstream tools like `card-summary` will happily show you cards that no longer exist in the deck (and miss ones you just added). Any time you modify the skeleton and re-run `parse-deck`, immediately re-run `scryfall-lookup --batch` on the new deck JSON and switch all downstream script calls to the new `cache_path`.
 
 **Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent.
 
@@ -296,21 +306,25 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 
 ### Structural Verification
 
-After filling, run these checks **in this order** — the order matters, because first-draft failures are overwhelmingly price-related, and running the cheaper-to-fail check first avoids sinking effort into the other two on a draft you're about to rewrite:
+After filling, run these checks **in this order**. The order matters: legality is cheapest to fail and least recoverable (banned cards force specific cuts), price is next because first-draft failures are overwhelmingly price-related, and mana/stats come last.
 
-1. **Price check** — Run: `price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
+1. **Legality audit** — Run: `legality-audit <deck.json> <hydrated.json>`
 
-   Stdout is a compact text report with per-card price and running total. For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget. Per-category price tracking during the fill is a guide, not a substitute — real Scryfall prices drift from mental estimates, and a whole-deck draft frequently lands meaningfully over on the first pass.
+   Stdout is a compact text report: `legality-audit: PASS/FAIL — ...` with per-category violation lists (`format_legality`, `color_identity`, `singleton`). **This is the cheapest check to fail and the most important to run first.** A skeleton with banned cards, off-identity cards, or singleton violations is structurally broken and no amount of price/mana tuning will make it playable. In particular, Historic Brawl bans many Commander staples (Sol Ring, Skullclamp, Hour of Reckoning, Triumph of the Hordes, etc.) that look like obvious includes if you're thinking in Commander terms — this check catches them before the user sees the skeleton. Color-identity violations typically mean a card slipped past the commander's identity gate during building and must be replaced. Singleton violations usually indicate an off-by-one quantity error from manual deck edits.
 
-2. **Deck stats** — Run: `deck-stats <deck.json> <hydrated.json>`
+2. **Price check** — Run: `price-check <deck.json> --budget <budget> --bulk-data <bulk-data-path> [--format <format>]`
+
+   Stdout is a compact text report with per-card price and running total. For Arena formats, use `--format brawl` or `--format historic_brawl` to get wildcard costs by rarity instead of USD prices. Verify total cost (or wildcard counts) is within the user's budget. If over budget, swap the most expensive non-essential cards (starting from synergy/engine, not lands/ramp) for cheaper alternatives. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Re-run until the total is within budget. Per-category price tracking during the fill is a guide, not a substitute — real Scryfall prices drift from mental estimates, and a whole-deck draft frequently lands meaningfully over on the first pass. For Arena, also watch the `illegal_or_missing` warning line — cards that surface there escaped the legality audit because they weren't in the deck when that check ran, or the cache went stale.
+
+3. **Deck stats** — Run: `deck-stats <deck.json> <hydrated.json>`
 
    Stdout is a compact text report — read it directly to verify total card count matches the deck's expected size and review curve and category counts.
 
-3. **Mana audit** — Run: `mana-audit <deck.json> <hydrated.json>`
+4. **Mana audit** — Run: `mana-audit <deck.json> <hydrated.json>`
 
    Stdout is a compact text report with PASS/WARN/FAIL and per-color breakdown. Fix any FAIL results before proceeding.
 
-**This is a gate — do not present a skeleton that fails any of these checks.** If any check fails and you edit the deck text file to fix it, re-parse and re-run ALL checks from the top — manual edits frequently introduce card count errors.
+**This is a gate — do not present a skeleton that fails any of these checks.** If any check fails and you edit the deck text file to fix it, re-parse, **re-run `scryfall-lookup --batch` to refresh the hydrated cache**, and re-run ALL checks from the top. Manual edits frequently introduce card count errors, and a stale hydrated cache makes the subsequent checks lie about what's in the deck.
 
 ## Step 4: Present Skeleton
 
