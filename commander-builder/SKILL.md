@@ -74,6 +74,35 @@ Do NOT use `echo` or unquoted shell strings for JSON containing card names — a
 
 **Re-hydrate after every deck edit.** The hydrated cache path is SHA-keyed against the deck JSON's content, so editing the deck text file (or re-running `parse-deck`) produces a new SHA. If you keep using the old `cache_path`, downstream tools like `card-summary` will happily show you cards that no longer exist in the deck (and miss ones you just added). Any time you modify the skeleton and re-run `parse-deck`, immediately re-run `scryfall-lookup --batch` on the new deck JSON and switch all downstream script calls to the new `cache_path`.
 
+**Parsed deck JSON schema.** `parse-deck` emits:
+
+```json
+{
+  "format": "commander",
+  "deck_size": 100,
+  "commanders": [{"name": "...", "quantity": 1}, ...],
+  "cards":      [{"name": "...", "quantity": 1}, ...],
+  "total_cards": 100,
+  "owned_cards": []
+}
+```
+
+`commanders` and `cards` are lists of `{name, quantity}` dicts. **`owned_cards` is a list of plain card-name *strings*, NOT dicts** — it's the shape `price-check` expects for its "subtract from budget" feature. If you populate it by analogy with `cards` you will get an `AttributeError` (recent versions of `price-check` silently normalize dicts to strings, but write strings to be safe and portable).
+
+**Populating `owned_cards`:** when building from a user's collection, use the dedicated helper rather than inline `python3 -c`:
+
+```
+mark-owned <deck.json> <collection.json>
+```
+
+This overwrites the deck JSON in place with the intersection of deck and collection (by normalized, diacritic-folded card name). Use `--output <path>` to write elsewhere. The script is idempotent and safe to chain after every `parse-deck` / `set-commander` call. Avoid inline Python — every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern.
+
+**`set-commander` is idempotent.** Calling it on a card that is already in the `commanders` zone is a silent no-op, not an error. This means `parse-deck | set-commander` is safe to chain even when the deck file already had a Moxfield `Commander` header (which `parse-deck` honors automatically). You do not need to pre-check `deck.commanders` before calling `set-commander`.
+
+**`find-commanders` writes its full JSON to `$TMPDIR` by default**, which is outside the working directory and triggers an outside-workspace permission prompt when you try to `Read` it. **Always pass `--output <working-dir>/.cache/candidates.json`** so the JSON lives in the workspace from the start. Do NOT `cp` the `$TMPDIR` file into the workspace after the fact — that's one avoidable permission prompt for the read and another for the copy.
+
+**AskUserQuestion caps at 4 options — never silently drop the rest.** The tool's schema rejects more than 4 options per question. When you have more candidates than that (a 5-commander shortlist, 5 archetype choices, a long swap list), do NOT pick 4 and hide the rest. Instead, list **every** option in the preceding text message with enough detail to decide on, then use AskUserQuestion only as a lightweight picker — either (a) present the top 3 as buttons plus a 4th "Other (specify in notes)" option so the user can type any name from the text list, or (b) skip AskUserQuestion entirely for that decision and let the user reply in plain text. The failure mode to avoid is showing 4 option chips that look like the complete set when the text above mentioned 5+.
+
 **Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent.
 
 ## Step 1: Interview
@@ -103,7 +132,7 @@ This narrows the candidate *pool*; it does NOT replace the guided interview. Run
 
 1. **Parse the collection** — `parse-deck <absolute-path-to-collection.csv>` produces a parsed deck JSON. `parse-deck` already handles Moxfield CSV, Moxfield deck export, Arena, MTGO, and plain text — use it for any collection format the user gives you.
 
-2. **Find commander candidates** — `find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> [--color-identity <ci>] [--min-quantity 1]`. Pass `--color-identity` only if the user has already stated a color preference; otherwise omit and narrow in step 4. Pass `--min-quantity 0` only if the user explicitly wants their wishlist/binder rows considered. **Stdout is a compact text table** with columns EDHREC rank, color identity, CMC, name, type_line, flags (PARTNER / BACKGROUND / GC). Read the table directly to do shortlisting — do not parse it as structured data. The last line is `Full JSON: <path>` naming a file that contains the full per-candidate dict including `oracle_text`, `partner_with`, and the usual identification fields. Only `Read` that JSON file for the ~5 candidates you're actually shortlisting (to grab oracle text for the Iron Rule verification step) — not the whole candidate list, which would defeat the point of the compact table.
+2. **Find commander candidates** — `find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> --output <working-dir>/.cache/candidates.json [--color-identity <ci>] [--min-quantity 1]`. **Always pass `--output`** — the default path is under `$TMPDIR` which triggers outside-workspace permission prompts for every subsequent `Read`. Pass `--color-identity` only if the user has already stated a color preference; otherwise omit and narrow in step 4. Pass `--min-quantity 0` only if the user explicitly wants their wishlist/binder rows considered. **Stdout is a compact text table** with columns EDHREC rank, color identity, CMC, name, type_line, flags (PARTNER / BACKGROUND / GC). Read the table directly to do shortlisting — do not parse it as structured data. The last line is `Full JSON: <path>` naming the file you passed to `--output`, which contains the full per-candidate dict including `oracle_text`, `partner_with`, and the usual identification fields. Only `Read` that JSON file for the ~5 candidates you're actually shortlisting (to grab oracle text for the Iron Rule verification step) — not the whole candidate list, which would defeat the point of the compact table.
 
 3. **Run the guided interview** (colors, playstyle, mechanics, favorite cards, play group, bracket, budget) the same as the no-collection flow. The candidate pool is the constraint; the interview answers are what differentiates one commander from another.
 

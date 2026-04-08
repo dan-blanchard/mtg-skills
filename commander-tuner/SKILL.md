@@ -93,7 +93,32 @@ This auto-detects format (Moxfield, MTGO, plain text, CSV) and outputs JSON with
 
 If `commanders` is empty (common with Moxfield exports that lack `//Commander` headers), ask the user who the commander is. Don't guess — the first card in the list is often the commander, but not always. Supports partner commanders, friends forever, and background pairings.
 
-Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards list to the commanders list. This outputs updated JSON to stdout. Supports partner commanders, friends forever, and background pairings.
+Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards list to the commanders list. This outputs updated JSON to stdout. Supports partner commanders, friends forever, and background pairings. **`set-commander` is idempotent** — calling it on a card already in the `commanders` zone is a silent no-op, so it's safe to chain after `parse-deck` even when the deck file already had a Moxfield `Commander` header.
+
+**AskUserQuestion caps at 4 options — never silently drop the rest.** The tool's schema rejects more than 4 options per question. When presenting a longer list (5+ close-call swaps, 5 alternative commanders, etc.), do NOT pick 4 and hide the rest. List **every** option in the preceding text message with enough detail to decide on, then use AskUserQuestion only as a lightweight picker — either (a) put the top 3 on buttons plus a 4th "Other (specify in notes)" so the user can name any option from the text list, or (b) skip AskUserQuestion entirely for that decision and let the user reply in plain text. The failure mode to avoid is 4 option chips that look like the complete set when the text above mentioned 5+.
+
+**Parsed deck JSON schema.** The deck JSON you'll pass around for the rest of this workflow looks like:
+
+```json
+{
+  "format": "commander",
+  "deck_size": 100,
+  "commanders": [{"name": "...", "quantity": 1}, ...],
+  "cards":      [{"name": "...", "quantity": 1}, ...],
+  "total_cards": 100,
+  "owned_cards": []
+}
+```
+
+`commanders` and `cards` are lists of `{name, quantity}` dicts. **`owned_cards` is a list of plain card-name *strings*, NOT dicts** — that's the shape `price-check` consumes to exclude already-owned cards from budget totals. Populating it with dicts by analogy to `cards` used to crash `price-check`; recent versions silently normalize dict entries, but emit strings to keep the schema honest.
+
+**Populating `owned_cards` from a user's collection:** use the dedicated helper, not inline `python3 -c`:
+
+```
+mark-owned <deck.json> <collection.json>
+```
+
+This writes the intersection (by normalized, diacritic-folded card name) back into `deck.json`'s `owned_cards` field in place. Pass `--output <path>` to write elsewhere instead. Every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern, so one `mark-owned` call beats three inline Python variations.
 
 ## Step 2: Hydrate Card Data
 
@@ -545,8 +570,9 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 
 ## Script Input Formats
 
-- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int}`. Supports Moxfield (`//Commander` headers), Arena (bare `Commander`/`Deck` headers), MTGO, plain text, and CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
-- `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout
+- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int, "owned_cards": []}`. `owned_cards` is a list of plain name *strings* (not dicts), initialized empty; populate with `mark-owned`. Supports Moxfield (`//Commander` headers), Arena (bare `Commander`/`Deck` headers), MTGO, plain text, and CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
+- `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout. Idempotent: names already in the commander zone are silently skipped, so `parse-deck | set-commander` is safe even when the source file had a Moxfield `Commander` header.
+- `mark-owned <deck.json> <collection.json> [--output PATH]` — populates the deck's `owned_cards` field with the intersection of `deck ∩ collection` (by normalized, diacritic-folded card name). Writes in place by default; `--output` writes elsewhere. Use this instead of inline `python3 -c` for the owned-cards intersection — content-varying Python bodies produce un-cacheable Bash permission patterns.
 - `scryfall-lookup "Card Name"` — outputs single card JSON to stdout
 - `scryfall-lookup --batch <path> [--cache-dir DIR]` — accepts either a JSON list of name strings or a parsed deck JSON. Stdout is a JSON envelope `{cache_path, card_count, missing, digest}`. Full hydrated card list is written to the sha-keyed `<cache_dir>/hydrated-<sha>.json` (default `<cache_dir>` is `$TMPDIR/scryfall-cache/`). Downstream scripts accept `cache_path` as `<hydrated-cards-json>`. The envelope is bounded (~400 bytes regardless of deck size) — never Read the cache file directly.
 - `price-check <path> [--budget N] [--bulk-data <path>] [--format FORMAT] [--output PATH]` — accepts either a JSON list of name strings or a parsed deck JSON. Stdout is a compact text report with per-card price (or wildcard rarity for Arena formats), running total, and budget status. Full JSON is always written to `$TMPDIR/price-check-<sha>.json` by default. For Arena formats (`brawl`, `historic_brawl`), the text report shows wildcard counts by rarity instead of USD. Auto-detects format from deck JSON if not specified.
@@ -559,4 +585,4 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 - `card-search --bulk-data <path> [--color-identity CI] [--oracle REGEX] [--type TYPE] [--cmc-min N] [--cmc-max N] [--price-min N] [--price-max N] [--sort price-desc] [--limit 25] [--json] [--fields name,type_line,cmc,...] [--format FORMAT] [--arena-only] [--paper-only] [--is-commander]` — searches local bulk data for cards matching filters; `--format` filters by format legality (commander, brawl, historic_brawl); `--arena-only` restricts to cards on MTG Arena; `--paper-only` excludes Arena-only digital cards; `--is-commander` filters to cards eligible as commanders (format-aware: includes planeswalkers for brawl); output includes rarity column (C/U/R/M); default output is a compact table sorted by price descending. Use `--fields` with `--json` to project only the card fields you need (e.g. `--fields name,type_line,cmc,color_identity`); omitting it returns the full 12-field set. The default text-table output is already compact — `--json` is for callers that need structured output to feed into other tools.
 - `combo-search <parsed-deck-json> [--max-near-misses N] [--output PATH]` — find existing combos and near-misses in the deck via Commander Spellbook. Stdout is a compact text report listing combos (labeled `GAME_WINNING` or `VALUE`) and near-misses (with the missing card identified). Full JSON is written to `$TMPDIR/combo-search-<sha>.json` by default.
 - `combo-discover [--result "Infinite X"] [--card "Card Name"] [--color-identity CI] [--sort popularity] [--limit 10] [--format FORMAT] [--arena-only] [--paper-only] [--bulk-data PATH] [--output PATH]` — discover combos from Commander Spellbook by outcome (`--result`), card name (`--card`, repeatable), or color identity. Stdout is a compact text report with one entry per combo showing popularity, bracket, color identity, card count, card list, and result. Full JSON is written to `$TMPDIR/combo-discover-<sha>.json` by default (overridable with `--output`). `--sort popularity` returns obscure combos first, `--sort -popularity` returns popular ones; `--arena-only`/`--paper-only` filter combo pieces by platform availability.
-- `find-commanders <parsed.json> --bulk-data <path> [--format FORMAT] [--color-identity CI] [--min-quantity N]` — from a parsed deck/collection JSON (output of `parse-deck`), returns owned, format-legal, commander-eligible cards as a JSON array. Each entry includes `name`, `color_identity`, `type_line`, `mana_cost`, `cmc`, `oracle_text`, `edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`. Defaults: `--format commander`, `--min-quantity 1`. The script does no ranking — agents do that, weighted by user preferences. Used primarily by commander-builder for collection-aware commander selection.
+- `find-commanders <parsed.json> --bulk-data <path> [--format FORMAT] [--color-identity CI] [--min-quantity N] [--output PATH]` — from a parsed deck/collection JSON (output of `parse-deck`), returns owned, format-legal, commander-eligible cards as a JSON array. Each entry includes `name`, `color_identity`, `type_line`, `mana_cost`, `cmc`, `oracle_text`, `edhrec_rank`, `game_changer`, `is_partner`, `partner_with`, `has_background_clause`, `owned_quantity`. Defaults: `--format commander`, `--min-quantity 1`. The script does no ranking — agents do that, weighted by user preferences. Used primarily by commander-builder for collection-aware commander selection. **Always pass `--output <working-dir>/.cache/candidates.json`** — the default output path is under `$TMPDIR`, which is outside the workspace and triggers an outside-workspace permission prompt on every subsequent `Read`.
