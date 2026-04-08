@@ -27,6 +27,26 @@ _ARENA_FORMATS = frozenset({"brawl", "historic_brawl"})
 _extract_price = extract_price
 
 
+def _normalize_owned_cards(entries: list) -> set[str]:
+    """Return a lowercased name set from an ``owned_cards`` list.
+
+    Accepts both plain strings (the canonical shape) and dicts with a
+    ``name`` key (the parse-deck ``cards``/``commanders`` shape). Entries
+    that are neither are ignored rather than crashing — ``owned_cards``
+    is a convenience field, not a hard contract, and a silent skip on
+    junk is friendlier than a KeyError mid-price-check.
+    """
+    names: set[str] = set()
+    for entry in entries:
+        if isinstance(entry, str):
+            names.add(entry.lower())
+        elif isinstance(entry, dict):
+            name = entry.get("name")
+            if isinstance(name, str):
+                names.add(name.lower())
+    return names
+
+
 def _api_price_lookup(name: str) -> float | None:
     """Fall back to Scryfall API for price when bulk data has null."""
     session = requests.Session()
@@ -104,10 +124,17 @@ def check_prices(
     if format is None and isinstance(names_or_deck, dict):
         format = names_or_deck.get("format")  # noqa: A001
 
-    # Extract owned cards from deck JSON if present
+    # Extract owned cards from deck JSON if present.
+    #
+    # ``owned_cards`` is canonically a list of plain card-name strings, but
+    # accept list-of-``{"name": str, ...}`` dicts too: the parse-deck-derived
+    # ``cards``/``commanders`` fields use that shape, so callers populating
+    # ``owned_cards`` by analogy end up with dicts. Silently normalizing
+    # avoids a confusing ``AttributeError: 'dict' object has no attribute
+    # 'lower'`` crash for what is clearly an acceptable input.
     owned_set: set[str] = set()
     if isinstance(names_or_deck, dict):
-        owned_set = {n.lower() for n in names_or_deck.get("owned_cards", [])}
+        owned_set = _normalize_owned_cards(names_or_deck.get("owned_cards", []))
 
     # Arena wildcard mode
     is_arena = format in _ARENA_FORMATS and bulk_path is not None

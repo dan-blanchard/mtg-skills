@@ -102,6 +102,35 @@ class TestCheckPrices:
         assert result["total_cost"] == 0.0
         assert result["total_value"] == 2.00
 
+    def test_owned_cards_accepts_dict_shape(self):
+        """``owned_cards`` should tolerate list-of-``{"name": ...}`` dicts as
+        well as the canonical list-of-strings. Callers that populate the
+        field by analogy with ``cards``/``commanders`` naturally produce
+        dicts, and silently normalizing beats the obscure
+        ``AttributeError: 'dict' object has no attribute 'lower'`` crash.
+        """
+        cards_data = [
+            {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
+            {"name": "Owned Card", "prices": {"usd": "10.00", "usd_foil": None}},
+        ]
+        deck = {
+            "commanders": [],
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Owned Card", "quantity": 1},
+            ],
+            "owned_cards": [{"name": "Owned Card", "quantity": 1}],
+        }
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(deck)
+
+        assert result["total_cost"] == 2.00
+        assert result["owned_cards_count"] == 1
+        assert result["cards"][1]["owned"] is True
+
     def test_no_owned_cards_field_works(self):
         cards_data = [
             {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
