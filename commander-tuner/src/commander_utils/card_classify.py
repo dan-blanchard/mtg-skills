@@ -6,6 +6,41 @@ import re
 
 SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
 
+# Singleton-rule exemption patterns.
+#
+# Standard MTG deck-building rules cap non-basic cards at 4 copies (or 1 in
+# singleton formats like Commander/Brawl). Some cards opt out via oracle
+# text: "A deck can have any number of cards named X" (Relentless Rats,
+# Persistent Petitioners, Hare Apparent, Shadowborn Apostle, Rat Colony,
+# Dragon's Approach) or "A deck can have up to N cards named X" (Seven
+# Dwarves, Nazgul). These cards break two assumptions:
+#
+#   1. Singleton legality (handled by legality_audit).
+#   2. The Arena 4-cap rule: Arena normally treats ownership of 4 copies
+#      of a card as "infinite" for deck-building purposes (you can never
+#      need a 5th in a legal deck), but this substitution does NOT apply
+#      to cards with an oracle exemption — you can legitimately want 17
+#      Hare Apparent and Arena will charge wildcards for the 13 you don't
+#      own. price_check uses ``has_copy_limit_exemption`` to gate the
+#      4-cap substitution.
+_ANY_NUMBER_PATTERN = "A deck can have any number of cards named"
+_UP_TO_N_PATTERN = re.compile(
+    r"A deck can have up to (\w+) cards named",
+    re.IGNORECASE,
+)
+_WORD_TO_INT = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+
 
 def get_oracle_text(card: dict) -> str:
     """Get oracle text, falling back to joined card_faces for MDFCs/split cards."""
@@ -186,3 +221,47 @@ def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
         return {"eligible": True, "requires_partner": True}
 
     return {"eligible": False, "requires_partner": False}
+
+
+def has_any_number_exemption(card: dict) -> bool:
+    """True if oracle text reads "A deck can have any number of cards named X".
+
+    Narrower than ``has_copy_limit_exemption``: returns False for the
+    "up to N" variant, which still has a numeric cap. Used by
+    ``legality_audit.check_singletons`` to short-circuit the cap check
+    for unlimited cards.
+    """
+    return _ANY_NUMBER_PATTERN in get_oracle_text(card)
+
+
+def named_card_cap(card: dict) -> int | None:
+    """Return the integer cap from "A deck can have up to N cards named X".
+
+    Returns None if the card has no such clause. Used by the singleton
+    legality audit to permit up-to-N duplicates (e.g. 7 Seven Dwarves).
+    """
+    oracle = get_oracle_text(card)
+    match = _UP_TO_N_PATTERN.search(oracle)
+    if match is None:
+        return None
+    return _WORD_TO_INT.get(match.group(1).lower())
+
+
+def has_copy_limit_exemption(card: dict) -> bool:
+    """True if the card's oracle text lets a deck run more than 4 copies.
+
+    Returns True for cards with either:
+      - "A deck can have any number of cards named X" (unlimited)
+      - "A deck can have up to N cards named X" (capped at N, but
+        still exempts the card from the standard 4-copy limit)
+
+    Used by ``price_check`` to suppress the Arena 4-cap substitution
+    rule. Arena normally treats ownership of 4 copies of a playset-
+    capped card as "infinite" because no legal deck can need a 5th —
+    but for exempt cards, a deck can legitimately want 17 copies, so
+    owning 4 does not grant the remaining 13.
+    """
+    oracle = get_oracle_text(card)
+    if _ANY_NUMBER_PATTERN in oracle:
+        return True
+    return _UP_TO_N_PATTERN.search(oracle) is not None

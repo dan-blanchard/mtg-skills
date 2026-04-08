@@ -21,12 +21,15 @@ inspect ``overall_status`` to decide what to do with the result.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import click
 
 from commander_utils._sidecar import atomic_write_json, sha_keyed_path
+from commander_utils.card_classify import (
+    has_any_number_exemption,
+    named_card_cap,
+)
 from commander_utils.format_config import get_format_config
 
 # Basic land subtypes that produce colored mana. Wastes is a basic land too,
@@ -35,21 +38,6 @@ from commander_utils.format_config import get_format_config
 _COLORED_BASIC_SUBTYPES = frozenset({"Plains", "Island", "Swamp", "Mountain", "Forest"})
 
 _LEGAL_STATUSES = frozenset({"legal", "restricted"})
-
-_ANY_NUMBER_PATTERN = "A deck can have any number of cards named"
-_UP_TO_N_PATTERN = re.compile(r"A deck can have up to (\w+) cards named", re.IGNORECASE)
-_WORD_TO_INT = {
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "four": 4,
-    "five": 5,
-    "six": 6,
-    "seven": 7,
-    "eight": 8,
-    "nine": 9,
-    "ten": 10,
-}
 
 
 def _is_basic_land(card: dict) -> bool:
@@ -170,14 +158,6 @@ def check_color_identity(
     return violations
 
 
-def _named_card_cap(oracle_text: str) -> int | None:
-    """Return the "up to N" cap from oracle text, or None if not present."""
-    match = _UP_TO_N_PATTERN.search(oracle_text)
-    if match is None:
-        return None
-    return _WORD_TO_INT.get(match.group(1).lower())
-
-
 def check_singletons(
     deck_json: dict,
     hydrated_by_name: dict[str, dict],
@@ -207,11 +187,12 @@ def check_singletons(
         if _is_basic_land(card):
             continue
 
-        oracle = card.get("oracle_text") or ""
-        if _ANY_NUMBER_PATTERN in oracle:
+        # Unlimited copies ("A deck can have any number of cards named X")
+        # always pass; the "up to N" variant still needs a quantity check.
+        if has_any_number_exemption(card):
             continue
 
-        cap = _named_card_cap(oracle)
+        cap = named_card_cap(card)
         if cap is not None:
             if quantity <= cap:
                 continue
