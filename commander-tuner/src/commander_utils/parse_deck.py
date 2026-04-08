@@ -248,8 +248,7 @@ def main(
     if output_path is not None:
         if output_path.resolve() == deck_path.resolve():
             raise click.UsageError(
-                "--output would overwrite the input deck file; "
-                "pass a different path."
+                "--output would overwrite the input deck file; pass a different path."
             )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(payload + "\n")
