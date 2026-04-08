@@ -9,6 +9,9 @@ from commander_utils.mark_owned import main, mark_owned
 
 class TestMarkOwned:
     def test_basic_intersection(self):
+        """``owned_cards`` is written as ``[{name, quantity}]`` dicts —
+        same shape as ``cards``/``commanders`` — with the quantity
+        taken from the collection side of the intersection."""
         deck = {
             "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
             "cards": [
@@ -26,7 +29,10 @@ class TestMarkOwned:
             ],
         }
         result = mark_owned(deck, collection)
-        assert result["owned_cards"] == ["Command Tower", "Sol Ring"]
+        assert result["owned_cards"] == [
+            {"name": "Command Tower", "quantity": 4},
+            {"name": "Sol Ring", "quantity": 2},
+        ]
 
     def test_commander_counted_as_owned(self):
         """A commander present in the collection should show up in owned_cards."""
@@ -42,25 +48,32 @@ class TestMarkOwned:
             ],
         }
         result = mark_owned(deck, collection)
-        assert "Atraxa, Praetors' Voice" in result["owned_cards"]
-        assert "Sol Ring" in result["owned_cards"]
+        names = {entry["name"] for entry in result["owned_cards"]}
+        assert names == {"Atraxa, Praetors' Voice", "Sol Ring"}
 
     def test_diacritic_folding(self):
-        """ASCII-only deck name should match diacritic-bearing collection entry."""
+        """ASCII-only deck name should match diacritic-bearing collection entry.
+
+        Deck-side spelling is preserved in the written ``owned_cards``
+        entry; collection-side quantity is recorded.
+        """
         deck = {
             "commanders": [],
             "cards": [{"name": "Lim-Dul's Vault", "quantity": 1}],
         }
         collection = {
             "commanders": [],
-            "cards": [{"name": "Lim-D\u00fbl's Vault", "quantity": 1}],
+            "cards": [{"name": "Lim-D\u00fbl's Vault", "quantity": 3}],
         }
         result = mark_owned(deck, collection)
-        # Original deck spelling is preserved in the written owned list.
-        assert result["owned_cards"] == ["Lim-Dul's Vault"]
+        assert result["owned_cards"] == [
+            {"name": "Lim-Dul's Vault", "quantity": 3},
+        ]
 
-    def test_owned_cards_is_string_list(self):
-        """Result must be a list of plain strings, matching price-check's schema."""
+    def test_owned_cards_schema_is_dicts(self):
+        """Result matches the canonical ``[{name, quantity}]`` schema
+        that price-check consumes and that ``cards``/``commanders`` use.
+        """
         deck = {
             "commanders": [],
             "cards": [{"name": "Sol Ring", "quantity": 1}],
@@ -70,15 +83,19 @@ class TestMarkOwned:
             "cards": [{"name": "Sol Ring", "quantity": 1}],
         }
         result = mark_owned(deck, collection)
-        assert all(isinstance(n, str) for n in result["owned_cards"])
+        assert all(
+            isinstance(entry, dict)
+            and isinstance(entry.get("name"), str)
+            and isinstance(entry.get("quantity"), int)
+            for entry in result["owned_cards"]
+        )
 
-    def test_zero_quantity_collection_row_still_counts_as_owned(self):
-        """``mark-owned`` intentionally does not inspect quantity — it only
-        cares about "is this name in the collection at all." A wishlist/
-        binder row exported at ``quantity=0`` from Moxfield will still mark
-        the card as owned. This is a deliberate choice (the sibling script
-        ``find-commanders`` has ``--min-quantity`` for that) and a pinned
-        test exists so a future reader doesn't "fix" it by accident.
+    def test_zero_quantity_collection_row_is_not_owned(self):
+        """A Moxfield wishlist/binder row exported at ``quantity=0`` is
+        NOT marked as owned: "zero copies" is not owning the card. The
+        previous string-schema implementation pinned the opposite
+        behavior (quantity was ignored entirely); first-class quantity
+        in the dict schema lets us do the right thing.
         """
         deck = {
             "commanders": [],
@@ -89,7 +106,7 @@ class TestMarkOwned:
             "cards": [{"name": "Sol Ring", "quantity": 0}],
         }
         result = mark_owned(deck, collection)
-        assert result["owned_cards"] == ["Sol Ring"]
+        assert result["owned_cards"] == []
 
     def test_does_not_mutate_input(self):
         deck = {
@@ -135,9 +152,9 @@ class TestCLI:
         )
         assert result.exit_code == 0, result.output
         written = json.loads(out_path.read_text())
-        assert written["owned_cards"] == ["Sol Ring"]
+        assert written["owned_cards"] == [{"name": "Sol Ring", "quantity": 1}]
         # Pin the human-readable summary format so a refactor of
-        # _collect_names can't silently regress the stdout contract.
+        # _collect_entries can't silently regress the stdout contract.
         assert "1 of 1 unique deck cards owned" in result.output
 
     def test_in_place_overwrite(self, tmp_path):
@@ -164,4 +181,4 @@ class TestCLI:
         result = runner.invoke(main, [str(deck_path), str(coll_path)])
         assert result.exit_code == 0, result.output
         written = json.loads(deck_path.read_text())
-        assert written["owned_cards"] == ["Sol Ring"]
+        assert written["owned_cards"] == [{"name": "Sol Ring", "quantity": 1}]

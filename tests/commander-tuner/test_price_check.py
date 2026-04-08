@@ -69,7 +69,7 @@ class TestCheckPrices:
                 {"name": "Sol Ring", "quantity": 1},
                 {"name": "Owned Card", "quantity": 1},
             ],
-            "owned_cards": ["Owned Card"],
+            "owned_cards": [{"name": "Owned Card", "quantity": 1}],
         }
         with patch("commander_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
@@ -90,7 +90,7 @@ class TestCheckPrices:
         deck = {
             "commanders": [],
             "cards": [{"name": "Sol Ring", "quantity": 1}],
-            "owned_cards": ["sol ring"],
+            "owned_cards": [{"name": "sol ring", "quantity": 1}],
         }
         with patch("commander_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
@@ -102,24 +102,19 @@ class TestCheckPrices:
         assert result["total_cost"] == 0.0
         assert result["total_value"] == 2.00
 
-    def test_owned_cards_accepts_dict_shape(self):
-        """``owned_cards`` should tolerate list-of-``{"name": ...}`` dicts as
-        well as the canonical list-of-strings. Callers that populate the
-        field by analogy with ``cards``/``commanders`` naturally produce
-        dicts, and silently normalizing beats the obscure
-        ``AttributeError: 'dict' object has no attribute 'lower'`` crash.
+    def test_owned_cards_zero_quantity_not_owned(self):
+        """A zero-quantity ``owned_cards`` entry (e.g. a Moxfield wishlist
+        row) is not treated as owned — price-check charges full price.
+        This pins the ``_normalize_owned_cards`` qty<1 skip behavior so a
+        future refactor can't silently let wishlist rows zero out budgets.
         """
         cards_data = [
             {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
-            {"name": "Owned Card", "prices": {"usd": "10.00", "usd_foil": None}},
         ]
         deck = {
             "commanders": [],
-            "cards": [
-                {"name": "Sol Ring", "quantity": 1},
-                {"name": "Owned Card", "quantity": 1},
-            ],
-            "owned_cards": [{"name": "Owned Card", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+            "owned_cards": [{"name": "Sol Ring", "quantity": 0}],
         }
         with patch("commander_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
@@ -128,8 +123,8 @@ class TestCheckPrices:
             result = check_prices(deck)
 
         assert result["total_cost"] == 2.00
-        assert result["owned_cards_count"] == 1
-        assert result["cards"][1]["owned"] is True
+        assert result["owned_cards_count"] == 0
+        assert result["cards"][0]["owned"] is False
 
     def test_no_owned_cards_field_works(self):
         cards_data = [
@@ -263,7 +258,7 @@ class TestArenaWildcardMode:
             "format": "historic_brawl",
             "commanders": [],
             "cards": [{"name": "My Rare", "quantity": 1}],
-            "owned_cards": ["My Rare"],
+            "owned_cards": [{"name": "My Rare", "quantity": 1}],
         }
         result = check_prices(deck, bulk_path=bulk_path)
         assert result["wildcard_cost"]["rare"] == 0

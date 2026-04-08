@@ -83,11 +83,11 @@ Do NOT use `echo` or unquoted shell strings for JSON containing card names — a
   "commanders": [{"name": "...", "quantity": 1}, ...],
   "cards":      [{"name": "...", "quantity": 1}, ...],
   "total_cards": 100,
-  "owned_cards": []
+  "owned_cards": [{"name": "...", "quantity": 1}, ...]
 }
 ```
 
-`commanders` and `cards` are lists of `{name, quantity}` dicts. **`owned_cards` is a list of plain card-name *strings*, NOT dicts** — it's the shape `price-check` expects for its "subtract from budget" feature. If you populate it by analogy with `cards` you will get an `AttributeError` (recent versions of `price-check` silently normalize dicts to strings, but write strings to be safe and portable).
+All three card lists (`commanders`, `cards`, `owned_cards`) are the same shape — `[{name, quantity}]` dicts. `owned_cards` starts empty and is populated by `mark-owned` (see below) or by hand. `price-check` reads it to subtract owned copies from the budget; entries with `quantity < 1` are treated as "not owned" (so a Moxfield wishlist row exported at quantity 0 does not zero out the budget).
 
 **Populating `owned_cards`:** when building from a user's collection, use the dedicated helper rather than inline `python3 -c`:
 
@@ -95,7 +95,7 @@ Do NOT use `echo` or unquoted shell strings for JSON containing card names — a
 mark-owned <deck.json> <collection.json>
 ```
 
-This overwrites the deck JSON in place with the intersection of deck and collection (by normalized, diacritic-folded card name). Use `--output <path>` to write elsewhere. The script is idempotent and safe to chain after every `parse-deck` / `set-commander` call. Avoid inline Python — every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern.
+This overwrites the deck JSON in place with the intersection of deck and collection (by normalized, diacritic-folded card name). The recorded quantity is the authoritative count from the collection side, so the field answers "how many copies do I own?" not "how many does the deck ask for?" Use `--output <path>` to write elsewhere. The script is idempotent and safe to chain after every `parse-deck` / `set-commander` call. Avoid inline Python — every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern.
 
 **`set-commander` is idempotent.** Calling it on a card that is already in the `commanders` zone is a silent no-op, not an error. This means `parse-deck | set-commander` is safe to chain even when the deck file already had a Moxfield `Commander` header (which `parse-deck` honors automatically). You do not need to pre-check `deck.commanders` before calling `set-commander`.
 

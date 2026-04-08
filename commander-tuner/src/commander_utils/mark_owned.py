@@ -24,41 +24,73 @@ from commander_utils._sidecar import atomic_write_json
 from commander_utils.names import normalize_card_name
 
 
-def _collect_names(parsed: dict) -> dict[str, str]:
-    """Return normalized-name -> original-name for every card in a parsed deck.
+def _collect_entries(parsed: dict) -> dict[str, tuple[str, int]]:
+    """Return normalized-key -> (original-name, quantity) for every card.
 
     Walks both ``commanders`` and ``cards``. The original name is
-    preserved so the written ``owned_cards`` field uses the spelling
-    the deck author chose, not the normalized form — downstream
-    lookup tools re-normalize, so any spelling that survives
-    ``parse-deck`` round-trips correctly.
+    preserved so output uses the spelling the deck/collection author
+    chose rather than the normalized form. Quantity is coerced to int
+    defensively (parse-deck already does this, but hand-crafted JSON
+    might not) and defaults to 1 on malformed input.
+
+    First-seen wins on name spelling; quantity is ``max`` across
+    duplicate entries. The max-not-sum choice mirrors
+    ``find_commanders._build_owned_index``: a card that appears in
+    both ``commanders`` and ``cards`` of a single parsed pile is
+    almost always the same physical copy listed twice, not two copies.
     """
-    out: dict[str, str] = {}
+    out: dict[str, tuple[str, int]] = {}
     for section in ("commanders", "cards"):
         for entry in parsed.get(section, []) or []:
-            name = entry.get("name") if isinstance(entry, dict) else None
-            if isinstance(name, str) and name:
-                # First-seen wins: two entries differing only by diacritic
-                # (vanishingly unlikely in practice) collapse to the first
-                # one encountered. The alternative would silently discard
-                # one spelling on every ``mark-owned`` call, which is worse.
-                out.setdefault(normalize_card_name(name), name)
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if not isinstance(name, str) or not name:
+                continue
+            try:
+                qty = int(entry.get("quantity", 1))
+            except (TypeError, ValueError):
+                qty = 1
+            key = normalize_card_name(name)
+            existing = out.get(key)
+            if existing is None:
+                out[key] = (name, qty)
+            else:
+                out[key] = (existing[0], max(existing[1], qty))
     return out
 
 
 def mark_owned(deck: dict, collection: dict) -> dict:
-    """Return a new deck dict with ``owned_cards`` set to the intersection.
+    """Return a new deck dict with ``owned_cards`` populated from the intersection.
 
-    The result is a list of plain name strings (not dicts), matching the
-    canonical ``owned_cards`` schema and the shape ``price-check`` expects.
-    Names are taken from the deck side of the intersection so the stored
-    spelling matches what downstream tools will look up.
+    ``owned_cards`` is a list of ``{"name": str, "quantity": int}``
+    dicts — same shape as the sibling ``cards`` and ``commanders``
+    fields on a parsed deck, and the shape ``price-check`` consumes.
+
+    - Names are taken from the deck side of the intersection so the
+      stored spelling matches what the deck author typed; downstream
+      tools re-normalize, so any spelling that survives ``parse-deck``
+      round-trips correctly.
+    - Quantity is the authoritative count from the *collection* side,
+      so the field answers "how many copies do I own?" not "how many
+      did the deck list?" — relevant for Arena wildcard planning and
+      playset-limited formats.
+    - Collection entries with quantity < 1 (Moxfield wishlist/binder
+      rows) are excluded; owning "zero copies" is not owning the card.
+    - Output is sorted by lowercased name for deterministic diffs.
     """
-    collection_keys = set(_collect_names(collection).keys())
-    deck_names = _collect_names(deck)
-    owned = sorted(
-        original for key, original in deck_names.items() if key in collection_keys
-    )
+    collection_entries = _collect_entries(collection)
+    deck_entries = _collect_entries(deck)
+    owned: list[dict] = []
+    for key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
+        coll = collection_entries.get(key)
+        if coll is None:
+            continue
+        _coll_name, coll_qty = coll
+        if coll_qty < 1:
+            continue
+        original_name, _deck_qty = deck_entries[key]
+        owned.append({"name": original_name, "quantity": coll_qty})
     return {**deck, "owned_cards": owned}
 
 
@@ -100,7 +132,7 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
     # would be a bad trade.
     atomic_write_json(target, result)
 
-    deck_unique = len(_collect_names(deck))
+    deck_unique = len(_collect_entries(deck))
     owned_count = len(result["owned_cards"])
     click.echo(
         f"mark-owned: {owned_count} of {deck_unique} "

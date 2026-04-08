@@ -106,11 +106,11 @@ Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards
   "commanders": [{"name": "...", "quantity": 1}, ...],
   "cards":      [{"name": "...", "quantity": 1}, ...],
   "total_cards": 100,
-  "owned_cards": []
+  "owned_cards": [{"name": "...", "quantity": 1}, ...]
 }
 ```
 
-`commanders` and `cards` are lists of `{name, quantity}` dicts. **`owned_cards` is a list of plain card-name *strings*, NOT dicts** — that's the shape `price-check` consumes to exclude already-owned cards from budget totals. Populating it with dicts by analogy to `cards` used to crash `price-check`; recent versions silently normalize dict entries, but emit strings to keep the schema honest.
+All three card lists (`commanders`, `cards`, `owned_cards`) are the same shape — `[{name, quantity}]` dicts. `owned_cards` starts empty from `parse-deck` and is populated by `mark-owned` (or by hand). `price-check` reads it to subtract owned copies from the budget; entries with `quantity < 1` are treated as "not owned," so a Moxfield wishlist row exported at quantity 0 does not silently zero out the budget.
 
 **Populating `owned_cards` from a user's collection:** use the dedicated helper, not inline `python3 -c`:
 
@@ -118,7 +118,7 @@ Run `set-commander <deck.json> 'Commander Name'` to move the card from the cards
 mark-owned <deck.json> <collection.json>
 ```
 
-This writes the intersection (by normalized, diacritic-folded card name) back into `deck.json`'s `owned_cards` field in place. Pass `--output <path>` to write elsewhere instead. Every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern, so one `mark-owned` call beats three inline Python variations.
+This writes the intersection (by normalized, diacritic-folded card name) back into `deck.json`'s `owned_cards` field in place. The recorded quantity is the authoritative count from the collection side, so the field answers "how many copies do I own?" rather than "how many did the deck ask for?" — relevant for Arena wildcard planning and playset-limited formats. Pass `--output <path>` to write elsewhere instead. Every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern, so one `mark-owned` call beats three inline Python variations.
 
 ## Step 2: Hydrate Card Data
 
@@ -570,7 +570,7 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 
 ## Script Input Formats
 
-- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int, "owned_cards": []}`. `owned_cards` is a list of plain name *strings* (not dicts), initialized empty; populate with `mark-owned`. Supports Moxfield (`//Commander` headers), Arena (bare `Commander`/`Deck` headers), MTGO, plain text, and CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
+- `parse-deck <path> [--format FORMAT] [--deck-size N]` — outputs `{"format": str, "deck_size": int, "commanders": [{"name": str, "quantity": int}], "cards": [...], "total_cards": int, "owned_cards": [{"name": str, "quantity": int}]}`. All three card lists share the `[{name, quantity}]` shape; `owned_cards` is initialized empty and populated by `mark-owned`. Supports Moxfield (`//Commander` headers), Arena (bare `Commander`/`Deck` headers), MTGO, plain text, and CSV. **Note:** `<path>` must be an absolute path when using `uv run --directory`.
 - `set-commander <deck.json> "Name" ["Name2"]` — outputs updated deck JSON to stdout. Idempotent: names already in the commander zone are silently skipped, so `parse-deck | set-commander` is safe even when the source file had a Moxfield `Commander` header.
 - `mark-owned <deck.json> <collection.json> [--output PATH]` — populates the deck's `owned_cards` field with the intersection of `deck ∩ collection` (by normalized, diacritic-folded card name). Writes in place by default; `--output` writes elsewhere. Use this instead of inline `python3 -c` for the owned-cards intersection — content-varying Python bodies produce un-cacheable Bash permission patterns.
 - `scryfall-lookup "Card Name"` — outputs single card JSON to stdout

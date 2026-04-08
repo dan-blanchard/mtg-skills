@@ -30,20 +30,30 @@ _extract_price = extract_price
 def _normalize_owned_cards(entries: list) -> set[str]:
     """Return a lowercased name set from an ``owned_cards`` list.
 
-    Accepts both plain strings (the canonical shape) and dicts with a
-    ``name`` key (the parse-deck ``cards``/``commanders`` shape). Entries
-    that are neither are ignored rather than crashing — ``owned_cards``
-    is a convenience field, not a hard contract, and a silent skip on
-    junk is friendlier than a KeyError mid-price-check.
+    ``owned_cards`` is a list of ``{"name": str, "quantity": int}`` dicts,
+    matching the shape of the sibling ``cards`` and ``commanders`` fields
+    on a parsed deck. Entries with missing/malformed names or quantity
+    below 1 are skipped — a zero-quantity binder/wishlist row in a
+    ``mark-owned`` collection does not count as "owned" for budget
+    subtraction. Junk entries (non-dict, missing name) are silently
+    ignored rather than crashing, because ``owned_cards`` is a
+    convenience field and a mid-price-check KeyError would be worse
+    than a silently-ignored typo.
     """
     names: set[str] = set()
     for entry in entries:
-        if isinstance(entry, str):
-            names.add(entry.lower())
-        elif isinstance(entry, dict):
-            name = entry.get("name")
-            if isinstance(name, str):
-                names.add(name.lower())
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str):
+            continue
+        try:
+            qty = int(entry.get("quantity", 1))
+        except (TypeError, ValueError):
+            qty = 1
+        if qty < 1:
+            continue
+        names.add(name.lower())
     return names
 
 
@@ -124,14 +134,11 @@ def check_prices(
     if format is None and isinstance(names_or_deck, dict):
         format = names_or_deck.get("format")  # noqa: A001
 
-    # Extract owned cards from deck JSON if present.
-    #
-    # ``owned_cards`` is canonically a list of plain card-name strings, but
-    # accept list-of-``{"name": str, ...}`` dicts too: the parse-deck-derived
-    # ``cards``/``commanders`` fields use that shape, so callers populating
-    # ``owned_cards`` by analogy end up with dicts. Silently normalizing
-    # avoids a confusing ``AttributeError: 'dict' object has no attribute
-    # 'lower'`` crash for what is clearly an acceptable input.
+    # Extract owned cards from deck JSON if present. ``owned_cards`` is
+    # a list of ``{name, quantity}`` dicts — same shape as the sibling
+    # ``cards``/``commanders`` fields — so callers can populate it by
+    # analogy with the rest of the deck structure. ``mark-owned`` is
+    # the canonical way to populate it from a parsed collection.
     owned_set: set[str] = set()
     if isinstance(names_or_deck, dict):
         owned_set = _normalize_owned_cards(names_or_deck.get("owned_cards", []))
