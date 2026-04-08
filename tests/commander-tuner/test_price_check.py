@@ -188,6 +188,32 @@ class TestCheckPrices:
         assert result["cards"][0]["copies_needed"] == 0
         assert result["cards"][0]["owned"] is True
 
+    def test_echoed_commander_not_double_counted(self):
+        """A legendary creature listed in both ``commanders`` and ``cards``
+        describes the same physical copy, not two copies. ``_extract_deck_entries``
+        must reconcile via ``max`` (not ``sum``) so the deck is charged for
+        one copy, matching ``mark_owned._collect_entries(sum_duplicates=False)``.
+        """
+        cards_data = [
+            {
+                "name": "Atraxa, Praetors' Voice",
+                "prices": {"usd": "30.00", "usd_foil": None},
+            },
+        ]
+        deck = {
+            "commanders": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
+            "cards": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
+        }
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(deck)
+
+        # Charged once, not twice.
+        assert result["total_cost"] == 30.00
+        assert result["cards"][0]["deck_quantity"] == 1
+
     def test_api_fallback_for_null_prices(self):
         bulk_card = {
             "name": "Priceless Card",
@@ -375,6 +401,43 @@ class TestArenaWildcardMode:
         result = check_prices(deck, bulk_path=bulk_path)
         assert result["wildcard_cost"]["common"] == 0
         assert result["cards"][0]["owned"] is True
+
+    def test_arena_4cap_exempt_up_to_n_card(self, tmp_path):
+        """The "up to N" exemption variant (Seven Dwarves, Nazgul) must
+        also suppress the Arena 4-cap substitution: owning 4 Seven
+        Dwarves when the deck wants 7 should charge 3 wildcards, not 0.
+
+        The ``exempt_from_4cap`` flag on ``build_rarity_index`` is
+        already unit-tested for the up-to-N oracle pattern; this test
+        closes the end-to-end loop through ``_check_arena_wildcards``.
+        """
+        cards = [
+            {
+                "name": "Seven Dwarves",
+                "rarity": "rare",
+                "legalities": {"historicbrawl": "legal", "brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+                "oracle_text": (
+                    "Seven Dwarves gets +1/+1 for each other creature "
+                    "named Seven Dwarves you control.\n"
+                    "A deck can have up to seven cards named Seven Dwarves."
+                ),
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Seven Dwarves", "quantity": 7}],
+            "owned_cards": [{"name": "Seven Dwarves", "quantity": 4}],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["rare"] == 3
+        assert result["cards"][0]["wildcards_needed"] == 3
+        assert result["cards"][0]["owned"] is False
 
     def test_arena_partial_ownership_under_4cap(self, tmp_path):
         """Owning 1-3 copies of a normal card does NOT trigger the 4-cap

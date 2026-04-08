@@ -64,20 +64,42 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
     Quantity is preserved so downstream price math can charge for
     playset shortfalls on cards like Hare Apparent that a deck can
     legitimately run more than 4 copies of. First-appearance order
-    is preserved; duplicate names are summed.
+    is preserved; duplicate names within a parsed deck reconcile via
+    ``max`` (not sum), because the only way a parsed deck legitimately
+    has the same card in two rows is when a legendary creature is
+    listed in both the ``commanders`` section and the ``cards`` section
+    — those describe the same physical copy, not two copies. This
+    matches ``mark_owned._collect_entries(sum_duplicates=False)``, so
+    a hand-crafted deck with an echoed commander produces consistent
+    ``deck_qty`` / ``owned_qty`` numbers across both tools.
+
+    Rows with ``quantity < 1`` are dropped (consistent with the
+    ``owned_cards`` treatment in ``_normalize_owned_cards``).
 
     - Plain list of strings → each yields ``(name, 1)``.
-    - List of ``{name, quantity}`` dicts → quantity honored.
-    - Parsed deck JSON → walks ``commanders`` then ``cards``, summing
-      across sections so a card listed in both (unusual but possible)
-      ends up with the combined quantity.
+    - List of ``{name, quantity}`` dicts → quantity honored; duplicates
+      still reduce via ``max``.
+    - Parsed deck JSON → walks ``commanders`` then ``cards`` in
+      first-appearance order.
     """
+    pairs: list[tuple[str, int]] = []
+    seen: dict[str, int] = {}
+
+    def _add(name: str, qty: int) -> None:
+        if qty < 1:
+            return
+        if name in seen:
+            idx = seen[name]
+            prev_name, prev_qty = pairs[idx]
+            pairs[idx] = (prev_name, max(prev_qty, qty))
+        else:
+            seen[name] = len(pairs)
+            pairs.append((name, qty))
+
     if isinstance(names_or_deck, list):
-        pairs: list[tuple[str, int]] = []
-        seen: dict[str, int] = {}
         for item in names_or_deck:
             if isinstance(item, str):
-                name, qty = item, 1
+                _add(item, 1)
             elif isinstance(item, dict):
                 name = item.get("name")
                 if not isinstance(name, str):
@@ -86,22 +108,10 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
                     qty = int(item.get("quantity", 1))
                 except (TypeError, ValueError):
                     qty = 1
-            else:
-                continue
-            if qty < 1:
-                continue
-            if name in seen:
-                idx = seen[name]
-                prev_name, prev_qty = pairs[idx]
-                pairs[idx] = (prev_name, prev_qty + qty)
-            else:
-                seen[name] = len(pairs)
-                pairs.append((name, qty))
+                _add(name, qty)
         return pairs
 
     # Parsed deck JSON
-    pairs = []
-    seen = {}
     for section in ("commanders", "cards"):
         for entry in names_or_deck.get(section, []) or []:
             if not isinstance(entry, dict):
@@ -113,15 +123,7 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
                 qty = int(entry.get("quantity", 1))
             except (TypeError, ValueError):
                 qty = 1
-            if qty < 1:
-                continue
-            if name in seen:
-                idx = seen[name]
-                prev_name, prev_qty = pairs[idx]
-                pairs[idx] = (prev_name, prev_qty + qty)
-            else:
-                seen[name] = len(pairs)
-                pairs.append((name, qty))
+            _add(name, qty)
     return pairs
 
 
@@ -243,6 +245,21 @@ def check_prices(
 
     For Arena formats (brawl, historic_brawl), reports wildcard costs
     (rarity) instead of USD prices when bulk_path is provided.
+
+    Result fields (USD mode):
+
+    - ``total_cost``: sum of ``unit_price * max(deck_qty - owned_qty, 0)``
+      across all slots. The amount the user actually needs to spend to
+      complete the deck from their current collection.
+    - ``total_value``: sum of ``unit_price * deck_qty`` across all slots.
+      This is the **aggregate** deck value (a 7-Island slot contributes
+      7 * unit price), not the unique-card value — changed from the
+      pre-dict-schema era when this field summed each unique name once.
+      Consumers reading ``total_value`` for "deck total worth" still
+      get the right answer; consumers that treated it as "price of one
+      of each unique card" need to divide by quantity themselves.
+    - ``owned_cards_count``: count of slots whose ``owned_qty`` fully
+      covers ``deck_qty`` ("no copies needed"). Not a copy count.
     """
     deck_entries = _extract_deck_entries(names_or_deck)
 
