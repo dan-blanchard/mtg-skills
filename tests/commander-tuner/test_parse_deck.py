@@ -202,6 +202,26 @@ class TestCLI:
         assert "commanders" in data
         assert "cards" in data
 
+    def test_output_flag_writes_file(self, moxfield_deck, tmp_path):
+        runner = CliRunner()
+        out_path = tmp_path / "nested" / "parsed.json"
+        result = runner.invoke(main, [str(moxfield_deck), "--output", str(out_path)])
+        assert result.exit_code == 0
+        assert "parse-deck:" in result.output
+        assert str(out_path.resolve()) in result.output
+        assert '"commanders":' not in result.output
+        data = json.loads(out_path.read_text())
+        assert "commanders" in data
+        assert "cards" in data
+
+    def test_output_flag_refuses_same_path(self, moxfield_deck):
+        runner = CliRunner()
+        result = runner.invoke(
+            main, [str(moxfield_deck), "--output", str(moxfield_deck)]
+        )
+        assert result.exit_code != 0
+        assert "overwrite" in result.output
+
 
 class TestFormatAndDeckSize:
     def test_default_format_is_commander(self, moxfield_deck):

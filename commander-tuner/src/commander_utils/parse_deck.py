@@ -229,7 +229,35 @@ def parse_deck(
     default=None,
     help="Override deck size (default: derived from format).",
 )
-def main(deck_path: Path, deck_format: str, deck_size: int | None):
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write JSON to this file instead of stdout.",
+)
+def main(
+    deck_path: Path,
+    deck_format: str,
+    deck_size: int | None,
+    output_path: Path | None,
+):
     """Parse a deck list file and output JSON."""
     result = parse_deck(deck_path, format=deck_format, deck_size=deck_size)
-    click.echo(json.dumps(result, indent=2))
+    payload = json.dumps(result, indent=2)
+    if output_path is not None:
+        if output_path.resolve() == deck_path.resolve():
+            raise click.UsageError(
+                "--output would overwrite the input deck file; "
+                "pass a different path."
+            )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(payload + "\n")
+        resolved = output_path.resolve()
+        commander_count = len(result["commanders"])
+        click.echo(
+            f"parse-deck: {result['total_cards']} cards, "
+            f"{commander_count} commander(s) -> {resolved}"
+        )
+    else:
+        click.echo(payload)
