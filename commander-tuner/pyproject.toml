@@ -28,6 +28,7 @@ combo-discover = "commander_utils.combo_search:discover_main"
 export-deck = "commander_utils.export_deck:main"
 card-search = "commander_utils.card_search:main"
 find-commanders = "commander_utils.find_commanders:main"
+legality-audit = "commander_utils.legality_audit:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
