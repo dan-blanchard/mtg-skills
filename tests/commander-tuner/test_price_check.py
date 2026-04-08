@@ -140,6 +140,54 @@ class TestCheckPrices:
         assert result["total_value"] == 2.00
         assert result["owned_cards_count"] == 0
 
+    def test_paper_playset_shortfall(self):
+        """Paper mode charges for the shortfall between deck quantity and
+        owned quantity. A Commander deck running 17 Hare Apparent with
+        only 4 in the collection is charged for 13 copies, not 1.
+        """
+        cards_data = [
+            {"name": "Hare Apparent", "prices": {"usd": "1.00", "usd_foil": None}},
+        ]
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Hare Apparent", "quantity": 17}],
+            "owned_cards": [{"name": "Hare Apparent", "quantity": 4}],
+        }
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(deck)
+
+        # Charge for the 13 we don't own, not 1.
+        assert result["total_cost"] == 13.00
+        assert result["total_value"] == 17.00
+        assert result["cards"][0]["copies_needed"] == 13
+        assert result["cards"][0]["deck_quantity"] == 17
+        assert result["cards"][0]["owned_quantity"] == 4
+        assert result["cards"][0]["owned"] is False
+
+    def test_paper_playset_fully_owned(self):
+        """Owning ``>= deck_qty`` copies in paper mode marks the card fully
+        owned and charges zero, even with quantity > 1."""
+        cards_data = [
+            {"name": "Hare Apparent", "prices": {"usd": "1.00", "usd_foil": None}},
+        ]
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Hare Apparent", "quantity": 5}],
+            "owned_cards": [{"name": "Hare Apparent", "quantity": 8}],
+        }
+        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: next(
+                (c for c in cards_data if c["name"] == name), None
+            )
+            result = check_prices(deck)
+
+        assert result["total_cost"] == 0.00
+        assert result["cards"][0]["copies_needed"] == 0
+        assert result["cards"][0]["owned"] is True
+
     def test_api_fallback_for_null_prices(self):
         bulk_card = {
             "name": "Priceless Card",
@@ -240,6 +288,123 @@ class TestArenaWildcardMode:
         assert result["cards"][0]["rarity"] == "uncommon"
         assert result["wildcard_cost"]["uncommon"] == 1
         assert result["wildcard_cost"]["rare"] == 0
+
+    def test_arena_4cap_owning_4_of_normal_card_is_infinite(self, tmp_path):
+        """Arena treats ownership of 4 copies of a standard playset-capped
+        card as infinite supply (no legal deck can need a 5th). A deck
+        running 1 copy with 4 owned = 0 wildcards."""
+        cards = [
+            {
+                "name": "Normal Rare",
+                "rarity": "rare",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+                "oracle_text": "Draw a card.",
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Normal Rare", "quantity": 1}],
+            "owned_cards": [{"name": "Normal Rare", "quantity": 4}],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["rare"] == 0
+        assert result["cards"][0]["owned"] is True
+        assert result["cards"][0]["wildcards_needed"] == 0
+
+    def test_arena_4cap_exempt_card_charges_literal_shortfall(self, tmp_path):
+        """For cards with oracle exemption (any-number / up-to-N), owning
+        4 does NOT grant infinite supply — a deck running 17 Hare
+        Apparent with 4 owned needs 13 wildcards."""
+        cards = [
+            {
+                "name": "Hare Apparent",
+                "rarity": "common",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+                "oracle_text": (
+                    "When Hare Apparent enters, create X 1/1 white Rabbit "
+                    "creature tokens...\n"
+                    "A deck can have any number of cards named Hare Apparent."
+                ),
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Hare Apparent", "quantity": 17}],
+            "owned_cards": [{"name": "Hare Apparent", "quantity": 4}],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["common"] == 13
+        assert result["cards"][0]["owned"] is False
+        assert result["cards"][0]["wildcards_needed"] == 13
+
+    def test_arena_4cap_exempt_card_fully_owned(self, tmp_path):
+        """Exempt card where owned >= deck_qty: 0 wildcards."""
+        cards = [
+            {
+                "name": "Hare Apparent",
+                "rarity": "common",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+                "oracle_text": (
+                    "A deck can have any number of cards named Hare Apparent."
+                ),
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Hare Apparent", "quantity": 7}],
+            "owned_cards": [{"name": "Hare Apparent", "quantity": 10}],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["common"] == 0
+        assert result["cards"][0]["owned"] is True
+
+    def test_arena_partial_ownership_under_4cap(self, tmp_path):
+        """Owning 1-3 copies of a normal card does NOT trigger the 4-cap
+        substitution; the deck still needs wildcards for the shortfall.
+        (In singleton Historic Brawl with owned=1, this is the no-op
+        "fully owned" case, so construct a non-singleton deck.)"""
+        cards = [
+            {
+                "name": "Persistent Petitioners",
+                "rarity": "common",
+                "legalities": {"brawl": "legal"},
+                "games": ["arena"],
+                "prices": {},
+                "oracle_text": (
+                    "A deck can have any number of cards named Persistent Petitioners."
+                ),
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Persistent Petitioners", "quantity": 10}],
+            "owned_cards": [{"name": "Persistent Petitioners", "quantity": 2}],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["common"] == 8
+        assert result["cards"][0]["wildcards_needed"] == 8
 
     def test_owned_cards_not_counted_in_wildcards(self, tmp_path):
         cards = [

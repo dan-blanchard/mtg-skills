@@ -275,7 +275,8 @@ class TestBuildRarityIndex:
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
         index = build_rarity_index(bulk_path, "commander")
-        assert index["dual card"] == "uncommon"
+        assert index["dual card"]["rarity"] == "uncommon"
+        assert index["dual card"]["exempt_from_4cap"] is False
 
     def test_filters_by_legality(self, tmp_path):
         cards = [
@@ -294,7 +295,7 @@ class TestBuildRarityIndex:
         bulk_path.write_text(json.dumps(cards))
         # Legal in brawl — should find common
         index = build_rarity_index(bulk_path, "brawl")
-        assert index["arena card"] == "common"
+        assert index["arena card"]["rarity"] == "common"
         # Not legal in commander — should be absent
         index = build_rarity_index(bulk_path, "commander")
         assert "arena card" not in index
@@ -310,7 +311,7 @@ class TestBuildRarityIndex:
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
         index = build_rarity_index(bulk_path, "commander")
-        assert index["special card"] == "rare"
+        assert index["special card"]["rarity"] == "rare"
 
     def test_indexes_front_face_of_split_cards(self, tmp_path):
         cards = [
@@ -323,8 +324,58 @@ class TestBuildRarityIndex:
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
         index = build_rarity_index(bulk_path, "commander")
-        assert index["fire // ice"] == "uncommon"
-        assert index["fire"] == "uncommon"
+        assert index["fire // ice"]["rarity"] == "uncommon"
+        assert index["fire"]["rarity"] == "uncommon"
+
+    def test_exempt_from_4cap_for_any_number_cards(self, tmp_path):
+        """Cards with 'A deck can have any number of cards named X' oracle
+        text are flagged ``exempt_from_4cap=True`` so price-check can
+        suppress the Arena 4-cap substitution for them."""
+        cards = [
+            {
+                "name": "Hare Apparent",
+                "rarity": "common",
+                "legalities": {"commander": "legal"},
+                "oracle_text": (
+                    "When Hare Apparent enters, create X 1/1 white Rabbit "
+                    "creature tokens, where X is the number of other "
+                    "creatures named Hare Apparent you control.\n"
+                    "A deck can have any number of cards named Hare Apparent."
+                ),
+            },
+            {
+                "name": "Regular Rare",
+                "rarity": "rare",
+                "legalities": {"commander": "legal"},
+                "oracle_text": "Draw a card.",
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = build_rarity_index(bulk_path, "commander")
+        assert index["hare apparent"]["exempt_from_4cap"] is True
+        assert index["regular rare"]["exempt_from_4cap"] is False
+
+    def test_exempt_from_4cap_for_up_to_n_cards(self, tmp_path):
+        """Cards with 'A deck can have up to N cards named X' oracle text
+        are also flagged exempt — a deck can legitimately want 7 Seven
+        Dwarves, so owning 4 is not infinite supply."""
+        cards = [
+            {
+                "name": "Seven Dwarves",
+                "rarity": "rare",
+                "legalities": {"commander": "legal"},
+                "oracle_text": (
+                    "Seven Dwarves gets +1/+1 for each other creature "
+                    "named Seven Dwarves you control.\n"
+                    "A deck can have up to seven cards named Seven Dwarves."
+                ),
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = build_rarity_index(bulk_path, "commander")
+        assert index["seven dwarves"]["exempt_from_4cap"] is True
 
 
 class TestBulkIndexCheapestPrinting:

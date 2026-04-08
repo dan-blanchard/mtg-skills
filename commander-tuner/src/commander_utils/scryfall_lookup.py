@@ -13,7 +13,12 @@ import requests
 
 from commander_utils._sidecar import atomic_write_json
 from commander_utils.bulk_loader import load_bulk_cards
-from commander_utils.card_classify import SKIP_LAYOUTS, extract_price, get_oracle_text
+from commander_utils.card_classify import (
+    SKIP_LAYOUTS,
+    extract_price,
+    get_oracle_text,
+    has_copy_limit_exemption,
+)
 
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 USER_AGENT = "commander-utils/0.1.0"
@@ -97,17 +102,24 @@ def build_rarity_index(
     legality_key: str,
     *,
     arena_only: bool = False,
-) -> dict[str, str]:
-    """Build name→lowest_rarity mapping across all printings legal in a format.
+) -> dict[str, dict]:
+    """Build ``name_lower -> {rarity, exempt_from_4cap}`` index.
 
     For Arena formats, a card's wildcard cost equals its lowest rarity among
     printings available in that format.  When *arena_only* is True, only
     printings that exist on Arena (``"arena" in games``) are considered.
+
+    ``exempt_from_4cap`` is True for cards whose oracle text opts out of the
+    standard 4-copy limit ("A deck can have any number of cards named X"
+    or "A deck can have up to N cards named X"). Arena normally treats
+    ownership of 4 copies as infinite because no legal deck can need a
+    5th, but that substitution does not apply to exempt cards — a deck
+    can legitimately want 17 Hare Apparent.
     """
     cards = load_bulk_cards(bulk_path)
 
     best: dict[str, int] = {}  # name_lower -> best rarity rank
-    best_label: dict[str, str] = {}  # name_lower -> rarity string
+    entries: dict[str, dict] = {}  # name_lower -> {rarity, exempt_from_4cap}
 
     for card in cards:
         # Skip tokens and non-game cards
@@ -124,6 +136,7 @@ def build_rarity_index(
         rarity = card.get("rarity", "rare")
         rank = RARITY_ORDER.get(rarity, 2)
         normalized = "rare" if rarity in ("special", "bonus") else rarity
+        exempt = has_copy_limit_exemption(card)
 
         # Index full name and front face (for split/MDFC cards)
         keys = [name_lower]
@@ -134,9 +147,12 @@ def build_rarity_index(
         for key in keys:
             if key not in best or rank < best[key]:
                 best[key] = rank
-                best_label[key] = normalized
+                entries[key] = {
+                    "rarity": normalized,
+                    "exempt_from_4cap": exempt,
+                }
 
-    return best_label
+    return entries
 
 
 def _extract_fields(card: dict) -> dict:

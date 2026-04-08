@@ -16,7 +16,6 @@ from commander_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
     USER_AGENT,
-    _extract_names,
     _load_bulk_index,
     build_rarity_index,
     lookup_single,
@@ -27,20 +26,21 @@ _ARENA_FORMATS = frozenset({"brawl", "historic_brawl"})
 _extract_price = extract_price
 
 
-def _normalize_owned_cards(entries: list) -> set[str]:
-    """Return a lowercased name set from an ``owned_cards`` list.
+def _normalize_owned_cards(entries: list) -> dict[str, int]:
+    """Return ``lowercased_name -> owned_quantity`` from an ``owned_cards`` list.
 
     ``owned_cards`` is a list of ``{"name": str, "quantity": int}`` dicts,
     matching the shape of the sibling ``cards`` and ``commanders`` fields
-    on a parsed deck. Entries with missing/malformed names or quantity
-    below 1 are skipped — a zero-quantity binder/wishlist row in a
-    ``mark-owned`` collection does not count as "owned" for budget
-    subtraction. Junk entries (non-dict, missing name) are silently
-    ignored rather than crashing, because ``owned_cards`` is a
-    convenience field and a mid-price-check KeyError would be worse
-    than a silently-ignored typo.
+    on a parsed deck. Entries with missing/malformed names are silently
+    skipped (a mid-price-check KeyError would be worse than a silently-
+    ignored typo). Entries with ``quantity < 1`` are skipped — a
+    zero-quantity binder/wishlist row in a ``mark-owned`` collection
+    does not count as "owned" for budget subtraction.
+
+    Duplicate entries are summed so a caller that lists a card twice
+    gets the combined count.
     """
-    names: set[str] = set()
+    owned: dict[str, int] = {}
     for entry in entries:
         if not isinstance(entry, dict):
             continue
@@ -53,8 +53,76 @@ def _normalize_owned_cards(entries: list) -> set[str]:
             qty = 1
         if qty < 1:
             continue
-        names.add(name.lower())
-    return names
+        key = name.lower()
+        owned[key] = owned.get(key, 0) + qty
+    return owned
+
+
+def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
+    """Yield ``(name, deck_quantity)`` pairs from a name list or parsed deck.
+
+    Quantity is preserved so downstream price math can charge for
+    playset shortfalls on cards like Hare Apparent that a deck can
+    legitimately run more than 4 copies of. First-appearance order
+    is preserved; duplicate names are summed.
+
+    - Plain list of strings → each yields ``(name, 1)``.
+    - List of ``{name, quantity}`` dicts → quantity honored.
+    - Parsed deck JSON → walks ``commanders`` then ``cards``, summing
+      across sections so a card listed in both (unusual but possible)
+      ends up with the combined quantity.
+    """
+    if isinstance(names_or_deck, list):
+        pairs: list[tuple[str, int]] = []
+        seen: dict[str, int] = {}
+        for item in names_or_deck:
+            if isinstance(item, str):
+                name, qty = item, 1
+            elif isinstance(item, dict):
+                name = item.get("name")
+                if not isinstance(name, str):
+                    continue
+                try:
+                    qty = int(item.get("quantity", 1))
+                except (TypeError, ValueError):
+                    qty = 1
+            else:
+                continue
+            if qty < 1:
+                continue
+            if name in seen:
+                idx = seen[name]
+                prev_name, prev_qty = pairs[idx]
+                pairs[idx] = (prev_name, prev_qty + qty)
+            else:
+                seen[name] = len(pairs)
+                pairs.append((name, qty))
+        return pairs
+
+    # Parsed deck JSON
+    pairs = []
+    seen = {}
+    for section in ("commanders", "cards"):
+        for entry in names_or_deck.get(section, []) or []:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if not isinstance(name, str):
+                continue
+            try:
+                qty = int(entry.get("quantity", 1))
+            except (TypeError, ValueError):
+                qty = 1
+            if qty < 1:
+                continue
+            if name in seen:
+                idx = seen[name]
+                prev_name, prev_qty = pairs[idx]
+                pairs[idx] = (prev_name, prev_qty + qty)
+            else:
+                seen[name] = len(pairs)
+                pairs.append((name, qty))
+    return pairs
 
 
 def _api_price_lookup(name: str) -> float | None:
@@ -70,42 +138,90 @@ def _api_price_lookup(name: str) -> float | None:
 
 
 def _check_arena_wildcards(
-    names: list[str],
-    owned_set: set[str],
-    rarity_index: dict[str, str],
+    deck_entries: list[tuple[str, int]],
+    owned_map: dict[str, int],
+    rarity_index: dict[str, dict],
 ) -> dict:
     """Build wildcard-based price result for Arena formats.
 
-    Cards absent from the Arena rarity index are reported in the separate
-    ``illegal_or_missing`` list and contribute zero wildcards — they're
-    either banned in-format, not on Arena, or genuinely missing from bulk
-    data. Silently defaulting them to "rare" would mask banned cards like
-    Sol Ring and Skullclamp in budget checks.
+    Applies two quantity-aware rules that the USD path also uses:
+
+    1. **Playset shortfall.** For each deck slot, charge for
+       ``max(deck_qty - effective_owned, 0)`` copies. A Commander deck
+       running 17 Hare Apparent with 4 in the collection costs 13
+       wildcards, not 0.
+    2. **Arena 4-cap substitution.** Arena treats ownership of 4+
+       copies of a standard playset-capped card as infinite (you can
+       never legally need a 5th in a non-singleton format). This
+       substitution is suppressed for cards with an oracle exemption
+       (``exempt_from_4cap`` in the rarity index) — a deck can
+       legitimately want 17 Hare Apparent, so owning 4 does not grant
+       the remaining 13.
+
+    Cards absent from the Arena rarity index are reported in the
+    separate ``illegal_or_missing`` list and contribute zero wildcards
+    — they're either banned in-format, not on Arena, or genuinely
+    missing from bulk data. Silently defaulting them to "rare" would
+    mask banned cards like Sol Ring and Skullclamp in budget checks.
     """
     cards_out: list[dict] = []
     wildcard_cost = {"mythic": 0, "rare": 0, "uncommon": 0, "common": 0}
     owned_count = 0
     illegal_or_missing: list[dict] = []
 
-    for name in names:
-        owned = name.lower() in owned_set
-        if owned:
-            owned_count += 1
-        rarity = rarity_index.get(name.lower())
-        if rarity is None:
-            # Not in the format-filtered Arena rarity index.
+    for name, deck_qty in deck_entries:
+        key = name.lower()
+        owned_qty = owned_map.get(key, 0)
+        entry = rarity_index.get(key)
+
+        if entry is None:
+            # Not in the format-filtered Arena rarity index — illegal or
+            # not on Arena. Still flag the owned count for transparency,
+            # but don't charge wildcards (we can't know the rarity).
+            if owned_qty >= deck_qty:
+                owned_count += 1
             illegal_or_missing.append(
                 {"name": name, "reason": "not_in_arena_rarity_index"},
             )
             cards_out.append(
-                {"name": name, "rarity": None, "owned": owned, "legal": False},
+                {
+                    "name": name,
+                    "rarity": None,
+                    "owned": owned_qty >= deck_qty,
+                    "deck_quantity": deck_qty,
+                    "owned_quantity": owned_qty,
+                    "legal": False,
+                },
             )
             continue
 
-        if not owned:
-            wildcard_cost[rarity] = wildcard_cost.get(rarity, 0) + 1
+        rarity = entry["rarity"]
+        exempt = entry.get("exempt_from_4cap", False)
+
+        # Arena 4-cap: owning 4+ of a standard playset-capped card is
+        # effectively infinite supply. Exempt cards (any-number / up-to-N)
+        # get no such substitution — owned count is literal.
+        if not exempt and owned_qty >= 4:
+            effective_owned = max(owned_qty, deck_qty)
+        else:
+            effective_owned = owned_qty
+        need = max(deck_qty - effective_owned, 0)
+
+        if need == 0:
+            owned_count += 1
+        else:
+            wildcard_cost[rarity] = wildcard_cost.get(rarity, 0) + need
+
         cards_out.append(
-            {"name": name, "rarity": rarity, "owned": owned, "legal": True},
+            {
+                "name": name,
+                "rarity": rarity,
+                "owned": need == 0,
+                "deck_quantity": deck_qty,
+                "owned_quantity": owned_qty,
+                "wildcards_needed": need,
+                "legal": True,
+            },
         )
 
     return {
@@ -128,7 +244,7 @@ def check_prices(
     For Arena formats (brawl, historic_brawl), reports wildcard costs
     (rarity) instead of USD prices when bulk_path is provided.
     """
-    names = _extract_names(names_or_deck)
+    deck_entries = _extract_deck_entries(names_or_deck)
 
     # Detect format from deck JSON if not explicitly provided
     if format is None and isinstance(names_or_deck, dict):
@@ -139,43 +255,51 @@ def check_prices(
     # ``cards``/``commanders`` fields — so callers can populate it by
     # analogy with the rest of the deck structure. ``mark-owned`` is
     # the canonical way to populate it from a parsed collection.
-    owned_set: set[str] = set()
+    owned_map: dict[str, int] = {}
     if isinstance(names_or_deck, dict):
-        owned_set = _normalize_owned_cards(names_or_deck.get("owned_cards", []))
+        owned_map = _normalize_owned_cards(names_or_deck.get("owned_cards", []))
 
     # Arena wildcard mode
     is_arena = format in _ARENA_FORMATS and bulk_path is not None
     if is_arena:
         legality_key = FORMAT_CONFIGS[format]["legality_key"]
         rarity_index = build_rarity_index(bulk_path, legality_key, arena_only=True)
-        return _check_arena_wildcards(names, owned_set, rarity_index)
+        return _check_arena_wildcards(deck_entries, owned_map, rarity_index)
 
-    # USD price mode
+    # USD price mode. Paper has no Arena-style 4-cap substitution, so the
+    # math is simply: for each deck slot, charge ``max(deck_qty - owned_qty, 0)``
+    # copies at the unit price. A deck running 17 Hare Apparent with 4
+    # owned is charged for 13.
     bulk_index = _load_bulk_index(bulk_path) if bulk_path else None
     cards_out: list[dict] = []
     total_cost = 0.0
     total_value = 0.0
     owned_count = 0
 
-    for name in names:
+    for name, deck_qty in deck_entries:
         card = lookup_single(name, bulk_index=bulk_index)
         price = _extract_price(card)
         if price is None and card is not None:
             price = _api_price_lookup(name)
 
-        owned = name.lower() in owned_set
-        if owned:
+        owned_qty = owned_map.get(name.lower(), 0)
+        need = max(deck_qty - owned_qty, 0)
+        fully_owned = need == 0
+        if fully_owned:
             owned_count += 1
+
         if price is not None:
-            total_value += price
-            if not owned:
-                total_cost += price
+            total_value += price * deck_qty
+            total_cost += price * need
 
         cards_out.append(
             {
                 "name": name,
                 "price_usd": price,
-                "owned": owned,
+                "owned": fully_owned,
+                "deck_quantity": deck_qty,
+                "owned_quantity": owned_qty,
+                "copies_needed": need,
                 "running_total": round(total_cost, 2),
             }
         )
