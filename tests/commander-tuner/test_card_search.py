@@ -26,6 +26,8 @@ def _make_card(
     layout="normal",
     set_type="expansion",
     legalities=None,
+    games=None,
+    rarity="uncommon",
 ):
     return {
         "name": name,
@@ -37,6 +39,8 @@ def _make_card(
         "layout": layout,
         "set_type": set_type,
         "legalities": legalities or {"commander": "legal"},
+        "games": games if games is not None else ["arena", "paper"],
+        "rarity": rarity,
     }
 
 
@@ -310,6 +314,118 @@ class TestFormatLegalityFilter:
         names = [c["name"] for c in data]
         assert "Brawl Legal" in names
         assert "Not Brawl Legal" not in names
+
+
+class TestArenaFormatImpliesArenaOnly:
+    """Brawl and Historic Brawl are Arena-native formats.
+
+    Without the implication, `search_cards(format="historic_brawl")` would
+    happily return paper-only printings, and the dedup-by-cheapest-printing
+    step would pick the paper rarity — misreporting a Historic Anthology
+    rare as a Modern Horizons common.
+    """
+
+    def test_brawl_filters_out_paper_only_printings(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Paper Only",
+                legalities={"standardbrawl": "legal"},
+                games=["paper"],
+            ),
+            _make_card(
+                name="Arena Legal",
+                legalities={"standardbrawl": "legal"},
+                games=["arena", "paper"],
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        names = [c["name"] for c in search_cards(bulk_path, format="brawl")]
+        assert "Arena Legal" in names
+        assert "Paper Only" not in names
+
+    def test_historic_brawl_filters_out_paper_only_printings(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Paper Only",
+                legalities={"brawl": "legal"},
+                games=["paper"],
+            ),
+            _make_card(
+                name="Arena Legal",
+                legalities={"brawl": "legal"},
+                games=["arena"],
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        names = [c["name"] for c in search_cards(bulk_path, format="historic_brawl")]
+        assert "Arena Legal" in names
+        assert "Paper Only" not in names
+
+    def test_paper_only_flag_overrides_format_implication(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Paper Only",
+                legalities={"brawl": "legal"},
+                games=["paper"],
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        names = [
+            c["name"]
+            for c in search_cards(bulk_path, format="historic_brawl", paper_only=True)
+        ]
+        assert "Paper Only" in names
+
+    def test_commander_format_does_not_imply_arena_only(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Paper Only",
+                legalities={"commander": "legal"},
+                games=["paper"],
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        names = [c["name"] for c in search_cards(bulk_path, format="commander")]
+        assert "Paper Only" in names
+
+    def test_dedup_prefers_arena_printing_for_historic_brawl(self, tmp_path):
+        """Same card, two printings: paper common vs Arena rare.
+
+        Before the fix, dedup picked the cheapest printing regardless of
+        platform, so the rarity column reported "common" even though Arena
+        players can only get the rare printing. Now the Arena-implied
+        filter runs before dedup, so the Arena printing wins.
+        """
+        cards = [
+            _make_card(
+                name="Ephemerate",
+                price_usd="0.25",
+                rarity="common",
+                legalities={"brawl": "legal"},
+                games=["paper"],
+            ),
+            _make_card(
+                name="Ephemerate",
+                price_usd="3.00",
+                rarity="rare",
+                legalities={"brawl": "legal"},
+                games=["arena"],
+            ),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, format="historic_brawl")
+        assert len(results) == 1
+        assert results[0]["rarity"] == "rare"
 
 
 class TestCLI:

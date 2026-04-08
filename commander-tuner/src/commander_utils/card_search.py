@@ -130,6 +130,15 @@ def search_cards(
     else:
         legality_key = "commander"
 
+    # Brawl and Historic Brawl are Arena-native formats. Without implying
+    # arena_only, the subsequent cheapest-printing dedup would happily pick
+    # a paper-only printing, reporting (e.g.) Ephemerate as a common even
+    # though the only Arena-legal printing is a Historic Anthology rare.
+    # --paper-only remains an explicit escape hatch for the rare paper
+    # Brawl case.
+    if format in ("brawl", "historic_brawl") and not paper_only:
+        arena_only = True
+
     allowed_colors = set(color_identity.upper()) if color_identity else None
     try:
         oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
