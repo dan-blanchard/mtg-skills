@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import unicodedata
 from pathlib import Path
 
 import click
@@ -18,6 +17,7 @@ from commander_utils.card_classify import (
     is_commander,
 )
 from commander_utils.format_config import FORMAT_CONFIGS
+from commander_utils.names import normalize_card_name
 
 CARD_FIELDS = (
     "name",
@@ -33,17 +33,9 @@ CARD_FIELDS = (
 # Anchor "Partner with" to start-of-string or after newline so flavor text or
 # embedded "partner with" inside other rules text can't match. Capture stops at
 # end-of-line or reminder text in parens.
-def _normalize_name(name: str) -> str:
-    """Normalize a card name for cross-source lookup.
-
-    Lowercases and ASCII-folds diacritics so that a Moxfield collection row
-    spelled "Lim-Dul's Vault" matches the bulk-data canonical
-    "Lim-Dûl's Vault". Without this, ASCII-only collection exports silently
-    drop cards with diacritic-bearing names.
-    """
-    folded = unicodedata.normalize("NFKD", name)
-    ascii_only = folded.encode("ascii", "ignore").decode("ascii")
-    return ascii_only.lower()
+# Normalization lives in commander_utils.names so find_commanders and
+# mark_owned cannot drift on what counts as "the same card".
+_normalize_name = normalize_card_name
 
 
 _PARTNER_WITH_RE = re.compile(r"(?:^|\n)Partner with ([^\n(]+?)\s*(?=\(|\n|$)")

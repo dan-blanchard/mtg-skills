@@ -6,31 +6,22 @@ intersection of card names, and writing the result back to the deck's
 ``owned_cards`` field.
 
 Having a dedicated script matters because every unique ``python3 -c``
-body produces a fresh, un-cacheable Bash permission pattern. A stable
-script path (``mark-owned``) is granted once and reused.
+body produces a fresh, un-cacheable Bash permission pattern in Claude
+Code's sandbox: three variations of the recipe = three permission
+prompts. A stable script path (``mark-owned``) is granted once and
+reused for the rest of the session.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-import unicodedata
 from pathlib import Path
 
 import click
 
-
-def _normalize(name: str) -> str:
-    """Lowercase and ASCII-fold for cross-source name matching.
-
-    Mirrors ``find_commanders._normalize_name`` so that a Moxfield CSV
-    entry for "Lim-Dul's Vault" matches the bulk-data canonical
-    "Lim-Dûl's Vault". Without folding, ASCII-only exports silently
-    drop cards with diacritic-bearing names from the owned set.
-    """
-    folded = unicodedata.normalize("NFKD", name)
-    ascii_only = folded.encode("ascii", "ignore").decode("ascii")
-    return ascii_only.lower()
+from commander_utils._sidecar import atomic_write_json
+from commander_utils.names import normalize_card_name
 
 
 def _collect_names(parsed: dict) -> dict[str, str]:
@@ -38,14 +29,20 @@ def _collect_names(parsed: dict) -> dict[str, str]:
 
     Walks both ``commanders`` and ``cards``. The original name is
     preserved so the written ``owned_cards`` field uses the spelling
-    the deck author chose, not the normalized form.
+    the deck author chose, not the normalized form — downstream
+    lookup tools re-normalize, so any spelling that survives
+    ``parse-deck`` round-trips correctly.
     """
     out: dict[str, str] = {}
     for section in ("commanders", "cards"):
         for entry in parsed.get(section, []) or []:
             name = entry.get("name") if isinstance(entry, dict) else None
             if isinstance(name, str) and name:
-                out.setdefault(_normalize(name), name)
+                # First-seen wins: two entries differing only by diacritic
+                # (vanishingly unlikely in practice) collapse to the first
+                # one encountered. The alternative would silently discard
+                # one spelling on every ``mark-owned`` call, which is worse.
+                out.setdefault(normalize_card_name(name), name)
     return out
 
 
@@ -97,10 +94,15 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
 
     result = mark_owned(deck, collection)
     target = output_path.resolve() if output_path else deck_path
-    target.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    # Atomic write via tempfile + rename so an interrupted run never leaves
+    # the user's parsed deck JSON half-overwritten — the default mode IS
+    # in-place overwrite, and corrupting someone's deck to save a keystroke
+    # would be a bad trade.
+    atomic_write_json(target, result)
 
     deck_unique = len(_collect_names(deck))
     owned_count = len(result["owned_cards"])
     click.echo(
-        f"mark-owned: {owned_count} of {deck_unique} unique deck cards owned → {target}"
+        f"mark-owned: {owned_count} of {deck_unique} "
+        f"unique deck cards owned -> {target}"
     )
