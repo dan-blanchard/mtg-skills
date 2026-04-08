@@ -146,6 +146,8 @@ This narrows the candidate *pool*; it does NOT replace the guided interview. Run
 
 6. **Present the shortlist** following the existing "Commander Recommendation" rules (verified oracle text from the script output, color identity, EDHREC count as one signal not the ranking, why-it's-on-the-list label of "staple" / "off-meta fit" / "wildcard"). Mention to the user that candidates are filtered to cards they own and that the default `--min-quantity 1` excludes any wishlist/binder rows — in case they expected to see something tracked at quantity 0. Let the user pick, then proceed to the standard shared questions and Step 2 (Commander Analysis).
 
+   **If the shortlist has 5+ commanders, list all of them in the prose description above.** `AskUserQuestion` is capped at 4 options per question — do NOT pick 4 and hide the rest in an AskUserQuestion call. Either (a) use AskUserQuestion with your top 3 picks as buttons plus a 4th "Other (specify in notes)" so the user can type any name from the prose list, or (b) skip AskUserQuestion entirely and let the user reply in plain text. See "AskUserQuestion caps at 4 options" in the Tooling Notes.
+
 ### Format Selection
 
 Ask: "What format are you building for?"

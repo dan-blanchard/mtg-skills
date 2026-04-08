@@ -72,6 +72,25 @@ class TestMarkOwned:
         result = mark_owned(deck, collection)
         assert all(isinstance(n, str) for n in result["owned_cards"])
 
+    def test_zero_quantity_collection_row_still_counts_as_owned(self):
+        """``mark-owned`` intentionally does not inspect quantity — it only
+        cares about "is this name in the collection at all." A wishlist/
+        binder row exported at ``quantity=0`` from Moxfield will still mark
+        the card as owned. This is a deliberate choice (the sibling script
+        ``find-commanders`` has ``--min-quantity`` for that) and a pinned
+        test exists so a future reader doesn't "fix" it by accident.
+        """
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 0}],
+        }
+        result = mark_owned(deck, collection)
+        assert result["owned_cards"] == ["Sol Ring"]
+
     def test_does_not_mutate_input(self):
         deck = {
             "commanders": [],
@@ -117,6 +136,9 @@ class TestCLI:
         assert result.exit_code == 0, result.output
         written = json.loads(out_path.read_text())
         assert written["owned_cards"] == ["Sol Ring"]
+        # Pin the human-readable summary format so a refactor of
+        # _collect_names can't silently regress the stdout contract.
+        assert "1 of 1 unique deck cards owned" in result.output
 
     def test_in_place_overwrite(self, tmp_path):
         deck_path = tmp_path / "deck.json"
