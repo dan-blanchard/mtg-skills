@@ -30,6 +30,7 @@ card-search = "commander_utils.card_search:main"
 find-commanders = "commander_utils.find_commanders:main"
 legality-audit = "commander_utils.legality_audit:main"
 mark-owned = "commander_utils.mark_owned:main"
+mtga-import = "commander_utils.mtga_import:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
