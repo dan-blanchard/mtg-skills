@@ -168,6 +168,158 @@ class TestMarkOwned:
         assert deck == original
 
 
+class TestDFCAliasing:
+    """DFC / split / adventure / modal cards match across the combined
+    ``"A // B"`` form and the front-face alone. This matters because
+    Scryfall's canonical name (and therefore any importer that resolves
+    via bulk data, like mtga-import) uses the combined form while Arena
+    exports and many Moxfield exports use front-face only — without
+    alias fallback, every DFC the user owns would silently fail to
+    mark as owned."""
+
+    def test_deck_front_face_matches_collection_full_form(self):
+        """Deck lists the front face only; collection (MTGA import)
+        has Scryfall's canonical ``"A // B"``. This is the primary
+        use case the alias lookup was added for."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Fable of the Mirror-Breaker", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {
+                    "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+                    "quantity": 2,
+                },
+            ],
+        }
+        result = mark_owned(deck, collection)
+        assert result["owned_cards"] == [
+            {"name": "Fable of the Mirror-Breaker", "quantity": 2},
+        ]
+
+    def test_deck_full_form_matches_collection_front_face(self):
+        """Mirror case — a deck that uses the full Scryfall name
+        matches a collection (e.g., some Moxfield CSV exports) that
+        stored only the front face. The asymmetric fallback in
+        ``_match_collection_key`` handles this direction too."""
+        deck = {
+            "commanders": [],
+            "cards": [
+                {
+                    "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+                    "quantity": 1,
+                },
+            ],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {"name": "Fable of the Mirror-Breaker", "quantity": 3},
+            ],
+        }
+        result = mark_owned(deck, collection)
+        # Deck-side spelling preserved, collection-side quantity recorded.
+        assert result["owned_cards"] == [
+            {
+                "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+                "quantity": 3,
+            },
+        ]
+
+    def test_both_full_form_matches(self):
+        """Baseline sanity — when both sides use the full form, the
+        primary-key match fires and the alias code path is irrelevant."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Consecrate // Consume", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [{"name": "Consecrate // Consume", "quantity": 4}],
+        }
+        result = mark_owned(deck, collection)
+        assert result["owned_cards"] == [
+            {"name": "Consecrate // Consume", "quantity": 4},
+        ]
+
+    def test_standalone_wins_over_dfc_alias_within_collection(self):
+        """When the same side of the intersection contains BOTH a
+        standalone card named ``"Duress"`` AND a hypothetical DFC
+        ``"Duress // Second Duress"``, the standalone must claim the
+        ``"duress"`` normalized key during pass 1 so the DFC's pass-2
+        alias attempt is suppressed. Without that protection, a deck
+        asking for standalone Duress could false-match the DFC via the
+        alias. This mirrors ``scryfall_lookup._load_bulk_index``'s
+        two-pass semantics."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Duress", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {"name": "Duress", "quantity": 2},
+                # Hypothetical DFC with the same front-face name.
+                # Arena has no such collision empirically, but the
+                # within-index protection still matters for any source
+                # (Moxfield CSV, hand-authored JSON) that could supply
+                # both forms to the same side.
+                {"name": "Duress // Second Duress", "quantity": 1},
+            ],
+        }
+        result = mark_owned(deck, collection)
+        # The standalone Duress in the collection must be the one that
+        # matches the standalone in the deck — not the DFC via its
+        # front-face alias, which would record the wrong quantity.
+        assert result["owned_cards"] == [
+            {"name": "Duress", "quantity": 2},
+        ]
+
+    def test_split_layout_full_name_no_double_count(self):
+        """A split card like Consecrate // Consume with both sides
+        identical in full form must not double-count via the alias
+        (primary key match fires first; alias is a secondary lookup
+        that isn't consulted when the primary hit)."""
+        deck = {
+            "commanders": [],
+            "cards": [
+                {"name": "Consecrate // Consume", "quantity": 1},
+            ],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {"name": "Consecrate // Consume", "quantity": 2},
+            ],
+        }
+        result = mark_owned(deck, collection)
+        # Exactly one entry — no double-emission from the alias.
+        assert len(result["owned_cards"]) == 1
+        assert result["owned_cards"][0]["quantity"] == 2
+
+    def test_diacritic_folding_plus_dfc(self):
+        """Diacritic folding and DFC aliasing compose correctly: a deck
+        listing the ASCII-folded front face matches a collection that
+        stored the diacritic-bearing full form."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lim-Dul's Vault", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                # Hypothetical DFC using diacritic-bearing spelling.
+                {"name": "Lim-D\u00fbl's Vault // Second Vault", "quantity": 3},
+            ],
+        }
+        result = mark_owned(deck, collection)
+        assert result["owned_cards"] == [
+            {"name": "Lim-Dul's Vault", "quantity": 3},
+        ]
+
+
 class TestCLI:
     def test_writes_output_file(self, tmp_path):
         deck_path = tmp_path / "deck.json"

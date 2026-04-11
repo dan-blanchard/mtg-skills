@@ -77,6 +77,72 @@ def _collect_entries(
     return out
 
 
+def _build_alias_lookup(primary: dict[str, tuple[str, int]]) -> dict[str, str]:
+    """Return normalized-key -> primary-key with front-face DFC aliases added.
+
+    Mirrors ``scryfall_lookup._load_bulk_index`` (two-pass, standalone-wins):
+
+    - Pass 1: every primary key maps to itself.
+    - Pass 2: for each primary whose name contains ``" // "``, add the
+      front-face normalized key as an alias pointing at that primary,
+      but only if the front-face key is not already claimed by a
+      standalone primary (or an earlier DFC's alias).
+
+    This lets mark-owned match ``"Fable of the Mirror-Breaker"`` (deck
+    front-face spelling) against ``"Fable of the Mirror-Breaker //
+    Reflection of Kiki-Jiki"`` (collection combined spelling from
+    Scryfall canonical names) without either side knowing that the two
+    are the same card. Scryfall stores all transform/MDFC/adventure/
+    split cards as ``"A // B"``, while Arena exports and many Moxfield
+    exports use front-face only — without alias fallback, every DFC the
+    user owns would silently fail to mark as owned.
+
+    The standalone-wins rule protects against cases like a real
+    standalone ``"Duress"`` within the same index shadowing a hypothetical
+    ``"Duress // Second Duress"`` DFC. Empirically (verified against
+    Scryfall default-cards.json) no Arena-legal cards have a DFC whose
+    front-face name collides with a different standalone card, and only
+    ``"Bind"`` vs ``"Bind // Liberate"`` from Mystery Booster is a real
+    gameplay-relevant collision — so this protection is thorough enough
+    in practice for any real collection or deck list.
+    """
+    lookup: dict[str, str] = {k: k for k in primary}
+    for key, (name, _qty) in primary.items():
+        if " // " not in name:
+            continue
+        front_key = normalize_card_name(name.split(" // ")[0])
+        if front_key not in lookup:
+            lookup[front_key] = key
+    return lookup
+
+
+def _match_collection_key(
+    deck_key: str,
+    coll_lookup: dict[str, str],
+) -> str | None:
+    """Resolve a deck entry's normalized key to a collection primary key.
+
+    Tries, in order:
+
+    1. Direct lookup in ``coll_lookup``. This handles exact primary
+       matches and the common case where the collection stores a DFC
+       combined form and the deck uses the front face (the collection's
+       front-face alias resolves to the combined primary).
+    2. If the deck key itself is a DFC combined form, try its front
+       face as a fallback. This handles the reverse case — the deck
+       uses the combined form while the collection stores only the
+       front-face (rarer, but possible with Moxfield CSV exports that
+       chose front-only).
+    """
+    if deck_key in coll_lookup:
+        return coll_lookup[deck_key]
+    if " // " in deck_key:
+        front = deck_key.split(" // ", 1)[0]
+        if front in coll_lookup:
+            return coll_lookup[front]
+    return None
+
+
 def mark_owned(deck: dict, collection: dict) -> dict:
     """Return a new deck dict with ``owned_cards`` populated from the intersection.
 
@@ -94,21 +160,13 @@ def mark_owned(deck: dict, collection: dict) -> dict:
       playset-limited formats.
     - Collection entries with quantity < 1 (Moxfield wishlist/binder
       rows) are excluded; owning "zero copies" is not owning the card.
-    - Output is sorted by lowercased name for deterministic diffs.
+    - DFC / split / adventure / modal cards match regardless of whether
+      either side used the full ``"A // B"`` form or the front-face
+      alone; see ``_build_alias_lookup`` for the semantics.
+    - Output is sorted by lowercased deck name for deterministic diffs.
     """
-    collection_entries = _collect_entries(collection, sum_duplicates=True)
-    deck_entries = _collect_entries(deck, sum_duplicates=False)
-    owned: list[dict] = []
-    for key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
-        coll = collection_entries.get(key)
-        if coll is None:
-            continue
-        _coll_name, coll_qty = coll
-        if coll_qty < 1:
-            continue
-        original_name, _deck_qty = deck_entries[key]
-        owned.append({"name": original_name, "quantity": coll_qty})
-    return {**deck, "owned_cards": owned}
+    result, _ = _mark_owned_with_count(deck, collection)
+    return result
 
 
 @click.command()
@@ -177,18 +235,21 @@ def _mark_owned_with_count(deck: dict, collection: dict) -> tuple[dict, int]:
     """``mark_owned()`` plus the deck's unique-card count, without re-walking.
 
     The CLI summary needs both the result and the denominator ``N of M``;
-    computing them together avoids walking the deck twice.
+    computing them together avoids walking the deck twice. This is also
+    the single place that implements the intersection — ``mark_owned``
+    is a thin wrapper that drops the count.
     """
     collection_entries = _collect_entries(collection, sum_duplicates=True)
     deck_entries = _collect_entries(deck, sum_duplicates=False)
+    coll_lookup = _build_alias_lookup(collection_entries)
     owned: list[dict] = []
-    for key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
-        coll = collection_entries.get(key)
-        if coll is None:
+    for deck_key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
+        coll_primary_key = _match_collection_key(deck_key, coll_lookup)
+        if coll_primary_key is None:
             continue
-        _coll_name, coll_qty = coll
+        _coll_name, coll_qty = collection_entries[coll_primary_key]
         if coll_qty < 1:
             continue
-        original_name, _deck_qty = deck_entries[key]
+        original_name, _deck_qty = deck_entries[deck_key]
         owned.append({"name": original_name, "quantity": coll_qty})
     return {**deck, "owned_cards": owned}, len(deck_entries)
