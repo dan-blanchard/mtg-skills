@@ -71,7 +71,34 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 
 **The same caching trap applies to `python3 -c "..."`, `awk '...'`, `jq '...'`, and any other Bash pattern where the code body varies between invocations.** Each unique body is a fresh permission pattern. If you need to extract one field from a JSON file, prefer: (a) passing the file directly to a script that already knows how to parse it (see "Parsed deck JSON is the canonical pipeline intermediate" below), (b) `Read` with `offset`/`limit` on the JSON file, or (c) `Grep` on the file. Reach for `python3 -c` only when those options genuinely don't cover the case, and accept the re-prompt cost when you do.
 
+**Decision table — use the script, not `python3 -c`.** Before writing any inline Python/awk/jq body, check this table:
+
+| I want to... | Use this |
+|---|---|
+| See every card's oracle text / type / CMC | `card-summary <hydrated.json> [--nonlands-only\|--lands-only\|--type X]` |
+| Scan the deck for cards matching an oracle pattern | `Grep '<regex>' <hydrated.json>` — full oracle text, no truncation. For human-readable context on matches, pair with `card-summary [--type X]` |
+| Count cards / verify total matches deck size | `deck-stats <deck.json> <hydrated.json>` (reports `total_cards`) or re-run `parse-deck` (reports count in stdout) |
+| Know which deck cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH]` (populates `owned_cards` in place by default) |
+| Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --bulk-data <path>` — reports per-card rarity AND aggregate per-rarity totals vs. budget |
+| Check land count, curve, category totals, avg CMC | `deck-stats <deck.json> <hydrated.json>` |
+| Check mana-base health (Burgess/Karsten, color balance) | `mana-audit <deck.json> <hydrated.json>` |
+| Check format legality / color identity / singleton | `legality-audit <deck.json> <hydrated.json>` |
+| Find existing combos or near-misses in the deck | `combo-search <deck.json>` |
+| Check whether a proposed cut breaks a Step 5.5 near-miss | **For each proposed cut:** `Grep '<cut-name>' <combo-search.json>` to find near-miss lines where this card appears as a partner (post-colon position in `+ <Missing>: <Partner1> + <Partner2> = <Result>`). If any match: read the near-miss result to understand what combo line you're closing, then either (a) justify the closure (the line is weaker than what's gained by the cut) or (b) revise the cut. **If no match, write "no near-miss impact" and move on.** Neither `cut-check` nor the §8.5 post-build combo check can catch this — the broken combo isn't in the current deck (it's a near-miss), so it's invisible to tools that only look at existing combos. This check is the only gate. |
+| Discover combos by outcome or card name | `combo-discover --result "..." \| --card "..." [filters]` |
+| Compare two decks side-by-side | `deck-diff <old.json> <new.json> <old-hyd.json> <new-hyd.json>` |
+| Filter Arena-legal cards by color/oracle/type/CMC/price | `card-search --bulk-data <path> --format <fmt> --arena-only [filters]` |
+| Extract one field or a few entries from a JSON file | `Read` with `offset`/`limit`, or `Grep` |
+| Get a card's Arena-lowest rarity | `price-check --format <fmt>` (never the hydrated cache `rarity` field — that's the default printing's rarity, not Arena's) |
+| Find owned, legal, commander-eligible cards from a collection | `find-commanders <collection.json> --format <fmt> --bulk-data <path> --output <working-dir>/.cache/candidates.json` |
+| Apply proposed cuts/adds and get a new deck file | `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json> --output-dir <dir>` |
+| Run the self-grill (Step 7 hard gate) | Two parallel `Agent` calls with `subagent_type: "general-purpose"` — see §7 for the full prompt templates. Never substituted by mechanical gates |
+
+Only write `python3 -c` when none of these cover the need. When you do, batch every related question you can into a single body — each unique body is a fresh permission pattern, so one big script beats five small ones.
+
 **Scratch-file reuse.** Reuse a small set of stable `/tmp/*.json` paths (e.g., `/tmp/cuts.json`, `/tmp/adds.json`, `/tmp/candidates.json`) across a session rather than minting a new file name each time. Write-tool permissions are granted per path; six distinct scratch paths is six permission prompts, while reusing three paths collapses to three.
+
+**Warning — `/tmp` files persist across sessions.** The Write tool requires a prior `Read` for any existing file, so the first `Write` to a reused `/tmp/*.json` path in a new session fails with *"File has not been read yet"*. If you batched that `Write` in parallel with a Bash call that reads the same file, **the Bash silently consumes the stale prior-session content** — the parallel Write error doesn't block the Bash, so `cut-check` / `scryfall-lookup --batch` / `price-check` / `build-deck` will happily run against the wrong data. Symptom: tool results list cards you never proposed. **Rule:** (a) at session start, `Read` each scratch path you plan to reuse before the first `Write`, OR (b) run `Write` sequentially (not parallel) and verify success before the dependent Bash call. Never batch `Write(/tmp/foo.json)` + `Bash(tool reading /tmp/foo.json)` in a single message. If a tool result lists cards that don't match your intended input, suspect stale-file consumption before suspecting a tool bug.
 
 Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
 
@@ -142,6 +169,8 @@ Outputs:
 Linux users (Wine/Proton) need to supply `--log-path` explicitly; MTGA isn't officially supported on Linux and the importer refuses to auto-detect there. The importer emits both rebalanced (`A-`-prefixed) and non-rebalanced forms of any Alchemy card the user owns on Arena, so downstream matching works regardless of which form the deck lists. It also always injects the six "free" basic lands (Island/Mountain/Plains/Forest/Swamp/Wastes) at effectively-infinite quantity because Arena grants unlimited copies of these.
 
 **`price-check` honors deck quantity and owned quantity.** Paper (USD) mode charges `max(deck_qty - owned_qty, 0) * unit_price` per card, so a deck running 17 Hare Apparent with 4 owned is correctly charged for 13 copies rather than 1. Arena wildcard mode applies the same shortfall math plus the Arena 4-cap substitution: owning ≥4 of a standard playset-capped card grants effectively infinite supply (no legal non-singleton deck can need a 5th), but this substitution is suppressed for cards with oracle exemptions (`A deck can have any number of cards named X` or `A deck can have up to N cards named X`), where owning 4 of Hare Apparent gives you exactly 4. This means the budget math handles any-quantity cards correctly in both paper and Arena contexts without the caller having to care.
+
+**Arena rarity ≠ hydrated cache `rarity` field.** `scryfall-lookup --batch` writes each card's `rarity` from whichever printing Scryfall treats as the "default" — typically the most-referenced paper printing, *not* the Arena printing. Rarity drifts across printings: Ashnod's Altar is uncommon in most paper sets but rare on Arena (BRR is its only Arena printing). If you read `rarity` from the hydrated cache or from `scryfall-lookup --batch` output to plan wildcard spend, you will get the wrong number for cards with printing drift, and your wildcard budget calculation will be off. **For any Arena rarity question, always use `price-check --format brawl` or `--format historic_brawl` with `--bulk-data`** — it reports the lowest Arena-legal rarity per card by walking every Arena printing, which is what MTG Arena actually charges as a wildcard. Never trust the hydrated cache's `rarity` field when you're budgeting wildcards.
 
 ## Step 2: Hydrate Card Data
 
@@ -421,9 +450,12 @@ For each proposed cut, write out (internally, not presented to user):
 2. **Pain point regression:** Does cutting this card make the user's stated problem worse? [yes/no + one sentence why]
 3. **Defensive value:** What does this card prevent, deter, or protect? [one sentence, or "none"]
 4. **Replacement justification:** What specific card in the additions replaces this card's role? [name + one sentence]
-5. **Combo line:** Is this card part of a combo from Step 5.5? [combo name + result, or "not a combo piece"]. If game-winning, justify why cutting is acceptable.
+5. **Combo line:** Is this card part of an *existing* combo from Step 5.5? [combo name + result, or "not a combo piece"]. If game-winning, justify why cutting is acceptable.
+6. **Near-miss partner check:** Which Step 5.5 near-miss results does this card enable as a partner? [list of near-miss results, or "none"]. If any, justify the closure (weaker than what's gained) or revise the cut.
 
-If you cannot fill in all five fields, you have not evaluated the card. Do not proceed to the self-grill.
+The `combo-search` near-miss format is `+ <Missing>: <Partner1> + <Partner2> [+ ...] = <Result>` — the cards after the colon are the in-deck partners. This check catches the self-destroying swap of adding a near-miss completer while unknowingly cutting its required partner, which `cut-check` cannot flag because the broken combo isn't in the current deck yet. (The **separate** post-build check — verifying no *existing* combo was broken by the accepted swaps — lives in §8.5 Impact Verification after `build-deck` has produced `new-deck.json`. That check is NOT substituted by this one: they catch different failure modes and both are required.)
+
+If you cannot fill in all six fields, you have not evaluated the card. Do not proceed to the self-grill.
 
 Review the multiplied trigger values from `cut-check` output. Any cut where the multiplied output is significant for the user's stated goals requires explicit justification for why the replacement is better *for the user's pain point*. If you cannot articulate this, do not cut it.
 
@@ -472,9 +504,13 @@ The challenger reports issues. The proposer responds or revises. Repeat until th
 
 ## Step 8: Propose Changes
 
+> **HARD GATE — write the proposal as its own complete turn BEFORE any `AskUserQuestion`.** Step 8 is the presentation step: you write the full swap table, rationale per swap, verification-gate summary, and combo-state changes as **markdown text** as one complete assistant turn with no tool calls. Step 9 is the question step: a *later* turn in which you call `AskUserQuestion` for close calls. **Do not call `AskUserQuestion` in the same turn where you intend to write the proposal markdown.** When you do, the tool call executes *before* your surrounding text has been finalized — the user acts on the option chips while the proposal body either hasn't been written yet (if the tool call was early in the message) or is mid-stream (if it was later). Either way, the user's approval decision happens without them seeing the content they're approving. They pick "Accept as-is / Swap X / Swap Y / Other" blind, the review is bypassed, and the entire §7 self-grill work is wasted. Cost of writing the proposal as its own turn: one extra user round-trip. Cost of bundling: the entire review gate.
+
 **Before presenting any proposal to the user, run `mana-audit` on the proposed new deck (using `build-deck` output). If `mana-audit` returns FAIL, revise cuts/adds until it passes. Do not present a failing proposal.**
 
 This is not a guideline. It is a gate. A proposal with FAIL status does not leave this step.
+
+**Preferred Step 8 path: `build-deck` + `export-deck`.** These produce a correctly-sized deck JSON by construction, so manual card counting never enters the loop. Only hand-write a deck text block when you genuinely must (rare — e.g., presenting a copyable block inline in the proposal message rather than a file reference). **If you do hand-write**, tally the categories visibly in the narrative before writing — e.g., for a 100-card deck, "Lands 36 + Ramp 10 + Draw 10 + Removal 10 + Wipes 3 + Utility 8 + Engine 18 + Wincons 4 = 99 + 1 commander = 100"; for a 60-card Brawl deck scale each category by 0.6 (e.g., "Lands 22 + Ramp 6 + Draw 6 + Removal 6 + Wipes 2 + Utility 5 + Engine 11 + Wincons 2 = 59 + 1 commander = 60"). Off-by-one errors from mental counting are common and silent; a pre-write tally catches them before they cost a rebuild cycle.
 
 **The user has not seen the debate.** Present the post-debate proposal as a complete, self-contained recommendation with full reasoning for every swap. Do not reference the debate, do not say "after reviewing" or "the revised list" — present it as your recommendation with the reasoning baked in.
 
@@ -492,7 +528,9 @@ Format: paired swaps where possible (cut X → add Y). Show running price total 
 
 ## Step 8.5: Impact Verification
 
-Before presenting close calls, verify the proposal's impact on deck metrics:
+> **HARD GATE — run BOTH checks on the new deck before presenting.** §8.5 exists because the self-grill operates on a *proposal* (cuts/adds lists), while these checks operate on the *built deck*. `build-deck` can still produce a deck that regresses metrics or breaks existing combos even if the swap-level reasoning looked fine — because the proposal review (§6.5 + §7) doesn't see the cross-cut interactions that emerge only after all swaps are applied together. Both checks below are required. Do not present a proposal whose §8.5 output has not been read and cleared. This is not a guideline. It is a gate. A proposal with failing §8.5 output does not leave this step.
+
+**Check 1 — deck-diff metrics:**
 
 Run: `deck-diff <old-deck.json> <new-deck.json> <old-hydrated.json> <new-hydrated.json>`
 
@@ -502,7 +540,17 @@ Confirm:
 - Average CMC didn't increase unexpectedly
 - Ramp count didn't decrease
 
-If any metric is off, revise the proposal before continuing.
+**Check 2 — combo-breakage (complements §6.5 item 6):**
+
+Run: `combo-search <new-deck.json>` and compare the result count / combo list against the §5.5 `combo-search` run on the old deck. For each game-winning combo that existed in the old deck but not the new deck, classify as:
+- **(a) intentional** — the cut was justified in §6.5 as a combo break and the proposer explicitly noted it; OR
+- **(b) regression** — no such justification exists, so the new deck silently lost a win condition.
+
+If any combo is classified (b), revise the proposal before presenting.
+
+**Non-substitutable with §6.5 item 6.** §6.5 item 6 catches cuts that close *near-miss* lines (pre-build, before any combo was in the deck — the near-miss line required cards you're about to cut). This §8.5 check catches cuts that break *existing* combo lines (post-build, against combos already assembled in the old deck — the cut removed a piece of a working combo). Neither subsumes the other — running §6.5 item 6 does NOT satisfy this check, and vice versa. If you already did §6.5 item 6 and are tempted to skip here: read the previous sentence again.
+
+If any metric or combo check is off, revise the proposal before continuing.
 
 ## Step 9: Close Calls
 
@@ -576,6 +624,12 @@ Offer (don't force): mana curve before/after, category breakdown comparison, "ne
 | "I ran cut-check + mana-audit + price-check, that covers Step 7" | No. Those are §6.5 *mechanical* gates. Step 7 is the *strategic* gate and requires two Agent tool calls in this turn. Mechanical gates catch zero of: missed synergy angles, paraphrased oracle text, wrong commander fit, weak swap justification. |
 | "This deck just came from the builder, the self-grill is overkill" | The builder runs no adversarial review. A fresh skeleton is the highest-leverage moment for a challenger pass — that's when bad assumptions are cheapest to fix. Run it. |
 | "I'll dispatch the agents next turn / after the user confirms" | No. Step 7 must complete in the same turn as Step 8. Splitting it across turns means the user sees the proposal before the challenger has reviewed it, which defeats the purpose. |
+| "I'll bundle the Step 8 proposal and the Step 9 AskUserQuestion in one message to save a round-trip" | No. `AskUserQuestion` renders option chips before the surrounding markdown commits as a user-visible turn, so bundling means the user approves 'Accept as-is' without seeing the proposal. Write Step 8's full markdown proposal FIRST as its own turn, then in a LATER message call `AskUserQuestion` for Step 9 close calls. Separating them costs one turn; bundling them bypasses the entire review gate. |
+| "I'll trust the `rarity` field from `scryfall-lookup --batch` / the hydrated cache for Arena budgeting" | No. That field is the Scryfall "default" printing's rarity, not the Arena printing's. Rarity drifts across printings (Ashnod's Altar: uncommon in most paper sets, rare on Arena). Always use `price-check --format brawl`/`--format historic_brawl` for Arena rarity — it walks Arena printings and returns the lowest legal rarity. |
+| "I'll check combos in the deck but skip the near-miss partner scan when proposing cuts" | No. A near-miss combo is `<missing> + <partner1> + <partner2> = <result>`. Your cut list may silently target a `partner`, closing that near-miss before you even try to assemble it. `cut-check` will not flag this because the broken combo isn't currently in the deck. Explicitly check every proposed cut against the Partner slots of every Step 5.5 near-miss (see §6.5 checklist item 6). |
+| "I'll just Write over `/tmp/cuts.json` and run cut-check in the same message" | No. The first `Write` to an existing `/tmp` path from a prior session fails with 'File has not been read yet,' but the parallel Bash call runs anyway against the stale content. `cut-check` / `build-deck` / `scryfall-lookup --batch` / `price-check` will return results for cards you never proposed. Either `Read` the scratch path first at session start, or run Write sequentially and verify success before the dependent Bash call. |
+| "I'll write a quick `python3 -c` to count / filter / extract from this JSON" | Check the decision table in Tooling Notes first. Almost every common analysis task (oracle-text scanning, ownership cross-reference, card counts, rarity budgeting, curve totals, legality, mana balance, combo search) is covered by an existing script. Each unique `python3 -c` body is a fresh Bash permission pattern, so five small inline scripts cost five re-prompts where one decision-table lookup costs zero. Only write inline Python when NO script in the table covers the need, and even then batch every related question into a single body. |
+| "§8.5 is just a metrics review, I can skim it / skip it if the proposal looks fine" | No. §8.5 is a HARD GATE that runs `deck-diff` + `combo-search` on the built deck and catches regressions the proposal-level review (§6.5 + §7) cannot see — emergent cross-cut interactions that only appear once `build-deck` has applied every swap together. Specifically: a cut may not break any combo in isolation, but a cut + an add may break a combo the proposer didn't notice. Both checks in §8.5 are required before presenting. Treating §8.5 as optional skips the only post-build regression catch. |
 | "This step seems unnecessary for this deck" | Follow every step. The process exists because shortcuts cause mistakes. |
 | "Cutting this land for a nonland is fine, the deck has enough" | Count the lands. Count the ramp. Do the math. Don't eyeball mana bases. |
 | "I understand what this commander wants" | You might be missing angles. Present your strategic read and ask the user before analyzing. They play the deck — you don't. |

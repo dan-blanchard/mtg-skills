@@ -62,7 +62,32 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 
 **The same caching trap applies to `python3 -c "..."`, `awk '...'`, `jq '...'`, and any other Bash pattern where the code body varies between invocations.** Each unique body is a fresh permission pattern. If you need to extract one field from a JSON file, prefer: (a) passing the file directly to a script that already knows how to parse it (see "Parsed deck JSON is the canonical pipeline intermediate" below), (b) `Read` with `offset`/`limit` on the JSON file, or (c) `Grep` on the file. Reach for `python3 -c` only when those options genuinely don't cover the case, and accept the re-prompt cost when you do.
 
+**Decision table — use the script, not `python3 -c`.** Before writing any inline Python/awk/jq body, check this table:
+
+| I want to... | Use this |
+|---|---|
+| See every card's oracle text / type / CMC | `card-summary <hydrated.json> [--nonlands-only\|--lands-only\|--type X]` |
+| Scan the skeleton for cards matching an oracle pattern | `Grep '<regex>' <hydrated.json>` — full oracle text, no truncation. For human-readable context on matches, pair with `card-summary [--type X]` |
+| Count cards / verify total matches deck size | `deck-stats <deck.json> <hydrated.json>` (reports `total_cards`) or re-run `parse-deck` (reports count in stdout) |
+| Know which skeleton cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH]` (populates `owned_cards` in place by default) |
+| Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --bulk-data <path>` — reports per-card rarity AND aggregate per-rarity totals vs. budget |
+| Check land count, curve, category totals, avg CMC | `deck-stats <deck.json> <hydrated.json>` |
+| Check mana-base health (Burgess/Karsten, color balance) | `mana-audit <deck.json> <hydrated.json>` |
+| Check format legality / color identity / singleton | `legality-audit <deck.json> <hydrated.json>` |
+| Find existing combos or near-misses in the skeleton | `combo-search <deck.json>` |
+| Discover combos by outcome or card name | `combo-discover --result "..." \| --card "..." [filters]` |
+| Filter Arena-legal cards by color/oracle/type/CMC/price | `card-search --bulk-data <path> --format <fmt> --arena-only [filters]` |
+| Extract one field or a few entries from a JSON file | `Read` with `offset`/`limit`, or `Grep` |
+| Get a card's Arena-lowest rarity | `price-check --format <fmt>` (never the hydrated cache `rarity` field — that's the default printing's rarity, not Arena's) |
+| Find owned, legal, commander-eligible cards from a collection | `find-commanders <collection.json> --format <fmt> --bulk-data <path> --output <working-dir>/.cache/candidates.json` |
+| Populate a deck's owned_cards from an Arena Player.log | `mtga-import --bulk-data <path> --output-dir <working-dir>` |
+| Export the skeleton to a Moxfield-importable text file | `export-deck <deck.json> > <path>` |
+
+Only write `python3 -c` when none of these cover the need. When you do, batch every related question you can into a single body — each unique body is a fresh permission pattern, so one big script beats five small ones.
+
 **Scratch-file reuse.** Reuse a small set of stable `/tmp/*.json` paths (e.g., `/tmp/candidates.json`, `/tmp/pet-cards.json`, `/tmp/cuts.json`) across a session rather than minting a new file name each time. Write-tool permissions are granted per path; six distinct scratch paths is six permission prompts, while reusing three paths collapses to three.
+
+**Warning — `/tmp` files persist across sessions.** The Write tool requires a prior `Read` for any existing file, so the first `Write` to a reused `/tmp/*.json` path in a new session fails with *"File has not been read yet"*. If you batched that `Write` in parallel with a Bash call that reads the same file, **the Bash silently consumes the stale prior-session content** — the parallel Write error doesn't block the Bash, so `scryfall-lookup --batch` / `price-check` / other readers will happily run against the wrong data. Symptom: tool results list cards you never put in the candidate list. **Rule:** (a) at session start, `Read` each scratch path you plan to reuse before the first `Write`, OR (b) run `Write` sequentially (not parallel) and verify success before the dependent Bash call. Never batch `Write(/tmp/foo.json)` + `Bash(tool reading /tmp/foo.json)` in a single message. If a tool result lists cards that don't match your intended input, suspect stale-file consumption before suspecting a tool bug.
 
 Do NOT use `echo` or unquoted shell strings for JSON containing card names — apostrophes in card names break shell quoting.
 
@@ -103,7 +128,13 @@ This overwrites the deck JSON in place with the intersection of deck and collect
 
 **AskUserQuestion caps at 4 options — never silently drop the rest.** The tool's schema rejects more than 4 options per question. When you have more candidates than that (a 5-commander shortlist, 5 archetype choices, a long swap list), do NOT pick 4 and hide the rest. Instead, list **every** option in the preceding text message with enough detail to decide on, then use AskUserQuestion only as a lightweight picker — either (a) present the top 3 as buttons plus a 4th "Other (specify in notes)" option so the user can type any name from the text list, or (b) skip AskUserQuestion entirely for that decision and let the user reply in plain text. The failure mode to avoid is showing 4 option chips that look like the complete set when the text above mentioned 5+.
 
-**Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent.
+**Card count verification:** After writing or editing a deck text file by hand, always parse it immediately and verify the total card count matches the format's expected size (100 for Commander/Historic Brawl, 60 for Brawl). Off-by-one errors from manual edits are common and silent. **Preventive:** before writing the deck file, tally your categories visibly in the narrative — format-appropriate:
+> - **100-card** (Commander / Historic Brawl): e.g., "Lands 36 + Ramp 10 + Draw 10 + Removal 10 + Wipes 3 + Utility 8 + Engine 18 + Wincons 4 = 99 + 1 commander = 100"
+> - **60-card** (Brawl / 60-card Historic Brawl): scale each category by 0.6 and round. E.g., "Lands 22 + Ramp 6 + Draw 6 + Removal 6 + Wipes 2 + Utility 5 + Engine 11 + Wincons 1 = 59 + 1 commander = 60"
+
+Verify by eye before `parse-deck` catches it a step later — pre-write tallies prevent rebuild cycles.
+
+**Arena rarity ≠ hydrated cache `rarity` field.** `scryfall-lookup --batch` writes each card's `rarity` from whichever printing Scryfall treats as the "default" — typically the most-referenced paper printing, *not* the Arena printing. Rarity drifts across printings: Ashnod's Altar is uncommon in most paper sets but rare on Arena (BRR is its only Arena printing). If you read `rarity` from the hydrated cache to plan wildcard spend, you will get the wrong number for cards with printing drift, and your wildcard budget in Step 3 (Structural Verification → price-check) will disagree with your expectation, forcing a rebuild. **For any Arena rarity question, always use `price-check --format brawl` or `--format historic_brawl` with `--bulk-data`** — it reports the lowest Arena-legal rarity per card by walking every Arena printing, which is what MTG Arena actually charges as a wildcard. Never trust the hydrated cache's `rarity` field when you're budgeting wildcards against a fixed per-rarity wildcard count.
 
 ## Step 1: Interview
 
@@ -329,7 +360,7 @@ This fallback path produces a more generic skeleton, but commander-tuner's refin
 **Per category:**
 
 1. Pull candidates from EDHREC high-synergy and top cards for this commander. Supplement with `card-search` to find synergistic cards EDHREC may not surface: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --type <category-type> --price-max <budget-per-card> [--arena-only | --paper-only]`. For Arena decks, use `--arena-only` and omit `--price-max` (manage budget by wildcard rarity instead). For paper Brawl, use `--paper-only` to exclude Arena-only digital cards.
-2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`. Stdout is a small envelope; extract `cache_path`. Run `card-summary <cache_path>` to see a compact table of every candidate with oracle text truncated to 80 chars — that's enough for category-fit scanning. Only `Read` the full cache file for the ~3-5 candidates you're actually deciding between for this slot, and use `offset`/`limit` to pull just those entries.
+2. **Batch-lookup oracle text for all candidates** — write candidate names to a JSON list, then run: `scryfall-lookup --batch <candidates.json> --bulk-data <bulk-data-path> --cache-dir <working-dir>/.cache`. Stdout is a small envelope; extract `cache_path`. Run `card-summary <cache_path>` to see a compact table of every candidate with full oracle text (truncated only at 1000 chars, which virtually no card reaches) — that's enough for category-fit scanning. Only `Read` the full cache file for the ~3-5 candidates you're actually deciding between for this slot, and use `offset`/`limit` to pull just those entries.
 3. Filter by budget (cheapest printings, track running price total against remaining budget). For Arena, track wildcard rarity counts against remaining wildcards instead of prices.
 4. Filter by bracket (avoid Game Changers above target bracket).
 5. Weight by interview preferences (e.g., if user said "I enjoy graveyard strategies," prefer self-mill draw engines over generic draw).
