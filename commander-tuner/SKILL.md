@@ -92,6 +92,7 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 | Get a card's Arena-lowest rarity | `price-check --format <fmt>` (never the hydrated cache `rarity` field — that's the default printing's rarity, not Arena's) |
 | Find owned, legal, commander-eligible cards from a collection | `find-commanders <collection.json> --format <fmt> --bulk-data <path> --output <working-dir>/.cache/candidates.json` |
 | Apply proposed cuts/adds and get a new deck file | `build-deck <deck.json> <hydrated.json> --cuts <cuts.json> --adds <adds.json> --output-dir <dir>` |
+| Export a deck to Moxfield-importable text | `export-deck <deck.json> > <path>` |
 | Run the self-grill (Step 7 hard gate) | Two parallel `Agent` calls with `subagent_type: "general-purpose"` — see §7 for the full prompt templates. Never substituted by mechanical gates |
 
 Only write `python3 -c` when none of these cover the need. When you do, batch every related question you can into a single body — each unique body is a fresh permission pattern, so one big script beats five small ones.
@@ -510,7 +511,7 @@ The challenger reports issues. The proposer responds or revises. Repeat until th
 
 This is not a guideline. It is a gate. A proposal with FAIL status does not leave this step.
 
-**Preferred Step 8 path: `build-deck` + `export-deck`.** These produce a correctly-sized deck JSON by construction, so manual card counting never enters the loop. Only hand-write a deck text block when you genuinely must (rare — e.g., presenting a copyable block inline in the proposal message rather than a file reference). **If you do hand-write**, tally the categories visibly in the narrative before writing — e.g., for a 100-card deck, "Lands 36 + Ramp 10 + Draw 10 + Removal 10 + Wipes 3 + Utility 8 + Engine 18 + Wincons 4 = 99 + 1 commander = 100"; for a 60-card Brawl deck scale each category by 0.6 (e.g., "Lands 22 + Ramp 6 + Draw 6 + Removal 6 + Wipes 2 + Utility 5 + Engine 11 + Wincons 2 = 59 + 1 commander = 60"). Off-by-one errors from mental counting are common and silent; a pre-write tally catches them before they cost a rebuild cycle.
+**Preferred Step 8 path: `build-deck` + `export-deck`.** These produce a correctly-sized deck JSON by construction, so manual card counting never enters the loop. Only hand-write a deck text block when you genuinely must (rare — e.g., presenting a copyable block inline in the proposal message rather than a file reference). **If you do hand-write**, tally the categories visibly in the narrative before writing — e.g., for a 100-card deck, "Lands 36 + Ramp 10 + Draw 10 + Removal 10 + Wipes 3 + Utility 8 + Engine 18 + Wincons 4 = 99 + 1 commander = 100"; for a 60-card Brawl deck scale each category by 0.6 (e.g., "Lands 22 + Ramp 6 + Draw 6 + Removal 6 + Wipes 2 + Utility 5 + Engine 11 + Wincons 1 = 59 + 1 commander = 60"). Off-by-one errors from mental counting are common and silent; a pre-write tally catches them before they cost a rebuild cycle.
 
 **The user has not seen the debate.** Present the post-debate proposal as a complete, self-contained recommendation with full reasoning for every swap. Do not reference the debate, do not say "after reviewing" or "the revised list" — present it as your recommendation with the reasoning baked in.
 
