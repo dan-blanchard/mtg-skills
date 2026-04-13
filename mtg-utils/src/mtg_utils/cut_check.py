@@ -8,8 +8,8 @@ from pathlib import Path
 
 import click
 
-from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.card_classify import build_card_lookup
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.card_classify import build_card_lookup
 
 # ---------------------------------------------------------------------------
 # Trigger type patterns

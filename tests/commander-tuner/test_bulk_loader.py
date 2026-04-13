@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from commander_utils.bulk_loader import (
+from mtg_utils.bulk_loader import (
     SIDECAR_VERSION,
     _sidecar_path,
     build_sidecar,

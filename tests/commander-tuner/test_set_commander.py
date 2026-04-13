@@ -5,7 +5,7 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from commander_utils.set_commander import main, set_commander
+from mtg_utils.set_commander import main, set_commander
 
 
 @pytest.fixture

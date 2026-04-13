@@ -1,6 +1,6 @@
-"""Tests for commander_utils.names — card-name normalization."""
+"""Tests for mtg_utils.names — card-name normalization."""
 
-from commander_utils.names import normalize_card_name
+from mtg_utils.names import normalize_card_name
 
 
 class TestNormalizeCardName:

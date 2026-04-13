@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from commander_utils.cut_check import (
+from mtg_utils.cut_check import (
     detect_commander_multiplication,
     detect_keyword_interactions,
     detect_self_recurring,

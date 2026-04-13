@@ -8,15 +8,15 @@ from pathlib import Path
 
 import click
 
-from commander_utils.bulk_loader import load_bulk_cards
-from commander_utils.card_classify import (
+from mtg_utils.bulk_loader import load_bulk_cards
+from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
     color_identity_subset,
     extract_price,
     get_oracle_text,
     is_commander,
 )
-from commander_utils.format_config import FORMAT_CONFIGS, is_arena_format
+from mtg_utils.format_config import FORMAT_CONFIGS, is_arena_format
 
 _extract_price = extract_price
 _get_oracle_text = get_oracle_text
@@ -337,7 +337,7 @@ def main(
         is_commander_filter=is_commander,
     )
     if as_json:
-        from commander_utils.scryfall_lookup import _extract_fields
+        from mtg_utils.scryfall_lookup import _extract_fields
 
         extracted = [_extract_fields(c) for c in results]
         if fields_spec:

@@ -1,6 +1,6 @@
 """Tests for card classification helpers."""
 
-from commander_utils.card_classify import (
+from mtg_utils.card_classify import (
     color_sources,
     is_commander,
     is_creature,

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.edhrec_lookup import edhrec_lookup, main, slugify
+from mtg_utils.edhrec_lookup import edhrec_lookup, main, slugify
 
 
 class TestSlugify:
@@ -30,7 +30,7 @@ class TestEdhrecLookup:
         mock_resp.json.return_value = sample_edhrec_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.edhrec_lookup.requests") as mock_requests:
+        with patch("mtg_utils.edhrec_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -48,7 +48,7 @@ class TestEdhrecLookup:
         mock_resp.json.return_value = sample_edhrec_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.edhrec_lookup.requests") as mock_requests:
+        with patch("mtg_utils.edhrec_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -62,7 +62,7 @@ class TestEdhrecLookup:
         mock_resp = MagicMock()
         mock_resp.status_code = 404
 
-        with patch("commander_utils.edhrec_lookup.requests") as mock_requests:
+        with patch("mtg_utils.edhrec_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -80,7 +80,7 @@ class TestCLI:
         mock_resp.json.return_value = sample_edhrec_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.edhrec_lookup.requests") as mock_requests:
+        with patch("mtg_utils.edhrec_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session

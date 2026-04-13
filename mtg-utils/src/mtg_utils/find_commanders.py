@@ -8,16 +8,16 @@ from pathlib import Path
 
 import click
 
-from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.bulk_loader import load_bulk_cards
-from commander_utils.card_classify import (
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.bulk_loader import load_bulk_cards
+from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
     color_identity_subset,
     get_oracle_text,
     is_commander,
 )
-from commander_utils.format_config import FORMAT_CONFIGS
-from commander_utils.names import normalize_card_name
+from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.names import normalize_card_name
 
 CARD_FIELDS = (
     "name",
@@ -33,7 +33,7 @@ CARD_FIELDS = (
 # Anchor "Partner with" to start-of-string or after newline so flavor text or
 # embedded "partner with" inside other rules text can't match. Capture stops at
 # end-of-line or reminder text in parens.
-# Normalization lives in commander_utils.names so find_commanders and
+# Normalization lives in mtg_utils.names so find_commanders and
 # mark_owned cannot drift on what counts as "the same card".
 _normalize_name = normalize_card_name
 

@@ -7,9 +7,9 @@ from pathlib import Path
 import click
 import requests
 
-from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.card_classify import build_card_lookup
-from commander_utils.format_config import FORMAT_CONFIGS, get_format_config
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 SPELLBOOK_VARIANTS_URL = "https://backend.commanderspellbook.com/variants"
@@ -147,7 +147,7 @@ def combo_search(
 
 def _load_bulk_name_games(bulk_path: Path) -> dict[str, list[str]]:
     """Load bulk data and build a name→games lookup."""
-    from commander_utils.bulk_loader import load_bulk_cards
+    from mtg_utils.bulk_loader import load_bulk_cards
 
     cards = load_bulk_cards(bulk_path)
     index: dict[str, list[str]] = {}
@@ -190,7 +190,7 @@ def search_combos(
     # Determine legality key for format filtering
     legality_key: str | None = None
     if format:
-        from commander_utils.format_config import FORMAT_CONFIGS
+        from mtg_utils.format_config import FORMAT_CONFIGS
 
         cfg = FORMAT_CONFIGS.get(format)
         if cfg:

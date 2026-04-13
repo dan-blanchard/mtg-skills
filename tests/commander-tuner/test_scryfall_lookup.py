@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.scryfall_lookup import (
+from mtg_utils.scryfall_lookup import (
     _load_bulk_index,
     build_digest,
     build_rarity_index,
@@ -59,7 +59,7 @@ class TestLookupSingle:
         }
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.scryfall_lookup.requests") as mock_requests:
+        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -73,7 +73,7 @@ class TestLookupSingle:
         mock_resp = MagicMock()
         mock_resp.status_code = 404
 
-        with patch("commander_utils.scryfall_lookup.requests") as mock_requests:
+        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -180,7 +180,7 @@ class TestLookupBatch:
         names_path = tmp_path / "names.json"
         names_path.write_text(json.dumps(["Viscera Seer", "Totally Fake Card"]))
 
-        with patch("commander_utils.scryfall_lookup.requests") as mock_requests:
+        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
             mock_resp = MagicMock()
             mock_resp.status_code = 404
             mock_session = MagicMock()
@@ -557,7 +557,7 @@ class TestCLI:
         )
         cache_dir = tmp_path / "cache"
 
-        with patch("commander_utils.scryfall_lookup.requests") as mock_requests:
+        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
             mock_resp = MagicMock()
             mock_resp.status_code = 404
             mock_session = MagicMock()

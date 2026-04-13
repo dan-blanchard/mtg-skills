@@ -9,14 +9,14 @@ from pathlib import Path
 
 import click
 
-from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.card_classify import (
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.card_classify import (
     build_card_lookup,
     color_sources,
     is_land,
     is_ramp,
 )
-from commander_utils.format_config import get_format_config
+from mtg_utils.format_config import get_format_config
 
 _PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 

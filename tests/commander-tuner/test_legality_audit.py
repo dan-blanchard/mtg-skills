@@ -8,7 +8,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from conftest import json_from_cli_output
 
-from commander_utils.legality_audit import (
+from mtg_utils.legality_audit import (
     check_color_identity,
     check_copy_limits,
     check_format_legality,

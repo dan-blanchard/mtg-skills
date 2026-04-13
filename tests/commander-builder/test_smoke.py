@@ -4,13 +4,13 @@ import subprocess
 import sys
 
 
-def test_commander_utils_importable():
-    """The commander_utils package is importable from commander-builder's venv."""
+def test_mtg_utils_importable():
+    """The mtg_utils package is importable from commander-builder's venv."""
     result = subprocess.run(
         [
             sys.executable,
             "-c",
-            "from commander_utils import parse_deck, scryfall_lookup, edhrec_lookup, deck_stats, mana_audit, price_check",
+            "from mtg_utils import parse_deck, scryfall_lookup, edhrec_lookup, deck_stats, mana_audit, price_check",
         ],
         capture_output=True,
         text=True,
@@ -40,7 +40,7 @@ def test_cli_entry_points_available():
     """All expected CLI entry points respond to --help."""
     for entry_point in EXPECTED_ENTRY_POINTS:
         result = subprocess.run(
-            [sys.executable, "-m", "commander_utils." + entry_point.replace("-", "_"), "--help"],
+            [sys.executable, "-m", "mtg_utils." + entry_point.replace("-", "_"), "--help"],
             capture_output=True,
             text=True,
             check=False,
@@ -50,7 +50,7 @@ def test_cli_entry_points_available():
         if result.returncode != 0:
             mod = entry_point.replace("-", "_")
             result2 = subprocess.run(
-                [sys.executable, "-c", f"from commander_utils.{mod} import main; assert callable(main)"],
+                [sys.executable, "-c", f"from mtg_utils.{mod} import main; assert callable(main)"],
                 capture_output=True,
                 text=True,
                 check=False,

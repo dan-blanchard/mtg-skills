@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.price_check import check_prices, main
+from mtg_utils.price_check import check_prices, main
 
 
 class TestCheckPrices:
@@ -20,7 +20,7 @@ class TestCheckPrices:
             {"name": "Cheap Card", "prices": {"usd": "1.50", "usd_foil": "3.00"}},
             {"name": "No Price Card", "prices": {"usd": None, "usd_foil": None}},
         ]
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -31,7 +31,7 @@ class TestCheckPrices:
 
     def test_falls_back_to_usd_foil(self):
         card = {"name": "Foil Only", "prices": {"usd": None, "usd_foil": "5.00"}}
-        with patch("commander_utils.price_check.lookup_single", return_value=card):
+        with patch("mtg_utils.price_check.lookup_single", return_value=card):
             result = check_prices(["Foil Only"])
 
         assert result["cards"][0]["price_usd"] == 5.00
@@ -71,7 +71,7 @@ class TestCheckPrices:
             ],
             "owned_cards": [{"name": "Owned Card", "quantity": 1}],
         }
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -92,7 +92,7 @@ class TestCheckPrices:
             "cards": [{"name": "Sol Ring", "quantity": 1}],
             "owned_cards": [{"name": "sol ring", "quantity": 1}],
         }
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -116,7 +116,7 @@ class TestCheckPrices:
             "cards": [{"name": "Sol Ring", "quantity": 1}],
             "owned_cards": [{"name": "Sol Ring", "quantity": 0}],
         }
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -130,7 +130,7 @@ class TestCheckPrices:
         cards_data = [
             {"name": "Sol Ring", "prices": {"usd": "2.00", "usd_foil": None}},
         ]
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -153,7 +153,7 @@ class TestCheckPrices:
             "cards": [{"name": "Hare Apparent", "quantity": 17}],
             "owned_cards": [{"name": "Hare Apparent", "quantity": 4}],
         }
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -178,7 +178,7 @@ class TestCheckPrices:
             "cards": [{"name": "Hare Apparent", "quantity": 5}],
             "owned_cards": [{"name": "Hare Apparent", "quantity": 8}],
         }
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -204,7 +204,7 @@ class TestCheckPrices:
             "commanders": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
             "cards": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
         }
-        with patch("commander_utils.price_check.lookup_single") as mock_lookup:
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )
@@ -228,8 +228,8 @@ class TestCheckPrices:
         api_resp.raise_for_status = MagicMock()
 
         with (
-            patch("commander_utils.price_check.lookup_single", return_value=bulk_card),
-            patch("commander_utils.price_check.requests") as mock_requests,
+            patch("mtg_utils.price_check.lookup_single", return_value=bulk_card),
+            patch("mtg_utils.price_check.requests") as mock_requests,
         ):
             mock_session = MagicMock()
             mock_session.get.return_value = api_resp
@@ -587,7 +587,7 @@ class TestArenaIllegalOrMissing:
         assert entry["rarity"] is None
 
     def test_text_report_warns_about_illegal_cards(self, tmp_path):
-        from commander_utils.price_check import render_text_report
+        from mtg_utils.price_check import render_text_report
 
         bulk = [
             {

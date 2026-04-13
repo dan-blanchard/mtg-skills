@@ -1,7 +1,7 @@
 """Smoke tests: verify the deck-tuner package installs and key entry points resolve."""
 
-from commander_utils.format_config import FORMAT_CONFIGS, is_constructed_format
-from commander_utils.mana_audit import constructed_land_target
+from mtg_utils.format_config import FORMAT_CONFIGS, is_constructed_format
+from mtg_utils.mana_audit import constructed_land_target
 
 
 class TestImports:

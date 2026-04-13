@@ -4,8 +4,8 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.deck_diff import deck_diff, main
-from commander_utils.parse_deck import parse_deck
+from mtg_utils.deck_diff import deck_diff, main
+from mtg_utils.parse_deck import parse_deck
 
 
 def _make_modified_deck(deck):

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.combo_search import (
+from mtg_utils.combo_search import (
     combo_search,
     discover_main,
     main,
@@ -33,7 +33,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -57,7 +57,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -77,7 +77,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -96,7 +96,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -106,7 +106,7 @@ class TestComboSearch:
         assert len(result["near_misses"]) == 1
 
     def test_returns_empty_on_api_error(self):
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.side_effect = Exception("Connection refused")
             mock_requests.Session.return_value = mock_session
@@ -120,7 +120,7 @@ class TestComboSearch:
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = Exception("Server Error")
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -135,7 +135,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_empty_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -154,7 +154,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -202,7 +202,7 @@ class TestComboSearch:
             ],
         }
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -219,7 +219,7 @@ class TestComboSearch:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -259,7 +259,7 @@ class TestFormatAwareLegality:
             ],
         }
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -275,7 +275,7 @@ class TestFormatAwareLegality:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -308,7 +308,7 @@ class TestFormatAwareLegality:
             ],
         }
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -331,7 +331,7 @@ class TestCLI:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -359,7 +359,7 @@ class TestCLI:
         mock_resp.json.return_value = sample_combo_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -421,7 +421,7 @@ class TestSearchCombos:
     def test_builds_query_from_result(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -439,7 +439,7 @@ class TestSearchCombos:
     def test_builds_query_from_card(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -453,7 +453,7 @@ class TestSearchCombos:
     def test_builds_query_from_multiple_cards(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -468,7 +468,7 @@ class TestSearchCombos:
     def test_builds_query_with_color_identity(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -482,7 +482,7 @@ class TestSearchCombos:
     def test_combines_all_query_parts(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -502,7 +502,7 @@ class TestSearchCombos:
     def test_normalizes_response(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -519,7 +519,7 @@ class TestSearchCombos:
         assert combo["popularity"] == 24384
 
     def test_returns_empty_on_api_error(self):
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.side_effect = Exception("Connection refused")
             mock_requests.Session.return_value = mock_session
@@ -531,7 +531,7 @@ class TestSearchCombos:
     def test_returns_empty_on_http_error(self):
         mock_resp = self._mock_get({}, status_code=500, raise_error=True)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -543,7 +543,7 @@ class TestSearchCombos:
     def test_respects_ordering_param(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -556,7 +556,7 @@ class TestSearchCombos:
     def test_respects_limit_param(self):
         mock_resp = self._mock_get(SAMPLE_VARIANTS_RESPONSE)
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -577,19 +577,19 @@ class TestGameWinningClassifier:
     """
 
     def test_infinite_is_game_winning(self):
-        from commander_utils.combo_search import _is_game_winning
+        from mtg_utils.combo_search import _is_game_winning
 
         assert _is_game_winning({"result": ["Infinite damage"]})
         assert _is_game_winning({"result": ["Infinite creature tokens"]})
         assert _is_game_winning({"result": ["Infinite mana", "Draw the deck"]})
 
     def test_win_the_game_is_game_winning(self):
-        from commander_utils.combo_search import _is_game_winning
+        from mtg_utils.combo_search import _is_game_winning
 
         assert _is_game_winning({"result": ["Win the game"]})
 
     def test_non_infinite_value_interactions_are_not_game_winning(self):
-        from commander_utils.combo_search import _is_game_winning
+        from mtg_utils.combo_search import _is_game_winning
 
         assert not _is_game_winning({"result": ["Extra mana of any color"]})
         assert not _is_game_winning({"result": ["Untap all lands"]})
@@ -600,7 +600,7 @@ class TestGameWinningClassifier:
         like 'game-ending' and 'lethal damage to each opponent'. A future
         broadening of _is_game_winning should delete this test and replace
         it with expanded positive cases."""
-        from commander_utils.combo_search import _is_game_winning
+        from mtg_utils.combo_search import _is_game_winning
 
         assert not _is_game_winning({"result": ["Game-ending pressure"]})
         assert not _is_game_winning({"result": ["Lethal damage to each opponent"]})
@@ -617,7 +617,7 @@ class TestDiscoverCLI:
         mock_resp.json.return_value = SAMPLE_VARIANTS_RESPONSE
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.combo_search.requests") as mock_requests:
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session

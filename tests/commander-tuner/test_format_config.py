@@ -1,6 +1,6 @@
 """Tests for format_config module."""
 
-from commander_utils.format_config import FORMAT_CONFIGS, get_format_config
+from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
 
 
 class TestFormatConfigs:

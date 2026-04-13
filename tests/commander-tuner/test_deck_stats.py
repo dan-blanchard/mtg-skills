@@ -4,8 +4,8 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.deck_stats import deck_stats, main, render_text_report
-from commander_utils.parse_deck import parse_deck
+from mtg_utils.deck_stats import deck_stats, main, render_text_report
+from mtg_utils.parse_deck import parse_deck
 
 
 class TestDeckStats:

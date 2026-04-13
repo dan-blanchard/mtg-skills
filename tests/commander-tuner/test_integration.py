@@ -2,9 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
-from commander_utils.edhrec_lookup import edhrec_lookup
-from commander_utils.parse_deck import parse_deck
-from commander_utils.scryfall_lookup import _load_bulk_index, lookup_single
+from mtg_utils.edhrec_lookup import edhrec_lookup
+from mtg_utils.parse_deck import parse_deck
+from mtg_utils.scryfall_lookup import _load_bulk_index, lookup_single
 
 
 class TestFullPipeline:
@@ -73,7 +73,7 @@ class TestFullPipeline:
         mock_resp.json.return_value = sample_edhrec_response
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.edhrec_lookup.requests") as mock_requests:
+        with patch("mtg_utils.edhrec_lookup.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session

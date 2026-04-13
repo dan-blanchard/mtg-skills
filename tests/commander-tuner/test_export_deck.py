@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.export_deck import export_moxfield, main
+from mtg_utils.export_deck import export_moxfield, main
 
 SAMPLE_DECK = {
     "commanders": [{"name": "Kalain, Reclusive Painter", "quantity": 1}],

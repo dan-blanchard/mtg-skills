@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from commander_utils.build_deck import build_deck, main
+from mtg_utils.build_deck import build_deck, main
 
 
 class TestBuildDeck:
@@ -129,7 +129,7 @@ class TestCLI:
         }
 
         with patch(
-            "commander_utils.build_deck.lookup_single", return_value=good_card_data
+            "mtg_utils.build_deck.lookup_single", return_value=good_card_data
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -235,7 +235,7 @@ class TestDeckSizeWarning:
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
 
-        with patch("commander_utils.build_deck.lookup_single", return_value=None):
+        with patch("mtg_utils.build_deck.lookup_single", return_value=None):
             runner = CliRunner()
             result = runner.invoke(
                 main,
@@ -270,7 +270,7 @@ class TestDeckSizeWarning:
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
 
-        with patch("commander_utils.build_deck.lookup_single", return_value=None):
+        with patch("mtg_utils.build_deck.lookup_single", return_value=None):
             runner = CliRunner()
             result = runner.invoke(
                 main,
@@ -299,7 +299,7 @@ class TestDeckSizeWarning:
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(hydrated))
 
-        with patch("commander_utils.build_deck.lookup_single", return_value=None):
+        with patch("mtg_utils.build_deck.lookup_single", return_value=None):
             runner = CliRunner()
             result = runner.invoke(
                 main,

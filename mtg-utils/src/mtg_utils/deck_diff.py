@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from commander_utils.card_classify import build_card_lookup, is_land, is_ramp
+from mtg_utils.card_classify import build_card_lookup, is_land, is_ramp
 
 
 def _build_name_qty(deck: dict) -> dict[str, int]:

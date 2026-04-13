@@ -6,7 +6,7 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.mana_audit import (
+from mtg_utils.mana_audit import (
     burgess_formula,
     color_balance,
     constructed_land_target,
@@ -16,7 +16,7 @@ from commander_utils.mana_audit import (
     mana_audit,
     pip_demand,
 )
-from commander_utils.parse_deck import parse_deck
+from mtg_utils.parse_deck import parse_deck
 
 
 class TestBurgessFormula:

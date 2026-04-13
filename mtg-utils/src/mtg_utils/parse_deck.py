@@ -9,7 +9,7 @@ from pathlib import Path
 
 import click
 
-from commander_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.format_config import FORMAT_CONFIGS
 
 
 def _detect_format(content: str) -> str:

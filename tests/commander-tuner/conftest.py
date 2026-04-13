@@ -1,4 +1,4 @@
-"""Shared test fixtures for commander_utils tests."""
+"""Shared test fixtures for mtg_utils tests."""
 
 import json
 import textwrap

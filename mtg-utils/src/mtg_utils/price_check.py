@@ -9,11 +9,11 @@ from pathlib import Path
 import click
 import requests
 
-from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.card_classify import extract_price
-from commander_utils.format_config import FORMAT_CONFIGS
-from commander_utils.format_config import is_arena_format as _is_arena_format
-from commander_utils.scryfall_lookup import (
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.card_classify import extract_price
+from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.format_config import is_arena_format as _is_arena_format
+from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
     USER_AGENT,

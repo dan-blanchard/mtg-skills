@@ -25,13 +25,13 @@ from pathlib import Path
 
 import click
 
-from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.card_classify import (
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.card_classify import (
     build_card_lookup,
     has_any_number_exemption,
     named_card_cap,
 )
-from commander_utils.format_config import get_format_config
+from mtg_utils.format_config import get_format_config
 
 # Basic land subtypes that produce colored mana. Wastes is a basic land too,
 # but it has an empty color identity, so it always passes the subset check

@@ -8,9 +8,9 @@ from pathlib import Path
 
 import click
 
-from commander_utils.format_config import get_format_config
-from commander_utils.names import normalize_card_name
-from commander_utils.scryfall_lookup import lookup_single
+from mtg_utils.format_config import get_format_config
+from mtg_utils.names import normalize_card_name
+from mtg_utils.scryfall_lookup import lookup_single
 
 
 def _normalize_entry(entry: str | dict) -> dict:

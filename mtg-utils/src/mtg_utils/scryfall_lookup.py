@@ -11,9 +11,9 @@ from pathlib import Path
 import click
 import requests
 
-from commander_utils._sidecar import atomic_write_json
-from commander_utils.bulk_loader import load_bulk_cards
-from commander_utils.card_classify import (
+from mtg_utils._sidecar import atomic_write_json
+from mtg_utils.bulk_loader import load_bulk_cards
+from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
     extract_price,
     get_oracle_text,

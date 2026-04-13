@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.mark_owned import main, mark_owned
+from mtg_utils.mark_owned import main, mark_owned
 
 
 class TestMarkOwned:

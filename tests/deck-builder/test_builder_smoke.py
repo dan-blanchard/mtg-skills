@@ -1,6 +1,6 @@
 """Smoke tests: verify the deck-builder package installs and key modules resolve."""
 
-from commander_utils.format_config import FORMAT_CONFIGS, is_arena_format
+from mtg_utils.format_config import FORMAT_CONFIGS, is_arena_format
 
 
 class TestImports:

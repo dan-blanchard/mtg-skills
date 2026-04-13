@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from commander_utils.web_fetch import _strip_html, fetch_page, main
+from mtg_utils.web_fetch import _strip_html, fetch_page, main
 
 
 class TestStripHtml:
@@ -47,7 +47,7 @@ class TestFetchPage:
         mock_resp.text = "<html><body><p>Card strategy here</p></body></html>"
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.web_fetch.requests") as mock_requests:
+        with patch("mtg_utils.web_fetch.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -61,7 +61,7 @@ class TestFetchPage:
         mock_resp.text = "<p>Content</p>"
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.web_fetch.requests") as mock_requests:
+        with patch("mtg_utils.web_fetch.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -81,8 +81,8 @@ class TestCurlFallback:
         mock_resp.status_code = 403
 
         with (
-            patch("commander_utils.web_fetch.requests") as mock_requests,
-            patch("commander_utils.web_fetch.subprocess") as mock_subprocess,
+            patch("mtg_utils.web_fetch.requests") as mock_requests,
+            patch("mtg_utils.web_fetch.subprocess") as mock_subprocess,
         ):
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
@@ -105,8 +105,8 @@ class TestCurlFallback:
         mock_resp.raise_for_status = MagicMock()
 
         with (
-            patch("commander_utils.web_fetch.requests") as mock_requests,
-            patch("commander_utils.web_fetch.subprocess") as mock_subprocess,
+            patch("mtg_utils.web_fetch.requests") as mock_requests,
+            patch("mtg_utils.web_fetch.subprocess") as mock_subprocess,
         ):
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
@@ -124,7 +124,7 @@ class TestCLI:
         mock_resp.text = "<p>Strategy guide content</p>"
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.web_fetch.requests") as mock_requests:
+        with patch("mtg_utils.web_fetch.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
@@ -140,7 +140,7 @@ class TestCLI:
         mock_resp.text = "<p>" + "A" * 1000 + "</p>"
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("commander_utils.web_fetch.requests") as mock_requests:
+        with patch("mtg_utils.web_fetch.requests") as mock_requests:
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             mock_requests.Session.return_value = mock_session

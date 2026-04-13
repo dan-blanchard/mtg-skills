@@ -35,9 +35,9 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from commander_utils import mtga_import
-from commander_utils.mark_owned import mark_owned
-from commander_utils.mtga_import import (
+from mtg_utils import mtga_import
+from mtg_utils.mark_owned import mark_owned
+from mtg_utils.mtga_import import (
     _build_collection_json,
     _build_wildcards_json,
     _check_bulk_freshness,

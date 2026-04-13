@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from commander_utils.find_commanders import (
+from mtg_utils.find_commanders import (
     _build_owned_index,
     _has_background_clause,
     _is_partner,
@@ -610,7 +610,7 @@ class TestMdfcOracleText:
         # Hypothetical MDFC where the partner-with text lives on a face,
         # not the top-level oracle_text. get_oracle_text() concatenates faces,
         # so _is_partner / _partner_with_target should still detect it.
-        from commander_utils.card_classify import get_oracle_text
+        from mtg_utils.card_classify import get_oracle_text
 
         card = {
             "name": "Hypothetical MDFC // Partner Side",

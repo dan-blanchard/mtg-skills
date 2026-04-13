@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from commander_utils.card_classify import build_card_lookup, is_land
+from mtg_utils.card_classify import build_card_lookup, is_land
 
 
 def card_summary(

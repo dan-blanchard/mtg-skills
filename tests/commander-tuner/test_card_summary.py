@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.card_summary import card_summary, main
+from mtg_utils.card_summary import card_summary, main
 
 
 class TestCardSummary:

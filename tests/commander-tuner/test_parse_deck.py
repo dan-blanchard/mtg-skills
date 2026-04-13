@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.parse_deck import main, parse_deck
+from mtg_utils.parse_deck import main, parse_deck
 
 
 class TestParseMoxfield:

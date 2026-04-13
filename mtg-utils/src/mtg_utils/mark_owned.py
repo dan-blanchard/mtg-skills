@@ -20,8 +20,8 @@ from pathlib import Path
 
 import click
 
-from commander_utils._sidecar import atomic_write_json
-from commander_utils.names import build_name_alias_map, normalize_card_name
+from mtg_utils._sidecar import atomic_write_json
+from mtg_utils.names import build_name_alias_map, normalize_card_name
 
 
 def _collect_entries(
@@ -250,7 +250,7 @@ def main(
     try:
         collection = json.loads(collection_text)
     except json.JSONDecodeError:
-        from commander_utils.parse_deck import parse_csv
+        from mtg_utils.parse_deck import parse_csv
 
         parsed = parse_csv(collection_text)
         collection = {

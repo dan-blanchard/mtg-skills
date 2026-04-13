@@ -6,8 +6,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from commander_utils.card_classify import color_identity_subset
-from commander_utils.card_search import (
+from mtg_utils.card_classify import color_identity_subset
+from mtg_utils.card_search import (
     _extract_price,
     _matches_filters,
     format_results,

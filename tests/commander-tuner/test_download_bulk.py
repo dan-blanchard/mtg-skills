@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from commander_utils.download_bulk import download_bulk, main
+from mtg_utils.download_bulk import download_bulk, main
 
 
 class TestDownloadBulk:
@@ -21,7 +21,7 @@ class TestDownloadBulk:
         }
         mock_cards = [{"id": "abc", "name": "Lightning Bolt"}]
 
-        with patch("commander_utils.download_bulk.requests") as mock_requests:
+        with patch("mtg_utils.download_bulk.requests") as mock_requests:
             mock_meta_resp = MagicMock()
             mock_meta_resp.json.return_value = mock_bulk_meta
             mock_meta_resp.raise_for_status = MagicMock()
@@ -47,7 +47,7 @@ class TestDownloadBulk:
         existing = tmp_path / "default-cards.json"
         existing.write_text("[]")
 
-        with patch("commander_utils.download_bulk.requests") as mock_requests:
+        with patch("mtg_utils.download_bulk.requests") as mock_requests:
             result_path = download_bulk(output_dir=tmp_path)
 
         mock_requests.Session.assert_not_called()

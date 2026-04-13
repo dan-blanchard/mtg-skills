@@ -92,8 +92,8 @@ from pathlib import Path
 
 import click
 
-from commander_utils._sidecar import atomic_write_json
-from commander_utils.bulk_loader import load_bulk_cards
+from mtg_utils._sidecar import atomic_write_json
+from mtg_utils.bulk_loader import load_bulk_cards
 
 # The exact anchor string that marks a login-time API response in the
 # Arena log. The StartHook response carries ``InventoryInfo`` (wildcards

@@ -2,29 +2,21 @@
 
 ## Commands
 
-### commander-tuner
+### mtg-utils
 
 ```bash
-cd commander-tuner
+cd mtg-utils
 uv sync                              # Install dependencies
 uv run pytest ../tests/commander-tuner/ -v  # Run tests
 uv run ruff check src/ ../tests/commander-tuner/  # Lint
 uv run ruff format src/ ../tests/commander-tuner/  # Format
 ```
 
-### commander-builder
-
-```bash
-cd commander-builder
-uv sync                              # Install dependencies (follows symlink to commander-tuner/src)
-uv run pytest ../tests/commander-builder/ -v  # Run smoke tests
-```
-
 ### deck-tuner
 
 ```bash
 cd deck-tuner
-uv sync                              # Install dependencies (follows symlink to commander-tuner/src)
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
 uv run pytest ../tests/deck-tuner/ -v  # Run tests
 ```
 
@@ -32,17 +24,25 @@ uv run pytest ../tests/deck-tuner/ -v  # Run tests
 
 ```bash
 cd deck-builder
-uv sync                              # Install dependencies (follows symlink to commander-tuner/src)
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
 uv run pytest ../tests/deck-builder/ -v  # Run smoke tests
+```
+
+### commander-builder
+
+```bash
+cd commander-builder
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
+uv run pytest ../tests/commander-builder/ -v  # Run smoke tests
 ```
 
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
-### commander-tuner
+### mtg-utils
 
-Sixteen CLI scripts backed by library modules, orchestrated by SKILL.md:
+Shared Python package (`mtg_utils`). Sixteen CLI scripts backed by library modules:
 
 - **`parse_deck.py`** — Multi-format deck list parser with sideboard support. Strips Moxfield set code suffixes.
 - **`scryfall_lookup.py`** — Card lookup against Scryfall bulk data with API fallback and persistent caching.
@@ -67,15 +67,15 @@ Shared library module (not a CLI script):
 
 ### commander-builder
 
-SKILL.md-only workflow (no Python scripts of its own). Shares `commander_utils` via symlink to `commander-tuner/src`. Guides users through commander selection and deck skeleton generation, then hands off to commander-tuner for refinement.
+SKILL.md-only workflow (no Python scripts of its own). Shares `mtg_utils` via symlink to `mtg-utils/src`. Guides users through commander selection and deck skeleton generation, then hands off to commander-tuner for refinement.
 
 ### deck-tuner
 
-Shares `commander_utils` via symlink to `commander-tuner/src`. Tunes 60-card constructed decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Tunes 60-card constructed decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
 
 ### deck-builder
 
-Shares `commander_utils` via symlink to `commander-tuner/src`. Builds 60-card constructed decks with sideboards for the same formats as deck-tuner (including PreModern), then hands off to deck-tuner for refinement.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds 60-card constructed decks with sideboards for the same formats as deck-tuner (including PreModern), then hands off to deck-tuner for refinement.
 
 ## Supported Formats
 
@@ -96,4 +96,4 @@ Shares `commander_utils` via symlink to `commander-tuner/src`. Builds 60-card co
 
 ## Testing
 
-Tests live in `tests/commander-tuner/` and `tests/deck-tuner/` (outside the skill directories so they aren't installed). Use `unittest.mock` for HTTP calls. No real network calls in tests.
+Tests live in `tests/commander-tuner/` (mtg-utils package tests), `tests/deck-tuner/`, and `tests/deck-builder/` (outside the skill directories so they aren't installed). Use `unittest.mock` for HTTP calls. No real network calls in tests.

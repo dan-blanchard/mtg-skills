@@ -61,7 +61,7 @@ def build_name_alias_map(bulk_path: Path) -> dict[str, str]:
     ``printed_name`` values (e.g., Japanese Mystical Archive) are
     excluded to avoid false matches.
     """
-    from commander_utils.bulk_loader import load_bulk_cards
+    from mtg_utils.bulk_loader import load_bulk_cards
 
     cards = load_bulk_cards(bulk_path)
     aliases: dict[str, str] = {}

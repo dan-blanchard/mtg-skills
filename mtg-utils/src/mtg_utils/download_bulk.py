@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 import requests
 
-from commander_utils.bulk_loader import build_sidecar
+from mtg_utils.bulk_loader import build_sidecar
 
 SCRYFALL_BULK_URL = "https://api.scryfall.com/bulk-data"
 USER_AGENT = "commander-utils/0.1.0"
