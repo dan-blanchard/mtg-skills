@@ -26,6 +26,8 @@ RATE_LIMIT_DELAY = 0.1
 
 CARD_FIELDS = [
     "name",
+    "printed_name",
+    "flavor_name",
     "oracle_text",
     "mana_cost",
     "cmc",
@@ -62,11 +64,13 @@ _cheapest_usd = extract_price
 def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
     """Load bulk data and build name→card lookup.
 
-    Indexes by full name and by front face name (before ' // ').
-    When multiple printings exist, prefers the one with the lowest USD price.
-    Uses two passes so standalone cards always win the front-face key over
-    split/MDFC cards (e.g., looking up "Bind" returns the standalone card,
-    not "Bind // Liberate").
+    Indexes by full name, front face name (before ' // '), and Arena
+    alternate names (printed_name / flavor_name).  When multiple
+    printings exist, prefers the one with the lowest USD price.
+    Uses three passes so standalone cards always win the front-face key
+    over split/MDFC cards (e.g., looking up "Bind" returns the standalone
+    card, not "Bind // Liberate"), and alias keys never overwrite
+    canonical keys.
     """
     cards = load_bulk_cards(bulk_path)
 
@@ -100,6 +104,26 @@ def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
         front_key = card["name"].split(" // ")[0].lower()
         if front_key not in index:
             index[front_key] = card
+
+    # Pass 3: add printed_name / flavor_name aliases (Arena-specific names).
+    # Only add if the alias key isn't already claimed by a canonical name.
+    for card in cards:
+        if card.get("layout") in SKIP_LAYOUTS:
+            continue
+        if card.get("lang", "en") != "en":
+            continue
+        name = card.get("name", "")
+        for field in ("printed_name", "flavor_name"):
+            alias = card.get(field, "")
+            if not alias or alias == name:
+                continue
+            alias_key = alias.lower()
+            if alias_key not in index:
+                # Point to the canonical entry (which may have been updated
+                # to the cheapest printing in pass 1).
+                canonical_key = name.lower()
+                if canonical_key in index:
+                    index[alias_key] = index[canonical_key]
 
     return index
 
@@ -161,19 +185,35 @@ def build_rarity_index(
         normalized = "rare" if rarity in ("special", "bonus") else rarity
         exempt = has_copy_limit_exemption(card)
 
-        # Index full name and front face (for split/MDFC cards)
-        keys = [name_lower]
+        # Index full name and front face (for split/MDFC cards).
+        # These are canonical keys — lower rarity wins across printings.
+        canonical_keys = [name_lower]
         if " // " in name:
             front = name.split(" // ")[0].lower()
-            keys.append(front)
+            canonical_keys.append(front)
 
-        for key in keys:
+        for key in canonical_keys:
             if key not in best or rank < best[key]:
                 best[key] = rank
                 entries[key] = {
                     "rarity": normalized,
                     "exempt_from_4cap": exempt,
                 }
+
+        # printed_name / flavor_name aliases (Arena display names).
+        # Alias keys never overwrite canonical keys — they only populate
+        # empty slots, consistent with _load_bulk_index Pass 3.
+        if card.get("lang", "en") == "en":
+            for field in ("printed_name", "flavor_name"):
+                alias = card.get(field, "")
+                if alias and alias != name:
+                    alias_key = alias.lower()
+                    if alias_key not in best:
+                        best[alias_key] = rank
+                        entries[alias_key] = {
+                            "rarity": normalized,
+                            "exempt_from_4cap": exempt,
+                        }
 
     return entries
 

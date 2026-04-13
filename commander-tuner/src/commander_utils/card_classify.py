@@ -68,11 +68,26 @@ def extract_price(card: dict | None) -> float | None:
 
 
 def build_card_lookup(hydrated: list[dict | None]) -> dict[str, dict]:
-    """Build name -> card dict lookup from a hydrated card list."""
+    """Build name -> card dict lookup from a hydrated card list.
+
+    Indexes by canonical name, printed_name, and flavor_name so that
+    downstream tools (deck_stats, mana_audit, etc.) find cards regardless
+    of whether the deck uses Arena display names or Scryfall paper names.
+    Canonical names take priority — alias keys never overwrite them.
+    """
     lookup: dict[str, dict] = {}
+    # Pass 1: canonical names
     for card in hydrated:
         if card is not None:
             lookup[card["name"]] = card
+    # Pass 2: Arena alternate names (printed_name / flavor_name)
+    for card in hydrated:
+        if card is None:
+            continue
+        for field in ("printed_name", "flavor_name"):
+            alias = card.get(field)
+            if alias and alias != card["name"] and alias not in lookup:
+                lookup[alias] = card
     return lookup
 
 

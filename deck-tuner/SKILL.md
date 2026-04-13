@@ -93,11 +93,11 @@ The `rarity` field in hydrated card data is the Scryfall default printing's rari
 
 | Task | Tool |
 |------|------|
-| Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt>` |
+| Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
 | Look up a specific card's oracle text | `scryfall-lookup "<Card Name>"` |
 | View card table (mainboard) | `card-summary <hydrated.json> [--nonlands-only] [--lands-only] [--type <T>]` |
 | View card table (sideboard) | `card-summary <hydrated.json> --deck <deck.json> --sideboard` |
-| Find combos in the deck | `combo-search <deck.json>` |
+| Find combos in the deck | `combo-search <deck.json> --hydrated <hydrated.json>` |
 | Find combos by card or outcome | `combo-discover --card "<Name>" --format <fmt>` |
 | Check deck legality | `legality-audit <deck.json> <hydrated.json>` |
 | Check mana base health | `mana-audit <deck.json> <hydrated.json>` |
@@ -119,14 +119,14 @@ parse-deck <path> --format <format> --output <working-dir>/deck.json
 
 - Auto-detects input format (Moxfield, MTGO, Arena, plain text, CSV)
 - Routes sideboard cards to the `sideboard` field (separate from `cards`)
-- Strips Moxfield set code suffixes automatically
+- Strips Moxfield set code suffixes and merges duplicate card names automatically
 - Reports: `parse-deck: 60 cards, 15 sideboard -> /path/to/deck.json`
 
 ### Collection Ownership (Arena)
 
 If the user has an Arena collection:
 1. Ask for Untapped.gg CSV export first (most reliable source)
-2. `mark-owned <deck.json> <collection.csv> --bulk-data <path>` to populate `owned_cards`
+2. `mark-owned <deck.json> <collection.csv> --bulk-data <path>` to populate `owned_cards` (accepts both CSV and parsed-deck JSON)
 3. Use `mtga-import` only for extracting wildcard counts, not collection data
 
 ---
@@ -185,7 +185,7 @@ Uses the constructed land formula. Notes land count status (PASS/WARN/FAIL) and 
 
 Check the sideboard for a Companion card (`card-summary <hydrated.json> --deck <deck.json> --sideboard` and look for the Companion keyword). If one exists, note its deck-building restriction — all proposed changes must continue to meet it.
 
-If no Companion exists, check whether the deck naturally meets one's restriction. Companions are powerful enough that a deck accidentally qualifying for one (e.g., a low-curve aggro deck meeting Lurrus's "no permanents with mana value > 2") should actively consider adding it. Use `card-search --format <fmt> --oracle "Companion" --type "Creature"` to find candidates, then check restrictions against the current deck. If one fits, suggest it in Step 8 as an addition (it takes 1 sideboard slot).
+If no Companion exists, check whether the deck naturally meets one's restriction. Companions are powerful enough that a deck accidentally qualifying for one (e.g., a low-curve aggro deck meeting Lurrus's "no permanents with mana value > 2") should actively consider adding it. Use `card-search --format <fmt> --bulk-data <path> --oracle "Companion" --type "Creature"` to find candidates, then check restrictions against the current deck. If one fits, suggest it in Step 8 as an addition (it takes 1 sideboard slot).
 
 ---
 
@@ -308,7 +308,7 @@ For each proposed cut, evaluate:
 
 Source candidates from:
 - Metagame research (stock list differences)
-- `card-search --format <fmt>` for format-legal options
+- `card-search --format <fmt> --bulk-data <path>` for format-legal options
 - Near-miss combos (from Step 4)
 - WebSearch for archetype-specific tech
 
@@ -620,8 +620,8 @@ Each entry must specify exact cards in, exact cards out, and a one-line rational
 - `scryfall-lookup --batch <deck.json> --bulk-data <path> --cache-dir <dir>` — Hydrate card data
 - `scryfall-lookup "<Card Name>" --bulk-data <path>` — Single card lookup
 - `card-summary <hydrated.json> [--nonlands-only] [--lands-only] [--type <T>] [--deck <deck.json> --sideboard]` — Card table display
-- `card-search --format <fmt> [--oracle <regex>] [--color-identity <CI>] [--type <type>] [--cmc-max <N>] [--price-max <N>]` — Search for candidates
-- `combo-search <deck.json>` — Find existing combos and near-misses
+- `card-search --format <fmt> --bulk-data <path> [--oracle <regex>] [--color-identity <CI>] [--type <type>] [--cmc-max <N>] [--price-max <N>]` — Search for candidates
+- `combo-search <deck.json> [--hydrated <hydrated.json>]` — Find existing combos and near-misses
 - `combo-discover [--card "<name>"] [--result "<outcome>"] [--format <fmt>]` — Discover combos
 - `legality-audit <deck.json> <hydrated.json>` — Check legality, 4-of, sideboard size, deck minimum
 - `mana-audit <deck.json> <hydrated.json> [--compare <new-deck.json> <new-hydrated.json>]` — Mana base audit

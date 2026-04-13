@@ -74,7 +74,7 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 | Check land count, curve, category totals, avg CMC | `deck-stats <deck.json> <hydrated.json>` |
 | Check mana-base health (Burgess/Karsten, color balance) | `mana-audit <deck.json> <hydrated.json>` |
 | Check format legality / color identity / singleton | `legality-audit <deck.json> <hydrated.json>` |
-| Find existing combos or near-misses in the skeleton | `combo-search <deck.json>` |
+| Find existing combos or near-misses in the skeleton | `combo-search <deck.json> --hydrated <hydrated.json>` |
 | Discover combos by outcome or card name | `combo-discover --result "..." \| --card "..." [filters]` |
 | Filter Arena-legal cards by color/oracle/type/CMC/price | `card-search --bulk-data <path> --format <fmt> --arena-only [filters]` |
 | Extract one field or a few entries from a JSON file | `Read` with `offset`/`limit`, or `Grep` |

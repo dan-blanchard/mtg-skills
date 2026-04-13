@@ -125,7 +125,7 @@ The AskUserQuestion tool supports at most 4 options. If you have more than 4 cho
 
 | Task | Tool |
 |------|------|
-| Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt>` |
+| Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
 | Look up a specific card's oracle text | `scryfall-lookup "<Card Name>"` |
 | Find combos involving specific cards | `combo-discover --card "<Name>"` |
 | Find combos by outcome | `combo-discover --result "<outcome>"` |
@@ -166,7 +166,7 @@ Note: questions 2-3 can sometimes be merged or skipped (paper is always Bo3; Leg
 
 After the interview, check whether the deck's constraints naturally fit a Companion. Companions are powerful (a guaranteed extra card) and should be actively considered:
 
-1. `card-search --format <fmt> --oracle "Companion" --type "Creature"` to find format-legal Companions
+1. `card-search --format <fmt> --bulk-data <path> --oracle "Companion" --type "Creature"` to find format-legal Companions
 2. For each Companion, check if the user's playstyle/colors/curve naturally meet the deck-building restriction (e.g., Lurrus requires no permanents with mana value > 2 — natural for low-curve aggro)
 3. If a Companion fits, suggest it: "Your deck naturally meets Lurrus's restriction — would you like to use it as a Companion? It gives you a guaranteed extra card."
 4. If the user accepts, note the Companion's restriction as a hard constraint for skeleton generation
@@ -226,7 +226,7 @@ If the user says "build around a combo" or names a specific combo/build-around c
 ### Original/Off-Meta Path
 
 1. Use the user's playstyle, colors, and pet cards as starting constraints
-2. `card-search --format <fmt> --oracle "<keyword>" --color-identity <colors>` to find build-around cards
+2. `card-search --format <fmt> --bulk-data <path> --oracle "<keyword>" --color-identity <colors>` to find build-around cards
 3. `combo-discover` for combo shells in those colors
 4. WebSearch for `"<format> <archetype/mechanic> deck"` for inspiration
 5. Proceed to Step 3 without a sample list foundation
@@ -296,7 +296,7 @@ The land count formula gives a total, but the color *mix* matters just as much. 
 
 For each category:
 1. If starting from a sample list, evaluate what's already there
-2. `card-search --format <fmt> --oracle "<pattern>" --color-identity <colors>` for candidates
+2. `card-search --format <fmt> --bulk-data <path> --oracle "<pattern>" --color-identity <colors>` for candidates
 3. `scryfall-lookup --batch` to verify oracle text of all candidates
 4. Filter by budget (paper: price; Arena: wildcard rarity)
 5. Include pet cards in their appropriate categories
@@ -319,8 +319,8 @@ The sideboard is 15 cards designed to improve matchups after Game 1.
    - Anti-aggro: life gain, cheap removal, board wipes
    - Anti-control: cheap threats, counterspells, card advantage
    - Anti-combo: disruption, counterspells, graveyard hate
-   - Anti-graveyard: `card-search --format <fmt> --oracle "exile.*graveyard"`
-   - Anti-artifact/enchantment: `card-search --format <fmt> --oracle "destroy.*artifact"`
+   - Anti-graveyard: `card-search --format <fmt> --bulk-data <path> --oracle "exile.*graveyard"`
+   - Anti-artifact/enchantment: `card-search --format <fmt> --bulk-data <path> --oracle "destroy.*artifact"`
 3. Prefer versatile cards that help in multiple matchups
 4. Verify all sideboard cards are format-legal via `scryfall-lookup`
 
@@ -472,10 +472,10 @@ Include in the args:
 - `parse-deck --format <fmt> <path> [--output <path>]` — Parse deck list with sideboard
 - `scryfall-lookup --batch <deck.json> --bulk-data <path> --cache-dir <dir>` — Hydrate all card data
 - `scryfall-lookup "<Card Name>" --bulk-data <path>` — Single card lookup
-- `card-search --format <fmt> [--oracle <regex>] [--color-identity <CI>] [--type <type>] [--cmc-max <N>] [--price-max <N>]` — Search for candidates
+- `card-search --format <fmt> --bulk-data <path> [--oracle <regex>] [--color-identity <CI>] [--type <type>] [--cmc-max <N>] [--price-max <N>]` — Search for candidates
 - `card-summary <hydrated.json> [--nonlands-only] [--lands-only] [--type <T>] [--deck <deck.json> --sideboard]` — Card table display
 - `combo-discover [--card "<name>"] [--result "<outcome>"] [--format <fmt>]` — Find combos
-- `combo-search <deck.json>` — Find existing combos and near-misses
+- `combo-search <deck.json> [--hydrated <hydrated.json>]` — Find existing combos and near-misses
 - `legality-audit <deck.json> <hydrated.json>` — Check legality, 4-of, sideboard, deck minimum
 - `mana-audit <deck.json> <hydrated.json>` — Land count and color balance
 - `price-check <deck.json> [--format <fmt>] --bulk-data <path> [--budget <N>]` — Budget check

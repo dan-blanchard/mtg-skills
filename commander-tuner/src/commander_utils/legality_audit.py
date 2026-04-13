@@ -27,6 +27,7 @@ import click
 
 from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.card_classify import (
+    build_card_lookup,
     has_any_number_exemption,
     named_card_cap,
 )
@@ -106,10 +107,16 @@ def check_color_identity(
     """
     if not config.get("has_commander", True):
         return []
-    hydrated_by_name = {c.get("name", ""): c for c in hydrated_cards}
+    hydrated_by_name = build_card_lookup(hydrated_cards)
     commander_ci = _commander_color_identity(deck_json, hydrated_by_name)
     commander_ci_sorted = sorted(commander_ci)
-    deck_card_names = {entry["name"] for entry in deck_json.get("cards") or []}
+    deck_card_names: set[str] = set()
+    for entry in deck_json.get("cards") or []:
+        deck_name = entry["name"]
+        deck_card_names.add(deck_name)
+        card = hydrated_by_name.get(deck_name)
+        if card is not None:
+            deck_card_names.add(card.get("name", ""))
 
     # Compute colorless-Brawl exemption (if applicable).
     exempt_basic_subtype: str | None = None
@@ -288,17 +295,26 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
     config = get_format_config(deck_json)
     legality_key = config["legality_key"]
 
-    # Collect all card names across main + sideboard for format legality
+    # Collect all card names across main + sideboard for format legality.
+    # Include both deck-side names (which may be Arena display names) and
+    # canonical hydrated names so aliased cards aren't silently skipped.
+    hydrated_by_name = build_card_lookup(hydrated_cards)
     all_deck_names: set[str] = set()
     for section in ("commanders", "cards", "sideboard"):
         for entry in deck_json.get(section) or []:
-            all_deck_names.add(entry.get("name", ""))
+            deck_name = entry.get("name", "")
+            all_deck_names.add(deck_name)
+            # If this deck name resolves to a hydrated card with a different
+            # canonical name, include that too so check_format_legality's
+            # card.get("name") filter matches.
+            card = hydrated_by_name.get(deck_name)
+            if card is not None:
+                all_deck_names.add(card.get("name", ""))
 
     format_violations = check_format_legality(
         hydrated_cards, legality_key, deck_card_names=all_deck_names,
     )
     ci_violations = check_color_identity(deck_json, hydrated_cards, config)
-    hydrated_by_name = {c.get("name", ""): c for c in hydrated_cards}
     copy_violations = check_copy_limits(deck_json, hydrated_by_name, config)
     sb_violations = check_sideboard_size(deck_json, config)
     deck_min_violations = check_deck_minimum(deck_json, config)

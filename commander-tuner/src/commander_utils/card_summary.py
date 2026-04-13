@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from commander_utils.card_classify import is_land
+from commander_utils.card_classify import build_card_lookup, is_land
 
 
 def card_summary(
@@ -74,9 +74,14 @@ def _filter_to_section(
     section: str,
 ) -> list[dict | None]:
     """Filter hydrated list to only cards in the given deck section."""
-    names = {
-        entry["name"] for entry in deck.get(section, [])
-    }
+    lookup = build_card_lookup(hydrated)
+    names: set[str] = set()
+    for entry in deck.get(section, []):
+        deck_name = entry["name"]
+        names.add(deck_name)
+        card = lookup.get(deck_name)
+        if card is not None:
+            names.add(card.get("name", ""))
     return [c for c in hydrated if c is not None and c.get("name") in names]
 
 

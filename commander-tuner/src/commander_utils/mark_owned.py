@@ -239,10 +239,32 @@ def main(
 
     try:
         deck = json.loads(deck_path.read_text(encoding="utf-8"))
-        collection = json.loads(collection_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        click.echo(f"mark-owned: invalid JSON — {exc}", err=True)
+        click.echo(f"mark-owned: invalid deck JSON — {exc}", err=True)
         sys.exit(1)
+
+    # Accept either parsed-deck JSON or CSV (e.g., Untapped.gg export)
+    # for the collection. Auto-detect by trying JSON first; if that fails,
+    # try CSV parsing.
+    collection_text = collection_path.read_text(encoding="utf-8")
+    try:
+        collection = json.loads(collection_text)
+    except json.JSONDecodeError:
+        from commander_utils.parse_deck import parse_csv
+
+        parsed = parse_csv(collection_text)
+        collection = {
+            "commanders": parsed.get("commanders", []),
+            "cards": parsed.get("cards", []),
+            "sideboard": parsed.get("sideboard", []),
+        }
+        if not collection["cards"]:
+            click.echo(
+                "mark-owned: WARNING — collection file is not valid JSON "
+                "and CSV parsing found 0 cards. Check that the file is an "
+                "Untapped.gg CSV export or a parsed-deck JSON.",
+                err=True,
+            )
 
     name_aliases = None
     if bulk_data:

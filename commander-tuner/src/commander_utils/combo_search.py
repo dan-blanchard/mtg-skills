@@ -8,6 +8,7 @@ import click
 import requests
 
 from commander_utils._sidecar import atomic_write_json, sha_keyed_path
+from commander_utils.card_classify import build_card_lookup
 from commander_utils.format_config import FORMAT_CONFIGS, get_format_config
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
@@ -48,22 +49,57 @@ def _is_format_legal(variant: dict, legality_key: str = "commander") -> bool:
     return legalities.get(legality_key, False)
 
 
+def _resolve_name(
+    deck_name: str,
+    card_lookup: dict[str, dict] | None,
+) -> str:
+    """Resolve a deck name to its canonical Scryfall name if possible.
+
+    Commander Spellbook only recognizes canonical (paper) names. Arena
+    display names (printed_name / flavor_name) are silently ignored,
+    causing missed combos. When hydrated card data is available, this
+    resolves aliases so the API sees the canonical name.
+    """
+    if card_lookup is None:
+        return deck_name
+    card = card_lookup.get(deck_name)
+    if card is not None:
+        return card.get("name", deck_name)
+    return deck_name
+
+
 def combo_search(
     deck: dict,
     *,
     max_near_misses: int = 5,
+    hydrated: list[dict | None] | None = None,
 ) -> dict:
     """Search Commander Spellbook for combos in the deck.
 
     Returns {"combos": [...], "near_misses": [...]}.
     On API error, returns empty results.
+
+    When *hydrated* is provided, deck names are resolved to canonical
+    Scryfall names before querying the API. This prevents missed combos
+    when a deck uses Arena display names (printed_name / flavor_name).
     """
     config = get_format_config(deck)
     legality_key = config["legality_key"]
 
-    commanders = [entry["name"] for entry in deck.get("commanders", [])]
-    cards = [entry["name"] for entry in deck.get("cards", [])]
-    sideboard = [entry["name"] for entry in deck.get("sideboard", [])]
+    card_lookup = build_card_lookup(hydrated) if hydrated else None
+
+    commanders = [
+        _resolve_name(entry["name"], card_lookup)
+        for entry in deck.get("commanders", [])
+    ]
+    cards = [
+        _resolve_name(entry["name"], card_lookup)
+        for entry in deck.get("cards", [])
+    ]
+    sideboard = [
+        _resolve_name(entry["name"], card_lookup)
+        for entry in deck.get("sideboard", [])
+    ]
     all_card_names = set(commanders + cards + sideboard)
 
     body = {
@@ -299,17 +335,32 @@ def _default_discover_output_path(*args) -> Path:
     help="Maximum number of near-miss combos to return.",
 )
 @click.option(
+    "--hydrated",
+    "hydrated_path",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Hydrated card data for resolving Arena display names to canonical names.",
+)
+@click.option(
     "--output",
     "output_path",
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
     help="Override the default sha-keyed path for the full JSON output.",
 )
-def main(deck_json: Path, max_near_misses: int, output_path: Path | None) -> None:
+def main(
+    deck_json: Path,
+    max_near_misses: int,
+    hydrated_path: Path | None,
+    output_path: Path | None,
+) -> None:
     """Search Commander Spellbook for combos in a deck."""
     deck_content = deck_json.read_text(encoding="utf-8")
     deck = json.loads(deck_content)
-    result = combo_search(deck, max_near_misses=max_near_misses)
+    hydrated = None
+    if hydrated_path is not None:
+        hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
+    result = combo_search(deck, max_near_misses=max_near_misses, hydrated=hydrated)
 
     if output_path is None:
         output_path = _default_search_output_path(deck_content, max_near_misses)

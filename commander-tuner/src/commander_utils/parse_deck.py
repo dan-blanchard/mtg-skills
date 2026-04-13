@@ -106,7 +106,7 @@ def _parse_mtgo(content: str) -> dict:
     return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
 
 
-def _parse_csv(content: str) -> dict:
+def parse_csv(content: str) -> dict:
     cards: list[dict] = []
     reader = csv.DictReader(io.StringIO(content))
 
@@ -186,7 +186,7 @@ def _strip_set_code(name: str) -> str:
 _PARSERS = {
     "moxfield": _parse_moxfield,
     "mtgo": _parse_mtgo,
-    "csv": _parse_csv,
+    "csv": parse_csv,
     "plain": _parse_plain,
 }
 
@@ -209,13 +209,21 @@ def parse_deck(
         result["cards"].extend(result.get("sideboard", []))
         result["sideboard"] = []
 
-    # Strip Moxfield-style set codes from all names
-    for cmd in result["commanders"]:
-        cmd["name"] = _strip_set_code(cmd["name"])
-    for card in result["cards"]:
-        card["name"] = _strip_set_code(card["name"])
-    for card in result.get("sideboard", []):
-        card["name"] = _strip_set_code(card["name"])
+    # Strip Moxfield-style set codes from all names and merge duplicates
+    # that arise from the same card appearing with different set codes
+    # (e.g., "2 Ethereal Armor (DSK) 7" + "2 Ethereal Armor (RTR) 9").
+    for section in ("commanders", "cards", "sideboard"):
+        entries = result.get(section, [])
+        for entry in entries:
+            entry["name"] = _strip_set_code(entry["name"])
+        merged: dict[str, int] = {}
+        for entry in entries:
+            name = entry["name"]
+            qty = entry.get("quantity", 1)
+            merged[name] = merged.get(name, 0) + qty
+        result[section] = [
+            {"name": name, "quantity": qty} for name, qty in merged.items()
+        ]
 
     result["total_cards"] = sum(
         c.get("quantity", 1) for c in result["commanders"]
