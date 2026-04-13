@@ -52,8 +52,8 @@ All four skills share the same Python CLI scripts via symlinks:
 | Format | Deck Size | Copy Limit | Sideboard | Platform |
 |--------|-----------|------------|-----------|----------|
 | Commander/EDH | 100 | Singleton | No | Paper |
-| Brawl | 60 | Singleton | No | Arena |
-| Historic Brawl | 100 | Singleton | No | Arena |
+| Brawl (Standard Brawl on Arena) | 60 | Singleton | No | Arena + Paper |
+| Historic Brawl (Brawl on Arena) | 60 or 100 | Singleton | No | Arena + Paper |
 | Standard | 60 | 4-of | 15 | Arena + Paper |
 | Alchemy | 60 | 4-of | 15 | Arena |
 | Historic | 60 | 4-of | 15 | Arena |
