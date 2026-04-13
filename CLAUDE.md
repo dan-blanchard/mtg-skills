@@ -7,9 +7,9 @@
 ```bash
 cd mtg-utils
 uv sync                              # Install dependencies
-uv run pytest ../tests/commander-tuner/ -v  # Run tests
-uv run ruff check src/ ../tests/commander-tuner/  # Lint
-uv run ruff format src/ ../tests/commander-tuner/  # Format
+uv run pytest ../tests/mtg-utils/ -v  # Run tests
+uv run ruff check src/ ../tests/mtg-utils/  # Lint
+uv run ruff format src/ ../tests/mtg-utils/  # Format
 ```
 
 ### deck-tuner
@@ -26,14 +26,6 @@ uv run pytest ../tests/deck-tuner/ -v  # Run tests
 cd deck-builder
 uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
 uv run pytest ../tests/deck-builder/ -v  # Run smoke tests
-```
-
-### commander-builder
-
-```bash
-cd commander-builder
-uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
-uv run pytest ../tests/commander-builder/ -v  # Run smoke tests
 ```
 
 ## Architecture
@@ -65,17 +57,13 @@ Shared library module (not a CLI script):
 
 - **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`.
 
-### commander-builder
+### deck-builder
 
-SKILL.md-only workflow (no Python scripts of its own). Shares `mtg_utils` via symlink to `mtg-utils/src`. Guides users through commander selection and deck skeleton generation, then hands off to commander-tuner for refinement.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch for all formats (Commander/Brawl/Historic Brawl and 60-card constructed), then hands off to deck-tuner for refinement.
 
 ### deck-tuner
 
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Tunes 60-card constructed decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
-
-### deck-builder
-
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds 60-card constructed decks with sideboards for the same formats as deck-tuner (including PreModern), then hands off to deck-tuner for refinement.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Analyzes and optimizes decks for all formats (Commander/Brawl/Historic Brawl and 60-card constructed).
 
 ## Supported Formats
 
@@ -96,4 +84,4 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds 60-card constructed de
 
 ## Testing
 
-Tests live in `tests/commander-tuner/` (mtg-utils package tests), `tests/deck-tuner/`, and `tests/deck-builder/` (outside the skill directories so they aren't installed). Use `unittest.mock` for HTTP calls. No real network calls in tests.
+Tests live in `tests/mtg-utils/` (package tests), `tests/deck-tuner/`, and `tests/deck-builder/` (outside the skill directories so they aren't installed). Use `unittest.mock` for HTTP calls. No real network calls in tests.

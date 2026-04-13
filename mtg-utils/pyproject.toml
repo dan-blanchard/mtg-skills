@@ -36,7 +36,7 @@ mtga-import = "mtg_utils.mtga_import:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["../tests/commander-tuner"]
+testpaths = ["../tests/mtg-utils"]
 
 [dependency-groups]
 dev = [

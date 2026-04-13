@@ -10,25 +10,17 @@ npx skills add dan-blanchard/mtg-skills
 
 ## Available Skills
 
-### commander-builder
-
-Guided workflow for building Commander/EDH, Brawl, and Historic Brawl decks from scratch. Walks through commander selection (or discovery from your collection), strategy research via EDHREC, and skeleton generation with structural verification. Hands off to commander-tuner for refinement.
-
-### commander-tuner
-
-Structured 10-step process for analyzing and tuning Commander/EDH, Brawl, and Historic Brawl decks. Includes mana base auditing, combo detection, mechanical cut analysis, a two-agent debate to stress-test proposals, and impact verification before finalizing changes.
-
 ### deck-builder
 
-Guided workflow for building 60-card constructed decks with sideboards. Supports Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage. Covers metagame research, archetype selection (or combo-first building), Companion evaluation, and Bo1/Bo3 awareness for Arena. Hands off to deck-tuner for refinement.
+Build MTG decks from scratch for all formats — Commander/EDH, Brawl, Historic Brawl (singleton with commanders) and Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, Vintage (60-card with sideboards). Covers commander selection, metagame research, archetype/combo-first building, Companion evaluation, and Bo1/Bo3 awareness. Hands off to deck-tuner for refinement.
 
 ### deck-tuner
 
-Structured 12-step process for analyzing and tuning 60-card constructed decks with sideboards. Includes archetype coherence analysis, sideboard evaluation against the metagame, a two-agent debate, and a matchup-by-matchup sideboard guide. Supports all competitive constructed formats.
+Structured 14-step process for analyzing and tuning MTG decks across all formats. Includes mana base auditing, combo detection, archetype coherence analysis, commander interaction audit (for singleton formats), sideboard evaluation (for 60-card formats), a two-agent debate to stress-test proposals, and impact verification before finalizing changes.
 
 ## Shared Tooling
 
-All four skills share the same Python CLI scripts via symlinks:
+Both skills share the same Python CLI scripts via the `mtg_utils` package (`mtg-utils/`):
 
 - **parse-deck** — Multi-format deck list parser with sideboard support
 - **scryfall-lookup** — Card lookup against local Scryfall bulk data with API fallback
