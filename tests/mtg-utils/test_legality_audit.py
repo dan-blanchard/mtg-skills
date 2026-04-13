@@ -349,7 +349,9 @@ class TestCopyLimits:
         hydrated = [card("Lightning Bolt")]
         d = deck(cards=[("Lightning Bolt", 4)])
         d["format"] = "pioneer"
-        assert check_copy_limits(d, self._hyd_index(hydrated), _CONSTRUCTED_CONFIG) == []
+        assert (
+            check_copy_limits(d, self._hyd_index(hydrated), _CONSTRUCTED_CONFIG) == []
+        )
 
     def test_constructed_5_of_violation(self):
         hydrated = [card("Lightning Bolt")]
@@ -375,9 +377,13 @@ class TestCopyLimits:
         restricted_card = card("Ancestral Recall")
         restricted_card["legalities"]["vintage"] = "restricted"
         hydrated = [restricted_card]
-        d = {"format": "vintage", "cards": [{"name": "Ancestral Recall", "quantity": 2}]}
+        d = {
+            "format": "vintage",
+            "cards": [{"name": "Ancestral Recall", "quantity": 2}],
+        }
         v = check_copy_limits(
-            d, self._hyd_index(hydrated),
+            d,
+            self._hyd_index(hydrated),
             {"max_copies": 4, "legality_key": "vintage"},
         )
         assert len(v) == 1

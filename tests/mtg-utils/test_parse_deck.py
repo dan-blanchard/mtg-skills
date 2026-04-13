@@ -284,8 +284,7 @@ class TestSideboardParsing:
     def test_mtgo_sideboard(self, tmp_path):
         deck_path = tmp_path / "deck.txt"
         deck_path.write_text(
-            "Deck\n4 Lightning Bolt\n4 Mountain\n\n"
-            "Sideboard\n2 Smash to Smithereens\n"
+            "Deck\n4 Lightning Bolt\n4 Mountain\n\nSideboard\n2 Smash to Smithereens\n"
         )
         result = parse_deck(deck_path, format="standard")
         assert len(result["sideboard"]) == 1
@@ -295,18 +294,14 @@ class TestSideboardParsing:
 
     def test_plain_text_sideboard(self, tmp_path):
         deck_path = tmp_path / "deck.txt"
-        deck_path.write_text(
-            "Deck\n4 Lightning Bolt\n\nSideboard\n3 Roiling Vortex\n"
-        )
+        deck_path.write_text("Deck\n4 Lightning Bolt\n\nSideboard\n3 Roiling Vortex\n")
         result = parse_deck(deck_path, format="modern")
         assert len(result["sideboard"]) == 1
         assert result["total_sideboard"] == 3
 
     def test_sideboard_not_in_total_cards(self, tmp_path):
         deck_path = tmp_path / "deck.txt"
-        deck_path.write_text(
-            "Deck\n4 Lightning Bolt\n\nSideboard\n2 Smash\n"
-        )
+        deck_path.write_text("Deck\n4 Lightning Bolt\n\nSideboard\n2 Smash\n")
         result = parse_deck(deck_path, format="pioneer")
         assert result["total_cards"] == 4
         assert result["total_sideboard"] == 2
@@ -347,9 +342,7 @@ class TestSideboardParsing:
 
     def test_cli_reports_sideboard_count(self, tmp_path):
         deck_path = tmp_path / "deck.txt"
-        deck_path.write_text(
-            "Deck\n4 Lightning Bolt\n\nSideboard\n2 Smash\n"
-        )
+        deck_path.write_text("Deck\n4 Lightning Bolt\n\nSideboard\n2 Smash\n")
         output_path = tmp_path / "out.json"
         runner = CliRunner()
         result = runner.invoke(

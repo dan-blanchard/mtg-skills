@@ -128,9 +128,7 @@ class TestCLI:
             "legalities": {"commander": "legal"},
         }
 
-        with patch(
-            "mtg_utils.build_deck.lookup_single", return_value=good_card_data
-        ):
+        with patch("mtg_utils.build_deck.lookup_single", return_value=good_card_data):
             runner = CliRunner()
             result = runner.invoke(
                 main,
@@ -334,7 +332,10 @@ class TestSideboardCutsAdds:
             {"name": "Roiling Vortex", "cmc": 2, "type_line": "Enchantment"},
         ]
         new_deck, _, unmatched = build_deck(
-            deck, hydrated, [], [],
+            deck,
+            hydrated,
+            [],
+            [],
             sideboard_cuts=[{"name": "Roiling Vortex", "quantity": 2}],
         )
         sb_names = [c["name"] for c in new_deck["sideboard"]]
@@ -355,7 +356,10 @@ class TestSideboardCutsAdds:
             {"name": "Vortex", "cmc": 2, "type_line": "Enchantment"},
         ]
         new_deck, _, _ = build_deck(
-            deck, hydrated, [], [],
+            deck,
+            hydrated,
+            [],
+            [],
             sideboard_adds=[{"name": "Vortex", "quantity": 3}],
         )
         sb_names = {c["name"] for c in new_deck["sideboard"]}
@@ -371,7 +375,10 @@ class TestSideboardCutsAdds:
         }
         hydrated = [{"name": "Bolt", "cmc": 1, "type_line": "Instant"}]
         _, _, unmatched = build_deck(
-            deck, hydrated, [], [],
+            deck,
+            hydrated,
+            [],
+            [],
             sideboard_cuts=[{"name": "Not Here", "quantity": 1}],
         )
         assert any("sideboard" in u for u in unmatched)
@@ -388,7 +395,10 @@ class TestSideboardCutsAdds:
             {"name": "Smash", "cmc": 2, "type_line": "Instant"},
         ]
         new_deck, _, _ = build_deck(
-            deck, hydrated, [], [],
+            deck,
+            hydrated,
+            [],
+            [],
             sideboard_cuts=[{"name": "Smash", "quantity": 1}],
         )
         assert new_deck["cards"] == [{"name": "Bolt", "quantity": 4}]

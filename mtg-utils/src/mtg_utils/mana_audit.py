@@ -42,7 +42,10 @@ def karsten_adjustment(*, ramp_count: int, deck_size: int = 100) -> int:
 
 
 def constructed_land_target(
-    *, ramp_count: int, avg_cmc: float, deck_size: int = 60,
+    *,
+    ramp_count: int,
+    avg_cmc: float,
+    deck_size: int = 60,
 ) -> int:
     """Return recommended land count for 60-card constructed formats.
 
@@ -257,7 +260,9 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
         }
     else:
         constructed_target = constructed_land_target(
-            ramp_count=ramp_count, avg_cmc=avg_cmc, deck_size=deck_size,
+            ramp_count=ramp_count,
+            avg_cmc=avg_cmc,
+            deck_size=deck_size,
         )
         recommended = constructed_target
         # For constructed, use the target as both floor and recommended

@@ -93,12 +93,10 @@ def combo_search(
         for entry in deck.get("commanders", [])
     ]
     cards = [
-        _resolve_name(entry["name"], card_lookup)
-        for entry in deck.get("cards", [])
+        _resolve_name(entry["name"], card_lookup) for entry in deck.get("cards", [])
     ]
     sideboard = [
-        _resolve_name(entry["name"], card_lookup)
-        for entry in deck.get("sideboard", [])
+        _resolve_name(entry["name"], card_lookup) for entry in deck.get("sideboard", [])
     ]
     all_card_names = set(commanders + cards + sideboard)
 

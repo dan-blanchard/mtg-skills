@@ -59,7 +59,8 @@ def _compute_stats(
 
 
 def _diff_card_lists(
-    old_qty: dict[str, int], new_qty: dict[str, int],
+    old_qty: dict[str, int],
+    new_qty: dict[str, int],
 ) -> tuple[list[dict], list[dict]]:
     """Return (added, removed) lists from two name->qty maps."""
     all_names = set(old_qty) | set(new_qty)

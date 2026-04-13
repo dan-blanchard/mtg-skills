@@ -262,15 +262,15 @@ def check_sideboard_size(deck_json: dict, config: dict) -> list[dict]:
     max_sb = config.get("sideboard_size", 0)
     if max_sb == 0:
         return []
-    sb_total = sum(
-        int(e.get("quantity", 1)) for e in deck_json.get("sideboard") or []
-    )
+    sb_total = sum(int(e.get("quantity", 1)) for e in deck_json.get("sideboard") or [])
     if sb_total > max_sb:
-        return [{
-            "sideboard_count": sb_total,
-            "limit": max_sb,
-            "reason": "sideboard_too_large",
-        }]
+        return [
+            {
+                "sideboard_count": sb_total,
+                "limit": max_sb,
+                "reason": "sideboard_too_large",
+            }
+        ]
     return []
 
 
@@ -282,11 +282,13 @@ def check_deck_minimum(deck_json: dict, config: dict) -> list[dict]:
         for e in (deck_json.get("cards") or []) + (deck_json.get("commanders") or [])
     )
     if total_cards < min_size:
-        return [{
-            "total_cards": total_cards,
-            "minimum": min_size,
-            "reason": "below_minimum",
-        }]
+        return [
+            {
+                "total_cards": total_cards,
+                "minimum": min_size,
+                "reason": "below_minimum",
+            }
+        ]
     return []
 
 
@@ -312,7 +314,9 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
                 all_deck_names.add(card.get("name", ""))
 
     format_violations = check_format_legality(
-        hydrated_cards, legality_key, deck_card_names=all_deck_names,
+        hydrated_cards,
+        legality_key,
+        deck_card_names=all_deck_names,
     )
     ci_violations = check_color_identity(deck_json, hydrated_cards, config)
     copy_violations = check_copy_limits(deck_json, hydrated_by_name, config)

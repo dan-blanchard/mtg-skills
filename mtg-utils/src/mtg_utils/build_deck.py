@@ -103,7 +103,8 @@ def build_deck(
         sb = new_deck.get("sideboard", [])
         if sideboard_cuts:
             sb_unmatched = _apply_cuts(
-                sb, [_normalize_entry(c) for c in sideboard_cuts],
+                sb,
+                [_normalize_entry(c) for c in sideboard_cuts],
             )
             unmatched_cuts.extend(f"(sideboard) {n}" for n in sb_unmatched)
         if sideboard_adds:
@@ -176,12 +177,10 @@ def main(
     adds: list[dict] = [_normalize_entry(a) for a in raw_adds]
 
     raw_sb_cuts = (
-        json.loads(sb_cuts_json.read_text(encoding="utf-8"))
-        if sb_cuts_json else None
+        json.loads(sb_cuts_json.read_text(encoding="utf-8")) if sb_cuts_json else None
     )
     raw_sb_adds = (
-        json.loads(sb_adds_json.read_text(encoding="utf-8"))
-        if sb_adds_json else None
+        json.loads(sb_adds_json.read_text(encoding="utf-8")) if sb_adds_json else None
     )
 
     # Look up any added cards not already in hydrated
@@ -201,7 +200,10 @@ def main(
                 click.echo(f"Warning: card not found in Scryfall: {name}", err=True)
 
     new_deck, new_hydrated, unmatched_cuts = build_deck(
-        deck, hydrated, cuts, adds,
+        deck,
+        hydrated,
+        cuts,
+        adds,
         sideboard_cuts=raw_sb_cuts,
         sideboard_adds=raw_sb_adds,
         extra_hydrated=extra_hydrated,

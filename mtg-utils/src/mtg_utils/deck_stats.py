@@ -176,7 +176,9 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
 
 
 def _add_sideboard_stats(
-    result: dict, deck: dict, card_lookup: dict[str, dict],
+    result: dict,
+    deck: dict,
+    card_lookup: dict[str, dict],
 ) -> None:
     sideboard_entries = deck.get("sideboard", [])
     if not sideboard_entries:
