@@ -20,6 +20,14 @@ from commander_utils.format_config import get_format_config
 
 _PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
+# Constructed mana base constants (60-card formats)
+_CONSTRUCTED_BASELINE_LANDS = 24
+_CONSTRUCTED_NEUTRAL_CMC = 3.0
+_CONSTRUCTED_MAX_CURVE_ADJ = 2
+_CONSTRUCTED_MIN_LANDS = 20
+_CONSTRUCTED_MAX_LANDS = 27
+_CONSTRUCTED_FAIL_TOLERANCE = 2
+
 
 def burgess_formula(*, colors: int, commander_cmc: int, deck_size: int = 100) -> int:
     """Return Burgess recommended land count, scaled to deck size."""
@@ -31,6 +39,25 @@ def karsten_adjustment(*, ramp_count: int, deck_size: int = 100) -> int:
     """Return Karsten-adjusted land count, scaled to deck size."""
     base = max(36, 42 - math.floor(ramp_count / 2.5))
     return round(base * deck_size / 100)
+
+
+def constructed_land_target(
+    *, ramp_count: int, avg_cmc: float, deck_size: int = 60,
+) -> int:
+    """Return recommended land count for 60-card constructed formats.
+
+    Baseline is 24 lands (for a 60-card deck), adjusted down by ramp
+    and by curve profile. Aggressive decks (avg CMC < 2.5) can go lower;
+    control decks (avg CMC > 3.5) want more. Result is clamped to [20, 27]
+    and scaled proportionally if deck_size differs from 60.
+    """
+    base = _CONSTRUCTED_BASELINE_LANDS - math.floor(ramp_count / 2)
+    if avg_cmc > 0:
+        curve_adj = round(avg_cmc - _CONSTRUCTED_NEUTRAL_CMC)
+        cap = _CONSTRUCTED_MAX_CURVE_ADJ
+        base += max(-cap, min(cap, curve_adj))
+    base = max(_CONSTRUCTED_MIN_LANDS, min(_CONSTRUCTED_MAX_LANDS, base))
+    return round(base * deck_size / 60)
 
 
 def land_count_status(
@@ -191,8 +218,10 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
 
     config = get_format_config(deck)
     deck_size = config["deck_size"]
+    has_commander = config.get("has_commander", True)
 
     commanders = deck.get("commanders", [])
+    # Only analyze mainboard cards (sideboard doesn't affect mana base)
     all_entries = list(commanders) + list(deck.get("cards", []))
 
     commander_cmc, colors = _commander_stats(commanders, card_lookup)
@@ -207,16 +236,46 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
 
     avg_cmc = round(sum(nonland_cmcs) / len(nonland_cmcs), 2) if nonland_cmcs else 0.0
 
-    burgess_result = burgess_formula(
-        colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
-    )
-    karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
-    recommended = max(burgess_result, karsten_result)
-    lc_status = land_count_status(
-        land_count=land_count,
-        recommended=recommended,
-        burgess=burgess_result,
-    )
+    if has_commander:
+        burgess_result = burgess_formula(
+            colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
+        )
+        karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
+        recommended = max(burgess_result, karsten_result)
+        lc_status = land_count_status(
+            land_count=land_count,
+            recommended=recommended,
+            burgess=burgess_result,
+        )
+        formula_info = {
+            "burgess_formula": {
+                "colors": colors,
+                "commander_cmc": commander_cmc,
+                "result": burgess_result,
+            },
+            "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
+        }
+    else:
+        constructed_target = constructed_land_target(
+            ramp_count=ramp_count, avg_cmc=avg_cmc, deck_size=deck_size,
+        )
+        recommended = constructed_target
+        # For constructed, use the target as both floor and recommended
+        lc_status = land_count_status(
+            land_count=land_count,
+            recommended=recommended,
+            burgess=max(
+                _CONSTRUCTED_MIN_LANDS,
+                recommended - _CONSTRUCTED_FAIL_TOLERANCE,
+            ),
+        )
+        formula_info = {
+            "constructed_land_target": {
+                "ramp_count": ramp_count,
+                "avg_cmc": avg_cmc,
+                "result": constructed_target,
+            },
+        }
 
     pips = pip_demand(pip_cards)
     total_pips = sum(pips.values())
@@ -231,12 +290,7 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     return {
         "land_count": land_count,
         "recommended_land_count": recommended,
-        "burgess_formula": {
-            "colors": colors,
-            "commander_cmc": commander_cmc,
-            "result": burgess_result,
-        },
-        "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
+        **formula_info,
         "land_count_status": lc_status,
         "ramp_count": ramp_count,
         "avg_cmc": avg_cmc,
@@ -259,13 +313,22 @@ def _render_single_audit(audit: dict) -> list[str]:
     colors_str = "".join(sorted(colors)) if colors else "C"
     lines.append(f"mana-audit: {status} — {land_count} lands ({colors_str} deck)")
     lines.append("")
+
+    constructed = audit.get("constructed_land_target")
     burgess = audit.get("burgess_formula") or {}
-    lines.append(
-        f"Land count: {land_count} "
-        f"(Burgess target: {burgess.get('result', '?')}, "
-        f"Karsten adj: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
-        f"status: {audit.get('land_count_status', '?')})"
-    )
+    if constructed:
+        lines.append(
+            f"Land count: {land_count} "
+            f"(target: {constructed.get('result', '?')}, "
+            f"status: {audit.get('land_count_status', '?')})"
+        )
+    else:
+        lines.append(
+            f"Land count: {land_count} "
+            f"(Burgess target: {burgess.get('result', '?')}, "
+            f"Karsten adj: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
+            f"status: {audit.get('land_count_status', '?')})"
+        )
     lines.append(f"Ramp count: {audit.get('ramp_count', 0)}")
     lines.append(f"Avg CMC: {audit.get('avg_cmc', 0)}")
 

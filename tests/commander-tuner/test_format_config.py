@@ -64,4 +64,4 @@ class TestGetFormatConfig:
         import pytest
 
         with pytest.raises(ValueError, match="Unknown format"):
-            get_format_config({"format": "vintage"})
+            get_format_config({"format": "made_up_format"})

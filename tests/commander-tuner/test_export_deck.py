@@ -41,6 +41,42 @@ class TestExportMoxfield:
         assert result == ""
 
 
+class TestSideboardExport:
+    def test_sideboard_section_present(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [
+                {"name": "Smash to Smithereens", "quantity": 3},
+                {"name": "Roiling Vortex", "quantity": 2},
+            ],
+        }
+        result = export_moxfield(deck)
+        lines = result.split("\n")
+        assert "Sideboard" in lines
+        sb_start = lines.index("Sideboard")
+        assert lines[sb_start - 1] == ""  # blank line before Sideboard
+        assert lines[sb_start + 1] == "3 Smash to Smithereens"
+        assert lines[sb_start + 2] == "2 Roiling Vortex"
+
+    def test_no_sideboard_section_when_empty(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [],
+        }
+        result = export_moxfield(deck)
+        assert "Sideboard" not in result
+
+    def test_no_sideboard_section_when_absent(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+        }
+        result = export_moxfield(deck)
+        assert "Sideboard" not in result
+
+
 class TestCLI:
     def test_outputs_text(self, tmp_path):
         deck_path = tmp_path / "deck.json"

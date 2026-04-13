@@ -262,3 +262,99 @@ class TestFormatAndDeckSize:
         data = json.loads(result.output)
         assert data["format"] == "historic_brawl"
         assert data["deck_size"] == 60
+
+
+# ---------- Sideboard parsing ----------
+
+
+class TestSideboardParsing:
+    def test_moxfield_sideboard(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "//Deck\n4 Lightning Bolt\n4 Mountain\n\n"
+            "//Sideboard\n2 Smash to Smithereens\n1 Roiling Vortex\n"
+        )
+        result = parse_deck(deck_path, format="pioneer")
+        assert len(result["sideboard"]) == 2
+        sb_names = [c["name"] for c in result["sideboard"]]
+        assert "Smash to Smithereens" in sb_names
+        assert "Roiling Vortex" in sb_names
+        assert result["total_sideboard"] == 3
+
+    def test_mtgo_sideboard(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Deck\n4 Lightning Bolt\n4 Mountain\n\n"
+            "Sideboard\n2 Smash to Smithereens\n"
+        )
+        result = parse_deck(deck_path, format="standard")
+        assert len(result["sideboard"]) == 1
+        assert result["sideboard"][0]["name"] == "Smash to Smithereens"
+        assert result["sideboard"][0]["quantity"] == 2
+        assert result["total_sideboard"] == 2
+
+    def test_plain_text_sideboard(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Deck\n4 Lightning Bolt\n\nSideboard\n3 Roiling Vortex\n"
+        )
+        result = parse_deck(deck_path, format="modern")
+        assert len(result["sideboard"]) == 1
+        assert result["total_sideboard"] == 3
+
+    def test_sideboard_not_in_total_cards(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Deck\n4 Lightning Bolt\n\nSideboard\n2 Smash\n"
+        )
+        result = parse_deck(deck_path, format="pioneer")
+        assert result["total_cards"] == 4
+        assert result["total_sideboard"] == 2
+
+    def test_commander_folds_sideboard_into_cards(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Commander\n1 Aesi, Tyrant of Gyre Strait\n\n"
+            "Deck\n30 Forest\n\nSideboard\n1 Sol Ring\n"
+        )
+        result = parse_deck(deck_path, format="commander")
+        assert result["sideboard"] == []
+        assert result["total_sideboard"] == 0
+        card_names = [c["name"] for c in result["cards"]]
+        assert "Sol Ring" in card_names
+        assert result["total_cards"] == 32
+
+    def test_sideboard_set_codes_stripped(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Deck\n4 Lightning Bolt (M25) 141\n\n"
+            "Sideboard\n2 Smash to Smithereens (MM2) 133\n"
+        )
+        result = parse_deck(deck_path, format="pioneer")
+        assert result["sideboard"][0]["name"] == "Smash to Smithereens"
+
+    def test_sideboard_size_from_config(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text("Deck\n4 Mountain\n")
+        result = parse_deck(deck_path, format="pioneer")
+        assert result["sideboard_size"] == 15
+
+    def test_commander_sideboard_size_zero(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text("//Commander\n1 Aesi\n\n//Deck\n4 Forest\n")
+        result = parse_deck(deck_path, format="commander")
+        assert result["sideboard_size"] == 0
+
+    def test_cli_reports_sideboard_count(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Deck\n4 Lightning Bolt\n\nSideboard\n2 Smash\n"
+        )
+        output_path = tmp_path / "out.json"
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [str(deck_path), "--format", "pioneer", "--output", str(output_path)],
+        )
+        assert result.exit_code == 0
+        assert "2 sideboard" in result.output

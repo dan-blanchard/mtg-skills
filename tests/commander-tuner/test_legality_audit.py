@@ -10,8 +10,8 @@ from conftest import json_from_cli_output
 
 from commander_utils.legality_audit import (
     check_color_identity,
+    check_copy_limits,
     check_format_legality,
-    check_singletons,
     legality_audit,
     main,
 )
@@ -54,15 +54,17 @@ def deck(
     format: str = "historic_brawl",  # noqa: A002
     commanders: list[str] | None = None,
     cards: list[tuple[str, int]] | None = None,
+    deck_size: int | None = None,
 ) -> dict:
     commanders = commanders or ["Jinnie Fay, Jetmir's Second"]
     cards = cards or []
+    total = len(commanders) + sum(q for _, q in cards)
     return {
         "format": format,
-        "deck_size": 100,
+        "deck_size": deck_size if deck_size is not None else total,
         "commanders": [{"name": n, "quantity": 1} for n in commanders],
         "cards": [{"name": n, "quantity": q} for n, q in cards],
-        "total_cards": len(commanders) + sum(q for _, q in cards),
+        "total_cards": total,
     }
 
 
@@ -267,27 +269,30 @@ class TestColorIdentity:
         assert violations == []
 
 
-# ---------- Singleton checks ----------
+# ---------- Copy limit checks ----------
+
+_SINGLETON_CONFIG = {"max_copies": 1, "legality_key": "commander"}
+_CONSTRUCTED_CONFIG = {"max_copies": 4, "legality_key": "pioneer"}
 
 
-class TestSingleton:
+class TestCopyLimits:
     def _hyd_index(self, hydrated: list[dict]) -> dict:
         return {c["name"]: c for c in hydrated}
 
     def test_normal_singleton_violation(self):
         hydrated = [card("Lightning Bolt")]
         d = deck(cards=[("Lightning Bolt", 2)])
-        v = check_singletons(d, self._hyd_index(hydrated), {})
+        v = check_copy_limits(d, self._hyd_index(hydrated), _SINGLETON_CONFIG)
         assert len(v) == 1
         assert v[0]["name"] == "Lightning Bolt"
         assert v[0]["quantity"] == 2
         assert v[0]["limit"] == 1
-        assert v[0]["reason"] == "singleton"
+        assert v[0]["reason"] == "copy_limit"
 
     def test_basic_land_allowed(self):
         hydrated = [basic("Forest", "G")]
         d = deck(cards=[("Forest", 40)])
-        assert check_singletons(d, self._hyd_index(hydrated), {}) == []
+        assert check_copy_limits(d, self._hyd_index(hydrated), _SINGLETON_CONFIG) == []
 
     def test_any_number_exemption(self):
         hare = card(
@@ -300,7 +305,7 @@ class TestSingleton:
             ),
         )
         d = deck(cards=[("Hare Apparent", 40)])
-        assert check_singletons(d, self._hyd_index([hare]), {}) == []
+        assert check_copy_limits(d, self._hyd_index([hare]), _SINGLETON_CONFIG) == []
 
     def test_up_to_n_at_cap(self):
         dwarves = card(
@@ -313,7 +318,7 @@ class TestSingleton:
             ),
         )
         d = deck(cards=[("Seven Dwarves", 7)])
-        assert check_singletons(d, self._hyd_index([dwarves]), {}) == []
+        assert check_copy_limits(d, self._hyd_index([dwarves]), _SINGLETON_CONFIG) == []
 
     def test_up_to_n_over_cap(self):
         dwarves = card(
@@ -323,7 +328,7 @@ class TestSingleton:
             oracle_text="A deck can have up to seven cards named Seven Dwarves.",
         )
         d = deck(cards=[("Seven Dwarves", 8)])
-        v = check_singletons(d, self._hyd_index([dwarves]), {})
+        v = check_copy_limits(d, self._hyd_index([dwarves]), _SINGLETON_CONFIG)
         assert len(v) == 1
         assert v[0]["name"] == "Seven Dwarves"
         assert v[0]["quantity"] == 8
@@ -338,7 +343,46 @@ class TestSingleton:
             oracle_text="A deck can have up to nine cards named Nazgûl.",
         )
         d = deck(cards=[("Nazgûl", 9)])
-        assert check_singletons(d, self._hyd_index([nazgul]), {}) == []
+        assert check_copy_limits(d, self._hyd_index([nazgul]), _SINGLETON_CONFIG) == []
+
+    def test_constructed_4_of_allowed(self):
+        hydrated = [card("Lightning Bolt")]
+        d = deck(cards=[("Lightning Bolt", 4)])
+        d["format"] = "pioneer"
+        assert check_copy_limits(d, self._hyd_index(hydrated), _CONSTRUCTED_CONFIG) == []
+
+    def test_constructed_5_of_violation(self):
+        hydrated = [card("Lightning Bolt")]
+        d = deck(cards=[("Lightning Bolt", 5)])
+        d["format"] = "pioneer"
+        v = check_copy_limits(d, self._hyd_index(hydrated), _CONSTRUCTED_CONFIG)
+        assert len(v) == 1
+        assert v[0]["limit"] == 4
+
+    def test_constructed_main_plus_sideboard_combined(self):
+        hydrated = [card("Lightning Bolt")]
+        d = {
+            "format": "pioneer",
+            "cards": [{"name": "Lightning Bolt", "quantity": 3}],
+            "sideboard": [{"name": "Lightning Bolt", "quantity": 2}],
+        }
+        v = check_copy_limits(d, self._hyd_index(hydrated), _CONSTRUCTED_CONFIG)
+        assert len(v) == 1
+        assert v[0]["quantity"] == 5
+        assert v[0]["limit"] == 4
+
+    def test_vintage_restricted_capped_at_1(self):
+        restricted_card = card("Ancestral Recall")
+        restricted_card["legalities"]["vintage"] = "restricted"
+        hydrated = [restricted_card]
+        d = {"format": "vintage", "cards": [{"name": "Ancestral Recall", "quantity": 2}]}
+        v = check_copy_limits(
+            d, self._hyd_index(hydrated),
+            {"max_copies": 4, "legality_key": "vintage"},
+        )
+        assert len(v) == 1
+        assert v[0]["limit"] == 1
+        assert v[0]["reason"] == "restricted"
 
 
 # ---------- Top-level audit ----------
@@ -357,7 +401,7 @@ class TestLegalityAudit:
         assert result["format"] == "historic_brawl"
         assert result["counts"]["format_legality"] == 0
         assert result["counts"]["color_identity"] == 0
-        assert result["counts"]["singleton"] == 0
+        assert result["counts"]["copy_limits"] == 0
 
     def test_multi_violation_deck_fails(self):
         hydrated = [
@@ -377,7 +421,7 @@ class TestLegalityAudit:
         assert result["overall_status"] == "FAIL"
         assert result["counts"]["format_legality"] == 1
         assert result["counts"]["color_identity"] == 1
-        assert result["counts"]["singleton"] == 1
+        assert result["counts"]["copy_limits"] == 1
 
     def test_unknown_format_raises(self):
         hydrated = [jinnie()]

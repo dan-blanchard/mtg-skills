@@ -12,6 +12,7 @@ import requests
 from commander_utils._sidecar import atomic_write_json, sha_keyed_path
 from commander_utils.card_classify import extract_price
 from commander_utils.format_config import FORMAT_CONFIGS
+from commander_utils.format_config import is_arena_format as _is_arena_format
 from commander_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
@@ -20,8 +21,6 @@ from commander_utils.scryfall_lookup import (
     build_rarity_index,
     lookup_single,
 )
-
-_ARENA_FORMATS = frozenset({"brawl", "historic_brawl"})
 
 _extract_price = extract_price
 
@@ -111,8 +110,8 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
                 _add(name, qty)
         return pairs
 
-    # Parsed deck JSON
-    for section in ("commanders", "cards"):
+    # Parsed deck JSON — walk mainboard, commanders, and sideboard
+    for section in ("commanders", "cards", "sideboard"):
         for entry in names_or_deck.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue
@@ -277,7 +276,7 @@ def check_prices(
         owned_map = _normalize_owned_cards(names_or_deck.get("owned_cards", []))
 
     # Arena wildcard mode
-    is_arena = format in _ARENA_FORMATS and bulk_path is not None
+    is_arena = format is not None and _is_arena_format(format) and bulk_path is not None
     if is_arena:
         legality_key = FORMAT_CONFIGS[format]["legality_key"]
         rarity_index = build_rarity_index(bulk_path, legality_key, arena_only=True)
@@ -420,9 +419,9 @@ def _default_output_path(
 @click.option(
     "--format",
     "card_format",
-    type=click.Choice(["commander", "brawl", "historic_brawl"]),
+    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
     default=None,
-    help="Game format. Arena formats (brawl, historic_brawl) use wildcards.",
+    help="Game format. Arena formats use wildcard pricing.",
 )
 @click.option(
     "--output",

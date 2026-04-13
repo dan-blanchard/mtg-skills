@@ -8,7 +8,7 @@ import click
 import requests
 
 from commander_utils._sidecar import atomic_write_json, sha_keyed_path
-from commander_utils.format_config import get_format_config
+from commander_utils.format_config import FORMAT_CONFIGS, get_format_config
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 SPELLBOOK_VARIANTS_URL = "https://backend.commanderspellbook.com/variants"
@@ -63,10 +63,11 @@ def combo_search(
 
     commanders = [entry["name"] for entry in deck.get("commanders", [])]
     cards = [entry["name"] for entry in deck.get("cards", [])]
-    all_card_names = set(commanders + cards)
+    sideboard = [entry["name"] for entry in deck.get("sideboard", [])]
+    all_card_names = set(commanders + cards + sideboard)
 
     body = {
-        "main": [{"card": name} for name in cards],
+        "main": [{"card": name} for name in cards + sideboard],
         "commanders": [{"card": name} for name in commanders],
     }
 
@@ -348,7 +349,7 @@ def main(deck_json: Path, max_near_misses: int, output_path: Path | None) -> Non
 @click.option(
     "--format",
     "combo_format",
-    type=click.Choice(["commander", "brawl", "historic_brawl"]),
+    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
     default=None,
 )
 @click.option("--arena-only", is_flag=True)

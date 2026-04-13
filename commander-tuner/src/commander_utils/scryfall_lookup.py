@@ -223,10 +223,10 @@ def _extract_names(data: list | dict) -> list[str]:
         if data and isinstance(data[0], dict):
             return [entry["name"] for entry in data]
         return data
-    # Deck JSON format: {"commanders": [...], "cards": [...]}
+    # Deck JSON format: {"commanders": [...], "cards": [...], "sideboard": [...]}
     names: list[str] = []
     seen: set[str] = set()
-    for section in ("commanders", "cards"):
+    for section in ("commanders", "cards", "sideboard"):
         for entry in data.get(section, []):
             name = entry["name"]
             if name not in seen:

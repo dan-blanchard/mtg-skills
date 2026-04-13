@@ -312,3 +312,83 @@ class TestDeckSizeWarning:
             )
 
         assert "expected 100" in result.output
+
+
+# ---------- Sideboard cuts/adds ----------
+
+
+class TestSideboardCutsAdds:
+    def test_sideboard_cut(self):
+        deck = {
+            "format": "pioneer",
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [
+                {"name": "Smash to Smithereens", "quantity": 3},
+                {"name": "Roiling Vortex", "quantity": 2},
+            ],
+        }
+        hydrated = [
+            {"name": "Lightning Bolt", "cmc": 1, "type_line": "Instant"},
+            {"name": "Smash to Smithereens", "cmc": 2, "type_line": "Instant"},
+            {"name": "Roiling Vortex", "cmc": 2, "type_line": "Enchantment"},
+        ]
+        new_deck, _, unmatched = build_deck(
+            deck, hydrated, [], [],
+            sideboard_cuts=[{"name": "Roiling Vortex", "quantity": 2}],
+        )
+        sb_names = [c["name"] for c in new_deck["sideboard"]]
+        assert "Roiling Vortex" not in sb_names
+        assert "Smash to Smithereens" in sb_names
+        assert unmatched == []
+
+    def test_sideboard_add(self):
+        deck = {
+            "format": "pioneer",
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Smash", "quantity": 2}],
+        }
+        hydrated = [
+            {"name": "Lightning Bolt", "cmc": 1, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2, "type_line": "Instant"},
+            {"name": "Vortex", "cmc": 2, "type_line": "Enchantment"},
+        ]
+        new_deck, _, _ = build_deck(
+            deck, hydrated, [], [],
+            sideboard_adds=[{"name": "Vortex", "quantity": 3}],
+        )
+        sb_names = {c["name"] for c in new_deck["sideboard"]}
+        assert "Vortex" in sb_names
+        assert "Smash" in sb_names
+
+    def test_sideboard_unmatched_cut_tagged(self):
+        deck = {
+            "format": "pioneer",
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [],
+        }
+        hydrated = [{"name": "Bolt", "cmc": 1, "type_line": "Instant"}]
+        _, _, unmatched = build_deck(
+            deck, hydrated, [], [],
+            sideboard_cuts=[{"name": "Not Here", "quantity": 1}],
+        )
+        assert any("sideboard" in u for u in unmatched)
+
+    def test_mainboard_unchanged_by_sideboard_ops(self):
+        deck = {
+            "format": "pioneer",
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Smash", "quantity": 2}],
+        }
+        hydrated = [
+            {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2, "type_line": "Instant"},
+        ]
+        new_deck, _, _ = build_deck(
+            deck, hydrated, [], [],
+            sideboard_cuts=[{"name": "Smash", "quantity": 1}],
+        )
+        assert new_deck["cards"] == [{"name": "Bolt", "quantity": 4}]

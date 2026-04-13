@@ -16,7 +16,7 @@ from commander_utils.card_classify import (
     get_oracle_text,
     is_commander,
 )
-from commander_utils.format_config import FORMAT_CONFIGS
+from commander_utils.format_config import FORMAT_CONFIGS, is_arena_format
 
 _extract_price = extract_price
 _get_oracle_text = get_oracle_text
@@ -130,13 +130,12 @@ def search_cards(
     else:
         legality_key = "commander"
 
-    # Brawl and Historic Brawl are Arena-native formats. Without implying
-    # arena_only, the subsequent cheapest-printing dedup would happily pick
-    # a paper-only printing, reporting (e.g.) Ephemerate as a common even
-    # though the only Arena-legal printing is a Historic Anthology rare.
-    # --paper-only remains an explicit escape hatch for the rare paper
-    # Brawl case.
-    if format in ("brawl", "historic_brawl") and not paper_only:
+    # Arena-native formats: without implying arena_only, the subsequent
+    # cheapest-printing dedup would happily pick a paper-only printing,
+    # reporting (e.g.) Ephemerate as a common even though the only
+    # Arena-legal printing is a Historic Anthology rare.
+    # --paper-only remains an explicit escape hatch for the rare paper case.
+    if is_arena_format(format) and not paper_only:
         arena_only = True
 
     allowed_colors = set(color_identity.upper()) if color_identity else None
@@ -269,7 +268,7 @@ def format_results(cards: list[dict]) -> str:
 @click.option(
     "--format",
     "card_format",
-    type=click.Choice(["commander", "brawl", "historic_brawl"]),
+    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
     default=None,
     help="Filter by format legality.",
 )

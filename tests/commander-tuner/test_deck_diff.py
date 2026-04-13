@@ -66,6 +66,59 @@ class TestDeckDiff:
         assert result["ramp_count_delta"] == 0
 
 
+class TestSideboardDiff:
+    def test_sideboard_added(self):
+        old_deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [],
+        }
+        new_deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Smash", "quantity": 3}],
+        }
+        hydrated = [
+            {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2, "type_line": "Instant"},
+        ]
+        result = deck_diff(old_deck, new_deck, hydrated, hydrated)
+        assert result["sideboard_added"] == [{"name": "Smash", "quantity": 3}]
+        assert result["sideboard_removed"] == []
+
+    def test_sideboard_removed(self):
+        old_deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Smash", "quantity": 2}],
+        }
+        new_deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [],
+        }
+        hydrated = [
+            {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2, "type_line": "Instant"},
+        ]
+        result = deck_diff(old_deck, new_deck, hydrated, hydrated)
+        assert result["sideboard_removed"] == [{"name": "Smash", "quantity": 2}]
+
+    def test_no_sideboard_keys_when_no_sideboard(self):
+        old_deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+        }
+        new_deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+        }
+        hydrated = [{"name": "Bolt", "cmc": 1, "type_line": "Instant"}]
+        result = deck_diff(old_deck, new_deck, hydrated, hydrated)
+        assert "sideboard_added" not in result
+        assert "sideboard_removed" not in result
+
+
 class TestCLI:
     def test_outputs_valid_json(self, moxfield_deck, hydrated_cards, tmp_path):
         deck = parse_deck(moxfield_deck)

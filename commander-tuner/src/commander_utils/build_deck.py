@@ -26,12 +26,46 @@ def _normalize_entry(entry: str | dict) -> dict:
     raise ValueError(msg)
 
 
+def _apply_cuts(card_list: list[dict], cuts: list[dict]) -> list[str]:
+    """Apply cuts to a card list in-place. Return unmatched cut names."""
+    unmatched: list[str] = []
+    for cut in cuts:
+        name = cut["name"]
+        qty = cut.get("quantity", 1)
+        cut_key = normalize_card_name(name)
+        for entry in card_list:
+            if normalize_card_name(entry["name"]) == cut_key:
+                entry["quantity"] = entry.get("quantity", 1) - qty
+                break
+        else:
+            unmatched.append(name)
+    # Remove entries with quantity <= 0
+    card_list[:] = [c for c in card_list if c.get("quantity", 1) > 0]
+    return unmatched
+
+
+def _apply_adds(card_list: list[dict], adds: list[dict]) -> None:
+    """Apply adds to a card list in-place."""
+    for add in adds:
+        name = add["name"]
+        qty = add.get("quantity", 1)
+        add_key = normalize_card_name(name)
+        for entry in card_list:
+            if normalize_card_name(entry["name"]) == add_key:
+                entry["quantity"] = entry.get("quantity", 1) + qty
+                break
+        else:
+            card_list.append({"name": name, "quantity": qty})
+
+
 def build_deck(
     deck: dict,
     hydrated: list[dict | None],
     cuts: list[dict],
     adds: list[dict],
     *,
+    sideboard_cuts: list[dict] | None = None,
+    sideboard_adds: list[dict] | None = None,
     extra_hydrated: list[dict] | None = None,
 ) -> tuple[dict, list[dict | None], list[str]]:
     """Return (new_deck, new_hydrated, unmatched_cuts) after applying cuts and adds.
@@ -39,6 +73,8 @@ def build_deck(
     Uses case-insensitive matching.  *unmatched_cuts* lists any cut names
     that were not found in the deck — callers should surface these as
     warnings rather than silently ignoring them.
+
+    Supports sideboard modifications via *sideboard_cuts* and *sideboard_adds*.
 
     Does not modify the originals.
     """
@@ -56,46 +92,35 @@ def build_deck(
                 new_hydrated.append(card)
                 existing_names.add(card["name"])
 
-    # Apply cuts to cards (not commanders).
-    # Uses normalized matching (lowercase + diacritic-folded) to avoid
-    # silent misses from casing or encoding differences between sources.
+    # Apply mainboard cuts and adds
     cards = new_deck.get("cards", [])
-    unmatched_cuts: list[str] = []
-    for cut in cuts:
-        name = cut["name"]
-        qty = cut.get("quantity", 1)
-        cut_key = normalize_card_name(name)
-        for entry in cards:
-            if normalize_card_name(entry["name"]) == cut_key:
-                entry["quantity"] = entry.get("quantity", 1) - qty
-                break
-        else:
-            unmatched_cuts.append(name)
-    # Remove entries with quantity <= 0
-    new_deck["cards"] = [c for c in cards if c.get("quantity", 1) > 0]
+    unmatched_cuts = _apply_cuts(cards, cuts)
+    new_deck["cards"] = cards
+    _apply_adds(new_deck["cards"], adds)
 
-    # Apply adds to cards
-    cards = new_deck["cards"]
-    for add in adds:
-        name = add["name"]
-        qty = add.get("quantity", 1)
-        add_key = normalize_card_name(name)
-        for entry in cards:
-            if normalize_card_name(entry["name"]) == add_key:
-                entry["quantity"] = entry.get("quantity", 1) + qty
-                break
-        else:
-            cards.append({"name": name, "quantity": qty})
+    # Apply sideboard cuts and adds
+    if sideboard_cuts or sideboard_adds:
+        sb = new_deck.get("sideboard", [])
+        if sideboard_cuts:
+            sb_unmatched = _apply_cuts(
+                sb, [_normalize_entry(c) for c in sideboard_cuts],
+            )
+            unmatched_cuts.extend(f"(sideboard) {n}" for n in sb_unmatched)
+        if sideboard_adds:
+            _apply_adds(sb, [_normalize_entry(a) for a in sideboard_adds])
+        new_deck["sideboard"] = sb
 
     return new_deck, new_hydrated, unmatched_cuts
 
 
-def _count_total(deck: dict) -> int:
-    total = 0
+def _count_total(deck: dict) -> tuple[int, int]:
+    """Return (mainboard_total, sideboard_total)."""
+    main = 0
     for section in ("commanders", "cards"):
         for entry in deck.get(section, []):
-            total += entry.get("quantity", 1)
-    return total
+            main += entry.get("quantity", 1)
+    sb = sum(entry.get("quantity", 1) for entry in deck.get("sideboard", []))
+    return main, sb
 
 
 @click.command()
@@ -106,6 +131,20 @@ def _count_total(deck: dict) -> int:
 )
 @click.option(
     "--adds", "adds_json", type=click.Path(exists=True, path_type=Path), default=None
+)
+@click.option(
+    "--sideboard-cuts",
+    "sb_cuts_json",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="JSON file of sideboard cuts.",
+)
+@click.option(
+    "--sideboard-adds",
+    "sb_adds_json",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="JSON file of sideboard adds.",
 )
 @click.option("--bulk-data", type=click.Path(exists=True, path_type=Path), default=None)
 @click.option(
@@ -119,6 +158,8 @@ def main(
     hydrated_json: Path,
     cuts_json: Path | None,
     adds_json: Path | None,
+    sb_cuts_json: Path | None,
+    sb_adds_json: Path | None,
     bulk_data: Path | None,
     output_dir: Path,
 ) -> None:
@@ -134,30 +175,53 @@ def main(
     raw_adds = json.loads(adds_json.read_text(encoding="utf-8")) if adds_json else []
     adds: list[dict] = [_normalize_entry(a) for a in raw_adds]
 
+    raw_sb_cuts = (
+        json.loads(sb_cuts_json.read_text(encoding="utf-8"))
+        if sb_cuts_json else None
+    )
+    raw_sb_adds = (
+        json.loads(sb_adds_json.read_text(encoding="utf-8"))
+        if sb_adds_json else None
+    )
+
     # Look up any added cards not already in hydrated
     hydrated_names = {c["name"] for c in hydrated if c}
     extra_hydrated: list[dict] = []
-    for add in adds:
+    all_adds = list(adds)
+    if raw_sb_adds:
+        all_adds.extend(_normalize_entry(a) for a in raw_sb_adds)
+    for add in all_adds:
         name = add["name"]
         if name not in hydrated_names:
             card = lookup_single(name, bulk_path=bulk_data)
             if card:
                 extra_hydrated.append(card)
+                hydrated_names.add(name)
             else:
                 click.echo(f"Warning: card not found in Scryfall: {name}", err=True)
 
     new_deck, new_hydrated, unmatched_cuts = build_deck(
-        deck, hydrated, cuts, adds, extra_hydrated=extra_hydrated
+        deck, hydrated, cuts, adds,
+        sideboard_cuts=raw_sb_cuts,
+        sideboard_adds=raw_sb_adds,
+        extra_hydrated=extra_hydrated,
     )
 
     for name in unmatched_cuts:
         click.echo(f"Warning: cut not found in deck: {name}", err=True)
 
-    total = _count_total(new_deck)
-    deck_size = get_format_config(new_deck)["deck_size"]
-    if total != deck_size:
+    config = get_format_config(new_deck)
+    main_total, sb_total = _count_total(new_deck)
+    deck_size = config["deck_size"]
+    if main_total != deck_size:
         click.echo(
-            f"Warning: deck has {total} cards (expected {deck_size})",
+            f"Warning: mainboard has {main_total} cards (expected {deck_size})",
+            err=True,
+        )
+    sb_size = config.get("sideboard_size", 0)
+    if sb_size and sb_total > sb_size:
+        click.echo(
+            f"Warning: sideboard has {sb_total} cards (max {sb_size})",
             err=True,
         )
 

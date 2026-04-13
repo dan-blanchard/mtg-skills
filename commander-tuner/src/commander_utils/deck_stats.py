@@ -159,7 +159,7 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
                 }
             )
 
-    return {
+    result = {
         "total_cards": total_cards,
         "land_count": land_count,
         "creature_count": creature_count,
@@ -170,6 +170,29 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
         "color_sources": dict(sorted(sources.items())),
         "alternative_cost_cards": alternative_cost_cards,
     }
+
+    _add_sideboard_stats(result, deck, card_lookup)
+    return result
+
+
+def _add_sideboard_stats(
+    result: dict, deck: dict, card_lookup: dict[str, dict],
+) -> None:
+    sideboard_entries = deck.get("sideboard", [])
+    if not sideboard_entries:
+        return
+    sb_total = 0
+    sb_curve: Counter[int] = Counter()
+    for entry in sideboard_entries:
+        name = entry["name"]
+        qty = entry.get("quantity", 1)
+        card = card_lookup.get(name)
+        sb_total += qty
+        if card and not is_land(card):
+            cmc = card.get("cmc", 0.0)
+            sb_curve[int(cmc)] += qty
+    result["sideboard_total"] = sb_total
+    result["sideboard_curve"] = dict(sorted(sb_curve.items()))
 
 
 def render_text_report(stats: dict) -> str:
@@ -200,6 +223,14 @@ def render_text_report(stats: dict) -> str:
         for entry in alt_cost:
             costs = ", ".join(c["type"] for c in entry.get("alt_costs", []))
             lines.append(f"  - {entry['name']} (CMC {entry['cmc']}, {costs})")
+
+    sb_total = stats.get("sideboard_total")
+    if sb_total:
+        lines.append(f"Sideboard: {sb_total} cards")
+        sb_curve = stats.get("sideboard_curve") or {}
+        if sb_curve:
+            sb_curve_str = " | ".join(f"{k}:{v}" for k, v in sorted(sb_curve.items()))
+            lines.append(f"Sideboard curve: {sb_curve_str}")
 
     return "\n".join(lines) + "\n"
 

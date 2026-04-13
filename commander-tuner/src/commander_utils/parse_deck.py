@@ -36,6 +36,7 @@ def _detect_format(content: str) -> str:
 def _parse_moxfield(content: str) -> dict:
     commanders: list[dict] = []
     cards: list[dict] = []
+    sideboard: list[dict] = []
     current_section = ""
 
     for raw_line in content.splitlines():
@@ -57,10 +58,12 @@ def _parse_moxfield(content: str) -> dict:
 
         if current_section == "commander":
             commanders.append({"name": name, "quantity": quantity})
+        elif current_section == "sideboard":
+            sideboard.append({"name": name, "quantity": quantity})
         else:
             cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": commanders, "cards": cards}
+    return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
 
 
 _ARENA_SECTION_HEADERS = frozenset(
@@ -76,6 +79,7 @@ _ARENA_SECTION_HEADERS = frozenset(
 def _parse_mtgo(content: str) -> dict:
     commanders: list[dict] = []
     cards: list[dict] = []
+    sideboard: list[dict] = []
     current_section = ""
 
     for raw_line in content.splitlines():
@@ -94,10 +98,12 @@ def _parse_mtgo(content: str) -> dict:
             name = match.group(2).strip()
             if current_section == "commander":
                 commanders.append({"name": name, "quantity": quantity})
+            elif current_section == "sideboard":
+                sideboard.append({"name": name, "quantity": quantity})
             else:
                 cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": commanders, "cards": cards}
+    return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
 
 
 def _parse_csv(content: str) -> dict:
@@ -131,12 +137,13 @@ def _parse_csv(content: str) -> dict:
 
         cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": [], "cards": cards}
+    return {"commanders": [], "cards": cards, "sideboard": []}
 
 
 def _parse_plain(content: str) -> dict:
     commanders: list[dict] = []
     cards: list[dict] = []
+    sideboard: list[dict] = []
     current_section = ""
 
     for raw_line in content.splitlines():
@@ -159,10 +166,12 @@ def _parse_plain(content: str) -> dict:
 
         if current_section == "commander":
             commanders.append({"name": name, "quantity": quantity})
+        elif current_section == "sideboard":
+            sideboard.append({"name": name, "quantity": quantity})
         else:
             cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": commanders, "cards": cards}
+    return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
 
 
 # Matches Moxfield set code + collector number suffix: " (SET) 123" or " (SET) 123a"
@@ -192,23 +201,39 @@ def parse_deck(
     fmt = _detect_format(content)
     result = _PARSERS[fmt](content)
 
+    config = FORMAT_CONFIGS[format]
+
+    # For commander formats, fold any sideboard entries back into cards so
+    # Arena exports that include a "Sideboard" header don't silently lose cards.
+    if config.get("has_commander", True):
+        result["cards"].extend(result.get("sideboard", []))
+        result["sideboard"] = []
+
     # Strip Moxfield-style set codes from all names
     for cmd in result["commanders"]:
         cmd["name"] = _strip_set_code(cmd["name"])
     for card in result["cards"]:
+        card["name"] = _strip_set_code(card["name"])
+    for card in result.get("sideboard", []):
         card["name"] = _strip_set_code(card["name"])
 
     result["total_cards"] = sum(
         c.get("quantity", 1) for c in result["commanders"]
     ) + sum(c.get("quantity", 1) for c in result["cards"])
 
+    result["total_sideboard"] = sum(
+        c.get("quantity", 1) for c in result.get("sideboard", [])
+    )
+
     result.setdefault("owned_cards", [])
+    result.setdefault("sideboard", [])
 
     result["format"] = format
+    result["sideboard_size"] = config.get("sideboard_size", 0)
     if deck_size is not None:
         result["deck_size"] = deck_size
     else:
-        result["deck_size"] = FORMAT_CONFIGS[format]["deck_size"]
+        result["deck_size"] = config["deck_size"]
 
     return result
 
@@ -218,7 +243,7 @@ def parse_deck(
 @click.option(
     "--format",
     "deck_format",
-    type=click.Choice(["commander", "brawl", "historic_brawl"]),
+    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
     default="commander",
     show_default=True,
     help="Game format.",
@@ -254,9 +279,12 @@ def main(
         output_path.write_text(payload + "\n")
         resolved = output_path.resolve()
         commander_count = len(result["commanders"])
-        click.echo(
-            f"parse-deck: {result['total_cards']} cards, "
-            f"{commander_count} commander(s) -> {resolved}"
-        )
+        sideboard_count = result.get("total_sideboard", 0)
+        summary = f"parse-deck: {result['total_cards']} cards"
+        if commander_count:
+            summary += f", {commander_count} commander(s)"
+        if sideboard_count:
+            summary += f", {sideboard_count} sideboard"
+        click.echo(f"{summary} -> {resolved}")
     else:
         click.echo(payload)

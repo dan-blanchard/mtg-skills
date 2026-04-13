@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from commander_utils.deck_stats import deck_stats, main
+from commander_utils.deck_stats import deck_stats, main, render_text_report
 from commander_utils.parse_deck import parse_deck
 
 
@@ -121,6 +121,63 @@ class TestAlternativeCostCards:
         alt_names = {c["name"] for c in result["alternative_cost_cards"]}
         assert "Sol Ring" not in alt_names
         assert "Command Tower" not in alt_names
+
+
+class TestSideboardStats:
+    def test_sideboard_stats_present(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [
+                {"name": "Smash", "quantity": 3},
+                {"name": "Bolt", "quantity": 2},
+            ],
+        }
+        hydrated = [
+            {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2.0, "type_line": "Instant"},
+            {"name": "Bolt", "cmc": 1.0, "type_line": "Instant"},
+        ]
+        result = deck_stats(deck, hydrated)
+        assert result["sideboard_total"] == 5
+        assert result["sideboard_curve"] == {1: 2, 2: 3}
+
+    def test_no_sideboard_stats_when_empty(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [],
+        }
+        hydrated = [
+            {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
+        ]
+        result = deck_stats(deck, hydrated)
+        assert "sideboard_total" not in result
+
+    def test_no_sideboard_stats_when_absent(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+        }
+        hydrated = [
+            {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
+        ]
+        result = deck_stats(deck, hydrated)
+        assert "sideboard_total" not in result
+
+    def test_sideboard_text_report(self):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Smash", "quantity": 3}],
+        }
+        hydrated = [
+            {"name": "Bolt", "cmc": 1.0, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2.0, "type_line": "Instant"},
+        ]
+        result = deck_stats(deck, hydrated)
+        report = render_text_report(result)
+        assert "Sideboard: 3 cards" in report
 
 
 class TestCLI:

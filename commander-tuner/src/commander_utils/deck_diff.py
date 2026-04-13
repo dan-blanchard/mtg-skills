@@ -11,15 +11,22 @@ from commander_utils.card_classify import build_card_lookup, is_land, is_ramp
 
 
 def _build_name_qty(deck: dict) -> dict[str, int]:
-    """Build name -> total quantity mapping from a parsed deck."""
+    """Build name -> total quantity mapping from a parsed deck's mainboard."""
     counts: dict[str, int] = {}
-    for cmd in deck.get("commanders", []):
-        name = cmd["name"]
-        qty = cmd.get("quantity", 1)
-        counts[name] = counts.get(name, 0) + qty
-    for card in deck.get("cards", []):
-        name = card["name"]
-        qty = card.get("quantity", 1)
+    for section in ("commanders", "cards"):
+        for entry in deck.get(section, []):
+            name = entry["name"]
+            qty = entry.get("quantity", 1)
+            counts[name] = counts.get(name, 0) + qty
+    return counts
+
+
+def _build_sideboard_qty(deck: dict) -> dict[str, int]:
+    """Build name -> quantity mapping from a parsed deck's sideboard."""
+    counts: dict[str, int] = {}
+    for entry in deck.get("sideboard", []):
+        name = entry["name"]
+        qty = entry.get("quantity", 1)
         counts[name] = counts.get(name, 0) + qty
     return counts
 
@@ -51,6 +58,24 @@ def _compute_stats(
     return total, round(avg_cmc, 2), land_count, ramp_count
 
 
+def _diff_card_lists(
+    old_qty: dict[str, int], new_qty: dict[str, int],
+) -> tuple[list[dict], list[dict]]:
+    """Return (added, removed) lists from two name->qty maps."""
+    all_names = set(old_qty) | set(new_qty)
+    added: list[dict] = []
+    removed: list[dict] = []
+    for name in sorted(all_names):
+        old_count = old_qty.get(name, 0)
+        new_count = new_qty.get(name, 0)
+        delta = new_count - old_count
+        if delta > 0:
+            added.append({"name": name, "quantity": delta})
+        elif delta < 0:
+            removed.append({"name": name, "quantity": -delta})
+    return added, removed
+
+
 def deck_diff(
     old_deck: dict,
     new_deck: dict,
@@ -64,19 +89,7 @@ def deck_diff(
     old_lookup = build_card_lookup(old_hydrated)
     new_lookup = build_card_lookup(new_hydrated)
 
-    all_names = set(old_qty) | set(new_qty)
-
-    added: list[dict] = []
-    removed: list[dict] = []
-
-    for name in sorted(all_names):
-        old_count = old_qty.get(name, 0)
-        new_count = new_qty.get(name, 0)
-        delta = new_count - old_count
-        if delta > 0:
-            added.append({"name": name, "quantity": delta})
-        elif delta < 0:
-            removed.append({"name": name, "quantity": -delta})
+    added, removed = _diff_card_lists(old_qty, new_qty)
 
     count_before, avg_cmc_before, land_before, ramp_before = _compute_stats(
         old_qty, old_lookup
@@ -85,7 +98,7 @@ def deck_diff(
         new_qty, new_lookup
     )
 
-    return {
+    result = {
         "added": added,
         "removed": removed,
         "count_before": count_before,
@@ -100,6 +113,16 @@ def deck_diff(
         "ramp_count_after": ramp_after,
         "ramp_count_delta": ramp_after - ramp_before,
     }
+
+    # Sideboard diff — directly compare sideboard sections
+    old_sb_qty = _build_sideboard_qty(old_deck)
+    new_sb_qty = _build_sideboard_qty(new_deck)
+    if old_sb_qty or new_sb_qty:
+        sb_added, sb_removed = _diff_card_lists(old_sb_qty, new_sb_qty)
+        result["sideboard_added"] = sb_added
+        result["sideboard_removed"] = sb_removed
+
+    return result
 
 
 @click.command()

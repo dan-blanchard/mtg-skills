@@ -9,6 +9,7 @@ from click.testing import CliRunner
 from commander_utils.mana_audit import (
     burgess_formula,
     color_balance,
+    constructed_land_target,
     karsten_adjustment,
     land_count_status,
     main,
@@ -414,3 +415,97 @@ class TestCompareLabels:
         data = json_from_cli_output(result)
         assert data["primary"]["source"] == "primary.json"
         assert data["comparison"]["source"] == "comparison.json"
+
+
+class TestConstructedLandTarget:
+    def test_baseline_24_at_avg_cmc_3(self):
+        assert constructed_land_target(ramp_count=0, avg_cmc=3.0) == 24
+
+    def test_ramp_reduces_count(self):
+        assert constructed_land_target(ramp_count=4, avg_cmc=3.0) == 22
+
+    def test_high_curve_increases(self):
+        result = constructed_land_target(ramp_count=0, avg_cmc=4.5)
+        assert result > 24
+
+    def test_low_curve_decreases(self):
+        result = constructed_land_target(ramp_count=0, avg_cmc=1.5)
+        assert result < 24
+
+    def test_clamped_low_at_20(self):
+        result = constructed_land_target(ramp_count=20, avg_cmc=1.0)
+        assert result >= 20
+
+    def test_clamped_high_at_27(self):
+        result = constructed_land_target(ramp_count=0, avg_cmc=6.0)
+        assert result <= 27
+
+    def test_scales_to_non_60(self):
+        r60 = constructed_land_target(ramp_count=0, avg_cmc=3.0, deck_size=60)
+        r80 = constructed_land_target(ramp_count=0, avg_cmc=3.0, deck_size=80)
+        assert r80 > r60
+
+
+class TestConstructedManaAudit:
+    def test_constructed_uses_constructed_target(self):
+        deck = {
+            "format": "pioneer",
+            "deck_size": 60,
+            "commanders": [],
+            "cards": [
+                {"name": "Lightning Bolt", "quantity": 4},
+                {"name": "Mountain", "quantity": 22},
+            ],
+        }
+        hydrated = [
+            {
+                "name": "Lightning Bolt",
+                "cmc": 1.0,
+                "mana_cost": "{R}",
+                "type_line": "Instant",
+                "keywords": [],
+                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+            },
+            {
+                "name": "Mountain",
+                "cmc": 0.0,
+                "mana_cost": "",
+                "type_line": "Basic Land — Mountain",
+                "keywords": [],
+                "oracle_text": "({T}: Add {R}.)",
+            },
+        ]
+        result = mana_audit(deck, hydrated)
+        assert "constructed_land_target" in result
+        assert "burgess_formula" not in result
+        assert result["land_count"] == 22
+        assert result["constructed_land_target"]["ramp_count"] == 0
+
+    def test_constructed_excludes_sideboard(self):
+        deck = {
+            "format": "pioneer",
+            "deck_size": 60,
+            "commanders": [],
+            "cards": [{"name": "Mountain", "quantity": 22}],
+            "sideboard": [{"name": "Island", "quantity": 5}],
+        }
+        hydrated = [
+            {
+                "name": "Mountain",
+                "cmc": 0.0,
+                "mana_cost": "",
+                "type_line": "Basic Land — Mountain",
+                "keywords": [],
+                "oracle_text": "({T}: Add {R}.)",
+            },
+            {
+                "name": "Island",
+                "cmc": 0.0,
+                "mana_cost": "",
+                "type_line": "Basic Land — Island",
+                "keywords": [],
+                "oracle_text": "({T}: Add {U}.)",
+            },
+        ]
+        result = mana_audit(deck, hydrated)
+        assert result["land_count"] == 22  # sideboard Island not counted

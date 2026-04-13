@@ -60,14 +60,24 @@ def _basic_subtype(card: dict) -> str | None:
 def check_format_legality(
     hydrated_cards: list[dict],
     legality_key: str,
+    *,
+    deck_card_names: set[str] | None = None,
 ) -> list[dict]:
-    """Return a list of cards whose legality is not ``legal`` or ``restricted``."""
+    """Return a list of cards whose legality is not ``legal`` or ``restricted``.
+
+    When *deck_card_names* is provided, only cards whose name appears in the
+    set are checked. This allows callers to pass a combined main+sideboard
+    name set while still feeding the full hydrated list.
+    """
     violations: list[dict] = []
     for card in hydrated_cards:
+        name = card.get("name", "?")
+        if deck_card_names is not None and name not in deck_card_names:
+            continue
         legalities = card.get("legalities") or {}
         status = legalities.get(legality_key, "not_legal")
         if status not in _LEGAL_STATUSES:
-            violations.append({"name": card.get("name", "?"), "legality": status})
+            violations.append({"name": name, "legality": status})
     return violations
 
 
@@ -90,9 +100,12 @@ def check_color_identity(
 ) -> list[dict]:
     """Return a list of cards outside the commander's color identity.
 
-    Honors the Brawl/Historic Brawl colorless-commander exemption (one basic
-    land subtype of the pilot's choice).
+    Returns an empty list for non-commander formats (no color identity
+    restriction). Honors the Brawl/Historic Brawl colorless-commander
+    exemption (one basic land subtype of the pilot's choice).
     """
+    if not config.get("has_commander", True):
+        return []
     hydrated_by_name = {c.get("name", ""): c for c in hydrated_cards}
     commander_ci = _commander_color_identity(deck_json, hydrated_by_name)
     commander_ci_sorted = sorted(commander_ci)
@@ -158,37 +171,47 @@ def check_color_identity(
     return violations
 
 
-def check_singletons(
+def check_copy_limits(
     deck_json: dict,
     hydrated_by_name: dict[str, dict],
-    _config: dict,
+    config: dict,
 ) -> list[dict]:
-    """Return a list of singleton-rule violations.
+    """Return a list of copy-limit violations.
 
-    Exemptions:
+    The per-card limit comes from ``config["max_copies"]`` (1 for singleton
+    formats, 4 for constructed). Exemptions:
+
     - Basic lands (unlimited copies always legal)
     - Cards with "A deck can have any number of cards named X" oracle text
     - Cards with "A deck can have up to <N> cards named X" oracle text, as
       long as ``quantity <= N``
-    """
-    violations: list[dict] = []
-    for entry in deck_json.get("cards") or []:
-        name = entry.get("name", "?")
-        quantity = int(entry.get("quantity", 1))
-        if quantity <= 1:
-            continue
 
+    For Vintage, cards with ``legalities.vintage == "restricted"`` are capped
+    at 1 copy regardless of the format default.
+
+    Counts are computed across mainboard + sideboard combined, matching MTG
+    rules (the copy limit spans both zones).
+    """
+    max_copies = config.get("max_copies", 1)
+    legality_key = config.get("legality_key", "")
+
+    # Aggregate quantities across mainboard and sideboard
+    combined_quantities: dict[str, int] = {}
+    for section in ("cards", "sideboard"):
+        for entry in deck_json.get(section) or []:
+            name = entry.get("name", "?")
+            qty = int(entry.get("quantity", 1))
+            combined_quantities[name] = combined_quantities.get(name, 0) + qty
+
+    violations: list[dict] = []
+    for name, quantity in combined_quantities.items():
         card = hydrated_by_name.get(name)
         if card is None:
-            # Unhydrated card — legality check will surface it via a separate
-            # path if it's missing from the deck's hydrated data.
             continue
 
         if _is_basic_land(card):
             continue
 
-        # Unlimited copies ("A deck can have any number of cards named X")
-        # always pass; the "up to N" variant still needs a quantity check.
         if has_any_number_exemption(card):
             continue
 
@@ -206,31 +229,86 @@ def check_singletons(
             )
             continue
 
-        violations.append(
-            {
-                "name": name,
-                "quantity": quantity,
-                "limit": 1,
-                "reason": "singleton",
-            }
-        )
+        # Vintage restricted: capped at 1 regardless of format max_copies
+        effective_limit = max_copies
+        if legality_key == "vintage":
+            legalities = card.get("legalities") or {}
+            if legalities.get("vintage") == "restricted":
+                effective_limit = 1
+
+        if quantity > effective_limit:
+            is_restricted = effective_limit == 1 and max_copies > 1
+            reason = "restricted" if is_restricted else "copy_limit"
+            violations.append(
+                {
+                    "name": name,
+                    "quantity": quantity,
+                    "limit": effective_limit,
+                    "reason": reason,
+                }
+            )
     return violations
 
 
+def check_sideboard_size(deck_json: dict, config: dict) -> list[dict]:
+    """Return a violation if the sideboard exceeds the format's limit."""
+    max_sb = config.get("sideboard_size", 0)
+    if max_sb == 0:
+        return []
+    sb_total = sum(
+        int(e.get("quantity", 1)) for e in deck_json.get("sideboard") or []
+    )
+    if sb_total > max_sb:
+        return [{
+            "sideboard_count": sb_total,
+            "limit": max_sb,
+            "reason": "sideboard_too_large",
+        }]
+    return []
+
+
+def check_deck_minimum(deck_json: dict, config: dict) -> list[dict]:
+    """Return a violation if the mainboard is below the format minimum."""
+    min_size = config.get("deck_size", 60)
+    total_cards = int(deck_json.get("total_cards", 0)) or sum(
+        int(e.get("quantity", 1))
+        for e in (deck_json.get("cards") or []) + (deck_json.get("commanders") or [])
+    )
+    if total_cards < min_size:
+        return [{
+            "total_cards": total_cards,
+            "minimum": min_size,
+            "reason": "below_minimum",
+        }]
+    return []
+
+
 def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
-    """Run all three legality checks and return a structured result."""
+    """Run all legality checks and return a structured result."""
     config = get_format_config(deck_json)
     legality_key = config["legality_key"]
 
-    format_violations = check_format_legality(hydrated_cards, legality_key)
+    # Collect all card names across main + sideboard for format legality
+    all_deck_names: set[str] = set()
+    for section in ("commanders", "cards", "sideboard"):
+        for entry in deck_json.get(section) or []:
+            all_deck_names.add(entry.get("name", ""))
+
+    format_violations = check_format_legality(
+        hydrated_cards, legality_key, deck_card_names=all_deck_names,
+    )
     ci_violations = check_color_identity(deck_json, hydrated_cards, config)
     hydrated_by_name = {c.get("name", ""): c for c in hydrated_cards}
-    singleton_violations = check_singletons(deck_json, hydrated_by_name, config)
+    copy_violations = check_copy_limits(deck_json, hydrated_by_name, config)
+    sb_violations = check_sideboard_size(deck_json, config)
+    deck_min_violations = check_deck_minimum(deck_json, config)
 
     counts = {
         "format_legality": len(format_violations),
         "color_identity": len(ci_violations),
-        "singleton": len(singleton_violations),
+        "copy_limits": len(copy_violations),
+        "sideboard_size": len(sb_violations),
+        "deck_minimum": len(deck_min_violations),
     }
     total_violations = sum(counts.values())
     overall_status = "PASS" if total_violations == 0 else "FAIL"
@@ -248,7 +326,9 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
         "violations": {
             "format_legality": format_violations,
             "color_identity": ci_violations,
-            "singleton": singleton_violations,
+            "copy_limits": copy_violations,
+            "sideboard_size": sb_violations,
+            "deck_minimum": deck_min_violations,
         },
     }
 
@@ -272,13 +352,28 @@ def _format_violation_line(
                 names.append(f"{v['name']} (mixed basics)")
             else:
                 names.append(f"{v['name']} ({ci} not in {cmd_ci})")
+        elif reason == "sideboard_size":
+            names.append(f"{v['sideboard_count']}/{v['limit']}")
+        elif reason == "deck_minimum":
+            names.append(f"{v['total_cards']}/{v['minimum']}")
         elif v.get("reason") == "exceeds_named_card_cap":
             names.append(f"{v['name']} ({v['quantity']}/{v['limit']})")
+        elif v.get("reason") == "restricted":
+            names.append(f"{v['name']} ({v['quantity']}x, restricted=1)")
         else:
-            names.append(f"{v['name']} ({v['quantity']}x)")
+            names.append(f"{v['name']} ({v['quantity']}x, limit={v.get('limit', '?')})")
     more = len(violations) - len(shown)
     suffix = f", +{more} more" if more > 0 else ""
     return f"  {reason} ({len(violations)}): {', '.join(names)}{suffix}"
+
+
+_REPORT_CHECKS = (
+    "format_legality",
+    "color_identity",
+    "copy_limits",
+    "sideboard_size",
+    "deck_minimum",
+)
 
 
 def render_text_report(result: dict) -> str:
@@ -288,15 +383,17 @@ def render_text_report(result: dict) -> str:
     fmt = result.get("format", "?")
     total_cards = result.get("total_cards", 0)
     if total:
-        header = f"legality-audit: {status} — {total} violations in {fmt}"
+        header = f"legality-audit: {status} — {total} violation(s) in {fmt}"
     else:
         header = f"legality-audit: {status} — {total_cards} cards, format={fmt}"
     violations = result.get("violations") or {}
     lines = [header, ""]
-    lines.extend(
-        _format_violation_line(reason, violations.get(reason) or [])
-        for reason in ("format_legality", "color_identity", "singleton")
-    )
+    for check in _REPORT_CHECKS:
+        v = violations.get(check) or []
+        # Skip checks that aren't relevant (e.g., sideboard for commander)
+        if not v and check in ("sideboard_size", "deck_minimum"):
+            continue
+        lines.append(_format_violation_line(check, v))
     return "\n".join(lines) + "\n"
 
 

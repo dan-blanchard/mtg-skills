@@ -12,6 +12,11 @@ def export_moxfield(deck: dict) -> str:
     """Convert a parsed deck dict to Moxfield import text (N CardName lines)."""
     lines = [f"{e['quantity']} {e['name']}" for e in deck.get("commanders", [])]
     lines.extend(f"{e['quantity']} {e['name']}" for e in deck.get("cards", []))
+    sideboard = deck.get("sideboard") or []
+    if sideboard:
+        lines.append("")
+        lines.append("Sideboard")
+        lines.extend(f"{e['quantity']} {e['name']}" for e in sideboard)
     return "\n".join(lines)
 
 

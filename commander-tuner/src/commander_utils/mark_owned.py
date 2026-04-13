@@ -55,7 +55,7 @@ def _collect_entries(
       applies the same reasoning to its owned index.
     """
     out: dict[str, tuple[str, int]] = {}
-    for section in ("commanders", "cards"):
+    for section in ("commanders", "cards", "sideboard"):
         for entry in parsed.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue
