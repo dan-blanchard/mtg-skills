@@ -23,6 +23,7 @@ cards), add a new function here rather than diverging in place.
 from __future__ import annotations
 
 import unicodedata
+from pathlib import Path
 
 
 def normalize_card_name(name: str) -> str:
@@ -36,3 +37,49 @@ def normalize_card_name(name: str) -> str:
     folded = unicodedata.normalize("NFKD", name)
     ascii_only = folded.encode("ascii", "ignore").decode("ascii")
     return ascii_only.lower()
+
+
+def build_name_alias_map(bulk_path: Path) -> dict[str, str]:
+    """Build ``normalized_alias -> normalized_canonical`` map from bulk data.
+
+    Some cards are known on Arena by a different name than Scryfall's
+    canonical ``name`` field:
+
+    - **``printed_name``** — Through the Omenpaths (OM1) cards have
+      Arena-specific names (e.g., "Skittering Kitten") while Scryfall
+      uses the paper name ("Masked Meower").
+    - **``flavor_name``** — Ikoria Godzilla variants, Crimson Vow
+      Dracula variants, Avatar: The Last Airbender, Final Fantasy
+      crossovers have IP names that Arena may display.
+
+    Collection exports from Arena / Untapped.gg often use these
+    alternate names, causing ``mark_owned`` to miss cards whose
+    canonical name differs. This map lets callers fall back to alias
+    matching when direct matching fails.
+
+    Only English-language Arena cards are indexed. Non-English
+    ``printed_name`` values (e.g., Japanese Mystical Archive) are
+    excluded to avoid false matches.
+    """
+    from commander_utils.bulk_loader import load_bulk_cards
+
+    cards = load_bulk_cards(bulk_path)
+    aliases: dict[str, str] = {}
+    for card in cards:
+        if card.get("lang", "en") != "en":
+            continue
+        if "arena" not in (card.get("games") or []):
+            continue
+        name = card.get("name", "")
+        if not name:
+            continue
+        canonical = normalize_card_name(name)
+
+        for field in ("printed_name", "flavor_name"):
+            alias_name = card.get(field, "")
+            if not alias_name or alias_name == name:
+                continue
+            alias_key = normalize_card_name(alias_name)
+            if alias_key != canonical and alias_key not in aliases:
+                aliases[alias_key] = canonical
+    return aliases

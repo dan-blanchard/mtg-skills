@@ -21,7 +21,7 @@ from pathlib import Path
 import click
 
 from commander_utils._sidecar import atomic_write_json
-from commander_utils.names import normalize_card_name
+from commander_utils.names import build_name_alias_map, normalize_card_name
 
 
 def _collect_entries(
@@ -77,42 +77,54 @@ def _collect_entries(
     return out
 
 
-def _build_alias_lookup(primary: dict[str, tuple[str, int]]) -> dict[str, str]:
-    """Return normalized-key -> primary-key with front-face DFC aliases added.
+def _build_alias_lookup(
+    primary: dict[str, tuple[str, int]],
+    *,
+    name_aliases: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Return normalized-key -> primary-key with aliases added.
 
-    Mirrors ``scryfall_lookup._load_bulk_index`` (two-pass, standalone-wins):
+    Three alias layers, applied in order (later layers don't overwrite
+    earlier ones):
 
-    - Pass 1: every primary key maps to itself.
-    - Pass 2: for each primary whose name contains ``" // "``, add the
-      front-face normalized key as an alias pointing at that primary,
-      but only if the front-face key is not already claimed by a
-      standalone primary (or an earlier DFC's alias).
-
-    This lets mark-owned match ``"Fable of the Mirror-Breaker"`` (deck
-    front-face spelling) against ``"Fable of the Mirror-Breaker //
-    Reflection of Kiki-Jiki"`` (collection combined spelling from
-    Scryfall canonical names) without either side knowing that the two
-    are the same card. Scryfall stores all transform/MDFC/adventure/
-    split cards as ``"A // B"``, while Arena exports and many Moxfield
-    exports use front-face only — without alias fallback, every DFC the
-    user owns would silently fail to mark as owned.
-
-    The standalone-wins rule protects against cases like a real
-    standalone ``"Duress"`` within the same index shadowing a hypothetical
-    ``"Duress // Second Duress"`` DFC. Empirically (verified against
-    Scryfall default-cards.json) no Arena-legal cards have a DFC whose
-    front-face name collides with a different standalone card, and only
-    ``"Bind"`` vs ``"Bind // Liberate"`` from Mystery Booster is a real
-    gameplay-relevant collision — so this protection is thorough enough
-    in practice for any real collection or deck list.
+    - **Pass 1: primaries.** Every primary key maps to itself.
+    - **Pass 2: DFC front-face aliases.** For each primary whose name
+      contains ``" // "``, add the front-face normalized key as an alias,
+      unless already claimed (standalone-wins rule). This lets
+      ``"Fable of the Mirror-Breaker"`` match
+      ``"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"``.
+    - **Pass 3: printed_name / flavor_name aliases.** If ``name_aliases``
+      is provided (built from Scryfall bulk data by
+      ``names.build_name_alias_map``), add aliases for cards whose Arena
+      name differs from the canonical name. This lets a collection
+      containing ``"Skittering Kitten"`` (Arena name) match a deck
+      containing ``"Masked Meower"`` (canonical name), and vice versa.
+      Both directions are indexed: alias → canonical AND canonical →
+      alias (for when the deck uses the alias and the collection uses
+      the canonical).
     """
     lookup: dict[str, str] = {k: k for k in primary}
+
+    # Pass 2: DFC front-face aliases
     for key, (name, _qty) in primary.items():
         if " // " not in name:
             continue
         front_key = normalize_card_name(name.split(" // ")[0])
         if front_key not in lookup:
             lookup[front_key] = key
+
+    # Pass 3: printed_name / flavor_name aliases from bulk data
+    if name_aliases:
+        for alias_key, canonical_key in name_aliases.items():
+            # If the collection has the alias name, add canonical → alias
+            # so a deck using the canonical name finds the collection entry.
+            if alias_key in primary and canonical_key not in lookup:
+                lookup[canonical_key] = alias_key
+            # If the collection has the canonical name, add alias → canonical
+            # so a deck using the alias name finds the collection entry.
+            if canonical_key in primary and alias_key not in lookup:
+                lookup[alias_key] = canonical_key
+
     return lookup
 
 
@@ -125,9 +137,8 @@ def _match_collection_key(
     Tries, in order:
 
     1. Direct lookup in ``coll_lookup``. This handles exact primary
-       matches and the common case where the collection stores a DFC
-       combined form and the deck uses the front face (the collection's
-       front-face alias resolves to the combined primary).
+       matches, DFC front-face aliases, and printed_name/flavor_name
+       aliases (all injected by ``_build_alias_lookup``).
     2. If the deck key itself is a DFC combined form, try its front
        face as a fallback. This handles the reverse case — the deck
        uses the combined form while the collection stores only the
@@ -143,7 +154,12 @@ def _match_collection_key(
     return None
 
 
-def mark_owned(deck: dict, collection: dict) -> dict:
+def mark_owned(
+    deck: dict,
+    collection: dict,
+    *,
+    name_aliases: dict[str, str] | None = None,
+) -> dict:
     """Return a new deck dict with ``owned_cards`` populated from the intersection.
 
     ``owned_cards`` is a list of ``{"name": str, "quantity": int}``
@@ -165,7 +181,7 @@ def mark_owned(deck: dict, collection: dict) -> dict:
       alone; see ``_build_alias_lookup`` for the semantics.
     - Output is sorted by lowercased deck name for deterministic diffs.
     """
-    result, _ = _mark_owned_with_count(deck, collection)
+    result, _ = _mark_owned_with_count(deck, collection, name_aliases=name_aliases)
     return result
 
 
@@ -185,7 +201,19 @@ def mark_owned(deck: dict, collection: dict) -> dict:
     default=None,
     help="Write result here. Defaults to overwriting DECK_PATH in place.",
 )
-def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> None:
+@click.option(
+    "--bulk-data",
+    "bulk_data",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Scryfall bulk data for printed_name / flavor_name aliasing.",
+)
+def main(
+    deck_path: Path,
+    collection_path: Path,
+    output_path: Path | None,
+    bulk_data: Path | None,
+) -> None:
     """Populate DECK_PATH's ``owned_cards`` field from COLLECTION_PATH.
 
     Both paths are parsed-deck JSON files (output of ``parse-deck``). The
@@ -216,7 +244,13 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
         click.echo(f"mark-owned: invalid JSON — {exc}", err=True)
         sys.exit(1)
 
-    result, deck_unique = _mark_owned_with_count(deck, collection)
+    name_aliases = None
+    if bulk_data:
+        name_aliases = build_name_alias_map(Path(bulk_data))
+
+    result, deck_unique = _mark_owned_with_count(
+        deck, collection, name_aliases=name_aliases
+    )
     target = output_path.resolve() if output_path else deck_path
     # Atomic write via tempfile + rename so an interrupted run never leaves
     # the user's parsed deck JSON half-overwritten — the default mode IS
@@ -231,7 +265,12 @@ def main(deck_path: Path, collection_path: Path, output_path: Path | None) -> No
     )
 
 
-def _mark_owned_with_count(deck: dict, collection: dict) -> tuple[dict, int]:
+def _mark_owned_with_count(
+    deck: dict,
+    collection: dict,
+    *,
+    name_aliases: dict[str, str] | None = None,
+) -> tuple[dict, int]:
     """``mark_owned()`` plus the deck's unique-card count, without re-walking.
 
     The CLI summary needs both the result and the denominator ``N of M``;
@@ -241,7 +280,7 @@ def _mark_owned_with_count(deck: dict, collection: dict) -> tuple[dict, int]:
     """
     collection_entries = _collect_entries(collection, sum_duplicates=True)
     deck_entries = _collect_entries(deck, sum_duplicates=False)
-    coll_lookup = _build_alias_lookup(collection_entries)
+    coll_lookup = _build_alias_lookup(collection_entries, name_aliases=name_aliases)
     owned: list[dict] = []
     for deck_key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
         coll_primary_key = _match_collection_key(deck_key, coll_lookup)

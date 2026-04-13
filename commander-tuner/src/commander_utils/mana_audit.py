@@ -34,11 +34,23 @@ def karsten_adjustment(*, ramp_count: int, deck_size: int = 100) -> int:
 
 
 def land_count_status(
-    *, land_count: int, recommended: int, deck_size: int = 100
+    *,
+    land_count: int,
+    recommended: int,
+    burgess: int,
 ) -> str:
-    """Return PASS/WARN/FAIL status for land count."""
-    floor = round(36 * deck_size / 100)
-    if land_count < floor:
+    """Return PASS/WARN/FAIL status for land count.
+
+    The absolute floor is the Burgess formula result (which accounts for
+    commander CMC and color count).  Falling below Burgess is FAIL.
+    Meeting Burgess but below the recommended (max of Burgess, Karsten)
+    is WARN.  Meeting or exceeding recommended is PASS.
+
+    Previous behavior used a fixed floor of 36 (scaled to deck size),
+    which penalised low-curve mono-color decks whose Burgess target was
+    legitimately 35 or lower.
+    """
+    if land_count < burgess:
         return "FAIL"
     if land_count < recommended:
         return "WARN"
@@ -201,7 +213,9 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
     recommended = max(burgess_result, karsten_result)
     lc_status = land_count_status(
-        land_count=land_count, recommended=recommended, deck_size=deck_size
+        land_count=land_count,
+        recommended=recommended,
+        burgess=burgess_result,
     )
 
     pips = pip_demand(pip_cards)

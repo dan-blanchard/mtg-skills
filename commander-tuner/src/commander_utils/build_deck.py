@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 
 from commander_utils.format_config import get_format_config
+from commander_utils.names import normalize_card_name
 from commander_utils.scryfall_lookup import lookup_single
 
 
@@ -32,8 +33,12 @@ def build_deck(
     adds: list[dict],
     *,
     extra_hydrated: list[dict] | None = None,
-) -> tuple[dict, list[dict | None]]:
-    """Return (new_deck, new_hydrated) after applying cuts and adds.
+) -> tuple[dict, list[dict | None], list[str]]:
+    """Return (new_deck, new_hydrated, unmatched_cuts) after applying cuts and adds.
+
+    Uses case-insensitive matching.  *unmatched_cuts* lists any cut names
+    that were not found in the deck — callers should surface these as
+    warnings rather than silently ignoring them.
 
     Does not modify the originals.
     """
@@ -51,15 +56,21 @@ def build_deck(
                 new_hydrated.append(card)
                 existing_names.add(card["name"])
 
-    # Apply cuts to cards (not commanders)
+    # Apply cuts to cards (not commanders).
+    # Uses normalized matching (lowercase + diacritic-folded) to avoid
+    # silent misses from casing or encoding differences between sources.
     cards = new_deck.get("cards", [])
+    unmatched_cuts: list[str] = []
     for cut in cuts:
         name = cut["name"]
         qty = cut.get("quantity", 1)
+        cut_key = normalize_card_name(name)
         for entry in cards:
-            if entry["name"] == name:
+            if normalize_card_name(entry["name"]) == cut_key:
                 entry["quantity"] = entry.get("quantity", 1) - qty
                 break
+        else:
+            unmatched_cuts.append(name)
     # Remove entries with quantity <= 0
     new_deck["cards"] = [c for c in cards if c.get("quantity", 1) > 0]
 
@@ -68,14 +79,15 @@ def build_deck(
     for add in adds:
         name = add["name"]
         qty = add.get("quantity", 1)
+        add_key = normalize_card_name(name)
         for entry in cards:
-            if entry["name"] == name:
+            if normalize_card_name(entry["name"]) == add_key:
                 entry["quantity"] = entry.get("quantity", 1) + qty
                 break
         else:
             cards.append({"name": name, "quantity": qty})
 
-    return new_deck, new_hydrated
+    return new_deck, new_hydrated, unmatched_cuts
 
 
 def _count_total(deck: dict) -> int:
@@ -134,9 +146,12 @@ def main(
             else:
                 click.echo(f"Warning: card not found in Scryfall: {name}", err=True)
 
-    new_deck, new_hydrated = build_deck(
+    new_deck, new_hydrated, unmatched_cuts = build_deck(
         deck, hydrated, cuts, adds, extra_hydrated=extra_hydrated
     )
+
+    for name in unmatched_cuts:
+        click.echo(f"Warning: cut not found in deck: {name}", err=True)
 
     total = _count_total(new_deck)
     deck_size = get_format_config(new_deck)["deck_size"]

@@ -48,6 +48,13 @@ RARITY_ORDER = {
     "bonus": 2,
 }
 
+# Digital-only Arena draft sets whose rarities reflect limited design,
+# not Arena wildcard cost.  Reprints in these sets are excluded from the
+# Arena rarity index so the "real" printing's rarity wins.  E.g.,
+# Lightning Bolt is common in J21 (for draft) but uncommon on Arena
+# (STA/FCA — the actual wildcard cost).
+_DRAFT_RARITY_SETS = frozenset({"j21", "jmp", "ajmp"})
+
 
 _cheapest_usd = extract_price
 
@@ -109,6 +116,13 @@ def build_rarity_index(
     printings available in that format.  When *arena_only* is True, only
     printings that exist on Arena (``"arena" in games``) are considered.
 
+    Some digital-only Arena sets (J21, JMP, AJMP) assign rarities for
+    draft/limited purposes that don't match the wildcard cost Arena
+    charges.  Reprints in these sets are excluded from rarity
+    consideration so that the "real" Arena printing's rarity wins.
+    Non-reprints (cards exclusive to these sets) are kept because they
+    have no alternative printing to defer to.
+
     ``exempt_from_4cap`` is True for cards whose oracle text opts out of the
     standard 4-copy limit ("A deck can have any number of cards named X"
     or "A deck can have up to N cards named X"). Arena normally treats
@@ -129,6 +143,15 @@ def build_rarity_index(
         if legalities.get(legality_key) not in ("legal", "restricted"):
             continue
         if arena_only and "arena" not in (card.get("games") or []):
+            continue
+
+        # Skip reprints from digital-only draft sets whose rarities
+        # reflect limited design, not Arena wildcard cost.
+        if (
+            arena_only
+            and card.get("set", "") in _DRAFT_RARITY_SETS
+            and card.get("reprint", False)
+        ):
             continue
 
         name = card.get("name", "")

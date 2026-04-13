@@ -47,13 +47,18 @@ class TestKarstenAdjustment:
 
 class TestLandCountStatus:
     def test_pass_at_recommended(self):
-        assert land_count_status(land_count=38, recommended=38) == "PASS"
+        assert land_count_status(land_count=38, recommended=38, burgess=36) == "PASS"
 
     def test_warn_below_recommended(self):
-        assert land_count_status(land_count=37, recommended=38) == "WARN"
+        assert land_count_status(land_count=37, recommended=38, burgess=36) == "WARN"
 
-    def test_fail_below_36(self):
-        assert land_count_status(land_count=35, recommended=38) == "FAIL"
+    def test_fail_below_burgess(self):
+        assert land_count_status(land_count=35, recommended=38, burgess=36) == "FAIL"
+
+    def test_warn_at_burgess_below_recommended(self):
+        # Mono-color low CMC: Burgess says 35, Karsten says 38.
+        # At 35 lands we meet Burgess → WARN (not FAIL).
+        assert land_count_status(land_count=35, recommended=38, burgess=35) == "WARN"
 
 
 class TestPipDemand:
@@ -268,13 +273,14 @@ class TestScaledFormulas:
         assert karsten_adjustment(ramp_count=0) == 42
 
     def test_land_count_status_scaled_floor(self):
-        # For 60-card: floor = round(36 * 60/100) = 22
-        assert land_count_status(land_count=21, recommended=23, deck_size=60) == "FAIL"
-        assert land_count_status(land_count=22, recommended=23, deck_size=60) == "WARN"
-        assert land_count_status(land_count=23, recommended=23, deck_size=60) == "PASS"
+        # For 60-card Brawl with Burgess floor 22: below is FAIL, at is WARN
+        assert land_count_status(land_count=21, recommended=23, burgess=22) == "FAIL"
+        assert land_count_status(land_count=22, recommended=23, burgess=22) == "WARN"
+        assert land_count_status(land_count=23, recommended=23, burgess=22) == "PASS"
 
     def test_land_count_status_default_100(self):
-        assert land_count_status(land_count=35, recommended=38) == "FAIL"
+        # 35 lands with Burgess=36 → FAIL (below Burgess)
+        assert land_count_status(land_count=35, recommended=38, burgess=36) == "FAIL"
 
 
 class TestManaAuditWithFormat:

@@ -78,7 +78,7 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 | See every card's oracle text / type / CMC | `card-summary <hydrated.json> [--nonlands-only\|--lands-only\|--type X]` |
 | Scan the deck for cards matching an oracle pattern | `Grep '<regex>' <hydrated.json>` — full oracle text, no truncation. For human-readable context on matches, pair with `card-summary [--type X]` |
 | Count cards / verify total matches deck size | `deck-stats <deck.json> <hydrated.json>` (reports `total_cards`) or re-run `parse-deck` (reports count in stdout) |
-| Know which deck cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH]` (populates `owned_cards` in place by default) |
+| Know which deck cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH] [--bulk-data <path>]` (populates `owned_cards` in place; pass `--bulk-data` for Arena name aliasing) |
 | Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --bulk-data <path>` — reports per-card rarity AND aggregate per-rarity totals vs. budget |
 | Check land count, curve, category totals, avg CMC | `deck-stats <deck.json> <hydrated.json>` |
 | Check mana-base health (Burgess/Karsten, color balance) | `mana-audit <deck.json> <hydrated.json>` |
@@ -145,8 +145,10 @@ All three card lists (`commanders`, `cards`, `owned_cards`) are the same shape �
 **Populating `owned_cards` from a user's collection:** use the dedicated helper, not inline `python3 -c`:
 
 ```
-mark-owned <deck.json> <collection.json>
+mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 ```
+
+**Always pass `--bulk-data` for Arena collections** — this enables `printed_name` and `flavor_name` aliasing so crossover cards (Through the Omenpaths, Godzilla, Dracula, Avatar) match correctly between Arena names and Scryfall canonical names.
 
 This writes the intersection (by normalized, diacritic-folded card name) back into `deck.json`'s `owned_cards` field in place. The recorded quantity is the authoritative count from the collection side, so the field answers "how many copies do I own?" rather than "how many did the deck ask for?" — relevant for Arena wildcard planning and playset-limited formats. `mark-owned` sums duplicate collection rows (Moxfield exports split the same card across printings, so 51 distinct Island rows correctly add up to the user's true 205 Island count). Pass `--output <path>` to write elsewhere instead. Every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern, so one `mark-owned` call beats three inline Python variations.
 
@@ -174,6 +176,8 @@ Linux users (Wine/Proton) need to supply `--log-path` explicitly. The importer e
 **`price-check` honors deck quantity and owned quantity.** Paper (USD) mode charges `max(deck_qty - owned_qty, 0) * unit_price` per card, so a deck running 17 Hare Apparent with 4 owned is correctly charged for 13 copies rather than 1. Arena wildcard mode applies the same shortfall math plus the Arena 4-cap substitution: owning ≥4 of a standard playset-capped card grants effectively infinite supply (no legal non-singleton deck can need a 5th), but this substitution is suppressed for cards with oracle exemptions (`A deck can have any number of cards named X` or `A deck can have up to N cards named X`), where owning 4 of Hare Apparent gives you exactly 4. This means the budget math handles any-quantity cards correctly in both paper and Arena contexts without the caller having to care.
 
 **Arena rarity ≠ hydrated cache `rarity` field.** `scryfall-lookup --batch` writes each card's `rarity` from whichever printing Scryfall treats as the "default" — typically the most-referenced paper printing, *not* the Arena printing. Rarity drifts across printings: Ashnod's Altar is uncommon in most paper sets but rare on Arena (BRR is its only Arena printing). If you read `rarity` from the hydrated cache or from `scryfall-lookup --batch` output to plan wildcard spend, you will get the wrong number for cards with printing drift, and your wildcard budget calculation will be off. **For any Arena rarity question, always use `price-check --format brawl` or `--format historic_brawl` with `--bulk-data`** — it reports the lowest Arena-legal rarity per card by walking every Arena printing, which is what MTG Arena actually charges as a wildcard. Never trust the hydrated cache's `rarity` field when you're budgeting wildcards.
+
+**Licensed IP cards have different names on Arena.** Some crossover sets use different card names on Arena than in paper/Scryfall: Through the Omenpaths (OM1, the Arena version of Marvel's Spider-Man), Ikoria Godzilla variants, Crimson Vow Dracula variants, and Avatar: The Last Airbender cards all have name discrepancies. **Always pass `--bulk-data` to `mark-owned`** when working with Arena collections — this enables `printed_name` and `flavor_name` aliasing so cards like "Skittering Kitten" (Arena name) correctly match "Masked Meower" (Scryfall name). Without `--bulk-data`, these cards silently appear unowned.
 
 ## Step 2: Hydrate Card Data
 

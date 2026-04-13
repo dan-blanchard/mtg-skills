@@ -377,6 +377,33 @@ class TestBuildRarityIndex:
         index = build_rarity_index(bulk_path, "commander")
         assert index["seven dwarves"]["exempt_from_4cap"] is True
 
+    def test_skips_draft_set_reprints_for_arena(self, tmp_path):
+        """J21/JMP/AJMP reprints have draft-format rarities that don't match
+        Arena wildcard cost.  A J21 common reprint should be excluded so the
+        real printing's uncommon rarity wins."""
+        cards = [
+            {
+                "name": "Lightning Bolt",
+                "rarity": "common",
+                "set": "j21",
+                "reprint": True,
+                "games": ["arena"],
+                "legalities": {"brawl": "legal"},
+            },
+            {
+                "name": "Lightning Bolt",
+                "rarity": "uncommon",
+                "set": "sta",
+                "reprint": True,
+                "games": ["arena", "paper", "mtgo"],
+                "legalities": {"brawl": "legal"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        index = build_rarity_index(bulk_path, "brawl", arena_only=True)
+        assert index["lightning bolt"]["rarity"] == "uncommon"
+
 
 class TestBulkIndexCheapestPrinting:
     def test_prefers_cheapest_printing(self, tmp_path):

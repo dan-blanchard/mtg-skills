@@ -69,7 +69,7 @@ Do NOT write JSON via Bash heredocs (`cat > /tmp/foo.json << 'JSONEOF' ... JSONE
 | See every card's oracle text / type / CMC | `card-summary <hydrated.json> [--nonlands-only\|--lands-only\|--type X]` |
 | Scan the skeleton for cards matching an oracle pattern | `Grep '<regex>' <hydrated.json>` — full oracle text, no truncation. For human-readable context on matches, pair with `card-summary [--type X]` |
 | Count cards / verify total matches deck size | `deck-stats <deck.json> <hydrated.json>` (reports `total_cards`) or re-run `parse-deck` (reports count in stdout) |
-| Know which skeleton cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH]` (populates `owned_cards` in place by default) |
+| Know which skeleton cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH] [--bulk-data <path>]` (populates `owned_cards` in place by default; pass `--bulk-data` for Arena name aliasing) |
 | Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --bulk-data <path>` — reports per-card rarity AND aggregate per-rarity totals vs. budget |
 | Check land count, curve, category totals, avg CMC | `deck-stats <deck.json> <hydrated.json>` |
 | Check mana-base health (Burgess/Karsten, color balance) | `mana-audit <deck.json> <hydrated.json>` |
@@ -119,8 +119,10 @@ All three card lists (`commanders`, `cards`, `owned_cards`) are the same shape �
 **Populating `owned_cards`:** when building from a user's collection, use the dedicated helper rather than inline `python3 -c`:
 
 ```
-mark-owned <deck.json> <collection.json>
+mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 ```
+
+**Always pass `--bulk-data` for Arena collections** — this enables `printed_name` and `flavor_name` aliasing so crossover cards (Through the Omenpaths, Godzilla, Dracula, Avatar) match correctly between Arena names and Scryfall canonical names.
 
 This overwrites the deck JSON in place with the intersection of deck and collection (by normalized, diacritic-folded card name). The recorded quantity is the authoritative count from the collection side (summed across split-printing rows), so the field answers "how many copies do I own?" not "how many does the deck ask for?" `price-check` then uses this to compute `max(deck_qty - owned_qty, 0)` shortfalls per slot — so a deck running 17 Hare Apparent with 4 owned is correctly billed for 13, not 1. Use `--output <path>` to write elsewhere. The script is idempotent and safe to chain after every `parse-deck` / `set-commander` call. Avoid inline Python — every unique `python3 -c` body is a fresh un-cacheable Bash permission pattern.
 
@@ -137,6 +139,8 @@ This overwrites the deck JSON in place with the intersection of deck and collect
 Verify by eye before `parse-deck` catches it a step later — pre-write tallies prevent rebuild cycles.
 
 **Arena rarity ≠ hydrated cache `rarity` field.** `scryfall-lookup --batch` writes each card's `rarity` from whichever printing Scryfall treats as the "default" — typically the most-referenced paper printing, *not* the Arena printing. Rarity drifts across printings: Ashnod's Altar is uncommon in most paper sets but rare on Arena (BRR is its only Arena printing). If you read `rarity` from the hydrated cache to plan wildcard spend, you will get the wrong number for cards with printing drift, and your wildcard budget in Step 3 (Structural Verification → price-check) will disagree with your expectation, forcing a rebuild. **For any Arena rarity question, always use `price-check --format brawl` or `--format historic_brawl` with `--bulk-data`** — it reports the lowest Arena-legal rarity per card by walking every Arena printing, which is what MTG Arena actually charges as a wildcard. Never trust the hydrated cache's `rarity` field when you're budgeting wildcards against a fixed per-rarity wildcard count.
+
+**Licensed IP cards have different names on Arena.** Some crossover sets use different card names on Arena than in paper/Scryfall: Through the Omenpaths (OM1, the Arena version of Marvel's Spider-Man) uses names like "Skittering Kitten" where Scryfall uses "Masked Meower"; Ikoria Godzilla variants, Crimson Vow Dracula variants, and Avatar: The Last Airbender cards have similar discrepancies. **Always pass `--bulk-data` to `mark-owned`** when working with Arena collections — this enables `printed_name` and `flavor_name` aliasing from Scryfall data, so a collection containing "Skittering Kitten" correctly matches a deck containing "Masked Meower". Without `--bulk-data`, these cards silently appear unowned. When recommending cards from crossover sets for Arena, note that the Arena display name may differ from the Scryfall name shown in `card-search` results.
 
 ## Step 1: Interview
 
@@ -318,7 +322,7 @@ The land count comes from the Burgess formula, but composition matters. Guidelin
   - **Tight on wildcards:** Lean on uncommon lands (gain lands, check lands, surveil lands, tri-lands). Accept some tapped lands.
   - **Moderate wildcards:** Add rare untapped duals (shocks, fast lands, bond lands) for the most important color pairs.
   - **Plenty of wildcards / high bracket:** Full suite of rare untapped duals, Cavern of Souls if tribal, fetch lands if in format. Untapped duals greatly accelerate a deck and are worth the rare wildcards at higher brackets.
-- **Utility lands (2-4):** Lands that synergize with the strategy (e.g., creature lands for aggro, Reliquary Tower for draw-heavy, Rogue's Passage for voltron). Don't overload — utility lands that enter tapped or produce colorless hurt consistency.
+- **Utility lands (2-4):** Lands that synergize with the strategy (e.g., creature lands for aggro, Reliquary Tower for draw-heavy, Rogue's Passage for voltron). Don't overload — utility lands that enter tapped or produce colorless hurt consistency. **In mono-color and 2-color decks, avoid colorless-only utility lands** (Darksteel Citadel, Reliquary Tower, etc.) unless their utility directly supports the commander's strategy. A Mountain is almost always better than a colorless land in mono-red — every colorless land is a potential dead draw that can't cast your spells.
 - **Command Tower:** Auto-include in 2+ color decks. **In mono-color, Command Tower is strictly worse than a basic** — it can't be fetched by ramp spells and doesn't have the basic land type (which matters for cards like Castle Garenbrig, Boseiju's discount, etc.). Use a basic instead. More broadly, any land that only taps for one mana of any color with no other upside (Mana Confluence, City of Brass, Tarnished Citadel) is strictly worse than a basic in mono-color because it costs life for the same output.
 - **Sol Ring:** Auto-include in Commander/EDH on paper. Not legal in Brawl or Historic Brawl (never entered those card pools).
 

@@ -444,3 +444,54 @@ class TestCLI:
         assert result.exit_code == 0, result.output
         written = json.loads(deck_path.read_text())
         assert written["owned_cards"] == [{"name": "Sol Ring", "quantity": 1}]
+
+
+class TestNameAliasMatching:
+    """Test that printed_name / flavor_name aliases resolve across sources."""
+
+    def test_printed_name_alias_matches(self):
+        """A collection with an Arena name (printed_name) should match
+        a deck using the canonical Scryfall name via the alias map."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Masked Meower", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [{"name": "Skittering Kitten", "quantity": 2}],
+        }
+        # Alias map: printed_name -> canonical_name
+        aliases = {"skittering kitten": "masked meower"}
+        result = mark_owned(deck, collection, name_aliases=aliases)
+        assert len(result["owned_cards"]) == 1
+        assert result["owned_cards"][0]["name"] == "Masked Meower"
+        assert result["owned_cards"][0]["quantity"] == 2
+
+    def test_flavor_name_alias_matches(self):
+        """A collection with a flavor_name (Godzilla variant) should match."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Void Beckoner", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {"name": "Spacegodzilla, Death Corona", "quantity": 1},
+            ],
+        }
+        aliases = {"spacegodzilla, death corona": "void beckoner"}
+        result = mark_owned(deck, collection, name_aliases=aliases)
+        assert len(result["owned_cards"]) == 1
+
+    def test_no_aliases_still_works(self):
+        """Without aliases, matching falls back to exact + DFC aliasing."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 4}],
+        }
+        result = mark_owned(deck, collection, name_aliases=None)
+        assert len(result["owned_cards"]) == 1

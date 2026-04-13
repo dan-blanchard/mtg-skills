@@ -26,7 +26,7 @@ class TestBuildDeck:
         ]
         cuts = [{"name": "Bad Card", "quantity": 1}]
         adds = [{"name": "Good Card", "quantity": 1}]
-        new_deck, _new_hydrated = build_deck(deck, hydrated, cuts, adds)
+        new_deck, _new_hydrated, _unmatched = build_deck(deck, hydrated, cuts, adds)
         card_names = [c["name"] for c in new_deck["cards"]]
         assert "Bad Card" not in card_names
         assert "Good Card" in card_names
@@ -47,7 +47,7 @@ class TestBuildDeck:
         ]
         cuts = [{"name": "Mountain", "quantity": 1}]
         adds = [{"name": "Island", "quantity": 1}]
-        new_deck, _ = build_deck(deck, hydrated, cuts, adds)
+        new_deck, _, _unmatched = build_deck(deck, hydrated, cuts, adds)
         by_name = {c["name"]: c for c in new_deck["cards"]}
         assert by_name["Mountain"]["quantity"] == 1
         assert by_name["Island"]["quantity"] == 3
@@ -62,7 +62,7 @@ class TestBuildDeck:
             {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
         ]
         cuts = [{"name": "Bad Card", "quantity": 1}]
-        new_deck, _ = build_deck(deck, hydrated, cuts, [])
+        new_deck, _, _unmatched = build_deck(deck, hydrated, cuts, [])
         assert len(new_deck["cards"]) == 0
 
     def test_does_not_modify_original(self):
@@ -85,7 +85,7 @@ class TestBuildDeck:
         hydrated = [{"name": "Korvold", "cmc": 5, "type_line": "Creature"}]
         new_card_data = {"name": "New Card", "cmc": 2, "type_line": "Instant"}
         adds = [{"name": "New Card", "quantity": 1}]
-        _, new_hydrated = build_deck(
+        _, new_hydrated, _um = build_deck(
             deck, hydrated, [], adds, extra_hydrated=[new_card_data]
         )
         names = [c["name"] for c in new_hydrated if c]
@@ -172,7 +172,7 @@ class TestFlexibleInput:
             {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
         ]
         cuts = ["Bad Card"]
-        new_deck, _ = build_deck(deck, hydrated, cuts, [])
+        new_deck, _, _um = build_deck(deck, hydrated, cuts, [])
         card_names = [c["name"] for c in new_deck["cards"]]
         assert "Bad Card" not in card_names
 
@@ -186,7 +186,7 @@ class TestFlexibleInput:
             {"name": "Good Card", "cmc": 2, "type_line": "Instant"},
         ]
         adds = ["Good Card"]
-        new_deck, _ = build_deck(deck, hydrated, [], adds)
+        new_deck, _, _um = build_deck(deck, hydrated, [], adds)
         card_names = [c["name"] for c in new_deck["cards"]]
         assert "Good Card" in card_names
 
@@ -202,7 +202,7 @@ class TestFlexibleInput:
         ]
         cuts = ["Bad Card"]
         adds = [{"name": "Good Card", "quantity": 1}]
-        new_deck, _ = build_deck(deck, hydrated, cuts, adds)
+        new_deck, _, _um = build_deck(deck, hydrated, cuts, adds)
         card_names = [c["name"] for c in new_deck["cards"]]
         assert "Bad Card" not in card_names
         assert "Good Card" in card_names
