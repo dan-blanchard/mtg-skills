@@ -113,6 +113,10 @@ Constructed formats always have `"commanders": []`. The `sideboard` field holds 
 
 The `rarity` field in hydrated card data is the **default Scryfall printing's rarity**, which drifts from Arena's actual wildcard cost. Always use `price-check --format <fmt> --bulk-data <path>` for Arena wildcard budgeting.
 
+### Alchemy Rebalancing Warning
+
+Alchemy uses digitally rebalanced card versions prefixed with `A-` (e.g., `A-Teferi, Time Raveler`). These have different oracle text from their paper counterparts. When building Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says. The rebalanced version is the one that matters for Alchemy gameplay.
+
 ### AskUserQuestion Cap
 
 The AskUserQuestion tool supports at most 4 options. If you have more than 4 choices, either present the most relevant 4 (mention others exist) or present the information as text and ask a follow-up question.
@@ -143,15 +147,31 @@ Ask the user which format they want to build for. If they mention Arena, clarify
 - Pioneer exists on Arena as "Explorer" (subset); full Pioneer is paper
 - Modern, Legacy, Vintage are paper/MTGO only
 
-### Core Questions (ask in one message, not one at a time)
+### Core Questions (ask one at a time via AskUserQuestion)
 
-1. **Format** — Which format?
-2. **Platform** — Arena or paper? (determines pricing mode and card pool filtering)
-3. **Playstyle** — Aggro, midrange, control, combo, tempo? (brief explanations if user is unsure)
-4. **Color preference** — Any color preference, or open to anything?
-5. **Budget** — USD budget for paper, or wildcard budget for Arena?
-6. **Archetype preference** — "Do you want to follow a proven metagame archetype, or build something original/off-meta?"
-7. **Pet cards** — Any cards you definitely want to include?
+Each answer informs the next question's options, so ask sequentially:
+
+1. **Format** — Which format? (Standard, Pioneer, Modern, etc.)
+2. **Platform** — Arena or paper? (determines pricing mode and card pool filtering; skip if format implies it, e.g., Alchemy is always Arena)
+3. **Best-of-One or Best-of-Three?** — Arena only; skip for paper. Bo1 has no sideboarding — skip sideboard construction entirely (Step 3f) and build a mainboard optimized for Game 1 resilience (more versatile cards, fewer narrow answers). Bo3 proceeds normally with full sideboard.
+4. **Playstyle** — Aggro, midrange, control, combo, tempo? (brief explanations if user is unsure)
+5. **Color preference** — Any color preference, or open to anything?
+6. **Budget** — USD budget for paper, or wildcard budget for Arena?
+7. **Archetype preference** — "Do you want to follow a proven metagame archetype, or build something original/off-meta?"
+8. **Pet cards** — Any cards you definitely want to include? (open-ended text, not AskUserQuestion)
+
+Note: questions 2-3 can sometimes be merged or skipped (paper is always Bo3; Legacy/Vintage/Modern are always paper).
+
+### Companion Check
+
+After the interview, check whether the deck's constraints naturally fit a Companion. Companions are powerful (a guaranteed extra card) and should be actively considered:
+
+1. `card-search --format <fmt> --oracle "Companion" --type "Creature"` to find format-legal Companions
+2. For each Companion, check if the user's playstyle/colors/curve naturally meet the deck-building restriction (e.g., Lurrus requires no permanents with mana value > 2 — natural for low-curve aggro)
+3. If a Companion fits, suggest it: "Your deck naturally meets Lurrus's restriction — would you like to use it as a Companion? It gives you a guaranteed extra card."
+4. If the user accepts, note the Companion's restriction as a hard constraint for skeleton generation
+5. The Companion occupies 1 of 15 sideboard slots
+6. Yorion requires an 80-card deck — use `parse-deck --deck-size 80` if selected
 
 ### Experience Level Detection
 
@@ -178,6 +198,7 @@ If the user says "build around a combo" or names a specific combo/build-around c
 - If user names a card: `scryfall-lookup` it, then `combo-discover --card "<Name>" --format <fmt>`
 - If user names an outcome: `combo-discover --result "<outcome>" --format <fmt>`
 - If user wants to explore: Ask about mechanics, outcomes, or colors, then search
+- **Supplement with WebSearch:** `combo-discover` uses Commander Spellbook, which is crowdsourced primarily by Commander players. Combos that are powerful in 1v1 60-card formats but weak in multiplayer Commander may be underrepresented. Search for `"<format> combo decks"` and `"<card name> combo <format>"` to catch format-specific interactions the API might miss.
 - Present 3-5 combos with: cards, oracle text, result, color identity, popularity
 - Batch-lookup all combo pieces via `scryfall-lookup --batch`
 - Let user pick a combo or build-around card
@@ -194,9 +215,13 @@ If the user says "build around a combo" or names a specific combo/build-around c
 4. If user has color/playstyle preference, highlight matching archetypes
 5. Let user pick an archetype
 6. **WebSearch** for `"<archetype name> <format> decklist 2026"` to find a sample list
-7. **WebFetch** the sample list — this becomes the skeleton foundation
+7. **WebFetch** the sample list — this becomes the skeleton foundation. Use `web-fetch` script as fallback if WebFetch is blocked (browser headers + curl fallback).
 8. If the sample list is found, parse it: `parse-deck --format <fmt> <path> --output <working-dir>/deck.json`
 9. Hydrate: `scryfall-lookup --batch <deck.json> --bulk-data <path> --cache-dir <working-dir>/.cache`
+
+**Fallback if no sample list is obtainable:**
+- Ask the user to paste a decklist directly — most players can copy one from MTGGoldfish, Moxfield, or similar sites
+- If the user can't provide one, proceed to the Original/Off-Meta path below and build from scratch using the archetype name as a guide for `card-search` queries
 
 ### Original/Off-Meta Path
 
@@ -256,6 +281,16 @@ Run `mana-audit` after building to verify.
 | Utility lands | 0-2 | 2-4 | 2-4 |
 
 For Arena formats: fetch lands don't exist on Arena (except Pioneer/Explorer via Khans fetches). Use the Arena-available mana base (shock lands, fast lands, pathway lands, triomes).
+
+### Color Fixing Guidance
+
+The land count formula gives a total, but the color *mix* matters just as much. Use `mana-audit` output (pip demand % vs. land production %) to verify, and follow these rules of thumb:
+
+- **Mono-color:** All basics (plus 2-4 utility lands). Easiest mana base.
+- **2-color:** Match land production to pip demand. If the deck is 60% red pips / 40% white pips, aim for roughly 60/40 red/white sources. A mix of ~8 dual lands + basics in the dominant color usually works.
+- **3+ colors:** Basics alone can't support 3 colors reliably. Dual lands become near-mandatory. Budget permitting, prioritize lands that produce 2+ of your colors untapped (shock lands, fast lands, triomes). The common trap is running too many basics in a 3-color deck — if `mana-audit` flags a color deficit >5%, replace basics with duals that produce the deficient color.
+- **Splash color (5-8 pips):** 4-6 sources of the splash color is usually enough. Pathway lands or dual lands that also produce a main color are ideal.
+- **Untapped sources on key turns:** Aggro decks need nearly all lands untapped on turns 1-3. Control decks can tolerate more tapped lands since they operate at higher CMC. Check that the deck's turn-1 plays have enough untapped sources to cast them consistently.
 
 ### Filling Process
 
@@ -406,12 +441,14 @@ Skill(skill: "deck-tuner", args: "<carry-forward context>")
 
 Include in the args:
 - **Format** and platform (Arena/paper)
+- **Bo1 or Bo3** (Arena only; determines whether sideboard tuning applies)
 - **Budget:** total budget, skeleton cost, remaining for upgrades
 - **Owned cards** (if collection was provided; don't count toward budget)
 - **Experience level**
 - **Suggested max swaps:** 15-20 for a fresh skeleton (user can adjust)
 - **Pain points:** "Freshly generated skeleton — general optimization" or specific concerns
 - **Archetype:** name and brief description of the deck's game plan
+- **Companion** (if one was selected, name it and its restriction)
 - **File paths:** deck JSON, hydrated cache, Moxfield export
 
 ---

@@ -71,6 +71,10 @@ Reuse these stable paths within a session: `/tmp/cuts.json`, `/tmp/adds.json`, `
 
 **Critical:** Files at `/tmp/` persist across sessions. Always `Read` a scratch file before the first `Write` in a new session.
 
+### Alchemy Rebalancing Warning
+
+Alchemy uses digitally rebalanced card versions prefixed with `A-` (e.g., `A-Teferi, Time Raveler`). These have different oracle text from their paper counterparts. When tuning Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says. The rebalanced version is the one that matters for Alchemy gameplay.
+
 ### AskUserQuestion Cap
 
 The AskUserQuestion tool supports at most 4 options. If you have more than 4 choices (common in Step 9 close calls), either present the most relevant 4 (mention others exist) or present the information as text and ask a follow-up question.
@@ -177,21 +181,28 @@ mana-audit <deck.json> <hydrated.json>
 
 Uses the constructed land formula. Notes land count status (PASS/WARN/FAIL) and color balance.
 
+### 5. Companion Check
+
+Check the sideboard for a Companion card (`card-summary <hydrated.json> --deck <deck.json> --sideboard` and look for the Companion keyword). If one exists, note its deck-building restriction — all proposed changes must continue to meet it.
+
+If no Companion exists, check whether the deck naturally meets one's restriction. Companions are powerful enough that a deck accidentally qualifying for one (e.g., a low-curve aggro deck meeting Lurrus's "no permanents with mana value > 2") should actively consider adding it. Use `card-search --format <fmt> --oracle "Companion" --type "Creature"` to find candidates, then check restrictions against the current deck. If one fits, suggest it in Step 8 as an addition (it takes 1 sideboard slot).
+
 ---
 
 ## Step 3: User Intake
 
-Ask all questions in one message:
+Ask one at a time via AskUserQuestion:
 
 1. **Experience level** — Beginner / Intermediate / Advanced
-2. **Budget for upgrades** — USD or wildcard budget for changes
-3. **Max swaps** — How many cards (mainboard + sideboard) are you willing to change? (suggest 10-20)
-4. **Pain points** — What matchups feel bad? What problems do you notice? Or just "general optimization"?
-5. **Target** — Competitive ladder, FNM, tournament?
+2. **Best-of-One or Best-of-Three?** — Arena only; skip for paper. If Bo1, sideboard tuning is irrelevant — focus entirely on mainboard. Skip Steps 6f (Sideboard Evaluation) and the sideboard guide in Step 10.
+3. **Budget for upgrades** — USD or wildcard budget for changes
+4. **Max swaps** — How many cards (mainboard + sideboard) are you willing to change? (suggest 10-20; mainboard-only for Bo1)
+5. **Pain points** — What matchups feel bad? What problems do you notice? Or just "general optimization"?
+6. **Target** — Competitive ladder, FNM, tournament?
 
 ### If Handed Off from Deck-Builder
 
-Confirm carry-forward context: format, budget (total/spent/remaining), experience level, archetype, max swaps. Don't re-ask questions already answered.
+Confirm carry-forward context: format, platform, Bo1/Bo3, budget (total/spent/remaining), experience level, archetype, Companion (if any), max swaps. Don't re-ask questions already answered.
 
 ### Arena Wildcard Budgets
 
@@ -222,6 +233,8 @@ combo-search <deck.json>
 ```
 
 Surface existing combos and near-misses. Note which near-misses could be completed with 1-card additions.
+
+**Supplement with WebSearch:** `combo-search` uses Commander Spellbook, which is crowdsourced primarily by Commander players. Combos that are powerful in 1v1 60-card formats but weak in multiplayer Commander may be underrepresented or missing. Search for `"<archetype> combo <format>"` and `"<key card> combo <format>"` to catch format-specific interactions the API might miss.
 
 ---
 
@@ -256,11 +269,25 @@ Ask the user to validate or correct. This alignment prevents wasted analysis on 
 
 ### 6c: Archetype Coherence Check
 
-Unlike commander (which anchors on the commander), constructed decks must have a **consistent game plan** visible across the 60 cards. Check:
+Unlike commander (which anchors on the commander), constructed decks must have a **consistent game plan** visible across the 60 cards.
 
+**Step 1 — Identify the build-around cards.** Every competitive deck has 1-3 cards that define its archetype (e.g., Monastery Swiftspear for burn, Arclight Phoenix for Izzet Phoenix, Amulet of Vigor for Amulet Titan). These are the constructed equivalent of the commander — the cards the deck is built to maximize.
+
+**Step 2 — Evaluate every other card against the build-around.** For each non-land card, it should do at least one of:
+- **Enable** the build-around (tutors, setup, mana acceleration)
+- **Protect** the build-around (counterspells, removal, redundancy)
+- **Complement** the build-around (cards that benefit from the same game state)
+- **Close** the game when the build-around has done its job (win conditions)
+
+Cards that don't clearly fit one of these roles are candidates for cuts.
+
+**Step 3 — Check for orphaned "Plan B" cards.** A common deck-building mistake is including 2-3 cards from a secondary strategy the deck doesn't have the infrastructure to support (e.g., a single planeswalker in an aggro deck with no way to protect it, or a graveyard payoff in a deck with no self-mill).
+
+**Step 4 — Scan oracle text systematically.** Use `card-summary <hydrated.json> --nonlands-only` and look for oracle text that doesn't mention the deck's key mechanics. Cards whose text has no mechanical relationship to the build-around are red flags.
+
+**Step 5 — Verify structural consistency:**
 - **Threat density:** Does the deck have enough pressure to close games?
 - **Curve alignment:** Does the curve support the intended speed?
-- **Card synergy:** Do the cards work together or just individually?
 - **Dead cards:** Cards that don't contribute to the primary game plan?
 - **Mismatch cards:** Cards that belong to a different archetype?
 
@@ -372,6 +399,7 @@ The challenger must verify:
 - [ ] Verify sideboard plan still covers top metagame archetypes
 - [ ] Verify no combo lines broken without justification
 - [ ] Verify swap balance (land count, curve, total counts)
+- [ ] **Companion restriction:** If the deck has a Companion, verify every addition still meets its deck-building restriction
 - [ ] **Archetype coherence test:** "Does this deck still have a clear game plan after these swaps?"
 - [ ] **Sideboard coherence test:** "For each top-3 matchup, what comes in and what goes out? Does that plan make sense?"
 
@@ -524,11 +552,35 @@ Owned cards used: 12 (not counted toward budget)
 | Common   | 6    | 12        | 6         |
 ```
 
+### Sideboard Guide
+
+Construct a matchup-by-matchup sideboard map for the top 3-5 metagame archetypes identified in Step 4. This is a natural output of the analysis already performed — don't skip it.
+
+```
+## Sideboard Guide
+
+### vs. Mono-Red Aggro (IN: 5, OUT: 5)
+IN: 2 Surge of Salvation, 3 Temporary Lockdown
+OUT: 2 Disdainful Stroke, 1 Negate, 2 Memory Deluge
+Rationale: Trade slow counterspells for cheap answers that stabilize before turn 4.
+
+### vs. Azorius Control (IN: 4, OUT: 4)
+IN: 3 Mystical Dispute, 1 Negate
+OUT: 3 Temporary Lockdown, 1 Surge of Salvation
+Rationale: Sweepers are dead; load up on cheap countermagic for the permission war.
+
+### vs. Graveyard Combo (IN: 3, OUT: 3)
+IN: 3 Rest in Peace
+OUT: 1 Memory Deluge, 2 Absorb
+Rationale: Rest in Peace shuts down the entire strategy; trim expensive interaction.
+```
+
+Each entry must specify exact cards in, exact cards out, and a one-line rationale. The in/out counts must match (total mainboard stays at 60).
+
 ### Offer (don't force)
 
 - Mana curve before/after comparison
 - Category breakdown comparison
-- Sideboard guide: for each top matchup, what comes in and what goes out
 - "Next upgrades" list for future budget
 
 ---
