@@ -6,7 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: cd commander-tuner && uv sync
-      - run: cd commander-tuner && uv run ruff check src/ ../tests/commander-tuner/
-      - run: cd commander-tuner && uv run ruff format --check src/ ../tests/commander-tuner/
-      - run: cd commander-tuner && uv run pytest ../tests/commander-tuner/ -v
+      - run: cd mtg-utils && uv sync
+      - run: cd mtg-utils && uv run ruff check src/ ../tests/mtg-utils/
+      - run: cd mtg-utils && uv run ruff format --check src/ ../tests/mtg-utils/
+      - run: cd mtg-utils && uv run pytest ../tests/mtg-utils/ -v
+      - run: cd deck-builder && uv sync && uv run pytest ../tests/deck-builder/ -v
+      - run: cd deck-tuner && uv sync && uv run pytest ../tests/deck-tuner/ -v

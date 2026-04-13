@@ -70,7 +70,7 @@ Create these top-level todos at session start. Mark `in_progress` immediately wh
 2. Step 2: Commander Analysis
 3. Step 3: Skeleton Generation
 4. Step 4: Present Skeleton
-5. Step 5: Hand Off to Commander-Tuner
+5. Step 5: Hand Off to Deck-Tuner
 
 **Step 3 expansion:** When starting Step 3, expand into sub-todos:
 1. Fill Lands
