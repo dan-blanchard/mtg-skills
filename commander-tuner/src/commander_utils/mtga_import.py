@@ -386,14 +386,16 @@ def _collection_from_decks(decks: dict | None) -> dict[str, int]:
     dicts — and returns ``{str(cardId): max_quantity_seen}`` across
     every zone of every deck.
 
-    **This is a lower bound**, not a true collection. A card the user
-    owns but has never put into any saved deck is invisible here. See
-    the module docstring for why the log has no better source.
+    **This is unreliable**, not a true collection. It has false positives
+    (Arena allows building decks with unowned cards, so cards in
+    speculative decks appear as "owned") and false negatives (owned
+    cards never put in any deck are invisible). See the module
+    docstring for why the log has no better source.
 
     The ``max`` reduction (rather than sum) is intentional: the user's
     inventory has one copy count per ``cardId``, and the same card
     appearing in two different decks at quantity 4 and 2 means they
-    own ≥4 copies, not 6. Taking the max is the correct lower bound.
+    own ≥4 copies, not 6. Taking the max is the correct per-card estimate.
 
     Returns an empty dict when ``decks`` is ``None``, non-dict, or has
     no valid entries — callers should treat an empty result as "no
@@ -1115,8 +1117,10 @@ def main(  # noqa: PLR0915 — CLI orchestration is naturally statement-heavy
         deck_count = len(decks)
         click.echo(
             f"  Collection: reconstructed from {deck_count} saved "
-            f"deck{'s' if deck_count != 1 else ''} (lower bound — "
-            f"cards you own but have never decked are not captured)",
+            f"deck{'s' if deck_count != 1 else ''} (UNRELIABLE — "
+            f"may include cards from speculative decks you don't own, "
+            f"and misses owned cards never put in a deck. "
+            f"Use an Untapped.gg or Moxfield CSV for authoritative ownership)",
         )
     if untapped_csv is not None and collection_source != "untapped-csv":
         click.echo(

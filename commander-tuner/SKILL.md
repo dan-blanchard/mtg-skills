@@ -115,6 +115,8 @@ Run: `parse-deck <path-to-deck-file> [--format <format>] [--deck-size <N>]`
 
 Supported formats: `commander` (default, 100 cards), `brawl` (60 cards, Standard card pool), `historic_brawl` (100 cards, Historic/Arena card pool). Use `--deck-size` to override the default deck size (e.g., `--format historic_brawl --deck-size 60` for 60-card Historic Brawl).
 
+**Always pass `--format <format>` explicitly.** Without it, `parse-deck` defaults to `commander` and every downstream tool (legality-audit, price-check) sees the wrong format. This is especially important for Brawl/Historic Brawl where the ban list differs from Commander. Example: `parse-deck <path> --format historic_brawl`.
+
 If the format is not obvious from context, ask the user: "What format is this deck for? (Commander, Brawl, Historic Brawl)"
 
 This auto-detects format (Moxfield, MTGO, plain text, CSV) and outputs JSON with `commanders` and `cards`. Automatically strips Moxfield set code suffixes like `(OTJ) 222` from card names.
@@ -150,13 +152,13 @@ This writes the intersection (by normalized, diacritic-folded card name) back in
 
 `mark-owned` also does front-face aliasing for DFC / split / adventure / modal cards: a deck that lists `"Fable of the Mirror-Breaker"` (front face only, common in Arena/Moxfield exports) matches a collection entry for `"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"` (Scryfall's canonical combined form) and vice versa. You do not need to normalize these by hand before calling `mark-owned`.
 
-**Arena players: populate the collection from Player.log.**
+**Arena players: ask for a collection CSV first.**
 
-*Trigger:* if the user mentions Arena play, "Brawl," "Historic Brawl," "wildcards," provides a wildcard budget (e.g., "2 mythic 4 rare"), or supplies an Arena/Moxfield deck export without an associated collection file, run `mtga-import` **before** asking them to upload a Moxfield collection CSV.
+*Trigger:* if the user mentions Arena play, "Brawl," "Historic Brawl," or wildcards, ask if they have a collection export from Untapped.gg, Moxfield, or a similar tracker. A CSV with card names and quantities is the most reliable source for card ownership.
 
-*Catch-yourself:* before you message the user "please export your collection from Moxfield," stop — if any Arena signal appeared earlier in the conversation, run `mtga-import` first. The default flow is MTGA-first for Arena users, Moxfield-CSV for paper users.
+*Catch-yourself:* before you run `mtga-import` as the collection source, stop — ask if the user has a collection CSV first. **The CSV is authoritative for ownership.** `mtga-import` reconstructs collections from saved Arena decks, which is unreliable because Arena allows building decks with unowned cards — the result contains false positives (cards in speculative decks that aren't owned) as well as false negatives (owned cards never put into a deck).
 
-The importer auto-detects the `Player.log` path on macOS and Windows and writes two files to the working directory:
+**Use `mtga-import` only for wildcard extraction.** The importer reads `InventoryInfo` from `Player.log` which is reliable for wildcard counts. Always run it alongside the CSV for wildcards:
 
 ```
 mtga-import --bulk-data <bulk-data-path> --output-dir <working-dir>
@@ -164,10 +166,10 @@ mtga-import --bulk-data <bulk-data-path> --output-dir <working-dir>
 
 Outputs:
 
-- `<working-dir>/collection.json` — parse-deck-compatible shape; feed straight to `mark-owned <deck.json> <working-dir>/collection.json` or pass to `find-commanders` as the parsed collection.
-- `<working-dir>/wildcards.json` — read this during Step 3 intake (see the wildcard-budget paragraph there).
+- `<working-dir>/collection.json` — **ignore this for ownership if a CSV was provided.** Only use as a last-resort collection source when the user has no CSV export.
+- `<working-dir>/wildcards.json` — **always use this** for wildcard counts during Step 3 intake.
 
-Linux users (Wine/Proton) need to supply `--log-path` explicitly; MTGA isn't officially supported on Linux and the importer refuses to auto-detect there. The importer emits both rebalanced (`A-`-prefixed) and non-rebalanced forms of any Alchemy card the user owns on Arena, so downstream matching works regardless of which form the deck lists. It also always injects the six "free" basic lands (Island/Mountain/Plains/Forest/Swamp/Wastes) at effectively-infinite quantity because Arena grants unlimited copies of these.
+Linux users (Wine/Proton) need to supply `--log-path` explicitly. The importer emits both rebalanced (`A-`-prefixed) and non-rebalanced forms of any Alchemy card the user owns on Arena. It also always injects the six "free" basic lands (Island/Mountain/Plains/Forest/Swamp/Wastes) at effectively-infinite quantity because Arena grants unlimited copies of these.
 
 **`price-check` honors deck quantity and owned quantity.** Paper (USD) mode charges `max(deck_qty - owned_qty, 0) * unit_price` per card, so a deck running 17 Hare Apparent with 4 owned is correctly charged for 13 copies rather than 1. Arena wildcard mode applies the same shortfall math plus the Arena 4-cap substitution: owning ≥4 of a standard playset-capped card grants effectively infinite supply (no legal non-singleton deck can need a 5th), but this substitution is suppressed for cards with oracle exemptions (`A deck can have any number of cards named X` or `A deck can have up to N cards named X`), where owning 4 of Hare Apparent gives you exactly 4. This means the budget math handles any-quantity cards correctly in both paper and Arena contexts without the caller having to care.
 
@@ -235,6 +237,7 @@ Handle partial or natural language answers. Fill sensible defaults for anything 
 - **Brawl/Historic Brawl:** No commander damage (Voltron strategies are weaker), starting life is 25 (2-player) or 30 (multiplayer) instead of 40, free first mulligan
 - **Brawl:** Standard card pool — many Commander staples are not legal. Colorless commanders can include any number of basics of one chosen type.
 - **Historic Brawl:** Arena Brawl card pool — broader than Standard but different ban list from Commander
+- **Arena Brawl queues are always 1v1.** This fundamentally changes analysis: prioritize speed and tempo over politics, evaluate cards for 1v1 combat (not multiplayer table dynamics), expect more counterspells and targeted removal, fewer board wipes. The multiplayer interaction scaling table must be adjusted for 1v1 — shift toward cheaper, more targeted interaction. Paper Brawl can be multiplayer — use standard scaling.
 
 **Arena vs. paper:** Brawl and Historic Brawl can be played on Arena or in paper. When searching for cards, use `--arena-only` for Arena players (excludes paper-only cards) and `--paper-only` for paper players (excludes Arena-only digital cards like conjure/perpetual cards). If unclear, ask: "Are you playing on Arena or in paper?"
 
@@ -428,6 +431,8 @@ Source from EDHREC high-synergy cards and web research. Supplement with `card-se
 Run: `card-search --bulk-data <bulk-data-path> --color-identity <ci> --oracle "<relevant-keyword>" --price-max <budget-per-card>`
 
 Recommend the cheapest available printing. Track running cost against budget.
+
+**Before adding any card to the proposed adds list, verify its color identity via the hydrated cache or `card-search --color-identity`.** Never rely on card name or memory for color identity. Cards like Pest Infestation (B/G despite looking like a green card) will slip through without verification. This check is separate from the legality-audit gate — catch color identity violations at selection time, not after the whole proposal is drafted.
 
 ### Swap Balance Check
 
