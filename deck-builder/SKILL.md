@@ -58,7 +58,18 @@ Create these top-level todos at session start. Mark `in_progress` immediately wh
 
 ---
 
-## Setup and Tooling
+## Setup (First Run)
+
+```bash
+uv sync --directory <skill-install-dir>
+download-bulk --output-dir <skill-install-dir>
+```
+
+Subsequent runs skip if `.venv` exists and bulk data is fresh (24h).
+
+---
+
+## Tooling Notes
 
 ### Script Invocation
 
@@ -421,15 +432,19 @@ Include in the args:
 
 ## Script Reference
 
-See commander-tuner/SKILL.md for the full script input/output reference. Key scripts for constructed deck building:
-
-- `parse-deck --format <fmt> <path>` — Parse deck list, route sideboard separately
-- `scryfall-lookup --batch <deck.json>` — Hydrate all card data
-- `card-search --format <fmt> [--oracle <pattern>] [--color-identity <CI>] [--type <type>] [--cmc-max <N>]` — Search for candidates
+- `parse-deck --format <fmt> <path> [--output <path>]` — Parse deck list with sideboard
+- `scryfall-lookup --batch <deck.json> --bulk-data <path> --cache-dir <dir>` — Hydrate all card data
+- `scryfall-lookup "<Card Name>" --bulk-data <path>` — Single card lookup
+- `card-search --format <fmt> [--oracle <regex>] [--color-identity <CI>] [--type <type>] [--cmc-max <N>] [--price-max <N>]` — Search for candidates
+- `card-summary <hydrated.json> [--nonlands-only] [--lands-only] [--type <T>] [--deck <deck.json> --sideboard]` — Card table display
 - `combo-discover [--card "<name>"] [--result "<outcome>"] [--format <fmt>]` — Find combos
+- `combo-search <deck.json>` — Find existing combos and near-misses
 - `legality-audit <deck.json> <hydrated.json>` — Check legality, 4-of, sideboard, deck minimum
 - `mana-audit <deck.json> <hydrated.json>` — Land count and color balance
-- `price-check <deck.json> [--format <fmt>] --bulk-data <path>` — Budget check
+- `price-check <deck.json> [--format <fmt>] --bulk-data <path> [--budget <N>]` — Budget check
 - `deck-stats <deck.json> <hydrated.json>` — Baseline stats
+- `build-deck <deck.json> <hydrated.json> [--cuts <c.json>] [--adds <a.json>] [--sideboard-cuts <sc.json>] [--sideboard-adds <sa.json>] [--bulk-data <path>]` — Apply changes
+- `deck-diff <old.json> <new.json> <old-hyd.json> <new-hyd.json>` — Compare deck versions
 - `export-deck <deck.json>` — Moxfield/Arena import format with sideboard
-- `build-deck <deck.json> <hydrated.json> [--cuts <cuts.json>] [--adds <adds.json>] [--sideboard-cuts <sb-cuts.json>] [--sideboard-adds <sb-adds.json>]` — Apply changes
+- `mark-owned <deck.json> <collection.csv> [--bulk-data <path>]` — Mark owned cards
+- `download-bulk --output-dir <dir>` — Download Scryfall bulk data

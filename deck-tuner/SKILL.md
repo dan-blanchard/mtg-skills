@@ -71,6 +71,10 @@ Reuse these stable paths within a session: `/tmp/cuts.json`, `/tmp/adds.json`, `
 
 **Critical:** Files at `/tmp/` persist across sessions. Always `Read` a scratch file before the first `Write` in a new session.
 
+### AskUserQuestion Cap
+
+The AskUserQuestion tool supports at most 4 options. If you have more than 4 choices (common in Step 9 close calls), either present the most relevant 4 (mention others exist) or present the information as text and ask a follow-up question.
+
 ### Path Requirements
 
 - **Absolute paths only.** `uv` rebases the working directory to the skill install.
