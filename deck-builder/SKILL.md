@@ -1,6 +1,6 @@
 ---
 name: deck-builder
-description: Build competitive 60-card constructed MTG decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, Legacy, and Vintage.
+description: Build competitive 60-card constructed MTG decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
 compatibility: Requires Python 3.12+ and uv. Shares commander_utils package via symlink.
 license: 0BSD
 ---
@@ -20,11 +20,12 @@ Build 60-card constructed decks with 15-card sideboards for competitive MTG form
 | Format | Platform | Card Pool | Notes |
 |--------|----------|-----------|-------|
 | Standard | Arena + Paper | Recent sets (rotating) | Smallest card pool, most accessible |
-| Alchemy | Arena only | Standard + digital-only rebalanced | Arena-specific format |
+| Alchemy | Arena only | Standard + rebalanced + digital-only cards | Digital mechanics (conjure, seek, perpetually) |
 | Historic | Arena only | All Arena sets (non-rotating) | Broad Arena pool |
 | Timeless | Arena only | All Arena sets, no bans | Arena's most powerful format |
-| Pioneer | Paper + Arena (as Explorer) | Return to Ravnica forward | Non-rotating, paper-focused |
+| Pioneer | Paper + Arena | Return to Ravnica forward | Non-rotating |
 | Modern | Paper + MTGO | 8th Edition forward | Largest non-eternal paper pool |
+| PreModern | Paper + MTGO | 4th Edition through Scourge | Old-frame cards only, ban list |
 | Legacy | Paper + MTGO | All sets, ban list | Eternal, powerful but accessible |
 | Vintage | Paper + MTGO | All sets, restricted list | Restricted cards limited to 1 copy |
 
@@ -113,9 +114,9 @@ Constructed formats always have `"commanders": []`. The `sideboard` field holds 
 
 The `rarity` field in hydrated card data is the **default Scryfall printing's rarity**, which drifts from Arena's actual wildcard cost. Always use `price-check --format <fmt> --bulk-data <path>` for Arena wildcard budgeting.
 
-### Alchemy Rebalancing Warning
+### Alchemy Card Warning
 
-Alchemy uses digitally rebalanced card versions prefixed with `A-` (e.g., `A-Teferi, Time Raveler`). These have different oracle text from their paper counterparts. When building Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says. The rebalanced version is the one that matters for Alchemy gameplay.
+Alchemy includes two categories of digital-only cards beyond the Standard pool: (1) **Rebalanced cards** prefixed with `A-` (e.g., `A-Teferi, Time Raveler`) that have different oracle text from their paper counterparts, and (2) **Digital-only originals** with mechanics that only work on Arena (conjure, seek, perpetually, etc.). When building Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says.
 
 ### AskUserQuestion Cap
 
@@ -143,9 +144,9 @@ The AskUserQuestion tool supports at most 4 options. If you have more than 4 cho
 ### Format Selection
 
 Ask the user which format they want to build for. If they mention Arena, clarify:
-- Standard, Alchemy, Historic, Timeless are Arena formats
-- Pioneer exists on Arena as "Explorer" (subset); full Pioneer is paper
+- Standard, Alchemy, Historic, Timeless, Pioneer are Arena formats
 - Modern, Legacy, Vintage are paper/MTGO only
+- PreModern covers 4th Edition through Scourge (old card frame era); paper + MTGO only
 
 ### Core Questions (ask one at a time via AskUserQuestion)
 
@@ -280,7 +281,7 @@ Run `mana-audit` after building to verify.
 | Fetch lands | 0 | 0-4 | 8-12 |
 | Utility lands | 0-2 | 2-4 | 2-4 |
 
-For Arena formats: fetch lands don't exist on Arena (except Pioneer/Explorer via Khans fetches). Use the Arena-available mana base (shock lands, fast lands, pathway lands, triomes).
+For Arena formats: Khans fetchlands are available (Pioneer and up), but Zendikar/Onslaught fetches are not. Use the Arena-available mana base (shock lands, fast lands, pathway lands, triomes, Khans fetches for Pioneer/Historic/Timeless).
 
 ### Color Fixing Guidance
 

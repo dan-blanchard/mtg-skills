@@ -6,7 +6,7 @@ from commander_utils.mana_audit import constructed_land_target
 
 class TestImports:
     def test_constructed_formats_exist(self):
-        for fmt in ("standard", "pioneer", "modern", "legacy", "vintage"):
+        for fmt in ("standard", "pioneer", "modern", "premodern", "legacy", "vintage"):
             assert fmt in FORMAT_CONFIGS
             assert is_constructed_format(fmt)
 

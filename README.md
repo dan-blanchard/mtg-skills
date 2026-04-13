@@ -20,7 +20,7 @@ Structured 10-step process for analyzing and tuning Commander/EDH, Brawl, and Hi
 
 ### deck-builder
 
-Guided workflow for building 60-card constructed decks with sideboards. Supports Standard, Alchemy, Historic, Pioneer, Timeless, Modern, Legacy, and Vintage. Covers metagame research, archetype selection (or combo-first building), Companion evaluation, and Bo1/Bo3 awareness for Arena. Hands off to deck-tuner for refinement.
+Guided workflow for building 60-card constructed decks with sideboards. Supports Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage. Covers metagame research, archetype selection (or combo-first building), Companion evaluation, and Bo1/Bo3 awareness for Arena. Hands off to deck-tuner for refinement.
 
 ### deck-tuner
 
@@ -60,6 +60,7 @@ All four skills share the same Python CLI scripts via symlinks:
 | Timeless | 60 | 4-of | 15 | Arena |
 | Pioneer | 60 | 4-of | 15 | Paper + Arena |
 | Modern | 60 | 4-of | 15 | Paper |
+| PreModern | 60 | 4-of | 15 | Paper + MTGO |
 | Legacy | 60 | 4-of | 15 | Paper |
 | Vintage | 60 | 4-of (restricted=1) | 15 | Paper |
 

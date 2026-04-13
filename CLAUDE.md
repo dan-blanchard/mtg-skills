@@ -71,11 +71,11 @@ SKILL.md-only workflow (no Python scripts of its own). Shares `commander_utils` 
 
 ### deck-tuner
 
-Shares `commander_utils` via symlink to `commander-tuner/src`. Tunes 60-card constructed decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, Legacy, and Vintage.
+Shares `commander_utils` via symlink to `commander-tuner/src`. Tunes 60-card constructed decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
 
 ### deck-builder
 
-Shares `commander_utils` via symlink to `commander-tuner/src`. Builds 60-card constructed decks with sideboards for the same formats as deck-tuner, then hands off to deck-tuner for refinement.
+Shares `commander_utils` via symlink to `commander-tuner/src`. Builds 60-card constructed decks with sideboards for the same formats as deck-tuner (including PreModern), then hands off to deck-tuner for refinement.
 
 ## Supported Formats
 
@@ -88,8 +88,9 @@ Shares `commander_utils` via symlink to `commander-tuner/src`. Builds 60-card co
 | alchemy | 60 | 4 | 15 | Yes | alchemy |
 | historic | 60 | 4 | 15 | Yes | historic |
 | timeless | 60 | 4 | 15 | Yes | timeless |
-| pioneer | 60 | 4 | 15 | No | pioneer |
+| pioneer | 60 | 4 | 15 | Yes | pioneer |
 | modern | 60 | 4 | 15 | No | modern |
+| premodern | 60 | 4 | 15 | No | premodern |
 | legacy | 60 | 4 | 15 | No | legacy |
 | vintage | 60 | 4 (restricted=1) | 15 | No | vintage |
 

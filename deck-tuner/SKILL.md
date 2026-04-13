@@ -1,6 +1,6 @@
 ---
 name: deck-tuner
-description: Analyze and optimize 60-card constructed MTG decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, Legacy, and Vintage.
+description: Analyze and optimize 60-card constructed MTG decks with sideboards for Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
 compatibility: Requires Python 3.12+ and uv. Shares commander_utils package via symlink.
 license: 0BSD
 ---
@@ -71,9 +71,9 @@ Reuse these stable paths within a session: `/tmp/cuts.json`, `/tmp/adds.json`, `
 
 **Critical:** Files at `/tmp/` persist across sessions. Always `Read` a scratch file before the first `Write` in a new session.
 
-### Alchemy Rebalancing Warning
+### Alchemy Card Warning
 
-Alchemy uses digitally rebalanced card versions prefixed with `A-` (e.g., `A-Teferi, Time Raveler`). These have different oracle text from their paper counterparts. When tuning Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says. The rebalanced version is the one that matters for Alchemy gameplay.
+Alchemy includes two categories of digital-only cards beyond the Standard pool: (1) **Rebalanced cards** prefixed with `A-` (e.g., `A-Teferi, Time Raveler`) that have different oracle text from their paper counterparts, and (2) **Digital-only originals** with mechanics that only work on Arena (conjure, seek, perpetually, etc.). When tuning Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says.
 
 ### AskUserQuestion Cap
 

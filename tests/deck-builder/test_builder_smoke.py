@@ -5,11 +5,11 @@ from commander_utils.format_config import FORMAT_CONFIGS, is_arena_format
 
 class TestImports:
     def test_arena_formats(self):
-        for fmt in ("standard", "alchemy", "historic", "timeless"):
+        for fmt in ("standard", "alchemy", "historic", "timeless", "pioneer"):
             assert is_arena_format(fmt)
 
     def test_paper_formats(self):
-        for fmt in ("pioneer", "modern", "legacy", "vintage"):
+        for fmt in ("modern", "premodern", "legacy", "vintage"):
             assert not is_arena_format(fmt)
 
     def test_all_constructed_have_sideboard(self):
