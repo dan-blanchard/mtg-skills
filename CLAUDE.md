@@ -12,20 +12,12 @@ uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
 ```
 
-### deck-tuner
+### deck-wizard
 
 ```bash
-cd deck-tuner
+cd deck-wizard
 uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
-uv run pytest ../tests/deck-tuner/ -v  # Run tests
-```
-
-### deck-builder
-
-```bash
-cd deck-builder
-uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
-uv run pytest ../tests/deck-builder/ -v  # Run smoke tests
+uv run pytest ../tests/deck-wizard/ -v  # Run smoke tests
 ```
 
 ## Architecture
@@ -57,13 +49,9 @@ Shared library module (not a CLI script):
 
 - **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`.
 
-### deck-builder
+### deck-wizard
 
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch for all formats (Commander/Brawl/Historic Brawl and 60-card constructed), then hands off to deck-tuner for refinement.
-
-### deck-tuner
-
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Analyzes and optimizes decks for all formats (Commander/Brawl/Historic Brawl and 60-card constructed).
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch or tunes existing ones across all formats (Commander/Brawl/Historic Brawl and 60-card constructed). Two-phase workflow: Phase 1 acquires a deck (parse existing or build from scratch), Phase 2 runs a 12-step tuning pipeline.
 
 ## Supported Formats
 
@@ -84,4 +72,4 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Analyzes and optimizes decks 
 
 ## Testing
 
-Tests live in `tests/mtg-utils/` (package tests), `tests/deck-tuner/`, and `tests/deck-builder/` (outside the skill directories so they aren't installed). Use `unittest.mock` for HTTP calls. No real network calls in tests.
+Tests live in `tests/mtg-utils/` (package tests) and `tests/deck-wizard/` (skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.

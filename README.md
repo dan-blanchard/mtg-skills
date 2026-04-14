@@ -10,17 +10,13 @@ npx skills add dan-blanchard/mtg-skills
 
 ## Available Skills
 
-### deck-builder
+### deck-wizard
 
-Build MTG decks from scratch for all formats — Commander/EDH, Brawl, Historic Brawl (singleton with commanders) and Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, Vintage (60-card with sideboards). Covers commander selection, metagame research, archetype/combo-first building, Companion evaluation, and Bo1/Bo3 awareness. Hands off to deck-tuner for refinement.
+Build MTG decks from scratch or tune existing ones across all formats — Commander/EDH, Brawl, Historic Brawl, Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage. Two-phase workflow: Phase 1 acquires a deck (parse an existing list or build from scratch via interview + research + skeleton generation), Phase 2 runs a 12-step tuning pipeline with mana auditing, combo detection, archetype coherence analysis, a two-agent debate, and impact verification.
 
-### deck-tuner
+## Tooling
 
-Structured 14-step process for analyzing and tuning MTG decks across all formats. Includes mana base auditing, combo detection, archetype coherence analysis, commander interaction audit (for singleton formats), sideboard evaluation (for 60-card formats), a two-agent debate to stress-test proposals, and impact verification before finalizing changes.
-
-## Shared Tooling
-
-Both skills share the same Python CLI scripts via the `mtg_utils` package (`mtg-utils/`):
+The skill uses Python CLI scripts via the `mtg_utils` package (`mtg-utils/`):
 
 - **parse-deck** — Multi-format deck list parser with sideboard support
 - **scryfall-lookup** — Card lookup against local Scryfall bulk data with API fallback
@@ -61,7 +57,7 @@ Both skills share the same Python CLI scripts via the `mtg_utils` package (`mtg-
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 
-On first use, each skill runs `uv sync` to install Python dependencies and downloads Scryfall bulk data (~500MB).
+On first use, the skill runs `uv sync` to install Python dependencies and downloads Scryfall bulk data (~500MB).
 
 ## License
 
