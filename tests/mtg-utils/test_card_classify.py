@@ -1,6 +1,7 @@
 """Tests for card classification helpers."""
 
 from mtg_utils.card_classify import (
+    build_card_lookup,
     classify_cube_category,
     color_sources,
     is_commander,
@@ -479,3 +480,89 @@ class TestClassifyCubeCategory:
             "oracle_text": "Whenever this creature attacks, create a 1/1 white Soldier token.",
         }
         assert classify_cube_category(card) == "M"
+
+
+class TestBuildCardLookup:
+    def test_canonical_name(self):
+        """Cards are indexed by their canonical name."""
+        hydrated = [{"name": "Lightning Bolt", "type_line": "Instant"}]
+        lookup = build_card_lookup(hydrated)
+        assert "Lightning Bolt" in lookup
+        assert lookup["Lightning Bolt"]["type_line"] == "Instant"
+
+    def test_dfc_front_face_alias(self):
+        """DFC/MDFC cards listed by front face only still resolve.
+
+        A deck parsed from Moxfield / Arena / plain text commonly lists a
+        pathway as "Hengegate Pathway" (front face) while Scryfall's bulk
+        data uses the canonical combined form "Hengegate Pathway //
+        Mistgate Pathway". build_card_lookup must index both so downstream
+        lookups hit regardless of which spelling the deck author used.
+        """
+        hydrated = [
+            {
+                "name": "Hengegate Pathway // Mistgate Pathway",
+                "type_line": "Land // Land",
+            }
+        ]
+        lookup = build_card_lookup(hydrated)
+        assert "Hengegate Pathway // Mistgate Pathway" in lookup
+        assert "Hengegate Pathway" in lookup
+        assert lookup["Hengegate Pathway"] is lookup[
+            "Hengegate Pathway // Mistgate Pathway"
+        ]
+
+    def test_dfc_front_face_matches_only_land_back(self):
+        """Aliasing covers DFCs whose back face is a land (flex lands)."""
+        hydrated = [
+            {
+                "name": "Shatterskull Smashing // Shatterskull, the Hammer Pass",
+                "type_line": "Sorcery // Land",
+            }
+        ]
+        lookup = build_card_lookup(hydrated)
+        assert "Shatterskull Smashing" in lookup
+
+    def test_printed_name_alias(self):
+        """Arena printed_name still resolves to the canonical card."""
+        hydrated = [
+            {
+                "name": "Masked Meower",
+                "printed_name": "Skittering Kitten",
+                "type_line": "Creature",
+            }
+        ]
+        lookup = build_card_lookup(hydrated)
+        assert "Masked Meower" in lookup
+        assert "Skittering Kitten" in lookup
+
+    def test_canonical_wins_over_alias(self):
+        """When two cards collide on an alias, the canonical stays pinned.
+
+        If card A's canonical name happens to equal card B's front-face
+        or printed_name alias, A's entry must not be overwritten.
+        """
+        hydrated = [
+            {"name": "Hengegate Pathway", "type_line": "Something Else"},
+            {
+                "name": "Hengegate Pathway // Mistgate Pathway",
+                "type_line": "Land // Land",
+            },
+        ]
+        lookup = build_card_lookup(hydrated)
+        # First card's canonical entry is preserved despite the second
+        # card trying to alias onto the same key.
+        assert lookup["Hengegate Pathway"]["type_line"] == "Something Else"
+
+    def test_none_entries_skipped(self):
+        """Hydration misses (None entries) don't crash the builder."""
+        hydrated = [None, {"name": "Lightning Bolt", "type_line": "Instant"}]
+        lookup = build_card_lookup(hydrated)
+        assert "Lightning Bolt" in lookup
+
+    def test_non_dfc_not_aliased(self):
+        """Names without ' // ' don't generate bogus front-face aliases."""
+        hydrated = [{"name": "Lightning Bolt", "type_line": "Instant"}]
+        lookup = build_card_lookup(hydrated)
+        # Exactly one entry; no accidental aliasing.
+        assert len(lookup) == 1

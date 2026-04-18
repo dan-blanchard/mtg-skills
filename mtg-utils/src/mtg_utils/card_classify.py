@@ -70,17 +70,36 @@ def extract_price(card: dict | None) -> float | None:
 def build_card_lookup(hydrated: list[dict | None]) -> dict[str, dict]:
     """Build name -> card dict lookup from a hydrated card list.
 
-    Indexes by canonical name, printed_name, and flavor_name so that
-    downstream tools (deck_stats, mana_audit, etc.) find cards regardless
-    of whether the deck uses Arena display names or Scryfall paper names.
+    Indexes by canonical name, DFC/MDFC front-face name, printed_name,
+    and flavor_name so downstream tools (deck_stats, mana_audit, etc.)
+    find cards regardless of which spelling the deck author used.
     Canonical names take priority — alias keys never overwrite them.
+
+    DFC aliasing mirrors ``mark_owned._build_alias_lookup``: Moxfield,
+    Arena, and plain-text deck exports commonly list a card by front
+    face only (``"Hengegate Pathway"``) while Scryfall's bulk data uses
+    the canonical combined form (``"Hengegate Pathway // Mistgate
+    Pathway"``). Without this alias, ``card_lookup.get`` misses the
+    entry and the card silently drops out of every downstream count
+    (land_count, creature_count, CMC, color sources, legality checks).
     """
     lookup: dict[str, dict] = {}
     # Pass 1: canonical names
     for card in hydrated:
         if card is not None:
             lookup[card["name"]] = card
-    # Pass 2: Arena alternate names (printed_name / flavor_name)
+    # Pass 2: DFC / MDFC / split / adventure front-face aliases.
+    # Standalone-wins: skip if a canonical card already owns this key.
+    for card in hydrated:
+        if card is None:
+            continue
+        name = card["name"]
+        if " // " not in name:
+            continue
+        front_face = name.split(" // ", 1)[0]
+        if front_face and front_face not in lookup:
+            lookup[front_face] = card
+    # Pass 3: Arena alternate names (printed_name / flavor_name)
     for card in hydrated:
         if card is None:
             continue
