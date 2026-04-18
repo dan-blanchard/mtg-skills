@@ -369,6 +369,206 @@ def hydrated_cards(sample_bulk_data: Path) -> list[dict]:
 
 
 @pytest.fixture
+def cube_bulk_data(tmp_path: Path) -> Path:
+    """Extra cards for cube tests: a few duals, gold cards, rares for rarity
+    breakdown, and an uncommon creature commander for PDH-style tests.
+
+    Tests combine this with sample_bulk_data entries via cube_hydrated fixture.
+    """
+    cards = [
+        {
+            "id": "cbk-bolt",
+            "oracle_id": "orc-bolt",
+            "name": "Lightning Bolt",
+            "mana_cost": "{R}",
+            "cmc": 1.0,
+            "type_line": "Instant",
+            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+            "keywords": [],
+            "colors": ["R"],
+            "color_identity": ["R"],
+            "rarity": "common",
+            "legalities": {"modern": "legal", "legacy": "legal", "vintage": "legal"},
+            "prices": {"usd": "0.50"},
+        },
+        {
+            "id": "cbk-stp",
+            "oracle_id": "orc-stp",
+            "name": "Swords to Plowshares",
+            "mana_cost": "{W}",
+            "cmc": 1.0,
+            "type_line": "Instant",
+            "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+            "keywords": [],
+            "colors": ["W"],
+            "color_identity": ["W"],
+            "rarity": "uncommon",
+            "legalities": {"legacy": "legal", "vintage": "legal"},
+            "prices": {"usd": "1.50"},
+        },
+        {
+            "id": "cbk-counter",
+            "oracle_id": "orc-counter",
+            "name": "Counterspell",
+            "mana_cost": "{U}{U}",
+            "cmc": 2.0,
+            "type_line": "Instant",
+            "oracle_text": "Counter target spell.",
+            "keywords": [],
+            "colors": ["U"],
+            "color_identity": ["U"],
+            "rarity": "common",
+            "legalities": {"modern": "legal", "legacy": "legal"},
+            "prices": {"usd": "0.75"},
+        },
+        {
+            "id": "cbk-dark-rit",
+            "oracle_id": "orc-dark-rit",
+            "name": "Dark Ritual",
+            "mana_cost": "{B}",
+            "cmc": 1.0,
+            "type_line": "Instant",
+            "oracle_text": "Add {B}{B}{B}.",
+            "keywords": [],
+            "colors": ["B"],
+            "color_identity": ["B"],
+            "rarity": "common",
+            "legalities": {"legacy": "legal", "vintage": "legal"},
+            "prices": {"usd": "1.50"},
+        },
+        {
+            "id": "cbk-elves",
+            "oracle_id": "orc-elves",
+            "name": "Llanowar Elves",
+            "mana_cost": "{G}",
+            "cmc": 1.0,
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
+            "keywords": [],
+            "colors": ["G"],
+            "color_identity": ["G"],
+            "rarity": "common",
+            "legalities": {"modern": "legal", "legacy": "legal"},
+            "prices": {"usd": "0.25"},
+        },
+        {
+            "id": "cbk-atraxa",
+            "oracle_id": "orc-atraxa",
+            "name": "Atraxa, Praetors' Voice",
+            "mana_cost": "{G}{W}{U}{B}",
+            "cmc": 4.0,
+            "type_line": "Legendary Creature — Phyrexian Angel Horror",
+            "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate.",
+            "keywords": ["Flying", "Vigilance", "Deathtouch", "Lifelink"],
+            "colors": ["B", "G", "U", "W"],
+            "color_identity": ["B", "G", "U", "W"],
+            "rarity": "mythic",
+            "legalities": {"commander": "legal"},
+            "prices": {"usd": "20.00"},
+        },
+        {
+            "id": "cbk-tuvasa",
+            "oracle_id": "orc-tuvasa",
+            "name": "Tuvasa the Sunlit",
+            "mana_cost": "{G}{W}{U}",
+            "cmc": 3.0,
+            "type_line": "Legendary Creature — Merfolk Druid",
+            "oracle_text": "Tuvasa the Sunlit gets +1/+1 for each enchantment you control.\nWhenever you cast your first enchantment spell each turn, draw a card.",
+            "keywords": [],
+            "colors": ["G", "U", "W"],
+            "color_identity": ["G", "U", "W"],
+            "rarity": "mythic",
+            "legalities": {"commander": "legal"},
+            "prices": {"usd": "3.00"},
+        },
+        {
+            "id": "cbk-wildfire",
+            "oracle_id": "orc-wildfire",
+            "name": "Wildfire",
+            "mana_cost": "{4}{R}{R}",
+            "cmc": 6.0,
+            "type_line": "Sorcery",
+            "oracle_text": "Each player sacrifices four lands, then Wildfire deals 4 damage to each creature.",
+            "keywords": [],
+            "colors": ["R"],
+            "color_identity": ["R"],
+            "rarity": "rare",
+            "legalities": {"legacy": "legal", "vintage": "legal"},
+            "prices": {"usd": "2.00"},
+        },
+    ]
+    bulk_path = tmp_path / "cube-cards.json"
+    bulk_path.write_text(json.dumps(cards))
+    return bulk_path
+
+
+@pytest.fixture
+def cube_hydrated(sample_bulk_data: Path, cube_bulk_data: Path) -> list[dict]:
+    """Merged hydrated data: deck-test cards + cube-test extras."""
+    deck_cards = json.loads(sample_bulk_data.read_text(encoding="utf-8"))
+    cube_cards = json.loads(cube_bulk_data.read_text(encoding="utf-8"))
+    return [*deck_cards, *cube_cards]
+
+
+@pytest.fixture
+def sample_cube_json() -> dict:
+    """Small cube JSON with a spread of colors, types, and rarities."""
+    return {
+        "cube_format": "vintage",
+        "target_size": 12,
+        "name": "Sample Cube",
+        "drafters": 8,
+        "pack_size": 15,
+        "packs_per_drafter": 3,
+        "cards": [
+            # Mono-colored non-lands
+            {"name": "Lightning Bolt", "quantity": 1},
+            {"name": "Swords to Plowshares", "quantity": 1},
+            {"name": "Counterspell", "quantity": 1},
+            {"name": "Dark Ritual", "quantity": 1},
+            {"name": "Llanowar Elves", "quantity": 1},
+            {"name": "Viscera Seer", "quantity": 1},
+            {"name": "Rhystic Study", "quantity": 1},
+            # Multicolor
+            {"name": "Thrasios, Triton Hero", "quantity": 1},
+            {"name": "Fire // Ice", "quantity": 1},
+            # Artifacts (colorless)
+            {"name": "Sol Ring", "quantity": 1},
+            # Lands
+            {"name": "Overgrown Tomb", "quantity": 1},
+            {"name": "Command Tower", "quantity": 1},
+        ],
+        "total_cards": 12,
+    }
+
+
+@pytest.fixture
+def sample_commander_cube_json() -> dict:
+    """Small commander cube with a dedicated commander pool."""
+    return {
+        "cube_format": "commander",
+        "target_size": 8,
+        "name": "Sample Commander Cube",
+        "drafters": 8,
+        "pack_size": 15,
+        "packs_per_drafter": 3,
+        "commander_pool": [
+            {"name": "Atraxa, Praetors' Voice", "quantity": 1},
+            {"name": "Tuvasa the Sunlit", "quantity": 1},
+            {"name": "Thrasios, Triton Hero", "quantity": 1},
+            {"name": "Korvold, Fae-Cursed King", "quantity": 1},
+        ],
+        "cards": [
+            {"name": "Lightning Bolt", "quantity": 1},
+            {"name": "Counterspell", "quantity": 1},
+            {"name": "Sol Ring", "quantity": 1},
+            {"name": "Command Tower", "quantity": 1},
+        ],
+        "total_cards": 8,
+    }
+
+
+@pytest.fixture
 def sample_edhrec_response() -> dict:
     """Sample EDHREC JSON response for Korvold."""
     return {

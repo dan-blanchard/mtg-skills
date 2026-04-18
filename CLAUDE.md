@@ -20,13 +20,23 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/deck-wizard/ -v  # Run smoke tests
 ```
 
+### cube-wizard
+
+```bash
+cd cube-wizard
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
+uv run pytest ../tests/cube-wizard/ -v  # Run smoke tests
+```
+
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
 ### mtg-utils
 
-Shared Python package (`mtg_utils`). Sixteen CLI scripts backed by library modules:
+Shared Python package (`mtg_utils`). 29 CLI script modules (20 deck + 9 cube) exposed as 30 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 9 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, mark-owned, price-check, scryfall-lookup, web-fetch); the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
+
+**Deck scripts:**
 
 - **`parse_deck.py`** — Multi-format deck list parser with sideboard support. Strips Moxfield set code suffixes.
 - **`scryfall_lookup.py`** — Card lookup against Scryfall bulk data with API fallback and persistent caching.
@@ -44,16 +54,37 @@ Shared Python package (`mtg_utils`). Sixteen CLI scripts backed by library modul
 - **`combo_search.py`** — Commander Spellbook API wrapper: `combo-search` for deck combo detection and near-miss identification; `combo-discover` for discovering combos by outcome, card name, or color identity.
 - **`export_deck.py`** — Export parsed deck JSON to Moxfield import format (`N CardName` lines) with sideboard section.
 - **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range. Compact table or JSON output.
+- **`legality_audit.py`** — Format legality, copy limits, sideboard size, Vintage restricted-list audit.
+- **`find_commanders.py`** — Search owned collection for commander-eligible cards.
+- **`mark_owned.py`** — Populate a deck's `owned_cards` field from a collection CSV/JSON.
+- **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`.
 
-Shared library module (not a CLI script):
+**Cube scripts:**
 
-- **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`.
+- **`cubecobra_fetch.py`** — Fetch a cube from CubeCobra. Priority: `cubeJSON` endpoint → `cubelist` → CSV; curl fallback for 403s; rejects HTML-404-with-200 error shells.
+- **`parse_cube.py`** — Parse CubeCobra JSON (v1 and current v2 shapes), CubeCobra CSV, plain text, or deck JSON into canonical cube JSON.
+- **`cube_stats.py`** — Informational cube metrics: size, per-color distribution, curve, type breakdown, rarity breakdown, commander pool by color identity.
+- **`cube_balance.py`** — Informational checks (not pass/fail): color balance, curve, removal density, fixing density (with Lucky Paper band + maindeck-efficiency curve), commander pool.
+- **`cube_legality_audit.py`** — Hard-constraint validation: rarity filters (Pauper, Peasant, PDH), Scryfall legality keys, explicit ban lists, commander-pool rarity. Emits errors for clear violations and warns for ambiguous cases (default-printing rarity, missing legality data).
+- **`archetype_audit.py`** — Cross-reference user-supplied oracle-text theme regexes against color pairs; flag orphan signals; surface bridge cards that span multiple themes.
+- **`cube_diff.py`** — Two-cube comparison with optional `--metrics` balance-metric deltas.
+- **`pack_simulate.py`** — Seeded pack generation with configurable slot templates (ported from cube-utils, sizes 9/11/15); optional dedicated commander packs; multi-draft aggregation.
+- **`export_cube.py`** — Export canonical cube JSON to CubeCobra-compatible CSV (for the "Replace with CSV Import" round-trip) or plain text.
+
+Shared library modules (not CLI scripts):
+
+- **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`, `classify_cube_category()` (9-category W/U/B/R/G/M/L/F/C classifier for cube draft slot allocation).
+- **`cube_config.py`** — Cube format presets (9 formats: vintage, unpowered, legacy, modern, pauper, peasant, set, commander, pdh), size-to-drafters table, `PACK_TEMPLATES` defaults, `BALANCE_TARGETS` reference ranges, and curated `REFERENCE_CUBES` starting-point list per format.
 
 ### deck-wizard
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch or tunes existing ones across all formats (Commander/Brawl/Historic Brawl and 60-card constructed). Two-phase workflow: Phase 1 acquires a deck (parse existing or build from scratch), Phase 2 runs a 12-step tuning pipeline.
 
-## Supported Formats
+### cube-wizard
+
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (curated card pools of 360–720 cards designed for drafting). Two-phase workflow: Phase 1 acquires a cube (Path A: parse an existing CubeCobra cube; Path B: clone a well-known reference cube from `cube_config.REFERENCE_CUBES` and customize). Phase 2 runs a 9-step tuning pipeline (baseline metrics → designer intent → balance dashboard → archetype audit → power-level review → self-grill → propose changes → pack simulation → export). Balance checks are informational, not pass/fail, so a mono-color or skewed-by-design cube is never flagged as broken.
+
+## Supported Deck Formats
 
 | Format | Deck Size | Copy Limit | Sideboard | Arena | Legality Key |
 |--------|-----------|------------|-----------|-------|-------------|
@@ -70,6 +101,20 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch or 
 | legacy | 60 | 4 | 15 | No | legacy |
 | vintage | 60 | 4 (restricted=1) | 15 | No | vintage |
 
+## Supported Cube Formats
+
+| Format | Default Size | Card Pool | Rarity Filter | Commander Pool |
+|--------|-------------:|-----------|---------------|----------------|
+| vintage | 540 | Full eternal | — | No |
+| unpowered | 540 | Full eternal (Power 9 banned) | — | No |
+| legacy | 540 | Legacy-legal | — | No |
+| modern | 540 | Modern-legal | — | No |
+| pauper | 540 | Full eternal | commons only | No |
+| peasant | 540 | Full eternal | commons + uncommons | No |
+| set | 360 | Single set | — | No |
+| commander | 540 | Commander-legal | — | Yes |
+| pdh | 540 | Full eternal | commons (main) | Yes (uncommons) |
+
 ## Testing
 
-Tests live in `tests/mtg-utils/` (package tests) and `tests/deck-wizard/` (skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.
+Tests live in `tests/mtg-utils/` (package tests), `tests/deck-wizard/` (deck skill smoke tests), and `tests/cube-wizard/` (cube skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.

@@ -1,6 +1,7 @@
 """Tests for card classification helpers."""
 
 from mtg_utils.card_classify import (
+    classify_cube_category,
     color_sources,
     is_commander,
     is_creature,
@@ -279,3 +280,202 @@ class TestIsCommander:
         card = {"type_line": "Instant"}
         result = is_commander(card)
         assert result == {"eligible": False, "requires_partner": False}
+
+
+class TestClassifyCubeCategory:
+    def test_mono_white(self):
+        card = {
+            "type_line": "Creature — Human Knight",
+            "color_identity": ["W"],
+            "oracle_text": "",
+        }
+        assert classify_cube_category(card) == "W"
+
+    def test_mono_red_instant(self):
+        card = {
+            "type_line": "Instant",
+            "color_identity": ["R"],
+            "oracle_text": "Deal 3 damage to any target.",
+        }
+        assert classify_cube_category(card) == "R"
+
+    def test_multicolor(self):
+        card = {
+            "type_line": "Creature — Human Warrior",
+            "color_identity": ["W", "R"],
+            "oracle_text": "",
+        }
+        assert classify_cube_category(card) == "M"
+
+    def test_multicolor_three_color(self):
+        card = {
+            "type_line": "Creature — Sliver",
+            "color_identity": ["W", "U", "B"],
+            "oracle_text": "",
+        }
+        assert classify_cube_category(card) == "M"
+
+    def test_colorless_non_fixing_artifact(self):
+        """Plain colorless artifact with no mana production → C."""
+        card = {
+            "type_line": "Artifact",
+            "color_identity": [],
+            "oracle_text": "",
+        }
+        assert classify_cube_category(card) == "C"
+
+    def test_colorless_creature(self):
+        card = {
+            "type_line": "Artifact Creature — Construct",
+            "color_identity": [],
+            "oracle_text": "",
+        }
+        assert classify_cube_category(card) == "C"
+
+    def test_mana_producing_land(self):
+        """A mono-color land that taps for mana → L (mana-producing land)."""
+        card = {
+            "type_line": "Land",
+            "color_identity": ["R"],
+            "oracle_text": "{T}: Add {R}.",
+        }
+        assert classify_cube_category(card) == "L"
+
+    def test_dual_land_goes_to_land_bucket(self):
+        """Dual lands that tap for mana are L, not F. Fixing is about multi-
+        color sources that don't just tap for mana directly."""
+        card = {
+            "type_line": "Land — Swamp Forest",
+            "color_identity": ["B", "G"],
+            "oracle_text": "({T}: Add {B} or {G}.)\nAs Overgrown Tomb enters, you may pay 2 life. If you don't, it enters tapped.",
+        }
+        assert classify_cube_category(card) == "L"
+
+    def test_command_tower_is_land(self):
+        """Command Tower taps for mana of any color → L (mana-producing)."""
+        card = {
+            "type_line": "Land",
+            "color_identity": [],
+            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+        }
+        assert classify_cube_category(card) == "L"
+
+    def test_evolving_wilds_is_fixing(self):
+        """Evolving Wilds doesn't tap for mana — only sacrifices to fetch
+        a basic. Per cube-utils, this is F (fixing)."""
+        card = {
+            "type_line": "Land",
+            "color_identity": [],
+            "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+        }
+        assert classify_cube_category(card) == "F"
+
+    def test_fetchland_is_fixing(self):
+        """Fetch lands (Polluted Delta, Flooded Strand) don't tap for mana,
+        only sacrifice to search → F."""
+        card = {
+            "type_line": "Land",
+            "color_identity": [],
+            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
+        }
+        assert classify_cube_category(card) == "F"
+
+    def test_colorless_land_is_land_bucket(self):
+        card = {
+            "type_line": "Land",
+            "color_identity": [],
+            "oracle_text": "{T}: Add {C}.",
+        }
+        assert classify_cube_category(card) == "L"
+
+    def test_basic_land_is_land_bucket(self):
+        """Basics have empty oracle text but produce mana via type line → L."""
+        card = {
+            "type_line": "Basic Land — Mountain",
+            "color_identity": ["R"],
+            "oracle_text": "",
+        }
+        assert classify_cube_category(card) == "L"
+
+    def test_sol_ring_is_fixing(self):
+        """Sol Ring: colorless artifact that produces mana → F (mana rock)."""
+        card = {
+            "type_line": "Artifact",
+            "color_identity": [],
+            "oracle_text": "{T}: Add {C}{C}.",
+        }
+        assert classify_cube_category(card) == "F"
+
+    def test_arcane_signet_is_fixing(self):
+        """Arcane Signet: mana rock that produces any color → F."""
+        card = {
+            "type_line": "Artifact",
+            "color_identity": [],
+            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+        }
+        assert classify_cube_category(card) == "F"
+
+    def test_cultivate_is_green(self):
+        """Cultivate: green land-fetcher → G (slots into the green pack position)."""
+        card = {
+            "type_line": "Sorcery",
+            "color_identity": ["G"],
+            "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+        }
+        assert classify_cube_category(card) == "G"
+
+    def test_sakura_tribe_elder_is_green(self):
+        """Sakura-Tribe Elder: green creature → G, not F."""
+        card = {
+            "type_line": "Creature — Snake Shaman",
+            "color_identity": ["G"],
+            "oracle_text": "Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+        }
+        assert classify_cube_category(card) == "G"
+
+    def test_birds_of_paradise_is_green(self):
+        """Mana dork with color identity G → G slot. Each pack reserves one
+        mono-color slot per color, and Birds helps drafters committing to G."""
+        card = {
+            "type_line": "Creature — Bird",
+            "color_identity": ["G"],
+            "oracle_text": "Flying\n{T}: Add one mana of any color.",
+        }
+        assert classify_cube_category(card) == "G"
+
+    def test_llanowar_elves_is_green(self):
+        """Mono-G mana dork → G bucket, not F."""
+        card = {
+            "type_line": "Creature — Elf Druid",
+            "color_identity": ["G"],
+            "oracle_text": "{T}: Add {G}.",
+        }
+        assert classify_cube_category(card) == "G"
+
+    def test_wayfarers_bauble_is_fixing(self):
+        """Colorless land-fetcher → F. No color identity, so no mono-color
+        slot competes."""
+        card = {
+            "type_line": "Artifact",
+            "color_identity": [],
+            "oracle_text": "{2}, {T}, Sacrifice Wayfarer's Bauble: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+        }
+        assert classify_cube_category(card) == "F"
+
+    def test_chromatic_lantern_is_fixing(self):
+        """Colorless mana rock producing any color → F."""
+        card = {
+            "type_line": "Artifact",
+            "color_identity": [],
+            "oracle_text": 'Lands you control have "{T}: Add one mana of any color."\n{T}: Add one mana of any color.',
+        }
+        assert classify_cube_category(card) == "F"
+
+    def test_multicolor_non_fixing(self):
+        """Multicolor creature that doesn't produce mana or fetch → M."""
+        card = {
+            "type_line": "Legendary Creature — Human Soldier",
+            "color_identity": ["W", "R"],
+            "oracle_text": "Whenever this creature attacks, create a 1/1 white Soldier token.",
+        }
+        assert classify_cube_category(card) == "M"

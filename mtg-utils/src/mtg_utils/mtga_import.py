@@ -831,7 +831,7 @@ def _chown_outputs_to_sudo_user(*paths: Path) -> None:
     is_flag=True,
     help="Print the list of unresolved Arena ids after the summary.",
 )
-def main(  # noqa: PLR0915 — CLI orchestration is naturally statement-heavy
+def main(
     bulk_path: Path,
     log_path: Path | None,
     output_dir: Path | None,

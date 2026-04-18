@@ -3,35 +3,25 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mtg-utils"
+name = "cube-wizard"
 version = "0.1.0"
-description = "MTG deck building and tuning utilities"
+description = "MTG cube building and tuning (shared from mtg-utils)"
 requires-python = ">=3.12"
 dependencies = ["click>=8.0", "requests>=2.28"]
 
 [project.scripts]
-parse-deck = "mtg_utils.parse_deck:main"
-scryfall-lookup = "mtg_utils.scryfall_lookup:main"
-edhrec-lookup = "mtg_utils.edhrec_lookup:main"
-download-bulk = "mtg_utils.download_bulk:main"
-web-fetch = "mtg_utils.web_fetch:main"
-deck-stats = "mtg_utils.deck_stats:main"
-card-summary = "mtg_utils.card_summary:main"
-deck-diff = "mtg_utils.deck_diff:main"
-set-commander = "mtg_utils.set_commander:main"
-mana-audit = "mtg_utils.mana_audit:main"
-cut-check = "mtg_utils.cut_check:main"
-build-deck = "mtg_utils.build_deck:main"
-price-check = "mtg_utils.price_check:main"
-combo-search = "mtg_utils.combo_search:main"
-combo-discover = "mtg_utils.combo_search:discover_main"
-export-deck = "mtg_utils.export_deck:main"
+# Reused from mtg-utils / deck-wizard
 card-search = "mtg_utils.card_search:main"
-find-commanders = "mtg_utils.find_commanders:main"
-legality-audit = "mtg_utils.legality_audit:main"
+card-summary = "mtg_utils.card_summary:main"
+combo-discover = "mtg_utils.combo_search:discover_main"
+combo-search = "mtg_utils.combo_search:main"
+download-bulk = "mtg_utils.download_bulk:main"
 mark-owned = "mtg_utils.mark_owned:main"
-mtga-import = "mtg_utils.mtga_import:main"
-# Cube scripts
+price-check = "mtg_utils.price_check:main"
+scryfall-lookup = "mtg_utils.scryfall_lookup:main"
+web-fetch = "mtg_utils.web_fetch:main"
+
+# Cube-specific entry points
 archetype-audit = "mtg_utils.archetype_audit:main"
 cube-balance = "mtg_utils.cube_balance:main"
 cube-diff = "mtg_utils.cube_diff:main"
@@ -46,7 +36,7 @@ parse-cube = "mtg_utils.parse_cube:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["../tests/mtg-utils"]
+testpaths = ["../tests/cube-wizard"]
 
 [dependency-groups]
 dev = [
@@ -77,14 +67,9 @@ ignore = [
     "TC",      # type-checking imports
     "PLC0415", # non-top-level import
     "ARG002",  # unused method argument — mock patches require positional args
-    "PERF401", # list-append-in-loop — common in CLI render_text_report functions
-    "PLR0915", # too many statements — Click CLI entry points and stats aggregators are naturally long
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/mtg_utils/cube_config.py" = [
-    "E501",    # line length — REFERENCE_CUBES descriptions are data, not prose
-]
 "tests/*" = [
     "SLF001",  # private member access — tests need to test internals
     "E501",    # line length — test data and assertions can be long

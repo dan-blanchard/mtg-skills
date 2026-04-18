@@ -280,3 +280,126 @@ def has_copy_limit_exemption(card: dict) -> bool:
     if _ANY_NUMBER_PATTERN in oracle:
         return True
     return _UP_TO_N_PATTERN.search(oracle) is not None
+
+
+_LAND_PRODUCES_MANA = re.compile(
+    r"[Aa]dd\s+(?:\{[WUBRGC]|one mana|an? amount|X\s+mana|that much|mana of)",
+    re.IGNORECASE,
+)
+
+
+def is_fixing_land(card: dict) -> bool:
+    """True if a land counts toward the "fixing density" metric.
+
+    This is the BROAD Lucky Paper definition used in ``cube-balance``'s
+    fixing density check — it counts any land that helps a drafter cast
+    multi-color spells:
+
+    * Multi-color mana producers: duals (Overgrown Tomb), triomes, Command
+      Tower, Exotic Orchard.
+    * Any-color producers: City of Brass, Mana Confluence.
+    * Land-fetchers that don't tap for mana: Evolving Wilds, Fabled Passage,
+      fetchlands (Polluted Delta, Flooded Strand, etc.).
+
+    Mono-color basic-producing lands and mono-color taplands are NOT fixing.
+
+    Distinct from ``classify_cube_category`` which uses cube-utils' pack-
+    template semantics (multi-color duals fill the L slot; only mana rocks
+    and non-mana lands fill the F slot). Lucky Paper's published fixing
+    numbers (17-28% at 360) measure the broader definition here.
+    """
+    if not is_land(card):
+        return False
+    sources = color_sources(card)
+    if "any" in sources or len(sources) >= 2:
+        return True
+    # Lands that fetch lands without tapping for mana themselves
+    # (Evolving Wilds, fetchlands). ``is_ramp`` early-returns for lands,
+    # so we detect this by checking the oracle text directly.
+    oracle = get_oracle_text(card).lower()
+    return (
+        "search your library for" in oracle
+        and "land" in oracle
+        and not _LAND_PRODUCES_MANA.search(get_oracle_text(card))
+    )
+
+
+def _land_produces_mana_directly(card: dict) -> bool:
+    """True if a land has an explicit ``Add <mana>`` oracle clause.
+
+    Distinguishes mana-producing lands (duals, Command Tower, Underground
+    Sea, Karakas) from lands that only fetch other lands without tapping
+    for mana (Evolving Wilds, Fabled Passage, Prismatic Vista, all fetch
+    lands). A basic land's oracle text is empty — but basic lands produce
+    mana by virtue of their type line, so callers short-circuit the basic
+    case themselves.
+    """
+    oracle = get_oracle_text(card)
+    if _LAND_PRODUCES_MANA.search(oracle):
+        return True
+    # Basic lands have empty oracle text; their type_line carries the mana
+    # ability implicitly.
+    type_line = card.get("type_line", "") or ""
+    return any(t in type_line for t in _BASIC_LAND_TYPES)
+
+
+def classify_cube_category(card: dict) -> str:
+    """Classify a hydrated card into one of nine cube draft categories.
+
+    Returns one of:
+      "W" / "U" / "B" / "R" / "G" — mono-color non-land. Includes mana
+            dorks and land-fetchers that have a color in their identity
+            (Llanowar Elves, Birds of Paradise, Cultivate, Sakura-Tribe
+            Elder). These slot into their mono-color pack position so
+            every pack offers a color-specific card for each color.
+      "M" — multicolor non-land (includes multicolor ramp like Golos).
+      "L" — land that taps for mana directly (duals, Command Tower,
+            basic-typed lands, utility lands with mana abilities).
+      "F" — *colorless* fixing: cards with no color identity that
+            produce mana of any kind (Sol Ring, Arcane Signet, Chromatic
+            Lantern, Chromatic Sphere) or fetch lands (Wayfarer's Bauble,
+            Expedition Map), *plus* lands that only sacrifice to fetch a
+            land without tapping for mana themselves (Evolving Wilds,
+            Fabled Passage, all fetch lands). Packs reserve one F slot
+            so every pack offers a drafter a colorless fixing option.
+      "C" — colorless non-land non-fixing (token generators, utility
+            artifacts like Sensei's Divining Top, colorless threats).
+
+    The key distinction from simpler "produces mana = fixing" rules:
+    cube-utils pack templates put one-of-each-color in every pack, so a
+    mana dork with color identity G belongs in the G slot (where it
+    helps drafters building green) rather than the colorless F slot.
+    Only cards with NO color identity compete for the F slot.
+
+    Basic lands are unlimited outside the cube and not part of the draft
+    pool, so ``F`` isn't about mana availability — it's about the
+    colorless slot reserved for generically-useful fixing tools.
+
+    Priority:
+      land → (L vs F based on direct mana production)
+      colorless non-land mana rock / land-fetcher → F
+      multicolor → M
+      mono-color (including colored mana dorks / colored ramp) → W/U/B/R/G
+      colorless non-fixing → C
+    """
+    identity = card.get("color_identity", []) or []
+
+    if is_land(card):
+        if _land_produces_mana_directly(card):
+            return "L"
+        return "F"
+
+    # Non-land F is restricted to COLORLESS fixing. Colored mana sources
+    # (Llanowar Elves, Birds of Paradise, Cultivate) slot into their
+    # mono-color position so each pack offers drafters color-specific
+    # fixing help.
+    if not identity and is_ramp(card):
+        return "F"
+
+    if len(identity) >= 2:
+        return "M"
+
+    if len(identity) == 1:
+        return identity[0]
+
+    return "C"
