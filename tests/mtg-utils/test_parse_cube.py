@@ -253,9 +253,7 @@ class TestParseCubecobraV2JSON:
         bolt = next(c for c in cube["cards"] if c["name"] == "Lightning Bolt")
         assert "cube_color" not in bolt
 
-    def test_category_prefixes_list_triggers_commander_detection(
-        self, tmp_path: Path
-    ):
+    def test_category_prefixes_list_triggers_commander_detection(self, tmp_path: Path):
         """CubeCobra's category_prefixes is usually a list; we must detect
         'Commander' inside it, not stringify the whole list."""
         path = tmp_path / "cc.json"

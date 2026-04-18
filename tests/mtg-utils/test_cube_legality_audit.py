@@ -42,7 +42,9 @@ class TestRarityFilter:
             "total_cards": 1,
         }
         result = cube_legality_audit(cube, patched)
-        bolt_violations = [v for v in result["violations"] if v["card"] == "Lightning Bolt"]
+        bolt_violations = [
+            v for v in result["violations"] if v["card"] == "Lightning Bolt"
+        ]
         assert bolt_violations == []
 
     def test_peasant_warns_on_rare_default_printing(self, cube_hydrated):
@@ -207,9 +209,7 @@ class TestCLIInterface:
         assert result.exit_code == 0
         assert "legality" in result.output.lower() or "rarity" in result.output.lower()
 
-    def test_writes_output_file(
-        self, sample_cube_json, cube_hydrated, tmp_path: Path
-    ):
+    def test_writes_output_file(self, sample_cube_json, cube_hydrated, tmp_path: Path):
         runner = CliRunner()
         cube_path = tmp_path / "cube.json"
         hyd_path = tmp_path / "hyd.json"

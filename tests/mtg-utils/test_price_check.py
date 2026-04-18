@@ -20,7 +20,10 @@ class TestCheckPrices:
             {"name": "Cheap Card", "prices": {"usd": "1.50", "usd_foil": "3.00"}},
             {"name": "No Price Card", "prices": {"usd": None, "usd_foil": None}},
         ]
-        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
+        with (
+            patch("mtg_utils.price_check.lookup_single") as mock_lookup,
+            patch("mtg_utils.price_check._api_price_lookup", return_value=None),
+        ):
             mock_lookup.side_effect = lambda name, **_kw: next(
                 (c for c in cards_data if c["name"] == name), None
             )

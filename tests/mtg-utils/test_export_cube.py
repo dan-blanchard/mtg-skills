@@ -103,9 +103,7 @@ class TestCLIInterface:
         # Warning goes to stderr (mix_stderr default True merges them).
         assert "commander pool" in result.output.lower()
 
-    def test_csv_silent_when_no_commander_pool(
-        self, sample_cube_json, tmp_path: Path
-    ):
+    def test_csv_silent_when_no_commander_pool(self, sample_cube_json, tmp_path: Path):
         runner = CliRunner()
         cube_path = tmp_path / "cube.json"
         out_path = tmp_path / "cube.csv"

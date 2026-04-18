@@ -508,9 +508,10 @@ class TestBuildCardLookup:
         lookup = build_card_lookup(hydrated)
         assert "Hengegate Pathway // Mistgate Pathway" in lookup
         assert "Hengegate Pathway" in lookup
-        assert lookup["Hengegate Pathway"] is lookup[
-            "Hengegate Pathway // Mistgate Pathway"
-        ]
+        assert (
+            lookup["Hengegate Pathway"]
+            is lookup["Hengegate Pathway // Mistgate Pathway"]
+        )
 
     def test_dfc_front_face_matches_only_land_back(self):
         """Aliasing covers DFCs whose back face is a land (flex lands)."""

@@ -102,9 +102,7 @@ class TestGeneratePack:
         }
         pack = generate_pack(buckets, PACK_TEMPLATES[15], random.Random(7))
         names = [c["name"] for c in pack]
-        assert len(names) == len(set(names)), (
-            f"duplicate card in pack: {sorted(names)}"
-        )
+        assert len(names) == len(set(names)), f"duplicate card in pack: {sorted(names)}"
 
 
 class TestPackSimulate:
