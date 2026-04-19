@@ -308,3 +308,106 @@ class TestCLI:
             return None
 
         assert _path(r1.output) == _path(r2.output)
+
+
+class TestCiteRules:
+    """``--cite-rules`` enriches keyword_interactions with CR citations."""
+
+    _CR_FIXTURE = (
+        "Magic: The Gathering Comprehensive Rules\n\n"
+        "These rules are effective as of February 2, 2024\n\n"
+        "Contents\n\n"
+        "1. Game Concepts\n"
+        "100. General\n"
+        "Glossary\n"
+        "Credits\n\n"
+        "1. Game Concepts\n\n"
+        "100. General\n\n"
+        "100.1. Stub rule.\n\n"
+        "Glossary\n\n"
+        "Trample\n"
+        "A keyword ability. See rule 100.1.\n\n"
+        "Menace\n"
+        "A keyword ability. See rule 100.1.\n\n"
+        "Credits\n"
+    )
+
+    def _write_rules(self, tmp_path):
+        p = tmp_path / "comprehensive-rules-20240202.txt"
+        p.write_text(self._CR_FIXTURE, encoding="utf-8")
+        return p
+
+    def test_cite_rules_attaches_citations(self, trigger_test_cards, tmp_path):
+        from click.testing import CliRunner
+        from conftest import json_from_cli_output
+
+        rules_path = self._write_rules(tmp_path)
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+                "--cite-rules",
+                "--rules-file",
+                str(rules_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        # Obeka + Blocking Restrictor have the menace + can't-be-blocked
+        # interaction, plus trample (from the Restrictor's oracle text).
+        citations = data[0].get("rule_citations") or []
+        cited_terms = {c["term"] for c in citations}
+        assert {"Menace", "Trample"} & cited_terms
+
+    def test_cite_rules_missing_file_is_soft_error(self, trigger_test_cards, tmp_path):
+        """Missing CR file should record an error field, not crash."""
+        from click.testing import CliRunner
+        from conftest import json_from_cli_output
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        output_path = tmp_path / "out.json"
+        missing_rules = tmp_path / "nope.txt"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+                "--cite-rules",
+                "--rules-file",
+                str(missing_rules),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        for entry in data:
+            assert entry["rule_citations"] == []
+            assert "rule_citations_error" in entry

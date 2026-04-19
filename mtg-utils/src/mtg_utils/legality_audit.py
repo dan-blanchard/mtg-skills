@@ -32,6 +32,34 @@ from mtg_utils.card_classify import (
     named_card_cap,
 )
 from mtg_utils.format_config import get_format_config
+from mtg_utils.rules_lookup import load_rules, resolve_rules_path
+
+# Map legality-audit violation reasons to the Comprehensive Rules rules
+# that govern them. Used by ``--cite-rules`` to attach CR citations so
+# the agent can explain *why* a violation triggered, not just that it
+# did. Rule numbers are stable across CR updates; rule *text* is pulled
+# live from the downloaded CR.
+_REASON_TO_CR_RULES: dict[str, tuple[str, ...]] = {
+    # 903.5b: Commander singleton rule. 100.2a: 60-card-format copy limit.
+    "copy_limit": ("100.2a", "903.5b"),
+    # 100.2a also covers basic-land exemption. 903.5b includes the
+    # "any number of cards named X" exemption.
+    "exceeds_named_card_cap": ("100.2a",),
+    # 903.4 = commander identity. 903.5d = Brawl colorless-basic
+    # exemption.
+    "color_identity": ("903.4", "903.5d"),
+    # Basic land type mixing in colorless Brawl — same rule.
+    "colorless_deck_must_pick_one_basic_type": ("903.5d",),
+    # 100.4a: sideboard max 15 cards.
+    "sideboard_too_large": ("100.4a",),
+    # 100.2a (60-card minimum) and 903.5a (100-card Commander minimum).
+    "below_minimum": ("100.2a", "903.5a"),
+    # Vintage restricted list (effectively a custom copy limit).
+    "restricted": ("100.2a",),
+    # Generic banned/not-legal in a format.
+    "banned": ("100.6",),
+    "not_legal": ("100.6",),
+}
 
 # Basic land subtypes that produce colored mana. Wastes is a basic land too,
 # but it has an empty color identity, so it always passes the subset check
@@ -421,6 +449,45 @@ def _default_output_path(*args: object) -> Path:
     return sha_keyed_path("legality-audit", *args)
 
 
+def _attach_rule_citations(result: dict, rules_file: Path | None) -> None:
+    """Enrich each violation group with CR citations keyed on its reason.
+
+    Silently no-ops (records ``rule_citations_error``) if the CR isn't
+    available; ``--cite-rules`` is additive enrichment, not a gate.
+    """
+    try:
+        path = resolve_rules_path(rules_file)
+    except FileNotFoundError as exc:
+        result["rule_citations_error"] = str(exc)
+        return
+
+    parsed = load_rules(path)
+
+    citations: dict[str, list[dict]] = {}
+    for group, violations in (result.get("violations") or {}).items():
+        seen_reasons: set[str] = set()
+        group_citations: list[dict] = []
+        for v in violations:
+            reason = v.get("reason", group)
+            if reason in seen_reasons:
+                continue
+            seen_reasons.add(reason)
+            for rule_num in _REASON_TO_CR_RULES.get(reason, ()):
+                rule = parsed["rules"].get(rule_num)
+                if rule is None:
+                    continue
+                group_citations.append(
+                    {
+                        "reason": reason,
+                        "rule": rule_num,
+                        "snippet": (rule.get("text") or rule.get("title") or "")[:300],
+                    },
+                )
+        if group_citations:
+            citations[group] = group_citations
+    result["rule_citations"] = citations
+
+
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
@@ -431,10 +498,26 @@ def _default_output_path(*args: object) -> Path:
     default=None,
     help="Override the default sha-keyed path for the full JSON output.",
 )
+@click.option(
+    "--cite-rules",
+    "cite_rules",
+    is_flag=True,
+    help="Attach MTG Comprehensive Rules citations for each violation reason.",
+)
+@click.option(
+    "--rules-file",
+    "rules_file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Comprehensive Rules TXT path. Defaults to newest comprehensive-rules*.txt.",
+)
 def main(
     deck_path: Path,
     hydrated_path: Path,
     output_path: Path | None,
+    rules_file: Path | None,
+    *,
+    cite_rules: bool,
 ) -> None:
     """Audit a deck for format legality, color identity, and singleton rule."""
     deck_content = deck_path.read_text(encoding="utf-8")
@@ -443,6 +526,9 @@ def main(
     hydrated = json.loads(hydrated_content)
 
     result = legality_audit(deck, hydrated)
+
+    if cite_rules:
+        _attach_rule_citations(result, rules_file)
 
     if output_path is None:
         output_path = _default_output_path(deck_content, hydrated_content)

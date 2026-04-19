@@ -12,3 +12,4 @@ jobs:
       - run: cd mtg-utils && uv run pytest ../tests/mtg-utils/ -v
       - run: cd deck-wizard && uv sync && uv run pytest ../tests/deck-wizard/ -v
       - run: cd cube-wizard && uv sync && uv run pytest ../tests/cube-wizard/ -v
+      - run: cd rules-lawyer && uv sync && uv run pytest ../tests/rules-lawyer/ -v

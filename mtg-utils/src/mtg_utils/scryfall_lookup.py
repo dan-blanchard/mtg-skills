@@ -26,6 +26,7 @@ RATE_LIMIT_DELAY = 0.1
 
 CARD_FIELDS = [
     "name",
+    "oracle_id",
     "printed_name",
     "flavor_name",
     "oracle_text",

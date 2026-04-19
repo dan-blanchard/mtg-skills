@@ -540,7 +540,7 @@ class TestCLI:
         assert len(result.output) < 1500  # ~400 bytes typical, 1500 is generous
 
         # The cache file at cache_path must exist and contain the full
-        # hydrated card list with all 12 CARD_FIELDS per card.
+        # hydrated card list with all CARD_FIELDS per card.
         cache_path = Path(envelope["cache_path"])
         assert cache_path.exists()
         assert cache_path.is_absolute()

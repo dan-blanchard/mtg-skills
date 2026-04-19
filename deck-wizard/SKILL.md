@@ -263,8 +263,19 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | Find owned, legal, commander-eligible cards from a collection | `find-commanders <collection.json> --format <fmt> --bulk-data <path> --output <working-dir>/.cache/candidates.json` |
 | Research metagame/strategy | WebSearch + WebFetch (or `web-fetch` script) |
 | Run the self-grill (Step 8 hard gate) | Two parallel `Agent` calls with `subagent_type: "general-purpose"` |
+| Cite MTG Comprehensive Rules for a ruling | `rules-lookup --rule <n>` / `--term <keyword>` / `--grep "<regex>"` |
+| Fetch Scryfall per-card rulings | `rulings-lookup --card "<name>" --bulk-data <path>` |
+| Deeper rules question (layer/timing/stack) | Invoke the `rules-lawyer` skill via the Skill tool |
 
 Only write `python3 -c` when none of these cover the need. When you do, batch every related question into a single body — each unique body is a fresh permission pattern, so one big script beats five small ones.
+
+### Rules Lawyer
+
+For trivial rules questions that arise during tuning ("what does trample say?", "is this trigger mandatory?"), run `rules-lookup --term <keyword>` directly — a single CLI call returns the glossary definition plus the relevant CR rule numbers. For nuanced multi-rule questions (layer interactions, replacement-effect timing, stack ordering across triggered and activated abilities), invoke the `rules-lawyer` skill, which owns the escalation-to-subagent path.
+
+`cut-check` and `legality-audit` accept a `--cite-rules` flag that auto-attaches CR citations to their JSON output when keyword interactions are flagged. Off by default (keeps output compact); enable it when you want the Self-Grill step or the user's written report to include rule numbers.
+
+Run `download-rules --output-dir <working-dir>` once per session before the first `rules-lookup` call (24-hour freshness check, same pattern as `download-bulk`).
 
 ---
 

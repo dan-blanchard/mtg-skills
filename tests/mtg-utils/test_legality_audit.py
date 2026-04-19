@@ -492,3 +492,89 @@ class TestCLI:
         assert custom_output.exists()
         data = json.loads(custom_output.read_text())
         assert data["overall_status"] == "PASS"
+
+
+class TestCiteRules:
+    """``--cite-rules`` attaches CR citations keyed on violation reason."""
+
+    _CR_FIXTURE = (
+        "Magic: The Gathering Comprehensive Rules\n\n"
+        "These rules are effective as of February 2, 2024\n\n"
+        "Contents\n\n"
+        "1. Game Concepts\n"
+        "100. General\n"
+        "9. Casual Variants\n"
+        "903. Commander\n"
+        "Glossary\n"
+        "Credits\n\n"
+        "1. Game Concepts\n\n"
+        "100. General\n\n"
+        "100.2. In constructed play, each deck has a minimum deck size of 60 cards.\n\n"
+        "100.2a Constructed copy limit.\n\n"
+        "9. Casual Variants\n\n"
+        "903. Commander\n\n"
+        "903.4. Commander color identity is defined here.\n\n"
+        "903.5b Commander singleton rule.\n\n"
+        "Glossary\n\n"
+        "Credits\n"
+    )
+
+    def _write(self, tmp_path, deck_data, hydrated_data):
+        deck_path = tmp_path / "deck.json"
+        hydrated_path = tmp_path / "hydrated.json"
+        deck_path.write_text(json.dumps(deck_data))
+        hydrated_path.write_text(json.dumps(hydrated_data))
+        return deck_path, hydrated_path
+
+    def _write_rules(self, tmp_path):
+        p = tmp_path / "comprehensive-rules-20240202.txt"
+        p.write_text(self._CR_FIXTURE, encoding="utf-8")
+        return p
+
+    def test_copy_limit_violation_cited(self, tmp_path: Path):
+        # Historic Brawl singleton — two copies of Sol Ring triggers a
+        # copy_limit violation whose reason should cite 100.2a / 903.5b.
+        rules_path = self._write_rules(tmp_path)
+        hydrated = [jinnie(), card("Sol Ring")]
+        d = deck(cards=[("Sol Ring", 2)])
+        deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(deck_path),
+                str(hydrated_path),
+                "--cite-rules",
+                "--rules-file",
+                str(rules_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        citations = data.get("rule_citations") or {}
+        copy_citations = citations.get("copy_limits") or []
+        cited_rules = {c["rule"] for c in copy_citations}
+        assert {"100.2a", "903.5b"} & cited_rules
+
+    def test_missing_rules_file_is_soft_error(self, tmp_path: Path):
+        hydrated = [jinnie()]
+        d = deck()
+        deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
+        missing = tmp_path / "nope.txt"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(deck_path),
+                str(hydrated_path),
+                "--cite-rules",
+                "--rules-file",
+                str(missing),
+            ],
+        )
+        # Still exits 0 — CLI contract preserved.
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        assert "rule_citations_error" in data

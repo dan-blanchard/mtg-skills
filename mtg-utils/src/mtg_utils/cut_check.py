@@ -10,6 +10,11 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.rules_lookup import (
+    find_citations_for_terms,
+    load_rules,
+    resolve_rules_path,
+)
 
 # ---------------------------------------------------------------------------
 # Trigger type patterns
@@ -590,6 +595,37 @@ def _default_output_path(
     )
 
 
+def _attach_rule_citations(results: list[dict], rules_file: Path | None) -> None:
+    """Enrich each result with CR citations for its flagged keywords.
+
+    For every entry in ``keyword_interactions``, look up the first term
+    in the glossary and attach the ``see_rules`` rules as a new
+    ``rule_citations`` field. Silently no-ops if the rules file can't be
+    found — ``--cite-rules`` is additive, not a hard gate.
+    """
+    try:
+        path = resolve_rules_path(rules_file)
+    except FileNotFoundError as exc:
+        # Preserve the existing contract (run always succeeds) — surface
+        # the miss as a note, not an error.
+        for entry in results:
+            entry["rule_citations"] = []
+            entry["rule_citations_error"] = str(exc)
+        return
+
+    parsed = load_rules(path)
+    for entry in results:
+        terms: list[str] = []
+        for ki in entry.get("keyword_interactions", []):
+            for kw in ki.get("keywords", []):
+                # Keep short, single-word-ish keywords; skip oracle-text
+                # fragments like "can't be blocked by more than one
+                # creature" which aren't glossary terms.
+                if len(kw.split()) <= 3:
+                    terms.append(kw)
+        entry["rule_citations"] = find_citations_for_terms(parsed, terms)
+
+
 @click.command()
 @click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("commander_name")
@@ -622,6 +658,19 @@ def _default_output_path(
     default=None,
     help="Override the default sha-keyed path for the full JSON output.",
 )
+@click.option(
+    "--cite-rules",
+    "cite_rules",
+    is_flag=True,
+    help="Attach MTG Comprehensive Rules citations for flagged keyword interactions.",
+)
+@click.option(
+    "--rules-file",
+    "rules_file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Comprehensive Rules TXT path. Defaults to newest comprehensive-rules*.txt.",
+)
 def main(
     hydrated_path: Path,
     commander_name: str,
@@ -631,6 +680,9 @@ def main(
     multiplier_high: int,
     opponents: int,
     output_path: Path | None,
+    rules_file: Path | None,
+    *,
+    cite_rules: bool,
 ) -> None:
     """Run mechanical pre-grill analysis on candidate cut cards."""
     hydrated_content = hydrated_path.read_text(encoding="utf-8")
@@ -647,6 +699,9 @@ def main(
         multiplier_high=multiplier_high,
         opponents=opponents,
     )
+
+    if cite_rules:
+        _attach_rule_citations(results, rules_file)
 
     if output_path is None:
         output_path = _default_output_path(

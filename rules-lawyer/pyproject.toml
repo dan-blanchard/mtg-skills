@@ -3,43 +3,31 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "deck-wizard"
+name = "rules-lawyer"
 version = "0.1.0"
-description = "MTG deck building and tuning for all formats (shared from mtg-utils)"
+description = "MTG Comprehensive Rules lookup and per-card rulings fetcher (shared from mtg-utils)"
 requires-python = ">=3.12"
 dependencies = ["click>=8.0", "requests>=2.28"]
 
 [project.scripts]
-parse-deck = "mtg_utils.parse_deck:main"
-scryfall-lookup = "mtg_utils.scryfall_lookup:main"
-download-bulk = "mtg_utils.download_bulk:main"
+# Rules-lawyer-specific entry points
 download-rules = "mtg_utils.download_rules:main"
 rules-lookup = "mtg_utils.rules_lookup:main"
 rulings-lookup = "mtg_utils.rulings_lookup:main"
-web-fetch = "mtg_utils.web_fetch:main"
-deck-stats = "mtg_utils.deck_stats:main"
-card-summary = "mtg_utils.card_summary:main"
-deck-diff = "mtg_utils.deck_diff:main"
-mana-audit = "mtg_utils.mana_audit:main"
-cut-check = "mtg_utils.cut_check:main"
-build-deck = "mtg_utils.build_deck:main"
-price-check = "mtg_utils.price_check:main"
-combo-search = "mtg_utils.combo_search:main"
-combo-discover = "mtg_utils.combo_search:discover_main"
-export-deck = "mtg_utils.export_deck:main"
+
+# Reused from mtg-utils (rules-lawyer commonly uses these for card-name
+# resolution and oracle-text context before looking up rules/rulings).
 card-search = "mtg_utils.card_search:main"
-edhrec-lookup = "mtg_utils.edhrec_lookup:main"
-find-commanders = "mtg_utils.find_commanders:main"
-set-commander = "mtg_utils.set_commander:main"
-legality-audit = "mtg_utils.legality_audit:main"
-mark-owned = "mtg_utils.mark_owned:main"
-mtga-import = "mtg_utils.mtga_import:main"
+card-summary = "mtg_utils.card_summary:main"
+download-bulk = "mtg_utils.download_bulk:main"
+scryfall-lookup = "mtg_utils.scryfall_lookup:main"
+web-fetch = "mtg_utils.web_fetch:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["../tests/deck-wizard"]
+testpaths = ["../tests/rules-lawyer"]
 
 [dependency-groups]
 dev = [
@@ -74,13 +62,13 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-    "SLF001",  # private member access — tests need to test internals
-    "E501",    # line length — test data and assertions can be long
-    "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
+    "SLF001",
+    "E501",
+    "PERF401",
 ]
 "../tests/*" = [
-    "SLF001",  # private member access — tests need to test internals
-    "E501",    # line length — test data and assertions can be long
-    "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
-    "N999",    # invalid module name — directory uses hyphen convention
+    "SLF001",
+    "E501",
+    "PERF401",
+    "N999",
 ]

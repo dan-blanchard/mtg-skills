@@ -240,6 +240,15 @@ All cube CLIs accept this shape. Hydrated cache lives at
 | Cube budget check | `price-check <cube.json> --bulk-data <path>` |
 | Find accidental infinites | `combo-search <cube.json>` |
 | Export to CubeCobra CSV | `export-cube <cube.json> --format csv --output <wd>/cube.csv` |
+| Cite MTG Comprehensive Rules | `rules-lookup --rule <n>` / `--term <keyword>` / `--grep "<regex>"` |
+| Fetch Scryfall per-card rulings | `rulings-lookup --card "<name>" --bulk-data <path>` |
+| Deeper rules question (archetype legality, keyword interaction) | Invoke the `rules-lawyer` skill via the Skill tool |
+
+### Rules Lawyer
+
+Cube design occasionally runs into rules questions — "does this combo actually work in the format?", "is this trigger mandatory?", "how does the layer system handle this static?". Run `rules-lookup --term <keyword>` for straightforward keyword/glossary questions. For anything nuanced (layers, replacement effects, multi-rule interactions), invoke the `rules-lawyer` skill via the Skill tool, which handles escalation to subagents loaded with the relevant CR section.
+
+Run `download-rules --output-dir <working-dir>` once per session before the first `rules-lookup` call (24-hour freshness check, same pattern as `download-bulk`).
 
 ---
 

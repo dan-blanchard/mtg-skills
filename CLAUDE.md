@@ -28,13 +28,21 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/cube-wizard/ -v  # Run smoke tests
 ```
 
+### rules-lawyer
+
+```bash
+cd rules-lawyer
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
+uv run pytest ../tests/rules-lawyer/ -v  # Run smoke tests
+```
+
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
 ### mtg-utils
 
-Shared Python package (`mtg_utils`). 29 CLI script modules (20 deck + 9 cube) exposed as 30 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 9 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, mark-owned, price-check, scryfall-lookup, web-fetch); the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
+Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3 rules-lawyer) exposed as 33 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 9 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
 
 **Deck scripts:**
 
@@ -58,6 +66,14 @@ Shared Python package (`mtg_utils`). 29 CLI script modules (20 deck + 9 cube) ex
 - **`find_commanders.py`** — Search owned collection for commander-eligible cards.
 - **`mark_owned.py`** — Populate a deck's `owned_cards` field from a collection CSV/JSON.
 - **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`.
+
+**Rules-lawyer scripts:**
+
+- **`download_rules.py`** — Downloader for the MTG Comprehensive Rules TXT. Scrapes the Wizards rules landing page for the newest `MagicCompRules*.txt` link, writes to `comprehensive-rules-YYYYMMDD.txt` in the output dir, 24h freshness check matching `download_bulk`.
+- **`rules_lookup.py`** — Parser + CLI. Parses the CR into `{sections, rules, glossary}` with rule numbers as keys and cross-references pre-extracted; caches the parsed result as a pickled sidecar next to the TXT. CLI modes: `--rule <n>` (exact-number), `--term <keyword>` (glossary), `--grep "<regex>"` (rule-text search).
+- **`rulings_lookup.py`** — Scryfall per-card rulings fetcher. Resolves card name → `oracle_id` via the existing `scryfall_lookup.lookup_single`, then hits `/cards/:id/rulings`. Caches one JSON per oracle_id under `$TMPDIR/scryfall-rulings/` with a 30-day TTL.
+
+**Cross-cutting:** `cut_check.py` and `legality_audit.py` accept a `--cite-rules` flag that auto-attaches CR citations to their JSON output (trigger/keyword interactions → glossary-cited rules; violation reasons → a curated reason→CR map in `legality_audit._REASON_TO_CR_RULES`).
 
 **Cube scripts:**
 
@@ -83,6 +99,10 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch or 
 ### cube-wizard
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (curated card pools of 360–720 cards designed for drafting). Two-phase workflow: Phase 1 acquires a cube (Path A: parse an existing CubeCobra cube; Path B: clone a well-known reference cube from `cube_config.REFERENCE_CUBES` and customize). Phase 2 runs a 9-step tuning pipeline (baseline metrics → designer intent → balance dashboard → archetype audit → power-level review → self-grill → propose changes → pack simulation → export). Balance checks are informational, not pass/fail, so a mono-color or skewed-by-design cube is never flagged as broken.
+
+### rules-lawyer
+
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Answers MTG rules questions by citing the actual Comprehensive Rules and Scryfall per-card rulings — the project's "legal database": CR = statute, Scryfall rulings = case law. Usable standalone or invoked by deck-wizard / cube-wizard via the Skill tool for trigger-interaction, timing, replacement-effect, and layer questions during tuning. The skill's Iron Rule: every answer MUST cite at least one specific CR rule number that came from the CLI output, not from training data. Four phases: classify the question → run one `rules-lookup` CLI call → escalate (wider search, section Read, or subagent) only when the first call misses → write the answer with verdict, CR citations, and edge cases.
 
 ## Supported Deck Formats
 
@@ -117,4 +137,4 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (c
 
 ## Testing
 
-Tests live in `tests/mtg-utils/` (package tests), `tests/deck-wizard/` (deck skill smoke tests), and `tests/cube-wizard/` (cube skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.
+Tests live in `tests/mtg-utils/` (package tests), `tests/deck-wizard/` (deck skill smoke tests), `tests/cube-wizard/` (cube skill smoke tests), and `tests/rules-lawyer/` (rules-lawyer skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.
