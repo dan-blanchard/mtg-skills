@@ -44,13 +44,18 @@ _SECTION_HEADER_RE = re.compile(r"^([1-9])\. (.+)$")
 # Rule category header: "100. General" (three-digit number, no sub).
 _RULE_CATEGORY_RE = re.compile(r"^(\d{3})\. (.+)$")
 
-# Top-level rule: "100.1. These Magic rules apply...".
-_TOP_LEVEL_RULE_RE = re.compile(r"^(\d{3}\.\d+)\.\s+(.+)$")
+# Top-level rule: "100.1. These Magic rules apply...". The CR is mostly
+# consistent but occasionally drops the period ("606.5 If...") or the
+# trailing space ("901.4.All..."); accept both. Only the rule number
+# itself is captured; the trailing period / space is optional.
+_TOP_LEVEL_RULE_RE = re.compile(r"^(\d{3}\.\d+)\.?\s*(.+)$")
 
-# Subrule: "100.1a A two-player game..." (lowercase letter, no period).
-# Letters 'l' and 'o' are skipped in the CR to avoid 1/0 confusion, but
-# we accept any lowercase letter for robustness.
-_SUBRULE_RE = re.compile(r"^(\d{3}\.\d+[a-z])\s+(.+)$")
+# Subrule: "100.1a A two-player game..." (lowercase letter; the CR
+# usually omits the period after the letter but sometimes keeps it, as
+# in "119.1d. In a two-player Brawl game"). Letters 'l' and 'o' are
+# skipped in the CR to avoid 1/0 confusion, but we accept any lowercase
+# letter for robustness.
+_SUBRULE_RE = re.compile(r"^(\d{3}\.\d+[a-z])\.?\s*(.+)$")
 
 # Worked example lines, always "Example: ..." at column 0.
 _EXAMPLE_RE = re.compile(r"^Example:\s*(.+)$")
@@ -102,6 +107,14 @@ def parse_rules(text: str) -> dict[str, Any]:
 
     sections, rules = _parse_body(lines[body_start:glossary_start])
     glossary = _parse_glossary(lines[glossary_start + 1 : credits_start])
+
+    # Post-pass: drop any glossary ``see_rules`` reference that doesn't
+    # resolve to a real rule number. Same filter ``_parse_body`` applied
+    # to rule text so the two lists are consistent.
+    for entry in glossary.values():
+        entry["see_rules"] = sorted(
+            {r for r in entry.get("see_rules", []) if _ref_exists(r, rules)},
+        )
 
     return {
         "effective_date": effective_date,
@@ -171,19 +184,10 @@ def _parse_body(lines: list[str]) -> tuple[dict[str, dict], dict[str, dict]]:
             current_rule = num
             continue
 
-        if m := _TOP_LEVEL_RULE_RE.match(stripped):
-            num = m.group(1)
-            rules[num] = {
-                "number": num,
-                "kind": "rule",
-                "text": m.group(2),
-                "section": current_section,
-                "category": num.split(".")[0],
-                "examples": [],
-            }
-            current_rule = num
-            continue
-
+        # Match SUBRULE before TOP_LEVEL_RULE: the relaxed TOP_LEVEL_RULE
+        # regex (optional period, optional space) would otherwise swallow
+        # a subrule like "119.1d In a game..." by capturing "119.1" and
+        # "d In a game..." as the text.
         if m := _SUBRULE_RE.match(stripped):
             num = m.group(1)
             rules[num] = {
@@ -193,6 +197,19 @@ def _parse_body(lines: list[str]) -> tuple[dict[str, dict], dict[str, dict]]:
                 "section": current_section,
                 "category": num.split(".")[0],
                 "parent": num[:-1],
+                "examples": [],
+            }
+            current_rule = num
+            continue
+
+        if m := _TOP_LEVEL_RULE_RE.match(stripped):
+            num = m.group(1)
+            rules[num] = {
+                "number": num,
+                "kind": "rule",
+                "text": m.group(2),
+                "section": current_section,
+                "category": num.split(".")[0],
                 "examples": [],
             }
             current_rule = num
@@ -208,15 +225,35 @@ def _parse_body(lines: list[str]) -> tuple[dict[str, dict], dict[str, dict]]:
         if current_rule and rules[current_rule]["kind"] != "category":
             rules[current_rule]["text"] += " " + stripped
 
-    # Extract cross-references once all text is assembled.
+    # Extract cross-references once all text is assembled. Filter the
+    # raw regex matches against the known rules/categories so that bare
+    # numbers in prose ("deal 100 damage", "gain 20 life") don't appear
+    # as spurious see_rules entries.
     for entry in rules.values():
         text = entry.get("text") or ""
+        own_number = entry.get("number")
         refs = sorted(
-            {ref for ref in _RULE_REF_RE.findall(text) if ref != entry.get("number")},
+            {
+                ref
+                for ref in _RULE_REF_RE.findall(text)
+                if ref != own_number and _ref_exists(ref, rules)
+            },
         )
         entry["see_rules"] = refs
 
     return sections, rules
+
+
+def _ref_exists(ref: str, rules: dict[str, dict]) -> bool:
+    """True when ``ref`` names a real rule, category, or subrule."""
+    if ref in rules:
+        return True
+    # A top-level rule number (e.g. "113.3") implies the category
+    # (e.g. "113") is indexed. But the regex also matches bare
+    # categories like "113" directly, which may not appear as a top
+    # key if the CR section header parse missed them — fall back to
+    # prefix match.
+    return any(r == ref or r.startswith(ref + ".") for r in rules)
 
 
 def _parse_glossary(lines: list[str]) -> dict[str, dict]:
@@ -229,6 +266,11 @@ def _parse_glossary(lines: list[str]) -> dict[str, dict]:
         nonlocal current_term, current_def
         if current_term:
             definition = "\n".join(current_def).strip()
+            # Raw refs — callers (``_parse_body``'s caller) filter these
+            # against the actual rules dict. Glossary entries typically
+            # cite the exact rule number so false positives are rarer
+            # here than in rule text, but keeping the filter consistent
+            # is easier than maintaining two different extraction paths.
             refs = sorted(set(_RULE_REF_RE.findall(definition)))
             glossary[current_term.lower()] = {
                 "term": current_term,
@@ -287,7 +329,7 @@ def load_rules(rules_path: Path) -> dict[str, Any]:
     parsed = parse_rules(text)
 
     tmp = sidecar.with_name(sidecar.name + ".tmp")
-    with contextlib.suppress(OSError):
+    try:
         with tmp.open("wb") as f:
             pickle.dump(
                 {"version": _PARSED_VERSION, "parsed": parsed},
@@ -295,6 +337,11 @@ def load_rules(rules_path: Path) -> dict[str, Any]:
                 protocol=pickle.HIGHEST_PROTOCOL,
             )
         tmp.replace(sidecar)
+    except OSError:
+        # Best-effort sidecar: clean up any partial .tmp so it doesn't
+        # linger between runs. Next call just reparses.
+        with contextlib.suppress(OSError):
+            tmp.unlink(missing_ok=True)
 
     return parsed
 

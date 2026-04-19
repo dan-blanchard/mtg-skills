@@ -96,6 +96,38 @@ class TestLookupRulings:
             results = lookup_rulings_batch(["Sol Ring", "Sol Ring"])
         assert len(results) == 2
 
+    def test_batch_loads_bulk_index_once(self, tmp_path):
+        """Pins the I-1 perf fix: the bulk pickle sidecar is loaded
+        exactly once per batch invocation, not once per card.
+        Regressing this would make 100-card batches pay ~30s of
+        avoidable per-card pickle loads."""
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text("[]", encoding="utf-8")
+
+        load_count = 0
+
+        def _fake_load(_path):
+            nonlocal load_count
+            load_count += 1
+            return {"sol ring": _FAKE_CARD}
+
+        with (
+            patch("mtg_utils.scryfall_lookup._load_bulk_index", _fake_load),
+            patch(
+                "mtg_utils.rulings_lookup._new_session",
+                return_value=_mock_session(),
+            ),
+        ):
+            results = lookup_rulings_batch(
+                ["Sol Ring"] * 10,
+                bulk_path=bulk_path,
+            )
+
+        assert len(results) == 10
+        assert load_count == 1, (
+            f"expected 1 bulk load for 10-card batch, got {load_count}"
+        )
+
 
 class TestCLI:
     def test_cli_single_card(self, tmp_path):

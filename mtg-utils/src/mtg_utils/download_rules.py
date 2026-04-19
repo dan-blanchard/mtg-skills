@@ -84,21 +84,32 @@ def _discover_latest_url(session: requests.Session) -> tuple[str, str] | None:
 
 
 def _atomic_write_bytes(path: Path, session: requests.Session, url: str) -> None:
-    """Stream ``url`` into a temp file alongside ``path``, then rename."""
+    """Stream ``url`` into a temp file alongside ``path``, then rename.
+
+    Cleans up the temp file if streaming raises, so a network failure
+    mid-download can't leave an orphaned ``.name.tmp`` file behind
+    (previous behaviour with ``delete=False``).
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
+    tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 — manual close to allow .replace after context exit
         mode="wb",
         dir=str(path.parent),
         prefix=f".{path.name}.",
         suffix=".tmp",
         delete=False,
-    ) as tmp:
-        tmp_path = Path(tmp.name)
+    )
+    tmp_path = Path(tmp.name)
+    try:
         with session.get(url, stream=True, timeout=60) as resp:
             resp.raise_for_status()
             for chunk in resp.iter_content(chunk_size=8192):
                 tmp.write(chunk)
-    tmp_path.replace(path)
+        tmp.close()
+        tmp_path.replace(path)
+    except BaseException:
+        tmp.close()
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def download_rules(

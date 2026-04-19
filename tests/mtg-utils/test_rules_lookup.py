@@ -21,8 +21,11 @@ from mtg_utils.rules_lookup import (
 
 # A minimal but structurally-complete CR fixture covering every shape the
 # parser needs to handle: sections, categories, top-level rules,
-# subrules, examples, glossary entries (single- and multi-line), and
-# the terminal Credits block we must ignore.
+# subrules, examples, glossary entries (single- and multi-line), CR
+# formatting quirks (missing period / missing space after rule number;
+# trailing period after a subrule letter), bare numerics in prose (to
+# exercise the see_rules false-positive filter), and the terminal
+# Credits block we must ignore.
 _FIXTURE = textwrap.dedent(
     """\
     Magic: The Gathering Comprehensive Rules
@@ -41,6 +44,9 @@ _FIXTURE = textwrap.dedent(
     2. Spells
     600. Spells
 
+    9. Casual Variants
+    900. Quirks
+
     Glossary
     Credits
 
@@ -55,7 +61,7 @@ _FIXTURE = textwrap.dedent(
 
     100.1b Second subrule. See rule 600.1.
 
-    100.2. Second rule.
+    100.2. Second rule. A creature deals 3 damage to each of 200 players.
     Example: First example.
     Example: Second example.
 
@@ -64,6 +70,16 @@ _FIXTURE = textwrap.dedent(
     600. Spells
 
     600.1. Casting a spell is defined here.
+
+    600.2 Missing-period rule text (CR sometimes drops the period).
+
+    600.3.No-space rule text (CR sometimes drops the trailing space).
+
+    9. Casual Variants
+
+    900. Quirks
+
+    900.1a. Trailing-period subrule (CR sometimes keeps the period after the letter).
 
     Glossary
 
@@ -101,14 +117,16 @@ class TestParseRules:
 
     def test_all_sections_present(self, rules_text):
         parsed = parse_rules(rules_text)
-        assert set(parsed["sections"]) == {"1", "2"}
+        assert set(parsed["sections"]) == {"1", "2", "9"}
         assert parsed["sections"]["1"]["title"] == "Game Concepts"
         assert parsed["sections"]["2"]["title"] == "Spells"
+        assert parsed["sections"]["9"]["title"] == "Casual Variants"
 
     def test_categories_attached_to_sections(self, rules_text):
         parsed = parse_rules(rules_text)
         assert parsed["sections"]["1"]["categories"] == ["100"]
         assert parsed["sections"]["2"]["categories"] == ["600"]
+        assert parsed["sections"]["9"]["categories"] == ["900"]
 
     def test_top_level_rule_text(self, rules_text):
         parsed = parse_rules(rules_text)
@@ -162,6 +180,51 @@ class TestParseRules:
     def test_raises_on_malformed_input(self):
         with pytest.raises(ValueError, match="Could not find body start"):
             parse_rules("no rules body here")
+
+    def test_rule_with_missing_period(self, rules_text):
+        """CR occasionally formats top-level rules without a period
+        after the number ("600.5 If the total cost..."). The parser
+        must still index them."""
+        parsed = parse_rules(rules_text)
+        r = parsed["rules"].get("600.2")
+        assert r is not None
+        assert r["kind"] == "rule"
+        assert "Missing-period rule text" in r["text"]
+
+    def test_rule_with_missing_space(self, rules_text):
+        """CR occasionally formats top-level rules without a space
+        after the period ("901.4.All plane and phenomenon..."). The
+        parser must still index them and strip the run-on text
+        correctly."""
+        parsed = parse_rules(rules_text)
+        r = parsed["rules"].get("600.3")
+        assert r is not None
+        assert r["text"].startswith("No-space rule text")
+
+    def test_subrule_with_trailing_period(self, rules_text):
+        """CR occasionally formats subrules with a period after the
+        letter ("119.1d. In a two-player Brawl game..."). The parser
+        must match these as subrules, not as top-level rules with the
+        letter as part of the text."""
+        parsed = parse_rules(rules_text)
+        r = parsed["rules"].get("900.1a")
+        assert r is not None
+        assert r["kind"] == "subrule"
+        assert r["text"].startswith("Trailing-period subrule")
+        # Critical: the letter-stripped parent must not accidentally
+        # pick up the trailing period.
+        assert r["parent"] == "900.1"
+
+    def test_bare_numbers_in_prose_filtered_from_see_rules(self, rules_text):
+        """Rule text containing bare 3-digit numbers that happen to
+        look like rule numbers ("200 players", "300 damage") must NOT
+        pollute see_rules with references to nonexistent rules."""
+        parsed = parse_rules(rules_text)
+        r = parsed["rules"]["100.2"]
+        # Fixture has "200 players" in 100.2's text; 200 is not a real
+        # rule in the fixture, so it must be filtered out.
+        assert "200" not in r["see_rules"]
+        assert "3" not in r["see_rules"]  # damage value
 
 
 class TestLoadRulesCache:

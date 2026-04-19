@@ -77,6 +77,7 @@ def lookup_rulings(
     name: str,
     *,
     bulk_path: Path | None = None,
+    bulk_index: dict[str, dict] | None = None,
     refresh: bool = False,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
@@ -87,12 +88,17 @@ def lookup_rulings(
     ``/cards/named`` for every rulings call. If the card isn't in bulk
     data the API fallback inside ``lookup_single`` handles it.
 
+    Pass ``bulk_index`` when looking up many cards in one session — each
+    ``bulk_path`` rebuild is ~300ms, which dominates the per-card cost
+    on a commander-deck-sized batch. ``lookup_rulings_batch`` handles
+    this automatically.
+
     Returns an entry whose ``rulings`` is an empty list when the card
     exists but has no rulings, and whose ``oracle_id`` is ``None`` when
     the card itself can't be resolved — callers can surface this as a
     missing-card warning without special-casing.
     """
-    card = lookup_single(name, bulk_path=bulk_path)
+    card = lookup_single(name, bulk_path=bulk_path, bulk_index=bulk_index)
     if card is None:
         return {"name": name, "oracle_id": None, "rulings": []}
     oracle_id = card.get("oracle_id")
@@ -123,10 +129,28 @@ def lookup_rulings_batch(
     bulk_path: Path | None = None,
     refresh: bool = False,
 ) -> list[dict]:
-    """Fetch rulings for a list of card names, reusing a single session."""
+    """Fetch rulings for a list of card names, reusing a single session.
+
+    Loads the Scryfall bulk index exactly once and threads it through
+    every per-card ``lookup_rulings`` call. Without this, each card
+    triggered a fresh pickle-sidecar load (~300ms) — a 100-card
+    commander deck paid ~30s of avoidable I/O.
+    """
     session = _new_session()
+    bulk_index: dict[str, dict] | None = None
+    if bulk_path is not None:
+        # Import locally to keep the module import graph narrow for
+        # consumers (e.g., the SKILL.md smoke tests) that never batch.
+        from mtg_utils.scryfall_lookup import _load_bulk_index
+
+        bulk_index = _load_bulk_index(bulk_path)
     return [
-        lookup_rulings(name, bulk_path=bulk_path, refresh=refresh, session=session)
+        lookup_rulings(
+            name,
+            bulk_index=bulk_index,
+            refresh=refresh,
+            session=session,
+        )
         for name in names
     ]
 
