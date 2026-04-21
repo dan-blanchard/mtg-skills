@@ -21,10 +21,15 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
-    get_oracle_text,
     is_land,
 )
 from mtg_utils.cube_config import get_balance_targets
+from mtg_utils.theme_presets import (
+    PRESETS,
+    Preset,
+    get_preset,
+    list_presets,
+)
 
 # The ten conventional two-color "guild" pairs. We compute per-guild theme
 # density even without a guild NAME map — drafters organize around color
@@ -48,8 +53,13 @@ def _guild_label(pair: frozenset[str]) -> str:
     return "".join(sorted(pair))
 
 
-def _parse_theme_flag(raw: str) -> tuple[str, re.Pattern]:
-    """Parse a ``name=regex`` CLI flag into (name, compiled regex)."""
+def _parse_theme_flag(raw: str) -> tuple[str, Preset]:
+    """Parse a ``name=regex`` CLI flag into a (name, custom Preset) pair.
+
+    The returned Preset has no keyword bindings and no test fixtures — it's
+    a wrapper around the user-supplied regex so the audit loop can treat
+    custom themes and library presets uniformly.
+    """
     if "=" not in raw:
         msg = (
             f"Theme spec {raw!r} must be 'name=regex' "
@@ -65,7 +75,27 @@ def _parse_theme_flag(raw: str) -> tuple[str, re.Pattern]:
         pattern = re.compile(regex, re.IGNORECASE)
     except re.error as exc:
         raise click.BadParameter(f"Invalid regex in {raw!r}: {exc}") from exc
-    return name, pattern
+    preset = Preset(
+        name=name,
+        description=f"custom --theme regex: {regex}",
+        patterns=(pattern,),
+    )
+    return name, preset
+
+
+def _resolve_preset_flag(raw: str) -> tuple[str, Preset]:
+    """Look up ``--preset <name>`` in the registry. Raises on unknown name."""
+    name = raw.strip()
+    if not name:
+        raise click.BadParameter("--preset value cannot be empty")
+    try:
+        preset = get_preset(name)
+    except KeyError:
+        known = ", ".join(sorted(PRESETS.keys()))
+        raise click.BadParameter(
+            f"unknown preset {name!r}. Known presets: {known}"
+        ) from None
+    return name, preset
 
 
 def _color_pair_label_for_card(card: dict) -> str:
@@ -95,10 +125,16 @@ def _card_supports_guild(card: dict, pair: frozenset[str]) -> bool:
 def archetype_audit(
     cube: dict,
     hydrated: list[dict],
-    themes: dict[str, re.Pattern],
+    themes: dict[str, Preset],
     *,
     min_density: int | None = None,
 ) -> dict:
+    """Cross-reference themes against cards in the cube.
+
+    ``themes`` maps theme names to :class:`Preset` objects. Callers who
+    have a bare :class:`re.Pattern` should wrap it: ``Preset(name=..,
+    description=.., patterns=(pattern,))``.
+    """
     lookup = build_card_lookup(hydrated)
     targets = get_balance_targets(cube)
     threshold = min_density or int(targets.get("min_archetype_signal_density", 3))
@@ -106,7 +142,7 @@ def archetype_audit(
 
     # Build: per-theme list of matching cards (with color identity info).
     per_theme: dict[str, dict] = {}
-    for theme_name, pattern in themes.items():
+    for theme_name, preset in themes.items():
         matches: list[dict] = []
         for entry in cube.get("cards", []):
             card = lookup.get(entry["name"])
@@ -114,8 +150,7 @@ def archetype_audit(
                 continue
             if is_land(card):
                 continue
-            oracle = get_oracle_text(card)
-            if not pattern.search(oracle):
+            if not preset.matches(card):
                 continue
             matches.append(
                 {
@@ -193,7 +228,7 @@ def archetype_audit(
     }
 
 
-def render_text_report(audit: dict) -> str:
+def render_text_report(audit: dict, *, show_matches: bool = False) -> str:
     lines: list[str] = []
     themes = audit.get("themes", {})
     lines.append(f"archetype-audit: {len(themes)} theme(s)")
@@ -214,6 +249,10 @@ def render_text_report(audit: dict) -> str:
             lines.append("  mono: " + ", ".join(mono_parts))
         for note in info.get("notes", []) or []:
             lines.append(f"  · {note}")
+        if show_matches:
+            cards = info.get("cards") or []
+            if cards:
+                lines.append("  matches: " + ", ".join(cards))
         lines.append("")
 
     bridges = audit.get("bridge_cards") or []
@@ -229,14 +268,48 @@ def render_text_report(audit: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _format_preset_catalog() -> str:
+    """Render the preset registry as one-line name:description entries."""
+    entries = list_presets()
+    width = max((len(n) for n in entries), default=0)
+    lines = [f"{len(entries)} preset(s) available:", ""]
+    for name, desc in entries.items():
+        lines.append(f"  {name.ljust(width)}  {desc}")
+    return "\n".join(lines) + "\n"
+
+
 @click.command()
-@click.argument("cube_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
+@click.argument(
+    "cube_path",
+    type=click.Path(exists=True, path_type=Path),
+    required=False,
+)
+@click.argument(
+    "hydrated_path",
+    type=click.Path(exists=True, path_type=Path),
+    required=False,
+)
 @click.option(
     "--theme",
     "theme_specs",
     multiple=True,
     help="Theme definition 'name=regex'. Repeatable. Uses Python regex syntax.",
+)
+@click.option(
+    "--preset",
+    "preset_names",
+    multiple=True,
+    help=(
+        "Load a named preset from the theme_presets registry (repeatable). "
+        "See --list-presets for the catalog."
+    ),
+)
+@click.option(
+    "--list-presets",
+    "list_presets_flag",
+    is_flag=True,
+    default=False,
+    help="Print the preset catalog and exit (cube/hydrated args not required).",
 )
 @click.option(
     "--from-cube",
@@ -252,6 +325,16 @@ def render_text_report(audit: dict) -> str:
     help="Override minimum card count before a theme gets a warning note.",
 )
 @click.option(
+    "--show-matches",
+    "show_matches",
+    is_flag=True,
+    default=False,
+    help=(
+        "Include per-theme card-name lists in the text report (always present "
+        "in the JSON sidecar). Helpful for spot-checking regex accuracy."
+    ),
+)
+@click.option(
     "--output",
     "output_path",
     type=click.Path(dir_okay=False, path_type=Path),
@@ -265,22 +348,40 @@ def render_text_report(audit: dict) -> str:
     help="Emit JSON envelope to stdout.",
 )
 def main(
-    cube_path: Path,
-    hydrated_path: Path,
+    cube_path: Path | None,
+    hydrated_path: Path | None,
     theme_specs: tuple[str, ...],
+    preset_names: tuple[str, ...],
     min_density: int | None,
     output_path: Path | None,
     *,
+    list_presets_flag: bool,
     from_cube: bool,
+    show_matches: bool,
     emit_json: bool,
 ):
-    """Cross-reference user-supplied theme regexes against color pairs in a cube."""
+    """Cross-reference theme queries against color pairs in a cube.
+
+    Themes can come from three sources (combined): ``--preset <name>`` for
+    registry-backed themes, ``--theme name=regex`` for custom regex, and
+    ``--from-cube`` to load stated_archetypes from the cube JSON.
+    """
+    # --list-presets short-circuits: no cube/hydrated needed.
+    if list_presets_flag:
+        click.echo(_format_preset_catalog(), nl=False)
+        return
+
+    if cube_path is None or hydrated_path is None:
+        raise click.UsageError(
+            "CUBE_PATH and HYDRATED_PATH are required unless --list-presets is given."
+        )
+
     cube_content = cube_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")
     cube = json.loads(cube_content)
     hydrated = json.loads(hydrated_content)
 
-    themes: dict[str, re.Pattern] = {}
+    themes: dict[str, Preset] = {}
     skipped_names: list[str] = []
 
     if from_cube:
@@ -288,7 +389,12 @@ def main(
         for entry in stated:
             if isinstance(entry, dict) and entry.get("regex"):
                 name = entry.get("name") or entry["regex"]
-                themes[name] = re.compile(entry["regex"], re.IGNORECASE)
+                pattern = re.compile(entry["regex"], re.IGNORECASE)
+                themes[name] = Preset(
+                    name=name,
+                    description=f"designer_intent regex: {entry['regex']}",
+                    patterns=(pattern,),
+                )
             elif isinstance(entry, str):
                 skipped_names.append(entry)
         if skipped_names:
@@ -298,14 +404,18 @@ def main(
                 err=True,
             )
 
+    for raw in preset_names:
+        name, preset = _resolve_preset_flag(raw)
+        themes[name] = preset
+
     for spec in theme_specs:
-        name, pattern = _parse_theme_flag(spec)
-        themes[name] = pattern
+        name, preset = _parse_theme_flag(spec)
+        themes[name] = preset
 
     if not themes:
         raise click.UsageError(
-            "No themes specified. Pass --theme name=regex (repeatable) "
-            "or --from-cube if the cube JSON lists them."
+            "No themes specified. Pass --preset <name> (repeatable), "
+            "--theme name=regex (repeatable), or --from-cube."
         )
 
     result = archetype_audit(cube, hydrated, themes, min_density=min_density)
@@ -323,5 +433,5 @@ def main(
         click.echo(json.dumps(result, indent=2))
         click.echo(f"Full JSON: {output_path}")
     else:
-        click.echo(render_text_report(result), nl=False)
+        click.echo(render_text_report(result, show_matches=show_matches), nl=False)
         click.echo(f"\nFull JSON: {output_path}")

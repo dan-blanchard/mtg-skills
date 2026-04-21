@@ -12,7 +12,6 @@ Lucky Paper's "How Many Lands Should You Include in Your Cube" article.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import click
@@ -20,58 +19,32 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
-    get_oracle_text,
     is_fixing_land,
     is_land,
 )
 from mtg_utils.cube_config import (
     get_balance_targets,
 )
+from mtg_utils.theme_presets import get_preset
 
 ALL_CHECKS = ("colors", "curve", "removal", "fixing", "commander_pool")
 
 
 # ── Removal detection ──
 #
-# Intentionally generous: catches hard removal (destroy/exile), soft removal
-# (bounce, counter, damage-based removal), and wraths. False-positives are
-# acceptable for an informational metric; the agent can spot-check via
-# `card-search` when the density feels off.
-_REMOVAL_PATTERNS = [
-    re.compile(r"\bdestroy\s+target\b", re.IGNORECASE),
-    re.compile(r"\bdestroy\s+all\b", re.IGNORECASE),
-    re.compile(r"\bdestroy\s+(?:each|up to)\b", re.IGNORECASE),
-    re.compile(r"\bexile\s+target\b", re.IGNORECASE),
-    re.compile(r"\bexile\s+all\b", re.IGNORECASE),
-    re.compile(r"\bexile\s+up to\b", re.IGNORECASE),
-    re.compile(r"\bcounter\s+target\b", re.IGNORECASE),
-    re.compile(
-        r"\bdeals?\s+\d+\s+damage\s+to\s+(?:target\s+creature|any target)",
-        re.IGNORECASE,
-    ),
-    # Split / divided damage: "deals N damage divided ... targets"
-    re.compile(
-        r"\bdeals?\s+\d+\s+damage\s+divided\b.*\btargets?\b",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\breturn\s+target\s+(?:creature|nonland permanent)\b.*\bhand\b",
-        re.IGNORECASE,
-    ),
-    re.compile(r"\bfights?\s+target\b", re.IGNORECASE),
-    re.compile(
-        r"\btarget\s+creature\s+gets\s+[\-\u2212]\d",
-        re.IGNORECASE,
-    ),
-    re.compile(r"\b-X/-X\b", re.IGNORECASE),
-]
+# Delegates to the ``removal`` preset in theme_presets. The preset is
+# documented as intentionally generous: catches hard removal
+# (destroy/exile), soft removal (bounce, counter, damage-based removal),
+# and wraths. False positives are acceptable for an informational metric;
+# the agent can spot-check via ``card-search`` when the density feels off.
+# Lands are excluded here (they're measured separately by the fixing check).
+_REMOVAL_PRESET = get_preset("removal")
 
 
 def _is_removal(card: dict) -> bool:
     if is_land(card):
         return False
-    oracle = get_oracle_text(card)
-    return any(p.search(oracle) for p in _REMOVAL_PATTERNS)
+    return _REMOVAL_PRESET.matches(card)
 
 
 def _check_colors(stats: dict, targets: dict) -> dict:

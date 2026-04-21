@@ -169,8 +169,15 @@ Lucky Paper's "How Many Lands Should You Include in Your Cube" numerics.
 
 ### Regex Scope Warning for `cube-balance` and `archetype-audit`
 
-Removal detection uses an oracle-text regex bank (destroy/exile/counter/
-damage/bounce/fight/−X). It's tuned to be generous — false positives are
+Both tools share a canonical preset library at `mtg_utils.theme_presets`
+(PRESETS dict + `get_preset(name)` / `matches(name, card)` API). Each
+preset carries test fixtures that pin its behavior against known cards,
+so updates can't silently regress. `cube-balance`'s removal check delegates
+to the `removal` preset, and `archetype-audit --preset <name>` loads
+presets by name.
+
+Removal detection uses the `removal` preset (destroy/exile/counter/
+damage/bounce/fight/-X). It's tuned to be generous — false positives are
 acceptable for an informational metric. When the density feels off, spot-
 check by running:
 
@@ -178,8 +185,9 @@ check by running:
 card-search --bulk-data <path> --oracle "<your regex>" --color-identity <ci>
 ```
 
-For `archetype-audit`, the user supplies the regex per theme
-(`--theme name=regex`), so theme detection is exactly as precise as the
+For `archetype-audit`, themes can come from `--preset <name>` (library,
+tested) or `--theme name=regex` (custom, unvalidated). Custom regex is
+exactly as precise as the
 regex the user writes.
 
 ### Canonical Cube JSON Schema
@@ -232,6 +240,9 @@ All cube CLIs accept this shape. Hydrated cache lives at
 | Balance dashboard | `cube-balance <cube.json> <hyd.json> [--check <name>]` |
 | **Format legality + rarity audit** | **`cube-legality-audit <cube.json> <hyd.json>`** |
 | Archetype validation | `archetype-audit <cube.json> <hyd.json> --theme name=regex` |
+| Archetype validation via preset library | `archetype-audit <cube.json> <hyd.json> --preset <name>` (repeatable; see `--list-presets`) |
+| List available preset themes | `archetype-audit --list-presets` |
+| Show which cards matched each theme | Add `--show-matches` to any `archetype-audit` invocation |
 | Bridge cards | Included in `archetype-audit` output when ≥2 themes supplied |
 | Compare cube revisions | `cube-diff <old.json> <new.json> [--old-hydrated <h> --new-hydrated <h> --metrics]` |
 | Sample an opening pack | `pack-simulate <cube.json> <hyd.json> --seed N --pack-size 15` |
@@ -360,18 +371,31 @@ printing rarity drift, missing legality data).
 
 ### Step 4: Archetype Audit
 
-For each stated archetype, build a regex that matches the oracle text of
-cards that enable it. Example:
-- `tokens=create .* creature token`
-- `sacrifice=sacrifice (a|another) (creature|permanent)`
-- `counters=\+1/\+1 counter`
-- `spells=(instant|sorcery) you (control|cast)`
-- `blink=exile .* return .* (battlefield|owner's control)`
+Prefer `--preset <name>` over hand-written regex when the theme matches one
+of the library presets (tokens, removal, counterspell, self-mill, reanimate,
+flashback, surveil, scry, cascade, cycling, landfall, investigate, ...).
+Presets are tested against known cards and shared with `cube-balance`, so
+results stay consistent across sessions. See the full catalog with
+`archetype-audit --list-presets`. Add `--show-matches` to see which cards
+matched each theme.
 
 ```bash
 archetype-audit <cube.json> <hyd.json> \
-    --theme "tokens=create .* creature token" \
-    --theme "sacrifice=sacrifice (a|another) (creature|permanent)" \
+    --preset tokens \
+    --preset reanimate \
+    --preset counterspell \
+    --show-matches
+```
+
+For themes without a matching preset, fall back to `--theme name=regex`:
+- `spells-matter=(instant|sorcery) you (control|cast)`
+- `blink=exile .* return .* (battlefield|owner's control)`
+- `counters=\+1/\+1 counter`
+
+```bash
+archetype-audit <cube.json> <hyd.json> \
+    --preset tokens \
+    --theme "spells-matter=(instant|sorcery) you (control|cast)" \
     --theme "counters=\\+1/\\+1 counter"
 ```
 
