@@ -55,11 +55,15 @@ class Preset:
     - ``keywords``: the card's ``keywords`` array contains any of these
       (case-insensitive).
     - ``patterns``: any regex matches the card's oracle text.
+    - ``type_patterns``: any regex matches the card's ``type_line``.
+      Useful for kindred/tribal themes where the card's identity comes
+      from its creature type (e.g., Llanowar Elves is an Elf whether or
+      not its oracle mentions the word).
     - ``layouts``: the card's Scryfall ``layout`` field equals one of
       these (case-sensitive, matching Scryfall values like
       ``"adventure"``, ``"prototype"``, ``"split"``, ``"saga"``).
 
-    All three may be set; they combine with OR. ``should_match`` and
+    All four may be set; they combine with OR. ``should_match`` and
     ``should_not_match`` are card-name fixtures used by the test suite.
     """
 
@@ -67,6 +71,7 @@ class Preset:
     description: str
     keywords: tuple[str, ...] = ()
     patterns: tuple[re.Pattern[str], ...] = ()
+    type_patterns: tuple[re.Pattern[str], ...] = ()
     layouts: tuple[str, ...] = ()
     should_match: tuple[str, ...] = ()
     should_not_match: tuple[str, ...] = ()
@@ -79,6 +84,10 @@ class Preset:
         if self.patterns:
             oracle = get_oracle_text(card)
             if any(p.search(oracle) for p in self.patterns):
+                return True
+        if self.type_patterns:
+            type_line = card.get("type_line") or ""
+            if any(p.search(type_line) for p in self.type_patterns):
                 return True
         return bool(self.layouts) and card.get("layout") in self.layouts
 
@@ -1808,6 +1817,62 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         keywords=("Firebending",),
         should_match=("Mai and Zuko",),
         should_not_match=("Lightning Bolt",),
+    ),
+    # ── Turn manipulation ──────────────────────────────────────────────
+    # Extra-turn / extra-combat / extra-upkeep payoffs that commander
+    # archetypes (Obeka, Aurelia, Godo, Isshin, Narset) are built around.
+    # These are not keyword abilities — pure oracle-text regex.
+    Preset(
+        name="extra-turns",
+        description=(
+            "Take another turn after this one. Time Walk effects — the "
+            "pillar of Obeka / Narset / Sakashima extra-turns archetypes "
+            "(Time Walk, Temporal Manipulation, Nexus of Fate, "
+            "Expropriate, Temporal Trespass)."
+        ),
+        patterns=_rx(r"take an (?:extra|additional) turn"),
+        should_match=("Time Walk", "Temporal Manipulation", "Nexus of Fate"),
+        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+    ),
+    Preset(
+        name="extra-combats",
+        description=(
+            "Additional combat phase. Aggravated Assault, Seize the Day, "
+            "Waves of Aggression — the pillar of Aurelia / Godo / Isshin "
+            "commander archetypes and multi-combat 60-card lists."
+        ),
+        patterns=_rx(r"additional combat phase"),
+        should_match=("Aggravated Assault", "Seize the Day", "Waves of Aggression"),
+        should_not_match=("Lightning Bolt", "Serra Angel"),
+    ),
+    Preset(
+        name="extra-upkeeps",
+        description=(
+            "Additional upkeep step. Paradox Haze and Obeka Splitter of "
+            "Seconds turn beginning-of-upkeep triggers into repeatable "
+            "engines — the core of upkeep-payoff archetypes."
+        ),
+        patterns=_rx(r"additional upkeep steps?"),
+        should_match=("Obeka, Splitter of Seconds", "Paradox Haze"),
+        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+    ),
+    # ── Blink / ETB abuse ──────────────────────────────────────────────
+    # Exile-then-return-to-battlefield cards that re-trigger enter-the-
+    # battlefield effects. [^.]*? gate prevents crossing sentence
+    # boundaries, so Angel of Sanctions ("exile ... until this creature
+    # leaves the battlefield" — exile + battlefield but no "return") does
+    # not falsely match.
+    Preset(
+        name="blink",
+        description=(
+            "ETB abuse: exile then return to the battlefield. Soulherder, "
+            "Ephemerate, Eldrazi Displacer, Conjurer's Closet, "
+            "Restoration Angel — re-trigger enter-the-battlefield effects "
+            "by flickering creatures in and out of exile."
+        ),
+        patterns=_rx(r"exile[^.]*?return[^.]*?battlefield"),
+        should_match=("Soulherder", "Ephemerate", "Conjurer's Closet"),
+        should_not_match=("Lightning Bolt", "Angel of Sanctions"),
     ),
 )
 

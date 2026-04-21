@@ -17,6 +17,7 @@ from mtg_utils.card_classify import (
     is_commander,
 )
 from mtg_utils.format_config import FORMAT_CONFIGS, is_arena_format
+from mtg_utils.theme_presets import PRESETS, Preset, get_preset
 
 _extract_price = extract_price
 _get_oracle_text = get_oracle_text
@@ -37,6 +38,7 @@ def _matches_filters(
     paper_only: bool = False,
     is_commander_filter: bool = False,
     commander_format: str = "commander",
+    presets: tuple[Preset, ...] = (),
 ) -> bool:
     # Skip tokens and non-game cards
     if card.get("layout") in SKIP_LAYOUTS:
@@ -78,6 +80,9 @@ def _matches_filters(
         return False
 
     if price_max is not None and (price is None or price > price_max):
+        return False
+
+    if presets and not all(p.matches(card) for p in presets):
         return False
 
     if is_commander_filter:
@@ -123,6 +128,7 @@ def search_cards(
     arena_only: bool = False,
     paper_only: bool = False,
     is_commander_filter: bool = False,
+    preset_names: tuple[str, ...] = (),
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters."""
     if format is not None:
@@ -146,6 +152,18 @@ def search_cards(
         raise click.BadParameter(msg, param_hint="--oracle") from e
     type_lower = card_type.lower() if card_type else None
 
+    presets: tuple[Preset, ...] = ()
+    if preset_names:
+        resolved: list[Preset] = []
+        for name in preset_names:
+            try:
+                resolved.append(get_preset(name))
+            except KeyError:
+                known = ", ".join(sorted(PRESETS.keys()))
+                msg = f"unknown preset {name!r}. Known presets: {known}"
+                raise click.BadParameter(msg, param_hint="--preset") from None
+        presets = tuple(resolved)
+
     cards = load_bulk_cards(bulk_path)
 
     # Filter
@@ -166,6 +184,7 @@ def search_cards(
             paper_only=paper_only,
             is_commander_filter=is_commander_filter,
             commander_format=format or "commander",
+            presets=presets,
         )
     ]
 
@@ -273,6 +292,18 @@ def format_results(cards: list[dict]) -> str:
     help="Filter by format legality.",
 )
 @click.option(
+    "--preset",
+    "preset_names",
+    multiple=True,
+    help=(
+        "Filter to cards matching a theme_presets entry (keyword abilities, "
+        "removal by type, edicts, turn manipulation, blink, functional). "
+        "Repeatable; multiple presets combine with AND, so --preset tokens "
+        "--preset sacrifice-outlet returns cards that do both. Run "
+        "`archetype-audit --list-presets` to browse the catalog."
+    ),
+)
+@click.option(
     "--is-commander",
     is_flag=True,
     help="Only include cards eligible to be a commander.",
@@ -309,6 +340,7 @@ def main(
     price_max: float | None,
     sort: str,
     limit: int,
+    preset_names: tuple[str, ...],
     *,
     is_commander: bool,
     as_json: bool,
@@ -335,6 +367,7 @@ def main(
         arena_only=arena_only,
         paper_only=paper_only,
         is_commander_filter=is_commander,
+        preset_names=preset_names,
     )
     if as_json:
         from mtg_utils.scryfall_lookup import _extract_fields

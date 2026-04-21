@@ -8,6 +8,8 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils.archetype_audit import (
+    _build_kindred_preset,
+    _parse_rewrite_flag,
     _parse_theme_flag,
     archetype_audit,
     main,
@@ -120,6 +122,381 @@ class TestArchetypeAudit:
         assert not any(
             "below LP minimum" in n.lower() for n in relaxed["themes"]["burn"]["notes"]
         )
+
+
+class TestIncludeCommanders:
+    """--include-commanders pulls entries from 'commanders' (parse-deck) and
+    'commander_pool' (parse-cube) into the match loop."""
+
+    def test_commanders_excluded_by_default(self, cube_hydrated):
+        deck = {
+            "cube_format": "commander",
+            "cards": [{"name": "Viscera Seer", "quantity": 1}],
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+        }
+        # Both Korvold and Viscera Seer have "sacrifice" in their oracle.
+        themes = {
+            "sac": _adhoc_preset("sac", re.compile(r"sacrifice", re.IGNORECASE)),
+        }
+        result = archetype_audit(deck, cube_hydrated, themes)
+        assert result["themes"]["sac"]["total"] == 1
+        assert "Korvold, Fae-Cursed King" not in result["themes"]["sac"]["cards"]
+
+    def test_commanders_included_when_flag_set(self, cube_hydrated):
+        deck = {
+            "cube_format": "commander",
+            "cards": [{"name": "Viscera Seer", "quantity": 1}],
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+        }
+        themes = {
+            "sac": _adhoc_preset("sac", re.compile(r"sacrifice", re.IGNORECASE)),
+        }
+        result = archetype_audit(deck, cube_hydrated, themes, include_commanders=True)
+        assert result["themes"]["sac"]["total"] == 2
+        assert "Korvold, Fae-Cursed King" in result["themes"]["sac"]["cards"]
+
+    def test_overlap_between_commanders_and_cards_is_not_double_counted(
+        self, cube_hydrated
+    ):
+        # Hand-edited / malformed deck JSON: the commander appears in BOTH
+        # 'commanders' and 'cards'. With --include-commanders, this should
+        # still count the commander once, not twice.
+        deck = {
+            "cube_format": "commander",
+            "cards": [
+                {"name": "Korvold, Fae-Cursed King", "quantity": 1},
+                {"name": "Viscera Seer", "quantity": 1},
+            ],
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+        }
+        themes = {
+            "sac": _adhoc_preset("sac", re.compile(r"sacrifice", re.IGNORECASE)),
+        }
+        result = archetype_audit(deck, cube_hydrated, themes, include_commanders=True)
+        # Korvold + Viscera Seer = 2 unique cards, both match "sacrifice".
+        # Without dedup, Korvold would be counted twice → total=3.
+        assert result["themes"]["sac"]["total"] == 2
+        assert result["themes"]["sac"]["cards"].count("Korvold, Fae-Cursed King") == 1
+
+    def test_commander_pool_included_for_pdh_cubes(
+        self, sample_commander_cube_json, cube_hydrated
+    ):
+        # Atraxa and Korvold live in commander_pool and both have "Flying"
+        # in their oracle; the main cards list has neither.
+        themes = {
+            "fly": _adhoc_preset("fly", re.compile(r"\bflying\b", re.IGNORECASE)),
+        }
+        default = archetype_audit(sample_commander_cube_json, cube_hydrated, themes)
+        with_flag = archetype_audit(
+            sample_commander_cube_json,
+            cube_hydrated,
+            themes,
+            include_commanders=True,
+        )
+        assert with_flag["themes"]["fly"]["total"] > default["themes"]["fly"]["total"]
+
+
+class TestKindredFactory:
+    """--kindred <type> builds a parametric preset matching creatures of that
+    type plus oracle-text payoffs."""
+
+    def test_matches_creature_via_type_line(self):
+        _, preset = _build_kindred_preset("Elf")
+        # Type line match fires even if oracle doesn't mention "Elf"
+        card = {
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
+            "keywords": [],
+        }
+        assert preset.matches(card)
+
+    def test_matches_payoff_via_oracle(self):
+        _, preset = _build_kindred_preset("Elf")
+        # Non-Elf card whose oracle references Elves (tribal payoff).
+        card = {
+            "type_line": "Creature — Human Warrior",
+            "oracle_text": "Other Elves you control get +1/+1.",
+            "keywords": [],
+        }
+        assert preset.matches(card)
+
+    def test_irregular_plural_matches(self):
+        _, preset = _build_kindred_preset("Elf")
+        # "Elves" — the irregular plural — must match
+        card = {
+            "type_line": "Instant",
+            "oracle_text": "Until end of turn, Elves you control gain flying.",
+            "keywords": [],
+        }
+        assert preset.matches(card)
+
+    def test_regular_plural_matches(self):
+        _, preset = _build_kindred_preset("Goblin")
+        card = {
+            "type_line": "Instant",
+            "oracle_text": "Create three 1/1 red Goblin creature tokens.",
+            "keywords": [],
+        }
+        assert preset.matches(card)
+
+    def test_non_matching_card_rejected(self):
+        _, preset = _build_kindred_preset("Elf")
+        card = {
+            "type_line": "Instant",
+            "oracle_text": "Counter target spell.",
+            "keywords": [],
+        }
+        assert not preset.matches(card)
+
+    def test_changeling_counts_as_every_type(self):
+        # Changeling cards (Mistform Ultimus, Universal Automaton, etc.)
+        # count as every creature type per CR 702.73, so they should
+        # match every kindred preset regardless of the type line or oracle.
+        _, elf = _build_kindred_preset("Elf")
+        _, goblin = _build_kindred_preset("Goblin")
+        mistform = {
+            "type_line": "Creature — Shapeshifter",
+            "oracle_text": ("Changeling (This card is every creature type.)"),
+            "keywords": ["Changeling"],
+        }
+        assert elf.matches(mistform)
+        assert goblin.matches(mistform)
+
+    def test_empty_string_rejected(self):
+        with pytest.raises(Exception, match="cannot be empty"):
+            _build_kindred_preset("   ")
+
+    def test_preset_name_is_lowercase(self):
+        name, _ = _build_kindred_preset("Goblin")
+        assert name == "kindred-goblin"
+
+    def test_cli_kindred_flag(self, tmp_path: Path):
+        runner = CliRunner()
+        cube_path = tmp_path / "cube.json"
+        hyd_path = tmp_path / "hyd.json"
+        out_path = tmp_path / "out.json"
+        # Llanowar Elves has type_line "Creature — Elf Druid" in the
+        # cube_hydrated fixture — it should match via type_patterns.
+        cube = {
+            "cube_format": "vintage",
+            "cards": [
+                {"name": "Llanowar Elves", "quantity": 1},
+                {"name": "Lightning Bolt", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {
+                "name": "Llanowar Elves",
+                "type_line": "Creature — Elf Druid",
+                "oracle_text": "{T}: Add {G}.",
+                "keywords": [],
+                "color_identity": ["G"],
+            },
+            {
+                "name": "Lightning Bolt",
+                "type_line": "Instant",
+                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+                "keywords": [],
+                "color_identity": ["R"],
+            },
+        ]
+        cube_path.write_text(json.dumps(cube))
+        hyd_path.write_text(json.dumps(hydrated))
+        result = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hyd_path),
+                "--kindred",
+                "Elf",
+                "--output",
+                str(out_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(out_path.read_text())
+        assert "kindred-elf" in data["themes"]
+        assert data["themes"]["kindred-elf"]["total"] == 1
+        assert "Llanowar Elves" in data["themes"]["kindred-elf"]["cards"]
+
+
+class TestRewriteRule:
+    """--rewrite "source -> dest" widens dest's matcher with an OR against
+    source's preset. Captures commander-induced archetype shifts."""
+
+    def test_parse_valid(self):
+        source, dest = _parse_rewrite_flag("kindred-elf -> drain")
+        assert source == "kindred-elf"
+        assert dest == "drain"
+
+    def test_parse_missing_arrow_rejected(self):
+        with pytest.raises(Exception, match="source -> dest"):
+            _parse_rewrite_flag("justone")
+
+    def test_parse_empty_side_rejected(self):
+        with pytest.raises(Exception, match="empty"):
+            _parse_rewrite_flag(" -> dest")
+        with pytest.raises(Exception, match="empty"):
+            _parse_rewrite_flag("source ->")
+
+    def test_rewrite_adds_source_matches_to_dest(self):
+        # Synthetic "elf -> drain" rewrite:
+        #   - drain theme: matches cards with "drain" in oracle (nothing
+        #     in our test pool)
+        #   - elf theme: matches creatures of type Elf
+        # With the rewrite, elves should count toward drain.
+        cube = {
+            "cube_format": "vintage",
+            "cards": [
+                {"name": "Llanowar Elves", "quantity": 1},
+                {"name": "Lightning Bolt", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {
+                "name": "Llanowar Elves",
+                "type_line": "Creature — Elf Druid",
+                "oracle_text": "{T}: Add {G}.",
+                "keywords": [],
+                "color_identity": ["G"],
+            },
+            {
+                "name": "Lightning Bolt",
+                "type_line": "Instant",
+                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+                "keywords": [],
+                "color_identity": ["R"],
+            },
+        ]
+        elf_name, elf_preset = _build_kindred_preset("Elf")
+        drain_preset = _adhoc_preset(
+            "drain", re.compile(r"loses? \d+ life", re.IGNORECASE)
+        )
+        themes = {elf_name: elf_preset, "drain": drain_preset}
+
+        without_rewrite = archetype_audit(cube, hydrated, themes)
+        assert without_rewrite["themes"]["drain"]["total"] == 0
+
+        with_rewrite = archetype_audit(
+            cube, hydrated, themes, rewrites=(("kindred-elf", "drain"),)
+        )
+        assert with_rewrite["themes"]["drain"]["total"] == 1
+        assert "Llanowar Elves" in with_rewrite["themes"]["drain"]["cards"]
+        # Source theme is unaffected
+        assert with_rewrite["themes"]["kindred-elf"]["total"] == 1
+
+    def test_rewrite_unknown_source_raises(self):
+        cube = {"cube_format": "vintage", "cards": []}
+        themes = {
+            "drain": _adhoc_preset("drain", re.compile(r"drain", re.IGNORECASE)),
+        }
+        with pytest.raises(KeyError, match="source"):
+            archetype_audit(cube, [], themes, rewrites=(("not-a-theme", "drain"),))
+
+    def test_cli_rewrite_flag(self, tmp_path: Path):
+        runner = CliRunner()
+        cube_path = tmp_path / "cube.json"
+        hyd_path = tmp_path / "hyd.json"
+        out_path = tmp_path / "out.json"
+        cube = {
+            "cube_format": "vintage",
+            "cards": [{"name": "Llanowar Elves", "quantity": 1}],
+        }
+        hydrated = [
+            {
+                "name": "Llanowar Elves",
+                "type_line": "Creature — Elf Druid",
+                "oracle_text": "{T}: Add {G}.",
+                "keywords": [],
+                "color_identity": ["G"],
+            },
+        ]
+        cube_path.write_text(json.dumps(cube))
+        hyd_path.write_text(json.dumps(hydrated))
+        result = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hyd_path),
+                "--kindred",
+                "Elf",
+                "--theme",
+                "drain=loses? \\d+ life",
+                "--rewrite",
+                "kindred-elf -> drain",
+                "--output",
+                str(out_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(out_path.read_text())
+        assert data["themes"]["drain"]["total"] == 1
+        assert "Llanowar Elves" in data["themes"]["drain"]["cards"]
+
+    def test_cli_rewrite_unknown_source_rejected(self, tmp_path: Path):
+        runner = CliRunner()
+        cube_path = tmp_path / "cube.json"
+        hyd_path = tmp_path / "hyd.json"
+        cube_path.write_text(json.dumps({"cube_format": "vintage", "cards": []}))
+        hyd_path.write_text(json.dumps([]))
+        result = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hyd_path),
+                "--preset",
+                "flying",
+                "--rewrite",
+                "nope -> flying",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "not a declared theme" in result.output.lower()
+
+
+class TestWarnDensityOverride:
+    """--warn-density lets deck-scale callers tune the warn threshold."""
+
+    def test_warn_density_override_surfaces_in_result(self, cube_hydrated):
+        cube = {
+            "cube_format": "vintage",
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        themes = {"burn": _adhoc_preset("burn", re.compile(r"damage", re.IGNORECASE))}
+        result = archetype_audit(
+            cube, cube_hydrated, themes, min_density=1, warn_density=99
+        )
+        assert result["warn_density_threshold"] == 99
+
+    def test_warn_density_default_falls_back_to_balance_target(self, cube_hydrated):
+        cube = {
+            "cube_format": "vintage",
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        themes = {"burn": _adhoc_preset("burn", re.compile(r"damage", re.IGNORECASE))}
+        result = archetype_audit(cube, cube_hydrated, themes)
+        # BALANCE_TARGETS default for vintage is 5.
+        assert result["warn_density_threshold"] == 5
+
+    def test_zero_threshold_suppresses_notes(self, cube_hydrated):
+        # min_density=0 and warn_density=0 mean "no threshold" — no total
+        # can fall below zero, so neither the LP-minimum nor the warn
+        # note should fire. Pins the semantic that 0 is a valid,
+        # explicit "suppress this warning" signal (distinct from None
+        # which still falls back to the balance-target default).
+        cube = {
+            "cube_format": "vintage",
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        themes = {"burn": _adhoc_preset("burn", re.compile(r"damage", re.IGNORECASE))}
+        result = archetype_audit(
+            cube, cube_hydrated, themes, min_density=0, warn_density=0
+        )
+        assert result["min_density_threshold"] == 0
+        assert result["warn_density_threshold"] == 0
+        notes = result["themes"]["burn"]["notes"]
+        assert not any("below" in n.lower() for n in notes)
+        assert not any("thin" in n.lower() for n in notes)
 
 
 class TestCLIInterface:
@@ -291,3 +668,77 @@ class TestCLIInterface:
         assert result.exit_code == 0, result.output
         # --show-matches adds a "matches:" line to the text report.
         assert "matches:" in result.output
+
+    def test_warn_density_flag_routed_to_result(
+        self, sample_cube_json, cube_hydrated, tmp_path: Path
+    ):
+        runner = CliRunner()
+        cube_path = tmp_path / "cube.json"
+        hyd_path = tmp_path / "hyd.json"
+        out_path = tmp_path / "out.json"
+        cube_path.write_text(json.dumps(sample_cube_json))
+        hyd_path.write_text(json.dumps(cube_hydrated))
+        result = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hyd_path),
+                "--preset",
+                "removal",
+                "--warn-density",
+                "42",
+                "--output",
+                str(out_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(out_path.read_text())
+        assert data["warn_density_threshold"] == 42
+
+    def test_include_commanders_flag_counts_commander_pool(
+        self, sample_commander_cube_json, cube_hydrated, tmp_path: Path
+    ):
+        runner = CliRunner()
+        cube_path = tmp_path / "cube.json"
+        hyd_path = tmp_path / "hyd.json"
+        cube_path.write_text(json.dumps(sample_commander_cube_json))
+        hyd_path.write_text(json.dumps(cube_hydrated))
+
+        out_default = tmp_path / "default.json"
+        out_with_flag = tmp_path / "with_flag.json"
+
+        default = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hyd_path),
+                "--theme",
+                "fly=\\bflying\\b",
+                "--output",
+                str(out_default),
+            ],
+        )
+        assert default.exit_code == 0, default.output
+        data_default = json.loads(out_default.read_text())
+
+        flagged = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hyd_path),
+                "--theme",
+                "fly=\\bflying\\b",
+                "--include-commanders",
+                "--output",
+                str(out_with_flag),
+            ],
+        )
+        assert flagged.exit_code == 0, flagged.output
+        data_flagged = json.loads(out_with_flag.read_text())
+
+        # commander_pool contains Atraxa + Korvold (both have "flying");
+        # main cards list has neither. Flag should raise the total.
+        assert (
+            data_flagged["themes"]["fly"]["total"]
+            > (data_default["themes"]["fly"]["total"])
+        )

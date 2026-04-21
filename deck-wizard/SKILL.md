@@ -1253,11 +1253,33 @@ Count the deck's removal and interaction pieces. Compare against bracket-appropr
 
 ### 6c: Archetype Coherence
 
+**Mechanical archetype pass (applies to all formats).** Before role grouping (commander) or build-around analysis (60-card), run `archetype-audit` with the deck's declared themes. It tests each card's own keywords and oracle text against preset regexes; the output is a falsifiable density baseline before you spend time on per-card judgment. Counts are in card copies, so 4x Lightning Bolt contributes 4 to `burn`, not 1 — non-singleton formats will naturally register larger numbers.
+
+**Known blind spot.** `archetype-audit` evaluates cards in isolation. It does NOT see commander-induced archetype shifts — a vanilla elf is not creature-removal to the tool even if your commander blights opponents when elves enter. "Whenever an X enters, do Y" / "creatures you control have Z" / cost-reduction and payoff commanders all create emergent categorizations the mechanical pass will miss. Capture those re-categorizations in the per-card analysis that follows. (Step 5 Commander Interaction Audit is the designated place for commander-lens reasoning.)
+
+Useful output fields for decks: **per-theme total** (is the theme present in meaningful volume?), **bridge cards** (cards matching ≥2 themes — synergy glue, protect from cuts), and the `--show-matches` card list. The `by_guild` breakdown and `orphan signal` notes are cube-scale diagnostics — ignore them at single-deck scale.
+
+Run `archetype-audit --list-presets` to browse the catalog (keyword abilities, removal by type, edicts, turn manipulation, blink, and the broad functional category).
+
 #### Commander/Brawl/Historic Brawl
 
-Group cards by commander-aware roles — roles defined by how they work with THIS commander, not generic categories. Analyze each group as a unit.
+Mechanical pass first:
 
-**For every card, answer:** "How does this card specifically interact with this commander?" Cite the oracle text.
+```bash
+archetype-audit <deck.json> <hydrated.json> \
+    --include-commanders \
+    --preset tokens \
+    --preset sacrifice-outlet \
+    --preset reanimate \
+    --min-density 8 --warn-density 10 \
+    --show-matches
+```
+
+**Always pass `--include-commanders`** for these formats. Without it, the commander itself is silently excluded from the count — and the commander is usually the biggest theme piece in the deck. Use `--theme "name=regex"` for themes without a matching preset. The `--min-density 8 --warn-density 10` values are tuned for ~65 nonlands in a 100-card list; a theme with <8 cards is typically too thin to be a strategic pillar, <10 is thin-by-convention.
+
+Then group cards by commander-aware roles — roles defined by how they work with THIS commander, not generic categories. Analyze each group as a unit.
+
+**For every card, answer:** "How does this card specifically interact with this commander?" Cite the oracle text. The mechanical pass told you the raw density; the per-card analysis tells you whether each card earns its slot.
 
 Analysis dimensions:
 - Synergy with the commander and other cards
@@ -1285,7 +1307,16 @@ Cards that don't clearly fit one of these roles are candidates for cuts.
 
 **Step 3 — Check for orphaned "Plan B" cards.** A common deck-building mistake is including 2-3 cards from a secondary strategy the deck doesn't have the infrastructure to support.
 
-**Step 4 — Scan oracle text systematically.** Use `card-summary <hydrated.json> --nonlands-only` and look for oracle text that doesn't mention the deck's key mechanics.
+**Step 4 — Mechanical archetype pass.** Run `archetype-audit` with the declared themes:
+
+```bash
+archetype-audit <deck.json> <hydrated.json> \
+    --preset burn --preset counterspell \
+    --min-density 6 --warn-density 8 \
+    --show-matches
+```
+
+Counts are in card copies (4x Lightning Bolt contributes 4 to `burn`). The `--min-density 6 --warn-density 8` values are tuned for ~40 nonlands in a 60-card list. Cards NOT appearing under any theme are candidates for the "orphaned Plan B" bucket from Step 3 — cross-reference the `--show-matches` list against your full card list. For themes without a matching preset, fall back to `--theme "name=regex"`; `card-summary <hydrated.json> --nonlands-only` remains available for freeform oracle browsing.
 
 **Step 5 — Verify structural consistency:**
 - **Threat density:** Does the deck have enough pressure to close games?

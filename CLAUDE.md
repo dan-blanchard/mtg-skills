@@ -61,7 +61,7 @@ Mono-repo for MTG-related Claude Code skills. Each skill lives in its own direct
 
 ### mtg-utils
 
-Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3 rules-lawyer) exposed as 33 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 9 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
+Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3 rules-lawyer) exposed as 33 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 12 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, download-rules, rules-lookup, rulings-lookup, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
 
 **Deck scripts:**
 

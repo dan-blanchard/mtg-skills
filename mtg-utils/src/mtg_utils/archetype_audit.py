@@ -98,6 +98,81 @@ def _resolve_preset_flag(raw: str) -> tuple[str, Preset]:
     return name, preset
 
 
+# MTG creature types with irregular English plurals. Regular types
+# (Goblin/Goblins, Zombie/Zombies, Wizard/Wizards) get an "s" suffix by
+# default — this map only needs to cover the exceptions. Merfolk is its
+# own plural and is handled by the fallback (no pluralization added).
+_KINDRED_IRREGULAR_PLURALS = {
+    "elf": "elves",
+    "dwarf": "dwarves",
+    "wolf": "wolves",
+    "werewolf": "werewolves",
+    "thief": "thieves",
+    "leaf": "leaves",
+    "merfolk": "merfolk",
+    "fish": "fish",
+    "sheep": "sheep",
+}
+
+
+def _parse_rewrite_flag(raw: str) -> tuple[str, str]:
+    """Parse a ``source -> dest`` rewrite rule.
+
+    Both names are stripped. Returns ``(source_theme, dest_theme)``. The
+    caller is responsible for confirming both names resolve to themes
+    defined in the current invocation.
+    """
+    if "->" not in raw:
+        msg = (
+            f"Rewrite rule {raw!r} must be 'source -> dest' "
+            "(e.g. 'kindred-elf -> drain')"
+        )
+        raise click.BadParameter(msg)
+    source, _, dest = raw.partition("->")
+    source = source.strip()
+    dest = dest.strip()
+    if not source or not dest:
+        raise click.BadParameter(f"Rewrite rule {raw!r} has empty source or dest")
+    return source, dest
+
+
+def _build_kindred_preset(creature_type: str) -> tuple[str, Preset]:
+    """Build a parametric kindred preset for a creature type.
+
+    Matches cards that are that type (via ``type_line``), reference that
+    type in oracle text (payoffs like "Goblins you control get +1/+0"
+    or "whenever an Elf enters"), OR have the Changeling keyword
+    (Mistform Ultimus, Universal Automaton, Mirror Entity — Changeling
+    cards count as every creature type per CR 702.73, so they belong in
+    every kindred theme). Irregular plurals for common types (Elf/Elves,
+    Wolf/Wolves, Dwarf/Dwarves, Werewolf/Werewolves) are handled by the
+    plural map; other types get "s" appended.
+    """
+    t = creature_type.strip()
+    if not t:
+        raise click.BadParameter("--kindred value cannot be empty")
+
+    key = t.lower()
+    plural = _KINDRED_IRREGULAR_PLURALS.get(key, key + "s")
+    oracle_alternatives = f"{re.escape(key)}|{re.escape(plural)}"
+    oracle_pattern = re.compile(rf"\b(?:{oracle_alternatives})\b", re.IGNORECASE)
+    type_pattern = re.compile(rf"\b{re.escape(t)}\b", re.IGNORECASE)
+
+    name = f"kindred-{key}"
+    description = (
+        f"Kindred ({t}): creatures of type {t} (including Changeling) "
+        f"plus oracle-text payoffs that reference {t}/{plural}."
+    )
+    preset = Preset(
+        name=name,
+        description=description,
+        keywords=("Changeling",),
+        patterns=(oracle_pattern,),
+        type_patterns=(type_pattern,),
+    )
+    return name, preset
+
+
 def _color_pair_label_for_card(card: dict) -> str:
     """Categorize a card's color identity for archetype bucketing."""
     identity = card.get("color_identity", []) or []
@@ -128,29 +203,103 @@ def archetype_audit(
     themes: dict[str, Preset],
     *,
     min_density: int | None = None,
+    warn_density: int | None = None,
+    include_commanders: bool = False,
+    rewrites: tuple[tuple[str, str], ...] = (),
 ) -> dict:
     """Cross-reference themes against cards in the cube.
 
     ``themes`` maps theme names to :class:`Preset` objects. Callers who
     have a bare :class:`re.Pattern` should wrap it: ``Preset(name=..,
     description=.., patterns=(pattern,))``.
+
+    ``include_commanders`` additionally iterates ``cube["commanders"]``
+    (deck JSONs from parse-deck) and ``cube["commander_pool"]`` (cube
+    JSONs from parse-cube). The two keys are disjoint in practice, so
+    reading both covers commander decks and PDH cubes with one flag.
+
+    ``rewrites`` is a tuple of ``(source_theme, dest_theme)`` pairs that
+    widen ``dest_theme``'s matcher with an OR against ``source_theme``'s
+    preset. Captures commander-induced archetype shifts — a user with a
+    "whenever an elf enters, drain 1" commander can pass
+    ``("kindred-elf", "drain")`` to have elves count toward drain without
+    needing the drain regex to match them. Both names must exist as keys
+    in ``themes``.
+
+    ``min_density`` and ``warn_density`` both interpret ``0`` as
+    "suppress the corresponding note" (threshold is literally zero, so
+    no total can fall below it). Pass ``None`` (or omit) to fall back to
+    the balance-target default.
     """
     lookup = build_card_lookup(hydrated)
     targets = get_balance_targets(cube)
-    threshold = min_density or int(targets.get("min_archetype_signal_density", 3))
-    warn_threshold = int(targets.get("warn_archetype_signal_density", 5))
+    threshold = (
+        min_density
+        if min_density is not None
+        else int(targets.get("min_archetype_signal_density", 3))
+    )
+    warn_threshold = (
+        warn_density
+        if warn_density is not None
+        else int(targets.get("warn_archetype_signal_density", 5))
+    )
+
+    entries: list[dict] = []
+    if include_commanders:
+        entries.extend(cube.get("commanders", []) or [])
+        entries.extend(cube.get("commander_pool", []) or [])
+    entries.extend(cube.get("cards", []) or [])
+
+    # Deduplicate on name, keeping the first occurrence. Protects against
+    # hand-edited deck JSONs where the commander is present in both
+    # ``commanders`` and ``cards`` — without this, including-commanders
+    # would count the commander twice. If the duplicate entries carry
+    # different quantities, the first one's quantity wins: behavior is
+    # undefined for that case in practice (both copies almost always
+    # carry quantity=1 for singleton formats).
+    seen_names: set[str] = set()
+    deduped_entries: list[dict] = []
+    for entry in entries:
+        name = entry.get("name")
+        if not name or name in seen_names:
+            continue
+        seen_names.add(name)
+        deduped_entries.append(entry)
+    entries = deduped_entries
+
+    # Validate rewrites and group by destination theme. Both source and
+    # dest must be defined in ``themes`` — the user explicitly declares
+    # both so the rewrite source is visible in its own theme bucket.
+    rewrites_by_dest: dict[str, list[Preset]] = {}
+    for source_name, dest_name in rewrites:
+        if source_name not in themes:
+            msg = (
+                f"rewrite source {source_name!r} must be declared as a theme "
+                "(via --preset, --kindred, --theme, or --from-cube)"
+            )
+            raise KeyError(msg)
+        if dest_name not in themes:
+            msg = (
+                f"rewrite dest {dest_name!r} must be declared as a theme "
+                "(via --preset, --kindred, --theme, or --from-cube)"
+            )
+            raise KeyError(msg)
+        rewrites_by_dest.setdefault(dest_name, []).append(themes[source_name])
 
     # Build: per-theme list of matching cards (with color identity info).
     per_theme: dict[str, dict] = {}
     for theme_name, preset in themes.items():
+        rewrite_sources = rewrites_by_dest.get(theme_name, [])
         matches: list[dict] = []
-        for entry in cube.get("cards", []):
+        for entry in entries:
             card = lookup.get(entry["name"])
             if card is None:
                 continue
             if is_land(card):
                 continue
-            if not preset.matches(card):
+            if not preset.matches(card) and not any(
+                src.matches(card) for src in rewrite_sources
+            ):
                 continue
             matches.append(
                 {
@@ -305,6 +454,33 @@ def _format_preset_catalog() -> str:
     ),
 )
 @click.option(
+    "--kindred",
+    "kindred_types",
+    multiple=True,
+    help=(
+        "Build a parametric kindred/tribal theme for a creature type "
+        "(e.g. --kindred Elf). Matches cards of that type via type_line "
+        "AND oracle-text payoffs that reference the type/plural. "
+        "Changeling cards match every kindred theme. Repeatable; "
+        "irregular plurals like Elf/Elves, Wolf/Wolves, Dwarf/Dwarves "
+        "are handled automatically. The generated theme is named "
+        "kindred-<lowercase-type> (e.g. 'kindred-elf'), which is the "
+        "name you reference in --rewrite rules."
+    ),
+)
+@click.option(
+    "--rewrite",
+    "rewrite_specs",
+    multiple=True,
+    help=(
+        "Rewrite rule 'source -> dest': cards matching the source theme "
+        "also count toward dest. Captures commander-induced archetype "
+        "shifts — e.g. --rewrite 'kindred-elf -> drain' for a commander "
+        "that drains life whenever an elf enters. Both names must be "
+        "declared as themes in the same invocation."
+    ),
+)
+@click.option(
     "--list-presets",
     "list_presets_flag",
     is_flag=True,
@@ -323,6 +499,29 @@ def _format_preset_catalog() -> str:
     type=int,
     default=None,
     help="Override minimum card count before a theme gets a warning note.",
+)
+@click.option(
+    "--warn-density",
+    type=int,
+    default=None,
+    help=(
+        "Override warn threshold (themes below this count are flagged as "
+        "thin-by-conventional-standards). Useful at deck scale where the "
+        "cube-tuned default of 5 is miscalibrated."
+    ),
+)
+@click.option(
+    "--include-commanders",
+    "include_commanders",
+    is_flag=True,
+    default=False,
+    help=(
+        "Also iterate entries under the cube/deck's 'commanders' key (parse-"
+        "deck output) and 'commander_pool' key (parse-cube output) when "
+        "counting theme matches. Pass this for Commander/Brawl/Historic "
+        "Brawl decks — otherwise the commander is silently excluded. "
+        "For PDH cubes, factors commander_pool entries into theme density."
+    ),
 )
 @click.option(
     "--show-matches",
@@ -352,19 +551,36 @@ def main(
     hydrated_path: Path | None,
     theme_specs: tuple[str, ...],
     preset_names: tuple[str, ...],
+    kindred_types: tuple[str, ...],
+    rewrite_specs: tuple[str, ...],
     min_density: int | None,
+    warn_density: int | None,
     output_path: Path | None,
     *,
     list_presets_flag: bool,
     from_cube: bool,
+    include_commanders: bool,
     show_matches: bool,
     emit_json: bool,
 ):
     """Cross-reference theme queries against color pairs in a cube.
 
-    Themes can come from three sources (combined): ``--preset <name>`` for
-    registry-backed themes, ``--theme name=regex`` for custom regex, and
-    ``--from-cube`` to load stated_archetypes from the cube JSON.
+    Themes can come from four sources (combined): ``--preset <name>`` for
+    registry-backed themes, ``--kindred <type>`` for parametric tribal
+    themes built on the fly, ``--theme name=regex`` for custom regex, and
+    ``--from-cube`` to load stated_archetypes from the cube JSON. Any
+    theme name can be used on either side of a ``--rewrite`` rule.
+
+    \b
+    Known limitation: themes match each card in isolation (the card's own
+    keywords and oracle text). Commander-induced archetype shifts —
+    "whenever an X enters, do Y" / "creatures you control have Z" / cost-
+    reduction and payoff commanders — are NOT reflected in the count. A
+    vanilla elf is not creature-removal to this tool even if your commander
+    blights opponents when elves enter. Use ``--rewrite source -> dest``
+    to propagate such shifts (e.g. ``--kindred Elf --rewrite
+    "kindred-elf -> drain"``), or capture them in the per-card analysis
+    that follows the mechanical pass.
     """
     # --list-presets short-circuits: no cube/hydrated needed.
     if list_presets_flag:
@@ -408,6 +624,10 @@ def main(
         name, preset = _resolve_preset_flag(raw)
         themes[name] = preset
 
+    for raw in kindred_types:
+        name, preset = _build_kindred_preset(raw)
+        themes[name] = preset
+
     for spec in theme_specs:
         name, preset = _parse_theme_flag(spec)
         themes[name] = preset
@@ -415,10 +635,34 @@ def main(
     if not themes:
         raise click.UsageError(
             "No themes specified. Pass --preset <name> (repeatable), "
-            "--theme name=regex (repeatable), or --from-cube."
+            "--kindred <type> (repeatable), --theme name=regex "
+            "(repeatable), or --from-cube."
         )
 
-    result = archetype_audit(cube, hydrated, themes, min_density=min_density)
+    rewrites = tuple(_parse_rewrite_flag(raw) for raw in rewrite_specs)
+    for source, dest in rewrites:
+        if source not in themes:
+            raise click.BadParameter(
+                f"rewrite source {source!r} is not a declared theme "
+                f"(known: {', '.join(sorted(themes.keys()))})",
+                param_hint="--rewrite",
+            )
+        if dest not in themes:
+            raise click.BadParameter(
+                f"rewrite dest {dest!r} is not a declared theme "
+                f"(known: {', '.join(sorted(themes.keys()))})",
+                param_hint="--rewrite",
+            )
+
+    result = archetype_audit(
+        cube,
+        hydrated,
+        themes,
+        min_density=min_density,
+        warn_density=warn_density,
+        include_commanders=include_commanders,
+        rewrites=rewrites,
+    )
 
     if output_path is None:
         theme_key = ",".join(sorted(themes.keys()))

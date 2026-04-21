@@ -1106,6 +1106,88 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": ["Firebending"],
         "oracle_text": "Firebending 3\nYou may cast Ally spells and artifact spells as though they had flash.",
     },
+    # ── Turn manipulation ──
+    "Time Walk": {
+        "keywords": [],
+        "oracle_text": "Take an extra turn after this one.",
+    },
+    "Temporal Manipulation": {
+        "keywords": [],
+        "oracle_text": "Take an extra turn after this one.",
+    },
+    "Nexus of Fate": {
+        "keywords": [],
+        "oracle_text": (
+            "Take an extra turn after this one.\n"
+            "If Nexus of Fate would be put into a graveyard from anywhere, "
+            "reveal Nexus of Fate and shuffle it into its owner's library instead."
+        ),
+    },
+    "Aggravated Assault": {
+        "keywords": [],
+        "oracle_text": (
+            "{3}{R}{R}: Untap all creatures you control. After this main "
+            "phase, there is an additional combat phase followed by an "
+            "additional main phase. Activate only as a sorcery."
+        ),
+    },
+    "Seize the Day": {
+        "keywords": ["Flashback"],
+        "oracle_text": (
+            "Untap target creature. After this main phase, there is an "
+            "additional combat phase followed by an additional main phase.\n"
+            "Flashback {2}{R} (You may cast this card from your graveyard "
+            "for its flashback cost. Then exile it.)"
+        ),
+    },
+    "Waves of Aggression": {
+        "keywords": ["Retrace"],
+        "oracle_text": (
+            "Untap all creatures that attacked this turn. After this main "
+            "phase, there is an additional combat phase followed by an "
+            "additional main phase.\nRetrace (You may cast this card from "
+            "your graveyard by discarding a land card in addition to "
+            "paying its other costs.)"
+        ),
+    },
+    "Paradox Haze": {
+        "keywords": ["Enchant"],
+        "oracle_text": (
+            "Enchant player\n"
+            "At the beginning of enchanted player's first upkeep each "
+            "turn, that player gets an additional upkeep step after "
+            "this step."
+        ),
+    },
+    # ── Blink / ETB abuse ──
+    "Soulherder": {
+        "keywords": [],
+        "oracle_text": (
+            "Whenever a creature is exiled from the battlefield, put a "
+            "+1/+1 counter on this creature.\n"
+            "At the beginning of your end step, you may exile another "
+            "target creature you control, then return that card to the "
+            "battlefield under its owner's control."
+        ),
+    },
+    "Ephemerate": {
+        "keywords": ["Rebound"],
+        "oracle_text": (
+            "Exile target creature you control, then return it to the "
+            "battlefield under its owner's control.\n"
+            "Rebound (If you cast this spell from your hand, exile it as "
+            "it resolves. At the beginning of your next upkeep, you may "
+            "cast this card from exile without paying its mana cost.)"
+        ),
+    },
+    "Conjurer's Closet": {
+        "keywords": [],
+        "oracle_text": (
+            "At the beginning of your end step, you may exile target "
+            "creature you control, then return that card to the "
+            "battlefield under your control."
+        ),
+    },
 }
 
 

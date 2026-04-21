@@ -394,9 +394,17 @@ of the library presets. Available categories:
 - **Removal by type**: `creature-removal`, `artifact-removal`,
   `enchantment-removal`, `land-removal`, `planeswalker-removal`,
   `universal-removal` (Vindicate / Beast Within / Maelstrom Pulse).
+- **Forced sacrifice (edicts)**: `edict` (umbrella), `creature-edict`,
+  `artifact-edict`, `enchantment-edict`, `land-edict`,
+  `planeswalker-edict`, `universal-edict` (Vindicate-style on
+  opponent's choice).
+- **Turn manipulation**: `extra-turns`, `extra-combats`,
+  `extra-upkeeps` — the "take another of this step" payoff pile that
+  Obeka / Aurelia / Godo archetypes anchor.
 - **Functional**: top-manipulation, self-mill, counterspell, bounce,
   discard, tutors, tokens, sacrifice-outlet, burn, reanimate,
-  graveyard-return, cantrip, card-draw, lifegain, plus-one-counters.
+  graveyard-return, cantrip, card-draw, lifegain, plus-one-counters,
+  blink.
 
 Presets are tested against known cards and shared with `cube-balance`, so
 results stay consistent across sessions. See the full catalog with
@@ -411,9 +419,13 @@ archetype-audit <cube.json> <hyd.json> \
     --show-matches
 ```
 
+For PDH cubes, pass `--include-commanders` to factor `commander_pool`
+entries into theme density alongside the main-pool cards. Off by default
+so non-PDH cubes keep their existing output unchanged.
+
 For themes without a matching preset, fall back to `--theme name=regex`:
 - `spells-matter=(instant|sorcery) you (control|cast)`
-- `blink=exile .* return .* (battlefield|owner's control)`
+- `energy=gets? \{E\}`
 - `counters=\+1/\+1 counter`
 
 ```bash

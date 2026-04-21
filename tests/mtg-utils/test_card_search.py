@@ -627,3 +627,79 @@ class TestIsCommanderFilter:
         assert "oracle_text" in data[0]
         assert "type_line" in data[0]
         assert "color_identity" in data[0]
+
+
+class TestPresetFilter:
+    """--preset <name> restricts results to cards matching a theme_presets entry."""
+
+    def _bulk(self, tmp_path):
+        cards = [
+            _make_card(
+                name="Serra Angel",
+                type_line="Creature — Angel",
+                oracle_text="Flying, vigilance",
+                price_usd="1.00",
+            ),
+            _make_card(
+                name="Lightning Bolt",
+                type_line="Instant",
+                oracle_text="Lightning Bolt deals 3 damage to any target.",
+                price_usd="0.50",
+            ),
+            _make_card(
+                name="Goldvein Hydra",
+                type_line="Creature — Hydra",
+                oracle_text="Vigilance, trample, haste",
+                price_usd="2.00",
+            ),
+            _make_card(
+                name="Giant Spider",
+                type_line="Creature — Spider",
+                oracle_text="Reach",
+                price_usd="0.25",
+            ),
+        ]
+        # Attach keywords arrays so the preset's keyword matcher fires.
+        cards[0]["keywords"] = ["Flying", "Vigilance"]
+        cards[1]["keywords"] = []
+        cards[2]["keywords"] = ["Vigilance", "Trample", "Haste"]
+        cards[3]["keywords"] = ["Reach"]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        return bulk_path
+
+    def test_single_preset_filters(self, tmp_path):
+        bulk_path = self._bulk(tmp_path)
+        results = search_cards(bulk_path, preset_names=("flying",))
+        names = {c["name"] for c in results}
+        assert names == {"Serra Angel"}
+
+    def test_multiple_presets_combine_with_and(self, tmp_path):
+        bulk_path = self._bulk(tmp_path)
+        # Only Goldvein Hydra has both vigilance AND haste.
+        results = search_cards(bulk_path, preset_names=("vigilance", "haste"))
+        names = {c["name"] for c in results}
+        assert names == {"Goldvein Hydra"}
+
+    def test_unknown_preset_rejected(self, tmp_path):
+        bulk_path = self._bulk(tmp_path)
+        with pytest.raises(click.BadParameter, match="unknown preset"):
+            search_cards(bulk_path, preset_names=("not-a-real-preset",))
+
+    def test_cli_preset_flag(self, tmp_path):
+        bulk_path = self._bulk(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--bulk-data",
+                str(bulk_path),
+                "--preset",
+                "flying",
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        names = [c["name"] for c in data]
+        assert names == ["Serra Angel"]
