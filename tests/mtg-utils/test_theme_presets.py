@@ -109,6 +109,26 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": ["First strike", "Protection"],
         "oracle_text": "First strike\nProtection from black",
     },
+    "Invisible Stalker": {
+        "keywords": ["Hexproof"],
+        "oracle_text": (
+            "Hexproof (This creature can't be the target of spells or "
+            "abilities your opponents control.)\n"
+            "This creature can't be blocked."
+        ),
+    },
+    "Darksteel Myr": {
+        "keywords": ["Indestructible"],
+        "oracle_text": (
+            'Indestructible (Damage and effects that say "destroy" don\'t '
+            "destroy this creature. If its toughness is 0 or less, it still "
+            "dies.)"
+        ),
+    },
+    "Giant Spider": {
+        "keywords": ["Reach"],
+        "oracle_text": "Reach (This creature can block creatures with flying.)",
+    },
     "Blade Splicer": {
         # Create-singular-token test case for the `tokens` preset (I1).
         "keywords": [],

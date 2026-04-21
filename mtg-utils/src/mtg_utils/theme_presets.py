@@ -148,7 +148,7 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         name="reach",
         description="Creature has reach (evergreen).",
         keywords=("Reach",),
-        should_match=(),  # no cards in the fixture set currently have reach
+        should_match=("Giant Spider",),
         should_not_match=("Lightning Bolt",),
     ),
     Preset(
@@ -176,14 +176,14 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         name="hexproof",
         description="Permanent has hexproof (evergreen).",
         keywords=("Hexproof",),
-        should_match=(),  # fixture added if/when a hexproof card is added to test data
+        should_match=("Invisible Stalker",),
         should_not_match=("Lightning Bolt",),
     ),
     Preset(
         name="indestructible",
         description="Permanent has indestructible (evergreen).",
         keywords=("Indestructible",),
-        should_match=(),
+        should_match=("Darksteel Myr",),
         should_not_match=("Lightning Bolt",),
     ),
     Preset(
@@ -199,7 +199,7 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         name="protection",
         description="Permanent has protection from something (evergreen).",
         keywords=("Protection",),
-        should_match=(),
+        should_match=("White Knight",),
         should_not_match=("Lightning Bolt",),
     ),
 )
