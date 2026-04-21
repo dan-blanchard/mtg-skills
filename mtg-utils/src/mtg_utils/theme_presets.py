@@ -211,7 +211,9 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         name="scry",
         description="Card performs scry N (look at top, may bottom).",
         keywords=("Scry",),
-        should_match=("Preordain", "Omen of the Sun", "Magma Jet"),
+        # Aang's Iceberg has Scry in its keywords array (its waterbend
+        # ability scries), so it matches via the Scry keyword directly.
+        should_match=("Preordain", "Omen of the Sun", "Magma Jet", "Aang's Iceberg"),
         should_not_match=("Lightning Bolt",),
     ),
     Preset(
@@ -332,8 +334,13 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
     ),
     Preset(
         name="infect",
-        description="Creature has infect.",
-        keywords=("Infect",),
+        description=(
+            "Creature has infect (damage to players = poison counters; "
+            "damage to creatures = -1/-1 counters). Includes Poisonous, "
+            "the classic 'deals combat damage to a player = N poison' "
+            "keyword that Infect generalizes."
+        ),
+        keywords=("Infect", "Poisonous"),
         should_match=(),
         should_not_match=("Lightning Bolt",),
     ),
@@ -537,10 +544,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         description=(
             "Single-target creature removal: destroy/exile target creature, "
             "damage-to-creature, fight, -X/-X, creature-or-planeswalker. "
-            "Note: 'target creature gets -N' matches any toughness debuff "
-            "including soft combat tricks (e.g. -0/-2); callers treat this "
-            "as generous. For a stricter definition use a custom --theme."
+            "Includes the Fight keyword action (CR 701.14), Infect "
+            "(702.90 — damage to creatures as -1/-1 counters), and Wither "
+            "(702.80 — like infect but creature-only). Note: 'target "
+            "creature gets -N' matches any toughness debuff including soft "
+            "combat tricks (e.g. -0/-2); callers treat this as generous. "
+            "For a stricter definition use a custom --theme."
         ),
+        keywords=("Fight", "Infect", "Wither"),
         patterns=_rx(
             r"(?:destroy|exile) target [^.]*?\bcreature\b",
             r"\bdeals? \d+ damage to (?:target creature|any target)",
@@ -695,12 +706,44 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Creature-token creation. Oracle text uses both singular ("create a
     # 1/1 ... creature token") and plural ("create two 1/1 ... creature
     # tokens"), so the count atom here accepts "a"/"an" in addition to
-    # digit/word-form numbers.
+    # digit/word-form numbers. Includes Embalm and Eternalize — their
+    # reminder text says "Create a token that's a copy of it" (omitting
+    # "creature token" literally), so the regex misses them; the keyword
+    # tuple catches them instead.
     Preset(
         name="tokens",
-        description="Creates one or more creature tokens.",
+        description=(
+            "Creates one or more creature tokens. Covers the broad family "
+            "of keywords that create creature tokens: Embalm and "
+            "Eternalize (Zombie copies from graveyard), Populate (copy "
+            "your own token), Amass (Zombie Army), Offspring (1/1 copy), "
+            "Manifest and Cloak (face-down 2/2), Incubate (Incubator "
+            "transform token), Fabricate (Servos), Afterlife (Spirits "
+            "on death), Mobilize (attacking Warriors), Encore (attacking "
+            "copies), Myriad (combat token copies)."
+        ),
+        keywords=(
+            "Embalm",
+            "Eternalize",
+            "Populate",
+            "Amass",
+            "Offspring",
+            "Manifest",
+            "Cloak",
+            "Incubate",
+            "Fabricate",
+            "Afterlife",
+            "Mobilize",
+            "Encore",
+            "Myriad",
+        ),
         patterns=_rx(r"create (?:a|an|" + _COUNT + r").*\bcreature token"),
-        should_match=("Omen of the Sun", "Blade Splicer", "Lingering Souls"),
+        should_match=(
+            "Omen of the Sun",
+            "Blade Splicer",
+            "Lingering Souls",
+            "Angel of Sanctions",  # Embalm
+        ),
         should_not_match=("Lightning Bolt",),
     ),
     # Sacrifice outlet: "sacrifice X: <effect>" (colon makes it an activated
@@ -800,14 +843,19 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # archetype includes both the "taps" and the "matters" sides.
     Preset(
         name="lifegain",
-        description=("Gains life OR triggers when you gain life (lifegain-matters)."),
+        description=(
+            "Gains life OR triggers when you gain life (lifegain-matters). "
+            "Includes the Secrets of Strixhaven `Infusion` payoff whose "
+            "trigger is 'if you gained life this turn, <bonus>'."
+        ),
+        keywords=("Infusion",),
         patterns=_rx(
             r"\bgains? " + _COUNT + r" life\b",
             r"\bgain life equal to\b",
             r"\bwhenever you gain life\b",
             r"\blifelink\b",  # catches e.g. "target creature gains lifelink"
         ),
-        should_match=("Thragtusk", "Lightning Helix"),
+        should_match=("Thragtusk", "Lightning Helix", "Efflorescence"),
         should_not_match=("Lightning Bolt", "Counterspell"),
     ),
     # +1/+1 counters — puts +1/+1 counters on a creature, OR cares about
@@ -819,14 +867,210 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         name="plus-one-counters",
         description=(
             "Puts +1/+1 counters on creatures OR cares about creatures with "
-            "+1/+1 counters (counters-matter archetype)."
+            "+1/+1 counters (counters-matter archetype). Includes every "
+            "keyword whose primary mechanic is adding +1/+1 counters: "
+            "Bolster, Increment (SOS), Reinforce, Monstrosity, Graft, "
+            "Outlast, Renown, Evolve, Adapt, Modular, Fabricate (modal), "
+            "Training, Support, Tribute, Endure (modal), Devour, Dethrone."
+        ),
+        keywords=(
+            "Bolster",
+            "Increment",
+            "Reinforce",
+            "Monstrosity",
+            "Graft",
+            "Outlast",
+            "Renown",
+            "Evolve",
+            "Adapt",
+            "Modular",
+            "Fabricate",
+            "Training",
+            "Support",
+            "Tribute",
+            "Endure",
+            "Devour",
+            "Dethrone",
         ),
         patterns=_rx(
             r"\+1/\+1 counter",
             r"with a \+1/\+1 counter on it",
         ),
-        should_match=("Scavenging Ooze", "Goldvein Hydra"),
+        should_match=(
+            "Scavenging Ooze",
+            "Goldvein Hydra",
+            "Berta, Wise Extrapolator",
+        ),
         should_not_match=("Lightning Bolt", "Counterspell"),
+    ),
+    # Cantrip gets Connive added via keywords tuple — Connive's core effect
+    # is "draw a card, then discard a card" (with a +1/+1 rider on nonland
+    # discards), so it's card-filtering; matches cantrip's single-card-draw
+    # semantics.
+    Preset(
+        name="connive",
+        description=(
+            "Keyword action from Streets of New Capenna: draw a card, "
+            "then discard a card. If a nonland card was discarded, put "
+            "a +1/+1 counter on the conniving creature."
+        ),
+        keywords=("Connive",),
+        should_match=("Change of Plans",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Cost-reduction via tapping (Convoke / Improvise / Waterbend) ──
+    #
+    # All three let you tap untapped permanents rather than pay mana to
+    # cast a spell. Convoke (702.51) taps creatures; Improvise (702.126)
+    # taps artifacts; Waterbend (701.67) taps both — it's the Avatar
+    # crossover's generalized "each tap pays for {1}" cost mechanic.
+    Preset(
+        name="convoke",
+        description=(
+            "Tap untapped creatures you control rather than pay mana to "
+            "cast a spell (CR 702.51)."
+        ),
+        keywords=("Convoke",),
+        should_match=(),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="improvise",
+        description=(
+            "Tap untapped artifacts you control rather than pay mana to "
+            "cast a spell (CR 702.126). Artifact-cost-reduction sibling "
+            "of Convoke."
+        ),
+        keywords=("Improvise",),
+        should_match=(),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="waterbend",
+        description=(
+            "Alt-cost mechanic from the Avatar crossover (CR 701.67). "
+            "While paying a waterbend cost, tap untapped artifacts or "
+            "creatures to help — each tap pays for {1}. Generalizes "
+            "Convoke + Improvise into a single keyword action."
+        ),
+        keywords=("Waterbend",),
+        should_match=("Aang's Iceberg",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Airbend (Avatar crossover) ──
+    #
+    # Per CR 701.65 (glossary says "Airbend", not "Airbending" — the
+    # Scryfall keywords array uses "Airbend"): exiles one or more
+    # permanents/spells; the owner of each exiled card may cast it
+    # from exile for {2}. Mechanically closer to Warp/Suspend than
+    # to bounce; NOT in the `bounce` preset because airbend never
+    # returns cards to hand.
+    #
+    # Does NOT include Warp (CR 702.185) — Warp is a cast-from-hand-
+    # for-alternative-cost-then-exile-at-EOT keyword (a suspend-like
+    # cast-later mechanic), distinct enough from airbend's "exile
+    # someone else's thing, they may recast for {2}" mechanic that
+    # bundling them would conflate politically very different cards.
+    Preset(
+        name="airbend",
+        description=(
+            "Exile a permanent or spell and let its owner cast it from "
+            "exile for {2} (Airbend, Avatar crossover, CR 701.65)."
+        ),
+        keywords=("Airbend",),
+        should_match=("Aang, the Last Airbender",),
+        should_not_match=("Lightning Bolt", "Unsummon", "Boomerang"),
+    ),
+    # ── Proliferate ──
+    Preset(
+        name="proliferate",
+        description=(
+            "Choose any number of permanents and/or players with counters "
+            "and add another counter of each kind. Scales with +1/+1, "
+            "poison, -1/-1, charge, loyalty counters — so proliferate "
+            "decks usually pair with counter-producing archetypes."
+        ),
+        keywords=("Proliferate",),
+        should_match=("Contagion Clasp", "Atraxa, Praetors' Voice"),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Goad (political / multiplayer) ──
+    Preset(
+        name="goad",
+        description=(
+            "Forces a creature to attack each combat — and to attack a "
+            "player other than its controller. Strong multiplayer "
+            "politics mechanic."
+        ),
+        keywords=("Goad",),
+        should_match=("Disrupt Decorum",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Magecraft (Strixhaven spellslinger) ──
+    Preset(
+        name="magecraft",
+        description=(
+            "Triggers 'whenever you cast or copy an instant or sorcery "
+            "spell' — the Strixhaven spellslinger payoff. Mechanically "
+            "overlaps with Prowess (combat buff on spell cast) but "
+            "Magecraft can trigger any effect, so it gets its own preset."
+        ),
+        keywords=("Magecraft",),
+        should_match=("Storm-Kiln Artist", "Archmage Emeritus"),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Opus (Secrets of Strixhaven big-spells trigger) ──
+    Preset(
+        name="opus",
+        description=(
+            "Triggers on instant/sorcery casts with a 5+-mana threshold. "
+            "The effect can be anything — not just combat buffs — and "
+            "Opus cards typically have a lesser mode that triggers for "
+            "cheaper instants/sorceries as well. Big-spells-matter "
+            "spellslinger archetype."
+        ),
+        keywords=("Opus",),
+        should_match=("Colorstorm Stallion",),
+        should_not_match=("Lightning Bolt", "Monastery Swiftspear"),
+    ),
+    # ── Graveyard-cast umbrella (cast-from-graveyard mechanics) ──
+    #
+    # Strict: only keywords that actually CAST the card from the
+    # graveyard. Notably excludes:
+    #   * Embalm/Eternalize — create a TOKEN COPY, not cast the card.
+    #     These live in the `tokens` preset.
+    #   * Unearth — RETURNS the card to the battlefield, not cast.
+    #     Lives in the `reanimate` preset.
+    Preset(
+        name="graveyard-cast",
+        description=(
+            "Umbrella for 'cast this card from the graveyard' keyword "
+            "mechanics: Flashback, Jump-start, Aftermath, Retrace, "
+            "Escape, Disturb, Mayhem. Graveyard-value payoff. The "
+            "narrower `flashback` preset still exists; use this one "
+            "when you want the full cast-from-graveyard archetype "
+            "density."
+        ),
+        keywords=(
+            "Flashback",
+            "Jump-start",
+            "Aftermath",
+            "Retrace",
+            "Escape",
+            "Disturb",
+            "Mayhem",
+            "Harmonize",
+        ),
+        should_match=(
+            "Lingering Souls",  # Flashback
+            "Chemister's Insight",  # Jump-start
+            "Kroxa, Titan of Death's Hunger",  # Escape
+        ),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Angel of Sanctions",  # Embalm creates a token, not cast
+        ),
     ),
 )
 

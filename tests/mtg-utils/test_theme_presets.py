@@ -655,6 +655,145 @@ FIXTURE_CARDS: dict[str, dict] = {
             "• Exile all graveyards."
         ),
     },
+    # ── New keyword-mechanic fixtures (2024-2026 sets) ──
+    "Aang, the Last Airbender": {
+        # Airbend keyword — exile and let owner recast for {2}.
+        # NOT bounce (never returns to hand). Own preset.
+        "keywords": ["Flying", "Airbend"],
+        "oracle_text": (
+            "Flying\n"
+            "When Aang enters, airbend up to one other target nonland "
+            "permanent. (Exile it. While it's exiled, its owner may cast "
+            "it for {2} rather than its mana cost.)\n"
+            "Whenever you cast a Lesson spell, Aang gains lifelink until "
+            "end of turn."
+        ),
+    },
+    "Aang's Iceberg": {
+        # Waterbend — flavor rename of scry; the card has both Waterbend
+        # and Scry keywords because its reminder text invokes scry.
+        "keywords": ["Flash", "Waterbend", "Scry"],
+        "oracle_text": (
+            "Flash\n"
+            "When this enchantment enters, exile up to one other target "
+            "nonland permanent until this enchantment leaves the "
+            "battlefield.\n"
+            "Waterbend {3}: Sacrifice this enchantment. If you do, scry 2."
+        ),
+    },
+    "Contagion Clasp": {
+        "keywords": ["Proliferate"],
+        "oracle_text": (
+            "When this artifact enters, put a -1/-1 counter on target "
+            "creature.\n"
+            "{4}, {T}: Proliferate."
+        ),
+    },
+    "Atraxa, Praetors' Voice": {
+        # Bundles flying/vigilance/deathtouch/lifelink + Proliferate.
+        "keywords": ["Deathtouch", "Flying", "Lifelink", "Vigilance", "Proliferate"],
+        "oracle_text": (
+            "Flying, vigilance, deathtouch, lifelink\n"
+            "At the beginning of your end step, proliferate."
+        ),
+    },
+    "Disrupt Decorum": {
+        "keywords": ["Goad"],
+        "oracle_text": (
+            "Goad all creatures you don't control. (Until your next turn, "
+            "those creatures attack each combat if able and attack a "
+            "player other than you if able.)"
+        ),
+    },
+    "Storm-Kiln Artist": {
+        # Magecraft spellslinger — creates Treasure on each instant/sorcery.
+        "keywords": ["Treasure", "Magecraft"],
+        "oracle_text": (
+            "This creature gets +1/+0 for each artifact you control.\n"
+            "Magecraft — Whenever you cast or copy an instant or sorcery "
+            "spell, create a Treasure token."
+        ),
+    },
+    "Archmage Emeritus": {
+        "keywords": ["Magecraft"],
+        "oracle_text": (
+            "Magecraft — Whenever you cast or copy an instant or sorcery "
+            "spell, draw a card."
+        ),
+    },
+    "Berta, Wise Extrapolator": {
+        # Increment keyword from Secrets of Strixhaven — +1/+1 counter
+        # trigger on 5+-mana spells relative to creature's P/T.
+        "keywords": ["Increment"],
+        "oracle_text": (
+            "Increment (Whenever you cast a spell, if the amount of mana "
+            "you spent is greater than this creature's power or "
+            "toughness, put a +1/+1 counter on this creature.)\n"
+            "Whenever one or more +1/+1 counters are put on Berta, add "
+            "one mana of any color."
+        ),
+    },
+    "Colorstorm Stallion": {
+        # Opus keyword from Secrets of Strixhaven — big-spells trigger
+        # with a lesser mode for any instant/sorcery.
+        "keywords": ["Haste", "Ward", "Opus"],
+        "oracle_text": (
+            "Ward {1}, haste\n"
+            "Opus — Whenever you cast an instant or sorcery spell, this "
+            "creature gets +1/+1 until end of turn. If five or more mana "
+            "was spent to cast that spell, create a token that's a copy "
+            "of this creature."
+        ),
+    },
+    "Efflorescence": {
+        # Infusion keyword from Secrets of Strixhaven — lifegain-matters.
+        "keywords": ["Infusion"],
+        "oracle_text": (
+            "Put two +1/+1 counters on target creature.\n"
+            "Infusion — If you gained life this turn, that creature also "
+            "gains trample and indestructible until end of turn."
+        ),
+    },
+    "Change of Plans": {
+        # Connive — draw-then-discard with +1/+1 on nonland discard.
+        "keywords": ["Connive"],
+        "oracle_text": (
+            "Each of X target creatures you control connive. You may have "
+            "any number of them phase out."
+        ),
+    },
+    "Chemister's Insight": {
+        # Scryfall's keywords array lists both "Jump" and "Jump-start" for
+        # jump-start cards — keep both to match real data.
+        "keywords": ["Jump", "Jump-start"],
+        "oracle_text": (
+            "Draw two cards.\n"
+            "Jump-start (You may cast this card from your graveyard by "
+            "discarding a card in addition to paying its other costs. "
+            "Then exile this card.)"
+        ),
+    },
+    "Angel of Sanctions": {
+        "keywords": ["Flying", "Embalm"],
+        "oracle_text": (
+            "Flying\n"
+            "When this creature enters, you may exile target nonland "
+            "permanent an opponent controls until this creature leaves "
+            "the battlefield.\n"
+            "Embalm {5}{W}"
+        ),
+    },
+    "Kroxa, Titan of Death's Hunger": {
+        "keywords": ["Escape"],
+        "oracle_text": (
+            "When Kroxa enters, sacrifice it unless it escaped.\n"
+            "Whenever Kroxa enters or attacks, each opponent discards a "
+            "card, then each opponent who didn't discard a nonland card "
+            "this way loses 3 life.\n"
+            "Escape—{B}{B}{R}{R}, Exile five other cards from your "
+            "graveyard."
+        ),
+    },
 }
 
 
