@@ -147,6 +147,20 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": [],
         "oracle_text": "Destroy target land.",
     },
+    "Strip Mine": {
+        # Single-target land removal from a land source — matches the same
+        # regex branch as Sinkhole but with different surrounding oracle.
+        "keywords": [],
+        "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land.",
+    },
+    "Wasteland": {
+        # Non-basic land destruction — exercises the [^.]*? gap (the
+        # modifier "nonbasic" sits between "target" and "land").
+        "keywords": [],
+        "oracle_text": (
+            "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target nonbasic land."
+        ),
+    },
     "Armageddon": {
         # Mass-land-removal test fixture. Banned in the shared-library
         # format but included here so land-removal preset has test coverage.
@@ -599,6 +613,47 @@ FIXTURE_CARDS: dict[str, dict] = {
     "Unsummon": {
         "keywords": [],
         "oracle_text": "Return target creature to its owner's hand.",
+    },
+    "Boomerang": {
+        # Universal bounce — "target permanent" not "target creature".
+        # Exercises the bounce preset's permanent alternative and the
+        # relaxed `removal` umbrella bounce pattern.
+        "keywords": [],
+        "oracle_text": "Return target permanent to its owner's hand.",
+    },
+    "Prey Upon": {
+        # Fight — exercises the `fights? target\b` branch in creature-
+        # removal and `removal` umbrella.
+        "keywords": ["Fight"],
+        "oracle_text": (
+            "Target creature you control fights target creature you don't "
+            "control. (Each deals damage equal to its power to the other.)"
+        ),
+    },
+    "Electrolyze": {
+        # Divided damage — exercises the divided-damage branch.
+        "keywords": [],
+        "oracle_text": (
+            "Electrolyze deals 2 damage divided as you choose among one or "
+            "two targets.\nDraw a card."
+        ),
+    },
+    "Disfigure": {
+        # Target-creature-gets-minus-N — exercises that branch.
+        "keywords": [],
+        "oracle_text": "Target creature gets -2/-2 until end of turn.",
+    },
+    "Farewell": {
+        # Modal mass exile — exercises `exile all creatures` (board-wipe)
+        # and the `\bexile\s+all\b` branch in the `removal` umbrella.
+        "keywords": [],
+        "oracle_text": (
+            "Choose one or more —\n"
+            "• Exile all artifacts.\n"
+            "• Exile all creatures.\n"
+            "• Exile all enchantments.\n"
+            "• Exile all graveyards."
+        ),
     },
 }
 

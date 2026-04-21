@@ -478,7 +478,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\bcounter\s+target\b",
             r"\bdeals?\s+\d+\s+damage\s+to\s+(?:target\s+creature|any target)",
             r"\bdeals?\s+\d+\s+damage\s+divided\b.*\btargets?\b",
-            r"\breturn\s+target\s+(?:creature|nonland permanent)\b.*\bhand\b",
+            r"\breturn\s+target\s+(?:creature|(?:nonland )?permanent)\b.*\bhand\b",
             r"\bfights?\s+target\b",
             r"\btarget\s+creature\s+gets\s+-\d",
             # Toxic Deluge, Black Sun's Zenith style mass -N/-N. The `\b`
@@ -492,6 +492,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Counterspell",
             "Wrath of God",
             "Toxic Deluge",
+            "Prey Upon",  # fight branch
+            "Electrolyze",  # divided-damage branch
+            "Disfigure",  # -N/-N branch
+            "Boomerang",  # universal bounce branch
+            "Farewell",  # exile-all branch
         ),
         should_not_match=("Llanowar Elves", "Command Tower"),
     ),
@@ -504,7 +509,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\bexile all (?:creatures|nonland)",
             r"\bdeals? " + _COUNT + r" damage to each creature",
         ),
-        should_match=("Wrath of God",),
+        should_match=("Wrath of God", "Farewell"),
         should_not_match=("Lightning Bolt", "Swords to Plowshares"),
     ),
     # ── Type-specific removal ──
@@ -553,6 +558,9 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Lightning Bolt",
             "Hero's Downfall",
             "Toxic Deluge",
+            "Prey Upon",  # fight branch
+            "Electrolyze",  # divided-damage branch
+            "Disfigure",  # -N/-N branch
         ),
         should_not_match=(
             "Counterspell",  # counters a spell, doesn't remove a creature
@@ -596,7 +604,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\bdestroy all [^.]*?\blands?\b",
             r"\bexile all [^.]*?\blands?\b",
         ),
-        should_match=("Sinkhole", "Armageddon"),
+        should_match=("Sinkhole", "Strip Mine", "Wasteland", "Armageddon"),
         should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God"),
     ),
     Preset(
@@ -660,7 +668,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"return target (?:creature|nonland permanent|permanent)"
             r"\b.*\b(?:to|into) .*\bhand\b",
         ),
-        should_match=("Unsummon",),
+        should_match=("Unsummon", "Boomerang"),
         should_not_match=("Lightning Bolt",),
     ),
     # Targeted discard — opponent discards card(s).
