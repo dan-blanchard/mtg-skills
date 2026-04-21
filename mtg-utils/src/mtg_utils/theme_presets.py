@@ -503,6 +503,115 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Wrath of God",),
         should_not_match=("Lightning Bolt", "Swords to Plowshares"),
     ),
+    # ── Type-specific removal ──
+    #
+    # These are strict: they match cards that NAME the target type (or its
+    # umbrellas like "creature or planeswalker"). Cards with universal
+    # "destroy target permanent" phrasing (Vindicate, Beast Within) appear
+    # only in `universal-removal`; count both presets to get the full set
+    # of cards that can answer a given type.
+    #
+    # All patterns use [^.]* to stay within a single sentence, avoiding
+    # false-positives like Beast Within where "creature token" appears
+    # AFTER the destroy clause.
+    Preset(
+        name="creature-removal",
+        description=(
+            "Single-target creature removal: destroy/exile target creature, "
+            "damage-to-creature, fight, -X/-X, creature-or-planeswalker."
+        ),
+        patterns=_rx(
+            r"(?:destroy|exile) target [^.]*?\bcreature\b",
+            r"\bdeals? \d+ damage to (?:target creature|any target)",
+            r"\bdeals? \d+ damage divided [^.]*?targets?\b",
+            r"\bfights? target\b",
+            r"\btarget creature gets -\d",
+            r"\b-X/-X\b",
+        ),
+        should_match=(
+            "Swords to Plowshares",
+            "Doom Blade",
+            "Lightning Bolt",
+            "Hero's Downfall",
+        ),
+        should_not_match=(
+            "Counterspell",  # counters a spell, doesn't remove a creature
+            "Llanowar Elves",
+            "Beast Within",  # universal-removal, not creature-specific
+            "Shatter",  # artifact-specific
+        ),
+    ),
+    Preset(
+        name="artifact-removal",
+        description=(
+            "Single-target artifact removal: destroy/exile target artifact "
+            "(including 'target artifact or enchantment' bridge spells)."
+        ),
+        patterns=_rx(
+            r"(?:destroy|exile) target [^.]*?\bartifact\b",
+        ),
+        should_match=("Shatter", "Disenchant", "Reclamation Sage"),
+        should_not_match=("Lightning Bolt", "Wrath of God", "Sinkhole"),
+    ),
+    Preset(
+        name="enchantment-removal",
+        description=(
+            "Single-target enchantment removal: destroy/exile target "
+            "enchantment (including 'target artifact or enchantment')."
+        ),
+        patterns=_rx(
+            r"(?:destroy|exile) target [^.]*?\benchantment\b",
+        ),
+        should_match=("Disenchant", "Reclamation Sage"),
+        should_not_match=("Lightning Bolt", "Shatter", "Sinkhole"),
+    ),
+    Preset(
+        name="land-removal",
+        description=(
+            "Land destruction, single-target or mass (MLD). Includes "
+            "Sinkhole, Strip Mine, Wasteland, Armageddon, Jokulhaups."
+        ),
+        patterns=_rx(
+            r"(?:destroy|exile) target [^.]*?\bland\b",
+            r"\bdestroy all [^.]*?\blands?\b",
+            r"\bexile all [^.]*?\blands?\b",
+        ),
+        should_match=("Sinkhole", "Armageddon"),
+        should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God"),
+    ),
+    Preset(
+        name="planeswalker-removal",
+        description=(
+            "Single-target planeswalker removal: destroy/exile target "
+            "planeswalker, damage to planeswalker, creature-or-planeswalker."
+        ),
+        patterns=_rx(
+            r"(?:destroy|exile) target [^.]*?\bplaneswalker\b",
+            r"\bdeals? \d+ damage to (?:target planeswalker|any target"
+            r"|target creature or planeswalker)",
+        ),
+        should_match=("Hero's Downfall", "Lightning Bolt"),
+        should_not_match=("Counterspell", "Shatter"),
+    ),
+    Preset(
+        name="universal-removal",
+        description=(
+            "Destroys or exiles any permanent regardless of type "
+            "(Vindicate / Beast Within / Abrupt Decay / Assassin's Trophy). "
+            "Cards here are in addition to type-specific presets — check "
+            "both for full coverage of a given permanent type."
+        ),
+        patterns=_rx(
+            r"(?:destroy|exile) target (?:nonland )?permanent\b",
+        ),
+        should_match=("Vindicate", "Beast Within"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Swords to Plowshares",  # creature-only
+            "Shatter",  # artifact-only
+            "Wrath of God",  # mass, not single-target universal
+        ),
+    ),
     # Bounce — return target creature/permanent to hand.
     Preset(
         name="bounce",

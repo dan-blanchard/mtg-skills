@@ -129,6 +129,57 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": ["Reach"],
         "oracle_text": "Reach (This creature can block creatures with flying.)",
     },
+    # ── Removal type-specific fixtures ──
+    "Doom Blade": {
+        "keywords": [],
+        "oracle_text": "Destroy target nonblack creature.",
+    },
+    "Shatter": {
+        "keywords": [],
+        "oracle_text": "Destroy target artifact.",
+    },
+    "Disenchant": {
+        # Bridge card: artifact-removal AND enchantment-removal.
+        "keywords": [],
+        "oracle_text": "Destroy target artifact or enchantment.",
+    },
+    "Sinkhole": {
+        "keywords": [],
+        "oracle_text": "Destroy target land.",
+    },
+    "Armageddon": {
+        # Mass-land-removal test fixture. Banned in the shared-library
+        # format but included here so land-removal preset has test coverage.
+        "keywords": [],
+        "oracle_text": "Destroy all lands.",
+    },
+    "Hero's Downfall": {
+        "keywords": [],
+        "oracle_text": "Destroy target creature or planeswalker.",
+    },
+    "Vindicate": {
+        # Universal removal — destroys any permanent.
+        "keywords": [],
+        "oracle_text": "Destroy target permanent.",
+    },
+    "Beast Within": {
+        # Universal removal with a rider. Key false-positive test for
+        # creature-removal: the oracle mentions "creature token" AFTER the
+        # destroy clause, so naive regex `destroy target .* creature` could
+        # wrongly match. The [^.]* sentence-boundary gate prevents this.
+        "keywords": [],
+        "oracle_text": (
+            "Destroy target permanent. Its controller creates a 3/3 green "
+            "Beast creature token."
+        ),
+    },
+    "Reclamation Sage": {
+        # ETB artifact/enchantment removal creature.
+        "keywords": [],
+        "oracle_text": (
+            "When this creature enters, you may destroy target artifact or enchantment."
+        ),
+    },
     "Blade Splicer": {
         # Create-singular-token test case for the `tokens` preset (I1).
         "keywords": [],
