@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.card_classify import build_card_lookup, is_land
+from mtg_utils.card_classify import build_card_lookup, get_oracle_text, is_land
 
 
 def card_summary(
@@ -35,7 +35,7 @@ def card_summary(
     headers = ["Name", "Cost", "CMC", "Type", "Oracle Text"]
     rows: list[list[str]] = []
     for card in cards:
-        oracle = card.get("oracle_text", "") or ""
+        oracle = get_oracle_text(card)
         if len(oracle) > 1000:
             oracle = oracle[:1000] + "..."
         # Replace newlines with spaces for table display

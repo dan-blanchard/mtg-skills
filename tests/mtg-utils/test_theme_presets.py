@@ -794,6 +794,318 @@ FIXTURE_CARDS: dict[str, dict] = {
             "graveyard."
         ),
     },
+    # ── Edict + land-animation + spell-copy family fixtures ──
+    "Diabolic Edict": {
+        "keywords": [],
+        "oracle_text": "Target player sacrifices a creature of their choice.",
+    },
+    "Sheoldred's Edict": {
+        "keywords": [],
+        "oracle_text": (
+            "Choose one —\n"
+            "• Each opponent sacrifices a nontoken creature of their choice.\n"
+            "• Each opponent sacrifices a creature token of their choice.\n"
+            "• Each opponent sacrifices a planeswalker of their choice."
+        ),
+    },
+    "Shard of the Void Dragon": {
+        "keywords": ["Flying", "Matter Absorption", "Spear of the Void Dragon"],
+        "oracle_text": (
+            "Flying\n"
+            "Spear of the Void Dragon — Whenever this creature attacks, each "
+            "opponent sacrifices a nonland permanent of their choice.\n"
+            "Matter Absorption — Whenever an artifact is put into a "
+            "graveyard from the battlefield or is put into exile from the "
+            "battlefield, put two +1/+1 counters on this creature."
+        ),
+    },
+    "Martyr's Bond": {
+        "keywords": [],
+        "oracle_text": (
+            "Whenever this enchantment or another nonland permanent you "
+            "control is put into a graveyard from the battlefield, each "
+            "opponent sacrifices a permanent of their choice that shares "
+            "a card type with it."
+        ),
+    },
+    "Mutavault": {
+        "keywords": [],
+        "oracle_text": (
+            "{T}: Add {C}.\n"
+            "{1}: This land becomes a 2/2 creature with all creature types "
+            "until end of turn. It's still a land."
+        ),
+    },
+    "Treetop Village": {
+        "keywords": [],
+        "oracle_text": (
+            "This land enters tapped.\n"
+            "{T}: Add {G}.\n"
+            "{1}{G}: This land becomes a 3/3 green Ape creature with "
+            "trample until end of turn. It's still a land."
+        ),
+    },
+    "Wildfire": {
+        "keywords": [],
+        "oracle_text": (
+            "Each player sacrifices four lands of their choice. Wildfire "
+            "deals 4 damage to each creature."
+        ),
+    },
+    "Tribute to the Wild": {
+        "keywords": [],
+        "oracle_text": (
+            "Each opponent sacrifices an artifact or enchantment of their choice."
+        ),
+    },
+    "Dromoka's Command": {
+        "keywords": ["Fight"],
+        "oracle_text": (
+            "Choose two —\n"
+            "• Prevent all damage target instant or sorcery spell would "
+            "deal this turn.\n"
+            "• Target player sacrifices an enchantment of their choice.\n"
+            "• Put a +1/+1 counter on target creature.\n"
+            "• Target creature you control fights target creature you "
+            "don't control."
+        ),
+    },
+    "Weather the Storm": {
+        "keywords": ["Storm"],
+        "oracle_text": (
+            "You gain 3 life.\n"
+            "Storm (When you cast this spell, copy it for each spell "
+            "cast before it this turn.)"
+        ),
+    },
+    "Train of Thought": {
+        "keywords": ["Replicate"],
+        "oracle_text": (
+            "Replicate {1}{U} (When you cast this spell, copy it for each "
+            "time you paid its replicate cost.)\n"
+            "Draw a card."
+        ),
+    },
+    "Last Thoughts": {
+        "keywords": ["Cipher"],
+        "oracle_text": (
+            "Draw a card.\n"
+            "Cipher (Then you may exile this spell card encoded on a "
+            "creature you control. Whenever that creature deals combat "
+            "damage to a player, its controller may cast a copy of the "
+            "encoded card without paying its mana cost.)"
+        ),
+    },
+    # ── Secrets of Strixhaven fixtures ──
+    "Improvisation Capstone": {
+        # Paradigm keyword — spell-copy via recurring free-cast from exile.
+        "keywords": ["Paradigm"],
+        "oracle_text": (
+            "Exile cards from the top of your library until you exile cards "
+            "with total mana value 4 or greater. You may cast any number of "
+            "spells from among them without paying their mana costs.\n"
+            "Paradigm (Then exile this spell. After you first resolve a "
+            "spell with this name, you may cast a copy of it from exile "
+            "without paying its mana cost at the beginning of each of "
+            "your first main phases.)"
+        ),
+    },
+    "Scathing Shadelock // Venomous Words": {
+        # Prepared keyword + prepare layout — creature + paired spell on
+        # split faces. Oracle text is empty at top level on Scryfall;
+        # the real text lives in card_faces.
+        "keywords": ["Prepared"],
+        "oracle_text": "",
+    },
+    # ── Keyword individual-preset fixtures (Scryfall-verified, 2024-2026 sets) ──
+    "Scorn Effigy": {
+        "keywords": ["Foretell"],
+        "oracle_text": "Foretell {0} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
+    },
+    "Djinn of Fool's Fall": {
+        "keywords": ["Flying", "Plot"],
+        "oracle_text": "Flying\nPlot {3}{U} (You may pay {3}{U} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+    },
+    "Voidcalled Devotee": {
+        "keywords": ["Haste", "Warp", "Conjure"],
+        "oracle_text": "Haste\nWhenever this creature attacks, conjure a card named Cantor of the Refrain into your graveyard.\nWarp {1}{B}",
+    },
+    "Unnatural Summons": {
+        "keywords": ["Manifest", "Manifest dread", "Rebound"],
+        "oracle_text": "If you weren't the starting player, this spell costs {1} less to cast.\nManifest dread.\nRebound",
+    },
+    "Lurker in the Deep": {
+        "keywords": ["Impending", "Seek", "Manifest", "Conjure"],
+        "oracle_text": "Impending 3—{2}{U}{U}\nWhenever Lurker in the Deep enters or attacks, seek a nonland card.\nWhenever you seek one or more cards during your turn, conjure a duplicate of each of those cards into your hand, then manifest those duplicates.",
+    },
+    "Surge of Acclaim": {
+        "keywords": ["Jump", "Seek", "Jump-start", "Start your engines!"],
+        "oracle_text": "Choose one. If you have max speed, choose both instead.\n• Seek a card with start your engines!\n• Seek a nonland card.\nJump-start",
+    },
+    "Appeal // Authority": {
+        "keywords": ["Aftermath"],
+        "oracle_text": None,
+    },
+    "Oona's Grace": {
+        "keywords": ["Retrace"],
+        "oracle_text": "Target player draws a card.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
+    },
+    "Baithook Angler // Hook-Haunt Drifter": {
+        "keywords": ["Flying", "Transform", "Disturb"],
+        "oracle_text": None,
+    },
+    "Spider-Islanders": {
+        "keywords": ["Mayhem"],
+        "oracle_text": "Mayhem {1}{R} (You may cast this card from your graveyard for {1}{R} if you discarded it this turn. Timing rules still apply.)",
+    },
+    "Ureni's Counsel": {
+        "keywords": ["Seek", "Harmonize"],
+        "oracle_text": "This spell costs {1} less to cast for each Dragon card in your library.\nSeek a Dragon card.\nHarmonize {8}{R}{R}",
+    },
+    "Cut of the Profits": {
+        "keywords": ["Casualty"],
+        "oracle_text": "Casualty 3 (As you cast this spell, you may sacrifice a creature with power 3 or greater. When you do, copy this spell.)\nYou draw X cards and you lose X life.",
+    },
+    "Ghastly Discovery": {
+        "keywords": ["Conspire"],
+        "oracle_text": "Draw two cards, then discard a card.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.)",
+    },
+    "Incarnation Technique": {
+        "keywords": ["Mill", "Demonstrate"],
+        "oracle_text": "Demonstrate (When you cast this spell, you may copy it. If you do, choose an opponent to also copy it.)\nMill five cards, then return a creature card from your graveyard to the battlefield.",
+    },
+    "Wake the Reflections": {
+        "keywords": ["Populate"],
+        "oracle_text": "Populate. (Create a token that's a copy of a creature token you control.)",
+    },
+    "Gríma Wormtongue": {
+        "keywords": ["Amass"],
+        "oracle_text": "Your opponents can't gain life.\n{T}, Sacrifice another creature: Target player loses 1 life. If the sacrificed creature was legendary, amass Orcs 2.",
+    },
+    "Fountainport Charmer": {
+        "keywords": ["Offspring"],
+        "oracle_text": 'Offspring {2}\nWhen Fountainport Charmer enters, creature cards in your hand perpetually gain "This spell costs {1} less to cast."',
+    },
+    "Paranormal Analyst": {
+        "keywords": ["Manifest", "Manifest dread"],
+        "oracle_text": "Whenever you manifest dread, put a card you put into your graveyard this way into your hand.",
+    },
+    "Ransom Note": {
+        "keywords": ["Surveil", "Goad", "Cloak"],
+        "oracle_text": "When this artifact enters, surveil 1.\n{2}, Sacrifice this artifact: Choose one —\n• Cloak the top card of your library.\n• Goad target creature.\n• Draw a card.",
+    },
+    "Eyes of Gitaxias": {
+        "keywords": ["Incubate", "Transform"],
+        "oracle_text": 'Incubate 3. (Create an Incubator token with three +1/+1 counters on it and "{2}: Transform this token." It transforms into a 0/0 Phyrexian artifact creature.)\nDraw a card.',
+    },
+    "Accomplished Automaton": {
+        "keywords": ["Fabricate"],
+        "oracle_text": "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)",
+    },
+    "Debtors' Transport": {
+        "keywords": ["Afterlife"],
+        "oracle_text": "Afterlife 2 (When this creature dies, create two 1/1 white and black Spirit creature tokens with flying.)",
+    },
+    "Dalkovan Outrider": {
+        "keywords": ["Mobilize"],
+        "oracle_text": "Mobilize 2\nWhenever you sacrifice a permanent, the topmost creature card in your library perpetually gets +1/+1.",
+    },
+    "Broodmate Tyrant": {
+        "keywords": ["Flying", "Encore"],
+        "oracle_text": "Flying\nWhen this creature enters, create a 5/5 red Dragon creature token with flying.\nEncore {5}{B}{R}{G}",
+    },
+    "The Master, Multiplied": {
+        "keywords": ["Myriad"],
+        "oracle_text": "Myriad\nThe \"legend rule\" doesn't apply to creature tokens you control.\nTriggered abilities you control can't cause you to sacrifice or exile creature tokens you control.",
+    },
+    "Dromoka's Gift": {
+        "keywords": ["Bolster"],
+        "oracle_text": "Bolster 4. (Choose a creature with the least toughness among creatures you control and put four +1/+1 counters on it.)",
+    },
+    "Burrenton Bombardier": {
+        "keywords": ["Flying", "Reinforce"],
+        "oracle_text": "Flying\nReinforce 2—{2}{W} ({2}{W}, Discard this card: Put two +1/+1 counters on target creature.)",
+    },
+    "Gluttonous Cyclops": {
+        "keywords": ["Monstrosity"],
+        "oracle_text": "{5}{R}{R}: Monstrosity 3. (If this creature isn't monstrous, put three +1/+1 counters on it and it becomes monstrous.)",
+    },
+    "Simic Initiate": {
+        "keywords": ["Graft"],
+        "oracle_text": "Graft 1 (This creature enters with a +1/+1 counter on it. Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.)",
+    },
+    "Disowned Ancestor": {
+        "keywords": ["Outlast"],
+        "oracle_text": "Outlast {1}{B} ({1}{B}, {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery.)",
+    },
+    "Knight of the Pilgrim's Road": {
+        "keywords": ["Renown"],
+        "oracle_text": "Renown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)",
+    },
+    "Adaptive Snapjaw": {
+        "keywords": ["Evolve"],
+        "oracle_text": "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)",
+    },
+    "Skitter Eel": {
+        "keywords": ["Adapt"],
+        "oracle_text": "{2}{U}: Adapt 2. (If this creature has no +1/+1 counters on it, put two +1/+1 counters on it.)",
+    },
+    "Arcbound Worker": {
+        "keywords": ["Modular"],
+        "oracle_text": "Modular 1 (This creature enters with a +1/+1 counter on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+    },
+    "Apprentice Sharpshooter": {
+        "keywords": ["Reach", "Training"],
+        "oracle_text": "Reach\nTraining (Whenever this creature attacks with another creature with greater power, put a +1/+1 counter on this creature.)",
+    },
+    "Lead by Example": {
+        "keywords": ["Support"],
+        "oracle_text": "Support 2. (Put a +1/+1 counter on each of up to two target creatures.)",
+    },
+    "Snake of the Golden Grove": {
+        "keywords": ["Tribute"],
+        "oracle_text": "Tribute 3 (As this creature enters, an opponent of your choice may put three +1/+1 counters on it.)\nWhen this creature enters, if tribute wasn't paid, you gain 4 life.",
+    },
+    "Amber-Plate Ainok": {
+        "keywords": ["Double team", "Endure"],
+        "oracle_text": "Double team\nAt the beginning of your second main phase, if this creature is tapped, it endures 1.",
+    },
+    "Gorger Wurm": {
+        "keywords": ["Devour"],
+        "oracle_text": "Devour 1 (As this creature enters, you may sacrifice any number of creatures. It enters with that many +1/+1 counters on it.)",
+    },
+    "Enraged Revolutionary": {
+        "keywords": ["Dethrone"],
+        "oracle_text": "Dethrone (Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on it.)",
+    },
+    "Toph, Greatest Earthbender": {
+        "keywords": ["Earthbend"],
+        "oracle_text": "When Toph enters, earthbend X, where X is the amount of mana spent to cast her.\nLand creatures you control have double strike.",
+    },
+    "Harvest Gwyllion": {
+        "keywords": ["Wither"],
+        "oracle_text": "Wither (This deals damage to creatures in the form of -1/-1 counters.)",
+    },
+    "Gixian Recycler": {
+        "keywords": ["Unearth", "Conjure"],
+        "oracle_text": "When Gixian Recycler dies or is put into your graveyard from your hand or library, conjure a card named Gixian Recycler into your graveyard.\nUnearth {1}{B}",
+    },
+    "Sidisi's Faithful": {
+        "keywords": ["Exploit"],
+        "oracle_text": "Exploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, return target creature to its owner's hand.",
+    },
+    "Unicycle": {
+        "keywords": ["First strike", "Haste", "Crew", "Equip"],
+        "oracle_text": "First strike, haste\nEquipped creature has first strike and haste.\nEquip {1}\nCrew 1",
+    },
+    "Blitz Automaton": {
+        "keywords": ["Haste", "Prototype"],
+        "oracle_text": "Prototype {2}{R} — 3/2 (You may cast this spell with different mana cost, color, and size. It keeps its abilities and types.)\nHaste",
+    },
+    "Mai and Zuko": {
+        "keywords": ["Firebending"],
+        "oracle_text": "Firebending 3\nYou may cast Ally spells and artifact spells as though they had flash.",
+    },
 }
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.card_classify import build_card_lookup, get_oracle_text
 from mtg_utils.rules_lookup import (
     find_citations_for_terms,
     load_rules,
@@ -149,7 +149,7 @@ def detect_triggers(
     opponents: int,
 ) -> list[dict]:
     """Scan oracle text for triggered abilities and classify them."""
-    oracle = card.get("oracle_text", "") or ""
+    oracle = get_oracle_text(card)
     sentences = _split_trigger_sentences(oracle)
     results: list[dict] = []
     for sentence in sentences:
@@ -182,7 +182,7 @@ def _card_keywords_lower(card: dict) -> set[str]:
     kws: set[str] = set()
     for kw in card.get("keywords", []):
         kws.add(kw.lower())
-    oracle = card.get("oracle_text", "") or ""
+    oracle = get_oracle_text(card)
     # Pick up inline keyword declarations (e.g. "Double strike\n")
     for line in oracle.splitlines():
         stripped = line.strip().rstrip(".")
@@ -195,8 +195,8 @@ def detect_keyword_interactions(card: dict, commander: dict) -> list[dict]:
     """Detect emergent keyword combinations between card and commander."""
     card_kws = _card_keywords_lower(card)
     cmd_kws = _card_keywords_lower(commander)
-    card_oracle = card.get("oracle_text", "") or ""
-    cmd_oracle = commander.get("oracle_text", "") or ""
+    card_oracle = get_oracle_text(card)
+    cmd_oracle = get_oracle_text(commander)
 
     all_card_kws = card_kws
     all_cmd_kws = cmd_kws
@@ -324,7 +324,7 @@ _RETURN_TO_HAND_RE = re.compile(r"return.*?to.*?hand", re.IGNORECASE)
 
 def detect_self_recurring(card: dict) -> bool:
     """Return True if the card has self-recursion mechanics."""
-    oracle = card.get("oracle_text", "") or ""
+    oracle = get_oracle_text(card)
     keywords = [kw.lower() for kw in card.get("keywords", [])]
 
     # Check keywords list
@@ -367,8 +367,8 @@ def detect_commander_multiplication(card: dict, commander: dict) -> dict:
         - commander_triggers_affected: commander trigger types that would be multiplied
         - commander_activated_abilities: non-mana activated abilities on the commander
     """
-    card_oracle = card.get("oracle_text", "") or ""
-    cmd_oracle = commander.get("oracle_text", "") or ""
+    card_oracle = get_oracle_text(card)
+    cmd_oracle = get_oracle_text(commander)
 
     commander_copy: list[dict] = []
     ability_copy: list[dict] = []

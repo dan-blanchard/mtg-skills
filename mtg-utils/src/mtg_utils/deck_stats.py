@@ -13,6 +13,7 @@ from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
     color_sources,
+    get_oracle_text,
     is_creature,
     is_land,
     is_ramp,
@@ -49,7 +50,7 @@ _MORPH_KEYWORDS = {"morph", "disguise", "megamorph"}
 def _detect_alternative_costs(card: dict) -> list[dict]:
     """Detect alternative casting costs from keywords and oracle text."""
     keywords = [kw.lower() for kw in card.get("keywords", [])]
-    oracle = card.get("oracle_text", "") or ""
+    oracle = get_oracle_text(card)
     alt_costs: list[dict] = []
 
     for kw in keywords:

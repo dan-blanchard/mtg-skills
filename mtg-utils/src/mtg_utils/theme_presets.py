@@ -55,8 +55,11 @@ class Preset:
     - ``keywords``: the card's ``keywords`` array contains any of these
       (case-insensitive).
     - ``patterns``: any regex matches the card's oracle text.
+    - ``layouts``: the card's Scryfall ``layout`` field equals one of
+      these (case-sensitive, matching Scryfall values like
+      ``"adventure"``, ``"prototype"``, ``"split"``, ``"saga"``).
 
-    Both may be set; they combine with OR. ``should_match`` and
+    All three may be set; they combine with OR. ``should_match`` and
     ``should_not_match`` are card-name fixtures used by the test suite.
     """
 
@@ -64,6 +67,7 @@ class Preset:
     description: str
     keywords: tuple[str, ...] = ()
     patterns: tuple[re.Pattern[str], ...] = ()
+    layouts: tuple[str, ...] = ()
     should_match: tuple[str, ...] = ()
     should_not_match: tuple[str, ...] = ()
 
@@ -76,7 +80,7 @@ class Preset:
             oracle = get_oracle_text(card)
             if any(p.search(oracle) for p in self.patterns):
                 return True
-        return False
+        return bool(self.layouts) and card.get("layout") in self.layouts
 
 
 def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
@@ -397,6 +401,513 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         should_match=("Skullclamp", "Helm of the Host"),
         should_not_match=("Lightning Bolt",),
     ),
+    Preset(
+        name="paradigm",
+        description=(
+            "Spell-copy: exile this spell on resolution. After the first "
+            "spell with this name resolves, you may cast a copy of it "
+            "from exile for free at the beginning of each of your first "
+            "main phases. Recurring free-cast from exile (Secrets of "
+            "Strixhaven)."
+        ),
+        keywords=("Paradigm",),
+        should_match=("Improvisation Capstone",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="prepared",
+        description=(
+            "Creature paired with a spell on a split face (Secrets of "
+            "Strixhaven 'prepare' layout). The creature becomes prepared "
+            "under a trigger condition (first main phase, attack, etc.). "
+            "While prepared, you may cast the paired spell; doing so "
+            "unprepares the creature. A conditional two-card single-slot "
+            "design, closer in spirit to Adventure than to spell-copy."
+        ),
+        keywords=("Prepared",),
+        layouts=("prepare",),
+        should_match=("Scathing Shadelock // Venomous Words",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Individual keyword presets (cast-later / graveyard-cast / spell-copy
+    # / tokens / plus-one-counters / misc) ──
+    Preset(
+        name="foretell",
+        description=(
+            "Cast-later: exile from hand for {2}, cast for foretell cost next turn or "
+            "later (CR 702.145)."
+        ),
+        keywords=("Foretell",),
+        should_match=("Scorn Effigy",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="plot",
+        description=(
+            "Cast-later: exile from hand, cast for its mana cost on a future turn as a "
+            "sorcery (CR 702.167)."
+        ),
+        keywords=("Plot",),
+        should_match=("Djinn of Fool's Fall",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="warp",
+        description=(
+            "Cast-later: cast from hand for warp cost, exile at the next end step, "
+            "cast "
+            "again from exile later (CR 702.185)."
+        ),
+        keywords=("Warp",),
+        should_match=("Voidcalled Devotee",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="rebound",
+        description=(
+            "Cast-later: cast from hand, exile at resolution, cast from exile next "
+            "turn "
+            "(CR 702.88)."
+        ),
+        keywords=("Rebound",),
+        should_match=("Unnatural Summons",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="impending",
+        description=(
+            "Cast-later: cast for impending cost; enters as a non-creature enchantment "
+            "with time counters and becomes a creature later (CR 702.182)."
+        ),
+        keywords=("Impending",),
+        should_match=("Lurker in the Deep",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="jump-start",
+        description=(
+            "Graveyard-cast: cast from graveyard by discarding a card in addition to "
+            "other costs (CR 702.133)."
+        ),
+        keywords=("Jump-start",),
+        should_match=("Surge of Acclaim",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="aftermath",
+        description=(
+            "Graveyard-cast: split card whose second half can only be cast from the "
+            "graveyard (CR 702.127)."
+        ),
+        keywords=("Aftermath",),
+        should_match=("Appeal // Authority",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="retrace",
+        description=(
+            "Graveyard-cast: cast from graveyard by discarding a land in addition to "
+            "other costs (CR 702.81)."
+        ),
+        keywords=("Retrace",),
+        should_match=("Oona's Grace",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="disturb",
+        description=(
+            "Graveyard-cast: cast a transformed double-faced card from the graveyard "
+            "(CR 702.146)."
+        ),
+        keywords=("Disturb",),
+        should_match=("Baithook Angler // Hook-Haunt Drifter",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="mayhem",
+        description=(
+            "Graveyard-cast: cast from graveyard for the mayhem cost if discarded this "
+            "turn (CR 702.187)."
+        ),
+        keywords=("Mayhem",),
+        should_match=("Spider-Islanders",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="harmonize",
+        description=(
+            "Graveyard-cast: cast from graveyard for a harmonize cost; tap a creature "
+            "you control to reduce the cost by {1} (CR 702.180)."
+        ),
+        keywords=("Harmonize",),
+        should_match=("Ureni's Counsel",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="casualty",
+        description=(
+            "Spell-copy: as you cast, sacrifice a creature with power N or greater to "
+            "copy this spell (CR 702.153)."
+        ),
+        keywords=("Casualty",),
+        should_match=("Cut of the Profits",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="replicate",
+        description=(
+            "Spell-copy: when you cast, pay the replicate cost any number of times to "
+            "create that many copies (CR 702.42)."
+        ),
+        keywords=("Replicate",),
+        should_match=("Train of Thought",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="cipher",
+        description=(
+            "Spell-copy: encode this spell on a creature you control; whenever that "
+            "creature deals combat damage to a player, you may cast a copy of the "
+            "encoded spell (CR 702.99). Niche Dimir mechanic from Gatecrash."
+        ),
+        keywords=("Cipher",),
+        should_match=("Last Thoughts",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="conspire",
+        description=(
+            "Spell-copy: tap two untapped creatures sharing a color with this spell to "
+            "copy it (CR 702.75)."
+        ),
+        keywords=("Conspire",),
+        should_match=("Ghastly Discovery",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="demonstrate",
+        description=(
+            "Spell-copy: when you cast, you may copy it; if you do, choose an opponent "
+            "to copy it too (CR 702.152)."
+        ),
+        keywords=("Demonstrate",),
+        should_match=("Incarnation Technique",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="populate",
+        description=(
+            "Tokens: create a copy of a creature token you control (CR 701.36)."
+        ),
+        keywords=("Populate",),
+        should_match=("Wake the Reflections",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="amass",
+        description=(
+            "Tokens: create a Zombie Army creature token or grow the one you have with "
+            "+1/+1 counters (CR 701.47)."
+        ),
+        keywords=("Amass",),
+        should_match=("Gríma Wormtongue",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="offspring",
+        description=(
+            "Tokens: pay extra as you cast a creature to create a 1/1 token copy of it "
+            "when it enters (CR 702.175)."
+        ),
+        keywords=("Offspring",),
+        should_match=("Fountainport Charmer",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="manifest",
+        description=(
+            "Tokens: put a card face down onto the battlefield as a 2/2 creature (CR "
+            "701.40)."
+        ),
+        keywords=("Manifest",),
+        should_match=("Paranormal Analyst",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="cloak",
+        description=(
+            "Tokens: manifest with ward {2} — a 2/2 face-down creature with ward {2} "
+            "(CR 701.58)."
+        ),
+        keywords=("Cloak",),
+        should_match=("Ransom Note",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="incubate",
+        description=(
+            "Tokens: create an Incubator token that transforms into a 3/3 colorless "
+            "Phyrexian when 2+ +1/+1 counters are on it (CR 701.53)."
+        ),
+        keywords=("Incubate",),
+        should_match=("Eyes of Gitaxias",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="fabricate",
+        description=(
+            "Tokens and +1/+1 counters: when this creature enters, choose to create N "
+            "1/1 Servo tokens OR put N +1/+1 counters on it (CR 702.123)."
+        ),
+        keywords=("Fabricate",),
+        should_match=("Accomplished Automaton",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="afterlife",
+        description=(
+            "Tokens: when this creature dies, create N 1/1 white-and-black Spirit "
+            "tokens with flying (CR 702.135)."
+        ),
+        keywords=("Afterlife",),
+        should_match=("Debtors' Transport",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="mobilize",
+        description=(
+            "Tokens: whenever this creature attacks, create N tapped-and-attacking red "
+            "Warrior tokens that are sacrificed at end of combat (CR 702.181)."
+        ),
+        keywords=("Mobilize",),
+        should_match=("Dalkovan Outrider",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="encore",
+        description=(
+            "Tokens: pay the encore cost and exile this creature from your graveyard "
+            "to "
+            "create a token copy of it for each opponent, each attacking that opponent "
+            "(CR 702.141)."
+        ),
+        keywords=("Encore",),
+        should_match=("Broodmate Tyrant",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="myriad",
+        description=(
+            "Tokens: whenever this creature attacks, for each other opponent, create a "
+            "tapped-and-attacking token copy attacking that opponent (CR 702.116)."
+        ),
+        keywords=("Myriad",),
+        should_match=("The Master, Multiplied",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="bolster",
+        description=(
+            "+1/+1 counters: choose a creature you control with the least toughness "
+            "and "
+            "put N +1/+1 counters on it (CR 701.39)."
+        ),
+        keywords=("Bolster",),
+        should_match=("Dromoka's Gift",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="reinforce",
+        description=(
+            "+1/+1 counters: pay reinforce cost and discard this card to put N +1/+1 "
+            "counters on target creature (CR 702.77)."
+        ),
+        keywords=("Reinforce",),
+        should_match=("Burrenton Bombardier",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="monstrosity",
+        description=(
+            "+1/+1 counters: pay an activated cost to put N +1/+1 counters on this "
+            "creature and make it monstrous (CR 701.37)."
+        ),
+        keywords=("Monstrosity",),
+        should_match=("Gluttonous Cyclops",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="graft",
+        description=(
+            "+1/+1 counters: enters with N +1/+1 counters on it; may move one counter "
+            "to another creature entering the battlefield (CR 702.58)."
+        ),
+        keywords=("Graft",),
+        should_match=("Simic Initiate",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="outlast",
+        description=(
+            "+1/+1 counters: sorcery-speed activated ability that puts a +1/+1 counter "
+            "on this creature (CR 702.107)."
+        ),
+        keywords=("Outlast",),
+        should_match=("Disowned Ancestor",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="renown",
+        description=(
+            "+1/+1 counters: when this creature deals combat damage to a player for "
+            "the "
+            "first time, becomes renowned with N +1/+1 counters (CR 702.112)."
+        ),
+        keywords=("Renown",),
+        should_match=("Knight of the Pilgrim's Road",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="evolve",
+        description=(
+            "+1/+1 counters: whenever a creature with greater power OR toughness "
+            "enters "
+            "under your control, put a +1/+1 counter on this creature (CR 702.100)."
+        ),
+        keywords=("Evolve",),
+        should_match=("Adaptive Snapjaw",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="adapt",
+        description=(
+            "+1/+1 counters: pay adapt cost to put N +1/+1 counters on this creature "
+            "if "
+            "it has no +1/+1 counters (CR 701.46)."
+        ),
+        keywords=("Adapt",),
+        should_match=("Skitter Eel",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="modular",
+        description=(
+            "+1/+1 counters: artifact creature enters with N +1/+1 counters; when it "
+            "dies, may move them to another artifact creature (CR 702.43)."
+        ),
+        keywords=("Modular",),
+        should_match=("Arcbound Worker",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="training",
+        description=(
+            "+1/+1 counters: whenever this creature and at least one other creature "
+            "with greater power attack, put a +1/+1 counter on this creature (CR "
+            "702.149)."
+        ),
+        keywords=("Training",),
+        should_match=("Apprentice Sharpshooter",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="support",
+        description=(
+            "+1/+1 counters: put a +1/+1 counter on each of up to N target creatures "
+            "(CR 701.41)."
+        ),
+        keywords=("Support",),
+        should_match=("Lead by Example",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="tribute",
+        description=(
+            "+1/+1 counters: an opponent chooses whether this creature enters with N "
+            "+1/+1 counters or instead triggers an additional ability (CR 702.104)."
+        ),
+        keywords=("Tribute",),
+        should_match=("Snake of the Golden Grove",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="endure",
+        description=(
+            "+1/+1 counters OR tokens: modal — choose to put N +1/+1 counters on a "
+            "creature or create an N/N Spirit token (CR 702.62)."
+        ),
+        keywords=("Endure",),
+        should_match=("Amber-Plate Ainok",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="devour",
+        description=(
+            "+1/+1 counters: as this creature enters, you may sacrifice any number of "
+            "creatures; it enters with N +1/+1 counters per creature sacrificed this "
+            "way (CR 702.82)."
+        ),
+        keywords=("Devour",),
+        should_match=("Gorger Wurm",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="dethrone",
+        description=(
+            "+1/+1 counters: whenever this creature attacks the player with the most "
+            "life, put a +1/+1 counter on it (CR 702.105)."
+        ),
+        keywords=("Dethrone",),
+        should_match=("Enraged Revolutionary",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="earthbend",
+        description=(
+            "Land animation: turn a target land you control into a 0/0 creature with "
+            "haste and put N +1/+1 counters on it. When that land dies or is exiled, "
+            "return it tapped (CR 701.66)."
+        ),
+        keywords=("Earthbend",),
+        should_match=("Toph, Greatest Earthbender",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="wither",
+        description=(
+            "Creature damage: whenever this creature deals damage to a creature, that "
+            "damage is dealt as -1/-1 counters instead (CR 702.80)."
+        ),
+        keywords=("Wither",),
+        should_match=("Harvest Gwyllion",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="unearth",
+        description=(
+            "Reanimate: pay unearth cost to return this card from your graveyard to "
+            "the "
+            "battlefield with haste; exile it at the beginning of the next end step "
+            "(CR "
+            "702.84)."
+        ),
+        keywords=("Unearth",),
+        should_match=("Gixian Recycler",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="exploit",
+        description=(
+            "Sacrifice trigger: when this creature enters, you may sacrifice a "
+            "creature "
+            "for an additional effect (CR 702.110)."
+        ),
+        keywords=("Exploit",),
+        should_match=("Sidisi's Faithful",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # crew/prototype/firebending are defined as standalone presets in
+    # _FUNCTIONAL_PRESETS below (with richer descriptions + layout support).
 )
 
 # ─── Functional regex presets ─────────────────────────────────────────────
@@ -1071,6 +1582,232 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Counterspell",
             "Angel of Sanctions",  # Embalm creates a token, not cast
         ),
+    ),
+    # ── Cast-later family (exile-then-cast-later mechanics) ──
+    Preset(
+        name="cast-later",
+        description=(
+            "Cards that are cast at a time other than normal spell timing — "
+            "exiled or held to be cast on a future turn, often for an "
+            "alternative cost. Covers Suspend, Foretell, Plot, Warp, "
+            "Rebound, Impending, and Adventure (matched via the 'adventure' "
+            "layout since Scryfall doesn't tag it as a keyword)."
+        ),
+        keywords=(
+            "Suspend",
+            "Foretell",
+            "Plot",
+            "Warp",
+            "Rebound",
+            "Impending",
+        ),
+        layouts=("adventure",),
+        should_match=(
+            "Ancestral Vision",  # Suspend
+            "Scorn Effigy",  # Foretell
+            "Djinn of Fool's Fall",  # Plot
+            "Voidcalled Devotee",  # Warp
+        ),
+        should_not_match=("Lightning Bolt", "Counterspell"),
+    ),
+    # ── Spell-copy family ──
+    Preset(
+        name="spell-copy",
+        description=(
+            "Copies a spell (self or another spell). Covers Storm, "
+            "Casualty, Replicate, Cipher, Conspire, Demonstrate, and the "
+            "Secrets of Strixhaven 'Paradigm' recurring free-cast-from-"
+            "exile mechanic. Does NOT include Splice (which adds text "
+            "onto an Arcane spell rather than copying) or Prepared "
+            "(which casts a paired spell, not a copy of the current one)."
+        ),
+        keywords=(
+            "Storm",
+            "Casualty",
+            "Replicate",
+            "Cipher",
+            "Conspire",
+            "Demonstrate",
+            "Paradigm",
+        ),
+        should_match=(
+            "Weather the Storm",
+            "Cut of the Profits",  # Casualty
+            "Train of Thought",  # Replicate
+            "Last Thoughts",  # Cipher
+            "Improvisation Capstone",  # Paradigm
+        ),
+        should_not_match=("Lightning Bolt", "Counterspell"),
+    ),
+    # ── Edict family (forced-sacrifice) ──
+    Preset(
+        name="edict",
+        description=(
+            "Forced-sacrifice effects. Defender chooses which permanent "
+            "to sacrifice (a kind of removal that bypasses hexproof/"
+            "indestructible). Covers the Annihilator keyword + 'target/"
+            "each player sacrifices a <type>' regex."
+        ),
+        keywords=("Annihilator",),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*"
+            r"(?:creature|permanent|artifact|land|enchantment|planeswalker)",
+        ),
+        should_match=("Diabolic Edict",),
+        should_not_match=("Lightning Bolt", "Wrath of God", "Vindicate"),
+    ),
+    Preset(
+        name="creature-edict",
+        description=(
+            "Forced-sacrifice of a creature (Diabolic Edict, Fleshbag "
+            "Marauder, Plaguecrafter, Liliana's Triumph, Sheoldred's "
+            "Edict). Mass forms like Barter in Blood also match. "
+            "Includes 'creature or planeswalker' modals."
+        ),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*creatures?",
+        ),
+        should_match=("Diabolic Edict",),
+        should_not_match=("Lightning Bolt", "Shatter", "Sinkhole"),
+    ),
+    Preset(
+        name="artifact-edict",
+        description=(
+            "Forced-sacrifice of an artifact — rare category, mostly "
+            "Tribute to the Wild, Pick Your Poison, Perilous Predicament."
+        ),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*artifacts?",
+        ),
+        should_match=("Tribute to the Wild",),
+        should_not_match=("Lightning Bolt", "Diabolic Edict"),
+    ),
+    Preset(
+        name="enchantment-edict",
+        description=(
+            "Forced-sacrifice of an enchantment — rare category "
+            "(Dromoka's Command, Pharika's Libation, Abzan Advantage)."
+        ),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*enchantments?",
+        ),
+        should_match=("Dromoka's Command",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="land-edict",
+        description=(
+            "Forced-sacrifice of a land. Includes mass LD like Wildfire "
+            "and Epicenter, plus Smallpox-style combined effects."
+        ),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*lands?",
+        ),
+        should_match=("Wildfire",),
+        should_not_match=("Lightning Bolt", "Armageddon"),
+    ),
+    Preset(
+        name="planeswalker-edict",
+        description=(
+            "Forced-sacrifice of a planeswalker — very rare. Usually "
+            "appears as 'sacrifices a creature or planeswalker' in modern "
+            "edict design (Sheoldred's Edict, Angrath's Rampage), so this "
+            "overlaps heavily with creature-edict."
+        ),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*"
+            r"(?:[^.]*? )?planeswalkers?",
+        ),
+        should_match=("Sheoldred's Edict",),
+        should_not_match=("Lightning Bolt", "Diabolic Edict"),
+    ),
+    Preset(
+        name="universal-edict",
+        description=(
+            "Forced-sacrifice of any permanent type. Includes "
+            "Annihilator (CR 702.86) — attack trigger forcing defender "
+            "to sacrifice N permanents of their choice — and spells "
+            "like Shard of the Void Dragon, World Queller, Martyr's "
+            "Bond, Rishadan Brigand."
+        ),
+        keywords=("Annihilator",),
+        patterns=_rx(
+            r"(?:target|each)(?:\s+\w+)*?\s+(?:player|opponent)s?"
+            r"\s+sacrifices?\s+"
+            r"(?:a|an|\d+|one|two|three|four|five)?\s*"
+            r"(?:nonland )?permanents?",
+        ),
+        should_match=("Shard of the Void Dragon", "Martyr's Bond"),
+        should_not_match=("Lightning Bolt", "Diabolic Edict", "Wildfire"),
+    ),
+    # ── Land-animation (manlands + Earthbend) ──
+    Preset(
+        name="land-animation",
+        description=(
+            "Turns a land into a creature. Covers manland cards via "
+            "regex (Treetop Village, Celestial Colonnade, Mutavault, "
+            "Creeping Tar Pit, etc.) and the Earthbend keyword from "
+            "the Avatar crossover (CR 701.66)."
+        ),
+        keywords=("Earthbend",),
+        patterns=_rx(
+            # Matches self-animating lands ("this land becomes a creature")
+            # and targeted land-animation ("target land becomes a creature").
+            r"(?:this|target) land [^.]*?becomes? a[^.]*?\bcreature\b",
+            r"land (?:you control )?becomes? a[^.]*?\bcreature\b",
+        ),
+        should_match=("Mutavault", "Treetop Village"),
+        should_not_match=("Lightning Bolt", "Counterspell", "Sinkhole"),
+    ),
+    # ── Vehicles (Crew) ──
+    Preset(
+        name="crew",
+        description=(
+            "Vehicles with a crew cost — tap creatures with total power "
+            "N or greater to animate the Vehicle until end of turn "
+            "(CR 702.122). Vehicles are a distinct archetype."
+        ),
+        keywords=("Crew",),
+        should_match=("Unicycle",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Prototype (alt-cost smaller mode) ──
+    Preset(
+        name="prototype",
+        description=(
+            "Cast the card for its prototype cost with different mana "
+            "value, color, and power/toughness — usually a smaller, "
+            "cheaper mode (CR 702.160). The Scryfall layout is also "
+            "'prototype' on these cards."
+        ),
+        keywords=("Prototype",),
+        layouts=("prototype",),
+        should_match=("Blitz Automaton",),
+        should_not_match=("Lightning Bolt",),
+    ),
+    # ── Firebending (combat-triggered red mana) ──
+    Preset(
+        name="firebending",
+        description=(
+            "Combat-triggered red mana: whenever this creature attacks, "
+            "add N red mana until end of combat (CR 702.189). Avatar "
+            "crossover mechanic."
+        ),
+        keywords=("Firebending",),
+        should_match=("Mai and Zuko",),
+        should_not_match=("Lightning Bolt",),
     ),
 )
 
