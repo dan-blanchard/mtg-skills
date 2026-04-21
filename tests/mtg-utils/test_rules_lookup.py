@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import textwrap
 from pathlib import Path
 
@@ -383,3 +384,170 @@ class TestCLI:
         data = json_from_cli_output(result)
         assert data["match"]["number"] == "100.1a"
         assert data["effective_date"] == "February 2, 2024"
+
+
+class TestRealCR:
+    """Real-CR tests: parse the actual 2024 Comprehensive Rules text
+    (fetched by the ``real_cr_path`` session fixture) and assert
+    invariants that must hold against the real document, not just our
+    miniaturized hand-rolled fixture.
+
+    Catches parser drift against formatting changes in the real CR —
+    the synthetic fixture can't surface unknown-unknowns like the
+    ``119.1d.`` trailing-period bug fixed after the initial review.
+    """
+
+    def test_structural_invariants(self, real_cr_path):
+        """Tier 1: parser sanity. Exact counts are fragile across CR
+        updates, so we assert lower bounds that would only break if the
+        parser itself regressed (not if Wizards added a new section)."""
+        parsed = load_rules(real_cr_path)
+
+        # 9 top-level sections — this is stable across CR versions
+        # going back decades.
+        assert set(parsed["sections"]) == {str(i) for i in range(1, 10)}
+        assert parsed["sections"]["1"]["title"] == "Game Concepts"
+        assert parsed["sections"]["7"]["title"] == "Additional Rules"
+
+        # The CR has ~3000 rules; anything under 2000 indicates a
+        # parser regression that ate whole categories.
+        assert len(parsed["rules"]) >= 2000, f"only {len(parsed['rules'])} rules parsed"
+
+        # The glossary has ~670 entries; under 500 means a parser bug.
+        assert len(parsed["glossary"]) >= 500
+
+        # Effective-date line must have been extracted.
+        assert parsed["effective_date"]
+
+    def test_known_rules_indexed(self, real_cr_path):
+        """Tier 1: specific well-known rule numbers and glossary terms
+        must be present. Regressing any of these means the parser
+        dropped them silently."""
+        parsed = load_rules(real_cr_path)
+
+        # Keyword ability subrules
+        assert parsed["rules"].get("702.19a") is not None, "trample missing"
+        assert parsed["rules"].get("702.4a") is not None, "double strike missing"
+        assert parsed["rules"].get("702.2a") is not None, "deathtouch missing"
+
+        # Top-level rules
+        assert parsed["rules"].get("603.2") is not None, "triggered abilities"
+
+        # Category headers (no subrule suffix)
+        assert parsed["rules"].get("903") is not None, "commander category"
+
+        # Real CR formatting quirks the relaxed regexes now catch
+        # (see commit message of the parser-robustness fix).
+        assert parsed["rules"].get("119.1d") is not None, (
+            "trailing-period subrule regressed"
+        )
+        assert parsed["rules"].get("606.5") is not None, "missing-period rule regressed"
+        assert parsed["rules"].get("901.4") is not None, "missing-space rule regressed"
+
+        # Glossary terms — case-insensitive keys.
+        for term in ("trample", "double strike", "deathtouch", "menace", "hexproof"):
+            assert term in parsed["glossary"], f"glossary missing {term!r}"
+
+    def test_zero_unresolved_cross_references(self, real_cr_path):
+        """Tier 2: regression pin for I-2's post-filter. Every
+        ``see_rules`` entry — in rules and glossary alike — must
+        resolve to a real indexed rule. A non-zero count means the
+        filter broke and bare numerics from prose are polluting
+        citations again."""
+        parsed = load_rules(real_cr_path)
+        rule_keys = set(parsed["rules"])
+
+        unresolved_from_rules = [
+            (num, ref)
+            for num, entry in parsed["rules"].items()
+            for ref in entry.get("see_rules", [])
+            if ref not in rule_keys
+        ]
+        assert unresolved_from_rules == [], (
+            f"rules have unresolved see_rules: {unresolved_from_rules[:5]}"
+        )
+
+        unresolved_from_glossary = [
+            (term, ref)
+            for term, entry in parsed["glossary"].items()
+            for ref in entry["see_rules"]
+            if ref not in rule_keys
+        ]
+        assert unresolved_from_glossary == [], (
+            f"glossary has unresolved see_rules: {unresolved_from_glossary[:5]}"
+        )
+
+    def test_trample_glossary_points_at_real_rule(self, real_cr_path):
+        """Tier 2 spot-check: follow a glossary → rule cross-reference
+        end-to-end against the real document."""
+        parsed = load_rules(real_cr_path)
+        trample = parsed["glossary"]["trample"]
+        assert "702.19" in trample["see_rules"]
+        # The referenced category must exist.
+        assert parsed["rules"].get("702.19") is not None
+
+    def test_cite_rules_end_to_end(self, real_cr_path, trigger_test_cards, tmp_path):
+        """Tier 3: run ``cut-check --cite-rules`` against real hydrated
+        cards and the real CR. Asserts the whole cite-rules pipeline —
+        downloader-agnostic parse → keyword-interaction detection →
+        glossary lookup → citation attachment — produces a coherent
+        result against the actual published rules, not just our
+        fixture."""
+        from click.testing import CliRunner
+
+        from mtg_utils.cut_check import main as cut_check_main
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        # Blocking Restrictor (trample + can't-be-blocked-by-more-than-one)
+        # against Obeka (menace commander) produces two keyword
+        # interactions, each citing a real CR rule.
+        cuts_path.write_text(json.dumps(["Blocking Restrictor", "Double Striker"]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cut_check_main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+                "--cite-rules",
+                "--rules-file",
+                str(real_cr_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+
+        # Collect all citations across all analysed cards.
+        all_citations = [c for entry in data for c in entry.get("rule_citations", [])]
+        assert all_citations, "no citations attached — wiring is broken"
+
+        # Every citation must reference a real CR rule (format like
+        # "702.19", "702.4") with a non-empty snippet.
+        for c in all_citations:
+            assert c["rule"], c
+            assert c["snippet"], c
+            # Rule numbers in the real CR are always digit.digit or
+            # digit.digit-letter; the stub fixture uses 702.19-style
+            # numbers, so a regex digit-dot-digit check is sufficient
+            # to catch malformed citations.
+            assert c["rule"].split(".")[0].isdigit()
+
+        cited_terms = {c["term"].lower() for c in all_citations}
+        # At least one of the expected keyword glossary hits must land.
+        assert cited_terms & {
+            "trample",
+            "menace",
+            "double strike",
+            "deathtouch",
+        }, f"no expected keyword cited: {cited_terms}"

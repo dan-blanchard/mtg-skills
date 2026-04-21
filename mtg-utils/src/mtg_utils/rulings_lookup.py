@@ -268,17 +268,11 @@ def main(
 
 
 def _extract_names(payload: list | dict) -> list[str]:
-    """Accept a plain list of names or a parsed-deck JSON."""
-    if isinstance(payload, list):
-        if payload and isinstance(payload[0], dict):
-            return [entry["name"] for entry in payload if "name" in entry]
-        return [n for n in payload if isinstance(n, str)]
-    names: list[str] = []
-    seen: set[str] = set()
-    for section in ("commanders", "cards", "sideboard"):
-        for entry in payload.get(section, []) or []:
-            name = entry.get("name") if isinstance(entry, dict) else None
-            if name and name not in seen:
-                names.append(name)
-                seen.add(name)
-    return names
+    """Thin shim over ``parse_deck.extract_deck_names`` (canonical impl).
+
+    Kept module-local so existing callers / tests that import from this
+    module still work.
+    """
+    from mtg_utils.parse_deck import extract_deck_names
+
+    return extract_deck_names(payload)

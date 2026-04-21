@@ -257,23 +257,16 @@ def lookup_single(
 
 
 def _extract_names(data: list | dict) -> list[str]:
-    """Extract card names from either a name list or parsed deck JSON."""
-    if isinstance(data, list):
-        # Handle both ["name", ...] and [{"name": "...", ...}, ...]
-        # Assumes uniform list — all strings or all dicts, not mixed.
-        if data and isinstance(data[0], dict):
-            return [entry["name"] for entry in data]
-        return data
-    # Deck JSON format: {"commanders": [...], "cards": [...], "sideboard": [...]}
-    names: list[str] = []
-    seen: set[str] = set()
-    for section in ("commanders", "cards", "sideboard"):
-        for entry in data.get(section, []):
-            name = entry["name"]
-            if name not in seen:
-                names.append(name)
-                seen.add(name)
-    return names
+    """Extract card names from either a name list or parsed deck JSON.
+
+    Thin compatibility shim: delegates to ``parse_deck.extract_deck_names``
+    (the canonical implementation). Kept as an underscore-prefixed name
+    inside this module because existing tests patch it by string path
+    (``mtg_utils.scryfall_lookup._extract_names``).
+    """
+    from mtg_utils.parse_deck import extract_deck_names
+
+    return extract_deck_names(data)
 
 
 def _default_cache_dir() -> Path:

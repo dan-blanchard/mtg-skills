@@ -112,6 +112,43 @@ the question, do ONE of:
    specialist with the relevant section text preloaded. Prompt the
    subagent to return a rule-cited answer, not a paraphrase.
 
+**Worked example — escalation path #2 (section slice):**
+
+User asks: *"Does my Teferi's Puzzle Box trigger interact with Rule of
+Law somehow — can I still draw my new hand?"*
+
+This is a replacement-effect / triggered-ability interaction. The
+first lookup is cheap:
+
+```bash
+rules-lookup --term "replacement effect" --rules-file <wd>/comprehensive-rules-*.txt
+```
+
+Output: glossary entry pointing at rule `614`. Now read the category
+itself to see whether drawing cards is a "replacement" at all:
+
+```bash
+rules-lookup --rule 614 --rules-file <wd>/comprehensive-rules-*.txt
+```
+
+If `614`'s prose is thin (category headers are just titles), pull the
+full section band by finding the line number and `Read`-ing the TXT:
+
+```bash
+grep -n "^614\." <wd>/comprehensive-rules-*.txt | head -1
+# Prints e.g.: "3108:614. Replacement Effects"
+```
+
+Then read lines `3108-3250` (typical category size) to see every
+subrule:
+
+```
+Read <wd>/comprehensive-rules-20260227.txt offset=3108 limit=140
+```
+
+Most rules-lawyer questions resolve inside Phase 2 — this escalation
+is for the ones that don't.
+
 ### Phase 4: Write the Answer
 
 Every answer has three required parts:

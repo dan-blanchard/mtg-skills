@@ -296,3 +296,44 @@ def main(
         click.echo(f"{summary} -> {resolved}")
     else:
         click.echo(payload)
+
+
+def extract_deck_names(payload: list | dict) -> list[str]:
+    """Extract card names from a plain name list or a parsed-deck JSON.
+
+    Accepted shapes:
+
+    * ``list[str]`` — returned as-is (non-strings filtered). No dedup;
+      callers that accept duplicates (e.g., a paper deck with seven
+      copies of Hare Apparent) get the literal list. ``scryfall-lookup``'s
+      batch hydration relies on this: duplicates in the input are
+      treated as distinct work items, and the hydrated cache dedupes
+      downstream.
+    * ``list[dict]`` — extracts the ``name`` field from each entry.
+      Entries missing ``name`` are skipped, not errored (some Scryfall
+      responses lack ``name`` in degenerate cases).
+    * ``dict`` — a parsed deck JSON of the shape
+      ``{commanders, cards, sideboard}``. Walks all three sections and
+      dedups across them (so a legendary creature listed in both
+      ``commanders`` and ``cards`` yields one name, not two) — this
+      matches ``mark_owned._collect_entries(sum_duplicates=False)``.
+
+    This is the canonical extractor; ``scryfall_lookup`` and
+    ``rulings_lookup`` both delegate here rather than maintaining their
+    own copies.
+    """
+    if isinstance(payload, list):
+        if payload and isinstance(payload[0], dict):
+            return [entry["name"] for entry in payload if "name" in entry]
+        return [n for n in payload if isinstance(n, str)]
+    names: list[str] = []
+    seen: set[str] = set()
+    for section in ("commanders", "cards", "sideboard"):
+        for entry in payload.get(section, []) or []:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if name and name not in seen:
+                names.append(name)
+                seen.add(name)
+    return names

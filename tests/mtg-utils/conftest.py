@@ -1,10 +1,28 @@
 """Shared test fixtures for mtg_utils tests."""
 
 import json
+import os
+import tempfile
 import textwrap
+import time
+import urllib.request
 from pathlib import Path
 
 import pytest
+
+# Real 2024 Comprehensive Rules, mirrored on GitHub. Used by the
+# ``real_cr_path`` fixture so tests can parse an actual CR document
+# instead of only our minimized hand-rolled fixture — catches parser
+# drift against formatting quirks we don't know about (the February
+# 2024 doc exposed three: a trailing period after 119.1d, a missing
+# period in 606.5, a missing space after 901.4). Not proxied behind an
+# env var: CI runs on GitHub and hitting raw.githubusercontent.com
+# from GitHub Actions is reliable.
+_REAL_CR_URL = (
+    "https://raw.githubusercontent.com/Chertus/MTGRules/main/"
+    "MagicCompRules_20240206.txt"
+)
+_REAL_CR_CACHE_TTL = 7 * 86400  # a week — the mirrored file is static
 
 
 def json_from_cli_output(result) -> object:
@@ -980,3 +998,36 @@ def sample_combo_empty_response() -> dict:
             "almostIncludedByAddingColorsAndChangingCommanders": [],
         }
     }
+
+
+@pytest.fixture(scope="session")
+def real_cr_path() -> Path:
+    """Return a path to the real 2024 Comprehensive Rules TXT.
+
+    Downloads from a GitHub mirror on first use per test session, with
+    a 7-day on-disk cache at ``/tmp/pytest-comprehensive-rules.txt`` so
+    local edit-rerun loops don't refetch constantly. Session-scoped so
+    a single pytest invocation reuses the text across tests.
+
+    Used by parser-drift tests that assert invariants against the real
+    CR — we own the tiny hand-rolled fixture in ``test_rules_lookup``,
+    so only real-document tests live here.
+    """
+    cache = Path(tempfile.gettempdir()) / "pytest-comprehensive-rules.txt"
+    fresh = (
+        cache.exists()
+        and (time.time() - cache.stat().st_mtime) < _REAL_CR_CACHE_TTL
+        and cache.stat().st_size > 100_000
+    )
+    if not fresh:
+        req = urllib.request.Request(
+            _REAL_CR_URL,
+            headers={"User-Agent": "mtg-skills-tests/0.1"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read()
+        tmp = cache.with_suffix(".tmp")
+        tmp.write_bytes(body)
+        tmp.replace(cache)
+        os.utime(cache, None)
+    return cache
