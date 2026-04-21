@@ -481,13 +481,17 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\breturn\s+target\s+(?:creature|nonland permanent)\b.*\bhand\b",
             r"\bfights?\s+target\b",
             r"\btarget\s+creature\s+gets\s+-\d",
-            r"\b-X/-X\b",
+            # Toxic Deluge, Black Sun's Zenith style mass -N/-N. The `\b`
+            # around `-X/-X` is intentionally dropped — `-` isn't a word
+            # character, so `\b-` can never match. Use a looser anchor.
+            r"(?<!\w)-X/-X\b",
         ),
         should_match=(
             "Swords to Plowshares",
             "Lightning Bolt",
             "Counterspell",
             "Wrath of God",
+            "Toxic Deluge",
         ),
         should_not_match=("Llanowar Elves", "Command Tower"),
     ),
@@ -514,11 +518,23 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # All patterns use [^.]* to stay within a single sentence, avoiding
     # false-positives like Beast Within where "creature token" appears
     # AFTER the destroy clause.
+    #
+    # Overlap warning: presets deliberately overlap where cards can answer
+    # multiple types — e.g. Lightning Bolt matches both `creature-removal`
+    # and `planeswalker-removal` via "any target" burn, and Hero's
+    # Downfall matches both via "creature or planeswalker". This is
+    # correct (Bolt CAN kill either) but callers summing counts across
+    # presets will double-count these cards. Use set-union semantics on
+    # the `cards` list in each theme's audit result if you need
+    # deduplicated totals.
     Preset(
         name="creature-removal",
         description=(
             "Single-target creature removal: destroy/exile target creature, "
-            "damage-to-creature, fight, -X/-X, creature-or-planeswalker."
+            "damage-to-creature, fight, -X/-X, creature-or-planeswalker. "
+            "Note: 'target creature gets -N' matches any toughness debuff "
+            "including soft combat tricks (e.g. -0/-2); callers treat this "
+            "as generous. For a stricter definition use a custom --theme."
         ),
         patterns=_rx(
             r"(?:destroy|exile) target [^.]*?\bcreature\b",
@@ -526,13 +542,17 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\bdeals? \d+ damage divided [^.]*?targets?\b",
             r"\bfights? target\b",
             r"\btarget creature gets -\d",
-            r"\b-X/-X\b",
+            # Mass -N/-N removal (Toxic Deluge, Black Sun's Zenith).
+            # `-` isn't a word char, so `\b-` never matches; use a
+            # negative-lookbehind anchor instead.
+            r"(?<!\w)-X/-X\b",
         ),
         should_match=(
             "Swords to Plowshares",
             "Doom Blade",
             "Lightning Bolt",
             "Hero's Downfall",
+            "Toxic Deluge",
         ),
         should_not_match=(
             "Counterspell",  # counters a spell, doesn't remove a creature
@@ -596,15 +616,32 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="universal-removal",
         description=(
-            "Destroys or exiles any permanent regardless of type "
-            "(Vindicate / Beast Within / Abrupt Decay / Assassin's Trophy). "
-            "Cards here are in addition to type-specific presets — check "
-            "both for full coverage of a given permanent type."
+            "Destroys or exiles any permanent regardless of type. Covers "
+            "the canonical universal answers (Vindicate, Beast Within, "
+            "Abrupt Decay, Assassin's Trophy) plus type/color-restricted "
+            "universal effects: 'destroy target noncreature permanent' "
+            "(Woodfall Primus, Rootgrapple, Nicol Bolas +3), 'destroy "
+            "target [color] permanent' (Elemental Blasts, Paladin cycle), "
+            "and 'destroy target noncreature, nonland permanent' "
+            "(Witherbloom Command). Cards here are in addition to the "
+            "type-specific presets — check both for full coverage of a "
+            "given permanent type."
         ),
         patterns=_rx(
-            r"(?:destroy|exile) target (?:nonland )?permanent\b",
+            # Matches "destroy/exile target [...]permanent" with any
+            # modifiers (nonland, noncreature, color-restricted, etc.)
+            # between target and permanent. The [^.]*? sentence-boundary
+            # gate prevents matching across the period into an unrelated
+            # later clause (e.g., Beast Within's "creates a 3/3 ... token"
+            # sentence).
+            r"(?:destroy|exile) target [^.]*?\bpermanent\b",
         ),
-        should_match=("Vindicate", "Beast Within"),
+        should_match=(
+            "Vindicate",
+            "Beast Within",
+            "Maelstrom Pulse",
+            "Nicol Bolas, Planeswalker",
+        ),
         should_not_match=(
             "Lightning Bolt",
             "Swords to Plowshares",  # creature-only

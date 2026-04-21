@@ -173,6 +173,38 @@ FIXTURE_CARDS: dict[str, dict] = {
             "Beast creature token."
         ),
     },
+    "Maelstrom Pulse": {
+        # Universal removal with a modifier between "target" and
+        # "permanent" — exercises the [^.]*? gap in the regex.
+        "keywords": [],
+        "oracle_text": (
+            "Destroy target nonland permanent and all other permanents "
+            "with the same name as that permanent."
+        ),
+    },
+    "Nicol Bolas, Planeswalker": {
+        # Planeswalker-ability universal removal via "+3: Destroy target
+        # noncreature permanent." Loyalty costs use the U+2212 MINUS SIGN
+        # (escaped as \u2212 below) to match Scryfall's oracle text.
+        "keywords": [],
+        "oracle_text": (
+            "+3: Destroy target noncreature permanent.\n"
+            "\u22122: Gain control of target creature.\n"
+            "\u22129: Nicol Bolas deals 7 damage to target player or "
+            "planeswalker. That player or that planeswalker's controller "
+            "discards seven cards, then sacrifices seven permanents of "
+            "their choice."
+        ),
+    },
+    "Toxic Deluge": {
+        # Mass -X/-X creature removal — exercises the `-X/-X` pattern
+        # that was previously dead due to \b not matching before `-`.
+        "keywords": [],
+        "oracle_text": (
+            "As an additional cost to cast this spell, pay X life.\n"
+            "All creatures get -X/-X until end of turn."
+        ),
+    },
     "Reclamation Sage": {
         # ETB artifact/enchantment removal creature.
         "keywords": [],

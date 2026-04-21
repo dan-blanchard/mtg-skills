@@ -185,10 +185,20 @@ check by running:
 card-search --bulk-data <path> --oracle "<your regex>" --color-identity <ci>
 ```
 
+For finer-grained removal density, six type-specific presets are
+available alongside the broad `removal` umbrella: `creature-removal`,
+`artifact-removal`, `enchantment-removal`, `land-removal`,
+`planeswalker-removal`, and `universal-removal` (Vindicate / Beast
+Within / Maelstrom Pulse / Nicol Bolas style). Type presets are strict
+(they match cards that NAME the type); `universal-removal` is a
+separate bucket — to count everything that can answer an artifact, sum
+`artifact-removal` + `universal-removal`. Note: same-card overlap is
+expected (Lightning Bolt matches both `creature-removal` and
+`planeswalker-removal` via "any target" burn).
+
 For `archetype-audit`, themes can come from `--preset <name>` (library,
 tested) or `--theme name=regex` (custom, unvalidated). Custom regex is
-exactly as precise as the
-regex the user writes.
+exactly as precise as the regex the user writes.
 
 ### Canonical Cube JSON Schema
 
@@ -372,8 +382,22 @@ printing rarity drift, missing legality data).
 ### Step 4: Archetype Audit
 
 Prefer `--preset <name>` over hand-written regex when the theme matches one
-of the library presets (tokens, removal, counterspell, self-mill, reanimate,
-flashback, surveil, scry, cascade, cycling, landfall, investigate, ...).
+of the library presets. Available categories:
+
+- **Keyword abilities**: flying, vigilance, trample, haste, deathtouch,
+  lifelink, first-strike, double-strike, reach, menace, defender, flash,
+  hexproof, indestructible, ward, protection, scry, surveil, cascade,
+  flashback, kicker, cycling, evoke, ninjutsu, exalted, prowess, revolt,
+  investigate, landfall, dredge, miracle, storm, infect, toxic, delve,
+  suspend, undying, persist, equip, mill.
+- **Removal (broad)**: `removal` (umbrella), `board-wipe`.
+- **Removal by type**: `creature-removal`, `artifact-removal`,
+  `enchantment-removal`, `land-removal`, `planeswalker-removal`,
+  `universal-removal` (Vindicate / Beast Within / Maelstrom Pulse).
+- **Functional**: top-manipulation, self-mill, counterspell, bounce,
+  discard, tutors, tokens, sacrifice-outlet, burn, reanimate,
+  graveyard-return, cantrip, card-draw, lifegain, plus-one-counters.
+
 Presets are tested against known cards and shared with `cube-balance`, so
 results stay consistent across sessions. See the full catalog with
 `archetype-audit --list-presets`. Add `--show-matches` to see which cards
