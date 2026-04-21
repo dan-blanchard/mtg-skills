@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Commands
 
 ### mtg-utils
@@ -36,9 +38,26 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/rules-lawyer/ -v  # Run smoke tests
 ```
 
+### Running a single test
+
+```bash
+cd mtg-utils
+uv run pytest ../tests/mtg-utils/test_parse_deck.py -v            # one file
+uv run pytest ../tests/mtg-utils/test_parse_deck.py::test_name -v # one test
+uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
+```
+
+### Python / tooling
+
+- Requires Python 3.12+ (`requires-python = ">=3.12"` in `mtg-utils/pyproject.toml`).
+- All four `pyproject.toml` files use `uv` as the install/runtime driver.
+- CI (`.github/workflows/ci.yml`) runs the exact commands listed above — it is the authoritative source of truth for which invocations must pass.
+
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
+
+**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, and `rules-lawyer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all four point at the same files.
 
 ### mtg-utils
 
@@ -91,6 +110,11 @@ Shared library modules (not CLI scripts):
 
 - **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`, `classify_cube_category()` (9-category W/U/B/R/G/M/L/F/C classifier for cube draft slot allocation).
 - **`cube_config.py`** — Cube format presets (9 formats: vintage, unpowered, legacy, modern, pauper, peasant, set, commander, pdh), size-to-drafters table, `PACK_TEMPLATES` defaults, `BALANCE_TARGETS` reference ranges, and curated `REFERENCE_CUBES` starting-point list per format.
+- **`bulk_loader.py`** — Shared Scryfall bulk-data loader with a pickled sidecar cache (`<bulk>.idx.pkl`). ~5-10× faster on warm load; atomic-rename write so concurrent callers can't see a partial sidecar. Every script that touches Scryfall data goes through this.
+- **`format_config.py`** — `FORMAT_CONFIGS` dict: deck size, copy limit, sideboard size, life total, singleton flag, legality key per format. Ground truth for the "Supported Deck Formats" table below.
+- **`theme_presets.py`** — Registry of named matchers for common MTG mechanics (keyword list + oracle-text regex). Each preset ships with `should_match` / `should_not_match` fixtures pinned in `tests/mtg-utils/test_theme_presets.py`. Used by archetype detection in deck-wizard and cube-wizard.
+- **`names.py`** — Canonical card-name normalization shared across scripts that cross-reference sources (e.g. `find_commanders`, `mark_owned`). Centralized because drift in Unicode folding silently corrupts ownership intersection.
+- **`_sidecar.py`** — Pickled-sidecar primitives reused by `bulk_loader` and `rules_lookup`.
 
 ### deck-wizard
 
