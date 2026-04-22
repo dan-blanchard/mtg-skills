@@ -578,3 +578,52 @@ class TestCiteRules:
         assert result.exit_code == 0, result.output
         data = json_from_cli_output(result)
         assert "rule_citations_error" in data
+
+    def test_cite_rules_default_on_finds_cr_next_to_deck(self, tmp_path: Path):
+        """Regression pin for session 0a340f10: default --cite-rules
+        must auto-find the CR in the directory containing the deck
+        JSON, without --rules-file. Previously, ``uv run --directory
+        <skill>`` rebased cwd and the default search missed the CR."""
+        rules_path = self._write_rules(tmp_path)
+        assert rules_path.parent == tmp_path
+        hydrated = [jinnie(), card("Sol Ring")]
+        d = deck(cards=[("Sol Ring", 2)])
+        deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
+
+        runner = CliRunner()
+        # No --cite-rules (default-on), no --rules-file (input-dir search).
+        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        citations = data.get("rule_citations") or {}
+        assert citations, "default-on should attach citations"
+        assert "rule_citations_error" not in data
+
+    def test_no_cite_rules_opts_out(self, tmp_path: Path):
+        """--no-cite-rules skips citation attachment even with a
+        reachable CR."""
+        self._write_rules(tmp_path)
+        hydrated = [jinnie(), card("Sol Ring")]
+        d = deck(cards=[("Sol Ring", 2)])
+        deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main, [str(deck_path), str(hydrated_path), "--no-cite-rules"]
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        assert "rule_citations" not in data
+        assert "rule_citations_error" not in data
+
+    def test_warn_on_missing_cr_surfaces_in_stdout(self, tmp_path: Path):
+        """Default-on citation lookup with no reachable CR must print a
+        WARN line to stdout (not only to the JSON sidecar)."""
+        hydrated = [jinnie()]
+        d = deck()
+        deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
+
+        runner = CliRunner()
+        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        assert result.exit_code == 0, result.output
+        assert "WARN: rule_citations not attached" in result.output

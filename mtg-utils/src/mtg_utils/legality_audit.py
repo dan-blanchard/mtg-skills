@@ -442,6 +442,13 @@ def render_text_report(result: dict) -> str:
         if not v and check in ("sideboard_size", "deck_minimum"):
             continue
         lines.append(_format_violation_line(check, v))
+    # Surface a CR-citations lookup failure in stdout, not just the JSON
+    # sidecar. Agents skim the summary first; silent JSON-only errors
+    # were missed in the live session.
+    err = result.get("rule_citations_error")
+    if err:
+        lines.append("")
+        lines.append(f"WARN: rule_citations not attached — {err}")
     return "\n".join(lines) + "\n"
 
 
@@ -449,14 +456,23 @@ def _default_output_path(*args: object) -> Path:
     return sha_keyed_path("legality-audit", *args)
 
 
-def _attach_rule_citations(result: dict, rules_file: Path | None) -> None:
+def _attach_rule_citations(
+    result: dict,
+    rules_file: Path | None,
+    input_path: Path | None = None,
+) -> None:
     """Enrich each violation group with CR citations keyed on its reason.
 
     Silently no-ops (records ``rule_citations_error``) if the CR isn't
     available; ``--cite-rules`` is additive enrichment, not a gate.
+
+    ``input_path`` is forwarded to ``resolve_rules_path`` so the default
+    search can find a CR next to the deck/hydrated JSON when the skill
+    is invoked via ``uv run --directory <skill>`` (which rebases cwd
+    away from the user's working dir).
     """
     try:
-        path = resolve_rules_path(rules_file)
+        path = resolve_rules_path(rules_file, input_path=input_path)
     except FileNotFoundError as exc:
         result["rule_citations_error"] = str(exc)
         return
@@ -499,10 +515,16 @@ def _attach_rule_citations(result: dict, rules_file: Path | None) -> None:
     help="Override the default sha-keyed path for the full JSON output.",
 )
 @click.option(
-    "--cite-rules",
+    "--cite-rules/--no-cite-rules",
     "cite_rules",
-    is_flag=True,
-    help="Attach MTG Comprehensive Rules citations for each violation reason.",
+    default=True,
+    show_default=True,
+    help=(
+        "Attach MTG Comprehensive Rules citations for each violation "
+        "reason. Pass --no-cite-rules to skip. When no CR file is found "
+        "next to the deck JSON or in cwd, citations are silently "
+        "omitted (with an error note in the JSON)."
+    ),
 )
 @click.option(
     "--rules-file",
@@ -528,7 +550,7 @@ def main(
     result = legality_audit(deck, hydrated)
 
     if cite_rules:
-        _attach_rule_citations(result, rules_file)
+        _attach_rule_citations(result, rules_file, input_path=deck_path)
 
     if output_path is None:
         output_path = _default_output_path(deck_content, hydrated_content)

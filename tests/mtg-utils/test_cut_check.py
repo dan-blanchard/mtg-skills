@@ -411,3 +411,113 @@ class TestCiteRules:
         for entry in data:
             assert entry["rule_citations"] == []
             assert "rule_citations_error" in entry
+
+    def test_cite_rules_default_on_finds_cr_next_to_hydrated(
+        self, trigger_test_cards, tmp_path
+    ):
+        """Regression pin: default --cite-rules behavior should auto-find
+        a CR file in the directory containing the hydrated JSON, without
+        needing an explicit --rules-file flag. Covers the path the
+        0a340f10 live session agent missed when ``uv run --directory
+        <skill>`` rebased cwd away from the working dir."""
+        from click.testing import CliRunner
+        from conftest import json_from_cli_output
+
+        rules_path = self._write_rules(tmp_path)
+        assert rules_path.parent == tmp_path
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        # No --cite-rules flag (relies on default-on) and no
+        # --rules-file (relies on input-dir search).
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        citations = [c for e in data for c in e.get("rule_citations", [])]
+        assert citations, "default-on should attach citations"
+        assert "rule_citations_error" not in data[0]
+
+    def test_no_cite_rules_opts_out(self, trigger_test_cards, tmp_path):
+        """--no-cite-rules skips citation attachment entirely even when
+        a CR file would otherwise be reachable."""
+        from click.testing import CliRunner
+        from conftest import json_from_cli_output
+
+        self._write_rules(tmp_path)
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+                "--no-cite-rules",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        for entry in data:
+            assert "rule_citations" not in entry
+            assert "rule_citations_error" not in entry
+
+    def test_warn_on_missing_cr_surfaces_in_stdout(self, trigger_test_cards, tmp_path):
+        """Default-on citation lookup with no reachable CR must surface
+        a WARN line in stdout, not only in the JSON sidecar. Agents skim
+        stdout; silent JSON-only errors got missed in session 0a340f10."""
+        from click.testing import CliRunner
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--multiplier-low",
+                "1",
+                "--multiplier-high",
+                "1",
+                "--output",
+                str(output_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "WARN: rule_citations not attached" in result.output

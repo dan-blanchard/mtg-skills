@@ -273,9 +273,9 @@ Only write `python3 -c` when none of these cover the need. When you do, batch ev
 
 For trivial rules questions that arise during tuning ("what does trample say?", "is this trigger mandatory?"), run `rules-lookup --term <keyword>` directly — a single CLI call returns the glossary definition plus the relevant CR rule numbers. For nuanced multi-rule questions (layer interactions, replacement-effect timing, stack ordering across triggered and activated abilities), invoke the `rules-lawyer` skill, which owns the escalation-to-subagent path.
 
-`cut-check` and `legality-audit` accept a `--cite-rules` flag that auto-attaches CR citations to their JSON output when keyword interactions are flagged. Off by default (keeps output compact); enable it when you want the Self-Grill step or the user's written report to include rule numbers.
+`cut-check` and `legality-audit` auto-attach CR citations to their JSON output — `--cite-rules` is **default-on**. When a CR file is present next to the deck/hydrated JSON (i.e., you ran `download-rules --output-dir <wd>` in the same working dir), each flagged interaction / violation carries a rule number + snippet with no extra flag. Pass `--no-cite-rules` to opt out on a specific invocation; when no CR is reachable the tools still exit 0 and emit a `WARN: rule_citations not attached` line to stdout.
 
-Run `download-rules --output-dir <working-dir>` once per session before the first `rules-lookup` call (24-hour freshness check, same pattern as `download-bulk`).
+Run `download-rules --output-dir <working-dir>` once per session before any Step 1 legality-audit call (24-hour freshness check, same pattern as `download-bulk`).
 
 ---
 
@@ -1420,6 +1420,23 @@ If the swaps would damage the mana base, revise before presenting. It is better 
 
 Before the self-grill, verify mechanically.
 
+### Legality Check on Additions (HARD GATE)
+
+**Never send the self-grill a proposal that contains banned or color-identity-illegal cards.** The agent has no reliable way to recall ban-list snapshots from training data; running the audit is cheap.
+
+Build a preview deck from the current proposal and audit it:
+
+```
+build-deck <deck.json> <hydrated.json> --cuts /tmp/cuts.json --adds /tmp/adds.json --bulk-data <path> --output-dir <wd>
+legality-audit <wd>/new-deck.json <wd>/new-hydrated.json
+```
+
+`legality-audit` runs with `--cite-rules` on by default, so if a CR file is present in `<wd>` each violation carries a CR rule citation in the JSON.
+
+If the audit is **FAIL**, revise `/tmp/adds.json` or `/tmp/cuts.json` and re-preview before entering Step 8. The Self-Grill subagents must NEVER assert legality from training data — if a Proposer/Challenger thinks a card is legal, the *only* valid proof is a preceding `legality-audit` run whose JSON they can cite.
+
+Concrete miss this gate exists to prevent (session 0a340f10): the Proposer recommended Dockside Extortionist. The Challenger flagged it as a Bracket-policy concern. Neither ran `legality-audit`; both asserted it was Commander-legal. Dockside was in fact banned. Only the post-build audit caught it, wasting a build cycle. Running this gate before Step 8 would have caught it in the right place.
+
 ### Price Check on Additions
 
 ```
@@ -1494,12 +1511,15 @@ Defend the proposal. Push back on challenger objections unless they provide:
 - Quantitative argument (mana math, matchup percentage)
 - Metagame data contradicting your read
 
+**Never assert legality from training data.** If you claim a card is legal / banned / restricted, the ONLY valid proof is a preceding `legality-audit` run — cite the JSON output path. Ban lists change (often several times per year); a 6-month-old training snapshot is not authoritative. Step 7 runs a Legality Check HARD GATE on the adds before dispatch; if you're uncertain about any card mid-debate, ask the parent to re-run `legality-audit` on the updated adds.
+
 ### Challenger Checklist
 
 The challenger must verify:
 - [ ] Read oracle text for every cut independently (don't trust paraphrasing)
 - [ ] Verify each cut's role — is the replacement actually better in this slot?
 - [ ] Check that no critical matchup coverage is lost
+- [ ] **Verify `legality-audit` was run on the proposal (not just the current deck)** — cite the JSON output path. Training-data ban-list claims are never acceptable.
 - [ ] Verify mana-audit is PASS
 - [ ] Verify price-check within budget
 - [ ] Verify no combo lines broken without justification

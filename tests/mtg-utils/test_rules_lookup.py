@@ -316,6 +316,40 @@ class TestResolveRulesPath:
         with pytest.raises(FileNotFoundError, match="No comprehensive-rules"):
             resolve_rules_path(None, cwd=tmp_path)
 
+    def test_input_path_dir_checked_before_cwd(self, tmp_path):
+        """Regression pin: under ``uv run --directory <skill>``, ``cwd``
+        is rebased away from the user's working dir. The CR the agent
+        just downloaded (next to the deck/hydrated JSON) must still be
+        found. Search order: input-file dir first, cwd second."""
+        working = tmp_path / "working"
+        skill_cwd = tmp_path / "skill"
+        working.mkdir()
+        skill_cwd.mkdir()
+        cr = working / "comprehensive-rules-20260227.txt"
+        cr.write_text("stub", encoding="utf-8")
+        # No CR in skill_cwd — mimics the uv run --directory scenario.
+        hydrated = working / "hydrated.json"
+        hydrated.write_text("{}")
+        assert resolve_rules_path(None, cwd=skill_cwd, input_path=hydrated) == cr
+
+    def test_input_path_accepts_dir(self, tmp_path):
+        """Callers can pass a directory directly instead of a file."""
+        cr = tmp_path / "comprehensive-rules-20260227.txt"
+        cr.write_text("stub", encoding="utf-8")
+        assert resolve_rules_path(None, input_path=tmp_path) == cr
+
+    def test_error_message_lists_searched_paths(self, tmp_path):
+        a = tmp_path / "a"
+        b = tmp_path / "b"
+        a.mkdir()
+        b.mkdir()
+        hydrated = a / "hydrated.json"
+        hydrated.write_text("{}")
+        with pytest.raises(FileNotFoundError) as exc:
+            resolve_rules_path(None, cwd=b, input_path=hydrated)
+        assert str(a) in str(exc.value)
+        assert str(b) in str(exc.value)
+
 
 class TestCLI:
     def test_cli_rule_lookup(self, rules_file):

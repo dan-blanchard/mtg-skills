@@ -559,6 +559,14 @@ def render_text_report(
         f"{flag_counts['self_recurring']} self-recurring, "
         f"{flag_counts['keyword_interactions']} keyword-interactions"
     )
+    # Surface a CR-citations lookup failure at the bottom of the
+    # summary. Per-entry ``rule_citations_error`` strings are all the
+    # same (same resolve failure), so we emit the message once.
+    errs = {
+        e.get("rule_citations_error") for e in results if e.get("rule_citations_error")
+    }
+    for err in errs:
+        lines.append(f"WARN: rule_citations not attached — {err}")
     return "\n".join(lines) + "\n"
 
 
@@ -595,16 +603,25 @@ def _default_output_path(
     )
 
 
-def _attach_rule_citations(results: list[dict], rules_file: Path | None) -> None:
+def _attach_rule_citations(
+    results: list[dict],
+    rules_file: Path | None,
+    input_path: Path | None = None,
+) -> None:
     """Enrich each result with CR citations for its flagged keywords.
 
     For every entry in ``keyword_interactions``, look up the first term
     in the glossary and attach the ``see_rules`` rules as a new
     ``rule_citations`` field. Silently no-ops if the rules file can't be
     found — ``--cite-rules`` is additive, not a hard gate.
+
+    ``input_path`` is passed through to ``resolve_rules_path`` so the
+    default search can find a CR sitting next to the hydrated JSON
+    (typical layout when the agent ran ``download-rules --output-dir
+    <wd>`` in the same working dir as the rest of the tuning files).
     """
     try:
-        path = resolve_rules_path(rules_file)
+        path = resolve_rules_path(rules_file, input_path=input_path)
     except FileNotFoundError as exc:
         # Preserve the existing contract (run always succeeds) — surface
         # the miss as a note, not an error.
@@ -659,10 +676,16 @@ def _attach_rule_citations(results: list[dict], rules_file: Path | None) -> None
     help="Override the default sha-keyed path for the full JSON output.",
 )
 @click.option(
-    "--cite-rules",
+    "--cite-rules/--no-cite-rules",
     "cite_rules",
-    is_flag=True,
-    help="Attach MTG Comprehensive Rules citations for flagged keyword interactions.",
+    default=True,
+    show_default=True,
+    help=(
+        "Attach MTG Comprehensive Rules citations for flagged keyword "
+        "interactions. Pass --no-cite-rules to skip. When no CR file is "
+        "found next to the hydrated cache or in cwd, citations are "
+        "silently omitted (with an error note in the JSON)."
+    ),
 )
 @click.option(
     "--rules-file",
@@ -701,7 +724,7 @@ def main(
     )
 
     if cite_rules:
-        _attach_rule_citations(results, rules_file)
+        _attach_rule_citations(results, rules_file, input_path=hydrated_path)
 
     if output_path is None:
         output_path = _default_output_path(

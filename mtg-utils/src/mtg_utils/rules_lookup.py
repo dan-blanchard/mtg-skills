@@ -483,27 +483,55 @@ def _find_default_rules(search_dir: Path) -> Path | None:
     return candidates[-1] if candidates else None
 
 
-def resolve_rules_path(explicit: Path | None, cwd: Path | None = None) -> Path:
-    """Resolve the CR file path from an explicit flag or a cwd search.
+def resolve_rules_path(
+    explicit: Path | None,
+    cwd: Path | None = None,
+    input_path: Path | None = None,
+) -> Path:
+    """Resolve the CR file path from an explicit flag or a glob search.
 
-    Raises ``FileNotFoundError`` with an actionable message if neither
-    an explicit path nor a default-glob hit exists. Matches the
-    ``download-bulk`` pattern.
+    Search order when ``explicit`` is None:
+
+    1. The directory containing ``input_path`` (e.g. the deck JSON
+       passed to legality-audit, the hydrated JSON passed to cut-check).
+       This is where the user's working files live; if they ran
+       ``download-rules --output-dir <wd>``, the CR is here too.
+       Necessary because ``uv run --directory <skill>`` rebases
+       ``Path.cwd()`` to the skill install dir, not the user's working
+       dir, so a cwd-only search reliably misses the CR for agents
+       invoking the CLI via that pattern.
+    2. ``cwd`` (parameter) if set, else ``Path.cwd()``.
+
+    Raises ``FileNotFoundError`` with an actionable message when no
+    candidate exists. Matches the ``download-bulk`` pattern.
     """
     if explicit is not None:
         if not explicit.exists():
             msg = f"Rules file not found: {explicit}"
             raise FileNotFoundError(msg)
         return explicit
-    search = cwd or Path.cwd()
-    found = _find_default_rules(search)
-    if found is None:
-        msg = (
-            f"No comprehensive-rules*.txt found in {search}. "
-            "Run `download-rules` first or pass --rules-file."
-        )
-        raise FileNotFoundError(msg)
-    return found
+
+    searched: list[Path] = []
+    if input_path is not None:
+        candidate_dir = input_path.parent if input_path.is_file() else input_path
+        searched.append(candidate_dir)
+        found = _find_default_rules(candidate_dir)
+        if found is not None:
+            return found
+
+    cwd_dir = cwd or Path.cwd()
+    if cwd_dir not in searched:
+        searched.append(cwd_dir)
+        found = _find_default_rules(cwd_dir)
+        if found is not None:
+            return found
+
+    locations = ", ".join(str(p) for p in searched)
+    msg = (
+        f"No comprehensive-rules*.txt found (searched: {locations}). "
+        "Run `download-rules` first or pass --rules-file."
+    )
+    raise FileNotFoundError(msg)
 
 
 # ---------------------------------------------------------------------------
