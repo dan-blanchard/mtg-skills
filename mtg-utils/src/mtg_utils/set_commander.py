@@ -8,6 +8,8 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._sidecar import atomic_write_json
+
 
 def set_commander(deck: dict, commander_names: list[str]) -> dict:
     """Return a new deck dict with named cards moved from cards to commanders.
@@ -48,12 +50,35 @@ def set_commander(deck: dict, commander_names: list[str]) -> dict:
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("card_names", nargs=-1, required=True)
-def main(deck_path: Path, card_names: tuple[str, ...]) -> None:
-    """Move CARD_NAMES from the cards list to the commander zone."""
+@click.option(
+    "--output",
+    "output_path",
+    type=str,
+    default=None,
+    help=(
+        "Where to write the updated deck. Defaults to overwriting DECK_PATH "
+        "in place (atomic write). Pass `-` to print JSON to stdout instead "
+        "(back-compat for shell pipelines)."
+    ),
+)
+def main(deck_path: Path, card_names: tuple[str, ...], output_path: str | None) -> None:
+    """Move CARD_NAMES from the cards list to the commander zone.
+
+    By default the modified deck is written back to DECK_PATH atomically, so
+    chaining ``parse-deck && set-commander && scryfall-lookup --batch``
+    works without each step needing a separate temp file. Pass ``--output -``
+    to recover the original stdout-only behavior.
+    """
     deck = json.loads(deck_path.read_text(encoding="utf-8"))
     try:
         result = set_commander(deck, list(card_names))
     except ValueError as exc:
         click.echo(str(exc), err=True)
         sys.exit(1)
-    click.echo(json.dumps(result, indent=2))
+
+    if output_path == "-":
+        click.echo(json.dumps(result, indent=2))
+        return
+
+    target = Path(output_path).resolve() if output_path else deck_path
+    atomic_write_json(target, result)

@@ -214,6 +214,14 @@ def main(
 
     config = get_format_config(new_deck)
     main_total, sb_total = _count_total(new_deck)
+    # Update the persisted ``total_cards`` / ``total_sideboard`` fields so
+    # downstream tools (notably legality-audit's deck_minimum check, which
+    # reads ``deck_json.get("total_cards")`` first) see the post-build size.
+    # Without this rewrite, build-deck inherits the pre-cut count from the
+    # input deck JSON via ``copy.deepcopy`` and a 100-card commander deck is
+    # falsely flagged as 99/100.
+    new_deck["total_cards"] = main_total
+    new_deck["total_sideboard"] = sb_total
     deck_size = config["deck_size"]
     if main_total != deck_size:
         click.echo(

@@ -711,7 +711,26 @@ def main(
     hydrated_content = hydrated_path.read_text(encoding="utf-8")
     cuts_content = cuts_path.read_text(encoding="utf-8")
     hydrated = json.loads(hydrated_content)
-    cut_names = json.loads(cuts_content)
+    raw_cuts = json.loads(cuts_content)
+    # Accept both ``["Card Name", ...]`` and ``[{"name": ..., "quantity": ...}]``
+    # so a single ``cuts.json`` can be shared with build-deck without rewriting.
+    # Quantity is irrelevant for mechanical analysis (each card's text is the
+    # same regardless of how many copies are cut), so we only need the names.
+    # Reject malformed entries hard — symmetric with ``build_deck._normalize_entry``.
+    # Asymmetric error policy (cut-check warns, build-deck raises) would let the
+    # user trust a partial cut-check report, then surprise them with a hard error
+    # from build-deck on the same input file.
+    cut_names: list[str] = []
+    for entry in raw_cuts:
+        if isinstance(entry, str):
+            cut_names.append(entry)
+        elif isinstance(entry, dict) and isinstance(entry.get("name"), str):
+            cut_names.append(entry["name"])
+        else:
+            raise click.ClickException(
+                "cuts entry must be a card name string or "
+                f'{{"name": ..., "quantity": ...}} dict, got: {entry!r}'
+            )
 
     results = run_cut_check(
         hydrated=hydrated,

@@ -315,6 +315,154 @@ class TestDeckSizeWarning:
 # ---------- Sideboard cuts/adds ----------
 
 
+class TestTotalCardsField:
+    """``total_cards`` must reflect the post-build deck size.
+
+    Regression: build-deck used ``copy.deepcopy(deck)`` and applied cuts/adds
+    but never recomputed the ``total_cards`` and ``total_sideboard`` fields.
+    Downstream ``legality-audit`` reads ``deck_json.get("total_cards")`` and
+    falsely reported ``deck_minimum 99/100`` for a Commander deck that was
+    actually 100 cards (1 commander + 99 mainboard).
+    """
+
+    def test_total_cards_after_net_add(self, tmp_path):
+        """Adding 1 card (with no cuts) bumps total_cards by 1."""
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+            "total_cards": 2,
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain"},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+        adds_path = tmp_path / "adds.json"
+        adds_path.write_text(json.dumps([{"name": "Mountain", "quantity": 1}]))
+        output_dir = tmp_path / "out"
+
+        with patch("mtg_utils.build_deck.lookup_single", return_value=None):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--adds",
+                    str(adds_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        new_deck = json.loads((output_dir / "new-deck.json").read_text())
+        # Actual quantities sum to 1 (commander) + 2 (cards) = 3
+        actual = sum(e["quantity"] for e in new_deck["cards"]) + sum(
+            e["quantity"] for e in new_deck["commanders"]
+        )
+        assert actual == 3
+        # The stored field must match what the data actually says.
+        assert new_deck["total_cards"] == actual
+
+    def test_total_cards_after_cut(self, tmp_path):
+        """Cutting 1 card (with no adds) decrements total_cards by 1."""
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Mountain", "quantity": 5},
+            ],
+            "total_cards": 7,
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+            {"name": "Mountain", "cmc": 0, "type_line": "Basic Land — Mountain"},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps([{"name": "Mountain", "quantity": 2}]))
+        output_dir = tmp_path / "out"
+
+        with patch("mtg_utils.build_deck.lookup_single", return_value=None):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--cuts",
+                    str(cuts_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        new_deck = json.loads((output_dir / "new-deck.json").read_text())
+        actual = sum(e["quantity"] for e in new_deck["cards"]) + sum(
+            e["quantity"] for e in new_deck["commanders"]
+        )
+        assert actual == 5  # 1 commander + 1 Sol Ring + 3 Mountain
+        assert new_deck["total_cards"] == actual
+
+    def test_total_sideboard_after_sideboard_change(self, tmp_path):
+        """Sideboard changes must update total_sideboard too."""
+        deck = {
+            "format": "pioneer",
+            "deck_size": 60,
+            "commanders": [],
+            "cards": [{"name": "Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Smash", "quantity": 2}],
+            "total_cards": 4,
+            "total_sideboard": 2,
+        }
+        hydrated = [
+            {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
+            {"name": "Smash", "cmc": 2, "type_line": "Instant"},
+            {"name": "Vortex", "cmc": 2, "type_line": "Enchantment"},
+        ]
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+        sb_adds_path = tmp_path / "sb_adds.json"
+        sb_adds_path.write_text(json.dumps([{"name": "Vortex", "quantity": 3}]))
+        output_dir = tmp_path / "out"
+
+        with patch("mtg_utils.build_deck.lookup_single", return_value=None):
+            runner = CliRunner()
+            result = runner.invoke(
+                main,
+                [
+                    str(deck_path),
+                    str(hydrated_path),
+                    "--sideboard-adds",
+                    str(sb_adds_path),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        new_deck = json.loads((output_dir / "new-deck.json").read_text())
+        sb_total = sum(e["quantity"] for e in new_deck["sideboard"])
+        assert sb_total == 5  # 2 Smash + 3 Vortex
+        assert new_deck["total_sideboard"] == sb_total
+
+
 class TestSideboardCutsAdds:
     def test_sideboard_cut(self):
         deck = {

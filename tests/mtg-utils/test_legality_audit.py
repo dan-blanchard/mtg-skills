@@ -269,6 +269,212 @@ class TestColorIdentity:
         assert violations == []
 
 
+# ---------- Commander-zone check ----------
+
+
+class TestCommanderZone:
+    """Empty ``commanders`` for a commander-format deck must surface ONE
+    clean violation, not cascade through every R/W card in the mainboard.
+
+    Regression: when set-commander silently failed to write the file,
+    the deck JSON had ``commanders: []`` but kept the would-be commander
+    in ``cards``. The legacy ``check_color_identity`` derived an empty
+    commander identity, then declared every non-colorless card a
+    "not_in_C" violation — listing the would-be commander FIRST and
+    making it look like a 42-error cascade was about an illegal
+    commander. The targeted ``check_commander_zone`` runs first and
+    suppresses the color-identity cascade so the user sees the real
+    cause: "no commander selected".
+    """
+
+    def test_empty_commanders_emits_single_clear_violation(self):
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [],
+            "cards": [
+                {"name": "Lightning Bolt", "quantity": 1},
+                {"name": "Swords to Plowshares", "quantity": 1},
+                {"name": "Sol Ring", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {
+                "name": "Lightning Bolt",
+                "color_identity": ["R"],
+                "legalities": {"commander": "legal"},
+            },
+            {
+                "name": "Swords to Plowshares",
+                "color_identity": ["W"],
+                "legalities": {"commander": "legal"},
+            },
+            {
+                "name": "Sol Ring",
+                "color_identity": [],
+                "legalities": {"commander": "legal"},
+            },
+        ]
+
+        result = legality_audit(deck, hydrated)
+        # Should report ONE clean error pointing at the commander zone,
+        # not three "X not in C" cascading color-identity errors that
+        # blame the deck's mainboard cards.
+        assert result["counts"]["commander_zone"] == 1
+        assert result["counts"]["color_identity"] == 0
+        zone = result["violations"]["commander_zone"][0]
+        assert zone["reason"] == "no_commander_selected"
+
+    def test_populated_commanders_passes_zone_check(self):
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        hydrated = [
+            {
+                "name": "Krenko, Mob Boss",
+                "color_identity": ["R"],
+                "legalities": {"commander": "legal"},
+                "type_line": "Legendary Creature — Goblin Warrior",
+            },
+            {
+                "name": "Lightning Bolt",
+                "color_identity": ["R"],
+                "legalities": {"commander": "legal"},
+            },
+        ]
+
+        result = legality_audit(deck, hydrated)
+        assert result["counts"]["commander_zone"] == 0
+
+    def test_non_commander_format_skips_zone_check(self):
+        """60-card constructed has no commander zone — check is a no-op."""
+        deck = {
+            "format": "modern",
+            "deck_size": 60,
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+        }
+        hydrated = [
+            {
+                "name": "Lightning Bolt",
+                "color_identity": ["R"],
+                "legalities": {"modern": "legal"},
+            }
+        ]
+        result = legality_audit(deck, hydrated)
+        assert result["counts"].get("commander_zone", 0) == 0
+
+    def test_unresolvable_commander_name_flagged(self):
+        """A typo'd commander name should produce a clear typo-targeted error.
+
+        Without this check, the same cascading "X not in C" misdiagnosis
+        from the empty-commanders case fires verbatim — because
+        ``_commander_color_identity`` returns an empty set when the name
+        doesn't resolve in hydrated, identical to the empty-list state.
+        """
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [{"name": "Alibou, Ancient Whitnesss", "quantity": 1}],
+            "cards": [
+                {"name": "Lightning Bolt", "quantity": 1},
+                {"name": "Sol Ring", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {
+                "name": "Lightning Bolt",
+                "color_identity": ["R"],
+                "legalities": {"commander": "legal"},
+            },
+            {
+                "name": "Sol Ring",
+                "color_identity": [],
+                "legalities": {"commander": "legal"},
+            },
+        ]
+
+        result = legality_audit(deck, hydrated)
+        assert result["counts"]["commander_zone"] == 1
+        # Color-identity cascade is suppressed — no spurious "X not in C".
+        assert result["counts"]["color_identity"] == 0
+        zone = result["violations"]["commander_zone"][0]
+        assert zone["reason"] == "commander_not_in_hydrated"
+        # Payload must name the unresolvable card so the user can fix it.
+        assert "Alibou, Ancient Whitnesss" in zone.get("unresolved_names", [])
+
+    def test_partner_with_one_typo_flags_whole_zone(self):
+        """Strict mode: any unresolvable commander entry flags the zone.
+
+        Partial resolution would shift the cascading misdiagnosis from
+        "every R/W card" to "every white card" — same bug class, different
+        color. Strict scope forces the user to fix the typo before any
+        downstream check produces meaningful output.
+        """
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [
+                {"name": "Thrasios, Triton Hero", "quantity": 1},
+                {"name": "Tymna teh Weeaver", "quantity": 1},
+            ],
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        hydrated = [
+            {
+                "name": "Thrasios, Triton Hero",
+                "color_identity": ["G", "U"],
+                "legalities": {"commander": "legal"},
+                "type_line": "Legendary Creature — Merfolk Wizard",
+            },
+            {
+                "name": "Lightning Bolt",
+                "color_identity": ["R"],
+                "legalities": {"commander": "legal"},
+            },
+        ]
+
+        result = legality_audit(deck, hydrated)
+        assert result["counts"]["commander_zone"] == 1
+        assert result["counts"]["color_identity"] == 0
+        zone = result["violations"]["commander_zone"][0]
+        assert zone["reason"] == "commander_not_in_hydrated"
+        assert "Tymna teh Weeaver" in zone.get("unresolved_names", [])
+        # The resolved name should NOT appear in the unresolved list.
+        assert "Thrasios, Triton Hero" not in zone.get("unresolved_names", [])
+
+    def test_colorless_commander_does_not_false_positive(self):
+        """A legitimate colorless commander (Kozilek) resolves with empty
+        color_identity. The check must distinguish "name doesn't resolve"
+        from "name resolves but identity is empty"; only the former is
+        flagged.
+        """
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [{"name": "Kozilek, Butcher of Truth", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+        }
+        hydrated = [
+            {
+                "name": "Kozilek, Butcher of Truth",
+                "color_identity": [],
+                "legalities": {"commander": "legal"},
+                "type_line": "Legendary Creature — Eldrazi",
+            },
+            {
+                "name": "Sol Ring",
+                "color_identity": [],
+                "legalities": {"commander": "legal"},
+            },
+        ]
+        result = legality_audit(deck, hydrated)
+        assert result["counts"]["commander_zone"] == 0
+
+
 # ---------- Copy limit checks ----------
 
 _SINGLETON_CONFIG = {"max_copies": 1, "legality_key": "commander"}

@@ -59,6 +59,11 @@ _REASON_TO_CR_RULES: dict[str, tuple[str, ...]] = {
     # Generic banned/not-legal in a format.
     "banned": ("100.6",),
     "not_legal": ("100.6",),
+    # 903.6: a Commander deck must designate a commander.
+    "no_commander_selected": ("903.6",),
+    # Same rule covers "designation didn't resolve to a real card", but the
+    # immediate fix is tooling (typo, stale cache) rather than rules.
+    "commander_not_in_hydrated": ("903.6",),
 }
 
 # Basic land subtypes that produce colored mana. Wastes is a basic land too,
@@ -120,6 +125,61 @@ def _commander_color_identity(
         if card is not None:
             ci.update(card.get("color_identity") or [])
     return ci
+
+
+def check_commander_zone(
+    deck_json: dict,
+    config: dict,
+    hydrated_by_name: dict[str, dict] | None = None,
+) -> list[dict]:
+    """Verify the commander zone is populated AND fully hydratable for
+    commander-format decks.
+
+    Two failure modes both produce the same downstream symptom — an
+    empty derived commander color identity, which makes
+    ``check_color_identity`` cascade-blame every non-colorless card in
+    the mainboard (with the would-be commander listed FIRST):
+
+    * ``no_commander_selected``: the ``commanders`` list is empty (e.g.,
+      the user forgot to run set-commander, or it silently failed in an
+      older version).
+    * ``commander_not_in_hydrated``: a commander entry's name doesn't
+      resolve in the hydrated cache — almost always a typo in a hand-
+      edited deck JSON, occasionally a stale hydrated cache pointed at
+      a deck JSON whose commanders were changed without re-running
+      ``scryfall-lookup --batch``.
+
+    Strict scope: ANY unresolvable commander entry flags the whole zone.
+    Partial resolution (one of two partner commanders typo'd) would shift
+    the cascading misdiagnosis from "every non-colorless card" to "every
+    card outside the resolved-half's identity" — same bug class, different
+    color. Forcing the user to fix the typo before any downstream check
+    runs gives clean output rather than a partial-and-wrong audit.
+
+    A legitimate colorless commander (e.g., Kozilek) resolves in
+    ``hydrated_by_name`` with empty ``color_identity``, so it is NOT
+    flagged here — the distinction is "name resolves" vs "name doesn't
+    resolve", not "identity is empty".
+    """
+    if not config.get("has_commander", True):
+        return []
+    commanders = deck_json.get("commanders") or []
+    if not commanders:
+        return [{"reason": "no_commander_selected"}]
+    if hydrated_by_name is not None:
+        unresolved = [
+            entry.get("name", "")
+            for entry in commanders
+            if not entry.get("name") or entry["name"] not in hydrated_by_name
+        ]
+        if unresolved:
+            return [
+                {
+                    "reason": "commander_not_in_hydrated",
+                    "unresolved_names": unresolved,
+                }
+            ]
+    return []
 
 
 def check_color_identity(
@@ -346,13 +406,23 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
         legality_key,
         deck_card_names=all_deck_names,
     )
-    ci_violations = check_color_identity(deck_json, hydrated_cards, config)
+    commander_zone_violations = check_commander_zone(
+        deck_json, config, hydrated_by_name
+    )
+    # Suppress color-identity cascade when the commander zone is unset:
+    # the would-be commander identity is empty, so every non-colorless
+    # card would be flagged spuriously, drowning the real error.
+    if commander_zone_violations:
+        ci_violations: list[dict] = []
+    else:
+        ci_violations = check_color_identity(deck_json, hydrated_cards, config)
     copy_violations = check_copy_limits(deck_json, hydrated_by_name, config)
     sb_violations = check_sideboard_size(deck_json, config)
     deck_min_violations = check_deck_minimum(deck_json, config)
 
     counts = {
         "format_legality": len(format_violations),
+        "commander_zone": len(commander_zone_violations),
         "color_identity": len(ci_violations),
         "copy_limits": len(copy_violations),
         "sideboard_size": len(sb_violations),
@@ -373,6 +443,7 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
         "counts": counts,
         "violations": {
             "format_legality": format_violations,
+            "commander_zone": commander_zone_violations,
             "color_identity": ci_violations,
             "copy_limits": copy_violations,
             "sideboard_size": sb_violations,
@@ -393,6 +464,18 @@ def _format_violation_line(
     for v in shown:
         if reason == "format_legality":
             names.append(f"{v['name']} ({v['legality']})")
+        elif reason == "commander_zone":
+            v_reason = v.get("reason")
+            if v_reason == "commander_not_in_hydrated":
+                unresolved = ", ".join(v.get("unresolved_names") or []) or "?"
+                names.append(
+                    f"invalid commander selected (check for typos): {unresolved}"
+                )
+            else:
+                names.append(
+                    "no commander selected — run set-commander to populate "
+                    "the commanders list"
+                )
         elif reason == "color_identity":
             ci = "".join(v.get("card_identity") or []) or "C"
             cmd_ci = "".join(v.get("commander_identity") or []) or "C"
@@ -417,6 +500,7 @@ def _format_violation_line(
 
 _REPORT_CHECKS = (
     "format_legality",
+    "commander_zone",
     "color_identity",
     "copy_limits",
     "sideboard_size",

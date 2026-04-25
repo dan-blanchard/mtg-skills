@@ -200,6 +200,131 @@ class TestRunCutCheck:
         assert bouncer["self_recurring"] is True
 
 
+class TestFlexibleInput:
+    """cut-check should accept the same cuts.json format as build-deck.
+
+    Regression: cut-check used ``json.loads`` directly and treated the result
+    as a list of name strings. When the user passed ``[{"name": "X",
+    "quantity": 1}]`` (the format build-deck accepts), cut-check crashed with
+    ``TypeError: cannot use 'dict' as a dict key (unhashable type: 'dict')``
+    deep inside ``run_cut_check`` when it called ``lookup.get(name, ...)`` on
+    a dict. Sharing a single cuts.json across both tools is the expected
+    workflow during a tune session, so cut-check must normalize like
+    build-deck does.
+    """
+
+    def test_cli_accepts_dict_cuts(self, trigger_test_cards, tmp_path):
+        from click.testing import CliRunner
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps([{"name": "Upkeep Drainer", "quantity": 1}]))
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--trigger-type",
+                "upkeep",
+                "--multiplier-low",
+                "3",
+                "--multiplier-high",
+                "7",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Upkeep Drainer" in result.output
+
+    def test_cli_rejects_malformed_entry(self, trigger_test_cards, tmp_path):
+        """Symmetric with build_deck's contract: malformed cuts entries
+        (no ``name`` key, wrong type) raise instead of warn-and-continue.
+
+        Sharing a single ``cuts.json`` across cut-check and build-deck was
+        the design goal of dict-format acceptance. Asymmetric error policy
+        ("cut-check warns, build-deck raises") would let the user get a
+        false sense of security from cut-check's partial analysis and
+        then hit a hard error at build-deck on the same file. Both tools
+        fail-fast on the same input.
+        """
+        from click.testing import CliRunner
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(json.dumps([{"quantity": 1}]))  # missing name
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--trigger-type",
+                "upkeep",
+                "--multiplier-low",
+                "3",
+                "--multiplier-high",
+                "7",
+                "--output",
+                str(output_path),
+            ],
+        )
+        assert result.exit_code != 0
+        # Output file must not be written on error.
+        assert not output_path.exists()
+
+    def test_cli_accepts_mixed_string_and_dict_cuts(self, trigger_test_cards, tmp_path):
+        from click.testing import CliRunner
+
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(trigger_test_cards))
+        cuts_path = tmp_path / "cuts.json"
+        cuts_path.write_text(
+            json.dumps(
+                [
+                    "Upkeep Drainer",
+                    {"name": "Blocking Restrictor", "quantity": 1},
+                ]
+            )
+        )
+        output_path = tmp_path / "out.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(hydrated_path),
+                "Obeka, Splitter of Seconds",
+                "--cuts",
+                str(cuts_path),
+                "--trigger-type",
+                "upkeep",
+                "--multiplier-low",
+                "3",
+                "--multiplier-high",
+                "7",
+                "--output",
+                str(output_path),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Upkeep Drainer" in result.output
+        assert "Blocking Restrictor" in result.output
+
+
 class TestCLI:
     def test_text_report_and_json_file(self, trigger_test_cards, tmp_path):
         from click.testing import CliRunner
