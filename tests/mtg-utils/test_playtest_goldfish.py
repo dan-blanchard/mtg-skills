@@ -9,4 +9,4 @@ def test_goldfish_help():
     runner = CliRunner()
     result = runner.invoke(goldfish_main, ["--help"])
     assert result.exit_code == 0
-    assert "goldfish" in result.output.lower()
+    assert "simulator" in result.output.lower()
