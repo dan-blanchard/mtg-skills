@@ -36,6 +36,7 @@ CARD_FIELDS = [
     "keywords",
     "colors",
     "color_identity",
+    "produced_mana",
     "prices",
     "legalities",
     "rarity",

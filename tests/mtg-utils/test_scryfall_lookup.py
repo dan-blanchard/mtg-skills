@@ -550,6 +550,13 @@ class TestCLI:
         assert viscera["oracle_text"] == "Sacrifice a creature: Scry 1."
         assert viscera["mana_cost"] == "{B}"
 
+        # produced_mana field survives the projection (regression: was being
+        # stripped, which broke land-color detection in downstream tools).
+        cmd_tower = next(c for c in cached if c["name"] == "Command Tower")
+        assert cmd_tower["produced_mana"] == ["W", "U", "B", "R", "G"]
+        sol_ring = next(c for c in cached if c["name"] == "Sol Ring")
+        assert sol_ring["produced_mana"] == ["C"]
+
     def test_batch_envelope_lists_missing_cards(self, sample_bulk_data, tmp_path):
         names_path = tmp_path / "names.json"
         names_path.write_text(
