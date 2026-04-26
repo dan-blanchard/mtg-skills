@@ -182,3 +182,73 @@ class TestCustomFormatCLI:
         )
         assert result.exit_code != 0
         assert "archetype-group" in result.output.lower()
+
+
+class TestFromCubeWithGroups:
+    def test_cube_declared_group_resolves_into_archetype_groups(
+        self,
+        tmp_path,
+    ):
+        """Group declared in cube.designer_intent.stated_archetypes flows
+        through to the simulator's archetype-tracking layer."""
+        cube = {
+            "format": "shared_library_cube",
+            "designer_intent": {
+                "stated_archetypes": [
+                    {"name": "removal"},
+                    {
+                        "name": "graveyard",
+                        "members": ["reanimate", "self-mill"],
+                    },
+                ],
+            },
+            "cards": [],
+        }
+        hydrated = []
+        # Tiny synthetic pool — enough cards for 4-player marketplace setup.
+        for color in ["W", "U", "B", "R", "G"]:
+            for i in range(16):
+                cube["cards"].append({"name": f"{color}{i}", "quantity": 1})
+                hydrated.append(
+                    {
+                        "name": f"{color}{i}",
+                        "type_line": "Creature — Beast",
+                        "oracle_text": "",
+                        "mana_cost": f"{{{color}}}",
+                        "cmc": (i % 5) + 1,
+                        "color_identity": [color],
+                        "produced_mana": [],
+                    }
+                )
+        cube_path = tmp_path / "cube.json"
+        hydrated_path = tmp_path / "hydrated.json"
+        cube_path.write_text(json.dumps(cube))
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        runner = CliRunner()
+        out = tmp_path / "report.json"
+        result = runner.invoke(
+            custom_format_main,
+            [
+                str(cube_path),
+                "--hydrated",
+                str(hydrated_path),
+                "--format-module",
+                "shared_library",
+                "--from-cube",
+                "--turns",
+                "3",
+                "--games",
+                "3",
+                "--seed",
+                "0",
+                "--output",
+                str(out),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        env = json.loads(out.read_text())
+        per_archetype = env["results"]["per_archetype"]
+        # Both the leaf preset AND the group appear in the report.
+        assert "removal" in per_archetype
+        assert "graveyard" in per_archetype

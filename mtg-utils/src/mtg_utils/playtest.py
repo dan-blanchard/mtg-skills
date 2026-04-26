@@ -906,13 +906,28 @@ def custom_format_main(
     # synthesized at the augmentation step below.
     archetype_list: list[str] = list(preset_names)
     if from_cube:
-        for entry in cube.get("designer_intent", {}).get("stated_archetypes", []):
-            if isinstance(entry, dict) and "name" in entry:
-                archetype_list.append(entry["name"])
-        # Also accept top-level stated_archetypes for legacy compat.
-        for entry in cube.get("stated_archetypes", []):
-            if isinstance(entry, dict) and "name" in entry:
-                archetype_list.append(entry["name"])
+        from mtg_utils._archetype_resolver import resolve_stated_archetypes
+
+        try:
+            resolved = resolve_stated_archetypes(cube)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        archetype_list.extend(resolved.preset_names)
+        for grp in resolved.groups:
+            # Cube-declared groups merge into the same dict the
+            # --archetype-group flag uses. Flag-declared entries take
+            # precedence on name collision (per Q4c precedence rule).
+            if grp.name not in groups:
+                groups[grp.name] = set(grp.members)
+        if resolved.custom:
+            click.echo(
+                f"WARNING: ignoring {len(resolved.custom)} legacy regex "
+                f"stated_archetype(s); the simulator does not consume "
+                f"custom regex matchers in v1: "
+                + ", ".join(c.name for c in resolved.custom),
+                err=True,
+            )
     for members in groups.values():
         archetype_list.extend(members)
     archetype_list = list(dict.fromkeys(archetype_list))  # dedup, preserve order
