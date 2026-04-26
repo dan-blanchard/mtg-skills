@@ -35,6 +35,9 @@ set-commander = "mtg_utils.set_commander:main"
 legality-audit = "mtg_utils.legality_audit:main"
 mark-owned = "mtg_utils.mark_owned:main"
 mtga-import = "mtg_utils.mtga_import:main"
+playtest-goldfish = "mtg_utils.playtest:goldfish_main"
+playtest-match = "mtg_utils.playtest:match_main"
+playtest-install-phase = "mtg_utils.playtest:install_phase_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
