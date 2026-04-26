@@ -155,3 +155,45 @@ class TestRegexShape:
         assert out.custom == (
             CustomRegexArchetype("removal", "(?i)destroy target nonland"),
         )
+
+
+class TestNameValidation:
+    def test_duplicate_name_raises(self):
+        cube = _cube(
+            [
+                {"name": "removal"},
+                {"name": "removal"},
+            ]
+        )
+        with pytest.raises(ValueError, match="duplicate") as excinfo:
+            resolve_stated_archetypes(cube)
+        assert "removal" in str(excinfo.value)
+
+    def test_missing_name_raises(self):
+        cube = _cube([{"members": ["reanimate"]}])
+        with pytest.raises(ValueError, match="name") as excinfo:
+            resolve_stated_archetypes(cube)
+        assert "name" in str(excinfo.value).lower()
+
+    def test_non_dict_entry_raises(self):
+        cube = _cube(["just-a-string"])
+        with pytest.raises(ValueError, match=r"object|dict") as excinfo:
+            resolve_stated_archetypes(cube)
+        msg = str(excinfo.value).lower()
+        assert "object" in msg or "dict" in msg
+
+    def test_multiple_violations_all_reported(self):
+        cube = _cube(
+            [
+                {"name": "no-such-preset"},
+                {"name": "broken", "regex": "(?i)[unclosed"},
+                {"members": ["reanimate"]},  # missing name
+            ]
+        )
+        with pytest.raises(ValueError, match=r"no-such-preset|broken|name") as excinfo:
+            resolve_stated_archetypes(cube)
+        msg = str(excinfo.value)
+        # Multi-line message with one entry per violation.
+        assert "no-such-preset" in msg
+        assert "broken" in msg
+        assert "name" in msg.lower()

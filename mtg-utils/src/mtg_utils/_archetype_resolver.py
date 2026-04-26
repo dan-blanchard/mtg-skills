@@ -80,6 +80,7 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
     groups: list[ArchetypeGroup] = []
     custom: list[CustomRegexArchetype] = []
     errors: list[str] = []
+    seen_names: set[str] = set()
 
     for idx, entry in enumerate(stated):
         if not isinstance(entry, dict):
@@ -89,6 +90,12 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
         if not isinstance(name, str) or not name:
             errors.append(f"entry {idx}: missing or empty 'name'")
             continue
+        if name in seen_names:
+            errors.append(
+                f"entry {idx}: duplicate 'name' {name!r} (each name must be unique)",
+            )
+            continue
+        seen_names.add(name)
 
         if "members" in entry:
             members = entry["members"]
