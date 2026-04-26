@@ -151,3 +151,102 @@ def commitment_check(
 
     qualifiers.sort(key=lambda kv: (-kv[1], kv[0]))
     return qualifiers[0][0]
+
+
+@dataclass(frozen=True)
+class PickDecision:
+    """Outcome of a draw step's pick decision.
+
+    ``kind`` is ``"marketplace"`` or ``"blind"``. When ``"marketplace"``,
+    ``card_index`` is the position in the marketplace list to take. When
+    ``"blind"``, ``card_index`` is None.
+    """
+
+    kind: str
+    card_index: int | None = None
+
+
+def _can_cast(
+    card: CardMetadata,
+    *,
+    available_mana: int,
+    available_colors: frozenset[str],
+) -> bool:
+    """Castable iff (a) on-color and (b) CMC fits available mana."""
+    if card.is_land:
+        return False
+    if not card.color_identity.issubset(available_colors):
+        return False
+    return card.cmc <= available_mana
+
+
+def _best_castable(
+    marketplace: list[CardMetadata],
+    *,
+    available_mana: int,
+    available_colors: frozenset[str],
+) -> int | None:
+    """Return index of highest-CMC castable card; None if nothing castable."""
+    best_idx: int | None = None
+    best_cmc = -1
+    for idx, card in enumerate(marketplace):
+        if not _can_cast(
+            card, available_mana=available_mana, available_colors=available_colors
+        ):
+            continue
+        if card.cmc > best_cmc:
+            best_cmc = card.cmc
+            best_idx = idx
+    return best_idx
+
+
+def _best_archetype_match(
+    marketplace: list[CardMetadata],
+    *,
+    archetype: str,
+) -> int | None:
+    """Return index of highest-CMC card matching the archetype; None if none."""
+    best_idx: int | None = None
+    best_cmc = -1
+    for idx, card in enumerate(marketplace):
+        if archetype not in card.archetype_matches:
+            continue
+        if card.cmc > best_cmc:
+            best_cmc = card.cmc
+            best_idx = idx
+    return best_idx
+
+
+def choose_pick(
+    marketplace: list[CardMetadata],
+    *,
+    committed: str | None,
+    available_mana: int,
+    available_colors,
+) -> PickDecision:
+    """Decide whether to pick from marketplace and which card.
+
+    - Committed: prefer an archetype-matching card (regardless of immediate
+      playability). Soft fallback to greedy CMC if no match.
+    - Uncommitted: greedy — highest-CMC playable on available colors.
+    - If marketplace is empty or nothing is pickable, return blind-draw.
+    """
+    if not marketplace:
+        return PickDecision(kind="blind")
+
+    avail_colors = frozenset(available_colors)
+
+    if committed is not None:
+        match_idx = _best_archetype_match(marketplace, archetype=committed)
+        if match_idx is not None:
+            return PickDecision(kind="marketplace", card_index=match_idx)
+        # Soft fallback to greedy.
+
+    greedy_idx = _best_castable(
+        marketplace,
+        available_mana=available_mana,
+        available_colors=avail_colors,
+    )
+    if greedy_idx is None:
+        return PickDecision(kind="blind")
+    return PickDecision(kind="marketplace", card_index=greedy_idx)
