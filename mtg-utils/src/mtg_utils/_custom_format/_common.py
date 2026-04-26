@@ -51,6 +51,24 @@ _PEEK_PATTERN = re.compile(
 )
 _SCRY_PATTERN = re.compile(r"\bscry \d+\b", re.IGNORECASE)
 
+# Mana-cost pip extractor: matches each {W}/{U}/{B}/{R}/{G} symbol in a
+# Scryfall mana_cost string. Hybrid pips (e.g., {U/R}), Phyrexian pips
+# ({U/P}), and generic costs ({2}, {X}) are NOT counted as colored pips.
+_MANA_PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
+
+
+def parse_pip_counts(mana_cost: str) -> dict[str, int]:
+    """Count colored pips per WUBRG color in a Scryfall mana_cost string.
+
+    ``"{2}{U}{U}"`` → ``{"U": 2}``. ``"{X}{X}{B}{B}{B}{B}"`` → ``{"B": 4}``.
+    Pure-generic costs return an empty dict.
+    """
+    counts: dict[str, int] = {}
+    for match in _MANA_PIP_PATTERN.finditer(mana_cost or ""):
+        color = match.group(1)
+        counts[color] = counts.get(color, 0) + 1
+    return counts
+
 
 def classify_library_effect(card: dict) -> LibraryEffect:
     """Map a card's oracle text to a library-effect category.
@@ -88,6 +106,9 @@ class CardMetadata:
     is_land: bool
     library_effect: LibraryEffect
     archetype_matches: frozenset[str]
+    # Sorted ((color, count), ...) of colored pips parsed from mana_cost.
+    # E.g., Counterspell {U}{U} → (("U", 2),); generic-only or land → ().
+    pip_counts: tuple[tuple[str, int], ...] = ()
 
 
 def precompute_metadata(
@@ -106,6 +127,11 @@ def precompute_metadata(
     out: list[CardMetadata] = []
     for card in hydrated:
         archetype_set = frozenset(p for p in presets if _preset_matches(p, card))
+        pip_counts = tuple(
+            sorted(
+                parse_pip_counts(card.get("mana_cost") or "").items(),
+            )
+        )
         out.append(
             CardMetadata(
                 name=card.get("name", ""),
@@ -115,9 +141,36 @@ def precompute_metadata(
                 is_land=_is_land(card),
                 library_effect=classify_library_effect(card),
                 archetype_matches=archetype_set,
+                pip_counts=pip_counts,
             )
         )
     return out
+
+
+def can_cast_with_pips(
+    card: CardMetadata,
+    mana_pool: dict[str, int],
+) -> bool:
+    """Return True if ``card`` can be cast given a per-color mana pool.
+
+    Pip-aware: requires sufficient mana of each colored pip in the cost.
+    Generic mana is paid from any remaining mana of any color.
+
+    Lands always return False (they're not cast). Cards with no colored
+    pips (artifacts, generic costs) need only ``cmc`` mana of any color.
+    """
+    if card.is_land:
+        return False
+    pool = dict(mana_pool)
+    used_colored = 0
+    for color, count in card.pip_counts:
+        available = pool.get(color, 0)
+        if available < count:
+            return False
+        pool[color] -= count
+        used_colored += count
+    needed_generic = max(0, card.cmc - used_colored)
+    return sum(pool.values()) >= needed_generic
 
 
 COMMITMENT_MIN_COUNT = 2

@@ -153,3 +153,126 @@ class TestPrecomputeMetadata:
     def test_unknown_preset_raises(self):
         with pytest.raises(KeyError):
             precompute_metadata([_hcard("Foo")], presets=["does-not-exist"])
+
+
+class TestParsePipCounts:
+    def test_single_color_double_pip(self):
+        from mtg_utils._custom_format._common import parse_pip_counts
+
+        assert parse_pip_counts("{U}{U}") == {"U": 2}
+        assert parse_pip_counts("{1}{U}{U}") == {"U": 2}
+
+    def test_mixed_pips(self):
+        from mtg_utils._custom_format._common import parse_pip_counts
+
+        assert parse_pip_counts("{2}{B}{R}{G}") == {"B": 1, "R": 1, "G": 1}
+
+    def test_quadruple_black(self):
+        from mtg_utils._custom_format._common import parse_pip_counts
+
+        # Empty the Pits is the cube's most extreme pip cost.
+        assert parse_pip_counts("{X}{X}{B}{B}{B}{B}") == {"B": 4}
+
+    def test_generic_only_returns_empty(self):
+        from mtg_utils._custom_format._common import parse_pip_counts
+
+        assert parse_pip_counts("{1}") == {}
+        assert parse_pip_counts("") == {}
+
+    def test_metadata_carries_pip_counts(self):
+        hydrated = [
+            _hcard(
+                "Counterspell",
+                mana_cost="{U}{U}",
+                cmc=2,
+                type_line="Instant",
+                color_identity=["U"],
+            ),
+        ]
+        meta = precompute_metadata(hydrated, presets=[])
+        assert meta[0].pip_counts == (("U", 2),)
+
+
+class TestCanCastWithPips:
+    @staticmethod
+    def _spell(name, *, cmc, pip_counts, color_identity):
+        from mtg_utils._custom_format._common import (
+            CardMetadata,
+            LibraryEffect,
+        )
+
+        return CardMetadata(
+            name=name,
+            cmc=cmc,
+            color_identity=frozenset(color_identity),
+            produced_mana=(),
+            is_land=False,
+            library_effect=LibraryEffect.NONE,
+            archetype_matches=frozenset(),
+            pip_counts=pip_counts,
+        )
+
+    def test_double_pip_with_one_color_source_fails(self):
+        from mtg_utils._custom_format._common import can_cast_with_pips
+
+        counterspell = self._spell(
+            "Counterspell",
+            cmc=2,
+            pip_counts=(("U", 2),),
+            color_identity=("U",),
+        )
+        assert can_cast_with_pips(counterspell, {"U": 1}) is False
+
+    def test_double_pip_with_two_color_sources_passes(self):
+        from mtg_utils._custom_format._common import can_cast_with_pips
+
+        counterspell = self._spell(
+            "Counterspell",
+            cmc=2,
+            pip_counts=(("U", 2),),
+            color_identity=("U",),
+        )
+        assert can_cast_with_pips(counterspell, {"U": 2}) is True
+
+    def test_generic_satisfied_by_any_color(self):
+        from mtg_utils._custom_format._common import can_cast_with_pips
+
+        # {2}{U} — 1 U + 2 generic. Any 3 mana with at least 1 U works.
+        spell = self._spell(
+            "Mid Spell",
+            cmc=3,
+            pip_counts=(("U", 1),),
+            color_identity=("U",),
+        )
+        assert can_cast_with_pips(spell, {"U": 1, "R": 2}) is True
+
+    def test_total_mana_short_fails(self):
+        from mtg_utils._custom_format._common import can_cast_with_pips
+
+        spell = self._spell(
+            "Mid Spell",
+            cmc=3,
+            pip_counts=(("U", 1),),
+            color_identity=("U",),
+        )
+        # 1 U + 1 R = 2 mana, but card needs 3.
+        assert can_cast_with_pips(spell, {"U": 1, "R": 1}) is False
+
+    def test_land_returns_false(self):
+        from mtg_utils._custom_format._common import (
+            CardMetadata,
+            LibraryEffect,
+            can_cast_with_pips,
+        )
+
+        land = CardMetadata(
+            name="Plains",
+            cmc=0,
+            color_identity=frozenset({"W"}),
+            produced_mana=("W",),
+            is_land=True,
+            library_effect=LibraryEffect.NONE,
+            archetype_matches=frozenset(),
+            pip_counts=(),
+        )
+        assert can_cast_with_pips(land, {"W": 5, "U": 5}) is False

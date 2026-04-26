@@ -15,6 +15,7 @@ from mtg_utils._custom_format._common import (
     LibraryEffect,
     Player,
     Zone,
+    can_cast_with_pips,
     choose_library_target,
     choose_pick,
     commitment_check,
@@ -174,7 +175,12 @@ def _player_color_pool(
     cube_metadata: list[CardMetadata],
     basic_metadata: tuple[CardMetadata, ...],
 ) -> frozenset[str]:
-    """Aggregate produced-mana colors across the player's lands in play."""
+    """Aggregate produced-mana colors across the player's lands in play.
+
+    Set-based view used by ``choose_pick`` to gauge whether a marketplace
+    card is "playable on the player's known colors at all" — a heuristic
+    for pick decisions, not pip-accurate.
+    """
     colors: set[str] = set()
     for idx in player.lands_in_play:
         colors |= set(
@@ -183,6 +189,44 @@ def _player_color_pool(
             ).produced_mana
         )
     return frozenset(colors)
+
+
+def _player_mana_pool(
+    player: Player,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...],
+) -> dict[str, int]:
+    """Build a per-color mana pool from the player's lands in play.
+
+    Each land is committed to the FIRST color in its ``produced_mana``
+    tuple. v1 simplification: the simulator doesn't try to optimally
+    allocate dual lands to the colors a held spell needs — a Temple of
+    Mystery (produced=("G","U")) always taps for G here, even if the
+    held spell needs U. This *under-credits* dual-land flexibility.
+
+    For shared-library specifically, the dominant constraint is colored
+    pips on cards like Counterspell {U}{U} relative to the fixed 5-basic
+    opener; the dual-land approximation is acceptable because there are
+    at most 1-2 duals in any given player's lands by mid-game.
+
+    Lands with empty ``produced_mana`` (or non-WUBRG colors) contribute
+    only to the generic pool — represented here by the dict's empty-key
+    sum being available for generic costs in :func:`can_cast_with_pips`.
+    Missing data shows up as zero contribution.
+    """
+    pool: dict[str, int] = {}
+    for idx in player.lands_in_play:
+        produced = lookup_card(
+            idx,
+            cube_metadata=cube_metadata,
+            basic_metadata=basic_metadata,
+        ).produced_mana
+        for color in produced:
+            if color in {"W", "U", "B", "R", "G"}:
+                pool[color] = pool.get(color, 0) + 1
+                break
+    return pool
 
 
 def _build_marketplace_view(
@@ -344,24 +388,33 @@ def _play_main_phase(
         player.hand.remove(land_in_hand)
         player.lands_in_play.append(land_in_hand)
 
-    color_pool = _player_color_pool(
-        player, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+    mana_pool = _player_mana_pool(
+        player,
+        cube_metadata=cube_metadata,
+        basic_metadata=basic_metadata,
     )
-    available_mana = len(player.lands_in_play)
+    available_mana = sum(mana_pool.values())
 
-    # Try to cast spells in ascending CMC order. Track color-screw events
-    # for the metric: any held nonland whose color identity isn't covered
-    # by the player's land pool is "uncastable due to color."
+    # Try to cast spells in ascending CMC order. Pip-aware castability:
+    # a card requires sufficient counts of each colored pip in its cost,
+    # not just set-membership of color identity. Color-screw fires when
+    # a held nonland would have enough total mana for its CMC but cannot
+    # cover its colored pips with the available per-color pool.
     castable: list[tuple[int, int]] = []  # (cmc, hand_idx)
     color_screwed_this_turn = False
     for h_idx in player.hand:
         card = lookup_card(
-            h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+            h_idx,
+            cube_metadata=cube_metadata,
+            basic_metadata=basic_metadata,
         )
         if card.is_land:
             continue
-        if not card.color_identity.issubset(color_pool):
-            color_screwed_this_turn = True
+        if not can_cast_with_pips(card, mana_pool):
+            # Not castable. Distinguish color-screw (enough total mana,
+            # missing pip coverage) from raw mana-shortage (CMC too high).
+            if card.cmc <= available_mana:
+                color_screwed_this_turn = True
             continue
         castable.append((card.cmc, h_idx))
     if color_screwed_this_turn:
@@ -370,14 +423,27 @@ def _play_main_phase(
 
     cast_this_turn: list[int] = []
     for cmc, h_idx in castable:
-        if cmc > available_mana:
-            break
-        # Cast the spell.
-        cast_this_turn.append(h_idx)
-        available_mana -= cmc
         card = lookup_card(
-            h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+            h_idx,
+            cube_metadata=cube_metadata,
+            basic_metadata=basic_metadata,
         )
+        # Re-check after each cast — earlier casts in this loop may have
+        # depleted a color the current spell needs.
+        if not can_cast_with_pips(card, mana_pool):
+            continue
+        # Spend pips first, then drain any remaining mana for the
+        # generic portion (greedy across colors; v1 does not optimize).
+        pips_spent = 0
+        for color, count in card.pip_counts:
+            mana_pool[color] -= count
+            pips_spent += count
+        generic_remaining = max(0, cmc - pips_spent)
+        for color in list(mana_pool.keys()):
+            take = min(generic_remaining, mana_pool[color])
+            mana_pool[color] -= take
+            generic_remaining -= take
+        cast_this_turn.append(h_idx)
         # Apply library effect, if any. SEARCH (tutors) is format-disallowed
         # in shared-library; we skip both the metric and the no-op resolve.
         if card.library_effect not in (LibraryEffect.NONE, LibraryEffect.SEARCH):
