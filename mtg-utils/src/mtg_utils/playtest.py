@@ -17,6 +17,7 @@ import click
 
 from mtg_utils._playtest_common import (
     envelope,
+    render_draft_markdown,
     render_gauntlet_markdown,
     render_goldfish_markdown,
     render_match_markdown,
@@ -596,9 +597,177 @@ def gauntlet_main(
 
 
 @click.command()
-def draft_main() -> None:
+@click.argument("cube_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--hydrated",
+    "hydrated_path",
+    type=click.Path(exists=True, dir_okay=False),
+    required=True,
+)
+@click.option("--pods", default=4, show_default=True, type=int)
+@click.option("--players", default=8, show_default=True, type=int)
+@click.option("--packs", default=3, show_default=True, type=int)
+@click.option("--pack-size", default=15, show_default=True, type=int)
+@click.option("--goldfish-games", default=1000, show_default=True, type=int)
+@click.option("--goldfish-turns", default=8, show_default=True, type=int)
+@click.option("--seed", default=0, show_default=True, type=int)
+@click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
+def draft_main(
+    cube_path,
+    hydrated_path,
+    pods,
+    players,
+    packs,
+    pack_size,
+    goldfish_games,
+    goldfish_turns,
+    seed,
+    output_path,
+):
     """Heuristic cube draft + per-deck goldfish."""
-    click.echo("draft: not yet implemented")
+    from mtg_utils._draft_ai import draft_pod
+    from mtg_utils._gauntlet_build import build_gauntlet_deck, score_card
+
+    cube = json.loads(Path(cube_path).read_text())
+    hydrated_raw = json.loads(Path(hydrated_path).read_text())
+    lookup = build_card_lookup(hydrated_raw)
+    pool = [lookup[e["name"]] for e in cube.get("cards", []) if e["name"] in lookup]
+
+    start = time.perf_counter()
+    deck_reports: list[dict] = []
+    archetype_choices = ("aggro", "midrange", "control", "combo")
+    archetype_counts: dict[str, int] = dict.fromkeys(archetype_choices, 0)
+    basic_lands = {"Plains", "Island", "Swamp", "Mountain", "Forest"}
+    basic_to_color = {
+        "Plains": "W",
+        "Island": "U",
+        "Swamp": "B",
+        "Mountain": "R",
+        "Forest": "G",
+    }
+
+    for pod_idx in range(pods):
+        pod_seed = seed + pod_idx * 1000
+        pod_rng = random.Random(pod_seed)
+        pod_pool = list(pool)
+        piles = draft_pod(
+            pod_pool, players=players, packs=packs, pack_size=pack_size, rng=pod_rng
+        )
+        for player_idx, pile in enumerate(piles):
+            colors = {c for card in pile for c in (card.get("color_identity") or [])}
+            if not colors:
+                deck_reports.append(
+                    {
+                        "pod": pod_idx,
+                        "player": player_idx,
+                        "archetype": "midrange",
+                        "build_status": "insufficient",
+                        "reason": "drafted pile has no colors",
+                    }
+                )
+                archetype_counts["midrange"] += 1
+                continue
+
+            ctr: dict[str, int] = dict.fromkeys(colors, 0)
+            for card in pile:
+                for c in card.get("color_identity") or []:
+                    ctr[c] = ctr.get(c, 0) + 1
+            top_two = {c for c, _ in sorted(ctr.items(), key=lambda kv: -kv[1])[:2]}
+
+            best_a, best_score = "midrange", -1.0
+            for archetype in archetype_choices:
+                total = sum(
+                    score_card(card, archetype=archetype, colors=top_two)
+                    for card in pile
+                )
+                if total > best_score:
+                    best_score, best_a = total, archetype
+            chosen_archetype = best_a
+            archetype_counts[chosen_archetype] += 1
+
+            spec = {
+                "name": chosen_archetype.capitalize(),
+                "colors": list(top_two),
+                "preset": chosen_archetype,
+                "curve_target": {"1": 6, "2": 7, "3": 5, "4": 3, "5": 2},
+            }
+            outcome = build_gauntlet_deck(pile, spec, deck_size=40, lands=17)
+            if outcome.status != "ok":
+                deck_reports.append(
+                    {
+                        "pod": pod_idx,
+                        "player": player_idx,
+                        "archetype": chosen_archetype,
+                        "build_status": outcome.status,
+                        "reason": outcome.reason,
+                    }
+                )
+                continue
+
+            built_hydrated: list[dict] = []
+            for entry in outcome.deck["main"]:
+                if entry["name"] in basic_lands:
+                    color = basic_to_color[entry["name"]]
+                    card = {
+                        "name": entry["name"],
+                        "type_line": f"Basic Land — {entry['name']}",
+                        "cmc": 0,
+                        "mana_cost": "",
+                        "oracle_text": "",
+                        "produced_mana": [color],
+                    }
+                else:
+                    card = lookup.get(entry["name"]) or {
+                        "name": entry["name"],
+                        "type_line": "",
+                        "cmc": 0,
+                        "mana_cost": "",
+                        "oracle_text": "",
+                        "produced_mana": [],
+                    }
+                for _ in range(entry["count"]):
+                    built_hydrated.append(card)
+
+            agg = _run_goldfish(
+                built_hydrated,
+                games=goldfish_games,
+                max_turns=goldfish_turns,
+                base_seed=pod_seed + player_idx,
+            )
+            deck_reports.append(
+                {
+                    "pod": pod_idx,
+                    "player": player_idx,
+                    "archetype": chosen_archetype,
+                    "build_status": "ok",
+                    "color_screw_rate": agg["color_screw_rate"],
+                    "mean_lands_at_t4": agg["mean_lands_by_turn"].get("4", 0.0),
+                    "mulligan_rate": agg["mulligan_rate"],
+                }
+            )
+    elapsed = time.perf_counter() - start
+
+    out = envelope(
+        mode="draft",
+        engine="goldfish",
+        engine_version=GOLDFISH_VERSION,
+        seed=seed,
+        format_=cube.get("format"),
+        card_coverage=None,
+        results={
+            "pods": pods,
+            "players": players,
+            "decks": deck_reports,
+            "archetype_distribution": archetype_counts,
+        },
+        warnings=[],
+        duration_s=elapsed,
+    )
+
+    serialized = json.dumps(out, indent=2)
+    if output_path:
+        Path(output_path).write_text(serialized)
+    click.echo(render_draft_markdown(out))
 
 
 @click.command()

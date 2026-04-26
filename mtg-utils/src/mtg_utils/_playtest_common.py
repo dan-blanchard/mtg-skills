@@ -150,3 +150,43 @@ def render_match_markdown(env: dict) -> str:
     if env.get("warnings"):
         lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
     return "\n".join(lines) + "\n"
+
+
+def render_draft_markdown(env: dict) -> str:
+    """Render a draft envelope as a per-pod aggregate summary."""
+    r = env["results"]
+    decks = [d for d in r["decks"] if d.get("build_status") == "ok"]
+    failed = [d for d in r["decks"] if d.get("build_status") != "ok"]
+
+    lines = [
+        "# Draft report",
+        "",
+        f"**Engine:** {env['engine_version']}  "
+        f"**Seed:** {env['seed']}  "
+        f"**Format:** {env.get('format') or 'unspecified'}  "
+        f"**Duration:** {env['duration_s']}s",
+        "",
+        f"## Drafted decks ({r['pods']} pods, "
+        f"{r['players']} players, {len(decks)} buildable)",
+        "",
+    ]
+    if decks:
+        avg_screw = sum(d["color_screw_rate"] for d in decks) / len(decks)
+        avg_lands = sum(d["mean_lands_at_t4"] for d in decks) / len(decks)
+        lines += [
+            f"- Mean color-screw rate: {avg_screw * 100:.1f}%",
+            f"- Mean lands at T4: {avg_lands:.2f}",
+        ]
+
+    lines += ["", "## Archetype distribution"]
+    for a, n in r["archetype_distribution"].items():
+        lines.append(f"- {a}: {n}")
+
+    if failed:
+        lines += ["", "## Failed builds"]
+        for d in failed:
+            lines.append(
+                f"- Pod {d['pod']} player {d['player']}: "
+                f"{d.get('reason', d.get('build_status'))}",
+            )
+    return "\n".join(lines) + "\n"
