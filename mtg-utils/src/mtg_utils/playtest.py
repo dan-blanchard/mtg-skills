@@ -57,10 +57,10 @@ def _keep_hand(hand: list[dict]) -> bool:
     Keep iff: 2 <= lands <= 5 AND hand has at least one nonland with cmc <= 3.
     Returns ``True`` to keep, ``False`` to mulligan.
     """
-    lands = sum(1 for c in hand if c.get("is_land"))
+    lands = sum(1 for c in hand if is_land(c))
     if lands < 2 or lands > 5:
         return False
-    return any(not c.get("is_land") and c.get("cmc", 0) <= 3 for c in hand)
+    return any(not is_land(c) and c.get("cmc", 0) <= 3 for c in hand)
 
 
 def _simulate_game(hydrated: list[dict], *, max_turns: int, rng: random.Random) -> dict:

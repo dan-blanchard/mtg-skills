@@ -20,13 +20,17 @@ def test_goldfish_help():
 
 
 def _h(land=0, one=0, two=0, three=0, four=0, five_plus=0):
-    """Build a synthetic hand: list of dicts with cmc and is_land flag."""
+    """Build a synthetic hand: list of dicts with cmc and type_line.
+
+    Lands carry a Land type_line so :func:`mtg_utils.card_classify.is_land`
+    classifies them correctly; nonlands use a Creature type_line.
+    """
     hand = []
     for _ in range(land):
-        hand.append({"cmc": 0, "is_land": True})
+        hand.append({"cmc": 0, "type_line": "Basic Land — Mountain"})
     for cmc, n in [(1, one), (2, two), (3, three), (4, four), (5, five_plus)]:
         for _ in range(n):
-            hand.append({"cmc": cmc, "is_land": False})
+            hand.append({"cmc": cmc, "type_line": "Creature — Goblin"})
     return hand
 
 
