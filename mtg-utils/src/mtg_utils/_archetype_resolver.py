@@ -18,6 +18,7 @@ listing every violation found.
 from __future__ import annotations
 
 import re
+import warnings
 from dataclasses import dataclass
 
 
@@ -72,7 +73,17 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
 
     stated = (cube.get("designer_intent") or {}).get("stated_archetypes")
     if stated is None:
-        stated = cube.get("stated_archetypes") or []
+        legacy = cube.get("stated_archetypes")
+        if legacy:
+            warnings.warn(
+                "Reading stated_archetypes from cube top level is deprecated; "
+                "move entries under cube.designer_intent.stated_archetypes.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            stated = legacy
+        else:
+            stated = []
     if not stated:
         return ResolvedArchetypes(preset_names=(), groups=(), custom=())
 

@@ -197,3 +197,29 @@ class TestNameValidation:
         assert "no-such-preset" in msg
         assert "broken" in msg
         assert "name" in msg.lower()
+
+
+class TestLegacyTopLevelLocation:
+    def test_top_level_stated_archetypes_resolves_with_warning(self):
+        # No `designer_intent` key; entries at top level instead.
+        cube = {"stated_archetypes": [{"name": "removal"}]}
+        import warnings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            out = resolve_stated_archetypes(cube)
+        assert out.preset_names == ("removal",)
+        assert any(
+            "deprecat" in str(w.message).lower()
+            and "stated_archetypes" in str(w.message)
+            for w in caught
+        )
+
+    def test_designer_intent_takes_precedence_over_top_level(self):
+        # If both are present, designer_intent wins; top-level is ignored.
+        cube = {
+            "designer_intent": {"stated_archetypes": [{"name": "removal"}]},
+            "stated_archetypes": [{"name": "counterspell"}],
+        }
+        out = resolve_stated_archetypes(cube)
+        assert out.preset_names == ("removal",)
