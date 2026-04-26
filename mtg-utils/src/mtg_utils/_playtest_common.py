@@ -152,6 +152,65 @@ def render_match_markdown(env: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_custom_format_markdown(env: dict) -> str:
+    """Render a custom-format result envelope as a markdown report."""
+    r = env["results"]
+    n_games = r.get("n_games", 0)
+    pa = r.get("per_archetype", {})
+    md = r.get("marketplace_dynamics", {})
+    mana = r.get("per_player_mana", {})
+
+    lines = [
+        f"# Custom-format playtest report — {env['engine_version']}",
+        "",
+        f"**Seed:** {env['seed']}  "
+        f"**Format:** {env.get('format') or 'unspecified'}  "
+        f"**Games:** {n_games}  "
+        f"**Duration:** {env['duration_s']}s",
+        "",
+        "## Per-archetype assembly rate",
+    ]
+    if pa:
+        for name in sorted(pa.keys()):
+            entry = pa[name]
+            rate_pct = entry["assembly_rate"] * 100
+            mean_turn = entry.get("mean_assembly_turn")
+            mt = f", mean assembly turn {mean_turn:.1f}" if mean_turn else ""
+            flag = " ⚠ thin" if rate_pct < 50 else ""
+            lines.append(f"- {name}: {rate_pct:.0f}%{mt}{flag}")
+    else:
+        lines.append("- (no archetypes provided — pass --preset NAME)")
+
+    lines += [
+        "",
+        "## Marketplace dynamics",
+        f"- Marketplace utilization: {md.get('utilization_rate', 0) * 100:.0f}%",
+        f"- Library effects per turn: {md.get('library_effects_per_turn', 0):.2f}",
+        f"- Marketplace cards exiled per game: {md.get('exiled_per_game', 0):.1f}",
+        "- Marketplace cards discarded per game: "
+        f"{md.get('discarded_per_game', 0):.1f}",
+        f"- Cards milled (draw pile) per game: {md.get('milled_per_game', 0):.1f}",
+        "",
+        "## Per-player mana",
+        f"- Reaches 4 mana by T4: {mana.get('reaches_4_mana_by_t4', 0) * 100:.0f}%",
+        f"- Color-screw rate: {mana.get('color_screw_rate', 0) * 100:.1f}%",
+    ]
+    mtfe = mana.get("mean_turns_to_first_enabler")
+    if mtfe is not None:
+        lines.append(f"- Mean turns to first archetype enabler: T{mtfe:.1f}")
+
+    lines += [
+        "",
+        "## Caveats",
+        "- No combat, no card-ability resolution beyond library effects",
+        "- Players commit organically based on pile (greedy CMC then sticky)",
+        "- Library effects use Silver category model (PEEK/REORDER/DISCARD/EXILE/MILL)",
+    ]
+    if env.get("warnings"):
+        lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
+    return "\n".join(lines) + "\n"
+
+
 def render_draft_markdown(env: dict) -> str:
     """Render a draft envelope as a per-pod aggregate summary."""
     r = env["results"]

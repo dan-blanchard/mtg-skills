@@ -17,6 +17,7 @@ import click
 
 from mtg_utils._playtest_common import (
     envelope,
+    render_custom_format_markdown,
     render_draft_markdown,
     render_gauntlet_markdown,
     render_goldfish_markdown,
@@ -798,6 +799,123 @@ def install_phase_main() -> None:
 
 
 @click.command()
-def custom_format_main() -> None:
-    """Simulate a non-standard cube format."""
-    click.echo("custom-format: not yet implemented")
+@click.argument("cube_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--hydrated",
+    "hydrated_path",
+    type=click.Path(exists=True, dir_okay=False),
+    required=True,
+)
+@click.option(
+    "--format-module",
+    "format_module_name",
+    required=True,
+    help="Name of the custom-format module (e.g., shared_library)",
+)
+@click.option(
+    "--preset",
+    "preset_names",
+    multiple=True,
+    help="Archetype preset name (repeatable)",
+)
+@click.option(
+    "--from-cube",
+    is_flag=True,
+    default=False,
+    help="Read archetype names from cube.stated_archetypes",
+)
+@click.option(
+    "--players",
+    default=None,
+    type=int,
+    help="Number of players (defaults to module's DEFAULT_PLAYERS)",
+)
+@click.option(
+    "--turns",
+    default=None,
+    type=int,
+    help="Turns per game (defaults to module's DEFAULT_TURNS)",
+)
+@click.option("--games", default=1000, show_default=True, type=int)
+@click.option("--seed", default=0, show_default=True, type=int)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    default=None,
+)
+def custom_format_main(
+    cube_path,
+    hydrated_path,
+    format_module_name,
+    preset_names,
+    from_cube,
+    players,
+    turns,
+    games,
+    seed,
+    output_path,
+):
+    """Simulate a non-standard cube format (e.g., shared_library)."""
+    from mtg_utils._custom_format import FORMAT_REGISTRY
+    from mtg_utils._custom_format._common import (
+        precompute_metadata,
+        run_simulation,
+    )
+
+    if format_module_name not in FORMAT_REGISTRY:
+        known = ", ".join(sorted(FORMAT_REGISTRY))
+        raise click.ClickException(
+            f"Unknown --format-module {format_module_name!r}. Known: {known}",
+        )
+    format_module = FORMAT_REGISTRY[format_module_name]
+
+    cube = json.loads(Path(cube_path).read_text())
+    hydrated = json.loads(Path(hydrated_path).read_text())
+
+    # Resolve archetype list.
+    archetype_list: list[str] = list(preset_names)
+    if from_cube:
+        for entry in cube.get("designer_intent", {}).get("stated_archetypes", []):
+            if isinstance(entry, dict) and "name" in entry:
+                archetype_list.append(entry["name"])
+        # Also accept top-level stated_archetypes for legacy compat.
+        for entry in cube.get("stated_archetypes", []):
+            if isinstance(entry, dict) and "name" in entry:
+                archetype_list.append(entry["name"])
+    archetype_list = list(dict.fromkeys(archetype_list))  # dedup, preserve order
+
+    cube_metadata = precompute_metadata(hydrated, presets=archetype_list)
+
+    n_players = players if players is not None else format_module.DEFAULT_PLAYERS
+    max_turns = turns if turns is not None else format_module.DEFAULT_TURNS
+
+    start = time.perf_counter()
+    results = run_simulation(
+        format_module,
+        cube_metadata=cube_metadata,
+        basic_metadata=format_module.BASIC_METADATA,
+        archetype_names=archetype_list,
+        n_players=n_players,
+        max_turns=max_turns,
+        n_games=games,
+        base_seed=seed,
+    )
+    elapsed = time.perf_counter() - start
+
+    out = envelope(
+        mode="custom_format",
+        engine="custom_format",
+        engine_version=f"custom_format/{format_module_name}",
+        seed=seed,
+        format_=cube.get("format"),
+        card_coverage=None,
+        results=results,
+        warnings=[],
+        duration_s=elapsed,
+    )
+
+    serialized = json.dumps(out, indent=2)
+    if output_path:
+        Path(output_path).write_text(serialized)
+    click.echo(render_custom_format_markdown(out))
