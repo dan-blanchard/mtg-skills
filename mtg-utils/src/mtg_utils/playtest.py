@@ -822,7 +822,11 @@ def install_phase_main() -> None:
     "--from-cube",
     is_flag=True,
     default=False,
-    help="Read archetype names from cube.stated_archetypes",
+    help=(
+        "Read archetypes from cube.designer_intent.stated_archetypes. "
+        "Preset references and groups are consumed; legacy regex entries "
+        "emit a warning."
+    ),
 )
 @click.option(
     "--archetype-group",

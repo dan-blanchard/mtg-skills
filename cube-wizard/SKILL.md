@@ -311,8 +311,9 @@ or do you want to build a new cube starting from a well-known reference?"
    ```
 4. **Confirm scope.** Read `cube.json.designer_intent.description` and
    `tags` — these provide the context the Phase 2 pipeline needs. If the
-   cube has stated archetypes but no regexes, ask the user to supply regex
-   queries for each during Step 4.
+   cube has stated archetypes, run `archetype-audit --from-cube` to process
+   preset references and groups directly. Only ask the user for regex
+   queries for themes that aren't covered by the preset library.
 
 ### Path B: Clone Reference Cube
 

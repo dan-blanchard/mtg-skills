@@ -491,8 +491,8 @@ def _format_preset_catalog() -> str:
     "--from-cube",
     is_flag=True,
     default=False,
-    help="Read theme names from cube_json.designer_intent.stated_archetypes. "
-    "Names without an oracle regex are skipped with a warning.",
+    help="Read themes from cube_json.designer_intent.stated_archetypes. "
+    "Supports preset references, archetype groups, and legacy regex entries.",
 )
 @click.option(
     "--min-density",
