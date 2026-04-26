@@ -17,6 +17,7 @@ import click
 
 from mtg_utils._playtest_common import (
     envelope,
+    render_gauntlet_markdown,
     render_goldfish_markdown,
     render_match_markdown,
 )
@@ -414,9 +415,184 @@ def match_main(deck_a, deck_b, games, seed, difficulty, timeout_s, force, output
 
 
 @click.command()
-def gauntlet_main() -> None:
+@click.argument("cube_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--hydrated",
+    "hydrated_path",
+    type=click.Path(exists=True, dir_okay=False),
+    required=True,
+)
+@click.option(
+    "--gauntlet",
+    "gauntlet_path",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Override default archetype manifest with a custom JSON",
+)
+@click.option(
+    "--games-per-pair", "games_per_pair", default=100, show_default=True, type=int
+)
+@click.option("--seed", default=0, show_default=True, type=int)
+@click.option(
+    "--difficulty",
+    default="Medium",
+    show_default=True,
+    type=click.Choice(["Easy", "Medium", "Hard"]),
+)
+@click.option("--timeout-s", default=600, show_default=True, type=int)
+@click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
+def gauntlet_main(
+    cube_path,
+    hydrated_path,
+    gauntlet_path,
+    games_per_pair,
+    seed,
+    difficulty,
+    timeout_s,
+    output_path,
+):
     """Cube archetype-gauntlet round-robin (phase-rs)."""
-    click.echo("gauntlet: not yet implemented")
+    import importlib.resources
+    import tempfile as _tempfile
+
+    from mtg_utils import _phase
+    from mtg_utils._gauntlet_build import build_gauntlet_deck
+
+    cube = json.loads(Path(cube_path).read_text())
+    hydrated_raw = json.loads(Path(hydrated_path).read_text())
+    lookup = build_card_lookup(hydrated_raw)
+    cube_cards = [
+        lookup[e["name"]] for e in cube.get("cards", []) if e["name"] in lookup
+    ]
+
+    # Resolve archetype manifest.
+    if gauntlet_path:
+        manifest = json.loads(Path(gauntlet_path).read_text())
+    elif cube.get("gauntlet_archetypes"):
+        manifest = {
+            "format": cube.get("format", "modern_cube"),
+            "deck_size": cube.get("gauntlet_deck_size", 40),
+            "lands": cube.get("gauntlet_lands", 17),
+            "archetypes": cube["gauntlet_archetypes"],
+        }
+    else:
+        fmt = cube.get("format", "modern_cube")
+        try:
+            data = (
+                importlib.resources.files("mtg_utils.data.gauntlets")
+                .joinpath(f"{fmt}.json")
+                .read_text()
+            )
+        except FileNotFoundError as exc:
+            raise click.ClickException(
+                f"No default gauntlet for format '{fmt}'. "
+                f"Pass --gauntlet path/to/manifest.json or set "
+                f"cube.gauntlet_archetypes.",
+            ) from exc
+        manifest = json.loads(data)
+
+    # Build one deck per archetype.
+    archetype_decks: list[dict] = []
+    build_warnings: list[str] = []
+    for spec in manifest["archetypes"]:
+        outcome = build_gauntlet_deck(
+            cube_cards,
+            spec,
+            deck_size=manifest["deck_size"],
+            lands=manifest["lands"],
+        )
+        if outcome.status == "insufficient":
+            build_warnings.append(f"Cannot build {spec['name']}: {outcome.reason}")
+            continue
+        deck = outcome.deck
+        deck["_archetype_name"] = spec["name"]
+        archetype_decks.append(deck)
+
+    pairs: list[dict] = []
+    cov = {
+        "status": "full",
+        "supported_pct": 1.0,
+        "missing": [],
+        "requested": 0,
+        "supported": 0,
+    }
+    start = time.perf_counter()
+    with _tempfile.TemporaryDirectory() as td:
+        deck_paths = []
+        for i, deck in enumerate(archetype_decks):
+            p = Path(td) / f"deck_{i}.json"
+            phase_deck = {
+                "name": deck["_archetype_name"],
+                "format": manifest.get("format", "modern").replace("_cube", ""),
+                "main": deck["main"],
+            }
+            p.write_text(json.dumps(phase_deck))
+            deck_paths.append((deck["_archetype_name"], p))
+
+        # Coverage gate over the union of all archetype decks.
+        all_names: list[str] = []
+        for deck in archetype_decks:
+            for entry in deck["main"]:
+                all_names.append(entry["name"])
+        if all_names:
+            cov = _phase.coverage_report(all_names)
+            if cov["status"] == "blocked":
+                click.echo(
+                    f"Refusing: phase coverage {cov['supported_pct']:.1%} "
+                    f"is below threshold for built archetype decks.",
+                    err=True,
+                )
+                raise SystemExit(2)
+
+        for i in range(len(deck_paths)):
+            for j in range(i + 1, len(deck_paths)):
+                a_name, a_path = deck_paths[i]
+                b_name, b_path = deck_paths[j]
+                result = _phase.run_duel(
+                    a_path,
+                    b_path,
+                    games=games_per_pair,
+                    seed=seed + i * 100 + j,
+                    format_=manifest.get("format", "modern").replace("_cube", ""),
+                    difficulty=difficulty,
+                    timeout_s=timeout_s,
+                )
+                pairs.append(
+                    {
+                        "a": a_name,
+                        "b": b_name,
+                        "wins_a": result["wins_p0"],
+                        "wins_b": result["wins_p1"],
+                        "draws": result["draws"],
+                        "games": result["games"],
+                    }
+                )
+    elapsed = time.perf_counter() - start
+
+    out = envelope(
+        mode="gauntlet",
+        engine="phase",
+        engine_version=f"phase {_phase.PHASE_TAG}",
+        seed=seed,
+        format_=manifest.get("format"),
+        card_coverage=cov,
+        results={
+            "pairs": pairs,
+            "archetypes": [d["_archetype_name"] for d in archetype_decks],
+        },
+        warnings=build_warnings
+        + (
+            [f"Phase coverage {cov['supported_pct']:.1%}"]
+            if cov["status"] == "warn"
+            else []
+        ),
+        duration_s=elapsed,
+    )
+
+    serialized = json.dumps(out, indent=2)
+    if output_path:
+        Path(output_path).write_text(serialized)
+    click.echo(render_gauntlet_markdown(out))
 
 
 @click.command()

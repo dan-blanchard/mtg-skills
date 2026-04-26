@@ -79,6 +79,50 @@ def render_goldfish_markdown(env: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_gauntlet_markdown(env: dict) -> str:
+    """Render a gauntlet result envelope as a win-rate matrix table."""
+    r = env["results"]
+    archetypes = r["archetypes"]
+    pairs = r["pairs"]
+
+    # Build a square dict[a][b] = wins_a / games for quick lookup.
+    cells: dict[str, dict[str, str]] = {
+        a: dict.fromkeys(archetypes, "—") for a in archetypes
+    }
+    for p in pairs:
+        a, b = p["a"], p["b"]
+        if p["games"]:
+            cells[a][b] = f"{p['wins_a'] / p['games'] * 100:.0f}%"
+            cells[b][a] = f"{p['wins_b'] / p['games'] * 100:.0f}%"
+
+    name_w = max(len(a) for a in archetypes) if archetypes else 4
+    cell_w = 8
+    header = " " * (name_w + 2) + "".join(a.ljust(cell_w) for a in archetypes)
+    lines = [
+        "# Gauntlet report",
+        "",
+        f"**Engine:** {env['engine_version']}  "
+        f"**Seed:** {env['seed']}  "
+        f"**Format:** {env.get('format') or 'unspecified'}  "
+        f"**Duration:** {env['duration_s']}s",
+        "",
+        "## Win-rate matrix (row vs column)",
+        "",
+        "```",
+        header,
+    ]
+    for a in archetypes:
+        row = a.ljust(name_w + 2)
+        for b in archetypes:
+            row += cells[a][b].ljust(cell_w)
+        lines.append(row)
+    lines.append("```")
+
+    if env.get("warnings"):
+        lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
+    return "\n".join(lines) + "\n"
+
+
 def render_match_markdown(env: dict) -> str:
     """Render a phase match result envelope as a human-readable markdown report."""
     r = env["results"]
