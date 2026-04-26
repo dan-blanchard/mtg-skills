@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mtg_utils._gauntlet_build import score_card
+from mtg_utils._gauntlet_build import BuildOutcome, build_gauntlet_deck, score_card
 
 
 def _card(name, **kw):
@@ -83,3 +83,76 @@ class TestScoreCard:
         )
         score = score_card(c, archetype="aggro", colors={"U"})
         assert score <= 0
+
+
+def _make_card(name, cmc=2, mana_cost="{R}", color_identity=("R",), produces=()):
+    return {
+        "name": name,
+        "type_line": "Creature — Goblin",
+        "oracle_text": "",
+        "mana_cost": mana_cost,
+        "cmc": cmc,
+        "power": "2",
+        "toughness": "2",
+        "color_identity": list(color_identity),
+        "produced_mana": list(produces),
+    }
+
+
+def _mountain():
+    return {
+        "name": "Mountain",
+        "type_line": "Basic Land — Mountain",
+        "oracle_text": "({T}: Add {R}.)",
+        "mana_cost": "",
+        "cmc": 0,
+        "color_identity": ["R"],
+        "produced_mana": ["R"],
+    }
+
+
+class TestBuildGauntletDeck:
+    def test_builds_40_card_deck_with_lands(self):
+        # Cube: 40 red one-drops + 30 mountains.
+        cube_cards = [_make_card(f"Goblin{i}", cmc=1) for i in range(40)]
+        cube_cards += [_mountain() for _ in range(30)]
+
+        archetype_spec = {
+            "name": "Aggro",
+            "colors": ["R"],
+            "preset": "aggro",
+            "curve_target": {"1": 14, "2": 6, "3": 3},
+        }
+        out = build_gauntlet_deck(
+            cube_cards,
+            archetype_spec,
+            deck_size=40,
+            lands=17,
+        )
+        assert isinstance(out, BuildOutcome)
+        assert out.status == "ok"
+        assert len(out.deck["main"]) >= 1
+        assert len(out.deck["main"]) <= 40
+        total = sum(e["count"] for e in out.deck["main"])
+        assert total == 40
+        # 17 of the cards should be Mountains.
+        mountains = next(e for e in out.deck["main"] if e["name"] == "Mountain")
+        assert mountains["count"] == 17
+
+    def test_reports_insufficient_when_pool_too_small(self):
+        cube_cards = [_make_card("Goblin1", cmc=1)]  # only 1 nonland
+        cube_cards += [_mountain() for _ in range(20)]
+        archetype_spec = {
+            "name": "Aggro",
+            "colors": ["R"],
+            "preset": "aggro",
+            "curve_target": {"1": 14, "2": 6, "3": 3},
+        }
+        out = build_gauntlet_deck(
+            cube_cards,
+            archetype_spec,
+            deck_size=40,
+            lands=17,
+        )
+        assert out.status == "insufficient"
+        assert "nonland" in out.reason.lower()
