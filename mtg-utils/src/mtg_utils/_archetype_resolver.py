@@ -64,16 +64,59 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
     Reads ``cube.designer_intent.stated_archetypes`` (with
     ``cube.stated_archetypes`` as a deprecated fallback). Returns an
     empty ``ResolvedArchetypes`` when the cube has no stated archetypes.
+
+    Raises ``ValueError`` listing every violation found if any entry is
+    malformed.
     """
+    from mtg_utils.theme_presets import PRESETS
+
     stated = (cube.get("designer_intent") or {}).get("stated_archetypes")
     if stated is None:
         stated = cube.get("stated_archetypes") or []
     if not stated:
-        return ResolvedArchetypes(
-            preset_names=(),
-            groups=(),
-            custom=(),
-        )
+        return ResolvedArchetypes(preset_names=(), groups=(), custom=())
 
-    # Validation + classification happens in subsequent tasks.
-    return ResolvedArchetypes(preset_names=(), groups=(), custom=())
+    preset_refs: list[str] = []
+    groups: list[ArchetypeGroup] = []
+    custom: list[CustomRegexArchetype] = []
+    errors: list[str] = []
+
+    for idx, entry in enumerate(stated):
+        if not isinstance(entry, dict):
+            errors.append(f"entry {idx}: must be an object, got {type(entry).__name__}")
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            errors.append(f"entry {idx}: missing or empty 'name'")
+            continue
+
+        if "members" in entry:
+            # Group shape — handled in Task 3.
+            errors.append(
+                f"entry {idx} ({name!r}): 'members' shape not yet implemented",
+            )
+            continue
+        if "regex" in entry:
+            # Legacy regex shape — handled in Task 4.
+            errors.append(
+                f"entry {idx} ({name!r}): 'regex' shape not yet implemented",
+            )
+            continue
+
+        # Preset-reference shape: {name} only.
+        if name not in PRESETS:
+            errors.append(
+                f"entry {idx} ({name!r}): not a known preset; "
+                f"either fix the name or add a 'regex' field",
+            )
+            continue
+        preset_refs.append(name)
+
+    if errors:
+        raise ValueError("\n".join(["stated_archetypes: invalid", *errors]))
+
+    return ResolvedArchetypes(
+        preset_names=tuple(preset_refs),
+        groups=tuple(groups),
+        custom=tuple(custom),
+    )
