@@ -742,3 +742,94 @@ class TestCLIInterface:
             data_flagged["themes"]["fly"]["total"]
             > (data_default["themes"]["fly"]["total"])
         )
+
+
+class TestFromCubeViaResolver:
+    def test_from_cube_consumes_preset_references(self, tmp_path):
+        import json as _json
+
+        from click.testing import CliRunner
+
+        cube = {
+            "format": "test_cube",
+            "designer_intent": {
+                "stated_archetypes": [
+                    {"name": "removal"},
+                ],
+            },
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        hydrated = [
+            {
+                "name": "Lightning Bolt",
+                "type_line": "Instant",
+                "oracle_text": "~ deals 3 damage to any target.",
+                "color_identity": ["R"],
+                "mana_cost": "{R}",
+                "cmc": 1,
+                "produced_mana": [],
+            }
+        ]
+        cube_path = tmp_path / "cube.json"
+        hydrated_path = tmp_path / "hydrated.json"
+        cube_path.write_text(_json.dumps(cube))
+        hydrated_path.write_text(_json.dumps(hydrated))
+
+        runner = CliRunner()
+        from mtg_utils.archetype_audit import main
+
+        result = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hydrated_path),
+                "--from-cube",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "removal" in result.output
+
+    def test_from_cube_consumes_groups(self, tmp_path):
+        import json as _json
+
+        from click.testing import CliRunner
+
+        cube = {
+            "format": "test_cube",
+            "designer_intent": {
+                "stated_archetypes": [
+                    {"name": "graveyard", "members": ["reanimate", "self-mill"]},
+                ],
+            },
+            "cards": [{"name": "Reanimate", "quantity": 1}],
+        }
+        hydrated = [
+            {
+                "name": "Reanimate",
+                "type_line": "Sorcery",
+                "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control.",
+                "color_identity": ["B"],
+                "mana_cost": "{B}",
+                "cmc": 1,
+                "produced_mana": [],
+            }
+        ]
+        cube_path = tmp_path / "cube.json"
+        hydrated_path = tmp_path / "hydrated.json"
+        cube_path.write_text(_json.dumps(cube))
+        hydrated_path.write_text(_json.dumps(hydrated))
+
+        runner = CliRunner()
+        from mtg_utils.archetype_audit import main
+
+        result = runner.invoke(
+            main,
+            [
+                str(cube_path),
+                str(hydrated_path),
+                "--from-cube",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        # The group name appears as a theme in the output.
+        assert "graveyard" in result.output

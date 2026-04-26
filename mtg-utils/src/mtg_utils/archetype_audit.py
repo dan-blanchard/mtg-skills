@@ -598,26 +598,36 @@ def main(
     hydrated = json.loads(hydrated_content)
 
     themes: dict[str, Preset] = {}
-    skipped_names: list[str] = []
 
     if from_cube:
-        stated = (cube.get("designer_intent") or {}).get("stated_archetypes") or []
-        for entry in stated:
-            if isinstance(entry, dict) and entry.get("regex"):
-                name = entry.get("name") or entry["regex"]
-                pattern = re.compile(entry["regex"], re.IGNORECASE)
-                themes[name] = Preset(
-                    name=name,
-                    description=f"designer_intent regex: {entry['regex']}",
-                    patterns=(pattern,),
-                )
-            elif isinstance(entry, str):
-                skipped_names.append(entry)
-        if skipped_names:
-            click.echo(
-                f"WARNING: {len(skipped_names)} stated archetype(s) without regex "
-                "skipped: " + ", ".join(skipped_names),
-                err=True,
+        from mtg_utils._archetype_resolver import (
+            merge_member_presets,
+            resolve_stated_archetypes,
+        )
+        from mtg_utils.theme_presets import PRESETS
+
+        try:
+            resolved = resolve_stated_archetypes(cube)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        # Preset references — pull each from the library by name.
+        for name in resolved.preset_names:
+            if name in themes:
+                continue
+            themes[name] = PRESETS[name]
+
+        # Groups — synthesize a merged Preset per group.
+        for group in resolved.groups:
+            themes[group.name] = merge_member_presets(group.name, group.members)
+
+        # Custom regex entries.
+        for custom_entry in resolved.custom:
+            pattern = re.compile(custom_entry.regex, re.IGNORECASE)
+            themes[custom_entry.name] = Preset(
+                name=custom_entry.name,
+                description=f"designer_intent regex: {custom_entry.regex}",
+                patterns=(pattern,),
             )
 
     for raw in preset_names:
