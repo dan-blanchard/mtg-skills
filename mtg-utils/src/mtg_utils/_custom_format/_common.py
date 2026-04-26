@@ -116,3 +116,38 @@ def precompute_metadata(
             )
         )
     return out
+
+
+COMMITMENT_MIN_COUNT = 2
+COMMITMENT_THRESHOLD = 0.4
+
+
+def commitment_check(
+    pile_archetype_counts: dict[str, int],
+    *,
+    pile_size: int,
+    min_count: int = COMMITMENT_MIN_COUNT,
+    threshold: float = COMMITMENT_THRESHOLD,
+) -> str | None:
+    """Return the archetype to commit to, or None if no archetype qualifies.
+
+    An archetype qualifies iff it has ``>= min_count`` cards in the pile AND
+    ``>= threshold`` fraction of pile_size. Among qualifiers, return the one
+    with the highest count. Ties broken alphabetically for determinism.
+    """
+    if pile_size == 0 or not pile_archetype_counts:
+        return None
+
+    qualifiers: list[tuple[str, int]] = []
+    for archetype, count in pile_archetype_counts.items():
+        if count < min_count:
+            continue
+        if count / pile_size < threshold:
+            continue
+        qualifiers.append((archetype, count))
+
+    if not qualifiers:
+        return None
+
+    qualifiers.sort(key=lambda kv: (-kv[1], kv[0]))
+    return qualifiers[0][0]
