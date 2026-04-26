@@ -332,4 +332,10 @@ def draft_main() -> None:
 @click.command()
 def install_phase_main() -> None:
     """One-time install of the phase-rs binaries we wrap."""
-    click.echo("install-phase: not yet implemented")
+    from mtg_utils import _phase
+
+    click.echo(f"Installing phase {_phase.PHASE_TAG} into {_phase.cache_dir()}…")
+    click.echo("This downloads ~1 GB of card data and runs `cargo build --release`")
+    click.echo("(typical wall time 5-10 min on a modern Mac).")
+    _phase.install_phase()
+    click.echo(f"\n✓ phase {_phase.PHASE_TAG} ready at {_phase.cache_dir()}")
