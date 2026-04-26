@@ -53,6 +53,15 @@ class TestBinaryLookup:
             _phase.find_binary("ai-duel")
         assert "playtest-install-phase" in str(excinfo.value)
 
+    def test_env_override_set_but_binary_missing_raises(self, monkeypatch, tmp_path):
+        # Env var points to a directory that doesn't contain the requested binary.
+        monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(tmp_path))
+        with pytest.raises(_phase.PhaseNotInstalledError) as excinfo:
+            _phase.find_binary("ai-duel")
+        msg = str(excinfo.value)
+        assert "MTG_SKILLS_PHASE_BIN" in msg
+        assert str(tmp_path) in msg
+
 
 class TestInstall:
     def test_install_runs_clone_setup_and_cargo(self, monkeypatch, tmp_path):
@@ -63,18 +72,26 @@ class TestInstall:
             calls.append(cmd)
             r = MagicMock()
             r.returncode = 0
-            r.stdout = ""
+            joined = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            r.stdout = "abc1234def5678\n" if "rev-parse" in joined else ""
             r.stderr = ""
             return r
 
         monkeypatch.setattr("subprocess.run", fake_run)
-        # Skip prereq checks
         monkeypatch.setattr(_phase, "_ensure_prereqs", lambda: None)
 
         _phase.install_phase()
 
-        # Expect: git clone, ./scripts/setup.sh, cargo build
         joined = [" ".join(c) if isinstance(c, list) else c for c in calls]
-        assert any("git clone" in c for c in joined)
-        assert any("setup.sh" in c for c in joined)
-        assert any("cargo build" in c and "ai-duel" in c for c in joined)
+        clone_idx = next(i for i, c in enumerate(joined) if "git clone" in c)
+        setup_idx = next(i for i, c in enumerate(joined) if "setup.sh" in c)
+        build_idx = next(
+            i for i, c in enumerate(joined) if "cargo build" in c and "ai-duel" in c
+        )
+        assert clone_idx < setup_idx < build_idx, (
+            f"clone/setup/cargo must run in order: {joined}"
+        )
+
+        version_file = _phase.cache_dir() / "version.txt"
+        assert version_file.exists(), "install_phase must write version.txt"
+        assert version_file.read_text().strip() == "abc1234def5678"

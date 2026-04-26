@@ -47,17 +47,26 @@ def find_binary(name: str) -> Path:
     """Locate a phase binary. Honors ``MTG_SKILLS_PHASE_BIN`` for ai-duel.
 
     For non-default binaries the env override is treated as the directory
-    containing them.
+    containing them. When the env override is set, the cache path is NOT
+    consulted as a fallback — set the env, you're on your own.
     """
     env_override = os.environ.get("MTG_SKILLS_PHASE_BIN")
     if env_override:
         env_path = Path(env_override)
         if env_path.is_dir():
             candidate = env_path / name
+        elif env_path.name == name:
+            candidate = env_path
         else:
-            candidate = env_path if env_path.name == name else env_path.parent / name
+            candidate = env_path.parent / name
         if candidate.exists():
             return candidate
+        raise PhaseNotInstalledError(
+            f"Phase binary '{name}' not found at {candidate} "
+            f"(resolved from MTG_SKILLS_PHASE_BIN={env_override}).\n"
+            f"Run `playtest-install-phase` to build phase {PHASE_TAG}, or "
+            f"unset MTG_SKILLS_PHASE_BIN to use the default cache path."
+        )
 
     candidate = _release_dir() / name
     if candidate.exists():
