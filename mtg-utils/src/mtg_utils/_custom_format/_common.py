@@ -7,7 +7,12 @@ heuristic, per-game state types, simulation loop, cross-game aggregation.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from enum import StrEnum
+
+from mtg_utils.card_classify import is_land as _is_land
+from mtg_utils.theme_presets import PRESETS
+from mtg_utils.theme_presets import matches as _preset_matches
 
 
 class LibraryEffect(StrEnum):
@@ -68,3 +73,46 @@ def classify_library_effect(card: dict) -> LibraryEffect:
     if _PEEK_PATTERN.search(text):
         return LibraryEffect.PEEK
     return LibraryEffect.NONE
+
+
+@dataclass(frozen=True)
+class CardMetadata:
+    """Per-card precomputed data used by every simulation step."""
+
+    name: str
+    cmc: int
+    color_identity: frozenset[str]
+    produced_mana: tuple[str, ...]
+    is_land: bool
+    library_effect: LibraryEffect
+    archetype_matches: frozenset[str]
+
+
+def precompute_metadata(
+    hydrated: list[dict],
+    *,
+    presets: list[str],
+) -> list[CardMetadata]:
+    """Pre-classify each card once at simulator init.
+
+    Validates preset names against the library; unknown preset raises KeyError.
+    """
+    for name in presets:
+        if name not in PRESETS:
+            raise KeyError(f"Unknown preset: {name!r}")
+
+    out: list[CardMetadata] = []
+    for card in hydrated:
+        archetype_set = frozenset(p for p in presets if _preset_matches(p, card))
+        out.append(
+            CardMetadata(
+                name=card.get("name", ""),
+                cmc=int(card.get("cmc") or 0),
+                color_identity=frozenset(card.get("color_identity") or []),
+                produced_mana=tuple(card.get("produced_mana") or []),
+                is_land=_is_land(card),
+                library_effect=classify_library_effect(card),
+                archetype_matches=archetype_set,
+            )
+        )
+    return out

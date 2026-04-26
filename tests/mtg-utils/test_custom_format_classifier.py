@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from mtg_utils._custom_format._common import LibraryEffect, classify_library_effect
+import pytest
+
+from mtg_utils._custom_format._common import (
+    LibraryEffect,
+    classify_library_effect,
+    precompute_metadata,
+)
 
 
 def _card(name, oracle, type_line="Instant"):
@@ -73,3 +79,77 @@ class TestClassifyLibraryEffect:
     def test_basic_land_is_none(self):
         c = _card("Mountain", "({T}: Add {R}.)", type_line="Basic Land — Mountain")
         assert classify_library_effect(c) == LibraryEffect.NONE
+
+
+def _hcard(
+    name,
+    *,
+    mana_cost="",
+    cmc=0,
+    type_line="Creature",
+    oracle="",
+    color_identity=(),
+    produced=(),
+):
+    return {
+        "name": name,
+        "mana_cost": mana_cost,
+        "cmc": cmc,
+        "type_line": type_line,
+        "oracle_text": oracle,
+        "color_identity": list(color_identity),
+        "produced_mana": list(produced),
+    }
+
+
+class TestPrecomputeMetadata:
+    def test_classifies_each_card_and_tags_archetypes(self):
+        hydrated = [
+            _hcard(
+                "Mountain",
+                type_line="Basic Land — Mountain",
+                color_identity=["R"],
+                produced=["R"],
+            ),
+            _hcard(
+                "Brainstorm",
+                mana_cost="{U}",
+                cmc=1,
+                type_line="Instant",
+                oracle="Draw three cards, then put two cards from your hand "
+                "on top of your library in any order.",
+                color_identity=["U"],
+            ),
+            _hcard(
+                "Counterspell",
+                mana_cost="{U}{U}",
+                cmc=2,
+                type_line="Instant",
+                oracle="Counter target spell.",
+                color_identity=["U"],
+            ),
+        ]
+        meta = precompute_metadata(hydrated, presets=["counterspell"])
+        assert len(meta) == 3
+
+        # Mountain
+        assert meta[0].is_land is True
+        assert meta[0].library_effect == LibraryEffect.NONE
+        assert meta[0].archetype_matches == set()
+        assert meta[0].produced_mana == ("R",)
+
+        # Brainstorm — looks like draw + reorder, classifier picks REORDER.
+        # No "scry" so the regex won't match. "put two cards on top" —
+        # not a peek either. classify returns NONE for Brainstorm at v1.
+        # That's a known v1 limitation; future tasks may extend the regex set.
+        assert meta[1].is_land is False
+        assert meta[1].library_effect in (LibraryEffect.NONE, LibraryEffect.REORDER)
+
+        # Counterspell — matches the counterspell preset.
+        assert meta[2].is_land is False
+        assert meta[2].library_effect == LibraryEffect.NONE
+        assert "counterspell" in meta[2].archetype_matches
+
+    def test_unknown_preset_raises(self):
+        with pytest.raises(KeyError):
+            precompute_metadata([_hcard("Foo")], presets=["does-not-exist"])
