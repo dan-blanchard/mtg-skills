@@ -543,12 +543,27 @@ with CSV Import"** function to push the changes back upstream.
 
 ### Step 10: Empirical Playtest
 
-Optional for standard cube formats (where Steps 1–9's static signals
-already cover most decisions). **Mandatory** for custom-format cubes
-(shared-library, oathbreaker, tiny leaders, anything with non-standard
-zones, openers, or draw rules). Static tools can't see format-specific
-dynamics; the simulator is the only diagnostic for color-screw and
-archetype assembly under the format's actual rules.
+When to run:
+
+- **Standard cube formats:** optional. Steps 1–9's static signals
+  already cover most decisions; run gauntlet/draft if you want
+  matchup-balance numbers.
+- **Custom format with a registered simulator module** (i.e., the
+  format name is a key in
+  `mtg_utils/_custom_format/__init__.py:FORMAT_REGISTRY`):
+  **mandatory**. Static tools can't see format-specific dynamics;
+  the simulator is the only diagnostic for color-screw and archetype
+  assembly under the format's actual rules. Today the registry has
+  one entry: `shared_library`.
+- **Custom format with no simulator module:** propose writing one
+  before continuing. Tell the user the format isn't yet simulated,
+  show them the format-module contract (`setup`/`run_turn`/
+  `is_terminal` plus `DEFAULT_PLAYERS` / `DEFAULT_TURNS` /
+  `SUPPORTS_ARCHETYPES`; `_custom_format/shared_library.py` is the
+  reference implementation), and ask whether to add the module now
+  or fall back to Steps 1–9 with that limitation noted in the
+  proposal report. Don't write the module without confirmation —
+  format rules need to come from the user, not from training data.
 
 Two complementary signals. Run both when invoked.
 
@@ -582,9 +597,12 @@ mean color-screw rate, mean lands at T4, archetype distribution, failed builds.
 the cuts-and-adds conversation. The wizard does NOT auto-cut from playtest output —
 the user reads both reports and decides.
 
-**Custom format:** if the cube targets a non-standard format (shared
-library, oathbreaker, tiny leaders, etc.), use `playtest-custom-format`
-instead of `playtest-gauntlet` / `playtest-draft`.
+**Custom format:** if the cube targets a non-standard format whose
+module is registered in `FORMAT_REGISTRY` (today: `shared_library`),
+use `playtest-custom-format` instead of `playtest-gauntlet` /
+`playtest-draft`. If the format isn't in the registry, follow the
+"Custom format with no simulator module" guidance above before
+proceeding.
 
 If the cube has `designer_intent.stated_archetypes` populated (preset
 references and/or `{name, members}` archetype groups), `--from-cube`
@@ -614,7 +632,9 @@ dynamics and per-archetype assembly, and reports rates without modeling
 combat or full card resolution. v1 ships only `--format-module
 shared_library`; new formats are one Python module each.
 
-**Interpreting the report — three signals, three tuning knobs:**
+**Interpreting the report — two tiers of signal.**
+
+*Always available (every custom-format module reports these):*
 
 1. **Color-screw rate.** The simulator uses a pip-count-aware mana model
    (`{U}{U}` requires 2 actual U mana, not just any 2 mana with U in the
@@ -624,7 +644,7 @@ shared_library`; new formats are one Python module each.
    - Replace double-pip cards (`{U}{U}` → `{1}{U}`) with single-pip
      equivalents — typically the highest-leverage swap.
    - Add more same-color land density (more dual lands of each color, or
-     mono-color basics in marketplaces/decks).
+     mono-color basics in whatever zone the format uses).
    - Identify candidates: `card-search --bulk-data <path> --oracle "<pattern>"`
      against the cube's archetype patterns to find lower-pip versions of
      existing cards.
@@ -642,10 +662,19 @@ shared_library`; new formats are one Python module each.
      without adding card slots — track them via `archetype-audit`'s
      bridge-cards output.
 
-3. **Marketplace utilization (custom formats only).** 65%+ is healthy;
-   30%–40% suggests the marketplace is rarely worth picking from (cube
-   may be too thin or skewed). Tuning knob: rebalance the cube's curve
-   or color pool until utilization climbs.
+*Format-specific (varies by module).* Each format's report block
+surfaces signals that only make sense for that format's mechanics. Read
+the relevant module to see what it tracks. Examples:
+
+- `shared_library` reports **marketplace dynamics** — utilization,
+  cards exiled/discarded, library effects per turn. 65%+ utilization
+  is healthy; 30%–40% suggests the marketplace is rarely worth picking
+  from. Tuning knob: rebalance curve / color pool until utilization
+  climbs.
+- A future format module would surface its own signals (e.g., a
+  command-zone format might report commander-cast turn distribution; a
+  cascading-pack format might report pack-to-pack signal carry-over).
+  When adding a new module, add a corresponding tuning-knob entry here.
 
 **First-run prereq:** `playtest-install-phase` (~5–10 min, one-time)
 required for gauntlet (uses phase-rs). Draft and custom-format are pure
