@@ -1,0 +1,120 @@
+"""Tests for the shared-library format module."""
+
+from __future__ import annotations
+
+import random
+
+from mtg_utils._custom_format import shared_library
+from mtg_utils._custom_format._common import precompute_metadata
+
+BASIC_NAMES = ("Plains", "Island", "Swamp", "Mountain", "Forest")
+
+
+def _stub_cube(n_nonlands=80):
+    """Generate a synthetic 80-nonland + 20-land cube for setup tests."""
+    hydrated = []
+    for color in ["W", "U", "B", "R", "G"]:
+        for i in range(n_nonlands // 5):
+            hydrated.append(
+                {
+                    "name": f"{color}{i}",
+                    "type_line": "Creature — Beast",
+                    "oracle_text": "",
+                    "mana_cost": f"{{{color}}}",
+                    "cmc": (i % 5) + 1,
+                    "color_identity": [color],
+                    "produced_mana": [],
+                }
+            )
+    for color in ["W", "U", "B", "R", "G"]:
+        for i in range(4):
+            hydrated.append(
+                {
+                    "name": f"{color}-Land-{i}",
+                    "type_line": "Land",
+                    "oracle_text": f"({{T}}: Add {{{color}}}.)",
+                    "mana_cost": "",
+                    "cmc": 0,
+                    "color_identity": [color],
+                    "produced_mana": [color],
+                }
+            )
+    return hydrated
+
+
+class TestSharedLibrarySetup:
+    def test_default_constants(self):
+        assert shared_library.DEFAULT_PLAYERS == 4
+        assert shared_library.DEFAULT_TURNS == 10
+        assert shared_library.SUPPORTS_ARCHETYPES is True
+        assert shared_library.MARKETPLACE_SIZE_BY_PLAYERS == {3: 5, 4: 6, 5: 7}
+
+    def test_setup_creates_4_players_with_5_basics(self):
+        hydrated = _stub_cube()
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        assert len(state.players) == 4
+        for p in state.players:
+            assert len(p.hand) == 5
+            # Indices 0..4 are basics by convention.
+            assert sorted(p.hand) == [0, 1, 2, 3, 4]
+
+    def test_setup_marketplace_has_6_cards_for_4_players(self):
+        hydrated = _stub_cube()
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        assert len(state.marketplace) == 6
+
+    def test_setup_marketplace_has_min_2_nonlands(self):
+        # Force the synthetic cube to be land-heavy and verify the redeal rule.
+        hydrated = _stub_cube(n_nonlands=10)  # only 10 nonlands among 30 cards
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        # Cube indices start at 5 (basics are 0..4). marketplace contents are
+        # cube indices.
+        nonlands = [
+            i
+            for i in state.marketplace
+            if not meta[i - len(shared_library.BASIC_METADATA)].is_land
+        ]
+        assert len(nonlands) >= 2
+
+    def test_setup_initial_seat_and_turn(self):
+        hydrated = _stub_cube()
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        assert state.active_seat == 0
+        assert state.turn == 1
+
+    def test_basic_metadata_has_5_basics(self):
+        bm = shared_library.BASIC_METADATA
+        assert len(bm) == 5
+        names = [m.name for m in bm]
+        assert names == list(BASIC_NAMES)
+        for m in bm:
+            assert m.is_land is True
+            assert len(m.produced_mana) == 1
