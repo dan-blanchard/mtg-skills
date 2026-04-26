@@ -14,6 +14,11 @@ from mtg_utils._custom_format._common import (
     GameState,
     LibraryEffect,
     Player,
+    Zone,
+    choose_library_target,
+    choose_pick,
+    commitment_check,
+    lookup_card,
 )
 
 DEFAULT_PLAYERS = 4
@@ -143,3 +148,274 @@ def setup(
     state.metrics.committed_archetype = [None] * n_players
     state.metrics.first_enabler_turn = [{} for _ in range(n_players)]
     return state
+
+
+# ---------------------------------------------------------------------------
+# Turn loop
+# ---------------------------------------------------------------------------
+
+
+def is_terminal(state: GameState, *, max_turns: int) -> bool:
+    """Stop when we've run max_turns OR the library is exhausted."""
+    if state.turn > max_turns:
+        return True
+    return not state.library and not state.marketplace
+
+
+def _refill_marketplace(state: GameState, *, target_size: int) -> None:
+    """Move cards from the top of the library into the marketplace until full."""
+    while len(state.marketplace) < target_size and state.library:
+        state.marketplace.append(state.library.pop(0))
+
+
+def _player_color_pool(
+    player: Player,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...],
+) -> frozenset[str]:
+    """Aggregate produced-mana colors across the player's lands in play."""
+    colors: set[str] = set()
+    for idx in player.lands_in_play:
+        colors |= set(
+            lookup_card(
+                idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+            ).produced_mana
+        )
+    return frozenset(colors)
+
+
+def _build_marketplace_view(
+    state: GameState,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...],
+) -> list[CardMetadata]:
+    """Materialize the marketplace as a list of CardMetadata for choose_pick."""
+    return [
+        lookup_card(idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata)
+        for idx in state.marketplace
+    ]
+
+
+def _record_archetype_match(
+    state: GameState,
+    seat: int,
+    card_meta: CardMetadata,
+) -> None:
+    """Record a card joining a player's pile.
+
+    Updates pile_size, pile_archetype_counts, and first_enabler_turn
+    (recorded once per archetype the first time a matching card lands).
+    """
+    player = state.players[seat]
+    player.pile_size += 1
+    for archetype in card_meta.archetype_matches:
+        prior = player.pile_archetype_counts.get(archetype, 0)
+        player.pile_archetype_counts[archetype] = prior + 1
+        if prior == 0:
+            # First enabler for this archetype in this player's pile.
+            state.metrics.first_enabler_turn[seat][archetype] = state.turn
+
+
+def _do_draw_step(
+    state: GameState,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...],
+) -> None:
+    """Active player picks from marketplace or blind-draws."""
+    player = state.players[state.active_seat]
+    market_view = _build_marketplace_view(
+        state, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+    )
+    color_pool = _player_color_pool(
+        player, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+    )
+    pick = choose_pick(
+        market_view,
+        committed=player.committed_archetype,
+        available_mana=len(player.lands_in_play),
+        available_colors=color_pool,
+    )
+    drew_idx: int | None = None
+    if pick.kind == "marketplace" and pick.card_index is not None:
+        drew_idx = state.marketplace.pop(pick.card_index)
+        player.hand.append(drew_idx)
+        state.metrics.marketplace_picks[state.active_seat] += 1
+    elif state.library:
+        drew_idx = state.library.pop(0)
+        player.hand.append(drew_idx)
+        state.metrics.blind_draws[state.active_seat] += 1
+
+    if drew_idx is not None:
+        card_meta = lookup_card(
+            drew_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+        )
+        _record_archetype_match(state, state.active_seat, card_meta)
+        # Re-check commitment after every acquired card (pick OR blind draw).
+        if player.committed_archetype is None:
+            player.committed_archetype = commitment_check(
+                player.pile_archetype_counts, pile_size=player.pile_size
+            )
+            if player.committed_archetype is not None:
+                state.metrics.committed_archetype[state.active_seat] = (
+                    player.committed_archetype
+                )
+
+
+def _resolve_library_effect(
+    state: GameState,
+    effect: LibraryEffect,
+    zone: Zone,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...],
+) -> None:
+    """Mutate state per Silver-model effect rules."""
+    if effect in (LibraryEffect.PEEK, LibraryEffect.REORDER):
+        return  # No state change in v1.
+
+    if effect == LibraryEffect.MILL:
+        # Self-mill: top 1 of draw pile to graveyard.
+        if state.library:
+            state.graveyard.append(state.library.pop(0))
+            state.metrics.cards_milled += 1
+        return
+
+    if effect in (LibraryEffect.DISCARD, LibraryEffect.EXILE):
+        if zone == Zone.MARKETPLACE and state.marketplace:
+            # Pick the highest-CMC nonland card to deny.
+            best_pos = 0
+            best_cmc = -1
+            for pos, idx in enumerate(state.marketplace):
+                card = lookup_card(
+                    idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+                )
+                if card.is_land:
+                    continue
+                if card.cmc > best_cmc:
+                    best_cmc = card.cmc
+                    best_pos = pos
+            removed = state.marketplace.pop(best_pos)
+            if effect == LibraryEffect.EXILE:
+                state.exile.append(removed)
+                state.metrics.marketplace_cards_exiled += 1
+            else:
+                state.graveyard.append(removed)
+                state.metrics.marketplace_cards_discarded += 1
+        elif state.library:
+            # Targeted draw pile — peel one to graveyard/exile.
+            taken = state.library.pop(0)
+            if effect == LibraryEffect.EXILE:
+                state.exile.append(taken)
+            else:
+                state.graveyard.append(taken)
+
+
+def _play_main_phase(
+    state: GameState,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...],
+) -> None:
+    """Play one land if available; cast as many spells as mana permits.
+
+    For each cast spell with a library effect, apply the effect against the
+    chosen zone (marketplace vs draw pile).
+    """
+    player = state.players[state.active_seat]
+
+    # Play a land if hand has any (greedy: first land found).
+    land_in_hand: int | None = None
+    for h_idx in player.hand:
+        card = lookup_card(
+            h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+        )
+        if card.is_land:
+            land_in_hand = h_idx
+            break
+    if land_in_hand is not None:
+        player.hand.remove(land_in_hand)
+        player.lands_in_play.append(land_in_hand)
+
+    color_pool = _player_color_pool(
+        player, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+    )
+    available_mana = len(player.lands_in_play)
+
+    # Try to cast spells in ascending CMC order.
+    castable: list[tuple[int, int]] = []  # (cmc, hand_idx)
+    for h_idx in player.hand:
+        card = lookup_card(
+            h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+        )
+        if card.is_land:
+            continue
+        if not card.color_identity.issubset(color_pool):
+            continue
+        castable.append((card.cmc, h_idx))
+    castable.sort()
+
+    cast_this_turn: list[int] = []
+    for cmc, h_idx in castable:
+        if cmc > available_mana:
+            break
+        # Cast the spell.
+        cast_this_turn.append(h_idx)
+        available_mana -= cmc
+        card = lookup_card(
+            h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+        )
+        # Apply library effect, if any.
+        if card.library_effect != LibraryEffect.NONE:
+            state.metrics.library_effects_cast[state.active_seat] += 1
+            target_zone = choose_library_target(
+                card.library_effect,
+                marketplace=_build_marketplace_view(
+                    state, cube_metadata=cube_metadata, basic_metadata=basic_metadata
+                ),
+            )
+            _resolve_library_effect(
+                state,
+                card.library_effect,
+                target_zone,
+                cube_metadata=cube_metadata,
+                basic_metadata=basic_metadata,
+            )
+
+    for h_idx in cast_this_turn:
+        player.hand.remove(h_idx)
+        player.battlefield.append(h_idx)
+
+
+def run_turn(
+    state: GameState,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata: tuple[CardMetadata, ...] = BASIC_METADATA,
+    rng: random.Random,  # noqa: ARG001 — reserved for stochastic effects (Task 10+)
+) -> None:
+    """Advance one turn for the active player; mutate state in place."""
+    n_players = len(state.players)
+    market_size = MARKETPLACE_SIZE_BY_PLAYERS[n_players]
+
+    _do_draw_step(state, cube_metadata=cube_metadata, basic_metadata=basic_metadata)
+    _play_main_phase(state, cube_metadata=cube_metadata, basic_metadata=basic_metadata)
+
+    # End step: refill marketplace.
+    _refill_marketplace(state, target_size=market_size)
+
+    # Per-turn telemetry for the active player.
+    seat = state.active_seat
+    state.metrics.lands_in_play_by_turn[seat][state.turn] = len(
+        state.players[seat].lands_in_play
+    )
+    state.metrics.mana_available_by_turn[seat][state.turn] = len(
+        state.players[seat].lands_in_play
+    )
+
+    # Advance seat / turn.
+    state.active_seat = (state.active_seat + 1) % n_players
+    if state.active_seat == 0:
+        state.turn += 1

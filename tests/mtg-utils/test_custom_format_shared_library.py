@@ -118,3 +118,68 @@ class TestSharedLibrarySetup:
         for m in bm:
             assert m.is_land is True
             assert len(m.produced_mana) == 1
+
+
+class TestSharedLibraryRunTurn:
+    def test_runs_full_round_advances_turn_counter(self):
+        hydrated = _stub_cube()
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        # 4 turns advances 4 seats; turn counter ticks every full round.
+        for _ in range(4):
+            shared_library.run_turn(
+                state,
+                cube_metadata=meta,
+                basic_metadata=shared_library.BASIC_METADATA,
+                rng=rng,
+            )
+        assert state.turn == 2
+        assert state.active_seat == 0
+
+    def test_marketplace_refills_to_size_after_pick(self):
+        hydrated = _stub_cube()
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        size_before = len(state.marketplace)
+        shared_library.run_turn(
+            state,
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+        )
+        # Either picked from marketplace or blind-drew. Either way, after end
+        # step, marketplace refills to size 6.
+        assert len(state.marketplace) == size_before
+
+    def test_terminal_at_max_turns(self):
+        state = shared_library.setup(
+            cube_metadata=precompute_metadata(_stub_cube(), presets=[]),
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=random.Random(0),
+            n_players=4,
+        )
+        state.turn = 11
+        assert shared_library.is_terminal(state, max_turns=10) is True
+
+    def test_terminal_when_library_exhausted(self):
+        state = shared_library.setup(
+            cube_metadata=precompute_metadata(_stub_cube(), presets=[]),
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=random.Random(0),
+            n_players=4,
+        )
+        state.library = []
+        state.marketplace = []
+        assert shared_library.is_terminal(state, max_turns=100) is True
