@@ -174,8 +174,8 @@ def render_custom_format_markdown(env: dict) -> str:
         for name in sorted(pa.keys()):
             entry = pa[name]
             rate_pct = entry["assembly_rate"] * 100
-            mean_turn = entry.get("mean_assembly_turn")
-            mt = f", mean assembly turn {mean_turn:.1f}" if mean_turn else ""
+            mean_turn = entry.get("mean_first_enabler_turn")
+            mt = f", first enabler at T{mean_turn:.1f}" if mean_turn else ""
             flag = " ⚠ thin" if rate_pct < 50 else ""
             lines.append(f"- {name}: {rate_pct:.0f}%{mt}{flag}")
     else:

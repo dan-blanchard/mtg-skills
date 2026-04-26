@@ -378,8 +378,9 @@ def _play_main_phase(
         card = lookup_card(
             h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
         )
-        # Apply library effect, if any.
-        if card.library_effect != LibraryEffect.NONE:
+        # Apply library effect, if any. SEARCH (tutors) is format-disallowed
+        # in shared-library; we skip both the metric and the no-op resolve.
+        if card.library_effect not in (LibraryEffect.NONE, LibraryEffect.SEARCH):
             state.metrics.library_effects_cast[state.active_seat] += 1
             target_zone = choose_library_target(
                 card.library_effect,

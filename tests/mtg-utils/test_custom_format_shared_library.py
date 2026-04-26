@@ -186,32 +186,30 @@ class TestSharedLibraryRunTurn:
 
 
 class TestColorScrewTracking:
-    def test_color_screw_increments_when_held_card_off_color(self):
-        # Cube: 1 blue spell + 5 mountain-producing lands. Player will draw
-        # the blue spell but only have R mana, so they should be color-screwed.
+    def test_color_screw_increments_after_off_color_held_card(self):
+        """Player picks up an off-color marketplace card; should be screwed.
+
+        Setup: cube of only {B} (Swamp-cost) nonlands. Player has all 5
+        basics in hand from setup, so on turn 1 they play one basic.
+        After picking up a {B} card from marketplace, they have:
+        - 4 basics in hand (all 5 colors covered)
+        - 1 basic in play (one color)
+        - {B} spell in hand (uncastable until they play Swamp)
+
+        On turn 1 the basic played is index 0 = Plains (W). The {B} spell
+        in hand can't be cast → color-screw flag fires.
+        """
         hydrated = []
-        for i in range(20):
+        for i in range(40):
             hydrated.append(
                 {
-                    "name": f"BlueSpell{i}",
-                    "type_line": "Instant",
+                    "name": f"BlackSpell{i}",
+                    "type_line": "Creature — Zombie",
                     "oracle_text": "",
-                    "mana_cost": "{U}",
+                    "mana_cost": "{B}",
                     "cmc": 1,
-                    "color_identity": ["U"],
+                    "color_identity": ["B"],
                     "produced_mana": [],
-                }
-            )
-        for i in range(20):
-            hydrated.append(
-                {
-                    "name": f"Mountain{i}",
-                    "type_line": "Basic Land — Mountain",
-                    "oracle_text": "({T}: Add {R}.)",
-                    "mana_cost": "",
-                    "cmc": 0,
-                    "color_identity": ["R"],
-                    "produced_mana": ["R"],
                 }
             )
         meta = precompute_metadata(hydrated, presets=[])
@@ -222,21 +220,61 @@ class TestColorScrewTracking:
             rng=rng,
             n_players=4,
         )
-        # Run a few full rounds.
-        for _ in range(8):  # 2 full rounds for 4 players
+        # Run a couple of full rounds; players will accumulate {B} cards
+        # in hand and play one basic per turn — the basic in play won't
+        # produce {B} until they happen to play their Swamp.
+        for _ in range(8):  # 2 full rounds
             shared_library.run_turn(
                 state,
                 cube_metadata=meta,
                 basic_metadata=shared_library.BASIC_METADATA,
                 rng=rng,
             )
-        # At least one player should have been color-screwed at some point.
-        # (Players start with all 5 basics so they're never color-screwed
-        # in this test — the metric should still be tracked correctly. We're
-        # asserting non-negativity and the array is properly sized.)
-        assert len(state.metrics.times_color_screwed) == 4
-        for v in state.metrics.times_color_screwed:
-            assert v >= 0
+        # Each player held {B} spells they couldn't cast for at least one
+        # turn (until they played Swamp). At least one player must have
+        # been color-screwed.
+        total_screws = sum(state.metrics.times_color_screwed)
+        assert total_screws > 0, (
+            f"expected color-screw events, got {state.metrics.times_color_screwed}"
+        )
+
+    def test_color_screw_zero_when_all_colors_available(self):
+        """Player has all 5 basics in play covering all colors; no screw."""
+        # Custom: every nonland is colorless (matches any color pool).
+        hydrated = []
+        for i in range(40):
+            hydrated.append(
+                {
+                    "name": f"Colorless{i}",
+                    "type_line": "Artifact",
+                    "oracle_text": "",
+                    "mana_cost": f"{{{i % 3 + 1}}}",  # generic 1, 2, or 3
+                    "cmc": (i % 3) + 1,
+                    "color_identity": [],
+                    "produced_mana": [],
+                }
+            )
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(0)
+        state = shared_library.setup(
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+        )
+        for _ in range(8):
+            shared_library.run_turn(
+                state,
+                cube_metadata=meta,
+                basic_metadata=shared_library.BASIC_METADATA,
+                rng=rng,
+            )
+        # Colorless spells with no color_identity are always on-color.
+        total_screws = sum(state.metrics.times_color_screwed)
+        assert total_screws == 0, (
+            f"expected zero color-screws for colorless cube, "
+            f"got {state.metrics.times_color_screwed}"
+        )
 
 
 class TestRegistry:

@@ -442,7 +442,7 @@ def aggregate_runs(
     if n_games == 0:
         return {
             "per_archetype": {
-                a: {"assembly_rate": 0.0, "mean_assembly_turn": None}
+                a: {"assembly_rate": 0.0, "mean_first_enabler_turn": None}
                 for a in archetype_names
             },
             "marketplace_dynamics": {
@@ -477,7 +477,7 @@ def aggregate_runs(
                     break  # one seat per game suffices
         per_archetype[a] = {
             "assembly_rate": assembled_games / n_games,
-            "mean_assembly_turn": (
+            "mean_first_enabler_turn": (
                 sum(assembly_turns) / len(assembly_turns) if assembly_turns else None
             ),
         }
