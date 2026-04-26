@@ -18,7 +18,7 @@ data.
 The skill has two phases. **Phase 1 (Cube Acquisition)** determines how the
 user gets a cube: parse an existing list (Path A) or clone a reference cube
 (Path B). Both paths produce a cube JSON + hydrated cache. **Phase 2
-(Tuning)** runs the same 9-step pipeline on that cube regardless of origin.
+(Tuning)** runs the same 10-step pipeline on that cube regardless of origin.
 
 ## The Iron Rule
 
@@ -556,14 +556,28 @@ the user reads both reports and decides.
 
 **Custom format:** if the cube targets a non-standard format (shared
 library, oathbreaker, tiny leaders, etc.), use `playtest-custom-format`
-instead of `playtest-gauntlet` / `playtest-draft`:
+instead of `playtest-gauntlet` / `playtest-draft`.
+
+If the cube has `designer_intent.stated_archetypes` populated (preset
+references and/or `{name, members}` archetype groups), `--from-cube`
+pulls them automatically:
+
+```bash
+playtest-custom-format cube.json --hydrated cube-hydrated.json \
+  --format-module shared_library --from-cube \
+  --turns 10 --games 1000 --seed 0 --output report.json
+```
+
+For ad-hoc archetype lists (or to layer on top of cube-declared ones),
+pass `--preset NAME` (repeatable) and/or
+`--archetype-group NAME=PRESET1,PRESET2,...` to declare umbrella
+archetypes inline:
 
 ```bash
 playtest-custom-format cube.json --hydrated cube-hydrated.json \
   --format-module shared_library \
-  --preset top-manipulation --preset reanimate --preset removal \
-  --preset cantrip --preset surveil --preset graveyard-return \
-  --preset flashback --preset self-mill --preset counterspell \
+  --preset top-manipulation --preset removal --preset cantrip \
+  --archetype-group graveyard=reanimate,flashback,graveyard-return,self-mill \
   --turns 10 --games 1000 --seed 0 --output report.json
 ```
 

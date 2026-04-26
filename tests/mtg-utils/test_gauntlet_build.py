@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.resources
+import json as _json
+
 import pytest
 
 from mtg_utils._gauntlet_build import BuildOutcome, build_gauntlet_deck, score_card
@@ -158,10 +161,6 @@ class TestBuildGauntletDeck:
         )
         assert out.status == "insufficient"
         assert "nonland" in out.reason.lower()
-
-
-import importlib.resources
-import json as _json
 
 
 class TestManifests:

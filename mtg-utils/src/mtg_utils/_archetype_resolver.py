@@ -164,7 +164,7 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
     )
 
 
-def merge_member_presets(name: str, members):
+def merge_member_presets(name: str, members: tuple[str, ...] | list[str]):
     """Synthesize a single :class:`Preset` whose matcher ORs each member's.
 
     The :class:`Preset` class's :meth:`matches` method is already an OR

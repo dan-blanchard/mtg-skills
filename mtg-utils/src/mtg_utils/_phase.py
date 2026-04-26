@@ -232,7 +232,7 @@ def run_duel(
     *,
     games: int,
     seed: int | None,
-    format_: str,  # noqa: ARG001 — reserved for Task 14 gauntlet caller
+    format_: str,  # noqa: ARG001 — phase infers format from deck JSON; kept for call-site symmetry
     difficulty: str = "Medium",
     timeout_s: int,
 ) -> dict:

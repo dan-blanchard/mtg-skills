@@ -85,7 +85,7 @@ Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3
 - **`find_commanders.py`** — Search owned collection for commander-eligible cards.
 - **`mark_owned.py`** — Populate a deck's `owned_cards` field from a collection CSV/JSON.
 - **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`.
-- **`playtest.py`** — Five entry points sharing one module:
+- **`playtest.py`** — Six entry points sharing one module:
   - `playtest-goldfish` — Solo deck simulator (mulligan, curve, color-screw,
     combo timing). Pure Python.
   - `playtest-match` — phase-rs `ai-duel` batch (deck vs deck).
@@ -131,9 +131,10 @@ Shared library modules (not CLI scripts):
   install at `~/.cache/mtg-skills/phase/` (or `$MTG_SKILLS_CACHE_DIR/phase`),
   exposes `run_duel` / `run_commander` and the coverage gate. Pinned to
   phase tag `v0.1.19`; bump with care.
-- **`_playtest_common.py`** — Schema-v1 JSON envelope and four markdown
+- **`_playtest_common.py`** — Schema-v1 JSON envelope and five markdown
   renderers (`render_goldfish_markdown`, `render_match_markdown`,
-  `render_gauntlet_markdown`, `render_draft_markdown`).
+  `render_gauntlet_markdown`, `render_draft_markdown`,
+  `render_custom_format_markdown`).
 - **`_gauntlet_build.py`** — Heuristic gauntlet deckbuilder (used by
   `playtest-gauntlet` over the full cube and by `playtest-draft` over
   each player's drafted pool). `score_card(card, archetype, colors)`
@@ -152,11 +153,11 @@ Shared library modules (not CLI scripts):
 
 ### deck-wizard
 
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch or tunes existing ones across all formats (Commander/Brawl/Historic Brawl and 60-card constructed). Two-phase workflow: Phase 1 acquires a deck (parse existing or build from scratch), Phase 2 runs a 12-step tuning pipeline.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds decks from scratch or tunes existing ones across all formats (Commander/Brawl/Historic Brawl and 60-card constructed). Two-phase workflow: Phase 1 acquires a deck (parse existing or build from scratch), Phase 2 runs a 13-step tuning pipeline (Step 13 is optional empirical playtest).
 
 ### cube-wizard
 
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (curated card pools of 360–720 cards designed for drafting). Two-phase workflow: Phase 1 acquires a cube (Path A: parse an existing CubeCobra cube; Path B: clone a well-known reference cube from `cube_config.REFERENCE_CUBES` and customize). Phase 2 runs a 9-step tuning pipeline (baseline metrics → designer intent → balance dashboard → archetype audit → power-level review → self-grill → propose changes → pack simulation → export). Balance checks are informational, not pass/fail, so a mono-color or skewed-by-design cube is never flagged as broken.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (curated card pools of 360–720 cards designed for drafting). Two-phase workflow: Phase 1 acquires a cube (Path A: parse an existing CubeCobra cube; Path B: clone a well-known reference cube from `cube_config.REFERENCE_CUBES` and customize). Phase 2 runs a 10-step tuning pipeline (baseline metrics → designer intent → balance dashboard → archetype audit → power-level review → self-grill → propose changes → pack simulation → export → optional empirical playtest). Balance checks are informational, not pass/fail, so a mono-color or skewed-by-design cube is never flagged as broken.
 
 ### rules-lawyer
 

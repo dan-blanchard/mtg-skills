@@ -406,7 +406,7 @@ def run_turn(
     *,
     cube_metadata: list[CardMetadata],
     basic_metadata: tuple[CardMetadata, ...] = BASIC_METADATA,
-    rng: random.Random,  # noqa: ARG001 — reserved for stochastic effects (Task 10+)
+    rng: random.Random,  # noqa: ARG001 — kept for format-module signature uniformity (turn loop is deterministic in v1)
 ) -> None:
     """Advance one turn for the active player; mutate state in place."""
     n_players = len(state.players)

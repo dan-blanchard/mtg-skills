@@ -9,7 +9,7 @@ license: 0BSD
 
 Build MTG decks from scratch or tune existing ones, across every supported format: Commander/EDH, Brawl, Historic Brawl (singleton formats with commanders) and Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, Vintage (60-card constructed formats with sideboards). Every recommendation MUST be grounded in actual card oracle text from Scryfall — never from training data.
 
-The skill has two phases. **Phase 1 (Deck Acquisition)** determines how the user gets a deck: either by parsing an existing list (Path A) or building from scratch (Path B). Both paths produce a deck JSON + hydrated cache. **Phase 2 (Tuning)** runs the same 12-step pipeline on that deck regardless of origin.
+The skill has two phases. **Phase 1 (Deck Acquisition)** determines how the user gets a deck: either by parsing an existing list (Path A) or building from scratch (Path B). Both paths produce a deck JSON + hydrated cache. **Phase 2 (Tuning)** runs the same 13-step pipeline on that deck regardless of origin.
 
 ## The Iron Rule
 
@@ -1778,7 +1778,7 @@ playtest-match my-deck.json affinity.json --games 100 --seed 1 \
 
 **Commander/Brawl:** run `playtest-goldfish` (no widely accepted single
 opponent baseline). Default 1,000 games × 8 turns reports mulligan rate,
-turn-to-cast-commander, color-screw rate.
+mean lands by turn, mean casts by turn, and color-screw rate.
 
 ```
 playtest-goldfish my-deck.json --hydrated my-hydrated.json \
