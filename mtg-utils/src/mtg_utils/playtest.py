@@ -15,7 +15,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._playtest_common import envelope
+from mtg_utils._playtest_common import envelope, render_goldfish_markdown
 from mtg_utils.card_classify import build_card_lookup, is_land
 
 GOLDFISH_VERSION = "goldfish v1"
@@ -308,9 +308,6 @@ def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> 
     serialized = json.dumps(out, indent=2)
     if output_path:
         Path(output_path).write_text(serialized)
-
-    from mtg_utils._playtest_common import render_goldfish_markdown
-
     click.echo(render_goldfish_markdown(out))
 
 
