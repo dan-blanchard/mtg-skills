@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 
@@ -174,4 +175,97 @@ def coverage_report(
         "missing": missing,
         "requested": len(requested_set),
         "supported": matched,
+    }
+
+
+def to_phase_deck(deck: dict, *, label: str) -> dict:
+    """Convert our deck JSON into phase's ``{name, format, main, commander}`` shape."""
+    main_entries: dict[str, int] = {}
+
+    def add(name: str, count: int) -> None:
+        main_entries[name] = main_entries.get(name, 0) + count
+
+    for entry in deck.get("commanders") or []:
+        add(entry["name"], int(entry.get("quantity", 1)))
+    for entry in deck.get("cards") or []:
+        add(entry["name"], int(entry.get("quantity", 1)))
+
+    payload: dict = {
+        "name": label,
+        "format": deck.get("format") or "modern",
+        "main": [{"name": n, "count": c} for n, c in main_entries.items()],
+    }
+    commanders = [e["name"] for e in (deck.get("commanders") or [])]
+    if commanders:
+        payload["commander"] = commanders
+    return payload
+
+
+def run_duel(
+    deck_a_path: Path,
+    deck_b_path: Path,
+    *,
+    games: int,
+    seed: int | None,
+    format_: str,  # noqa: ARG001 — reserved for Task 14 gauntlet caller
+    difficulty: str = "Medium",
+    timeout_s: int,
+) -> dict:
+    """Run an ``ai-duel`` batch and return parsed results.
+
+    Returned dict contains: ``wins_p0``, ``wins_p1``, ``draws``,
+    ``avg_turns``, ``avg_duration_ms``, ``games``, ``status`` (``ok`` or
+    ``timeout``).
+
+    NOTE: assumes phase's ``ai-duel`` accepts ``--matchup-files <a> <b>``
+    for inline-deck files. Phase v0.1.19's actual flag may differ (e.g.,
+    ``--matchup`` for built-in pair names). Adjust when wiring the real
+    binary; tests mock subprocess so the flag name is irrelevant here.
+
+    The ``format_`` parameter is not forwarded to the command — phase's
+    ``ai-duel`` infers the format from the deck JSON's ``"format"`` field.
+    The parameter is retained for the gauntlet caller in Task 14.
+    """
+    binary = find_binary("ai-duel")
+    with tempfile.TemporaryDirectory() as td:
+        out_path = Path(td) / "duel.json"
+        cmd = [
+            str(binary),
+            "--matchup-files",
+            str(deck_a_path),
+            str(deck_b_path),
+            "--batch",
+            str(games),
+            "--difficulty",
+            difficulty,
+            "--output",
+            str(out_path),
+        ]
+        if seed is not None:
+            cmd += ["--seed", str(seed)]
+        try:
+            subprocess.run(
+                cmd, check=True, timeout=timeout_s, capture_output=True, text=True
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                "status": "timeout",
+                "wins_p0": 0,
+                "wins_p1": 0,
+                "draws": 0,
+                "games": 0,
+                "avg_turns": 0.0,
+                "avg_duration_ms": 0,
+            }
+
+        data = json.loads(out_path.read_text())
+
+    return {
+        "status": "ok",
+        "wins_p0": data.get("p0_wins", 0),
+        "wins_p1": data.get("p1_wins", 0),
+        "draws": data.get("draws", 0),
+        "games": data.get("games", games),
+        "avg_turns": data.get("avg_turns", 0.0),
+        "avg_duration_ms": data.get("avg_duration_ms", 0),
     }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -148,3 +149,89 @@ class TestCoverageGate:
         )
         assert report["status"] == "blocked"
         assert sorted(report["missing"]) == ["Bar", "Foo"]
+
+
+class TestDeckConversion:
+    def test_to_phase_deck_drops_set_codes_and_extras(self):
+        deck = {
+            "format": "modern",
+            "commanders": [],
+            "cards": [
+                {"name": "Mountain", "quantity": 20, "set": "FDN"},
+                {"name": "Lightning Bolt", "quantity": 4},
+            ],
+        }
+        out = _phase.to_phase_deck(deck, label="Aggro")
+        assert out["name"] == "Aggro"
+        assert out["format"] == "modern"
+        assert {"name": "Mountain", "count": 20} in out["main"]
+        assert {"name": "Lightning Bolt", "count": 4} in out["main"]
+        # Extra fields stripped
+        assert all(set(e.keys()) == {"name", "count"} for e in out["main"])
+
+    def test_to_phase_deck_includes_commander(self):
+        deck = {
+            "format": "commander",
+            "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+            "cards": [{"name": "Mountain", "quantity": 99}],
+        }
+        out = _phase.to_phase_deck(deck, label="Krenko")
+        assert out["commander"] == ["Krenko, Mob Boss"]
+        # Commander in main too (phase requires it).
+        names = [e["name"] for e in out["main"]]
+        assert "Krenko, Mob Boss" in names
+
+
+class TestRunDuel:
+    def test_run_duel_invokes_binary_with_args(self, monkeypatch, tmp_path):
+        bin_path = tmp_path / "ai-duel"
+        bin_path.write_text("#!/bin/sh\n")
+        bin_path.chmod(0o755)
+        monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path))
+
+        captured = {}
+
+        def fake_run(cmd, **_kwargs):
+            captured["cmd"] = cmd
+            captured["kwargs"] = _kwargs
+            output_path = Path([a for a in cmd if a.startswith("/")][-1])
+            output_path.write_text(
+                json.dumps(
+                    {
+                        "matchup": "deckA-vs-deckB",
+                        "games": 50,
+                        "p0_wins": 28,
+                        "p1_wins": 18,
+                        "draws": 4,
+                        "avg_turns": 7.2,
+                        "avg_duration_ms": 2100,
+                    }
+                )
+            )
+            r = MagicMock()
+            r.returncode = 0
+            return r
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+
+        deck_a = tmp_path / "a.json"
+        deck_b = tmp_path / "b.json"
+        deck_a.write_text(json.dumps({"name": "A", "format": "modern", "main": []}))
+        deck_b.write_text(json.dumps({"name": "B", "format": "modern", "main": []}))
+
+        result = _phase.run_duel(
+            deck_a,
+            deck_b,
+            games=50,
+            seed=42,
+            format_="modern",
+            timeout_s=300,
+        )
+
+        assert result["wins_p0"] == 28
+        assert result["wins_p1"] == 18
+        assert result["draws"] == 4
+        assert "--batch" in captured["cmd"]
+        assert "50" in captured["cmd"]
+        assert "--seed" in captured["cmd"]
+        assert "42" in captured["cmd"]
