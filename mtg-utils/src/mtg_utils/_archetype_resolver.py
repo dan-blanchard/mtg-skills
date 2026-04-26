@@ -162,3 +162,33 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
         groups=tuple(groups),
         custom=tuple(custom),
     )
+
+
+def merge_member_presets(name: str, members):
+    """Synthesize a single :class:`Preset` whose matcher ORs each member's.
+
+    The :class:`Preset` class's :meth:`matches` method is already an OR
+    over its keywords/patterns/type_patterns/layouts. So combining the
+    constituent presets' tuples preserves OR semantics — a card matches
+    iff at least one member's matchers fire.
+
+    Raises ``KeyError`` if any member is not a known preset.
+    """
+    from mtg_utils.theme_presets import PRESETS, Preset
+
+    member_presets = [PRESETS[m] for m in members]
+    keywords = tuple(dict.fromkeys(kw for p in member_presets for kw in p.keywords))
+    patterns = tuple(p_ for p in member_presets for p_ in p.patterns)
+    type_patterns = tuple(p_ for p in member_presets for p_ in p.type_patterns)
+    layouts = tuple(
+        dict.fromkeys(layout for p in member_presets for layout in p.layouts)
+    )
+    desc = f"Group: {' + '.join(members)}"
+    return Preset(
+        name=name,
+        description=desc,
+        keywords=keywords,
+        patterns=patterns,
+        type_patterns=type_patterns,
+        layouts=layouts,
+    )

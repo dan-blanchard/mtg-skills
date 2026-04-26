@@ -223,3 +223,61 @@ class TestLegacyTopLevelLocation:
         }
         out = resolve_stated_archetypes(cube)
         assert out.preset_names == ("removal",)
+
+
+class TestMergeMemberPresets:
+    def test_merged_preset_or_matches_any_member(self):
+        from mtg_utils._archetype_resolver import merge_member_presets
+        from mtg_utils.theme_presets import PRESETS
+
+        merged = merge_member_presets(
+            "graveyard",
+            ("reanimate", "self-mill"),
+        )
+
+        # The merged preset's `matches` returns True if EITHER constituent
+        # preset's matchers fire on a card.
+        # Reanimate match: a generic reanimate spell.
+        reanimate_card = {
+            "name": "Reanimate",
+            "type_line": "Sorcery",
+            "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control.",
+        }
+        # Self-mill match: a self-mill card (oracle uses the preset's pattern).
+        self_mill_card = {
+            "name": "Stitcher's Supplier",
+            "type_line": "Creature — Zombie",
+            "oracle_text": (
+                "When Stitcher's Supplier enters the battlefield or dies, "
+                "put the top three cards of your library into your graveyard."
+            ),
+        }
+        # Neither — should NOT match the union.
+        bystander = {
+            "name": "Llanowar Elves",
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
+        }
+
+        # Sanity-check the constituents match individually.
+        assert PRESETS["reanimate"].matches(reanimate_card)
+        assert PRESETS["self-mill"].matches(self_mill_card)
+        assert not PRESETS["reanimate"].matches(bystander)
+        assert not PRESETS["self-mill"].matches(bystander)
+
+        # Merged preset matches both kinds, doesn't match the bystander.
+        assert merged.matches(reanimate_card)
+        assert merged.matches(self_mill_card)
+        assert not merged.matches(bystander)
+
+    def test_merged_preset_name_matches_group_name(self):
+        from mtg_utils._archetype_resolver import merge_member_presets
+
+        merged = merge_member_presets("graveyard", ("reanimate", "self-mill"))
+        assert merged.name == "graveyard"
+
+    def test_unknown_member_raises(self):
+        from mtg_utils._archetype_resolver import merge_member_presets
+
+        with pytest.raises(KeyError):
+            merge_member_presets("bad-group", ("does-not-exist",))
