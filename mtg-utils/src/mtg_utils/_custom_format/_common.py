@@ -6,6 +6,7 @@ heuristic, per-game state types, simulation loop, cross-game aggregation.
 
 from __future__ import annotations
 
+import random
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -363,3 +364,97 @@ def lookup_card(
     if idx < n_basics:
         return basic_metadata[idx]
     return cube_metadata[idx - n_basics]
+
+
+def simulate_one_game(
+    format_module,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata,
+    rng: random.Random,
+    n_players: int,
+    max_turns: int,
+) -> PerGameMetrics:
+    """Run one game; return its metrics."""
+    state = format_module.setup(
+        cube_metadata=cube_metadata,
+        basic_metadata=basic_metadata,
+        rng=rng,
+        n_players=n_players,
+    )
+    while not format_module.is_terminal(state, max_turns=max_turns):
+        format_module.run_turn(
+            state,
+            cube_metadata=cube_metadata,
+            basic_metadata=basic_metadata,
+            rng=rng,
+        )
+    # Snapshot final per-player pile counts (arrays were pre-sized in setup()).
+    for seat, player in enumerate(state.players):
+        state.metrics.pile_archetype_counts[seat] = dict(
+            player.pile_archetype_counts,
+        )
+        state.metrics.committed_archetype[seat] = player.committed_archetype
+    return state.metrics
+
+
+def run_simulation(
+    format_module,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata,
+    archetype_names: list[str],
+    n_players: int,
+    max_turns: int,
+    n_games: int,
+    base_seed: int,
+) -> dict:
+    """Run N games and aggregate metrics; returns the envelope.results dict."""
+    per_game: list[PerGameMetrics] = []
+    for game_idx in range(n_games):
+        rng = random.Random(base_seed + game_idx)
+        per_game.append(
+            simulate_one_game(
+                format_module,
+                cube_metadata=cube_metadata,
+                basic_metadata=basic_metadata,
+                rng=rng,
+                n_players=n_players,
+                max_turns=max_turns,
+            )
+        )
+    return aggregate_runs(
+        per_game, archetype_names=archetype_names, max_turns=max_turns
+    )
+
+
+def aggregate_runs(
+    per_game: list[PerGameMetrics],
+    *,
+    archetype_names: list[str],
+    max_turns: int,  # noqa: ARG001 - Task 11 will use this for per-turn bucketing
+) -> dict:
+    """Aggregate per-game results into rates and means.
+
+    Skeleton in Task 10; full implementation in Task 11.
+    """
+    n_games = len(per_game)
+    return {
+        "per_archetype": {
+            a: {"assembly_rate": 0.0, "mean_assembly_turn": None}
+            for a in archetype_names
+        },
+        "marketplace_dynamics": {
+            "utilization_rate": 0.0,
+            "library_effects_per_turn": 0.0,
+            "exiled_per_game": 0.0,
+            "discarded_per_game": 0.0,
+            "milled_per_game": 0.0,
+        },
+        "per_player_mana": {
+            "reaches_4_mana_by_t4": 0.0,
+            "color_screw_rate": 0.0,
+            "mean_turns_to_first_enabler": None,
+        },
+        "n_games": n_games,
+    }

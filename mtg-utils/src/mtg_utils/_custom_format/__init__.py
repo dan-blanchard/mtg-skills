@@ -7,5 +7,8 @@ and constants DEFAULT_PLAYERS / DEFAULT_TURNS / SUPPORTS_ARCHETYPES.
 
 from __future__ import annotations
 
-# Populated below to keep the dict definition close to the registry.
-FORMAT_REGISTRY: dict = {}
+from mtg_utils._custom_format import shared_library
+
+FORMAT_REGISTRY = {
+    "shared_library": shared_library,
+}

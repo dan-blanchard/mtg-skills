@@ -237,3 +237,57 @@ class TestColorScrewTracking:
         assert len(state.metrics.times_color_screwed) == 4
         for v in state.metrics.times_color_screwed:
             assert v >= 0
+
+
+class TestRegistry:
+    def test_registry_contains_shared_library(self):
+        from mtg_utils._custom_format import FORMAT_REGISTRY
+
+        assert "shared_library" in FORMAT_REGISTRY
+        assert FORMAT_REGISTRY["shared_library"].DEFAULT_PLAYERS == 4
+
+
+class TestSimulateGame:
+    def test_one_game_runs_to_completion(self):
+        from mtg_utils._custom_format import shared_library
+        from mtg_utils._custom_format._common import simulate_one_game
+
+        hydrated = _stub_cube(n_nonlands=80)
+        meta = precompute_metadata(hydrated, presets=[])
+        rng = random.Random(7)
+        metrics = simulate_one_game(
+            shared_library,
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            rng=rng,
+            n_players=4,
+            max_turns=5,
+        )
+        # 4 players x 5 turns = 20 turns recorded.
+        n_lands_recorded = sum(len(d) for d in metrics.lands_in_play_by_turn)
+        assert n_lands_recorded > 0
+        # Every player has nonneg picks/draws.
+        for p in range(4):
+            assert metrics.marketplace_picks[p] + metrics.blind_draws[p] > 0
+
+
+class TestRunSimulation:
+    def test_runs_n_games_returns_aggregated(self):
+        from mtg_utils._custom_format import shared_library
+        from mtg_utils._custom_format._common import run_simulation
+
+        hydrated = _stub_cube(n_nonlands=80)
+        meta = precompute_metadata(hydrated, presets=[])
+        result = run_simulation(
+            shared_library,
+            cube_metadata=meta,
+            basic_metadata=shared_library.BASIC_METADATA,
+            archetype_names=[],
+            n_players=4,
+            max_turns=5,
+            n_games=10,
+            base_seed=1,
+        )
+        assert "per_archetype" in result
+        assert "marketplace_dynamics" in result
+        assert "per_player_mana" in result
