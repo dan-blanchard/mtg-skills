@@ -77,3 +77,32 @@ def render_goldfish_markdown(env: dict) -> str:
             lines.append(f"- {w}")
 
     return "\n".join(lines) + "\n"
+
+
+def render_match_markdown(env: dict) -> str:
+    """Render a phase match result envelope as a human-readable markdown report."""
+    r = env["results"]
+    games = r["games"]
+
+    def pct(n: int) -> str:
+        return f"{n / games * 100:.1f}%" if games else "n/a"
+
+    lines = [
+        "# Match report",
+        "",
+        f"**Engine:** {env['engine_version']}  "
+        f"**Seed:** {env['seed']}  "
+        f"**Format:** {env.get('format') or 'unspecified'}  "
+        f"**Duration:** {env['duration_s']}s",
+        "",
+        f"## Results ({games} games)",
+        "",
+        f"- P0 wins: **{r['wins_p0']}** ({pct(r['wins_p0'])})",
+        f"- P1 wins: **{r['wins_p1']}** ({pct(r['wins_p1'])})",
+        f"- Draws:   **{r['draws']}** ({pct(r['draws'])})",
+        f"- Avg turns: {r.get('avg_turns', 0):.1f}",
+        f"- Avg game duration: {r.get('avg_duration_ms', 0):.0f}ms",
+    ]
+    if env.get("warnings"):
+        lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
+    return "\n".join(lines) + "\n"

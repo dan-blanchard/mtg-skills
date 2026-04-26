@@ -15,7 +15,11 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._playtest_common import envelope, render_goldfish_markdown
+from mtg_utils._playtest_common import (
+    envelope,
+    render_goldfish_markdown,
+    render_match_markdown,
+)
 from mtg_utils.card_classify import build_card_lookup, is_land
 
 GOLDFISH_VERSION = "goldfish v1"
@@ -312,9 +316,101 @@ def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> 
 
 
 @click.command()
-def match_main() -> None:
-    """AI vs AI batch (phase-rs)."""
-    click.echo("match: not yet implemented")
+@click.argument("deck_a", type=click.Path(exists=True, dir_okay=False))
+@click.argument("deck_b", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--games", default=100, show_default=True, help="Number of games to simulate"
+)
+@click.option("--seed", default=0, show_default=True, type=int)
+@click.option(
+    "--difficulty",
+    default="Medium",
+    show_default=True,
+    type=click.Choice(["Easy", "Medium", "Hard"]),
+)
+@click.option("--timeout-s", default=600, show_default=True, type=int)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Run even if phase coverage is below the threshold",
+)
+@click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
+def match_main(deck_a, deck_b, games, seed, difficulty, timeout_s, force, output_path):
+    """AI vs AI batch (phase-rs).
+
+    Runs --games games between deck A and deck B and reports win % per side
+    plus draws (phase aborts a game at 10,000 actions; that counts as a draw).
+    """
+    import tempfile as _tempfile
+
+    from mtg_utils import _phase
+
+    deck_a_obj = json.loads(Path(deck_a).read_text())
+    deck_b_obj = json.loads(Path(deck_b).read_text())
+
+    names = []
+    for d in (deck_a_obj, deck_b_obj):
+        for entry in (d.get("cards") or []) + (d.get("commanders") or []):
+            names.append(entry["name"])
+
+    cov = _phase.coverage_report(names)
+    if cov["status"] == "blocked" and not force:
+        click.echo(
+            f"Refusing to run: phase coverage {cov['supported_pct']:.1%} "
+            f"is below the 90% threshold "
+            f"({len(cov['missing'])} cards missing).\n"
+            "Pass --force to run anyway, or use playtest-goldfish.",
+            err=True,
+        )
+        raise SystemExit(2)
+
+    phase_a = _phase.to_phase_deck(deck_a_obj, label="A")
+    phase_b = _phase.to_phase_deck(deck_b_obj, label="B")
+
+    with _tempfile.TemporaryDirectory() as td:
+        a_path = Path(td) / "a.json"
+        b_path = Path(td) / "b.json"
+        a_path.write_text(json.dumps(phase_a))
+        b_path.write_text(json.dumps(phase_b))
+
+        start = time.perf_counter()
+        result = _phase.run_duel(
+            a_path,
+            b_path,
+            games=games,
+            seed=seed,
+            format_=phase_a["format"],
+            difficulty=difficulty,
+            timeout_s=timeout_s,
+        )
+        elapsed = time.perf_counter() - start
+
+    warnings = []
+    if cov["status"] == "warn":
+        sample = ", ".join(cov["missing"][:5])
+        more = "…" if len(cov["missing"]) > 5 else ""
+        warnings.append(
+            f"Phase coverage {cov['supported_pct']:.1%} — "
+            f"{len(cov['missing'])} cards substituted: {sample}{more}",
+        )
+
+    out = envelope(
+        mode="match",
+        engine="phase",
+        engine_version=f"phase {_phase.PHASE_TAG}",
+        seed=seed,
+        format_=phase_a["format"],
+        card_coverage=cov,
+        results=result,
+        warnings=warnings,
+        duration_s=elapsed,
+    )
+
+    serialized = json.dumps(out, indent=2)
+    if output_path:
+        Path(output_path).write_text(serialized)
+    click.echo(render_match_markdown(out))
 
 
 @click.command()
