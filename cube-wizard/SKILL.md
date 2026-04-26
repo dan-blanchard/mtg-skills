@@ -500,6 +500,27 @@ cube-diff <old-cube.json> <new-cube.json> \
 
 Review the deltas with the user before proceeding.
 
+**Common swap criteria — drive cuts/adds from the diagnostic signals:**
+
+- **Removal density off** (Step 3): swap removal in/out by archetype tag.
+- **Archetype below LP minimum** (Step 4): add enablers OR umbrella with
+  related archetypes via `stated_archetypes` group.
+- **Power outliers** (Step 5): cut the price-flagged card if it warps
+  drafts; combos identified by `combo-search` may need one piece cut.
+- **High color-screw rate** (from Step 10's playtest report, custom
+  formats): replace double-pip cards (`{C}{C}`) with single-pip
+  equivalents in the same archetype. Use `card-search --oracle "<archetype
+  pattern>" --color-identity <C>` to find candidates, then verify each
+  with `scryfall-lookup`.
+- **Archetype assembly below 30%** (Step 10): add 2–3 enablers OR adjust
+  the archetype's group definition in the cube JSON.
+
+When swap candidates would collide with cards already in the cube
+(common with popular replacements), `card-search` with stricter filters
+narrows alternatives. Verify every replacement's mana cost via
+`scryfall-lookup` before committing — never trust card costs from
+training data alone.
+
 ### Step 8: Pack Simulation
 
 ```bash
@@ -520,7 +541,14 @@ export-cube <new-cube.json> --format csv --output <wd>/<cube-id>-updated.csv
 Hand the CSV to the user with instructions to use CubeCobra's **"Replace
 with CSV Import"** function to push the changes back upstream.
 
-### Step 10: Empirical Playtest (optional)
+### Step 10: Empirical Playtest
+
+Optional for standard cube formats (where Steps 1–9's static signals
+already cover most decisions). **Mandatory** for custom-format cubes
+(shared-library, oathbreaker, tiny leaders, anything with non-standard
+zones, openers, or draw rules). Static tools can't see format-specific
+dynamics; the simulator is the only diagnostic for color-screw and
+archetype assembly under the format's actual rules.
 
 Two complementary signals. Run both when invoked.
 
@@ -586,9 +614,42 @@ dynamics and per-archetype assembly, and reports rates without modeling
 combat or full card resolution. v1 ships only `--format-module
 shared_library`; new formats are one Python module each.
 
+**Interpreting the report — three signals, three tuning knobs:**
+
+1. **Color-screw rate.** The simulator uses a pip-count-aware mana model
+   (`{U}{U}` requires 2 actual U mana, not just any 2 mana with U in the
+   pool). High rates indicate **pip burden** — too many cards requiring
+   multiple mana of one color for the format's color-fixing density.
+   Tuning knobs:
+   - Replace double-pip cards (`{U}{U}` → `{1}{U}`) with single-pip
+     equivalents — typically the highest-leverage swap.
+   - Add more same-color land density (more dual lands of each color, or
+     mono-color basics in marketplaces/decks).
+   - Identify candidates: `card-search --bulk-data <path> --oracle "<pattern>"`
+     against the cube's archetype patterns to find lower-pip versions of
+     existing cards.
+
+2. **Per-archetype assembly rate.** Archetypes below ~30% rarely come
+   together in actual play. Tuning knobs:
+   - Add more enabler density (Lucky Paper minimum is 3–4 cards;
+     simulator's K=4 threshold is consistent with this).
+   - For multi-mechanic archetypes (graveyard = reanimate + flashback +
+     graveyard-return + self-mill), declare an `--archetype-group` or
+     `{name, members}` entry in `stated_archetypes` so the umbrella's
+     real density is visible. A sub-mechanic with 4 cards may look thin
+     while the umbrella with 20 cards is robust.
+   - Bridge cards (cards spanning 2+ archetypes) raise umbrella assembly
+     without adding card slots — track them via `archetype-audit`'s
+     bridge-cards output.
+
+3. **Marketplace utilization (custom formats only).** 65%+ is healthy;
+   30%–40% suggests the marketplace is rarely worth picking from (cube
+   may be too thin or skewed). Tuning knob: rebalance the cube's curve
+   or color pool until utilization climbs.
+
 **First-run prereq:** `playtest-install-phase` (~5–10 min, one-time)
-required for gauntlet (uses phase-rs). Draft is pure Python, no install
-needed.
+required for gauntlet (uses phase-rs). Draft and custom-format are pure
+Python, no install needed.
 
 ---
 
