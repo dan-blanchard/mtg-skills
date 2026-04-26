@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from mtg_utils._gauntlet_build import BuildOutcome, build_gauntlet_deck, score_card
 
 
@@ -156,3 +158,25 @@ class TestBuildGauntletDeck:
         )
         assert out.status == "insufficient"
         assert "nonland" in out.reason.lower()
+
+
+import importlib.resources
+import json as _json
+
+
+class TestManifests:
+    @pytest.mark.parametrize("fmt", [
+        "modern_cube", "vintage_cube", "legacy_cube",
+        "pauper_cube", "peasant_cube", "commander_cube",
+    ])
+    def test_manifest_loads_and_has_required_fields(self, fmt):
+        data = importlib.resources.files("mtg_utils.data.gauntlets") \
+            .joinpath(f"{fmt}.json").read_text()
+        m = _json.loads(data)
+        assert m["format"] == fmt
+        assert m["deck_size"] in (40, 60, 100)
+        assert m["lands"] in (17, 24, 36)
+        assert len(m["archetypes"]) >= 3
+        for a in m["archetypes"]:
+            assert {"name", "colors", "preset"}.issubset(a.keys())
+            assert a["preset"] in {"aggro", "control", "midrange", "combo"}

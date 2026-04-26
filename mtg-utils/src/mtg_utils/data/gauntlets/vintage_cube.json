@@ -1,0 +1,15 @@
+{
+  "format": "vintage_cube",
+  "deck_size": 40,
+  "lands": 17,
+  "archetypes": [
+    {"name": "Mono-Red Aggro", "colors": ["R"], "preset": "aggro",
+     "curve_target": {"1": 14, "2": 6, "3": 3}},
+    {"name": "Azorius Control", "colors": ["U", "W"], "preset": "control",
+     "curve_target": {"2": 5, "3": 6, "4": 6, "5": 4, "6": 2}},
+    {"name": "Golgari Midrange", "colors": ["B", "G"], "preset": "midrange",
+     "curve_target": {"2": 5, "3": 7, "4": 6, "5": 4, "6": 1}},
+    {"name": "Izzet Combo", "colors": ["U", "R"], "preset": "combo",
+     "curve_target": {"1": 4, "2": 6, "3": 7, "4": 4, "5": 2}}
+  ]
+}

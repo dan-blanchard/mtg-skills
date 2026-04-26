@@ -54,6 +54,9 @@ playtest-install-phase = "mtg_utils.playtest:install_phase_main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"mtg_utils.data.gauntlets" = ["*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["../tests/mtg-utils"]
 
