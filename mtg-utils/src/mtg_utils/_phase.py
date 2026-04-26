@@ -6,9 +6,11 @@ a per-user cache, and shell out for every duel/commander run.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 
 PHASE_TAG = "v0.1.19"
@@ -121,3 +123,55 @@ def install_phase() -> None:
         check=True,
     ).stdout.strip()
     version_file.write_text(head + "\n")
+
+
+DEFAULT_COVERAGE_THRESHOLD = 0.9
+
+
+def _card_data_path() -> Path:
+    return _repo_dir() / "client" / "public" / "card-data.json"
+
+
+@lru_cache(maxsize=1)
+def load_supported_card_names() -> frozenset[str]:
+    """Load the set of card names phase implements (cached)."""
+    path = _card_data_path()
+    if not path.exists():
+        raise PhaseNotInstalledError(
+            f"phase card-data.json not found at {path}. Run `playtest-install-phase`.",
+        )
+    data = json.loads(path.read_text())
+    return frozenset(c["name"] for c in data.get("cards", []))
+
+
+def coverage_report(
+    card_names: list[str],
+    *,
+    threshold: float = DEFAULT_COVERAGE_THRESHOLD,
+) -> dict:
+    """Classify a deck's phase coverage as full / warn / blocked.
+
+    - ``full`` (100% supported): run silently.
+    - ``warn`` (>= threshold but < 100%): run with a warning naming missing.
+    - ``blocked`` (< threshold): refuse to run.
+    """
+    supported = load_supported_card_names()
+    requested_set = set(card_names)
+    missing = sorted(requested_set - supported)
+    matched = len(requested_set) - len(missing)
+    pct = matched / len(requested_set) if requested_set else 1.0
+
+    if not missing:
+        status = "full"
+    elif pct >= threshold:
+        status = "warn"
+    else:
+        status = "blocked"
+
+    return {
+        "status": status,
+        "supported_pct": pct,
+        "missing": missing,
+        "requested": len(requested_set),
+        "supported": matched,
+    }

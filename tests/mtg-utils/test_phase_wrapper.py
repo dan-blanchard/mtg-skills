@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -95,3 +96,55 @@ class TestInstall:
         version_file = _phase.cache_dir() / "version.txt"
         assert version_file.exists(), "install_phase must write version.txt"
         assert version_file.read_text().strip() == "abc1234def5678"
+
+
+class TestCoverageGate:
+    @pytest.fixture
+    def phase_card_data(self, monkeypatch, tmp_path):
+        """Stand up a fake phase install with a card-data.json file."""
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        public = tmp_path / "phase" / "phase.git" / "client" / "public"
+        public.mkdir(parents=True)
+        public.joinpath("card-data.json").write_text(
+            json.dumps(
+                {
+                    "cards": [
+                        {"name": "Mountain"},
+                        {"name": "Lightning Bolt"},
+                        {"name": "Goblin Guide"},
+                    ],
+                }
+            )
+        )
+        # Clear any cached supported-name set from earlier tests.
+        _phase.load_supported_card_names.cache_clear()
+        return public / "card-data.json"
+
+    def test_loads_supported_set(self, phase_card_data):
+        names = _phase.load_supported_card_names()
+        assert "Mountain" in names
+        assert "Lightning Bolt" in names
+        assert "Goblin Guide" in names
+
+    def test_coverage_full(self, phase_card_data):
+        report = _phase.coverage_report(["Mountain", "Lightning Bolt"])
+        assert report["status"] == "full"
+        assert report["supported_pct"] == 1.0
+
+    def test_coverage_warn(self, phase_card_data):
+        # 2 of 3 = 66% — below default 90% threshold => "blocked"
+        # but with threshold=0.5 should be "warn"
+        report = _phase.coverage_report(
+            ["Mountain", "Lightning Bolt", "Foo Bar"],
+            threshold=0.5,
+        )
+        assert report["status"] == "warn"
+        assert "Foo Bar" in report["missing"]
+
+    def test_coverage_blocked(self, phase_card_data):
+        # 1 of 3 = 33% supported, default threshold 0.9 => blocked
+        report = _phase.coverage_report(
+            ["Mountain", "Foo", "Bar"],
+        )
+        assert report["status"] == "blocked"
+        assert sorted(report["missing"]) == ["Bar", "Foo"]
