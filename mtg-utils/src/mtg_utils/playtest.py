@@ -6,13 +6,19 @@ Each command is a self-contained Click entry point. They share helpers from
 
 from __future__ import annotations
 
+import json
 import random
 import re
+import time
 from collections import defaultdict
+from pathlib import Path
 
 import click
 
-from mtg_utils.card_classify import is_land
+from mtg_utils._playtest_common import envelope
+from mtg_utils.card_classify import build_card_lookup, is_land
+
+GOLDFISH_VERSION = "goldfish v1"
 
 _PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
@@ -137,10 +143,144 @@ def _simulate_game(hydrated: list[dict], *, max_turns: int, rng: random.Random) 
     }
 
 
+def _aggregate_goldfish(games: list[dict], *, mulligans: dict[str, int]) -> dict:
+    """Aggregate per-game results into mean / rate metrics."""
+    n = len(games)
+    if n == 0:
+        return {"games": 0}
+
+    mean_lands: dict[str, float] = {}
+    if games:
+        max_turn = max(g["turns_played"] for g in games)
+        for t in range(1, max_turn + 1):
+            mean_lands[str(t)] = (
+                sum(g["lands_in_play_by_turn"].get(t, 0) for g in games) / n
+            )
+
+    casts_by_turn_total: dict[str, float] = {}
+    if games:
+        all_turns: set[int] = set()
+        for g in games:
+            all_turns.update(g["casts_by_turn"].keys())
+        for t in all_turns:
+            casts_by_turn_total[str(t)] = (
+                sum(g["casts_by_turn"].get(t, 0) for g in games) / n
+            )
+
+    color_screw = sum(1 for g in games if g["color_screwed"]) / n
+
+    total_hands = sum(mulligans.values())
+    mull_rate = {
+        k: (v / total_hands if total_hands else 0.0) for k, v in mulligans.items()
+    }
+
+    return {
+        "games": n,
+        "mean_lands_by_turn": mean_lands,
+        "mean_casts_by_turn": casts_by_turn_total,
+        "color_screw_rate": color_screw,
+        "mulligan_rate": mull_rate,
+    }
+
+
+def _run_goldfish(
+    hydrated: list[dict], *, games: int, max_turns: int, base_seed: int
+) -> dict:
+    """Run N goldfish games and return aggregate metrics."""
+    rng = random.Random(base_seed)
+    results: list[dict] = []
+    mulligans: dict[str, int] = {"7": 0, "6": 0, "5": 0, "4": 0}
+
+    for _ in range(games):
+        # London mulligan: try 7, 6, 5, 4. Stop on first keep.
+        kept_at = 7
+        for hand_size in (7, 6, 5, 4):
+            sub_rng = random.Random(rng.random())
+            indices = list(range(len(hydrated)))
+            sub_rng.shuffle(indices)
+            hand = [hydrated[i] for i in indices[:hand_size]]
+            if _keep_hand(hand) or hand_size == 4:
+                kept_at = hand_size
+                break
+        mulligans[str(kept_at)] = mulligans.get(str(kept_at), 0) + 1
+
+        game_rng = random.Random(rng.random())
+        results.append(_simulate_game(hydrated, max_turns=max_turns, rng=game_rng))
+
+    return _aggregate_goldfish(results, mulligans=mulligans)
+
+
 @click.command()
-def goldfish_main() -> None:
+@click.argument("deck_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--hydrated",
+    "hydrated_path",
+    type=click.Path(exists=True, dir_okay=False),
+    required=True,
+    help="Hydrated card data (scryfall-lookup --batch output)",
+)
+@click.option(
+    "--games", default=1000, show_default=True, help="Number of games to simulate"
+)
+@click.option("--turns", default=8, show_default=True, help="Turns per game")
+@click.option(
+    "--seed", default=0, show_default=True, type=int, help="PRNG seed for determinism"
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="JSON output path (defaults to stdout)",
+)
+def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> None:
     """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
-    click.echo("goldfish: not yet implemented")
+    deck = json.loads(Path(deck_path).read_text())
+    hydrated_raw = json.loads(Path(hydrated_path).read_text())
+    lookup = build_card_lookup(hydrated_raw)
+
+    deck_hydrated: list[dict] = []
+    missing: list[str] = []
+    for entry in (deck.get("commanders") or []) + (deck.get("cards") or []):
+        card = lookup.get(entry["name"])
+        if card is None:
+            missing.append(entry["name"])
+            continue
+        for _ in range(int(entry.get("quantity", 1))):
+            deck_hydrated.append(card)
+
+    start = time.perf_counter()
+    results = _run_goldfish(
+        deck_hydrated,
+        games=games,
+        max_turns=turns,
+        base_seed=seed,
+    )
+    elapsed = time.perf_counter() - start
+
+    out = envelope(
+        mode="goldfish",
+        engine="goldfish",
+        engine_version=GOLDFISH_VERSION,
+        seed=seed,
+        format_=deck.get("format"),
+        card_coverage={
+            "requested": sum(
+                int(e.get("quantity", 1))
+                for e in (deck.get("cards") or []) + (deck.get("commanders") or [])
+            ),
+            "supported": len(deck_hydrated),
+            "missing": missing,
+        },
+        results=results,
+        warnings=[f"{len(missing)} cards not in hydrated cache"] if missing else [],
+        duration_s=elapsed,
+    )
+
+    serialized = json.dumps(out, indent=2)
+    if output_path:
+        Path(output_path).write_text(serialized)
+    click.echo(serialized)
 
 
 @click.command()

@@ -1,10 +1,13 @@
 """Smoke test: playtest-goldfish CLI is registered and prints --help."""
 
+import json
 import random
 
+import pytest
 from click.testing import CliRunner
 
 from mtg_utils.playtest import (
+    _aggregate_goldfish,
     _build_indexed_deck,
     _keep_hand,
     _simulate_game,
@@ -127,3 +130,103 @@ class TestBuildIndexedDeck:
         deck = _simple_mono_red_deck()
         idx = _build_indexed_deck(deck)
         assert len(idx) == 60
+
+
+class TestAggregate:
+    def test_aggregates_metrics_across_games(self):
+        # Three game results with synthetic data.
+        games = [
+            {
+                "turns_played": 4,
+                "lands_in_play_by_turn": {1: 1, 2: 2, 3: 3, 4: 4},
+                "casts_by_turn": {1: 1, 2: 1},
+                "color_screwed": False,
+            },
+            {
+                "turns_played": 4,
+                "lands_in_play_by_turn": {1: 1, 2: 2, 3: 2, 4: 3},
+                "casts_by_turn": {1: 1, 2: 0},
+                "color_screwed": True,
+            },
+            {
+                "turns_played": 4,
+                "lands_in_play_by_turn": {1: 1, 2: 2, 3: 3, 4: 4},
+                "casts_by_turn": {1: 1, 2: 1, 3: 1},
+                "color_screwed": False,
+            },
+        ]
+        agg = _aggregate_goldfish(games, mulligans={"7": 3, "6": 0, "5": 0, "4": 0})
+        assert agg["games"] == 3
+        assert agg["color_screw_rate"] == pytest.approx(1 / 3)
+        # Avg lands at turn 4 = (4 + 3 + 4) / 3 = 3.67
+        assert agg["mean_lands_by_turn"]["4"] == pytest.approx(11 / 3)
+        assert agg["mulligan_rate"]["7"] == 1.0
+
+
+class TestGoldfishCLI:
+    def test_runs_against_minimal_deck(self, tmp_path):
+        # Prepare a minimal hydrated input: 20 Mountain + 40 cmc-1 spell.
+        hydrated = []
+        for _ in range(20):
+            hydrated.append(
+                {
+                    "name": "Mountain",
+                    "type_line": "Basic Land — Mountain",
+                    "cmc": 0,
+                    "mana_cost": "",
+                    "oracle_text": "",
+                    "produced_mana": ["R"],
+                }
+            )
+        for i in range(40):
+            hydrated.append(
+                {
+                    "name": f"Goblin{i}",
+                    "type_line": "Creature — Goblin",
+                    "cmc": 1,
+                    "mana_cost": "{R}",
+                    "oracle_text": "",
+                    "produced_mana": [],
+                }
+            )
+        deck = {
+            "format": "modern",
+            "cards": (
+                [{"name": "Mountain", "quantity": 20}]
+                + [{"name": f"Goblin{i}", "quantity": 1} for i in range(40)]
+            ),
+            "commanders": [],
+            "sideboard": [],
+        }
+        deck_path = tmp_path / "deck.json"
+        hydrated_path = tmp_path / "hydrated.json"
+        out_path = tmp_path / "out.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path.write_text(json.dumps(hydrated))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            goldfish_main,
+            [
+                str(deck_path),
+                "--hydrated",
+                str(hydrated_path),
+                "--games",
+                "10",
+                "--turns",
+                "4",
+                "--seed",
+                "0",
+                "--output",
+                str(out_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        envelope = json.loads(out_path.read_text())
+        assert envelope["schema_version"] == 1
+        assert envelope["mode"] == "goldfish"
+        assert envelope["engine"] == "goldfish"
+        assert envelope["seed"] == 0
+        assert envelope["results"]["games"] == 10
+        assert "mean_lands_by_turn" in envelope["results"]
