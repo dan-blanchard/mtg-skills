@@ -89,6 +89,7 @@ determines the path; create tasks accordingly.
 7. Propose Changes
 8. Pack Simulation
 9. Finalize / Export
+10. Empirical Playtest (optional)
 
 Mark each item `in_progress` the moment you begin it and `completed` the
 moment it finishes — do not batch updates.
@@ -503,6 +504,44 @@ export-cube <new-cube.json> --format csv --output <wd>/<cube-id>-updated.csv
 
 Hand the CSV to the user with instructions to use CubeCobra's **"Replace
 with CSV Import"** function to push the changes back upstream.
+
+### Step 10: Empirical Playtest (optional)
+
+Two complementary signals. Run both when invoked.
+
+**Gauntlet (matchup balance):**
+
+```bash
+playtest-gauntlet cube.json --hydrated cube-hydrated.json \
+  --games-per-pair 100 --seed 1 --output playtest-gauntlet.json
+```
+
+Default uses 4 archetype decks built from the cube via
+`mtg_utils/data/gauntlets/<format>.json`. To pin custom archetypes,
+set `cube.gauntlet_archetypes = [...]` in the cube JSON or pass
+`--gauntlet path/to/manifest.json`.
+
+The report is a 4×4 win-rate matrix. Flag any cell that's > 60% / < 40%
+(10pp from balanced) — at default M=100 the binomial 95% CI is ±10pp,
+so 10pp gaps are statistically meaningful, smaller gaps are noise.
+
+**Draft (draft balance):**
+
+```bash
+playtest-draft cube.json --hydrated cube-hydrated.json \
+  --pods 4 --players 8 --seed 1 --output playtest-draft.json
+```
+
+The report aggregates per-deck goldfish across 32 drafted decks and surfaces:
+mean color-screw rate, mean lands at T4, archetype distribution, failed builds.
+
+**Reporting back:** if `playtest-gauntlet` flags imbalance, weave it into
+the cuts-and-adds conversation. The wizard does NOT auto-cut from playtest output —
+the user reads both reports and decides.
+
+**First-run prereq:** `playtest-install-phase` (~5–10 min, one-time)
+required for gauntlet (uses phase-rs). Draft is pure Python, no install
+needed.
 
 ---
 

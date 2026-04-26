@@ -85,6 +85,15 @@ Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3
 - **`find_commanders.py`** — Search owned collection for commander-eligible cards.
 - **`mark_owned.py`** — Populate a deck's `owned_cards` field from a collection CSV/JSON.
 - **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`.
+- **`playtest.py`** — Five entry points sharing one module:
+  - `playtest-goldfish` — Solo deck simulator (mulligan, curve, color-screw,
+    combo timing). Pure Python.
+  - `playtest-match` — phase-rs `ai-duel` batch (deck vs deck).
+  - `playtest-gauntlet` — Cube round-robin: build N archetype decks from the
+    cube, run round-robin via phase, report win-rate matrix.
+  - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
+  - `playtest-install-phase` — One-time `cargo build` of phase v0.1.19 binaries
+    into `~/.cache/mtg-skills/phase/`.
 
 **Rules-lawyer scripts:**
 
@@ -115,6 +124,21 @@ Shared library modules (not CLI scripts):
 - **`theme_presets.py`** — Registry of named matchers for common MTG mechanics (keyword list + oracle-text regex). Each preset ships with `should_match` / `should_not_match` fixtures pinned in `tests/mtg-utils/test_theme_presets.py`. Used by archetype detection in deck-wizard and cube-wizard.
 - **`names.py`** — Canonical card-name normalization shared across scripts that cross-reference sources (e.g. `find_commanders`, `mark_owned`). Centralized because drift in Unicode folding silently corrupts ownership intersection.
 - **`_sidecar.py`** — Pickled-sidecar primitives reused by `bulk_loader` and `rules_lookup`.
+- **`_phase.py`** — Phase-rs subprocess wrapper. Manages the cached phase
+  install at `~/.cache/mtg-skills/phase/` (or `$MTG_SKILLS_CACHE_DIR/phase`),
+  exposes `run_duel` / `run_commander` and the coverage gate. Pinned to
+  phase tag `v0.1.19`; bump with care.
+- **`_playtest_common.py`** — Schema-v1 JSON envelope and four markdown
+  renderers (`render_goldfish_markdown`, `render_match_markdown`,
+  `render_gauntlet_markdown`, `render_draft_markdown`).
+- **`_gauntlet_build.py`** — Heuristic gauntlet deckbuilder (used by
+  `playtest-gauntlet` over the full cube and by `playtest-draft` over
+  each player's drafted pool). `score_card(card, archetype, colors)`
+  returns an internal-scale fit score; `build_gauntlet_deck(pool, spec)`
+  greedy-fills curve buckets, then adds basics by color demand.
+- **`_draft_ai.py`** — Heuristic drafter. `score_pick(card, state)` picks
+  by raw power before pick 3 and by archetype/color commitment after.
+  `draft_pod(pool, players, packs, pack_size, rng)` runs an N-player pod.
 
 ### deck-wizard
 
