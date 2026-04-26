@@ -795,3 +795,9 @@ def install_phase_main() -> None:
     click.echo("(typical wall time 5-10 min on a modern Mac).")
     _phase.install_phase()
     click.echo(f"\n✓ phase {_phase.PHASE_TAG} ready at {_phase.cache_dir()}")
+
+
+@click.command()
+def custom_format_main() -> None:
+    """Simulate a non-standard cube format."""
+    click.echo("custom-format: not yet implemented")

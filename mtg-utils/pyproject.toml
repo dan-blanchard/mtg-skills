@@ -50,6 +50,7 @@ playtest-match = "mtg_utils.playtest:match_main"
 playtest-gauntlet = "mtg_utils.playtest:gauntlet_main"
 playtest-draft = "mtg_utils.playtest:draft_main"
 playtest-install-phase = "mtg_utils.playtest:install_phase_main"
+playtest-custom-format = "mtg_utils.playtest:custom_format_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
