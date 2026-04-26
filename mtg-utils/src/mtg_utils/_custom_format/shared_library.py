@@ -285,8 +285,10 @@ def _resolve_library_effect(
 
     if effect in (LibraryEffect.DISCARD, LibraryEffect.EXILE):
         if zone == Zone.MARKETPLACE and state.marketplace:
-            # Pick the highest-CMC nonland card to deny.
-            best_pos = 0
+            # Pick the highest-CMC nonland card to deny. If marketplace
+            # holds only lands, fall through to the draw-pile branch rather
+            # than denying a land (which would contradict the denial intent).
+            best_pos: int | None = None
             best_cmc = -1
             for pos, idx in enumerate(state.marketplace):
                 card = lookup_card(
@@ -297,15 +299,18 @@ def _resolve_library_effect(
                 if card.cmc > best_cmc:
                     best_cmc = card.cmc
                     best_pos = pos
-            removed = state.marketplace.pop(best_pos)
-            if effect == LibraryEffect.EXILE:
-                state.exile.append(removed)
-                state.metrics.marketplace_cards_exiled += 1
-            else:
-                state.graveyard.append(removed)
-                state.metrics.marketplace_cards_discarded += 1
-        elif state.library:
-            # Targeted draw pile — peel one to graveyard/exile.
+            if best_pos is not None:
+                removed = state.marketplace.pop(best_pos)
+                if effect == LibraryEffect.EXILE:
+                    state.exile.append(removed)
+                    state.metrics.marketplace_cards_exiled += 1
+                else:
+                    state.graveyard.append(removed)
+                    state.metrics.marketplace_cards_discarded += 1
+                return
+        # Either zone == DRAW_PILE, marketplace was empty, or marketplace
+        # had only lands. Peel one card from the draw pile.
+        if state.library:
             taken = state.library.pop(0)
             if effect == LibraryEffect.EXILE:
                 state.exile.append(taken)
@@ -344,8 +349,11 @@ def _play_main_phase(
     )
     available_mana = len(player.lands_in_play)
 
-    # Try to cast spells in ascending CMC order.
+    # Try to cast spells in ascending CMC order. Track color-screw events
+    # for the metric: any held nonland whose color identity isn't covered
+    # by the player's land pool is "uncastable due to color."
     castable: list[tuple[int, int]] = []  # (cmc, hand_idx)
+    color_screwed_this_turn = False
     for h_idx in player.hand:
         card = lookup_card(
             h_idx, cube_metadata=cube_metadata, basic_metadata=basic_metadata
@@ -353,8 +361,11 @@ def _play_main_phase(
         if card.is_land:
             continue
         if not card.color_identity.issubset(color_pool):
+            color_screwed_this_turn = True
             continue
         castable.append((card.cmc, h_idx))
+    if color_screwed_this_turn:
+        state.metrics.times_color_screwed[state.active_seat] += 1
     castable.sort()
 
     cast_this_turn: list[int] = []
