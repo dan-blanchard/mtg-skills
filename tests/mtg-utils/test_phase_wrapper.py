@@ -235,3 +235,47 @@ class TestRunDuel:
         assert "50" in captured["cmd"]
         assert "--seed" in captured["cmd"]
         assert "42" in captured["cmd"]
+
+
+class TestRunCommander:
+    def test_runs_4_player_commander(self, monkeypatch, tmp_path):
+        bin_path = tmp_path / "ai-commander"
+        bin_path.write_text("#!/bin/sh\n")
+        bin_path.chmod(0o755)
+        monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path.parent))
+
+        def fake_run(cmd, **_kwargs):
+            output_path = Path([a for a in cmd if a.endswith(".json")][-1])
+            output_path.write_text(
+                json.dumps(
+                    {
+                        "winners_by_seat": [12, 8, 6, 4],
+                        "games": 30,
+                        "draws": 0,
+                        "avg_turns": 14.5,
+                    }
+                )
+            )
+            r = MagicMock()
+            r.returncode = 0
+            return r
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+
+        decks = [tmp_path / f"d{i}.json" for i in range(4)]
+        for d in decks:
+            d.write_text(
+                json.dumps(
+                    {
+                        "name": d.stem,
+                        "format": "commander",
+                        "main": [],
+                        "commander": ["X"],
+                    }
+                )
+            )
+
+        result = _phase.run_commander(decks, games=30, seed=1, timeout_s=600)
+        assert result["status"] == "ok"
+        assert result["winners_by_seat"] == [12, 8, 6, 4]
+        assert result["games"] == 30

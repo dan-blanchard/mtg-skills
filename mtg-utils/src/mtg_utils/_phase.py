@@ -269,3 +269,59 @@ def run_duel(
         "avg_turns": data.get("avg_turns", 0.0),
         "avg_duration_ms": data.get("avg_duration_ms", 0),
     }
+
+
+def run_commander(
+    deck_paths: list[Path],
+    *,
+    games: int,
+    seed: int | None,
+    difficulty: str = "Medium",
+    timeout_s: int,
+) -> dict:
+    """Run `ai-commander` for a 4-player FFA. Returns per-seat win counts.
+
+    ``deck_paths`` must have length 4 (phase requires 4 seats). Each is a
+    phase-compatible deck JSON (see :func:`to_phase_deck`).
+    """
+    if len(deck_paths) != 4:
+        raise ValueError(
+            f"ai-commander requires exactly 4 decks, got {len(deck_paths)}",
+        )
+    binary = find_binary("ai-commander")
+    with tempfile.TemporaryDirectory() as td:
+        out_path = Path(td) / "commander.json"
+        cmd = [
+            str(binary),
+            "--decks",
+            *[str(p) for p in deck_paths],
+            "--games",
+            str(games),
+            "--difficulty",
+            difficulty,
+            "--output",
+            str(out_path),
+        ]
+        if seed is not None:
+            cmd += ["--seed", str(seed)]
+        try:
+            subprocess.run(
+                cmd, check=True, timeout=timeout_s, capture_output=True, text=True
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                "status": "timeout",
+                "winners_by_seat": [0, 0, 0, 0],
+                "games": 0,
+                "draws": 0,
+                "avg_turns": 0.0,
+            }
+        data = json.loads(out_path.read_text())
+
+    return {
+        "status": "ok",
+        "winners_by_seat": data.get("winners_by_seat", [0, 0, 0, 0]),
+        "games": data.get("games", games),
+        "draws": data.get("draws", 0),
+        "avg_turns": data.get("avg_turns", 0.0),
+    }
