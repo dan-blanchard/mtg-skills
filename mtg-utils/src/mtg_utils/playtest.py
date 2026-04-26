@@ -258,7 +258,7 @@ def _run_goldfish(
     "output_path",
     type=click.Path(dir_okay=False),
     default=None,
-    help="Also write JSON to this path (full JSON is always printed to stdout)",
+    help="Write full JSON envelope to this path (markdown report printed to stdout)",
 )
 def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> None:
     """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
@@ -308,7 +308,10 @@ def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> 
     serialized = json.dumps(out, indent=2)
     if output_path:
         Path(output_path).write_text(serialized)
-    click.echo(serialized)
+
+    from mtg_utils._playtest_common import render_goldfish_markdown
+
+    click.echo(render_goldfish_markdown(out))
 
 
 @click.command()

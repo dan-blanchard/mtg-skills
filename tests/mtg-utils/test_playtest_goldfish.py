@@ -6,6 +6,7 @@ import random
 import pytest
 from click.testing import CliRunner
 
+from mtg_utils._playtest_common import render_goldfish_markdown
 from mtg_utils.playtest import (
     _aggregate_goldfish,
     _build_indexed_deck,
@@ -264,3 +265,31 @@ class TestGoldfishCLI:
         assert envelope["seed"] == 0
         assert envelope["results"]["games"] == 10
         assert "mean_lands_by_turn" in envelope["results"]
+
+
+class TestGoldfishMarkdown:
+    def test_renders_summary(self):
+        env = {
+            "schema_version": 1,
+            "mode": "goldfish",
+            "engine": "goldfish",
+            "engine_version": "goldfish v1",
+            "seed": 0,
+            "format": "modern",
+            "card_coverage": {"requested": 60, "supported": 60, "missing": []},
+            "results": {
+                "games": 1000,
+                "mean_lands_by_turn": {"4": 3.5},
+                "mean_casts_by_turn": {"1": 0.9, "2": 0.8},
+                "color_screw_rate": 0.05,
+                "mulligan_rate": {"7": 0.85, "6": 0.10, "5": 0.04, "4": 0.01},
+            },
+            "warnings": [],
+            "duration_s": 4.2,
+        }
+        md = render_goldfish_markdown(env)
+        assert "# Goldfish report" in md
+        assert "1000 games" in md
+        assert "Color-screw rate" in md
+        assert "5.0%" in md  # color screw
+        assert "Kept on 7: 85.0%" in md
