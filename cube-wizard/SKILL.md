@@ -217,8 +217,10 @@ exactly as precise as the regex the user writes.
     "description": "<from CubeCobra overview>",
     "tags": ["unpowered", "vintage"],
     "stated_archetypes": [
-      {"name": "Boros Equipment", "regex": "equip|attach"},
-      {"name": "Simic Ramp", "regex": "search your library for.*land"}
+      {"name": "tokens"},
+      {"name": "graveyard",
+       "members": ["reanimate", "self-mill", "graveyard-cast"]},
+      {"name": "Boros Equipment", "regex": "equip|attach"}
     ]
   },
   "pack_templates": {},
@@ -234,6 +236,18 @@ exactly as precise as the regex the user writes.
   "total_cards": 540
 }
 ```
+
+Each entry has one of three shapes:
+
+- `{"name": NAME}` — preset reference. `NAME` must be a key in
+  `theme_presets.PRESETS` (run `archetype-audit --list-presets` for
+  the full catalog).
+- `{"name": NAME, "members": [PRESET, ...]}` — archetype group. `NAME`
+  is the umbrella label; each `members` entry must be a known preset.
+  Tools that read stated_archetypes report on the group as one unit
+  while still tracking the constituent presets.
+- `{"name": NAME, "regex": PATTERN}` — custom matcher (legacy or
+  cube-specific themes that aren't covered by the preset library).
 
 All cube CLIs accept this shape. Hydrated cache lives at
 `<working-dir>/.cache/<sha>.json`, SHA-keyed so re-hydration is idempotent.
@@ -351,8 +365,8 @@ Summarize the cube's stated intent back to the user:
 - Explicit restrictions
 
 Ask the user to confirm or adjust. Persist any clarifications back to
-`cube.json.designer_intent.stated_archetypes` as `{name, regex}` entries
-for Step 4.
+`cube.json.designer_intent.stated_archetypes` entries (preset, group, or
+custom-regex shape) for Step 4.
 
 ### Step 3: Balance Dashboard & Legality Audit
 
