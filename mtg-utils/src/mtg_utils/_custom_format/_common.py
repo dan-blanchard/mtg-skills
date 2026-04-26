@@ -7,7 +7,8 @@ heuristic, per-game state types, simulation loop, cross-game aggregation.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from mtg_utils.card_classify import is_land as _is_land
@@ -289,3 +290,76 @@ def choose_pick(
     if greedy_idx is None:
         return PickDecision(kind="blind")
     return PickDecision(kind="marketplace", card_index=greedy_idx)
+
+
+@dataclass
+class Player:
+    """One player's mutable state during a game."""
+
+    seat: int
+    hand: list[int] = field(default_factory=list)  # card indices
+    battlefield: list[int] = field(default_factory=list)
+    graveyard: list[int] = field(default_factory=list)
+    lands_in_play: list[int] = field(default_factory=list)
+    pile_archetype_counts: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
+    pile_size: int = 0
+    committed_archetype: str | None = None
+
+    def known_colors(self, metadata: list[CardMetadata]) -> frozenset[str]:
+        """Union of color identities of all cards in hand/battlefield/lands."""
+        cards = self.hand + self.battlefield + self.lands_in_play
+        seen: set[str] = set()
+        for idx in cards:
+            seen |= metadata[idx].color_identity
+        return frozenset(seen)
+
+
+@dataclass
+class PerGameMetrics:
+    """Per-game telemetry collected during simulation."""
+
+    lands_in_play_by_turn: list[dict[int, int]] = field(default_factory=list)
+    mana_available_by_turn: list[dict[int, int]] = field(default_factory=list)
+    times_color_screwed: list[int] = field(default_factory=list)
+    marketplace_picks: list[int] = field(default_factory=list)
+    blind_draws: list[int] = field(default_factory=list)
+    library_effects_cast: list[int] = field(default_factory=list)
+    pile_archetype_counts: list[dict[str, int]] = field(default_factory=list)
+    committed_archetype: list[str | None] = field(default_factory=list)
+    first_enabler_turn: list[dict[str, int]] = field(default_factory=list)
+
+    marketplace_cards_exiled: int = 0
+    marketplace_cards_discarded: int = 0
+    cards_milled: int = 0
+
+
+@dataclass
+class GameState:
+    """Full state of one in-progress game."""
+
+    library: list[int] = field(default_factory=list)
+    marketplace: list[int] = field(default_factory=list)
+    exile: list[int] = field(default_factory=list)
+    graveyard: list[int] = field(default_factory=list)
+    players: list[Player] = field(default_factory=list)
+    active_seat: int = 0
+    turn: int = 1
+    metrics: PerGameMetrics = field(default_factory=PerGameMetrics)
+
+
+def lookup_card(
+    idx: int,
+    *,
+    cube_metadata: list[CardMetadata],
+    basic_metadata,
+) -> CardMetadata:
+    """Resolve a combined card index → metadata.
+
+    Indices 0..len(basic_metadata)-1 are basics; the rest are cube cards.
+    """
+    n_basics = len(basic_metadata)
+    if idx < n_basics:
+        return basic_metadata[idx]
+    return cube_metadata[idx - n_basics]

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from mtg_utils._custom_format._common import commitment_check
+from mtg_utils._custom_format._common import (
+    GameState,
+    PerGameMetrics,
+    Player,
+    commitment_check,
+)
 
 
 class TestCommitmentCheck:
@@ -40,3 +45,29 @@ class TestCommitmentCheck:
             pile_size=5,
         )
         assert result == "reanimate"
+
+
+class TestStateTypes:
+    def test_default_construction(self):
+        s = GameState()
+        assert s.turn == 1
+        assert s.active_seat == 0
+        assert s.players == []
+        assert isinstance(s.metrics, PerGameMetrics)
+
+    def test_player_known_colors_empty(self):
+        from mtg_utils._custom_format._common import CardMetadata, LibraryEffect
+
+        meta = [
+            CardMetadata(
+                name="Mountain",
+                cmc=0,
+                color_identity=frozenset({"R"}),
+                produced_mana=("R",),
+                is_land=True,
+                library_effect=LibraryEffect.NONE,
+                archetype_matches=frozenset(),
+            )
+        ]
+        p = Player(seat=0, hand=[0])
+        assert p.known_colors(meta) == frozenset({"R"})
