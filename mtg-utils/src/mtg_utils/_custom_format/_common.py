@@ -217,6 +217,45 @@ def _best_archetype_match(
     return best_idx
 
 
+class Zone(StrEnum):
+    """Library zone for library-effect targeting."""
+
+    MARKETPLACE = "marketplace"
+    DRAW_PILE = "draw_pile"
+
+
+# CMC threshold above which a marketplace card is "high-value" — denial worth it.
+DENIAL_HIGH_CMC = 4
+
+
+def choose_library_target(
+    effect: LibraryEffect,
+    *,
+    marketplace: list[CardMetadata],
+) -> Zone:
+    """Pick which zone a library-effect targets.
+
+    PEEK / REORDER / MILL → draw pile (marketplace is already face-up).
+    DISCARD / EXILE → marketplace iff it has a high-CMC nonland playable;
+                       else draw pile (cycling).
+    SEARCH → draw pile (format-disallowed but answer must be deterministic).
+    """
+    if effect in (
+        LibraryEffect.PEEK,
+        LibraryEffect.REORDER,
+        LibraryEffect.MILL,
+        LibraryEffect.SEARCH,
+        LibraryEffect.NONE,
+    ):
+        return Zone.DRAW_PILE
+
+    # DISCARD or EXILE — denial-aware
+    has_high_value = any(
+        (not c.is_land) and c.cmc >= DENIAL_HIGH_CMC for c in marketplace
+    )
+    return Zone.MARKETPLACE if has_high_value else Zone.DRAW_PILE
+
+
 def choose_pick(
     marketplace: list[CardMetadata],
     *,
