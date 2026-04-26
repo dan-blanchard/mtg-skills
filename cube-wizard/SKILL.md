@@ -539,6 +539,24 @@ mean color-screw rate, mean lands at T4, archetype distribution, failed builds.
 the cuts-and-adds conversation. The wizard does NOT auto-cut from playtest output —
 the user reads both reports and decides.
 
+**Custom format:** if the cube targets a non-standard format (shared
+library, oathbreaker, tiny leaders, etc.), use `playtest-custom-format`
+instead of `playtest-gauntlet` / `playtest-draft`:
+
+```bash
+playtest-custom-format cube.json --hydrated cube-hydrated.json \
+  --format-module shared_library \
+  --preset top-manipulation --preset reanimate --preset removal \
+  --preset cantrip --preset surveil --preset graveyard-return \
+  --preset flashback --preset self-mill --preset counterspell \
+  --turns 10 --games 1000 --seed 0 --output report.json
+```
+
+The simulator runs N games × T turns × P players, tracks marketplace
+dynamics and per-archetype assembly, and reports rates without modeling
+combat or full card resolution. v1 ships only `--format-module
+shared_library`; new formats are one Python module each.
+
 **First-run prereq:** `playtest-install-phase` (~5–10 min, one-time)
 required for gauntlet (uses phase-rs). Draft is pure Python, no install
 needed.

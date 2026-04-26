@@ -94,6 +94,9 @@ Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3
   - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
   - `playtest-install-phase` — One-time `cargo build` of phase v0.1.19 binaries
     into `~/.cache/mtg-skills/phase/`.
+  - `playtest-custom-format` — Multiplayer custom-format simulator (e.g.,
+    shared-library marketplace draft). Pure Python; per-format module in
+    `_custom_format/`.
 
 **Rules-lawyer scripts:**
 
@@ -139,6 +142,13 @@ Shared library modules (not CLI scripts):
 - **`_draft_ai.py`** — Heuristic drafter. `score_pick(card, state)` picks
   by raw power before pick 3 and by archetype/color commitment after.
   `draft_pod(pool, players, packs, pack_size, rng)` runs an N-player pod.
+- **`_custom_format/`** — Per-format multiplayer cube simulators. Shared
+  harness (`_common.py`) provides library-effect classifier, archetype
+  commitment heuristic, pick decision, library-target heuristic, per-game
+  state types, simulation loop, and cross-game aggregation. Each format is
+  one module (`shared_library.py`, etc.) implementing `setup()` /
+  `run_turn()` / `is_terminal()`. `FORMAT_REGISTRY` in `__init__.py` maps
+  format name → module for CLI dispatch.
 
 ### deck-wizard
 
