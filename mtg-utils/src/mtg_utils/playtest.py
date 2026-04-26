@@ -9,6 +9,18 @@ from __future__ import annotations
 import click
 
 
+def _keep_hand(hand: list[dict]) -> bool:
+    """London mulligan keep heuristic.
+
+    Keep iff: 2 <= lands <= 5 AND hand has at least one nonland with cmc <= 3.
+    Returns ``True`` to keep, ``False`` to mulligan.
+    """
+    lands = sum(1 for c in hand if c.get("is_land"))
+    if lands < 2 or lands > 5:
+        return False
+    return any(not c.get("is_land") and c.get("cmc", 0) <= 3 for c in hand)
+
+
 @click.command()
 def goldfish_main() -> None:
     """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
