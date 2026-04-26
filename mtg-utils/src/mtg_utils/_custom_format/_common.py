@@ -428,33 +428,119 @@ def run_simulation(
     )
 
 
+ASSEMBLY_THRESHOLD = 4  # K from spec section 5: pile must contain >=K archetype cards.
+
+
 def aggregate_runs(
     per_game: list[PerGameMetrics],
     *,
     archetype_names: list[str],
-    max_turns: int,  # noqa: ARG001 - Task 11 will use this for per-turn bucketing
+    max_turns: int,  # noqa: ARG001 - reserved for per-turn bucketing
 ) -> dict:
-    """Aggregate per-game results into rates and means.
-
-    Skeleton in Task 10; full implementation in Task 11.
-    """
+    """Aggregate per-game metrics into rates and means."""
     n_games = len(per_game)
+    if n_games == 0:
+        return {
+            "per_archetype": {
+                a: {"assembly_rate": 0.0, "mean_assembly_turn": None}
+                for a in archetype_names
+            },
+            "marketplace_dynamics": {
+                "utilization_rate": 0.0,
+                "library_effects_per_turn": 0.0,
+                "exiled_per_game": 0.0,
+                "discarded_per_game": 0.0,
+                "milled_per_game": 0.0,
+            },
+            "per_player_mana": {
+                "reaches_4_mana_by_t4": 0.0,
+                "color_screw_rate": 0.0,
+                "mean_turns_to_first_enabler": None,
+            },
+            "n_games": 0,
+        }
+
+    # Per-archetype assembly: any seat with pile_archetype_counts[a] >= K.
+    per_archetype: dict[str, dict] = {}
+    for a in archetype_names:
+        assembled_games = 0
+        assembly_turns: list[int] = []
+        for g in per_game:
+            for seat, pile in enumerate(g.pile_archetype_counts):
+                if pile.get(a, 0) >= ASSEMBLY_THRESHOLD:
+                    assembled_games += 1
+                    # Per-seat first-enabler turn is the proxy for assembly time.
+                    n_fe = len(g.first_enabler_turn)
+                    fe = g.first_enabler_turn[seat] if seat < n_fe else {}
+                    if a in fe:
+                        assembly_turns.append(fe[a])
+                    break  # one seat per game suffices
+        per_archetype[a] = {
+            "assembly_rate": assembled_games / n_games,
+            "mean_assembly_turn": (
+                sum(assembly_turns) / len(assembly_turns) if assembly_turns else None
+            ),
+        }
+
+    # Marketplace dynamics — sum across players within a game, then average.
+    total_picks = sum(sum(g.marketplace_picks) for g in per_game)
+    total_draws = sum(sum(g.blind_draws) for g in per_game)
+    total_attempts = total_picks + total_draws
+    util = total_picks / total_attempts if total_attempts else 0.0
+
+    total_lib_casts = sum(sum(g.library_effects_cast) for g in per_game)
+    # Total turns across all players x games:
+    total_turns_player_units = sum(
+        sum(len(d) for d in g.lands_in_play_by_turn) for g in per_game
+    )
+    lib_per_turn = (
+        total_lib_casts / total_turns_player_units if total_turns_player_units else 0.0
+    )
+
+    exiled_per_game = sum(g.marketplace_cards_exiled for g in per_game) / n_games
+    discarded_per_game = sum(g.marketplace_cards_discarded for g in per_game) / n_games
+    milled_per_game = sum(g.cards_milled for g in per_game) / n_games
+
+    # Per-player mana
+    reaches_4_count = 0
+    reaches_4_total = 0
+    for g in per_game:
+        for seat_lands in g.lands_in_play_by_turn:
+            reaches_4_total += 1
+            if seat_lands.get(4, 0) >= 4:
+                reaches_4_count += 1
+    reaches_4_rate = reaches_4_count / reaches_4_total if reaches_4_total else 0.0
+
+    color_screw_count = sum(sum(g.times_color_screwed) for g in per_game)
+    color_screw_rate = (
+        color_screw_count / total_turns_player_units
+        if total_turns_player_units
+        else 0.0
+    )
+
+    enabler_turns: list[int] = [
+        t
+        for g in per_game
+        for seat_fe in g.first_enabler_turn
+        for t in seat_fe.values()
+    ]
+    mean_first_enabler = (
+        sum(enabler_turns) / len(enabler_turns) if enabler_turns else None
+    )
+
     return {
-        "per_archetype": {
-            a: {"assembly_rate": 0.0, "mean_assembly_turn": None}
-            for a in archetype_names
-        },
+        "per_archetype": per_archetype,
         "marketplace_dynamics": {
-            "utilization_rate": 0.0,
-            "library_effects_per_turn": 0.0,
-            "exiled_per_game": 0.0,
-            "discarded_per_game": 0.0,
-            "milled_per_game": 0.0,
+            "utilization_rate": util,
+            "library_effects_per_turn": lib_per_turn,
+            "exiled_per_game": exiled_per_game,
+            "discarded_per_game": discarded_per_game,
+            "milled_per_game": milled_per_game,
         },
         "per_player_mana": {
-            "reaches_4_mana_by_t4": 0.0,
-            "color_screw_rate": 0.0,
-            "mean_turns_to_first_enabler": None,
+            "reaches_4_mana_by_t4": reaches_4_rate,
+            "color_screw_rate": color_screw_rate,
+            "mean_turns_to_first_enabler": mean_first_enabler,
         },
         "n_games": n_games,
     }
