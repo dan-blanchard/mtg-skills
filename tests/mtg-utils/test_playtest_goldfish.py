@@ -10,6 +10,7 @@ from mtg_utils.playtest import (
     _aggregate_goldfish,
     _build_indexed_deck,
     _keep_hand,
+    _run_goldfish,
     _simulate_game,
     goldfish_main,
 )
@@ -161,6 +162,39 @@ class TestAggregate:
         # Avg lands at turn 4 = (4 + 3 + 4) / 3 = 3.67
         assert agg["mean_lands_by_turn"]["4"] == pytest.approx(11 / 3)
         assert agg["mulligan_rate"]["7"] == 1.0
+
+
+class TestMulliganThreading:
+    def test_forced_mulligan_to_4_tracked_and_threaded(self):
+        """Deck of all 5-CMC cards fails _keep_hand at 7/6/5, force-keeps at 4.
+
+        Verifies that:
+        - mulligan_rate["4"] == 1.0 (the force-keep is counted)
+        - mulligan_rate["7"] == 0.0 (never kept a 7-card hand)
+        - _simulate_game does not crash (the kept indices thread through correctly)
+        """
+        # 60 cards: 30 forests + 30 five-drops — _keep_hand returns False for 7/6/5
+        # because there are no nonland cards with cmc <= 3.
+        deck = []
+        for _ in range(30):
+            c = _hydrated_card("Forest", type_line="Basic Land — Forest")
+            c["produced_mana"] = ["G"]
+            deck.append(c)
+        for i in range(30):
+            deck.append(
+                _hydrated_card(
+                    f"FiveDrop{i}",
+                    mana_cost="{5}",
+                    cmc=5,
+                    type_line="Creature — Elemental",
+                )
+            )
+
+        result = _run_goldfish(deck, games=1, max_turns=4, base_seed=42)
+        assert result["mulligan_rate"]["7"] == 0.0
+        assert result["mulligan_rate"]["4"] == 1.0
+        # Simulation completed without error — kept_indices threaded through correctly.
+        assert result["games"] == 1
 
 
 class TestGoldfishCLI:

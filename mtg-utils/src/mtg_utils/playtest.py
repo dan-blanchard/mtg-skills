@@ -69,12 +69,29 @@ def _keep_hand(hand: list[dict]) -> bool:
     return any(not is_land(c) and c.get("cmc", 0) <= 3 for c in hand)
 
 
-def _simulate_game(hydrated: list[dict], *, max_turns: int, rng: random.Random) -> dict:
-    """Simulate one game: returns per-turn lands/casts/mana metrics + flags."""
+def _simulate_game(
+    hydrated: list[dict],
+    *,
+    max_turns: int,
+    rng: random.Random,
+    starting_hand: list[int] | None = None,
+) -> dict:
+    """Simulate one game: returns per-turn lands/casts/mana metrics + flags.
+
+    If ``starting_hand`` is provided, those indices are the opening hand and
+    the remaining deck order is determined by ``rng``. Otherwise a fresh
+    7-card hand is drawn from the top of an ``rng``-shuffled library
+    (used by tests that don't go through the mulligan path).
+    """
     indices = _build_indexed_deck(hydrated)
     rng.shuffle(indices)
-    library = list(indices)
-    hand: list[int] = [library.pop() for _ in range(7)]
+    if starting_hand is None:
+        library = list(indices)
+        hand: list[int] = [library.pop() for _ in range(7)]
+    else:
+        kept = set(starting_hand)
+        library = [i for i in indices if i not in kept]
+        hand = list(starting_hand)
 
     lands_in_play: list[int] = []  # indices of lands in play
     lands_in_play_by_turn: dict[int, int] = {}
@@ -194,18 +211,28 @@ def _run_goldfish(
     for _ in range(games):
         # London mulligan: try 7, 6, 5, 4. Stop on first keep.
         kept_at = 7
+        kept_indices: list[int] = []
         for hand_size in (7, 6, 5, 4):
             sub_rng = random.Random(rng.random())
             indices = list(range(len(hydrated)))
             sub_rng.shuffle(indices)
-            hand = [hydrated[i] for i in indices[:hand_size]]
+            hand_idx = indices[:hand_size]
+            hand = [hydrated[i] for i in hand_idx]
             if _keep_hand(hand) or hand_size == 4:
                 kept_at = hand_size
+                kept_indices = hand_idx
                 break
         mulligans[str(kept_at)] = mulligans.get(str(kept_at), 0) + 1
 
         game_rng = random.Random(rng.random())
-        results.append(_simulate_game(hydrated, max_turns=max_turns, rng=game_rng))
+        results.append(
+            _simulate_game(
+                hydrated,
+                max_turns=max_turns,
+                rng=game_rng,
+                starting_hand=kept_indices,
+            )
+        )
 
     return _aggregate_goldfish(results, mulligans=mulligans)
 
@@ -231,7 +258,7 @@ def _run_goldfish(
     "output_path",
     type=click.Path(dir_okay=False),
     default=None,
-    help="JSON output path (defaults to stdout)",
+    help="Also write JSON to this path (full JSON is always printed to stdout)",
 )
 def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> None:
     """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
@@ -240,14 +267,15 @@ def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> 
     lookup = build_card_lookup(hydrated_raw)
 
     deck_hydrated: list[dict] = []
-    missing: list[str] = []
+    missing_set: set[str] = set()
     for entry in (deck.get("commanders") or []) + (deck.get("cards") or []):
         card = lookup.get(entry["name"])
         if card is None:
-            missing.append(entry["name"])
+            missing_set.add(entry["name"])
             continue
         for _ in range(int(entry.get("quantity", 1))):
             deck_hydrated.append(card)
+    missing = sorted(missing_set)
 
     start = time.perf_counter()
     results = _run_goldfish(
