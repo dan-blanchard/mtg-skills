@@ -119,3 +119,66 @@ class TestCustomFormatCLI:
         )
         assert result.exit_code == 0
         assert "# Custom-format playtest report" in result.output
+
+    def test_archetype_group_unions_constituent_presets(
+        self,
+        small_cube,
+        tmp_path,
+    ):
+        """An --archetype-group adds the union name to each card's matches."""
+        cube_path, hydrated_path = small_cube
+        out = tmp_path / "report.json"
+        runner = CliRunner()
+        result = runner.invoke(
+            custom_format_main,
+            [
+                str(cube_path),
+                "--hydrated",
+                str(hydrated_path),
+                "--format-module",
+                "shared_library",
+                "--preset",
+                "removal",
+                "--preset",
+                "counterspell",
+                "--archetype-group",
+                "control=removal,counterspell",
+                "--turns",
+                "3",
+                "--games",
+                "3",
+                "--seed",
+                "0",
+                "--output",
+                str(out),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        env = json.loads(out.read_text())
+        # Both individual presets AND the group should appear.
+        per_archetype = env["results"]["per_archetype"]
+        assert "removal" in per_archetype
+        assert "counterspell" in per_archetype
+        assert "control" in per_archetype
+
+    def test_archetype_group_malformed_raises(self, small_cube):
+        cube_path, hydrated_path = small_cube
+        runner = CliRunner()
+        result = runner.invoke(
+            custom_format_main,
+            [
+                str(cube_path),
+                "--hydrated",
+                str(hydrated_path),
+                "--format-module",
+                "shared_library",
+                "--archetype-group",
+                "missing-equals-sign",
+                "--turns",
+                "3",
+                "--games",
+                "1",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "archetype-group" in result.output.lower()

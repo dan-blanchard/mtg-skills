@@ -825,6 +825,16 @@ def install_phase_main() -> None:
     help="Read archetype names from cube.stated_archetypes",
 )
 @click.option(
+    "--archetype-group",
+    "archetype_groups",
+    multiple=True,
+    help=(
+        "Group multiple presets into one umbrella archetype for assembly "
+        "tracking. Format: NAME=PRESET1,PRESET2,... (repeatable). "
+        "Example: --archetype-group graveyard=reanimate,flashback,self-mill"
+    ),
+)
+@click.option(
     "--players",
     default=None,
     type=int,
@@ -850,6 +860,7 @@ def custom_format_main(
     format_module_name,
     preset_names,
     from_cube,
+    archetype_groups,
     players,
     turns,
     games,
@@ -859,6 +870,7 @@ def custom_format_main(
     """Simulate a non-standard cube format (e.g., shared_library)."""
     from mtg_utils._custom_format import FORMAT_REGISTRY
     from mtg_utils._custom_format._common import (
+        CardMetadata,
         precompute_metadata,
         run_simulation,
     )
@@ -873,7 +885,25 @@ def custom_format_main(
     cube = json.loads(Path(cube_path).read_text())
     hydrated = json.loads(Path(hydrated_path).read_text())
 
-    # Resolve archetype list.
+    # Parse --archetype-group NAME=PRESET1,PRESET2,... entries.
+    groups: dict[str, set[str]] = {}
+    for spec in archetype_groups:
+        if "=" not in spec:
+            raise click.ClickException(
+                f"--archetype-group must be NAME=PRESET1,PRESET2,..., got {spec!r}",
+            )
+        name, members = spec.split("=", 1)
+        name = name.strip()
+        member_set = {m.strip() for m in members.split(",") if m.strip()}
+        if not name or not member_set:
+            raise click.ClickException(
+                f"--archetype-group {spec!r}: name and members both required",
+            )
+        groups[name] = member_set
+
+    # Resolve archetype list — individual presets PLUS group constituents
+    # so precompute_metadata can match them. The group names themselves are
+    # synthesized at the augmentation step below.
     archetype_list: list[str] = list(preset_names)
     if from_cube:
         for entry in cube.get("designer_intent", {}).get("stated_archetypes", []):
@@ -883,9 +913,41 @@ def custom_format_main(
         for entry in cube.get("stated_archetypes", []):
             if isinstance(entry, dict) and "name" in entry:
                 archetype_list.append(entry["name"])
+    for members in groups.values():
+        archetype_list.extend(members)
     archetype_list = list(dict.fromkeys(archetype_list))  # dedup, preserve order
 
     cube_metadata = precompute_metadata(hydrated, presets=archetype_list)
+
+    # Augment each card's archetype_matches with the group name if any
+    # constituent matched. This lets the simulator track "graveyard"
+    # assembly across reanimate + flashback + graveyard-return + self-mill,
+    # not as four separate archetypes.
+    if groups:
+        augmented: list[CardMetadata] = []
+        for cm in cube_metadata:
+            extra = {
+                gname
+                for gname, members in groups.items()
+                if cm.archetype_matches & members
+            }
+            if extra:
+                augmented.append(
+                    CardMetadata(
+                        name=cm.name,
+                        cmc=cm.cmc,
+                        color_identity=cm.color_identity,
+                        produced_mana=cm.produced_mana,
+                        is_land=cm.is_land,
+                        library_effect=cm.library_effect,
+                        archetype_matches=cm.archetype_matches | extra,
+                    )
+                )
+            else:
+                augmented.append(cm)
+        cube_metadata = augmented
+        # Group names join the archetype list so aggregation reports them.
+        archetype_list = list(dict.fromkeys([*archetype_list, *groups.keys()]))
 
     n_players = players if players is not None else format_module.DEFAULT_PLAYERS
     max_turns = turns if turns is not None else format_module.DEFAULT_TURNS
