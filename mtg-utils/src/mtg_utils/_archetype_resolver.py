@@ -91,10 +91,23 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
             continue
 
         if "members" in entry:
-            # Group shape — handled in Task 3.
-            errors.append(
-                f"entry {idx} ({name!r}): 'members' shape not yet implemented",
-            )
+            members = entry["members"]
+            if not isinstance(members, list) or not members:
+                errors.append(
+                    f"entry {idx} ({name!r}): 'members' must be a non-empty list",
+                )
+                continue
+            bad_members = [m for m in members if m not in PRESETS]
+            if bad_members:
+                errors.append(
+                    f"entry {idx} ({name!r}): unknown preset(s) in members: "
+                    f"{', '.join(repr(m) for m in bad_members)}",
+                )
+                continue
+            groups.append(ArchetypeGroup(name=name, members=tuple(members)))
+            for member in members:
+                if member not in preset_refs:
+                    preset_refs.append(member)
             continue
         if "regex" in entry:
             # Legacy regex shape — handled in Task 4.
