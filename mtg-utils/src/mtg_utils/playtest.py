@@ -353,8 +353,13 @@ def match_main(deck_a, deck_b, games, seed, difficulty, timeout_s, force, output
 
     names = []
     for d in (deck_a_obj, deck_b_obj):
-        for entry in (d.get("cards") or []) + (d.get("commanders") or []):
-            names.append(entry["name"])
+        if "main" in d and "cards" not in d:
+            # Phase-native: extract names from main list.
+            for entry in d.get("main") or []:
+                names.append(entry["name"])
+        else:
+            for entry in (d.get("cards") or []) + (d.get("commanders") or []):
+                names.append(entry["name"])
 
     cov = _phase.coverage_report(names)
     if cov["status"] == "blocked" and not force:
@@ -377,15 +382,20 @@ def match_main(deck_a, deck_b, games, seed, difficulty, timeout_s, force, output
         b_path.write_text(json.dumps(phase_b))
 
         start = time.perf_counter()
-        result = _phase.run_duel(
-            a_path,
-            b_path,
-            games=games,
-            seed=seed,
-            format_=phase_a["format"],
-            difficulty=difficulty,
-            timeout_s=timeout_s,
-        )
+        try:
+            result = _phase.run_duel(
+                a_path,
+                b_path,
+                games=games,
+                seed=seed,
+                format_=phase_a["format"],
+                difficulty=difficulty,
+                timeout_s=timeout_s,
+            )
+        except _phase.PhaseRuntimeError as exc:
+            raise click.ClickException(
+                f"{exc}\nEngine stderr:\n{exc.stderr}",
+            ) from exc
         elapsed = time.perf_counter() - start
 
     warnings = []
@@ -549,15 +559,20 @@ def gauntlet_main(
             for j in range(i + 1, len(deck_paths)):
                 a_name, a_path = deck_paths[i]
                 b_name, b_path = deck_paths[j]
-                result = _phase.run_duel(
-                    a_path,
-                    b_path,
-                    games=games_per_pair,
-                    seed=seed + i * 100 + j,
-                    format_=manifest.get("format", "modern").replace("_cube", ""),
-                    difficulty=difficulty,
-                    timeout_s=timeout_s,
-                )
+                try:
+                    result = _phase.run_duel(
+                        a_path,
+                        b_path,
+                        games=games_per_pair,
+                        seed=seed + i * 100 + j,
+                        format_=manifest.get("format", "modern").replace("_cube", ""),
+                        difficulty=difficulty,
+                        timeout_s=timeout_s,
+                    )
+                except _phase.PhaseRuntimeError as exc:
+                    raise click.ClickException(
+                        f"{exc}\nEngine stderr:\n{exc.stderr}",
+                    ) from exc
                 pairs.append(
                     {
                         "a": a_name,

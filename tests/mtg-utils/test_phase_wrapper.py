@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -235,6 +236,68 @@ class TestRunDuel:
         assert "50" in captured["cmd"]
         assert "--seed" in captured["cmd"]
         assert "42" in captured["cmd"]
+
+
+class TestDeckConversionPassthrough:
+    def test_passes_through_phase_native_input(self):
+        phase_deck = {
+            "name": "Affinity",
+            "format": "modern",
+            "main": [{"name": "Mountain", "count": 4}],
+        }
+        out = _phase.to_phase_deck(phase_deck, label="X")
+        assert out["name"] == "X"  # relabeled
+        assert out["format"] == "modern"
+        assert out["main"] == [{"name": "Mountain", "count": 4}]
+        # No commander field if not in input.
+        assert "commander" not in out
+
+    def test_passes_through_commander_field_when_present(self):
+        phase_deck = {
+            "name": "Krenko",
+            "format": "commander",
+            "main": [{"name": "Mountain", "count": 99}],
+            "commander": ["Krenko, Mob Boss"],
+        }
+        out = _phase.to_phase_deck(phase_deck, label="Y")
+        assert out["name"] == "Y"
+        assert out["commander"] == ["Krenko, Mob Boss"]
+
+    def test_non_phase_native_still_converts(self):
+        deck = {
+            "format": "modern",
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+        }
+        out = _phase.to_phase_deck(deck, label="Burn")
+        assert {"name": "Lightning Bolt", "count": 4} in out["main"]
+
+
+class TestRunDuelError:
+    def test_called_process_error_raises_phase_runtime(self, monkeypatch, tmp_path):
+        bin_path = tmp_path / "ai-duel"
+        bin_path.write_text("#!/bin/sh\n")
+        bin_path.chmod(0o755)
+        monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path))
+
+        def fake_run(cmd, **_kwargs):
+            raise subprocess.CalledProcessError(
+                returncode=2,
+                cmd=cmd,
+                stderr="card 'Foo' not implemented",
+            )
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+
+        a = tmp_path / "a.json"
+        b = tmp_path / "b.json"
+        a.write_text("{}")
+        b.write_text("{}")
+
+        with pytest.raises(_phase.PhaseRuntimeError) as excinfo:
+            _phase.run_duel(a, b, games=10, seed=0, format_="modern", timeout_s=60)
+        assert excinfo.value.stderr == "card 'Foo' not implemented"
+        assert "code 2" in str(excinfo.value)
 
 
 class TestRunCommander:

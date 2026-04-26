@@ -28,6 +28,14 @@ class PhasePrereqError(RuntimeError):
     """Raised when system prereqs (cargo, git) are missing."""
 
 
+class PhaseRuntimeError(RuntimeError):
+    """Raised when phase exits non-zero. ``stderr`` carries the engine output."""
+
+    def __init__(self, message: str, stderr: str) -> None:
+        super().__init__(message)
+        self.stderr = stderr
+
+
 def cache_dir() -> Path:
     """Return the phase cache root: ``$MTG_SKILLS_CACHE_DIR/phase``
     or ``$HOME/.cache/mtg-skills/phase``.
@@ -179,7 +187,24 @@ def coverage_report(
 
 
 def to_phase_deck(deck: dict, *, label: str) -> dict:
-    """Convert our deck JSON into phase's ``{name, format, main, commander}`` shape."""
+    """Convert our deck JSON into phase's ``{name, format, main, commander}``
+    shape.
+
+    If ``deck`` is already in phase shape (``main`` present, no ``cards``
+    key), return a shallow copy with the requested ``label``. This lets
+    callers pass the phase repo's bundled duel decks directly.
+    """
+    if "main" in deck and "cards" not in deck:
+        # Already phase-native; just relabel and pass through.
+        out: dict = {
+            "name": label,
+            "format": deck.get("format") or "modern",
+            "main": list(deck["main"]),
+        }
+        if "commander" in deck:
+            out["commander"] = list(deck["commander"])
+        return out
+
     main_entries: dict[str, int] = {}
 
     def add(name: str, count: int) -> None:
@@ -257,6 +282,11 @@ def run_duel(
                 "avg_turns": 0.0,
                 "avg_duration_ms": 0,
             }
+        except subprocess.CalledProcessError as exc:
+            raise PhaseRuntimeError(
+                f"phase ai-duel exited with code {exc.returncode}",
+                stderr=exc.stderr or "",
+            ) from exc
 
         data = json.loads(out_path.read_text())
 
@@ -316,6 +346,11 @@ def run_commander(
                 "draws": 0,
                 "avg_turns": 0.0,
             }
+        except subprocess.CalledProcessError as exc:
+            raise PhaseRuntimeError(
+                f"phase ai-commander exited with code {exc.returncode}",
+                stderr=exc.stderr or "",
+            ) from exc
         data = json.loads(out_path.read_text())
 
     return {
