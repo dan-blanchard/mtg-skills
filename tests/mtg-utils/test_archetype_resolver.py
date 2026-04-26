@@ -6,7 +6,7 @@ import pytest
 
 from mtg_utils._archetype_resolver import (
     ArchetypeGroup,
-    CustomRegexArchetype,  # noqa: F401  # used in Task 4
+    CustomRegexArchetype,
     ResolvedArchetypes,
     resolve_stated_archetypes,
 )
@@ -115,3 +115,43 @@ class TestGroupShape:
         with pytest.raises(ValueError, match="empty-group") as excinfo:
             resolve_stated_archetypes(cube)
         assert "members" in str(excinfo.value).lower()
+
+
+class TestRegexShape:
+    def test_legacy_regex_resolves_to_custom_bucket(self):
+        cube = _cube(
+            [
+                {"name": "kindred-cats", "regex": "(?i)cats? you control"},
+            ]
+        )
+        out = resolve_stated_archetypes(cube)
+        assert out.preset_names == ()
+        assert out.groups == ()
+        assert out.custom == (
+            CustomRegexArchetype("kindred-cats", "(?i)cats? you control"),
+        )
+
+    def test_invalid_regex_raises(self):
+        cube = _cube(
+            [
+                {"name": "broken", "regex": "(?i)[unclosed"},
+            ]
+        )
+        with pytest.raises(ValueError, match="broken") as excinfo:
+            resolve_stated_archetypes(cube)
+        assert "regex" in str(excinfo.value).lower()
+
+    def test_regex_when_name_is_also_a_preset_keeps_regex_behavior(self):
+        # If the author wrote {name: 'removal', regex: '...custom...'}
+        # they explicitly want the custom matcher, not the preset.
+        cube = _cube(
+            [
+                {"name": "removal", "regex": "(?i)destroy target nonland"},
+            ]
+        )
+        out = resolve_stated_archetypes(cube)
+        # Goes to custom, not preset_names.
+        assert out.preset_names == ()
+        assert out.custom == (
+            CustomRegexArchetype("removal", "(?i)destroy target nonland"),
+        )

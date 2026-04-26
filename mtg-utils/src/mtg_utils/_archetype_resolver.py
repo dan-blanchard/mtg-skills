@@ -17,7 +17,7 @@ listing every violation found.
 
 from __future__ import annotations
 
-import re  # noqa: F401  # used in Task 4 regex validation
+import re
 from dataclasses import dataclass
 
 
@@ -110,10 +110,21 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
                     preset_refs.append(member)
             continue
         if "regex" in entry:
-            # Legacy regex shape — handled in Task 4.
-            errors.append(
-                f"entry {idx} ({name!r}): 'regex' shape not yet implemented",
-            )
+            pattern = entry["regex"]
+            if not isinstance(pattern, str) or not pattern:
+                errors.append(
+                    f"entry {idx} ({name!r}): 'regex' must be a non-empty string",
+                )
+                continue
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                errors.append(
+                    f"entry {idx} ({name!r}): regex {pattern!r} does not "
+                    f"compile: {exc}",
+                )
+                continue
+            custom.append(CustomRegexArchetype(name=name, regex=pattern))
             continue
 
         # Preset-reference shape: {name} only.
