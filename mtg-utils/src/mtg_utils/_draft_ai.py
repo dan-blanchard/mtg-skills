@@ -72,3 +72,69 @@ def score_pick(card: dict, state: DrafterState) -> float:
             score += 0.25 * state.passed_color_counts.get(color, 0)
 
     return score
+
+
+def draft_pod(
+    pool: list[dict],
+    *,
+    players: int,
+    packs: int,
+    pack_size: int,
+    rng,
+) -> list[list[dict]]:
+    """Run one pod's worth of drafting; return one card pile per player.
+
+    Pool is consumed (sampled without replacement). Picks alternate around
+    the table per the standard draft direction (pack 1 + 3 left, pack 2 right).
+    """
+    needed = players * packs * pack_size
+    if len(pool) < needed:
+        raise ValueError(
+            f"Pool too small: need {needed} cards, have {len(pool)}",
+        )
+
+    drawn = list(pool)
+    rng.shuffle(drawn)
+    pod_packs: list[list[list[dict]]] = []
+    for _ in range(packs):
+        round_packs = []
+        for _ in range(players):
+            round_packs.append(drawn[:pack_size])
+            drawn = drawn[pack_size:]
+        pod_packs.append(round_packs)
+
+    states = [DrafterState() for _ in range(players)]
+
+    # Each pack-round, every seat opens its own pack and we rotate the
+    # remaining packs around the table after each pick. Direction alternates
+    # by pack: 0 and 2 go left (+1), pack 1 goes right (-1).
+    for pack_idx, round_packs in enumerate(pod_packs):
+        direction = 1 if pack_idx % 2 == 0 else -1
+        # Each seat starts with its own opened pack.
+        current_packs: list[list[dict]] = list(round_packs)
+        for _ in range(pack_size):
+            # Each seat picks from the pack it currently holds.
+            new_packs: list[list[dict]] = [[] for _ in range(players)]
+            for seat_idx in range(players):
+                pack = current_packs[seat_idx]
+                if not pack:
+                    new_packs[(seat_idx + direction) % players] = pack
+                    continue
+                scored = sorted(
+                    ((score_pick(c, states[seat_idx]), c) for c in pack),
+                    key=lambda kv: -kv[0],
+                )
+                pick = scored[0][1]
+                pack_after = [c for c in pack if c is not pick]
+                states[seat_idx].add_pick(pick)
+                # Pass the remainder downstream (downstream is `seat_idx + direction`).
+                new_packs[(seat_idx + direction) % players] = pack_after
+                # Note passed colors at the receiving seat.
+                receiver = (seat_idx + direction) % players
+                passed_colors: list[str] = []
+                for c in pack_after:
+                    passed_colors.extend(c.get("color_identity") or [])
+                states[receiver].note_passed_colors(passed_colors)
+            current_packs = new_packs
+
+    return [s.pile for s in states]
