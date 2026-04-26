@@ -1761,6 +1761,41 @@ Each entry must specify exact cards in, exact cards out, and a one-line rational
 
 ---
 
+## Step 13: Empirical Playtest (optional)
+
+Run when the user requests it OR when the deck is "close" between two
+plausible cuts/adds you want empirical signal on.
+
+**Constructed (60-card):** run `playtest-match` against a stock baseline.
+For Modern, the phase repo ships baseline duel decks at
+`crates/phase-ai/duel_decks/modern/{affinity,amulet-titan,boros-energy}.json`.
+Convert your tuned deck and run:
+
+```
+playtest-match my-deck.json affinity.json --games 100 --seed 1 \
+  --output playtest-match.json
+```
+
+**Commander/Brawl:** run `playtest-goldfish` (no widely accepted single
+opponent baseline). Default 1,000 games × 8 turns reports mulligan rate,
+turn-to-cast-commander, color-screw rate.
+
+```
+playtest-goldfish my-deck.json --hydrated my-hydrated.json \
+  --games 1000 --turns 8 --output playtest-goldfish.json
+```
+
+**Reporting back to the user:** present the markdown report from stdout
+verbatim. Do NOT auto-suggest cuts from the result — the user reads the
+report and decides. If the user asks for follow-up ("what should I cut?"),
+treat that as a normal cuts-and-adds iteration with the playtest data
+as new context.
+
+**First-run prereq:** if `playtest-match` errors with "phase binary not
+found", tell the user once: `playtest-install-phase` (~5–10 min, one-time).
+
+---
+
 ## Red Flags
 
 | Thought | Reality |
