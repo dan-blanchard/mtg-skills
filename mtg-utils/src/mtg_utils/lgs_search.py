@@ -878,13 +878,20 @@ def _playwright_pages(stores: list[str], *, headless: bool = True):
 
 
 def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
-    """Best-effort: read prices.usd from Scryfall bulk data for the given names.
+    """Cheapest non-foil non-digital USD across ALL printings of each name.
 
-    Goes through the shared `bulk_loader.load_bulk_cards` so we get the
-    pickled-sidecar cache (~5-10x faster on warm load) instead of re-reading
-    a 150 MB JSON file every invocation. Returns 0.0 for unknown cards (the
-    allocator's spill check guards against spilling on unknown-online-price;
-    see _spill_triggered).
+    Used as the "online proxy" in the spill check (`_spill_triggered`). Uses
+    the cheapest printing — not the default printing — because online
+    optimizers (TCG, Mana Pool) pick from any printing, so the proxy should
+    reflect the lowest price an optimizer might plausibly find. The default
+    printing often:
+      * has no USD recorded (e.g. Beast Within's default has no `usd`,
+        but its cheap reprints are $0.50), or
+      * is the original expensive run, masking cheap reprints (e.g. Kessig
+        Wolf Run: default ~$15, cheapest reprint $0.30).
+
+    Returns 0.0 for unknown / unpriced cards; the allocator treats 0.0 as
+    "no signal" and won't spill on it.
     """
     if bulk_path is None or not bulk_path.exists():
         return dict.fromkeys(names, 0.0)
@@ -897,22 +904,33 @@ def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, 
     if not isinstance(data, list):
         return dict.fromkeys(names, 0.0)
     name_set = set(names)
-    by_name: dict[str, dict] = {}
+    min_by_name: dict[str, float] = {}
     for row in data:
         if not isinstance(row, dict):
             continue
         n = row.get("name")
-        if n in name_set and n not in by_name:
-            by_name[n] = row
-    out: dict[str, float] = {}
-    for name in names:
-        row = by_name.get(name) or {}
-        usd = (row.get("prices") or {}).get("usd")
-        try:
-            out[name] = float(usd) if usd else 0.0
-        except (TypeError, ValueError):
-            out[name] = 0.0
-    return out
+        if n not in name_set:
+            continue
+        if row.get("digital"):
+            continue
+        # Non-foil cardstock: the cheapest of usd/usd_etched is what a buyer
+        # would actually pay; usd_foil is excluded so allow_foil=False
+        # remains the proxy's default mode.
+        prices = row.get("prices") or {}
+        for key in ("usd", "usd_etched"):
+            raw = prices.get(key)
+            if not raw:
+                continue
+            try:
+                price = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if price <= 0:
+                continue
+            cur = min_by_name.get(n)
+            if cur is None or price < cur:
+                min_by_name[n] = price
+    return {name: min_by_name.get(name, 0.0) for name in names}
 
 
 def _render_summary(allocation, online, basics) -> str:

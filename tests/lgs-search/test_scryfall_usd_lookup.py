@@ -46,6 +46,64 @@ def test_handles_null_usd_gracefully(tmp_path):
     assert out == {"Bogus": 0.0}
 
 
+def test_picks_cheapest_printing_across_reprints(tmp_path):
+    """Many cards have multiple printings with wildly different USD prices
+    (Beast Within: original ~$5, reprints $0.50). The proxy should pick the
+    cheapest non-foil printing so the spill check uses what an online
+    optimizer (TCG / MP) could plausibly source.
+    """
+    bulk = tmp_path / "default-cards.json"
+    bulk.write_text(
+        json.dumps(
+            [
+                {"name": "Beast Within", "prices": {"usd": "5.00"}},   # original
+                {"name": "Beast Within", "prices": {"usd": None}},      # rare reprint, no usd
+                {"name": "Beast Within", "prices": {"usd": "0.50"}},   # commander reprint
+                {"name": "Beast Within", "prices": {"usd": "1.20"}},   # secret lair
+            ]
+        )
+    )
+    out = _scryfall_usd_lookup(bulk, ["Beast Within"])
+    assert out == {"Beast Within": 0.50}
+
+
+def test_skips_digital_only_printings(tmp_path):
+    """MTG Arena and MTGO printings have prices in their own ecosystems but
+    are not buyable via TCG / MP — exclude them from the proxy.
+    """
+    bulk = tmp_path / "default-cards.json"
+    bulk.write_text(
+        json.dumps(
+            [
+                {
+                    "name": "Sol Ring",
+                    "digital": True,
+                    "prices": {"usd": "0.01"},
+                },
+                {"name": "Sol Ring", "prices": {"usd": "1.10"}},
+            ]
+        )
+    )
+    out = _scryfall_usd_lookup(bulk, ["Sol Ring"])
+    assert out == {"Sol Ring": 1.10}
+
+
+def test_falls_back_to_etched_when_only_etched_has_usd(tmp_path):
+    """A card with only an etched-foil printing recorded — the etched usd
+    is the cheapest a buyer can actually get.
+    """
+    bulk = tmp_path / "default-cards.json"
+    bulk.write_text(
+        json.dumps(
+            [
+                {"name": "Niche Card", "prices": {"usd": None, "usd_etched": "3.50"}},
+            ]
+        )
+    )
+    out = _scryfall_usd_lookup(bulk, ["Niche Card"])
+    assert out == {"Niche Card": 3.50}
+
+
 def test_uses_bulk_loader_not_raw_json_read(tmp_path):
     """Confirm the function delegates to `bulk_loader.load_bulk_cards`
     rather than re-reading the entire JSON file. The shared loader
