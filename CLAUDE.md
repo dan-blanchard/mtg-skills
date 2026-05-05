@@ -38,6 +38,15 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/rules-lawyer/ -v  # Run smoke tests
 ```
 
+### lgs-search
+
+```bash
+cd lgs-search
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
+uv run playwright install chromium  # First-run only; downloads Chromium
+uv run pytest ../tests/lgs-search/ -v  # Run smoke tests
+```
+
 ### Running a single test
 
 ```bash
@@ -50,14 +59,14 @@ uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
 ### Python / tooling
 
 - Requires Python 3.12+ (`requires-python = ">=3.12"` in `mtg-utils/pyproject.toml`).
-- All four `pyproject.toml` files use `uv` as the install/runtime driver.
+- All five `pyproject.toml` files use `uv` as the install/runtime driver.
 - CI (`.github/workflows/ci.yml`) runs the exact commands listed above — it is the authoritative source of truth for which invocations must pass.
 
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
-**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, and `rules-lawyer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all four point at the same files.
+**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, and `lgs-search/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all four point at the same files.
 
 ### mtg-utils
 
@@ -162,6 +171,10 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (c
 ### rules-lawyer
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Answers MTG rules questions by citing the actual Comprehensive Rules and Scryfall per-card rulings — the project's "legal database": CR = statute, Scryfall rulings = case law. Usable standalone or invoked by deck-wizard / cube-wizard via the Skill tool for trigger-interaction, timing, replacement-effect, and layer questions during tuning. The skill's Iron Rule: every answer MUST cite at least one specific CR rule number that came from the CLI output, not from training data. Four phases: classify the question → run one `rules-lookup` CLI call → escalate (wider search, section Read, or subagent) only when the first call misses → write the answer with verdict, CR citations, and edge cases.
+
+### lgs-search
+
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across at most three carts: The Gathering Place + Atomic Empire (LGS) and one of TCGPlayer or Mana Pool (online), whichever's cheaper for the spillover. Per-store adapters live in `mtg_utils/_stores/` (mirrors `_custom_format/`); each implements a synchronous `StoreAdapter` Protocol covering search, cart inspection, add-to-cart, and a headed handoff for checkout. Persistent Playwright profiles per store under `~/.cache/mtg-skills/lgs-profiles/`.
 
 ## Supported Deck Formats
 

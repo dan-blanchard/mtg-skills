@@ -18,6 +18,10 @@ Build MTG decks from scratch or tune existing ones across all formats — Comman
 
 Build and tune MTG cubes — curated card pools designed for drafting. Supports Vintage, Unpowered, Legacy, Modern, Pauper, Peasant, Set, Commander, and PDH cubes. Two-phase workflow: Phase 1 acquires a cube (parse an existing CubeCobra cube or clone a well-known reference cube), Phase 2 runs a 9-step tuning pipeline covering designer intent, balance dashboards, archetype signal density, power-level review, a two-agent self-grill, cube-diff impact verification, pack simulation, and CubeCobra CSV export.
 
+### lgs-search
+
+Search The Gathering Place + Atomic Empire (LGS) and TCGPlayer + Mana Pool (online) for an MTG card list, allocate to minimize total cost, and hand off pre-loaded headed browser windows for checkout. Targets at most three carts: TGP, AE, and one of TCGPlayer or Mana Pool.
+
 ## Tooling
 
 Both skills share CLI scripts via the `mtg_utils` package (`mtg-utils/`).
