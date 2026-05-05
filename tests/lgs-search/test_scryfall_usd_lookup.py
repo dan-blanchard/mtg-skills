@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from mtg_utils.lgs_search import _scryfall_usd_lookup
+from mtg_utils.lgs_search import _locate_bulk_data, _scryfall_usd_lookup
 
 
 def _write_bulk(tmp_path: Path) -> Path:
@@ -102,6 +102,57 @@ def test_falls_back_to_etched_when_only_etched_has_usd(tmp_path):
     )
     out = _scryfall_usd_lookup(bulk, ["Niche Card"])
     assert out == {"Niche Card": 3.50}
+
+
+class TestLocateBulkData:
+    """The orchestrator auto-resolves bulk data when --bulk-data isn't
+    passed. Without this, the cheapest-printing proxy returns 0.0 for
+    every card and the spill check goes silent — verified live to
+    overpay by 5-30x on cards with cheap reprints (Beast Within $30 at
+    AE vs $0.50 reprint on MP).
+    """
+
+    def test_explicit_env_override_wins(self, tmp_path, monkeypatch):
+        target = tmp_path / "elsewhere.json"
+        target.write_text("[]")
+        monkeypatch.setenv("MTG_SKILLS_BULK_DATA", str(target))
+        # Even with a default-cards.json next to it, the explicit env wins.
+        (tmp_path / "default-cards.json").write_text("[]")
+        monkeypatch.chdir(tmp_path)
+        assert _locate_bulk_data() == target
+
+    def test_picks_up_cwd_default_cards(self, tmp_path, monkeypatch):
+        bulk = tmp_path / "default-cards.json"
+        bulk.write_text("[]")
+        monkeypatch.delenv("MTG_SKILLS_BULK_DATA", raising=False)
+        monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
+        monkeypatch.chdir(tmp_path)
+        assert _locate_bulk_data() == bulk
+
+    def test_picks_newest_when_multiple(self, tmp_path, monkeypatch):
+        old = tmp_path / "default-cards-old.json"
+        new = tmp_path / "default-cards.json"
+        old.write_text("[]")
+        new.write_text("[]")
+        # Ensure new is strictly newer than old.
+        import os
+        import time
+        os.utime(old, (time.time() - 3600, time.time() - 3600))
+        monkeypatch.delenv("MTG_SKILLS_BULK_DATA", raising=False)
+        monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
+        monkeypatch.chdir(tmp_path)
+        assert _locate_bulk_data() == new
+
+    def test_returns_none_when_nothing_found(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("MTG_SKILLS_BULK_DATA", raising=False)
+        monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        monkeypatch.chdir(empty)
+        assert _locate_bulk_data() is None
 
 
 def test_uses_bulk_loader_not_raw_json_read(tmp_path):

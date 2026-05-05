@@ -877,6 +877,81 @@ def _playwright_pages(stores: list[str], *, headless: bool = True):
                     ctx.close()
 
 
+import os  # noqa: E402
+
+
+def _locate_bulk_data() -> Path | None:
+    """Find a Scryfall ``default-cards.json`` in common locations.
+
+    The spill check needs this file to compute cheapest-printing USD; without
+    it the proxy is 0.0 for every card and ALL cards stay at LGS (silent
+    no-spill) — verified live on a 31-card run that overpaid ~$43 because
+    `--bulk-data` wasn't passed.
+
+    Search order (first hit wins):
+
+      1. ``$MTG_SKILLS_BULK_DATA`` (explicit override, full path)
+      2. ``$MTG_SKILLS_CACHE_DIR/default-cards.json``
+      3. ``~/.cache/mtg-skills/default-cards.json`` (the cache_dir convention
+         shared with the persistent Playwright profiles)
+      4. ``$CWD/default-cards.json`` (where ``download-bulk`` puts files
+         by default)
+      5. ``$CWD/.cache/default-cards.json`` (in-repo cache convention)
+      6. Newest ``default-cards*.json`` in any of the directories above
+         (some users keep dated copies, e.g. default-cards-20260214220913.json)
+
+    Returns the Path of the most recently modified hit, or None if nothing
+    is found. Caller is expected to print a loud warning when None.
+    """
+    explicit = os.environ.get("MTG_SKILLS_BULK_DATA")
+    if explicit:
+        p = Path(explicit).expanduser()
+        if p.exists():
+            return p
+
+    cache_env = os.environ.get("MTG_SKILLS_CACHE_DIR")
+    candidates_dirs: list[Path] = []
+    if cache_env:
+        candidates_dirs.append(Path(cache_env))
+    candidates_dirs += [
+        Path.home() / ".cache" / "mtg-skills",
+        Path.cwd(),
+        Path.cwd() / ".cache",
+    ]
+    # Also walk a few parents of cwd looking for an in-repo .cache; common
+    # case is invoking the skill from a subdirectory of the repo where
+    # download-bulk was run at the repo root.
+    cwd = Path.cwd()
+    for parent in (cwd.parent, cwd.parent.parent):
+        if parent != cwd:
+            candidates_dirs.append(parent)
+            candidates_dirs.append(parent / ".cache")
+
+    seen: set[Path] = set()
+    matches: list[Path] = []
+    for d in candidates_dirs:
+        if d in seen:
+            continue
+        seen.add(d)
+        if not d.exists():
+            continue
+        # Exact name first, then dated variants.
+        exact = d / "default-cards.json"
+        if exact.exists():
+            matches.append(exact)
+        try:
+            for p in d.glob("default-cards*.json"):
+                if p != exact:
+                    matches.append(p)
+        except OSError:
+            continue
+
+    if not matches:
+        return None
+    # Newest wins so dated dumps don't shadow a fresh-named file.
+    return max(matches, key=lambda p: p.stat().st_mtime)
+
+
 def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
     """Cheapest non-foil non-digital USD across ALL printings of each name.
 
@@ -1051,6 +1126,30 @@ def _run_orchestrator(
         include_basics=include_basics,
     )
     names = [c["card_name"] for c in cards]
+    # Auto-detect bulk data when not explicitly passed. Without it, the
+    # cheapest-printing proxy is 0.0 for every card and the spill check
+    # has no signal — every card stays at LGS, including ones that are
+    # 5-30x cheaper online. Loud warning when nothing's found so the
+    # silent-no-spill failure mode of an earlier run can't recur.
+    if bulk_data is None:
+        bulk_data = _locate_bulk_data()
+        if bulk_data is not None:
+            click.echo(
+                f"Auto-detected bulk data: {bulk_data}",
+                err=True,
+            )
+        else:
+            click.echo(
+                "WARNING: no Scryfall bulk data found in any of "
+                "$MTG_SKILLS_BULK_DATA, $MTG_SKILLS_CACHE_DIR, "
+                "~/.cache/mtg-skills/, $CWD, or $CWD/.cache. The spill "
+                "check will have no online-price signal — every "
+                "in-stock LGS listing will win and you may overpay "
+                "by 5-30x on cards with cheap reprints. Run "
+                "`download-bulk` (or pass --bulk-data) before re-running "
+                "for accurate allocation.",
+                err=True,
+            )
     usd_lookup = _scryfall_usd_lookup(bulk_data, names)
 
     prefs: SearchPrefs = {
