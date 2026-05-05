@@ -6,12 +6,16 @@ build carts → handoff. See specs/2026-05-04-lgs-search-design.md.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
+from mtg_utils._sidecar import atomic_write_json
 from mtg_utils._stores._common import Listing
+from mtg_utils.names import normalize_card_name
 
 BASIC_LAND_NAMES = frozenset(
     {"Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"},
@@ -312,3 +316,96 @@ def assert_no_duplicates_invariant(
         }
         msg = f"allocation invariant violated: needed_vs_actual={diff!r}"
         raise AssertionError(msg)
+
+
+# ---------------------------------------------------------------------------
+# Sidecar I/O and resume rules
+# ---------------------------------------------------------------------------
+
+SIDECAR_VERSION = 1
+
+
+class PhaseProgress(TypedDict, total=False):
+    status: Literal["pending", "partial", "complete"]
+    items_added: int
+    remaining: list
+
+
+class Sidecar(TypedDict, total=False):
+    version: int
+    generated_at: str
+    input_hash: str
+    phase: Literal[
+        "search_complete",
+        "allocation_complete",
+        "cart_build_in_progress",
+        "done",
+    ]
+    phase_progress: dict[str, PhaseProgress]
+    allocation: list[dict]
+    online_optimizer_results: dict | None
+    unfindable: list[str]
+    basic_lands_needed: dict[str, int]
+
+
+def compute_input_hash(cards: list[dict]) -> str:
+    """SHA-256 over the canonicalized card list. Order- and case-independent.
+
+    Card names are normalized via `mtg_utils.names.normalize_card_name`
+    (NFKD ASCII-fold + lowercase) before hashing so cosmetic edits to the
+    deck input (re-casing, whitespace) don't trip the --resume hash gate.
+    """
+    canon = sorted((normalize_card_name(c["card_name"]), int(c["qty"])) for c in cards)
+    payload = json.dumps(canon, ensure_ascii=False).encode()
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def now_iso() -> str:
+    return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def write_sidecar(path: Path, sc: Sidecar) -> None:
+    """Atomic-rename write so concurrent readers can't see a partial file.
+
+    Delegates to the shared `atomic_write_json` helper, which uses a
+    per-call NamedTemporaryFile so concurrent writers don't collide on
+    the same `.tmp` name.
+    """
+    atomic_write_json(path, sc)
+
+
+def load_sidecar(path: Path) -> Sidecar:
+    sc = json.loads(path.read_text(encoding="utf-8"))
+    if sc.get("version") != SIDECAR_VERSION:
+        msg = (
+            f"unsupported sidecar version {sc.get('version')};"
+            f" expected {SIDECAR_VERSION}"
+        )
+        raise ValueError(msg)
+    return sc
+
+
+def assert_hash_matches(*, sidecar: Sidecar, cards: list[dict]) -> None:
+    """Reject ``--resume`` if the input deck has changed since sidecar was written."""
+    expected = compute_input_hash(cards)
+    if sidecar.get("input_hash") != expected:
+        msg = (
+            f"input hash mismatch: sidecar={sidecar.get('input_hash')} "
+            f"current={expected}"
+        )
+        raise ValueError(msg)
+
+
+def next_phase_actions(sc: Sidecar) -> list[str]:
+    """Given a sidecar's phase, return the list of remaining workflow steps."""
+    phase = sc["phase"]
+    if phase == "search_complete":
+        return ["allocate", "confirm", "build_carts", "handoff"]
+    if phase == "allocation_complete":
+        return ["confirm", "build_carts", "handoff"]
+    if phase == "cart_build_in_progress":
+        return ["resume_carts", "handoff"]
+    if phase == "done":
+        return []
+    msg = f"unknown sidecar phase {phase!r}"
+    raise ValueError(msg)
