@@ -527,7 +527,12 @@ def optimize_online(
     """Submit `online_lines` to each online adapter and pick the cheapest total.
 
     Returns dict mapping store name to OptimizedCart, plus 'chosen' key
-    naming the cheapest. Returns None when there are no online lines.
+    naming the cheapest. Returns None when there are no online lines or
+    when every online store fails (login required, captcha, selectors moved).
+
+    Per-store failures are caught and logged so one broken adapter doesn't
+    sink the others — common case is TCGPlayer's anti-bot blocking
+    Playwright's persistent_context, in which case Mana Pool still runs.
     """
     if not online_lines:
         return None
@@ -535,7 +540,16 @@ def optimize_online(
     for store in ONLINE_STORES:
         adapter = STORE_REGISTRY[store]
         page = page_factory(store) if page_factory else None
-        results[store] = adapter.bulk_submit_and_optimize(page, online_lines)
+        try:
+            results[store] = adapter.bulk_submit_and_optimize(page, online_lines)
+        except Exception as exc:  # noqa: BLE001
+            click.echo(
+                f"[{store}] online optimizer failed: "
+                f"{str(exc).splitlines()[0][:200]}",
+                err=True,
+            )
+    if not results:
+        return None
     chosen = min(results, key=lambda s: results[s]["total"])
     return {**results, "chosen": chosen}
 

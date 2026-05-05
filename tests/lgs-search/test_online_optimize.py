@@ -42,3 +42,46 @@ def test_picks_cheaper(monkeypatch):
 
 def test_returns_none_for_empty_lines():
     assert optimize_online([]) is None
+
+
+def test_one_store_failure_does_not_sink_the_other(monkeypatch):
+    """Common case: TCG anti-bot blocks Playwright. MP should still win."""
+    tcg = MagicMock()
+    tcg.bulk_submit_and_optimize.side_effect = RuntimeError("captcha")
+    mp = MagicMock()
+    mp.bulk_submit_and_optimize.return_value = {
+        "store": "manapool",
+        "total": 48.10,
+        "items_subtotal": 45.0,
+        "shipping": 3.10,
+        "lines": [],
+        "unfound": [],
+        "cart_url": "y",
+    }
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.STORE_REGISTRY",
+        {"tcgplayer": tcg, "manapool": mp},
+    )
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.ONLINE_STORES",
+        ["tcgplayer", "manapool"],
+    )
+    res = optimize_online([{"card_name": "Sol Ring", "qty": 1}])
+    assert res["chosen"] == "manapool"
+    assert "tcgplayer" not in res
+
+
+def test_returns_none_when_all_stores_fail(monkeypatch):
+    tcg = MagicMock()
+    tcg.bulk_submit_and_optimize.side_effect = RuntimeError("captcha")
+    mp = MagicMock()
+    mp.bulk_submit_and_optimize.side_effect = RuntimeError("login required")
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.STORE_REGISTRY",
+        {"tcgplayer": tcg, "manapool": mp},
+    )
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.ONLINE_STORES",
+        ["tcgplayer", "manapool"],
+    )
+    assert optimize_online([{"card_name": "Sol Ring", "qty": 1}]) is None
