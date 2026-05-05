@@ -24,8 +24,8 @@ class TestAdapterMetadata:
     def test_display_name(self):
         assert ADAPTER.display_name == "TCGPlayer"
 
-    def test_kind_online(self):
-        assert ADAPTER.kind == "online"
+    def test_kind_marketplace(self):
+        assert ADAPTER.kind == "marketplace"
 
 
 class TestNameForSearch:

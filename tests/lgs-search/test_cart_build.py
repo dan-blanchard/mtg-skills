@@ -93,7 +93,7 @@ def test_build_lgs_carts_and_handoff_happy_path(monkeypatch, tmp_path):
         "cart_url": "http://tgp.test/cart",
     }
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY", {"tgp": tgp},
+        "mtg_utils.lgs_search.LGS_ADAPTERS", {"tgp": tgp},
     )
     monkeypatch.setattr("mtg_utils.lgs_search.LGS_STORES", ["tgp"])
 
@@ -122,7 +122,7 @@ def test_build_lgs_carts_and_handoff_happy_path(monkeypatch, tmp_path):
 
 
 def test_build_lgs_carts_skips_when_no_lgs_items(monkeypatch):
-    """Online-only allocation → no Playwright session opened, no failures."""
+    """Marketplace-only allocation → no Playwright session opened, no failures."""
     from mtg_utils.lgs_search import _build_lgs_carts_and_handoff
 
     called = []
@@ -134,7 +134,7 @@ def test_build_lgs_carts_skips_when_no_lgs_items(monkeypatch):
     monkeypatch.setattr("playwright.sync_api.sync_playwright", boom)
 
     failures = _build_lgs_carts_and_handoff(
-        [{"card_name": "X", "qty": 1, "store": "online", "listing": None}],
+        [{"card_name": "X", "qty": 1, "store": "marketplace", "listing": None}],
         clear_existing=False,
         no_handoff=True,
     )
@@ -160,7 +160,7 @@ def test_build_lgs_carts_clears_pollution_when_flagged(monkeypatch, tmp_path):
         "qty_added": 1,
         "cart_url": "http://tgp.test/cart",
     }
-    monkeypatch.setattr("mtg_utils.lgs_search.STORE_REGISTRY", {"tgp": tgp})
+    monkeypatch.setattr("mtg_utils.lgs_search.LGS_ADAPTERS", {"tgp": tgp})
     monkeypatch.setattr("mtg_utils.lgs_search.LGS_STORES", ["tgp"])
 
     allocation = [

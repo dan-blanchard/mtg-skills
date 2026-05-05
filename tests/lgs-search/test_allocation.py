@@ -46,11 +46,11 @@ CFG = AllocationConfig(
 )
 
 
-class TestSpillToOnline:
+class TestSpillToMarketplace:
     def test_no_lgs_stock_spills(self):
         rows = [_row("Sol Ring", scryfall_usd=1.10)]
         out = allocate(rows, CFG)
-        assert out[0]["store"] == "online"
+        assert out[0]["store"] == "marketplace"
 
     def test_lgs_within_threshold_stays(self):
         rows = [_row("Sol Ring", tgp=_listing(1.50, store="tgp"), scryfall_usd=1.40)]
@@ -61,20 +61,20 @@ class TestSpillToOnline:
         # cheapest LGS=$5, scryfall=$3.50 → 30% cheaper online → spill
         rows = [_row("X", tgp=_listing(5.00, store="tgp"), scryfall_usd=3.50)]
         out = allocate(rows, CFG)
-        assert out[0]["store"] == "online"
+        assert out[0]["store"] == "marketplace"
 
     def test_usd_threshold_spills(self):
         # cheapest LGS=$10, scryfall=$7 → 30% cheaper AND $3 saved → spill
         rows = [_row("X", tgp=_listing(10.00, store="tgp"), scryfall_usd=7.00)]
         out = allocate(rows, CFG)
-        assert out[0]["store"] == "online"
+        assert out[0]["store"] == "marketplace"
 
     def test_small_pct_no_dollar_savings_still_spills(self):
         # cheapest LGS=$0.30, scryfall=$0.20 → 33% cheaper but only 10c saved.
-        # By spec, EITHER threshold triggers spill; pct does → online.
+        # By spec, EITHER threshold triggers spill; pct does → marketplace.
         rows = [_row("X", tgp=_listing(0.30, store="tgp"), scryfall_usd=0.20)]
         out = allocate(rows, CFG)
-        assert out[0]["store"] == "online"
+        assert out[0]["store"] == "marketplace"
 
     def test_unknown_online_price_does_not_spill(self):
         # scryfall_usd=0 means the bulk-data lookup missed; we should NOT
@@ -145,7 +145,7 @@ class TestQuantitySplit:
         ]
         out = allocate(rows, CFG)
         stores = sorted(a["store"] for a in out)
-        assert stores == ["online", "tgp"]
+        assert stores == ["marketplace", "tgp"]
 
     def test_split_evenly_when_neither_store_can_solo(self):
         rows = [

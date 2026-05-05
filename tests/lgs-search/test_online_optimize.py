@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from mtg_utils.lgs_search import optimize_online
+from mtg_utils.lgs_search import optimize_marketplace
+
+
+def _patch_marketplaces(monkeypatch, mapping: dict) -> None:
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.MARKETPLACE_ADAPTERS", mapping,
+    )
 
 
 def test_picks_cheaper(monkeypatch):
@@ -26,22 +32,15 @@ def test_picks_cheaper(monkeypatch):
         "unfound": [],
         "cart_url": "y",
     }
-    monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY",
-        {"tcgplayer": tcg, "manapool": mp},
-    )
-    monkeypatch.setattr(
-        "mtg_utils.lgs_search.ONLINE_STORES",
-        ["tcgplayer", "manapool"],
-    )
-    res = optimize_online([{"card_name": "Sol Ring", "qty": 1}])
+    _patch_marketplaces(monkeypatch, {"tcgplayer": tcg, "manapool": mp})
+    res = optimize_marketplace([{"card_name": "Sol Ring", "qty": 1}])
     assert res["chosen"] == "manapool"
     assert res["tcgplayer"]["total"] == 54.75
     assert res["manapool"]["total"] == 48.10
 
 
 def test_returns_none_for_empty_lines():
-    assert optimize_online([]) is None
+    assert optimize_marketplace([]) is None
 
 
 def test_one_store_failure_does_not_sink_the_other(monkeypatch):
@@ -58,15 +57,8 @@ def test_one_store_failure_does_not_sink_the_other(monkeypatch):
         "unfound": [],
         "cart_url": "y",
     }
-    monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY",
-        {"tcgplayer": tcg, "manapool": mp},
-    )
-    monkeypatch.setattr(
-        "mtg_utils.lgs_search.ONLINE_STORES",
-        ["tcgplayer", "manapool"],
-    )
-    res = optimize_online([{"card_name": "Sol Ring", "qty": 1}])
+    _patch_marketplaces(monkeypatch, {"tcgplayer": tcg, "manapool": mp})
+    res = optimize_marketplace([{"card_name": "Sol Ring", "qty": 1}])
     assert res["chosen"] == "manapool"
     assert "tcgplayer" not in res
 
@@ -76,12 +68,5 @@ def test_returns_none_when_all_stores_fail(monkeypatch):
     tcg.bulk_submit_and_optimize.side_effect = RuntimeError("captcha")
     mp = MagicMock()
     mp.bulk_submit_and_optimize.side_effect = RuntimeError("login required")
-    monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY",
-        {"tcgplayer": tcg, "manapool": mp},
-    )
-    monkeypatch.setattr(
-        "mtg_utils.lgs_search.ONLINE_STORES",
-        ["tcgplayer", "manapool"],
-    )
-    assert optimize_online([{"card_name": "Sol Ring", "qty": 1}]) is None
+    _patch_marketplaces(monkeypatch, {"tcgplayer": tcg, "manapool": mp})
+    assert optimize_marketplace([{"card_name": "Sol Ring", "qty": 1}]) is None

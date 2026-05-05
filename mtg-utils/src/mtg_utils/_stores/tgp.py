@@ -77,7 +77,7 @@ def _money(text: str) -> float:
 class _TGPAdapter:
     name = "tgp"
     display_name = "The Gathering Place"
-    kind: Literal["lgs", "online"] = "lgs"
+    kind: Literal["lgs"] = "lgs"
     base_url = _BASE_URL
 
     def name_for_search(self, card_name: str) -> str:

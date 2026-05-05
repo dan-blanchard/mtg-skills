@@ -26,12 +26,10 @@ from typing import Literal
 from bs4 import BeautifulSoup
 
 from mtg_utils._stores._common import (
-    AddToCartResult,
     CartNotEmptyError,
     Line,
     Listing,
     OptimizedCart,
-    SearchPrefs,
     StoreSelectorError,
 )
 
@@ -117,7 +115,7 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
 class _ManaPoolAdapter:
     name = "manapool"
     display_name = "Mana Pool"
-    kind: Literal["lgs", "online"] = "online"
+    kind: Literal["marketplace"] = "marketplace"
     base_url = _BASE_URL
 
     def name_for_search(self, card_name: str) -> str:
@@ -210,28 +208,6 @@ class _ManaPoolAdapter:
             unfound=[],  # MP flags unmatched lines on /add-deck; v1 tolerates loss.
             cart_url=f"{self.base_url}/cart",
         )
-
-    # -- Protocol stubs (online adapter; per-card search is unused) --
-
-    def search(
-        self,
-        page,
-        card_name: str,
-        *,
-        qty: int,
-        prefs: SearchPrefs,
-    ) -> list[Listing]:
-        msg = "Mana Pool is an online adapter; use bulk_submit_and_optimize"
-        raise NotImplementedError(msg)
-
-    def add_to_cart(
-        self,
-        page,
-        listing: Listing,
-        qty: int,
-    ) -> AddToCartResult:
-        msg = "Mana Pool is an online adapter; cart populated by bulk flow"
-        raise NotImplementedError(msg)
 
     def open_handoff(self, profile_dir: Path) -> None:
         from playwright.sync_api import sync_playwright

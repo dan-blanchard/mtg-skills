@@ -31,7 +31,7 @@ def test_sweep_returns_per_card_row(monkeypatch):
     ae.name = "atomic_empire"
     ae.search.return_value = [_mk_listing("atomic_empire", 1.80)]
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY",
+        "mtg_utils.lgs_search.LGS_ADAPTERS",
         {"tgp": tgp, "atomic_empire": ae},
     )
     monkeypatch.setattr(
@@ -63,7 +63,7 @@ def test_sweep_handles_search_failure(monkeypatch):
     ae.name = "atomic_empire"
     ae.search.return_value = []
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY",
+        "mtg_utils.lgs_search.LGS_ADAPTERS",
         {"tgp": tgp, "atomic_empire": ae},
     )
     monkeypatch.setattr(

@@ -174,7 +174,7 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Answers MTG rules questions b
 
 ### lgs-search
 
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across at most three carts: The Gathering Place + Atomic Empire (LGS) and one of TCGPlayer or Mana Pool (online), whichever's cheaper for the spillover. Per-store adapters live in `mtg_utils/_stores/` (mirrors `_custom_format/`); each implements a synchronous `StoreAdapter` Protocol covering search, cart inspection, add-to-cart, and a headed handoff for checkout. Persistent Playwright profiles per store under `~/.cache/mtg-skills/lgs-profiles/`.
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across at most three carts: The Gathering Place + Atomic Empire (LGS) and one of TCGPlayer or Mana Pool (Marketplace), whichever's cheaper for the spillover. Per-Storefront adapters live in `mtg_utils/_stores/` (mirrors `_custom_format/`); each implements a synchronous Protocol — `LGSAdapter` for the per-item search/add flow, `MarketplaceAdapter` for the bulk-submit-and-optimize flow, both extending a shared `StoreSession` base for the lifecycle methods (auth, cart inspection, clear, handoff). See `lgs-search/CONTEXT.md` for the LGS / Marketplace / StoreSession domain language. Persistent Playwright profiles per Storefront under `~/.cache/mtg-skills/lgs-profiles/`.
 
 ## Supported Deck Formats
 

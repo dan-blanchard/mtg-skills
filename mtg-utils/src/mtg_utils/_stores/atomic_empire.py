@@ -82,7 +82,7 @@ def _money(text: str) -> float:
 class _AtomicEmpireAdapter:
     name = "atomic_empire"
     display_name = "Atomic Empire"
-    kind: Literal["lgs", "online"] = "lgs"
+    kind: Literal["lgs"] = "lgs"
     base_url = _BASE_URL
 
     def name_for_search(self, card_name: str) -> str:

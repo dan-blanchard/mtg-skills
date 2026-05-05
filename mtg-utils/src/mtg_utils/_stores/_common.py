@@ -90,14 +90,40 @@ class CartNotEmptyError(Exception):
         self.cart_url = cart_url
 
 
+StorefrontKind = Literal["lgs", "marketplace"]
+
+
 @runtime_checkable
-class StoreAdapter(Protocol):
+class StoreSession(Protocol):
+    """Lifecycle methods every Storefront has — auth, cart inspection,
+    cart clearing, headed-window handoff, name canonicalization. The
+    cross-kind iteration sites (cart-pollution sweep, login pre-flight,
+    Phase 7 handoff, grand-total report) only depend on this surface.
+    See lgs-search/CONTEXT.md for the domain language.
+    """
+
     name: str
     display_name: str
-    kind: Literal["lgs", "online"]
+    kind: StorefrontKind
     base_url: str
 
     def name_for_search(self, card_name: str) -> str: ...
+    def get_existing_cart(self, page) -> list[Listing]: ...
+    def clear_cart(self, page) -> None: ...
+    def is_logged_in(self, page) -> bool: ...
+    def open_login(self, profile_dir: Path) -> None: ...
+    def open_handoff(self, profile_dir: Path) -> None: ...
+
+
+@runtime_checkable
+class LGSAdapter(StoreSession, Protocol):
+    """A StoreSession whose shopping flow is per-item: `search` returns
+    Listings; `add_to_cart` adds one Listing at a time. The Storefront
+    is a single physical shop with its own first-party inventory.
+    """
+
+    kind: Literal["lgs"]
+
     def search(
         self,
         page,
@@ -107,11 +133,23 @@ class StoreAdapter(Protocol):
         prefs: SearchPrefs,
     ) -> list[Listing]: ...
     def add_to_cart(self, page, listing: Listing, qty: int) -> AddToCartResult: ...
-    def open_handoff(self, profile_dir: Path) -> None: ...
-    def get_existing_cart(self, page) -> list[Listing]: ...
-    def clear_cart(self, page) -> None: ...
-    def is_logged_in(self, page) -> bool: ...
-    def open_login(self, profile_dir: Path) -> None: ...
+
+
+@runtime_checkable
+class MarketplaceAdapter(StoreSession, Protocol):
+    """A StoreSession whose shopping flow is bulk:
+    `bulk_submit_and_optimize` submits an entire want-list and runs the
+    site's seller-consolidation optimizer. The Storefront is an
+    aggregator over many third-party sellers.
+    """
+
+    kind: Literal["marketplace"]
+
+    def bulk_submit_and_optimize(
+        self,
+        page,
+        lines: list[Line],
+    ) -> OptimizedCart: ...
 
 
 def cache_dir() -> Path:

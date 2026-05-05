@@ -62,7 +62,7 @@ def test_dry_run_full_flow(tmp_path, monkeypatch):
     ae.search.return_value = []
 
     tcg = MagicMock()
-    tcg.kind = "online"
+    tcg.kind = "marketplace"
     tcg.name = "tcgplayer"
     tcg.display_name = "TCG"
     tcg.bulk_submit_and_optimize.return_value = {
@@ -76,7 +76,7 @@ def test_dry_run_full_flow(tmp_path, monkeypatch):
     }
 
     mp = MagicMock()
-    mp.kind = "online"
+    mp.kind = "marketplace"
     mp.name = "manapool"
     mp.display_name = "MP"
     mp.bulk_submit_and_optimize.return_value = {
@@ -90,15 +90,19 @@ def test_dry_run_full_flow(tmp_path, monkeypatch):
     }
 
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.STORE_REGISTRY",
-        {"tgp": tgp, "atomic_empire": ae, "tcgplayer": tcg, "manapool": mp},
+        "mtg_utils.lgs_search.LGS_ADAPTERS",
+        {"tgp": tgp, "atomic_empire": ae},
+    )
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.MARKETPLACE_ADAPTERS",
+        {"tcgplayer": tcg, "manapool": mp},
     )
     monkeypatch.setattr(
         "mtg_utils.lgs_search.LGS_STORES",
         ["tgp", "atomic_empire"],
     )
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.ONLINE_STORES",
+        "mtg_utils.lgs_search.MARKETPLACE_STORES",
         ["tcgplayer", "manapool"],
     )
 
@@ -122,12 +126,12 @@ def test_dry_run_full_flow(tmp_path, monkeypatch):
     assert sidecar["version"] == 1
     assert sidecar["basic_lands_needed"] == {"Plains": 7}
     assert any(a["store"] == "tgp" for a in sidecar["allocation"])
-    # Mana Drain ($100 scryfall) — LGS empty, spills online.
+    # Mana Drain ($100 scryfall) — LGS empty, spills to Marketplace.
     assert any(
-        a["store"] == "online" and a["card_name"] == "Mana Drain"
+        a["store"] == "marketplace" and a["card_name"] == "Mana Drain"
         for a in sidecar["allocation"]
     )
-    # --dry-run promises not to touch any cart, so the online optimizer
+    # --dry-run promises not to touch any cart, so the Marketplace optimizer
     # (which submits to TCG Mass Entry / MP add-deck) must NOT run.
     assert sidecar["online_optimizer_results"] is None
     tcg.bulk_submit_and_optimize.assert_not_called()

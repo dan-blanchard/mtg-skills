@@ -28,12 +28,10 @@ from typing import Literal
 from bs4 import BeautifulSoup
 
 from mtg_utils._stores._common import (
-    AddToCartResult,
     CartNotEmptyError,
     Line,
     Listing,
     OptimizedCart,
-    SearchPrefs,
     StoreSelectorError,
 )
 
@@ -125,7 +123,7 @@ def _extract_money_after_label(window: list[str], label: str) -> float | None:
 class _TCGPlayerAdapter:
     name = "tcgplayer"
     display_name = "TCGPlayer"
-    kind: Literal["lgs", "online"] = "online"
+    kind: Literal["marketplace"] = "marketplace"
     base_url = _BASE_URL
 
     def name_for_search(self, card_name: str) -> str:
@@ -215,26 +213,6 @@ class _TCGPlayerAdapter:
         )
 
     # -- Protocol stubs (online adapter; per-card search is unused) --
-
-    def search(
-        self,
-        page,
-        card_name: str,
-        *,
-        qty: int,
-        prefs: SearchPrefs,
-    ) -> list[Listing]:
-        msg = "TCGPlayer is an online adapter; use bulk_submit_and_optimize"
-        raise NotImplementedError(msg)
-
-    def add_to_cart(
-        self,
-        page,
-        listing: Listing,
-        qty: int,
-    ) -> AddToCartResult:
-        msg = "TCGPlayer is an online adapter; cart populated by bulk flow"
-        raise NotImplementedError(msg)
 
     def open_handoff(self, profile_dir: Path) -> None:
         from playwright.sync_api import sync_playwright

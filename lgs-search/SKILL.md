@@ -111,14 +111,14 @@ Pool's `/add-deck`. Each site's optimizer runs (consolidates
 sellers, computes shipping). The cart with the lower **items +
 shipping** total is selected. Tax is computed at checkout.
 
-Both online sites' bulk-submit endpoints **append to the existing
+Both Marketplaces' bulk-submit endpoints **append to the existing
 cart** rather than replacing it, so the optimizer's totals reflect
 the WHOLE cart (pre-existing items + new submission). The adapter
 runs a `get_existing_cart` pre-flight at the top of
 `bulk_submit_and_optimize` and raises `CartNotEmptyError` when
-non-empty; the orchestrator catches this in `optimize_online`'s
+non-empty; the orchestrator catches this in `optimize_marketplace`'s
 per-store loop, prints a clear "[store] cart already has N items"
-error, and continues with whichever online store still works.
+error, and continues with whichever Marketplace still works.
 
 If you see this error, the user must clear the polluted cart before
 re-running. MP's UI "Clear cart" button is broken in MP itself
@@ -186,16 +186,16 @@ lgs-search \
 - **Login expired.** Detected per-store via `is_logged_in`. The lazy
   fallback launches a headed login window mid-run; close it once
   signed in and the run resumes.
-- **Online cart pollution.** `bulk_submit_and_optimize` raises
-  `CartNotEmptyError` if the online store's cart already has items
+- **Marketplace cart pollution.** `bulk_submit_and_optimize` raises
+  `CartNotEmptyError` if the Marketplace's cart already has items
   (Phase 4 would mix the user's pre-existing items into the optimizer
-  comparison). The orchestrator skips that online store and continues
+  comparison). The orchestrator skips that Marketplace and continues
   with the other; user clears manually before re-running.
 - **TCGPlayer captcha.** TCG's anti-bot detects Playwright's
   persistent_context and blocks login (verified). The
-  per-store-failure-tolerant `optimize_online` skips TCG with a logged
-  message and lets MP win by default. Don't waste time trying to log
-  in to TCG headed — the captcha can't be cleared.
+  per-store-failure-tolerant `optimize_marketplace` skips TCG with a
+  logged message and lets MP win by default. Don't waste time trying
+  to log in to TCG headed — the captcha can't be cleared.
 - **MP "Clear cart" no-op.** MP's own SvelteKit handler for the
   Clear cart button throws (Sentry-reported) and the cart never
   changes. `--clear-existing-carts` falls back to a manual prompt for
