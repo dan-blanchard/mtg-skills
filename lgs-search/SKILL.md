@@ -17,6 +17,30 @@ USD is used internally as a proxy for the LGS-vs-online spill check —
 it does NOT appear in the report. Out-of-stock and unfindable lists
 must reflect actual page outcomes, not training-data guesses.
 
+## Running the orchestrator
+
+The orchestrator is a normal long-running CLI that opens headed
+Chromium windows during Phase 5 / Phase 7. It is **safe to launch
+from a Bash subprocess**; the user closes the headed windows in the
+OS to advance, and the subprocess sees the close events without any
+terminal interaction. Do NOT reflexively ask the user to invoke with
+the `!` prefix — that's only needed when something reads from
+**stdin**, and with `--yes` skipping the initial confirmation plus
+already-saved logins plus clean carts, no `input()` prompts fire.
+
+Recommended invocation for an agent:
+
+```bash
+uv run --directory <skill-install-dir> lgs-search \
+    --input <list> --output-dir <dir> --yes
+```
+
+Use `run_in_background=True` and tail the output file if you need to
+report progress. Only fall back to suggesting `! lgs-search ...` when
+you have a specific reason to expect a stdin prompt (login fallback
+firing on an unlogged-in store, or a cart-pollution prompt without
+`--clear-existing-carts`).
+
 ## Setup (First Run)
 
 ```bash
@@ -56,14 +80,29 @@ set). Failures fall through to None and that store is treated as
 
 For each card:
 
-- If neither LGS has it OR the online price (Scryfall USD proxy) is
-  much cheaper (default: >20% OR >$2), the card spills to the online
-  bucket.
+- If neither LGS has it OR the online price proxy is much cheaper
+  (default: >20% OR >$2), the card spills to the online bucket.
 - Otherwise: cheapest LGS wins. If both LGS prices are within $1 or
   10%, the card is consolidated to the LGS with the higher running
   cart total to minimize trips.
 - Quantity > 1: split across stores when no single store can fill the
   full quantity. Residual goes online.
+
+The online price proxy is the **cheapest non-foil non-digital USD
+across all printings** of each card (from Scryfall bulk data), not
+the default printing's USD. Default-printing prices often miss cheap
+reprints (e.g. Beast Within's default has no `usd`, but its cheap
+reprint is $0.50; Kessig Wolf Run's default is ~$15, cheapest
+reprint $0.30). Without bulk data the proxy is 0.0 — the spill check
+goes silent and every in-stock LGS listing wins, even when MP/TCG
+would be 5-30x cheaper.
+
+The orchestrator **auto-detects** `default-cards.json` on startup
+(searches `$MTG_SKILLS_BULK_DATA`, `$MTG_SKILLS_CACHE_DIR`,
+`~/.cache/mtg-skills/`, `$CWD`, `$CWD/.cache`, plus parents up two
+levels). When nothing is found, it prints a loud warning explaining
+the silent-no-spill failure mode and pointing at `download-bulk`.
+Don't pass `--bulk-data` unless you need a specific path.
 
 ### Phase 4 — Online optimize
 
@@ -71,6 +110,22 @@ The spillover list is submitted to TCGPlayer Mass Entry and Mana
 Pool's `/add-deck`. Each site's optimizer runs (consolidates
 sellers, computes shipping). The cart with the lower **items +
 shipping** total is selected. Tax is computed at checkout.
+
+Both online sites' bulk-submit endpoints **append to the existing
+cart** rather than replacing it, so the optimizer's totals reflect
+the WHOLE cart (pre-existing items + new submission). The adapter
+runs a `get_existing_cart` pre-flight at the top of
+`bulk_submit_and_optimize` and raises `CartNotEmptyError` when
+non-empty; the orchestrator catches this in `optimize_online`'s
+per-store loop, prints a clear "[store] cart already has N items"
+error, and continues with whichever online store still works.
+
+If you see this error, the user must clear the polluted cart before
+re-running. MP's UI "Clear cart" button is broken in MP itself
+(verified: the click fires Sentry errors and a no-op metadata-sync
+RPC), so the user clears MP manually in the headed handoff window.
+TGP's `clear_cart` works programmatically and is invoked when
+`--clear-existing-carts` is passed.
 
 ### Phase 5 — Confirmation gate + cart build
 
@@ -131,6 +186,20 @@ lgs-search \
 - **Login expired.** Detected per-store via `is_logged_in`. The lazy
   fallback launches a headed login window mid-run; close it once
   signed in and the run resumes.
+- **Online cart pollution.** `bulk_submit_and_optimize` raises
+  `CartNotEmptyError` if the online store's cart already has items
+  (Phase 4 would mix the user's pre-existing items into the optimizer
+  comparison). The orchestrator skips that online store and continues
+  with the other; user clears manually before re-running.
+- **TCGPlayer captcha.** TCG's anti-bot detects Playwright's
+  persistent_context and blocks login (verified). The
+  per-store-failure-tolerant `optimize_online` skips TCG with a logged
+  message and lets MP win by default. Don't waste time trying to log
+  in to TCG headed — the captcha can't be cleared.
+- **MP "Clear cart" no-op.** MP's own SvelteKit handler for the
+  Clear cart button throws (Sentry-reported) and the cart never
+  changes. `--clear-existing-carts` falls back to a manual prompt for
+  MP. The user clears in the headed cart window and presses Enter.
 - **Cart line-item caps.** Some stores cap line items per cart. If
   hit, the adapter partial-fills and reports a residual; the residual
   is logged in the sidecar and surfaced in the summary.
