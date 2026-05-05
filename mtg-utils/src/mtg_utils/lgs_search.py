@@ -666,19 +666,23 @@ def login(store: str) -> None:
 def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
     """Best-effort: read prices.usd from Scryfall bulk data for the given names.
 
-    Returns 0.0 for unknown cards (the allocator's spill check guards against
-    spilling on unknown-online-price; see _spill_triggered).
+    Goes through the shared `bulk_loader.load_bulk_cards` so we get the
+    pickled-sidecar cache (~5-10x faster on warm load) instead of re-reading
+    a 150 MB JSON file every invocation. Returns 0.0 for unknown cards (the
+    allocator's spill check guards against spilling on unknown-online-price;
+    see _spill_triggered).
     """
     if bulk_path is None or not bulk_path.exists():
         return dict.fromkeys(names, 0.0)
-    name_set = set(names)
-    out: dict[str, float] = {}
     try:
-        data = json.loads(bulk_path.read_text(encoding="utf-8"))
+        from mtg_utils.bulk_loader import load_bulk_cards
+
+        data = load_bulk_cards(bulk_path)
     except (ValueError, OSError):
         return dict.fromkeys(names, 0.0)
     if not isinstance(data, list):
         return dict.fromkeys(names, 0.0)
+    name_set = set(names)
     by_name: dict[str, dict] = {}
     for row in data:
         if not isinstance(row, dict):
@@ -686,6 +690,7 @@ def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, 
         n = row.get("name")
         if n in name_set and n not in by_name:
             by_name[n] = row
+    out: dict[str, float] = {}
     for name in names:
         row = by_name.get(name) or {}
         usd = (row.get("prices") or {}).get("usd")
@@ -718,12 +723,25 @@ def _render_summary(allocation, online, basics) -> str:
     if online and online.get("chosen"):
         chosen = online["chosen"]
         result = online[chosen]
-        loser = next(s for s in ONLINE_STORES if s != chosen)
+        # Other online stores in the registry, excluding the chosen one.
+        # Robust to single-online-store configurations (no IndexError if
+        # ONLINE_STORES is ever pruned to one entry).
+        losers = [
+            s
+            for s in ONLINE_STORES
+            if s != chosen and s in online and isinstance(online[s], dict)
+        ]
+        if losers:
+            loser = losers[0]
+            comparison = (
+                f"chosen over {STORE_REGISTRY[loser].display_name}: "
+                f"${result['total']:.2f} vs ${online[loser]['total']:.2f}"
+            )
+        else:
+            comparison = f"only online option, ${result['total']:.2f}"
         lines.append(
             f"\n{STORE_REGISTRY[chosen].display_name} "
-            f"(chosen over {STORE_REGISTRY[loser].display_name}: "
-            f"${result['total']:.2f} vs ${online[loser]['total']:.2f}) - "
-            f"items+shipping; tax computed at checkout",
+            f"({comparison}) - items+shipping; tax computed at checkout",
         )
     if basics:
         lines.append("")
