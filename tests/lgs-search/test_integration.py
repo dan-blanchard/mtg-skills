@@ -33,23 +33,27 @@ def test_dry_run_full_flow(tmp_path, monkeypatch):
         )
     )
 
+    atraxa_listing = {
+        "store": "tgp",
+        "card_name": "Atraxa, Praetors' Voice",
+        "set_code": "C16",
+        "condition": "NM",
+        "foil": False,
+        "price": 5.50,
+        "qty_available": 1,
+        "listing_id": "id1",
+        "url": "x",
+    }
+
+    def tgp_search(_page, card_name, *, qty, prefs):  # noqa: ARG001
+        # Only Atraxa is in stock at TGP for this fixture.
+        return [atraxa_listing] if card_name == "Atraxa, Praetors' Voice" else []
+
     tgp = MagicMock()
     tgp.kind = "lgs"
     tgp.name = "tgp"
     tgp.display_name = "TGP"
-    tgp.search.return_value = [
-        {
-            "store": "tgp",
-            "card_name": "Atraxa, Praetors' Voice",
-            "set_code": "C16",
-            "condition": "NM",
-            "foil": False,
-            "price": 5.50,
-            "qty_available": 1,
-            "listing_id": "id1",
-            "url": "x",
-        }
-    ]
+    tgp.search.side_effect = tgp_search
 
     ae = MagicMock()
     ae.kind = "lgs"
@@ -118,5 +122,13 @@ def test_dry_run_full_flow(tmp_path, monkeypatch):
     assert sidecar["version"] == 1
     assert sidecar["basic_lands_needed"] == {"Plains": 7}
     assert any(a["store"] == "tgp" for a in sidecar["allocation"])
-    # Mana Drain ($100 scryfall) — LGS empty, spills online; MP wins
-    assert sidecar["online_optimizer_results"]["chosen"] == "manapool"
+    # Mana Drain ($100 scryfall) — LGS empty, spills online.
+    assert any(
+        a["store"] == "online" and a["card_name"] == "Mana Drain"
+        for a in sidecar["allocation"]
+    )
+    # --dry-run promises not to touch any cart, so the online optimizer
+    # (which submits to TCG Mass Entry / MP add-deck) must NOT run.
+    assert sidecar["online_optimizer_results"] is None
+    tcg.bulk_submit_and_optimize.assert_not_called()
+    mp.bulk_submit_and_optimize.assert_not_called()

@@ -441,6 +441,8 @@ def sweep_lgs(
     max_workers: int = 8,
     per_store_concurrency: int = 4,
     page_factory=None,
+    sequential: bool = False,
+    progress=None,
 ) -> list[SearchResultRow]:
     """Search every LGS for every card; return one SearchResultRow per card.
 
@@ -449,35 +451,51 @@ def sweep_lgs(
     page-pool factory; tests pass a mock. When None, this function calls
     each adapter's `search` with `page=None` (adapters tolerate it for
     their fixture-based tests but real adapters will need real pages).
-    """
-    semaphores = {name: Semaphore(per_store_concurrency) for name in LGS_STORES}
 
+    `sequential=True` bypasses the ThreadPoolExecutor and runs every
+    (card, store) search in the caller's thread. Use this when the
+    page_factory hands out sync-Playwright pages — sync Playwright is
+    not safe to use across threads.
+    """
     def _search_one(card, store):
         adapter = STORE_REGISTRY[store]
-        with semaphores[store]:
-            try:
-                page = page_factory(store) if page_factory else None
-                listings = adapter.search(
-                    page,
-                    card["card_name"],
-                    qty=card["qty"],
-                    prefs=prefs,
-                )
-            except Exception:  # noqa: BLE001
-                return card["card_name"], store, None
+        try:
+            page = page_factory(store) if page_factory else None
+            listings = adapter.search(
+                page,
+                card["card_name"],
+                qty=card["qty"],
+                prefs=prefs,
+            )
+        except Exception:  # noqa: BLE001
+            return card["card_name"], store, None
         chosen = pick_best_listing(listings, qty=card["qty"], prefs=prefs)
         return card["card_name"], store, chosen
 
     results: dict[tuple[str, str], Listing | None] = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = [
-            ex.submit(_search_one, card, store)
-            for card in cards
-            for store in LGS_STORES
-        ]
-        for fut in as_completed(futures):
-            name, store, listing = fut.result()
-            results[(name, store)] = listing
+    if sequential:
+        for card in cards:
+            for store in LGS_STORES:
+                name, store_, listing = _search_one(card, store)
+                results[(name, store_)] = listing
+                if progress:
+                    progress(name, store_, listing)
+    else:
+        semaphores = {name: Semaphore(per_store_concurrency) for name in LGS_STORES}
+
+        def _search_one_locked(card, store):
+            with semaphores[store]:
+                return _search_one(card, store)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = [
+                ex.submit(_search_one_locked, card, store)
+                for card in cards
+                for store in LGS_STORES
+            ]
+            for fut in as_completed(futures):
+                name, store, listing = fut.result()
+                results[(name, store)] = listing
 
     rows: list[SearchResultRow] = []
     for card in cards:
@@ -663,6 +681,54 @@ def login(store: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+from contextlib import contextmanager  # noqa: E402
+
+
+@contextmanager
+def _playwright_pages(stores: list[str], *, headless: bool = True):
+    """Open one persistent_context + one page per store; yield a page_factory.
+
+    Persistent profiles live at `~/.cache/mtg-skills/lgs-profiles/<store>/`
+    so any login state persists across runs. A store whose profile fails to
+    open (e.g., singleton-lock contention from a stale Chromium) is skipped
+    with a warning — the orchestrator treats its searches as "not in stock".
+
+    Sync Playwright is not thread-safe across instances; the returned
+    factory must be used from the thread that entered this context.
+    """
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        contexts: dict = {}
+        pages: dict = {}
+        for store in stores:
+            profile = profile_dir_for(store)
+            try:
+                ctx = p.chromium.launch_persistent_context(
+                    str(profile),
+                    headless=headless,
+                )
+                pages[store] = ctx.new_page()
+                contexts[store] = ctx
+            except Exception as exc:  # noqa: BLE001
+                click.echo(
+                    f"[lgs-search] could not open profile for {store}: {exc}",
+                    err=True,
+                )
+
+        def factory(store: str):
+            return pages.get(store)
+
+        try:
+            yield factory
+        finally:
+            for ctx in contexts.values():
+                try:
+                    ctx.close()
+                except Exception:  # noqa: BLE001
+                    pass
+
+
 def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
     """Best-effort: read prices.usd from Scryfall bulk data for the given names.
 
@@ -720,6 +786,17 @@ def _render_summary(allocation, online, basics) -> str:
                 f"  + {a['card_name']} ({li.get('condition', '?')}) - "
                 f"${li.get('price', 0):.2f}",
             )
+    online_items = by_store.get("online", [])
+    if online_items and not online:
+        # Dry-run path: spillover list with no prices (iron rule — never
+        # report a price the CLI did not return). User re-runs without
+        # --dry-run to get optimizer totals.
+        lines.append(
+            f"\nOnline spillover - {len(online_items)} cards "
+            "(price TBD; re-run without --dry-run for optimizer totals)",
+        )
+        for a in online_items:
+            lines.append(f"  + {a['card_name']} x{a['qty']}")
     if online and online.get("chosen"):
         chosen = online["chosen"]
         result = online[chosen]
@@ -820,22 +897,58 @@ def _run_orchestrator(
         "prefer_set": prefer_set,
     }
 
-    rows = sweep_lgs(cards, scryfall_usd_lookup=usd_lookup, prefs=prefs)
-    cfg = AllocationConfig(
-        lgs_online_threshold_pct=lgs_online_threshold_pct,
-        lgs_online_threshold_usd=lgs_online_threshold_usd,
-        consolidate_threshold_pct=consolidate_threshold_pct,
-        consolidate_threshold_usd=consolidate_threshold_usd,
-    )
-    allocation = allocate(rows, cfg)
-    assert_no_duplicates_invariant(cards, allocation)
+    # Open a Playwright session for the LGS sweep. In dry-run we deliberately
+    # do NOT include online stores — Phase 4 populates the online cart, which
+    # `--dry-run` promises not to do. Online price comparison falls back to
+    # the Scryfall USD proxy already used internally for the spill check.
+    session_stores = list(LGS_STORES)
+    if not dry_run:
+        session_stores += list(ONLINE_STORES)
 
-    online_lines = [
-        {"card_name": a["card_name"], "qty": a["qty"]}
-        for a in allocation
-        if a["store"] == "online"
-    ]
-    online = optimize_online(online_lines)
+    progress_count = {"done": 0}
+    total_searches = len(cards) * len(LGS_STORES)
+
+    def _progress(name, store, listing):
+        progress_count["done"] += 1
+        marker = "+" if listing else "-"
+        click.echo(
+            f"  [{progress_count['done']:>3}/{total_searches}] {marker} {store:<14} "
+            f"{name}",
+            err=True,
+        )
+
+    click.echo(
+        f"Searching {len(cards)} cards across {len(LGS_STORES)} LGS "
+        f"({total_searches} requests)...",
+        err=True,
+    )
+    with _playwright_pages(session_stores, headless=True) as page_factory:
+        rows = sweep_lgs(
+            cards,
+            scryfall_usd_lookup=usd_lookup,
+            prefs=prefs,
+            page_factory=page_factory,
+            sequential=True,
+            progress=_progress,
+        )
+        cfg = AllocationConfig(
+            lgs_online_threshold_pct=lgs_online_threshold_pct,
+            lgs_online_threshold_usd=lgs_online_threshold_usd,
+            consolidate_threshold_pct=consolidate_threshold_pct,
+            consolidate_threshold_usd=consolidate_threshold_usd,
+        )
+        allocation = allocate(rows, cfg)
+        assert_no_duplicates_invariant(cards, allocation)
+
+        online_lines = [
+            {"card_name": a["card_name"], "qty": a["qty"]}
+            for a in allocation
+            if a["store"] == "online"
+        ]
+        if dry_run:
+            online = None  # do not touch online carts in dry-run
+        else:
+            online = optimize_online(online_lines, page_factory=page_factory)
 
     sc: Sidecar = {
         "version": SIDECAR_VERSION,
