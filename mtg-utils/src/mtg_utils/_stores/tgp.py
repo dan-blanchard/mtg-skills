@@ -113,15 +113,19 @@ class _TGPAdapter:
         text = el.get_text(" ", strip=True)
         if "out of stock" in text.lower():
             return None
-        # Price-range low end is the cheapest variant; fall back to single price.
-        m = _PRICE_RANGE_RE.search(text)
-        if m:
-            price = _money(m.group(1))
-        else:
-            single = _SINGLE_PRICE_RE.search(text)
-            if not single:
+        # `data-product-price` is the canonical BigCommerce single price.
+        # The displayed text range ($X - $Y) sometimes includes prices of
+        # variants no longer in stock, which would over- or under-report
+        # the actual cart-time cost. Fall back to the displayed range only
+        # when data-product-price is missing.
+        raw = (el.get("data-product-price") or "").strip()
+        try:
+            price = _money(raw)
+        except ValueError:
+            m = _PRICE_RANGE_RE.search(text) or _SINGLE_PRICE_RE.search(text)
+            if not m:
                 return None
-            price = _money(single.group(1))
+            price = _money(m.group(1))
         if price <= 0:
             return None
         link = el.select_one("a.card-figure__link") or el.select_one("a")

@@ -59,7 +59,7 @@ class TestSearchParse:
         assert only["store"] == "tgp"
         assert only["card_name"] == "Sol Ring"
         assert only["set_code"] == "3ED"
-        assert only["price"] == 11.29  # low end of "Now: $11.29 - $22.58"
+        assert only["price"] == 22.58  # data-product-price (cart-time price for the in-stock variant)
         assert only["qty_available"] >= 1
         assert only["foil"] is False
 
