@@ -409,3 +409,171 @@ def next_phase_actions(sc: Sidecar) -> list[str]:
         return []
     msg = f"unknown sidecar phase {phase!r}"
     raise ValueError(msg)
+
+
+# ---------------------------------------------------------------------------
+# Step 2: LGS sweep (ThreadPoolExecutor)
+# ---------------------------------------------------------------------------
+
+from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
+from threading import Semaphore  # noqa: E402
+
+from mtg_utils._stores import LGS_STORES, STORE_REGISTRY  # noqa: E402
+from mtg_utils._stores._common import (  # noqa: E402
+    SearchPrefs,
+    pick_best_listing,
+)
+
+
+def sweep_lgs(
+    cards: list[NeededCard],
+    *,
+    scryfall_usd_lookup: dict[str, float],
+    prefs: SearchPrefs,
+    max_workers: int = 8,
+    per_store_concurrency: int = 4,
+    page_factory=None,
+) -> list[SearchResultRow]:
+    """Search every LGS for every card; return one SearchResultRow per card.
+
+    `page_factory` is a callable `(store_name) -> Page-like` injected for
+    testability. In production the orchestrator passes a real Playwright
+    page-pool factory; tests pass a mock. When None, this function calls
+    each adapter's `search` with `page=None` (adapters tolerate it for
+    their fixture-based tests but real adapters will need real pages).
+    """
+    semaphores = {name: Semaphore(per_store_concurrency) for name in LGS_STORES}
+
+    def _search_one(card, store):
+        adapter = STORE_REGISTRY[store]
+        with semaphores[store]:
+            try:
+                page = page_factory(store) if page_factory else None
+                listings = adapter.search(
+                    page,
+                    card["card_name"],
+                    qty=card["qty"],
+                    prefs=prefs,
+                )
+            except Exception:  # noqa: BLE001
+                return card["card_name"], store, None
+        chosen = pick_best_listing(listings, qty=card["qty"], prefs=prefs)
+        return card["card_name"], store, chosen
+
+    results: dict[tuple[str, str], Listing | None] = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = [
+            ex.submit(_search_one, card, store)
+            for card in cards
+            for store in LGS_STORES
+        ]
+        for fut in as_completed(futures):
+            name, store, listing = fut.result()
+            results[(name, store)] = listing
+
+    rows: list[SearchResultRow] = []
+    for card in cards:
+        rows.append(
+            SearchResultRow(
+                card_name=card["card_name"],
+                qty=card["qty"],
+                tgp=results.get((card["card_name"], "tgp")),
+                atomic_empire=results.get((card["card_name"], "atomic_empire")),
+                scryfall_usd=scryfall_usd_lookup.get(card["card_name"], 0.0),
+            )
+        )
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Step 4: Online optimizer
+# ---------------------------------------------------------------------------
+
+from mtg_utils._stores import ONLINE_STORES  # noqa: E402
+from mtg_utils._stores._common import OptimizedCart  # noqa: E402
+
+
+def optimize_online(
+    online_lines: list[dict],
+    *,
+    page_factory=None,
+) -> dict | None:
+    """Submit `online_lines` to each online adapter and pick the cheapest total.
+
+    Returns dict mapping store name to OptimizedCart, plus 'chosen' key
+    naming the cheapest. Returns None when there are no online lines.
+    """
+    if not online_lines:
+        return None
+    results: dict[str, OptimizedCart] = {}
+    for store in ONLINE_STORES:
+        adapter = STORE_REGISTRY[store]
+        page = page_factory(store) if page_factory else None
+        results[store] = adapter.bulk_submit_and_optimize(page, online_lines)
+    chosen = min(results, key=lambda s: results[s]["total"])
+    return {**results, "chosen": chosen}
+
+
+# ---------------------------------------------------------------------------
+# Step 5: Confirmation gate + cart-pollution check
+# ---------------------------------------------------------------------------
+
+
+class CartPollutionError(Exception):
+    pass
+
+
+def check_carts_empty(targets: list[tuple]) -> None:
+    """Raise CartPollutionError if any target store's cart is non-empty.
+
+    `targets` is a list of (store_name, adapter, page) tuples.
+    """
+    polluted = []
+    for store, adapter, page in targets:
+        existing = adapter.get_existing_cart(page)
+        if existing:
+            polluted.append((store, len(existing)))
+    if polluted:
+        details = ", ".join(f"{s} ({n} items)" for s, n in polluted)
+        msg = (
+            f"Cart pollution: {details}. "
+            "Check out / clear those carts manually OR re-run with "
+            "--clear-existing-carts to empty them automatically."
+        )
+        raise CartPollutionError(msg)
+
+
+def confirm_proceed(summary: str, *, yes: bool) -> bool:
+    if yes:
+        return True
+    print(summary)
+    answer = input("Build carts? [y/N]: ").strip().lower()
+    return answer == "y"
+
+
+# ---------------------------------------------------------------------------
+# Step 6: Relax prefs (retry-relaxed)
+# ---------------------------------------------------------------------------
+
+
+def relax_prefs(_prefs: SearchPrefs) -> SearchPrefs:
+    """Return a new SearchPrefs with all constraints dropped, for retry-relaxed."""
+    return SearchPrefs(
+        max_condition="any",
+        allow_foil=True,
+        prefer_set=None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Step 7: Handoff to browsers
+# ---------------------------------------------------------------------------
+
+
+def handoff_to_browsers(targets: list[tuple]) -> None:
+    """Launch a headed browser per target.
+
+    `targets` = [(store, adapter, profile_dir)]
+    """
+    for _store, adapter, profile_dir in targets:
+        adapter.open_handoff(profile_dir)
