@@ -241,10 +241,30 @@ class _TGPAdapter:
         for _ in range(qty):
             plus_btn.click()
             page.wait_for_timeout(100)
-        # Click the master add-to-cart button.
+        # Capture the cart counter before clicking so we can poll for it
+        # to change. BigCommerce's `networkidle` never settles on this site
+        # (analytics long-polls keep the network active indefinitely), so
+        # wait_for_load_state was timing out at 20s on every successful add.
+        try:
+            before_count = (
+                page.locator(".cart-quantity").first.inner_text(timeout=2000).strip()
+            )
+        except Exception:  # noqa: BLE001
+            before_count = ""
         add_btn = page.locator("button#bulkAddBtn")
         add_btn.click()
-        page.wait_for_load_state("networkidle", timeout=20000)
+        try:
+            page.wait_for_function(
+                "(prev) => "
+                "(document.querySelector('.cart-quantity')?.textContent || '')"
+                ".trim() !== prev",
+                arg=before_count,
+                timeout=10000,
+            )
+        except Exception:  # noqa: BLE001
+            # Fallback: cart-quantity element not present or selector renamed.
+            # The XHR has almost certainly fired by now; brief settle.
+            page.wait_for_timeout(1500)
         return AddToCartResult(
             success=True,
             qty_added=qty,
@@ -300,18 +320,20 @@ class _TGPAdapter:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart.php", wait_until="domcontentloaded")
             page.wait_for_timeout(500)
-        # BigCommerce uses .cart-item-remove or similar for line removal.
-        # Click each remove button until the cart is empty.
-        for _ in range(50):  # bounded loop in case of stuck-cart
-            remove_btn = page.locator(
-                ".cart-item-remove, button[data-cart-item-remove], "
-                "a[data-cart-item-remove]",
-            ).first
+        # Per line: `button.cart-remove` carries `data-confirm-delete` and
+        # spawns a BigCommerce "reveal" modal containing
+        # `button.confirm` ("OK"). Both clicks are dispatched through JS:
+        # the sticky header / modal-background overlay break Playwright's
+        # standard click hit-testing, and the confirm button is layered in
+        # a way that .is_visible() returns false even when it works.
+        for _ in range(50):
+            remove_btn = page.locator("button.cart-remove").first
             if remove_btn.count() == 0:
                 break
-            remove_btn.click()
-            page.wait_for_load_state("networkidle", timeout=15000)
-            page.wait_for_timeout(300)
+            page.evaluate("document.querySelector('button.cart-remove')?.click()")
+            page.wait_for_timeout(600)
+            page.evaluate("document.querySelector('.modal button.confirm')?.click()")
+            page.wait_for_timeout(800)
 
     def is_logged_in(self, page) -> bool:
         """Detect logged-in state from header navigation links.

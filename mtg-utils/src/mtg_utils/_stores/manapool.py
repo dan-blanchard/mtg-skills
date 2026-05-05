@@ -107,10 +107,12 @@ class _ManaPoolAdapter:
         and selects it on the live page so the user's checkout cart
         reflects the optimized basket.
         """
-        # Step 1 — Mass entry
+        # Step 1 — Mass entry. networkidle doesn't reliably settle on MP
+        # (live-pricing JS keeps pinging in the background), so wait until
+        # DOM is ready and then synchronize on the textarea selector.
         page.goto(
             f"{self.base_url}/add-deck",
-            wait_until="networkidle",
+            wait_until="domcontentloaded",
             timeout=30000,
         )
         page.wait_for_selector("textarea", timeout=15000)
@@ -224,15 +226,25 @@ class _ManaPoolAdapter:
         return []
 
     def clear_cart(self, page) -> None:
+        # KNOWN LIMITATION: MP's "Clear cart" button has a Svelte click
+        # handler that silently no-ops under Playwright (verified via
+        # synthetic MouseEvents AND real Locator.click — the cart never
+        # changes). The orchestrator's pollution check still fires, prompts
+        # the user to clear manually in the open headed window, and waits
+        # for Enter — so a polluted MP cart is annoying but not blocking.
+        # If you re-investigate: per-item remove buttons are also not
+        # discoverable in the cart's React component tree from outside.
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
-        # Look for a "Clear cart" or "Empty cart" button; fall back to per-row removal.
         clear = page.locator(
             'button:has-text("Clear cart"), button:has-text("Empty cart")',
         ).first
         if clear.count() > 0:
-            clear.click()
+            try:
+                clear.click()
+            except Exception:  # noqa: BLE001
+                return
             page.wait_for_timeout(1500)
             confirm = page.locator('button:has-text("Confirm")').first
             if confirm.count() > 0 and confirm.is_visible():
