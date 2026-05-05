@@ -29,6 +29,7 @@ from bs4 import BeautifulSoup
 
 from mtg_utils._stores._common import (
     AddToCartResult,
+    CartNotEmptyError,
     Line,
     Listing,
     OptimizedCart,
@@ -142,7 +143,19 @@ class _TCGPlayerAdapter:
         Side effect: the user's cart at TCG ends up populated with the
         cheapest optimizer alternative. `open_handoff` will then point
         the headed browser at /cart for checkout.
+
+        Mass Entry appends to the existing cart, so any pre-existing
+        items skew the optimizer's totals. Pre-flight a pollution check
+        and raise CartNotEmptyError if non-empty (verified live on Mana
+        Pool; same shape applies to TCG since both use append-on-submit).
         """
+        # Step 0 — pollution pre-flight
+        existing = self.get_existing_cart(page)
+        if existing:
+            raise CartNotEmptyError(
+                self.name, len(existing), f"{self.base_url}/cart",
+            )
+
         # Step 1 — Mass Entry
         page.goto(
             f"{self.base_url}/massentry",

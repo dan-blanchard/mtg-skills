@@ -69,6 +69,27 @@ class LoginRequiredError(Exception):
         self.store = store
 
 
+class CartNotEmptyError(Exception):
+    """Raised by an online optimizer when the cart already has items.
+
+    MP's /add-deck appends to the existing cart rather than replacing it,
+    so any pre-existing items poison the optimizer's totals. The
+    orchestrator catches this in optimize_online's per-store loop and
+    surfaces a punch-list entry telling the user to clear the cart
+    before re-running.
+    """
+
+    def __init__(self, store: str, n_items: int, cart_url: str) -> None:
+        super().__init__(
+            f"[{store}] cart already has {n_items} item(s) — clear at "
+            f"{cart_url} before re-running so the optimizer compares "
+            "against your submission only",
+        )
+        self.store = store
+        self.n_items = n_items
+        self.cart_url = cart_url
+
+
 @runtime_checkable
 class StoreAdapter(Protocol):
     name: str

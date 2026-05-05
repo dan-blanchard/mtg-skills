@@ -148,3 +148,29 @@ class TestGetExistingCart:
         )
         existing = ADAPTER.get_existing_cart(page)
         assert len(existing) == 1
+
+
+class TestBulkSubmitPollutionGuard:
+    """MP's /add-deck appends to the existing cart rather than replacing
+    it; pre-existing items poison the optimizer's totals. Verify the
+    bulk_submit_and_optimize pre-flight raises CartNotEmptyError so the
+    orchestrator's per-store catch in optimize_online surfaces a clear
+    error to the user instead of returning bogus prices.
+    """
+
+    def test_raises_when_cart_has_items(self):
+        import pytest
+
+        from mtg_utils._stores._common import CartNotEmptyError
+
+        page = _mock_page(
+            "<html><body><div>Subtotal: $10.47</div></body></html>",
+            url="https://manapool.com/cart",
+        )
+        with pytest.raises(CartNotEmptyError) as excinfo:
+            ADAPTER.bulk_submit_and_optimize(
+                page, [{"card_name": "Sol Ring", "qty": 1}],
+            )
+        assert excinfo.value.store == "manapool"
+        assert excinfo.value.n_items >= 1
+        assert "/cart" in excinfo.value.cart_url

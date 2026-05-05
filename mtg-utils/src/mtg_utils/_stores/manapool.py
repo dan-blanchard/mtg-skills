@@ -27,6 +27,7 @@ from bs4 import BeautifulSoup
 
 from mtg_utils._stores._common import (
     AddToCartResult,
+    CartNotEmptyError,
     Line,
     Listing,
     OptimizedCart,
@@ -133,7 +134,23 @@ class _ManaPoolAdapter:
         Returns an OptimizedCart with the cheapest alternative's totals
         and selects it on the live page so the user's checkout cart
         reflects the optimized basket.
+
+        The MP /add-deck submit *appends* to the existing cart rather
+        than replacing it, and the resulting optimizer page totals
+        reflect the entire cart (pre-existing items + new submission).
+        That makes any pre-existing cart contents poison the optimizer
+        comparison — verified live: 5 leftover Sol Rings turned a
+        1-card optimization from $2.43 into $39.91. Pre-flight a
+        pollution check and raise if non-empty so the orchestrator
+        can route the user to clear before optimizing.
         """
+        # Step 0 — pollution pre-flight
+        existing = self.get_existing_cart(page)
+        if existing:
+            raise CartNotEmptyError(
+                self.name, len(existing), f"{self.base_url}/cart",
+            )
+
         # Step 1 — Mass entry. networkidle doesn't reliably settle on MP
         # (live-pricing JS keeps pinging in the background), so wait until
         # DOM is ready and then synchronize on the textarea selector.
