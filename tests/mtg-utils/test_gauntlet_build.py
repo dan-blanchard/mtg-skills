@@ -177,5 +177,5 @@ class TestManifests:
         assert m["lands"] in (17, 24, 36)
         assert len(m["archetypes"]) >= 3
         for a in m["archetypes"]:
-            assert {"name", "colors", "preset"}.issubset(a.keys())
-            assert a["preset"] in {"aggro", "control", "midrange", "combo"}
+            assert {"name", "colors", "shape"}.issubset(a.keys())
+            assert a["shape"] in {"aggro", "control", "midrange", "combo"}

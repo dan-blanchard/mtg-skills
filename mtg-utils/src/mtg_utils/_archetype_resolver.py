@@ -164,6 +164,39 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
     )
 
 
+def matcher_for(name: str, resolved: ResolvedArchetypes):
+    """Return a single ``(card) -> bool`` predicate for the named archetype.
+
+    Resolves across all three stated_archetype shapes:
+
+    - Preset reference (``{name}``) → ``PRESETS[name].matches``.
+    - Group (``{name, members}``) → OR of every member preset's matchers,
+      synthesized via :func:`merge_member_presets`.
+    - Custom regex (``{name, regex}``) → oracle-text regex search.
+
+    Raises ``KeyError`` if the name isn't found in ``resolved``.
+    Used by gauntlet's auto-inference when stated_archetypes is the
+    source of truth: pick the cards that match this archetype, count
+    their colors / CMCs, derive a build spec.
+    """
+    import re as _re
+
+    from mtg_utils.card_classify import get_oracle_text
+    from mtg_utils.theme_presets import PRESETS
+
+    for group in resolved.groups:
+        if group.name == name:
+            return merge_member_presets(name, group.members).matches
+    for entry in resolved.custom:
+        if entry.name == name:
+            pat = _re.compile(entry.regex, _re.IGNORECASE)
+            return lambda card, _p=pat: bool(_p.search(get_oracle_text(card)))
+    if name in resolved.preset_names and name in PRESETS:
+        return PRESETS[name].matches
+    msg = f"no stated_archetype named {name!r}"
+    raise KeyError(msg)
+
+
 def merge_member_presets(name: str, members: tuple[str, ...] | list[str]):
     """Synthesize a single :class:`Preset` whose matcher ORs each member's.
 

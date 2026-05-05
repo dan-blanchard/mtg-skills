@@ -574,14 +574,35 @@ playtest-gauntlet cube.json --hydrated cube-hydrated.json \
   --games-per-pair 100 --seed 1 --output playtest-gauntlet.json
 ```
 
-Default uses 4 archetype decks built from the cube via
-`mtg_utils/data/gauntlets/<format>.json`. To pin custom archetypes,
-set `cube.gauntlet_archetypes = [...]` in the cube JSON or pass
-`--gauntlet path/to/manifest.json`.
+Three precedence levels for which archetypes the gauntlet tests:
 
-The report is a 4×4 win-rate matrix. Flag any cell that's > 60% / < 40%
-(10pp from balanced) — at default M=100 the binomial 95% CI is ±10pp,
-so 10pp gaps are statistically meaningful, smaller gaps are noise.
+1. `--gauntlet path/to/manifest.json` — explicit override file
+2. `cube.designer_intent.stated_archetypes` — when populated, the
+   gauntlet derives one deck per stated archetype, **auto-inferring
+   colors and curve_target from the cube's actual card pool**
+   (per-archetype theme matchers count cards by color identity and
+   CMC). To override the inference for a specific archetype, add an
+   optional `gauntlet:` block to its stated_archetype entry:
+   ```json
+   {
+       "name": "Aristocrats",
+       "members": ["sacrifice", "death-trigger"],
+       "gauntlet": {"colors": ["B", "W"], "shape": "midrange",
+                    "curve_target": {"2": 5, "3": 7, "4": 6}}
+   }
+   ```
+   `shape` is one of `aggro|midrange|control|combo` and adds
+   canonical scoring priors on top of theme matches; omit it to
+   rely solely on theme-driven scoring.
+3. **Fallback** when stated_archetypes is missing/empty: the per-format
+   default at `mtg_utils/data/gauntlets/<format>.json` (the canonical
+   four shapes — Mono-Red Aggro, Azorius Control, Golgari Midrange,
+   Izzet Combo — with explicit `shape` field).
+
+The report is a 4×4 win-rate matrix (or N×N when stated_archetypes has
+N entries). Flag any cell that's > 60% / < 40% (10pp from balanced) —
+at default M=100 the binomial 95% CI is ±10pp, so 10pp gaps are
+statistically meaningful, smaller gaps are noise.
 
 **Draft (draft balance):**
 

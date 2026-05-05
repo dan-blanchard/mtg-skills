@@ -35,6 +35,83 @@ def _build_indexed_deck(hydrated: list[dict]) -> list[int]:
     return list(range(len(hydrated)))
 
 
+def _resolve_manifest_from_stated(
+    cube: dict, cube_cards: list[dict],
+) -> dict | None:
+    """Derive a gauntlet manifest from ``stated_archetypes``, or return None.
+
+    For each archetype in the cube's resolved stated_archetypes, build an
+    archetype build-spec by:
+
+    * Reading the optional ``gauntlet`` block (``{colors, curve_target,
+      shape}``) — explicit override of inference.
+    * Otherwise auto-inferring colors via ``infer_archetype_colors`` and
+      curve via ``infer_curve_target``, both driven by the archetype's
+      theme matchers against the actual cube pool.
+
+    Returns ``None`` when ``stated_archetypes`` is missing or empty so the
+    caller can fall back to the per-format default file. Returns a manifest
+    dict ``{format, deck_size, lands, archetypes}`` matching the file
+    schema otherwise.
+    """
+    from mtg_utils._archetype_resolver import matcher_for, resolve_stated_archetypes
+    from mtg_utils._gauntlet_build import (
+        infer_archetype_colors,
+        infer_curve_target,
+    )
+
+    resolved = resolve_stated_archetypes(cube)
+    archetype_names: list[str] = []
+    archetype_names.extend(resolved.preset_names)
+    archetype_names.extend(g.name for g in resolved.groups)
+    archetype_names.extend(c.name for c in resolved.custom)
+    if not archetype_names:
+        return None
+
+    deck_size = cube.get("gauntlet_deck_size", 40)
+    lands = cube.get("gauntlet_lands", 17)
+    nonland_target = deck_size - lands
+    stated_entries = (
+        (cube.get("designer_intent") or {}).get("stated_archetypes") or []
+    )
+    overrides = {
+        e["name"]: e.get("gauntlet")
+        for e in stated_entries
+        if isinstance(e, dict) and e.get("name")
+    }
+
+    archetypes: list[dict] = []
+    for name in archetype_names:
+        matcher = matcher_for(name, resolved)
+        override = overrides.get(name) or {}
+        colors = override.get("colors") or infer_archetype_colors(
+            cube_cards, [matcher],
+        )
+        if not colors:
+            continue  # No cards match this theme in this cube; skip silently.
+        curve = override.get("curve_target") or infer_curve_target(
+            cube_cards, [matcher], set(colors), nonland_target=nonland_target,
+        )
+        archetypes.append(
+            {
+                "name": name,
+                "colors": list(colors),
+                "matchers": [matcher],
+                "shape": override.get("shape"),
+                "curve_target": curve,
+            },
+        )
+    if not archetypes:
+        return None
+
+    return {
+        "format": cube.get("format", "modern_cube"),
+        "deck_size": deck_size,
+        "lands": lands,
+        "archetypes": archetypes,
+    }
+
+
 def _card_pips(card: dict) -> dict[str, int]:
     """Count colored pips per color for a card."""
     pips: dict[str, int] = defaultdict(int)
@@ -477,31 +554,33 @@ def gauntlet_main(
         lookup[e["name"]] for e in cube.get("cards", []) if e["name"] in lookup
     ]
 
-    # Resolve archetype manifest.
+    # Resolve archetype manifest. Three precedence levels:
+    #   1. --gauntlet flag → explicit manifest file (used for ad-hoc tests).
+    #   2. cube.designer_intent.stated_archetypes → derive build specs by
+    #      auto-inferring colors + curve from cards that match each
+    #      archetype's theme matchers. Optional `gauntlet:` block per
+    #      stated_archetype overrides the inference.
+    #   3. Fallback per-format default at mtg_utils/data/gauntlets/<fmt>.json
+    #      (used by stock cubes that haven't filled in stated_archetypes).
     if gauntlet_path:
         manifest = json.loads(Path(gauntlet_path).read_text())
-    elif cube.get("gauntlet_archetypes"):
-        manifest = {
-            "format": cube.get("format", "modern_cube"),
-            "deck_size": cube.get("gauntlet_deck_size", 40),
-            "lands": cube.get("gauntlet_lands", 17),
-            "archetypes": cube["gauntlet_archetypes"],
-        }
     else:
-        fmt = cube.get("format", "modern_cube")
-        try:
-            data = (
-                importlib.resources.files("mtg_utils.data.gauntlets")
-                .joinpath(f"{fmt}.json")
-                .read_text()
-            )
-        except FileNotFoundError as exc:
-            raise click.ClickException(
-                f"No default gauntlet for format '{fmt}'. "
-                f"Pass --gauntlet path/to/manifest.json or set "
-                f"cube.gauntlet_archetypes.",
-            ) from exc
-        manifest = json.loads(data)
+        manifest = _resolve_manifest_from_stated(cube, cube_cards)
+        if manifest is None:
+            fmt = cube.get("format", "modern_cube")
+            try:
+                data = (
+                    importlib.resources.files("mtg_utils.data.gauntlets")
+                    .joinpath(f"{fmt}.json")
+                    .read_text()
+                )
+            except FileNotFoundError as exc:
+                raise click.ClickException(
+                    f"No default gauntlet for format '{fmt}'. Either pass "
+                    f"--gauntlet path/to/manifest.json or fill in "
+                    f"cube.designer_intent.stated_archetypes.",
+                ) from exc
+            manifest = json.loads(data)
 
     # Build one deck per archetype.
     archetype_decks: list[dict] = []
@@ -641,6 +720,7 @@ def draft_main(
     output_path,
 ):
     """Heuristic cube draft + per-deck goldfish."""
+    from mtg_utils._archetype_resolver import matcher_for, resolve_stated_archetypes
     from mtg_utils._draft_ai import draft_pod
     from mtg_utils._gauntlet_build import build_gauntlet_deck, score_card
 
@@ -651,8 +731,46 @@ def draft_main(
 
     start = time.perf_counter()
     deck_reports: list[dict] = []
-    archetype_choices = ("aggro", "midrange", "control", "combo")
-    archetype_counts: dict[str, int] = dict.fromkeys(archetype_choices, 0)
+
+    # Build the candidate-archetypes list the drafter will choose between
+    # per pile. When the cube's stated_archetypes are populated, the
+    # drafter picks among the cube author's intended archetypes (each as
+    # name + theme matchers + optional shape). When the cube has no
+    # stated_archetypes, we fall back to the canonical four shapes —
+    # appropriate for stock cubes, lets the drafter still produce a sane
+    # report.
+    resolved = resolve_stated_archetypes(cube)
+    stated_names: list[str] = []
+    stated_names.extend(resolved.preset_names)
+    stated_names.extend(g.name for g in resolved.groups)
+    stated_names.extend(c.name for c in resolved.custom)
+    stated_entries = (
+        (cube.get("designer_intent") or {}).get("stated_archetypes") or []
+    )
+    overrides = {
+        e["name"]: e.get("gauntlet")
+        for e in stated_entries
+        if isinstance(e, dict) and e.get("name")
+    }
+    archetype_candidates: list[dict] = []
+    if stated_names:
+        for name in stated_names:
+            override = overrides.get(name) or {}
+            archetype_candidates.append(
+                {
+                    "name": name,
+                    "matcher": matcher_for(name, resolved),
+                    "shape": override.get("shape"),
+                },
+            )
+    else:
+        archetype_candidates = [
+            {"name": s.capitalize(), "matcher": None, "shape": s}
+            for s in ("aggro", "midrange", "control", "combo")
+        ]
+    archetype_counts: dict[str, int] = dict.fromkeys(
+        (c["name"] for c in archetype_candidates), 0,
+    )
     basic_lands = {"Plains", "Island", "Swamp", "Mountain", "Forest"}
     basic_to_color = {
         "Plains": "W",
@@ -671,17 +789,24 @@ def draft_main(
         )
         for player_idx, pile in enumerate(piles):
             colors = {c for card in pile for c in (card.get("color_identity") or [])}
+            fallback_name = (
+                archetype_candidates[0]["name"]
+                if archetype_candidates
+                else "midrange"
+            )
             if not colors:
                 deck_reports.append(
                     {
                         "pod": pod_idx,
                         "player": player_idx,
-                        "archetype": "midrange",
+                        "archetype": fallback_name,
                         "build_status": "insufficient",
                         "reason": "drafted pile has no colors",
                     }
                 )
-                archetype_counts["midrange"] += 1
+                archetype_counts[fallback_name] = (
+                    archetype_counts.get(fallback_name, 0) + 1
+                )
                 continue
 
             ctr: dict[str, int] = dict.fromkeys(colors, 0)
@@ -690,21 +815,31 @@ def draft_main(
                     ctr[c] = ctr.get(c, 0) + 1
             top_two = {c for c, _ in sorted(ctr.items(), key=lambda kv: -kv[1])[:2]}
 
-            best_a, best_score = "midrange", -1.0
-            for archetype in archetype_choices:
+            # Pick the archetype candidate whose theme + shape best fits
+            # the drafted pile (highest sum-of-scores). When stated_archetypes
+            # is populated, this aligns the drafter with the cube author's
+            # design intent; otherwise the canonical four shapes serve as
+            # a sane default.
+            best_candidate = archetype_candidates[0]
+            best_score = -float("inf")
+            for cand in archetype_candidates:
+                ms = [cand["matcher"]] if cand["matcher"] else None
                 total = sum(
-                    score_card(card, archetype=archetype, colors=top_two)
+                    score_card(card, colors=top_two, matchers=ms, shape=cand["shape"])
                     for card in pile
                 )
                 if total > best_score:
-                    best_score, best_a = total, archetype
-            chosen_archetype = best_a
-            archetype_counts[chosen_archetype] += 1
+                    best_score, best_candidate = total, cand
+            chosen_name = best_candidate["name"]
+            archetype_counts[chosen_name] = archetype_counts.get(chosen_name, 0) + 1
 
             spec = {
-                "name": chosen_archetype.capitalize(),
+                "name": chosen_name,
                 "colors": list(top_two),
-                "preset": chosen_archetype,
+                "matchers": (
+                    [best_candidate["matcher"]] if best_candidate["matcher"] else None
+                ),
+                "shape": best_candidate["shape"],
                 "curve_target": {"1": 6, "2": 7, "3": 5, "4": 3, "5": 2},
             }
             outcome = build_gauntlet_deck(pile, spec, deck_size=40, lands=17)
@@ -713,7 +848,7 @@ def draft_main(
                     {
                         "pod": pod_idx,
                         "player": player_idx,
-                        "archetype": chosen_archetype,
+                        "archetype": chosen_name,
                         "build_status": outcome.status,
                         "reason": outcome.reason,
                     }
@@ -754,7 +889,7 @@ def draft_main(
                 {
                     "pod": pod_idx,
                     "player": player_idx,
-                    "archetype": chosen_archetype,
+                    "archetype": chosen_name,
                     "build_status": "ok",
                     "color_screw_rate": agg["color_screw_rate"],
                     "mean_lands_at_t4": agg["mean_lands_by_turn"].get("4", 0.0),

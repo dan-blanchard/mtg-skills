@@ -146,9 +146,15 @@ Shared library modules (not CLI scripts):
   `render_custom_format_markdown`).
 - **`_gauntlet_build.py`** — Heuristic gauntlet deckbuilder (used by
   `playtest-gauntlet` over the full cube and by `playtest-draft` over
-  each player's drafted pool). `score_card(card, archetype, colors)`
-  returns an internal-scale fit score; `build_gauntlet_deck(pool, spec)`
-  greedy-fills curve buckets, then adds basics by color demand.
+  each player's drafted pool). `score_card(card, *, colors, matchers,
+  shape)` combines two optional scoring layers: theme-match predicates
+  (each match adds +3.0; sourced from the cube's `stated_archetypes`
+  via `_archetype_resolver.matcher_for`) and a canonical deck-shape
+  prior (`aggro|midrange|control|combo`, hardcoded). `build_gauntlet_deck(
+  pool, spec)` greedy-fills curve buckets, then adds basics by color
+  demand. `infer_archetype_colors` and `infer_curve_target` derive the
+  build spec from the cube's actual card pool when stated_archetypes is
+  the source of truth.
 - **`_draft_ai.py`** — Heuristic drafter. `score_pick(card, state)` picks
   by raw power before pick 3 and by archetype/color commitment after.
   `draft_pod(pool, players, packs, pack_size, rng)` runs an N-player pod.
