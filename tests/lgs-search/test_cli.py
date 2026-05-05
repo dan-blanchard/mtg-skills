@@ -46,3 +46,39 @@ def test_no_input_errors_with_exit_2():
     result = runner.invoke(main, [])
     assert result.exit_code == 2
     assert "input" in result.output.lower() or "input" in (result.stderr or "").lower()
+
+
+def test_not_yet_wired_flags_warn(tmp_path):
+    """Flags advertised in --help but stubbed in v1 should print a warning,
+    not silently no-op, so users don't think they're getting behavior they
+    aren't.
+    """
+    import json
+
+    deck_path = tmp_path / "deck.json"
+    deck_path.write_text(
+        json.dumps(
+            {
+                "commanders": [],
+                "cards": [],
+                "sideboard": [],
+            }
+        )
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "--input",
+            str(deck_path),
+            "--output-dir",
+            str(tmp_path),
+            "--dry-run",
+            "--retry-relaxed",
+            "--clear-existing-carts",
+        ],
+    )
+    # Click's default CliRunner combines stdout + stderr in result.output.
+    assert "not yet wired" in result.output.lower()
+    assert "--retry-relaxed" in result.output
+    assert "--clear-existing-carts" in result.output

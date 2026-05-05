@@ -129,6 +129,26 @@ class TestResolveInput:
         # Sol Ring: 1 needed - 1 owned = 0 → dropped. Counterspell: 2 - 1 = 1.
         assert cards == [NeededCard(card_name="Counterspell", qty=1)]
 
+    def test_collection_subtraction_normalizes_names(self, tmp_path):
+        """Arena exports strip diacritics; bulk data preserves them. Both
+        sides must go through normalize_card_name so subtraction lines up.
+        """
+        deck = {
+            "format": "commander",
+            "commanders": [],
+            "cards": [{"name": "Lim-Dûl's Vault", "quantity": 1}],
+            "sideboard": [],
+        }
+        coll = {"Lim-Dul's Vault": 1}  # Arena-style ASCII-folded
+        deck_path = _write(tmp_path, "deck.json", json.dumps(deck))
+        coll_path = _write(tmp_path, "coll.json", json.dumps(coll))
+        cards, _ = resolve_input(
+            deck_path,
+            collection_path=coll_path,
+            include_basics=False,
+        )
+        assert cards == []  # 1 needed - 1 owned (post-fold) = 0 → dropped
+
     def test_collection_subtraction_list_of_rows(self, tmp_path):
         deck = {
             "format": "commander",

@@ -82,19 +82,27 @@ def _subtract_collection(
     cards: list[NeededCard],
     collection_path: Path,
 ) -> list[NeededCard]:
+    """Subtract owned copies. Names are normalized via `normalize_card_name`
+    on both sides so Arena-aliased exports (which strip diacritics) line up
+    with bulk-data canonical spellings.
+    """
     coll = json.loads(collection_path.read_text(encoding="utf-8"))
+    raw_owned: dict[str, int] = {}
     if isinstance(coll, dict):
-        owned: dict[str, int] = {k: int(v) for k, v in coll.items()}
+        raw_owned = {k: int(v) for k, v in coll.items()}
     else:
-        owned = {}
         for row in coll:
             name = row.get("name")
             if not name:
                 continue
-            owned[name] = owned.get(name, 0) + int(row.get("qty", 1))
+            raw_owned[name] = raw_owned.get(name, 0) + int(row.get("qty", 1))
+    owned: dict[str, int] = {}
+    for name, qty in raw_owned.items():
+        key = normalize_card_name(name)
+        owned[key] = owned.get(key, 0) + qty
     result: list[NeededCard] = []
     for c in cards:
-        remaining = c["qty"] - owned.get(c["card_name"], 0)
+        remaining = c["qty"] - owned.get(normalize_card_name(c["card_name"]), 0)
         if remaining > 0:
             result.append(NeededCard(card_name=c["card_name"], qty=remaining))
     return result
@@ -747,9 +755,28 @@ def _run_orchestrator(
     output_dir,
     resume_path,
 ):
-    # The timeout / retry / clear-cart / handoff / retry-relaxed flags are
-    # passed through to downstream pieces; not all are wired in v1 (cart
-    # build orchestration is a stub here for the dry-run integration test).
+    # v1: the live cart-build path (after the confirmation gate) is stubbed,
+    # so the timeout/retry/clear-cart/retry-relaxed flags can't take effect
+    # yet. Warn explicitly when a user passes any of them so they don't
+    # silently expect behavior that isn't wired.
+    not_yet_wired = []
+    if retry_relaxed:
+        not_yet_wired.append("--retry-relaxed")
+    if clear_existing_carts:
+        not_yet_wired.append("--clear-existing-carts")
+    if search_timeout_seconds != 20:
+        not_yet_wired.append("--search-timeout-seconds")
+    if cart_timeout_seconds != 30:
+        not_yet_wired.append("--cart-timeout-seconds")
+    if max_retries != 3:
+        not_yet_wired.append("--max-retries")
+    if not_yet_wired:
+        click.echo(
+            f"Note: {', '.join(not_yet_wired)} not yet wired in v1 "
+            "(live cart-build orchestration is a stub). Flag accepted but "
+            "has no effect.",
+            err=True,
+        )
     del search_timeout_seconds, cart_timeout_seconds, max_retries
     del clear_existing_carts, retry_relaxed
 
