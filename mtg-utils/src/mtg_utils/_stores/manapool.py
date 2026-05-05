@@ -48,9 +48,29 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
     """Parse the three optimizer alternatives.
 
     Each alternative is anchored by a heading line — "Lowest price",
-    "Fewest packages", or "Balanced" — followed by an Accept block with
-    the numeric values. Returns one dict per alternative with keys: name,
-    total, packages, subtotal, shipping, singles_fee.
+    "Fewest packages", or "Balanced" — followed by a block of labels
+    (Total / Packages / Subtotal / Shipping / Singles fee) and then
+    the values. Live MP shows each numeric metric as a new+old pair
+    (optimized then baseline); some test fixtures emit a simplified
+    one-value-per-metric form. We detect which by counting dollar
+    values within the bounded per-alternative window.
+
+      Live MP (≥6 dollar values per alternative):
+        [Total_new, Total_old, Subtotal_new, Subtotal_old,
+         Shipping_new, Shipping_old, SinglesFee_new, SinglesFee_old]
+        → take new values at even indices [0, 2, 4].
+
+      Simplified (3 dollar values):
+        [Total, Subtotal, Shipping]
+        → take consecutive indices [0, 1, 2].
+
+    The previous parser used a 32-line lookahead window that bled into
+    the next alternative's values; we now bound at the next heading so
+    each alternative's prices are isolated.
+
+    Returns one dict per alternative with keys: name, total, subtotal,
+    shipping. Alternatives that haven't populated the full set yet are
+    skipped.
     """
     soup = BeautifulSoup(html, "html.parser")
     text = soup.get_text("\n", strip=True)
@@ -60,21 +80,28 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
     for i, line in enumerate(lines):
         if line.strip() not in headings:
             continue
-        # Look ahead up to 30 lines for the price values. The page renders
-        # values as $X.XX once populated, or "-" while still searching.
-        window = lines[i : min(len(lines), i + 32)]
-        block_text = "\n".join(window)
-        # The first $X.XX after the heading is the Total.
-        price_matches = _PRICE_RE.findall(block_text)
-        if not price_matches:
-            # Still computing; this alternative isn't ready.
+        # Bound the window at the next heading so cross-alternative
+        # prices don't leak in.
+        end = len(lines)
+        for j in range(i + 1, len(lines)):
+            if lines[j].strip() in headings:
+                end = j
+                break
+        block_text = "\n".join(lines[i + 1:end])
+        prices = _PRICE_RE.findall(block_text)
+        if len(prices) >= 6:
+            # Live new+old-pair layout.
+            total = _money(prices[0])
+            subtotal = _money(prices[2])
+            shipping = _money(prices[4])
+        elif len(prices) >= 3:
+            # Simplified layout (test fixtures, possibly older live theme).
+            total = _money(prices[0])
+            subtotal = _money(prices[1])
+            shipping = _money(prices[2])
+        else:
+            # Optimizer still searching; this alternative isn't ready.
             continue
-        # Total is the first $X.XX. Some text concatenations show "$X$Y"
-        # (new vs old); the first match wins (= new optimized total).
-        total = _money(price_matches[0])
-        # Subtotal and shipping are the 2nd and 3rd money values.
-        subtotal = _money(price_matches[1]) if len(price_matches) > 1 else 0.0
-        shipping = _money(price_matches[2]) if len(price_matches) > 2 else 0.0
         alternatives.append(
             {
                 "name": line.strip(),
@@ -226,14 +253,19 @@ class _ManaPoolAdapter:
         return []
 
     def clear_cart(self, page) -> None:
-        # KNOWN LIMITATION: MP's "Clear cart" button has a Svelte click
-        # handler that silently no-ops under Playwright (verified via
-        # synthetic MouseEvents AND real Locator.click — the cart never
-        # changes). The orchestrator's pollution check still fires, prompts
-        # the user to clear manually in the open headed window, and waits
-        # for Enter — so a polluted MP cart is annoying but not blocking.
-        # If you re-investigate: per-item remove buttons are also not
-        # discoverable in the cart's React component tree from outside.
+        # KNOWN LIMITATION: MP's "Clear cart" button is broken in MP itself
+        # under our Playwright session — clicking it fires two Sentry error
+        # reports (ingest.sentry.io) and a no-op `synchronize_cart_metadata`
+        # RPC with `{"changes":[]}`, but the cart contents never change.
+        # The button isn't blocked by automation detection per se — it's
+        # the SvelteKit handler throwing an exception that gets swallowed.
+        # Direct API clear via `synchronize_cart_items` would require
+        # reverse-engineering the Supabase RPC payload format and inferring
+        # current cart inventory IDs; not done.
+        #
+        # Live workaround: the orchestrator's pollution check still fires
+        # on a non-empty MP cart, prompts the user to empty it in the open
+        # headed window, and waits for Enter — annoying but not blocking.
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
