@@ -1,0 +1,122 @@
+"""End-to-end integration test with all adapters mocked."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import MagicMock
+
+from click.testing import CliRunner
+
+
+def test_dry_run_full_flow(tmp_path, monkeypatch):
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Atraxa, Praetors' Voice", "quantity": 1}],
+        "cards": [
+            {"name": "Sol Ring", "quantity": 1},
+            {"name": "Mana Drain", "quantity": 1},
+            {"name": "Plains", "quantity": 7},
+        ],
+        "sideboard": [],
+    }
+    deck_path = tmp_path / "deck.json"
+    deck_path.write_text(json.dumps(deck))
+
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text(
+        json.dumps(
+            [
+                {"name": "Atraxa, Praetors' Voice", "prices": {"usd": "5.00"}},
+                {"name": "Sol Ring", "prices": {"usd": "1.10"}},
+                {"name": "Mana Drain", "prices": {"usd": "100.00"}},
+            ]
+        )
+    )
+
+    tgp = MagicMock()
+    tgp.kind = "lgs"
+    tgp.name = "tgp"
+    tgp.display_name = "TGP"
+    tgp.search.return_value = [
+        {
+            "store": "tgp",
+            "card_name": "Atraxa, Praetors' Voice",
+            "set_code": "C16",
+            "condition": "NM",
+            "foil": False,
+            "price": 5.50,
+            "qty_available": 1,
+            "listing_id": "id1",
+            "url": "x",
+        }
+    ]
+
+    ae = MagicMock()
+    ae.kind = "lgs"
+    ae.name = "atomic_empire"
+    ae.display_name = "AE"
+    ae.search.return_value = []
+
+    tcg = MagicMock()
+    tcg.kind = "online"
+    tcg.name = "tcgplayer"
+    tcg.display_name = "TCG"
+    tcg.bulk_submit_and_optimize.return_value = {
+        "store": "tcgplayer",
+        "total": 105.0,
+        "items_subtotal": 100.0,
+        "shipping": 5.0,
+        "lines": [],
+        "unfound": [],
+        "cart_url": "u",
+    }
+
+    mp = MagicMock()
+    mp.kind = "online"
+    mp.name = "manapool"
+    mp.display_name = "MP"
+    mp.bulk_submit_and_optimize.return_value = {
+        "store": "manapool",
+        "total": 102.0,
+        "items_subtotal": 99.0,
+        "shipping": 3.0,
+        "lines": [],
+        "unfound": [],
+        "cart_url": "v",
+    }
+
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.STORE_REGISTRY",
+        {"tgp": tgp, "atomic_empire": ae, "tcgplayer": tcg, "manapool": mp},
+    )
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.LGS_STORES",
+        ["tgp", "atomic_empire"],
+    )
+    monkeypatch.setattr(
+        "mtg_utils.lgs_search.ONLINE_STORES",
+        ["tcgplayer", "manapool"],
+    )
+
+    from mtg_utils.lgs_search import main
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "--input",
+            str(deck_path),
+            "--bulk-data",
+            str(bulk),
+            "--output-dir",
+            str(tmp_path),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    sidecar = json.loads((tmp_path / "lgs-cart-allocation.json").read_text())
+    assert sidecar["version"] == 1
+    assert sidecar["basic_lands_needed"] == {"Plains": 7}
+    assert any(a["store"] == "tgp" for a in sidecar["allocation"])
+    # Mana Drain ($100 scryfall) — LGS empty, spills online; MP wins
+    assert sidecar["online_optimizer_results"]["chosen"] == "manapool"

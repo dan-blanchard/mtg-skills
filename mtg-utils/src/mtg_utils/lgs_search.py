@@ -577,3 +577,248 @@ def handoff_to_browsers(targets: list[tuple]) -> None:
     """
     for _store, adapter, profile_dir in targets:
         adapter.open_handoff(profile_dir)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+import click  # noqa: E402
+
+from mtg_utils._stores._common import profile_dir_for  # noqa: E402
+
+
+@click.group(invoke_without_command=True)
+@click.option("--input", "input_path", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--collection", type=click.Path(exists=True, path_type=Path), default=None
+)
+@click.option("--bulk-data", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--condition",
+    default="lp",
+    type=click.Choice(["nm", "lp", "mp", "hp", "any"]),
+)
+@click.option("--allow-foil", is_flag=True)
+@click.option("--prefer-set", default=None)
+@click.option("--lgs-online-threshold-pct", default=20.0, type=float)
+@click.option("--lgs-online-threshold-usd", default=2.00, type=float)
+@click.option("--consolidate-threshold-pct", default=10.0, type=float)
+@click.option("--consolidate-threshold-usd", default=1.00, type=float)
+@click.option("--no-handoff", is_flag=True)
+@click.option("--dry-run", is_flag=True)
+@click.option("--retry-relaxed", is_flag=True)
+@click.option("--clear-existing-carts", is_flag=True)
+@click.option("--include-basics", is_flag=True)
+@click.option("--yes", is_flag=True, help="skip the pre-cart-build confirmation prompt")
+@click.option("--search-timeout-seconds", default=20, type=int)
+@click.option("--cart-timeout-seconds", default=30, type=int)
+@click.option("--max-retries", default=3, type=int)
+@click.option(
+    "--output-dir",
+    default=Path.cwd,  # called at invocation time, not import time
+    type=click.Path(path_type=Path),
+)
+@click.option(
+    "--resume",
+    "resume_path",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+)
+@click.pass_context
+def main(ctx, **kwargs):
+    """Search LGS + online stores; allocate; build carts."""
+    if ctx.invoked_subcommand is not None:
+        return
+    if kwargs.get("input_path") is None and kwargs.get("resume_path") is None:
+        click.echo("--input is required (or use --resume)", err=True)
+        ctx.exit(2)
+    _run_orchestrator(**kwargs)
+
+
+@main.command()
+@click.option(
+    "--store",
+    required=True,
+    type=click.Choice(["tgp", "atomic_empire", "tcgplayer", "manapool"]),
+)
+def login(store: str) -> None:
+    """Open a headed browser for one-time login at a store."""
+    adapter = STORE_REGISTRY[store]
+    profile = profile_dir_for(store)
+    click.echo(f"Opening {adapter.display_name} login. Close the window when done.")
+    adapter.open_login(profile)
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator helpers
+# ---------------------------------------------------------------------------
+
+
+def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
+    """Best-effort: read prices.usd from Scryfall bulk data for the given names.
+
+    Returns 0.0 for unknown cards (the allocator's spill check guards against
+    spilling on unknown-online-price; see _spill_triggered).
+    """
+    if bulk_path is None or not bulk_path.exists():
+        return dict.fromkeys(names, 0.0)
+    name_set = set(names)
+    out: dict[str, float] = {}
+    try:
+        data = json.loads(bulk_path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return dict.fromkeys(names, 0.0)
+    if not isinstance(data, list):
+        return dict.fromkeys(names, 0.0)
+    by_name: dict[str, dict] = {}
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        n = row.get("name")
+        if n in name_set and n not in by_name:
+            by_name[n] = row
+    for name in names:
+        row = by_name.get(name) or {}
+        usd = (row.get("prices") or {}).get("usd")
+        try:
+            out[name] = float(usd) if usd else 0.0
+        except (TypeError, ValueError):
+            out[name] = 0.0
+    return out
+
+
+def _render_summary(allocation, online, basics) -> str:
+    """Render the markdown summary printed to stdout."""
+    lines = ["## Cart allocation"]
+    by_store: dict[str, list] = {}
+    for a in allocation:
+        by_store.setdefault(a["store"], []).append(a)
+    for store, items in by_store.items():
+        if store == "online":
+            continue
+        adapter = STORE_REGISTRY.get(store)
+        name = adapter.display_name if adapter else store
+        total = sum((a["listing"] or {}).get("price", 0) * a["qty"] for a in items)
+        lines.append(f"\n{name} - {len(items)} cards, ${total:.2f}")
+        for a in items:
+            li = a["listing"] or {}
+            lines.append(
+                f"  + {a['card_name']} ({li.get('condition', '?')}) - "
+                f"${li.get('price', 0):.2f}",
+            )
+    if online and online.get("chosen"):
+        chosen = online["chosen"]
+        result = online[chosen]
+        loser = next(s for s in ONLINE_STORES if s != chosen)
+        lines.append(
+            f"\n{STORE_REGISTRY[chosen].display_name} "
+            f"(chosen over {STORE_REGISTRY[loser].display_name}: "
+            f"${result['total']:.2f} vs ${online[loser]['total']:.2f}) - "
+            f"items+shipping; tax computed at checkout",
+        )
+    if basics:
+        lines.append("")
+        lines.append(summarize_basics(basics))
+    return "\n".join(lines)
+
+
+def _run_orchestrator(
+    *,
+    input_path,
+    collection,
+    bulk_data,
+    condition,
+    allow_foil,
+    prefer_set,
+    lgs_online_threshold_pct,
+    lgs_online_threshold_usd,
+    consolidate_threshold_pct,
+    consolidate_threshold_usd,
+    no_handoff,
+    dry_run,
+    retry_relaxed,
+    clear_existing_carts,
+    include_basics,
+    yes,
+    search_timeout_seconds,
+    cart_timeout_seconds,
+    max_retries,
+    output_dir,
+    resume_path,
+):
+    # The timeout / retry / clear-cart / handoff / retry-relaxed flags are
+    # passed through to downstream pieces; not all are wired in v1 (cart
+    # build orchestration is a stub here for the dry-run integration test).
+    del search_timeout_seconds, cart_timeout_seconds, max_retries
+    del clear_existing_carts, retry_relaxed
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    sidecar_path = output_dir / "lgs-cart-allocation.json"
+
+    if resume_path:
+        click.echo("Resume: replays summary; partial cart resume not yet wired.")
+        return
+
+    cards, basics = resolve_input(
+        input_path,
+        collection_path=collection,
+        include_basics=include_basics,
+    )
+    names = [c["card_name"] for c in cards]
+    usd_lookup = _scryfall_usd_lookup(bulk_data, names)
+
+    prefs: SearchPrefs = {
+        "max_condition": condition,
+        "allow_foil": allow_foil,
+        "prefer_set": prefer_set,
+    }
+
+    rows = sweep_lgs(cards, scryfall_usd_lookup=usd_lookup, prefs=prefs)
+    cfg = AllocationConfig(
+        lgs_online_threshold_pct=lgs_online_threshold_pct,
+        lgs_online_threshold_usd=lgs_online_threshold_usd,
+        consolidate_threshold_pct=consolidate_threshold_pct,
+        consolidate_threshold_usd=consolidate_threshold_usd,
+    )
+    allocation = allocate(rows, cfg)
+    assert_no_duplicates_invariant(cards, allocation)
+
+    online_lines = [
+        {"card_name": a["card_name"], "qty": a["qty"]}
+        for a in allocation
+        if a["store"] == "online"
+    ]
+    online = optimize_online(online_lines)
+
+    sc: Sidecar = {
+        "version": SIDECAR_VERSION,
+        "generated_at": now_iso(),
+        "input_hash": compute_input_hash(cards),
+        "phase": "allocation_complete",
+        "phase_progress": {},
+        "allocation": [dict(a) for a in allocation],
+        "online_optimizer_results": online,
+        "unfindable": [
+            a["card_name"]
+            for a in allocation
+            if a["store"] == "online"
+            and online
+            and a["card_name"] in online.get(online["chosen"], {}).get("unfound", [])
+        ],
+        "basic_lands_needed": basics,
+    }
+    write_sidecar(sidecar_path, sc)
+    click.echo(_render_summary(allocation, online, basics))
+
+    if dry_run:
+        return
+    if not confirm_proceed("Proceed with cart build?", yes=yes):
+        click.echo("Aborted at confirmation gate.")
+        return
+
+    # Cart build, retry-relaxed, handoff: stubbed for v1. The dry-run path
+    # is the integration-tested path; live cart build is verified manually.
+    if not no_handoff:
+        click.echo("(Live cart-build + handoff not yet wired in v1.)")
