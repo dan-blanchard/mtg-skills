@@ -75,10 +75,11 @@ def test_not_yet_wired_flags_warn(tmp_path):
             str(tmp_path),
             "--dry-run",
             "--retry-relaxed",
-            "--clear-existing-carts",
+            "--max-retries",
+            "5",
         ],
     )
     # Click's default CliRunner combines stdout + stderr in result.output.
     assert "not yet wired" in result.output.lower()
     assert "--retry-relaxed" in result.output
-    assert "--clear-existing-carts" in result.output
+    assert "--max-retries" in result.output

@@ -605,6 +605,141 @@ def handoff_to_browsers(targets: list[tuple]) -> None:
         adapter.open_handoff(profile_dir)
 
 
+def _build_lgs_carts_and_handoff(
+    allocation,
+    *,
+    clear_existing: bool,
+    no_handoff: bool,
+) -> dict[str, list[tuple[str, str]]]:
+    """Phase 5+7 for LGS stores: open one headed Chromium per store, populate
+    the cart, then leave the window pointed at the cart for checkout.
+
+    Login is lazy: when `is_logged_in(page)` returns False, the user is
+    prompted to sign in via the open headed window. AE's `is_logged_in`
+    is a no-op stub (the static DOM doesn't expose state), so AE auth
+    failures surface as `add_to_cart` HTTP errors instead.
+
+    Returns a dict mapping store -> list of (card_name, error_message)
+    so the caller can surface a punch list.
+    """
+    from playwright.sync_api import sync_playwright
+
+    by_store: dict[str, list] = {}
+    for a in allocation:
+        if a["store"] in LGS_STORES and a.get("listing"):
+            by_store.setdefault(a["store"], []).append(a)
+
+    failures: dict[str, list[tuple[str, str]]] = {}
+    if not by_store:
+        return failures
+
+    for store in LGS_STORES:  # iterate in registry order for stable UX
+        items = by_store.get(store)
+        if not items:
+            continue
+        adapter = STORE_REGISTRY[store]
+        profile = profile_dir_for(store)
+        click.echo(f"\n=== {adapter.display_name}: {len(items)} cards ===")
+        with sync_playwright() as p:
+            ctx = p.chromium.launch_persistent_context(
+                str(profile),
+                headless=False,
+            )
+            page = ctx.new_page()
+
+            # Login pre-flight. Some adapters (AE) always return True here
+            # because static DOM can't distinguish state; that's fine — we
+            # rely on cart-add response codes for those.
+            page.goto(adapter.base_url, wait_until="domcontentloaded")
+            page.wait_for_timeout(500)
+            if not adapter.is_logged_in(page):
+                click.echo(
+                    f"[{store}] not logged in. Sign in via the open window, "
+                    "then press Enter here to continue.",
+                )
+                input()
+                page.reload(wait_until="domcontentloaded")
+                page.wait_for_timeout(500)
+                if not adapter.is_logged_in(page):
+                    click.echo(
+                        f"[{store}] still not logged in; skipping cart build "
+                        "for this store. Re-run after fixing.",
+                        err=True,
+                    )
+                    failures.setdefault(store, []).extend(
+                        (a["card_name"], "login") for a in items
+                    )
+                    ctx.close()
+                    continue
+
+            # Cart-pollution check
+            existing = adapter.get_existing_cart(page)
+            if existing:
+                if clear_existing:
+                    click.echo(
+                        f"[{store}] clearing {len(existing)} existing item(s)...",
+                    )
+                    adapter.clear_cart(page)
+                else:
+                    click.echo(
+                        f"[{store}] cart has {len(existing)} item(s) already. "
+                        "Empty it in the open window (or re-run with "
+                        "--clear-existing-carts), then press Enter.",
+                    )
+                    input()
+                    if adapter.get_existing_cart(page):
+                        click.echo(
+                            f"[{store}] cart still not empty; aborting this store.",
+                            err=True,
+                        )
+                        failures.setdefault(store, []).extend(
+                            (a["card_name"], "cart not empty") for a in items
+                        )
+                        ctx.close()
+                        continue
+
+            # Add items
+            cart_url = f"{adapter.base_url}/cart"  # adapter-specific override below
+            for a in items:
+                listing = a["listing"]
+                try:
+                    result = adapter.add_to_cart(page, listing, a["qty"])
+                    if result.get("success"):
+                        click.echo(
+                            f"  + {a['card_name']} x{a['qty']} "
+                            f"(${listing['price']:.2f})",
+                        )
+                        cart_url = result.get("cart_url") or cart_url
+                    else:
+                        msg = "add_to_cart returned success=False"
+                        click.echo(f"  ! {a['card_name']}: {msg}", err=True)
+                        failures.setdefault(store, []).append((a["card_name"], msg))
+                except Exception as exc:  # noqa: BLE001
+                    msg = str(exc).splitlines()[0][:200]
+                    click.echo(f"  ! {a['card_name']}: {msg}", err=True)
+                    failures.setdefault(store, []).append((a["card_name"], msg))
+
+            if no_handoff:
+                ctx.close()
+                continue
+
+            # Handoff — point the open window at the cart and block until close.
+            try:
+                page.goto(cart_url, wait_until="domcontentloaded", timeout=20000)
+            except Exception as exc:  # noqa: BLE001
+                click.echo(
+                    f"[{store}] couldn't navigate to cart: {exc}", err=True,
+                )
+            click.echo(
+                f"[{store}] cart populated. Review and check out in the open "
+                "window. Close the window to continue.",
+            )
+            with contextlib.suppress(Exception):
+                ctx.wait_for_event("close", timeout=0)
+
+    return failures
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -681,6 +816,7 @@ def login(store: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+import contextlib  # noqa: E402
 from contextlib import contextmanager  # noqa: E402
 
 
@@ -723,10 +859,8 @@ def _playwright_pages(stores: list[str], *, headless: bool = True):
             yield factory
         finally:
             for ctx in contexts.values():
-                try:
+                with contextlib.suppress(Exception):
                     ctx.close()
-                except Exception:  # noqa: BLE001
-                    pass
 
 
 def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
@@ -850,15 +984,12 @@ def _run_orchestrator(
     output_dir,
     resume_path,
 ):
-    # v1: the live cart-build path (after the confirmation gate) is stubbed,
-    # so the timeout/retry/clear-cart/retry-relaxed flags can't take effect
-    # yet. Warn explicitly when a user passes any of them so they don't
-    # silently expect behavior that isn't wired.
+    # Flags still not wired: retry-relaxed (Phase 6), per-step timeouts, and
+    # the explicit cart-add retry counter. Warn so users don't silently expect
+    # behavior that isn't there yet.
     not_yet_wired = []
     if retry_relaxed:
         not_yet_wired.append("--retry-relaxed")
-    if clear_existing_carts:
-        not_yet_wired.append("--clear-existing-carts")
     if search_timeout_seconds != 20:
         not_yet_wired.append("--search-timeout-seconds")
     if cart_timeout_seconds != 30:
@@ -867,13 +998,12 @@ def _run_orchestrator(
         not_yet_wired.append("--max-retries")
     if not_yet_wired:
         click.echo(
-            f"Note: {', '.join(not_yet_wired)} not yet wired in v1 "
-            "(live cart-build orchestration is a stub). Flag accepted but "
-            "has no effect.",
+            f"Note: {', '.join(not_yet_wired)} not yet wired. "
+            "Flag accepted but has no effect.",
             err=True,
         )
     del search_timeout_seconds, cart_timeout_seconds, max_retries
-    del clear_existing_carts, retry_relaxed
+    del retry_relaxed
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -976,7 +1106,32 @@ def _run_orchestrator(
         click.echo("Aborted at confirmation gate.")
         return
 
-    # Cart build, retry-relaxed, handoff: stubbed for v1. The dry-run path
-    # is the integration-tested path; live cart build is verified manually.
-    if not no_handoff:
-        click.echo("(Live cart-build + handoff not yet wired in v1.)")
+    # Phase 5+7: build LGS carts in headed Chromium windows, then leave each
+    # window open on the cart for review/checkout. The online cart was
+    # already populated by Phase 4 (optimize_online); we hand it off via the
+    # adapter's open_handoff which spawns its own headed window.
+    lgs_failures = _build_lgs_carts_and_handoff(
+        allocation,
+        clear_existing=clear_existing_carts,
+        no_handoff=no_handoff,
+    )
+
+    if online and online.get("chosen") and not no_handoff:
+        chosen = online["chosen"]
+        adapter = STORE_REGISTRY[chosen]
+        click.echo(
+            f"\n=== {adapter.display_name}: opening cart in headed window ===",
+        )
+        try:
+            adapter.open_handoff(profile_dir_for(chosen))
+        except Exception as exc:  # noqa: BLE001
+            click.echo(
+                f"[{chosen}] handoff window failed: {exc}", err=True,
+            )
+
+    if lgs_failures:
+        click.echo("\nCart-build failures:", err=True)
+        for store, fails in lgs_failures.items():
+            click.echo(f"  {store}: {len(fails)} failed", err=True)
+            for name, reason in fails:
+                click.echo(f"    - {name}: {reason}", err=True)
