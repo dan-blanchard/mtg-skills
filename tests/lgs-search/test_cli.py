@@ -28,7 +28,6 @@ def test_help_lists_main_flags():
         "--cart-timeout-seconds",
         "--max-retries",
         "--output-dir",
-        "--resume",
     ]
     for flag in expected_flags:
         assert flag in out, f"missing {flag} in --help output"

@@ -6,12 +6,11 @@ build carts → handoff. See specs/2026-05-04-lgs-search-design.md.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils._stores._common import Listing
@@ -327,45 +326,27 @@ def assert_no_duplicates_invariant(
 
 
 # ---------------------------------------------------------------------------
-# Sidecar I/O and resume rules
+# Sidecar I/O — write-only audit record of one orchestrator run
 # ---------------------------------------------------------------------------
 
 SIDECAR_VERSION = 1
 
 
-class PhaseProgress(TypedDict, total=False):
-    status: Literal["pending", "partial", "complete"]
-    items_added: int
-    remaining: list
-
-
 class Sidecar(TypedDict, total=False):
+    """JSON envelope written to ``--output-dir/lgs-cart-allocation.json``
+    after Phase 3 completes. Records what the run decided so the user (or
+    a downstream tool) can inspect the allocation, the chosen Marketplace,
+    and any unfindable cards. The sidecar is never read by the orchestrator
+    itself — there's no resume path; if a run fails mid-build, fix the
+    underlying issue and re-run from scratch.
+    """
+
     version: int
     generated_at: str
-    input_hash: str
-    phase: Literal[
-        "search_complete",
-        "allocation_complete",
-        "cart_build_in_progress",
-        "done",
-    ]
-    phase_progress: dict[str, PhaseProgress]
     allocation: list[dict]
     online_optimizer_results: dict | None
     unfindable: list[str]
     basic_lands_needed: dict[str, int]
-
-
-def compute_input_hash(cards: list[dict]) -> str:
-    """SHA-256 over the canonicalized card list. Order- and case-independent.
-
-    Card names are normalized via `mtg_utils.names.normalize_card_name`
-    (NFKD ASCII-fold + lowercase) before hashing so cosmetic edits to the
-    deck input (re-casing, whitespace) don't trip the --resume hash gate.
-    """
-    canon = sorted((normalize_card_name(c["card_name"]), int(c["qty"])) for c in cards)
-    payload = json.dumps(canon, ensure_ascii=False).encode()
-    return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 
 def now_iso() -> str:
@@ -380,43 +361,6 @@ def write_sidecar(path: Path, sc: Sidecar) -> None:
     the same `.tmp` name.
     """
     atomic_write_json(path, sc)
-
-
-def load_sidecar(path: Path) -> Sidecar:
-    sc = json.loads(path.read_text(encoding="utf-8"))
-    if sc.get("version") != SIDECAR_VERSION:
-        msg = (
-            f"unsupported sidecar version {sc.get('version')};"
-            f" expected {SIDECAR_VERSION}"
-        )
-        raise ValueError(msg)
-    return sc
-
-
-def assert_hash_matches(*, sidecar: Sidecar, cards: list[dict]) -> None:
-    """Reject ``--resume`` if the input deck has changed since sidecar was written."""
-    expected = compute_input_hash(cards)
-    if sidecar.get("input_hash") != expected:
-        msg = (
-            f"input hash mismatch: sidecar={sidecar.get('input_hash')} "
-            f"current={expected}"
-        )
-        raise ValueError(msg)
-
-
-def next_phase_actions(sc: Sidecar) -> list[str]:
-    """Given a sidecar's phase, return the list of remaining workflow steps."""
-    phase = sc["phase"]
-    if phase == "search_complete":
-        return ["allocate", "confirm", "build_carts", "handoff"]
-    if phase == "allocation_complete":
-        return ["confirm", "build_carts", "handoff"]
-    if phase == "cart_build_in_progress":
-        return ["resume_carts", "handoff"]
-    if phase == "done":
-        return []
-    msg = f"unknown sidecar phase {phase!r}"
-    raise ValueError(msg)
 
 
 # ---------------------------------------------------------------------------
@@ -801,19 +745,13 @@ from mtg_utils._stores._common import profile_dir_for  # noqa: E402
     default=Path.cwd,  # called at invocation time, not import time
     type=click.Path(path_type=Path),
 )
-@click.option(
-    "--resume",
-    "resume_path",
-    type=click.Path(exists=True, path_type=Path),
-    default=None,
-)
 @click.pass_context
 def main(ctx, **kwargs):
     """Search LGS + online stores; allocate; build carts."""
     if ctx.invoked_subcommand is not None:
         return
-    if kwargs.get("input_path") is None and kwargs.get("resume_path") is None:
-        click.echo("--input is required (or use --resume)", err=True)
+    if kwargs.get("input_path") is None:
+        click.echo("--input is required", err=True)
         ctx.exit(2)
     _run_orchestrator(**kwargs)
 
@@ -1097,7 +1035,6 @@ def _run_orchestrator(
     cart_timeout_seconds,
     max_retries,
     output_dir,
-    resume_path,
 ):
     # Flags still not wired: retry-relaxed (Phase 6), per-step timeouts, and
     # the explicit cart-add retry counter. Warn so users don't silently expect
@@ -1123,10 +1060,6 @@ def _run_orchestrator(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     sidecar_path = output_dir / "lgs-cart-allocation.json"
-
-    if resume_path:
-        click.echo("Resume: replays summary; partial cart resume not yet wired.")
-        return
 
     cards, basics = resolve_input(
         input_path,
@@ -1225,9 +1158,6 @@ def _run_orchestrator(
     sc: Sidecar = {
         "version": SIDECAR_VERSION,
         "generated_at": now_iso(),
-        "input_hash": compute_input_hash(cards),
-        "phase": "allocation_complete",
-        "phase_progress": {},
         "allocation": [dict(a) for a in allocation],
         "online_optimizer_results": marketplace,
         "unfindable": [

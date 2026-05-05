@@ -62,10 +62,14 @@ optimize and aborts that Storefront if the cart isn't empty.
 _Avoid_: "leftover cart", "dirty state".
 
 **Sidecar**:
-JSON state file persisted between phases (`search_complete`,
-`allocation_complete`, `cart_build_in_progress`, `done`) so the user
-can resume after a partial failure.
-_Avoid_: "checkpoint", "state file".
+JSON audit record of one orchestrator run, written to
+`<output-dir>/lgs-cart-allocation.json` after Phase 3 completes.
+Carries the allocation, the chosen Marketplace, unfindable cards, and
+basic-lands-needed summary. Write-only — there is no resume path; if
+a run fails mid-build, fix the underlying issue and re-run from
+scratch.
+_Avoid_: "checkpoint", "state file" (implies resume capability that
+doesn't exist).
 
 **Cheapest-printing proxy**:
 The minimum non-foil non-digital USD across all printings of a card

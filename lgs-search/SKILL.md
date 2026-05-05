@@ -174,7 +174,6 @@ lgs-search \
   [--cart-timeout-seconds 30]
   [--max-retries 3]
   [--output-dir <dir>]
-  [--resume <prior-allocation.json>]
 ```
 
 ## Failure modes
@@ -206,8 +205,10 @@ lgs-search \
 - **HTTP 429 / rate limit.** Respected via `Retry-After` or 30s
   default; 3 consecutive 429s on one store skips that store with a
   warning.
-- **Cart-add failure during Phase 5.** Fatal. Sidecar is saved so the
-  user can `--resume` after fixing.
+- **Cart-add failure during Phase 5.** Fatal. Fix the underlying issue
+  and re-run from scratch — there is no resume path. The sidecar at
+  `<output-dir>/lgs-cart-allocation.json` is a write-only audit record
+  of what happened, not a checkpoint.
 
 ## Hand-back to deck-wizard / cube-wizard
 
