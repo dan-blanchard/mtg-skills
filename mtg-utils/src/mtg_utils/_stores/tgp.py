@@ -30,6 +30,20 @@ _BASE_URL = "https://the-gathering-place.mybigcommerce.com"
 _PRICE_RANGE_RE = re.compile(r"\$([\d,]+\.\d{2})\s*-\s*\$([\d,]+\.\d{2})")
 _SINGLE_PRICE_RE = re.compile(r"\$([\d,]+\.\d{2})")
 _PARENS_RE = re.compile(r"\s*\(([^()]*)\)")
+_AVAIL_RE = re.compile(r"available\s+(\d+)", re.IGNORECASE)
+
+_TGP_CONDITION_TO_SHORT = {
+    "Near-Mint": "NM",
+    "Near Mint": "NM",
+    "Lightly-Played": "LP",
+    "Lightly Played": "LP",
+    "Moderately-Played": "MP",
+    "Moderately Played": "MP",
+    "Heavily-Played": "HP",
+    "Heavily Played": "HP",
+}
+
+_SHORT_TO_INDEX = {"NM": 0, "LP": 1, "MP": 2, "HP": 3}
 
 
 def _parse_data_name(data_name: str) -> tuple[str, str, bool]:
@@ -145,24 +159,189 @@ class _TGPAdapter:
             url=product_url,
         )
 
-    # Cart, login, handoff stubbed for Task 7.
+    def parse_product_variants(
+        self,
+        html: str,
+        *,
+        max_condition: str = "any",
+    ) -> list[dict]:
+        """Parse the product page's bulk-variant-picker into structured rows.
+
+        Returns one dict per in-stock variant matching the max_condition
+        cap, ordered cheapest first. Each dict has keys: condition (NM/LP/...),
+        price (float), qty_available (int), data_index (str), language (str).
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        picker = soup.select_one("div#bulk-variant-picker")
+        if not picker:
+            return []
+        cap = _SHORT_TO_INDEX.get(max_condition.upper(), 99)
+        out = []
+        for row in picker.select("tr.bulk-row[data-index]"):
+            cond_el = row.select_one("span.bulk-cond")
+            price_el = row.select_one("td.bulk-price")
+            avail_el = row.select_one("div.avail-badge")
+            lang_el = row.select_one("span.bulk-lang")
+            if not (cond_el and price_el and avail_el):
+                continue
+            cond_short = _TGP_CONDITION_TO_SHORT.get(
+                cond_el.get_text(strip=True),
+                "",
+            )
+            if not cond_short or _SHORT_TO_INDEX[cond_short] > cap:
+                continue
+            avail_text = avail_el.get_text(" ", strip=True)
+            avail_match = _AVAIL_RE.search(avail_text)
+            qty_avail = int(avail_match.group(1)) if avail_match else 0
+            if qty_avail < 1:
+                continue
+            price_match = _SINGLE_PRICE_RE.search(price_el.get_text(strip=True))
+            if not price_match:
+                continue
+            out.append(
+                {
+                    "condition": cond_short,
+                    "price": _money(price_match.group(1)),
+                    "qty_available": qty_avail,
+                    "data_index": row.get("data-index", ""),
+                    "language": lang_el.get_text(strip=True) if lang_el else "English",
+                }
+            )
+        out.sort(key=lambda v: (v["price"], _SHORT_TO_INDEX[v["condition"]]))
+        return out
+
     def add_to_cart(self, page, listing: Listing, qty: int) -> AddToCartResult:
-        raise NotImplementedError("Task 7 wires this up.")
+        """Navigate to the product URL and add the cheapest in-stock variant.
+
+        Selection of the variant on the product page is best-effort: we
+        pick the cheapest in-stock row that still satisfies the listing's
+        condition floor (the listing was filtered by `pick_best_listing`
+        upstream, but the product page may have moved since the search).
+        Falls back to the first variant if no exact match.
+        """
+        page.goto(listing["url"], wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_selector("tr.bulk-row[data-index]", timeout=15000)
+        page.wait_for_timeout(300)
+        # Pick variant: prefer one matching the listing's condition or better.
+        variants = self.parse_product_variants(
+            page.content(),
+            max_condition=listing.get("condition", "any"),
+        )
+        if not variants:
+            # Try without the condition cap as a last-ditch fallback.
+            variants = self.parse_product_variants(page.content())
+        if not variants:
+            raise StoreSelectorError(self.name, "tr.bulk-row", listing["url"])
+        chosen = variants[0]
+        # Click the + button on the chosen row qty times.
+        idx = chosen["data_index"]
+        plus_btn = page.locator(
+            f"tr.bulk-row[data-index='{idx}'] button.bulk-btn[data-act=plus]",
+        )
+        for _ in range(qty):
+            plus_btn.click()
+            page.wait_for_timeout(100)
+        # Click the master add-to-cart button.
+        add_btn = page.locator("button#bulkAddBtn")
+        add_btn.click()
+        page.wait_for_load_state("networkidle", timeout=20000)
+        return AddToCartResult(
+            success=True,
+            qty_added=qty,
+            cart_url=f"{self.base_url}/cart.php",
+        )
 
     def open_handoff(self, profile_dir: Path) -> None:
-        raise NotImplementedError("Task 7 wires this up.")
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            ctx = p.chromium.launch_persistent_context(str(profile_dir), headless=False)
+            ctx.new_page().goto(f"{self.base_url}/cart.php")
+            # Block until the user closes the window.
+            ctx.wait_for_event("close", timeout=0)
 
     def get_existing_cart(self, page) -> list[Listing]:
-        raise NotImplementedError("Task 7 wires this up.")
+        """Inspect the cart page and return one stub Listing per cart item.
+
+        Only the card_name field is populated; cart pollution detection
+        only needs to know that the cart is non-empty.
+        """
+        if hasattr(page, "goto"):
+            page.goto(f"{self.base_url}/cart.php", wait_until="domcontentloaded")
+            page.wait_for_timeout(500)
+        soup = BeautifulSoup(page.content(), "html.parser")
+        # Empty-cart heuristic: the cart-empty fixture contains "empty" text
+        # and lacks individual cart items. BigCommerce stencil typically uses
+        # `.cart-item` or `tr.cart-item` for line items.
+        rows = soup.select(".cart-item, tr.cart-item")
+        out: list[Listing] = []
+        for row in rows:
+            name_el = row.select_one(
+                ".cart-item-name, .cart-item-title, h4 a, a.cart-item-link",
+            )
+            if not name_el:
+                continue
+            out.append(
+                Listing(
+                    store=self.name,
+                    card_name=name_el.get_text(strip=True),
+                    set_code="",
+                    condition="NM",
+                    foil=False,
+                    price=0.0,
+                    qty_available=1,
+                    listing_id="",
+                    url=f"{self.base_url}/cart.php",
+                )
+            )
+        return out
 
     def clear_cart(self, page) -> None:
-        raise NotImplementedError("Task 7 wires this up.")
+        if hasattr(page, "goto"):
+            page.goto(f"{self.base_url}/cart.php", wait_until="domcontentloaded")
+            page.wait_for_timeout(500)
+        # BigCommerce uses .cart-item-remove or similar for line removal.
+        # Click each remove button until the cart is empty.
+        for _ in range(50):  # bounded loop in case of stuck-cart
+            remove_btn = page.locator(
+                ".cart-item-remove, button[data-cart-item-remove], "
+                "a[data-cart-item-remove]",
+            ).first
+            if remove_btn.count() == 0:
+                break
+            remove_btn.click()
+            page.wait_for_load_state("networkidle", timeout=15000)
+            page.wait_for_timeout(300)
 
     def is_logged_in(self, page) -> bool:
-        raise NotImplementedError("Task 7 wires this up.")
+        """Detect logged-in state from header navigation links.
+
+        Logged-out: header has a 'login.php' link with text "LOGIN" or "Sign in".
+        Logged-in: header has a 'logout.php' link or "/account.php" (no login link).
+        """
+        soup = BeautifulSoup(page.content(), "html.parser")
+        # If a logout link exists anywhere, we're logged in.
+        if soup.select_one('a[href*="logout"]'):
+            return True
+        # If only login/register links exist, we're logged out.
+        login_links = soup.select('a[href*="/login.php"]')
+        if login_links:
+            # Any link that's a plain login (not the register variant) means logged out.
+            for link in login_links:
+                href = link.get("href", "")
+                if "create_account" not in href and link.get_text(strip=True):
+                    return False
+        # Ambiguous — assume logged in to avoid a spurious login prompt.
+        # The lazy fallback in the orchestrator will catch real auth failures.
+        return True
 
     def open_login(self, profile_dir: Path) -> None:
-        raise NotImplementedError("Task 7 wires this up.")
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            ctx = p.chromium.launch_persistent_context(str(profile_dir), headless=False)
+            ctx.new_page().goto(f"{self.base_url}/login.php")
+            ctx.wait_for_event("close", timeout=0)
 
 
 ADAPTER = _TGPAdapter()

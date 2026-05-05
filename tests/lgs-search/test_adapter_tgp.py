@@ -59,7 +59,9 @@ class TestSearchParse:
         assert only["store"] == "tgp"
         assert only["card_name"] == "Sol Ring"
         assert only["set_code"] == "3ED"
-        assert only["price"] == 22.58  # data-product-price (cart-time price for the in-stock variant)
+        assert (
+            only["price"] == 22.58
+        )  # data-product-price (cart-time price for the in-stock variant)
         assert only["qty_available"] >= 1
         assert only["foil"] is False
 
@@ -115,3 +117,52 @@ class TestParseDataName:
         name, set_code, _foil = _parse_data_name("Counterspell (ICE)")
         assert name == "Counterspell"
         assert set_code == "ICE"
+
+
+class TestParseProductVariants:
+    def test_parses_in_stock_variant_from_fixture(self):
+        html = (FIXTURE_DIR / "tgp_product_sol_ring_3ed.html").read_text(
+            encoding="utf-8"
+        )
+        variants = ADAPTER.parse_product_variants(html)
+        assert len(variants) >= 1
+        v = variants[0]
+        assert v["condition"] in {"NM", "LP", "MP", "HP"}
+        assert v["price"] > 0
+        assert v["qty_available"] >= 1
+        assert v["data_index"] == "0"
+
+    def test_filters_by_max_condition(self):
+        html = (FIXTURE_DIR / "tgp_product_sol_ring_3ed.html").read_text(
+            encoding="utf-8"
+        )
+        # Fixture has only LP. Asking for NM should return nothing.
+        variants = ADAPTER.parse_product_variants(html, max_condition="NM")
+        assert variants == []
+        # Asking for LP includes LP.
+        variants = ADAPTER.parse_product_variants(html, max_condition="LP")
+        assert len(variants) == 1
+        assert variants[0]["condition"] == "LP"
+
+
+class TestIsLoggedIn:
+    def test_logged_out_when_login_link_present(self):
+        html = (FIXTURE_DIR / "tgp_home_logged_out.html").read_text(encoding="utf-8")
+        page = _mock_page(html, url="https://the-gathering-place.mybigcommerce.com/")
+        assert ADAPTER.is_logged_in(page) is False
+
+    def test_logged_in_when_logout_link_present(self):
+        html = '<html><body><nav><a href="/login.php?action=logout">Sign out</a></nav></body></html>'
+        page = _mock_page(html, url="https://the-gathering-place.mybigcommerce.com/")
+        assert ADAPTER.is_logged_in(page) is True
+
+
+class TestGetExistingCart:
+    def test_empty_cart_returns_empty_list(self):
+        html = (FIXTURE_DIR / "tgp_cart_empty.html").read_text(encoding="utf-8")
+        page = _mock_page(
+            html, url="https://the-gathering-place.mybigcommerce.com/cart.php"
+        )
+        # Mock pages skip .goto(); pass-through to .content()
+        existing = ADAPTER.get_existing_cart(page)
+        assert existing == []
