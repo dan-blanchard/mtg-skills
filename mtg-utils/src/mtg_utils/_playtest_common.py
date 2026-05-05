@@ -36,17 +36,60 @@ def envelope(
     }
 
 
+def render_envelope_header(
+    env: dict,
+    *,
+    title: str,
+    show_engine: bool = True,
+    extra_fields: list[tuple[str, str]] | None = None,
+) -> list[str]:
+    """Render the standard envelope-header block as a list of markdown lines.
+
+    Output is the schema-v1 contract for every playtest report:
+    a single H1 title, a blank line, a single line of `**Key:** value`
+    fields separated by two spaces, and a trailing blank line. The
+    returned list slots directly into the renderer's `lines` builder.
+
+    `show_engine=False` omits the `**Engine:**` field — used by the
+    custom-format renderer which puts engine_version in the title.
+
+    `extra_fields` are inserted between Format and Duration so the
+    standard left-to-right reading order (Engine → Seed → Format →
+    extras → Duration) holds.
+    """
+    fields: list[tuple[str, str]] = []
+    if show_engine:
+        fields.append(("Engine", env["engine_version"]))
+    fields.append(("Seed", str(env["seed"])))
+    fields.append(("Format", env.get("format") or "unspecified"))
+    if extra_fields:
+        fields.extend(extra_fields)
+    fields.append(("Duration", f"{env['duration_s']}s"))
+    fields_md = "  ".join(f"**{k}:** {v}" for k, v in fields)
+    return [f"# {title}", "", fields_md, ""]
+
+
+def render_warnings(env: dict) -> list[str]:
+    """Render the standard envelope-warnings block as a list of markdown
+    lines. Returns `[]` when the envelope has no warnings, so the caller
+    can `lines += render_warnings(env)` unconditionally.
+
+    H2 heading: matches gauntlet/match/custom_format. The previous
+    goldfish renderer used H3, which nested under its `## Summary` H2
+    even though warnings aren't a summary subsection — bug-shaped
+    inconsistency that this consolidation fixes.
+    """
+    warnings = env.get("warnings") or []
+    if not warnings:
+        return []
+    return ["", "## Warnings", *(f"- {w}" for w in warnings)]
+
+
 def render_goldfish_markdown(env: dict) -> str:
     """Render a goldfish JSON envelope as a human-readable markdown report."""
     r = env["results"]
     lines = [
-        "# Goldfish report",
-        "",
-        f"**Engine:** {env['engine_version']}  "
-        f"**Seed:** {env['seed']}  "
-        f"**Format:** {env.get('format') or 'unspecified'}  "
-        f"**Duration:** {env['duration_s']}s",
-        "",
+        *render_envelope_header(env, title="Goldfish report"),
         f"## Summary ({r['games']} games)",
         "",
         "### Mulligan rate",
@@ -71,11 +114,7 @@ def render_goldfish_markdown(env: dict) -> str:
     for t in sorted(r["mean_casts_by_turn"].keys(), key=int):
         lines.append(f"- T{t}: {r['mean_casts_by_turn'][t]:.2f}")
 
-    if env.get("warnings"):
-        lines.extend(["", "### Warnings"])
-        for w in env["warnings"]:
-            lines.append(f"- {w}")
-
+    lines += render_warnings(env)
     return "\n".join(lines) + "\n"
 
 
@@ -99,13 +138,7 @@ def render_gauntlet_markdown(env: dict) -> str:
     cell_w = 8
     header = " " * (name_w + 2) + "".join(a.ljust(cell_w) for a in archetypes)
     lines = [
-        "# Gauntlet report",
-        "",
-        f"**Engine:** {env['engine_version']}  "
-        f"**Seed:** {env['seed']}  "
-        f"**Format:** {env.get('format') or 'unspecified'}  "
-        f"**Duration:** {env['duration_s']}s",
-        "",
+        *render_envelope_header(env, title="Gauntlet report"),
         "## Win-rate matrix (row vs column)",
         "",
         "```",
@@ -118,8 +151,7 @@ def render_gauntlet_markdown(env: dict) -> str:
         lines.append(row)
     lines.append("```")
 
-    if env.get("warnings"):
-        lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
+    lines += render_warnings(env)
     return "\n".join(lines) + "\n"
 
 
@@ -132,13 +164,7 @@ def render_match_markdown(env: dict) -> str:
         return f"{n / games * 100:.1f}%" if games else "n/a"
 
     lines = [
-        "# Match report",
-        "",
-        f"**Engine:** {env['engine_version']}  "
-        f"**Seed:** {env['seed']}  "
-        f"**Format:** {env.get('format') or 'unspecified'}  "
-        f"**Duration:** {env['duration_s']}s",
-        "",
+        *render_envelope_header(env, title="Match report"),
         f"## Results ({games} games)",
         "",
         f"- P0 wins: **{r['wins_p0']}** ({pct(r['wins_p0'])})",
@@ -147,8 +173,7 @@ def render_match_markdown(env: dict) -> str:
         f"- Avg turns: {r.get('avg_turns', 0):.1f}",
         f"- Avg game duration: {r.get('avg_duration_ms', 0):.0f}ms",
     ]
-    if env.get("warnings"):
-        lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
+    lines += render_warnings(env)
     return "\n".join(lines) + "\n"
 
 
@@ -161,13 +186,12 @@ def render_custom_format_markdown(env: dict) -> str:
     mana = r.get("per_player_mana", {})
 
     lines = [
-        f"# Custom-format playtest report — {env['engine_version']}",
-        "",
-        f"**Seed:** {env['seed']}  "
-        f"**Format:** {env.get('format') or 'unspecified'}  "
-        f"**Games:** {n_games}  "
-        f"**Duration:** {env['duration_s']}s",
-        "",
+        *render_envelope_header(
+            env,
+            title=f"Custom-format playtest report — {env['engine_version']}",
+            show_engine=False,
+            extra_fields=[("Games", str(n_games))],
+        ),
         "## Per-archetype assembly rate",
     ]
     if pa:
@@ -206,8 +230,7 @@ def render_custom_format_markdown(env: dict) -> str:
         "- Players commit organically based on pile (greedy CMC then sticky)",
         "- Library effects use Silver category model (PEEK/REORDER/DISCARD/EXILE/MILL)",
     ]
-    if env.get("warnings"):
-        lines += ["", "## Warnings"] + [f"- {w}" for w in env["warnings"]]
+    lines += render_warnings(env)
     return "\n".join(lines) + "\n"
 
 
@@ -218,13 +241,7 @@ def render_draft_markdown(env: dict) -> str:
     failed = [d for d in r["decks"] if d.get("build_status") != "ok"]
 
     lines = [
-        "# Draft report",
-        "",
-        f"**Engine:** {env['engine_version']}  "
-        f"**Seed:** {env['seed']}  "
-        f"**Format:** {env.get('format') or 'unspecified'}  "
-        f"**Duration:** {env['duration_s']}s",
-        "",
+        *render_envelope_header(env, title="Draft report"),
         f"## Drafted decks ({r['pods']} pods, "
         f"{r['players']} players, {len(decks)} buildable)",
         "",
@@ -248,4 +265,5 @@ def render_draft_markdown(env: dict) -> str:
                 f"- Pod {d['pod']} player {d['player']}: "
                 f"{d.get('reason', d.get('build_status'))}",
             )
+    lines += render_warnings(env)
     return "\n".join(lines) + "\n"
