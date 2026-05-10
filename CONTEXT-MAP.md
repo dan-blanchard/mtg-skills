@@ -1,6 +1,6 @@
 # Context Map
 
-This monorepo hosts five MTG skills; each is its own bounded context
+This monorepo hosts six MTG skills; each is its own bounded context
 with its own vocabulary. Architecture work should ground in the
 relevant context and only edit terms inside it.
 
@@ -23,8 +23,8 @@ there.
 
 ## Pending
 
-The other skills (deck-wizard, rules-lawyer, mtg-utils) don't yet
-have CONTEXT.md files. Add them lazily when an architecture
+The other skills (deck-wizard, rules-lawyer, proxy-printer, mtg-utils)
+don't yet have CONTEXT.md files. Add them lazily when an architecture
 conversation surfaces a term that the skill's prose doesn't already
 pin down.
 

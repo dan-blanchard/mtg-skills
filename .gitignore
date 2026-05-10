@@ -14,3 +14,12 @@ build/
 *.json
 *.txt
 *.idx.pkl
+
+# proxy-printer's ASCII art catalog ships as package data. Each .txt is
+# one card subtype's thumbnail icon; the renderer reads them at runtime.
+# Reference images (.png/.jpg) used while authoring the catalog are
+# session artifacts and should NOT be committed.
+!mtg-utils/src/mtg_utils/data/card_art/*.txt
+mtg-utils/src/mtg_utils/data/card_art/*.png
+mtg-utils/src/mtg_utils/data/card_art/*.jpg
+mtg-utils/src/mtg_utils/data/card_art/*.jpeg

@@ -1,0 +1,9 @@
+       ~SsS~
+      S~ s s ~S    snake
+     S  /^^^\  S   hair
+        | x |
+        \_-_/      gorgon
+        /| |\
+       / |_| \
+        / | \
+       ~~ | ~~

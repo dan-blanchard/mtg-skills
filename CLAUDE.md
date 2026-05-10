@@ -47,6 +47,14 @@ uv run playwright install chromium  # First-run only; downloads Chromium
 uv run pytest ../tests/lgs-search/ -v  # Run smoke tests
 ```
 
+### proxy-printer
+
+```bash
+cd proxy-printer
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
+uv run pytest ../tests/proxy-printer/ -v  # Run smoke tests
+```
+
 ### Running a single test
 
 ```bash
@@ -59,18 +67,18 @@ uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
 ### Python / tooling
 
 - Requires Python 3.12+ (`requires-python = ">=3.12"` in `mtg-utils/pyproject.toml`).
-- All five `pyproject.toml` files use `uv` as the install/runtime driver.
+- All six `pyproject.toml` files use `uv` as the install/runtime driver.
 - CI (`.github/workflows/ci.yml`) runs the exact commands listed above — it is the authoritative source of truth for which invocations must pass.
 
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
-**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, and `lgs-search/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all four point at the same files.
+**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, `lgs-search/src`, and `proxy-printer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all five point at the same files.
 
 ### mtg-utils
 
-Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3 rules-lawyer) exposed as 33 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 12 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, download-rules, rules-lookup, rulings-lookup, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
+Shared Python package (`mtg_utils`). 33 CLI script modules (20 deck + 9 cube + 3 rules-lawyer + 1 proxy-printer) exposed as 34 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 12 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, download-rules, rules-lookup, rulings-lookup, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; `proxy-printer/pyproject.toml` re-declares parse-deck and download-bulk alongside its `proxy-print` entry; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
 
 **Deck scripts:**
 
@@ -127,6 +135,10 @@ Shared Python package (`mtg_utils`). 32 CLI script modules (20 deck + 9 cube + 3
 - **`pack_simulate.py`** — Seeded pack generation with configurable slot templates (ported from cube-utils, sizes 9/11/15); optional dedicated commander packs; multi-draft aggregation.
 - **`export_cube.py`** — Export canonical cube JSON to CubeCobra-compatible CSV (for the "Replace with CSV Import" round-trip) or plain text.
 
+**Proxy-printer scripts:**
+
+- **`proxy_print.py`** — Render printable PDF proxies from a parsed deck JSON. One CLI with `--kind cards|tokens`. Cards mode: one proxy per copy of every card in the deck (commanders + cards + sideboard, latter optional). Tokens mode: walks each card's `all_parts`, dedupes by `oracle_id`, renders one proxy per kind with a `from: <source>` footer. Both modes share one render template (name banner / ASCII art / type banner / oracle text / P/T) with body proportions that adapt to oracle text length. Art catalog ships at `data/card_art/*.txt`, ~480 files keyed by card subtype with card-type and ultimate-generic fallbacks; lookup tries each subtype in the type line in order, then card types, then `_generic.txt`.
+
 Shared library modules (not CLI scripts):
 
 - **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`, `classify_cube_category()` (9-category W/U/B/R/G/M/L/F/C classifier for cube draft slot allocation).
@@ -181,6 +193,10 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Answers MTG rules questions b
 ### lgs-search
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across at most three carts: The Gathering Place + Atomic Empire (LGS) and one of TCGPlayer or Mana Pool (Marketplace), whichever's cheaper for the spillover. Per-Storefront adapters live in `mtg_utils/_stores/` (mirrors `_custom_format/`); each implements a synchronous Protocol — `LGSAdapter` for the per-item search/add flow, `MarketplaceAdapter` for the bulk-submit-and-optimize flow, both extending a shared `StoreSession` base for the lifecycle methods (auth, cart inspection, clear, handoff). See `lgs-search/CONTEXT.md` for the LGS / Marketplace / StoreSession domain language. Persistent Playwright profiles per Storefront under `~/.cache/mtg-skills/lgs-profiles/`.
+
+### proxy-printer
+
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Renders printable PDF proxies from a parsed deck JSON: `proxy-print --kind cards` emits one proxy per copy of every card in the deck; `proxy-print --kind tokens` emits one proxy per distinct token kind the deck produces (deduped by Scryfall `oracle_id`, sources tracked for the footer). Both modes share one render template — name banner / ASCII art / type banner / oracle text / P/T — auto-fitting body proportions based on how much oracle text the card has. ASCII art lives at `mtg-utils/src/mtg_utils/data/card_art/*.txt`, one file per card subtype (creature subtypes, artifact subtypes like Treasure/Equipment/Food, enchantment subtypes, basic + non-basic land subtypes), with card-type fallbacks (creature, artifact, enchantment, land, sorcery, instant, planeswalker) and an ultimate `_generic.txt`. Lookup walks subtypes first (in type-line order) then card-types then generic. Art is P/T-independent — every Soldier shares `soldier.txt`. The skill is callable standalone or by deck-wizard / cube-wizard at the end of a build session; `parse-deck` runs upstream to produce the deck JSON.
 
 ## Supported Deck Formats
 
