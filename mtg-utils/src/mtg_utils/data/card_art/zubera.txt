@@ -1,9 +1,9 @@
-         o o o    spirits
+         o o o
         o     o
        \  ___  /
-        /^v^v^\    masked
-       | x   x |   spirit
-       |   _   |   wisp
+        /^v^v^\
+       | x   x |
+       |   _   |
         \_____/
         /|   |\
        / |___| \

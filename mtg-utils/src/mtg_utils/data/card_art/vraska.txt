@@ -1,8 +1,8 @@
        ~SsS~
-      S~ s s ~S    snake
-     S  /^^^\  S   hair
+      S~ s s ~S
+     S  /^^^\  S
         | x |
-        \_-_/      gorgon
+        \_-_/
         /| |\
        / |_| \
         / | \
