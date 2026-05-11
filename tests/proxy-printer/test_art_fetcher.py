@@ -354,14 +354,14 @@ def test_run_skips_known_non_art_subtypes(
 # ---------------------------------------------------------------------------
 
 WEBSITE_BROWSE_HTML = """<html><body>
-<a href="cat.php?category_id=12" onclick="x">
-  Aardvarks  <span class="category-count">(4)</span>
+<a href="tag.php?tag_id=12" onclick="x">
+  Aardvarks  <span class="tag-count">(4)</span>
 </a>
-<a href="cat.php?category_id=47" onclick="y">
-  Dinosaurs  <span class="category-count">(31)</span>
+<a href="tag.php?tag_id=47" onclick="y">
+  Dinosaurs  <span class="tag-count">(31)</span>
 </a>
-<a href="cat.php?category_id=474" onclick="z">
-  Big Cats  <span class="category-count">(38)</span>
+<a href="tag.php?tag_id=474" onclick="z">
+  Big Cats  <span class="tag-count">(38)</span>
 </a>
 </body></html>"""
 
@@ -424,10 +424,10 @@ def test_parse_cards_website_skips_pre_without_metadata() -> None:
     assert cards[0]["id"] == "1"
 
 
-def test_fetch_website_categories_parses_browse_page(tmp_path: Path) -> None:
+def test_fetch_website_tags_parses_browse_page(tmp_path: Path) -> None:
     routes = {"/browse.php": WEBSITE_BROWSE_HTML}
     session = _mock_session(routes)
-    cats = art_fetcher.fetch_website_categories(session, tmp_path)
+    cats = art_fetcher.fetch_website_tags(session, tmp_path)
     by_id = dict(cats)
     assert by_id["12"] == "Aardvarks"
     assert by_id["47"] == "Dinosaurs"
@@ -440,9 +440,12 @@ def test_build_pool_merges_both_sources(tmp_path: Path) -> None:
         f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES
     }
     routes["/browse.php"] = WEBSITE_BROWSE_HTML
-    routes["/cat.php?category_id=12"] = WEBSITE_CAT_HTML
-    routes["/cat.php?category_id=47"] = WEBSITE_CAT_HTML
-    routes["/cat.php?category_id=474"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=12&page=1"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=12&page=2"] = "<html>nothing more</html>"
+    routes["/tag.php?tag_id=47&page=1"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=47&page=2"] = "<html>nothing more</html>"
+    routes["/tag.php?tag_id=474&page=1"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=474&page=2"] = "<html>nothing more</html>"
     session = _mock_session(routes)
     # No subtypes passed -> no filter; all 3 mocked cats fetched.
     pool = art_fetcher.build_pool(session, tmp_path)
@@ -463,9 +466,12 @@ def test_build_pool_filters_website_cats_by_subtype(tmp_path: Path) -> None:
     # Three mocked cats: Aardvarks (no MTG match), Dinosaurs (Dinosaur is a
     # subtype), Big Cats (cat is a subtype).
     routes["/browse.php"] = WEBSITE_BROWSE_HTML
-    routes["/cat.php?category_id=12"] = WEBSITE_CAT_HTML
-    routes["/cat.php?category_id=47"] = WEBSITE_CAT_HTML
-    routes["/cat.php?category_id=474"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=12&page=1"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=12&page=2"] = "<html>nothing more</html>"
+    routes["/tag.php?tag_id=47&page=1"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=47&page=2"] = "<html>nothing more</html>"
+    routes["/tag.php?tag_id=474&page=1"] = WEBSITE_CAT_HTML
+    routes["/tag.php?tag_id=474&page=2"] = "<html>nothing more</html>"
     session = _mock_session(routes)
 
     pool = art_fetcher.build_pool(
@@ -475,11 +481,11 @@ def test_build_pool_filters_website_cats_by_subtype(tmp_path: Path) -> None:
     # Verify we fetched only the matching two cat.php URLs.
     fetched_cat_urls = [
         call.args[0] for call in session.get.call_args_list
-        if "cat.php?category_id=" in call.args[0]
+        if "tag.php?tag_id=" in call.args[0]
     ]
-    assert any("category_id=47" in u for u in fetched_cat_urls)
-    assert any("category_id=474" in u for u in fetched_cat_urls)
-    assert not any("category_id=12" in u for u in fetched_cat_urls)
+    assert any("tag_id=47" in u for u in fetched_cat_urls)
+    assert any("tag_id=474" in u for u in fetched_cat_urls)
+    assert not any("tag_id=12" in u for u in fetched_cat_urls)
 
 
 @pytest.mark.parametrize(
@@ -524,14 +530,14 @@ def test_relevant_keywords_includes_synonym_targets() -> None:
     assert "weapon" in keywords
 
 
-def test_relevant_categories_keeps_subtype_matches() -> None:
+def test_relevant_tags_keeps_subtype_matches() -> None:
     cats = [
         ("12", "Aardvarks"),
         ("47", "Dinosaurs"),
         ("474", "Big Cats"),
         ("999", "Star Wars"),
     ]
-    out = art_fetcher.relevant_categories(cats, ["dinosaur", "cat"])
+    out = art_fetcher.relevant_tags(cats, ["dinosaur", "cat"])
     names = {n for _, n in out}
     assert "Dinosaurs" in names  # plural matches singular subtype
     assert "Big Cats" in names    # word-level match
@@ -539,63 +545,137 @@ def test_relevant_categories_keeps_subtype_matches() -> None:
     assert "Aardvarks" not in names  # aardvark isn't an MTG subtype
 
 
-def test_relevant_categories_drops_franchise_categories() -> None:
-    """Franchise pages get dropped even though their names match an MTG keyword."""
-    cats = [
-        ("1", "Spider-Man"),       # spider matches Spider subtype
-        ("2", "Lion King"),         # lion matches Cat synonym
-        ("3", "Donald Duck"),       # duck matches PW synonym
-        ("4", "Dragon Ball"),       # dragon matches Dragon subtype
-        ("5", "Dragons"),           # legit
-        ("6", "Lions"),             # legit
+def test_relevant_tags_drops_franchise_tags() -> None:
+    """Franchise tags get dropped even though their names match an MTG keyword."""
+    tags = [
+        ("1", "Lion King"),         # lion matches Cat synonym
+        ("2", "Donald Duck"),       # duck matches PW synonym
+        ("3", "Dragon Ball"),       # dragon matches Dragon subtype
+        ("4", "Star Wars"),         # broad franchise (would pollute many subtypes)
+        ("5", "Disney"),            # broad franchise
+        ("6", "Dragon"),            # legit
+        ("7", "Lion"),              # legit
     ]
-    out = art_fetcher.relevant_categories(cats, ["spider", "lion", "dragon"])
+    out = art_fetcher.relevant_tags(tags, ["lion", "dragon"])
     names = {n for _, n in out}
-    assert "Spider-Man" not in names
     assert "Lion King" not in names
     assert "Donald Duck" not in names
     assert "Dragon Ball" not in names
-    assert "Dragons" in names
-    assert "Lions" in names
+    assert "Star Wars" not in names
+    assert "Disney" not in names
+    assert "Dragon" in names
+    assert "Lion" in names
 
 
 def test_franchise_skip_uses_case_insensitive_match() -> None:
-    """Mixed-case category names are skipped regardless of original casing."""
-    cats = [
-        ("1", "SPIDER-MAN"),
-        ("2", "Spider-Man"),
-        ("3", "spider-man"),
+    """Mixed-case tag names are skipped regardless of original casing."""
+    tags = [
+        ("1", "LION KING"),
+        ("2", "Lion King"),
+        ("3", "lion king"),
     ]
-    out = art_fetcher.relevant_categories(cats, ["spider"])
+    out = art_fetcher.relevant_tags(tags, ["lion"])
     assert out == []
 
 
-def test_fetch_website_categories_decodes_html_entities(tmp_path: Path) -> None:
+def test_subtypes_in_deck_extracts_from_type_lines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """subtypes_in_deck() returns the union of subtypes used by all deck cards
+    plus the subtypes of every token the deck's cards can generate."""
+    deck = {
+        "commanders": [{"name": "Atraxa", "quantity": 1}],
+        "cards": [
+            {"name": "Llanowar Elves", "quantity": 1},
+            {"name": "Goblin Chieftain", "quantity": 1},  # generates Goblin tokens
+        ],
+        "sideboard": [{"name": "Phyrexian Arena", "quantity": 1}],
+    }
+    deck_path = tmp_path / "deck.json"
+    deck_path.write_text(json.dumps(deck))
+
+    # Bulk index mock: by_name has the main cards (with all_parts links);
+    # by_id has the token records they reference.
+    fake_by_name = {
+        "atraxa": {"type_line": "Legendary Creature — Phyrexian Angel"},
+        "llanowar elves": {"type_line": "Creature — Elf Druid"},
+        "phyrexian arena": {"type_line": "Enchantment"},
+        "goblin chieftain": {
+            "type_line": "Creature — Goblin",
+            "oracle_id": "gc",
+            "all_parts": [
+                {"id": "tok1", "name": "Soldier", "component": "token"},
+            ],
+        },
+    }
+    fake_by_id = {
+        "tok1": {
+            "id": "tok1",
+            "name": "Soldier",
+            "layout": "token",
+            "type_line": "Token Creature — Soldier",
+            "oracle_id": "soldier-oid",
+        },
+    }
+    monkeypatch.setattr(
+        "mtg_utils.proxy_print.load_bulk_indexes",
+        lambda _p: (fake_by_name, fake_by_id),
+    )
+
+    out = art_fetcher.subtypes_in_deck(deck_path, tmp_path / "fake-bulk")
+    # Main-card subtypes
+    assert "phyrexian" in out
+    assert "angel" in out
+    assert "elf" in out
+    assert "druid" in out
+    assert "goblin" in out
+    # Card types
+    assert "creature" in out
+    assert "enchantment" in out
+    # Token subtypes (Soldier from Goblin Chieftain's all_parts)
+    assert "soldier" in out
+
+
+def test_alien_and_tolkien_are_NOT_skipped() -> None:
+    """Per user preference, Alien (impossible to distinguish from generic
+    alien) and Lord Of The Rings (user has LOTR MTG cards) stay in the pool.
+    """
+    tags = [
+        ("1", "Alien"),
+        ("2", "Lord Of The Rings / Tolkien"),
+    ]
+    out = art_fetcher.relevant_tags(tags, ["alien", "wizard"])
+    names = {n for _, n in out}
+    assert "Alien" in names
+    assert "Lord Of The Rings / Tolkien" in names
+
+
+def test_fetch_website_tags_decodes_html_entities(tmp_path: Path) -> None:
     """Names like 'Wallace &amp; Gromit' come back HTML-decoded."""
     html_blob = (
-        '<a href="cat.php?category_id=212" onclick="">'
-        '  Wallace &amp; Gromit  <span class="category-count">(7)</span>'
+        '<a href="tag.php?tag_id=212" onclick="">'
+        '  Wallace &amp; Gromit  <span class="tag-count">(7)</span>'
         '</a>'
-        '<a href="cat.php?category_id=576" onclick="">'
-        "  Blue&#039;s Clues  <span class=\"category-count\">(3)</span>"
+        '<a href="tag.php?tag_id=576" onclick="">'
+        "  Blue&#039;s Clues  <span class=\"tag-count\">(3)</span>"
         "</a>"
     )
     routes = {"/browse.php": html_blob}
     session = _mock_session(routes)
-    cats = art_fetcher.fetch_website_categories(session, tmp_path)
+    cats = art_fetcher.fetch_website_tags(session, tmp_path)
     by_id = dict(cats)
     assert by_id["212"] == "Wallace & Gromit"
     assert by_id["576"] == "Blue's Clues"
 
 
-def test_relevant_categories_keeps_mtg_adjacent_parents() -> None:
+def test_relevant_tags_keeps_mtg_adjacent_parents() -> None:
     """'Animals (Other) (Land)' and 'Weapons (Swords)' parent categories stay."""
     cats = [
         ("1", "Animals (Other) (Land)"),
         ("2", "Weapons (Swords)"),
         ("3", "The Office"),
     ]
-    out = art_fetcher.relevant_categories(cats, [])
+    out = art_fetcher.relevant_tags(cats, [])
     names = {n for _, n in out}
     assert "Animals (Other) (Land)" in names
     assert "Weapons (Swords)" in names
@@ -623,6 +703,43 @@ def test_write_art_website_header_uses_per_art_url(tmp_path: Path) -> None:
     # asciiart.website doesn't grant a blanket license; we say so honestly.
     assert "Personal-use" in lines[2]
     assert "no explicit license grant" in lines[2]
+
+
+def test_fetch_tag_pages_respects_max_pages_cap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With MAX_PAGES_PER_TAG=2, only pages 1 and 2 are fetched even if more exist."""
+    monkeypatch.setattr(art_fetcher, "MAX_PAGES_PER_TAG", 2)
+    page2 = WEBSITE_CAT_HTML.replace('"100"', '"200"').replace('"101"', '"201"')
+    page2 = page2.replace('art/100', 'art/200').replace('art/101', 'art/201')
+    routes = {
+        "/tag.php?tag_id=129&page=1": WEBSITE_CAT_HTML,
+        "/tag.php?tag_id=129&page=2": page2,
+        "/tag.php?tag_id=129&page=3": page2,  # would loop forever without cap
+    }
+    session = _mock_session(routes)
+    cards = art_fetcher._fetch_tag_pages(session, tmp_path, "129", "Lion")
+    ids = sorted(c["id"] for c in cards)
+    assert ids == ["100", "101", "200", "201"]
+    # Cap was 2, so we never fetched page 3.
+    assert session.get.call_count == 2
+
+
+def test_fetch_tag_pages_stops_when_no_new_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The dedup-by-id loop terminates early when a page adds nothing new."""
+    monkeypatch.setattr(art_fetcher, "MAX_PAGES_PER_TAG", 5)
+    routes = {
+        "/tag.php?tag_id=129&page=1": WEBSITE_CAT_HTML,
+        # Page 2 repeats page 1 — no new IDs → loop stops immediately.
+        "/tag.php?tag_id=129&page=2": WEBSITE_CAT_HTML,
+    }
+    session = _mock_session(routes)
+    cards = art_fetcher._fetch_tag_pages(session, tmp_path, "129", "Lion")
+    assert sorted(c["id"] for c in cards) == ["100", "101"]
+    # Page 1 + page 2 fetched; stopped because page 2 had no new IDs.
+    assert session.get.call_count == 2
 
 
 def test_fetch_cached_retries_on_429(tmp_path: Path, monkeypatch) -> None:

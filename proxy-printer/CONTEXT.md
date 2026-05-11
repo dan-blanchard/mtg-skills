@@ -36,9 +36,14 @@ A single upstream provider of ASCII art that `fetch-art` mines. Each
 source has its own URL builders, HTML parser, and attribution-header
 format. Today's sources: asciiart.eu (curated category list + optional
 search fallback) and asciiart.website (Christopher Johnson's
-collection — ~635 categories auto-discovered from `browse.php`,
-per-piece JSON-LD metadata). Cards in the candidate pool carry an
-internal `_source` tag that selects the correct header in `write_art`.
+collection — ~1148 **tags** auto-discovered from
+`browse.php?show=tags`, per-piece JSON-LD metadata). Tags are used
+rather than categories because tag names map directly to MTG concepts
+("Lion" vs "Lion King", "Panther" vs "Pink Panther"). Cards in the
+candidate pool carry an internal `_source` tag that selects the
+correct header in `write_art`. The two sources' license stances differ
+(asciiart.eu grants FAQ-attribution reuse; asciiart.website does not),
+so `write_art` writes different third-header lines accordingly.
 _Avoid_: "site" (ambiguous; the attributed catalog itself isn't on the
 internet), "provider" (overloaded with payment / oauth).
 

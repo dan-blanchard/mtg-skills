@@ -62,8 +62,9 @@ download-bulk --output-dir /tmp/scryfall-bulk
 ```
 
 > One-time-ish: if you want artist-credited art on the proxies, populate
-> the attributed catalog first. See [ASCII art catalog](#ascii-art-catalog)
-> below.
+> the attributed catalog first (`fetch-art --from-deck deck.json` is
+> usually right; ~15s vs ~108s for the full sweep). See
+> [ASCII art catalog](#ascii-art-catalog) below.
 
 ### Step 3 — Render cards
 
@@ -177,11 +178,27 @@ Art is **P/T-independent** by design — every Soldier token shares
 The attributed catalog ships **empty**. Populate it with `fetch-art`,
 which pulls every MTG subtype from Scryfall's catalog endpoints, mines
 two ASCII-art sources for candidates (asciiart.eu category pages and
-Christopher Johnson's collection at asciiart.website, ~635 categories
-auto-discovered from its `browse.php`), scores by target 20×10 (hard
-cap 30×13), and writes attributed `.txt` files with the 3-line license
-header that `proxy-print` knows how to read. Each file's header points
-at the per-source attribution terms.
+Christopher Johnson's collection at asciiart.website, ~1148 **tags**
+auto-discovered from its `browse.php?show=tags` — tags map directly to
+MTG concepts where categories conflated them with franchise art),
+scores by target 20×10 (hard cap 30×14), and writes attributed `.txt`
+files with the 3-line license header that `proxy-print` knows how to
+read. Each file's header points at the per-source attribution terms;
+asciiart.website headers honestly note "personal-use proxy" rather
+than asserting a license the site doesn't grant.
+
+For the **per-deck workflow** (recommended for routine proxy printing),
+narrow the fetch to subtypes the deck actually uses (plus the subtypes
+of every token the deck generates via Scryfall's `all_parts`):
+
+```bash
+fetch-art --from-deck /tmp/deck.json
+```
+
+A typical Commander deck has ~30 unique subtypes → ~30 tag fetches at
+~0.4s each (~15s cold-fetch, near-instant with the 7-day cache). The
+full sweep (no `--from-deck`) takes ~108s cold and is only worth
+running if you intend to print proxies for many different decks.
 
 ```bash
 fetch-art

@@ -16,11 +16,23 @@ would be misrepresenting the permission status.
 
 **Decision 1 — Maintain two sources side-by-side.** `art_fetcher.py`
 carries two HTML parsers (`_parse_cards`, `_parse_cards_website`), two
-URL builders, and one filter for the auto-discovered asciiart.website
-categories. `build_pool` mines both and returns a unified pool of dicts
+URL builders, and a filter for the auto-discovered asciiart.website
+tags. `build_pool` mines both and returns a unified pool of dicts
 tagged with a `_source` discriminator. Selection (size scoring + title
 match) is source-agnostic — whichever piece scores best wins regardless
 of where it came from.
+
+**Decision 1a — Mine asciiart.website by tag, not by category.** The
+site exposes both `cat.php?category_id=N` (~635 categories, broad media
+groupings) and `tag.php?tag_id=N` (~1148 tags, per-concept). Category
+names conflate concepts with franchise universes — the "Lions"
+category and "Lion King" category are sibling entries on the same
+browse view, and you can't tell them apart until you scrape and look
+at the cards inside. Tags, by contrast, are per-concept: a clean
+"Lion" tag is distinct from "Lion King", "Panther" from "Pink
+Panther", "Dragon" (89 pieces) from "Dragon Ball" (6 pieces). Same
+page structure (CollectionPage JSON-LD + inline `<pre>` bodies), so
+`_parse_cards_website` works unchanged.
 
 **Decision 2 — Per-source license headers, not a unified template.**
 `write_art` branches on `_source` and writes different third-header
@@ -46,9 +58,9 @@ printing while not overstating the legal posture.
 
 **What we considered:**
 
-- **Single source (status quo before this change).** Rejected — 75%
-  coverage gain was load-bearing for the user's actual proxy-printing
-  use case.
+- **Single source (status quo before this change).** Rejected — the
+  coverage gain (71 → ~130 attributed subtypes) was load-bearing for
+  the user's actual proxy-printing use case.
 - **Treat asciiart.website the same as asciiart.eu.** Rejected — the
   third header line would assert a license that doesn't exist. Quiet
   integrity bugs in licensing claims are the kind of thing that becomes
@@ -56,6 +68,16 @@ printing while not overstating the legal posture.
 - **Email Christopher Johnson for blanket attribution permission, then
   ship asciiart.website with the same header as asciiart.eu.** Out of
   scope for this PR; revisit if/when usage grows.
+- **Mine asciiart.website by category instead of tag.** Initial design.
+  Rejected after observing systemic franchise pollution — "Lion King"
+  passes any keyword filter that admits "Lion", "Pink Panther" passes
+  one that admits "Panther", etc. Required a fragile denylist that
+  fought the data model. Tags side-step the problem because they're
+  per-concept by construction.
+- **Use asciiart.website's search endpoint per subtype.** Considered as
+  an alternative to bulk-fetching. Rejected because the search page is
+  JS-driven (no useful HTML in the initial response); the tag taxonomy
+  achieves the same per-concept slicing without needing a JS runtime.
 - **Adapter Protocol abstraction (like `_stores/StoreSession`).**
   Deferred per ADR 0004 — exactly one branch in the codebase keys on
   `_source` today (`write_art`). Refactor when a third source forces the
