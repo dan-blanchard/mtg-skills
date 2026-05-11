@@ -608,6 +608,89 @@ def test_subtypes_in_deck_extracts_from_type_lines(
     assert "soldier" in out
 
 
+# ---------------------------------------------------------------------------
+# Name-keyed fetch (--by-name).
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_by_name_writes_file_on_hit(tmp_path: Path) -> None:
+    """A successful search yields <name-slug>.txt with the right header."""
+    routes = {"/search": SAMPLE_HTML}
+    fetcher = FakeFetcher(routes=routes)
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    ok = art_fetcher.fetch_by_name(fetcher, "Vampire Bat Lord", out_dir)
+    assert ok is True
+    path = out_dir / "vampire-bat-lord.txt"
+    assert path.is_file()
+    head = path.read_text(encoding="utf-8").splitlines()[0]
+    # The SAMPLE_HTML's two cards have widths 20 and 50; only the 20-wide
+    # (Vampire Bat) fits the budget, so that's what gets written.
+    assert "Vampire Bat" in head
+
+
+def test_fetch_by_name_skips_when_no_fitting_hit(tmp_path: Path) -> None:
+    """Search returns nothing → no file, returns False."""
+    routes = {"/search": "<html>nothing here</html>"}
+    fetcher = FakeFetcher(routes=routes)
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    ok = art_fetcher.fetch_by_name(fetcher, "Definitely Not A Card", out_dir)
+    assert ok is False
+    assert not any(out_dir.iterdir())
+
+
+def test_fetch_by_name_skips_existing_file(tmp_path: Path) -> None:
+    """Existing <name-slug>.txt isn't clobbered; the fetch returns False."""
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    pre = out_dir / "lightning-bolt.txt"
+    pre.write_text("# Hand-curated, do not overwrite\n\nART\n")
+    routes = {"/search": SAMPLE_HTML}
+    fetcher = FakeFetcher(routes=routes)
+    ok = art_fetcher.fetch_by_name(fetcher, "Lightning Bolt", out_dir)
+    assert ok is False
+    # Original content preserved.
+    assert "Hand-curated" in pre.read_text(encoding="utf-8")
+
+
+def test_fetch_by_name_overwrite_true_does_overwrite(tmp_path: Path) -> None:
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    (out_dir / "vampire-bat.txt").write_text("# old\n\nold-art\n")
+    routes = {"/search": SAMPLE_HTML}
+    fetcher = FakeFetcher(routes=routes)
+    ok = art_fetcher.fetch_by_name(fetcher, "Vampire Bat", out_dir, overwrite=True)
+    assert ok is True
+    text = (out_dir / "vampire-bat.txt").read_text(encoding="utf-8")
+    assert "old-art" not in text
+
+
+def test_fetch_by_name_empty_name_returns_false(tmp_path: Path) -> None:
+    fetcher = FakeFetcher(routes={"/search": SAMPLE_HTML})
+    assert art_fetcher.fetch_by_name(fetcher, "", tmp_path) is False
+
+
+def test_distinct_card_names_walks_deck() -> None:
+    """_distinct_card_names returns each name once, front-face only for DFC."""
+    deck = {
+        "commanders": [{"name": "Atraxa"}],
+        "cards": [
+            {"name": "Llanowar Elves"},
+            {"name": "Llanowar Elves"},  # duplicate
+            {"name": "Delver of Secrets // Insectile Aberration"},  # DFC
+        ],
+        "sideboard": [{"name": "Phyrexian Arena"}],
+    }
+    names = art_fetcher._distinct_card_names(deck)
+    assert names == [
+        "Atraxa",
+        "Llanowar Elves",
+        "Delver of Secrets",
+        "Phyrexian Arena",
+    ]
+
+
 def test_alien_and_tolkien_are_not_skipped() -> None:
     """Per user preference, Alien (impossible to distinguish from generic
     alien) and Lord Of The Rings (user has LOTR MTG cards) stay in the pool.

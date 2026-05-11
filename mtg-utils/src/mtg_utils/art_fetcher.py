@@ -826,6 +826,59 @@ def select(queries: Iterable[str], pool: list[dict]) -> dict | None:
     return None
 
 
+# --- Name-keyed fetch ------------------------------------------------------
+
+def fetch_by_name(
+    fetcher: Fetcher,
+    name: str,
+    out_dir: Path,
+    *,
+    overwrite: bool = False,
+) -> bool:
+    """Try to fetch art for a specific card *name* via asciiart.eu /search.
+
+    Writes ``<name-slug>.txt`` into ``out_dir`` if an in-budget hit
+    exists; skips silently when the search returns nothing fitting.
+    Returns True iff a file was written.
+
+    Unlike subtype/tag fetching, the search engine handles relevance;
+    we just pick the best-fitting size from the returned pool (no
+    title-match filter — many MTG card names won't appear verbatim in
+    art titles, but the search ranker still surfaces relevant pieces).
+
+    ``overwrite=False`` skips names whose ``<name-slug>.txt`` already
+    exists (avoids clobbering hand-curated files or earlier runs).
+    """
+    if not name:
+        return False
+    name_slug = slug(name)
+    out_path = out_dir / f"{name_slug}.txt"
+    if not overwrite and out_path.is_file():
+        return False
+    pool = search_pool(fetcher, name)
+    fitting = [c for c in pool if _fits(c)]
+    if not fitting:
+        return False
+    chosen = min(fitting, key=_score)
+    write_art(out_dir, name_slug, chosen)
+    return True
+
+
+def _distinct_card_names(deck: dict) -> list[str]:
+    """Return every distinct card name in the deck, front-face only for DFC."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for section in ("commanders", "cards", "sideboard"):
+        for entry in deck.get(section) or []:
+            name = entry.get("name") or ""
+            if " // " in name:
+                name = name.split(" // ")[0]
+            if name and name not in seen:
+                seen.add(name)
+                ordered.append(name)
+    return ordered
+
+
 # --- Writer ----------------------------------------------------------------
 
 def write_art(out_dir: Path, key: str, card: dict) -> Path:
@@ -921,6 +974,7 @@ def run(
     limit: int | None = None,
     deck_path: Path | None = None,
     bulk_path: Path | None = None,
+    by_name: bool = False,
     log: Callable[[str], None] = lambda _s: None,
 ) -> tuple[int, int, int, list[str]]:
     """Drive the whole pipeline.
@@ -930,6 +984,13 @@ def run(
     When ``deck_path`` is set, the subtype list is narrowed to just the
     subtypes the deck actually uses (resolved against the Scryfall bulk
     at ``bulk_path``, which defaults to proxy_print's discovery rule).
+
+    When ``by_name`` is also True, after the subtype fetch the driver
+    walks every distinct card name in the deck and runs an additional
+    asciiart.eu /search?q=<name> for each. In-budget hits are written as
+    ``<name-slug>.txt`` — these are what proxy_print's differentiation
+    pass picks up when multiple distinct-name cards land on the same
+    type-keyed art file.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -996,6 +1057,26 @@ def run(
         f"\nWrote {written} files, skipped {skipped} mechanic/plane subtypes, "
         f"{len(missing_keys)} have no fitting art (proxy_print will fall back)."
     )
+
+    if by_name and deck_path is not None:
+        log(f"Fetching name-keyed art for cards in {deck_path.name}...")
+        deck = json.loads(deck_path.read_text())
+        names = _distinct_card_names(deck)
+        n_written = 0
+        n_skipped_existing = 0
+        for name in names:
+            name_slug = slug(name)
+            if (out_dir / f"{name_slug}.txt").is_file():
+                n_skipped_existing += 1
+                continue
+            if fetch_by_name(fetcher, name, out_dir):
+                n_written += 1
+        log(
+            f"  Wrote {n_written} name-keyed files "
+            f"(skipped {n_skipped_existing} already cached, "
+            f"{len(names) - n_written - n_skipped_existing} had no fitting art)."
+        )
+
     return written, skipped, len(missing_keys), missing_keys
 
 
@@ -1056,6 +1137,19 @@ _DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
     ),
 )
 @click.option(
+    "--by-name",
+    is_flag=True,
+    help=(
+        "After the subtype fetch, also try asciiart.eu /search?q=<name> "
+        "for each distinct card name in --from-deck. Hits are written as "
+        "<name-slug>.txt — what proxy_print's differentiation pass picks "
+        "up when multiple distinct-name cards share a type-keyed art file. "
+        "Most card names miss (asciiart sites are concept-keyed, not "
+        "card-keyed); the few hits are worth the extra search calls. "
+        "Requires --from-deck."
+    ),
+)
+@click.option(
     "--report-missing",
     is_flag=True,
     help="Print every subtype slug that had no in-budget match.",
@@ -1067,6 +1161,7 @@ def main(
     limit: int | None,
     from_deck: Path | None,
     bulk_data: Path | None,
+    by_name: bool,
     report_missing: bool,
 ) -> None:
     """Populate the attributed-art catalog from asciiart.eu + asciiart.website.
@@ -1074,8 +1169,12 @@ def main(
     Default mode fetches every MTG subtype (~185 tags, ~108s cold).
     With --from-deck, fetches only the subtypes that the given deck uses
     (~30 tags, ~15s cold) — recommended for the typical proxy-printing
-    workflow.
+    workflow. Add --by-name to also fetch by card name for the
+    differentiation pass.
     """
+    if by_name and from_deck is None:
+        click.echo("ERROR: --by-name requires --from-deck", err=True)
+        sys.exit(EXIT_FETCH_FAILED)
     if out_dir is None:
         out_dir = attributed_art_dir()
     try:
@@ -1086,6 +1185,7 @@ def main(
             limit=limit,
             deck_path=from_deck,
             bulk_path=bulk_data,
+            by_name=by_name,
             log=lambda s: click.echo(s, err=True),
         )
     except requests.HTTPError as e:
