@@ -247,6 +247,9 @@ def test_fetch_subtypes_collects_and_slugs(tmp_path: Path) -> None:
 
 def test_build_pool_parses_every_category(tmp_path: Path) -> None:
     routes = {f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES}
+    # Stub the asciiart.website source with an empty browse so this test
+    # stays focused on asciiart.eu coverage.
+    routes["/browse.php"] = "<html>no categories</html>"
     session = _mock_session(routes)
     pool = art_fetcher.build_pool(session, tmp_path)
     # SAMPLE_HTML has 2 cards, times N categories.
@@ -254,6 +257,8 @@ def test_build_pool_parses_every_category(tmp_path: Path) -> None:
     # Each card retains its source_path.
     sources = {c["source_path"] for c in pool}
     assert sources == set(art_fetcher.CATEGORIES)
+    # All cards come from the eu source.
+    assert all(c["_source"] == "eu" for c in pool)
 
 
 def test_run_end_to_end_writes_attributed_files(
@@ -268,6 +273,7 @@ def test_run_end_to_end_writes_attributed_files(
     vamp_html = SAMPLE_HTML.replace("Vampire Bat", "Vampire Lord")
     for cat in art_fetcher.CATEGORIES:
         routes[f"/{cat}"] = vamp_html
+    routes["/browse.php"] = "<html>no categories</html>"
 
     session = _mock_session(routes)
     monkeypatch.setattr(art_fetcher.requests, "Session", lambda: session)
@@ -301,6 +307,7 @@ def test_run_records_missing_when_no_fit(
         routes[f"/{cat}"] = no_match_html
     # Also stub the search-fallback URL so _fetch_cached doesn't raise.
     routes["/search"] = no_match_html
+    routes["/browse.php"] = "<html>no categories</html>"
 
     session = _mock_session(routes)
     monkeypatch.setattr(art_fetcher.requests, "Session", lambda: session)
@@ -327,6 +334,7 @@ def test_run_skips_known_non_art_subtypes(
     }
     for cat in art_fetcher.CATEGORIES:
         routes[f"/{cat}"] = SAMPLE_HTML
+    routes["/browse.php"] = "<html>no categories</html>"
 
     session = _mock_session(routes)
     monkeypatch.setattr(art_fetcher.requests, "Session", lambda: session)
@@ -339,3 +347,258 @@ def test_run_skips_known_non_art_subtypes(
     assert written == 0
     assert skipped == 1
     assert not (tmp_path / "out" / "treasure.txt").exists()
+
+
+# ---------------------------------------------------------------------------
+# asciiart.website source.
+# ---------------------------------------------------------------------------
+
+WEBSITE_BROWSE_HTML = """<html><body>
+<a href="cat.php?category_id=12" onclick="x">
+  Aardvarks  <span class="category-count">(4)</span>
+</a>
+<a href="cat.php?category_id=47" onclick="y">
+  Dinosaurs  <span class="category-count">(31)</span>
+</a>
+<a href="cat.php?category_id=474" onclick="z">
+  Big Cats  <span class="category-count">(38)</span>
+</a>
+</body></html>"""
+
+WEBSITE_CAT_HTML = """<html><body>
+<script type="application/ld+json">{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Category: Big Cats",
+    "hasPart": [
+        {
+            "@type": "CreativeWork",
+            "name": "Lion King",
+            "url": "https://asciiart.website/art/100",
+            "author": {"@type": "Person", "name": "Alice Author"}
+        },
+        {
+            "@type": "CreativeWork",
+            "name": "Tiger Stripes",
+            "url": "https://asciiart.website/art/101",
+            "author": {"@type": "Person", "name": "Bob Builder"}
+        }
+    ]
+}</script>
+<pre data-artwork-id="100" id="artwork-pre-100">  /\\___/\\
+ ( o.o )
+  > ^ <</pre>
+<pre data-artwork-id="101" id="artwork-pre-101">  /\\___/\\
+ ( T.T )</pre>
+</body></html>"""
+
+
+def test_parse_cards_website_zips_jsonld_with_pre_bodies() -> None:
+    cards = art_fetcher._parse_cards_website(WEBSITE_CAT_HTML, "Big Cats")
+    assert len(cards) == 2
+    by_id = {c["id"]: c for c in cards}
+    lion = by_id["100"]
+    assert lion["_source"] == "website"
+    assert lion["title"] == "Lion King"
+    assert lion["artist"] == "Alice Author"
+    assert lion["url"] == "https://asciiart.website/art/100"
+    assert "/\\___/\\" in lion["art"]
+    assert lion["source_path"] == "Big Cats"
+    # Dimensions computed from the art body.
+    assert lion["height"] == 3
+    assert lion["width"] >= 8
+
+
+def test_parse_cards_website_skips_pre_without_metadata() -> None:
+    """Orphan <pre> blocks (no matching JSON-LD entry) are silently skipped."""
+    text = """<html><body>
+<script type="application/ld+json">{
+    "@type": "CollectionPage",
+    "hasPart": [{"@type": "CreativeWork", "name": "X", "url": "https://asciiart.website/art/1"}]
+}</script>
+<pre data-artwork-id="1">art</pre>
+<pre data-artwork-id="999">orphan art</pre>
+</body></html>"""
+    cards = art_fetcher._parse_cards_website(text, "cat")
+    assert len(cards) == 1
+    assert cards[0]["id"] == "1"
+
+
+def test_fetch_website_categories_parses_browse_page(tmp_path: Path) -> None:
+    routes = {"/browse.php": WEBSITE_BROWSE_HTML}
+    session = _mock_session(routes)
+    cats = art_fetcher.fetch_website_categories(session, tmp_path)
+    by_id = dict(cats)
+    assert by_id["12"] == "Aardvarks"
+    assert by_id["47"] == "Dinosaurs"
+    assert by_id["474"] == "Big Cats"
+
+
+def test_build_pool_merges_both_sources(tmp_path: Path) -> None:
+    """build_pool combines asciiart.eu CATEGORIES + asciiart.website cats."""
+    routes: dict[str, bytes | str] = {
+        f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES
+    }
+    routes["/browse.php"] = WEBSITE_BROWSE_HTML
+    routes["/cat.php?category_id=12"] = WEBSITE_CAT_HTML
+    routes["/cat.php?category_id=47"] = WEBSITE_CAT_HTML
+    routes["/cat.php?category_id=474"] = WEBSITE_CAT_HTML
+    session = _mock_session(routes)
+    # No subtypes passed -> no filter; all 3 mocked cats fetched.
+    pool = art_fetcher.build_pool(session, tmp_path)
+    sources = {c["_source"] for c in pool}
+    assert sources == {"eu", "website"}
+    eu_count = sum(1 for c in pool if c["_source"] == "eu")
+    web_count = sum(1 for c in pool if c["_source"] == "website")
+    assert eu_count == 2 * len(art_fetcher.CATEGORIES)
+    # 3 mocked cats × 2 cards each.
+    assert web_count == 6
+
+
+def test_build_pool_filters_website_cats_by_subtype(tmp_path: Path) -> None:
+    """When subtypes are supplied, only matching-name cats are fetched."""
+    routes: dict[str, bytes | str] = {
+        f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES
+    }
+    # Three mocked cats: Aardvarks (no MTG match), Dinosaurs (Dinosaur is a
+    # subtype), Big Cats (cat is a subtype).
+    routes["/browse.php"] = WEBSITE_BROWSE_HTML
+    routes["/cat.php?category_id=12"] = WEBSITE_CAT_HTML
+    routes["/cat.php?category_id=47"] = WEBSITE_CAT_HTML
+    routes["/cat.php?category_id=474"] = WEBSITE_CAT_HTML
+    session = _mock_session(routes)
+
+    pool = art_fetcher.build_pool(
+        session, tmp_path, subtypes=["dinosaur", "cat"]
+    )
+    # Aardvark category was skipped (browse.php fetched but cat.php skipped).
+    # Verify we fetched only the matching two cat.php URLs.
+    fetched_cat_urls = [
+        call.args[0] for call in session.get.call_args_list
+        if "cat.php?category_id=" in call.args[0]
+    ]
+    assert any("category_id=47" in u for u in fetched_cat_urls)
+    assert any("category_id=474" in u for u in fetched_cat_urls)
+    assert not any("category_id=12" in u for u in fetched_cat_urls)
+
+
+def test_relevant_categories_keeps_subtype_matches() -> None:
+    cats = [
+        ("12", "Aardvarks"),
+        ("47", "Dinosaurs"),
+        ("474", "Big Cats"),
+        ("999", "Star Wars"),
+    ]
+    out = art_fetcher.relevant_categories(cats, ["dinosaur", "cat"])
+    names = {n for _, n in out}
+    assert "Dinosaurs" in names  # plural matches singular subtype
+    assert "Big Cats" in names    # word-level match
+    assert "Star Wars" not in names
+    assert "Aardvarks" not in names  # aardvark isn't an MTG subtype
+
+
+def test_relevant_categories_keeps_mtg_adjacent_parents() -> None:
+    """'Animals (Other) (Land)' and 'Weapons (Swords)' parent categories stay."""
+    cats = [
+        ("1", "Animals (Other) (Land)"),
+        ("2", "Weapons (Swords)"),
+        ("3", "The Office"),
+    ]
+    out = art_fetcher.relevant_categories(cats, [])
+    names = {n for _, n in out}
+    assert "Animals (Other) (Land)" in names
+    assert "Weapons (Swords)" in names
+    assert "The Office" not in names
+
+
+def test_write_art_website_header_uses_per_art_url(tmp_path: Path) -> None:
+    """A website-source card's header points at the per-art URL + website FAQ."""
+    card = {
+        "_source": "website",
+        "id": "100",
+        "title": "Lion King",
+        "artist": "Alice Author",
+        "width": 8,
+        "height": 3,
+        "art": "  /\\___/\\\n ( o.o )\n  > ^ <",
+        "source_path": "Big Cats",
+        "url": "https://asciiart.website/art/100",
+    }
+    path = write_art(tmp_path, "lion", card)
+    text = path.read_text()
+    lines = text.splitlines()
+    assert lines[0] == "# Lion King (by Alice Author)"
+    assert lines[1] == "# Source: https://asciiart.website/art/100"
+    assert "asciiart.website" in lines[2]
+
+
+def test_fetch_cached_retries_on_429(tmp_path: Path, monkeypatch) -> None:
+    """A 429 followed by a 200 retries and succeeds (with a slept-zero delay)."""
+    calls = {"n": 0}
+
+    def fake_sleep(_seconds: float) -> None:
+        calls["n"] += 1  # Just observe; don't actually sleep in tests.
+
+    monkeypatch.setattr(art_fetcher.time, "sleep", fake_sleep)
+
+    session = MagicMock()
+    session.headers = {}
+    responses = [
+        MagicMock(status_code=429, content=b"slow down", raise_for_status=MagicMock()),
+        MagicMock(status_code=200, content=b"ok", raise_for_status=MagicMock()),
+    ]
+    session.get = MagicMock(side_effect=responses)
+
+    path = tmp_path / "cached.bin"
+    result = art_fetcher._fetch_cached(session, "https://x/y", path, max_retries=2)
+    assert result == b"ok"
+    assert session.get.call_count == 2
+    # At least one sleep was observed (the 429 backoff).
+    assert calls["n"] >= 1
+
+
+def test_fetch_cached_raises_after_exhausted_retries(tmp_path: Path, monkeypatch) -> None:
+    """Persistent 429s eventually raise via raise_for_status."""
+    monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
+
+    session = MagicMock()
+    session.headers = {}
+
+    def make_429() -> MagicMock:
+        resp = MagicMock(status_code=429, content=b"slow down")
+        resp.raise_for_status = MagicMock(
+            side_effect=art_fetcher.requests.HTTPError("429")
+        )
+        return resp
+
+    session.get = MagicMock(side_effect=[make_429() for _ in range(3)])
+
+    path = tmp_path / "cached.bin"
+    with pytest.raises(art_fetcher.requests.HTTPError):
+        art_fetcher._fetch_cached(session, "https://x/y", path, max_retries=2)
+
+
+def test_write_art_website_round_trips(tmp_path: Path, monkeypatch) -> None:
+    """proxy_print._try_read_attributed parses the website header too."""
+    from mtg_utils import proxy_print
+    from mtg_utils.proxy_print import _try_read_attributed
+
+    card = {
+        "_source": "website",
+        "id": "100",
+        "title": "Lion King",
+        "artist": "Alice Author",
+        "width": 8,
+        "height": 3,
+        "art": "lion-art-marker",
+        "source_path": "Big Cats",
+        "url": "https://asciiart.website/art/100",
+    }
+    write_art(tmp_path, "lion", card)
+
+    monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
+    result = _try_read_attributed("lion")
+    assert result is not None
+    body, artist = result
+    assert artist == "Alice Author"
+    assert "lion-art-marker" in body

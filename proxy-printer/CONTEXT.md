@@ -27,8 +27,20 @@ followed by the art body. When the lookup hits this tier the proxy
 renders `art by <Name>` in the footer slot. Ships **empty**; populated
 by the `fetch-art` CLI.
 _Avoid_: "external catalog" (it's local on disk, just user-populated),
-"asciiart.eu catalog" (the tier is source-agnostic; only `fetch-art`
-happens to pull from asciiart.eu).
+"asciiart.eu catalog" (the tier is source-agnostic; `fetch-art` mines
+multiple **Source**s and stamps each file's header with the right
+per-source attribution).
+
+**Source**:
+A single upstream provider of ASCII art that `fetch-art` mines. Each
+source has its own URL builders, HTML parser, and attribution-header
+format. Today's sources: asciiart.eu (curated category list + optional
+search fallback) and asciiart.website (Christopher Johnson's
+collection — ~635 categories auto-discovered from `browse.php`,
+per-piece JSON-LD metadata). Cards in the candidate pool carry an
+internal `_source` tag that selects the correct header in `write_art`.
+_Avoid_: "site" (ambiguous; the attributed catalog itself isn't on the
+internet), "provider" (overloaded with payment / oauth).
 
 ### Lookup
 

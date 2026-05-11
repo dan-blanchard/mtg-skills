@@ -176,9 +176,12 @@ Art is **P/T-independent** by design — every Soldier token shares
 
 The attributed catalog ships **empty**. Populate it with `fetch-art`,
 which pulls every MTG subtype from Scryfall's catalog endpoints, mines
-asciiart.eu category pages for candidates, scores by target 20×10 (hard
+two ASCII-art sources for candidates (asciiart.eu category pages and
+Christopher Johnson's collection at asciiart.website, ~635 categories
+auto-discovered from its `browse.php`), scores by target 20×10 (hard
 cap 30×13), and writes attributed `.txt` files with the 3-line license
-header that `proxy-print` knows how to read:
+header that `proxy-print` knows how to read. Each file's header points
+at the per-source attribution terms.
 
 ```bash
 fetch-art
