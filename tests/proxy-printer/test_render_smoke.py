@@ -70,7 +70,9 @@ def test_render_cards_pdf_has_expected_pages_and_text(tmp_path: Path) -> None:
     assert "Lightning Bolt deals 3 damage" in text  # oracle text
 
 
-def test_render_tokens_pdf_includes_source_attribution(tmp_path: Path) -> None:
+def test_render_tokens_pdf_drops_source_text(tmp_path: Path) -> None:
+    """Tokens no longer print 'from: <source>' — the footer slot is reserved
+    for the artist credit (when attributed art is available)."""
     treasure = {
         "name": "Treasure",
         "type_line": "Token Artifact — Treasure",
@@ -88,7 +90,7 @@ def test_render_tokens_pdf_includes_source_attribution(tmp_path: Path) -> None:
     text = reader.pages[0].extract_text()
     assert "Treasure" in text
     assert "Token Artifact" in text
-    assert "from: 2 cards" in text
+    assert "from:" not in text
 
 
 def test_render_two_pages_for_ten_items(tmp_path: Path) -> None:

@@ -408,7 +408,6 @@ def compute_layout(
     page_w: float,
     page_h: float,
     is_token: bool,
-    sources: list[str] | None,
     measure_width: MeasureWidth,
 ) -> ProxyLayout:
     """Pure(ish) layout computation. No drawing — only measurement.
@@ -458,48 +457,53 @@ def compute_layout(
     pt_box_x = x + CARD_W - PAD - PT_BOX_W
     footer_h = PT_BOX_H if pt_text else 0
 
-    # ---- Footer slot (token source > artist credit) -----------------------
-    footer_text = ""
-    if is_token and sources:
-        footer_text = (
-            f"from: {sources[0]}" if len(sources) == 1
-            else f"from: {len(sources)} cards"
-        )
-    footer_avail_w = inner_w - (PT_BOX_W + 6) if pt_text else inner_w
-    if footer_text:
-        while (
-            measure_width(footer_text, "Helvetica-Oblique", 6) > footer_avail_w
-            and len(footer_text) > 8
-        ):
-            footer_text = footer_text[:-2] + "…"
-
-    # ---- Body math: oracle probe → art floor → compensation ---------------
+    # ---- Body bounds + footer slot prep -----------------------------------
     body_top = name_banner_y - BANNER_GAP
     body_bottom = pt_box_y + footer_h + BANNER_GAP
-    body_h = body_top - body_bottom
-
-    if oracle:
-        probe_size = 7.5
-        probe_lines = _wrap(oracle, "Helvetica", probe_size, inner_w, measure_width)
-        probe_h = len(probe_lines) * probe_size * 1.18
-        oracle_max_h = min(probe_h + 4, body_h * ORACLE_MAX_H_FRAC)
-    else:
-        oracle_max_h = 0
-
+    footer_avail_w = inner_w - (PT_BOX_W + 6) if pt_text else inner_w
     type_banner_h = BANNER_H - 1
-    art_h = body_h - oracle_max_h - type_banner_h - BANNER_GAP
-    if oracle_max_h > 0:
-        art_h -= BANNER_GAP
-    art_h = max(art_h, ART_MIN_H)
-    used = art_h + oracle_max_h + type_banner_h + BANNER_GAP * (
-        2 if oracle_max_h > 0 else 1
-    )
-    if used > body_h:
-        oracle_max_h = max(0, oracle_max_h - (used - body_h))
+
+    # ---- Type banner Y: fixed at 1/3 from card bottom for non-tokens ------
+    # Real MTG cards put the type bar at a stable position regardless of
+    # how much oracle text or art a particular card has. Tokens keep the
+    # legacy dynamic layout because they rarely have oracle text and the
+    # current behavior (banner near the bottom, just above P/T) reads
+    # closer to a real MTG token frame.
+    if is_token:
+        # Legacy dynamic layout for tokens.
+        body_h = body_top - body_bottom
+        if oracle:
+            probe_size = 7.5
+            probe_lines = _wrap(oracle, "Helvetica", probe_size, inner_w, measure_width)
+            probe_h = len(probe_lines) * probe_size * 1.18
+            oracle_max_h = min(probe_h + 4, body_h * ORACLE_MAX_H_FRAC)
+        else:
+            oracle_max_h = 0
+        art_h = body_h - oracle_max_h - type_banner_h - BANNER_GAP
+        if oracle_max_h > 0:
+            art_h -= BANNER_GAP
+        art_h = max(art_h, ART_MIN_H)
+        used = art_h + oracle_max_h + type_banner_h + BANNER_GAP * (
+            2 if oracle_max_h > 0 else 1
+        )
+        if used > body_h:
+            oracle_max_h = max(0, oracle_max_h - (used - body_h))
+        art_top = body_top
+        art_bottom = art_top - art_h
+        type_banner_y = art_bottom - BANNER_GAP - type_banner_h
+    else:
+        # Fixed-position type banner: bottom edge at 1/3 of card height.
+        # The art region above it always has the same height across cards
+        # (~128pt for a 252pt card), which is enough room for our hard-cap
+        # 14-line art at min font (77pt) up to a comfortable 9pt font.
+        # The oracle region below the banner gets whatever's left — short
+        # oracle leaves whitespace (matching real MTG cards).
+        type_banner_y = y + CARD_H / 3
+        art_top = body_top
+        art_bottom = type_banner_y + type_banner_h + BANNER_GAP
+        art_h = art_top - art_bottom
 
     # ---- Art region --------------------------------------------------------
-    art_top = body_top
-    art_bottom = art_top - art_h
     art_text_raw, tier, key, art_credit = lookup_art(type_line)
     art_size, art_leading, art_lines = _fit_art(art_text_raw, inner_w, art_h)
     char_w = art_size * 0.6
@@ -508,8 +512,13 @@ def compute_layout(
     art_x = x + (CARD_W - block_w) / 2
     art_y_top = art_bottom + (art_h + block_h) / 2 - art_size
 
-    # Artist credit takes the footer slot only when no token source is there.
-    if art_credit and not footer_text:
+    # ---- Footer slot: artist credit only (token "from: X" is gone) --------
+    # The token-source line is dropped entirely: players know which spell
+    # created a token because they just cast it, and the deck list carries
+    # the same info. Keeping the slot for the artist credit gives tokens
+    # the same lower-left attribution real MTG cards have.
+    footer_text = ""
+    if art_credit:
         cred_text = f"art by {art_credit}"
         while (
             measure_width(cred_text, "Helvetica-Oblique", 6) > footer_avail_w
@@ -518,8 +527,24 @@ def compute_layout(
             cred_text = cred_text[:-2] + "…"
         footer_text = cred_text
 
-    # ---- Type banner -------------------------------------------------------
-    type_banner_y = art_bottom - BANNER_GAP - type_banner_h
+    # ---- Oracle region -----------------------------------------------------
+    if oracle:
+        oracle_top = type_banner_y - BANNER_GAP
+        oracle_bottom = body_bottom
+        avail_h = oracle_top - oracle_bottom
+        if avail_h > 0:
+            size, lines = _fit_oracle(
+                oracle, "Helvetica", inner_w, avail_h,
+                measure_width=measure_width, lo=5.5, hi=7.5,
+            )
+            leading = size * 1.18
+        else:
+            size, lines, leading = 0.0, [], 0.0
+    else:
+        oracle_top = oracle_bottom = 0.0
+        size, lines, leading = 0.0, [], 0.0
+
+    # ---- Type-banner font fitting -----------------------------------------
     tag_w = measure_width(color_tag, "Helvetica-Bold", 7.5)
     type_max_w = inner_w - tag_w - 10
     type_size = 8.0
@@ -528,20 +553,6 @@ def compute_layout(
         and measure_width(type_line, "Helvetica-Bold", type_size) > type_max_w
     ):
         type_size -= 0.25
-
-    # ---- Oracle region -----------------------------------------------------
-    if oracle and oracle_max_h > 0:
-        oracle_top = type_banner_y - BANNER_GAP
-        oracle_bottom = pt_box_y + footer_h + BANNER_GAP
-        avail_h = oracle_top - oracle_bottom
-        size, lines = _fit_oracle(
-            oracle, "Helvetica", inner_w, avail_h,
-            measure_width=measure_width, lo=5.5, hi=7.5,
-        )
-        leading = size * 1.18
-    else:
-        oracle_top = oracle_bottom = 0.0
-        size, lines, leading = 0.0, [], 0.0
 
     return ProxyLayout(
         x=x, y=y,
@@ -567,13 +578,12 @@ def _draw_proxy(
     page_w: float,
     page_h: float,
     is_token: bool,
-    sources: list[str] | None = None,
 ) -> tuple[str, str]:
     """Render one card or token into ``slot``. Returns (art_tier, art_key)."""
     layout = compute_layout(
         card, slot,
         page_w=page_w, page_h=page_h,
-        is_token=is_token, sources=sources,
+        is_token=is_token,
         measure_width=c.stringWidth,
     )
     _emit_proxy(c, layout)
@@ -666,7 +676,7 @@ def build_pdf(
     c = canvas.Canvas(str(out_path), pagesize=(page_w, page_h))
     c.setTitle(title)
 
-    for i, (card, sources) in enumerate(items):
+    for i, (card, _sources) in enumerate(items):
         slot = i % PER_PAGE
         if i > 0 and slot == 0:
             c.showPage()
@@ -677,7 +687,6 @@ def build_pdf(
             page_w=page_w,
             page_h=page_h,
             is_token=is_token,
-            sources=sources,
         )
         if coverage is not None:
             coverage.append({
