@@ -18,7 +18,9 @@ from mtg_utils import art_fetcher
 from mtg_utils.art_fetcher import (
     ASCIIART_BASE,
     HttpFetcher,
+    _eligible,
     _fits,
+    _has_caption_text,
     _parse_cards,
     _score,
     _title_matches,
@@ -87,7 +89,69 @@ def test_fits_target_card() -> None:
 
 def test_fits_rejects_oversize() -> None:
     assert not _fits({"width": 40, "height": 10})
-    assert not _fits({"width": 20, "height": 20})
+    assert not _fits({"width": 20, "height": 22})
+
+
+def test_caption_filter_rejects_title_echo() -> None:
+    # Real-world example: asciiart.website's "Beauty And The Beast"
+    # piece bakes its title into the body, polluting the beast subtype.
+    card = {
+        "title": "Beauty And The Beast",
+        "art": "             )__(\n   wWw       (qp)\n\n  Beauty and the Beast\n",
+    }
+    assert _has_caption_text(card)
+
+
+def test_caption_filter_rejects_stopword() -> None:
+    # Title doesn't echo, but body has an English function word.
+    card = {
+        "title": "Knight",
+        "art": "  /\\\n /  \\\n long live the king\n",
+    }
+    assert _has_caption_text(card)
+
+
+def test_caption_filter_accepts_artist_initials_and_onomatopoeia() -> None:
+    # 'ldb' and 'mrf' are common artist-signature initials in asciiart.eu
+    # bodies. 'wWw' / 'vvvv' / 'qp' are onomatopoeia/texture. None are
+    # English words, so the body passes.
+    card = {
+        "title": "Dragon",
+        "art": "    /\\__/\\\n   ( o o )\n    > ^ <\n   vvvv  wWw  ldb\n",
+    }
+    assert not _has_caption_text(card)
+
+
+def test_caption_filter_accepts_empty_title() -> None:
+    # Defensive: no title means no echo check; body has no stopwords.
+    card = {"title": "", "art": "/\\__/\\\n"}
+    assert not _has_caption_text(card)
+
+
+def test_caption_filter_memoizes() -> None:
+    # Calling twice should reuse the cached result, not re-run the regex.
+    card = {"title": "Lion", "art": "/\\__/\\\n"}
+    _has_caption_text(card)
+    assert "_caption_checked" in card
+    assert card["_caption_checked"] is False
+
+
+def test_eligible_combines_geometry_and_caption() -> None:
+    # In-budget but has caption → ineligible.
+    captioned = {
+        "title": "Beast",
+        "width": 20,
+        "height": 10,
+        "art": "the beast roars\n",
+    }
+    assert _fits(captioned)
+    assert not _eligible(captioned)
+    # Caption-free but oversize → ineligible.
+    oversize = {"title": "Cat", "width": 100, "height": 10, "art": "/\\\n"}
+    assert not _eligible(oversize)
+    # In-budget and clean → eligible.
+    clean = {"title": "Cat", "width": 20, "height": 10, "art": "/\\__/\\\n"}
+    assert _eligible(clean)
 
 
 def test_score_prefers_target_dimensions() -> None:

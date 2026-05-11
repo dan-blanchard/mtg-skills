@@ -702,10 +702,14 @@ def _resolve_art_with_differentiation(
     """Resolve art for every item, then try to differentiate duplicates by name.
 
     Pass 1: ``lookup_art(type_line)`` per card — yields ``(art, tier, key, credit)``.
-    Pass 2: build groups keyed on ``(tier, key)``. For each group whose cards
-    have **multiple distinct names**, retry each member via
-    :func:`lookup_art_by_name`. If a name-keyed file exists, swap that
-    member's resolution. Otherwise leave the type-keyed resolution in place.
+    Pass 2: build groups keyed on **art body** (not ``(tier, key)`` — those
+    can put cards pointing at the same file into different buckets when the
+    card-name slug collides with the subtype slug, e.g. ``"Eldrazi"`` the
+    name → ``eldrazi.txt`` *and* the ``eldrazi`` subtype → ``eldrazi.txt``).
+    For each group whose cards have **multiple distinct names**, retry each
+    member via :func:`lookup_art_by_name`. Swap only when the name-keyed
+    file's art content is genuinely different from the original — a name
+    lookup that returns the same file as the type lookup did nothing.
 
     Cards with the same name keep the same art (helpful for table-scanning).
     Cards with different names sharing one art file get a chance to land on
@@ -718,11 +722,11 @@ def _resolve_art_with_differentiation(
             type_line = type_line.split(" // ")[0]
         resolutions.append(lookup_art(type_line))
 
-    groups: dict[tuple[str, str], list[int]] = {}
-    for i, (_art, tier, key, _credit) in enumerate(resolutions):
-        groups.setdefault((tier, key), []).append(i)
+    groups: dict[str, list[int]] = {}
+    for i, (art, _tier, _key, _credit) in enumerate(resolutions):
+        groups.setdefault(art, []).append(i)
 
-    for indices in groups.values():
+    for original_art, indices in groups.items():
         names = {items[i][0].get("name", "") for i in indices}
         if len(names) <= 1:
             continue
@@ -731,7 +735,7 @@ def _resolve_art_with_differentiation(
             if " // " in name:
                 name = name.split(" // ")[0]
             name_result = lookup_art_by_name(name)
-            if name_result is not None:
+            if name_result is not None and name_result[0] != original_art:
                 resolutions[i] = name_result
     return resolutions
 
@@ -743,24 +747,27 @@ def _warn_unresolved_duplicates(
     """Emit one ``WARN:`` per group of distinct-name cards still sharing art
     after the differentiation pass.
 
-    A group with multiple distinct names whose final ``tier`` is *not*
-    ``"name"`` means ``lookup_art_by_name`` found nothing for any member
-    — the catalog has a gap for these specific names. The agent
-    invoking proxy-print sees the warning and can offer to hand-curate
-    placeholders into ``$MTG_SKILLS_CACHE_DIR/attributed-art/`` (see
-    proxy-printer/SKILL.md, "Hand-curating unique art when the
+    Groups by **art body** rather than ``(tier, key)``: a card-name slug
+    can collide with a subtype slug (``"Eldrazi"`` the card name and
+    the ``eldrazi`` subtype both → ``eldrazi.txt``), so two cards
+    pointing at the same file may have different ``(tier, key)`` tuples.
+    Grouping by content surfaces the real duplication.
+
+    The agent invoking proxy-print sees the warning and can offer to
+    hand-curate placeholders into ``$MTG_SKILLS_CACHE_DIR/attributed-art/``
+    (see proxy-printer/SKILL.md, "Hand-curating unique art when the
     differentiation pass can't find any").
     """
-    groups: dict[tuple[str, str], list[int]] = {}
-    for i, (_art, tier, key, _credit) in enumerate(resolutions):
-        groups.setdefault((tier, key), []).append(i)
-    for (tier, key), indices in groups.items():
-        if tier == "name":
-            # Each name-keyed file is by-construction unique per card.
-            continue
+    groups: dict[str, list[int]] = {}
+    for i, (art, _tier, _key, _credit) in enumerate(resolutions):
+        groups.setdefault(art, []).append(i)
+    for indices in groups.values():
         names = sorted({items[i][0].get("name") or "" for i in indices})
         if len(names) <= 1:
             continue
+        # Pick a representative (tier, key) from the first member for
+        # the warning message — they're all pointing at the same file.
+        _, _tier, key, _ = resolutions[indices[0]]
         head = ", ".join(names[:6])
         tail = f", … (+{len(names) - 6} more)" if len(names) > 6 else ""
         print(

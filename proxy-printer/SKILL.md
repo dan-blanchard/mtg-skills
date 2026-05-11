@@ -181,7 +181,7 @@ two ASCII-art sources for candidates (asciiart.eu category pages and
 Christopher Johnson's collection at asciiart.website, ~1148 **tags**
 auto-discovered from its `browse.php?show=tags` — tags map directly to
 MTG concepts where categories conflated them with franchise art),
-scores by target 20×10 (hard cap 30×14), and writes attributed `.txt`
+scores by target 20×10 (hard cap 30×18), and writes attributed `.txt`
 files with the 3-line license header that `proxy-print` knows how to
 read. Each file's header points at the per-source attribution terms;
 asciiart.website headers honestly note "personal-use proxy" rather
@@ -220,7 +220,7 @@ The name-keyed pass tries two sources in order:
    split the card name and try each word (≥4 chars) on its API
    (CSRF + form POST under the hood). e.g., "Brain Maggot" → "Brain"
    → a brain piece; "Llanowar Elves" → "Elves" → an elf piece (when
-   one fits the 30x14 budget).
+   one fits the 30×18 budget).
 
 Cards whose name doesn't yield any in-budget hit fall back to
 type-keyed art at render time.
@@ -259,9 +259,9 @@ the named cards. You're filling a catalog gap. Procedure:
    land, look at `temple.txt`, `monument.txt`, or other architectural
    pieces). These show the size budget, ASCII vocabulary, and aesthetic
    of the existing collection.
-2. **Draw a small ASCII piece per card**, ≤30 chars wide × ≤14 lines
-   tall. The same size budget as the fetcher uses, so the renderer
-   doesn't have to shrink the font. Stay visual — depict the thing
+2. **Draw a small ASCII piece per card**, ≤30 chars wide × ≤18 lines
+   tall. The same size budget as the fetcher uses; the renderer
+   auto-scales font to fit the fixed art region. Stay visual — depict the thing
    with shapes and lines, not letters substituting for shapes (the
    `feedback_ascii_art_no_labels.md` memory entry).
 3. **Write each file** to

@@ -67,12 +67,13 @@ SCRYFALL_CATALOGS: tuple[str, ...] = (
 # --- Geometry --------------------------------------------------------------
 
 # TARGET is what we'd ideally pick — the size proxy_print renders most
-# legibly. MAX is the hard cap, kept tight to stay within the card
-# frame's inner width at min-font (5.5pt Courier-Bold). MAX_H=14
-# admits some marginal-but-good pieces like Joan Stark's 30×14 Lion in
-# the Big Cats category.
+# legibly. MAX is the hard cap; proxy_print's fixed ~125pt art region
+# (Courier-Bold) can render up to ~22 lines at min-font 5.5pt, so we
+# can afford to admit taller pieces. MAX_H=18 unlocks subtypes like
+# Elf (asciiart.website's narrowest in-budget Elf is 21x18) that the
+# old 14-line cap excluded by 1-4 lines.
 TARGET_W, TARGET_H = 20, 10
-MAX_W, MAX_H = 30, 14
+MAX_W, MAX_H = 30, 18
 
 
 # --- Cache freshness -------------------------------------------------------
@@ -470,6 +471,7 @@ _FRANCHISE_SKIP_TAGS: frozenset[str] = frozenset({
     "donald duck",
     "toy story",
     "ghostbusters",
+    "beauty and the beast",
 })
 
 
@@ -935,6 +937,58 @@ def _fits(card: dict) -> bool:
     return card["width"] <= MAX_W and card["height"] <= MAX_H
 
 
+# Common English function words. Any of these appearing as a whole
+# token in an art body signals a baked-in caption ("Beauty and the
+# Beast", "Long live the King"). Artist initials ("ldb", "mrf") and
+# onomatopoeia ("vvvv", "wWw", "qp") do not collide with this set.
+_CAPTION_STOPWORDS: frozenset[str] = frozenset({
+    "the", "and", "for", "are", "was", "you", "but", "not", "his",
+    "her", "all", "out", "who", "with", "from", "this", "that",
+    "into", "over", "they", "them", "have", "has", "had", "will",
+    "would", "could", "should", "your", "ours", "their", "what",
+    "when", "where", "why", "how", "off", "now", "yet",
+})
+
+
+def _has_caption_text(card: dict) -> bool:
+    """True if the art body contains baked-in English-language text.
+
+    Two signals, OR'd together:
+
+    1. **Title echo** — the body contains a 4+ character word from the
+       piece's title. Most captioned art repeats its title verbatim
+       (e.g. asciiart.website's "Beauty And The Beast" piece bakes
+       "Beauty and the Beast" into the body).
+    2. **Stopword** — the body contains an English function word from
+       :data:`_CAPTION_STOPWORDS`. Catches captions like "Long live
+       the king" even when they don't echo the title.
+
+    Cached on the card dict so the regex/lookup runs at most once per
+    candidate across multiple ``select`` queries.
+    """
+    cached = card.get("_caption_checked")
+    if cached is not None:
+        return cached
+    body = card.get("art") or ""
+    body_lo = body.lower()
+    body_tokens = set(re.findall(r"[a-z]+", body_lo))
+    result = False
+    title = card.get("title") or ""
+    for tok in re.findall(r"[A-Za-z]{4,}", title):
+        if tok.lower() in body_tokens:
+            result = True
+            break
+    if not result and body_tokens & _CAPTION_STOPWORDS:
+        result = True
+    card["_caption_checked"] = result
+    return result
+
+
+def _eligible(card: dict) -> bool:
+    """Geometry + caption filter combined. Used by every selection path."""
+    return _fits(card) and not _has_caption_text(card)
+
+
 def _score(card: dict) -> float:
     """Lower is better. Bias toward TARGET; mildly penalize too-small."""
     w, h = card["width"], card["height"]
@@ -958,7 +1012,7 @@ def queries_for(subtype: str) -> list[str]:
 def select(queries: Iterable[str], pool: list[dict]) -> dict | None:
     """Return the best in-budget card matching any query, or None."""
     for q in queries:
-        hits = [c for c in pool if _fits(c) and _title_matches(c, q)]
+        hits = [c for c in pool if _eligible(c) and _title_matches(c, q)]
         if hits:
             return min(hits, key=_score)
     return None
@@ -1004,7 +1058,7 @@ def fetch_by_name(
 
     # Pass 1: asciiart.eu full-name search.
     pool = search_pool(fetcher, name)
-    fitting = [c for c in pool if _fits(c)]
+    fitting = [c for c in pool if _eligible(c)]
 
     # Pass 2: per-word fallback on asciiart.website.
     if not fitting and website_csrf:
@@ -1012,7 +1066,7 @@ def fetch_by_name(
             if len(word) < 4:
                 continue
             web_pool = search_pool_website(fetcher, word, csrf_token=website_csrf)
-            web_fitting = [c for c in web_pool if _fits(c)]
+            web_fitting = [c for c in web_pool if _eligible(c)]
             if web_fitting:
                 fitting = web_fitting
                 break
