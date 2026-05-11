@@ -19,6 +19,8 @@ import json
 import os
 import re
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -29,7 +31,6 @@ from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.card_classify import SKIP_LAYOUTS
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
 
     from reportlab.pdfgen.canvas import Canvas
 
@@ -428,16 +429,34 @@ def _color_tag(card: dict) -> str:
     return "".join(f"{{{c}}}" for c in cs)
 
 
-def _wrap(text: str, font: str, size: float, max_w: float, c: Canvas) -> list[str]:
-    """Wrap ``text`` to ``max_w``, preserving \\n paragraph breaks."""
-    from reportlab.lib.utils import simpleSplit
-    lines: list[str] = []
+def _wrap(
+    text: str,
+    font: str,
+    size: float,
+    max_w: float,
+    measure_width: Callable[[str, str, float], float],
+) -> list[str]:
+    """Word-wrap ``text`` to ``max_w``, preserving \\n paragraph breaks.
+
+    Uses ``measure_width(text, font, size)`` for font metrics — pass
+    ``Canvas.stringWidth`` in production, a fake in tests.
+    """
+    out: list[str] = []
     for paragraph in text.split("\n"):
         if not paragraph.strip():
-            lines.append("")
+            out.append("")
             continue
-        lines.extend(simpleSplit(paragraph, font, size, max_w))
-    return lines
+        current = ""
+        for word in paragraph.split():
+            tentative = f"{current} {word}".strip()
+            if not current or measure_width(tentative, font, size) <= max_w:
+                current = tentative
+            else:
+                out.append(current)
+                current = word
+        if current:
+            out.append(current)
+    return out
 
 
 def _fit_oracle(
@@ -446,7 +465,7 @@ def _fit_oracle(
     max_w: float,
     max_h: float,
     *,
-    c: Canvas,
+    measure_width: Callable[[str, str, float], float],
     lo: float,
     hi: float,
     leading_ratio: float = 1.18,
@@ -454,12 +473,12 @@ def _fit_oracle(
     """Pick the largest font size in [lo, hi] whose wrapped text fits."""
     size = hi
     while size >= lo:
-        lines = _wrap(text, font, size, max_w, c)
+        lines = _wrap(text, font, size, max_w, measure_width)
         leading = size * leading_ratio
         if len(lines) * leading <= max_h:
             return size, lines
         size -= 0.25
-    return lo, _wrap(text, font, lo, max_w, c)
+    return lo, _wrap(text, font, lo, max_w, measure_width)
 
 
 def _fit_art(
@@ -492,23 +511,89 @@ def _draw_banner(
 # --- Card / token render ---------------------------------------------------
 
 
-def _draw_proxy(
-    c: Canvas,
-    slot: int,
+# --- Layout vs emission ----------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ProxyLayout:
+    """Pre-computed positions, sizes, and content strings for one card proxy.
+
+    Everything ``_draw_proxy`` needs to *emit* a card lives here. The
+    geometry math + font fitting + art lookup all happen in
+    :func:`compute_layout`; ``_draw_proxy`` just translates this struct
+    into canvas calls.
+
+    Test seam: callers (and tests) can build a ``ProxyLayout`` with a
+    fake ``measure_width`` callable and assert on every field without
+    touching reportlab.
+    """
+
+    # Outer cell origin (CARD_W × CARD_H constant).
+    x: float
+    y: float
+
+    # Name banner.
+    name_banner_y: float
+    name_text: str
+    name_text_size: float
+    name_centered: bool   # True for tokens; False for cards (left-aligned)
+    mana_cost_text: str   # "" for tokens
+
+    # P/T box (omitted from emission when pt_text == "").
+    pt_text: str
+    pt_box_x: float
+    pt_box_y: float
+
+    # Footer slot — token "from: X" or "art by X". Already truncated to fit.
+    footer_text: str
+    footer_y: float
+
+    # Art region.
+    art_lines: list[str]
+    art_size: float
+    art_leading: float
+    art_x: float
+    art_y_top: float
+    art_tier: str
+    art_key: str
+
+    # Type banner.
+    type_banner_y: float
+    type_text: str
+    type_text_size: float
+    color_tag: str
+
+    # Oracle (oracle_lines empty when card has no oracle text).
+    oracle_lines: list[str]
+    oracle_size: float
+    oracle_leading: float
+    oracle_top: float
+    oracle_bottom: float
+
+
+# ``measure_width(text, font, size) -> width_in_points``. In production,
+# bind to ``Canvas.stringWidth``. In tests, pass a fake. This is the
+# only piece of reportlab the layout phase needs.
+MeasureWidth = Callable[[str, str, float], float]
+
+
+def compute_layout(
     card: dict,
+    slot: int,
     *,
     page_w: float,
     page_h: float,
     is_token: bool,
-    sources: list[str] | None = None,
-) -> tuple[str, str]:
-    """Render one card or token into ``slot``. Returns (art_tier, art_key)."""
-    x, y = _slot_xy(slot, page_w, page_h)
+    sources: list[str] | None,
+    measure_width: MeasureWidth,
+) -> ProxyLayout:
+    """Pure(ish) layout computation. No drawing — only measurement.
 
-    # Outer cell border (cut line)
-    c.setLineWidth(0.6)
-    c.setStrokeColorRGB(0, 0, 0)
-    c.rect(x, y, CARD_W, CARD_H, stroke=1, fill=0)
+    Returns a :class:`ProxyLayout` carrying every position, font size,
+    wrapped text, and content string the emit phase needs. ``measure_width``
+    is the only seam to a real canvas (font metrics).
+    """
+    x, y = _slot_xy(slot, page_w, page_h)
 
     name = card.get("name") or "?"
     if " // " in name:
@@ -522,156 +607,221 @@ def _draw_proxy(
     power, toughness = card.get("power"), card.get("toughness")
     loyalty = card.get("loyalty")
 
-    inner_x = x + PAD
     inner_w = CARD_W - 2 * PAD
 
     # ---- Name banner -------------------------------------------------------
     name_banner_y = y + CARD_H - PAD - BANNER_H
-    _draw_banner(c, inner_x, name_banner_y, inner_w, BANNER_H)
-
-    name_text_y = name_banner_y + 4
-    cost_w = c.stringWidth(mana_cost, "Helvetica-Bold", 9.5) if mana_cost else 0
-
+    cost_w = measure_width(mana_cost, "Helvetica-Bold", 9.5) if mana_cost else 0
     if is_token:
-        # Tokens centre the name in the banner.
         name_size = 9.5
-        while name_size >= 6.0 and c.stringWidth(name, "Helvetica-Bold", name_size) > inner_w - 6:
+        while name_size >= 6.0 and measure_width(name, "Helvetica-Bold", name_size) > inner_w - 6:
             name_size -= 0.25
-        c.setFont("Helvetica-Bold", name_size)
-        c.drawCentredString(inner_x + inner_w / 2, name_text_y, name)
+        name_centered = True
     else:
         name_max_w = inner_w - cost_w - 8
         name_size = 9.5
-        while name_size >= 6.0 and c.stringWidth(name, "Helvetica-Bold", name_size) > name_max_w:
+        while name_size >= 6.0 and measure_width(name, "Helvetica-Bold", name_size) > name_max_w:
             name_size -= 0.25
-        c.setFont("Helvetica-Bold", name_size)
-        c.drawString(inner_x + 3, name_text_y, name)
-        if mana_cost:
-            c.setFont("Helvetica-Bold", 9.5)
-            c.drawRightString(inner_x + inner_w - 3, name_text_y, mana_cost)
+        name_centered = False
 
-    # ---- Footer P/T box (laid out from the bottom up) ---------------------
+    # ---- P/T box -----------------------------------------------------------
     pt_text = ""
     if power is not None and toughness is not None:
         pt_text = f"{power} / {toughness}"
     elif loyalty is not None:
         pt_text = f"L: {loyalty}"
-
     pt_box_y = y + PAD
-    if pt_text:
-        pt_box_x = x + CARD_W - PAD - PT_BOX_W
-        c.setLineWidth(0.4)
-        c.rect(pt_box_x, pt_box_y, PT_BOX_W, PT_BOX_H, stroke=1, fill=0)
-        c.setFont("Helvetica-Bold", 9)
-        c.drawCentredString(pt_box_x + PT_BOX_W / 2, pt_box_y + 3.5, pt_text)
-
+    pt_box_x = x + CARD_W - PAD - PT_BOX_W
     footer_h = PT_BOX_H if pt_text else 0
 
-    # Footer-left text: token source for tokens, artist credit for cards.
-    # Both render on the same row as the P/T box, mirroring real MTG
-    # cards which place the artist credit at the bottom-left.
+    # ---- Footer slot (token source > artist credit) -----------------------
     footer_text = ""
     if is_token and sources:
-        if len(sources) == 1:
-            footer_text = f"from: {sources[0]}"
-        else:
-            footer_text = f"from: {len(sources)} cards"
-    # ``art_credit`` is set later (after lookup_art) but we record the
-    # footer slot's geometry here so it survives the rest of the layout
-    # math below. We draw it after the P/T box is positioned.
+        footer_text = (
+            f"from: {sources[0]}" if len(sources) == 1
+            else f"from: {len(sources)} cards"
+        )
     footer_avail_w = inner_w - (PT_BOX_W + 6) if pt_text else inner_w
     if footer_text:
-        c.setFont("Helvetica-Oblique", 6)
-        while c.stringWidth(footer_text, "Helvetica-Oblique", 6) > footer_avail_w and len(footer_text) > 8:
+        while (
+            measure_width(footer_text, "Helvetica-Oblique", 6) > footer_avail_w
+            and len(footer_text) > 8
+        ):
             footer_text = footer_text[:-2] + "…"
-        c.drawString(inner_x, pt_box_y + 4, footer_text)
 
-    # ---- Oracle region (above footer) -------------------------------------
+    # ---- Body math: oracle probe → art floor → compensation ---------------
     body_top = name_banner_y - BANNER_GAP
     body_bottom = pt_box_y + footer_h + BANNER_GAP
     body_h = body_top - body_bottom
 
-    # Pre-measure oracle text at 7.5pt to estimate height needed.
     if oracle:
         probe_size = 7.5
-        probe_lines = _wrap(oracle, "Helvetica", probe_size, inner_w, c)
+        probe_lines = _wrap(oracle, "Helvetica", probe_size, inner_w, measure_width)
         probe_h = len(probe_lines) * probe_size * 1.18
         oracle_max_h = min(probe_h + 4, body_h * ORACLE_MAX_H_FRAC)
     else:
         oracle_max_h = 0
 
-    # Type banner sits between art and oracle.
-    type_banner_h = BANNER_H - 1  # slightly thinner than name banner
-
-    # Remaining for art = body - oracle - type banner - gaps
+    type_banner_h = BANNER_H - 1
     art_h = body_h - oracle_max_h - type_banner_h - BANNER_GAP
     if oracle_max_h > 0:
         art_h -= BANNER_GAP
-
     art_h = max(art_h, ART_MIN_H)
-    # If art_h hit the floor, shrink oracle area to compensate.
-    used = art_h + oracle_max_h + type_banner_h + BANNER_GAP * (2 if oracle_max_h > 0 else 1)
+    used = art_h + oracle_max_h + type_banner_h + BANNER_GAP * (
+        2 if oracle_max_h > 0 else 1
+    )
     if used > body_h:
         oracle_max_h = max(0, oracle_max_h - (used - body_h))
 
-    # ---- Art region -------------------------------------------------------
+    # ---- Art region --------------------------------------------------------
     art_top = body_top
     art_bottom = art_top - art_h
-
-    art_text, tier, key, art_credit = lookup_art(type_line)
-    # Footer-slot precedence: token source > artist credit. Token "from: X"
-    # is operationally useful at the table; the artist's in-art signature
-    # already satisfies asciiart.eu's FAQ attribution requirement, so the
-    # explicit "art by X" footer is a courtesy on non-token cards.
-    if art_credit and not footer_text:
-        cred_text = f"art by {art_credit}"
-        c.setFont("Helvetica-Oblique", 6)
-        while c.stringWidth(cred_text, "Helvetica-Oblique", 6) > footer_avail_w and len(cred_text) > 12:
-            cred_text = cred_text[:-2] + "…"
-        c.drawString(inner_x, pt_box_y + 4, cred_text)
-    art_size, art_leading, art_lines = _fit_art(art_text, inner_w, art_h)
+    art_text_raw, tier, key, art_credit = lookup_art(type_line)
+    art_size, art_leading, art_lines = _fit_art(art_text_raw, inner_w, art_h)
     char_w = art_size * 0.6
     block_h = len(art_lines) * art_leading
     block_w = max((len(line) for line in art_lines), default=1) * char_w
     art_x = x + (CARD_W - block_w) / 2
     art_y_top = art_bottom + (art_h + block_h) / 2 - art_size
 
-    c.setFont("Courier-Bold", art_size)
-    cy = art_y_top
-    for line in art_lines:
-        c.drawString(art_x, cy, line)
-        cy -= art_leading
+    # Artist credit takes the footer slot only when no token source is there.
+    if art_credit and not footer_text:
+        cred_text = f"art by {art_credit}"
+        while (
+            measure_width(cred_text, "Helvetica-Oblique", 6) > footer_avail_w
+            and len(cred_text) > 12
+        ):
+            cred_text = cred_text[:-2] + "…"
+        footer_text = cred_text
 
-    # ---- Type banner ------------------------------------------------------
+    # ---- Type banner -------------------------------------------------------
     type_banner_y = art_bottom - BANNER_GAP - type_banner_h
-    _draw_banner(c, inner_x, type_banner_y, inner_w, type_banner_h)
-    type_text_y = type_banner_y + 3
-    type_size = 8.0
-    tag_w = c.stringWidth(color_tag, "Helvetica-Bold", 7.5)
+    tag_w = measure_width(color_tag, "Helvetica-Bold", 7.5)
     type_max_w = inner_w - tag_w - 10
-    while type_size >= 6.0 and c.stringWidth(type_line, "Helvetica-Bold", type_size) > type_max_w:
+    type_size = 8.0
+    while (
+        type_size >= 6.0
+        and measure_width(type_line, "Helvetica-Bold", type_size) > type_max_w
+    ):
         type_size -= 0.25
-    c.setFont("Helvetica-Bold", type_size)
-    c.drawString(inner_x + 3, type_text_y, type_line)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawRightString(inner_x + inner_w - 3, type_text_y, color_tag)
 
-    # ---- Oracle region ----------------------------------------------------
+    # ---- Oracle region -----------------------------------------------------
     if oracle and oracle_max_h > 0:
         oracle_top = type_banner_y - BANNER_GAP
         oracle_bottom = pt_box_y + footer_h + BANNER_GAP
         avail_h = oracle_top - oracle_bottom
-        size, lines = _fit_oracle(oracle, "Helvetica", inner_w, avail_h, c=c, lo=5.5, hi=7.5)
+        size, lines = _fit_oracle(
+            oracle, "Helvetica", inner_w, avail_h,
+            measure_width=measure_width, lo=5.5, hi=7.5,
+        )
         leading = size * 1.18
-        c.setFont("Helvetica", size)
-        cy = oracle_top - size
-        for line in lines:
-            if cy < oracle_bottom:
+    else:
+        oracle_top = oracle_bottom = 0.0
+        size, lines, leading = 0.0, [], 0.0
+
+    return ProxyLayout(
+        x=x, y=y,
+        name_banner_y=name_banner_y,
+        name_text=name, name_text_size=name_size,
+        name_centered=name_centered, mana_cost_text=mana_cost,
+        pt_text=pt_text, pt_box_x=pt_box_x, pt_box_y=pt_box_y,
+        footer_text=footer_text, footer_y=pt_box_y + 4,
+        art_lines=art_lines, art_size=art_size, art_leading=art_leading,
+        art_x=art_x, art_y_top=art_y_top, art_tier=tier, art_key=key,
+        type_banner_y=type_banner_y,
+        type_text=type_line, type_text_size=type_size, color_tag=color_tag,
+        oracle_lines=lines, oracle_size=size, oracle_leading=leading,
+        oracle_top=oracle_top, oracle_bottom=oracle_bottom,
+    )
+
+
+def _draw_proxy(
+    c: Canvas,
+    slot: int,
+    card: dict,
+    *,
+    page_w: float,
+    page_h: float,
+    is_token: bool,
+    sources: list[str] | None = None,
+) -> tuple[str, str]:
+    """Render one card or token into ``slot``. Returns (art_tier, art_key)."""
+    layout = compute_layout(
+        card, slot,
+        page_w=page_w, page_h=page_h,
+        is_token=is_token, sources=sources,
+        measure_width=c.stringWidth,
+    )
+    _emit_proxy(c, layout)
+    return layout.art_tier, layout.art_key
+
+
+def _emit_proxy(c: Canvas, layout: ProxyLayout) -> None:
+    """Translate ``layout`` into reportlab canvas calls. No measurement, no math.
+
+    Every position and size has already been decided in
+    :func:`compute_layout`.
+    """
+    inner_x = layout.x + PAD
+    inner_w = CARD_W - 2 * PAD
+
+    # Outer cell border (cut line).
+    c.setLineWidth(0.6)
+    c.setStrokeColorRGB(0, 0, 0)
+    c.rect(layout.x, layout.y, CARD_W, CARD_H, stroke=1, fill=0)
+
+    # Name banner.
+    _draw_banner(c, inner_x, layout.name_banner_y, inner_w, BANNER_H)
+    name_text_y = layout.name_banner_y + 4
+    c.setFont("Helvetica-Bold", layout.name_text_size)
+    if layout.name_centered:
+        c.drawCentredString(inner_x + inner_w / 2, name_text_y, layout.name_text)
+    else:
+        c.drawString(inner_x + 3, name_text_y, layout.name_text)
+        if layout.mana_cost_text:
+            c.setFont("Helvetica-Bold", 9.5)
+            c.drawRightString(inner_x + inner_w - 3, name_text_y, layout.mana_cost_text)
+
+    # P/T box.
+    if layout.pt_text:
+        c.setLineWidth(0.4)
+        c.rect(layout.pt_box_x, layout.pt_box_y, PT_BOX_W, PT_BOX_H, stroke=1, fill=0)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawCentredString(
+            layout.pt_box_x + PT_BOX_W / 2, layout.pt_box_y + 3.5, layout.pt_text
+        )
+
+    # Footer slot (token source or art credit).
+    if layout.footer_text:
+        c.setFont("Helvetica-Oblique", 6)
+        c.drawString(inner_x, layout.footer_y, layout.footer_text)
+
+    # Art body.
+    c.setFont("Courier-Bold", layout.art_size)
+    cy = layout.art_y_top
+    for line in layout.art_lines:
+        c.drawString(layout.art_x, cy, line)
+        cy -= layout.art_leading
+
+    # Type banner.
+    type_banner_h = BANNER_H - 1
+    _draw_banner(c, inner_x, layout.type_banner_y, inner_w, type_banner_h)
+    type_text_y = layout.type_banner_y + 3
+    c.setFont("Helvetica-Bold", layout.type_text_size)
+    c.drawString(inner_x + 3, type_text_y, layout.type_text)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawRightString(inner_x + inner_w - 3, type_text_y, layout.color_tag)
+
+    # Oracle text.
+    if layout.oracle_lines:
+        c.setFont("Helvetica", layout.oracle_size)
+        cy = layout.oracle_top - layout.oracle_size
+        for line in layout.oracle_lines:
+            if cy < layout.oracle_bottom:
                 break
             c.drawString(inner_x, cy, line)
-            cy -= leading
+            cy -= layout.oracle_leading
 
-    return tier, key
 
 
 # --- PDF builder -----------------------------------------------------------
