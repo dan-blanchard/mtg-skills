@@ -16,6 +16,7 @@ card-type and ultimate-generic fallbacks) from the on-disk catalog at
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from importlib import resources
@@ -121,13 +122,27 @@ def _split_type_line(type_line: str) -> tuple[list[str], list[str]]:
 
 # --- Art catalog -----------------------------------------------------------
 
+# The attributed catalog holds ASCII art the user has fetched from
+# asciiart.eu (or similar) with a 3-line ``#``-prefixed header noting title,
+# source, and license. When a piece is found here it overrides the local
+# catalog and its artist is rendered in the proxy's lower-left footer.
+ATTRIBUTED_ART_DIR = Path(
+    os.environ.get("MTG_SKILLS_ATTRIBUTED_ART_DIR")
+    or "/private/tmp/ascii-animals"
+)
+
+# Header line shape: ``# Title (by Artist Name (signature))``
+_ATTRIBUTED_BY_RE = re.compile(
+    r"\(by\s+(?P<name>[^()]+?)(?:\s*\([^)]+\))?\s*\)\s*$"
+)
+
 
 def _art_dir() -> resources.abc.Traversable:
     return resources.files("mtg_utils.data.card_art")
 
 
 def _try_read_art(key: str) -> str | None:
-    """Read art for ``key`` from the catalog, or None if missing."""
+    """Read art for ``key`` from the local catalog, or None if missing."""
     if not key:
         return None
     art_root = _art_dir()
@@ -140,20 +155,75 @@ def _try_read_art(key: str) -> str | None:
         return None
 
 
-def lookup_art(type_line: str) -> tuple[str, str, str]:
+def _try_read_attributed(key: str) -> tuple[str, str] | None:
+    """Read attributed art for ``key`` from :data:`ATTRIBUTED_ART_DIR`.
+
+    Returns ``(art_body, artist_name)`` or None if not found / unparseable.
+    The file format is::
+
+        # <title> (by <artist name>[ (<signature>)])
+        # Source: <url>
+        # Used with attribution per <url>
+
+        <art body…>
+
+    Header lines are stripped before returning ``art_body``; the artist's
+    name is extracted from the first header line so the renderer can credit
+    them on the printed proxy.
+    """
+    if not key or not ATTRIBUTED_ART_DIR.exists():
+        return None
+    candidate = ATTRIBUTED_ART_DIR / f"{key}.txt"
+    try:
+        if not candidate.is_file():
+            return None
+        text = candidate.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return None
+
+    lines = text.splitlines()
+    first_header = ""
+    body_start = 0
+    for i, line in enumerate(lines):
+        if line.startswith("#"):
+            if not first_header:
+                first_header = line
+            body_start = i + 1
+        elif line.strip() == "" and body_start == i:
+            # consume a single blank separator after the header
+            body_start = i + 1
+            break
+        else:
+            break
+
+    body = "\n".join(lines[body_start:]).strip("\n")
+    if not body:
+        return None
+
+    artist = ""
+    m = _ATTRIBUTED_BY_RE.search(first_header)
+    if m:
+        artist = m.group("name").strip()
+    return body, artist
+
+
+def lookup_art(type_line: str) -> tuple[str, str, str, str]:
     """Resolve ASCII art for a card by type line.
 
-    Returns ``(art, tier, key)`` where:
+    Returns ``(art, tier, key, credit)`` where:
     * ``art`` is the multi-line ASCII string (already stripped of leading/
       trailing newlines).
     * ``tier`` is one of ``"subtype" | "card-type" | "generic"``.
     * ``key`` is the slug that hit (e.g., ``"vampire"``, ``"creature"``,
       ``"_generic"``).
+    * ``credit`` is the artist's name when the piece came from the
+      attributed catalog, otherwise ``""``.
 
-    Lookup chain (first hit wins):
+    Lookup chain (first hit wins). For each slug we try the attributed
+    catalog first, then the local catalog:
       1. Each subtype slug from the type line, in order.
       2. Each card-type slug (filtering meta words like Token / Legendary).
-      3. ``_generic.txt`` ultimate fallback.
+      3. ``_generic.txt`` ultimate fallback (local only).
     """
     types, subs = _split_type_line(type_line)
 
@@ -161,24 +231,30 @@ def lookup_art(type_line: str) -> tuple[str, str, str]:
         if sub in _ART_SKIP_WORDS:
             continue
         s = slug(sub)
+        att = _try_read_attributed(s)
+        if att is not None:
+            return att[0], "subtype", s, att[1]
         art = _try_read_art(s)
         if art is not None:
-            return art, "subtype", s
+            return art, "subtype", s, ""
 
     for t in types:
         if t in _ART_SKIP_WORDS or t not in _CARD_TYPE_WORDS:
             continue
         s = slug(t)
+        att = _try_read_attributed(s)
+        if att is not None:
+            return att[0], "card-type", s, att[1]
         art = _try_read_art(s)
         if art is not None:
-            return art, "card-type", s
+            return art, "card-type", s, ""
 
     art = _try_read_art("_generic")
     if art is None:
         # Catalog missing the ultimate fallback — emergency stub so we never
         # crash mid-render.
         art = "         ?\n        ???\n         ?"
-    return art, "generic", "_generic"
+    return art, "generic", "_generic", ""
 
 
 # --- Bulk indexes ----------------------------------------------------------
@@ -486,17 +562,24 @@ def _draw_proxy(
 
     footer_h = PT_BOX_H if pt_text else 0
 
-    # ---- Optional "from:" footer for tokens -------------------------------
+    # Footer-left text: token source for tokens, artist credit for cards.
+    # Both render on the same row as the P/T box, mirroring real MTG
+    # cards which place the artist credit at the bottom-left.
+    footer_text = ""
     if is_token and sources:
         if len(sources) == 1:
-            src_text = f"from: {sources[0]}"
+            footer_text = f"from: {sources[0]}"
         else:
-            src_text = f"from: {len(sources)} cards"
-        avail_w = inner_w - (PT_BOX_W + 6) if pt_text else inner_w
+            footer_text = f"from: {len(sources)} cards"
+    # ``art_credit`` is set later (after lookup_art) but we record the
+    # footer slot's geometry here so it survives the rest of the layout
+    # math below. We draw it after the P/T box is positioned.
+    footer_avail_w = inner_w - (PT_BOX_W + 6) if pt_text else inner_w
+    if footer_text:
         c.setFont("Helvetica-Oblique", 6)
-        while c.stringWidth(src_text, "Helvetica-Oblique", 6) > avail_w and len(src_text) > 8:
-            src_text = src_text[:-2] + "…"
-        c.drawString(inner_x, pt_box_y + 4, src_text)
+        while c.stringWidth(footer_text, "Helvetica-Oblique", 6) > footer_avail_w and len(footer_text) > 8:
+            footer_text = footer_text[:-2] + "…"
+        c.drawString(inner_x, pt_box_y + 4, footer_text)
 
     # ---- Oracle region (above footer) -------------------------------------
     body_top = name_banner_y - BANNER_GAP
@@ -530,7 +613,16 @@ def _draw_proxy(
     art_top = body_top
     art_bottom = art_top - art_h
 
-    art_text, tier, key = lookup_art(type_line)
+    art_text, tier, key, art_credit = lookup_art(type_line)
+    # If we have an artist credit and no token-source has already claimed
+    # the footer-left slot, render it on the bottom-left of the card
+    # (same row as P/T) the way real MTG cards do.
+    if art_credit and not footer_text:
+        cred_text = f"art by {art_credit}"
+        c.setFont("Helvetica-Oblique", 6)
+        while c.stringWidth(cred_text, "Helvetica-Oblique", 6) > footer_avail_w and len(cred_text) > 12:
+            cred_text = cred_text[:-2] + "…"
+        c.drawString(inner_x, pt_box_y + 4, cred_text)
     art_size, art_leading, art_lines = _fit_art(art_text, inner_w, art_h)
     char_w = art_size * 0.6
     block_h = len(art_lines) * art_leading
