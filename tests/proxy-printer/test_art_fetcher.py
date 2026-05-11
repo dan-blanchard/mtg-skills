@@ -671,6 +671,103 @@ def test_fetch_by_name_empty_name_returns_false(tmp_path: Path) -> None:
     assert art_fetcher.fetch_by_name(fetcher, "", tmp_path) is False
 
 
+def test_parse_website_search_extracts_artwork_records() -> None:
+    """_parse_website_search converts the API JSON into the candidate-pool shape."""
+    data = {
+        "status": "success",
+        "artworks": [
+            {
+                "id": 1234,
+                "art": "  /\\__/\\\n ( o.o )\n  > ^ <",
+                "title": "Cat",
+                "artist_name": "Some Artist",
+            },
+            {
+                "id": 1235,
+                "art": "",  # empty body → skipped
+                "title": "Empty",
+                "artist_name": "x",
+            },
+        ],
+    }
+    cards = art_fetcher._parse_website_search(data, "cat")
+    assert len(cards) == 1
+    c = cards[0]
+    assert c["_source"] == "website"
+    assert c["id"] == "1234"
+    assert c["title"] == "Cat"
+    assert c["artist"] == "Some Artist"
+    assert c["url"] == "https://asciiart.website/art/1234"
+    assert "/\\__/\\" in c["art"]
+    assert c["height"] == 3
+    assert c["width"] >= 8
+
+
+def test_parse_website_search_returns_empty_on_error_status() -> None:
+    assert art_fetcher._parse_website_search({"status": "error"}, "x") == []
+    assert art_fetcher._parse_website_search({}, "x") == []
+
+
+def test_search_pool_website_posts_with_csrf_and_secret() -> None:
+    """search_pool_website hits /api/search2api.php; FakeFetcher returns canned JSON."""
+    json_blob = json.dumps({
+        "status": "success",
+        "artworks": [{
+            "id": 100, "art": "  /\\__/\\\n ( o.o )",
+            "title": "Cat", "artist_name": "AA",
+        }],
+    })
+    routes = {"/api/search2api.php": json_blob}
+    fetcher = FakeFetcher(routes=routes)
+    pool = art_fetcher.search_pool_website(fetcher, "cat", csrf_token="fake-csrf")
+    assert len(pool) == 1
+    assert pool[0]["_source"] == "website"
+
+
+def test_refresh_website_csrf_extracts_token() -> None:
+    routes = {"/api/refresh_csrf.php": json.dumps({"csrf_token": "abc123"})}
+    fetcher = FakeFetcher(routes=routes)
+    token = art_fetcher._refresh_website_csrf(fetcher)
+    assert token == "abc123"
+
+
+def test_fetch_by_name_falls_back_to_website_per_word(tmp_path: Path) -> None:
+    """When asciiart.eu's full-name search misses, words ≥4 chars are tried
+    on asciiart.website. The first single-word hit wins."""
+    json_blob = json.dumps({
+        "status": "success",
+        "artworks": [{
+            "id": 200, "art": "  ELF-ART  \n  / | \\\n / | \\",
+            "title": "Elf piece", "artist_name": "Test",
+        }],
+    })
+    routes = {
+        # asciiart.eu /search returns nothing fitting (the SAMPLE_HTML's
+        # only in-budget piece has title "Vampire Bat", not matching).
+        "/search?q=Llanowar": "<html>nothing</html>",
+        # Word "Llanowar" hits nothing on .website.
+        # Word "Elves" hits on .website search.
+        "/api/search2api.php": json_blob,
+    }
+    fetcher = FakeFetcher(routes=routes)
+    ok = art_fetcher.fetch_by_name(
+        fetcher, "Llanowar Elves", tmp_path,
+        website_csrf="fake-csrf",
+    )
+    assert ok is True
+    out = (tmp_path / "llanowar-elves.txt").read_text()
+    assert "ELF-ART" in out
+
+
+def test_fetch_by_name_skips_website_when_no_csrf(tmp_path: Path) -> None:
+    """Without website_csrf, the .eu fallback is the only source."""
+    routes = {"/search": "<html>nothing</html>"}
+    fetcher = FakeFetcher(routes=routes)
+    ok = art_fetcher.fetch_by_name(fetcher, "Llanowar Elves", tmp_path)
+    assert ok is False
+    assert not any(tmp_path.iterdir())
+
+
 def test_distinct_card_names_walks_deck() -> None:
     """_distinct_card_names returns each name once, front-face only for DFC."""
     deck = {

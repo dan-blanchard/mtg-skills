@@ -54,6 +54,24 @@ class FakeFetcher:
         max_retries: int = 2,
     ) -> bytes:
         self.calls.append(FetchCall(url, cache_key, throttle, max_retries))
+        return self._lookup(url)
+
+    def fetch_uncached(self, url: str, *, throttle: float = 0.0) -> bytes:
+        self.calls.append(FetchCall(url, "", throttle, 0))
+        return self._lookup(url)
+
+    def post_form(
+        self,
+        url: str,
+        *,
+        form_fields: dict[str, str],
+        throttle: float = 0.0,
+        max_retries: int = 2,
+    ) -> bytes:
+        self.calls.append(FetchCall(url, "", throttle, max_retries))
+        return self._lookup(url)
+
+    def _lookup(self, url: str) -> bytes:
         for suffix, content in self.routes.items():
             if suffix in url:
                 return content.encode("utf-8") if isinstance(content, str) else content

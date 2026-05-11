@@ -88,6 +88,17 @@ FRESHNESS_SECONDS = CACHE_MAX_AGE_DAYS * 86400
 WEBSITE_THROTTLE_SEC = 0.4
 
 
+# --- asciiart.website search API ------------------------------------------
+
+# Hardcoded "secret" the site's JS embeds in search.php and ships in
+# /api/search2api.php POSTs. Not a real secret — public client-side
+# constant. If the site rotates it, our integration breaks loud (search
+# returns {status: "error"}) and this constant needs a one-line bump.
+WEBSITE_SEARCH_SECRET = (
+    "fgjO83fk45mflskJGos1ko2KBVjJBS59j3J9sjJ93j02jla93jfjgnsjd8h82lkjasfJF893j11Kkksjak"
+)
+
+
 # --- Exit codes ------------------------------------------------------------
 
 EXIT_OK = 0
@@ -332,6 +343,80 @@ def fetch_website_tags(fetcher: Fetcher) -> list[tuple[str, str]]:
         name = html.unescape(m.group("name").strip())
         out.append((m.group("id"), name))
     return out
+
+
+def _refresh_website_csrf(fetcher: Fetcher) -> str:
+    """Fetch a fresh CSRF token from asciiart.website's API.
+
+    The matching PHPSESSID cookie is captured by the fetcher's internal
+    session and travels with subsequent ``post_form`` calls.
+    """
+    raw = fetcher.fetch_uncached(f"{WEBSITE_BASE}/api/refresh_csrf.php")
+    return json.loads(raw.decode("utf-8"))["csrf_token"]
+
+
+def _parse_website_search(data: dict, query: str) -> list[dict]:
+    """Translate the search API's artwork records to the candidate-pool shape.
+
+    asciiart.website's search endpoint returns ``{status, artworks: [{
+    id, art, title, artist_name, ...}]}``. We compute width/height from
+    the art body (right-stripped per line so trailing whitespace doesn't
+    inflate width — same rule as :func:`_parse_cards_website`).
+    """
+    cards: list[dict] = []
+    for art in data.get("artworks", []) or []:
+        body = art.get("art") or ""
+        # Normalise to LF and right-strip each line.
+        lines = [line.rstrip() for line in body.replace("\r\n", "\n").split("\n")]
+        body = "\n".join(lines).strip("\n")
+        if not body:
+            continue
+        lines_nonempty = body.splitlines()
+        height = len(lines_nonempty)
+        width = max((len(line) for line in lines_nonempty), default=0)
+        art_id = str(art.get("id") or "")
+        cards.append({
+            "_source": "website",
+            "id": art_id,
+            "title": art.get("title") or "Untitled",
+            "artist": art.get("artist_name") or art.get("artist") or "unknown",
+            "height": height,
+            "width": width,
+            "art": body,
+            "source_path": f"search?q={query}",
+            "url": f"{WEBSITE_BASE}/art/{art_id}",
+        })
+    return cards
+
+
+def search_pool_website(
+    fetcher: Fetcher, query: str, *, csrf_token: str,
+) -> list[dict]:
+    """POST to asciiart.website's search API; return parsed candidate cards.
+
+    Multi-word queries reliably return zero — the site's search matches
+    tag names rather than full titles. Callers should split card names
+    into individual words and try each.
+
+    Sort order ``shortest`` is hardcoded so the API returns the smallest
+    pieces first — they're the ones most likely to satisfy our 30x14
+    budget. Without this, results come back in the site's default order
+    (roughly by ID) and few fit.
+    """
+    raw = fetcher.post_form(
+        f"{WEBSITE_BASE}/api/search2api.php",
+        form_fields={
+            "q": query,
+            "csrf_token": csrf_token,
+            "secret": WEBSITE_SEARCH_SECRET,
+            "sort_order": "shortest",
+        },
+        throttle=WEBSITE_THROTTLE_SEC,
+    )
+    data = json.loads(raw.decode("utf-8"))
+    if data.get("status") != "success":
+        return []
+    return _parse_website_search(data, query)
 
 
 # --- Category filter -------------------------------------------------------
@@ -673,6 +758,23 @@ class Fetcher(Protocol):
         """
         ...
 
+    def fetch_uncached(self, url: str, *, throttle: float = 0.0) -> bytes:
+        """GET without caching. Used for short-lived resources like CSRF
+        tokens that must be fresh on every call."""
+        ...
+
+    def post_form(
+        self,
+        url: str,
+        *,
+        form_fields: dict[str, str],
+        throttle: float = 0.0,
+        max_retries: int = 2,
+    ) -> bytes:
+        """POST a form-encoded body. Never cached (POST responses depend
+        on session state). Retry / throttle behaviour mirrors ``fetch``."""
+        ...
+
 
 class HttpFetcher:
     """Production :class:`Fetcher`. Wraps a private ``requests.Session``."""
@@ -728,6 +830,40 @@ class HttpFetcher:
             path.write_bytes(resp.content)
             return resp.content
         # Unreachable: the loop either returns or raises.
+        msg = "exhausted retries without raising or returning"
+        raise RuntimeError(msg)
+
+    def fetch_uncached(self, url: str, *, throttle: float = 0.0) -> bytes:
+        if throttle > 0:
+            time.sleep(throttle)
+        resp = self._session.get(url, timeout=30)
+        resp.raise_for_status()
+        return resp.content
+
+    def post_form(
+        self,
+        url: str,
+        *,
+        form_fields: dict[str, str],
+        throttle: float = 0.0,
+        max_retries: int = 2,
+    ) -> bytes:
+        for attempt in range(max_retries + 1):
+            if throttle > 0:
+                time.sleep(throttle)
+            try:
+                resp = self._session.post(url, data=form_fields, timeout=30)
+            except (requests.ConnectionError, requests.Timeout):
+                if attempt < max_retries:
+                    time.sleep(5.0 * (attempt + 1))
+                    continue
+                raise
+            status = getattr(resp, "status_code", 200)
+            if status == 429 and attempt < max_retries:
+                time.sleep(5.0 * (attempt + 1))
+                continue
+            resp.raise_for_status()
+            return resp.content
         msg = "exhausted retries without raising or returning"
         raise RuntimeError(msg)
 
@@ -834,20 +970,28 @@ def fetch_by_name(
     out_dir: Path,
     *,
     overwrite: bool = False,
+    website_csrf: str | None = None,
 ) -> bool:
-    """Try to fetch art for a specific card *name* via asciiart.eu /search.
+    """Try to fetch art for a specific card *name* via two-source search.
 
     Writes ``<name-slug>.txt`` into ``out_dir`` if an in-budget hit
-    exists; skips silently when the search returns nothing fitting.
+    exists; skips silently when no source returns anything fitting.
     Returns True iff a file was written.
 
-    Unlike subtype/tag fetching, the search engine handles relevance;
-    we just pick the best-fitting size from the returned pool (no
-    title-match filter — many MTG card names won't appear verbatim in
-    art titles, but the search ranker still surfaces relevant pieces).
+    Search order:
+    1. ``asciiart.eu /search?q=<full name>`` — handles most multi-word
+       MTG names because the engine matches across full titles.
+    2. If step 1 returns no fitting hits AND ``website_csrf`` is
+       provided, split ``name`` into whole words (≥4 chars) and search
+       each on ``asciiart.website``. The website's search matches tag
+       names, so single-word fragments work where the full name didn't
+       (e.g., "Llanowar Elves" → "Elves" → 11 results).
 
     ``overwrite=False`` skips names whose ``<name-slug>.txt`` already
     exists (avoids clobbering hand-curated files or earlier runs).
+    ``website_csrf`` is ``None`` when the caller doesn't want
+    asciiart.website fallback — keeps the function callable with no
+    extra session setup.
     """
     if not name:
         return False
@@ -855,8 +999,22 @@ def fetch_by_name(
     out_path = out_dir / f"{name_slug}.txt"
     if not overwrite and out_path.is_file():
         return False
+
+    # Pass 1: asciiart.eu full-name search.
     pool = search_pool(fetcher, name)
     fitting = [c for c in pool if _fits(c)]
+
+    # Pass 2: per-word fallback on asciiart.website.
+    if not fitting and website_csrf:
+        for word in name.split():
+            if len(word) < 4:
+                continue
+            web_pool = search_pool_website(fetcher, word, csrf_token=website_csrf)
+            web_fitting = [c for c in web_pool if _fits(c)]
+            if web_fitting:
+                fitting = web_fitting
+                break
+
     if not fitting:
         return False
     chosen = min(fitting, key=_score)
@@ -1062,6 +1220,14 @@ def run(
         log(f"Fetching name-keyed art for cards in {deck_path.name}...")
         deck = json.loads(deck_path.read_text())
         names = _distinct_card_names(deck)
+        # One CSRF refresh for the whole batch — the session cookie
+        # persists in the fetcher, so all subsequent post_form calls
+        # reuse it.
+        try:
+            csrf = _refresh_website_csrf(fetcher)
+        except (requests.RequestException, ValueError, KeyError) as e:
+            log(f"  (warning: asciiart.website CSRF refresh failed: {e}; eu-only)")
+            csrf = None
         n_written = 0
         n_skipped_existing = 0
         for name in names:
@@ -1069,7 +1235,7 @@ def run(
             if (out_dir / f"{name_slug}.txt").is_file():
                 n_skipped_existing += 1
                 continue
-            if fetch_by_name(fetcher, name, out_dir):
+            if fetch_by_name(fetcher, name, out_dir, website_csrf=csrf):
                 n_written += 1
         log(
             f"  Wrote {n_written} name-keyed files "

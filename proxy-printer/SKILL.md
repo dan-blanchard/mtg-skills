@@ -200,20 +200,30 @@ A typical Commander deck has ~30 unique subtypes → ~30 tag fetches at
 full sweep (no `--from-deck`) takes ~108s cold and is only worth
 running if you intend to print proxies for many different decks.
 
-Add `--by-name` to also fetch art for individual *card names* via
-asciiart.eu's search — these power the **differentiation pass** in
-`proxy-print` (so multiple distinct-name cards sharing one subtype's
-art each get their own piece when one is available):
+Add `--by-name` to also fetch art for individual *card names* — these
+power the **differentiation pass** in `proxy-print` (so multiple
+distinct-name cards sharing one subtype's art each get their own
+piece when one is available):
 
 ```bash
 fetch-art --from-deck /tmp/deck.json --by-name
 ```
 
-Most card names won't have a thematic hit (asciiart sites are
-concept-keyed, not card-keyed). Iconic names that DO often hit:
-Lightning Bolt → a lightning ASCII; Black Lotus → a lotus flower;
-Sword of Truth and Justice → a sword. Cards that don't get a name-
-keyed file fall back to type-keyed art.
+The name-keyed pass tries two sources in order:
+
+1. **asciiart.eu** full-name search (`/search?q=<full name>`).
+   Matches across full art titles, so multi-word MTG names usually
+   land — Lightning Bolt → lightning ASCII, Black Lotus → lotus,
+   Sword of Truth and Justice → sword.
+2. **asciiart.website** per-word fallback when (1) returns nothing.
+   The site's search matches tag names rather than titles, so we
+   split the card name and try each word (≥4 chars) on its API
+   (CSRF + form POST under the hood). e.g., "Brain Maggot" → "Brain"
+   → a brain piece; "Llanowar Elves" → "Elves" → an elf piece (when
+   one fits the 30x14 budget).
+
+Cards whose name doesn't yield any in-budget hit fall back to
+type-keyed art at render time.
 
 ```bash
 fetch-art
