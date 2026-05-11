@@ -268,15 +268,17 @@ def fetch_website_categories(
     """Auto-discover asciiart.website categories from browse.php.
 
     Returns ``[(category_id, name), ...]`` of every category the site
-    lists (~635). Callers usually filter this through
-    :func:`relevant_categories` before fetching the cat.php pages — the
-    bulk of these are non-MTG (TV shows, brand logos, holidays, …).
+    lists (~635), with HTML entities decoded in names. Callers usually
+    filter this through :func:`relevant_categories` before fetching the
+    cat.php pages — the bulk of these are non-MTG (TV shows, brand
+    logos, holidays, …).
     """
     path = cache / "asciiart-website-browse.html"
     raw = _fetch_cached(session, f"{WEBSITE_BASE}/browse.php", path)
     out: list[tuple[str, str]] = []
     for m in _WEBSITE_BROWSE_RE.finditer(raw.decode("utf-8")):
-        out.append((m.group("id"), m.group("name").strip()))
+        name = html.unescape(m.group("name").strip())
+        out.append((m.group("id"), name))
     return out
 
 
@@ -288,6 +290,74 @@ def fetch_website_categories(
 _MTG_ADJACENT_WORDS: frozenset[str] = frozenset({
     "animal", "bird", "beast", "insect", "reptile", "monster",
     "weapon", "vehicle", "water", "ocean", "sea", "tree", "fish",
+})
+
+
+# asciiart.website category names whose tokens match an MTG keyword but
+# whose content is a TV show / movie / cartoon character / brand — not
+# representative of the MTG subtype. Without this denylist, "Lion King"
+# pollutes the Lion subtype with Disney art, "Spider-Man" pollutes
+# Spider, etc. Compared lowercase against the category name as-fetched.
+#
+# Trade-offs called out inline:
+#  - "spider-man": MTG has Spider Hero subtype cards that would benefit
+#    from this category; the simpler design is to skip and accept that
+#    Spider Hero subtype falls through to creature.txt / _generic.
+#
+# We deliberately keep "Lord Of The Rings / Tolkien" — the user's decks
+# include LOTR-set MTG cards and they prefer Tolkien art over generic
+# fantasy art for Wizard / Elf / Dwarf when it scores well.
+_FRANCHISE_SKIP_CATEGORIES: frozenset[str] = frozenset({
+    # Cartoon characters whose names match an MTG subtype/synonym.
+    "beavis and butt-head",
+    "cartoon planet",
+    "casper the friendly ghost",
+    "donald duck",
+    "felix the cat",
+    "mickey mouse",
+    "mighty mouse",
+    "pink panther",
+    "rocky and bullwinkle",
+    "roger rabbit",
+    "spongebob squarepants",
+    "tiny toon adventures",
+    # TV / movies / fictional franchises.
+    "alien",                       # Ridley Scott Alien (MTG Alien uses /space/aliens).
+    "beauty and the beast",
+    "bear in the big blue house",
+    "blue's clues",
+    "buffy the vampire slayer",
+    "charlie's angels",
+    "crocodile dundee",
+    "dragon ball",
+    "fox and the hound",
+    "ghostbusters",
+    "land of the lustrous",
+    "lion king",
+    "little mermaid",
+    "monkey island",
+    "monsters inc.",
+    "paddington bear",
+    "ranger rick",
+    "red dwarf",
+    "sandra bullock",
+    "sonic the hedgehog",
+    "spider-man",                  # MTG Spider Hero subtype loses Marvel art (trade-off).
+    "toy story",
+    "vampire princess miyu",
+    "wallace & gromit",
+    # Brand-name overlaps.
+    "red dog beer",
+    "u.s. army corps of engineers",
+    # Real-world landmarks (one image, doesn't represent any subtype).
+    "eiffel tower",
+    "leaning tower of pisa",
+    "stonehenge",
+    # Misc.
+    "a fisherman's tale",
+    "samurai shodown",
+    "fairy tales",                 # too broad; usually anime art.
+    "christmas (trees)",           # holiday-themed trees, not Treefolk.
 })
 
 
@@ -373,9 +443,21 @@ def _category_matches(name: str, keywords: set[str]) -> bool:
 def relevant_categories(
     cats: list[tuple[str, str]], subtypes: list[str]
 ) -> list[tuple[str, str]]:
-    """Filter ``cats`` to those whose names match an MTG keyword."""
+    """Filter ``cats`` to those whose names match an MTG keyword.
+
+    A two-stage filter: first drop names listed in
+    :data:`_FRANCHISE_SKIP_CATEGORIES` (TV / movie / brand pages whose
+    titles match an MTG keyword but whose content is franchise art),
+    then keep only names where a tokenized match against the keyword
+    set succeeds.
+    """
     keywords = _relevant_keywords(subtypes)
-    return [(cid, name) for cid, name in cats if _category_matches(name, keywords)]
+    return [
+        (cid, name)
+        for cid, name in cats
+        if name.lower() not in _FRANCHISE_SKIP_CATEGORIES
+        and _category_matches(name, keywords)
+    ]
 
 
 # --- Synonyms --------------------------------------------------------------
@@ -697,16 +779,23 @@ def write_art(out_dir: Path, key: str, card: dict) -> Path:
     artist = card["artist"] or "unknown"
     source_kind = card.get("_source", "eu")
     if source_kind == "website":
+        # asciiart.website does NOT grant blanket reuse with attribution
+        # (its "FAQ" page is an archived 1994 usenet doc, not a site
+        # license). We credit the artist anyway and treat this as
+        # personal-use printing of MTG proxies.
         src_url = card.get("url") or f"{WEBSITE_BASE}/cat.php"
-        terms_url = f"{WEBSITE_BASE}/index.php?page=faq"
+        license_note = (
+            "Personal-use proxy; artist credited "
+            "(no explicit license grant from source)."
+        )
     else:
         src = card["source_path"]
         src_url = f"{ASCIIART_BASE}/{src}"
-        terms_url = f"{ASCIIART_BASE}/faq"
+        license_note = f"Used with attribution per {ASCIIART_BASE}/faq"
     header = (
         f"# {title} (by {artist})\n"
         f"# Source: {src_url}\n"
-        f"# Used with attribution per {terms_url}\n"
+        f"# {license_note}\n"
         "\n"
     )
     path = out_dir / f"{key}.txt"

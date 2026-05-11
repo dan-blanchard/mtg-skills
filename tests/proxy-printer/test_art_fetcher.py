@@ -482,6 +482,48 @@ def test_build_pool_filters_website_cats_by_subtype(tmp_path: Path) -> None:
     assert not any("category_id=12" in u for u in fetched_cat_urls)
 
 
+@pytest.mark.parametrize(
+    ("tok", "expected_stems"),
+    [
+        ("cats", {"cats", "cat"}),                # regular -s plural
+        ("foxes", {"foxes", "foxe", "fox"}),      # -es plural
+        ("butterflies", {"butterflies", "butterfly", "butterflie"}),  # -ies → -y
+        ("wolves", {"wolves", "wolf"}),           # irregular -ves
+        ("mice", {"mice", "mouse"}),              # full irregular
+        ("dragon", {"dragon"}),                   # singular, no stem
+        ("ox", {"ox"}),                            # too short to strip
+    ],
+)
+def test_stems_covers_plural_variants(tok: str, expected_stems: set[str]) -> None:
+    """_stems returns every form we'll test the keyword set against."""
+    actual = set(art_fetcher._stems(tok))
+    assert expected_stems <= actual, (
+        f"missing stems for {tok!r}: expected {expected_stems - actual}"
+    )
+
+
+def test_relevant_keywords_includes_every_subtype_token() -> None:
+    """Every Scryfall subtype's tokens land in the keyword set."""
+    subtypes = ["vampire", "eldrazi-spawn", "phyrexian"]
+    keywords = art_fetcher._relevant_keywords(subtypes)
+    assert "vampire" in keywords
+    # Compound subtype slugs are split on '-' and each token is added.
+    assert "eldrazi" in keywords
+    assert "spawn" in keywords
+    assert "phyrexian" in keywords
+
+
+def test_relevant_keywords_includes_synonym_targets() -> None:
+    """Synonym targets (e.g. 'gorilla' from ape→gorilla) land in keywords."""
+    keywords = art_fetcher._relevant_keywords([])
+    # 'ape' has synonyms gorilla, monkey in SYNONYMS.
+    assert "gorilla" in keywords
+    assert "monkey" in keywords
+    # MTG-adjacent words are always present.
+    assert "animal" in keywords
+    assert "weapon" in keywords
+
+
 def test_relevant_categories_keeps_subtype_matches() -> None:
     cats = [
         ("12", "Aardvarks"),
@@ -495,6 +537,55 @@ def test_relevant_categories_keeps_subtype_matches() -> None:
     assert "Big Cats" in names    # word-level match
     assert "Star Wars" not in names
     assert "Aardvarks" not in names  # aardvark isn't an MTG subtype
+
+
+def test_relevant_categories_drops_franchise_categories() -> None:
+    """Franchise pages get dropped even though their names match an MTG keyword."""
+    cats = [
+        ("1", "Spider-Man"),       # spider matches Spider subtype
+        ("2", "Lion King"),         # lion matches Cat synonym
+        ("3", "Donald Duck"),       # duck matches PW synonym
+        ("4", "Dragon Ball"),       # dragon matches Dragon subtype
+        ("5", "Dragons"),           # legit
+        ("6", "Lions"),             # legit
+    ]
+    out = art_fetcher.relevant_categories(cats, ["spider", "lion", "dragon"])
+    names = {n for _, n in out}
+    assert "Spider-Man" not in names
+    assert "Lion King" not in names
+    assert "Donald Duck" not in names
+    assert "Dragon Ball" not in names
+    assert "Dragons" in names
+    assert "Lions" in names
+
+
+def test_franchise_skip_uses_case_insensitive_match() -> None:
+    """Mixed-case category names are skipped regardless of original casing."""
+    cats = [
+        ("1", "SPIDER-MAN"),
+        ("2", "Spider-Man"),
+        ("3", "spider-man"),
+    ]
+    out = art_fetcher.relevant_categories(cats, ["spider"])
+    assert out == []
+
+
+def test_fetch_website_categories_decodes_html_entities(tmp_path: Path) -> None:
+    """Names like 'Wallace &amp; Gromit' come back HTML-decoded."""
+    html_blob = (
+        '<a href="cat.php?category_id=212" onclick="">'
+        '  Wallace &amp; Gromit  <span class="category-count">(7)</span>'
+        '</a>'
+        '<a href="cat.php?category_id=576" onclick="">'
+        "  Blue&#039;s Clues  <span class=\"category-count\">(3)</span>"
+        "</a>"
+    )
+    routes = {"/browse.php": html_blob}
+    session = _mock_session(routes)
+    cats = art_fetcher.fetch_website_categories(session, tmp_path)
+    by_id = dict(cats)
+    assert by_id["212"] == "Wallace & Gromit"
+    assert by_id["576"] == "Blue's Clues"
 
 
 def test_relevant_categories_keeps_mtg_adjacent_parents() -> None:
@@ -529,7 +620,9 @@ def test_write_art_website_header_uses_per_art_url(tmp_path: Path) -> None:
     lines = text.splitlines()
     assert lines[0] == "# Lion King (by Alice Author)"
     assert lines[1] == "# Source: https://asciiart.website/art/100"
-    assert "asciiart.website" in lines[2]
+    # asciiart.website doesn't grant a blanket license; we say so honestly.
+    assert "Personal-use" in lines[2]
+    assert "no explicit license grant" in lines[2]
 
 
 def test_fetch_cached_retries_on_429(tmp_path: Path, monkeypatch) -> None:
