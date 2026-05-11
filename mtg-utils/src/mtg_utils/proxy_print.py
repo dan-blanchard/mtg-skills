@@ -126,10 +126,14 @@ def _split_type_line(type_line: str) -> tuple[list[str], list[str]]:
 # asciiart.eu (or similar) with a 3-line ``#``-prefixed header noting title,
 # source, and license. When a piece is found here it overrides the local
 # catalog and its artist is rendered in the proxy's lower-left footer.
-ATTRIBUTED_ART_DIR = Path(
-    os.environ.get("MTG_SKILLS_ATTRIBUTED_ART_DIR")
-    or "/private/tmp/ascii-animals"
-)
+def attributed_art_dir() -> Path:
+    """Return the attributed-catalog root: ``$MTG_SKILLS_CACHE_DIR/attributed-art``
+    or ``$HOME/.cache/mtg-skills/attributed-art``.
+    """
+    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
+    if base:
+        return Path(base) / "attributed-art"
+    return Path(os.environ["HOME"]) / ".cache" / "mtg-skills" / "attributed-art"
 
 # Header line shape: ``# Title (by Artist Name (signature))``
 _ATTRIBUTED_BY_RE = re.compile(
@@ -156,7 +160,7 @@ def _try_read_art(key: str) -> str | None:
 
 
 def _try_read_attributed(key: str) -> tuple[str, str] | None:
-    """Read attributed art for ``key`` from :data:`ATTRIBUTED_ART_DIR`.
+    """Read attributed art for ``key`` from :func:`attributed_art_dir`.
 
     Returns ``(art_body, artist_name)`` or None if not found / unparseable.
     The file format is::
@@ -171,9 +175,10 @@ def _try_read_attributed(key: str) -> tuple[str, str] | None:
     name is extracted from the first header line so the renderer can credit
     them on the printed proxy.
     """
-    if not key or not ATTRIBUTED_ART_DIR.exists():
+    root = attributed_art_dir()
+    if not key or not root.exists():
         return None
-    candidate = ATTRIBUTED_ART_DIR / f"{key}.txt"
+    candidate = root / f"{key}.txt"
     try:
         if not candidate.is_file():
             return None
@@ -614,9 +619,10 @@ def _draw_proxy(
     art_bottom = art_top - art_h
 
     art_text, tier, key, art_credit = lookup_art(type_line)
-    # If we have an artist credit and no token-source has already claimed
-    # the footer-left slot, render it on the bottom-left of the card
-    # (same row as P/T) the way real MTG cards do.
+    # Footer-slot precedence: token source > artist credit. Token "from: X"
+    # is operationally useful at the table; the artist's in-art signature
+    # already satisfies asciiart.eu's FAQ attribution requirement, so the
+    # explicit "art by X" footer is a courtesy on non-token cards.
     if art_credit and not footer_text:
         cred_text = f"art by {art_credit}"
         c.setFont("Helvetica-Oblique", 6)

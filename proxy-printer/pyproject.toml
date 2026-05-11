@@ -17,6 +17,7 @@ dependencies = [
 proxy-print = "mtg_utils.proxy_print:main"
 parse-deck = "mtg_utils.parse_deck:main"
 download-bulk = "mtg_utils.download_bulk:main"
+fetch-art = "mtg_utils.art_fetcher:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

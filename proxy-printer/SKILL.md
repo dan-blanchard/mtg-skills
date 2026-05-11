@@ -61,6 +61,10 @@ Run:
 download-bulk --output-dir /tmp/scryfall-bulk
 ```
 
+> One-time-ish: if you want artist-credited art on the proxies, populate
+> the attributed catalog first. See [ASCII art catalog](#ascii-art-catalog)
+> below.
+
 ### Step 3 — Render cards
 
 ```bash
@@ -128,23 +132,75 @@ Card geometry: 2.5″ × 3.5″. Grid: 3 × 3 = 9 per page on Letter or A4.
 
 ## ASCII art catalog
 
-Art lives at `mtg-utils/src/mtg_utils/data/card_art/`, one `.txt` per
-card subtype (creature subtypes plus artifact / enchantment / land
-subtypes). Plus card-type fallbacks (`creature.txt`, `artifact.txt`,
-`enchantment.txt`, `land.txt`, `sorcery.txt`, `instant.txt`,
-`planeswalker.txt`) and an ultimate `_generic.txt`.
+Art comes from two tiers, with the **attributed catalog** layered on top
+of a hand-curated **local catalog**:
 
-Lookup is the same for cards and tokens:
+- **Local catalog** — ships in the repo at
+  `mtg-utils/src/mtg_utils/data/card_art/`. One `.txt` per card subtype
+  (creature / artifact / enchantment / land subtypes) plus card-type
+  fallbacks (`creature.txt`, `artifact.txt`, `enchantment.txt`,
+  `land.txt`, `sorcery.txt`, `instant.txt`, `planeswalker.txt`) and an
+  ultimate `_generic.txt`. Hand-curated ASCII, no attribution carried.
+- **Attributed catalog** — user-populated cache at
+  `$MTG_SKILLS_CACHE_DIR/attributed-art/` (default
+  `~/.cache/mtg-skills/attributed-art/`). Files carry a 3-line header
+  noting title, source, and license. When art comes from here the
+  proxy renders `art by <Name>` in the lower-left footer, on the same
+  row as P/T (where real MTG cards put the artist credit).
 
-1. Parse `type_line`. Subtypes after `—` are tried in order
-   (`Vampire Knight` → tries `vampire.txt` first, then `knight.txt`).
-2. If no subtype matched, iterate card-type words (skipping non-art
-   words like Token / Legendary / Snow / Tribal / Basic) and try
-   `<card-type-slug>.txt`.
-3. Final fallback: `_generic.txt`.
+### Lookup chain
+
+For each card, lookup walks slugs in order — subtypes first, then
+card-types, then `_generic`. For each slug it tries the attributed
+catalog first, then the local catalog. First hit wins:
+
+1. Parse `type_line`. For each subtype after `—`, in order
+   (`Vampire Knight` → `vampire`, then `knight`):
+   - try `attributed/<sub>.txt`
+   - try `local/<sub>.txt`
+2. If no subtype matched, walk card-type words (skipping meta words
+   like Token / Legendary / Snow / Tribal / Basic). For each card-type:
+   - try `attributed/<card-type>.txt`
+   - try `local/<card-type>.txt`
+3. Final fallback: `local/_generic.txt`.
+
+This per-slug interleaving (instead of attributed-tier-then-local-tier)
+means a hand-curated local Vampire beats a generic attributed Creature,
+which is usually what you want. See
+[`docs/adr/0006-attributed-art-catalog.md`](../docs/adr/0006-attributed-art-catalog.md).
 
 Art is **P/T-independent** by design — every Soldier token shares
 `soldier.txt`; the P/T appears as text in the proxy.
+
+### Populating the attributed catalog (one-time-ish)
+
+The attributed catalog ships **empty**. Populate it with `fetch-art`,
+which pulls every MTG subtype from Scryfall's catalog endpoints, mines
+asciiart.eu category pages for candidates, scores by target 20×10 (hard
+cap 30×13), and writes attributed `.txt` files with the 3-line license
+header that `proxy-print` knows how to read:
+
+```bash
+fetch-art
+```
+
+HTTP responses are cached on disk for 7 days under
+`$MTG_SKILLS_CACHE_DIR/ascii-art-fetcher/`, so re-running is cheap. Add
+`--report-missing` to see every subtype that had no fitting candidate —
+those fall through to the local catalog at render time.
+
+Subtypes that are MTG-only mechanics or set / plane names (Treasure,
+Saga, Innistrad, etc.) are deliberately skipped; the local catalog
+handles them.
+
+### Token source vs artist credit
+
+Both render in the same lower-left footer slot. If a token has both a
+"from: X" source and an artist credit, the token source wins — the
+in-art **signature** (the artist's initials embedded inside the ASCII
+itself) is preserved verbatim during fetch and already satisfies
+asciiart.eu's FAQ attribution requirement. The explicit "art by X"
+footer is courtesy on top of that.
 
 ## Interpreting `WARN:` output
 

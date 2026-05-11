@@ -12,6 +12,9 @@ relevant context and only edit terms inside it.
 - [cube-wizard](./cube-wizard/CONTEXT.md) — designing, balancing, and
   stress-testing MTG cubes. Owns the theme preset / stated archetype
   / gauntlet archetype / shape vocabulary.
+- [proxy-printer](./proxy-printer/CONTEXT.md) — rendering printable
+  PDF proxies. Owns the local catalog / attributed catalog / lookup
+  chain / artist credit / signature vocabulary.
 
 ## Architecture decisions
 
@@ -23,10 +26,9 @@ there.
 
 ## Pending
 
-The other skills (deck-wizard, rules-lawyer, proxy-printer, mtg-utils)
-don't yet have CONTEXT.md files. Add them lazily when an architecture
-conversation surfaces a term that the skill's prose doesn't already
-pin down.
+The other skills (deck-wizard, rules-lawyer, mtg-utils) don't yet have
+CONTEXT.md files. Add them lazily when an architecture conversation
+surfaces a term that the skill's prose doesn't already pin down.
 
 ## Cross-context relationships
 

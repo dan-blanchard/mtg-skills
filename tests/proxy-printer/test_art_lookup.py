@@ -90,7 +90,7 @@ def test_lookup_sorcery_card_type() -> None:
 def test_attributed_lookup_parses_header(tmp_path, monkeypatch) -> None:
     """A file in the attributed dir splits header from body and pulls
     the artist's name out of ``# Title (by Name (sig))``."""
-    monkeypatch.setattr(proxy_print, "ATTRIBUTED_ART_DIR", tmp_path)
+    monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
     (tmp_path / "kitten.txt").write_text(
         "# Kitten (by Some Artist (sig))\n"
         "# Source: https://example.com/cats\n"
@@ -112,14 +112,14 @@ def test_attributed_lookup_parses_header(tmp_path, monkeypatch) -> None:
 
 
 def test_attributed_lookup_misses_when_dir_empty(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(proxy_print, "ATTRIBUTED_ART_DIR", tmp_path)
+    monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
     assert _try_read_attributed("nope") is None
 
 
 def test_lookup_art_prefers_attributed(tmp_path, monkeypatch) -> None:
     """When attributed art exists for a subtype, lookup_art returns it
     and propagates the credit string."""
-    monkeypatch.setattr(proxy_print, "ATTRIBUTED_ART_DIR", tmp_path)
+    monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
     (tmp_path / "vampire.txt").write_text(
         "# Vampire (by The Artist)\n"
         "# Source: https://example.com/x\n"
@@ -132,3 +132,19 @@ def test_lookup_art_prefers_attributed(tmp_path, monkeypatch) -> None:
     assert key == "vampire"
     assert credit == "The Artist"
     assert "VAMPIRE" in art
+
+
+def test_attributed_art_dir_honors_cache_env(tmp_path, monkeypatch) -> None:
+    """$MTG_SKILLS_CACHE_DIR overrides the default ~/.cache root."""
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+    assert proxy_print.attributed_art_dir() == tmp_path / "attributed-art"
+
+
+def test_attributed_art_dir_default(tmp_path, monkeypatch) -> None:
+    """No MTG_SKILLS_CACHE_DIR → ~/.cache/mtg-skills/attributed-art."""
+    monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert (
+        proxy_print.attributed_art_dir()
+        == tmp_path / ".cache" / "mtg-skills" / "attributed-art"
+    )

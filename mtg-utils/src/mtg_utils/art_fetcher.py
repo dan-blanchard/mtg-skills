@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING
 import click
 import requests
 
-from mtg_utils.proxy_print import ATTRIBUTED_ART_DIR, slug
+from mtg_utils.proxy_print import attributed_art_dir, slug
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -430,9 +430,11 @@ _DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
 @click.option(
     "--out-dir",
     type=click.Path(path_type=Path),
-    default=ATTRIBUTED_ART_DIR,
-    show_default=True,
-    help="Where to write attributed art .txt files (read by proxy_print).",
+    default=None,
+    help=(
+        "Where to write attributed art .txt files (read by proxy_print). "
+        "Defaults to $MTG_SKILLS_CACHE_DIR/attributed-art."
+    ),
 )
 @click.option(
     "--search-fallback/--no-search-fallback",
@@ -453,12 +455,14 @@ _DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
 )
 def main(
     cache_dir: Path,
-    out_dir: Path,
+    out_dir: Path | None,
     search_fallback: bool,
     limit: int | None,
     report_missing: bool,
 ) -> None:
     """Populate the attributed-art catalog from asciiart.eu."""
+    if out_dir is None:
+        out_dir = attributed_art_dir()
     try:
         _written, _skipped, _missing, missing_keys = run(
             cache_dir=cache_dir,
