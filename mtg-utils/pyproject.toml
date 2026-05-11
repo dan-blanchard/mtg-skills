@@ -53,6 +53,7 @@ playtest-install-phase = "mtg_utils.playtest:install_phase_main"
 playtest-custom-format = "mtg_utils.playtest:custom_format_main"
 # Proxy printer
 proxy-print = "mtg_utils.proxy_print:main"
+fetch-art = "mtg_utils.art_fetcher:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
