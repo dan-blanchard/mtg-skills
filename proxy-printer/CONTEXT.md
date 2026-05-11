@@ -82,10 +82,25 @@ across slugs).
 
 **Lookup tier**:
 The class of the slug that produced the hit, returned by `lookup_art`
-as one of `"subtype"`, `"card-type"`, or `"generic"`. Independent of
-which catalog (attributed vs local) the file came from.
+as one of `"subtype"`, `"card-type"`, or `"generic"` — or `"name"`
+after the build-PDF **differentiation pass** swaps a duplicate's art
+for a card-name-keyed file. Independent of which catalog (attributed
+vs local) the file came from.
 _Avoid_: "level", "rank" (both suggest priority within a single
 catalog, but the tier is about which *kind of slug* matched).
+
+**Differentiation pass**:
+The second pass `build_pdf` runs after resolving every card's
+type-keyed art. It groups cards by their `(tier, key)` and, for any
+group containing **multiple distinct card names**, retries each
+member via `lookup_art_by_name(name)`. If a name-keyed file exists
+(e.g., `karplusan-forest.txt`) the card swaps to it; otherwise it
+keeps the shared type-keyed art. Cards with the **same** name
+intentionally stay on shared art — same name on the table = same
+visual, which helps players scan.
+_Avoid_: "deduplication" (suggests removing duplicates entirely;
+we're differentiating *renders*, not deleting cards), "second pass"
+alone (ambiguous with any subsequent traversal).
 
 **Skip-subtype**:
 A subtype the `fetch-art` CLI deliberately never writes a file for —

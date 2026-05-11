@@ -230,6 +230,29 @@ def lookup_art(type_line: str) -> tuple[str, str, str, str]:
     return art, "generic", "_generic", ""
 
 
+def lookup_art_by_name(name: str) -> tuple[str, str, str, str] | None:
+    """Try to find art keyed on the card's name (not its subtype).
+
+    Returns the same 4-tuple as :func:`lookup_art` (with ``tier="name"``)
+    if a name-keyed file exists in either catalog, else ``None``.
+
+    Used by the build-PDF two-pass logic: when multiple cards with
+    *different* names land on the same type-keyed art, each card gets
+    a chance to find a name-keyed file specific to its identity. Cards
+    with the same name keep the same art (helpful for table-scanning).
+    """
+    if not name:
+        return None
+    name_slug = slug(name)
+    att = _try_read_attributed(name_slug)
+    if att is not None:
+        return att[0], "name", name_slug, att[1]
+    art = _try_read_art(name_slug)
+    if art is not None:
+        return art, "name", name_slug, ""
+    return None
+
+
 # --- Layout primitives -----------------------------------------------------
 
 
@@ -409,12 +432,20 @@ def compute_layout(
     page_h: float,
     is_token: bool,
     measure_width: MeasureWidth,
+    art_lookup: tuple[str, str, str, str] | None = None,
 ) -> ProxyLayout:
     """Pure(ish) layout computation. No drawing — only measurement.
 
     Returns a :class:`ProxyLayout` carrying every position, font size,
     wrapped text, and content string the emit phase needs. ``measure_width``
     is the only seam to a real canvas (font metrics).
+
+    ``art_lookup`` is the resolved ``(art, tier, key, credit)`` to use.
+    When ``None`` (the default), the function calls :func:`lookup_art`
+    with the card's type line — matches the single-card render path.
+    ``build_pdf`` pre-resolves art across the whole batch (so it can
+    detect duplicates and try name-keyed differentiation) and passes
+    the result in.
     """
     x, y = _slot_xy(slot, page_w, page_h)
 
@@ -504,7 +535,9 @@ def compute_layout(
         art_h = art_top - art_bottom
 
     # ---- Art region --------------------------------------------------------
-    art_text_raw, tier, key, art_credit = lookup_art(type_line)
+    if art_lookup is None:
+        art_lookup = lookup_art(type_line)
+    art_text_raw, tier, key, art_credit = art_lookup
     art_size, art_leading, art_lines = _fit_art(art_text_raw, inner_w, art_h)
     char_w = art_size * 0.6
     block_h = len(art_lines) * art_leading
@@ -578,6 +611,7 @@ def _draw_proxy(
     page_w: float,
     page_h: float,
     is_token: bool,
+    art_lookup: tuple[str, str, str, str] | None = None,
 ) -> tuple[str, str]:
     """Render one card or token into ``slot``. Returns (art_tier, art_key)."""
     layout = compute_layout(
@@ -585,6 +619,7 @@ def _draw_proxy(
         page_w=page_w, page_h=page_h,
         is_token=is_token,
         measure_width=c.stringWidth,
+        art_lookup=art_lookup,
     )
     _emit_proxy(c, layout)
     return layout.art_tier, layout.art_key
@@ -661,6 +696,46 @@ def _emit_proxy(c: Canvas, layout: ProxyLayout) -> None:
 # --- PDF builder -----------------------------------------------------------
 
 
+def _resolve_art_with_differentiation(
+    items: list[tuple[dict, list[str] | None]],
+) -> list[tuple[str, str, str, str]]:
+    """Resolve art for every item, then try to differentiate duplicates by name.
+
+    Pass 1: ``lookup_art(type_line)`` per card — yields ``(art, tier, key, credit)``.
+    Pass 2: build groups keyed on ``(tier, key)``. For each group whose cards
+    have **multiple distinct names**, retry each member via
+    :func:`lookup_art_by_name`. If a name-keyed file exists, swap that
+    member's resolution. Otherwise leave the type-keyed resolution in place.
+
+    Cards with the same name keep the same art (helpful for table-scanning).
+    Cards with different names sharing one art file get a chance to land on
+    a name-specific file when one exists.
+    """
+    resolutions: list[tuple[str, str, str, str]] = []
+    for card, _sources in items:
+        type_line = card.get("type_line") or ""
+        if " // " in type_line:
+            type_line = type_line.split(" // ")[0]
+        resolutions.append(lookup_art(type_line))
+
+    groups: dict[tuple[str, str], list[int]] = {}
+    for i, (_art, tier, key, _credit) in enumerate(resolutions):
+        groups.setdefault((tier, key), []).append(i)
+
+    for indices in groups.values():
+        names = {items[i][0].get("name", "") for i in indices}
+        if len(names) <= 1:
+            continue
+        for i in indices:
+            name = items[i][0].get("name") or ""
+            if " // " in name:
+                name = name.split(" // ")[0]
+            name_result = lookup_art_by_name(name)
+            if name_result is not None:
+                resolutions[i] = name_result
+    return resolutions
+
+
 def build_pdf(
     out_path: Path,
     items: list[tuple[dict, list[str] | None]],
@@ -676,6 +751,8 @@ def build_pdf(
     c = canvas.Canvas(str(out_path), pagesize=(page_w, page_h))
     c.setTitle(title)
 
+    art_resolutions = _resolve_art_with_differentiation(items)
+
     for i, (card, _sources) in enumerate(items):
         slot = i % PER_PAGE
         if i > 0 and slot == 0:
@@ -684,6 +761,7 @@ def build_pdf(
             c,
             slot,
             card,
+            art_lookup=art_resolutions[i],
             page_w=page_w,
             page_h=page_h,
             is_token=is_token,

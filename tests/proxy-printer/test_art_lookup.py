@@ -8,7 +8,7 @@ import pytest
 
 from mtg_utils import proxy_print
 from mtg_utils.deck import slug, split_type_line
-from mtg_utils.proxy_print import _try_read_attributed, lookup_art
+from mtg_utils.proxy_print import _try_read_attributed, lookup_art, lookup_art_by_name
 
 
 @pytest.mark.parametrize(
@@ -144,3 +144,39 @@ def test_attributed_art_dir_default(tmp_path, monkeypatch) -> None:
         proxy_print.attributed_art_dir()
         == tmp_path / ".cache" / "mtg-skills" / "attributed-art"
     )
+
+
+# ---------------------------------------------------------------------------
+# Name-keyed lookup (the 2nd-pass differentiation tier).
+# ---------------------------------------------------------------------------
+
+
+def test_lookup_art_by_name_returns_none_when_no_file(tmp_path, monkeypatch) -> None:
+    """No <name-slug>.txt anywhere → returns None (not a fallback)."""
+    monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
+    assert lookup_art_by_name("Definitely Not A Real Card") is None
+
+
+def test_lookup_art_by_name_hits_attributed(tmp_path, monkeypatch) -> None:
+    """A name-keyed attributed file (e.g. karplusan-forest.txt) returns its art + credit."""
+    monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
+    (tmp_path / "karplusan-forest.txt").write_text(
+        "# Karplusan Forest (by Greg Staples)\n"
+        "# Source: https://example.com/x\n"
+        "# Personal-use proxy\n"
+        "\n"
+        "KARPLUSAN-FOREST-ART\n"
+    )
+    result = lookup_art_by_name("Karplusan Forest")
+    assert result is not None
+    art, tier, key, credit = result
+    assert tier == "name"
+    assert key == "karplusan-forest"
+    assert credit == "Greg Staples"
+    assert "KARPLUSAN-FOREST-ART" in art
+
+
+def test_lookup_art_by_name_empty_name_returns_none() -> None:
+    """An empty name string is a no-op, not a generic fallback."""
+    assert lookup_art_by_name("") is None
+    assert lookup_art_by_name(None) is None  # type: ignore[arg-type]
