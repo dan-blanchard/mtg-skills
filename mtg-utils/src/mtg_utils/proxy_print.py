@@ -753,6 +753,15 @@ def _warn_unresolved_duplicates(
     pointing at the same file may have different ``(tier, key)`` tuples.
     Grouping by content surfaces the real duplication.
 
+    Canonical members are excluded from the warning. A card is
+    *canonical* when its name slugs to the same key as the art file —
+    e.g. a basic ``"Swamp"`` card whose name slugs to ``swamp`` and
+    whose art file is ``swamp.txt``. The basic land is *supposed* to
+    look like the canonical swamp; flagging it as needing unique
+    name-keyed art would be wrong. Only **non-canonical** neighbors
+    (Blood Crypt, Smoldering Marsh on swamp.txt) are useful candidates
+    for hand-curation.
+
     The agent invoking proxy-print sees the warning and can offer to
     hand-curate placeholders into ``$MTG_SKILLS_CACHE_DIR/attributed-art/``
     (see proxy-printer/SKILL.md, "Hand-curating unique art when the
@@ -762,11 +771,18 @@ def _warn_unresolved_duplicates(
     for i, (art, _tier, _key, _credit) in enumerate(resolutions):
         groups.setdefault(art, []).append(i)
     for indices in groups.values():
-        names = sorted({items[i][0].get("name") or "" for i in indices})
-        if len(names) <= 1:
+        all_names = {items[i][0].get("name") or "" for i in indices}
+        if len(all_names) <= 1:
             continue
-        # Pick a representative (tier, key) from the first member for
-        # the warning message — they're all pointing at the same file.
+        non_canonical: set[str] = set()
+        for i in indices:
+            name = items[i][0].get("name") or ""
+            _, _tier, key, _ = resolutions[i]
+            if slug(name) != key:
+                non_canonical.add(name)
+        if not non_canonical:
+            continue
+        names = sorted(non_canonical)
         _, _tier, key, _ = resolutions[indices[0]]
         head = ", ".join(names[:6])
         tail = f", … (+{len(names) - 6} more)" if len(names) > 6 else ""

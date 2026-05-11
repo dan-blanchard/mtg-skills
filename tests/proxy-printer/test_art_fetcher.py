@@ -735,6 +735,88 @@ def test_fetch_by_name_empty_name_returns_false(tmp_path: Path) -> None:
     assert art_fetcher.fetch_by_name(fetcher, "", tmp_path) is False
 
 
+def test_fetch_by_name_dedupes_against_existing_catalog(tmp_path: Path) -> None:
+    """If the chosen piece's body already exists in the catalog under
+    another slug, don't write a duplicate file. Real-world bug: the
+    --by-name pass for "Goblin Bombardment" hit the same McDonnell
+    XF-85 Goblin piece already in goblin.txt, producing two byte-
+    identical files under different slugs."""
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    # Pre-seed with the EXACT body that SAMPLE_HTML's Vampire Bat
+    # has, so _load_existing_bodies will see it and dedupe.
+    parsed = _parse_cards(SAMPLE_HTML, "x")
+    bat_body = parsed[0]["art"].strip("\n")
+    (out_dir / "vampire.txt").write_text(
+        f"# Vampire Bat (by Jane Doe)\n# Source: x\n# x\n\n{bat_body}\n"
+    )
+    existing = art_fetcher._load_existing_bodies(out_dir)
+    routes = {"asciiart.eu/search": SAMPLE_HTML}
+    fetcher = FakeFetcher(routes=routes)
+    ok = art_fetcher.fetch_by_name(
+        fetcher, "Vampire Bat", out_dir, existing_bodies=existing,
+    )
+    assert ok is False
+    assert not (out_dir / "vampire-bat.txt").exists()
+
+
+def test_load_existing_bodies_strips_header(tmp_path: Path) -> None:
+    """_load_existing_bodies returns just the art bodies, not the headers."""
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    (out_dir / "a.txt").write_text(
+        "# Title (by Artist)\n# Source: x\n# x\n\nBODY-A\n"
+    )
+    (out_dir / "b.txt").write_text(
+        "# Title2 (by Artist2)\n# Source: y\n# y\n\nBODY-B\n"
+    )
+    bodies = art_fetcher._load_existing_bodies(out_dir)
+    assert bodies == {"BODY-A", "BODY-B"}
+
+
+def test_fetch_by_name_website_fallback_requires_word_in_title(
+    tmp_path: Path,
+) -> None:
+    """Real-world bug: per-word search for "Master" hit a Sail Boat piece
+    (artist alias "Master Mitch") because asciiart.website matches on
+    tag/artist names. The piece's title doesn't contain "Master", so
+    the title-match filter rejects it and we fall through to the next
+    word."""
+    out_dir = tmp_path / "attributed"
+    out_dir.mkdir()
+    # asciiart.website per-word for "Master" returns one hit whose title
+    # is "Sail Boat" (does NOT contain "Master").
+    sail_boat_body = "  |`.\n  |--`\n.---___|___.--,\n"
+    website_response = {
+        "results": [
+            {
+                "id": "4437",
+                "title": "Sail Boat",
+                "artist": "Christian Garbs (Master Mitch)",
+                "width": 20,
+                "height": 5,
+                "art": sail_boat_body,
+                "url": "https://asciiart.website/art/4437",
+            },
+        ],
+    }
+    # Put the more-specific website route first so substring-matching
+    # picks it for the website URL.
+    routes = {
+        "search2api.php": json.dumps(website_response).encode("utf-8"),
+        "asciiart.eu/search": "<html>nothing</html>",
+    }
+    fetcher = FakeFetcher(routes=routes)
+    ok = art_fetcher.fetch_by_name(
+        fetcher, "Master Breeder", out_dir, website_csrf="fake-csrf-token",
+    )
+    # Master Breeder has two words ≥4 chars (Master, Breeder); both
+    # search routes return the Sail Boat hit, but title-match filters
+    # both out → no file written.
+    assert ok is False
+    assert not (out_dir / "master-breeder.txt").exists()
+
+
 def test_parse_website_search_extracts_artwork_records() -> None:
     """_parse_website_search converts the API JSON into the candidate-pool shape."""
     data = {

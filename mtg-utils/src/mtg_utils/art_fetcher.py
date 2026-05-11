@@ -194,7 +194,14 @@ def _parse_cards(text: str, source_path: str) -> list[dict]:
             "artist": html.unescape(m.group("artist")),
             "height": int(m.group("height")),
             "width": int(m.group("width")),
-            "art": html.unescape(m.group("art")).strip("\n"),
+            # Normalize line endings: asciiart.eu's HTML serves \r\n
+            # (and sometimes bare \r), which would silently break the
+            # byte-identical body comparison against on-disk files
+            # (write_text emits \n). Use splitlines() — it handles every
+            # line-terminator form — then rejoin with \n.
+            "art": "\n".join(
+                html.unescape(m.group("art")).splitlines()
+            ).strip("\n"),
             "source_path": source_path,
         })
     return out
@@ -1005,6 +1012,27 @@ def _title_matches(card: dict, query: str) -> bool:
     return bool(pat.search(card["title"]))
 
 
+def _title_matches_stem(card: dict, query: str) -> bool:
+    """Like :func:`_title_matches` but tries every plural/singular stem of
+    ``query`` (via :func:`_stems`) so morphological variants in the title
+    still match.
+
+    Used by the asciiart.website per-word fallback in :func:`fetch_by_name`:
+    a query of ``"Elves"`` should accept a piece titled ``"Elf piece"`` —
+    the artist tagged it ``"Elves"`` and the title is the singular form.
+    Without stem matching the title-match check would over-reject. With
+    plain :func:`_title_matches` only, an exact word-boundary form is
+    required which leaks artist-alias matches (``"Master"`` matching a
+    piece titled ``"Sail Boat"`` because the artist is "Master Mitch").
+    """
+    title = card.get("title") or ""
+    for stem in _stems(query.lower()):
+        pat = re.compile(rf"\b{re.escape(stem)}\b", re.I)
+        if pat.search(title):
+            return True
+    return False
+
+
 def queries_for(subtype: str) -> list[str]:
     return [subtype, *SYNONYMS.get(subtype, [])]
 
@@ -1020,6 +1048,37 @@ def select(queries: Iterable[str], pool: list[dict]) -> dict | None:
 
 # --- Name-keyed fetch ------------------------------------------------------
 
+def _load_existing_bodies(out_dir: Path) -> set[str]:
+    """Return the set of art bodies (post-header) of every .txt in ``out_dir``.
+
+    Used by :func:`fetch_by_name` to dedupe: if a candidate's body is
+    already in the catalog under a different slug (typically a subtype
+    file written by the pass-1 sweep), don't write a redundant name-keyed
+    copy. Avoids the case where ``goblin-bombardment.txt`` and
+    ``goblin.txt`` end up with byte-identical content.
+    """
+    bodies: set[str] = set()
+    for p in out_dir.glob("*.txt"):
+        try:
+            text = p.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        # Files have a 3-line `#`-prefixed header followed by a blank
+        # line, then the body. Strip via header-line count for robustness.
+        lines = text.splitlines()
+        body_start = 0
+        for i, line in enumerate(lines):
+            if i < 3 and line.startswith("#"):
+                continue
+            if line.strip() == "":
+                body_start = i + 1
+                break
+            body_start = i
+            break
+        bodies.add("\n".join(lines[body_start:]).strip("\n"))
+    return bodies
+
+
 def fetch_by_name(
     fetcher: Fetcher,
     name: str,
@@ -1027,6 +1086,7 @@ def fetch_by_name(
     *,
     overwrite: bool = False,
     website_csrf: str | None = None,
+    existing_bodies: set[str] | None = None,
 ) -> bool:
     """Try to fetch art for a specific card *name* via two-source search.
 
@@ -1039,9 +1099,18 @@ def fetch_by_name(
        MTG names because the engine matches across full titles.
     2. If step 1 returns no fitting hits AND ``website_csrf`` is
        provided, split ``name`` into whole words (≥4 chars) and search
-       each on ``asciiart.website``. The website's search matches tag
-       names, so single-word fragments work where the full name didn't
-       (e.g., "Llanowar Elves" → "Elves" → 11 results).
+       each on ``asciiart.website``. The website's search matches **tag
+       names**, which collide with artist aliases (e.g. ``"Master"``
+       matches Christian Garbs's "Master Mitch" tag on a Sail Boat
+       piece). We therefore require the query word to appear in each
+       candidate's title — same word-boundary check :func:`select` uses
+       for the asciiart.eu subtype pool.
+
+    Dedupe: if ``existing_bodies`` is supplied and the chosen piece's
+    body is already present in the catalog under another slug, skip
+    writing. This is what prevents ``goblin-bombardment.txt`` from
+    ending up byte-identical to a pre-existing ``goblin.txt`` — the
+    differentiation pass at render time would buy us nothing.
 
     ``overwrite=False`` skips names whose ``<name-slug>.txt`` already
     exists (avoids clobbering hand-curated files or earlier runs).
@@ -1066,7 +1135,10 @@ def fetch_by_name(
             if len(word) < 4:
                 continue
             web_pool = search_pool_website(fetcher, word, csrf_token=website_csrf)
-            web_fitting = [c for c in web_pool if _eligible(c)]
+            web_fitting = [
+                c for c in web_pool
+                if _eligible(c) and _title_matches_stem(c, word)
+            ]
             if web_fitting:
                 fitting = web_fitting
                 break
@@ -1074,6 +1146,11 @@ def fetch_by_name(
     if not fitting:
         return False
     chosen = min(fitting, key=_score)
+    if existing_bodies is not None:
+        chosen_body = (chosen.get("art") or "").strip("\n")
+        if chosen_body in existing_bodies:
+            return False
+        existing_bodies.add(chosen_body)
     write_art(out_dir, name_slug, chosen)
     return True
 
@@ -1284,6 +1361,10 @@ def run(
         except (requests.RequestException, ValueError, KeyError) as e:
             log(f"  (warning: asciiart.website CSRF refresh failed: {e}; eu-only)")
             csrf = None
+        # Snapshot of existing art bodies — fetch_by_name uses this to
+        # avoid writing a name-keyed file that's byte-identical to an
+        # already-cataloged piece under another slug.
+        existing_bodies = _load_existing_bodies(out_dir)
         n_written = 0
         n_skipped_existing = 0
         for name in names:
@@ -1291,7 +1372,11 @@ def run(
             if (out_dir / f"{name_slug}.txt").is_file():
                 n_skipped_existing += 1
                 continue
-            if fetch_by_name(fetcher, name, out_dir, website_csrf=csrf):
+            if fetch_by_name(
+                fetcher, name, out_dir,
+                website_csrf=csrf,
+                existing_bodies=existing_bodies,
+            ):
                 n_written += 1
         log(
             f"  Wrote {n_written} name-keyed files "

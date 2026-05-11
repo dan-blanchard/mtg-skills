@@ -176,6 +176,45 @@ def test_warn_unresolved_duplicates_catches_slug_collision(capsys) -> None:
     assert "eldrazi.txt" in err
 
 
+def test_warn_excludes_canonical_basic_land(capsys) -> None:
+    """A basic ``"Swamp"`` card whose name slugs to ``swamp`` is the
+    canonical occupant of ``swamp.txt`` — it's supposed to look like
+    that. The warning should list only **non-canonical** neighbors
+    (Blood Crypt, Smoldering Marsh) that just happen to share the
+    swamp subtype, not the basic land itself."""
+    items = [
+        (_card("Swamp", "Basic Land — Swamp"), None),
+        (_card("Blood Crypt", "Land — Swamp Mountain"), None),
+        (_card("Smoldering Marsh", "Land — Swamp Mountain"), None),
+    ]
+    resolutions = [
+        ("SWAMP-ART", "subtype", "swamp", ""),
+        ("SWAMP-ART", "subtype", "swamp", ""),
+        ("SWAMP-ART", "subtype", "swamp", ""),
+    ]
+    proxy_print._warn_unresolved_duplicates(items, resolutions)
+    err = capsys.readouterr().err
+    # Non-canonical neighbors listed.
+    assert "Blood Crypt" in err
+    assert "Smoldering Marsh" in err
+    # The basic land itself is NOT flagged — it's canonical.
+    assert "(Swamp," not in err
+    assert ", Swamp," not in err
+    assert ", Swamp)" not in err
+    # Count reflects non-canonical members only.
+    assert "2 cards share swamp.txt" in err
+
+
+def test_warn_silent_when_only_canonical_name(capsys) -> None:
+    """24 basic Plains in a 60-card deck collapse to one distinct name
+    (``"Plains"``), which is canonical. Nothing to warn about."""
+    items = [(_card("Plains", "Basic Land — Plains"), None) for _ in range(24)]
+    resolutions = [("PLAINS-ART", "subtype", "plains", "")] * 24
+    proxy_print._warn_unresolved_duplicates(items, resolutions)
+    err = capsys.readouterr().err
+    assert err == ""
+
+
 def test_dfc_name_strips_back_face_for_name_keyed_lookup(
     tmp_path, monkeypatch,
 ) -> None:
