@@ -238,6 +238,56 @@ Subtypes that are MTG-only mechanics or set / plane names (Treasure,
 Saga, Innistrad, etc.) are deliberately skipped; the local catalog
 handles them.
 
+### Hand-curating unique art when the differentiation pass can't find any
+
+The differentiation pass tries name-keyed lookup for cards in the same
+type-keyed group, but it can only swap in art the catalog actually has.
+For MTG-specific concept names like *Mana Confluence* or *Temple of
+Malady*, asciiart.eu and asciiart.website usually don't have anything
+in budget. When that happens, `proxy-print` emits
+
+```
+WARN: 3 cards share land.txt (Mana Confluence, Temple of Abandon, Temple of Malady). Consider hand-curating name-keyed art.
+```
+
+**When you see this warning, offer to hand-draw placeholder art** for
+the named cards. You're filling a catalog gap. Procedure:
+
+1. **Read 2-3 style references** from
+   `mtg-utils/src/mtg_utils/data/card_art/*.txt` — pick files whose
+   subjects relate to each card's theme (e.g. for a temple-themed
+   land, look at `temple.txt`, `monument.txt`, or other architectural
+   pieces). These show the size budget, ASCII vocabulary, and aesthetic
+   of the existing collection.
+2. **Draw a small ASCII piece per card**, ≤30 chars wide × ≤14 lines
+   tall. The same size budget as the fetcher uses, so the renderer
+   doesn't have to shrink the font. Stay visual — depict the thing
+   with shapes and lines, not letters substituting for shapes (the
+   `feedback_ascii_art_no_labels.md` memory entry).
+3. **Write each file** to
+   `$MTG_SKILLS_CACHE_DIR/attributed-art/<name-slug>.txt` (default
+   `~/.cache/mtg-skills/attributed-art/<name-slug>.txt`) with the
+   three-line attributed-art header:
+   ```
+   # <Title> (hand-drawn for proxy run)
+   # Source: hand-drawn ASCII
+   # Personal-use proxy
+   <blank line>
+   <art body>
+   ```
+   The renderer picks up `(name-slug).txt` via `lookup_art_by_name`,
+   tags the resolution as `tier="name"`, and renders the credit (from
+   the `(by <name>)` parenthetical) in the footer slot. For
+   hand-drawn pieces the header can omit `(by …)`; the credit just
+   stays blank.
+4. **Re-run `proxy-print`** — same command, no flags changed. The
+   differentiation pass picks up the new files automatically; no
+   re-fetch needed.
+
+This is the *last-resort* path. The fast path is
+`fetch-art --from-deck deck.json --by-name`; hand-curation only fills
+the cards the search couldn't.
+
 ### Footer slot
 
 The lower-left strip under the type banner is reserved for the

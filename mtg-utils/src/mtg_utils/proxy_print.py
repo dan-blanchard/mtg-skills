@@ -736,6 +736,40 @@ def _resolve_art_with_differentiation(
     return resolutions
 
 
+def _warn_unresolved_duplicates(
+    items: list[tuple[dict, list[str] | None]],
+    resolutions: list[tuple[str, str, str, str]],
+) -> None:
+    """Emit one ``WARN:`` per group of distinct-name cards still sharing art
+    after the differentiation pass.
+
+    A group with multiple distinct names whose final ``tier`` is *not*
+    ``"name"`` means ``lookup_art_by_name`` found nothing for any member
+    — the catalog has a gap for these specific names. The agent
+    invoking proxy-print sees the warning and can offer to hand-curate
+    placeholders into ``$MTG_SKILLS_CACHE_DIR/attributed-art/`` (see
+    proxy-printer/SKILL.md, "Hand-curating unique art when the
+    differentiation pass can't find any").
+    """
+    groups: dict[tuple[str, str], list[int]] = {}
+    for i, (_art, tier, key, _credit) in enumerate(resolutions):
+        groups.setdefault((tier, key), []).append(i)
+    for (tier, key), indices in groups.items():
+        if tier == "name":
+            # Each name-keyed file is by-construction unique per card.
+            continue
+        names = sorted({items[i][0].get("name") or "" for i in indices})
+        if len(names) <= 1:
+            continue
+        head = ", ".join(names[:6])
+        tail = f", … (+{len(names) - 6} more)" if len(names) > 6 else ""
+        print(
+            f"WARN: {len(names)} cards share {key}.txt "
+            f"({head}{tail}). Consider hand-curating name-keyed art.",
+            file=sys.stderr,
+        )
+
+
 def build_pdf(
     out_path: Path,
     items: list[tuple[dict, list[str] | None]],
@@ -752,6 +786,7 @@ def build_pdf(
     c.setTitle(title)
 
     art_resolutions = _resolve_art_with_differentiation(items)
+    _warn_unresolved_duplicates(items, art_resolutions)
 
     for i, (card, _sources) in enumerate(items):
         slot = i % PER_PAGE
