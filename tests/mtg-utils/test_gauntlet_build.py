@@ -164,13 +164,23 @@ class TestBuildGauntletDeck:
 
 
 class TestManifests:
-    @pytest.mark.parametrize("fmt", [
-        "modern_cube", "vintage_cube", "legacy_cube",
-        "pauper_cube", "peasant_cube", "commander_cube",
-    ])
+    @pytest.mark.parametrize(
+        "fmt",
+        [
+            "modern_cube",
+            "vintage_cube",
+            "legacy_cube",
+            "pauper_cube",
+            "peasant_cube",
+            "commander_cube",
+        ],
+    )
     def test_manifest_loads_and_has_required_fields(self, fmt):
-        data = importlib.resources.files("mtg_utils.data.gauntlets") \
-            .joinpath(f"{fmt}.json").read_text()
+        data = (
+            importlib.resources.files("mtg_utils.data.gauntlets")
+            .joinpath(f"{fmt}.json")
+            .read_text()
+        )
         m = _json.loads(data)
         assert m["format"] == fmt
         assert m["deck_size"] in (40, 60, 100)

@@ -39,7 +39,6 @@ from mtg_utils.deck import (
 )
 
 if TYPE_CHECKING:
-
     from reportlab.pdfgen.canvas import Canvas
 
 
@@ -83,12 +82,21 @@ EXIT_RENDER_FAILED = 4
 
 # Words that should never become art-lookup keys (they're meta-types or
 # decorations on top of an actual card type).
-_ART_SKIP_WORDS = frozenset({
-    "token", "legendary", "snow", "tribal", "basic", "ongoing", "world",
-    "host",
-})
+_ART_SKIP_WORDS = frozenset(
+    {
+        "token",
+        "legendary",
+        "snow",
+        "tribal",
+        "basic",
+        "ongoing",
+        "world",
+        "host",
+    }
+)
 
 # --- Art catalog -----------------------------------------------------------
+
 
 # The attributed catalog holds ASCII art the user has fetched from
 # asciiart.eu (or similar) with a 3-line ``#``-prefixed header noting title,
@@ -103,10 +111,9 @@ def attributed_art_dir() -> Path:
         return Path(base) / "attributed-art"
     return Path(os.environ["HOME"]) / ".cache" / "mtg-skills" / "attributed-art"
 
+
 # Header line shape: ``# Title (by Artist Name (signature))``
-_ATTRIBUTED_BY_RE = re.compile(
-    r"\(by\s+(?P<name>[^()]+?)(?:\s*\([^)]+\))?\s*\)\s*$"
-)
+_ATTRIBUTED_BY_RE = re.compile(r"\(by\s+(?P<name>[^()]+?)(?:\s*\([^)]+\))?\s*\)\s*$")
 
 
 def _art_dir() -> resources.abc.Traversable:
@@ -375,7 +382,7 @@ class ProxyLayout:
     touching reportlab.
     """
 
-    # Outer cell origin (CARD_W × CARD_H constant).
+    # Outer cell origin (CARD_W x CARD_H constant).
     x: float
     y: float
 
@@ -383,8 +390,8 @@ class ProxyLayout:
     name_banner_y: float
     name_text: str
     name_text_size: float
-    name_centered: bool   # True for tokens; False for cards (left-aligned)
-    mana_cost_text: str   # "" for tokens
+    name_centered: bool  # True for tokens; False for cards (left-aligned)
+    mana_cost_text: str  # "" for tokens
 
     # P/T box (omitted from emission when pt_text == "").
     pt_text: str
@@ -468,13 +475,20 @@ def compute_layout(
     cost_w = measure_width(mana_cost, "Helvetica-Bold", 9.5) if mana_cost else 0
     if is_token:
         name_size = 9.5
-        while name_size >= 6.0 and measure_width(name, "Helvetica-Bold", name_size) > inner_w - 6:
+        max_name_w = inner_w - 6
+        while (
+            name_size >= 6.0
+            and measure_width(name, "Helvetica-Bold", name_size) > max_name_w
+        ):
             name_size -= 0.25
         name_centered = True
     else:
         name_max_w = inner_w - cost_w - 8
         name_size = 9.5
-        while name_size >= 6.0 and measure_width(name, "Helvetica-Bold", name_size) > name_max_w:
+        while (
+            name_size >= 6.0
+            and measure_width(name, "Helvetica-Bold", name_size) > name_max_w
+        ):
             name_size -= 0.25
         name_centered = False
 
@@ -514,8 +528,11 @@ def compute_layout(
         if oracle_max_h > 0:
             art_h -= BANNER_GAP
         art_h = max(art_h, ART_MIN_H)
-        used = art_h + oracle_max_h + type_banner_h + BANNER_GAP * (
-            2 if oracle_max_h > 0 else 1
+        used = (
+            art_h
+            + oracle_max_h
+            + type_banner_h
+            + BANNER_GAP * (2 if oracle_max_h > 0 else 1)
         )
         if used > body_h:
             oracle_max_h = max(0, oracle_max_h - (used - body_h))
@@ -567,8 +584,13 @@ def compute_layout(
         avail_h = oracle_top - oracle_bottom
         if avail_h > 0:
             size, lines = _fit_oracle(
-                oracle, "Helvetica", inner_w, avail_h,
-                measure_width=measure_width, lo=5.5, hi=7.5,
+                oracle,
+                "Helvetica",
+                inner_w,
+                avail_h,
+                measure_width=measure_width,
+                lo=5.5,
+                hi=7.5,
             )
             leading = size * 1.18
         else:
@@ -588,18 +610,34 @@ def compute_layout(
         type_size -= 0.25
 
     return ProxyLayout(
-        x=x, y=y,
+        x=x,
+        y=y,
         name_banner_y=name_banner_y,
-        name_text=name, name_text_size=name_size,
-        name_centered=name_centered, mana_cost_text=mana_cost,
-        pt_text=pt_text, pt_box_x=pt_box_x, pt_box_y=pt_box_y,
-        footer_text=footer_text, footer_y=pt_box_y + 4,
-        art_lines=art_lines, art_size=art_size, art_leading=art_leading,
-        art_x=art_x, art_y_top=art_y_top, art_tier=tier, art_key=key,
+        name_text=name,
+        name_text_size=name_size,
+        name_centered=name_centered,
+        mana_cost_text=mana_cost,
+        pt_text=pt_text,
+        pt_box_x=pt_box_x,
+        pt_box_y=pt_box_y,
+        footer_text=footer_text,
+        footer_y=pt_box_y + 4,
+        art_lines=art_lines,
+        art_size=art_size,
+        art_leading=art_leading,
+        art_x=art_x,
+        art_y_top=art_y_top,
+        art_tier=tier,
+        art_key=key,
         type_banner_y=type_banner_y,
-        type_text=type_line, type_text_size=type_size, color_tag=color_tag,
-        oracle_lines=lines, oracle_size=size, oracle_leading=leading,
-        oracle_top=oracle_top, oracle_bottom=oracle_bottom,
+        type_text=type_line,
+        type_text_size=type_size,
+        color_tag=color_tag,
+        oracle_lines=lines,
+        oracle_size=size,
+        oracle_leading=leading,
+        oracle_top=oracle_top,
+        oracle_bottom=oracle_bottom,
     )
 
 
@@ -615,8 +653,10 @@ def _draw_proxy(
 ) -> tuple[str, str]:
     """Render one card or token into ``slot``. Returns (art_tier, art_key)."""
     layout = compute_layout(
-        card, slot,
-        page_w=page_w, page_h=page_h,
+        card,
+        slot,
+        page_w=page_w,
+        page_h=page_h,
         is_token=is_token,
         measure_width=c.stringWidth,
         art_lookup=art_lookup,
@@ -690,7 +730,6 @@ def _emit_proxy(c: Canvas, layout: ProxyLayout) -> None:
                 break
             c.drawString(inner_x, cy, line)
             cy -= layout.oracle_leading
-
 
 
 # --- PDF builder -----------------------------------------------------------
@@ -825,11 +864,13 @@ def build_pdf(
             is_token=is_token,
         )
         if coverage is not None:
-            coverage.append({
-                "name": card.get("name"),
-                "tier": tier,
-                "key": key,
-            })
+            coverage.append(
+                {
+                    "name": card.get("name"),
+                    "tier": tier,
+                    "key": key,
+                }
+            )
 
     c.showPage()
     c.save()
@@ -840,6 +881,7 @@ def build_pdf(
 
 def _bulk_is_fresh(path: Path) -> bool:
     import time
+
     age_s = time.time() - path.stat().st_mtime
     return age_s < BULK_MAX_AGE_DAYS * 86400
 
@@ -894,7 +936,10 @@ def _log_warn(msg: str) -> None:
 @click.option(
     "--report-art-coverage",
     is_flag=True,
-    help="Tokens mode only; emit per-token JSON to stderr showing which catalog tier hit.",
+    help=(
+        "Tokens mode only; emit per-token JSON to stderr "
+        "showing which catalog tier hit."
+    ),
 )
 def main(
     kind: str,
@@ -903,8 +948,8 @@ def main(
     bulk_path: Path | None,
     page_size: str,
     copies: int,
-    include_sideboard: bool,
-    report_art_coverage: bool,
+    include_sideboard: bool,  # noqa: FBT001 — click injects as a keyword arg at runtime
+    report_art_coverage: bool,  # noqa: FBT001 — click injects as a keyword arg at runtime
 ) -> None:
     # Resolve bulk path
     if bulk_path is None:
@@ -975,7 +1020,9 @@ def main(
         click.echo("ERROR: no items to render.", err=True)
         sys.exit(EXIT_RENDER_FAILED)
 
-    coverage: list[dict] | None = [] if (report_art_coverage and kind == "tokens") else None
+    coverage: list[dict] | None = (
+        [] if (report_art_coverage and kind == "tokens") else None
+    )
 
     try:
         build_pdf(
