@@ -398,10 +398,12 @@ def search_pool_website(
     tag names rather than full titles. Callers should split card names
     into individual words and try each.
 
-    Sort order ``shortest`` is hardcoded so the API returns the smallest
-    pieces first — they're the ones most likely to satisfy our 30x14
-    budget. Without this, results come back in the site's default order
-    (roughly by ID) and few fit.
+    Sort order ``narrowest`` is hardcoded: our budget caps width at 30,
+    so narrow-first pieces are the ones most likely to fit. (``shortest``
+    sounds attractive but tends to surface 60+-wide x 4-tall strips
+    that fail the width cap; narrowest favours pieces closer to our
+    20x10 target shape.) Without a sort, the default-ordered results
+    rarely fit.
     """
     raw = fetcher.post_form(
         f"{WEBSITE_BASE}/api/search2api.php",
@@ -409,7 +411,7 @@ def search_pool_website(
             "q": query,
             "csrf_token": csrf_token,
             "secret": WEBSITE_SEARCH_SECRET,
-            "sort_order": "shortest",
+            "sort_order": "narrowest",
         },
         throttle=WEBSITE_THROTTLE_SEC,
     )
