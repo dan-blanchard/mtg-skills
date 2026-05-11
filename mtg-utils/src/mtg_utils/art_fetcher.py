@@ -99,8 +99,40 @@ CATEGORIES: tuple[str, ...] = (
     "animals/reptiles/lizards", "animals/reptiles/snakes",
     "animals/reptiles/turtles",
     "animals/rodents/mice", "animals/rodents/other",
-    # Other top-level categories that map to MTG concepts
-    "mythology", "people", "fantasy", "weapons", "buildings",
+    # Mythology — most subcategories map to a creature subtype.
+    "mythology/centaurs", "mythology/devils", "mythology/dragons",
+    "mythology/fairies", "mythology/ghosts", "mythology/gryphon",
+    "mythology/mermaids", "mythology/monsters", "mythology/phoenix",
+    "mythology/skeletons", "mythology/unicorns",
+    # Plants — Plant, Fungus, Treefolk subtypes.
+    "plants/bonsai-trees", "plants/cactus", "plants/flowers",
+    "plants/leaf", "plants/mushroom", "plants/roses",
+    # Religion — Angel, Cleric, Monk subtypes.
+    "religion/angels", "religion/saints",
+    # Space — Alien, Spacecraft, Astronaut.
+    "space/aliens", "space/astronauts", "space/spaceships", "space/planets",
+    # Nature — Land subtypes (Mountain, Island, Desert) + Cloud / Storm flavor.
+    "nature/mountains", "nature/islands", "nature/deserts",
+    "nature/landscapes", "nature/waterfall", "nature/clouds",
+    "nature/lightning",
+    # People — Human fallback + occupations as class subtypes (Knight,
+    # Wizard, …).
+    "people/men", "people/women", "people/faces", "people/famous",
+    "people/babies",
+    "people/occupations/knights", "people/occupations/kings",
+    "people/occupations/wizards", "people/occupations/vikings",
+    "people/occupations/cowboys", "people/occupations/clowns",
+    "people/occupations/police",
+    # Weapons — Equipment subtype variations + Soldier.
+    "weapons/swords", "weapons/axes", "weapons/bows-and-arrows",
+    "weapons/shields", "weapons/soldiers",
+    # Buildings — Land flavor (castle, temple, bridge).
+    "buildings-and-places/castles", "buildings-and-places/temple",
+    "buildings-and-places/bridges",
+    # Electronics — Robot / Construct artifact creatures.
+    "electronics/robots",
+    # Music — Bard subtype.
+    "music/musicians", "music/musical-instruments",
 )
 
 
@@ -152,6 +184,8 @@ SYNONYMS: dict[str, list[str]] = {
     # Fantasy / generic mappings
     "berserker": ["barbarian"],
     "brushwagg": ["plant"],
+    "construct": ["robot"],
+    "horror": ["monster"],
     "homunculus": ["imp"],
     "incarnation": ["spirit"],
     "kavu": ["lizard"],
@@ -160,7 +194,9 @@ SYNONYMS: dict[str, list[str]] = {
     "rebel": ["soldier"],
     "scout": ["ranger"],
     "shaman": ["sorcerer"],
+    "spacecraft": ["spaceship"],
     "warlock": ["wizard"],
+    "zombie": ["skeleton"],
     # MTG planeswalker names -> closest class / signature creature
     "ajani": ["lion", "cat"],
     "ashiok": ["nightmare"],
