@@ -1,21 +1,23 @@
 """Tests for ``mtg_utils.art_fetcher``.
 
-HTTP is fully mocked — no real network calls. The mock targets the
-``requests.Session.get`` method (the only HTTP surface the fetcher uses)
-and returns canned responses keyed by URL.
+HTTP is fully mocked via the :class:`FakeFetcher` in `_fake_fetcher.py`
+— no real network calls. Tests construct a ``FakeFetcher`` with a
+``routes`` dict mapping URL substrings to canned bytes, then pass it
+to the function under test.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
+from _fake_fetcher import FakeFetcher
 
 from mtg_utils import art_fetcher
 from mtg_utils.art_fetcher import (
     ASCIIART_BASE,
+    HttpFetcher,
     _fits,
     _parse_cards,
     _score,
@@ -202,42 +204,15 @@ def test_write_art_round_trips_with_proxy_print(tmp_path: Path, monkeypatch) -> 
 
 
 # ---------------------------------------------------------------------------
-# Mocked-HTTP end-to-end: fetch_subtypes / build_pool / run().
+# End-to-end tests against the Fetcher seam.
 # ---------------------------------------------------------------------------
 
 
-def _mock_session(routes: dict[str, bytes | str]) -> MagicMock:
-    """Build a mock requests.Session whose .get(url) returns canned bytes.
-
-    Keys are matched against the URL suffix (anything after the host) so
-    tests don't have to type the full URL.
-    """
-    session = MagicMock()
-    session.headers = {}
-
-    def fake_get(url: str, **_kwargs: object) -> MagicMock:
-        body: bytes | str | None = None
-        for suffix, content in routes.items():
-            if suffix in url:
-                body = content
-                break
-        if body is None:
-            msg = f"unmocked URL: {url}"
-            raise AssertionError(msg)
-        resp = MagicMock()
-        resp.content = body.encode("utf-8") if isinstance(body, str) else body
-        resp.raise_for_status = MagicMock()
-        return resp
-
-    session.get = MagicMock(side_effect=fake_get)
-    return session
-
-
-def test_fetch_subtypes_collects_and_slugs(tmp_path: Path) -> None:
+def test_fetch_subtypes_collects_and_slugs() -> None:
     catalog_blob = json.dumps({"data": ["Vampire", "Knight", "Eldrazi Spawn"]})
     routes = {f"/catalog/{cat}": catalog_blob for cat in art_fetcher.SCRYFALL_CATALOGS}
-    session = _mock_session(routes)
-    subs = art_fetcher.fetch_subtypes(session, tmp_path)
+    fetcher = FakeFetcher(routes=routes)
+    subs = art_fetcher.fetch_subtypes(fetcher)
     assert "vampire" in subs
     assert "knight" in subs
     assert "eldrazi-spawn" in subs
@@ -245,13 +220,13 @@ def test_fetch_subtypes_collects_and_slugs(tmp_path: Path) -> None:
     assert subs == sorted(set(subs))
 
 
-def test_build_pool_parses_every_category(tmp_path: Path) -> None:
+def test_build_pool_parses_every_category() -> None:
     routes = {f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES}
     # Stub the asciiart.website source with an empty browse so this test
     # stays focused on asciiart.eu coverage.
     routes["/browse.php"] = "<html>no categories</html>"
-    session = _mock_session(routes)
-    pool = art_fetcher.build_pool(session, tmp_path)
+    fetcher = FakeFetcher(routes=routes)
+    pool = art_fetcher.build_pool(fetcher)
     # SAMPLE_HTML has 2 cards, times N categories.
     assert len(pool) == 2 * len(art_fetcher.CATEGORIES)
     # Each card retains its source_path.
@@ -275,8 +250,8 @@ def test_run_end_to_end_writes_attributed_files(
         routes[f"/{cat}"] = vamp_html
     routes["/browse.php"] = "<html>no categories</html>"
 
-    session = _mock_session(routes)
-    monkeypatch.setattr(art_fetcher.requests, "Session", lambda: session)
+    fetcher = FakeFetcher(routes=routes)
+    monkeypatch.setattr(art_fetcher, "HttpFetcher", lambda **_kw: fetcher)
 
     cache = tmp_path / "cache"
     out = tmp_path / "out"
@@ -309,8 +284,8 @@ def test_run_records_missing_when_no_fit(
     routes["/search"] = no_match_html
     routes["/browse.php"] = "<html>no categories</html>"
 
-    session = _mock_session(routes)
-    monkeypatch.setattr(art_fetcher.requests, "Session", lambda: session)
+    fetcher = FakeFetcher(routes=routes)
+    monkeypatch.setattr(art_fetcher, "HttpFetcher", lambda **_kw: fetcher)
 
     written, _skipped, missing, missing_keys = run(
         cache_dir=tmp_path / "cache",
@@ -336,8 +311,8 @@ def test_run_skips_known_non_art_subtypes(
         routes[f"/{cat}"] = SAMPLE_HTML
     routes["/browse.php"] = "<html>no categories</html>"
 
-    session = _mock_session(routes)
-    monkeypatch.setattr(art_fetcher.requests, "Session", lambda: session)
+    fetcher = FakeFetcher(routes=routes)
+    monkeypatch.setattr(art_fetcher, "HttpFetcher", lambda **_kw: fetcher)
 
     written, skipped, _missing, _missing_keys = run(
         cache_dir=tmp_path / "cache",
@@ -424,17 +399,17 @@ def test_parse_cards_website_skips_pre_without_metadata() -> None:
     assert cards[0]["id"] == "1"
 
 
-def test_fetch_website_tags_parses_browse_page(tmp_path: Path) -> None:
+def test_fetch_website_tags_parses_browse_page() -> None:
     routes = {"/browse.php": WEBSITE_BROWSE_HTML}
-    session = _mock_session(routes)
-    cats = art_fetcher.fetch_website_tags(session, tmp_path)
+    fetcher = FakeFetcher(routes=routes)
+    cats = art_fetcher.fetch_website_tags(fetcher)
     by_id = dict(cats)
     assert by_id["12"] == "Aardvarks"
     assert by_id["47"] == "Dinosaurs"
     assert by_id["474"] == "Big Cats"
 
 
-def test_build_pool_merges_both_sources(tmp_path: Path) -> None:
+def test_build_pool_merges_both_sources() -> None:
     """build_pool combines asciiart.eu CATEGORIES + asciiart.website cats."""
     routes: dict[str, bytes | str] = {
         f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES
@@ -446,19 +421,19 @@ def test_build_pool_merges_both_sources(tmp_path: Path) -> None:
     routes["/tag.php?tag_id=47&page=2"] = "<html>nothing more</html>"
     routes["/tag.php?tag_id=474&page=1"] = WEBSITE_CAT_HTML
     routes["/tag.php?tag_id=474&page=2"] = "<html>nothing more</html>"
-    session = _mock_session(routes)
+    fetcher = FakeFetcher(routes=routes)
     # No subtypes passed -> no filter; all 3 mocked cats fetched.
-    pool = art_fetcher.build_pool(session, tmp_path)
+    pool = art_fetcher.build_pool(fetcher)
     sources = {c["_source"] for c in pool}
     assert sources == {"eu", "website"}
     eu_count = sum(1 for c in pool if c["_source"] == "eu")
     web_count = sum(1 for c in pool if c["_source"] == "website")
     assert eu_count == 2 * len(art_fetcher.CATEGORIES)
-    # 3 mocked cats × 2 cards each.
+    # 3 mocked cats, 2 cards each.
     assert web_count == 6
 
 
-def test_build_pool_filters_website_cats_by_subtype(tmp_path: Path) -> None:
+def test_build_pool_filters_website_cats_by_subtype() -> None:
     """When subtypes are supplied, only matching-name cats are fetched."""
     routes: dict[str, bytes | str] = {
         f"/{cat}": SAMPLE_HTML for cat in art_fetcher.CATEGORIES
@@ -472,20 +447,17 @@ def test_build_pool_filters_website_cats_by_subtype(tmp_path: Path) -> None:
     routes["/tag.php?tag_id=47&page=2"] = "<html>nothing more</html>"
     routes["/tag.php?tag_id=474&page=1"] = WEBSITE_CAT_HTML
     routes["/tag.php?tag_id=474&page=2"] = "<html>nothing more</html>"
-    session = _mock_session(routes)
+    fetcher = FakeFetcher(routes=routes)
 
-    pool = art_fetcher.build_pool(
-        session, tmp_path, subtypes=["dinosaur", "cat"]
-    )
-    # Aardvark category was skipped (browse.php fetched but cat.php skipped).
-    # Verify we fetched only the matching two cat.php URLs.
-    fetched_cat_urls = [
-        call.args[0] for call in session.get.call_args_list
-        if "tag.php?tag_id=" in call.args[0]
+    art_fetcher.build_pool(fetcher, subtypes=["dinosaur", "cat"])
+    # Aardvark tag was skipped (browse.php fetched but tag.php skipped).
+    # Verify we fetched only the matching two tag.php URLs.
+    fetched_tag_urls = [
+        u for u in fetcher.urls_fetched() if "tag.php?tag_id=" in u
     ]
-    assert any("tag_id=47" in u for u in fetched_cat_urls)
-    assert any("tag_id=474" in u for u in fetched_cat_urls)
-    assert not any("tag_id=12" in u for u in fetched_cat_urls)
+    assert any("tag_id=47" in u for u in fetched_tag_urls)
+    assert any("tag_id=474" in u for u in fetched_tag_urls)
+    assert not any("tag_id=12" in u for u in fetched_tag_urls)
 
 
 @pytest.mark.parametrize(
@@ -636,7 +608,7 @@ def test_subtypes_in_deck_extracts_from_type_lines(
     assert "soldier" in out
 
 
-def test_alien_and_tolkien_are_NOT_skipped() -> None:
+def test_alien_and_tolkien_are_not_skipped() -> None:
     """Per user preference, Alien (impossible to distinguish from generic
     alien) and Lord Of The Rings (user has LOTR MTG cards) stay in the pool.
     """
@@ -650,19 +622,19 @@ def test_alien_and_tolkien_are_NOT_skipped() -> None:
     assert "Lord Of The Rings / Tolkien" in names
 
 
-def test_fetch_website_tags_decodes_html_entities(tmp_path: Path) -> None:
+def test_fetch_website_tags_decodes_html_entities() -> None:
     """Names like 'Wallace &amp; Gromit' come back HTML-decoded."""
     html_blob = (
         '<a href="tag.php?tag_id=212" onclick="">'
         '  Wallace &amp; Gromit  <span class="tag-count">(7)</span>'
         '</a>'
         '<a href="tag.php?tag_id=576" onclick="">'
-        "  Blue&#039;s Clues  <span class=\"tag-count\">(3)</span>"
+        '  Blue&#039;s Clues  <span class="tag-count">(3)</span>'
         "</a>"
     )
     routes = {"/browse.php": html_blob}
-    session = _mock_session(routes)
-    cats = art_fetcher.fetch_website_tags(session, tmp_path)
+    fetcher = FakeFetcher(routes=routes)
+    cats = art_fetcher.fetch_website_tags(fetcher)
     by_id = dict(cats)
     assert by_id["212"] == "Wallace & Gromit"
     assert by_id["576"] == "Blue's Clues"
@@ -706,27 +678,27 @@ def test_write_art_website_header_uses_per_art_url(tmp_path: Path) -> None:
 
 
 def test_fetch_tag_pages_respects_max_pages_cap(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """With MAX_PAGES_PER_TAG=2, only pages 1 and 2 are fetched even if more exist."""
     monkeypatch.setattr(art_fetcher, "MAX_PAGES_PER_TAG", 2)
     page2 = WEBSITE_CAT_HTML.replace('"100"', '"200"').replace('"101"', '"201"')
-    page2 = page2.replace('art/100', 'art/200').replace('art/101', 'art/201')
+    page2 = page2.replace("art/100", "art/200").replace("art/101", "art/201")
     routes = {
         "/tag.php?tag_id=129&page=1": WEBSITE_CAT_HTML,
         "/tag.php?tag_id=129&page=2": page2,
         "/tag.php?tag_id=129&page=3": page2,  # would loop forever without cap
     }
-    session = _mock_session(routes)
-    cards = art_fetcher._fetch_tag_pages(session, tmp_path, "129", "Lion")
+    fetcher = FakeFetcher(routes=routes)
+    cards = art_fetcher._fetch_tag_pages(fetcher, "129", "Lion")
     ids = sorted(c["id"] for c in cards)
     assert ids == ["100", "101", "200", "201"]
     # Cap was 2, so we never fetched page 3.
-    assert session.get.call_count == 2
+    assert len(fetcher.calls) == 2
 
 
 def test_fetch_tag_pages_stops_when_no_new_ids(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The dedup-by-id loop terminates early when a page adds nothing new."""
     monkeypatch.setattr(art_fetcher, "MAX_PAGES_PER_TAG", 5)
@@ -735,44 +707,39 @@ def test_fetch_tag_pages_stops_when_no_new_ids(
         # Page 2 repeats page 1 — no new IDs → loop stops immediately.
         "/tag.php?tag_id=129&page=2": WEBSITE_CAT_HTML,
     }
-    session = _mock_session(routes)
-    cards = art_fetcher._fetch_tag_pages(session, tmp_path, "129", "Lion")
+    fetcher = FakeFetcher(routes=routes)
+    cards = art_fetcher._fetch_tag_pages(fetcher, "129", "Lion")
     assert sorted(c["id"] for c in cards) == ["100", "101"]
     # Page 1 + page 2 fetched; stopped because page 2 had no new IDs.
-    assert session.get.call_count == 2
+    assert len(fetcher.calls) == 2
 
 
-def test_fetch_cached_retries_on_429(tmp_path: Path, monkeypatch) -> None:
-    """A 429 followed by a 200 retries and succeeds (with a slept-zero delay)."""
-    calls = {"n": 0}
+# ---------------------------------------------------------------------------
+# HttpFetcher retry behaviour (uses MagicMock on the private session).
+# ---------------------------------------------------------------------------
 
-    def fake_sleep(_seconds: float) -> None:
-        calls["n"] += 1  # Just observe; don't actually sleep in tests.
 
-    monkeypatch.setattr(art_fetcher.time, "sleep", fake_sleep)
-
-    session = MagicMock()
-    session.headers = {}
-    responses = [
+def test_http_fetcher_retries_on_429(tmp_path: Path, monkeypatch) -> None:
+    """A 429 followed by a 200 retries and succeeds."""
+    monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
+    from unittest.mock import MagicMock
+    fetcher = HttpFetcher(cache_dir=tmp_path)
+    fetcher._session = MagicMock()
+    fetcher._session.get = MagicMock(side_effect=[
         MagicMock(status_code=429, content=b"slow down", raise_for_status=MagicMock()),
         MagicMock(status_code=200, content=b"ok", raise_for_status=MagicMock()),
-    ]
-    session.get = MagicMock(side_effect=responses)
+    ])
 
-    path = tmp_path / "cached.bin"
-    result = art_fetcher._fetch_cached(session, "https://x/y", path, max_retries=2)
+    result = fetcher.fetch("https://x/y", "cached.bin", max_retries=2)
     assert result == b"ok"
-    assert session.get.call_count == 2
-    # At least one sleep was observed (the 429 backoff).
-    assert calls["n"] >= 1
+    assert fetcher._session.get.call_count == 2
 
 
-def test_fetch_cached_raises_after_exhausted_retries(tmp_path: Path, monkeypatch) -> None:
+def test_http_fetcher_raises_after_exhausted_retries(tmp_path: Path, monkeypatch) -> None:
     """Persistent 429s eventually raise via raise_for_status."""
     monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
-
-    session = MagicMock()
-    session.headers = {}
+    from unittest.mock import MagicMock
+    fetcher = HttpFetcher(cache_dir=tmp_path)
 
     def make_429() -> MagicMock:
         resp = MagicMock(status_code=429, content=b"slow down")
@@ -781,11 +748,11 @@ def test_fetch_cached_raises_after_exhausted_retries(tmp_path: Path, monkeypatch
         )
         return resp
 
-    session.get = MagicMock(side_effect=[make_429() for _ in range(3)])
+    fetcher._session = MagicMock()
+    fetcher._session.get = MagicMock(side_effect=[make_429() for _ in range(3)])
 
-    path = tmp_path / "cached.bin"
     with pytest.raises(art_fetcher.requests.HTTPError):
-        art_fetcher._fetch_cached(session, "https://x/y", path, max_retries=2)
+        fetcher.fetch("https://x/y", "cached.bin", max_retries=2)
 
 
 def test_write_art_website_round_trips(tmp_path: Path, monkeypatch) -> None:

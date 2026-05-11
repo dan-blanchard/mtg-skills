@@ -47,6 +47,19 @@ so `write_art` writes different third-header lines accordingly.
 _Avoid_: "site" (ambiguous; the attributed catalog itself isn't on the
 internet), "provider" (overloaded with payment / oauth).
 
+**Fetcher**:
+The seam between art-fetching logic and HTTP. A `Fetcher` is anything
+satisfying `fetch(url, cache_key, *, throttle, max_retries) -> bytes`.
+Production code uses `HttpFetcher`, which wraps a private
+`requests.Session` and owns freshness, retry, throttle, and disk-write.
+Tests use `FakeFetcher`, a dict-backed in-memory adapter that maps URL
+substrings to canned bytes. Callers (pool builders, tag-page
+walkers, search fallback) accept a Fetcher rather than a Session, so
+their tests don't have to fake HTTP at all.
+_Avoid_: "transport" (overloaded with TLS / SMTP), "session" alone
+(refers to `requests.Session`, which is now a Fetcher implementation
+detail).
+
 ### Lookup
 
 **Slug**:

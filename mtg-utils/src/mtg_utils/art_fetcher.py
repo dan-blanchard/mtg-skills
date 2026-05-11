@@ -35,7 +35,7 @@ import sys
 import time
 import urllib.parse
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 import click
 import requests
@@ -282,8 +282,7 @@ def _parse_cards_website(text: str, source_path: str) -> list[dict]:
 
 
 def _fetch_tag_pages(
-    session: requests.Session,
-    cache: Path,
+    fetcher: Fetcher,
     tag_id: str,
     tag_name: str,
 ) -> list[dict]:
@@ -296,9 +295,10 @@ def _fetch_tag_pages(
     seen: set[str] = set()
     for page in range(1, MAX_PAGES_PER_TAG + 1):
         url = f"{WEBSITE_BASE}/tag.php?tag_id={tag_id}&page={page}"
-        cache_path = cache / f"asciiart-website-tag-{tag_id}-p{page}.html"
-        raw = _fetch_cached(
-            session, url, cache_path, throttle=WEBSITE_THROTTLE_SEC
+        raw = fetcher.fetch(
+            url,
+            f"asciiart-website-tag-{tag_id}-p{page}.html",
+            throttle=WEBSITE_THROTTLE_SEC,
         )
         cards = _parse_cards_website(raw.decode("utf-8"), tag_name)
         new = [c for c in cards if c["id"] not in seen]
@@ -309,9 +309,7 @@ def _fetch_tag_pages(
     return pool
 
 
-def fetch_website_tags(
-    session: requests.Session, cache: Path
-) -> list[tuple[str, str]]:
+def fetch_website_tags(fetcher: Fetcher) -> list[tuple[str, str]]:
     """Auto-discover asciiart.website tags from browse.php?show=tags.
 
     Returns ``[(tag_id, name), ...]`` of every tag the site lists
@@ -324,8 +322,10 @@ def fetch_website_tags(
     Callers usually filter this through :func:`relevant_tags` before
     fetching the tag.php pages.
     """
-    path = cache / "asciiart-website-browse-tags.html"
-    raw = _fetch_cached(session, f"{WEBSITE_BASE}/browse.php?show=tags", path)
+    raw = fetcher.fetch(
+        f"{WEBSITE_BASE}/browse.php?show=tags",
+        "asciiart-website-browse-tags.html",
+    )
     out: list[tuple[str, str]] = []
     for m in _WEBSITE_TAG_RE.finditer(raw.decode("utf-8")):
         name = html.unescape(m.group("name").strip())
@@ -638,82 +638,115 @@ SKIP_SUBTYPES: frozenset[str] = frozenset({
 })
 
 
-# --- HTTP with cache -------------------------------------------------------
+# --- Fetcher ---------------------------------------------------------------
 
-def _is_fresh(path: Path) -> bool:
-    return path.is_file() and (time.time() - path.stat().st_mtime) < FRESHNESS_SECONDS
+class Fetcher(Protocol):
+    """Seam for HTTP-with-cache.
 
+    A ``Fetcher`` returns the bytes for a URL, caching them under
+    ``cache_key`` for :data:`FRESHNESS_SECONDS`. The interface owns
+    freshness, retry, throttle, and disk-write — callers only know
+    "give me the bytes for this URL, please."
 
-def _cache_root(cache_dir: Path) -> Path:
-    root = cache_dir / "ascii-art-fetcher"
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def _fetch_cached(
-    session: requests.Session,
-    url: str,
-    path: Path,
-    *,
-    throttle: float = 0.0,
-    max_retries: int = 2,
-) -> bytes:
-    """Return ``path`` contents, refreshing from ``url`` if stale/missing.
-
-    Raises on HTTP error (fail-loud); only writes the cache on a 2xx.
-
-    ``throttle`` sleeps before each *network* call (cache hits return
-    immediately). On HTTP 429 the wait grows linearly between retries
-    (5s, 10s, …) up to ``max_retries`` additional attempts; if all retries
-    are 429 the final response is raised.
+    Two adapters live behind this seam: :class:`HttpFetcher` (production,
+    backed by ``requests.Session``) and ``FakeFetcher`` (test-only, in
+    ``tests/proxy-printer/_fake_fetcher.py``, dict-backed).
     """
-    if _is_fresh(path):
-        return path.read_bytes()
-    for attempt in range(max_retries + 1):
-        if throttle > 0:
-            time.sleep(throttle)
-        try:
-            resp = session.get(url, timeout=30)
-        except (requests.ConnectionError, requests.Timeout):
-            if attempt < max_retries:
+
+    def fetch(
+        self,
+        url: str,
+        cache_key: str,
+        *,
+        throttle: float = 0.0,
+        max_retries: int = 2,
+    ) -> bytes:
+        """Return cached bytes for ``url``, fetching if stale/missing.
+
+        ``cache_key`` is a flat filename (the fetcher resolves it under
+        its own cache root). ``throttle`` sleeps before each *network*
+        call (cache hits return immediately). On HTTP 429 / connection
+        error, the fetcher retries with linear backoff (5s, 10s, …) up
+        to ``max_retries`` additional attempts; if all retries fail the
+        final exception is raised (fail-loud).
+        """
+        ...
+
+
+class HttpFetcher:
+    """Production :class:`Fetcher`. Wraps a private ``requests.Session``."""
+
+    def __init__(
+        self,
+        cache_dir: Path,
+        *,
+        user_agent: str = USER_AGENT,
+        cookies: dict[str, dict[str, str]] | None = None,
+    ) -> None:
+        """``cache_dir`` is the on-disk cache root (auto-created).
+        ``cookies`` maps domain → {name: value} for cookies that must
+        be pre-set (e.g. asciiart.website's sort-order cookie).
+        """
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self._cache_dir = cache_dir
+        self._session = requests.Session()
+        self._session.headers["User-Agent"] = user_agent
+        if cookies:
+            for domain, by_name in cookies.items():
+                for name, value in by_name.items():
+                    self._session.cookies.set(name, value, domain=domain)
+
+    def fetch(
+        self,
+        url: str,
+        cache_key: str,
+        *,
+        throttle: float = 0.0,
+        max_retries: int = 2,
+    ) -> bytes:
+        path = self._cache_dir / cache_key
+        if path.is_file() and (
+            time.time() - path.stat().st_mtime
+        ) < FRESHNESS_SECONDS:
+            return path.read_bytes()
+        for attempt in range(max_retries + 1):
+            if throttle > 0:
+                time.sleep(throttle)
+            try:
+                resp = self._session.get(url, timeout=30)
+            except (requests.ConnectionError, requests.Timeout):
+                if attempt < max_retries:
+                    time.sleep(5.0 * (attempt + 1))
+                    continue
+                raise
+            status = getattr(resp, "status_code", 200)
+            if status == 429 and attempt < max_retries:
                 time.sleep(5.0 * (attempt + 1))
                 continue
-            raise
-        status = getattr(resp, "status_code", 200)
-        if status == 429 and attempt < max_retries:
-            time.sleep(5.0 * (attempt + 1))
-            continue
-        resp.raise_for_status()
-        path.write_bytes(resp.content)
-        return resp.content
-    # Unreachable: the loop either returns or raises.
-    msg = "exhausted retries without raising or returning"
-    raise RuntimeError(msg)
-
-
-def _fetch_cached_json(
-    session: requests.Session, url: str, path: Path
-) -> dict:
-    return json.loads(_fetch_cached(session, url, path).decode("utf-8"))
+            resp.raise_for_status()
+            path.write_bytes(resp.content)
+            return resp.content
+        # Unreachable: the loop either returns or raises.
+        msg = "exhausted retries without raising or returning"
+        raise RuntimeError(msg)
 
 
 # --- Pool builders ---------------------------------------------------------
 
-def fetch_subtypes(session: requests.Session, cache: Path) -> list[str]:
+def fetch_subtypes(fetcher: Fetcher) -> list[str]:
     """Return every MTG subtype slug, lowercased, deduped, sorted."""
     seen: set[str] = set()
     for catalog in SCRYFALL_CATALOGS:
         url = f"{SCRYFALL_BASE}/catalog/{catalog}"
-        path = cache / f"scryfall-{catalog}.json"
-        data = _fetch_cached_json(session, url, path)
+        raw = fetcher.fetch(url, f"scryfall-{catalog}.json")
+        data = json.loads(raw.decode("utf-8"))
         for name in data.get("data", []):
             seen.add(slug(name))
     return sorted(seen)
 
 
 def build_pool(
-    session: requests.Session,
-    cache: Path,
+    fetcher: Fetcher,
     *,
     subtypes: list[str] | None = None,
 ) -> list[dict]:
@@ -735,27 +768,25 @@ def build_pool(
     # Source 1: asciiart.eu — hardcoded curated category list.
     for cat in CATEGORIES:
         safe = cat.replace("/", "_")
-        path = cache / f"asciiart-{safe}.html"
-        raw = _fetch_cached(session, f"{ASCIIART_BASE}/{cat}", path)
+        raw = fetcher.fetch(f"{ASCIIART_BASE}/{cat}", f"asciiart-{safe}.html")
         pool.extend(_parse_cards(raw.decode("utf-8"), cat))
     # Source 2: asciiart.website — auto-discovered numeric tag IDs,
     # filtered down to names that contain an MTG-relevant word. Each tag
     # is paginated; we walk all pages so large tags (Dragon=89,
     # Angel=62, Lion=43) yield their full content.
-    tags = fetch_website_tags(session, cache)
+    tags = fetch_website_tags(fetcher)
     if subtypes is not None:
         tags = relevant_tags(tags, subtypes)
     for tag_id, tag_name in tags:
-        pool.extend(_fetch_tag_pages(session, cache, tag_id, tag_name))
+        pool.extend(_fetch_tag_pages(fetcher, tag_id, tag_name))
     return pool
 
 
-def search_pool(session: requests.Session, cache: Path, query: str) -> list[dict]:
+def search_pool(fetcher: Fetcher, query: str) -> list[dict]:
     """Fall back to asciiart.eu's /search?q= endpoint for a single query."""
     safe = re.sub(r"[^a-z0-9]+", "-", query.lower()).strip("-") or "x"
-    path = cache / f"asciiart-search-{safe}.html"
     url = f"{ASCIIART_BASE}/search?q={urllib.parse.quote_plus(query)}"
-    raw = _fetch_cached(session, url, path)
+    raw = fetcher.fetch(url, f"asciiart-search-{safe}.html")
     return _parse_cards(raw.decode("utf-8"), f"search?q={query}")
 
 
@@ -899,25 +930,26 @@ def run(
     subtypes the deck actually uses (resolved against the Scryfall bulk
     at ``bulk_path``, which defaults to proxy_print's discovery rule).
     """
-    cache = _cache_root(cache_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
-    # asciiart.website respects a `toolbar_settings` cookie that pins the
-    # sort order. Pre-set it to "narrowest" so each tag.php page lists
-    # its smallest pieces first — most subtypes have a fitting (≤30 wide)
-    # candidate on page 1 alone, so we rarely need to paginate deeply.
-    # URL-encoded {"sortOrder":"narrowest"} — matches the Set-Cookie shape
-    # the site itself emits when the user picks the option in the toolbar.
-    session.cookies.set(
-        "toolbar_settings",
-        "%7B%22sortOrder%22%3A%22narrowest%22%7D",
-        domain="asciiart.website",
+    fetcher: Fetcher = HttpFetcher(
+        cache_dir=cache_dir / "ascii-art-fetcher",
+        # asciiart.website respects a `toolbar_settings` cookie that pins
+        # the sort order. Pre-set it to "narrowest" so each tag.php page
+        # lists its smallest pieces first — most subtypes have a fitting
+        # (≤30 wide) candidate on page 1 alone, so we rarely need to
+        # paginate deeply. URL-encoded {"sortOrder":"narrowest"} —
+        # matches the Set-Cookie shape the site emits when the user picks
+        # the option in the toolbar.
+        cookies={
+            "asciiart.website": {
+                "toolbar_settings": "%7B%22sortOrder%22%3A%22narrowest%22%7D",
+            },
+        },
     )
 
     log("Fetching Scryfall subtype catalogs...")
-    subtypes = fetch_subtypes(session, cache)
+    subtypes = fetch_subtypes(fetcher)
     if limit is not None:
         subtypes = subtypes[:limit]
     log(f"  {len(subtypes)} subtype slugs")
@@ -937,7 +969,7 @@ def run(
         log(f"  narrowed to {len(subtypes)} deck-relevant subtypes")
 
     log("Building candidate pool from asciiart.eu + asciiart.website...")
-    pool = build_pool(session, cache, subtypes=subtypes)
+    pool = build_pool(fetcher, subtypes=subtypes)
     log(f"  parsed {len(pool)} cards across both sources")
 
     written = 0
@@ -951,7 +983,7 @@ def run(
         queries = queries_for(st)
         card = select(queries, pool)
         if card is None and search_fallback:
-            extra = search_pool(session, cache, st)
+            extra = search_pool(fetcher, st)
             card = select(queries, extra)
         if card is None:
             missing_keys.append(st)
