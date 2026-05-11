@@ -27,8 +27,16 @@ from typing import TYPE_CHECKING
 
 import click
 
-from mtg_utils.bulk_loader import load_bulk_cards
-from mtg_utils.card_classify import SKIP_LAYOUTS
+from mtg_utils.bulk_loader import default_bulk_path
+from mtg_utils.deck import (
+    CARD_TYPE_WORDS,
+    discover_tokens,
+    hydrate,
+    load_bulk_indexes,
+    slug,
+    split_type_line,
+    walk_cards,
+)
 
 if TYPE_CHECKING:
 
@@ -79,47 +87,6 @@ _ART_SKIP_WORDS = frozenset({
     "token", "legendary", "snow", "tribal", "basic", "ongoing", "world",
     "host",
 })
-
-# The set of card-type words we use as fallback keys after subtypes miss.
-_CARD_TYPE_WORDS = frozenset({
-    "creature", "artifact", "enchantment", "land", "sorcery", "instant",
-    "planeswalker", "battle",
-})
-
-
-def slug(name: str) -> str:
-    """Normalize a name to a filename slug.
-
-    Examples
-    --------
-    >>> slug("Eldrazi Spawn")
-    'eldrazi-spawn'
-    >>> slug("Urza's")
-    'urzas'
-    >>> slug("Phyrexian Mite")
-    'phyrexian-mite'
-    """
-    s = name.lower()
-    s = s.replace("'", "").replace("’", "")  # apostrophes
-    s = re.sub(r"[^a-z0-9]+", "-", s)
-    return s.strip("-")
-
-
-def _split_type_line(type_line: str) -> tuple[list[str], list[str]]:
-    """Return (card_types, subtypes) split on em-dash.
-
-    "Legendary Creature — Vampire Knight" -> (["legendary", "creature"], ["vampire", "knight"])
-    "Sorcery"                              -> (["sorcery"], [])
-    """
-    if not type_line:
-        return [], []
-    parts = re.split(r"\s+[—\-]\s+", type_line, maxsplit=1)
-    types_part = parts[0].strip()
-    subs_part = parts[1].strip() if len(parts) > 1 else ""
-    types = [w.lower() for w in types_part.split() if w]
-    subs = [w.lower() for w in subs_part.split() if w]
-    return types, subs
-
 
 # --- Art catalog -----------------------------------------------------------
 
@@ -231,7 +198,7 @@ def lookup_art(type_line: str) -> tuple[str, str, str, str]:
       2. Each card-type slug (filtering meta words like Token / Legendary).
       3. ``_generic.txt`` ultimate fallback (local only).
     """
-    types, subs = _split_type_line(type_line)
+    types, subs = split_type_line(type_line)
 
     for sub in subs:
         if sub in _ART_SKIP_WORDS:
@@ -245,7 +212,7 @@ def lookup_art(type_line: str) -> tuple[str, str, str, str]:
             return art, "subtype", s, ""
 
     for t in types:
-        if t in _ART_SKIP_WORDS or t not in _CARD_TYPE_WORDS:
+        if t in _ART_SKIP_WORDS or t not in CARD_TYPE_WORDS:
             continue
         s = slug(t)
         att = _try_read_attributed(s)
@@ -261,149 +228,6 @@ def lookup_art(type_line: str) -> tuple[str, str, str, str]:
         # crash mid-render.
         art = "         ?\n        ???\n         ?"
     return art, "generic", "_generic", ""
-
-
-# --- Bulk indexes ----------------------------------------------------------
-
-
-def load_bulk_indexes(bulk_path: Path) -> tuple[dict[str, dict], dict[str, dict]]:
-    """Build (by_name, by_id) indexes from Scryfall bulk data.
-
-    ``by_name`` skips token / art-series layouts (so a card-name lookup never
-    accidentally returns a token).
-    ``by_id`` includes everything, including tokens — needed to resolve
-    ``all_parts`` token references.
-    """
-    cards = load_bulk_cards(bulk_path)
-    by_name: dict[str, dict] = {}
-    by_id: dict[str, dict] = {}
-    for card in cards:
-        cid = card.get("id")
-        if cid:
-            by_id[cid] = card
-        layout = card.get("layout")
-        if layout in SKIP_LAYOUTS:
-            continue
-        name = card.get("name", "")
-        if not name:
-            continue
-        key = name.lower()
-        if key not in by_name:
-            by_name[key] = card
-            continue
-        # Already indexed — keep the entry that has oracle text if the
-        # other one doesn't. Otherwise leave existing (first writer wins).
-        if not by_name[key].get("oracle_text") and card.get("oracle_text"):
-            by_name[key] = card
-    return by_name, by_id
-
-
-def _hydrate(card: dict) -> dict:
-    """Materialize a renderable view of a Scryfall card.
-
-    Joins ``card_faces`` for split / MDFC layouts so the proxy shows both
-    halves' oracle text and mana costs.
-    """
-    out = dict(card)
-    faces = card.get("card_faces") or []
-    if faces and not out.get("oracle_text"):
-        out["oracle_text"] = "\n//\n".join(
-            f.get("oracle_text") or "" for f in faces
-        )
-    if faces and not out.get("mana_cost"):
-        out["mana_cost"] = " // ".join(
-            f.get("mana_cost") or "" for f in faces
-        )
-    if faces and not out.get("type_line"):
-        out["type_line"] = " // ".join(
-            f.get("type_line") or "" for f in faces
-        )
-    return out
-
-
-# --- Deck walks ------------------------------------------------------------
-
-
-def walk_cards(
-    deck: dict,
-    *,
-    include_sideboard: bool,
-    copies: int,
-) -> list[tuple[str, int]]:
-    """Return [(card_name, total_quantity)] in deck order.
-
-    Iterates ``commanders + cards + sideboard`` (sideboard skipped if
-    ``include_sideboard`` is False). ``copies`` multiplies every quantity.
-    """
-    sections: list[list[dict]] = [
-        deck.get("commanders") or [],
-        deck.get("cards") or [],
-    ]
-    if include_sideboard:
-        sections.append(deck.get("sideboard") or [])
-
-    out: list[tuple[str, int]] = []
-    for section in sections:
-        for entry in section:
-            name = entry.get("name") or ""
-            raw_qty = entry.get("quantity")
-            base_qty = 1 if raw_qty is None else int(raw_qty)
-            qty = base_qty * copies
-            if name and qty > 0:
-                out.append((name, qty))
-    return out
-
-
-def discover_tokens(
-    deck: dict,
-    by_name: dict[str, dict],
-    by_id: dict[str, dict],
-    *,
-    log_warn: callable,
-) -> list[dict]:
-    """Walk every card, follow ``all_parts`` to its tokens, dedupe.
-
-    Returns a list of token records: ``{"token": <hydrated>, "sources": [names]}``,
-    sorted artifacts → W/U/B/R/G/C → name.
-    """
-    color_order = {"W": 1, "U": 2, "B": 3, "R": 4, "G": 5, "C": 6}
-
-    by_oid: dict[str, dict] = {}
-    for section in ("commanders", "cards", "sideboard"):
-        for entry in deck.get(section) or []:
-            name = entry.get("name") or ""
-            if not name:
-                continue
-            src = by_name.get(name.lower())
-            if src is None:
-                log_warn(f"missing from bulk: {name}")
-                continue
-            for part in src.get("all_parts") or []:
-                if part.get("component") != "token":
-                    continue
-                pid = part.get("id")
-                token = by_id.get(pid) if pid else None
-                if token is None:
-                    log_warn(f"token id {pid} from {name}")
-                    continue
-                oid = token.get("oracle_id") or pid or token.get("name") or ""
-                group = by_oid.get(oid)
-                if group is None:
-                    by_oid[oid] = {
-                        "token": _hydrate(token),
-                        "sources": [name],
-                    }
-                else:
-                    group["sources"].append(name)
-
-    def sort_key(rec: dict) -> tuple:
-        t = rec["token"]
-        is_artifact = "Artifact" in (t.get("type_line") or "")
-        cs = t.get("colors") or t.get("color_indicator") or []
-        col = cs[0] if cs else "C"
-        return (not is_artifact, color_order.get(col, 9), t.get("name") or "")
-
-    return sorted(by_oid.values(), key=sort_key)
 
 
 # --- Layout primitives -----------------------------------------------------
@@ -869,20 +693,6 @@ def build_pdf(
 # --- Bulk-data discovery ---------------------------------------------------
 
 
-def _default_bulk_path() -> Path | None:
-    """Resolve the default Scryfall bulk path used by ``download-bulk``."""
-    import os
-    candidates: list[Path] = []
-    cache_root = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if cache_root:
-        candidates.append(Path(cache_root) / "scryfall-bulk" / "default-cards.json")
-    candidates.append(Path("/tmp/scryfall-bulk/default-cards.json"))
-    for p in candidates:
-        if p.is_file():
-            return p
-    return None
-
-
 def _bulk_is_fresh(path: Path) -> bool:
     import time
     age_s = time.time() - path.stat().st_mtime
@@ -953,7 +763,7 @@ def main(
 ) -> None:
     # Resolve bulk path
     if bulk_path is None:
-        bulk_path = _default_bulk_path()
+        bulk_path = default_bulk_path()
     if bulk_path is None or not bulk_path.is_file():
         click.echo(
             "ERROR: Scryfall bulk data not found. Run `download-bulk` first.",
@@ -1005,7 +815,7 @@ def main(
             if src is None:
                 _log_warn(f"missing from bulk: {name}")
                 continue
-            hydrated = _hydrate(src)
+            hydrated = hydrate(src)
             for _ in range(qty):
                 items.append((hydrated, None))
         title = f"MTG Card Proxies — {deck_path.name}"

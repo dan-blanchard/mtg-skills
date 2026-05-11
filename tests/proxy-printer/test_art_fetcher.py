@@ -590,7 +590,7 @@ def test_subtypes_in_deck_extracts_from_type_lines(
         },
     }
     monkeypatch.setattr(
-        "mtg_utils.proxy_print.load_bulk_indexes",
+        "mtg_utils.deck.load_bulk_indexes",
         lambda _p: (fake_by_name, fake_by_id),
     )
 

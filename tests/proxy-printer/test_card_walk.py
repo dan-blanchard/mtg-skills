@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mtg_utils.proxy_print import walk_cards
+from mtg_utils.deck import walk_cards
 
 
 def _deck() -> dict:

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import pickle
 from pathlib import Path
 
@@ -109,3 +110,21 @@ def build_sidecar(bulk_path: Path) -> Path:
         cards = json.load(f)
     _write_sidecar(sidecar, cards)
     return sidecar
+
+
+def default_bulk_path() -> Path | None:
+    """Resolve the default Scryfall bulk path used by ``download-bulk``.
+
+    Checks ``$MTG_SKILLS_CACHE_DIR/scryfall-bulk/default-cards.json``
+    first, falling back to ``/tmp/scryfall-bulk/default-cards.json``.
+    Returns ``None`` if neither exists.
+    """
+    candidates: list[Path] = []
+    cache_root = os.environ.get("MTG_SKILLS_CACHE_DIR")
+    if cache_root:
+        candidates.append(Path(cache_root) / "scryfall-bulk" / "default-cards.json")
+    candidates.append(Path("/tmp/scryfall-bulk/default-cards.json"))
+    for p in candidates:
+        if p.is_file():
+            return p
+    return None

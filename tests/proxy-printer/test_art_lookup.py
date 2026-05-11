@@ -7,12 +7,8 @@ from pathlib import Path
 import pytest
 
 from mtg_utils import proxy_print
-from mtg_utils.proxy_print import (
-    _split_type_line,
-    _try_read_attributed,
-    lookup_art,
-    slug,
-)
+from mtg_utils.deck import slug, split_type_line
+from mtg_utils.proxy_print import _try_read_attributed, lookup_art
 
 
 @pytest.mark.parametrize(
@@ -42,7 +38,7 @@ def test_slug(name: str, expected: str) -> None:
     ],
 )
 def test_split_type_line(type_line: str, types: list[str], subs: list[str]) -> None:
-    actual_types, actual_subs = _split_type_line(type_line)
+    actual_types, actual_subs = split_type_line(type_line)
     assert actual_types == types
     assert actual_subs == subs
 

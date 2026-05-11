@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 from pypdf import PdfReader
 
-from mtg_utils.proxy_print import _hydrate, build_pdf, discover_tokens
+from mtg_utils.deck import discover_tokens, hydrate
+from mtg_utils.proxy_print import build_pdf
 
 
 def _make_card(
@@ -107,5 +108,5 @@ def test_no_real_network_in_render() -> None:
     with patch("mtg_utils.scryfall_lookup._api_lookup") as m:
         m.side_effect = AssertionError("render path must not hit Scryfall")
         # If render() touches _api_lookup the patch fires.
-        h = _hydrate({"name": "X", "type_line": "Sorcery"})
+        h = hydrate({"name": "X", "type_line": "Sorcery"})
         assert h["name"] == "X"

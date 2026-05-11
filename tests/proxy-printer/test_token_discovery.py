@@ -5,7 +5,7 @@ Uses tiny in-memory fixtures so we never hit Scryfall.
 
 from __future__ import annotations
 
-from mtg_utils.proxy_print import discover_tokens
+from mtg_utils.deck import discover_tokens
 
 
 def _src(
