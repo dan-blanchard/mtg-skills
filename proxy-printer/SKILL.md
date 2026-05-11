@@ -238,14 +238,33 @@ Subtypes that are MTG-only mechanics or set / plane names (Treasure,
 Saga, Innistrad, etc.) are deliberately skipped; the local catalog
 handles them.
 
-### Token source vs artist credit
+### Footer slot
 
-Both render in the same lower-left footer slot. If a token has both a
-"from: X" source and an artist credit, the token source wins — the
-in-art **signature** (the artist's initials embedded inside the ASCII
-itself) is preserved verbatim during fetch and already satisfies
-asciiart.eu's FAQ attribution requirement. The explicit "art by X"
-footer is courtesy on top of that.
+The lower-left strip under the type banner is reserved for the
+**artist credit** (`art by <Name>`) when attributed art is available.
+Tokens do not render a `from: <source>` line — players know which
+spell created a token because they just cast it, and the deck list
+carries the same info; ceding the slot to the artist credit gives
+tokens the same lower-left attribution real MTG cards have.
+
+The in-art **signature** (the artist's initials embedded inside the
+ASCII itself) is preserved verbatim during fetch and already satisfies
+asciiart.eu's FAQ attribution requirement independently of the
+footer.
+
+### Type-banner position
+
+For **non-token** cards, the type banner's bottom edge is pinned at
+`y + CARD_H / 3` — a fixed position 1/3 from the card bottom, matching
+where real MTG cards put the type line. The art region is the same
+height across cards (~128 pt, enough for 14-line art up to ~9 pt);
+oracle text fills everything below the banner. Short oracle text
+leaves whitespace below itself rather than the banner shifting (also
+matches real MTG cards).
+
+Tokens keep the legacy dynamic layout — they rarely have oracle text,
+so the banner-near-the-bottom-just-above-P/T look reads closer to a
+real MTG token frame.
 
 ## Interpreting `WARN:` output
 

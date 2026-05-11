@@ -1796,6 +1796,23 @@ found", tell the user once: `playtest-install-phase` (~5–10 min, one-time).
 
 ---
 
+## Step 14: Print Proxies (optional)
+
+When the user wants to playtest physically:
+
+```bash
+fetch-art --from-deck deck.json --by-name      # ~15s; populates the art catalog
+proxy-print --kind cards  --deck deck.json --out cards.pdf
+proxy-print --kind tokens --deck deck.json --out tokens.pdf
+```
+
+`proxy-print` renders one PDF for the deck's cards and another for
+every token kind the deck produces. `--by-name` lets multi-copy lookalikes
+(e.g. Karplusan Forest vs Sacred Foundry) end up on distinct art.
+See `proxy-printer/SKILL.md` for layout details and catalog setup.
+
+---
+
 ## Red Flags
 
 | Thought | Reality |

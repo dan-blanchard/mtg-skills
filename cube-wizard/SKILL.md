@@ -703,6 +703,23 @@ Python, no install needed.
 
 ---
 
+### Step 11: Print Proxies (optional)
+
+When the user wants to print the cube for physical drafting:
+
+```bash
+fetch-art --from-deck cube.json --by-name        # ~15s; populates art catalog
+proxy-print --kind cards --deck cube.json --out cube-cards.pdf
+```
+
+Cube JSON is shape-compatible with deck JSON for `proxy-print`'s
+purposes (commanders + cards, no sideboard). Skip `--kind tokens`
+unless the cube intentionally includes token-producing payoffs you
+want printed separately. See `proxy-printer/SKILL.md` for layout
+details and catalog setup.
+
+---
+
 ## Cube vs Deck Differences
 
 Some deck-wizard tools apply to cubes and some don't:
