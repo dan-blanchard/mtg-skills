@@ -38,6 +38,14 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/rules-lawyer/ -v  # Run smoke tests
 ```
 
+### deck-strat
+
+```bash
+cd deck-strat
+uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
+uv run pytest ../tests/deck-strat/ -v  # Run smoke tests
+```
+
 ### lgs-search
 
 ```bash
@@ -67,18 +75,18 @@ uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
 ### Python / tooling
 
 - Requires Python 3.12+ (`requires-python = ">=3.12"` in `mtg-utils/pyproject.toml`).
-- All six `pyproject.toml` files use `uv` as the install/runtime driver.
+- All seven `pyproject.toml` files use `uv` as the install/runtime driver.
 - CI (`.github/workflows/ci.yml`) runs the exact commands listed above — it is the authoritative source of truth for which invocations must pass.
 
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
-**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, `lgs-search/src`, and `proxy-printer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all five point at the same files.
+**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, `deck-strat/src`, `lgs-search/src`, and `proxy-printer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all six point at the same files.
 
 ### mtg-utils
 
-Shared Python package (`mtg_utils`). 34 CLI script modules (20 deck + 9 cube + 3 rules-lawyer + 2 proxy-printer) exposed as 35 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 12 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, download-rules, rules-lookup, rulings-lookup, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; `proxy-printer/pyproject.toml` re-declares parse-deck and download-bulk alongside its `proxy-print` and `fetch-art` entries; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
+Shared Python package (`mtg_utils`). 34 CLI script modules (20 deck + 9 cube + 3 rules-lawyer + 2 proxy-printer) exposed as 35 entry points — `combo-search` and `combo-discover` both live in `combo_search.py`. `cube-wizard/pyproject.toml` re-declares 12 deck-side CLIs it reuses (card-search, card-summary, combo-search/combo-discover, download-bulk, download-rules, rules-lookup, rulings-lookup, mark-owned, price-check, scryfall-lookup, web-fetch); `rules-lawyer/pyproject.toml` re-declares 5 reused CLIs (card-search, card-summary, download-bulk, scryfall-lookup, web-fetch) alongside its three rules-lawyer-specific entry points; `proxy-printer/pyproject.toml` re-declares parse-deck and download-bulk alongside its `proxy-print` and `fetch-art` entries; `deck-strat/pyproject.toml` re-declares 16 reused entries (parse-deck, set-commander, scryfall-lookup, legality-audit, deck-stats, mana-audit, card-summary, archetype-audit, combo-search/combo-discover, edhrec-lookup, card-search, web-fetch, download-bulk, download-rules, rules-lookup, rulings-lookup) and ships none of its own; the remaining deck-only entry points live in `deck-wizard/pyproject.toml`.
 
 **Deck scripts:**
 
@@ -193,6 +201,10 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Builds and tunes MTG cubes (c
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Answers MTG rules questions by citing the actual Comprehensive Rules and Scryfall per-card rulings — the project's "legal database": CR = statute, Scryfall rulings = case law. Usable standalone or invoked by deck-wizard / cube-wizard via the Skill tool for trigger-interaction, timing, replacement-effect, and layer questions during tuning. The skill's Iron Rule: every answer MUST cite at least one specific CR rule number that came from the CLI output, not from training data. Four phases: classify the question → run one `rules-lookup` CLI call → escalate (wider search, section Read, or subagent) only when the first call misses → write the answer with verdict, CR citations, and edge cases.
 
+### deck-strat
+
+Shares `mtg_utils` via symlink to `mtg-utils/src`. Produces **Strategy Guides** for finished Commander / Brawl / Historic Brawl decks. Read-only on the deck (no cuts/adds; for tuning, run `/deck-wizard` first). Three-phase pipeline: Phase 1 acquires a deck (parse + hydrate, same as deck-wizard Path A), Phase 2 analyzes (baseline diagnostics, commander interaction audit, archetype detection, combo detection, EDHREC research), Phase 3 authors (rules verification pass via `rules-lookup`, draft, parallel Rules Audit subagent, present + iterate). Output is one markdown file at `<working-dir>/STRATEGY-GUIDE.md` with a fixed core spine of sections plus archetype-conditional sections (politics / voltron / combo execution / aristocrats / token doubling) rendered based on signals from `archetype-audit` and commander oracle patterns. Re-declares ~16 CLIs from `mtg-utils` and ships none of its own (see ADR-0004). Hybrid rules-lawyer integration (see ADR-0008): CLI for routine claim verification, Skill-tool invocation for multi-rule timing/layer/stack reasoning. See `deck-strat/CONTEXT.md` for the Strategy Guide / core spine / conditional section / role grouping / Rules Audit vocabulary.
+
 ### lgs-search
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across at most three carts: The Gathering Place + Atomic Empire (LGS) and one of TCGPlayer or Mana Pool (Marketplace), whichever's cheaper for the spillover. Per-Storefront adapters live in `mtg_utils/_stores/` (mirrors `_custom_format/`); each implements a synchronous Protocol — `LGSAdapter` for the per-item search/add flow, `MarketplaceAdapter` for the bulk-submit-and-optimize flow, both extending a shared `StoreSession` base for the lifecycle methods (auth, cart inspection, clear, handoff). See `lgs-search/CONTEXT.md` for the LGS / Marketplace / StoreSession domain language. Persistent Playwright profiles per Storefront under `~/.cache/mtg-skills/lgs-profiles/`.
@@ -234,4 +246,4 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Renders printable PDF proxies
 
 ## Testing
 
-Tests live in `tests/mtg-utils/` (package tests), `tests/deck-wizard/` (deck skill smoke tests), `tests/cube-wizard/` (cube skill smoke tests), and `tests/rules-lawyer/` (rules-lawyer skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.
+Tests live in `tests/mtg-utils/` (package tests), `tests/deck-wizard/` (deck skill smoke tests), `tests/cube-wizard/` (cube skill smoke tests), `tests/rules-lawyer/` (rules-lawyer skill smoke tests), and `tests/deck-strat/` (deck-strat skill smoke tests), outside the skill directories so they aren't installed. Use `unittest.mock` for HTTP calls. No real network calls in tests.

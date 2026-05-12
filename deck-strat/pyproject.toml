@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deck-strat"
+version = "0.1.0"
+description = "Generate MTG Strategy Guides for Commander/Brawl/Historic Brawl decks (shared from mtg-utils)"
+requires-python = ">=3.12"
+dependencies = ["click>=8.0", "requests>=2.28"]
+
+[project.scripts]
+# Reused from mtg-utils. deck-strat owns no CLIs of its own — the skill
+# is orchestration prose over deck-wizard's analysis CLIs and
+# rules-lawyer's rules/rulings CLIs. (Per ADR-0004, defer extracting
+# strategy-specific helpers until a second caller appears.)
+
+# Deck acquisition + hydration
+parse-deck = "mtg_utils.parse_deck:main"
+set-commander = "mtg_utils.set_commander:main"
+scryfall-lookup = "mtg_utils.scryfall_lookup:main"
+download-bulk = "mtg_utils.download_bulk:main"
+web-fetch = "mtg_utils.web_fetch:main"
+
+# Baseline diagnostics
+legality-audit = "mtg_utils.legality_audit:main"
+deck-stats = "mtg_utils.deck_stats:main"
+mana-audit = "mtg_utils.mana_audit:main"
+card-summary = "mtg_utils.card_summary:main"
+
+# Strategy analysis
+archetype-audit = "mtg_utils.archetype_audit:main"
+combo-search = "mtg_utils.combo_search:main"
+combo-discover = "mtg_utils.combo_search:discover_main"
+edhrec-lookup = "mtg_utils.edhrec_lookup:main"
+card-search = "mtg_utils.card_search:main"
+
+# Rules verification (also re-declared by rules-lawyer; see ADR-0008)
+download-rules = "mtg_utils.download_rules:main"
+rules-lookup = "mtg_utils.rules_lookup:main"
+rulings-lookup = "mtg_utils.rulings_lookup:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["../tests/deck-strat"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.9",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D",       # pydocstyle — skip docstring enforcement
+    "ANN",     # flake8-annotations — skip type annotation enforcement
+    "ERA",     # eradicate — skip commented-out code detection
+    "FIX",     # fixme — allow TODO/FIXME comments
+    "TD",      # flake8-todos — skip TODO format enforcement
+    "S",       # bandit — skip security checks (CLI tool, not a service)
+    "INP001",  # implicit-namespace-package
+    "T20",     # flake8-print — CLI tool uses print/click.echo
+    "TRY003",  # long exception messages are fine
+    "EM",      # exception message formatting — overly strict
+    "PLR2004", # magic values
+    "COM812",  # trailing comma — conflicts with formatter
+    "ISC001",  # implicit string concat — conflicts with formatter
+    "C901",    # complexity — Click commands are inherently branchy
+    "PLR0912", # too many branches
+    "PLR0913", # too many arguments — Click commands need many params
+    "PLR0911", # too many return statements — parser helpers are naturally multi-exit
+    "TC",      # type-checking imports
+    "PLC0415", # non-top-level import
+    "ARG002",  # unused method argument — mock patches require positional args
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "SLF001",
+    "E501",
+    "PERF401",
+]
+"../tests/*" = [
+    "SLF001",
+    "E501",
+    "PERF401",
+    "N999",
+]

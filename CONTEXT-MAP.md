@@ -1,6 +1,6 @@
 # Context Map
 
-This monorepo hosts six MTG skills; each is its own bounded context
+This monorepo hosts seven MTG skills; each is its own bounded context
 with its own vocabulary. Architecture work should ground in the
 relevant context and only edit terms inside it.
 
@@ -15,14 +15,18 @@ relevant context and only edit terms inside it.
 - [proxy-printer](./proxy-printer/CONTEXT.md) — rendering printable
   PDF proxies. Owns the local catalog / attributed catalog / lookup
   chain / artist credit / signature vocabulary.
+- [deck-strat](./deck-strat/CONTEXT.md) — producing Strategy Guides
+  for finished Commander / Brawl / Historic Brawl decks. Read-only
+  on the deck. Owns the strategy guide / core spine / conditional
+  section / role grouping / Rules Audit vocabulary.
 
 ## Architecture decisions
 
 ADRs live in [`docs/adr/`](./docs/adr/). Sequential numbering. Read
 these before re-suggesting an architectural change — several
 load-bearing decisions (Storefront protocol split, gauntlet archetype
-unification, the deliberate absence of a resume path) are recorded
-there.
+unification, the deliberate absence of a resume path, the hybrid
+rules-lawyer integration model in deck-strat) are recorded there.
 
 ## Pending
 
@@ -35,6 +39,17 @@ surfaces a term that the skill's prose doesn't already pin down.
 - **cube-wizard ↔ rules-lawyer** — cube-wizard's tuning pipeline
   invokes rules-lawyer (via the Skill tool) for trigger-interaction,
   timing, and replacement-effect questions during archetype review.
+- **deck-strat ↔ rules-lawyer** — hybrid integration (ADR-0008).
+  deck-strat re-declares `rules-lookup` / `rulings-lookup` /
+  `download-rules` in its `pyproject.toml` for routine claim
+  verification; escalates to the rules-lawyer skill via Skill-tool
+  invocation for multi-rule timing / layer / stack questions during
+  drafting.
+- **deck-strat → deck-wizard** — composes sequentially, not nested.
+  Users run `/deck-wizard` for tuning, then `/deck-strat` on the
+  finished deck. Both share the working dir and the SHA-keyed
+  hydrated cache, so deck-strat reuses deck-wizard's parse + hydrate
+  output transparently. No Skill-tool invocation between them.
 - **cube-wizard ↔ lgs-search** — independent today; a cube author
   could in principle pipe a "wishlist" cube diff into lgs-search,
   but no automated bridge exists.
