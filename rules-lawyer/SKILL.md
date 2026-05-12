@@ -143,7 +143,7 @@ Then read lines `3108-3250` (typical category size) to see every
 subrule:
 
 ```
-Read <wd>/comprehensive-rules-20260227.txt offset=3108 limit=140
+Read <wd>/comprehensive-rules-20260417.txt offset=3108 limit=140
 ```
 
 Most rules-lawyer questions resolve inside Phase 2 — this escalation
@@ -227,7 +227,7 @@ call.
 - **Absolute paths only.** `uv` rebases the working directory to the
   skill install; relative paths resolve against the wrong root.
 - **Rules file:** Store under the calling skill's working directory
-  (e.g., `<wd>/comprehensive-rules-20260227.txt`), NOT the skill
+  (e.g., `<wd>/comprehensive-rules-20260417.txt`), NOT the skill
   install directory.
 - **Cache directory for rulings:** `$TMPDIR/scryfall-rulings/` is
   used automatically; callers don't need to manage it.

@@ -28,14 +28,10 @@ import requests
 # networks; the MTG skills CLI is expected to run outside the sandbox.
 _RULES_LANDING_URL = "https://magic.wizards.com/en/rules"
 
-# Fallback: the current (Feb 2026) direct URL. If the landing-page
-# discovery fails, we try this URL with the last-known filename pattern.
-_FALLBACK_TXT_URL = (
-    "https://media.wizards.com/2026/downloads/MagicCompRules%2020260227.txt"
-)
-
-# Match filenames like ``MagicCompRules 20260227.txt`` (the space may be
-# URL-encoded as ``%20``) on the landing page and in download links.
+# Match filenames like ``MagicCompRules 20260417.txt`` (the space may be
+# URL-encoded as ``%20`` or appear literally) on the landing page and in
+# download links. ``requests`` percent-encodes the literal space on its
+# own when issuing the GET, so we don't need to normalise it here.
 _TXT_LINK_RE = re.compile(
     r"https?://[^\s\"'<>]+MagicCompRules(?:%20|\s)?(\d{8})\.txt",
     re.IGNORECASE,
@@ -63,8 +59,8 @@ def _is_fresh(path: Path) -> bool:
 def _discover_latest_url(session: requests.Session) -> tuple[str, str] | None:
     """Scrape the landing page for the newest ``MagicCompRules*.txt`` link.
 
-    Returns ``(url, yyyymmdd)`` or None if discovery failed. The CLI
-    falls back to a hard-coded known-good URL when None is returned.
+    Returns ``(url, yyyymmdd)`` or None if discovery failed. The caller
+    falls back to whatever local copy exists when None is returned.
     """
     try:
         resp = session.get(_RULES_LANDING_URL, timeout=15)
@@ -142,12 +138,21 @@ def download_rules(
     session.headers["User-Agent"] = USER_AGENT
 
     discovered = _discover_latest_url(session)
-    if discovered is not None:
-        url, datestamp = discovered
-    else:
-        url = _FALLBACK_TXT_URL
-        m = re.search(r"(\d{8})\.txt", url)
-        datestamp = m.group(1) if m else "unknown"
+    if discovered is None:
+        # Landing-page scrape failed. Prefer a stale local copy over
+        # failing — better to answer with slightly outdated rules than
+        # not at all — but if there's nothing on disk, fail loudly so
+        # the caller knows to retry rather than silently using a baked-in
+        # URL that would itself rot over time.
+        if existing is not None:
+            return existing
+        msg = (
+            f"Could not discover the latest Comprehensive Rules URL from "
+            f"{_RULES_LANDING_URL}, and no local copy was found in "
+            f"{output_dir}. Retry once Wizards' rules page is reachable."
+        )
+        raise RuntimeError(msg)
+    url, datestamp = discovered
 
     # If the newest-discovered file is the same as our existing one,
     # just touch the mtime so the freshness check passes next time.

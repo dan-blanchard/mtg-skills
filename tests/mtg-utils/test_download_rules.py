@@ -92,9 +92,14 @@ class TestDownloadRules:
         with pytest.raises(FileNotFoundError):
             download_rules(existing_path=tmp_path / "nope.txt")
 
-    def test_falls_back_when_landing_page_fails(self, tmp_path):
-        """If scraping fails, the hard-coded fallback URL is used with
-        whatever date is in the fallback URL."""
+    def test_returns_stale_local_when_discovery_fails(self, tmp_path):
+        """If scraping fails but a local copy exists (even stale), reuse
+        it rather than crashing — slightly-outdated rules beat no rules."""
+        existing = tmp_path / "comprehensive-rules-20250101.txt"
+        existing.write_text("stale", encoding="utf-8")
+        old_time = time.time() - 86400 * 2
+        os.utime(existing, (old_time, old_time))
+
         with patch("mtg_utils.download_rules.requests") as mock_requests:
 
             class _StubError(Exception):
@@ -102,29 +107,51 @@ class TestDownloadRules:
 
             mock_requests.RequestException = _StubError
 
-            # The landing-page call raises; the rules-fetch call succeeds.
-            rules_resp = MagicMock()
-            rules_resp.iter_content.return_value = [b"fallback body"]
-            rules_resp.raise_for_status = MagicMock()
-            rules_resp.__enter__ = lambda s: s
-            rules_resp.__exit__ = MagicMock(return_value=False)
-
-            def _get(url, **_kw):
-                if "2026/downloads" in url:
-                    return rules_resp
-                msg = "landing page down"
-                raise _StubError(msg)
-
             session = MagicMock()
-            session.get.side_effect = _get
+            session.get.side_effect = _StubError("landing page down")
             session.headers = {}
             mock_requests.Session.return_value = session
 
             result = download_rules(output_dir=tmp_path)
 
-        # Fallback URL is the 2026-02-27 one; the filename matches.
-        assert result.name == "comprehensive-rules-20260227.txt"
-        assert result.read_text() == "fallback body"
+        assert result == existing
+        assert result.read_text() == "stale"
+
+    def test_raises_when_discovery_fails_and_no_local_copy(self, tmp_path):
+        """If scraping fails and there's no local copy, surface the error
+        — silently substituting a hardcoded URL would rot over time."""
+        with patch("mtg_utils.download_rules.requests") as mock_requests:
+
+            class _StubError(Exception):
+                pass
+
+            mock_requests.RequestException = _StubError
+
+            session = MagicMock()
+            session.get.side_effect = _StubError("landing page down")
+            session.headers = {}
+            mock_requests.Session.return_value = session
+
+            with pytest.raises(RuntimeError, match="Could not discover"):
+                download_rules(output_dir=tmp_path)
+
+    def test_discovers_url_with_literal_space(self, tmp_path):
+        """Wizards' current landing page emits the link with a literal
+        space rather than ``%20``; the regex must match both."""
+        landing = (
+            "<html><body>"
+            'Latest: <a href="https://media.wizards.com/2026/downloads/'
+            'MagicCompRules 20260417.txt">TXT</a>'
+            "</body></html>"
+        )
+        with patch("mtg_utils.download_rules.requests") as mock_requests:
+            mock_requests.Session.return_value = _mock_session(landing, "body 20260417")
+            mock_requests.RequestException = Exception
+
+            result = download_rules(output_dir=tmp_path)
+
+        assert result.name == "comprehensive-rules-20260417.txt"
+        assert result.read_text() == "body 20260417"
 
 
 class TestCLI:
