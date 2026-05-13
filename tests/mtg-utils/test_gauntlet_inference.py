@@ -64,13 +64,11 @@ class TestInferArchetypeColors:
 
     def test_returns_wubrg_canonical_order(self):
         # Equal counts in U, R, G — canonical order is W U B R G.
-        cube = [
-            _card(f"U{i}", colors=["U"], text="x") for i in range(3)
-        ] + [
-            _card(f"R{i}", colors=["R"], text="x") for i in range(3)
-        ] + [
-            _card(f"G{i}", colors=["G"], text="x") for i in range(3)
-        ]
+        cube = (
+            [_card(f"U{i}", colors=["U"], text="x") for i in range(3)]
+            + [_card(f"R{i}", colors=["R"], text="x") for i in range(3)]
+            + [_card(f"G{i}", colors=["G"], text="x") for i in range(3)]
+        )
         result = infer_archetype_colors(cube, [_matches_text("x")])
         assert result == ["U", "R", "G"]
 
@@ -97,7 +95,10 @@ class TestInferCurveTarget:
             + [_card(f"C{i}", cmc=4, colors=["R"], text="match") for i in range(5)]
         )
         target = infer_curve_target(
-            cube, [_matches_text("match")], {"R"}, nonland_target=23,
+            cube,
+            [_matches_text("match")],
+            {"R"},
+            nonland_target=23,
         )
         assert sum(target.values()) == 23
         # CMC 3 should dominate (50% of matches → ~12 of 23).
@@ -105,12 +106,14 @@ class TestInferCurveTarget:
 
     def test_excludes_off_color_cards(self):
         # Match cards exist in both R (on-color) and U (off-color).
-        cube = (
-            [_card(f"R{i}", cmc=2, colors=["R"], text="match") for i in range(3)]
-            + [_card(f"U{i}", cmc=5, colors=["U"], text="match") for i in range(3)]
-        )
+        cube = [_card(f"R{i}", cmc=2, colors=["R"], text="match") for i in range(3)] + [
+            _card(f"U{i}", cmc=5, colors=["U"], text="match") for i in range(3)
+        ]
         target = infer_curve_target(
-            cube, [_matches_text("match")], {"R"}, nonland_target=23,
+            cube,
+            [_matches_text("match")],
+            {"R"},
+            nonland_target=23,
         )
         # Only the 3 R cards count → all weight at CMC 2.
         assert target.get(2, 0) > 0
@@ -137,8 +140,12 @@ class TestScoreCardThemeBased:
     def test_each_matching_theme_adds_three(self):
         # Card matches both matchers — 2 x 3.0 = 6.0.
         card = _card(
-            "X", colors=["R"], text="haste; sacrifice this creature",
-            cmc=2, power=2, types="Creature",
+            "X",
+            colors=["R"],
+            text="haste; sacrifice this creature",
+            cmc=2,
+            power=2,
+            types="Creature",
         )
         s = score_card(
             card,
@@ -151,12 +158,18 @@ class TestScoreCardThemeBased:
     def test_shape_adds_canonical_priors_on_top(self):
         # Aggro shape: 2-power 2-CMC creature gets +5.0 + +1.5 + theme bonus.
         card = _card(
-            "X", colors=["R"], text="haste",
-            cmc=2, power=2, types="Creature",
+            "X",
+            colors=["R"],
+            text="haste",
+            cmc=2,
+            power=2,
+            types="Creature",
         )
         # Theme alone:
         theme_only = score_card(
-            card, colors={"R"}, matchers=[_matches_text("haste")],
+            card,
+            colors={"R"},
+            matchers=[_matches_text("haste")],
         )
         # Theme + aggro shape:
         with_shape = score_card(

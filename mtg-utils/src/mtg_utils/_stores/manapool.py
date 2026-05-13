@@ -86,7 +86,7 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
             if lines[j].strip() in headings:
                 end = j
                 break
-        block_text = "\n".join(lines[i + 1:end])
+        block_text = "\n".join(lines[i + 1 : end])
         prices = _PRICE_RE.findall(block_text)
         if len(prices) >= 6:
             # Live new+old-pair layout.
@@ -146,7 +146,9 @@ class _ManaPoolAdapter:
         existing = self.get_existing_cart(page)
         if existing:
             raise CartNotEmptyError(
-                self.name, len(existing), f"{self.base_url}/cart",
+                self.name,
+                len(existing),
+                f"{self.base_url}/cart",
             )
 
         # Step 1 — Mass entry. networkidle doesn't reliably settle on MP

@@ -36,7 +36,8 @@ def _build_indexed_deck(hydrated: list[dict]) -> list[int]:
 
 
 def _resolve_manifest_from_stated(
-    cube: dict, cube_cards: list[dict],
+    cube: dict,
+    cube_cards: list[dict],
 ) -> dict | None:
     """Derive a gauntlet manifest from ``stated_archetypes``, or return None.
 
@@ -71,9 +72,7 @@ def _resolve_manifest_from_stated(
     deck_size = cube.get("gauntlet_deck_size", 40)
     lands = cube.get("gauntlet_lands", 17)
     nonland_target = deck_size - lands
-    stated_entries = (
-        (cube.get("designer_intent") or {}).get("stated_archetypes") or []
-    )
+    stated_entries = (cube.get("designer_intent") or {}).get("stated_archetypes") or []
     overrides = {
         e["name"]: e.get("gauntlet")
         for e in stated_entries
@@ -85,12 +84,16 @@ def _resolve_manifest_from_stated(
         matcher = matcher_for(name, resolved)
         override = overrides.get(name) or {}
         colors = override.get("colors") or infer_archetype_colors(
-            cube_cards, [matcher],
+            cube_cards,
+            [matcher],
         )
         if not colors:
             continue  # No cards match this theme in this cube; skip silently.
         curve = override.get("curve_target") or infer_curve_target(
-            cube_cards, [matcher], set(colors), nonland_target=nonland_target,
+            cube_cards,
+            [matcher],
+            set(colors),
+            nonland_target=nonland_target,
         )
         archetypes.append(
             {
@@ -744,9 +747,7 @@ def draft_main(
     stated_names.extend(resolved.preset_names)
     stated_names.extend(g.name for g in resolved.groups)
     stated_names.extend(c.name for c in resolved.custom)
-    stated_entries = (
-        (cube.get("designer_intent") or {}).get("stated_archetypes") or []
-    )
+    stated_entries = (cube.get("designer_intent") or {}).get("stated_archetypes") or []
     overrides = {
         e["name"]: e.get("gauntlet")
         for e in stated_entries
@@ -769,7 +770,8 @@ def draft_main(
             for s in ("aggro", "midrange", "control", "combo")
         ]
     archetype_counts: dict[str, int] = dict.fromkeys(
-        (c["name"] for c in archetype_candidates), 0,
+        (c["name"] for c in archetype_candidates),
+        0,
     )
     basic_lands = {"Plains", "Island", "Swamp", "Mountain", "Forest"}
     basic_to_color = {
@@ -790,9 +792,7 @@ def draft_main(
         for player_idx, pile in enumerate(piles):
             colors = {c for card in pile for c in (card.get("color_identity") or [])}
             fallback_name = (
-                archetype_candidates[0]["name"]
-                if archetype_candidates
-                else "midrange"
+                archetype_candidates[0]["name"] if archetype_candidates else "midrange"
             )
             if not colors:
                 deck_reports.append(

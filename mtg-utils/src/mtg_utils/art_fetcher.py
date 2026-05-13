@@ -114,58 +114,112 @@ EXIT_BAD_CACHE = 2
 # extend it as new gaps are discovered.
 CATEGORIES: tuple[str, ...] = (
     # Animals
-    "animals/bats", "animals/bears", "animals/beavers",
-    "animals/birds-land", "animals/birds-water", "animals/bisons",
-    "animals/camels", "animals/cats", "animals/cows", "animals/deer",
-    "animals/dogs", "animals/dolphins", "animals/elephants",
-    "animals/fish", "animals/frogs", "animals/horses",
-    "animals/marsupials", "animals/monkeys", "animals/moose",
-    "animals/other-land", "animals/other-water", "animals/rabbits",
-    "animals/rhinoceros", "animals/scorpions", "animals/spiders",
+    "animals/bats",
+    "animals/bears",
+    "animals/beavers",
+    "animals/birds-land",
+    "animals/birds-water",
+    "animals/bisons",
+    "animals/camels",
+    "animals/cats",
+    "animals/cows",
+    "animals/deer",
+    "animals/dogs",
+    "animals/dolphins",
+    "animals/elephants",
+    "animals/fish",
+    "animals/frogs",
+    "animals/horses",
+    "animals/marsupials",
+    "animals/monkeys",
+    "animals/moose",
+    "animals/other-land",
+    "animals/other-water",
+    "animals/rabbits",
+    "animals/rhinoceros",
+    "animals/scorpions",
+    "animals/spiders",
     "animals/wolves",
-    "animals/insects/ants", "animals/insects/bees",
-    "animals/insects/beetles", "animals/insects/butterflies",
-    "animals/insects/caterpillars", "animals/insects/cockroaches",
-    "animals/insects/other", "animals/insects/snails",
+    "animals/insects/ants",
+    "animals/insects/bees",
+    "animals/insects/beetles",
+    "animals/insects/butterflies",
+    "animals/insects/caterpillars",
+    "animals/insects/cockroaches",
+    "animals/insects/other",
+    "animals/insects/snails",
     "animals/insects/worms",
-    "animals/reptiles/alligators", "animals/reptiles/dinosaurs",
-    "animals/reptiles/lizards", "animals/reptiles/snakes",
+    "animals/reptiles/alligators",
+    "animals/reptiles/dinosaurs",
+    "animals/reptiles/lizards",
+    "animals/reptiles/snakes",
     "animals/reptiles/turtles",
-    "animals/rodents/mice", "animals/rodents/other",
+    "animals/rodents/mice",
+    "animals/rodents/other",
     # Mythology — most subcategories map to a creature subtype.
-    "mythology/centaurs", "mythology/devils", "mythology/dragons",
-    "mythology/fairies", "mythology/ghosts", "mythology/gryphon",
-    "mythology/mermaids", "mythology/monsters", "mythology/phoenix",
-    "mythology/skeletons", "mythology/unicorns",
+    "mythology/centaurs",
+    "mythology/devils",
+    "mythology/dragons",
+    "mythology/fairies",
+    "mythology/ghosts",
+    "mythology/gryphon",
+    "mythology/mermaids",
+    "mythology/monsters",
+    "mythology/phoenix",
+    "mythology/skeletons",
+    "mythology/unicorns",
     # Plants — Plant, Fungus, Treefolk subtypes.
-    "plants/bonsai-trees", "plants/cactus", "plants/flowers",
-    "plants/leaf", "plants/mushroom", "plants/roses",
+    "plants/bonsai-trees",
+    "plants/cactus",
+    "plants/flowers",
+    "plants/leaf",
+    "plants/mushroom",
+    "plants/roses",
     # Religion — Angel, Cleric, Monk subtypes.
-    "religion/angels", "religion/saints",
+    "religion/angels",
+    "religion/saints",
     # Space — Alien, Spacecraft, Astronaut.
-    "space/aliens", "space/astronauts", "space/spaceships", "space/planets",
+    "space/aliens",
+    "space/astronauts",
+    "space/spaceships",
+    "space/planets",
     # Nature — Land subtypes (Mountain, Island, Desert) + Cloud / Storm flavor.
-    "nature/mountains", "nature/islands", "nature/deserts",
-    "nature/landscapes", "nature/waterfall", "nature/clouds",
+    "nature/mountains",
+    "nature/islands",
+    "nature/deserts",
+    "nature/landscapes",
+    "nature/waterfall",
+    "nature/clouds",
     "nature/lightning",
     # People — Human fallback + occupations as class subtypes (Knight,
     # Wizard, …).
-    "people/men", "people/women", "people/faces", "people/famous",
+    "people/men",
+    "people/women",
+    "people/faces",
+    "people/famous",
     "people/babies",
-    "people/occupations/knights", "people/occupations/kings",
-    "people/occupations/wizards", "people/occupations/vikings",
-    "people/occupations/cowboys", "people/occupations/clowns",
+    "people/occupations/knights",
+    "people/occupations/kings",
+    "people/occupations/wizards",
+    "people/occupations/vikings",
+    "people/occupations/cowboys",
+    "people/occupations/clowns",
     "people/occupations/police",
     # Weapons — Equipment subtype variations + Soldier.
-    "weapons/swords", "weapons/axes", "weapons/bows-and-arrows",
-    "weapons/shields", "weapons/soldiers",
+    "weapons/swords",
+    "weapons/axes",
+    "weapons/bows-and-arrows",
+    "weapons/shields",
+    "weapons/soldiers",
     # Buildings — Land flavor (castle, temple, bridge).
-    "buildings-and-places/castles", "buildings-and-places/temple",
+    "buildings-and-places/castles",
+    "buildings-and-places/temple",
     "buildings-and-places/bridges",
     # Electronics — Robot / Construct artifact creatures.
     "electronics/robots",
     # Music — Bard subtype.
-    "music/musicians", "music/musical-instruments",
+    "music/musicians",
+    "music/musical-instruments",
 )
 
 
@@ -187,23 +241,25 @@ def _parse_cards(text: str, source_path: str) -> list[dict]:
     """asciiart.eu category-page parser."""
     out: list[dict] = []
     for m in _CARD_RE.finditer(text):
-        out.append({
-            "_source": "eu",
-            "id": m.group("id"),
-            "title": html.unescape(m.group("title")),
-            "artist": html.unescape(m.group("artist")),
-            "height": int(m.group("height")),
-            "width": int(m.group("width")),
-            # Normalize line endings: asciiart.eu's HTML serves \r\n
-            # (and sometimes bare \r), which would silently break the
-            # byte-identical body comparison against on-disk files
-            # (write_text emits \n). Use splitlines() — it handles every
-            # line-terminator form — then rejoin with \n.
-            "art": "\n".join(
-                html.unescape(m.group("art")).splitlines()
-            ).strip("\n"),
-            "source_path": source_path,
-        })
+        out.append(
+            {
+                "_source": "eu",
+                "id": m.group("id"),
+                "title": html.unescape(m.group("title")),
+                "artist": html.unescape(m.group("artist")),
+                "height": int(m.group("height")),
+                "width": int(m.group("width")),
+                # Normalize line endings: asciiart.eu's HTML serves \r\n
+                # (and sometimes bare \r), which would silently break the
+                # byte-identical body comparison against on-disk files
+                # (write_text emits \n). Use splitlines() — it handles every
+                # line-terminator form — then rejoin with \n.
+                "art": "\n".join(html.unescape(m.group("art")).splitlines()).strip(
+                    "\n"
+                ),
+                "source_path": source_path,
+            }
+        )
     return out
 
 
@@ -225,14 +281,14 @@ _WEBSITE_JSONLD_RE = re.compile(
 
 _WEBSITE_TAG_RE = re.compile(
     r'href="tag\.php\?tag_id=(?P<id>\d+)"[^>]*>\s*'
-    r'(?P<name>[A-Za-z][^<\n]*?)\s*'
+    r"(?P<name>[A-Za-z][^<\n]*?)\s*"
     r'<span class="tag-count">\((?P<count>\d+)\)',
 )
 
 
 # Pagination cap. We run with the asciiart.website narrowest-sort
 # cookie set, so each page 1 already contains the 20 smallest pieces —
-# the ones most likely to fit our 30×14 budget. Pages 2+ have
+# the ones most likely to fit our 30x14 budget. Pages 2+ have
 # progressively wider pieces, which our _fits filter would mostly
 # reject. Cold-fetch shrinks from ~300 to ~185 page requests.
 # Bump this if a specific subtype is consistently missing and page 1
@@ -287,17 +343,19 @@ def _parse_cards_website(text: str, source_path: str) -> list[dict]:
         body = "\n".join(lines)
         height = len(lines)
         width = max((len(line) for line in lines), default=0)
-        out.append({
-            "_source": "website",
-            "id": art_id,
-            "title": meta["title"],
-            "artist": meta["artist"],
-            "height": height,
-            "width": width,
-            "art": body,
-            "source_path": source_path,
-            "url": meta["url"],
-        })
+        out.append(
+            {
+                "_source": "website",
+                "id": art_id,
+                "title": meta["title"],
+                "artist": meta["artist"],
+                "height": height,
+                "width": width,
+                "art": body,
+                "source_path": source_path,
+                "url": meta["url"],
+            }
+        )
     return out
 
 
@@ -383,22 +441,27 @@ def _parse_website_search(data: dict, query: str) -> list[dict]:
         height = len(lines_nonempty)
         width = max((len(line) for line in lines_nonempty), default=0)
         art_id = str(art.get("id") or "")
-        cards.append({
-            "_source": "website",
-            "id": art_id,
-            "title": art.get("title") or "Untitled",
-            "artist": art.get("artist_name") or art.get("artist") or "unknown",
-            "height": height,
-            "width": width,
-            "art": body,
-            "source_path": f"search?q={query}",
-            "url": f"{WEBSITE_BASE}/art/{art_id}",
-        })
+        cards.append(
+            {
+                "_source": "website",
+                "id": art_id,
+                "title": art.get("title") or "Untitled",
+                "artist": art.get("artist_name") or art.get("artist") or "unknown",
+                "height": height,
+                "width": width,
+                "art": body,
+                "source_path": f"search?q={query}",
+                "url": f"{WEBSITE_BASE}/art/{art_id}",
+            }
+        )
     return cards
 
 
 def search_pool_website(
-    fetcher: Fetcher, query: str, *, csrf_token: str,
+    fetcher: Fetcher,
+    query: str,
+    *,
+    csrf_token: str,
 ) -> list[dict]:
     """POST to asciiart.website's search API; return parsed candidate cards.
 
@@ -434,10 +497,23 @@ def search_pool_website(
 # Parent-category words that don't appear in any Scryfall subtype slug or
 # synonym target, but reliably hold MTG-relevant content. Keep this list
 # small and conservative.
-_MTG_ADJACENT_WORDS: frozenset[str] = frozenset({
-    "animal", "bird", "beast", "insect", "reptile", "monster",
-    "weapon", "vehicle", "water", "ocean", "sea", "tree", "fish",
-})
+_MTG_ADJACENT_WORDS: frozenset[str] = frozenset(
+    {
+        "animal",
+        "bird",
+        "beast",
+        "insect",
+        "reptile",
+        "monster",
+        "weapon",
+        "vehicle",
+        "water",
+        "ocean",
+        "sea",
+        "tree",
+        "fish",
+    }
+)
 
 
 # asciiart.website tag names that are franchise/media-property pollutants —
@@ -458,28 +534,32 @@ _MTG_ADJACENT_WORDS: frozenset[str] = frozenset({
 # "Lord Of The Rings / Tolkien" tag has no MTG-subtype tokens but the
 # user owns LOTR-set MTG cards (Wizard, Elf, Dwarf creatures) that
 # benefit from Tolkien art when it scores well.
-_FORCE_KEEP_TAGS: frozenset[str] = frozenset({
-    "lord of the rings / tolkien",
-})
+_FORCE_KEEP_TAGS: frozenset[str] = frozenset(
+    {
+        "lord of the rings / tolkien",
+    }
+)
 
 
-_FRANCHISE_SKIP_TAGS: frozenset[str] = frozenset({
-    # Broad media-property tags. These pollute many subtypes at once
-    # because they collect every piece from a vast franchise universe.
-    "disney",
-    "pixar",
-    "anime",
-    "manga",
-    "star wars",
-    # Specific franchise tags whose names match an MTG keyword.
-    "lion king",
-    "little mermaid",
-    "dragon ball",
-    "donald duck",
-    "toy story",
-    "ghostbusters",
-    "beauty and the beast",
-})
+_FRANCHISE_SKIP_TAGS: frozenset[str] = frozenset(
+    {
+        # Broad media-property tags. These pollute many subtypes at once
+        # because they collect every piece from a vast franchise universe.
+        "disney",
+        "pixar",
+        "anime",
+        "manga",
+        "star wars",
+        # Specific franchise tags whose names match an MTG keyword.
+        "lion king",
+        "little mermaid",
+        "dragon ball",
+        "donald duck",
+        "toy story",
+        "ghostbusters",
+        "beauty and the beast",
+    }
+)
 
 
 def _relevant_keywords(subtypes: list[str]) -> set[str]:
@@ -492,6 +572,7 @@ def _relevant_keywords(subtypes: list[str]) -> set[str]:
     words: set[str] = set(_MTG_ADJACENT_WORDS)
     # Card-type slugs (creature, artifact, enchantment, land, …).
     from mtg_utils.deck import CARD_TYPE_WORDS
+
     words.update(CARD_TYPE_WORDS)
     for st in subtypes:
         for tok in st.split("-"):
@@ -534,11 +615,11 @@ def _stems(tok: str) -> list[str]:
     if tok in _IRREGULAR_PLURALS:
         out.append(_IRREGULAR_PLURALS[tok])
     if len(tok) > 4 and tok.endswith("ies"):
-        out.append(tok[:-3] + "y")          # butterflies → butterfly
+        out.append(tok[:-3] + "y")  # butterflies → butterfly
     if len(tok) > 4 and tok.endswith("es"):
-        out.append(tok[:-2])                # foxes → fox
+        out.append(tok[:-2])  # foxes → fox
     if len(tok) > 3 and tok.endswith("s"):
-        out.append(tok[:-1])                # cats → cat, dogs → dog
+        out.append(tok[:-1])  # cats → cat, dogs → dog
     return out
 
 
@@ -712,30 +793,90 @@ SYNONYMS: dict[str, list[str]] = {
 # Slugs we never write a file for: MTG-only mechanics, frame markers,
 # named planes, common articles. proxy_print's runtime fallback handles
 # render for these.
-SKIP_SUBTYPES: frozenset[str] = frozenset({
-    # Meta / supertype words (proxy_print already filters these via
-    # _ART_SKIP_WORDS; listed here for safety in case Scryfall returns them)
-    "token", "legendary", "snow", "tribal", "basic", "ongoing",
-    "world", "host",
-    # MTG-only structural / object subtypes with no representational art
-    "attraction", "background", "blood", "bobblehead", "case", "class",
-    "clue", "contraption", "food", "gold", "incubator", "lesson", "map",
-    "powerstone", "role", "saga", "shard", "treasure",
-    # Plane / setting names (Plane card subtypes)
-    "alara", "belenon", "dominaria", "equilor", "fabacin", "gallifrey",
-    "innistrad", "ir", "ixalan", "kaldheim", "kamigawa", "karsus",
-    "kephalai", "lorwyn", "luvion", "mercadia", "mirrodin", "mongseng",
-    "moag", "muraganda", "phyrexia", "pyrulea", "rath", "ravnica",
-    "regatha", "segovia", "serra", "shadowmoor", "shandalar", "tarkir",
-    "theros", "ulgrotha", "vryn", "wildfire", "xerex", "zendikar",
-    # Setting metadata / convention markers
-    "amsterdam", "chicago", "magiccon", "new", "vegas",
-    # Stop-words
-    "and", "of", "the",
-})
+SKIP_SUBTYPES: frozenset[str] = frozenset(
+    {
+        # Meta / supertype words (proxy_print already filters these via
+        # _ART_SKIP_WORDS; listed here for safety in case Scryfall returns them)
+        "token",
+        "legendary",
+        "snow",
+        "tribal",
+        "basic",
+        "ongoing",
+        "world",
+        "host",
+        # MTG-only structural / object subtypes with no representational art
+        "attraction",
+        "background",
+        "blood",
+        "bobblehead",
+        "case",
+        "class",
+        "clue",
+        "contraption",
+        "food",
+        "gold",
+        "incubator",
+        "lesson",
+        "map",
+        "powerstone",
+        "role",
+        "saga",
+        "shard",
+        "treasure",
+        # Plane / setting names (Plane card subtypes)
+        "alara",
+        "belenon",
+        "dominaria",
+        "equilor",
+        "fabacin",
+        "gallifrey",
+        "innistrad",
+        "ir",
+        "ixalan",
+        "kaldheim",
+        "kamigawa",
+        "karsus",
+        "kephalai",
+        "lorwyn",
+        "luvion",
+        "mercadia",
+        "mirrodin",
+        "mongseng",
+        "moag",
+        "muraganda",
+        "phyrexia",
+        "pyrulea",
+        "rath",
+        "ravnica",
+        "regatha",
+        "segovia",
+        "serra",
+        "shadowmoor",
+        "shandalar",
+        "tarkir",
+        "theros",
+        "ulgrotha",
+        "vryn",
+        "wildfire",
+        "xerex",
+        "zendikar",
+        # Setting metadata / convention markers
+        "amsterdam",
+        "chicago",
+        "magiccon",
+        "new",
+        "vegas",
+        # Stop-words
+        "and",
+        "of",
+        "the",
+    }
+)
 
 
 # --- Fetcher ---------------------------------------------------------------
+
 
 class Fetcher(Protocol):
     """Seam for HTTP-with-cache.
@@ -819,9 +960,7 @@ class HttpFetcher:
         max_retries: int = 2,
     ) -> bytes:
         path = self._cache_dir / cache_key
-        if path.is_file() and (
-            time.time() - path.stat().st_mtime
-        ) < FRESHNESS_SECONDS:
+        if path.is_file() and (time.time() - path.stat().st_mtime) < FRESHNESS_SECONDS:
             return path.read_bytes()
         for attempt in range(max_retries + 1):
             if throttle > 0:
@@ -880,6 +1019,7 @@ class HttpFetcher:
 
 
 # --- Pool builders ---------------------------------------------------------
+
 
 def fetch_subtypes(fetcher: Fetcher) -> list[str]:
     """Return every MTG subtype slug, lowercased, deduped, sorted."""
@@ -940,6 +1080,7 @@ def search_pool(fetcher: Fetcher, query: str) -> list[dict]:
 
 # --- Selection -------------------------------------------------------------
 
+
 def _fits(card: dict) -> bool:
     return card["width"] <= MAX_W and card["height"] <= MAX_H
 
@@ -948,13 +1089,49 @@ def _fits(card: dict) -> bool:
 # token in an art body signals a baked-in caption ("Beauty and the
 # Beast", "Long live the King"). Artist initials ("ldb", "mrf") and
 # onomatopoeia ("vvvv", "wWw", "qp") do not collide with this set.
-_CAPTION_STOPWORDS: frozenset[str] = frozenset({
-    "the", "and", "for", "are", "was", "you", "but", "not", "his",
-    "her", "all", "out", "who", "with", "from", "this", "that",
-    "into", "over", "they", "them", "have", "has", "had", "will",
-    "would", "could", "should", "your", "ours", "their", "what",
-    "when", "where", "why", "how", "off", "now", "yet",
-})
+_CAPTION_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "the",
+        "and",
+        "for",
+        "are",
+        "was",
+        "you",
+        "but",
+        "not",
+        "his",
+        "her",
+        "all",
+        "out",
+        "who",
+        "with",
+        "from",
+        "this",
+        "that",
+        "into",
+        "over",
+        "they",
+        "them",
+        "have",
+        "has",
+        "had",
+        "will",
+        "would",
+        "could",
+        "should",
+        "your",
+        "ours",
+        "their",
+        "what",
+        "when",
+        "where",
+        "why",
+        "how",
+        "off",
+        "now",
+        "yet",
+    }
+)
 
 
 def _has_caption_text(card: dict) -> bool:
@@ -1008,7 +1185,7 @@ def _score(card: dict) -> float:
 
 
 def _title_matches(card: dict, query: str) -> bool:
-    pat = re.compile(rf"\b{re.escape(query)}\b", re.I)
+    pat = re.compile(rf"\b{re.escape(query)}\b", re.IGNORECASE)
     return bool(pat.search(card["title"]))
 
 
@@ -1027,7 +1204,7 @@ def _title_matches_stem(card: dict, query: str) -> bool:
     """
     title = card.get("title") or ""
     for stem in _stems(query.lower()):
-        pat = re.compile(rf"\b{re.escape(stem)}\b", re.I)
+        pat = re.compile(rf"\b{re.escape(stem)}\b", re.IGNORECASE)
         if pat.search(title):
             return True
     return False
@@ -1047,6 +1224,7 @@ def select(queries: Iterable[str], pool: list[dict]) -> dict | None:
 
 
 # --- Name-keyed fetch ------------------------------------------------------
+
 
 def _load_existing_bodies(out_dir: Path) -> set[str]:
     """Return the set of art bodies (post-header) of every .txt in ``out_dir``.
@@ -1136,8 +1314,7 @@ def fetch_by_name(
                 continue
             web_pool = search_pool_website(fetcher, word, csrf_token=website_csrf)
             web_fitting = [
-                c for c in web_pool
-                if _eligible(c) and _title_matches_stem(c, word)
+                c for c in web_pool if _eligible(c) and _title_matches_stem(c, word)
             ]
             if web_fitting:
                 fitting = web_fitting
@@ -1172,6 +1349,7 @@ def _distinct_card_names(deck: dict) -> list[str]:
 
 # --- Writer ----------------------------------------------------------------
 
+
 def write_art(out_dir: Path, key: str, card: dict) -> Path:
     """Write ``card`` to ``out_dir/<key>.txt`` with a per-source attribution header.
 
@@ -1201,18 +1379,14 @@ def write_art(out_dir: Path, key: str, card: dict) -> Path:
         src = card["source_path"]
         src_url = f"{ASCIIART_BASE}/{src}"
         license_note = f"Used with attribution per {ASCIIART_BASE}/faq"
-    header = (
-        f"# {title} (by {artist})\n"
-        f"# Source: {src_url}\n"
-        f"# {license_note}\n"
-        "\n"
-    )
+    header = f"# {title} (by {artist})\n# Source: {src_url}\n# {license_note}\n\n"
     path = out_dir / f"{key}.txt"
     path.write_text(header + card["art"] + "\n", encoding="utf-8")
     return path
 
 
 # --- Driver ----------------------------------------------------------------
+
 
 def subtypes_in_deck(deck_path: Path, bulk_path: Path) -> set[str]:
     """Return the subtype + card-type slugs used by every card in the deck
@@ -1231,6 +1405,7 @@ def subtypes_in_deck(deck_path: Path, bulk_path: Path) -> set[str]:
         split_type_line,
         walk_cards,
     )
+
     deck = json.loads(deck_path.read_text())
     by_name, by_id = load_bulk_indexes(bulk_path)
     needed: set[str] = set()
@@ -1309,6 +1484,7 @@ def run(
 
     if deck_path is not None:
         from mtg_utils.bulk_loader import default_bulk_path
+
         resolved_bulk = bulk_path or default_bulk_path()
         if resolved_bulk is None or not resolved_bulk.is_file():
             msg = (
@@ -1373,7 +1549,9 @@ def run(
                 n_skipped_existing += 1
                 continue
             if fetch_by_name(
-                fetcher, name, out_dir,
+                fetcher,
+                name,
+                out_dir,
                 website_csrf=csrf,
                 existing_bodies=existing_bodies,
             ):
@@ -1464,10 +1642,11 @@ _DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
 def main(
     cache_dir: Path,
     out_dir: Path | None,
-    search_fallback: bool,
     limit: int | None,
     from_deck: Path | None,
     bulk_data: Path | None,
+    *,
+    search_fallback: bool,
     by_name: bool,
     report_missing: bool,
 ) -> None:
@@ -1496,7 +1675,10 @@ def main(
             log=lambda s: click.echo(s, err=True),
         )
     except requests.HTTPError as e:
-        click.echo(f"ERROR: HTTP {e.response.status_code} from {e.request.url}", err=True)
+        click.echo(
+            f"ERROR: HTTP {e.response.status_code} from {e.request.url}",
+            err=True,
+        )
         sys.exit(EXIT_FETCH_FAILED)
     except requests.RequestException as e:
         click.echo(f"ERROR: network failure: {e}", err=True)

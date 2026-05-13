@@ -407,6 +407,7 @@ def sweep_lgs(
     page_factory hands out sync-Playwright pages — sync Playwright is
     not safe to use across threads.
     """
+
     def _search_one(card, store):
         adapter = LGS_ADAPTERS[store]
         try:
@@ -492,7 +493,8 @@ def optimize_marketplace(
         page = page_factory(store) if page_factory else None
         try:
             results[store] = adapter.bulk_submit_and_optimize(
-                page, marketplace_lines,
+                page,
+                marketplace_lines,
             )
         except Exception as exc:  # noqa: BLE001
             click.echo(
@@ -693,7 +695,8 @@ def _build_lgs_carts_and_handoff(
                 page.goto(cart_url, wait_until="domcontentloaded", timeout=20000)
             except Exception as exc:  # noqa: BLE001
                 click.echo(
-                    f"[{store}] couldn't navigate to cart: {exc}", err=True,
+                    f"[{store}] couldn't navigate to cart: {exc}",
+                    err=True,
                 )
             click.echo(
                 f"[{store}] cart populated. Review and check out in the open "
@@ -992,8 +995,7 @@ def _render_summary(allocation, marketplace, basics) -> str:
         losers = [
             s
             for s in MARKETPLACE_ADAPTERS
-            if s != chosen and s in marketplace
-            and isinstance(marketplace[s], dict)
+            if s != chosen and s in marketplace and isinstance(marketplace[s], dict)
         ]
         if losers:
             loser = losers[0]
@@ -1152,7 +1154,8 @@ def _run_orchestrator(
             marketplace = None  # do not touch Marketplace carts in dry-run
         else:
             marketplace = optimize_marketplace(
-                marketplace_lines, page_factory=page_factory,
+                marketplace_lines,
+                page_factory=page_factory,
             )
 
     sc: Sidecar = {
@@ -1199,7 +1202,8 @@ def _run_orchestrator(
             adapter.open_handoff(profile_dir_for(chosen))
         except Exception as exc:  # noqa: BLE001
             click.echo(
-                f"[{chosen}] handoff window failed: {exc}", err=True,
+                f"[{chosen}] handoff window failed: {exc}",
+                err=True,
             )
 
     if lgs_failures:

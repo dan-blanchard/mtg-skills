@@ -34,10 +34,18 @@ if TYPE_CHECKING:
 # Card-type words used as fallback art keys after subtypes miss; also
 # part of the keyword filter that decides which asciiart.website tags
 # to fetch.
-CARD_TYPE_WORDS: frozenset[str] = frozenset({
-    "creature", "artifact", "enchantment", "land", "sorcery", "instant",
-    "planeswalker", "battle",
-})
+CARD_TYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "creature",
+        "artifact",
+        "enchantment",
+        "land",
+        "sorcery",
+        "instant",
+        "planeswalker",
+        "battle",
+    }
+)
 
 
 def slug(name: str) -> str:
@@ -51,7 +59,7 @@ def slug(name: str) -> str:
     'urzas'
     """
     s = name.lower()
-    s = s.replace("'", "").replace("’", "")  # apostrophes
+    s = s.replace("'", "").replace("’", "")  # noqa: RUF001 (curly apostrophe is intentional)
     s = re.sub(r"[^a-z0-9]+", "-", s)
     return s.strip("-")
 
@@ -84,17 +92,11 @@ def hydrate(card: dict) -> dict:
     out = dict(card)
     faces = card.get("card_faces") or []
     if faces and not out.get("oracle_text"):
-        out["oracle_text"] = "\n//\n".join(
-            f.get("oracle_text") or "" for f in faces
-        )
+        out["oracle_text"] = "\n//\n".join(f.get("oracle_text") or "" for f in faces)
     if faces and not out.get("mana_cost"):
-        out["mana_cost"] = " // ".join(
-            f.get("mana_cost") or "" for f in faces
-        )
+        out["mana_cost"] = " // ".join(f.get("mana_cost") or "" for f in faces)
     if faces and not out.get("type_line"):
-        out["type_line"] = " // ".join(
-            f.get("type_line") or "" for f in faces
-        )
+        out["type_line"] = " // ".join(f.get("type_line") or "" for f in faces)
     return out
 
 

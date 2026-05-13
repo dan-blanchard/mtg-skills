@@ -151,7 +151,9 @@ class _TCGPlayerAdapter:
         existing = self.get_existing_cart(page)
         if existing:
             raise CartNotEmptyError(
-                self.name, len(existing), f"{self.base_url}/cart",
+                self.name,
+                len(existing),
+                f"{self.base_url}/cart",
             )
 
         # Step 1 — Mass Entry
