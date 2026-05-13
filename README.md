@@ -22,6 +22,18 @@ Build and tune MTG cubes — curated card pools designed for drafting. Supports 
 
 Search The Gathering Place + Atomic Empire (LGS) and TCGPlayer + Mana Pool (online) for an MTG card list, allocate to minimize total cost, and hand off pre-loaded headed browser windows for checkout. Targets at most three carts: TGP, AE, and one of TCGPlayer or Mana Pool.
 
+### rules-lawyer
+
+Answer MTG rules questions by citing the actual Comprehensive Rules and Scryfall per-card rulings — the project's legal database (CR = statute, Scryfall rulings = case law). Resolves keyword interactions, trigger timing, replacement-effect layer issues, and stack-order questions with authoritative citations. Usable standalone or invoked by deck-wizard / cube-wizard / deck-strat via the Skill tool. Iron Rule: every answer cites at least one specific CR rule number from CLI output, never paraphrased from training data.
+
+### deck-strat
+
+Generate a **Strategy Guide** for a finished Commander, Brawl, or Historic Brawl deck — a markdown document that explains how to pilot the deck, organized into a fixed core spine plus archetype-conditional sections (politics, voltron, combo execution, aristocrats, token doubling). Every rules-adjacent claim is verified against the Comprehensive Rules via a parallel Rules Audit pass. Read-only on the deck (no cuts/adds); for tuning, run `/deck-wizard` first, then `/deck-strat` on the finished list.
+
+### proxy-printer
+
+Render printable PDF proxies from a parsed deck JSON. `proxy-print --kind cards` emits one proxy per copy of every card in the deck; `proxy-print --kind tokens` emits one proxy per distinct token kind those cards produce (deduped by Scryfall `oracle_id`). Both modes share one render template — name banner / ASCII art / type banner / oracle text / P/T — with art keyed by card subtype from a hand-curated local catalog plus an optional attributed catalog populated by `fetch-art` (mines asciiart.eu + asciiart.website). Callable standalone or at the end of a deck-wizard / cube-wizard build session.
+
 ## Tooling
 
 Both skills share CLI scripts via the `mtg_utils` package (`mtg-utils/`).
