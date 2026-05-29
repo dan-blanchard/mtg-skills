@@ -213,6 +213,65 @@ class TestComboSearch:
         assert "Infinite mana" in result["combos"][0]["result"]
         assert "Infinite damage" in result["combos"][0]["result"]
 
+    def test_handles_null_popularity_in_near_misses(self):
+        """A near-miss with popularity=None must not crash the sort (regression)."""
+        response = {
+            "results": {
+                "included": [],
+                "almostIncluded": [
+                    {
+                        "uses": [
+                            {"card": {"name": "Have A"}, "zoneLocations": "B"},
+                            {"card": {"name": "Have B"}, "zoneLocations": "B"},
+                            {"card": {"name": "Missing Null"}, "zoneLocations": "B"},
+                        ],
+                        "produces": [{"feature": {"name": "Win the game"}}],
+                        "bracketTag": "B4",
+                        "popularity": None,
+                        "legalities": {"commander": True},
+                    },
+                    {
+                        "uses": [
+                            {"card": {"name": "Have A"}, "zoneLocations": "B"},
+                            {"card": {"name": "Have B"}, "zoneLocations": "B"},
+                            {"card": {"name": "Missing Pop"}, "zoneLocations": "B"},
+                        ],
+                        "produces": [{"feature": {"name": "Win the game"}}],
+                        "bracketTag": "B4",
+                        "popularity": 9000,
+                        "legalities": {"commander": True},
+                    },
+                ],
+            }
+        }
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = response
+        mock_resp.raise_for_status = MagicMock()
+
+        deck = {
+            "commanders": [],
+            "cards": [
+                {"name": "Have A", "quantity": 1},
+                {"name": "Have B", "quantity": 1},
+            ],
+        }
+
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            result = combo_search(deck)
+
+        # No crash; null popularity is coerced to 0 and sorted last.
+        assert len(result["near_misses"]) == 2
+        assert result["near_misses"][0]["missing_card"] == "Missing Pop"
+        assert result["near_misses"][0]["popularity"] == 9000
+        assert result["near_misses"][-1]["missing_card"] == "Missing Null"
+        assert result["near_misses"][-1]["popularity"] == 0
+
     def test_sends_correct_post_body(self, sample_combo_response):
         mock_resp = MagicMock()
         mock_resp.status_code = 200

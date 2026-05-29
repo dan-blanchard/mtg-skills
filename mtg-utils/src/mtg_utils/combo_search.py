@@ -30,7 +30,7 @@ def _extract_combo(variant: dict) -> dict:
         "identity": variant.get("identity", ""),
         "mana_needed": variant.get("manaNeeded", ""),
         "bracket_tag": variant.get("bracketTag", ""),
-        "popularity": variant.get("popularity", 0),
+        "popularity": variant.get("popularity") or 0,
     }
 
 
