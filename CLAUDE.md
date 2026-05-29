@@ -112,7 +112,15 @@ Shared Python package (`mtg_utils`). 34 CLI script modules (20 deck + 9 cube + 3
 - **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`.
 - **`playtest.py`** — Six entry points sharing one module:
   - `playtest-goldfish` — Solo deck simulator (mulligan, curve, color-screw,
-    combo timing). Pure Python.
+    combo timing). Pure Python. Mana model counts lands + every cast nonland
+    permanent with a non-empty Scryfall `produced_mana` (rocks tap on entry,
+    dorks the next turn). Keying off `produced_mana` means it also counts
+    mana-token makers (Treasure/Gold/Eldrazi-Spawn generators like Pitiless
+    Plunderer, Awakening Zone) — approximated as a rough ~1-mana/turn source
+    rather than simulating their creation triggers and one-shot sacrifice. A
+    multi-color `produced_mana` ([W,U,B,R,G]) is 1 mana/turn of any color, not
+    5; only explicit symbols (Sol Ring's {C}{C}) exceed 1. Token ramp is thus
+    captured roughly, not precisely. `playtest-draft` shares this model.
   - `playtest-match` — phase-rs `ai-duel` batch (deck vs deck).
   - `playtest-gauntlet` — Cube round-robin: build N archetype decks from the
     cube, run round-robin via phase, report win-rate matrix.

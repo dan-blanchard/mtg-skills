@@ -10,7 +10,11 @@ from mtg_utils._playtest_common import render_goldfish_markdown
 from mtg_utils.playtest import (
     _aggregate_goldfish,
     _build_indexed_deck,
+    _is_color_screwed,
     _keep_hand,
+    _mana_ability_profile,
+    _pay,
+    _pips_coverable,
     _run_goldfish,
     _simulate_game,
     goldfish_main,
@@ -125,6 +129,130 @@ class TestSimulateGame:
         result = _simulate_game(deck, max_turns=4, rng=rng)
         # Color-screw flag should be true (we have lands but cannot cast a held card)
         assert result["color_screwed"] is True
+
+
+class TestColorScrewMetric:
+    def test_pips_coverable_basic(self):
+        assert _pips_coverable({"B": 2}, [{"B"}, {"B"}]) is True
+        assert _pips_coverable({"B": 2}, [{"B"}, {"R"}]) is False
+
+    def test_pips_coverable_with_duals(self):
+        # Two B/R duals can pay {B}{R}; one dual cannot pay two pips.
+        assert _pips_coverable({"B": 1, "R": 1}, [{"B", "R"}, {"B", "R"}]) is True
+        assert _pips_coverable({"B": 1, "R": 1}, [{"B", "R"}]) is False
+
+    def test_pips_coverable_no_pips(self):
+        assert _pips_coverable({}, []) is True
+
+    def test_too_expensive_is_not_color_screw(self):
+        # 5-drop with only 2 lands: a curve issue, not color screw (the bug).
+        card = {"mana_cost": "{B}{B}{1}{1}{1}", "cmc": 5}
+        assert _is_color_screwed(card, [{"B"}, {"B"}]) is False
+
+    def test_wrong_colors_is_color_screw(self):
+        # Enough total mana (3 >= cmc 2) but nothing produces the U pip.
+        card = {"mana_cost": "{U}{1}", "cmc": 2}
+        assert _is_color_screwed(card, [{"R"}, {"R"}, {"R"}]) is True
+
+    def test_right_colors_is_not_color_screw(self):
+        card = {"mana_cost": "{B}{B}{1}", "cmc": 3}
+        assert _is_color_screwed(card, [{"B"}, {"B"}, {"R"}]) is False
+
+    def test_any_color_source_covers_off_color_pip(self):
+        # A Birds/Signet-style any-color source pays an off-color pip.
+        card = {"mana_cost": "{U}{1}", "cmc": 2}
+        assert _is_color_screwed(card, [{"R"}, {"W", "U", "B", "R", "G"}]) is False
+
+    def test_float_cmc_does_not_crash(self):
+        # Scryfall stores cmc as a float (2.0); _pay's slice index and the
+        # color-screw mana check must coerce it to int rather than crash.
+        payable = {"mana_cost": "{B}{B}", "cmc": 2.0}
+        sources = [{"B"}, {"B"}, {"R"}]
+        assert _pay(payable, sources) is True
+        assert len(sources) == 1  # the two B sources were consumed
+        screwed = {"mana_cost": "{U}{1}", "cmc": 2.0}
+        assert _is_color_screwed(screwed, [{"R"}, {"R"}, {"R"}]) is True
+
+
+class TestManaAbilityProfile:
+    def test_sol_ring_makes_two_colorless(self):
+        sol_ring = {
+            "produced_mana": ["C"],
+            "oracle_text": "{T}: Add {C}{C}.",
+            "type_line": "Artifact",
+        }
+        assert _mana_ability_profile(sol_ring) == (2, frozenset())
+
+    def test_any_color_dork(self):
+        birds = {
+            "produced_mana": ["W", "U", "B", "R", "G"],
+            "oracle_text": "Flying\n{T}: Add one mana of any color.",
+            "type_line": "Creature — Bird",
+        }
+        assert _mana_ability_profile(birds) == (1, frozenset("WUBRG"))
+
+    def test_restricted_dork(self):
+        ignoble = {
+            "produced_mana": ["B", "R", "G"],
+            "oracle_text": "Exalted\n{T}: Add {B}, {R}, or {G}.",
+            "type_line": "Creature — Goblin Shaman",
+        }
+        assert _mana_ability_profile(ignoble) == (1, frozenset("BRG"))
+
+    def test_non_source_returns_none(self):
+        bear = {"produced_mana": [], "oracle_text": "", "type_line": "Creature — Bear"}
+        assert _mana_ability_profile(bear) is None
+
+    def test_token_maker_counted_as_one_per_turn(self):
+        # Scryfall populates produced_mana on Treasure/token MAKERS (from the
+        # token's ability), so we count them as a rough 1-mana/turn source. The
+        # five-color list must yield ONE mana of any color per turn, NOT five.
+        plunderer = {
+            "produced_mana": ["B", "G", "R", "U", "W"],
+            "oracle_text": (
+                "Whenever another creature you control dies, create a Treasure "
+                "token. (It's an artifact with \"{T}, Sacrifice this token: Add "
+                'one mana of any color.")'
+            ),
+            "type_line": "Creature — Human Pirate",
+        }
+        amount, colors = _mana_ability_profile(plunderer)
+        assert amount == 1  # one per turn, not five
+        assert colors == frozenset("BGRUW")
+
+
+class TestManaRocksCountTowardCasting:
+    def test_sol_ring_accelerates_a_four_drop(self):
+        # Opening hand: 2 Mountains + Sol Ring + a 4-cmc spell. With Sol Ring's
+        # +2, the 4-drop is castable on turn 2 (2 lands + Sol Ring = 4 mana) —
+        # impossible from two lands alone. Proves rocks count as mana producers.
+        mountain = _hydrated_card("Mountain", type_line="Basic Land — Mountain")
+        mountain["produced_mana"] = ["R"]
+        sol_ring = _hydrated_card(
+            "Sol Ring",
+            mana_cost="{1}",
+            cmc=1,
+            type_line="Artifact",
+            oracle_text="{T}: Add {C}{C}.",
+        )
+        sol_ring["produced_mana"] = ["C"]
+        four_drop = _hydrated_card(
+            "Hill Giant", mana_cost="{3}{R}", cmc=4, type_line="Creature — Giant"
+        )
+        # hydrated[0,1]=Mountains, [2]=Sol Ring, [3]=four-drop, rest filler lands.
+        deck = [
+            dict(mountain),
+            dict(mountain),
+            sol_ring,
+            four_drop,
+            *[dict(mountain) for _ in range(20)],
+        ]
+        result = _simulate_game(
+            deck, max_turns=2, rng=random.Random(0), starting_hand=[0, 1, 2, 3]
+        )
+        # Only 2 lands by turn 2, so a turn-2 cast of a 4-drop requires the rock.
+        assert result["lands_in_play_by_turn"][2] == 2
+        assert result["casts_by_turn"].get(2, 0) >= 1
 
 
 class TestBuildIndexedDeck:

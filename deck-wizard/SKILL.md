@@ -1785,6 +1785,18 @@ playtest-goldfish my-deck.json --hydrated my-hydrated.json \
   --games 1000 --turns 8 --output playtest-goldfish.json
 ```
 
+**Mana-model approximation — state it when you present goldfish results.** The
+goldfish counts mana from lands + every cast nonland permanent Scryfall marks as
+producing mana. That includes real rocks/dorks (Sol Ring, Signet, Birds) AND
+mana-token makers (Treasure: Pitiless Plunderer, Deadly Dispute; Gold; Eldrazi
+Spawn: Awakening Zone), because Scryfall populates their `produced_mana`. Token
+makers are approximated as a steady **~1 mana/turn** source — the sim does NOT
+simulate their real creation triggers (deaths/attacks/upkeep) or one-shot
+sacrifice, and a multi-color `produced_mana` counts as 1 mana/turn of any color,
+not 5. So token ramp is captured **roughly, not precisely** (timing and
+conditionality aren't modeled). Tell the user the curve/casts are an
+approximation for token-heavy decks.
+
 **Reporting back to the user:** present the markdown report from stdout
 verbatim. Do NOT auto-suggest cuts from the result — the user reads the
 report and decides. If the user asks for follow-up ("what should I cut?"),

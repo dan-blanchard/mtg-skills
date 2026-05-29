@@ -614,6 +614,13 @@ playtest-draft cube.json --hydrated cube-hydrated.json \
 The report aggregates per-deck goldfish across 32 drafted decks and surfaces:
 mean color-screw rate, mean lands at T4, archetype distribution, failed builds.
 
+**Mana-model caveat:** the per-deck goldfish counts lands + every cast nonland
+permanent with a Scryfall `produced_mana` (rocks, dorks, and mana-token makers
+like Treasure/Gold/Eldrazi-Spawn generators), approximating token makers as a
+rough ~1-mana/turn source rather than simulating their triggers/sacrifice. So
+token ramp is captured roughly, not precisely. Note this when reporting draft
+results.
+
 **Reporting back:** if `playtest-gauntlet` flags imbalance, weave it into
 the cuts-and-adds conversation. The wizard does NOT auto-cut from playtest output —
 the user reads both reports and decides.

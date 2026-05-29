@@ -129,19 +129,114 @@ def _land_produces(card: dict) -> list[str]:
     return [c for c in produced if c in {"W", "U", "B", "R", "G"}]
 
 
-def _can_cast(card: dict, mana_pool: dict[str, int], generic_pool: int) -> bool:
-    """Is the card castable with the given mana pool?"""
+_MANA_COLORS = frozenset("WUBRG")
+_ADD_PATTERN = re.compile(r"\bAdd\b((?:\s*\{[^}]+\})+)")
+
+
+def _mana_ability_profile(card: dict) -> tuple[int, frozenset[str]] | None:
+    """Rough mana profile for a nonland permanent: ``(amount, color_options)``.
+
+    Keyed off Scryfall's ``produced_mana``, so it intentionally captures both
+    true tap-for-mana rocks/dorks (Sol Ring, Birds, Signet) AND mana-token
+    makers (Treasure/Gold/Eldrazi-Spawn generators like Pitiless Plunderer or
+    Awakening Zone — Scryfall populates their ``produced_mana`` from the token's
+    ability). Token makers are approximated as a steady ~1-mana/turn source
+    rather than simulating their creation triggers and one-shot sacrifice — a
+    deliberate rough proxy that avoids modeling deaths/attacks/upkeep/sacrifice.
+
+    ``color_options`` = colors it can make (empty = colorless / generic only).
+    ``amount`` = mana per turn. Returns ``None`` if ``produced_mana`` is empty.
+    Lands are handled separately via :func:`_land_produces`.
+    """
+    produced = card.get("produced_mana") or []
+    if not produced:
+        return None
+    colors = frozenset(c for c in produced if c in _MANA_COLORS)
+    # Amount = mana symbols in an explicit "Add {..}" oracle clause; default 1.
+    # So a five-color produced_mana (e.g. [W,U,B,R,G]) is ONE mana/turn of any
+    # color, NOT five — only literal symbols like Sol Ring's "{C}{C}" exceed 1.
+    amount = 1
+    for clause in _ADD_PATTERN.finditer(card.get("oracle_text") or ""):
+        amount = max(amount, clause.group(1).count("{"))
+    return amount, colors
+
+
+def _is_permanent(card: dict) -> bool:
+    """Does this card stay on the battlefield (so a mana ability is repeatable)?"""
+    type_line = (card.get("type_line") or "").lower()
+    return any(
+        kind in type_line
+        for kind in ("artifact", "creature", "enchantment", "planeswalker", "battle")
+    )
+
+
+def _match_pips(pips: dict[str, int], sources: list[set[str]]) -> dict[int, int] | None:
+    """Match each colored pip to a distinct mana source that can produce it.
+
+    Bipartite matching (Kuhn's algorithm) between pip-slots and mana sources;
+    each source's set lists the colors it can tap for (empty = generic only). A
+    multicolor source can fill a pip of any color it makes, but only one pip.
+    Returns ``{slot_index: source_index}`` for a full matching, else ``None``.
+    """
+    slots = [color for color, count in pips.items() for _ in range(count)]
+    if len(slots) > len(sources):
+        return None
+    source_to_slot: dict[int, int] = {}
+
+    def _augment(slot_idx: int, visited: set[int]) -> bool:
+        for si, options in enumerate(sources):
+            if slots[slot_idx] in options and si not in visited:
+                visited.add(si)
+                if si not in source_to_slot or _augment(source_to_slot[si], visited):
+                    source_to_slot[si] = slot_idx
+                    return True
+        return False
+
+    for slot_idx in range(len(slots)):
+        if not _augment(slot_idx, set()):
+            return None
+    return {slot: src for src, slot in source_to_slot.items()}
+
+
+def _pips_coverable(pips: dict[str, int], sources: list[set[str]]) -> bool:
+    """Can the colored pips be produced by the given mana sources?"""
+    return _match_pips(pips, sources) is not None
+
+
+def _pay(card: dict, sources: list[set[str]]) -> bool:
+    """If the card is castable from ``sources``, spend the mana and return True.
+
+    Mutates ``sources`` in place, removing the spent ones. Each source is one
+    mana whose set lists the colors it can tap for (empty = generic only).
+    """
+    cmc = int(card.get("cmc") or 0)  # Scryfall stores cmc as a float (4.0)
+    if len(sources) < cmc:
+        return False
     pips = _card_pips(card)
-    pool = dict(mana_pool)
-    for color, count in pips.items():
-        if pool.get(color, 0) < count:
-            return False
-        pool[color] -= count
-    cmc = card.get("cmc") or 0
-    used_colored = sum(pips.values())
-    needed_generic = max(0, cmc - used_colored)
-    available_generic = sum(pool.values()) + generic_pool
-    return available_generic >= needed_generic
+    match = _match_pips(pips, sources)
+    if match is None:
+        return False
+    used = set(match.values())  # sources spent on colored pips
+    generic_needed = cmc - sum(pips.values())
+    spare = [si for si in range(len(sources)) if si not in used]
+    if len(spare) < generic_needed:
+        return False
+    used.update(spare[:generic_needed])
+    for si in sorted(used, reverse=True):
+        sources.pop(si)
+    return True
+
+
+def _is_color_screwed(card: dict, sources: list[set[str]]) -> bool:
+    """True color screw: enough total mana for the card but not the right colors.
+
+    Returns ``False`` when the card simply costs more than the available mana —
+    that's a curve / mana-count issue, not color screw.
+    """
+    cmc = int(card.get("cmc") or 0)  # Scryfall stores cmc as a float (4.0)
+    if len(sources) < cmc:
+        return False
+    return not _pips_coverable(_card_pips(card), sources)
 
 
 def _keep_hand(hand: list[dict]) -> bool:
@@ -169,6 +264,14 @@ def _simulate_game(
     the remaining deck order is determined by ``rng``. Otherwise a fresh
     7-card hand is drawn from the top of an ``rng``-shuffled library
     (used by tests that don't go through the mulligan path).
+
+    Mana model: counts lands + every cast nonland permanent with a non-empty
+    Scryfall ``produced_mana`` (rocks tap the turn they enter, dorks the turn
+    after). Because it keys off ``produced_mana``, it also counts mana-token
+    makers (Treasure/Gold/Eldrazi-Spawn generators), approximating them as a
+    rough ~1-mana/turn source rather than simulating their creation triggers
+    (deaths/attacks/upkeep) and one-shot sacrifice — see _mana_ability_profile.
+    Token ramp is thus captured roughly, not precisely.
     """
     indices = _build_indexed_deck(hydrated)
     rng.shuffle(indices)
@@ -183,59 +286,75 @@ def _simulate_game(
     lands_in_play: list[int] = []  # indices of lands in play
     lands_in_play_by_turn: dict[int, int] = {}
     casts_by_turn: dict[int, int] = defaultdict(int)
+    # Mana rocks/dorks on the battlefield; each remembers the turn it was cast
+    # so dorks (creatures) respect summoning sickness.
+    mana_permanents: list[dict] = []
     color_screwed = False
+
+    def _sources_available(current_turn: int) -> list[set[str]]:
+        """One entry per mana point available this turn (lands + rocks + dorks)."""
+        sources = [set(_land_produces(hydrated[li])) for li in lands_in_play]
+        for perm in mana_permanents:
+            # Rocks (non-creature) tap the turn they enter; dorks (creatures)
+            # are summoning-sick and tap from the following turn.
+            if not perm["is_creature"] or perm["cast_turn"] < current_turn:
+                sources.extend(set(perm["colors"]) for _ in range(perm["amount"]))
+        return sources
 
     for turn in range(1, max_turns + 1):
         if library:
             hand.append(library.pop())
 
-        # Play one land if possible (prefer card that produces colors we need).
+        # Play one land if possible.
         land_in_hand = next((i for i in hand if is_land(hydrated[i])), None)
         if land_in_hand is not None:
             hand.remove(land_in_hand)
             lands_in_play.append(land_in_hand)
         lands_in_play_by_turn[turn] = len(lands_in_play)
 
-        # Compute mana pool from lands currently in play.
-        mana_pool: dict[str, int] = defaultdict(int)
-        generic = 0
-        for li in lands_in_play:
-            colors = _land_produces(hydrated[li])
-            if colors:
-                mana_pool[colors[0]] += 1
-            else:
-                generic += 1
-
-        # Greedy cast in ascending CMC.
-        nonland_hand = [i for i in hand if not is_land(hydrated[i])]
-        nonland_hand.sort(key=lambda i: hydrated[i].get("cmc") or 0)
-        for ci in nonland_hand:
-            if _can_cast(hydrated[ci], mana_pool, generic):
-                # Spend mana: deduct pips first, then generic.
-                pips = _card_pips(hydrated[ci])
-                for color, count in pips.items():
-                    mana_pool[color] -= count
-                cmc = hydrated[ci].get("cmc") or 0
-                generic_needed = max(0, cmc - sum(pips.values()))
-                # Drain remaining generic from any color.
-                remaining = generic_needed
-                for color in list(mana_pool.keys()):
-                    take = min(remaining, mana_pool[color])
-                    mana_pool[color] -= take
-                    remaining -= take
-                generic -= remaining  # negative drain rolls into generic
+        # Greedy-cast in ascending CMC, re-evaluating after each cast since a
+        # mana rock can produce mana the same turn it resolves.
+        sources = _sources_available(turn)
+        while True:
+            nonland_hand = sorted(
+                (i for i in hand if not is_land(hydrated[i])),
+                key=lambda i: hydrated[i].get("cmc") or 0,
+            )
+            for ci in nonland_hand:
+                if not _pay(hydrated[ci], sources):
+                    continue
                 hand.remove(ci)
                 casts_by_turn[turn] += 1
+                profile = _mana_ability_profile(hydrated[ci])
+                if profile is not None and _is_permanent(hydrated[ci]):
+                    amount, colors = profile
+                    is_creature = (
+                        "creature" in (hydrated[ci].get("type_line") or "").lower()
+                    )
+                    mana_permanents.append(
+                        {
+                            "cast_turn": turn,
+                            "amount": amount,
+                            "colors": colors,
+                            "is_creature": is_creature,
+                        }
+                    )
+                    if not is_creature:  # a rock taps immediately
+                        sources.extend(set(colors) for _ in range(amount))
+                break  # re-sort and re-evaluate with the updated mana
+            else:
+                break  # nothing castable remained this pass
 
-        # Color-screw check: we have >=2 lands, hand has nonland we can't cast.
+        # Color-screw check: with >=2 lands, do we hold a nonland we have enough
+        # TOTAL mana for (lands + tappable rocks/dorks) but can't produce the
+        # COLORS of? That isolates true color screw from merely-too-expensive
+        # cards, which are a curve / mana-count issue.
         if len(lands_in_play) >= 2 and not color_screwed:
-            uncastable_held = any(
+            full_sources = _sources_available(turn)
+            if any(
                 not is_land(hydrated[i])
-                and not _can_cast(hydrated[i], mana_pool, generic)
+                and _is_color_screwed(hydrated[i], full_sources)
                 for i in hand
-            )
-            if uncastable_held and any(
-                (hydrated[i].get("cmc") or 0) <= len(lands_in_play) for i in hand
             ):
                 color_screwed = True
 
