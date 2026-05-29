@@ -169,8 +169,55 @@ class TestBulkSubmitPollutionGuard:
         )
         with pytest.raises(CartNotEmptyError) as excinfo:
             ADAPTER.bulk_submit_and_optimize(
-                page, [{"card_name": "Sol Ring", "qty": 1}],
+                page,
+                [{"card_name": "Sol Ring", "qty": 1}],
             )
         assert excinfo.value.store == "manapool"
         assert excinfo.value.n_items >= 1
         assert "/cart" in excinfo.value.cart_url
+
+
+class TestAwaitOptimizedAlternatives:
+    """The optimizer is async (~60s) and its cheapest total drops as it
+    consolidates sellers. The adapter must wait for the total to SETTLE, not
+    read the first parsed (pre-consolidation) value whose shipping is inflated.
+    Regression for the bug where a baseline ~$65 (many sellers) was returned
+    instead of the settled ~$55 two-seller cart.
+    """
+
+    @staticmethod
+    def _alt(total: str, subtotal: str, shipping: str) -> str:
+        return (
+            f"<div>Lowest price</div><div>${total}</div>"
+            f"<div>${subtotal}</div><div>${shipping}</div>"
+        )
+
+    def test_waits_for_total_to_settle(self):
+        from mtg_utils._stores.manapool import _await_optimized_alternatives
+
+        baseline = self._alt("64.97", "45.38", "17.69")  # pre-consolidation
+        optimized = self._alt("54.81", "51.36", "1.30")  # sellers consolidated
+        seq = [baseline, baseline, optimized, optimized, optimized, optimized]
+        state = {"i": 0}
+
+        def read_html() -> str:
+            html = seq[min(state["i"], len(seq) - 1)]
+            state["i"] += 1
+            return html
+
+        alts = _await_optimized_alternatives(
+            read_html, lambda _ms: None, max_polls=30, stable_needed=3
+        )
+        # Settled value, NOT the first-seen $64.97 baseline.
+        assert min(a["total"] for a in alts) == 54.81
+
+    def test_empty_when_never_populates(self):
+        from mtg_utils._stores.manapool import _await_optimized_alternatives
+
+        alts = _await_optimized_alternatives(
+            lambda: "<html><body>Still searching</body></html>",
+            lambda _ms: None,
+            max_polls=4,
+            stable_needed=3,
+        )
+        assert alts == []

@@ -112,6 +112,45 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
     return alternatives
 
 
+def _await_optimized_alternatives(
+    read_html,
+    sleep_ms,
+    *,
+    max_polls: int = 45,
+    stable_needed: int = 3,
+    poll_ms: int = 2000,
+) -> list[dict]:
+    """Poll the optimizer page until its cheapest total *settles*.
+
+    Mana Pool's optimizer is asynchronous and can take ~60s: it progressively
+    consolidates sellers, and the cheapest total drops as it works. Reading the
+    first parsed value grabs the pre-consolidation baseline (cheapest-per-card
+    scattered across many sellers, so shipping is inflated). Instead we wait
+    until the cheapest total stops changing across ``stable_needed`` consecutive
+    reads before returning.
+
+    ``read_html()`` returns the current page HTML; ``sleep_ms(ms)`` waits.
+    """
+    alternatives: list[dict] = []
+    prev_cheapest: float | None = None
+    stable = 0
+    for _ in range(max_polls):
+        sleep_ms(poll_ms)
+        parsed = _parse_optimizer_alternatives(read_html())
+        if not parsed:
+            continue
+        cheapest = min(a["total"] for a in parsed)
+        if prev_cheapest is not None and abs(cheapest - prev_cheapest) < 0.01:
+            stable += 1
+        else:
+            stable = 0
+        prev_cheapest = cheapest
+        alternatives = parsed
+        if stable >= stable_needed:
+            break
+    return alternatives
+
+
 class _ManaPoolAdapter:
     name = "manapool"
     display_name = "Mana Pool"
@@ -176,17 +215,13 @@ class _ManaPoolAdapter:
             raise StoreSelectorError(self.name, "Optimize N items button", page.url)
         go_btn.click()
 
-        # Step 3 — Poll for alternatives to populate.
-        # Each alternative starts with a "-" placeholder for prices;
-        # we wait for at least one alternative to show $X.XX.
-        alternatives: list[dict] = []
-        for _ in range(20):  # up to ~40s
-            page.wait_for_timeout(2000)
-            html = page.content()
-            alternatives = _parse_optimizer_alternatives(html)
-            if alternatives:
-                break
-
+        # Step 3 — Wait for the async optimizer to SETTLE. It consolidates
+        # sellers over ~60s and the cheapest total drops as it works; reading
+        # the first parsed value grabs the pre-consolidation baseline (inflated
+        # shipping). Poll until the cheapest total stops changing.
+        alternatives = _await_optimized_alternatives(
+            page.content, page.wait_for_timeout
+        )
         if not alternatives:
             raise StoreSelectorError(self.name, "optimizer alternatives", page.url)
 
