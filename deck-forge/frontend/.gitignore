@@ -1,0 +1,3 @@
+node_modules/
+.vite/
+# dist/ is intentionally committed (D11: end-users run `uv run` with no Node toolchain)

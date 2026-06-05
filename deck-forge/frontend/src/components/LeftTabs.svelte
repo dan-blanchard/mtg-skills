@@ -1,0 +1,76 @@
+<script>
+  import SearchPanel from "./SearchPanel.svelte";
+  import Packages from "./Packages.svelte";
+  import Combos from "./Combos.svelte";
+  import Export from "./Export.svelte";
+
+  let tab = "search";
+  const TABS = [
+    ["search", "Search"],
+    ["synergies", "Synergies"],
+    ["combos", "Combos"],
+    ["export", "Export"],
+  ];
+</script>
+
+<div class="left">
+  <div class="tabbar">
+    {#each TABS as [id, label]}
+      <button class="tab" class:active={tab === id} on:click={() => (tab = id)}>
+        {label}
+      </button>
+    {/each}
+  </div>
+  <div class="tabbody">
+    {#if tab === "search"}
+      <SearchPanel />
+    {:else if tab === "synergies"}
+      <Packages />
+    {:else if tab === "combos"}
+      <Combos />
+    {:else}
+      <Export />
+    {/if}
+  </div>
+</div>
+
+<style>
+  .left {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .tabbar {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.7rem;
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    background: linear-gradient(180deg, #241d16, #1b1612);
+    border: 1px solid var(--hairline-soft);
+    border-bottom: 2px solid transparent;
+    color: var(--parchment-dim);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 0.45rem 0.5rem;
+    font-family: var(--display);
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.14s ease;
+  }
+  .tab:hover {
+    color: var(--parchment);
+  }
+  .tab.active {
+    color: var(--brass-bright);
+    border-bottom-color: var(--ember);
+    box-shadow: 0 -2px 14px rgba(255, 106, 61, 0.12);
+  }
+  .tabbody {
+    flex: 1;
+    min-height: 0;
+  }
+</style>

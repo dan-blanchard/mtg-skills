@@ -63,6 +63,18 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/proxy-printer/ -v  # Run smoke tests
 ```
 
+### deck-forge
+
+```bash
+cd deck-forge
+uv sync                              # Install deps (FastAPI/uvicorn; follows symlink to mtg-utils/src)
+uv run pytest ../tests/deck-forge/ -v  # Run backend tests
+uv run download-bulk                 # First-run only; downloads Scryfall bulk data
+uv run deck-forge                    # Launch the backend hub + open the browser UI
+# Frontend (only to develop the UI; the built bundle is committed under frontend/dist):
+cd frontend && npm install && npm run build
+```
+
 ### Running a single test
 
 ```bash
@@ -75,7 +87,7 @@ uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
 ### Python / tooling
 
 - Requires Python 3.12+ (`requires-python = ">=3.12"` in `mtg-utils/pyproject.toml`).
-- All seven `pyproject.toml` files use `uv` as the install/runtime driver.
+- All eight `pyproject.toml` files use `uv` as the install/runtime driver.
 - CI (`.github/workflows/ci.yml`) runs the exact commands listed above — it is the authoritative source of truth for which invocations must pass.
 
 ## Architecture
@@ -220,6 +232,10 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across
 ### proxy-printer
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Renders printable PDF proxies from a parsed deck JSON: `proxy-print --kind cards` emits one proxy per copy of every card in the deck; `proxy-print --kind tokens` emits one proxy per distinct token kind the deck produces (deduped by Scryfall `oracle_id`). Both modes share one render template — name banner / ASCII art / type banner / oracle text / P/T. **Non-token cards pin the type-banner bottom at `y + CARD_H/3`** (matches real MTG layout); tokens keep dynamic positioning. The render path splits into `compute_layout(card, ..., measure_width) -> ProxyLayout` (pure geometry + fitting, canvas-free) and `_emit_proxy(canvas, layout)` (drawing only) — see `tests/proxy-printer/test_compute_layout.py` for unit-level layout assertions without booting reportlab. Two-tier ASCII art: a hand-curated **local catalog** at `mtg-utils/src/mtg_utils/data/card_art/*.txt` (one file per card subtype with card-type and ultimate-generic fallbacks) plus an optional **attributed catalog** at `$MTG_SKILLS_CACHE_DIR/attributed-art/` whose files carry a license header and propagate an `art by <Name>` credit to the proxy footer. Lookup is per-slug interleaved (`attributed/<sub>` → `local/<sub>` → next slug), then card-type, then `local/_generic.txt`. Token proxies render the artist credit in the footer slot — the legacy `from: <source>` line is no longer drawn. `build_pdf` runs a **two-pass differentiation step**: pass 1 resolves type-keyed art for every card; pass 2 groups by `(tier, key)` and for any group containing multiple distinct card names retries each via `lookup_art_by_name(name)`, swapping to a name-keyed file when one exists (same-name cards keep shared art for table-scanning). The attributed catalog ships empty; populate it with `fetch-art`, which mines asciiart.eu + asciiart.website for one candidate per Scryfall subtype; pass `--by-name` to also populate `<name-slug>.txt` files for the differentiation pass. Art is P/T-independent — every Soldier shares `soldier.txt`. See `proxy-printer/CONTEXT.md` for the catalog / lookup chain / signature / artist credit / differentiation-pass vocabulary, and `docs/adr/0006-attributed-art-catalog.md` for the ship-empty + per-slug interleaving rationale. The skill is callable standalone or by deck-wizard / cube-wizard at the end of a build session; `parse-deck` runs upstream to produce the deck JSON.
+
+### deck-forge
+
+Shares `mtg_utils` via symlink to `mtg-utils/src`. A **collaborative, visual** deckbuilder for the Commander family (commander / brawl / historic_brawl, paper + Arena): a Claude Code **skill** run in a normal **interactive** session is the reasoning brain; it spawns a local **FastAPI backend** (`mtg_utils.deck_forge_server`, entry `deck-forge`) that hosts the deterministic core + canonical session state and serves a committed **Svelte SPA** (`deck-forge/frontend/dist`). Two surfaces (D13): the user builds in the browser, the session reasons. Backend internals live in `mtg_utils/_deck_forge/` (mirrors `_stores/` / `_custom_format/`): `signals.py` (scoped signal extraction — the Tinybones guard), `signal_specs.py` (signal → serve/search specs, scope-discriminating), `budgets.py` (slot budgets vs the soft Command Zone template), `ranking.py` (transparent multi-axis scoring — synergy/curve/price, never EDHREC popularity), `agent_bridge.py` (browser↔session long-poll queue), `events.py` (SSE hub), `persistence.py` (autosave + build library), `exporters.py`, `app.py` (the FastAPI factory `build_app(state)`), `production.py` (`default_state()` — real bulk or graceful no-bulk), and `state.py` (`DeckSession` + the injectable `ForgeState`). **Load-bearing contract (ADR-0009): the session-agent never names a card from memory — it proposes patterns/searches/judgments; the deterministic core (`card_search` + `theme_presets` + Commander Spellbook) names real cards.** Billing-safe by being an interactive skill, never Agent-SDK/ACP/`claude -p` (ADR-0010). Autosave/resume departs from ADR-0003 (ADR-0011). See `deck-forge/CONTEXT.md` for vocabulary (signal / synergy package / avenue / candidate / slot budget / curve gate / no-listing card). The deterministic core also runs agent-less (search/curve/combos/budgets/finalize) for non-Claude-Code users.
 
 ## Supported Deck Formats
 

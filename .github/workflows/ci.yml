@@ -15,3 +15,4 @@ jobs:
       - run: cd rules-lawyer && uv sync && uv run pytest ../tests/rules-lawyer/ -v
       - run: cd deck-strat && uv sync && uv run pytest ../tests/deck-strat/ -v
       - run: cd lgs-search && uv sync && uv run pytest ../tests/lgs-search/ -v
+      - run: cd deck-forge && uv sync && uv run pytest ../tests/deck-forge/ -v

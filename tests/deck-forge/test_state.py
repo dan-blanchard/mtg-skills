@@ -1,0 +1,88 @@
+"""Tests for deck-forge session state (deck mutations + hydration)."""
+
+import pytest
+
+from mtg_utils._deck_forge.state import DeckSession
+
+
+def test_new_session_is_empty_with_format():
+    s = DeckSession("commander")
+    assert s.to_deck_dict() == {
+        "format": "commander",
+        "commanders": [],
+        "cards": [],
+        "sideboard": [],
+    }
+
+
+def test_add_merges_quantity():
+    s = DeckSession("commander")
+    s.add("Llanowar Elves")
+    s.add("Llanowar Elves", 2)
+    assert s.to_deck_dict()["cards"] == [{"name": "Llanowar Elves", "quantity": 3}]
+
+
+def test_add_preserves_insertion_order():
+    s = DeckSession("commander")
+    s.add("Sol Ring")
+    s.add("Arcane Signet")
+    names = [c["name"] for c in s.to_deck_dict()["cards"]]
+    assert names == ["Sol Ring", "Arcane Signet"]
+
+
+def test_remove_decrements_then_drops_at_zero():
+    s = DeckSession("commander")
+    s.add("Forest", 3)
+    assert s.remove("Forest", 1) == 2
+    assert s.remove("Forest", 5) == 0
+    assert s.to_deck_dict()["cards"] == []
+
+
+def test_remove_unknown_card_is_noop():
+    s = DeckSession("commander")
+    assert s.remove("Nonexistent") == 0
+
+
+def test_commander_zone_is_separate():
+    s = DeckSession("commander")
+    s.add("Atraxa, Praetors' Voice", zone="commanders")
+    s.add("Llanowar Elves")
+    d = s.to_deck_dict()
+    assert d["commanders"] == [{"name": "Atraxa, Praetors' Voice", "quantity": 1}]
+    assert d["cards"] == [{"name": "Llanowar Elves", "quantity": 1}]
+
+
+def test_add_rejects_unknown_zone():
+    s = DeckSession("commander")
+    with pytest.raises(ValueError, match="zone"):
+        s.add("X", zone="bogus")
+
+
+def test_hydrated_returns_deck_scoped_records_only():
+    s = DeckSession("commander")
+    s.add("Atraxa, Praetors' Voice", zone="commanders")
+    s.add("Llanowar Elves")
+    by_name = {
+        "Llanowar Elves": {"name": "Llanowar Elves", "cmc": 1.0},
+        "Atraxa, Praetors' Voice": {"name": "Atraxa, Praetors' Voice", "cmc": 4.0},
+        "Unrelated Card": {"name": "Unrelated Card", "cmc": 9.0},
+    }
+    hydrated = s.hydrated(by_name)
+    names = {c["name"] for c in hydrated}
+    assert names == {"Llanowar Elves", "Atraxa, Praetors' Voice"}
+
+
+def test_hydrated_expanded_repeats_by_quantity_and_excludes_commanders():
+    s = DeckSession("commander")
+    s.add("Cmdr", zone="commanders")
+    s.add("Forest", 8)
+    s.add("Llanowar Elves")
+    by_name = {
+        "Cmdr": {"name": "Cmdr"},
+        "Forest": {"name": "Forest"},
+        "Llanowar Elves": {"name": "Llanowar Elves"},
+    }
+    names = [r["name"] for r in s.hydrated_expanded(by_name)]
+    assert names.count("Forest") == 8
+    assert names.count("Llanowar Elves") == 1
+    assert "Cmdr" not in names  # command zone excluded

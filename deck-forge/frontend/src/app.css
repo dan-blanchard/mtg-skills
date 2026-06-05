@@ -1,0 +1,192 @@
+/* deck-forge — "Arcane Forge" design system.
+   Dark warm obsidian, brass/ember structure, MTG mana colors as functional accents. */
+
+:root {
+  /* surfaces */
+  --obsidian: #14110f;
+  --obsidian-2: #1a1613;
+  --panel: #211c18;
+  --panel-2: #2a231d;
+  --hairline: #4a3c28;
+  --hairline-soft: #342a1f;
+
+  /* metal + fire */
+  --brass: #c8964b;
+  --brass-bright: #e8b563;
+  --ember: #ff6a3d;
+  --ember-deep: #c23a18;
+
+  /* text */
+  --parchment: #ece1cc;
+  --parchment-dim: #b6a98f;
+  --muted: #8a7d68;
+
+  /* mana colors (functional) */
+  --w: #f3ead0;
+  --u: #4a90d9;
+  --b: #9a7fb0;
+  --r: #d4452f;
+  --g: #4a9e63;
+  --c: #9a8f7d;
+
+  /* gate / forge temperature */
+  --pass: #4a9e63;
+  --warn: #e8b563;
+  --fail: #d4452f;
+
+  --radius: 4px;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 220, 160, 0.04);
+
+  --display: "Cinzel", Georgia, serif;
+  --body: "Spectral", Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--body);
+  color: var(--parchment);
+  background-color: var(--obsidian);
+  /* layered atmosphere: ember glow rising from the base + a cool top + grain */
+  background-image:
+    radial-gradient(120% 80% at 50% 118%, rgba(255, 106, 61, 0.16), transparent 55%),
+    radial-gradient(90% 60% at 50% -10%, rgba(74, 144, 217, 0.05), transparent 60%),
+    linear-gradient(180deg, var(--obsidian-2), var(--obsidian));
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* fine grain overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+button {
+  font-family: var(--body);
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: var(--body);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hairline-soft);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* shared atoms */
+.panel {
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), var(--shadow-inset);
+}
+
+.panel-title {
+  font-family: var(--display);
+  font-size: 0.74rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin: 0 0 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.panel-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hairline), transparent);
+}
+
+.btn {
+  background: linear-gradient(180deg, #3a2f22, #2a221a);
+  color: var(--parchment);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 0.42rem 0.7rem;
+  font-size: 0.85rem;
+  transition: all 0.14s ease;
+}
+.btn:hover {
+  border-color: var(--brass);
+  color: var(--brass-bright);
+  box-shadow: 0 0 14px rgba(232, 181, 99, 0.18);
+}
+.btn-ember {
+  background: linear-gradient(180deg, var(--ember), var(--ember-deep));
+  border-color: var(--ember-deep);
+  color: #1a0f08;
+  font-weight: 600;
+}
+.btn-ember:hover {
+  color: #1a0f08;
+  box-shadow: 0 0 16px rgba(255, 106, 61, 0.4);
+}
+
+/* mana pip */
+.pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-family: var(--display);
+  color: #15110c;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.pip-W { background: var(--w); }
+.pip-U { background: var(--u); color: #f3ead0; }
+.pip-B { background: var(--b); color: #f3ead0; }
+.pip-R { background: var(--r); color: #f3ead0; }
+.pip-G { background: var(--g); color: #f3ead0; }
+.pip-C { background: var(--c); }
+
+.status-PASS { color: var(--pass); }
+.status-WARN { color: var(--warn); }
+.status-FAIL { color: var(--fail); }
+.bg-PASS { background: var(--pass); }
+.bg-WARN { background: var(--warn); }
+.bg-FAIL { background: var(--fail); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
