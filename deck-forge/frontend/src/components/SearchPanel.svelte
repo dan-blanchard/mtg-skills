@@ -4,6 +4,7 @@
   import CardTile from "./CardTile.svelte";
 
   let f = {
+    name: "",
     color_identity: "",
     type: "",
     oracle: "",
@@ -28,6 +29,7 @@
     error = "";
     searched = true;
     const payload = {
+      name: clean(f.name.trim()),
       color_identity: clean(f.color_identity.trim().toUpperCase()),
       type: clean(f.type.trim()),
       oracle: clean(f.oracle.trim()),
@@ -62,6 +64,7 @@
 
   <form on:submit={run} class="filters">
     <div class="grid">
+      <label class="wide">Name<input bind:value={f.name} placeholder="e.g. Llanowar — substring, case-insensitive" /></label>
       <label>Color identity<input bind:value={f.color_identity} placeholder="e.g. GW" /></label>
       <label>Type<input bind:value={f.type} placeholder="e.g. Creature" /></label>
       <label class="wide">Oracle text (regex)<input bind:value={f.oracle} placeholder="e.g. create .* token" /></label>

@@ -111,6 +111,7 @@ class SearchPayload(BaseModel):
     color_identity: str | None = None
     oracle: str | None = None
     type: str | None = None
+    name: str | None = None
     cmc_min: float | None = None
     cmc_max: float | None = None
     price_min: float | None = None
@@ -323,6 +324,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             color_identity=payload.color_identity,
             oracle=payload.oracle,
             card_type=payload.type,
+            name=payload.name,
             cmc_min=payload.cmc_min,
             cmc_max=payload.cmc_max,
             price_min=payload.price_min,

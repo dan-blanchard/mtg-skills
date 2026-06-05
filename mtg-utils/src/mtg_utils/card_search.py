@@ -29,6 +29,7 @@ def _matches_filters(
     allowed_colors: set[str] | None,
     oracle_re: re.Pattern | None,
     type_lower: str | None,
+    name_substr: str | None = None,
     cmc_min: float | None,
     cmc_max: float | None,
     price_min: float | None,
@@ -67,6 +68,9 @@ def _matches_filters(
         type_lower is not None
         and type_lower not in (card.get("type_line") or "").lower()
     ):
+        return False
+
+    if name_substr is not None and name_substr not in (card.get("name") or "").lower():
         return False
 
     cmc = card.get("cmc", 0)
@@ -118,6 +122,7 @@ def search_cards(
     color_identity: str | None = None,
     oracle: str | None = None,
     card_type: str | None = None,
+    name: str | None = None,
     cmc_min: float | None = None,
     cmc_max: float | None = None,
     price_min: float | None = None,
@@ -151,16 +156,17 @@ def search_cards(
         msg = f"Invalid oracle regex: {e}"
         raise click.BadParameter(msg, param_hint="--oracle") from e
     type_lower = card_type.lower() if card_type else None
+    name_lower = name.lower() if name else None
 
     presets: tuple[Preset, ...] = ()
     if preset_names:
         resolved: list[Preset] = []
-        for name in preset_names:
+        for preset_name in preset_names:
             try:
-                resolved.append(get_preset(name))
+                resolved.append(get_preset(preset_name))
             except KeyError:
                 known = ", ".join(sorted(PRESETS.keys()))
-                msg = f"unknown preset {name!r}. Known presets: {known}"
+                msg = f"unknown preset {preset_name!r}. Known presets: {known}"
                 raise click.BadParameter(msg, param_hint="--preset") from None
         presets = tuple(resolved)
 
@@ -175,6 +181,7 @@ def search_cards(
             allowed_colors=allowed_colors,
             oracle_re=oracle_re,
             type_lower=type_lower,
+            name_substr=name_lower,
             cmc_min=cmc_min,
             cmc_max=cmc_max,
             price_min=price_min,
@@ -273,6 +280,12 @@ def format_results(cards: list[dict]) -> str:
     default=None,
     help="Substring to match type line.",
 )
+@click.option(
+    "--name",
+    "-n",
+    default=None,
+    help="Case-insensitive substring to match the card name.",
+)
 @click.option("--cmc-min", type=float, default=None)
 @click.option("--cmc-max", type=float, default=None)
 @click.option("--price-min", type=float, default=None)
@@ -334,6 +347,7 @@ def main(
     color_identity: str | None,
     oracle: str | None,
     card_type: str | None,
+    name: str | None,
     cmc_min: float | None,
     cmc_max: float | None,
     price_min: float | None,
@@ -357,6 +371,7 @@ def main(
         color_identity=color_identity,
         oracle=oracle,
         card_type=card_type,
+        name=name,
         cmc_min=cmc_min,
         cmc_max=cmc_max,
         price_min=price_min,
