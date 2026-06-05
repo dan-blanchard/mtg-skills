@@ -33,7 +33,9 @@ user makes every call.
 
 ```bash
 cd deck-forge && uv sync
-uv run download-bulk        # first run only (~hundreds of MB; 24h freshness check)
+# first run only (~hundreds of MB; 24h freshness). MUST target the dir the loader
+# reads — download-bulk otherwise writes to the CWD, where default_bulk_path won't find it.
+uv run download-bulk --output-dir /tmp/scryfall-bulk
 uv run deck-forge           # starts the hub on :8765 and opens the browser
 ```
 Leave the server running. The user interacts in the browser; you watch this terminal
@@ -53,6 +55,12 @@ and the UI shows them as **avenues**. Read them; confirm the scopes by quoting t
 commander's oracle (contract #2).
 
 ## Phase 2 — the reasoning loop
+
+So the UI shows a session is attached (and stops nagging the user to run the skill),
+send a heartbeat whenever you act on the deck this session — `POST
+/api/agent/heartbeat` (polling `/api/agent/next` and posting results also count).
+A simple option is a background loop while you build:
+`while sleep 20; do curl -fsS -X POST http://127.0.0.1:8765/api/agent/heartbeat || break; done &`
 
 Poll the agent bridge and answer the user's requests. Run, in a loop:
 

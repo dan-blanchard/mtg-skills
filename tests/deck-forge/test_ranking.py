@@ -47,6 +47,36 @@ def test_score_exposes_price_and_cmc():
     assert score_candidate(NO_LISTING, active_signals=[ETB])["price"] is None
 
 
+def test_avenues_contribute_to_synergy_fit():
+    avenues = [
+        {"label": "Land creatures", "search": {"oracle": "becomes a .*creature"}}
+    ]
+    manland = {
+        "name": "Manland",
+        "type_line": "Land",
+        "cmc": 0.0,
+        "oracle_text": "Mishra's Factory becomes a 2/2 Assembly-Worker creature.",
+        "prices": {"usd": "0.50"},
+    }
+    score = score_candidate(manland, active_signals=[], avenues=avenues)
+    assert score["synergy_fit"] == 1
+    assert "Land creatures" in score["served"]
+
+
+def test_serving_a_signal_and_an_avenue_stacks():
+    avenues = [{"label": "Land creatures", "search": {"oracle": "land creature"}}]
+    # Serves creature_etb (makes a creature token) AND the land-creature avenue.
+    card = {
+        "name": "Land Token Maker",
+        "type_line": "Sorcery",
+        "cmc": 3.0,
+        "oracle_text": "Create a 1/1 green land creature token.",
+        "prices": {"usd": "1.00"},
+    }
+    score = score_candidate(card, active_signals=[ETB], avenues=avenues)
+    assert score["synergy_fit"] == 2
+
+
 def test_rank_sorts_by_synergy_then_price_with_no_listing_last():
     ranked = rank_candidates(
         [TOKEN_MAKER, DUAL_PURPOSE, NO_LISTING], active_signals=[ETB, LIFE]

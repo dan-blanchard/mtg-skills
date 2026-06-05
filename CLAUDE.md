@@ -69,7 +69,7 @@ uv run pytest ../tests/proxy-printer/ -v  # Run smoke tests
 cd deck-forge
 uv sync                              # Install deps (FastAPI/uvicorn; follows symlink to mtg-utils/src)
 uv run pytest ../tests/deck-forge/ -v  # Run backend tests
-uv run download-bulk                 # First-run only; downloads Scryfall bulk data
+uv run download-bulk --output-dir /tmp/scryfall-bulk  # First-run only; loader reads this path
 uv run deck-forge                    # Launch the backend hub + open the browser UI
 # Frontend (only to develop the UI; the built bundle is committed under frontend/dist):
 cd frontend && npm install && npm run build

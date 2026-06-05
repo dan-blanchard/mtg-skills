@@ -1,6 +1,7 @@
 <script>
   import { deck, applySnapshot } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { hoverPreview } from "../lib/hover.js";
 
   async function remove(name, zone) {
     const r = await api.remove(name, zone, 1);
@@ -28,7 +29,7 @@
         <div class="group">
           <div class="group-head">{g.label} <span>· {g.cards.length}</span></div>
           {#each g.cards as c (c.name)}
-            <div class="row">
+            <div class="row" use:hoverPreview={c}>
               <div class="thumb">
                 {#if c.images?.small}
                   <img src={c.images.small} alt={c.name} loading="lazy" />

@@ -24,6 +24,8 @@ export const api = {
     post("/api/deck/remove", { name, zone, qty }),
   packages: () => get("/api/packages"),
   combos: () => get("/api/combos"),
+  agentStatus: () => get("/api/agent/status"),
+  explore: (label, search) => post("/api/explore", { label, search }),
   finalize: (override) => post("/api/finalize", { override }),
   builds: () => get("/api/builds"),
   buildsNew: (format = "commander", name = "Untitled") =>

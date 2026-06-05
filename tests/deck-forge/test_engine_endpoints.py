@@ -93,3 +93,34 @@ def test_snapshot_includes_live_budgets_and_signals():
     snap = _client().get("/api/snapshot").json()
     assert snap["budgets"]["ramp"]["target"] == 10
     assert any(s["key"] == "creature_etb" for s in snap["signals"])
+
+
+def test_snapshot_avenues_include_engine_avenue_with_search_spec():
+    snap = _client().get("/api/snapshot").json()
+    etb = next(a for a in snap["avenues"] if a["id"] == "engine:creature_etb:you")
+    assert etb["source"] == "engine"
+    assert etb["label"]
+    assert "oracle" in etb["search"]  # carries what to search for
+
+
+def test_add_agent_avenue_appears_in_snapshot():
+    client = _client()
+    snap = client.post(
+        "/api/avenues",
+        json={"label": "Flicker my own ETBs", "search": {"oracle": "exile .* return"}},
+    ).json()
+    agent_avenues = [a for a in snap["avenues"] if a["source"] == "agent"]
+    assert agent_avenues[0]["label"] == "Flicker my own ETBs"
+    assert agent_avenues[0]["id"] == "agent:1"
+
+
+def test_explore_returns_ranked_package_excluding_in_deck():
+    client = _client(search_results=[TOK, ALREADY])
+    pkg = client.post(
+        "/api/explore",
+        json={"label": "Go wide", "search": {"oracle": "create .*creature token"}},
+    ).json()["package"]
+    names = [c["name"] for c in pkg["candidates"]]
+    assert "Token Maker" in names
+    assert "In Deck Tokens" not in names
+    assert pkg["label"] == "Go wide"

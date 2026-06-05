@@ -10,6 +10,7 @@ without the backend ever needing an API key (D1/D13).
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 
 
@@ -27,6 +28,17 @@ class AgentBridge:
         self._pending: asyncio.Queue[AgentRequest] = asyncio.Queue()
         self._results: dict[str, asyncio.Future] = {}
         self._counter = 0
+        self._last_seen: float | None = None
+
+    def touch(self) -> None:
+        """Mark that the session-agent is present right now (heartbeat)."""
+        self._last_seen = time.monotonic()
+
+    def attached(self, grace: float = 60.0) -> bool:
+        """True if the agent polled/answered/heartbeat within ``grace`` seconds."""
+        return (
+            self._last_seen is not None and (time.monotonic() - self._last_seen) < grace
+        )
 
     def submit(self, kind: str, payload: dict) -> str:
         """Enqueue a reasoning request; returns its id (call from the event loop)."""
@@ -38,6 +50,7 @@ class AgentBridge:
 
     async def next_request(self, timeout: float = 25.0) -> AgentRequest | None:  # noqa: ASYNC109
         """Block until a request is available or the timeout elapses (agent side)."""
+        self.touch()
         try:
             return await asyncio.wait_for(self._pending.get(), timeout)
         except TimeoutError:
@@ -45,6 +58,7 @@ class AgentBridge:
 
     def complete(self, request_id: str, result: dict) -> bool:
         """Resolve a request with the agent's result. Returns False if unknown."""
+        self.touch()
         fut = self._results.get(request_id)
         if fut is None or fut.done():
             return False

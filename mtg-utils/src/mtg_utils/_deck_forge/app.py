@@ -84,6 +84,29 @@ class FinalizePayload(BaseModel):
     override: bool = False
 
 
+class AvenuePayload(BaseModel):
+    label: str
+    description: str = ""
+    search: dict = {}
+
+
+class ExplorePayload(BaseModel):
+    label: str = "Exploration"
+    search: dict = {}
+
+
+# Only these card_search kwargs may come from an avenue's stored search spec.
+_EXPLORE_KEYS = (
+    "oracle",
+    "card_type",
+    "name",
+    "cmc_min",
+    "cmc_max",
+    "price_min",
+    "price_max",
+)
+
+
 class NewBuildPayload(BaseModel):
     format: str = "commander"
     name: str = "Untitled"
@@ -175,6 +198,7 @@ def _snapshot(state: ForgeState) -> dict:
             deck_size=_deck_size(deck["format"]),
         ),
         "signals": [_signal_dict(s) for s in aggregate_signals(hydrated)],
+        "avenues": _avenues(state, hydrated),
         "warnings": _legality_warnings(state),
     }
 
@@ -259,6 +283,44 @@ def _signal_dict(signal) -> dict:
         "avenue": spec.avenue if spec else "",
         "actionable": spec is not None,
     }
+
+
+def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
+    """All explorable avenues: engine-derived (from scoped signals with specs)
+    plus any the session-agent has discovered and posted. Each carries the search
+    spec needed to surface its candidates."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    for sig in aggregate_signals(hydrated):
+        spec = spec_for(sig)
+        if spec is None:
+            continue
+        avenue_id = f"engine:{sig.key}:{sig.scope}"
+        if avenue_id in seen:
+            continue
+        seen.add(avenue_id)
+        out.append(
+            {
+                "id": avenue_id,
+                "label": spec.label,
+                "description": spec.avenue,
+                "scope": sig.scope,
+                "source": "engine",
+                "search": dict(spec.search),
+            }
+        )
+    out.extend(state.agent_avenues)
+    return out
+
+
+def _explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:
+    filters = {k: search[k] for k in _EXPLORE_KEYS if search.get(k) is not None}
+    presets = search.get("preset_names") or search.get("presets")
+    if presets:
+        filters["preset_names"] = tuple(presets)
+    filters["color_identity"] = color_identity
+    filters["format"] = fmt
+    return filters
 
 
 def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAPI:
@@ -374,7 +436,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             filters = search_filters(sig, color_identity=ci, fmt=fmt)
             found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
             fresh = [c for c in found if c.get("name") not in in_deck]
-            ranked = rank_candidates(fresh, active_signals=sigs)[:_PACKAGE_LIMIT]
+            ranked = rank_candidates(
+                fresh, active_signals=sigs, avenues=state.agent_avenues
+            )[:_PACKAGE_LIMIT]
             out.append(
                 {
                     "signal": _signal_dict(sig),
@@ -441,6 +505,52 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         return {"format": fmt, "text": text}
 
+    @app.post("/api/avenues")
+    async def add_avenue(payload: AvenuePayload) -> dict:
+        state.bridge.touch()
+        avenue = {
+            "id": f"agent:{len(state.agent_avenues) + 1}",
+            "label": payload.label,
+            "description": payload.description,
+            "scope": "",
+            "source": "agent",
+            "search": payload.search,
+        }
+        state.agent_avenues.append(avenue)
+        return {"avenue": avenue, **_snapshot(state)}
+
+    @app.post("/api/explore")
+    async def explore(payload: ExplorePayload) -> dict:
+        if not state.bulk_available:
+            return JSONResponse(
+                {"error": "Scryfall bulk data not found — run `download-bulk` first."},
+                status_code=503,
+            )
+        fmt = state.session.format
+        filters = _explore_filters(
+            payload.search, color_identity=_color_identity(state), fmt=fmt
+        )
+        found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
+        in_deck = set(state.session.card_names())
+        fresh = [c for c in found if c.get("name") not in in_deck]
+        sigs = aggregate_signals(state.session.hydrated(state.by_name))
+        ranked = rank_candidates(
+            fresh, active_signals=sigs, avenues=state.agent_avenues
+        )[:_PACKAGE_LIMIT]
+        return {
+            "package": {
+                "label": payload.label,
+                "candidates": [
+                    {
+                        "name": r["card"].get("name", ""),
+                        **_project(r["card"]),
+                        "score": r["score"],
+                    }
+                    for r in ranked
+                ],
+            }
+        }
+
     @app.get("/api/audit")
     async def audit() -> dict:
         return {"warnings": _legality_warnings(state)}
@@ -456,6 +566,15 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "overridden": land_fail and payload.override,
             **fs,
         }
+
+    @app.get("/api/agent/status")
+    async def agent_status() -> dict:
+        return {"attached": state.bridge.attached()}
+
+    @app.post("/api/agent/heartbeat")
+    async def agent_heartbeat() -> dict:
+        state.bridge.touch()
+        return {"ok": True}
 
     @app.post("/api/agent/request")
     async def agent_request(payload: AgentRequestPayload) -> dict:

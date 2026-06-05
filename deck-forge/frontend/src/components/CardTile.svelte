@@ -1,6 +1,7 @@
 <script>
   import { COLOR_ORDER } from "../lib/mana.js";
   import { askForge } from "../lib/agent.js";
+  import { hoverPreview } from "../lib/hover.js";
   export let card;
   export let onadd;
   export let score = null;
@@ -10,7 +11,7 @@
   $: noListing = price == null;
 </script>
 
-<div class="tile">
+<div class="tile" use:hoverPreview={card}>
   <div class="art">
     {#if card.images?.art_crop}
       <img src={card.images.art_crop} alt={card.name} loading="lazy" />

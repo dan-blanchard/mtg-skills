@@ -1,4 +1,5 @@
 <script>
+  import { onMount, onDestroy } from "svelte";
   import { agentBusy, agentReply, applySnapshot } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
   import { api } from "../lib/api.js";
@@ -9,6 +10,20 @@
     novel_synergies: "Novel synergies",
   };
 
+  let attached = false;
+  let timer;
+
+  async function refreshStatus() {
+    const r = await api.agentStatus();
+    attached = r.ok && !!r.data.attached;
+  }
+
+  onMount(() => {
+    refreshStatus();
+    timer = setInterval(refreshStatus, 4000);
+  });
+  onDestroy(() => clearInterval(timer));
+
   async function add(name) {
     const r = await api.add(name, "cards", 1);
     if (r.ok) applySnapshot(r.data);
@@ -16,7 +31,10 @@
 </script>
 
 <div class="panel widget friend">
-  <h3 class="panel-title">Forge-Friend</h3>
+  <h3 class="panel-title">
+    Forge-Friend
+    <span class="sess" class:on={attached}>{attached ? "● attached" : "○ no session"}</span>
+  </h3>
 
   <button class="btn btn-ember nudge" on:click={() => askForge("next_move")} disabled={$agentBusy}>
     {$agentBusy ? "Thinking…" : "✦ Suggest next move"}
@@ -34,15 +52,27 @@
         </div>
       {/if}
     </div>
+  {:else if !$agentBusy && attached}
+    <p class="hint ok">Forge-friend is here. Ask for the next move, or hit <span class="q">?</span> on any card.</p>
   {:else if !$agentBusy}
     <p class="hint">
-      The deterministic engine runs with no session. Attach a Claude Code session
-      (<code>/deck-forge</code>) for novel synergies, rules answers, and guidance.
+      No session attached. Run <code>/deck-forge</code> in an interactive Claude Code
+      session for novel synergies, rules answers, and guidance.
     </p>
   {/if}
 </div>
 
 <style>
+  .sess {
+    text-transform: none;
+    letter-spacing: 0;
+    font-family: var(--body);
+    font-size: 0.66rem;
+    color: var(--muted);
+  }
+  .sess.on {
+    color: var(--pass);
+  }
   .nudge {
     width: 100%;
     font-family: var(--display);
@@ -99,7 +129,12 @@
     font-style: italic;
     color: var(--muted);
   }
-  .hint code {
+  .hint.ok {
+    color: var(--parchment-dim);
+    font-style: normal;
+  }
+  .hint code,
+  .hint .q {
     color: var(--brass);
     font-style: normal;
   }

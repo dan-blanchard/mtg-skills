@@ -1,10 +1,10 @@
 <script>
+  import { activeTab } from "../lib/store.js";
   import SearchPanel from "./SearchPanel.svelte";
   import Packages from "./Packages.svelte";
   import Combos from "./Combos.svelte";
   import Export from "./Export.svelte";
 
-  let tab = "search";
   const TABS = [
     ["search", "Search"],
     ["synergies", "Synergies"],
@@ -16,17 +16,17 @@
 <div class="left">
   <div class="tabbar">
     {#each TABS as [id, label]}
-      <button class="tab" class:active={tab === id} on:click={() => (tab = id)}>
+      <button class="tab" class:active={$activeTab === id} on:click={() => activeTab.set(id)}>
         {label}
       </button>
     {/each}
   </div>
   <div class="tabbody">
-    {#if tab === "search"}
+    {#if $activeTab === "search"}
       <SearchPanel />
-    {:else if tab === "synergies"}
+    {:else if $activeTab === "synergies"}
       <Packages />
-    {:else if tab === "combos"}
+    {:else if $activeTab === "combos"}
       <Combos />
     {:else}
       <Export />

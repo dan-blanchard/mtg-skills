@@ -128,3 +128,4 @@ class ForgeState:
     store: BuildStore | None = None
     build_id: str = "default"
     build_name: str = "Untitled"
+    agent_avenues: list[dict] = field(default_factory=list)

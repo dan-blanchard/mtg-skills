@@ -1,14 +1,38 @@
 <script>
+  import { applySnapshot, exploreAvenue } from "../lib/store.js";
   import { api } from "../lib/api.js";
-  import { applySnapshot } from "../lib/store.js";
   import CardTile from "./CardTile.svelte";
 
   let packages = [];
+  let exploring = null; // single-avenue result: {label, candidates}
   let loading = false;
   let error = "";
   let loaded = false;
+  let lastExploredId = null;
 
-  async function discover() {
+  // React when the user clicks an avenue (in the Avenues panel) to explore it here.
+  $: maybeExplore($exploreAvenue);
+
+  async function maybeExplore(av) {
+    if (!av || (av.id === lastExploredId && exploring)) return;
+    lastExploredId = av.id;
+    loading = true;
+    error = "";
+    exploring = null;
+    packages = [];
+    const r = await api.explore(av.label, av.search);
+    loading = false;
+    if (!r.ok) {
+      error = r.data.error || `explore failed (${r.status})`;
+      return;
+    }
+    exploring = { label: av.label, candidates: r.data.package.candidates };
+  }
+
+  async function discoverAll() {
+    exploreAvenue.set(null);
+    exploring = null;
+    lastExploredId = null;
     loading = true;
     error = "";
     const r = await api.packages();
@@ -22,6 +46,12 @@
     packages = r.data.packages.filter((p) => p.candidates.length);
   }
 
+  function clearExplore() {
+    exploreAvenue.set(null);
+    exploring = null;
+    lastExploredId = null;
+  }
+
   async function add(name, zone) {
     const r = await api.add(name, zone, 1);
     if (r.ok) applySnapshot(r.data);
@@ -31,8 +61,8 @@
 <div class="panel synergies">
   <div class="top">
     <h3 class="panel-title">Synergy Packages</h3>
-    <button class="btn btn-ember" on:click={discover} disabled={loading}>
-      {loading ? "Forging…" : "✦ Discover"}
+    <button class="btn btn-ember" on:click={discoverAll} disabled={loading}>
+      {loading ? "Forging…" : "✦ Discover all"}
     </button>
   </div>
 
@@ -40,9 +70,21 @@
     {#if error}
       <div class="notice">{error}</div>
     {:else if loading}
-      <div class="notice">Searching real cards that feed each avenue…</div>
-    {:else if loaded && packages.length === 0}
-      <div class="notice">No fresh synergy candidates — add a commander, or you may already run the best ones.</div>
+      <div class="notice">Searching real cards that feed this avenue…</div>
+    {:else if exploring}
+      <div class="explore-head">
+        <span class="ptitle">{exploring.label}</span>
+        <button class="clear" on:click={clearExplore}>× clear</button>
+      </div>
+      {#if exploring.candidates.length}
+        <div class="grid">
+          {#each exploring.candidates as c (c.name)}
+            <CardTile card={c} score={c.score} onadd={add} />
+          {/each}
+        </div>
+      {:else}
+        <div class="notice">No fresh candidates for this avenue — you may already run the best ones.</div>
+      {/if}
     {:else if packages.length}
       {#each packages as pkg}
         <section class="pkg">
@@ -59,8 +101,8 @@
       {/each}
     {:else}
       <div class="notice idle">
-        Discover real cards that feed your deck's avenues — ranked by synergy, then price.
-        Every candidate is a real Scryfall card, never invented.
+        Click an <b>Avenue</b> (top of the deck column) to explore it here, or hit
+        <b>Discover all</b>. Every candidate is a real Scryfall card — never invented.
       </div>
     {/if}
   </div>
@@ -88,6 +130,26 @@
     margin-top: 0.9rem;
     flex: 1;
     overflow-y: auto;
+  }
+  .explore-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-left: 3px solid var(--ember);
+    padding-left: 0.6rem;
+    margin-bottom: 0.6rem;
+  }
+  .clear {
+    background: transparent;
+    border: 1px solid var(--hairline-soft);
+    color: var(--parchment-dim);
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.74rem;
+  }
+  .clear:hover {
+    border-color: var(--fail);
+    color: var(--fail);
   }
   .pkg {
     margin-bottom: 1.2rem;

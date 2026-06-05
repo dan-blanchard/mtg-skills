@@ -14,6 +14,7 @@
   import Counts from "./components/Counts.svelte";
   import ColorSources from "./components/ColorSources.svelte";
   import Finalize from "./components/Finalize.svelte";
+  import CardPreview from "./components/CardPreview.svelte";
 
   let es;
 
@@ -52,6 +53,8 @@
     <Finalize />
   </aside>
 </main>
+
+<CardPreview />
 
 <style>
   .bench {

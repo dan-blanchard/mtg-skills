@@ -1,21 +1,34 @@
 <script>
-  import { signals } from "../lib/store.js";
+  import { avenues, activeTab, exploreAvenue } from "../lib/store.js";
 
-  const SCOPE_TAG = { you: "yours", opponents: "opponents'", each: "each player", any: "" };
+  // Scope is only shown when it's contrastive — "yours" is the unremarkable default,
+  // so we surface only the cases that change how you build (opponents' / each player).
+  const SCOPE_TAG = { opponents: "opponents'", each: "each player" };
+
+  function explore(avenue) {
+    exploreAvenue.set(avenue);
+    activeTab.set("synergies");
+  }
 </script>
 
-{#if $signals.length}
+{#if $avenues.length}
   <div class="panel avenues">
     <h3 class="panel-title">Avenues · what your deck cares about</h3>
     <div class="chips">
-      {#each $signals as s}
-        <div class="avenue" class:dim={!s.actionable} title={s.avenue || s.key}>
-          <span class="label">{s.label}</span>
-          {#if SCOPE_TAG[s.scope]}<span class="scope">{SCOPE_TAG[s.scope]}</span>{/if}
-        </div>
+      {#each $avenues as a (a.id)}
+        <button
+          class="avenue"
+          class:agent={a.source === "agent"}
+          title={(a.description || a.label) + " — click to explore"}
+          on:click={() => explore(a)}
+        >
+          <span class="label">{a.label}</span>
+          {#if SCOPE_TAG[a.scope]}<span class="scope">{SCOPE_TAG[a.scope]}</span>{/if}
+          <span class="go">→</span>
+        </button>
       {/each}
     </div>
-    <p class="hint">Discover synergy packages that feed these from the Synergies tab.</p>
+    <p class="hint">Click an avenue to surface ranked, real-card candidates that feed it.</p>
   </div>
 {/if}
 
@@ -34,22 +47,34 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.3rem 0.6rem;
+    padding: 0.32rem 0.6rem;
     border: 1px solid var(--hairline);
     border-left: 3px solid var(--brass);
     border-radius: var(--radius);
     background: rgba(200, 150, 75, 0.07);
+    color: var(--parchment);
+    font-family: var(--body);
     font-size: 0.82rem;
+    transition: all 0.14s ease;
   }
-  .avenue.dim {
-    border-left-color: var(--hairline-soft);
-    opacity: 0.6;
+  .avenue:hover {
+    border-color: var(--brass-bright);
+    background: rgba(255, 106, 61, 0.12);
+    transform: translateY(-1px);
+  }
+  /* agent-discovered avenues get the ember accent to distinguish from engine ones */
+  .avenue.agent {
+    border-left-color: var(--ember);
   }
   .scope {
     font-size: 0.66rem;
-    color: var(--muted);
+    color: var(--warn);
     text-transform: uppercase;
     letter-spacing: 0.06em;
+  }
+  .go {
+    color: var(--brass);
+    font-weight: 700;
   }
   .hint {
     margin: 0.6rem 0 0;

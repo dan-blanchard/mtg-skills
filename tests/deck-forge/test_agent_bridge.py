@@ -50,3 +50,29 @@ def test_wait_result_unknown_id_returns_none():
         return await AgentBridge().wait_result("nope", timeout=0.05)
 
     assert asyncio.run(scenario()) is None
+
+
+def test_not_attached_initially():
+    assert AgentBridge().attached() is False
+
+
+def test_touch_marks_attached():
+    bridge = AgentBridge()
+    bridge.touch()
+    assert bridge.attached() is True
+
+
+def test_attachment_expires_after_grace():
+    bridge = AgentBridge()
+    bridge.touch()
+    assert bridge.attached(grace=0.0) is False
+
+
+def test_completing_a_request_marks_attached():
+    async def scenario():
+        bridge = AgentBridge()
+        rid = bridge.submit("explain", {})
+        bridge.complete(rid, {"text": "ok"})
+        return bridge.attached()
+
+    assert asyncio.run(scenario()) is True
