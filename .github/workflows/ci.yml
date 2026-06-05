@@ -16,3 +16,24 @@ jobs:
       - run: cd deck-strat && uv sync && uv run pytest ../tests/deck-strat/ -v
       - run: cd lgs-search && uv sync && uv run pytest ../tests/lgs-search/ -v
       - run: cd deck-forge && uv sync && uv run pytest ../tests/deck-forge/ -v
+
+  # deck-forge commits its built SPA (D11: end-users run with no Node toolchain).
+  # This guard fails if the committed dist/ is stale relative to the frontend source
+  # — rebuild it deterministically and assert nothing changed.
+  deck-forge-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd deck-forge/frontend && npm ci && npm run build
+      - name: Assert committed dist/ matches a fresh build
+        run: |
+          if [ -n "$(git status --porcelain deck-forge/frontend/dist)" ]; then
+            echo "::error::deck-forge/frontend/dist is stale. Run 'cd deck-forge/frontend && npm run build' and commit dist/."
+            git status --porcelain deck-forge/frontend/dist
+            git --no-pager diff -- deck-forge/frontend/dist | head -80
+            exit 1
+          fi
+          echo "deck-forge/frontend/dist is up to date with src."
