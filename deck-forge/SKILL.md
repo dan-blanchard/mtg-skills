@@ -56,6 +56,17 @@ commander's oracle (contract #2).
 
 ## Phase 2 — the reasoning loop
 
+**Run this loop in a background subagent (recommended).** One session can't both
+build *with* the user (answering in chat, editing code) and sit in a blocking poll
+loop: loop inline and the chat freezes; chat instead and the UI buttons ("?",
+"Suggest next move", "Discover") queue unanswered and the browser hangs. So dispatch
+a background subagent (the `Agent` tool, `run_in_background: true`) whose only job is
+the loop below, and keep this session free. Give it the load-bearing contract
+(never name a card from memory; ground every card in `/api/search`; scope to the
+commander) plus the loop spec. Re-dispatch it when it idles out; a heartbeat keeps
+the UI's "attached" indicator warm between runs. (If you're doing nothing else, you
+*can* run the loop inline instead — same steps.)
+
 So the UI shows a session is attached (and stops nagging the user to run the skill),
 send a heartbeat whenever you act on the deck this session — `POST
 /api/agent/heartbeat` (polling `/api/agent/next` and posting results also count).
