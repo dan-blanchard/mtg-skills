@@ -651,6 +651,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"opponent[^.]*(?:search|scry|surveil)|search(?:es)? their library"},
         r"opponent[^.]*(?:scries|surveils|searches)|search their library",
     ),
+    ("damage_to_opp_matters", "opponents"): _spec(
+        "Damage to opponents",
+        "evasion, pingers, and extra combats to keep connecting and fire these "
+        "damage-to-opponent triggers (any damage, not just combat)",
+        {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
+        r"deals (?:noncombat )?damage to (?:a player|an opponent|one of your opponents"
+        r"|that player)|can't be blocked|\bmenace\b",
+    ),
+    ("permanent_etb", "you"): _spec(
+        "Permanents entering",
+        "cheap permanents, token makers, and flicker to repeatedly trigger your "
+        "permanent enters-the-battlefield value engine",
+        {"oracle": r"create [^.]*token|enters the battlefield"},
+        r"create [^.]*token|put [^.]*onto the battlefield|enters the battlefield",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

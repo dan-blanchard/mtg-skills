@@ -262,6 +262,9 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\bother ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     # "another Elf you control" (singular) — tribal triggers the "other Xs" form misses.
     re.compile(r"\banother ([A-Za-z]+?) you control\b", re.IGNORECASE),
+    # "a Spider you control enters" — tribal ETB trigger (anchored on "enters" so a
+    # bare "a Goblin you control" elsewhere can't over-capture). Mary Jane Watson.
+    re.compile(r"\b(?:a|an) ([A-Za-z]+?) you control enters\b", re.IGNORECASE),
     # "Other Elf creatures have …" (lord with no "you control"); tribal in an
     # activated cost ("untapped Wizard you control:" / "<Sub> you control:").
     re.compile(r"\bother ([A-Za-z]+?) creatures?\b", re.IGNORECASE),
@@ -731,11 +734,35 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "opponent_discard",
         re.compile(
-            r"(?:each opponent|target opponent|target player|that player|each player)"
-            r" discards",
+            r"(?:each opponent|target opponent|an opponent|that opponent"
+            r"|target player|that player|each player) discards",
             re.IGNORECASE,
         ),
         "opponents",
+    ),
+    # "deals damage to an opponent" — ANY damage (not the literal "combat damage" the
+    # combat_* keys require, per the rules-lawyer audit). The connect-trigger axis for
+    # self-source pingers/evasion (Lu Xun, Zhang Liao) the tribe/combat keys miss.
+    (
+        "damage_to_opp_matters",
+        re.compile(
+            r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
+            r"(?:a player|an opponent|one of your opponents|each opponent"
+            r"|target opponent|that player|a player or planeswalker)\b",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
+    # "another permanent you control enters" — the generic permanent-ETB value engine
+    # (distinct from creature_etb, which needs the word "creature"). Amareth.
+    (
+        "permanent_etb",
+        re.compile(
+            r"\bwhen(?:ever)?\b[^.]*?\b(?:a|an|another|one or more|each) "
+            r"(?:nonland |nontoken )?permanents? you control enters",
+            re.IGNORECASE,
+        ),
+        "you",
     ),
     (
         # Evasion = a blocking RESTRICTION (CR 509.1b). "attacks if able" is a
@@ -825,6 +852,36 @@ def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
         if any(p.search(clause) for p in get_preset(preset_name).patterns):
             out.append((key, scope))
     return out
+
+
+# Cross-sentence flicker: the blink preset's single-clause "exile…return…battlefield"
+# regex can't span the period in "Exile target creature. Return that card to the
+# battlefield" (Roon). Detect the exile + pronoun-return pair on the full text; the
+# pronoun ("it"/"that card"/"them") gates out reanimation, which returns a *graveyard*
+# card ("return target creature card … to the battlefield"), not the exiled object.
+_BLINK_EXILE_RE = re.compile(
+    r"\bexile (?:up to \w+ |any number of )?(?:another |one )?"
+    r"target (?:creature|permanent|nonland permanent|artifact)",
+    re.IGNORECASE,
+)
+# Pronoun-return only: "return the exiled card to the battlefield" is the O-ring
+# signature (Journey to Nowhere / Fiend Hunter) — removal with a leaves-the-
+# battlefield-delayed return, NOT a flicker engine. Real flicker pronominally
+# references the exiled object (it / that card / those cards).
+_BLINK_RETURN_RE = re.compile(
+    r"\breturn (?:it|them|that card|those cards|that permanent) to the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _detect_blink_fulltext(text: str) -> str | None:
+    """Grounding clause if the card is a cross-sentence flicker engine, else None."""
+    if not (_BLINK_EXILE_RE.search(text) and _BLINK_RETURN_RE.search(text)):
+        return None
+    for clause in _clauses(text):
+        if _BLINK_RETURN_RE.search(clause):
+            return clause.strip()
+    return text[:160]
 
 
 # ── Narrow Tinybones structural scope rule ────────────────────────────────────
@@ -960,6 +1017,11 @@ def extract_signals(
     # Tier 3 — keyword-array presets (card-level, authoritative)
     for key, scope in _detect_keyword_presets(card):
         add(key, scope, "", text[:120])
+
+    # Cross-sentence flicker (full text, not per-clause) — Roon and kin.
+    blink_clause = _detect_blink_fulltext(text)
+    if blink_clause is not None:
+        add("blink_flicker", "you", "", blink_clause)
 
     return out
 
