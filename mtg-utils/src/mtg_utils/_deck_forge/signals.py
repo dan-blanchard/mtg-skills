@@ -595,6 +595,15 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    (
+        "opponent_draw_matters",
+        re.compile(
+            r"whenever an opponent draws|whenever each opponent draws"
+            r"|whenever a player draws a card (?:except|other than)",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     # Punish opponents' library manipulation (River Song's Spoilers; Aven
     # Mindcensor / Opposition Agent / Leovold space) — distinct from your own
     # scry_surveil payoff, which is scoped "you".

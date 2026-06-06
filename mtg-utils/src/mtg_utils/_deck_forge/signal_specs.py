@@ -625,6 +625,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"whenever an opponent casts|spells? your opponents cast"},
         r"whenever an opponent casts|opponents? cast",
     ),
+    ("opponent_draw_matters", "opponents"): _spec(
+        "Punish opponents' draw",
+        "wheels and draw-denial punishers that trigger on opponents drawing",
+        {"oracle": r"whenever an opponent draws|each opponent draws"},
+        r"whenever an opponent draws|opponents? draws?",
+    ),
     ("opponent_search_matters", "opponents"): _spec(
         "Punish opponents' tutors / selection",
         "stax and punishers for opponents who search, scry, or surveil",

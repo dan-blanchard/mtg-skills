@@ -121,3 +121,11 @@ def test_opponent_library_manipulation_punisher():
 def test_your_scry_is_not_an_opponent_punisher():
     c = {"name": "X", "oracle_text": "Whenever you scry, draw a card."}
     assert "opponent_search_matters" not in {s.key for s in extract_signals(c)}
+
+
+def test_opponent_draw_punisher():
+    c = {
+        "name": "Leela",
+        "oracle_text": "Whenever an opponent draws a card except the first one they draw in each draw step, that player loses 1 life.",
+    }
+    assert ("opponent_draw_matters", "opponents") in _ks(c)
