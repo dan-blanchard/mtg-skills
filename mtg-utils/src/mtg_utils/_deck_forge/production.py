@@ -19,8 +19,17 @@ from mtg_utils.card_classify import extract_price
 from mtg_utils.card_search import SKIP_LAYOUTS
 
 
-def _combos(deck: dict) -> dict:
-    return combo_search.combo_search(deck)
+def _combos(deck: dict, by_name: dict[str, dict]) -> dict:
+    # Pass hydrated deck cards so combo_search can validate template requirements
+    # (e.g. "a Persist Creature") against the deck — without them, near-miss detection
+    # falls back to counting named cards only and over-reports near-misses.
+    names = [
+        entry["name"]
+        for zone in ("commanders", "cards", "sideboard")
+        for entry in deck.get(zone, [])
+    ]
+    hydrated = [by_name.get(n) for n in names]
+    return combo_search.combo_search(deck, hydrated=hydrated)
 
 
 def build_by_name(cards: list[dict]) -> dict[str, dict]:
@@ -94,7 +103,7 @@ def default_state(fmt: str = "commander") -> ForgeState:
         search_fn=search,
         session=session,
         bulk_available=available,
-        combos_fn=_combos,
+        combos_fn=lambda deck: _combos(deck, by_name),
         store=store,
         build_id=build_id,
         build_name=build_name,
