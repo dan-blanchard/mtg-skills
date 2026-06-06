@@ -106,3 +106,18 @@ def test_legends_matter_for_cast_legendary():
         "oracle_text": "You may cast legendary spells as though they had flash.",
     }
     assert any(s.key == "legends_matter" for s in extract_signals(c))
+
+
+def test_opponent_library_manipulation_punisher():
+    # River Song's Spoilers: punish opponents for scry/surveil/search (opponents
+    # scope — distinct from your own scry_surveil payoff).
+    c = {
+        "name": "River Song",
+        "oracle_text": "Whenever an opponent scries, surveils, or searches their library, put a +1/+1 counter on this creature.",
+    }
+    assert ("opponent_search_matters", "opponents") in _ks(c)
+
+
+def test_your_scry_is_not_an_opponent_punisher():
+    c = {"name": "X", "oracle_text": "Whenever you scry, draw a card."}
+    assert "opponent_search_matters" not in {s.key for s in extract_signals(c)}

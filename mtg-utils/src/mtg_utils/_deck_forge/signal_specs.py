@@ -625,6 +625,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"whenever an opponent casts|spells? your opponents cast"},
         r"whenever an opponent casts|opponents? cast",
     ),
+    ("opponent_search_matters", "opponents"): _spec(
+        "Punish opponents' tutors / selection",
+        "stax and punishers for opponents who search, scry, or surveil",
+        {"oracle": r"opponent[^.]*(?:search|scry|surveil)|search(?:es)? their library"},
+        r"opponent[^.]*(?:scries|surveils|searches)|search their library",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

@@ -595,6 +595,19 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    # Punish opponents' library manipulation (River Song's Spoilers; Aven
+    # Mindcensor / Opposition Agent / Leovold space) — distinct from your own
+    # scry_surveil payoff, which is scoped "you".
+    (
+        "opponent_search_matters",
+        re.compile(
+            r"whenever (?:an opponent|a player|each opponent)[^.]*"
+            r"(?:scries|surveils|searches (?:their|a) library"
+            r"|shuffles (?:their|a) library)",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
     (
         "token_copy_matters",
