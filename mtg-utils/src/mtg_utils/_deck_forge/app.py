@@ -190,6 +190,8 @@ def _snapshot(state: ForgeState) -> dict:
     deck = state.session.to_deck_dict()
     hydrated = state.session.hydrated(state.by_name)
     return {
+        "build_id": state.build_id,
+        "build_name": state.build_name,
         "deck": _deck_view(state),
         "stats": deck_stats(deck, hydrated),
         "mana": mana_audit(deck, hydrated),
@@ -497,13 +499,27 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/builds/rename")
     async def builds_rename(payload: RenameBuildPayload) -> dict:
-        if state.store is not None:
+        if payload.id == state.build_id:
+            # Rename the live deck and persist it under the new name immediately
+            # (even if it had no file yet), so the name isn't lost without a mutation.
+            state.build_name = payload.name
+            _autosave(state)
+        elif state.store is not None:
             record = state.store.load(payload.id)
             if record is not None:
                 state.store.save(payload.id, payload.name, record.get("deck") or {})
-        if payload.id == state.build_id:
-            state.build_name = payload.name
-        return {"ok": True, "name": payload.name}
+        snap = _snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
+    @app.delete("/api/builds/{build_id}")
+    async def delete_build(build_id: str) -> dict:
+        deleted = state.store.delete(build_id) if state.store is not None else False
+        return {
+            "deleted": deleted,
+            "current": state.build_id,
+            "builds": state.store.list() if state.store else [],
+        }
 
     @app.get("/api/export")
     async def export(fmt: str = "json"):

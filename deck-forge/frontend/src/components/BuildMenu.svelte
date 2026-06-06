@@ -4,16 +4,22 @@
 
   let open = false;
   let builds = [];
+  let current = null;
   let loading = false;
+
+  async function refresh() {
+    loading = true;
+    const r = await api.builds();
+    loading = false;
+    if (r.ok) {
+      builds = r.data.builds;
+      current = r.data.current;
+    }
+  }
 
   async function toggle() {
     open = !open;
-    if (open) {
-      loading = true;
-      const r = await api.builds();
-      loading = false;
-      if (r.ok) builds = r.data.builds;
-    }
+    if (open) await refresh();
   }
 
   async function newBuild() {
@@ -31,6 +37,14 @@
       open = false;
     }
   }
+
+  async function remove(id) {
+    const r = await api.deleteBuild(id);
+    if (r.ok) {
+      builds = r.data.builds;
+      current = r.data.current;
+    }
+  }
 </script>
 
 <div class="bm">
@@ -41,11 +55,14 @@
       {#if loading}
         <div class="empty">Loading…</div>
       {:else if builds.length}
-        {#each builds as b}
-          <button class="item" on:click={() => load(b.id)}>
-            <span class="nm">{b.name}</span>
-            <span class="meta">{b.format.replace("_", " ")} · {b.card_count}</span>
-          </button>
+        {#each builds as b (b.id)}
+          <div class="row" class:current={b.id === current}>
+            <button class="item" on:click={() => load(b.id)}>
+              <span class="nm">{b.name}{b.id === current ? " ·current" : ""}</span>
+              <span class="meta">{b.format.replace("_", " ")} · {b.card_count}</span>
+            </button>
+            <button class="del" title="Delete this build" on:click={() => remove(b.id)}>×</button>
+          </div>
         {/each}
       {:else}
         <div class="empty">No saved builds yet.</div>
@@ -84,11 +101,22 @@
     box-shadow: var(--shadow);
     padding: 0.35rem;
   }
+  .row {
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius);
+  }
+  .row:hover {
+    background: rgba(255, 220, 160, 0.06);
+  }
+  .row.current {
+    border-left: 2px solid var(--brass);
+  }
   .item {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    width: 100%;
+    flex: 1;
     background: transparent;
     border: none;
     color: var(--parchment);
@@ -96,8 +124,17 @@
     border-radius: var(--radius);
     text-align: left;
   }
-  .item:hover {
-    background: rgba(255, 220, 160, 0.06);
+  .del {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 0.5rem;
+    border-radius: var(--radius);
+  }
+  .del:hover {
+    color: var(--fail);
   }
   .meta {
     font-size: 0.7rem;

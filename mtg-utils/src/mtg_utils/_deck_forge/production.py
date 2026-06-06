@@ -53,33 +53,49 @@ def _builds_dir() -> Path:
     return root / "deck-forge" / "builds"
 
 
+def resume_or_new(store: BuildStore, fmt: str) -> tuple[DeckSession, str, str]:
+    """Resume the most recent saved build, or start a fresh one. Returns
+    (session, build_id, build_name). Auto-resume means relaunching continues your
+    deck instead of minting a new 'Untitled' every time."""
+    builds = store.list()  # newest first
+    if builds:
+        record = store.load(builds[0]["id"])
+        if record is not None:
+            return (
+                DeckSession.from_deck_dict(record.get("deck") or {}),
+                record.get("id", builds[0]["id"]),
+                record.get("name", "Untitled"),
+            )
+    return DeckSession(fmt), uuid.uuid4().hex[:8], "Untitled"
+
+
+def _no_search(**_: object) -> list[dict]:
+    return []
+
+
 def default_state(fmt: str = "commander") -> ForgeState:
     """Build the live backend state, loading bulk data when available."""
     store = BuildStore(_builds_dir())
-    build_id = uuid.uuid4().hex[:8]
+    session, build_id, build_name = resume_or_new(store, fmt)
     bulk_path = default_bulk_path()
+    by_name: dict[str, dict] = {}
+    search = _no_search
+    available = False
     if bulk_path is not None and bulk_path.exists():
         by_name = build_by_name(load_bulk_cards(bulk_path))
 
-        def search_fn(**kwargs: object) -> list[dict]:
+        def search(**kwargs: object) -> list[dict]:
             return card_search.search_cards(bulk_path, **kwargs)
 
-        return ForgeState(
-            by_name=by_name,
-            search_fn=search_fn,
-            session=DeckSession(fmt),
-            bulk_available=True,
-            combos_fn=_combos,
-            store=store,
-            build_id=build_id,
-        )
+        available = True
 
     return ForgeState(
-        by_name={},
-        search_fn=lambda **_: [],
-        session=DeckSession(fmt),
-        bulk_available=False,
+        by_name=by_name,
+        search_fn=search,
+        session=session,
+        bulk_available=available,
         combos_fn=_combos,
         store=store,
         build_id=build_id,
+        build_name=build_name,
     )

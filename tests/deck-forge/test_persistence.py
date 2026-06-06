@@ -90,3 +90,30 @@ def test_export_endpoint_moxfield_and_json(tmp_path):
     assert "2 Forest" in mox["text"]
     js = client.get("/api/export", params={"fmt": "json"}).json()
     assert js["deck"]["cards"] == [{"name": "Forest", "quantity": 2}]
+
+
+def test_snapshot_carries_build_identity(tmp_path):
+    client, _ = _client(tmp_path)
+    snap = client.get("/api/snapshot").json()
+    assert snap["build_id"] == "current"
+    assert "build_name" in snap
+
+
+def test_rename_current_build_persists(tmp_path):
+    client, state = _client(tmp_path)
+    state.session.add("Forest", 2)
+    resp = client.post(
+        "/api/builds/rename", json={"id": "current", "name": "My Jyoti Deck"}
+    ).json()
+    assert resp["build_name"] == "My Jyoti Deck"
+    saved = state.store.load("current")
+    assert saved["name"] == "My Jyoti Deck"
+    assert saved["deck"]["cards"] == [{"name": "Forest", "quantity": 2}]
+
+
+def test_delete_build_removes_it(tmp_path):
+    client, state = _client(tmp_path)
+    state.store.save("old", "Old Deck", DECK)
+    resp = client.delete("/api/builds/old").json()
+    assert resp["deleted"] is True
+    assert all(b["id"] != "old" for b in resp["builds"])

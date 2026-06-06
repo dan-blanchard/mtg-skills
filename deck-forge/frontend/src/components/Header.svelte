@@ -1,6 +1,27 @@
 <script>
-  import { deck, stats, mana, connected } from "../lib/store.js";
+  import { deck, stats, mana, connected, buildId, buildName, applySnapshot } from "../lib/store.js";
+  import { api } from "../lib/api.js";
   import BuildMenu from "./BuildMenu.svelte";
+
+  let editing = false;
+  let draft = "";
+
+  function startEdit() {
+    draft = $buildName;
+    editing = true;
+  }
+  async function commit() {
+    editing = false;
+    const name = draft.trim() || "Untitled";
+    if (name !== $buildName) {
+      const r = await api.renameBuild($buildId, name);
+      if (r.ok) applySnapshot(r.data);
+    }
+  }
+  function focusEl(node) {
+    node.focus();
+    node.select?.();
+  }
 </script>
 
 <header class="banner">
@@ -8,7 +29,19 @@
     <span class="anvil">⚒</span>
     <div class="brand-text">
       <h1>deck&#8202;·&#8202;forge</h1>
-      <p class="tagline">build alongside an expert friend</p>
+      {#if editing}
+        <input
+          class="namein"
+          bind:value={draft}
+          use:focusEl
+          on:blur={commit}
+          on:keydown={(e) => (e.key === "Enter" ? commit() : null)}
+        />
+      {:else}
+        <button class="namebtn" title="Rename this deck" on:click={startEdit}>
+          {$buildName}<span class="pencil">✎</span>
+        </button>
+      {/if}
     </div>
   </div>
 
@@ -53,12 +86,38 @@
     color: var(--parchment);
     line-height: 1;
   }
-  .tagline {
+  .namebtn {
     margin: 0.2rem 0 0;
-    font-size: 0.74rem;
-    font-style: italic;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    color: var(--parchment-dim);
+    font-family: var(--body);
+    font-size: 0.84rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: text;
+  }
+  .namebtn:hover {
+    color: var(--brass-bright);
+    border-bottom-color: var(--hairline);
+  }
+  .pencil {
+    font-size: 0.7rem;
     color: var(--muted);
-    letter-spacing: 0.03em;
+  }
+  .namein {
+    margin: 0.2rem 0 0;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--brass);
+    border-radius: var(--radius);
+    color: var(--parchment);
+    font-family: var(--body);
+    font-size: 0.84rem;
+    padding: 0.1rem 0.4rem;
+    width: 16rem;
   }
   .meta {
     display: flex;

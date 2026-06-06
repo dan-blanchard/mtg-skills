@@ -15,6 +15,8 @@ export const warnings = writable([]);
 export const connected = writable(false);
 export const agentBusy = writable(false);
 export const agentReply = writable(null);
+export const buildId = writable(null);
+export const buildName = writable("Untitled");
 
 // Cross-component navigation: which left tab is active, and which avenue (if any)
 // the user clicked to explore in the Synergies tab.
@@ -34,4 +36,6 @@ export function applySnapshot(snap) {
   if (snap.signals) signals.set(snap.signals);
   if (snap.avenues) avenues.set(snap.avenues);
   if (snap.warnings) warnings.set(snap.warnings);
+  if (snap.build_id !== undefined) buildId.set(snap.build_id);
+  if (snap.build_name !== undefined) buildName.set(snap.build_name);
 }

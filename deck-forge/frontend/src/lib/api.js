@@ -38,6 +38,8 @@ export const api = {
   buildsNew: (format = "commander", name = "Untitled") =>
     post("/api/builds/new", { format, name }),
   buildsLoad: (id) => post("/api/builds/load", { id }),
+  renameBuild: (id, name) => post("/api/builds/rename", { id, name }),
+  deleteBuild: (id) => del(`/api/builds/${id}`),
   exportDeck: (fmt) => get(`/api/export?fmt=${fmt}`),
 
   // Raise a reasoning request and long-poll for the session-agent's answer.
