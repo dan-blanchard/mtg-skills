@@ -153,8 +153,10 @@ def test_subject_spec_serve_matches_subject_reference():
 def test_token_maker_subject_spec_and_generic_fallback():
     sub = spec_for(_sig_sub("token_maker", "Construct"))
     assert sub is not None
-    assert "Construct" in sub.label
-    assert sub.search.get("card_type") == "Construct"
+    assert "Construct" in sub.label  # "Construct tokens"
+    # searches for cards that CREATE Construct tokens (oracle), not the type line.
+    assert "oracle" in sub.search
+    assert "card_type" not in sub.search
     generic = spec_for(_sig_sub("token_maker", ""))  # no subject → static spec
     assert generic is not None
     assert "oracle" in generic.search
@@ -204,3 +206,37 @@ def test_land_creature_avenue_searches_exclude_false_positives():
     assert served(MANLAND)  # a real creature-land is surfaced by some avenue
     assert not served(PLANT_MAKER)  # Avenger's Plant tokens — surfaced by none
     assert not served(CLONE)  # Silent Hallcreeper clone — surfaced by none
+
+
+def _subj_sig(key, subject):
+    return Signal(key=key, scope="you", subject=subject, text="", source="cmd")
+
+
+class TestSubjectSpecs:
+    """Subject-bearing avenues must match their label and stay distinct from payoffs."""
+
+    def test_token_maker_finds_token_makers_not_the_tribe(self):
+        spec = spec_for(_subj_sig("token_maker", "Dryad"))
+        assert spec.label == "Dryad tokens"
+        # a card that CREATES Dryad tokens serves it…
+        assert spec.serve.search("Create a 1/1 green Dryad creature token.")
+        # …a plain Dryad creature (no token creation) does NOT.
+        assert not spec.serve.search("Dryad — this creature has reach.")
+        # the search targets token creation, not the type line.
+        assert "oracle" in spec.search
+        assert "card_type" not in spec.search
+
+    def test_token_maker_payoffs_are_a_distinct_sub_avenue(self):
+        spec = spec_for(_subj_sig("token_maker", "Dryad"))
+        extra_labels = [e.label for e in spec.extras]
+        assert extra_labels == ["Dryad payoffs"]
+        # the main avenue blurb must NOT also claim to cover payoffs (the old confusion).
+        assert "payoff" not in spec.avenue.lower()
+
+    def test_tribal_finds_the_creatures_payoffs_finds_the_lords(self):
+        spec = spec_for(_subj_sig("type_matters", "Elemental"))
+        assert spec.label == "Elemental tribal"
+        assert spec.search == {"card_type": "Elemental"}  # the creatures
+        payoff = spec.extras[0]
+        assert payoff.label == "Elemental payoffs"
+        assert "you control" in payoff.search["oracle"]  # the lords/anthems

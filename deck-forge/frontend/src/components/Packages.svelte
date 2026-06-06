@@ -3,19 +3,28 @@
   import { api } from "../lib/api.js";
   import CardTile from "./CardTile.svelte";
 
-  // Singleton: a card that's already in the deck can't be added again, so drop it from
-  // the synergy lists once added (it disappears as soon as the snapshot updates).
-  $: inDeck = new Set(
-    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map((c) => c.name),
-  );
-  const fresh = (cands) => (cands || []).filter((c) => !inDeck.has(c.name));
-
   let packages = [];
   let exploring = null; // single-avenue result: {label, candidates}
   let loading = false;
   let error = "";
   let loaded = false;
   let lastExploredId = null;
+
+  // Singleton: drop candidates already in the deck. These reactive derivations
+  // reference $deck DIRECTLY so they re-run the instant a card is added (a filter
+  // hidden inside a helper called from the template would only re-run on re-search).
+  $: inDeck = new Set(
+    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map((c) => c.name),
+  );
+  $: filteredExploring = exploring
+    ? exploring.candidates.filter((c) => !inDeck.has(c.name))
+    : [];
+  $: filteredPackages = packages
+    .map((p) => ({
+      ...p,
+      candidates: p.candidates.filter((c) => !inDeck.has(c.name)),
+    }))
+    .filter((p) => p.candidates.length);
 
   // React when the user clicks an avenue (in the Avenues panel) to explore it here.
   $: maybeExplore($exploreAvenue);
@@ -83,24 +92,24 @@
         <span class="ptitle">{exploring.label}</span>
         <button class="clear" on:click={clearExplore}>× clear</button>
       </div>
-      {#if fresh(exploring.candidates).length}
+      {#if filteredExploring.length}
         <div class="grid">
-          {#each fresh(exploring.candidates) as c (c.name)}
+          {#each filteredExploring as c (c.name)}
             <CardTile card={c} score={c.score} onadd={add} />
           {/each}
         </div>
       {:else}
         <div class="notice">No fresh candidates for this avenue — you may already run the best ones.</div>
       {/if}
-    {:else if packages.length}
-      {#each packages.filter((p) => fresh(p.candidates).length) as pkg}
+    {:else if filteredPackages.length}
+      {#each filteredPackages as pkg}
         <section class="pkg">
           <header>
             <span class="ptitle">{pkg.signal.label}</span>
             <span class="pavenue">{pkg.signal.avenue}</span>
           </header>
           <div class="grid">
-            {#each fresh(pkg.candidates) as c (c.name)}
+            {#each pkg.candidates as c (c.name)}
               <CardTile card={c} score={c.score} onadd={add} />
             {/each}
           </div>

@@ -682,39 +682,57 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
 _SUBJECT_KEYS = frozenset(
     {"type_matters", "token_maker", "typed_spellcast", "keyword_tribe"}
 )
+# Two distinct sub-avenues are always offered for a subject: the *cards* (the tribe
+# members, or the token-makers) and the *payoffs* (lords/anthems that reward a board of
+# them). Keeping them clearly separate — and never folding "payoffs" into the cards
+# avenue's blurb — is what stops "X tribal" / "X payoffs" reading as the same thing.
 _SUBJECT_TEMPLATES = {
-    "type_matters": ("{s} tribal", "{s}s and the anthems/lords that reward them"),
-    "token_maker": ("{s} tokens", "more {s} token makers and {s} payoffs"),
-    "typed_spellcast": ("{s} spells", "{s}s and {s}-spell payoffs"),
+    "type_matters": ("{s} tribal", "{s} creatures to grow the tribe"),
+    "typed_spellcast": ("{s} spells", "{s} spells to cast"),
 }
+
+
+def _payoff_extra(subj: str, esc: str) -> SubAvenue:
+    return SubAvenue(
+        f"{subj} payoffs",
+        f"lords and anthems that reward a board of {subj}s",
+        {"oracle": rf"{esc}s? you control"},
+    )
 
 
 def _subject_spec(signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
+    esc = re.escape(subj)
     # keyword-tribe: the subject is an ability keyword (Flying), not a creature type —
     # find creatures that HAVE the keyword (oracle), not a type-line match.
     if signal.key == "keyword_tribe":
         return SignalSpec(
             label=f"{subj} matters",
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
-            search={"oracle": rf"\b{re.escape(subj.lower())}\b"},
-            serve=re.compile(rf"\b{re.escape(subj)}\b", _IC),
+            search={"oracle": rf"\b{esc.lower()}\b"},
+            serve=re.compile(rf"\b{esc}\b", _IC),
         )
+    # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
+    # tribe — searching the type line surfaced {s} creatures that don't make tokens).
+    if signal.key == "token_maker":
+        token_re = rf"create\b[^.]*\b{esc}\b[^.]*token"
+        return SignalSpec(
+            label=f"{subj} tokens",
+            avenue=f"cards that create {subj} tokens to go wide",
+            search={"oracle": token_re},
+            serve=re.compile(token_re, _IC),
+            extras=(_payoff_extra(subj, esc),),
+        )
+    # tribal (type_matters) / typed spellcast: the cards themselves (type-line match),
+    # plus a distinct "{s} payoffs" sub-avenue for the lords/anthems that reward them.
     label_t, avenue_t = _SUBJECT_TEMPLATES.get(signal.key, ("{s}", "{s} synergies"))
     return SignalSpec(
         label=label_t.format(s=subj),
         avenue=avenue_t.format(s=subj),
-        # card_type matches the type-line substring → finds the tribe itself.
         search={"card_type": subj},
-        serve=re.compile(rf"\b{re.escape(subj)}s?\b", _IC),
-        extras=(
-            SubAvenue(
-                f"{subj} payoffs",
-                f"anthems and abilities that reward your {subj}s",
-                {"oracle": rf"{re.escape(subj)}s? you control"},
-            ),
-        ),
+        serve=re.compile(rf"\b{esc}s?\b", _IC),
+        extras=(_payoff_extra(subj, esc),),
     )
 
 
