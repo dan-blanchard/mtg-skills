@@ -1,5 +1,20 @@
 <script>
-  import { mana } from "../lib/store.js";
+  import { mana, applySnapshot } from "../lib/store.js";
+  import { api } from "../lib/api.js";
+
+  let busy = false;
+
+  $: shortfall = $mana
+    ? Math.max(0, $mana.recommended_land_count - $mana.land_count)
+    : 0;
+
+  async function balance() {
+    if (busy) return;
+    busy = true;
+    const r = await api.balanceLands();
+    if (r.ok) applySnapshot(r.data);
+    busy = false;
+  }
 </script>
 
 <div class="panel widget">
@@ -12,6 +27,12 @@
       </div>
       <div class="badge bg-{$mana.land_count_status}">{$mana.land_count_status}</div>
     </div>
+
+    {#if shortfall > 0}
+      <button class="btn balance" on:click={balance} disabled={busy}>
+        {busy ? "Balancing…" : `Balance lands (+${shortfall})`}
+      </button>
+    {/if}
 
     <div class="rows">
       {#if $mana.burgess_formula}
@@ -63,6 +84,18 @@
     font-size: 0.72rem;
     letter-spacing: 0.12em;
     color: #15110c;
+  }
+  .balance {
+    display: block;
+    width: 100%;
+    margin: 0 0 0.7rem;
+    text-align: center;
+    font-family: var(--display);
+    letter-spacing: 0.04em;
+  }
+  .balance:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   .rows {
     border-top: 1px solid var(--hairline-soft);

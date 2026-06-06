@@ -132,6 +132,78 @@ def color_balance(
     return {"status": status, "flags": flags}
 
 
+# Color → its basic land. "C" (colorless) → Wastes, for an Eldrazi/colorless deck.
+_BASIC_FOR_COLOR = {
+    "W": "Plains",
+    "U": "Island",
+    "B": "Swamp",
+    "R": "Mountain",
+    "G": "Forest",
+    "C": "Wastes",
+}
+
+
+def allocate_basic_lands(
+    shortfall: int,
+    recommended: int,
+    pips: dict[str, int],
+    production: dict[str, int],
+    fallback_colors: list[str] | None = None,
+) -> dict[str, int]:
+    """Distribute ``shortfall`` basic lands across colors to best pass the mana gate.
+
+    Water-fills toward the deck's pip demand against what existing lands already
+    produce: each color's target production is ``recommended * pip%``; the shortfall is
+    allocated proportional to each color's remaining deficit (so an over-produced color
+    gets nothing), with largest-remainder rounding so the counts sum exactly to
+    ``shortfall``. Falls back to pip demand if the base is already balanced, to the
+    commander's color identity when there are no pips yet, and to Wastes for a truly
+    colorless deck. Returns {basic-land name: count to add}."""
+    if shortfall <= 0:
+        return {}
+    weights_base = dict(pips) if pips else dict.fromkeys(fallback_colors or [], 1)
+    colors = [c for c in weights_base if c in _BASIC_FOR_COLOR]
+    if not colors:
+        return {_BASIC_FOR_COLOR["C"]: shortfall}
+
+    total = sum(weights_base[c] for c in colors)
+    target = {c: recommended * weights_base[c] / total for c in colors}
+    deficit = {c: max(0.0, target[c] - production.get(c, 0)) for c in colors}
+    balanced = sum(deficit.values()) <= 1e-9
+    weights = {c: weights_base[c] for c in colors} if balanced else deficit
+    wsum = sum(weights.values()) or 1.0
+
+    raw = {c: shortfall * weights[c] / wsum for c in colors}
+    alloc = {c: int(raw[c]) for c in colors}
+    remainder = shortfall - sum(alloc.values())
+    for c in sorted(colors, key=lambda c: raw[c] - alloc[c], reverse=True)[:remainder]:
+        alloc[c] += 1
+    return {_BASIC_FOR_COLOR[c]: alloc[c] for c in colors if alloc[c] > 0}
+
+
+def basic_lands_to_balance(deck: dict, hydrated: list[dict | None]) -> dict[str, int]:
+    """Basic lands to add so the deck reaches its recommended land count, distributed
+    by color demand (see ``allocate_basic_lands``). Returns {basic name: count}."""
+    audit = mana_audit(deck, hydrated)
+    recommended = audit["recommended_land_count"]
+    shortfall = recommended - audit["land_count"]
+    if shortfall <= 0:
+        return {}
+    lookup = {r.get("name"): r for r in hydrated if r}
+    ci: set[str] = set()
+    for entry in deck.get("commanders", []):
+        record = lookup.get(entry.get("name"))
+        if record:
+            ci.update(record.get("color_identity") or [])
+    return allocate_basic_lands(
+        shortfall,
+        recommended,
+        audit["pip_demand"],
+        audit["land_color_production"],
+        fallback_colors=sorted(ci),
+    )
+
+
 def _add_color_sources(
     colors_dict: dict[str, int], card_color_srcs: set[str], qty: int
 ) -> None:

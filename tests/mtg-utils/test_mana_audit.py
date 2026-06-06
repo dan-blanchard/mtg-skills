@@ -7,6 +7,7 @@ import json
 from click.testing import CliRunner
 
 from mtg_utils.mana_audit import (
+    allocate_basic_lands,
     burgess_formula,
     color_balance,
     constructed_land_target,
@@ -17,6 +18,40 @@ from mtg_utils.mana_audit import (
     pip_demand,
 )
 from mtg_utils.parse_deck import parse_deck
+
+
+class TestAllocateBasicLands:
+    """Pure allocator: distribute the land shortfall across basics by color demand,
+    water-filling toward balance against what existing lands already produce."""
+
+    def test_no_shortfall_adds_nothing(self):
+        assert allocate_basic_lands(0, 35, {"W": 10}, {}) == {}
+        assert allocate_basic_lands(-3, 35, {"W": 10}, {}) == {}
+
+    def test_mono_color_all_one_basic(self):
+        assert allocate_basic_lands(10, 35, {"W": 20}, {}) == {"Plains": 10}
+
+    def test_two_color_splits_by_pip_demand(self):
+        # 60/40 pips, no existing production → allocate the shortfall 60/40.
+        out = allocate_basic_lands(10, 35, {"W": 12, "U": 8}, {})
+        assert out == {"Plains": 6, "Island": 4}
+
+    def test_allocation_sums_to_shortfall(self):
+        out = allocate_basic_lands(7, 35, {"W": 1, "U": 1, "B": 1}, {})
+        assert sum(out.values()) == 7
+
+    def test_water_fills_toward_underserved_color(self):
+        # equal pips but W already over-produced → all new basics go to U.
+        out = allocate_basic_lands(10, 35, {"W": 10, "U": 10}, {"W": 25})
+        assert out == {"Island": 10}
+
+    def test_colorless_falls_back_to_wastes(self):
+        assert allocate_basic_lands(8, 35, {}, {}, fallback_colors=[]) == {"Wastes": 8}
+
+    def test_no_pips_uses_fallback_color_identity(self):
+        assert allocate_basic_lands(8, 35, {}, {}, fallback_colors=["W"]) == {
+            "Plains": 8
+        }
 
 
 class TestBurgessFormula:
