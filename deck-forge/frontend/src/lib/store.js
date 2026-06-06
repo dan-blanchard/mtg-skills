@@ -7,6 +7,7 @@ export const deck = writable({
   sideboard: [],
 });
 export const stats = writable(null);
+export const bracket = writable(null);
 export const mana = writable(null);
 export const budgets = writable(null);
 export const signals = writable([]);
@@ -31,6 +32,7 @@ export function applySnapshot(snap) {
   if (!snap) return;
   if (snap.deck) deck.set(snap.deck);
   if (snap.stats) stats.set(snap.stats);
+  if (snap.bracket) bracket.set(snap.bracket);
   if (snap.mana) mana.set(snap.mana);
   if (snap.budgets) budgets.set(snap.budgets);
   if (snap.signals) signals.set(snap.signals);

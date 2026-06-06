@@ -23,7 +23,7 @@ from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.deck_stats import deck_stats
+from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.theme_presets import list_presets
@@ -191,11 +191,13 @@ def _zone_error(zone: str) -> JSONResponse | None:
 def _snapshot(state: ForgeState) -> dict:
     deck = state.session.to_deck_dict()
     hydrated = state.session.hydrated(state.by_name)
+    stats = deck_stats(deck, hydrated)
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
         "deck": _deck_view(state),
-        "stats": deck_stats(deck, hydrated),
+        "stats": stats,
+        "bracket": detect_bracket(hydrated, stats.get("avg_cmc", 0.0)),
         "mana": mana_audit(deck, hydrated),
         "budgets": slot_budgets(
             state.session.hydrated_expanded(state.by_name),
@@ -749,11 +751,29 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 "error": "combo lookup unavailable",
             }
         try:
-            return state.combos_fn(state.session.to_deck_dict())
+            result = state.combos_fn(state.session.to_deck_dict())
         except Exception as exc:  # noqa: BLE001 — network/3rd-party; surface, don't crash
             return JSONResponse(
                 {"error": f"combo lookup failed: {exc}"}, status_code=502
             )
+        # Enrich each combo's cards with hydrated views (image/type/price) + an in-deck
+        # flag, so the UI can render them as the same CardTiles as search/synergies.
+        in_deck = set(state.session.card_names())
+
+        def _card_views(names: list[str]) -> list[dict]:
+            out = []
+            for name in names or []:
+                view = {"name": name, "in_deck": name in in_deck}
+                record = state.by_name.get(name)
+                if record is not None:
+                    view.update(_project(record))
+                out.append(view)
+            return out
+
+        for group in ("combos", "near_misses"):
+            for combo in result.get(group) or []:
+                combo["card_views"] = _card_views(combo.get("cards", []))
+        return result
 
     _register_frontend(app, frontend_dist)
     return app

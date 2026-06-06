@@ -94,6 +94,57 @@ def _detect_alternative_costs(card: dict) -> list[dict]:
     return alt_costs
 
 
+# Mass land denial / destruction — a Commander-bracket pillar (Armageddon, Jokulhaups,
+# Pox-style symmetric land sac, Back to Basics / Winter Orb "lands don't untap" locks).
+# Spot land removal ("destroy target land") is deliberately NOT matched.
+_MASS_LAND_DENIAL_RE = re.compile(
+    r"destroy all lands|destroy all nonbasic lands"
+    r"|each (?:player|opponent) sacrifices?[^.]*\blands?\b"
+    r"|nonbasic lands don't untap|lands don't untap during",
+    re.IGNORECASE,
+)
+# avg CMC at or below this reads as a fast, high-power curve.
+_FAST_CURVE_CMC = 2.3
+
+
+def detect_bracket(hydrated: list[dict | None], avg_cmc: float) -> dict:
+    """Estimate the Commander bracket mechanically from the signals we can read:
+    Game Changers (Scryfall's ``game_changer`` flag), mass land denial, and curve
+    speed. Maps to brackets 2-4. Bracket 1 (Exhibition, intentionally weak) and 5
+    (cEDH, metagame-defined) aren't determinable from the list alone.
+
+      - mass land denial OR 4+ game changers -> 4 (Optimized)
+      - 1-3 game changers                    -> 3 (Upgraded)
+      - otherwise                            -> 2 (Core)
+
+    Returns the bracket plus the evidence (game-changer names, MLD card names, and a
+    fast-curve flag) so the UI can show the reasoning."""
+    game_changers = sorted(
+        {c["name"] for c in hydrated if c and c.get("game_changer")}
+    )
+    mass_land_denial = sorted(
+        {
+            c["name"]
+            for c in hydrated
+            if c and _MASS_LAND_DENIAL_RE.search(get_oracle_text(c) or "")
+        }
+    )
+    fast_curve = bool(hydrated) and 0 < avg_cmc <= _FAST_CURVE_CMC
+    if mass_land_denial or len(game_changers) >= 4:
+        bracket, name = 4, "Optimized"
+    elif game_changers:
+        bracket, name = 3, "Upgraded"
+    else:
+        bracket, name = 2, "Core"
+    return {
+        "bracket": bracket,
+        "name": name,
+        "game_changers": game_changers,
+        "mass_land_denial": mass_land_denial,
+        "fast_curve": fast_curve,
+    }
+
+
 def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
     """Compute deck statistics from parsed deck + hydrated card data."""
     card_lookup = build_card_lookup(hydrated)

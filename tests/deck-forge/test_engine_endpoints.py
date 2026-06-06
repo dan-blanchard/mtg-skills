@@ -99,6 +99,23 @@ def test_combos_endpoint_graceful_without_fn():
     assert "error" in data
 
 
+def test_combos_endpoint_enriches_card_views():
+    def fake(_deck):
+        return {"combos": [{"cards": ["ETB Boss", "Token Maker"]}], "near_misses": []}
+
+    data = _client(combos_fn=fake).get("/api/combos").json()
+    views = {v["name"]: v for v in data["combos"][0]["card_views"]}
+    assert views["ETB Boss"]["in_deck"] is True  # the commander
+    assert views["Token Maker"]["in_deck"] is False
+    assert "type_line" in views["ETB Boss"]  # hydrated like search/synergies tiles
+
+
+def test_snapshot_includes_bracket_estimate():
+    snap = _client().get("/api/snapshot").json()
+    assert snap["bracket"]["bracket"] == 2  # no game changers / MLD in the fixture
+    assert snap["bracket"]["name"] == "Core"
+
+
 def test_snapshot_includes_live_budgets_and_signals():
     snap = _client().get("/api/snapshot").json()
     assert snap["budgets"]["ramp"]["target"] == 10

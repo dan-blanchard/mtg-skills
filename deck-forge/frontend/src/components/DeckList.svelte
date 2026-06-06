@@ -8,6 +8,18 @@
     if (r.ok) applySnapshot(r.data);
   }
 
+  async function addOne(name, zone) {
+    const r = await api.add(name, zone, 1);
+    if (r.ok) applySnapshot(r.data);
+  }
+
+  // Singleton: only basics and "any number of cards named X" cards (Relentless Rats,
+  // Shadowborn Apostle, Dragon's Approach…) may have more than one copy.
+  function canHaveMultiple(c) {
+    if (/\bBasic Land\b/.test(c.type_line || "")) return true;
+    return /a deck can have any number of cards named/i.test(c.oracle_text || "");
+  }
+
   // Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).
   function priceOf(c) {
     const p = c.prices?.usd ?? c.prices?.usd_foil ?? c.prices?.usd_etched;
@@ -64,6 +76,9 @@
                   <span class="price none" title="No listing — likely scarce/expensive, not free">—</span>
                 {/if}
                 <span class="cmc">{c.cmc ?? ""}</span>
+                {#if g.key === "cards" && canHaveMultiple(c)}
+                  <button class="rm add" title="Add another" on:click={() => addOne(c.name, g.key)}>+</button>
+                {/if}
                 <button class="rm" title="Remove one" on:click={() => remove(c.name, g.key)}>−</button>
               </div>
             </div>
@@ -194,5 +209,9 @@
   .rm:hover {
     border-color: var(--fail);
     color: var(--fail);
+  }
+  .rm.add:hover {
+    border-color: var(--brass);
+    color: var(--brass-bright);
   }
 </style>

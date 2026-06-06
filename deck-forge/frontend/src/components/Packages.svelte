@@ -1,7 +1,14 @@
 <script>
-  import { applySnapshot, exploreAvenue } from "../lib/store.js";
+  import { applySnapshot, exploreAvenue, deck } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import CardTile from "./CardTile.svelte";
+
+  // Singleton: a card that's already in the deck can't be added again, so drop it from
+  // the synergy lists once added (it disappears as soon as the snapshot updates).
+  $: inDeck = new Set(
+    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map((c) => c.name),
+  );
+  const fresh = (cands) => (cands || []).filter((c) => !inDeck.has(c.name));
 
   let packages = [];
   let exploring = null; // single-avenue result: {label, candidates}
@@ -76,9 +83,9 @@
         <span class="ptitle">{exploring.label}</span>
         <button class="clear" on:click={clearExplore}>× clear</button>
       </div>
-      {#if exploring.candidates.length}
+      {#if fresh(exploring.candidates).length}
         <div class="grid">
-          {#each exploring.candidates as c (c.name)}
+          {#each fresh(exploring.candidates) as c (c.name)}
             <CardTile card={c} score={c.score} onadd={add} />
           {/each}
         </div>
@@ -86,14 +93,14 @@
         <div class="notice">No fresh candidates for this avenue — you may already run the best ones.</div>
       {/if}
     {:else if packages.length}
-      {#each packages as pkg}
+      {#each packages.filter((p) => fresh(p.candidates).length) as pkg}
         <section class="pkg">
           <header>
             <span class="ptitle">{pkg.signal.label}</span>
             <span class="pavenue">{pkg.signal.avenue}</span>
           </header>
           <div class="grid">
-            {#each pkg.candidates as c (c.name)}
+            {#each fresh(pkg.candidates) as c (c.name)}
               <CardTile card={c} score={c.score} onadd={add} />
             {/each}
           </div>

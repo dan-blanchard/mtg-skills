@@ -1,5 +1,7 @@
 <script>
   import { api } from "../lib/api.js";
+  import { applySnapshot } from "../lib/store.js";
+  import CardTile from "./CardTile.svelte";
 
   let combos = [];
   let nearMisses = [];
@@ -21,6 +23,22 @@
     nearMisses = r.data.near_misses || [];
     if (r.data.error) error = r.data.error;
   }
+
+  async function add(name, zone = "cards") {
+    const r = await api.add(name, zone, 1);
+    if (r.ok) applySnapshot(r.data);
+  }
+
+  const missingOf = (c) => (c.card_views || []).filter((cv) => !cv.in_deck);
+
+  async function addMissing(c) {
+    let snap = null;
+    for (const cv of missingOf(c)) {
+      const r = await api.add(cv.name, "cards", 1);
+      if (r.ok) snap = r.data;
+    }
+    if (snap) applySnapshot(snap);
+  }
 </script>
 
 <div class="panel combos">
@@ -39,25 +57,32 @@
     {:else if loaded && combos.length === 0 && nearMisses.length === 0}
       <div class="notice">No catalogued combos in the deck yet.</div>
     {:else if loaded}
-      {#if combos.length}
-        <div class="group-head">In your deck ({combos.length})</div>
-        {#each combos as c}
-          <div class="combo">
-            <div class="cards">{c.cards.join(" + ")}</div>
-            <div class="result">→ {(c.result || []).join(", ")}</div>
-          </div>
-        {/each}
-      {/if}
-      {#if nearMisses.length}
-        <div class="group-head">Near misses — one card away ({nearMisses.length})</div>
-        {#each nearMisses as c}
-          <div class="combo near">
-            <div class="cards">{c.cards.join(" + ")}</div>
-            <div class="result">→ {(c.result || []).join(", ")}</div>
-            {#if c.missing_card}<div class="missing">missing: {c.missing_card}</div>{/if}
-          </div>
-        {/each}
-      {/if}
+      {#each [{ label: "In your deck", list: combos, near: false }, { label: "Near misses — one card away", list: nearMisses, near: true }] as group}
+        {#if group.list.length}
+          <div class="group-head">{group.label} ({group.list.length})</div>
+          {#each group.list as c}
+            <section class="combo" class:near={group.near}>
+              <div class="chead">
+                <div class="result">→ {(c.result || []).join(", ") || "synergy"}</div>
+                {#if missingOf(c).length}
+                  <button class="btn add-missing" on:click={() => addMissing(c)}>
+                    + Add {missingOf(c).length} missing
+                  </button>
+                {/if}
+              </div>
+              {#if c.card_views?.length}
+                <div class="grid">
+                  {#each c.card_views as cv (cv.name)}
+                    <CardTile card={cv} onadd={add} />
+                  {/each}
+                </div>
+              {:else}
+                <div class="cards">{c.cards.join(" + ")}</div>
+              {/if}
+            </section>
+          {/each}
+        {/if}
+      {/each}
     {:else}
       <div class="notice idle">
         A secondary lens: Commander Spellbook combos already in your deck, plus
@@ -113,10 +138,27 @@
     font-size: 0.88rem;
     color: var(--parchment);
   }
+  .chead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
   .result {
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     color: var(--brass-bright);
-    margin-top: 0.15rem;
+    flex: 1;
+  }
+  .add-missing {
+    font-size: 0.74rem;
+    padding: 0.28rem 0.55rem;
+    white-space: nowrap;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
   }
   .missing {
     font-size: 0.74rem;

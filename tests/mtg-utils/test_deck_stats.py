@@ -4,8 +4,53 @@ import json
 
 from click.testing import CliRunner
 
-from mtg_utils.deck_stats import deck_stats, main, render_text_report
+from mtg_utils.deck_stats import (
+    deck_stats,
+    detect_bracket,
+    main,
+    render_text_report,
+)
 from mtg_utils.parse_deck import parse_deck
+
+
+def _gc(name):
+    return {"name": name, "game_changer": True, "oracle_text": "", "type_line": "X"}
+
+
+def _mld(name):
+    return {"name": name, "oracle_text": "Destroy all lands.", "type_line": "Sorcery"}
+
+
+def _plain(name):
+    return {"name": name, "oracle_text": "Draw a card.", "type_line": "Sorcery"}
+
+
+class TestDetectBracket:
+    """Mechanical Commander-bracket estimate from game changers, mass land denial,
+    and curve speed (the signals we can read deterministically)."""
+
+    def test_no_pillars_is_core(self):
+        b = detect_bracket([_plain("a"), _plain("b")], 3.0)
+        assert b["bracket"] == 2
+        assert b["name"] == "Core"
+
+    def test_one_game_changer_is_upgraded(self):
+        b = detect_bracket([_gc("Smothering Tithe"), _plain("x")], 3.0)
+        assert b["bracket"] == 3
+        assert "Smothering Tithe" in b["game_changers"]
+
+    def test_four_game_changers_is_optimized(self):
+        b = detect_bracket([_gc(f"G{i}") for i in range(4)], 3.0)
+        assert b["bracket"] == 4
+
+    def test_mass_land_denial_is_optimized(self):
+        b = detect_bracket([_mld("Armageddon"), _plain("x")], 3.0)
+        assert b["bracket"] == 4
+        assert "Armageddon" in b["mass_land_denial"]
+
+    def test_fast_curve_flag(self):
+        assert detect_bracket([_plain("a")], 1.8)["fast_curve"] is True
+        assert detect_bracket([_plain("a")], 3.5)["fast_curve"] is False
 
 
 class TestDeckStats:
