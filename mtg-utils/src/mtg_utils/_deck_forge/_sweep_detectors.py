@@ -215,7 +215,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "keyword_counter",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "(?:put|with|of an?)[^.]{0,60}?(?:stun|aegis|flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance|ward|training|shield) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:stun|aegis|flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance|ward) counter",
+        "regex": "(?:put|with|of an?)[^.]{0,60}?(?:stun|aegis|flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance|shield) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:stun|aegis|flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter",
     },
     {
         "key": "counter_replace_bonus",
@@ -287,7 +287,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "partner_background",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "choose a background|partner with|\\bpartner\\b(?! with)|\\bfriends forever\\b|\\bdoctor's companion\\b|companion —|each (?:creature |permanent )?card in your starting deck|your starting deck contains",
+        "regex": "choose a background|partner with|\\bpartner\\b(?! with)|\\bfriends forever\\b|\\bdoctor's companion\\b",
+    },
+    {
+        "key": "companion_keyword",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "companion —|each (?:creature |permanent )?card in your starting deck|your starting deck contains",
     },
     {
         "key": "lure_matters",
@@ -791,13 +797,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "combat_damage_to_creature",
         "scope": "any",
         "is_widen_of": "combat_damage_matters",
-        "regex": "deals combat damage to (?:a|another|one or more) creatures?\\b|whenever [^.]*deals (?:combat )?damage to (?:a|another) creature",
+        "regex": "deals combat damage to (?:a|another|one or more) creatures?\\b|whenever [^.]*deals combat damage to (?:a|another) creature",
     },
     {
         "key": "combat_damage_to_opp",
         "scope": "opponents",
         "is_widen_of": "combat_damage_matters",
-        "regex": "\\bdeal combat damage to (?:a player|each opponent|an opponent)|deals damage to an opponent\\b|deals damage to that player\\b",
+        "regex": "deals? combat damage to (?:a player|each opponent|an opponent|that player)",
     },
     {
         "key": "creature_cast_trigger",
@@ -815,7 +821,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "removal_matters",
         "scope": "you",
         "is_widen_of": "removal_matters",
-        "regex": "destroy (?:up to (?:one|two|three) )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker|land|battle)|exile (?:up to (?:one|two|three) )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|destroy target noncreature|destroy target enchanted creature|destroy (?:all|each)(?: non-?\\w+)? creatures?|deals? (?:\\d+|x) damage to target (?:[a-z]+ )*(?:creature|permanent|planeswalker)|deals? damage equal to [^.]* to target (?:[a-z]+ )*creature|deals? \\d+ damage divided[^.]*among [^.]*target|destroy up to (?:\\w+|x) target|exile up to (?:\\w+|x)(?: other)? target (?:creature|permanent)|destroy target (?:attacking|blocking|tapped|enchanted) [A-Za-z ]*creature|destroy target [A-Z][a-z]+\\b|exile [^.]*and target (?:permanent|creature)",
+        "regex": "destroy (?:up to (?:one|two|three) )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker|land|battle)|destroy target noncreature|destroy target enchanted creature|destroy (?:all|each)(?: non-?\\w+)? creatures?|deals? (?:\\d+|x) damage to target (?:[a-z]+ )*(?:creature|permanent|planeswalker)|deals? damage equal to [^.]* to target (?:[a-z]+ )*creature|deals? \\d+ damage divided[^.]*among [^.]*target|destroy up to (?:\\w+|x) target|destroy target (?:attacking|blocking|tapped|enchanted) [A-Za-z ]*creature|destroy target [A-Z][a-z]+\\b",
+    },
+    {
+        "key": "exile_removal",
+        "scope": "you",
+        "is_widen_of": "exile_removal",
+        "regex": "exile (?:up to (?:one|two|three|\\w+|x) )?(?:other )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|exile [^.]*and target (?:permanent|creature)",
     },
     {
         "key": "team_buff",
@@ -1128,7 +1140,11 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "partner_background": (
         "Partner / Background",
-        "a partner, Background, or companion to pair",
+        "a Partner or Background to pair as a second commander",
+    ),
+    "companion_keyword": (
+        "Companion",
+        "a companion whose deckbuilding restriction your deck already meets",
     ),
     "phasing_matters": ("Phasing", "phase-out effects for protection and resets"),
     "play_from_top": ("Play from the top", "top-of-library access plus reveal payoffs"),
@@ -1155,7 +1171,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "seek_matters": ("Seek", "seek effects (Alchemy tutoring)"),
     "self_blink": (
-        "Self-blink / flicker",
+        "Blink / flicker",
         "your own ETB creatures to flicker for value",
     ),
     "self_counter_grow": (
@@ -1207,7 +1223,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "timing_control": ("Timing control", "end-the-turn and timing-restriction effects"),
     "topdeck_selection": (
         "Top-deck selection",
-        "scry/surveil/look-at-top to set up draws and payoffs",
+        "scry and look-at-top to set up your draws (surveil also fills the graveyard)",
     ),
     "topdeck_stack": (
         "Top-deck stacking",

@@ -546,7 +546,17 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     ("modified_matters", re.compile(r"\bmodified\b", re.IGNORECASE), "you"),
     ("mutate_matters", re.compile(r"\bmutate\b", re.IGNORECASE), "you"),
-    ("food_matters", re.compile(r"\bfood\b", re.IGNORECASE), "you"),
+    (
+        # Anchor on the Food-token mechanic (CR 111.10), like its sibling token axes,
+        # not the bare word.
+        "food_matters",
+        re.compile(
+            r"\bfood token|create (?:a|an|one|two|three|x|\d+)[^.]*?\bfood\b"
+            r"|sacrifice a food|foods? you control",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     ("clue_matters", re.compile(r"\bclue\b|\binvestigate\b", re.IGNORECASE), "you"),
     ("blood_matters", re.compile(r"blood tokens?", re.IGNORECASE), "you"),
     (
@@ -664,12 +674,23 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "you",
     ),
     (
+        # Destroy/damage removal — the slice that indestructible & regeneration blank
+        # (CR 701.8/702.12/702.19). Exile is a separate axis (bypasses those).
         "removal_matters",
         re.compile(
             r"destroy target "
             r"(?:creature|permanent|artifact|enchantment|planeswalker|nonland)"
-            r"|exile target (?:creature|permanent|artifact|enchantment)"
             r"|deals? (?:\d+|x) damage to target (?:creature|permanent)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        # Exile removal — bypasses indestructible/regeneration and stops death/LTB
+        # recursion (CR 406, 701.10). Distinct build axis from destroy/damage.
+        "exile_removal",
+        re.compile(
+            r"exile target (?:creature|permanent|artifact|enchantment|nonland)",
             re.IGNORECASE,
         ),
         "you",
@@ -717,15 +738,19 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "opponents",
     ),
     (
+        # Evasion = a blocking RESTRICTION (CR 509.1b). "attacks if able" is a
+        # forced-attack REQUIREMENT (CR 508.1d) — that belongs to forced_attack/goad.
         "evasion_self",
-        re.compile(r"can't be blocked|attacks each combat if able", re.IGNORECASE),
+        re.compile(r"can't be blocked|\bunblockable\b", re.IGNORECASE),
         "you",
     ),
     (
+        # Clone = a permanent that itself becomes/enters as a copy (CR 707). Drop the
+        # bare "copy of target creature" branch — it bleeds into the token-copy phrase
+        # "create a token that's a copy of target creature" (that's token_copy_matters).
         "clone_matters",
         re.compile(
-            r"becomes a copy of|enters [^.]*as a copy of"
-            r"|copy of (?:target|another target) (?:creature|permanent)",
+            r"becomes a copy of|enters [^.]*as a copy of",
             re.IGNORECASE,
         ),
         "you",

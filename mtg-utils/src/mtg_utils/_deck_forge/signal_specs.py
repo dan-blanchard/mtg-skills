@@ -231,9 +231,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("proliferate_matters", "you"): _spec(
         "Proliferate",
-        "proliferate and counter generators",
+        "proliferate plus any-kind counter sources (poison/loyalty/charge/+1+1)",
         {"preset_names": ("proliferate",)},
-        r"\bproliferate\b|\+1/\+1 counter",
+        r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
     ),
     ("magecraft_matters", "you"): _spec(
         "Magecraft / spellslinger",
@@ -353,7 +353,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("scry_surveil_matters", "you"): _spec(
         "Scry / surveil matters",
-        "cheap repeatable scry and surveil to fire your topdeck-selection payoffs",
+        "scry and surveil to fire these payoffs — note surveil also fills your "
+        "graveyard (see Your graveyard), while scry is pure top-of-library selection",
         {"oracle": r"\b(?:scry|surveil)\b"},
         r"\b(?:scry|surveil)\b",
     ),
@@ -457,8 +458,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("food_matters", "you"): _spec(
         "Food",
         "Food makers plus sacrifice outlets and lifegain payoffs",
-        {"oracle": r"\bfood\b"},
-        r"\bfood\b",
+        {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
+        r"\bfood token|foods? you control|sacrifice a food",
     ),
     ("clue_matters", "you"): _spec(
         "Clues / investigate",
@@ -511,8 +512,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("specialize_matters", "you"): _spec(
         "Specialize",
-        "Backgrounds and specialize payoffs to swap a creature's mode",
-        {"oracle": r"\bspecialize\b|\bbackground\b"},
+        "specialize payoffs to swap a creature's stat/ability line "
+        "(Backgrounds are a separate axis — see Partner / Background)",
+        {"oracle": r"\bspecialize\b"},
         r"\bspecialize\b",
     ),
     ("dice_matters", "you"): _spec(
@@ -548,10 +550,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("removal_matters", "you"): _spec(
         "Removal / interaction",
-        "spot removal and burn to clear blockers and threats",
-        {"oracle": r"destroy target|exile target|deals .* damage to target"},
-        r"destroy target|exile target (?:creature|permanent)"
-        r"|deals .* damage to target creature",
+        "destroy and burn removal — note indestructible/regeneration blank it",
+        {"oracle": r"destroy target|deals .* damage to target"},
+        r"destroy target|deals .* damage to target creature",
+    ),
+    ("exile_removal", "you"): _spec(
+        "Exile removal",
+        "exile-based removal that bypasses indestructible and stops recursion",
+        {"oracle": r"exile target (?:creature|permanent|artifact|enchantment)"},
+        r"exile target (?:creature|permanent|artifact|enchantment|nonland)",
     ),
     ("counter_control", "you"): _spec(
         "Counterspells / control",
