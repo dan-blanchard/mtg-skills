@@ -235,6 +235,8 @@ def _resolve_subject(raw: str, vocab: frozenset[str]) -> str:
 # (sentence-initial "Other Dwarves" else drops Magda).
 _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\bother ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
+    # "another Elf you control" (singular) — tribal triggers the "other Xs" form misses.
+    re.compile(r"\banother ([A-Za-z]+?) you control\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control get [+\-](?:\d|x)", re.IGNORECASE),
     re.compile(r"\b(?:number of|for each) ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control have\b", re.IGNORECASE),
@@ -551,6 +553,32 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
+    (
+        "token_copy_matters",
+        re.compile(
+            r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of"
+            r"|create a token that's a copy",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    ("specialize_matters", re.compile(r"\bspecialize\b", re.IGNORECASE), "you"),
+    (
+        "dice_matters",
+        re.compile(
+            r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)"
+            r"|result of (?:the|a|your) (?:roll|die)|whenever you roll",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "crimes_matter",
+        re.compile(r"commit(?:s|ted)? a crime|whenever you commit", re.IGNORECASE),
+        "you",
+    ),
+    ("connive_matters", re.compile(r"\bconnives?\b", re.IGNORECASE), "you"),
 )
 
 # (preset_name → (signal_key, scope)). KEYWORD-ARRAY presets only — these read

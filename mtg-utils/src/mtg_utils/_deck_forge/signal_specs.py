@@ -495,6 +495,37 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"instant or sorcery|draw a card|\bstorm\b"},
         r"second spell you cast|cast your second spell",
     ),
+    # ── Mechanics recovered from the "rejected" families ────────────────────────
+    ("token_copy_matters", "you"): _spec(
+        "Token copies",
+        "strong creatures to copy plus token-copy and populate engines",
+        {"oracle": r"token that's a copy|tokens? that are copies|\bpopulate\b"},
+        r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|\bpopulate\b",
+    ),
+    ("specialize_matters", "you"): _spec(
+        "Specialize",
+        "Backgrounds and specialize payoffs to swap a creature's mode",
+        {"oracle": r"\bspecialize\b|\bbackground\b"},
+        r"\bspecialize\b",
+    ),
+    ("dice_matters", "you"): _spec(
+        "Dice rolling",
+        "dice-rolling enablers and roll-result payoffs",
+        {"oracle": r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|\bd20\b"},
+        r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|whenever you roll",
+    ),
+    ("crimes_matter", "you"): _spec(
+        "Crimes",
+        "targeted removal and abilities that count as committing a crime",
+        {"oracle": r"commit a crime|target (?:opponent|player)|target.*spell"},
+        r"commit(?:s|ted)? a crime|whenever you commit",
+    ),
+    ("connive_matters", "you"): _spec(
+        "Connive",
+        "connive enablers and counter/discard payoffs",
+        {"oracle": r"\bconnives?\b|draw a card, then discard"},
+        r"\bconnives?\b",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

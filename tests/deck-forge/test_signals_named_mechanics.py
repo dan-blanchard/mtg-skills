@@ -85,3 +85,50 @@ def test_counters_matter_widened_for_distributors():
 def test_poison_scoped_to_opponents():
     c = {"name": "Skithiryx-like", "oracle_text": "Infect\nThis creature can't be blocked."}
     assert ("poison_matters", "opponents") in _ks(c)
+
+
+# --- mechanics recovered from the "rejected" families (still-zero commanders) ---
+
+
+def test_token_copy_engine():
+    c = {
+        "name": "Orthion-like",
+        "oracle_text": "{1}{R}, {T}: Create a token that's a copy of another target creature you control.",
+    }
+    assert ("token_copy_matters", "you") in _ks(c)
+
+
+def test_specialize():
+    c = {"name": "Shadowheart-like", "oracle_text": "Specialize {1}{B}"}
+    assert ("specialize_matters", "you") in _ks(c)
+
+
+def test_dice_rolling():
+    c = {
+        "name": "Wyll-like",
+        "oracle_text": "Whenever you roll one or more dice, create a Treasure token.",
+    }
+    assert ("dice_matters", "you") in _ks(c)
+
+
+def test_commit_a_crime():
+    c = {
+        "name": "Vadmir-like",
+        "oracle_text": "Whenever you commit a crime, put a +1/+1 counter on this creature.",
+    }
+    assert ("crimes_matter", "you") in _ks(c)
+
+
+def test_connive_keyword():
+    c = {"name": "Prowler-like", "oracle_text": "Whenever this creature attacks, it connives."}
+    assert ("connive_matters", "you") in _ks(c)
+
+
+def test_type_matters_catches_another_singular_tribal():
+    # Marwyn: "another Elf you control" (singular) was missed by the "other Xs" form.
+    c = {
+        "name": "Marwyn-like",
+        "oracle_text": "Whenever another Elf you control enters, put a +1/+1 counter on this creature.",
+    }
+    got = {(s.key, s.scope, s.subject) for s in extract_signals(c)}
+    assert ("type_matters", "you", "Elf") in got
