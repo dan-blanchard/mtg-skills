@@ -24,6 +24,39 @@ class TestIsLand:
     def test_artifact_is_not_land(self):
         assert is_land({"type_line": "Artifact"}) is False
 
+    def test_transform_saga_into_land_is_not_a_land(self):
+        # Cast as the FRONT (Enchantment Saga); the transformed back land doesn't make
+        # it a manabase land. (Welcome to . . . // Jurassic Park.)
+        card = {
+            "layout": "transform",
+            "type_line": "Enchantment — Saga // Legendary Land",
+            "card_faces": [
+                {"type_line": "Enchantment — Saga"},
+                {"type_line": "Legendary Land"},
+            ],
+        }
+        assert is_land(card) is False
+
+    def test_transform_with_front_land_is_a_land(self):
+        card = {
+            "layout": "transform",
+            "type_line": "Legendary Land // Legendary Creature — Horror",
+            "card_faces": [
+                {"type_line": "Legendary Land"},
+                {"type_line": "Legendary Creature — Horror"},
+            ],
+        }
+        assert is_land(card) is True
+
+    def test_modal_dfc_land_back_still_counts(self):
+        # MDFC: either face is playable, so a land back IS a real manabase option.
+        card = {
+            "layout": "modal_dfc",
+            "type_line": "Sorcery // Land",
+            "card_faces": [{"type_line": "Sorcery"}, {"type_line": "Land"}],
+        }
+        assert is_land(card) is True
+
 
 class TestIsCreature:
     def test_creature_vampire(self):
@@ -37,6 +70,29 @@ class TestIsCreature:
 
     def test_land_is_not_creature(self):
         assert is_creature({"type_line": "Land"}) is False
+
+    def test_transform_saga_into_creature_is_not_a_creature(self):
+        # Enters as the front Saga, not a creature.
+        card = {
+            "layout": "transform",
+            "type_line": "Enchantment — Saga // Legendary Creature — Dragon",
+            "card_faces": [
+                {"type_line": "Enchantment — Saga"},
+                {"type_line": "Legendary Creature — Dragon"},
+            ],
+        }
+        assert is_creature(card) is False
+
+    def test_werewolf_front_creature_is_a_creature(self):
+        card = {
+            "layout": "transform",
+            "type_line": "Creature — Human Werewolf // Creature — Werewolf",
+            "card_faces": [
+                {"type_line": "Creature — Human Werewolf"},
+                {"type_line": "Creature — Werewolf"},
+            ],
+        }
+        assert is_creature(card) is True
 
 
 class TestIsRamp:

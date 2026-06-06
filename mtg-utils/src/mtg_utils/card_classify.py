@@ -117,16 +117,26 @@ def color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:
     return set(card_identity).issubset(allowed)
 
 
+def _classifying_type_line(card: dict) -> str:
+    """The type line to classify a card by. A transform/flip card enters as its FRONT
+    face, so use that face's type — the back (e.g. a Saga that transforms into a Land or
+    Creature) only appears conditionally and must not count for deckbuilding. Modal DFCs
+    (either face is playable) and single-faced cards use the full type line."""
+    if card.get("layout") in ("transform", "flip"):
+        faces = card.get("card_faces")
+        if faces:
+            return faces[0].get("type_line", "") or card.get("type_line", "")
+    return card.get("type_line", "")
+
+
 def is_land(card: dict) -> bool:
-    """Check if type_line contains 'Land'."""
-    type_line = card.get("type_line", "")
-    return "Land" in type_line
+    """Check if the card's (front-face) type line contains 'Land'."""
+    return "Land" in _classifying_type_line(card)
 
 
 def is_creature(card: dict) -> bool:
-    """Check if type_line contains 'Creature'."""
-    type_line = card.get("type_line", "")
-    return "Creature" in type_line
+    """Check if the card's (front-face) type line contains 'Creature'."""
+    return "Creature" in _classifying_type_line(card)
 
 
 def is_ramp(card: dict) -> bool:
