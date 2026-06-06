@@ -281,6 +281,7 @@ def _signal_dict(signal) -> dict:
         "scope": signal.scope,
         "subject": signal.subject,
         "source": signal.source,
+        "confidence": signal.confidence,
         "label": spec.label if spec else signal.key,
         "avenue": spec.avenue if spec else "",
         "actionable": spec is not None,

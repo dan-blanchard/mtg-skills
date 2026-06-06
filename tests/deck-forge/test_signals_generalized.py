@@ -256,3 +256,87 @@ def test_baseline_creature_etb_unchanged():
         "oracle_text": "Whenever a creature you control enters, draw a card.",
     }
     assert ("creature_etb", "you") in _ks(c)
+
+
+# --- Phase B: confidence flag + nested-scope / self-reference resolvers ---------
+
+
+def _by_key(card, key):
+    return next(s for s in extract_signals(card) if s.key == key)
+
+
+def test_confidence_defaults_high():
+    c = {
+        "name": "ETB",
+        "oracle_text": "Whenever a creature you control enters, draw a card.",
+    }
+    assert all(s.confidence == "high" for s in extract_signals(c))
+
+
+def test_self_reference_resolves_any_scope_to_you_high_confidence():
+    # "its power" has no scope marker → baseline "any"; the self-reference to the
+    # card's own name resolves it to "you" with high confidence (Krenko Tin Street).
+    c = {
+        "name": "Krenko, Tin Street Kingpin",
+        "oracle_text": "Whenever Krenko attacks, create tokens equal to its power.",
+    }
+    s = _by_key(c, "attack_matters")
+    assert s.scope == "you"
+    assert s.confidence == "high"
+
+
+def test_self_reference_skips_leading_article():
+    # "The" must not be treated as the card's self-reference name.
+    c = {
+        "name": "The Scarab God",
+        "oracle_text": "Whenever another creature dies, scry 1.",
+    }
+    # death_matters here is scope "any" (no self-ref to "Scarab"); not forced to you.
+    s = _by_key(c, "death_matters")
+    assert s.scope != "you" or s.confidence == "high"  # not a spurious self-ref flip
+
+
+def test_broad_possessive_scope_is_opponents_low_confidence():
+    # Non-combat "that player's graveyard" → opponents, but LOW confidence (the
+    # broad rule turned on behind the flag; not trusted blindly).
+    c = {
+        "name": "Graverobber",
+        "oracle_text": "Exile target creature card from that player's graveyard.",
+    }
+    gy = [s for s in extract_signals(c) if s.key == "graveyard_matters"]
+    assert gy
+    assert gy[0].scope == "opponents"
+    assert gy[0].confidence == "low"
+
+
+def test_narrow_tinybones_rule_is_high_confidence():
+    c = {
+        "name": "Tinybones, the Pickpocket",
+        "oracle_text": (
+            "Whenever Tinybones deals combat damage to a player, you may cast "
+            "target card from that player's graveyard this turn."
+        ),
+    }
+    s = _by_key(c, "graveyard_matters")
+    assert s.scope == "opponents"
+    assert s.confidence == "high"
+
+
+def test_granted_ability_marks_signal_low_confidence():
+    # A baseline signal pulled from a GRANTED ability (have "...") is scope-uncertain
+    # (outer "you control" vs inner effect), so it is marked low confidence.
+    c = {
+        "name": "Grantor",
+        "oracle_text": 'Creatures you control have "Whenever this creature attacks, draw a card."',
+    }
+    assert _by_key(c, "attack_matters").confidence == "low"
+
+
+def test_coverage_gate_flags_low_confidence_only():
+    c = {
+        "name": "Graverobber",
+        "oracle_text": "Exile target creature card from that player's graveyard.",
+    }
+    needs, reason = coverage_gate(c, extract_signals(c))
+    assert needs is True
+    assert reason == "low_confidence"

@@ -57,6 +57,9 @@ class Signal:
     subject: str  # subtype qualifier (e.g. "Goblin"); "" if none
     text: str  # the matched oracle clause (the quote, for grounding/scoping)
     source: str  # the card name the signal came from
+    confidence: str = (
+        "high"  # "high" | "low" — low = a scope guess the agent should confirm
+    )
 
 
 # ── Tier 1: baseline detectors ────────────────────────────────────────────────
@@ -328,6 +331,53 @@ def _tinybones_scope(clause: str) -> str | None:
     return None
 
 
+# ── Phase B: nested-scope / self-reference resolvers behind a confidence flag ──
+# A granted ability ("creatures you control have \"…\"") has an OUTER scope (who has
+# it) and an INNER scope (who it affects); the flat parser can't resolve the inner
+# confidently, so signals pulled from it are marked low confidence.
+_GRANTED_ABILITY = re.compile(r'(?:have|gains?) "', re.IGNORECASE)
+# Third-party possessive zones — the broad scope rule (deliberately excludes "its
+# owner's" so it never flips the ~123 self-blink/self-bounce cards).
+_BROAD_THIRD_PARTY = re.compile(
+    r"that player's (?:graveyard|hand|library)"
+    r"|each opponent's (?:graveyard|hand|library)"
+    r"|target opponent's (?:graveyard|hand|library)"
+    r"|their (?:graveyard|hand|library)\b",
+    re.IGNORECASE,
+)
+_SELF_REF_MARKER = re.compile(r"\bthis (?:creature|permanent|land|card)\b|~")
+_ARTICLES = frozenset({"the", "a", "an", "and", "of"})
+
+
+def _self_reference(clause_lower: str, name: str) -> bool:
+    """True if the clause refers to the card itself (own name or "this <type>")."""
+    words = [
+        w for w in re.split(r"\W+", name) if len(w) > 2 and w.lower() not in _ARTICLES
+    ]
+    if words and words[0].lower() in clause_lower:
+        return True
+    return _SELF_REF_MARKER.search(clause_lower) is not None
+
+
+def _resolve_scope(
+    clause: str, clause_lower: str, base_scope: str, name: str
+) -> tuple[str, str]:
+    """Resolve a clause's (scope, confidence) for unforced baseline detectors.
+
+    The narrow Tinybones rule (high confidence) is applied separately and takes
+    precedence. Otherwise: a granted ability is low-confidence (nested scope); a
+    third-party possessive zone is an opponents guess (low confidence — the broad
+    rule, on behind the flag); a self-reference resolves an otherwise-unscoped clause
+    to "you" (high confidence)."""
+    if _GRANTED_ABILITY.search(clause):
+        return base_scope, "low"
+    if _BROAD_THIRD_PARTY.search(clause_lower):
+        return "opponents", "low"
+    if base_scope == "any" and _self_reference(clause_lower, name):
+        return "you", "high"
+    return base_scope, "high"
+
+
 # ── The extractor ─────────────────────────────────────────────────────────────
 
 
@@ -343,13 +393,22 @@ def extract_signals(
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 
-    def add(key: str, scope: str, subject: str, clause: str) -> None:
+    def add(
+        key: str, scope: str, subject: str, clause: str, confidence: str = "high"
+    ) -> None:
         ident = (key, scope, subject)
         if ident in seen:
             return
         seen.add(ident)
         out.append(
-            Signal(key=key, scope=scope, subject=subject, text=clause, source=name)
+            Signal(
+                key=key,
+                scope=scope,
+                subject=subject,
+                text=clause,
+                source=name,
+                confidence=confidence,
+            )
         )
 
     for clause in _clauses(text):
@@ -357,12 +416,19 @@ def extract_signals(
         cl = clause.lower()
         clause_scope = _scope(cl)
         rescope = _tinybones_scope(clause)
+        # Phase B: (scope, confidence) for unforced baseline detectors.
+        resolved_scope, resolved_conf = _resolve_scope(clause, cl, clause_scope, name)
         # Tier 1 — baseline (subject-free)
         for key, matches, forced_scope in _DETECTORS:
             if not matches(cl):
                 continue
-            scope = rescope or forced_scope or clause_scope
-            add(key, scope, "", stripped)
+            if rescope:  # narrow Tinybones rule — confident
+                scope, conf = rescope, "high"
+            elif forced_scope:
+                scope, conf = forced_scope, "high"
+            else:
+                scope, conf = resolved_scope, resolved_conf
+            add(key, scope, "", stripped, conf)
         # Tier 2 — parametric subject detectors (forced scope=you: "you control")
         for key, subject in _detect_type_matters(clause, vocab):
             add(key, "you", subject, stripped)
@@ -424,13 +490,16 @@ def _scope_uncertain(text: str) -> bool:
 
 def coverage_gate(card: dict, signals: list[Signal]) -> tuple[bool, str]:
     """Report a blind spot: (needs_agent, reason). reason ∈ {zero_signal,
-    only_generic, scope_uncertain, ""}. Surfaces gaps for agent scoping instead of
-    dropping them silently."""
+    only_generic, low_confidence, scope_uncertain, ""}. Surfaces gaps for agent
+    scoping instead of dropping them silently."""
     if not signals:
         return (True, "zero_signal")
     keys = {s.key for s in signals}
     if keys <= _GENERIC_KEYS and not any(s.subject for s in signals):
         return (True, "only_generic")
+    # Every signal is a scope guess (Phase B) → the agent should confirm the scoping.
+    if all(s.confidence == "low" for s in signals):
+        return (True, "low_confidence")
     if _scope_uncertain(get_oracle_text(card) or ""):
         return (True, "scope_uncertain")
     return (False, "")
