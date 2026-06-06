@@ -111,7 +111,58 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
         lambda c: "+1/+1 counter" in c and ("for each" in c or "number of" in c),
         None,
     ),
+    # Combat-damage triggers (distinct from attack_matters, which keys on "attack").
+    # Forced opponents — the damaged party is a player/opponent. The single biggest
+    # zero-signal recovery (Edric, Dragonlord Ojutai, Wrexial, …).
+    (
+        "combat_damage_matters",
+        _re(
+            r"\bwhen(?:ever)?\b[^.]*?\bdeals combat damage to "
+            r"(?:a player|an opponent|one of your opponents|each opponent"
+            r"|a player or planeswalker|a player or battle)\b"
+        ),
+        "opponents",
+    ),
+    ("discard_matters", _has("whenever you discard"), "you"),
+    # Life-loss / drain. Scope varies (opponents drain vs your own life-loss), so
+    # forced_scope is None — the clause scope resolves it.
+    (
+        "lifeloss_matters",
+        _re(
+            r"\b(?:each opponent|each player|target opponent|target player|that player"
+            r"|an opponent|each of your opponents|opponents?) loses? (?:\d+|x) life\b"
+            r"|\bwhenever you (?:gain or )?lose life\b"
+            r"|\bwhenever (?:an opponent|a player|one or more (?:players|opponents))"
+            r" loses? life\b"
+        ),
+        None,
+    ),
 )
+
+
+# card_draw_engine: a recurring/bulk card-advantage engine, NOT a cantrip. The bare
+# "draw a card" must never fire — the single-card branch is gated behind a recurring
+# "at the beginning of" anchor, and a one-shot ETB draw is skipped.
+_CARD_DRAW_RE = re.compile(
+    r"at the beginning of [^.]*\bdraws? "
+    r"(?:a|an|two|three|four|five|six|seven|eight|nine|ten|x|\d+)\b[^.]*\bcard"
+    r"|\bdraws? (?:two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?\b"
+    r"|\bdraw cards equal to\b"
+    r"|\bdraws? an additional card\b"
+    r"|if you would draw a card, (?:instead )?draw "
+    r"(?:two|three|four|five|six|seven|eight|nine|ten|x|\d+)",
+    re.IGNORECASE,
+)
+
+
+def _detect_card_draw(clause: str) -> tuple[str, str] | None:
+    if not _CARD_DRAW_RE.search(clause):
+        return None
+    cl = clause.lower()
+    # Skip a one-shot ETB draw (not an engine) unless it's a recurring trigger too.
+    if "when" in cl and "enters" in cl and "at the beginning of" not in cl:
+        return None
+    return ("card_draw_engine", "each" if "each player" in cl else "you")
 
 
 def _clauses(text: str) -> list[str]:
@@ -277,6 +328,61 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    (
+        "cost_reduction",
+        re.compile(
+            r"\b(?:spells?|each spell) you cast\b[^.]{0,80}?"
+            r"\bcosts?\b[^.]{0,40}?\bless\b",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # Impulse-draw / cast-from-exile. Self-anchored branches only (each requires
+    # "from the top of your library" / "from exile" / "plot") — the bare-pronoun
+    # branch is dropped to stay precise without paragraph-level parsing.
+    (
+        "cast_from_exile",
+        re.compile(
+            r"(?:play|cast|plot)\b[^.]*?\bfrom the top of your library"
+            r"|top card of your library has plot"
+            r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
+            r"|play a land or cast a spell)[^.]*?from exile"
+            r"|spells? you cast from exile"
+            r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
+            r"[^.]*?(?:for as long as it remains exiled|from exile)"
+            r"|you may play (?:a |that )?card[^.]*?from exile",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "lands_matter",
+        re.compile(
+            r"(?:the number of|for each) (?:basic )?lands? you control", re.IGNORECASE
+        ),
+        "you",
+    ),
+    (
+        "direct_damage",
+        re.compile(
+            r"deals? (?:\d+|x) damage to any target"
+            r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
+            r"|would deal damage[^.]*?(?:it deals double|it deals twice"
+            r"|deals that much damage plus)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "mana_amplifier",
+        re.compile(
+            r"tap(?:ped)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
+            r"(?:add (?:an additional|one mana of any|that much|twice)"
+            r"|produces? (?:twice|an additional))",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
 )
 
 # (preset_name → (signal_key, scope)). KEYWORD-ARRAY presets only — these read
@@ -436,6 +542,9 @@ def extract_signals(
             add(key, "you", subject, stripped)
         for key, subject in _detect_token_maker(clause, vocab):
             add(key, "you", subject, stripped)
+        draw = _detect_card_draw(clause)
+        if draw is not None:
+            add(draw[0], draw[1], "", stripped)
         # Tier 3 — structural floor detectors + regex-preset reuse
         for key, rx, forced_scope in _REGEX_FLOOR_DETECTORS:
             if rx.search(clause):

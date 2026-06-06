@@ -246,6 +246,89 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"extra turn|additional turn|take an extra"},
         r"extra turn|additional turn",
     ),
+    # ── Rules mined from the zero-signal commander tail ─────────────────────────
+    ("combat_damage_matters", "opponents"): _spec(
+        "Combat damage",
+        "evasive attackers and extra-combat enablers to keep connecting",
+        {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
+        r"deals combat damage to (?:a player|an opponent|one of your opponents)"
+        r"|can't be blocked|\bmenace\b",
+    ),
+    ("cost_reduction", "you"): _spec(
+        "Cost reduction",
+        "expensive bombs and X-spells that exploit the discount",
+        {"oracle": r"\{x\}|with mana value"},
+        r"\{x\}|mana value \d|\bstorm\b",
+    ),
+    ("cast_from_exile", "you"): _spec(
+        "Impulse / cast-from-exile",
+        "impulse-draw enablers and cast-from-exile payoffs",
+        {"oracle": r"from the top of your library|from exile"},
+        r"from the top of your library|from exile|\bplot\b",
+        extras=(
+            SubAvenue(
+                "Top-of-library engines",
+                "cards that let you play off the top of your library",
+                {"oracle": r"from the top of your library"},
+            ),
+        ),
+    ),
+    ("discard_matters", "you"): _spec(
+        "Discard",
+        "loot/connive discard outlets and discard payoffs",
+        {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
+        r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
+        r"|draw [^.]*then discard",
+    ),
+    ("lifeloss_matters", "opponents"): _spec(
+        "Drain",
+        "repeatable life-drain and aristocrats payoffs",
+        {"oracle": r"each opponent loses|target opponent loses|whenever .* dies"},
+        r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b",
+    ),
+    ("lifeloss_matters", "you"): _spec(
+        "Self life-loss",
+        "ways to pay or lose life on demand to fuel your payoffs",
+        {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
+        r"whenever you lose life|you lose \d+ life|pay \d+ life",
+    ),
+    ("lands_matter", "you"): _spec(
+        "Lands matter",
+        "ramp, extra land drops, and recursion to maximize your land count",
+        {
+            "oracle": (
+                r"search your library for .*land"
+                r"|play an additional land"
+                r"|put .*land card.*onto the battlefield"
+            )
+        },
+        r"the number of lands you control|for each land you control"
+        r"|play an additional land",
+    ),
+    ("card_draw_engine", "you"): _spec(
+        "Card-advantage engine",
+        "protection, recursion, and payoffs for a repeatable draw engine",
+        {"preset_names": ("card-draw",)},
+        r"draw \w+ cards?|draw cards equal to|draws? an additional card",
+    ),
+    ("card_draw_engine", "each"): _spec(
+        "Group draw / wheel",
+        "symmetric draw with punisher payoffs (Nekusar-style)",
+        {"oracle": r"each player draws|whenever .* draws a card"},
+        r"each player draws|draws? an additional card",
+    ),
+    ("direct_damage", "you"): _spec(
+        "Burn / pingers",
+        "repeatable direct damage — pingers, burn, and damage doublers",
+        {"preset_names": ("burn",)},
+        r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage|double the damage",
+    ),
+    ("mana_amplifier", "you"): _spec(
+        "Big mana",
+        "mana doublers plus the X-spells and expensive bombs to spend it on",
+        {"oracle": r"\{x\}|add .* mana|search your library for .*land"},
+        r"tap.*for mana.*add|add .* mana of any|\{x\}",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured
