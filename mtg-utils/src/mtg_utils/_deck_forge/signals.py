@@ -43,6 +43,7 @@ from mtg_utils._deck_forge._subtypes import (
     CREATURE_SUBTYPES,
     IRREGULAR_SINGULAR,
     NON_SUBJECT_WORDS,
+    TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils.card_classify import get_oracle_text
@@ -1092,6 +1093,18 @@ def extract_signals(
     # Tier 3 — keyword-array presets (card-level, authoritative)
     for key, scope in _detect_keyword_presets(card):
         add(key, scope, "", text[:120])
+
+    # Own-subtype tribal: a creature's own creature type is a deterministic
+    # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a
+    # Dragon is a viable Dragons build with no tribal oracle text. LOW confidence
+    # (membership ≠ a payoff — an oracle "other Dragons you control" wins the dedup at
+    # high confidence) and gated to supported race tribes (not generic class types).
+    type_line = card.get("type_line") or ""
+    if "creature" in type_line.lower() and "—" in type_line:
+        for tok in type_line.split("—", 1)[1].split():
+            sub = tok.strip().lower()
+            if sub in TRIBAL_SUBTYPES:
+                add("type_matters", "you", sub.capitalize(), type_line, "low")
 
     # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
     # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).

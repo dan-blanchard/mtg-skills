@@ -453,3 +453,41 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "zubera",
     }
 )
+
+# Race/iconic creature tribes a commander can be built around purely by BEING one —
+# the subtype characteristic (CR 205.3) is what tribal cards reference (CR 702.38a),
+# independent of oracle text. Derived deterministically: creature subtypes with >=8
+# tribal-support cards in the bulk pool (cards emitting type_matters for that subject),
+# MINUS generic class types (human/soldier/warrior/wizard/cleric/rogue/...), which are
+# near-ubiquitous and only become a build-around with explicit oracle support (already
+# a high-confidence type_matters). Used to emit a LOW-confidence own-subtype signal so
+# a vanilla Dragon/Angel/Giant surfaces its tribe instead of reading as zero-signal.
+TRIBAL_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "ally",
+        "angel",
+        "bird",
+        "cat",
+        "demon",
+        "dinosaur",
+        "dragon",
+        "elemental",
+        "elf",
+        "faerie",
+        "giant",
+        "goblin",
+        "kithkin",
+        "knight",
+        "merfolk",
+        "mount",
+        "phyrexian",
+        "pirate",
+        "rat",
+        "sliver",
+        "spider",
+        "spirit",
+        "squirrel",
+        "vampire",
+        "zombie",
+    }
+)
