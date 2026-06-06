@@ -66,3 +66,43 @@ def test_lifegain_widened_for_activated_gain():
 def test_lifeloss_widened_for_pay_life_engine():
     c = {"name": "Bargainer", "oracle_text": "{B}, Pay 2 life: Draw a card."}
     assert any(s.key == "lifeloss_matters" for s in extract_signals(c))
+
+
+# --- recognizable axes from the one-off tail ----------------------------------
+
+
+def test_type_matters_other_x_creatures():
+    # Eladamri: "Other Elf creatures have forestwalk." (no "you control")
+    c = {"name": "Eladamri", "oracle_text": "Other Elf creatures have forestwalk."}
+    got = {(s.key, s.subject) for s in extract_signals(c)}
+    assert ("type_matters", "Elf") in got
+
+
+def test_type_matters_activated_tribal():
+    # Azami: tribal subtype named in an activated cost.
+    c = {"name": "Azami", "oracle_text": "Tap an untapped Wizard you control: Draw a card."}
+    assert any(s.key == "type_matters" and s.subject == "Wizard" for s in extract_signals(c))
+
+
+def test_opponent_cast_matters():
+    c = {
+        "name": "Ishai",
+        "oracle_text": "Whenever an opponent casts a spell, put a +1/+1 counter on this creature.",
+    }
+    assert ("opponent_cast_matters", "opponents") in _ks(c)
+
+
+def test_spell_count_storm_widen():
+    c = {
+        "name": "Erayo",
+        "oracle_text": "Whenever the fourth spell of a turn is cast, flip this creature.",
+    }
+    assert any(s.key == "second_spell_matters" for s in extract_signals(c))
+
+
+def test_legends_matter_for_cast_legendary():
+    c = {
+        "name": "Gandalf",
+        "oracle_text": "You may cast legendary spells as though they had flash.",
+    }
+    assert any(s.key == "legends_matter" for s in extract_signals(c))

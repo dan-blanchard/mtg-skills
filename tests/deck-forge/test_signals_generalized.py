@@ -339,7 +339,8 @@ def test_coverage_gate_flags_low_confidence_only():
         "oracle_text": "You may play cards from that player's graveyard.",
     }
     sigs = extract_signals(c)
-    assert all(s.confidence == "low" for s in sigs) and sigs
+    assert sigs
+    assert all(s.confidence == "low" for s in sigs)
     needs, reason = coverage_gate(c, sigs)
     assert needs is True
     assert reason == "low_confidence"

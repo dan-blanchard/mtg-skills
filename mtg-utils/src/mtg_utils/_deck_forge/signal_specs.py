@@ -619,6 +619,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bregenerate\b"},
         r"\bregenerate\b",
     ),
+    ("opponent_cast_matters", "opponents"): _spec(
+        "Punish opponents' spells",
+        "taxes and punishers that trigger when opponents cast",
+        {"oracle": r"whenever an opponent casts|spells? your opponents cast"},
+        r"whenever an opponent casts|opponents? cast",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

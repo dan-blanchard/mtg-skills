@@ -261,6 +261,11 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\bother ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     # "another Elf you control" (singular) — tribal triggers the "other Xs" form misses.
     re.compile(r"\banother ([A-Za-z]+?) you control\b", re.IGNORECASE),
+    # "Other Elf creatures have …" (lord with no "you control"); tribal in an
+    # activated cost ("untapped Wizard you control:" / "<Sub> you control:").
+    re.compile(r"\bother ([A-Za-z]+?) creatures?\b", re.IGNORECASE),
+    re.compile(r"\buntapped ([A-Za-z]+?) you control\b", re.IGNORECASE),
+    re.compile(r"\b([A-Za-z]+?) you control\s*:", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control get [+\-](?:\d|x)", re.IGNORECASE),
     re.compile(r"\b(?:number of|for each) ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control have\b", re.IGNORECASE),
@@ -496,7 +501,9 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(
             r"legendary creatures? you control"
             r"|whenever (?:a|another) legendary (?:creature|permanent)[^.]*you control"
-            r"|whenever you cast a legendary|for each legendary (?:creature|permanent)",
+            r"|whenever you cast a legendary|for each legendary (?:creature|permanent)"
+            r"|cast legendary|legendary (?:creature|permanent|spell)s? you cast"
+            r"|legendary spells?",
             re.IGNORECASE,
         ),
         "you",
@@ -572,10 +579,21 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "second_spell_matters",
         re.compile(
-            r"second spell you cast (?:each|this) turn|cast your second spell",
+            r"second spell you cast (?:each|this) turn|cast your second spell"
+            r"|(?:second|third|fourth|fifth) spell (?:you cast|of (?:a|each|that) turn)"
+            r"|cast two or more spells",
             re.IGNORECASE,
         ),
         "you",
+    ),
+    (
+        "opponent_cast_matters",
+        re.compile(
+            r"whenever an opponent casts|whenever (?:a|another) player casts a spell"
+            r"|whenever an opponent cast",
+            re.IGNORECASE,
+        ),
+        "opponents",
     ),
     # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
     (
