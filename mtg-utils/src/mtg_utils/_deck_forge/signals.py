@@ -89,21 +89,38 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
     # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland
     # creature" / "Plant creature" / "island creature" do NOT register — only a
     # genuine land-creature reference (the Jyoti / Sylvan Advocate theme).
-    ("land_creatures_matter", _re(r"\bland creatures?\b"), None),
     (
+        "land_creatures_matter",
+        _re(
+            r"\bland creatures?\b|lands? you control (?:are|become)\b"
+            r"|all lands[^.]*become[^.]*creature"
+            r"|target land[^.]*becomes? a[^.]*creature"
+        ),
+        None,
+    ),
+    (
+        # Lifegain payoff ("whenever you gain life") OR the act of gaining life.
         "lifegain_matters",
-        lambda c: "whenever" in c and "gain" in c and "life" in c,
+        _re(r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"),
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
     ("spellcast_matters", _has("whenever you cast", "spell"), "you"),
     ("death_matters", lambda c: "whenever" in c and "dies" in c, None),
     ("sacrifice_matters", _re(r"sacrifice (?:a|an|another|two|three|x|\d)"), "you"),
-    ("attack_matters", lambda c: "whenever" in c and "attack" in c, None),
+    (
+        "attack_matters",
+        lambda c: ("whenever" in c and "attack" in c) or "attacking causes" in c,
+        None,
+    ),
     ("draw_matters", _has("whenever you draw"), "you"),
     (
         "landfall",
-        lambda c: "landfall" in c or ("whenever a land" in c and "enter" in c),
+        lambda c: (
+            "landfall" in c
+            or ("whenever a land" in c and "enter" in c)
+            or _re(r"play (?:an|one|two|three|\d+) additional lands?")(c)
+        ),
         "you",
     ),
     (
@@ -153,6 +170,8 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
         ),
         None,
     ),
+    # Pay-life / self life-loss as a resource (forced you — it's your life).
+    ("lifeloss_matters", _re(r"pay \d+ life|you lose \d+ life"), "you"),
 )
 
 
@@ -593,6 +612,104 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ── Effect-axis detectors: every ability is a direction to build around ──────
+    (
+        "ramp_matters",
+        re.compile(
+            r"\{t\}[^.]*:\s*add \{|add (?:one|two|three|four|five|x|\d+) mana"
+            r"|add \{[wubrgc]\}",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "removal_matters",
+        re.compile(
+            r"destroy target "
+            r"(?:creature|permanent|artifact|enchantment|planeswalker|nonland)"
+            r"|exile target (?:creature|permanent|artifact|enchantment)"
+            r"|deals? (?:\d+|x) damage to target (?:creature|permanent)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "counter_control",
+        re.compile(
+            r"counter target (?:spell|ability|activated|triggered)", re.IGNORECASE
+        ),
+        "you",
+    ),
+    (
+        "team_buff",
+        re.compile(
+            r"(?:creatures?|permanents?) you control (?:gain|gains|have|has) "
+            r"(?:flying|trample|menace|hexproof|indestructible|protection|deathtouch"
+            r"|lifelink|double strike|first strike|vigilance|haste|ward|reach)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "tutor_matters",
+        re.compile(
+            r"search your library for (?:a|an|up to|one|two|three|x|that)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "untap_engine",
+        re.compile(
+            r"untap (?:target|another target|all|each|two|up to)", re.IGNORECASE
+        ),
+        "you",
+    ),
+    ("gain_control", re.compile(r"gain control of", re.IGNORECASE), "you"),
+    (
+        "opponent_discard",
+        re.compile(
+            r"(?:each opponent|target opponent|target player|that player|each player)"
+            r" discards",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
+    (
+        "evasion_self",
+        re.compile(r"can't be blocked|attacks each combat if able", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "clone_matters",
+        re.compile(
+            r"becomes a copy of|enters [^.]*as a copy of"
+            r"|copy of (?:target|another target) (?:creature|permanent)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "cheat_into_play",
+        re.compile(
+            r"put [^.]*creature card[^.]*onto the battlefield"
+            r"|put (?:a|that|those) [^.]*onto the battlefield from your "
+            r"(?:hand|library)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "bounce_tempo",
+        re.compile(
+            r"return target (?:creature|permanent|nonland)[^.]*"
+            r"to (?:its|their) owner's hand",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    ("cascade_matters", re.compile(r"\bcascade\b", re.IGNORECASE), "you"),
+    ("regenerate_matters", re.compile(r"\bregenerate\b", re.IGNORECASE), "you"),
 )
 
 # (preset_name → (signal_key, scope)). KEYWORD-ARRAY presets only — these read

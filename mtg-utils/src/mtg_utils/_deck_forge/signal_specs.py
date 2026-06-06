@@ -532,6 +532,93 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"copy (?:target|that)|instant or sorcery|\bstorm\b"},
         r"copy target (?:instant|sorcery|spell)|\bcopy that spell\b|\bstorm\b",
     ),
+    # ── Effect-axis specs ───────────────────────────────────────────────────────
+    ("ramp_matters", "you"): _spec(
+        "Ramp / big mana",
+        "mana rocks, dorks, and land ramp to accelerate into your payoffs",
+        {"oracle": r"add \{|search your library for .*\bland\b"},
+        r"\{t\}[^.]*:\s*add|add .* mana|search your library for .*\bland\b",
+    ),
+    ("removal_matters", "you"): _spec(
+        "Removal / interaction",
+        "spot removal and burn to clear blockers and threats",
+        {"oracle": r"destroy target|exile target|deals .* damage to target"},
+        r"destroy target|exile target (?:creature|permanent)"
+        r"|deals .* damage to target creature",
+    ),
+    ("counter_control", "you"): _spec(
+        "Counterspells / control",
+        "counterspells and stack interaction",
+        {"oracle": r"counter target"},
+        r"counter target",
+    ),
+    ("team_buff", "you"): _spec(
+        "Team keyword grants",
+        "keyword grants and anthems for your board",
+        {"oracle": r"creatures you control (?:gain|have)"},
+        r"creatures? you control (?:gain|gains|have|has)",
+    ),
+    ("tutor_matters", "you"): _spec(
+        "Tutors",
+        "tutors to assemble your key pieces and combos",
+        {"oracle": r"search your library for"},
+        r"search your library for",
+    ),
+    ("untap_engine", "you"): _spec(
+        "Untap engine",
+        "untap effects to reuse tap abilities and generate value",
+        {"oracle": r"untap (?:target|all|another|each)"},
+        r"untap (?:target|all|another|each)",
+    ),
+    ("gain_control", "you"): _spec(
+        "Theft",
+        "steal effects and ways to keep or sacrifice what you take",
+        {"oracle": r"gain control of"},
+        r"gain control of",
+    ),
+    ("opponent_discard", "opponents"): _spec(
+        "Hand attack",
+        "forced discard and hand disruption aimed at opponents",
+        {"oracle": r"opponent discards|each player discards|target player discards"},
+        r"opponent[^.]*discards|each player discards|target player discards",
+    ),
+    ("evasion_self", "you"): _spec(
+        "Evasion / unblockable",
+        "unblockable and evasion to keep connecting — strong for voltron",
+        {"oracle": r"can't be blocked|\bunblockable\b"},
+        r"can't be blocked",
+    ),
+    ("clone_matters", "you"): _spec(
+        "Clones / copies",
+        "clone effects plus strong creatures worth copying",
+        {"oracle": r"becomes a copy|copy of (?:target|another)"},
+        r"becomes a copy|copy of (?:target|another)",
+    ),
+    ("cheat_into_play", "you"): _spec(
+        "Cheat into play",
+        "ways to put big creatures onto the battlefield from hand or library",
+        {"oracle": r"onto the battlefield"},
+        r"onto the battlefield from your (?:hand|library)"
+        r"|put .*creature card.*onto the battlefield",
+    ),
+    ("bounce_tempo", "you"): _spec(
+        "Bounce / tempo",
+        "bounce effects for tempo and ETB re-use",
+        {"oracle": r"return target .*to (?:its|their) owner's hand"},
+        r"return target .*owner's hand",
+    ),
+    ("cascade_matters", "you"): _spec(
+        "Cascade",
+        "high-value spells to hit off cascade plus more cascade enablers",
+        {"oracle": r"\bcascade\b"},
+        r"\bcascade\b",
+    ),
+    ("regenerate_matters", "you"): _spec(
+        "Regenerate / resilience",
+        "regeneration and resilience to keep your threats around",
+        {"oracle": r"\bregenerate\b"},
+        r"\bregenerate\b",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

@@ -333,10 +333,13 @@ def test_granted_ability_marks_signal_low_confidence():
 
 
 def test_coverage_gate_flags_low_confidence_only():
+    # Only signal is a broad-possessive graveyard guess (no other detectable axis).
     c = {
         "name": "Graverobber",
-        "oracle_text": "Exile target creature card from that player's graveyard.",
+        "oracle_text": "You may play cards from that player's graveyard.",
     }
-    needs, reason = coverage_gate(c, extract_signals(c))
+    sigs = extract_signals(c)
+    assert all(s.confidence == "low" for s in sigs) and sigs
+    needs, reason = coverage_gate(c, sigs)
     assert needs is True
     assert reason == "low_confidence"
