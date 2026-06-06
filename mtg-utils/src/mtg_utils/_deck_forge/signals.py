@@ -1139,9 +1139,18 @@ def _resolve_scope(
 
 
 def extract_signals(
-    card: dict, *, vocab: frozenset[str] = CREATURE_SUBTYPES
+    card: dict,
+    *,
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
+    include_membership: bool = True,
 ) -> list[Signal]:
-    """Extract scoped, subject-bearing signals from a card (deterministic baseline)."""
+    """Extract scoped, subject-bearing signals from a card (deterministic baseline).
+
+    ``include_membership`` controls the two signals derived from what the card *is*
+    (its characteristics) rather than what it *does*: own-subtype tribal and the
+    voltron fallback. These are a commander-level suggestion; when aggregating over a
+    whole deck, pass ``include_membership=False`` for the 99 so every creature's race
+    and stat-line don't flood the deck's avenues (only the commander's do)."""
     # Strip parenthetical reminder text first: it restates a keyword and is rules-
     # redundant, so it must never generate a signal (e.g. an Earthbend reminder's
     # "is exiled, return it to the battlefield" is not a blink engine).
@@ -1211,13 +1220,14 @@ def extract_signals(
     for key, scope in _detect_direct_keywords(card):
         add(key, scope, "", text[:120])
 
-    # Own-subtype tribal: a creature's own creature type is a deterministic
+    # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a
     # Dragon is a viable Dragons build with no tribal oracle text. LOW confidence
     # (membership ≠ a payoff — an oracle "other Dragons you control" wins the dedup at
     # high confidence) and gated to supported race tribes (not generic class types).
+    # Commander-only at the deck level — see include_membership.
     type_line = card.get("type_line") or ""
-    if "creature" in type_line.lower() and "—" in type_line:
+    if include_membership and "creature" in type_line.lower() and "—" in type_line:
         for tok in type_line.split("—", 1)[1].split():
             sub = tok.strip().lower()
             if sub in TRIBAL_SUBTYPES:
@@ -1236,12 +1246,13 @@ def extract_signals(
     if _LOOT_FULLTEXT_RE.search(text):
         add("discard_matters", "you", "", text[:160])
 
-    # Voltron fallback (commander damage, CR 903.10a): only when nothing else gave a
-    # strong direction and the creature is a real commander-damage threat (an evasion
-    # keyword or power >=4). Low confidence — a generic plan, not a detected synergy.
+    # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
+    # else gave a strong direction and the creature is a real commander-damage threat
+    # (an evasion keyword or power >=4). Low confidence — a generic plan, not a detected
+    # synergy. Commander-only at the deck level — see include_membership.
     type_line = card.get("type_line") or ""
     has_strong = any(s.confidence == "high" and s.key not in _GENERIC_KEYS for s in out)
-    if not has_strong and "creature" in type_line.lower():
+    if include_membership and not has_strong and "creature" in type_line.lower():
         kws = {k.lower() for k in (card.get("keywords") or [])}
         try:
             power = int(str(card.get("power", "0")))

@@ -21,7 +21,7 @@ from mtg_utils._deck_forge.exporters import export_as
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
-from mtg_utils._deck_forge.signals import aggregate_signals
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.legality_audit import legality_audit
@@ -201,7 +201,7 @@ def _snapshot(state: ForgeState) -> dict:
             state.session.hydrated_expanded(state.by_name),
             deck_size=_deck_size(deck["format"]),
         ),
-        "signals": [_signal_dict(s) for s in aggregate_signals(hydrated)],
+        "signals": [_signal_dict(s) for s in _ranked_deck_signals(state, hydrated)],
         "avenues": _avenues(state, hydrated),
         "warnings": _legality_warnings(state),
     }
@@ -276,6 +276,41 @@ def _finalize_state(state: ForgeState) -> dict:
     }
 
 
+# Engine avenues are capped so the panel reads as "what the deck cares about" (its
+# dominant themes), not an exhaustive every-card dump. Ranking: the commander's own
+# signals first, then by how many cards support the theme, then high-confidence first.
+_AVENUE_CAP = 12
+
+
+def _ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
+    """Deck signals deduped by (key, scope, subject) and ranked by relevance.
+
+    Membership signals (own-subtype tribal, voltron fallback) are taken from the
+    COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
+    theme's ``support`` (how many cards feed it) drives the ranking."""
+    commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
+    support: dict[tuple[str, str, str], int] = {}
+    from_commander: set[tuple[str, str, str]] = set()
+    first: dict[tuple[str, str, str], object] = {}
+    for card in hydrated:
+        is_cmd = card.get("name") in commander_names
+        for sig in extract_signals(card, include_membership=is_cmd):
+            ident = (sig.key, sig.scope, sig.subject)
+            support[ident] = support.get(ident, 0) + 1
+            if is_cmd:
+                from_commander.add(ident)
+            first.setdefault(ident, sig)
+    return sorted(
+        first.values(),
+        key=lambda s: (
+            (s.key, s.scope, s.subject) in from_commander,
+            support[(s.key, s.scope, s.subject)],
+            s.confidence == "high",
+        ),
+        reverse=True,
+    )
+
+
 def _signal_dict(signal) -> dict:
     spec = spec_for(signal)
     return {
@@ -298,7 +333,9 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
     # Dedupe by label: a signal that fires at two scopes (you + any) can resolve to
     # the same scope-agnostic spec, which would otherwise render twice.
     seen_labels: set[str] = set()
-    for sig in aggregate_signals(hydrated):
+    for sig in _ranked_deck_signals(state, hydrated):
+        if len(seen_labels) >= _AVENUE_CAP:
+            break
         spec = spec_for(sig)
         if spec is None or spec.label in seen_labels:
             continue
@@ -440,8 +477,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/signals")
     async def signals() -> dict:
-        sigs = aggregate_signals(state.session.hydrated(state.by_name))
-        return {"signals": [_signal_dict(s) for s in sigs]}
+        hydrated = state.session.hydrated(state.by_name)
+        return {
+            "signals": [_signal_dict(s) for s in _ranked_deck_signals(state, hydrated)]
+        }
 
     @app.get("/api/presets")
     async def presets() -> dict:
@@ -467,7 +506,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": "Scryfall bulk data not found — run `download-bulk` first."},
                 status_code=503,
             )
-        sigs = aggregate_signals(state.session.hydrated(state.by_name))
+        sigs = _ranked_deck_signals(state, state.session.hydrated(state.by_name))
         ci = _color_identity(state)
         fmt = state.session.format
         in_deck = set(state.session.card_names())
@@ -608,7 +647,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
-        sigs = aggregate_signals(state.session.hydrated(state.by_name))
+        sigs = _ranked_deck_signals(state, state.session.hydrated(state.by_name))
         # Credit candidates for the avenue actually being explored, so a card the
         # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
         explored = {"label": payload.label, "search": payload.search}
