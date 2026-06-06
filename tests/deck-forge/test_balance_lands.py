@@ -60,29 +60,49 @@ def _client():
     return TestClient(build_app(state))
 
 
-def test_balance_lands_reaches_recommended_and_passes():
+def test_balance_targets_the_floor_not_recommended():
     client = _client()
     assert client.get("/api/snapshot").json()["mana"]["land_count"] == 0
-    snap = client.post("/api/deck/balance-lands").json()
-    mana = snap["mana"]
-    assert mana["land_count"] == mana["recommended_land_count"]
-    assert mana["land_count_status"] == "PASS"
+    mana = client.post("/api/deck/balance-lands").json()["mana"]
+    # fills to the FAIL floor (= Burgess), not all the way to the recommended count.
+    assert mana["land_count"] == mana["land_count_floor"]
+    assert mana["land_count_floor"] == mana["burgess_formula"]["result"]
+    assert mana["land_count"] <= mana["recommended_land_count"]
+    assert mana["land_count_status"] != "FAIL"
 
 
-def test_balance_lands_distributes_by_color_demand():
+def test_balance_distributes_by_color_demand():
     snap = _client().post("/api/deck/balance-lands").json()
-    added = snap["balanced"]
-    # pips favor white (commander W + double-white spell) → more Plains than Islands,
-    # but both colors get basics.
-    assert added.get("Plains", 0) > added.get("Island", 0) > 0
-    assert "Swamp" not in added  # off-identity basics never added
-    names = [e["name"] for e in snap["deck"]["cards"]]
-    assert "Plains" in names
-    assert "Island" in names
+    add = snap["balanced"]["add"]
+    # pips favor white (commander W + double-white spell) → more Plains than Islands.
+    assert add.get("Plains", 0) > add.get("Island", 0) > 0
+    assert "Swamp" not in add  # off-identity basics never added
 
 
-def test_balance_lands_is_noop_when_already_full():
+def test_rebalance_swaps_basics_at_count_net_zero():
+    # already at the floor but all white basics → swap some Plains for Islands, no net
+    # change in land count.
+    idx = {**BASICS, CMD["name"]: CMD, SPELL["name"]: SPELL}
+    session = DeckSession("commander")
+    session.add("WU Captain", zone="commanders")
+    session.add("Double White")
+    state = ForgeState(
+        by_name=idx, search_fn=lambda **_: [], session=session, bulk_available=True
+    )
+    client = TestClient(build_app(state))
+    floor = client.get("/api/snapshot").json()["mana"]["land_count_floor"]
+    session.add("Plains", floor)  # at the floor, but mono-white basics
+    assert client.get("/api/snapshot").json()["mana"]["land_count"] == floor
+
+    snap = client.post("/api/deck/balance-lands").json()
+    bal = snap["balanced"]
+    assert bal["remove"].get("Plains", 0) > 0  # over-produced white trimmed
+    assert bal["add"].get("Island", 0) > 0  # under-produced blue added
+    assert snap["mana"]["land_count"] == floor  # net-zero count
+
+
+def test_noop_when_at_floor_and_balanced():
     client = _client()
-    client.post("/api/deck/balance-lands")  # fills the base
-    snap = client.post("/api/deck/balance-lands").json()  # nothing left to add
-    assert snap["balanced"] == {}
+    client.post("/api/deck/balance-lands")  # floor + balanced colors
+    snap = client.post("/api/deck/balance-lands").json()  # nothing left to do
+    assert snap["balanced"] == {"add": {}, "remove": {}}

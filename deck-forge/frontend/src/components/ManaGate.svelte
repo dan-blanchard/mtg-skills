@@ -4,9 +4,13 @@
 
   let busy = false;
 
-  $: shortfall = $mana
-    ? Math.max(0, $mana.recommended_land_count - $mana.land_count)
-    : 0;
+  // Below the FAIL floor → needs lands; otherwise off-color → needs a swap.
+  $: belowFloor = $mana ? $mana.land_count < $mana.land_count_floor : false;
+  $: colorsOff = $mana ? $mana.color_balance_status !== "PASS" : false;
+  $: needsBalance = belowFloor || colorsOff;
+  $: balanceLabel = belowFloor
+    ? `Balance lands (+${$mana.land_count_floor - $mana.land_count})`
+    : "Rebalance colors";
 
   async function balance() {
     if (busy) return;
@@ -28,9 +32,9 @@
       <div class="badge bg-{$mana.land_count_status}">{$mana.land_count_status}</div>
     </div>
 
-    {#if shortfall > 0}
+    {#if needsBalance}
       <button class="btn balance" on:click={balance} disabled={busy}>
-        {busy ? "Balancing…" : `Balance lands (+${shortfall})`}
+        {busy ? "Balancing…" : balanceLabel}
       </button>
     {/if}
 

@@ -181,27 +181,66 @@ def allocate_basic_lands(
     return {_BASIC_FOR_COLOR[c]: alloc[c] for c in colors if alloc[c] > 0}
 
 
-def basic_lands_to_balance(deck: dict, hydrated: list[dict | None]) -> dict[str, int]:
-    """Basic lands to add so the deck reaches its recommended land count, distributed
-    by color demand (see ``allocate_basic_lands``). Returns {basic name: count}."""
+_BASIC_NAMES = frozenset(_BASIC_FOR_COLOR.values())
+_COLOR_FOR_BASIC = {name: color for color, name in _BASIC_FOR_COLOR.items()}
+
+
+def reconcile_basic_lands(
+    deck: dict, hydrated: list[dict | None]
+) -> dict[str, dict[str, int]]:
+    """Plan the basic-land changes that fix the mana base, returning
+    ``{"add": {name: qty}, "remove": {name: qty}}``.
+
+    Targets the FAIL FLOOR (not the recommended count) for total land count, and at
+    that count distributes basics to match color demand — so it both fills a deck
+    that's short AND rebalances the basics of a deck that's already at the floor
+    (swapping over-produced basics for under-produced ones, net-zero count). Only the
+    standard basics are managed; nonbasic lands (duals, fixing, snow basics) are
+    treated as fixed production the basics fill in around."""
     audit = mana_audit(deck, hydrated)
-    recommended = audit["recommended_land_count"]
-    shortfall = recommended - audit["land_count"]
-    if shortfall <= 0:
-        return {}
+    land_count = audit["land_count"]
+    target_total = max(land_count, audit["land_count_floor"])
+
+    current: dict[str, int] = {}
+    for entry in deck.get("cards", []):
+        color = _COLOR_FOR_BASIC.get(entry["name"])
+        if color:
+            current[color] = current.get(color, 0) + entry["quantity"]
+
+    nonbasic_count = land_count - sum(current.values())
+    desired_basic_total = max(0, target_total - nonbasic_count)
+    production = audit["land_color_production"]
+    nonbasic_prod = {
+        c: production.get(c, 0) - current.get(c, 0)
+        for c in set(production) | set(current)
+    }
+
     lookup = {r.get("name"): r for r in hydrated if r}
     ci: set[str] = set()
     for entry in deck.get("commanders", []):
         record = lookup.get(entry.get("name"))
         if record:
             ci.update(record.get("color_identity") or [])
-    return allocate_basic_lands(
-        shortfall,
-        recommended,
+
+    desired_named = allocate_basic_lands(
+        desired_basic_total,
+        target_total,
         audit["pip_demand"],
-        audit["land_color_production"],
+        nonbasic_prod,
         fallback_colors=sorted(ci),
     )
+    desired = {_COLOR_FOR_BASIC[name]: qty for name, qty in desired_named.items()}
+
+    add: dict[str, int] = {}
+    remove: dict[str, int] = {}
+    for color in set(current) | set(desired):
+        delta = desired.get(color, 0) - current.get(color, 0)
+        name = _BASIC_FOR_COLOR[color]
+        if delta > 0:
+            add[name] = delta
+        elif delta < 0:
+            remove[name] = -delta
+    return {"add": add, "remove": remove}
 
 
 def _add_color_sources(
@@ -317,6 +356,7 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
         )
         karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
         recommended = max(burgess_result, karsten_result)
+        floor = burgess_result  # the FAIL threshold (below this can't finalize)
         lc_status = land_count_status(
             land_count=land_count,
             recommended=recommended,
@@ -337,14 +377,11 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
             deck_size=deck_size,
         )
         recommended = constructed_target
-        # For constructed, use the target as both floor and recommended
+        floor = max(_CONSTRUCTED_MIN_LANDS, recommended - _CONSTRUCTED_FAIL_TOLERANCE)
         lc_status = land_count_status(
             land_count=land_count,
             recommended=recommended,
-            burgess=max(
-                _CONSTRUCTED_MIN_LANDS,
-                recommended - _CONSTRUCTED_FAIL_TOLERANCE,
-            ),
+            burgess=floor,
         )
         formula_info = {
             "constructed_land_target": {
@@ -367,6 +404,7 @@ def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     return {
         "land_count": land_count,
         "recommended_land_count": recommended,
+        "land_count_floor": floor,
         **formula_info,
         "land_count_status": lc_status,
         "ramp_count": ramp_count,

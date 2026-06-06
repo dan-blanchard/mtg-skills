@@ -25,7 +25,7 @@ from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.legality_audit import legality_audit
-from mtg_utils.mana_audit import basic_lands_to_balance, mana_audit
+from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.theme_presets import list_presets
 
 VERSION = "0.1.0"
@@ -437,19 +437,23 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/deck/balance-lands")
     async def balance_lands() -> dict:
-        """Add basic lands of each color to reach the recommended land count,
-        distributed by the deck's color demand (water-filled against existing lands)."""
+        """Fix the mana base: add basics to reach the FAIL floor and rebalance the
+        basics to match color demand (swapping over- for under-produced colors at the
+        current count when already at/above the floor)."""
         deck = state.session.to_deck_dict()
         hydrated = state.session.hydrated(state.by_name)
-        to_add = basic_lands_to_balance(deck, hydrated)
-        added: dict[str, int] = {}
-        for name, qty in to_add.items():
+        plan = reconcile_basic_lands(deck, hydrated)
+        applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
+        for name, qty in plan["remove"].items():
+            state.session.remove(name, qty, zone="cards")
+            applied["remove"][name] = qty
+        for name, qty in plan["add"].items():
             if name in state.by_name:  # only add basics the loaded index can hydrate
                 state.session.add(name, qty, zone="cards")
-                added[name] = qty
+                applied["add"][name] = qty
         _autosave(state)
         snap = _snapshot(state)
-        snap["balanced"] = added
+        snap["balanced"] = applied
         state.hub.publish(json.dumps(snap))
         return snap
 
