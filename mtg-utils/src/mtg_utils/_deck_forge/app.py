@@ -404,7 +404,15 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/events")
     async def events() -> StreamingResponse:
-        return StreamingResponse(state.hub.stream(), media_type="text/event-stream")
+        async def gen():
+            # Send current state immediately so a (re)connecting browser re-syncs —
+            # e.g. after a server restart — with no manual refresh, and never keeps a
+            # stale snapshot (which is how a removed avenue lingered client-side).
+            yield f"data: {json.dumps(_snapshot(state))}\n\n"
+            async for message in state.hub.stream():
+                yield message
+
+        return StreamingResponse(gen(), media_type="text/event-stream")
 
     @app.get("/api/signals")
     async def signals() -> dict:
@@ -467,7 +475,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.build_id = uuid.uuid4().hex[:8]
         state.build_name = payload.name or "Untitled"
         _autosave(state)
-        return {"build_id": state.build_id, **_snapshot(state)}
+        snap = _snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return {"build_id": state.build_id, **snap}
 
     @app.post("/api/builds/load")
     async def builds_load(payload: LoadBuildPayload):
@@ -481,7 +491,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.session = DeckSession.from_deck_dict(record.get("deck") or {})
         state.build_id = payload.id
         state.build_name = record.get("name", "Untitled")
-        return {"build_id": state.build_id, **_snapshot(state)}
+        snap = _snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return {"build_id": state.build_id, **snap}
 
     @app.post("/api/builds/rename")
     async def builds_rename(payload: RenameBuildPayload) -> dict:
@@ -517,14 +529,18 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "search": payload.search,
         }
         state.agent_avenues.append(avenue)
-        return {"avenue": avenue, **_snapshot(state)}
+        snap = _snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return {"avenue": avenue, **snap}
 
     @app.delete("/api/avenues/{avenue_id}")
     async def remove_avenue(avenue_id: str) -> dict:
         state.agent_avenues[:] = [
             a for a in state.agent_avenues if a["id"] != avenue_id
         ]
-        return _snapshot(state)
+        snap = _snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
 
     @app.post("/api/explore")
     async def explore(payload: ExplorePayload) -> dict:
