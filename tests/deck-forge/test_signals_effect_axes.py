@@ -13,15 +13,35 @@ def _ks(card):
 CASES = [
     ("ramp_matters", "you", "{T}: Add {G}{G}."),
     ("removal_matters", "you", "{2}{B}: Destroy target creature."),
-    ("counter_control", "you", "{U}: Counter target spell unless its controller pays {2}."),
+    (
+        "counter_control",
+        "you",
+        "{U}: Counter target spell unless its controller pays {2}.",
+    ),
     ("team_buff", "you", "Each other creature you control has hexproof."),
-    ("tutor_matters", "you", "{T}: Search your library for a basic land card, then shuffle."),
+    (
+        "tutor_matters",
+        "you",
+        "{T}: Search your library for a basic land card, then shuffle.",
+    ),
     ("untap_engine", "you", "{T}: Untap another target permanent."),
     ("gain_control", "you", "{3}{U}: Gain control of target creature."),
-    ("opponent_discard", "opponents", "When this creature enters, each opponent discards a card."),
+    (
+        "opponent_discard",
+        "opponents",
+        "When this creature enters, each opponent discards a card.",
+    ),
     ("evasion_self", "you", "This creature can't be blocked."),
-    ("clone_matters", "you", "This creature enters the battlefield as a copy of target creature."),
-    ("cheat_into_play", "you", "Look at the top five cards of your library. Put a creature card from among them onto the battlefield."),
+    (
+        "clone_matters",
+        "you",
+        "This creature enters the battlefield as a copy of target creature.",
+    ),
+    (
+        "cheat_into_play",
+        "you",
+        "Look at the top five cards of your library. Put a creature card from among them onto the battlefield.",
+    ),
     ("bounce_tempo", "you", "{1}{U}: Return target creature to its owner's hand."),
     ("cascade_matters", "you", "Cascade"),
     ("regenerate_matters", "you", "{R}: Regenerate this creature."),
@@ -30,7 +50,10 @@ CASES = [
 
 def test_effect_axis_detectors_fire():
     for key, scope, oracle in CASES:
-        sigs = {(s.key, s.scope) for s in extract_signals({"name": "X", "oracle_text": oracle})}
+        sigs = {
+            (s.key, s.scope)
+            for s in extract_signals({"name": "X", "oracle_text": oracle})
+        }
         assert (key, scope) in sigs, f"{key}/{scope} did not fire on: {oracle}"
 
 
@@ -38,7 +61,10 @@ def test_effect_axis_detectors_fire():
 
 
 def test_landfall_widened_for_extra_land_drops():
-    c = {"name": "Azusa-like", "oracle_text": "You may play two additional lands on each of your turns."}
+    c = {
+        "name": "Azusa-like",
+        "oracle_text": "You may play two additional lands on each of your turns.",
+    }
     assert any(s.key == "landfall" for s in extract_signals(c))
 
 
@@ -80,8 +106,13 @@ def test_type_matters_other_x_creatures():
 
 def test_type_matters_activated_tribal():
     # Azami: tribal subtype named in an activated cost.
-    c = {"name": "Azami", "oracle_text": "Tap an untapped Wizard you control: Draw a card."}
-    assert any(s.key == "type_matters" and s.subject == "Wizard" for s in extract_signals(c))
+    c = {
+        "name": "Azami",
+        "oracle_text": "Tap an untapped Wizard you control: Draw a card.",
+    }
+    assert any(
+        s.key == "type_matters" and s.subject == "Wizard" for s in extract_signals(c)
+    )
 
 
 def test_opponent_cast_matters():

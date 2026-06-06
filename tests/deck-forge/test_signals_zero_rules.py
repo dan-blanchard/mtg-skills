@@ -23,7 +23,10 @@ def test_combat_damage_matters_scoped_opponents():
 
 
 def test_combat_damage_does_not_fire_on_plain_attack():
-    c = {"name": "Attacker", "oracle_text": "Whenever this creature attacks, draw a card."}
+    c = {
+        "name": "Attacker",
+        "oracle_text": "Whenever this creature attacks, draw a card.",
+    }
     assert "combat_damage_matters" not in _keys(c)
 
 
@@ -101,7 +104,10 @@ def test_card_draw_engine_skips_cantrip():
 
 
 def test_card_draw_engine_skips_etb_oneshot():
-    c = {"name": "ETB Draw", "oracle_text": "When this creature enters, draw two cards."}
+    c = {
+        "name": "ETB Draw",
+        "oracle_text": "When this creature enters, draw two cards.",
+    }
     assert "card_draw_engine" not in _keys(c)
 
 

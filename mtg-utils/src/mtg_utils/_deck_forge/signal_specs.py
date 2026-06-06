@@ -15,6 +15,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils.card_classify import get_oracle_text
 
 _IC = re.IGNORECASE
@@ -122,6 +123,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "counter generators and proliferate",
         {"oracle": r"\+1/\+1 counter"},
         r"\+1/\+1 counter|proliferate",
+    ),
+    ("draw_matters", "you"): _spec(
+        "Draw triggers / wheels",
+        "draw-trigger payoffs and extra-draw engines (Nekusar / Chasm Skulker space)",
+        {"oracle": r"whenever you draw|draw an additional card"},
+        r"whenever you draw|draws? (?:your )?(?:second|an additional) card",
     ),
     ("spellcast_matters", "you"): _spec(
         "Spellslinger",
@@ -666,6 +673,29 @@ def _subject_spec(signal) -> SignalSpec:
                 {"oracle": rf"{re.escape(subj)}s? you control"},
             ),
         ),
+    )
+
+
+# Auto-register an avenue for every exhaustively-mined sweep key that doesn't
+# already have a hand-written spec (the same-key widens reuse their existing spec).
+def _humanize(key: str) -> str:
+    base = key.replace("_matters", "").replace("_", " ").strip()
+    return (base[:1].upper() + base[1:]) if base else key
+
+
+_SPECCED_KEYS = {k for (k, _scope) in SPECS}
+for _d in SWEEP_DETECTORS:
+    if _d["key"] in _SPECCED_KEYS:
+        continue  # hand-written spec already covers this axis
+    _ident = (_d["key"], _d["scope"])
+    if _ident in SPECS:
+        continue
+    _label = _humanize(_d["key"])
+    SPECS[_ident] = _spec(
+        _label,
+        f"support and payoffs for the {_label.lower()} axis",
+        {"oracle": _d["regex"]},
+        _d["regex"],
     )
 
 

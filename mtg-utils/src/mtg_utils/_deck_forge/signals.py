@@ -44,6 +44,7 @@ from mtg_utils._deck_forge._subtypes import (
     IRREGULAR_SINGULAR,
     NON_SUBJECT_WORDS,
 )
+from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.theme_presets import get_preset
 
@@ -750,6 +751,14 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     ("cascade_matters", re.compile(r"\bcascade\b", re.IGNORECASE), "you"),
     ("regenerate_matters", re.compile(r"\bregenerate\b", re.IGNORECASE), "you"),
+)
+
+# Exhaustively-mined detectors (one ability-axis each, grounded in real oracle
+# text). Appended as floor detectors; same-key widens carry the complete merged
+# regex, so dedup unions them with the hand-written originals.
+_REGEX_FLOOR_DETECTORS = _REGEX_FLOOR_DETECTORS + tuple(
+    (d["key"], re.compile(d["regex"], re.IGNORECASE), d["scope"])
+    for d in SWEEP_DETECTORS
 )
 
 # (preset_name → (signal_key, scope)). KEYWORD-ARRAY presets only — these read

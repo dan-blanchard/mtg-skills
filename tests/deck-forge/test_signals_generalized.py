@@ -226,8 +226,14 @@ def test_coverage_gate_passes_when_subject_present():
 
 
 def test_coverage_gate_only_generic_creatures_matter():
-    c = {"name": "Anthem", "oracle_text": "Creatures you control get +1/+1."}
-    needs, reason = coverage_gate(c, extract_signals(c))
+    # Gate logic in isolation: a card whose only signal is the non-discriminating
+    # creatures_matter is still flagged for the agent. (Built from a controlled
+    # signal list — most real anthems now also carry a real anthem axis.)
+    from mtg_utils._deck_forge.signals import Signal
+
+    sigs = [Signal("creatures_matter", "you", "", "creatures you control", "Anthem")]
+    c = {"name": "Anthem", "oracle_text": "Creatures you control are bigger."}
+    needs, reason = coverage_gate(c, sigs)
     assert needs is True
     assert reason == "only_generic"
 

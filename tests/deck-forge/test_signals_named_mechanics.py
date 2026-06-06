@@ -19,40 +19,83 @@ def _keys(card):
 # (expected_key, expected_scope, oracle text exercising the anchor)
 CASES = [
     # sweep survivors
-    ("voltron_matters", "you", "Whenever you attach an Equipment to a creature, draw a card."),
+    (
+        "voltron_matters",
+        "you",
+        "Whenever you attach an Equipment to a creature, draw a card.",
+    ),
     ("vehicles_matter", "you", "Vehicles you control get +1/+1."),
-    ("scry_surveil_matters", "you", "Whenever you scry, put a +1/+1 counter on this creature."),
+    (
+        "scry_surveil_matters",
+        "you",
+        "Whenever you scry, put a +1/+1 counter on this creature.",
+    ),
     # named mechanics
     ("monarch_matters", "you", "When this creature enters, you become the monarch."),
-    ("initiative_matters", "you", "When this creature enters, you take the initiative."),
+    (
+        "initiative_matters",
+        "you",
+        "When this creature enters, you take the initiative.",
+    ),
     ("ring_matters", "you", "Whenever this creature attacks, the Ring tempts you."),
     ("venture_matters", "you", "When this creature enters, venture into the dungeon."),
     ("energy_matters", "you", "When this creature enters, you get {E}{E}."),
-    ("devotion_matters", "you", "Your devotion to green is increased by this creature."),
+    (
+        "devotion_matters",
+        "you",
+        "Your devotion to green is increased by this creature.",
+    ),
     ("superfriends_matters", "you", "Planeswalkers you control have hexproof."),
     ("historic_matters", "you", "Whenever you cast a historic spell, draw a card."),
     ("legends_matter", "you", "Legendary creatures you control get +1/+1."),
     ("big_hand_matters", "you", "You have no maximum hand size."),
     ("party_matters", "you", "Whenever a creature in your party attacks, draw a card."),
-    ("exile_matters", "you", "This creature gets +1/+0 for each card you own in exile."),
-    ("experience_matters", "you", "When this creature enters, you get an experience counter."),
+    (
+        "exile_matters",
+        "you",
+        "This creature gets +1/+0 for each card you own in exile.",
+    ),
+    (
+        "experience_matters",
+        "you",
+        "When this creature enters, you get an experience counter.",
+    ),
     ("poison_matters", "opponents", "This creature has infect."),
     ("modified_matters", "you", "Modified creatures you control get +1/+1."),
     ("mutate_matters", "you", "Mutate {2}{G}{U}"),
-    ("food_matters", "you", "Whenever you sacrifice a Food, each opponent loses 1 life."),
+    (
+        "food_matters",
+        "you",
+        "Whenever you sacrifice a Food, each opponent loses 1 life.",
+    ),
     ("clue_matters", "you", "Whenever you investigate, draw a card."),
     ("blood_matters", "you", "Whenever you sacrifice a Blood token, draw a card."),
-    ("daynight_matters", "you", "Daybound (If a player casts no spells during their own turn...)"),
+    (
+        "daynight_matters",
+        "you",
+        "Daybound (If a player casts no spells during their own turn...)",
+    ),
     ("voting_matters", "each", "Each player votes for an option."),
     ("coven_matters", "you", "Coven — At the beginning of combat, scry 2."),
-    ("doubling_matters", "you", "If an effect would create tokens, instead it creates twice that many."),
-    ("second_spell_matters", "you", "Whenever you cast your second spell each turn, draw a card."),
+    (
+        "doubling_matters",
+        "you",
+        "If an effect would create tokens, instead it creates twice that many.",
+    ),
+    (
+        "second_spell_matters",
+        "you",
+        "Whenever you cast your second spell each turn, draw a card.",
+    ),
 ]
 
 
 def test_named_mechanic_and_survivor_rules_fire():
     for key, scope, oracle in CASES:
-        sigs = {(s.key, s.scope) for s in extract_signals({"name": "X", "oracle_text": oracle})}
+        sigs = {
+            (s.key, s.scope)
+            for s in extract_signals({"name": "X", "oracle_text": oracle})
+        }
         assert (key, scope) in sigs, f"{key}/{scope} did not fire on: {oracle}"
 
 
@@ -68,7 +111,10 @@ def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():
 
 def test_voltron_does_not_fire_on_equipment_payload():
     # The payload on an Equipment itself must not register as a voltron build-around.
-    c = {"name": "Bear Sword", "oracle_text": "Equipped creature gets +2/+2.\nEquip {2}"}
+    c = {
+        "name": "Bear Sword",
+        "oracle_text": "Equipped creature gets +2/+2.\nEquip {2}",
+    }
     assert "voltron_matters" not in _keys(c)
 
 
@@ -83,7 +129,10 @@ def test_counters_matter_widened_for_distributors():
 
 
 def test_poison_scoped_to_opponents():
-    c = {"name": "Skithiryx-like", "oracle_text": "Infect\nThis creature can't be blocked."}
+    c = {
+        "name": "Skithiryx-like",
+        "oracle_text": "Infect\nThis creature can't be blocked.",
+    }
     assert ("poison_matters", "opponents") in _ks(c)
 
 
@@ -120,7 +169,10 @@ def test_commit_a_crime():
 
 
 def test_connive_keyword():
-    c = {"name": "Prowler-like", "oracle_text": "Whenever this creature attacks, it connives."}
+    c = {
+        "name": "Prowler-like",
+        "oracle_text": "Whenever this creature attacks, it connives.",
+    }
     assert ("connive_matters", "you") in _ks(c)
 
 
@@ -135,7 +187,10 @@ def test_loot_outlet_is_a_discard_avenue():
 
 
 def test_spell_copy():
-    c = {"name": "X", "oracle_text": "Copy target instant or sorcery spell you control."}
+    c = {
+        "name": "X",
+        "oracle_text": "Copy target instant or sorcery spell you control.",
+    }
     assert ("spell_copy_matters", "you") in _ks(c)
 
 
