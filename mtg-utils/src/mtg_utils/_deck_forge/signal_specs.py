@@ -678,8 +678,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured
-# subtype (a Goblin lord and a Sliver lord must not share one static spec).
-_SUBJECT_KEYS = frozenset({"type_matters", "token_maker", "typed_spellcast"})
+# subject (a Goblin lord and a Sliver lord must not share one static spec).
+_SUBJECT_KEYS = frozenset(
+    {"type_matters", "token_maker", "typed_spellcast", "keyword_tribe"}
+)
 _SUBJECT_TEMPLATES = {
     "type_matters": ("{s} tribal", "{s}s and the anthems/lords that reward them"),
     "token_maker": ("{s} tokens", "more {s} token makers and {s} payoffs"),
@@ -688,8 +690,17 @@ _SUBJECT_TEMPLATES = {
 
 
 def _subject_spec(signal) -> SignalSpec:
-    """Build a spec for a subject-bearing signal by interpolating the subtype."""
+    """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
+    # keyword-tribe: the subject is an ability keyword (Flying), not a creature type —
+    # find creatures that HAVE the keyword (oracle), not a type-line match.
+    if signal.key == "keyword_tribe":
+        return SignalSpec(
+            label=f"{subj} matters",
+            avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
+            search={"oracle": rf"\b{re.escape(subj.lower())}\b"},
+            serve=re.compile(rf"\b{re.escape(subj)}\b", _IC),
+        )
     label_t, avenue_t = _SUBJECT_TEMPLATES.get(signal.key, ("{s}", "{s} synergies"))
     return SignalSpec(
         label=label_t.format(s=subj),

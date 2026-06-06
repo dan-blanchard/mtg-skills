@@ -877,10 +877,30 @@ def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
 
 
 # Direct card-keyword signals: keywords (not theme_presets) that anchor a build via the
-# rules. Dash returns the creature to hand each end step (CR 702.109a), so Equipment
-# persists across the bounce (CR 301.5c) while Auras (CR 704.5m) and counters are lost —
-# Equipment is the resilient buff for a recurring haste attacker (Zurgo, Ragavan).
-_DIRECT_KEYWORD_SIGNALS = {"dash": ("dash_matters", "you")}
+# rules — each maps to an existing signal axis, grounded in its CR 702.x definition.
+# Dash returns the creature to hand each end step (702.109a) so Equipment persists
+# (301.5c) while Auras (704.5m)/counters are lost; Mentor/Training/Evolve/… put +1/+1
+# counters; Battle cry/Battalion/Melee reward attacking as a team; Exalted rewards
+# attacking ALONE (suit up one); Extort drains each opponent (702.101a); Amass/Mobilize
+# make tokens. The keyword is authoritative, so these are high confidence.
+_DIRECT_KEYWORD_SIGNALS = {
+    "dash": ("dash_matters", "you"),
+    "mentor": ("counters_matter", "any"),
+    "training": ("counters_matter", "any"),
+    "modular": ("counters_matter", "any"),
+    "bolster": ("counters_matter", "any"),
+    "evolve": ("counters_matter", "any"),
+    "outlast": ("counters_matter", "any"),
+    "renown": ("counters_matter", "any"),
+    "adapt": ("counters_matter", "any"),
+    "battle cry": ("attack_matters", "you"),
+    "battalion": ("attack_matters", "you"),
+    "melee": ("attack_matters", "you"),
+    "exalted": ("voltron_matters", "you"),
+    "extort": ("lifeloss_matters", "opponents"),
+    "amass": ("tokens_matter", "you"),
+    "mobilize": ("tokens_matter", "you"),
+}
 
 
 def _detect_direct_keywords(card: dict) -> list[tuple[str, str]]:
@@ -890,6 +910,83 @@ def _detect_direct_keywords(card: dict) -> list[tuple[str, str]]:
         for kw, (key, scope) in _DIRECT_KEYWORD_SIGNALS.items()
         if kw in card_kws
     ]
+
+
+# Keyword-tribes: cards that group creatures by a KEYWORD characteristic (CR 109.3)
+# rather than a subtype — "Flying creatures you control get +1/+1", "creatures with
+# deathtouch …". The ability-keyword vocab is the precision gate (so a subtype like
+# "Goblin creatures you control" routes to type_matters, never here).
+_ABILITY_KEYWORDS = frozenset(
+    {
+        "flying",
+        "deathtouch",
+        "vigilance",
+        "trample",
+        "lifelink",
+        "menace",
+        "reach",
+        "haste",
+        "hexproof",
+        "indestructible",
+        "defender",
+        "flash",
+        "ward",
+        "shroud",
+        "fear",
+        "intimidate",
+        "horsemanship",
+        "prowess",
+        "skulk",
+        "wither",
+        "infect",
+        "persist",
+        "undying",
+        "flanking",
+        "banding",
+        "shadow",
+        "exalted",
+    }
+)
+_KW_TRIBE_RE = re.compile(
+    r"\b(?:other )?([A-Za-z]+) creatures you control\b", re.IGNORECASE
+)
+_KEYWORD_TRIBE_PATTERNS = (
+    # "Flying creatures you control …" / "other Flying creatures …"
+    (_KW_TRIBE_RE, "you"),
+    (re.compile(r"\bother ([A-Za-z]+) creatures\b", re.IGNORECASE), "you"),
+    # "creatures you control with deathtouch …"
+    (re.compile(r"\bcreatures you control with ([A-Za-z]+)\b", re.IGNORECASE), "you"),
+    # "all creatures with deathtouch …" (symmetric)
+    (re.compile(r"\bcreatures with ([A-Za-z]+)\b", re.IGNORECASE), "any"),
+)
+
+
+def _detect_keyword_tribe(clause: str) -> list[tuple[str, str, str]]:
+    out: list[tuple[str, str, str]] = []
+    for pat, scope in _KEYWORD_TRIBE_PATTERNS:
+        for m in pat.finditer(clause):
+            kw = m.group(1).lower()
+            if kw in _ABILITY_KEYWORDS:
+                out.append(("keyword_tribe", scope, kw.capitalize()))
+    return out
+
+
+# Voltron fallback: a vanilla beater still has a deterministic plan — commander damage
+# (CR 903.10a: 21 combat damage from one commander = loss). Fires ONLY when nothing else
+# gave a strong direction, for a voltron-viable creature (evasion keyword or power >=4).
+_VOLTRON_KEYWORDS = frozenset(
+    {
+        "flying",
+        "menace",
+        "fear",
+        "intimidate",
+        "shadow",
+        "horsemanship",
+        "skulk",
+        "trample",
+        "double strike",
+    }
+)
 
 
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
@@ -1092,6 +1189,8 @@ def extract_signals(
         # Tier 2 — parametric subject detectors (forced scope=you: "you control")
         for key, subject in _detect_type_matters(clause, vocab):
             add(key, "you", subject, stripped)
+        for key, scope, subject in _detect_keyword_tribe(clause):
+            add(key, scope, subject, stripped)
         for key, subject in _detect_typed_spellcast(clause, vocab):
             add(key, "you", subject, stripped)
         for key, subject in _detect_token_maker(clause, vocab):
@@ -1136,6 +1235,20 @@ def extract_signals(
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
         add("discard_matters", "you", "", text[:160])
+
+    # Voltron fallback (commander damage, CR 903.10a): only when nothing else gave a
+    # strong direction and the creature is a real commander-damage threat (an evasion
+    # keyword or power >=4). Low confidence — a generic plan, not a detected synergy.
+    type_line = card.get("type_line") or ""
+    has_strong = any(s.confidence == "high" and s.key not in _GENERIC_KEYS for s in out)
+    if not has_strong and "creature" in type_line.lower():
+        kws = {k.lower() for k in (card.get("keywords") or [])}
+        try:
+            power = int(str(card.get("power", "0")))
+        except ValueError:
+            power = 0
+        if kws & _VOLTRON_KEYWORDS or power >= 4:
+            add("voltron_matters", "you", "", "commander damage (CR 903.10a)", "low")
 
     return out
 
