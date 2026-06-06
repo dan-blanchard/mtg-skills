@@ -1,6 +1,7 @@
 """Commander Spellbook combo search for Commander decks."""
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import click
 import requests
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.card_classify import build_card_lookup, get_oracle_text
 from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
@@ -23,8 +24,21 @@ def _extract_combo(variant: dict) -> dict:
     result = [
         p.get("name") or p.get("feature", {}).get("name", str(p)) for p in produces
     ]
+    # Generic requirements ("a Persist Creature", "a card with 'The Ring tempts you'")
+    # — pieces the combo needs that aren't named cards. The near-miss check validates
+    # these against the deck too, so a combo isn't called "one card away" when it also
+    # needs a template the deck doesn't satisfy.
+    templates = [
+        {
+            "name": req.get("template", {}).get("name", ""),
+            "query": req.get("template", {}).get("scryfallQuery", ""),
+            "quantity": req.get("quantity", 1),
+        }
+        for req in variant.get("requires", [])
+    ]
     return {
         "cards": cards,
+        "templates": templates,
         "description": variant.get("description", ""),
         "result": result,
         "identity": variant.get("identity", ""),
@@ -34,13 +48,40 @@ def _extract_combo(variant: dict) -> dict:
     }
 
 
-def _find_missing_card(variant: dict, deck_card_names: set[str]) -> str | None:
-    """Identify the missing card in a near-miss combo."""
-    combo_cards = [use["card"]["name"] for use in variant.get("uses", [])]
-    missing = [c for c in combo_cards if c not in deck_card_names]
-    if len(missing) == 1:
-        return missing[0]
-    return None
+# Minimal Scryfall-query evaluator for the predicates Commander Spellbook templates
+# actually use: keyword:, t:/type:, o:/oracle: (quoted or bare), AND-combined.
+_QUERY_TERM_RE = re.compile(r'(\w+):("[^"]*"|\S+)')
+
+
+def _card_matches_query(card: dict, query: str) -> bool:
+    """Best-effort: does ``card`` satisfy a (simple) Scryfall template query? Format
+    filters (legal:/f:) are ignored — the deck is already format-scoped. Any predicate
+    we can't evaluate fails the match, so an unverifiable template reads as unsatisfied
+    (we never claim a near-miss we can't confirm)."""
+    keywords = {k.lower() for k in (card.get("keywords") or [])}
+    type_line = (card.get("type_line") or "").lower()
+    oracle = (get_oracle_text(card) or "").lower()
+    for raw_key, raw in _QUERY_TERM_RE.findall(query or ""):
+        value = raw.strip('"').lower()
+        key = raw_key.lower()
+        if key in ("legal", "f", "format", "banned"):
+            continue
+        if key in ("keyword", "kw"):
+            if value not in keywords:
+                return False
+        elif key in ("t", "type"):
+            if value not in type_line:
+                return False
+        elif key in ("o", "oracle"):
+            if value not in oracle:
+                return False
+        else:
+            return False  # unknown predicate → can't confirm a match
+    return True
+
+
+def _template_satisfied(query: str, deck_records: list[dict | None]) -> bool:
+    return any(_card_matches_query(c, query) for c in deck_records if c)
 
 
 def _is_format_legal(variant: dict, legality_key: str = "commander") -> bool:
@@ -126,15 +167,37 @@ def combo_search(
         if _is_format_legal(variant, legality_key)
     ]
 
+    # Deck records (for template validation) — only when hydrated data is available.
+    deck_records = (
+        [card_lookup[n] for n in all_card_names if n in card_lookup]
+        if card_lookup
+        else None
+    )
+
     near_misses = []
     for variant in results.get("almostIncluded", []):
         if not _is_format_legal(variant, legality_key):
             continue
-        missing = _find_missing_card(variant, all_card_names)
-        if missing is None:
-            continue
         entry = _extract_combo(variant)
-        entry["missing_card"] = missing
+        missing_cards = [c for c in entry["cards"] if c not in all_card_names]
+        # Unmet generic requirements — only checkable with hydrated deck data; without
+        # it we fall back to the cards-only count (legacy behavior).
+        unmet_templates = (
+            [
+                t
+                for t in entry["templates"]
+                if not _template_satisfied(t["query"], deck_records)
+            ]
+            if deck_records is not None
+            else []
+        )
+        # A true near-miss is exactly ONE piece away (a named card OR a template).
+        if len(missing_cards) + len(unmet_templates) != 1:
+            continue
+        if missing_cards:
+            entry["missing_card"] = missing_cards[0]
+        else:
+            entry["missing_template"] = unmet_templates[0]["name"]
         near_misses.append(entry)
 
     near_misses.sort(key=lambda x: x.get("popularity", 0), reverse=True)

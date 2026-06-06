@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from mtg_utils.combo_search import (
+    _card_matches_query,
+    _template_satisfied,
     combo_search,
     discover_main,
     main,
@@ -700,3 +702,113 @@ class TestDiscoverCLI:
         data = json_from_cli_output(result)
         assert len(data) == 1
         assert data[0]["cards"] == ["Scurry Oak", "Ivy Lane Denizen"]
+
+
+def _mock_combo_search(api_response, deck, *, hydrated=None):
+    resp = MagicMock(status_code=200)
+    resp.json.return_value = api_response
+    resp.raise_for_status = MagicMock()
+    with patch("mtg_utils.combo_search.requests") as mock_requests:
+        session = MagicMock()
+        session.post.return_value = resp
+        mock_requests.Session.return_value = session
+        return combo_search(deck, hydrated=hydrated)
+
+
+_PERSIST_CREATURE = {
+    "name": "Murderous Redcap",
+    "type_line": "Creature — Goblin Assassin",
+    "keywords": ["Persist"],
+    "oracle_text": "Persist",
+}
+_VANILLA = {
+    "name": "Grizzly Bears",
+    "type_line": "Creature — Bear",
+    "keywords": [],
+    "oracle_text": "",
+}
+_CMDR = {
+    "name": "Cmdr",
+    "type_line": "Legendary Creature — Elf",
+    "keywords": [],
+    "oracle_text": "",
+}
+# A near-miss whose only named card is Moritte, but which also REQUIRES a persist
+# creature (a template) — the exact shape that wrongly read as "one card away".
+_MORITTE_VARIANT = {
+    "uses": [{"card": {"name": "Moritte of the Frost"}}],
+    "requires": [
+        {
+            "quantity": 1,
+            "template": {
+                "name": "Persist Creature",
+                "scryfallQuery": "keyword:persist t:creature",
+            },
+        }
+    ],
+    "produces": [{"feature": {"name": "Infinite ETB"}}],
+    "legalities": {"commander": True},
+    "popularity": 100,
+}
+_API = {"results": {"included": [], "almostIncluded": [_MORITTE_VARIANT]}}
+
+
+def _deck(card_names):
+    return {
+        "format": "commander",
+        "commanders": [{"name": "Cmdr"}],
+        "cards": [{"name": n} for n in card_names],
+        "sideboard": [],
+    }
+
+
+class TestTemplateMatching:
+    def test_keyword_and_type(self):
+        assert _card_matches_query(_PERSIST_CREATURE, "keyword:persist t:creature") is True
+        assert _card_matches_query(_VANILLA, "keyword:persist t:creature") is False
+
+    def test_oracle_quoted(self):
+        ring = {"oracle_text": "When this enters, the Ring tempts you."}
+        assert _card_matches_query(ring, 'o:"the Ring tempts you"') is True
+        assert _card_matches_query({"oracle_text": "Draw."}, 'o:"the Ring tempts you"') is False
+
+    def test_legal_filter_ignored(self):
+        q = "keyword:persist t:creature legal:commander"
+        assert _card_matches_query(_PERSIST_CREATURE, q) is True
+
+    def test_unknown_predicate_fails_closed(self):
+        assert _card_matches_query(_PERSIST_CREATURE, "mana:{G} keyword:persist") is False
+
+    def test_template_satisfied(self):
+        deck = [_PERSIST_CREATURE, _VANILLA]
+        assert _template_satisfied("keyword:persist t:creature", deck) is True
+        assert _template_satisfied("keyword:undying t:creature", deck) is False
+
+
+class TestNearMissTemplateValidation:
+    def test_dropped_when_card_and_template_both_missing(self):
+        # missing Moritte AND a persist creature → 2 away, not a near-miss.
+        result = _mock_combo_search(_API, _deck([]), hydrated=[_CMDR])
+        assert result["near_misses"] == []
+
+    def test_kept_as_card_near_miss_when_template_satisfied(self):
+        # deck has a persist creature → only Moritte missing → 1-card near-miss.
+        result = _mock_combo_search(
+            _API, _deck(["Murderous Redcap"]), hydrated=[_CMDR, _PERSIST_CREATURE]
+        )
+        assert len(result["near_misses"]) == 1
+        assert result["near_misses"][0]["missing_card"] == "Moritte of the Frost"
+
+    def test_template_near_miss_when_only_template_missing(self):
+        # deck has Moritte but no persist creature → 1-template near-miss.
+        moritte = {
+            "name": "Moritte of the Frost",
+            "type_line": "Legendary Snow Creature — Shapeshifter",
+            "keywords": [],
+            "oracle_text": "",
+        }
+        result = _mock_combo_search(
+            _API, _deck(["Moritte of the Frost"]), hydrated=[_CMDR, moritte]
+        )
+        assert len(result["near_misses"]) == 1
+        assert result["near_misses"][0]["missing_template"] == "Persist Creature"

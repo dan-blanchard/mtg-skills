@@ -58,7 +58,7 @@
     {:else if loaded && combos.length === 0 && nearMisses.length === 0}
       <div class="notice">No catalogued combos in the deck yet.</div>
     {:else if loaded}
-      {#each [{ label: "In your deck", list: combos, near: false }, { label: "Near misses — one card away", list: nearMisses, near: true }] as group}
+      {#each [{ label: "In your deck", list: combos, near: false }, { label: "Near misses — one piece away", list: nearMisses, near: true }] as group}
         {#if group.list.length}
           <div class="group-head">{group.label} ({group.list.length})</div>
           {#each group.list as c}
@@ -79,24 +79,28 @@
                 <div class="mana">Mana: {c.mana_needed}</div>
               {/if}
 
-              {#if c.card_views?.length}
-                {#if haveOf(c).length}
-                  <div class="sub">In your deck</div>
-                  <div class="grid">
-                    {#each haveOf(c) as cv (cv.name)}
-                      <CardTile card={cv} onadd={add} />
-                    {/each}
-                  </div>
-                {/if}
+              {#if haveOf(c).length}
+                <div class="sub">In your deck</div>
+                <div class="grid">
+                  {#each haveOf(c) as cv (cv.name)}
+                    <CardTile card={cv} onadd={add} />
+                  {/each}
+                </div>
+              {/if}
+              {#if missingOf(c).length || c.missing_template}
+                <div class="sub need">You need</div>
                 {#if missingOf(c).length}
-                  <div class="sub need">You need</div>
                   <div class="grid">
                     {#each missingOf(c) as cv (cv.name)}
                       <CardTile card={cv} onadd={add} />
                     {/each}
                   </div>
                 {/if}
-              {:else}
+                {#if c.missing_template}
+                  <div class="need-template">a {c.missing_template}</div>
+                {/if}
+              {/if}
+              {#if !c.card_views?.length && !c.missing_template}
                 <div class="cards">{c.cards.join(" + ")}</div>
               {/if}
             </section>
@@ -199,6 +203,16 @@
   }
   .sub.need {
     color: var(--warn);
+  }
+  .need-template {
+    display: inline-block;
+    font-size: 0.84rem;
+    color: var(--parchment);
+    background: rgba(200, 150, 75, 0.12);
+    border: 1px solid var(--hairline-soft);
+    border-left: 3px solid var(--warn);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.6rem;
   }
   .grid {
     display: grid;
