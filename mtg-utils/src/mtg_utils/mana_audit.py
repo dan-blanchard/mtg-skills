@@ -12,6 +12,7 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
+    check_hydration,
     color_sources,
     is_land,
     is_ramp,
@@ -328,6 +329,7 @@ def _overall_status(statuses: list[str]) -> str:
 
 def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
     """Run a full mana base audit on the deck."""
+    check_hydration("mana_audit", deck, hydrated)
     card_lookup = build_card_lookup(hydrated)
 
     config = get_format_config(deck)

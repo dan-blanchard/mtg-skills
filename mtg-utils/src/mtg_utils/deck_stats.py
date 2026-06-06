@@ -12,6 +12,7 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
+    check_hydration,
     color_sources,
     get_oracle_text,
     is_creature,
@@ -147,6 +148,7 @@ def detect_bracket(hydrated: list[dict | None], avg_cmc: float) -> dict:
 
 def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
     """Compute deck statistics from parsed deck + hydrated card data."""
+    check_hydration("deck_stats", deck, hydrated)
     card_lookup = build_card_lookup(hydrated)
 
     # Collect all entries (commanders + cards)

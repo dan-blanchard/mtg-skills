@@ -1,7 +1,12 @@
 """Tests for card classification helpers."""
 
+import warnings
+
+import pytest
+
 from mtg_utils.card_classify import (
     build_card_lookup,
+    check_hydration,
     classify_cube_category,
     color_sources,
     is_commander,
@@ -9,6 +14,45 @@ from mtg_utils.card_classify import (
     is_land,
     is_ramp,
 )
+
+
+class TestCheckHydration:
+    """The loud guard against silently computing deck stats on un-hydrated decks."""
+
+    def test_raises_on_deck_entry_stubs(self):
+        # passing {name, quantity} entries instead of hydrated records is always a bug.
+        with pytest.raises(ValueError, match="type_line"):
+            check_hydration(
+                "x",
+                {
+                    "commanders": [],
+                    "cards": [{"name": "A", "quantity": 1}],
+                    "sideboard": [],
+                },
+                [{"name": "A", "quantity": 1}],
+            )
+
+    def test_warns_when_cards_but_no_hydration(self):
+        with pytest.warns(UserWarning, match="degraded"):
+            check_hydration(
+                "x",
+                {"commanders": [{"name": "C"}], "cards": [], "sideboard": []},
+                [],
+            )
+
+    def test_noop_for_hydrated_records(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any warning would fail this test
+            check_hydration(
+                "x",
+                {"commanders": [], "cards": [{"name": "A"}], "sideboard": []},
+                [{"name": "A", "type_line": "Creature — Elf", "oracle_text": ""}],
+            )
+
+    def test_noop_for_empty_deck(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            check_hydration("x", {"commanders": [], "cards": [], "sideboard": []}, [])
 
 
 class TestIsLand:

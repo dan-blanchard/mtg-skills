@@ -28,6 +28,7 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
+    check_hydration,
     has_any_number_exemption,
     named_card_cap,
 )
@@ -382,6 +383,7 @@ def check_deck_minimum(deck_json: dict, config: dict) -> list[dict]:
 
 def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
     """Run all legality checks and return a structured result."""
+    check_hydration("legality_audit", deck_json, hydrated_cards)
     config = get_format_config(deck_json)
     legality_key = config["legality_key"]
 
