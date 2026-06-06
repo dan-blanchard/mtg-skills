@@ -902,3 +902,347 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "regex": "each player (?:may )?draws?\\b|each player who drew",
     },
 )
+
+
+# Curated (label, avenue) prose per mined sweep axis. Data, not logic.
+SWEEP_LABELS: dict[str, tuple[str, str]] = {
+    "ability_copy": (
+        "Ability copy",
+        "ability-copy effects plus permanents with strong activated/triggered abilities to copy",
+    ),
+    "activated_draw": (
+        "Repeatable draw",
+        "repeatable activated card draw and ways to untap the source",
+    ),
+    "affinity_type": (
+        "Affinity",
+        "cheap artifacts/creatures of the affinity type to slash costs",
+    ),
+    "all_creatures_kw_grant": (
+        "Global keyword grant",
+        "symmetric keyword grants — pair with your own evasive board",
+    ),
+    "alt_cost_keyword": (
+        "Alternative-cost keyword",
+        "cards sharing the alternative-cost mechanic",
+    ),
+    "animate_artifact": (
+        "Animate artifacts",
+        "artifacts to animate plus artifact-creature payoffs",
+    ),
+    "anthem_static": ("Static anthem", "go-wide creatures to ride the anthem"),
+    "attractions_matter": ("Attractions", "attraction openers and visit payoffs"),
+    "aura_equip_kw_grant": (
+        "Aura/Equipment keyword grant",
+        "Auras and Equipment that gain keywords to suit up",
+    ),
+    "base_pt_set": (
+        "Set base power/toughness",
+        "set-P/T effects and creatures that exploit them",
+    ),
+    "bending_matters": ("Bending (Avatar)", "bending cards across the four elements"),
+    "blocked_matters": (
+        "Blocks matter",
+        "combat triggers when creatures block or become blocked",
+    ),
+    "boast_matters": ("Boast", "boast creatures and ways to attack safely"),
+    "cant_block_grant": ("Can't-block", "force blockers off to clear a path to attack"),
+    "cast_as_named_card": ("Cast-as", "play cards as though they were another card"),
+    "changeling_matters": (
+        "Changeling / all types",
+        "all-creature-type cards for tribal overlap",
+    ),
+    "cmdzone_ability": (
+        "Command-zone ability",
+        "command-zone activations and commander recursion",
+    ),
+    "coin_flip": ("Coin flips", "coin-flip payoffs plus flip-fixing"),
+    "color_change": (
+        "Color change",
+        "color-changing effects for protection and devotion",
+    ),
+    "combat_buff_engine": ("Beginning-of-combat buff", "attackers to grow each combat"),
+    "combat_damage_to_creature": (
+        "Combat damage to creatures",
+        "fight-style and deathtouch combat payoffs",
+    ),
+    "combat_damage_to_opp": (
+        "Combat damage to opponents",
+        "evasive attackers and extra combats to connect",
+    ),
+    "commander_matters": (
+        "Commander matters",
+        "cast-from-command-zone payoffs and commander protection",
+    ),
+    "conditional_self_protection": (
+        "Conditional protection",
+        "ways to satisfy the commander's protection condition",
+    ),
+    "conjure_matters": ("Conjure", "conjure effects (Alchemy)"),
+    "convoke_matters": ("Convoke", "wide, cheap creatures to convoke out big spells"),
+    "count_anthem": ("Count anthem", "go-wide creatures to scale the count-based pump"),
+    "counter_distribute": (
+        "Counter distribution",
+        "spread +1/+1 counters across your whole board",
+    ),
+    "counter_grants_kw": (
+        "Counters grant keywords",
+        "+1/+1 counter sources to turn on the keyword grant",
+    ),
+    "counter_manipulation": (
+        "Counter manipulation",
+        "remove or relocate counters for value",
+    ),
+    "counter_move": ("Counter movement", "move counters between permanents"),
+    "counter_place_trigger": (
+        "Counter-placement triggers",
+        "ways to put +1/+1 counters to fire the trigger",
+    ),
+    "counter_replace_bonus": (
+        "Counter doubling",
+        "counter-placement sources to double up",
+    ),
+    "creature_cast_trigger": (
+        "Creature-cast triggers",
+        "cheap creatures to chain the cast trigger",
+    ),
+    "creature_ping": ("Power-based ping", "high-power creatures to ping with"),
+    "damage_doubling": ("Damage doubling", "burn and big hits to double"),
+    "damage_equal_power": (
+        "Power-as-damage",
+        "high-power creatures to fling as damage",
+    ),
+    "damage_prevention": (
+        "Damage prevention / fog",
+        "fogs and prevention to blank attacks and burn",
+    ),
+    "damage_redirect": ("Damage redirection", "redirect effects to protect and punish"),
+    "damage_reflect": ("Damage reflection", "high-toughness bodies to reflect damage"),
+    "damage_to_you_punish": (
+        "Punish damage to you",
+        "take damage and punish the source",
+    ),
+    "debuff_matters": (
+        "-1/-1 / shrink",
+        "minus-counter and toughness-shrink removal plus payoffs",
+    ),
+    "destroy_legendary": ("Legend removal", "targeted destruction of legends"),
+    "devour_matters": ("Devour", "token fodder to devour"),
+    "dies_recursion": (
+        "Dies-replacement recursion",
+        "recur or protect creatures that would die",
+    ),
+    "dig_until": ("Dig-until", "deep top-of-library digging effects"),
+    "discard_outlet": (
+        "Discard outlets",
+        "loot/rummage outlets to fuel discard and graveyard payoffs",
+    ),
+    "domain_matters": ("Domain", "basic land types and fixing to grow domain"),
+    "donate_matters": ("Donate", "give away downside permanents for advantage"),
+    "draft_spellbook": (
+        "Draft / spellbook",
+        "draft-a-card and spellbook effects (Alchemy)",
+    ),
+    "draw_for_each": ("Scaling card draw", "grow the count your draw scales with"),
+    "each_mode_player": ("Spread-the-modes", "modal effects that hit each player"),
+    "edict_matters": (
+        "Edicts / forced sacrifice",
+        "edicts to make opponents sacrifice",
+    ),
+    "evasion_denial": ("Evasion denial", "make your attackers effectively unblockable"),
+    "excess_damage": ("Excess damage", "trample and big hits to exploit excess damage"),
+    "exhaust_matters": ("Exhaust", "exhaust abilities (once per game)"),
+    "exile_until_leaves": ("O-Ring removal", "exile-until-leaves removal effects"),
+    "explore_matters": ("Explore", "explore creatures plus counter/graveyard payoffs"),
+    "extra_land_drop": (
+        "Put lands into play",
+        "lands to drop straight onto the battlefield",
+    ),
+    "facedown_matters": (
+        "Face-down / morph",
+        "morph/manifest/disguise creatures and flip payoffs",
+    ),
+    "fight_matters": ("Fight", "big creatures to fight with as removal"),
+    "flash_grant": ("Flash", "flash enablers and instant-speed threats"),
+    "flip_meld_matters": ("Flip / meld", "the pieces to flip or meld"),
+    "forced_attack": ("Forced attacks / politics", "goad-style forced-attack effects"),
+    "free_cast": ("Free / alternative cost", "expensive bombs to cast for free"),
+    "global_ability_grant": (
+        "Global ability grant",
+        "a board that exploits the granted ability",
+    ),
+    "group_hug_draw": ("Group draw", "symmetric draw plus punisher payoffs"),
+    "group_mana": ("Group ramp", "shared-mana effects and big payoffs to spend it"),
+    "hand_disruption": ("Hand disruption", "peek-and-strip effects against opponents"),
+    "impulse_top_play": ("Impulse draw (top)", "top-of-library exile-and-play engines"),
+    "keyword_counter": (
+        "Keyword counters",
+        "stun/aegis/keyword-counter sources and payoffs",
+    ),
+    "keyword_grant_target": (
+        "Targeted keyword grant",
+        "creatures worth granting evasion/protection",
+    ),
+    "keyword_soup": ("Keyword soup", "many-keyword threats to buff together"),
+    "legend_rule_off": (
+        "Legend-rule off",
+        "duplicate legends to abuse without the legend rule",
+    ),
+    "life_total_set": ("Life-total swing", "set/exchange-life effects and payoffs"),
+    "ltb_matters": (
+        "Leaves-the-battlefield",
+        "sacrifice and blink fodder to trigger LTB",
+    ),
+    "lure_matters": ("Lure", "lure effects plus deathtouch/trample to punish blocks"),
+    "mass_bounce": ("Mass bounce", "board-wide bounce and ETB re-use"),
+    "mass_removal": ("Board wipes", "sweepers plus resilience to rebuild"),
+    "miracle_grant": ("Miracle", "miracle support and top-deck setup"),
+    "myriad_grant": ("Myriad", "attackers worth copying to each opponent"),
+    "named_counter_mechanic": (
+        "Named counters",
+        "that named-counter mechanic's enablers and payoffs",
+    ),
+    "named_permanent": (
+        "Named-card synergy",
+        "the specific named cards this references",
+    ),
+    "ninjutsu_matters": (
+        "Ninjutsu",
+        "cheap unblockable creatures to ninja in value bombs",
+    ),
+    "noncombat_damage_payoff": (
+        "Noncombat damage",
+        "burn and damage doublers outside combat",
+    ),
+    "noncreature_cast_punish": (
+        "Punish noncreature spells",
+        "stax and punishers for noncreature casts",
+    ),
+    "opponent_counter_grant": (
+        "Mark opponents",
+        "bounty/stun counters on opponents plus payoffs",
+    ),
+    "opponent_exile_matters": (
+        "Opponents' exile",
+        "exile opponents' cards and play them",
+    ),
+    "partner_background": (
+        "Partner / Background",
+        "a partner, Background, or companion to pair",
+    ),
+    "phasing_matters": ("Phasing", "phase-out effects for protection and resets"),
+    "play_from_top": ("Play from the top", "top-of-library access plus reveal payoffs"),
+    "playtest_matters": ("Playtest cards", "Mystery Booster playtest-card effects"),
+    "power_double": ("Power doubling", "big creatures to double in power"),
+    "powerup_matters": ("Power-up", "power-up counters and payoffs"),
+    "protection_grant": (
+        "Grant protection",
+        "creatures worth protecting with hexproof/protection",
+    ),
+    "pump_matters": (
+        "Combat tricks / pump",
+        "instant-speed pump to win combat and push damage",
+    ),
+    "sacrifice_protection": (
+        "Sacrifice protection",
+        "key permanents to shield from sacrifice",
+    ),
+    "saga_matters": ("Sagas", "Sagas plus lore-counter manipulation"),
+    "scaling_pump": ("Scaling pump", "go-wide/go-tall payoffs that scale a creature"),
+    "secret_writedown": (
+        "Wish / outside the game",
+        "wishboard and name-a-card effects",
+    ),
+    "seek_matters": ("Seek", "seek effects (Alchemy tutoring)"),
+    "self_blink": (
+        "Self-blink / flicker",
+        "your own ETB creatures to flicker for value",
+    ),
+    "self_counter_grow": (
+        "Self +1/+1 growth",
+        "counter doublers and ways to grow the commander",
+    ),
+    "self_pump": ("Firebreathing", "mana sinks to pump and close games"),
+    "soulbond_matters": ("Soulbond", "creatures to pair via soulbond"),
+    "spell_keyword_grant": (
+        "Grant spells keywords",
+        "instants/sorceries to give cascade/flashback/etc.",
+    ),
+    "starting_life_matters": (
+        "Starting-life threshold",
+        "lifegain/loss to cross the threshold",
+    ),
+    "station_matters": (
+        "Station / Spacecraft",
+        "ways to charge and station Spacecraft",
+    ),
+    "stickers_matter": ("Stickers", "name/ability/art sticker effects"),
+    "suspend_matters": (
+        "Suspend / time counters",
+        "suspend cards plus time-counter manipulation",
+    ),
+    "symmetric_damage_each": (
+        "Symmetric damage",
+        "sweepers and pingers that hit everyone",
+    ),
+    "symmetric_stax": ("Symmetric stax", "asymmetry-breakers to dodge the lock"),
+    "tap_down": (
+        "Tap-down control",
+        "repeatable tappers to lock opponents' permanents",
+    ),
+    "tap_untap_matters": (
+        "Tap/untap triggers",
+        "tap and untap effects to fire the trigger",
+    ),
+    "tapper_engine": ("Tappers / pacifism", "repeatable tappers to neutralize threats"),
+    "target_player_draws": (
+        "Targeted draw",
+        "give-draw effects and the payoffs around them",
+    ),
+    "targeting_matters": (
+        "Targeting / heroic",
+        "cheap targeted spells to trigger target-matters",
+    ),
+    "theft_matters": ("Theft", "steal opponents' cards and cast them"),
+    "timing_control": ("Timing control", "end-the-turn and timing-restriction effects"),
+    "topdeck_selection": (
+        "Top-deck selection",
+        "scry/surveil/look-at-top to set up draws and payoffs",
+    ),
+    "topdeck_stack": (
+        "Top-deck stacking",
+        "put-on-top effects plus play-from-top payoffs",
+    ),
+    "toughness_combat": (
+        "Toughness as power",
+        "high-toughness defenders to deal combat damage",
+    ),
+    "tribal_etb_multi": (
+        "Multi-tribe ETB",
+        "creatures of the relevant types to chain ETBs",
+    ),
+    "tribe_damage_trigger": (
+        "Tribal combat damage",
+        "evasive tribe members to connect",
+    ),
+    "trigger_doubling": (
+        "Trigger doubling",
+        "high-value triggered abilities to double",
+    ),
+    "type_matters_anthem": ("Type anthem", "creatures of the buffed type to go wide"),
+    "typed_anthem_multi": ("Multi-type anthem", "creatures of the named types"),
+    "typed_enters_punish": (
+        "Typed-ETB punisher",
+        "creatures of the type to chain the punish trigger",
+    ),
+    "unspent_mana": ("Unspent mana", "ways to use leftover mana each turn"),
+    "variable_pt": (
+        "Variable power/toughness",
+        "fill the resource your */* scales with",
+    ),
+    "void_warp_matters": ("Void / warp", "void and warp cards (Edge of Eternities)"),
+    "win_lose_game": (
+        "Alternate win/lose",
+        "alternate win conditions and ways to enable them",
+    ),
+}

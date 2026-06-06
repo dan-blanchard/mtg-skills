@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
+from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS, SWEEP_LABELS
 from mtg_utils.card_classify import get_oracle_text
 
 _IC = re.IGNORECASE
@@ -690,13 +690,13 @@ for _d in SWEEP_DETECTORS:
     _ident = (_d["key"], _d["scope"])
     if _ident in SPECS:
         continue
-    _label = _humanize(_d["key"])
-    SPECS[_ident] = _spec(
-        _label,
-        f"support and payoffs for the {_label.lower()} axis",
-        {"oracle": _d["regex"]},
-        _d["regex"],
-    )
+    _polished = SWEEP_LABELS.get(_d["key"])
+    if _polished:
+        _label, _avenue = _polished
+    else:
+        _label = _humanize(_d["key"])
+        _avenue = f"support and payoffs for the {_label.lower()} axis"
+    SPECS[_ident] = _spec(_label, _avenue, {"oracle": _d["regex"]}, _d["regex"])
 
 
 def spec_for(signal) -> SignalSpec | None:
