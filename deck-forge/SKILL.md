@@ -98,8 +98,11 @@ Handle each `kind`:
   **Author the search/avenue oracle regex around the PRECISE phrase** (e.g.
   `land creature`), not loosely-related creature subtypes — a Plant or Dryad
   *creature* token is NOT a *land* creature; matching `(Plant|Dryad)` produces false
-  positives. Over-broad avenues can be pruned: `DELETE /api/avenues/{id}` (the "×"
-  on agent avenues in the UI).
+  positives. When the synergy depends on a card's TYPE (e.g. creature-*lands*),
+  scope the avenue with `card_type` too — `{card_type:"Land", oracle:"becomes a .*creature"}`
+  — because `becomes a … creature` alone also matches clones ("becomes a copy of …
+  creature") and artifact animations. Over-broad avenues can be pruned:
+  `DELETE /api/avenues/{id}` (the "×" on agent avenues in the UI).
 
 Post the answer back so the browser shows it:
 

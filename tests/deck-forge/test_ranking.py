@@ -77,6 +77,39 @@ def test_serving_a_signal_and_an_avenue_stacks():
     assert score["synergy_fit"] == 2
 
 
+def test_avenue_card_type_constraint_excludes_wrong_types():
+    # A "creature-lands" avenue (type=Land) must not credit a clone that merely
+    # says "becomes a ... creature" but isn't a land (the Silent Hallcreeper bug).
+    avenues = [
+        {
+            "label": "Creature-lands",
+            "search": {"card_type": "Land", "oracle": "becomes a .*creature"},
+        }
+    ]
+    manland = {
+        "name": "Mishra's Factory",
+        "type_line": "Land",
+        "cmc": 0.0,
+        "oracle_text": "This land becomes a 2/2 Assembly-Worker artifact creature.",
+        "prices": {"usd": "1"},
+    }
+    clone = {
+        "name": "Silent Hallcreeper",
+        "type_line": "Enchantment Creature — Horror",
+        "cmc": 5.0,
+        "oracle_text": "This creature becomes a copy of another target creature.",
+        "prices": {"usd": "1"},
+    }
+    assert (
+        "Creature-lands"
+        in score_candidate(manland, active_signals=[], avenues=avenues)["served"]
+    )
+    assert (
+        "Creature-lands"
+        not in score_candidate(clone, active_signals=[], avenues=avenues)["served"]
+    )
+
+
 def test_rank_sorts_by_synergy_then_price_with_no_listing_last():
     ranked = rank_candidates(
         [TOKEN_MAKER, DUAL_PURPOSE, NO_LISTING], active_signals=[ETB, LIFE]

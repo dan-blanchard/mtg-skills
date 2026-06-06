@@ -20,18 +20,25 @@ from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils.card_classify import extract_price, get_oracle_text
 
 
-def _avenue_matchers(avenues) -> list[tuple[str, re.Pattern[str]]]:
-    out: list[tuple[str, re.Pattern[str]]] = []
+def _avenue_matchers(avenues) -> list[tuple[str, re.Pattern[str] | None, str]]:
+    """(label, oracle-regex|None, card_type-substring) per avenue. A card serves an
+    avenue only if it satisfies BOTH constraints the avenue's search declares — so an
+    avenue scoped to ``card_type='Land'`` won't credit a non-land that merely matches
+    the oracle regex (mirrors how the search itself ANDs type + oracle)."""
+    out: list[tuple[str, re.Pattern[str] | None, str]] = []
     for avenue in avenues:
-        pattern = (avenue.get("search") or {}).get("oracle")
-        if not pattern:
+        search = avenue.get("search") or {}
+        pattern = search.get("oracle")
+        card_type = (search.get("card_type") or "").lower()
+        regex: re.Pattern[str] | None = None
+        if pattern:
+            try:
+                regex = re.compile(pattern, re.IGNORECASE)
+            except re.error:
+                continue
+        if regex is None and not card_type:
             continue
-        try:
-            out.append(
-                (avenue.get("label", "avenue"), re.compile(pattern, re.IGNORECASE))
-            )
-        except re.error:
-            continue
+        out.append((avenue.get("label", "avenue"), regex, card_type))
     return out
 
 
@@ -43,9 +50,13 @@ def score_candidate(card: dict, *, active_signals: list, avenues=()) -> dict:
             spec = spec_for(signal)
             served.append(spec.label if spec else signal.key)
     oracle = get_oracle_text(card) or ""
-    for label, matcher in _avenue_matchers(avenues):
-        if matcher.search(oracle):
-            served.append(label)
+    type_line = (card.get("type_line") or "").lower()
+    for label, regex, card_type in _avenue_matchers(avenues):
+        if regex is not None and not regex.search(oracle):
+            continue
+        if card_type and card_type not in type_line:
+            continue
+        served.append(label)
     seen: set[str] = set()
     unique = [s for s in served if not (s in seen or seen.add(s))]
     return {
