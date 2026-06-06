@@ -297,7 +297,9 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         spec = spec_for(sig)
         if spec is None:
             continue
-        avenue_id = f"engine:{sig.key}:{sig.scope}"
+        # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
+        suffix = f":{sig.subject}" if sig.subject else ""
+        avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
         if avenue_id in seen:
             continue
         seen.add(avenue_id)

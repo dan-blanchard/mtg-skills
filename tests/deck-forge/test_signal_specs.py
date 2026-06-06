@@ -128,6 +128,69 @@ def _avenue_dicts(spec):
     return out
 
 
+def _sig_sub(key, subject, scope="you"):
+    return Signal(key=key, scope=scope, subject=subject, text="", source="cmd")
+
+
+def test_subject_spec_built_for_tribal_signal():
+    spec = spec_for(_sig_sub("type_matters", "Goblin"))
+    assert spec is not None
+    assert "Goblin" in spec.label
+    assert spec.search.get("card_type") == "Goblin"
+
+
+def test_subject_spec_serve_matches_subject_reference():
+    sig = _sig_sub("type_matters", "Goblin")
+    lord = {
+        "oracle_text": "Other Goblins you control get +1/+1.",
+        "type_line": "Creature — Goblin",
+    }
+    off = {"oracle_text": "Draw a card.", "type_line": "Sorcery"}
+    assert serves(lord, sig) is True
+    assert serves(off, sig) is False
+
+
+def test_token_maker_subject_spec_and_generic_fallback():
+    sub = spec_for(_sig_sub("token_maker", "Construct"))
+    assert sub is not None
+    assert "Construct" in sub.label
+    assert sub.search.get("card_type") == "Construct"
+    generic = spec_for(_sig_sub("token_maker", ""))  # no subject → static spec
+    assert generic is not None
+    assert "oracle" in generic.search
+
+
+def test_all_new_floor_keys_have_specs():
+    new_keys = [
+        ("treasure_matters", "you"),
+        ("artifacts_matter", "you"),
+        ("enchantments_matter", "you"),
+        ("tokens_matter", "you"),
+        ("stax_taxes", "opponents"),
+        ("blink_flicker", "you"),
+        ("mill_matters", "any"),
+        ("goad_matters", "opponents"),
+        ("proliferate_matters", "you"),
+        ("magecraft_matters", "you"),
+        ("extra_combats", "you"),
+        ("extra_turns", "you"),
+    ]
+    for key, scope in new_keys:
+        spec = spec_for(_sig_sub(key, "", scope))
+        assert spec is not None, key
+        assert spec.label, key
+        assert spec.search, key
+
+
+def test_search_filters_for_subject_signal_inject_identity():
+    filters = search_filters(
+        _sig_sub("type_matters", "Goblin"), color_identity="R", fmt="commander"
+    )
+    assert filters["card_type"] == "Goblin"
+    assert filters["color_identity"] == "R"
+    assert filters["format"] == "commander"
+
+
 def test_land_creature_avenue_searches_exclude_false_positives():
     """The exact bug class the user hit: a Plant-token maker and a clone must not
     be surfaced by ANY land-creature avenue, while a real creature-land is."""

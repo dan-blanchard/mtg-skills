@@ -161,11 +161,128 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"|play an additional land|onto the battlefield"
         ),
     ),
+    # ── Archetype floor specs (whole themes the baseline was blind to) ──────────
+    ("token_maker", "you"): _spec(
+        "Token generators",
+        "more cards that flood the board with creature tokens",
+        {"oracle": r"create [^.]*creature token"},
+        r"create [^.]*creature token",
+    ),
+    ("treasure_matters", "you"): _spec(
+        "Treasure",
+        "Treasure makers for ramp, fixing, and artifact synergy",
+        {"oracle": r"create [^.]*treasure token|treasures? you control"},
+        r"\btreasure\b",
+    ),
+    ("artifacts_matter", "you"): _spec(
+        "Artifacts",
+        "artifacts and artifact-count payoffs",
+        {"card_type": "Artifact"},
+        r"artifacts? you control|for each artifact|\bmetalcraft\b|\baffinity\b",
+    ),
+    ("enchantments_matter", "you"): _spec(
+        "Enchantments",
+        "enchantments and enchantment-count payoffs",
+        {"card_type": "Enchantment"},
+        r"enchantments? you control|for each enchantment|\bconstellation\b",
+    ),
+    ("tokens_matter", "you"): _spec(
+        "Tokens matter",
+        "token makers and payoffs that scale with tokens you control",
+        {"oracle": r"create [^.]*token"},
+        r"\btokens? you control\b|whenever .*token.*enters|\bpopulate\b",
+    ),
+    ("stax_taxes", "opponents"): _spec(
+        "Stax & taxes",
+        "tax and restriction effects aimed at your opponents",
+        {
+            "oracle": (
+                r"opponents? can't"
+                r"|spells your opponents cast cost"
+                r"|creatures your opponents control"
+            )
+        },
+        r"opponents? can't|spells your opponents cast cost|your opponents",
+    ),
+    ("blink_flicker", "you"): _spec(
+        "Blink / flicker",
+        "exile-and-return effects to re-use enter-the-battlefield abilities",
+        {"preset_names": ("blink",)},
+        r"exile[^.]*?return[^.]*?battlefield",
+    ),
+    ("mill_matters", "any"): _spec(
+        "Mill",
+        "cards that mill — fuel a graveyard or grind a library",
+        {"preset_names": ("mill",)},
+        r"\bmills?\b",
+    ),
+    ("goad_matters", "opponents"): _spec(
+        "Goad & politics",
+        "goad and forced-attack effects that point creatures at your opponents",
+        {"preset_names": ("goad",)},
+        r"\bgoad",
+    ),
+    ("proliferate_matters", "you"): _spec(
+        "Proliferate",
+        "proliferate and counter generators",
+        {"preset_names": ("proliferate",)},
+        r"\bproliferate\b|\+1/\+1 counter",
+    ),
+    ("magecraft_matters", "you"): _spec(
+        "Magecraft / spellslinger",
+        "cheap instants and sorceries and cantrips to trigger magecraft",
+        {"oracle": r"draw a card"},
+        r"\bmagecraft\b|\bprowess\b|instant or sorcery",
+    ),
+    ("extra_combats", "you"): _spec(
+        "Extra combats",
+        "additional combat phases and the attackers to exploit them",
+        {"oracle": r"additional combat phase|extra combat"},
+        r"additional combat|extra combat",
+    ),
+    ("extra_turns", "you"): _spec(
+        "Extra turns",
+        "additional-turn effects",
+        {"oracle": r"extra turn|additional turn|take an extra"},
+        r"extra turn|additional turn",
+    ),
+}
+
+# Subject-bearing signal keys: their spec is built dynamically from the captured
+# subtype (a Goblin lord and a Sliver lord must not share one static spec).
+_SUBJECT_KEYS = frozenset({"type_matters", "token_maker", "typed_spellcast"})
+_SUBJECT_TEMPLATES = {
+    "type_matters": ("{s} tribal", "{s}s and the anthems/lords that reward them"),
+    "token_maker": ("{s} tokens", "more {s} token makers and {s} payoffs"),
+    "typed_spellcast": ("{s} spells", "{s}s and {s}-spell payoffs"),
 }
 
 
+def _subject_spec(signal) -> SignalSpec:
+    """Build a spec for a subject-bearing signal by interpolating the subtype."""
+    subj = signal.subject
+    label_t, avenue_t = _SUBJECT_TEMPLATES.get(signal.key, ("{s}", "{s} synergies"))
+    return SignalSpec(
+        label=label_t.format(s=subj),
+        avenue=avenue_t.format(s=subj),
+        # card_type matches the type-line substring → finds the tribe itself.
+        search={"card_type": subj},
+        serve=re.compile(rf"\b{re.escape(subj)}s?\b", _IC),
+        extras=(
+            SubAvenue(
+                f"{subj} payoffs",
+                f"anthems and abilities that reward your {subj}s",
+                {"oracle": rf"{re.escape(subj)}s? you control"},
+            ),
+        ),
+    )
+
+
 def spec_for(signal) -> SignalSpec | None:
-    """Resolve a spec: exact (key, scope) → (key, any) → first entry by key."""
+    """Resolve a spec. Subject-bearing signals build a per-subject spec; otherwise
+    exact (key, scope) → (key, any) → first entry by key."""
+    if signal.key in _SUBJECT_KEYS and signal.subject:
+        return _subject_spec(signal)
     exact = SPECS.get((signal.key, signal.scope))
     if exact is not None:
         return exact
