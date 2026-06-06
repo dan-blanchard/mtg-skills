@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from mtg_utils.format_config import FORMAT_CONFIGS
+
 SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
 
 # Singleton-rule exemption patterns.
@@ -222,6 +224,15 @@ def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
 
     if "Legendary" not in type_line:
         return {"eligible": False, "requires_partner": False}
+
+    # Format legality, keyed to the right field per format (commander→"commander",
+    # brawl→"standardbrawl", historic_brawl→"brawl"). Only gate when legality data is
+    # present, so type-line-only fixtures keep working; mirrors find_commanders.
+    legalities = card.get("legalities")
+    if legalities is not None:
+        legality_key = FORMAT_CONFIGS.get(format, {}).get("legality_key", format)
+        if legalities.get(legality_key) not in ("legal", "restricted"):
+            return {"eligible": False, "requires_partner": False}
 
     # Legendary Creature — always eligible
     # Check "choose a background" before returning, since those creatures
