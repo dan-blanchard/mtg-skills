@@ -8,6 +8,18 @@
     if (r.ok) applySnapshot(r.data);
   }
 
+  // Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).
+  function priceOf(c) {
+    const p = c.prices?.usd ?? c.prices?.usd_foil ?? c.prices?.usd_etched;
+    const n = p == null ? null : Number(p);
+    return n == null || Number.isNaN(n) ? null : n;
+  }
+  const money = (n) => `$${n.toFixed(2)}`;
+
+  function groupTotal(cards) {
+    return cards.reduce((sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1), 0);
+  }
+
   $: groups = [
     { key: "commanders", label: "Command Zone", cards: $deck.commanders },
     { key: "cards", label: "Deck", cards: $deck.cards },
@@ -27,7 +39,10 @@
     {#each groups as g}
       {#if g.cards.length}
         <div class="group">
-          <div class="group-head">{g.label} <span>· {g.cards.length}</span></div>
+          <div class="group-head">
+            {g.label} <span>· {g.cards.length}</span>
+            <span class="subtotal">{money(groupTotal(g.cards))}</span>
+          </div>
           {#each g.cards as c (c.name)}
             <div class="row" use:hoverPreview={c}>
               <div class="thumb">
@@ -43,6 +58,11 @@
               </div>
               <div class="right">
                 {#if c.quantity > 1}<span class="qty">×{c.quantity}</span>{/if}
+                {#if priceOf(c) != null}
+                  <span class="price">{money(priceOf(c))}</span>
+                {:else}
+                  <span class="price none" title="No listing — likely scarce/expensive, not free">—</span>
+                {/if}
                 <span class="cmc">{c.cmc ?? ""}</span>
                 <button class="rm" title="Remove one" on:click={() => remove(c.name, g.key)}>−</button>
               </div>
@@ -81,6 +101,20 @@
   }
   .group-head span {
     color: var(--muted);
+  }
+  .group-head .subtotal {
+    float: right;
+    color: var(--brass);
+    letter-spacing: 0.04em;
+  }
+  .price {
+    font-size: 0.78rem;
+    color: var(--pass);
+    font-variant-numeric: tabular-nums;
+  }
+  .price.none {
+    color: var(--muted);
+    font-style: italic;
   }
   .row {
     display: flex;

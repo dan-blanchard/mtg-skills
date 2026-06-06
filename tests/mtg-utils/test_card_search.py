@@ -153,6 +153,42 @@ class TestMatchesFilters:
             price_max=None,
         )
 
+    def _color_match(self, card_ci, allowed, *, exact):
+        return _matches_filters(
+            _make_card(color_identity=card_ci),
+            allowed_colors=allowed,
+            oracle_re=None,
+            type_lower=None,
+            cmc_min=None,
+            cmc_max=None,
+            price_min=None,
+            price_max=None,
+            exact_colors=exact,
+        )
+
+    def test_exact_colors_requires_equality(self):
+        # exact WU matches only a WU card — not mono-W, not WUB.
+        assert self._color_match(["W", "U"], {"W", "U"}, exact=True)
+        assert not self._color_match(["W"], {"W", "U"}, exact=True)
+        assert not self._color_match(["W", "U", "B"], {"W", "U"}, exact=True)
+        # subset still includes the mono and colorless cards.
+        assert self._color_match(["W"], {"W", "U"}, exact=False)
+        assert self._color_match([], {"W", "U"}, exact=False)
+
+    def test_colorless_pip_subset_only_matches_colorless(self):
+        # Selecting only the C pip (subset) → colorless cards only.
+        assert self._color_match([], {"C"}, exact=False)
+        assert not self._color_match(["G"], {"C"}, exact=False)
+
+    def test_exact_colorless_matches_empty_identity(self):
+        assert self._color_match([], {"C"}, exact=True)
+        assert not self._color_match(["U"], {"C"}, exact=True)
+
+    def test_colorless_included_in_colored_subset(self):
+        # WU + C (subset) includes colorless and the WU spread.
+        assert self._color_match([], {"W", "U", "C"}, exact=False)
+        assert self._color_match(["W"], {"W", "U", "C"}, exact=False)
+
     def test_cmc_range(self):
         card = _make_card(cmc=5.0)
         assert not _matches_filters(

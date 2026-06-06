@@ -44,11 +44,21 @@ def test_dfc_without_top_level_images_uses_front_face():
             },
         ],
     }
-    assert image_urls(card) == {
-        "small": "https://img/front-small.jpg",
-        "normal": "https://img/front-normal.jpg",
-        "art_crop": "https://img/front-art.jpg",
-    }
+    result = image_urls(card)
+    # Front-face sizes power thumbnails/banner …
+    assert result["small"] == "https://img/front-small.jpg"
+    assert result["normal"] == "https://img/front-normal.jpg"
+    assert result["art_crop"] == "https://img/front-art.jpg"
+    # … plus BOTH faces' normal images so the preview can show both sides.
+    assert result["faces"] == [
+        {"name": "Hengegate Pathway", "normal": "https://img/front-normal.jpg"},
+        {"name": "Mistgate Pathway", "normal": "https://img/back-normal.jpg"},
+    ]
+
+
+def test_single_face_card_has_no_faces_key():
+    card = {"name": "Llanowar Elves", "image_uris": {"normal": "https://img/n.jpg"}}
+    assert "faces" not in image_urls(card)
 
 
 def test_missing_images_returns_none():

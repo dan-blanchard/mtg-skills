@@ -26,6 +26,7 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
+from mtg_utils.theme_presets import list_presets
 
 VERSION = "0.1.0"
 _VALID_ZONES = ("commanders", "cards", "sideboard")
@@ -132,6 +133,7 @@ def _clamp_timeout(timeout: float) -> float:
 
 class SearchPayload(BaseModel):
     color_identity: str | None = None
+    exact_colors: bool = False
     oracle: str | None = None
     type: str | None = None
     name: str | None = None
@@ -293,17 +295,17 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
     plus any the session-agent has discovered and posted. Each carries the search
     spec needed to surface its candidates."""
     out: list[dict] = []
-    seen: set[str] = set()
+    # Dedupe by label: a signal that fires at two scopes (you + any) can resolve to
+    # the same scope-agnostic spec, which would otherwise render twice.
+    seen_labels: set[str] = set()
     for sig in aggregate_signals(hydrated):
         spec = spec_for(sig)
-        if spec is None:
+        if spec is None or spec.label in seen_labels:
             continue
+        seen_labels.add(spec.label)
         # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
         suffix = f":{sig.subject}" if sig.subject else ""
         avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
-        if avenue_id in seen:
-            continue
-        seen.add(avenue_id)
         out.append(
             {
                 "id": avenue_id,
@@ -317,6 +319,9 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         # A signal can fan out into several precise sub-avenues (e.g. the
         # land-creatures theme: creature-lands / payoffs / animators).
         for i, extra in enumerate(spec.extras):
+            if extra.label in seen_labels:
+                continue
+            seen_labels.add(extra.label)
             out.append(
                 {
                     "id": f"{avenue_id}:{i}",
@@ -402,6 +407,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         records = state.search_fn(
             color_identity=payload.color_identity,
+            exact_colors=payload.exact_colors,
             oracle=payload.oracle,
             card_type=payload.type,
             name=payload.name,
@@ -436,6 +442,16 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def signals() -> dict:
         sigs = aggregate_signals(state.session.hydrated(state.by_name))
         return {"signals": [_signal_dict(s) for s in sigs]}
+
+    @app.get("/api/presets")
+    async def presets() -> dict:
+        # name → description, so the UI can offer a discoverable multiselect.
+        return {
+            "presets": [
+                {"name": name, "description": desc}
+                for name, desc in sorted(list_presets().items())
+            ]
+        }
 
     @app.get("/api/budgets")
     async def budgets() -> dict:

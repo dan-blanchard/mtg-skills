@@ -54,6 +54,16 @@ def test_signals_endpoint_surfaces_scoped_actionable_signal():
     assert "Creatures entering" in etb["label"]
 
 
+def test_presets_endpoint_lists_discoverable_presets():
+    presets = _client().get("/api/presets").json()["presets"]
+    assert len(presets) > 20
+    names = {p["name"] for p in presets}
+    assert {"tokens", "blink", "ramp"} & names  # a few well-known ones present
+    assert all(p["description"] for p in presets)
+    # sorted by name for stable UI ordering
+    assert [p["name"] for p in presets] == sorted(names)
+
+
 def test_budgets_endpoint_returns_template_targets():
     budgets = _client().get("/api/budgets").json()["budgets"]
     assert budgets["lands"]["target"] == 38
@@ -188,6 +198,38 @@ def test_explore_credits_candidates_for_the_explored_avenue():
     top = pkg["candidates"][0]
     assert top["score"]["synergy_fit"] >= 1
     assert "Creature-lands" in top["score"]["served"]
+
+
+def test_avenues_deduped_when_same_spec_via_two_scopes():
+    """A signal that fires at two scopes (you + any) but resolves to one spec must
+    not produce duplicate identically-labeled avenues."""
+    session = DeckSession("commander")
+    session.add("Lord A", zone="commanders")
+    session.add("Lord B")
+    index = {
+        "Lord A": {
+            "name": "Lord A",
+            "type_line": "Legendary Creature",
+            "color_identity": ["G"],
+            "oracle_text": "Land creatures you control get +1/+1.",
+            "prices": {"usd": "1"},
+        },
+        # No "you control" → land_creatures_matter fires at scope "any".
+        "Lord B": {
+            "name": "Lord B",
+            "type_line": "Creature",
+            "color_identity": ["G"],
+            "oracle_text": "Land creatures get +1/+0.",
+            "prices": {"usd": "1"},
+        },
+    }
+    state = ForgeState(
+        by_name=index, search_fn=lambda **_: [], session=session, bulk_available=True
+    )
+    avenues = TestClient(build_app(state)).get("/api/snapshot").json()["avenues"]
+    labels = [a["label"] for a in avenues]
+    assert labels.count("Creature-lands") == 1, labels
+    assert len(labels) == len(set(labels)), labels
 
 
 def test_jyoti_yields_multiple_precise_avenues_not_just_go_wide():

@@ -34,6 +34,7 @@ def _matches_filters(
     cmc_max: float | None,
     price_min: float | None,
     price_max: float | None,
+    exact_colors: bool = False,
     legality_key: str = "commander",
     arena_only: bool = False,
     paper_only: bool = False,
@@ -55,11 +56,20 @@ def _matches_filters(
     if paper_only and "paper" not in games:
         return False
 
-    if allowed_colors is not None and not color_identity_subset(
-        card.get("color_identity", []),
-        allowed_colors,
-    ):
-        return False
+    if allowed_colors is not None:
+        # "C" is the colorless pseudo-symbol. exact: card identity equals the chosen
+        # colors (or empty when only C is chosen). subset: card identity ⊆ chosen
+        # colors (colorless always passes, except when ONLY C is chosen → colorless
+        # only). color_identity_subset stays untouched (its own contract).
+        colors = allowed_colors - {"C"}
+        card_ci = set(card.get("color_identity", []))
+        if exact_colors:
+            colorless_only = "C" in allowed_colors and not colors
+            ok = (not card_ci) if colorless_only else (card_ci == colors)
+            if not ok:
+                return False
+        elif not color_identity_subset(card.get("color_identity", []), colors):
+            return False
 
     if oracle_re is not None and not oracle_re.search(_get_oracle_text(card)):
         return False
@@ -132,6 +142,7 @@ def search_cards(
     format: str | None = None,  # noqa: A002
     arena_only: bool = False,
     paper_only: bool = False,
+    exact_colors: bool = False,
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
 ) -> list[dict]:
@@ -186,6 +197,7 @@ def search_cards(
             cmc_max=cmc_max,
             price_min=price_min,
             price_max=price_max,
+            exact_colors=exact_colors,
             legality_key=legality_key,
             arena_only=arena_only,
             paper_only=paper_only,
@@ -265,7 +277,12 @@ def format_results(cards: list[dict]) -> str:
     "--color-identity",
     "-ci",
     default=None,
-    help="Color identity subset (e.g., BR, WUG).",
+    help="Color identity (e.g., BR, WUG; include C for colorless).",
+)
+@click.option(
+    "--exact",
+    is_flag=True,
+    help="Match color identity exactly rather than as a subset.",
 )
 @click.option(
     "--oracle",
@@ -356,6 +373,7 @@ def main(
     limit: int,
     preset_names: tuple[str, ...],
     *,
+    exact: bool,
     is_commander: bool,
     as_json: bool,
     fields_spec: str | None,
@@ -376,6 +394,7 @@ def main(
         cmc_max=cmc_max,
         price_min=price_min,
         price_max=price_max,
+        exact_colors=exact,
         sort=sort,
         limit=limit,
         format=card_format,

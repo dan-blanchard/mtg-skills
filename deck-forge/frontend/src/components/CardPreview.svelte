@@ -2,26 +2,36 @@
   import { hovered } from "../lib/store.js";
 
   const W = 244;
-  const H = 340;
 
-  function place(x, y) {
+  $: card = $hovered?.card;
+  // Double-faced cards expose every face's normal image — show both sides.
+  $: faces = card?.images?.faces;
+  $: dfc = Array.isArray(faces) && faces.length >= 2;
+  $: H = dfc ? 340 * faces.length + 8 * (faces.length - 1) : 340;
+
+  function place(x, y, h) {
     let px = x + 22;
     let py = y + 22;
     if (typeof window !== "undefined") {
       if (px + W > window.innerWidth) px = x - W - 22;
-      if (py + H > window.innerHeight) py = window.innerHeight - H - 8;
+      if (py + h > window.innerHeight) py = window.innerHeight - h - 8;
       if (py < 8) py = 8;
     }
     return { px, py };
   }
 
-  $: pos = $hovered ? place($hovered.x, $hovered.y) : { px: 0, py: 0 };
-  $: card = $hovered?.card;
+  $: pos = $hovered ? place($hovered.x, $hovered.y, H) : { px: 0, py: 0 };
 </script>
 
 {#if card}
   <div class="preview" style="left:{pos.px}px; top:{pos.py}px">
-    {#if card.images?.normal}
+    {#if dfc}
+      <div class="faces">
+        {#each faces as fc (fc.normal)}
+          <img src={fc.normal} alt={fc.name} />
+        {/each}
+      </div>
+    {:else if card.images?.normal}
       <img src={card.images.normal} alt={card.name} />
     {:else}
       <div class="fallback">
@@ -48,6 +58,14 @@
   .preview img {
     width: 100%;
     display: block;
+  }
+  .faces {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .faces img {
+    border-radius: 10px;
   }
   .fallback {
     background: linear-gradient(180deg, var(--panel-2), var(--panel));
