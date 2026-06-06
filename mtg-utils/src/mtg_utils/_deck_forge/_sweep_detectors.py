@@ -612,7 +612,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "forced_attack",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "may attack only the nearest opponent|attacks? that player this combat if able",
+        "regex": "may attack only the nearest opponent|attacks? that player this combat if able|attacks? (?:each|every) combat if able",
     },
     {
         "key": "tribal_etb_multi",

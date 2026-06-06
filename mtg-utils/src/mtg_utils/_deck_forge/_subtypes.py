@@ -98,6 +98,7 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "archon",
         "armadillo",
         "armored",
+        "army",
         "art",
         "artificer",
         "artist",

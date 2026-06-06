@@ -164,7 +164,8 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
         "lifeloss_matters",
         _re(
             r"\b(?:each opponent|each player|target opponent|target player|that player"
-            r"|an opponent|each of your opponents|opponents?) loses? (?:\d+|x) life\b"
+            r"|an opponent|each of your opponents|opponents?)"
+            r"(?:\s+who\b[^.]{0,40}?)? loses? (?:\d+|x) life\b"
             r"|\bwhenever you (?:gain or )?lose life\b"
             r"|\bwhenever (?:an opponent|a player|one or more (?:players|opponents))"
             r" loses? life\b"
@@ -265,6 +266,12 @@ _TYPE_MATTERS_PATTERNS = (
     # "a Spider you control enters" — tribal ETB trigger (anchored on "enters" so a
     # bare "a Goblin you control" elsewhere can't over-capture). Mary Jane Watson.
     re.compile(r"\b(?:a|an) ([A-Za-z]+?) you control enters\b", re.IGNORECASE),
+    # "you control an Army" — reverse word order the "X you control" anchors miss; the
+    # subtype-vocab gate keeps it precise (creature/artifact/Mountain drop out). Grond.
+    re.compile(r"\byou control (?:a|an) ([A-Za-z]+?)\b", re.IGNORECASE),
+    # "becomes a Samurai in addition to its other creature types" — type-granting that
+    # adds a kindred subject (the "in addition" anchor keeps it off clone/animate).
+    re.compile(r"\bbecomes? an? ([A-Za-z]+?) in addition\b", re.IGNORECASE),
     # "Other Elf creatures have …" (lord with no "you control"); tribal in an
     # activated cost ("untapped Wizard you control:" / "<Sub> you control:").
     re.compile(r"\bother ([A-Za-z]+?) creatures?\b", re.IGNORECASE),
@@ -780,17 +787,23 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         # Evasion = a blocking RESTRICTION (CR 509.1b). "attacks if able" is a
         # forced-attack REQUIREMENT (CR 508.1d) — that belongs to forced_attack/goad.
+        # Landwalk (CR 702.14) is conditional unblockable-by-that-land-type evasion.
         "evasion_self",
-        re.compile(r"can't be blocked|\bunblockable\b", re.IGNORECASE),
+        re.compile(
+            r"can't be blocked|\bunblockable\b"
+            r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+            re.IGNORECASE,
+        ),
         "you",
     ),
     (
         # Clone = a permanent that itself becomes/enters as a copy (CR 707). Drop the
         # bare "copy of target creature" branch — it bleeds into the token-copy phrase
         # "create a token that's a copy of target creature" (that's token_copy_matters).
+        # "becomes?" catches the bare infinitive ("have Gogo become a copy of …").
         "clone_matters",
         re.compile(
-            r"becomes a copy of|enters [^.]*as a copy of",
+            r"becomes? a copy of|enters [^.]*as a copy of",
             re.IGNORECASE,
         ),
         "you",
@@ -898,6 +911,52 @@ def _detect_blink_fulltext(text: str) -> str | None:
         if _BLINK_RETURN_RE.search(clause):
             return clause.strip()
     return text[:160]
+
+
+# Self-blink (full text): a card that exiles ITSELF and returns it (Norin), split
+# across sentences so the per-clause self_blink sweep can't see both halves. Name-
+# aware — the exiled object must be "this creature", "~", or the card's own name —
+# which keeps it off reanimation and removal of OTHER creatures.
+_SELF_BLINK_RETURN_RE = re.compile(
+    r"\breturn (?:it|them|that card|that permanent) to the battlefield", re.IGNORECASE
+)
+
+
+def _detect_self_blink_fulltext(text: str, name: str) -> str | None:
+    first = ""
+    for w in re.split(r"\W+", name):
+        if len(w) > 2 and w.lower() not in _ARTICLES:
+            first = w
+            break
+    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    exile_self = re.compile(rf"\bexile (?:{alts})\b", re.IGNORECASE)
+    if not (exile_self.search(text) and _SELF_BLINK_RETURN_RE.search(text)):
+        return None
+    for clause in _clauses(text):
+        if _SELF_BLINK_RETURN_RE.search(clause):
+            return clause.strip()
+    return text[:160]
+
+
+# Beginning-of-combat single-target pump engine (Aurelia): the combat trigger and the
+# "gets +" payoff sit in different sentences, so the per-clause combat_buff_engine
+# sweep can't span them. Two-condition full-text check, anchored to your own creatures.
+_COMBAT_BUFF_TRIGGER_RE = re.compile(
+    r"at the beginning of combat on your turn", re.IGNORECASE
+)
+_COMBAT_BUFF_PUMP_RE = re.compile(
+    r"(?:that creature|target creature you control|creatures? you control)[^.]*gets \+",
+    re.IGNORECASE,
+)
+
+# Loot/rummage across a sentence boundary (Alpharael): "draw N cards. Then discard".
+# Require the discard to be the ADJACENT clause (one period/comma + optional "then")
+# so an unrelated later sentence ("draw two cards. You gain 3 life.") never matches.
+_LOOT_FULLTEXT_RE = re.compile(
+    r"\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s*"
+    r"(?:then )?(?:you )?(?:may )?discard",
+    re.IGNORECASE,
+)
 
 
 # ── Narrow Tinybones structural scope rule ────────────────────────────────────
@@ -1034,10 +1093,18 @@ def extract_signals(
     for key, scope in _detect_keyword_presets(card):
         add(key, scope, "", text[:120])
 
-    # Cross-sentence flicker (full text, not per-clause) — Roon and kin.
+    # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
+    # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).
     blink_clause = _detect_blink_fulltext(text)
     if blink_clause is not None:
         add("blink_flicker", "you", "", blink_clause)
+    self_blink_clause = _detect_self_blink_fulltext(text, name)
+    if self_blink_clause is not None:
+        add("self_blink", "you", "", self_blink_clause)
+    if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
+        add("combat_buff_engine", "you", "", text[:160])
+    if _LOOT_FULLTEXT_RE.search(text):
+        add("discard_matters", "you", "", text[:160])
 
     return out
 
