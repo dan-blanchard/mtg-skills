@@ -329,6 +329,172 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\{x\}|add .* mana|search your library for .*land"},
         r"tap.*for mana.*add|add .* mana of any|\{x\}",
     ),
+    # ── Sweep survivors ─────────────────────────────────────────────────────────
+    ("voltron_matters", "you"): _spec(
+        "Voltron / equipment & auras",
+        "equipment, auras, equip-cost reducers, and tutors to suit up one creature",
+        {"preset_names": ("equip",)},
+        r"equipped creature|enchanted creature gets|equip \{"
+        r"|attach [^.]*(?:equipment|aura)"
+        r"|equipment you control|for each (?:equipment|aura)",
+    ),
+    ("vehicles_matter", "you"): _spec(
+        "Vehicles",
+        "Vehicle bodies plus crew payoffs, lords, and cheap creatures to crew them",
+        {"preset_names": ("crew",)},
+        r"\bvehicles? you control\b|\bcrew\b|create [^.]*vehicle artifact",
+    ),
+    ("scry_surveil_matters", "you"): _spec(
+        "Scry / surveil matters",
+        "cheap repeatable scry and surveil to fire your topdeck-selection payoffs",
+        {"oracle": r"\b(?:scry|surveil)\b"},
+        r"\b(?:scry|surveil)\b",
+    ),
+    # ── Named-mechanic long tail ────────────────────────────────────────────────
+    ("monarch_matters", "you"): _spec(
+        "Monarch",
+        "become and defend the monarch — evasion and combat-damage triggers",
+        {"oracle": r"\bthe monarch\b|becomes? the monarch"},
+        r"\bthe monarch\b",
+    ),
+    ("initiative_matters", "you"): _spec(
+        "Initiative",
+        "take and hold the initiative; venture through the Undercity",
+        {"oracle": r"\bthe initiative\b|undercity"},
+        r"\bthe initiative\b",
+    ),
+    ("ring_matters", "you"): _spec(
+        "The Ring",
+        "Ring-bearer payoffs and ways to tempt you with the Ring",
+        {"oracle": r"ring tempts you|ring-bearer"},
+        r"ring tempts you|ring-bearer",
+    ),
+    ("venture_matters", "you"): _spec(
+        "Venture / dungeons",
+        "venture enablers and dungeon-completion payoffs",
+        {"oracle": r"venture into the dungeon|\bdungeon\b"},
+        r"venture into the dungeon|\bdungeon\b",
+    ),
+    ("energy_matters", "you"): _spec(
+        "Energy",
+        "energy makers and energy sinks",
+        {"oracle": r"\{e\}|energy counter"},
+        r"\{e\}|energy counter",
+    ),
+    ("devotion_matters", "you"): _spec(
+        "Devotion",
+        "heavy colored pips to grow devotion and devotion payoffs",
+        {"oracle": r"devotion to"},
+        r"devotion to",
+    ),
+    ("superfriends_matters", "you"): _spec(
+        "Superfriends",
+        "planeswalkers plus proliferate and loyalty payoffs to protect them",
+        {"oracle": r"planeswalker|loyalty"},
+        r"planeswalkers? you control|loyalty counters?",
+    ),
+    ("historic_matters", "you"): _spec(
+        "Historic",
+        "artifacts, legendaries, and Sagas — the historic permanents that trigger it",
+        {"oracle": r"\bhistoric\b|\blegendary\b|\bsaga\b"},
+        r"\bhistoric\b",
+    ),
+    ("legends_matter", "you"): _spec(
+        "Legends matter",
+        "legendary creatures and the payoffs that reward a board of legends",
+        {"oracle": r"\blegendary\b"},
+        r"legendary creatures? you control|another legendary|for each legendary",
+    ),
+    ("big_hand_matters", "you"): _spec(
+        "Big hand / no max hand size",
+        "card draw and no-max-hand-size payoffs that reward a full grip",
+        {"oracle": r"cards in your hand|no maximum hand size"},
+        r"maximum hand size|cards in your hand",
+    ),
+    ("party_matters", "you"): _spec(
+        "Party",
+        "Clerics, Rogues, Warriors, and Wizards to assemble a full party",
+        {"oracle": r"your party|assemble.*party|\bcleric|\brogue|\bwarrior|\bwizard"},
+        r"\bparty\b",
+    ),
+    ("exile_matters", "you"): _spec(
+        "Exile pile matters",
+        "impulse/foretell exile enablers and payoffs for cards in exile",
+        {"oracle": r"exile the top|in exile|from exile"},
+        r"cards? (?:you own )?in exile|for each card[^.]*exile",
+    ),
+    ("experience_matters", "you"): _spec(
+        "Experience counters",
+        "ways to gain experience counters and scale with them",
+        {"oracle": r"experience counter"},
+        r"experience counter",
+    ),
+    ("poison_matters", "opponents"): _spec(
+        "Poison / infect",
+        "infect and toxic threats plus proliferate to finish with poison",
+        {"oracle": r"\binfect\b|\btoxic\b|poison counter|proliferate"},
+        r"poison counter|\binfect\b|\btoxic\b",
+    ),
+    ("modified_matters", "you"): _spec(
+        "Modified",
+        "counters, Auras, and Equipment to keep creatures modified",
+        {"oracle": r"\bmodified\b|\+1/\+1 counter|aura or equipment"},
+        r"\bmodified\b",
+    ),
+    ("mutate_matters", "you"): _spec(
+        "Mutate",
+        "mutate creatures and mutate-trigger payoffs",
+        {"oracle": r"\bmutate\b"},
+        r"\bmutate\b",
+    ),
+    ("food_matters", "you"): _spec(
+        "Food",
+        "Food makers plus sacrifice outlets and lifegain payoffs",
+        {"oracle": r"\bfood\b"},
+        r"\bfood\b",
+    ),
+    ("clue_matters", "you"): _spec(
+        "Clues / investigate",
+        "investigate enablers and artifact/draw payoffs for Clues",
+        {"oracle": r"\bclue\b|investigate"},
+        r"\bclue\b|investigate",
+    ),
+    ("blood_matters", "you"): _spec(
+        "Blood tokens",
+        "Blood makers plus rummage and sacrifice payoffs",
+        {"oracle": r"blood token"},
+        r"blood token",
+    ),
+    ("daynight_matters", "you"): _spec(
+        "Day / Night",
+        "daybound/nightbound creatures and day-night transition payoffs",
+        {"oracle": r"\bdaybound\b|\bnightbound\b|\bday\b|\bnight\b"},
+        r"daybound|nightbound|becomes night|becomes day",
+    ),
+    ("voting_matters", "each"): _spec(
+        "Voting / council",
+        "will-of-the-council and vote effects — multiplayer politics",
+        {"oracle": r"\bvote\b|will of the council|council's dilemma"},
+        r"\bvote\b|will of the council",
+    ),
+    ("coven_matters", "you"): _spec(
+        "Coven",
+        "creatures with different powers to turn on coven",
+        {"oracle": r"\bcoven\b|different powers"},
+        r"\bcoven\b",
+    ),
+    ("doubling_matters", "you"): _spec(
+        "Doubling",
+        "token/counter doublers and the payoffs that exploit doubled output",
+        {"oracle": r"twice that many|double the (?:number|amount)"},
+        r"twice that many|double the (?:number|amount)",
+    ),
+    ("second_spell_matters", "you"): _spec(
+        "Second-spell / storm-lite",
+        "cheap spells and cantrips to reliably cast a second spell each turn",
+        {"oracle": r"instant or sorcery|draw a card|\bstorm\b"},
+        r"second spell you cast|cast your second spell",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

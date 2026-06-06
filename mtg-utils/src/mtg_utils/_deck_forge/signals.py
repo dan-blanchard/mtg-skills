@@ -107,8 +107,19 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
         "you",
     ),
     (
+        # Counter payoffs: "for each"/"number of" count-matters PLUS distributor
+        # anchors (Mikaeus, Shalai and Hallar) that spread/reward counters without
+        # the count phrasing — but NOT bare "put a +1/+1 counter on it" self-growth.
         "counters_matter",
-        lambda c: "+1/+1 counter" in c and ("for each" in c or "number of" in c),
+        lambda c: (
+            "+1/+1 counter" in c
+            and (
+                "for each" in c
+                or "number of" in c
+                or "on each creature you control" in c
+                or "creatures you control with +1/+1 counter" in c
+            )
+        ),
         None,
     ),
     # Combat-damage triggers (distinct from attack_matters, which keys on "attack").
@@ -379,6 +390,163 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"tap(?:ped)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
             r"(?:add (?:an additional|one mana of any|that much|twice)"
             r"|produces? (?:twice|an additional))",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ── Sweep survivors ─────────────────────────────────────────────────────────
+    (
+        "voltron_matters",
+        re.compile(
+            r"\bfor each (?:equipment|aura|role)\b[^.]*?\b(?:attached|you control)\b"
+            r"|\battach (?:target |all |any number of |up to one target |an |a )?"
+            r"(?:equipment|aura)"
+            r"|attach (?:any number of |all )?"
+            r"(?:auras? and equipment|equipment and auras?)"
+            r"|search your library for an? (?:equipment|aura)"
+            r"(?: or (?:equipment|aura|vehicle))? card"
+            r"|(?:equipment|auras?) you control have equip"
+            r"|equip (?:abilities|costs?)[^.]{0,40}?(?:cost|costs?)[^.]{0,20}?less"
+            r"|spend this mana only to cast (?:an? )?(?:aura|equipment)"
+            r"|whenever you attach (?:a |an )?(?:equipment|aura|role)"
+            r"|whenever an? (?:equipment|aura) (?:you control )?enters"
+            r"|as long as \w+ is equipped|\bequipment you control\b"
+            r"|pay [^.]*equip cost",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "vehicles_matter",
+        re.compile(
+            r"\bvehicles you control\b|\bmounts? and vehicles?\b"
+            r"|\bvehicle you control enters\b|\bcrews a vehicle\b"
+            r"|\bwhenever[^.]*\bcrews?\b"
+            r"|\b(?:mount|equipment) or vehicle (?:card|spell)\b"
+            r"|\bvehicle or artifact (?:creature )?(?:card|spell)\b"
+            r"|create [^.]*\bvehicle artifact (?:creature )?token\b",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "scry_surveil_matters",
+        re.compile(
+            r"whenever you scry or surveil\b|whenever you (?:scry|surveil)\b"
+            r"|if you would scry (?:a number of cards|\d)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ── Named-mechanic long tail (precise named anchors → novel build-arounds) ───
+    ("monarch_matters", re.compile(r"\bthe monarch\b", re.IGNORECASE), "you"),
+    ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
+    (
+        "ring_matters",
+        re.compile(r"ring tempts you|your ring-bearer|the ring-bearer", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "venture_matters",
+        re.compile(
+            r"venture into the dungeon|complete a dungeon|\bdungeon\b", re.IGNORECASE
+        ),
+        "you",
+    ),
+    ("energy_matters", re.compile(r"\{e\}|energy counters?", re.IGNORECASE), "you"),
+    ("devotion_matters", re.compile(r"devotion to \w", re.IGNORECASE), "you"),
+    (
+        "superfriends_matters",
+        re.compile(
+            r"planeswalkers? you control|loyalty counters?"
+            r"|activate (?:a |one )?loyalty|one or more loyalty",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    ("historic_matters", re.compile(r"\bhistoric\b", re.IGNORECASE), "you"),
+    (
+        "legends_matter",
+        re.compile(
+            r"legendary creatures? you control"
+            r"|whenever (?:a|another) legendary (?:creature|permanent)[^.]*you control"
+            r"|whenever you cast a legendary|for each legendary (?:creature|permanent)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "big_hand_matters",
+        re.compile(
+            r"no maximum hand size|maximum hand size"
+            r"|(?:five|six|seven|eight) or more cards in your hand",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "party_matters",
+        re.compile(
+            r"\byour party\b|members? of your party|full party"
+            r"|assemble[^.]*party|creatures? in your party",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "exile_matters",
+        re.compile(
+            r"cards? (?:you own )?(?:that are )?in exile"
+            r"|for each card (?:you own )?(?:in )?exile",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    ("experience_matters", re.compile(r"experience counters?", re.IGNORECASE), "you"),
+    (
+        "poison_matters",
+        re.compile(
+            r"poison counters?|\bpoisonous\b|\btoxic\b|\binfect\b", re.IGNORECASE
+        ),
+        "opponents",
+    ),
+    ("modified_matters", re.compile(r"\bmodified\b", re.IGNORECASE), "you"),
+    ("mutate_matters", re.compile(r"\bmutate\b", re.IGNORECASE), "you"),
+    ("food_matters", re.compile(r"\bfood\b", re.IGNORECASE), "you"),
+    ("clue_matters", re.compile(r"\bclue\b|\binvestigate\b", re.IGNORECASE), "you"),
+    ("blood_matters", re.compile(r"blood tokens?", re.IGNORECASE), "you"),
+    (
+        "daynight_matters",
+        re.compile(
+            r"\bdaybound\b|\bnightbound\b|it becomes night"
+            r"|day becomes night|night becomes day|as long as it's (?:day|night)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "voting_matters",
+        re.compile(
+            r"will of the council|council's dilemma|each player votes?|\bvote\b",
+            re.IGNORECASE,
+        ),
+        "each",
+    ),
+    ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
+    (
+        "doubling_matters",
+        re.compile(
+            r"double the (?:number|amount)|create twice that many"
+            r"|would (?:create|put|draw|gain|deal)[^.]*\binstead\b"
+            r"[^.]*(?:twice|double|that many plus)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "second_spell_matters",
+        re.compile(
+            r"second spell you cast (?:each|this) turn|cast your second spell",
             re.IGNORECASE,
         ),
         "you",

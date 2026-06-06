@@ -1,0 +1,87 @@
+"""Tests for the sweep survivors + the named-mechanic long tail.
+
+Rare named mechanics (monarch, energy, the Ring, voting, …) are exactly the novel
+build-arounds the tool should surface, and they're precise named anchors so they
+stay clean. Each is a real archetype getting its own avenue.
+"""
+
+from mtg_utils._deck_forge.signals import extract_signals
+
+
+def _ks(card):
+    return {(s.key, s.scope) for s in extract_signals(card)}
+
+
+def _keys(card):
+    return {s.key for s in extract_signals(card)}
+
+
+# (expected_key, expected_scope, oracle text exercising the anchor)
+CASES = [
+    # sweep survivors
+    ("voltron_matters", "you", "Whenever you attach an Equipment to a creature, draw a card."),
+    ("vehicles_matter", "you", "Vehicles you control get +1/+1."),
+    ("scry_surveil_matters", "you", "Whenever you scry, put a +1/+1 counter on this creature."),
+    # named mechanics
+    ("monarch_matters", "you", "When this creature enters, you become the monarch."),
+    ("initiative_matters", "you", "When this creature enters, you take the initiative."),
+    ("ring_matters", "you", "Whenever this creature attacks, the Ring tempts you."),
+    ("venture_matters", "you", "When this creature enters, venture into the dungeon."),
+    ("energy_matters", "you", "When this creature enters, you get {E}{E}."),
+    ("devotion_matters", "you", "Your devotion to green is increased by this creature."),
+    ("superfriends_matters", "you", "Planeswalkers you control have hexproof."),
+    ("historic_matters", "you", "Whenever you cast a historic spell, draw a card."),
+    ("legends_matter", "you", "Legendary creatures you control get +1/+1."),
+    ("big_hand_matters", "you", "You have no maximum hand size."),
+    ("party_matters", "you", "Whenever a creature in your party attacks, draw a card."),
+    ("exile_matters", "you", "This creature gets +1/+0 for each card you own in exile."),
+    ("experience_matters", "you", "When this creature enters, you get an experience counter."),
+    ("poison_matters", "opponents", "This creature has infect."),
+    ("modified_matters", "you", "Modified creatures you control get +1/+1."),
+    ("mutate_matters", "you", "Mutate {2}{G}{U}"),
+    ("food_matters", "you", "Whenever you sacrifice a Food, each opponent loses 1 life."),
+    ("clue_matters", "you", "Whenever you investigate, draw a card."),
+    ("blood_matters", "you", "Whenever you sacrifice a Blood token, draw a card."),
+    ("daynight_matters", "you", "Daybound (If a player casts no spells during their own turn...)"),
+    ("voting_matters", "each", "Each player votes for an option."),
+    ("coven_matters", "you", "Coven — At the beginning of combat, scry 2."),
+    ("doubling_matters", "you", "If an effect would create tokens, instead it creates twice that many."),
+    ("second_spell_matters", "you", "Whenever you cast your second spell each turn, draw a card."),
+]
+
+
+def test_named_mechanic_and_survivor_rules_fire():
+    for key, scope, oracle in CASES:
+        sigs = {(s.key, s.scope) for s in extract_signals({"name": "X", "oracle_text": oracle})}
+        assert (key, scope) in sigs, f"{key}/{scope} did not fire on: {oracle}"
+
+
+def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():
+    # "creature or Vehicle you control" (singular) is a counters/combat-trick target,
+    # not a vehicles build-around — must NOT fire vehicles_matter.
+    c = {
+        "name": "Counter Trick",
+        "oracle_text": "Put a +1/+1 counter on target creature or Vehicle you control.",
+    }
+    assert "vehicles_matter" not in _keys(c)
+
+
+def test_voltron_does_not_fire_on_equipment_payload():
+    # The payload on an Equipment itself must not register as a voltron build-around.
+    c = {"name": "Bear Sword", "oracle_text": "Equipped creature gets +2/+2.\nEquip {2}"}
+    assert "voltron_matters" not in _keys(c)
+
+
+def test_counters_matter_widened_for_distributors():
+    # The old rule needed "for each"/"number of"; a distributor like
+    # "+1/+1 counter on each creature you control" (Mikaeus) must now register.
+    c = {
+        "name": "Mikaeus-like",
+        "oracle_text": "At the beginning of your end step, put a +1/+1 counter on each creature you control.",
+    }
+    assert any(s.key == "counters_matter" for s in extract_signals(c))
+
+
+def test_poison_scoped_to_opponents():
+    c = {"name": "Skithiryx-like", "oracle_text": "Infect\nThis creature can't be blocked."}
+    assert ("poison_matters", "opponents") in _ks(c)
