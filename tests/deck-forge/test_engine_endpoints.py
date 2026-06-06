@@ -135,3 +135,74 @@ def test_explore_returns_ranked_package_excluding_in_deck():
     assert "Token Maker" in names
     assert "In Deck Tokens" not in names
     assert pkg["label"] == "Go wide"
+
+
+JYOTI = {
+    "name": "Jyoti, Moag Ancient",
+    "type_line": "Legendary Creature — Elemental",
+    "cmc": 4.0,
+    "color_identity": ["G", "U"],
+    "oracle_text": (
+        "When Jyoti enters, create a 1/1 green Forest Dryad land creature token "
+        "for each time you've cast your commander from the command zone this game.\n"
+        "At the beginning of each combat, land creatures you control get +X/+X "
+        "until end of turn, where X is Jyoti's power."
+    ),
+    "prices": {"usd": "0.21"},
+}
+
+
+def _jyoti_client():
+    session = DeckSession("commander")
+    session.add("Jyoti, Moag Ancient", zone="commanders")
+    state = ForgeState(
+        by_name={"Jyoti, Moag Ancient": JYOTI},
+        search_fn=lambda **_: [],
+        session=session,
+        bulk_available=True,
+    )
+    return TestClient(build_app(state))
+
+
+MANLAND = {
+    "name": "Treetop Village",
+    "type_line": "Land",
+    "cmc": 0.0,
+    "color_identity": ["G"],
+    "oracle_text": "Treetop Village becomes a 3/3 green Ape creature until end of turn.",
+    "prices": {"usd": "0.50"},
+}
+
+
+def test_explore_credits_candidates_for_the_explored_avenue():
+    """A card surfaced *by* the avenue you clicked should score for it — otherwise a
+    perfect creature-land match shows synergy_fit 0 and reads as an irrelevant hit."""
+    client = _client(search_results=[MANLAND])
+    pkg = client.post(
+        "/api/explore",
+        json={
+            "label": "Creature-lands",
+            "search": {"card_type": "Land", "oracle": "becomes a [^.]*creature"},
+        },
+    ).json()["package"]
+    top = pkg["candidates"][0]
+    assert top["score"]["synergy_fit"] >= 1
+    assert "Creature-lands" in top["score"]["served"]
+
+
+def test_jyoti_yields_multiple_precise_avenues_not_just_go_wide():
+    """The reported bug: a land-creatures commander surfaced only 'Go wide'. The
+    engine must now offer several avenues, including the land-creatures theme, each
+    carrying a precise (typed and/or phrased) search."""
+    avenues = _jyoti_client().get("/api/snapshot").json()["avenues"]
+    labels = [a["label"] for a in avenues]
+    assert len(avenues) >= 3, labels
+    # The defining theme is surfaced — not collapsed into generic go-wide.
+    assert any(
+        "land" in label.lower() and "creature" in label.lower() for label in labels
+    ), labels
+    # At least one avenue is precisely typed (card_type), proving precision is
+    # owned by the engine rather than hand-rolled.
+    assert any(a["search"].get("card_type") for a in avenues), avenues
+    # Engine avenues remain explorable with a stable id.
+    assert all(a["id"] for a in avenues)

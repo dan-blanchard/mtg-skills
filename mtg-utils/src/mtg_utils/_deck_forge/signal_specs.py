@@ -21,16 +21,33 @@ _IC = re.IGNORECASE
 
 
 @dataclass(frozen=True)
+class SubAvenue:
+    """An additional, separately-searchable angle on the same signal. A theme like
+    land-creatures has genuinely distinct buckets — be the land-creatures (manlands),
+    reward them (payoffs), turn lands into creatures (animators) — each needing its
+    own precise search, so one signal fans out into several explorable avenues."""
+
+    label: str
+    avenue: str
+    search: dict
+
+
+@dataclass(frozen=True)
 class SignalSpec:
     label: str
     avenue: str
     search: dict  # card_search kwargs fragment (oracle / preset_names / card_type)
     serve: re.Pattern[str]  # matcher on a candidate card's oracle text
+    extras: tuple[SubAvenue, ...] = ()  # additional precise sub-avenues (optional)
 
 
-def _spec(label, avenue, search, serve):
+def _spec(label, avenue, search, serve, extras=()):
     return SignalSpec(
-        label=label, avenue=avenue, search=search, serve=re.compile(serve, _IC)
+        label=label,
+        avenue=avenue,
+        search=search,
+        serve=re.compile(serve, _IC),
+        extras=tuple(extras),
     )
 
 
@@ -57,6 +74,30 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "token swarms and anthems that scale with creature count",
         {"oracle": r"create .*creature token"},
         r"create .*creature token|creatures you control get",
+    ),
+    # Land-creatures theme (e.g. Jyoti, Moag Ancient). Three precise, disjoint
+    # angles — proven clean against bulk so a Plant-token maker (Avenger) or a
+    # clone (Silent Hallcreeper) is never surfaced:
+    #   main   — creature-lands: a Land that "becomes a … creature" (manlands)
+    #   extra  — payoffs: cards that reference "land creature(s)" (anthems)
+    #   extra  — animators: effects that turn YOUR lands into creatures
+    ("land_creatures_matter", "you"): _spec(
+        "Creature-lands",
+        "lands that are or become creatures — the backbone of a land-creatures deck",
+        {"card_type": "Land", "oracle": r"becomes a [^.]*creature"},
+        r"\bland creatures?\b",
+        extras=(
+            SubAvenue(
+                "Land-creature payoffs",
+                "anthems and abilities that specifically pump land creatures",
+                {"oracle": r"\bland creatures?\b"},
+            ),
+            SubAvenue(
+                "Animate your lands",
+                "effects that turn lands you control into creatures",
+                {"oracle": r"lands? you control[^.]*become[^.]*creature"},
+            ),
+        ),
     ),
     ("graveyard_matters", "opponents"): _spec(
         "Opponents' graveyards",

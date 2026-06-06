@@ -66,6 +66,53 @@ def test_vanilla_keyword_card_has_no_signals():
     assert extract_signals(card) == []
 
 
+JYOTI = {
+    "name": "Jyoti, Moag Ancient",
+    "oracle_text": (
+        "When Jyoti enters, create a 1/1 green Forest Dryad land creature token "
+        "for each time you've cast your commander from the command zone this game. "
+        "(They're affected by summoning sickness.)\n"
+        "At the beginning of each combat, land creatures you control get +X/+X "
+        "until end of turn, where X is Jyoti's power."
+    ),
+}
+
+
+def test_land_creatures_matter_detected_on_jyoti():
+    keys = _keys(JYOTI)
+    # The defining theme of the commander — must be its own signal, not collapsed
+    # into generic "creatures matter".
+    assert ("land_creatures_matter", "you") in keys
+    # The generic go-wide signal still fires too (regression safety).
+    assert ("creatures_matter", "you") in keys
+
+
+def test_land_creatures_matter_from_anthem_payoff():
+    sylvan = {
+        "name": "Sylvan Advocate",
+        "oracle_text": (
+            "Vigilance\nAs long as you control six or more lands, this creature "
+            "and land creatures you control get +2/+2."
+        ),
+    }
+    assert ("land_creatures_matter", "you") in _keys(sylvan)
+
+
+def test_plant_token_maker_is_not_a_land_creatures_signal():
+    # Avenger makes *Plant* creature tokens — never "land creatures". The whole
+    # point of the scoped vocabulary: this must NOT register as land-creatures.
+    avenger = {
+        "name": "Avenger of Zendikar",
+        "oracle_text": (
+            "When Avenger of Zendikar enters, create a 0/1 green Plant creature "
+            "token for each land you control."
+        ),
+    }
+    keys = _keys(avenger)
+    assert ("land_creatures_matter", "you") not in keys
+    assert ("land_creatures_matter", "any") not in keys
+
+
 def test_signal_carries_source_and_quote():
     card = {
         "name": "ETB Boss",

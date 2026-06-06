@@ -53,6 +53,10 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
         None,
     ),
     ("creatures_matter", _has("creatures you control"), "you"),
+    # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland
+    # creature" / "Plant creature" / "island creature" do NOT register — only a
+    # genuine land-creature reference (the Jyoti / Sylvan Advocate theme).
+    ("land_creatures_matter", _re(r"\bland creatures?\b"), None),
     (
         "lifegain_matters",
         lambda c: "whenever" in c and "gain" in c and "life" in c,

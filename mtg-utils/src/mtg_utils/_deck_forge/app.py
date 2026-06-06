@@ -311,6 +311,19 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                 "search": dict(spec.search),
             }
         )
+        # A signal can fan out into several precise sub-avenues (e.g. the
+        # land-creatures theme: creature-lands / payoffs / animators).
+        for i, extra in enumerate(spec.extras):
+            out.append(
+                {
+                    "id": f"{avenue_id}:{i}",
+                    "label": extra.label,
+                    "description": extra.avenue,
+                    "scope": sig.scope,
+                    "source": "engine",
+                    "search": dict(extra.search),
+                }
+            )
     out.extend(state.agent_avenues)
     return out
 
@@ -441,13 +454,17 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         in_deck = set(state.session.card_names())
         out = []
         for sig in sigs:
-            if spec_for(sig) is None:
+            spec = spec_for(sig)
+            if spec is None:
                 continue
             filters = search_filters(sig, color_identity=ci, fmt=fmt)
             found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
             fresh = [c for c in found if c.get("name") not in in_deck]
+            # Credit candidates for this signal's own avenue (its main search),
+            # not just any agent-added avenues.
+            self_avenue = {"label": spec.label, "search": dict(spec.search)}
             ranked = rank_candidates(
-                fresh, active_signals=sigs, avenues=state.agent_avenues
+                fresh, active_signals=sigs, avenues=[self_avenue, *state.agent_avenues]
             )[:_PACKAGE_LIMIT]
             out.append(
                 {
@@ -573,8 +590,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
         sigs = aggregate_signals(state.session.hydrated(state.by_name))
+        # Credit candidates for the avenue actually being explored, so a card the
+        # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
+        explored = {"label": payload.label, "search": payload.search}
         ranked = rank_candidates(
-            fresh, active_signals=sigs, avenues=state.agent_avenues
+            fresh, active_signals=sigs, avenues=[explored, *state.agent_avenues]
         )[:_PACKAGE_LIMIT]
         return {
             "package": {
