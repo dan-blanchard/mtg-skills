@@ -1,8 +1,14 @@
 <script>
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
-  import { applySnapshot } from "../lib/store.js";
+  import { applySnapshot, deck } from "../lib/store.js";
   import CardTile from "./CardTile.svelte";
+
+  // Singleton: drop a search hit once it's in the deck (it can't be added again).
+  $: inDeck = new Set(
+    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map((c) => c.name),
+  );
+  $: freshResults = results.filter((c) => !inDeck.has(c.name));
 
   // [symbol, pip background]. C = colorless pseudo-symbol.
   const PIPS = [
@@ -197,12 +203,14 @@
       <div class="notice">Stoking the forge…</div>
     {:else if searched && results.length === 0}
       <div class="notice">No cards matched. Loosen the filters.</div>
-    {:else if results.length}
+    {:else if freshResults.length}
       <div class="grid-cards">
-        {#each results as card (card.name)}
+        {#each freshResults as card (card.name)}
           <CardTile {card} onadd={add} />
         {/each}
       </div>
+    {:else if searched}
+      <div class="notice">Every match is already in your deck.</div>
     {:else}
       <div class="notice idle">Set filters and search to surface candidates.</div>
     {/if}
