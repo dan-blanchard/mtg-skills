@@ -16,6 +16,12 @@ async function get(path) {
   return { ok: resp.ok, status: resp.status, data };
 }
 
+async function del(path) {
+  const resp = await fetch(path, { method: "DELETE" });
+  const data = await resp.json().catch(() => ({}));
+  return { ok: resp.ok, status: resp.status, data };
+}
+
 export const api = {
   snapshot: () => fetch("/api/snapshot").then((r) => r.json()),
   search: (filters) => post("/api/search", filters),
@@ -26,6 +32,7 @@ export const api = {
   combos: () => get("/api/combos"),
   agentStatus: () => get("/api/agent/status"),
   explore: (label, search) => post("/api/explore", { label, search }),
+  removeAvenue: (id) => del(`/api/avenues/${id}`),
   finalize: (override) => post("/api/finalize", { override }),
   builds: () => get("/api/builds"),
   buildsNew: (format = "commander", name = "Untitled") =>

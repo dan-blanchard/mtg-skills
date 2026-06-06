@@ -519,6 +519,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.agent_avenues.append(avenue)
         return {"avenue": avenue, **_snapshot(state)}
 
+    @app.delete("/api/avenues/{avenue_id}")
+    async def remove_avenue(avenue_id: str) -> dict:
+        state.agent_avenues[:] = [
+            a for a in state.agent_avenues if a["id"] != avenue_id
+        ]
+        return _snapshot(state)
+
     @app.post("/api/explore")
     async def explore(payload: ExplorePayload) -> dict:
         if not state.bulk_available:

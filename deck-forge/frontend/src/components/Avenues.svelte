@@ -1,5 +1,6 @@
 <script>
-  import { avenues, activeTab, exploreAvenue } from "../lib/store.js";
+  import { avenues, activeTab, exploreAvenue, applySnapshot } from "../lib/store.js";
+  import { api } from "../lib/api.js";
 
   // Scope is only shown when it's contrastive — "yours" is the unremarkable default,
   // so we surface only the cases that change how you build (opponents' / each player).
@@ -8,6 +9,11 @@
   function explore(avenue) {
     exploreAvenue.set(avenue);
     activeTab.set("synergies");
+  }
+
+  async function remove(avenue) {
+    const r = await api.removeAvenue(avenue.id);
+    if (r.ok) applySnapshot(r.data);
   }
 </script>
 
@@ -24,6 +30,16 @@
         >
           <span class="label">{a.label}</span>
           {#if SCOPE_TAG[a.scope]}<span class="scope">{SCOPE_TAG[a.scope]}</span>{/if}
+          {#if a.source === "agent"}
+            <span
+              class="rm"
+              role="button"
+              tabindex="0"
+              title="Remove this avenue"
+              on:click|stopPropagation={() => remove(a)}
+              on:keydown|stopPropagation={(e) => (e.key === "Enter" ? remove(a) : null)}
+            >×</span>
+          {/if}
           <span class="go">→</span>
         </button>
       {/each}
@@ -75,6 +91,16 @@
   .go {
     color: var(--brass);
     font-weight: 700;
+  }
+  .rm {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0 0.1rem;
+    border-radius: 3px;
+  }
+  .rm:hover {
+    color: var(--fail);
   }
   .hint {
     margin: 0.6rem 0 0;

@@ -95,6 +95,11 @@ Handle each `kind`:
   ETB commander also wants flicker and bounce-your-own"), then **run `card-search`
   in the deck's color identity to ground each pattern in real cards.** Endorse only
   cards the search returned; include a one-line "why it fits" per card.
+  **Author the search/avenue oracle regex around the PRECISE phrase** (e.g.
+  `land creature`), not loosely-related creature subtypes — a Plant or Dryad
+  *creature* token is NOT a *land* creature; matching `(Plant|Dryad)` produces false
+  positives. Over-broad avenues can be pruned: `DELETE /api/avenues/{id}` (the "×"
+  on agent avenues in the UI).
 
 Post the answer back so the browser shows it:
 

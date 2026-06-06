@@ -114,6 +114,17 @@ def test_add_agent_avenue_appears_in_snapshot():
     assert agent_avenues[0]["id"] == "agent:1"
 
 
+def test_agent_avenue_can_be_removed():
+    client = _client()
+    snap = client.post(
+        "/api/avenues",
+        json={"label": "Too broad", "search": {"oracle": "create .*Plant"}},
+    ).json()
+    rid = next(a["id"] for a in snap["avenues"] if a["source"] == "agent")
+    after = client.delete(f"/api/avenues/{rid}").json()
+    assert all(a["id"] != rid for a in after["avenues"])
+
+
 def test_explore_returns_ranked_package_excluding_in_deck():
     client = _client(search_results=[TOK, ALREADY])
     pkg = client.post(
