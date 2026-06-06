@@ -30,6 +30,7 @@
   }
 
   const missingOf = (c) => (c.card_views || []).filter((cv) => !cv.in_deck);
+  const haveOf = (c) => (c.card_views || []).filter((cv) => cv.in_deck);
 
   async function addMissing(c) {
     let snap = null;
@@ -70,12 +71,31 @@
                   </button>
                 {/if}
               </div>
+
+              {#if c.description}
+                <div class="how">{c.description}</div>
+              {/if}
+              {#if c.mana_needed}
+                <div class="mana">Mana: {c.mana_needed}</div>
+              {/if}
+
               {#if c.card_views?.length}
-                <div class="grid">
-                  {#each c.card_views as cv (cv.name)}
-                    <CardTile card={cv} onadd={add} />
-                  {/each}
-                </div>
+                {#if haveOf(c).length}
+                  <div class="sub">In your deck</div>
+                  <div class="grid">
+                    {#each haveOf(c) as cv (cv.name)}
+                      <CardTile card={cv} onadd={add} />
+                    {/each}
+                  </div>
+                {/if}
+                {#if missingOf(c).length}
+                  <div class="sub need">You need</div>
+                  <div class="grid">
+                    {#each missingOf(c) as cv (cv.name)}
+                      <CardTile card={cv} onadd={add} />
+                    {/each}
+                  </div>
+                {/if}
               {:else}
                 <div class="cards">{c.cards.join(" + ")}</div>
               {/if}
@@ -154,6 +174,31 @@
     font-size: 0.74rem;
     padding: 0.28rem 0.55rem;
     white-space: nowrap;
+  }
+  .how {
+    white-space: pre-line;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--parchment-dim);
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.65rem;
+    margin-bottom: 0.5rem;
+  }
+  .mana {
+    font-size: 0.74rem;
+    color: var(--brass);
+    margin-bottom: 0.5rem;
+  }
+  .sub {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0.4rem 0 0.35rem;
+  }
+  .sub.need {
+    color: var(--warn);
   }
   .grid {
     display: grid;
