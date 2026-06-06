@@ -666,6 +666,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*token|enters the battlefield"},
         r"create [^.]*token|put [^.]*onto the battlefield|enters the battlefield",
     ),
+    ("dash_matters", "you"): _spec(
+        "Dash / hit-and-run Equipment",
+        "Equipment — it stays on the battlefield when Dash returns the creature to "
+        "your hand at end of turn (Auras and counters don't), so it's the resilient "
+        "buff for a recurring haste attacker; plus haste enablers and cheap recursion",
+        {"preset_names": ("equip",)},
+        r"equipped creature|equip \{|\bequipment\b|\breconfigure\b"
+        r"|attach [^.]*equipment|whenever[^.]*attacks",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

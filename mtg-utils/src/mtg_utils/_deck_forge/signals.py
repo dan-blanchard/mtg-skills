@@ -876,6 +876,22 @@ def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
     return out
 
 
+# Direct card-keyword signals: keywords (not theme_presets) that anchor a build via the
+# rules. Dash returns the creature to hand each end step (CR 702.109a), so Equipment
+# persists across the bounce (CR 301.5c) while Auras (CR 704.5m) and counters are lost —
+# Equipment is the resilient buff for a recurring haste attacker (Zurgo, Ragavan).
+_DIRECT_KEYWORD_SIGNALS = {"dash": ("dash_matters", "you")}
+
+
+def _detect_direct_keywords(card: dict) -> list[tuple[str, str]]:
+    card_kws = {k.lower() for k in (card.get("keywords") or [])}
+    return [
+        (key, scope)
+        for kw, (key, scope) in _DIRECT_KEYWORD_SIGNALS.items()
+        if kw in card_kws
+    ]
+
+
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for preset_name, (key, scope) in _PRESET_REGEX_SIGNALS.items():
@@ -1092,6 +1108,8 @@ def extract_signals(
 
     # Tier 3 — keyword-array presets (card-level, authoritative)
     for key, scope in _detect_keyword_presets(card):
+        add(key, scope, "", text[:120])
+    for key, scope in _detect_direct_keywords(card):
         add(key, scope, "", text[:120])
 
     # Own-subtype tribal: a creature's own creature type is a deterministic
