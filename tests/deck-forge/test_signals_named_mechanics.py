@@ -124,6 +124,39 @@ def test_connive_keyword():
     assert ("connive_matters", "you") in _ks(c)
 
 
+def test_prowess_keyword_surfaces_spellslinger():
+    c = {"name": "X", "oracle_text": "Prowess", "keywords": ["Prowess"]}
+    assert ("spellcast_matters", "you") in _ks(c)
+
+
+def test_loot_outlet_is_a_discard_avenue():
+    c = {"name": "X", "oracle_text": "{T}: Draw a card, then discard a card."}
+    assert ("discard_matters", "you") in _ks(c)
+
+
+def test_spell_copy():
+    c = {"name": "X", "oracle_text": "Copy target instant or sorcery spell you control."}
+    assert ("spell_copy_matters", "you") in _ks(c)
+
+
+def test_kitsa_gets_three_avenues():
+    c = {
+        "name": "Kitsa, Otterball Elite",
+        "oracle_text": (
+            "Vigilance\n"
+            "Prowess (Whenever you cast a noncreature spell, this creature gets "
+            "+1/+1 until end of turn.)\n"
+            "{T}: Draw a card, then discard a card.\n"
+            "{2}, {T}: Copy target instant or sorcery spell you control."
+        ),
+        "keywords": ["Prowess", "Vigilance"],
+    }
+    keys = _keys(c)
+    assert "spellcast_matters" in keys  # prowess → spellslinger
+    assert "discard_matters" in keys  # loot outlet
+    assert "spell_copy_matters" in keys  # copy spells
+
+
 def test_type_matters_catches_another_singular_tribal():
     # Marwyn: "another Elf you control" (singular) was missed by the "other Xs" form.
     c = {

@@ -526,6 +526,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bconnives?\b|draw a card, then discard"},
         r"\bconnives?\b",
     ),
+    ("spell_copy_matters", "you"): _spec(
+        "Spell copy",
+        "impactful instants/sorceries plus copy effects to multiply your spells",
+        {"oracle": r"copy (?:target|that)|instant or sorcery|\bstorm\b"},
+        r"copy target (?:instant|sorcery|spell)|\bcopy that spell\b|\bstorm\b",
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

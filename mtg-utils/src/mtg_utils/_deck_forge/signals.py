@@ -134,7 +134,12 @@ _DETECTORS: tuple[tuple[str, object, str | None], ...] = (
         ),
         "opponents",
     ),
-    ("discard_matters", _has("whenever you discard"), "you"),
+    # "whenever you discard" payoff OR a loot outlet ("draw a card, then discard").
+    (
+        "discard_matters",
+        _re(r"whenever you discard|draw (?:a|two|three|x|\d+) cards?, then discard"),
+        "you",
+    ),
     # Life-loss / drain. Scope varies (opponents drain vs your own life-loss), so
     # forced_scope is None — the clause scope resolves it.
     (
@@ -579,6 +584,15 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "you",
     ),
     ("connive_matters", re.compile(r"\bconnives?\b", re.IGNORECASE), "you"),
+    (
+        "spell_copy_matters",
+        re.compile(
+            r"copy target (?:instant or sorcery spell|spell)|\bcopy that spell\b"
+            r"|you may copy (?:it|that spell)|whenever you copy (?:a|an|target|that)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
 )
 
 # (preset_name → (signal_key, scope)). KEYWORD-ARRAY presets only — these read
@@ -589,6 +603,10 @@ _PRESET_KEYWORD_SIGNALS = {
     "goad": ("goad_matters", "opponents"),
     "proliferate": ("proliferate_matters", "you"),
     "magecraft": ("magecraft_matters", "you"),
+    # Prowess is a spellslinger payoff (cast noncreature spells) → same avenue.
+    "prowess": ("spellcast_matters", "you"),
+    # Storm/Casualty/Replicate/etc. are spell-copy keywords.
+    "spell-copy": ("spell_copy_matters", "you"),
 }
 # REGEX presets reused clause-scoped via the preset's own compiled patterns — these
 # close documented pure-reuse gaps (blink/Brago, extra-combats/Aurelia) where the
