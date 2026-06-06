@@ -3,7 +3,8 @@
 Each entry is one ability-axis detector: a structural-anchor regex (validated
 against bulk, never authored from memory — ADR-0009), a scope, and is_widen_of
 (the existing key it extends, or "" for a brand-new axis). The extractor compiles
-these into _REGEX_FLOOR_DETECTORS and signal_specs auto-registers an avenue per key.
+these into Detector records (_FLOOR_DETECTORS) and signal_specs auto-registers an
+avenue per key.
 Regenerate via the exhaustive-residual-sweep workflow. Two clause-scoped baseline
 widens (creature_etb, death_matters) are intentionally excluded here — their
 originals keep clause scope.

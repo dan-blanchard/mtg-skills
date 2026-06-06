@@ -322,10 +322,23 @@ def _detect_token_maker(clause: str, vocab: frozenset[str]) -> list[tuple[str, s
 
 # ── Tier 3: structural-anchor floor detectors + theme_presets reuse ────────────
 
+
+@dataclass(frozen=True)
+class Detector:
+    """A compiled floor/sweep detector: a regex over a clause → a scoped signal key.
+    The single record type the extractor's Tier-3 loop consumes, whether the source
+    is a curated hand-written rule or a row of the exhaustively-mined sweep table."""
+
+    key: str
+    scope: str  # forced scope ("you" | "opponents" | "each" | "any")
+    pattern: re.Pattern[str]
+
+
 # Each floor detector requires a structural anchor, never a bare substring, so
 # incidental one-shot makers (Beledros, Faramir) and self-restrictions (Kefnet)
-# don't misfire.
-_REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+# don't misfire. Hand-written source stays as (key, compiled-pattern, scope) tuples;
+# the assembly below adapts both these and the mined sweep into Detector records.
+_HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "treasure_matters",
         re.compile(
@@ -805,11 +818,14 @@ _REGEX_FLOOR_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("regenerate_matters", re.compile(r"\bregenerate\b", re.IGNORECASE), "you"),
 )
 
-# Exhaustively-mined detectors (one ability-axis each, grounded in real oracle
-# text). Appended as floor detectors; same-key widens carry the complete merged
-# regex, so dedup unions them with the hand-written originals.
-_REGEX_FLOOR_DETECTORS = _REGEX_FLOOR_DETECTORS + tuple(
-    (d["key"], re.compile(d["regex"], re.IGNORECASE), d["scope"])
+# One registration path: the curated hand-written detectors plus the exhaustively-
+# mined sweep (one ability-axis each, grounded in real oracle text), unified into a
+# single Detector record type. Same-key sweep widens carry the complete merged regex,
+# so the extractor's (key, scope, subject) dedup unions them with the hand originals.
+_FLOOR_DETECTORS: tuple[Detector, ...] = tuple(
+    Detector(key, scope, pattern) for key, pattern, scope in _HAND_FLOOR
+) + tuple(
+    Detector(d["key"], d["scope"], re.compile(d["regex"], re.IGNORECASE))
     for d in SWEEP_DETECTORS
 )
 
@@ -1008,9 +1024,9 @@ def extract_signals(
         if draw is not None:
             add(draw[0], draw[1], "", stripped)
         # Tier 3 — structural floor detectors + regex-preset reuse
-        for key, rx, forced_scope in _REGEX_FLOOR_DETECTORS:
-            if rx.search(clause):
-                add(key, forced_scope, "", stripped)
+        for det in _FLOOR_DETECTORS:
+            if det.pattern.search(clause):
+                add(det.key, det.scope, "", stripped)
         for key, scope in _detect_regex_presets(clause):
             add(key, scope, "", stripped)
 
