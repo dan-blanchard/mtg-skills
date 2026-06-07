@@ -281,11 +281,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             ),
         ),
     ),
+    # Widen to recover graveyard-HATE payoffs (exile an opponent's graveyard, count
+    # cards in opponents' graveyards) the mill-only serve missed — still scoped to
+    # OPPONENTS (self-mill never qualifies, the Tinybones guard).
     ("graveyard_matters", "opponents"): _spec(
         "Opponents' graveyards",
         "mill opponents and punish their graveyards (NOT self-mill)",
         {"oracle": r"each opponent mills|target opponent mills|opponent.*mills"},
-        r"opponent[^.]*\bmill|mill[^.]*opponent|each opponent[^.]*graveyard",
+        r"(?:each opponent|target opponent|an opponent|that player|target player) mills"
+        r"|opponent[^.]*\bmill|mill[^.]*opponent"
+        r"|exile (?:target player'?s?|each opponent'?s?|a) graveyard"
+        r"|(?:cards?|creature cards?)[^.]*in [^.]*opponents'? graveyards?"
+        r"|each opponent'?s graveyard",
     ),
     ("graveyard_matters", "you"): _spec(
         "Your graveyard",
@@ -566,11 +573,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\{x\}|\bstorm\b",
         serve_cmc_min=7,
     ),
+    # Narrow the bare `from exile` to the impulse/engine phrasing, so single-card
+    # rebound/foretell self-casts (Consuming Vapors) don't read as an engine.
     ("cast_from_exile", "you"): _spec(
         "Impulse / cast-from-exile",
         "impulse-draw enablers and cast-from-exile payoffs",
         {"oracle": r"from the top of your library|from exile"},
-        r"from the top of your library|from exile|\bplot\b",
+        r"from the top of your library|spells? you cast from exile"
+        r"|whenever you cast a spell from exile"
+        r"|you may (?:play|cast) (?:it|that card|those cards?|them|the exiled)"
+        r"|\bplot\b",
         extras=(
             SubAvenue(
                 "Top-of-library engines",
@@ -636,11 +648,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|draws? (?:two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?"
         r"|draw cards equal to|draws? an additional card",
     ),
+    # Drop the self-only `draws? an additional card` (it belongs to the YOU engine); the
+    # EACH avenue is symmetric/group draw only.
     ("card_draw_engine", "each"): _spec(
         "Group draw / wheel",
         "symmetric draw with punisher payoffs (Nekusar-style)",
         {"oracle": r"each player draws|whenever .* draws a card"},
-        r"each player draws|draws? an additional card",
+        r"each player[^.]*draws?|that player draws|whenever a player draws",
     ),
     ("direct_damage", "you"): _spec(
         "Burn / pingers",
@@ -1056,11 +1070,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|whenever a player (?:other than you )?draws"
         r"|whenever a player draws a card (?:except|other than)",
     ),
+    # Drop the bare `search their library` — your OWN tutor reads "search their
+    # library" too (Path to Exile). Require an opponent/player subject.
     ("opponent_search_matters", "opponents"): _spec(
         "Punish opponents' tutors / selection",
         "stax and punishers for opponents who search, scry, or surveil",
         {"oracle": r"opponent[^.]*(?:search|scry|surveil)|search(?:es)? their library"},
-        r"opponent[^.]*(?:scries|surveils|searches)|search their library",
+        r"(?:opponent|each player|a player)[^.]*(?:scries|surveils|searches "
+        r"(?:their|a) library)"
+        r"|whenever (?:an opponent|each opponent|a player)[^.]*search"
+        r"|if an opponent would search",
     ),
     ("damage_to_opp_matters", "opponents"): _spec(
         "Damage to opponents",
@@ -1097,6 +1116,53 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"equip \{|attach [^.]*equipment",
         serve_types=("equipment",),
         serve_keywords=("dash", "reconfigure"),
+    ),
+    # ── Hand-spec overrides for mined sweep keys that need a STRUCTURED serve ────
+    # (a keyword/veto dimension the auto-registered oracle-only sweep serve can't carry;
+    #  the sweep regex still drives EXTRACTION, these refine the classifier).
+    #
+    # excess_damage: the "excess damage" phrase is the payoff; the ENABLERS are trample
+    # bodies (CR 702.19) — add the keyword so the 940 trample creatures become servable.
+    ("excess_damage", "you"): _spec(
+        "Excess damage",
+        "trample and big hits to exploit excess damage",
+        {"oracle": r"\bexcess damage\b"},
+        r"\bexcess damage\b",
+        serve_keywords=("trample",),
+    ),
+    # anthem_static: a STATIC anthem, not a one-shot pump — VETO "until end of turn"
+    # (those are pump_matters). Oracle-with-temporal-guard (no structured 'is-static').
+    ("anthem_static", "you"): _spec(
+        "Static anthem",
+        "go-wide creatures to ride the anthem",
+        {
+            "oracle": (
+                r"(?:other [a-z]+ creatures|creatures you control"
+                r"|[a-z]+ creatures you control|nonblack creatures|other creatures)"
+                r" get \+\d/\+\d"
+            )
+        },
+        r"(?:other [a-z]+ creatures|creatures you control"
+        r"|[a-z]+ creatures you control|nonblack creatures|other creatures)"
+        r" get \+\d/\+\d",
+        serve_not=r"get \+\d/\+\d[^.]*until end of turn",
+    ),
+    # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
+    # already routes to exile_until_leaves, so excluding it here is lossless.
+    ("ltb_matters", "you"): _spec(
+        "Leaves-the-battlefield",
+        "sacrifice and blink fodder to trigger LTB",
+        {
+            "oracle": (
+                r"left the battlefield[^.]*this turn"
+                r"|whenever [^.]*(?:leaves|leave) the battlefield"
+                r"|when [^.]* leaves the battlefield"
+            )
+        },
+        r"a permanent (?:you controlled )?left the battlefield"
+        r"|whenever [^.]*(?:leaves the battlefield|leave the battlefield)"
+        r"|when [^.]* leaves the battlefield",
+        serve_not=r"exile [^.]*until [^.]*leaves the battlefield",
     ),
 }
 

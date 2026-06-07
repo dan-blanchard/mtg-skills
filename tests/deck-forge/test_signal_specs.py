@@ -1171,3 +1171,83 @@ class TestMediumServeFixes:
             [{"name": "Control Magic", "type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nYou control enchanted creature."}],
             [{"name": "Sky Swallower", "type_line": "Creature — Leviathan", "oracle_text": "When this creature enters, target opponent gains control of all other permanents you control."}],
         )
+
+
+class TestMediumServeFixes2:
+    """MEDIUM batch 7b: more serve recall/precision fixes."""
+
+    def _ck(self, key, scope, plus, minus):
+        sig = _sig(key, scope)
+        for card in plus:
+            assert serves(card, sig) is True, (key, card.get("name"))
+        for card in minus:
+            assert serves(card, sig) is False, (key, card.get("name"))
+
+    def test_opponents_graveyard_recovers_hate_payoffs(self):
+        self._ck(
+            "graveyard_matters", "opponents",
+            [
+                {"name": "Bojuka Bog", "oracle_text": "Bojuka Bog enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}."},
+                {"name": "Ruin Crab", "oracle_text": "Landfall — Whenever a land you control enters, each opponent mills three cards."},
+            ],
+            [{"name": "Stitcher's Supplier", "oracle_text": "When this creature enters or dies, mill three cards."}],
+        )
+
+    def test_opponent_search_requires_opponent_subject(self):
+        self._ck(
+            "opponent_search_matters", "opponents",
+            [{"name": "Aven Mindcensor", "oracle_text": "Flash\nFlying\nIf an opponent would search a library, that player searches the top four cards of that library instead."}],
+            [{"name": "Path to Exile", "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle."}],
+        )
+
+    def test_group_draw_each_drops_self_only_additional(self):
+        self._ck(
+            "card_draw_engine", "each",
+            [{"name": "Howling Mine", "oracle_text": "At the beginning of each player's draw step, that player draws an additional card if Howling Mine is untapped."}],
+            [{"name": "Heightened Awareness", "oracle_text": "When Heightened Awareness enters, draw a card.\nAt the beginning of your draw step, you may draw an additional card."}],
+        )
+
+    def test_cast_from_exile_narrows_to_engines(self):
+        self._ck(
+            "cast_from_exile", "you",
+            [{"name": "Light Up the Stage", "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards."}],
+            [{"name": "Consuming Vapors", "oracle_text": "Each player sacrifices a creature, then you gain life equal to the number of creatures that died this way.\nRebound"}],
+        )
+
+    def test_doubling_splits_token_and_counter_doublers(self):
+        self._ck(
+            "doubling_matters", "you",
+            [
+                {"name": "Parallel Lives", "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead."},
+                {"name": "Doubling Season", "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead. If an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on it instead."},
+            ],
+            [{"name": "Mycoloth", "oracle_text": "Devour 2\nAt the beginning of your upkeep, create a 1/1 green Saproling creature token for each +1/+1 counter on this creature."}],
+        )
+
+
+class TestSweepHandSpecs:
+    """Sweep keys that need a STRUCTURED serve (keyword/veto) the auto-registered
+    oracle-only serve can't carry — given a hand-written SPECS override."""
+
+    def test_excess_damage_serves_trample_bodies(self):
+        sig = _sig("excess_damage", "you")
+        pelakka = {"type_line": "Creature — Wurm", "oracle_text": "Trample\nWhen this creature enters, you gain 7 life.", "keywords": ["Trample"]}
+        payoff = {"type_line": "Enchantment — Saga", "oracle_text": "If a creature you control would deal excess damage to a creature, deal that excess damage to its controller instead."}
+        vanilla = {"type_line": "Creature — Bear", "oracle_text": "", "keywords": []}
+        assert serves(pelakka, sig) is True  # trample keyword
+        assert serves(payoff, sig) is True  # excess damage payoff
+        assert serves(vanilla, sig) is False
+
+    def test_anthem_static_excludes_until_end_of_turn(self):
+        sig = _sig("anthem_static", "you")
+        glorious = {"type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1."}
+        overcome = {"type_line": "Sorcery", "oracle_text": "Creatures you control get +2/+2 and gain trample until end of turn."}
+        assert serves(glorious, sig) is True  # static anthem
+        assert serves(overcome, sig) is False  # one-shot pump (until end of turn)
+
+    def test_ltb_matters_excludes_o_ring_removal(self):
+        sig = _sig("ltb_matters", "you")
+        nikara = {"type_line": "Legendary Creature — Snake Cleric", "oracle_text": "Whenever another creature you control leaves the battlefield, target player loses 1 life and you gain 1 life."}
+        banishing = {"type_line": "Enchantment", "oracle_text": "When Banishing Light enters, exile target nonland permanent an opponent controls until Banishing Light leaves the battlefield."}
+        assert serves(nikara, sig) is True  # LTB payoff
+        assert serves(banishing, sig) is False  # O-Ring exile-until-leaves
