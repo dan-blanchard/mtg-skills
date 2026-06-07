@@ -27,7 +27,10 @@ def test_partner_still_fires():
 
 # #2 keyword_counter is the CR 122.1b closed set — ward/training are not counters.
 def test_flying_counter_is_keyword_counter():
-    c = {"name": "X", "oracle_text": "This creature enters with a flying counter on it."}
+    c = {
+        "name": "X",
+        "oracle_text": "This creature enters with a flying counter on it.",
+    }
     assert "keyword_counter" in _keys(c)
 
 
@@ -50,7 +53,10 @@ def test_token_copy_does_not_fire_clone():
 
 
 def test_clone_still_fires():
-    c = {"name": "X", "oracle_text": "You may have this creature enter as a copy of any creature."}
+    c = {
+        "name": "X",
+        "oracle_text": "You may have this creature enter as a copy of any creature.",
+    }
     assert "clone_matters" in _keys(c)
 
 
@@ -67,22 +73,33 @@ def test_cant_be_blocked_is_evasion():
 
 # #7 combat damage to a creature must be COMBAT damage (CR 510 / 120.2a).
 def test_noncombat_damage_to_creature_excluded():
-    c = {"name": "X", "oracle_text": "Whenever this creature deals damage to a creature, draw a card."}
+    c = {
+        "name": "X",
+        "oracle_text": "Whenever this creature deals damage to a creature, draw a card.",
+    }
     assert "combat_damage_to_creature" not in _keys(c)
 
 
 def test_combat_damage_to_creature_fires():
-    c = {"name": "X", "oracle_text": "Whenever this creature deals combat damage to a creature, draw a card."}
+    c = {
+        "name": "X",
+        "oracle_text": "Whenever this creature deals combat damage to a creature, draw a card.",
+    }
     assert "combat_damage_to_creature" in _keys(c)
 
 
 # #8 combat damage to opponents must be COMBAT damage, not any damage (burn/drain).
 def test_noncombat_damage_to_opponent_excluded():
-    c = {"name": "X", "oracle_text": "Whenever you cast a spell, this deals damage to an opponent."}
+    c = {
+        "name": "X",
+        "oracle_text": "Whenever you cast a spell, this deals damage to an opponent.",
+    }
     assert "combat_damage_to_opp" not in _keys(c)
 
 
 # #12 Food keys on the Food-token mechanic, not the bare word.
 def test_food_token_fires():
     assert "food_matters" in _keys({"name": "X", "oracle_text": "Create a Food token."})
-    assert "food_matters" in _keys({"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."})
+    assert "food_matters" in _keys(
+        {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
+    )

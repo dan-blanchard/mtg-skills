@@ -53,6 +53,9 @@ class Serve:
     cmc_min: float | None = None
     min_devotion: int | None = None
     produces_mana: bool = False  # serve if the card has a non-empty produced_mana
+    power_min: int | None = None  # serve a creature whose power >= this (big-creature)
+    self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
+    names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     not_oracle: re.Pattern[str] | None = None
 
     def search(self, text: str):
@@ -65,6 +68,8 @@ class Serve:
         oracle_text = get_oracle_text(card) or ""
         if self.not_oracle is not None and self.not_oracle.search(oracle_text):
             return False
+        if self.names and (card.get("name") or "").lower() in self.names:
+            return True
         if self.oracle is not None and self.oracle.search(oracle_text):
             return True
         type_line = (card.get("type_line") or "").lower()
@@ -77,6 +82,14 @@ class Serve:
         if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
             return True
         if self.produces_mana and card.get("produced_mana"):
+            return True
+        if (
+            self.power_min is not None
+            and "creature" in type_line
+            and _power(card) >= self.power_min
+        ):
+            return True
+        if self.self_recur and _self_recurs(card, oracle_text):
             return True
         return (
             self.min_devotion is not None
@@ -101,6 +114,12 @@ class Serve:
             out["min_devotion"] = self.min_devotion
         if self.produces_mana:
             out["produces_mana"] = True
+        if self.power_min is not None:
+            out["power_min"] = self.power_min
+        if self.self_recur:
+            out["self_recur"] = True
+        if self.names:
+            out["names"] = sorted(self.names)
         if self.not_oracle is not None:
             out["not_oracle"] = self.not_oracle.pattern
         return out
@@ -114,6 +133,9 @@ class Serve:
             or self.cmc_min is not None
             or self.min_devotion is not None
             or self.produces_mana
+            or self.power_min is not None
+            or self.self_recur
+            or self.names
             or self.not_oracle is not None
         )
 
@@ -125,6 +147,37 @@ def _max_color_pips(mana_cost: str) -> int:
 
     syms = re.findall(r"\{([WUBRG])\}", mana_cost or "")
     return max(Counter(syms).values()) if syms else 0
+
+
+def _power(card: dict) -> int:
+    try:
+        return int(str(card.get("power", "0")))
+    except ValueError:
+        return 0  # */X or non-numeric power doesn't count toward a power threshold
+
+
+_ARTICLES_NAME = frozenset({"the", "a", "an", "of", "and"})
+
+
+def _self_recurs(card: dict, oracle_text: str) -> bool:
+    """True if ``card`` is a CREATURE that returns or recasts ITSELF from the graveyard
+    (Bloodghast / Gravecrawler / Reassembling Skeleton) — the self-replacing aristocrats
+    fodder. Name-aware: the returned object must be the card itself (its own name, "this
+    card/creature", or "it"), so Sun-Titan-style reanimation of OTHER cards is excluded.
+    """
+    if "creature" not in (card.get("type_line") or "").lower():
+        return False
+    refs = ["this card", "this creature", r"\bit\b"]
+    for w in re.split(r"\W+", card.get("name") or ""):
+        if len(w) > 2 and w.lower() not in _ARTICLES_NAME:
+            refs.append(re.escape(w))
+            break
+    pat = re.compile(
+        rf"(?:return|cast) (?:{'|'.join(refs)})"
+        r"(?:[^.]*?from (?:your|a) graveyard|[^.]*?graveyard[^.]*?to the battlefield)",
+        _IC,
+    )
+    return pat.search(oracle_text) is not None
 
 
 def _compile(pat):
@@ -148,6 +201,9 @@ def serve_from_dict(data: dict) -> Serve:
         cmc_min=data.get("cmc_min"),
         min_devotion=data.get("min_devotion"),
         produces_mana=bool(data.get("produces_mana")),
+        power_min=data.get("power_min"),
+        self_recur=bool(data.get("self_recur")),
+        names=frozenset(n.lower() for n in (data.get("names") or ())),
         not_oracle=_compile(data.get("not_oracle")),
     )
 
@@ -190,6 +246,8 @@ def _spec(
     serve_cmc_min=None,
     serve_min_devotion=None,
     serve_produces_mana=False,
+    serve_power_min=None,
+    serve_self_recur=False,
     serve_not=None,
 ):
     return SignalSpec(
@@ -203,6 +261,8 @@ def _spec(
             cmc_min=serve_cmc_min,
             min_devotion=serve_min_devotion,
             produces_mana=serve_produces_mana,
+            power_min=serve_power_min,
+            self_recur=serve_self_recur,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
         extras=tuple(extras),
@@ -276,6 +336,46 @@ _FLICKER_EXTRA = SubAvenue(
     {"preset_names": ("blink",)},
     serve=Serve(oracle=re.compile(_FLICKER_ORACLE, _IC)),
 )
+# Self-recurring fodder (CR 603.6e): aristocrats wants creatures that return/recast
+# THEMSELVES from the graveyard (Bloodghast / Gravecrawler). Name-aware serve (see
+# _self_recurs) excludes Sun-Titan-style reanimation of OTHER cards.
+_SELF_RECUR_EXTRA = SubAvenue(
+    "Self-recurring fodder",
+    "creatures that bring themselves back from the graveyard — free, repeatable sac "
+    "fodder (Bloodghast / Gravecrawler / Reassembling Skeleton)",
+    {"oracle": r"from your graveyard to the battlefield"},
+    serve=Serve(self_recur=True),
+)
+# Deathtouch-granting gear (CR 702.2b): with a repeatable pinger, deathtouch + 1 damage
+# kills anything. "(equipped|enchanted) creature … deathtouch" is Equipment/Aura-only.
+_DEATHTOUCH_GEAR_ORACLE = r"(?:equipped|enchanted) creature[^.]*\bdeathtouch\b"
+_DEATHTOUCH_GEAR_EXTRA = SubAvenue(
+    "Deathtouch enablers",
+    "Equipment/Auras that grant deathtouch so each ping kills (Basilisk Collar)",
+    {"oracle": _DEATHTOUCH_GEAR_ORACLE},
+    serve=Serve(oracle=re.compile(_DEATHTOUCH_GEAR_ORACLE, _IC)),
+)
+# Proliferate (CR 701.27) for any counter commander — adds another of EVERY counter.
+_PROLIFERATE_EXTRA = SubAvenue(
+    "Proliferate",
+    "proliferate sources that add another counter of every kind you already have",
+    {"preset_names": ("proliferate",)},
+    serve=Serve(
+        keywords=frozenset({"proliferate"}), oracle=re.compile(r"\bproliferate\b", _IC)
+    ),
+)
+# Discard-PUNISH payoffs (CR 701.8 discard): reward forcing opponents to discard.
+_DISCARD_PUNISH_ORACLE = (
+    r"whenever (?:a player|an opponent|that player|each opponent|target opponent)"
+    r"[^.]*discards?[^.]*(?:loses? \d+ life|deals? \d+ damage|you (?:may )?draw|create)"
+)
+_DISCARD_PUNISH_EXTRA = SubAvenue(
+    "Discard punishers",
+    "payoffs that trigger when an opponent discards (Megrim / Liliana's Caress / "
+    "Waste Not)",
+    {"oracle": _DISCARD_PUNISH_ORACLE},
+    serve=Serve(oracle=re.compile(_DISCARD_PUNISH_ORACLE, _IC)),
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -308,6 +408,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create .*creature token"},
         r"create .*creature token|creatures you control get",
         extras=(_ETB_PAYOFF_EXTRA,),
+    ),
+    # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
+    # reduction by total/greatest power (Ghalta) or a power-N-or-greater threshold
+    # (Goreclaw, Gargos). The structured `power_min` serve credits genuine big bodies
+    # regardless of oracle text; the search proxies them by high CMC (no `power` search
+    # key exists). serve_power_min=4 = the canonical Goreclaw "power 4 or greater".
+    ("power_matters", "you"): _spec(
+        "Big creatures / power matters",
+        "high-power bodies to exploit your power-based payoffs (cost reduction, "
+        "power thresholds) — big beaters, not utility dorks",
+        {"card_type": "Creature", "cmc_min": 5},
+        r"",
+        serve_power_min=4,
     ),
     # Land-creatures theme (e.g. Jyoti, Moag Ancient). Three precise, disjoint
     # angles — proven clean against bulk so a Plant-token maker (Avenger) or a
@@ -371,6 +484,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "counter generators and proliferate",
         {"oracle": r"\+1/\+1 counter"},
         r"\+1/\+1 counter|proliferate",
+        extras=(_PROLIFERATE_EXTRA,),
     ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
     # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic
@@ -460,6 +574,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "token fodder and free sacrifice outlets",
         {"oracle": r"create [^.]*creature token|sacrifice"},
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)",
+        extras=(_SELF_RECUR_EXTRA,),
     ),
     ("death_matters", "any"): _spec(
         "Aristocrats",
@@ -467,6 +582,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
         r"|whenever .* dies",
+        extras=(_SELF_RECUR_EXTRA,),
     ),
     # The bare word `haste` matched its reminder text and incidental mentions ("loses
     # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor
@@ -721,6 +837,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage"
         r"|deals (?:double|twice) that (?:much )?damage|deals that much damage plus"
         r"|if a source[^.]*would deal damage[^.]*instead",
+        extras=(_DEATHTOUCH_GEAR_EXTRA,),
     ),
     # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.
     # Serve the doublers/triplers (a "tap … for mana" trigger that adds/produces extra)
@@ -1072,6 +1189,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"opponent discards|each player discards|target player discards"},
         r"(?:each opponent|target opponent|an opponent|that opponent|each player"
         r"|target player|that player) discards|opponent[^.]*discards",
+        extras=(_DISCARD_PUNISH_EXTRA,),
     ),
     # Bare `can't be blocked` matched the menace/flying REMINDER "can't be blocked
     # except by …" on vanilla evasive creatures (~673). Exclude the "except" form (a

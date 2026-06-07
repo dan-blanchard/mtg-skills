@@ -329,6 +329,33 @@ def _detect_token_maker(clause: str, vocab: frozenset[str]) -> list[tuple[str, s
     return out
 
 
+# Typed graveyard recursion: "return target <Type> card from your graveyard to the
+# battlefield" (Greasefang → Vehicle) is a dedicated deck for <Type>. Resolve the
+# captured type to its matters signal — vehicles_matter for Vehicle, type_matters for a
+# creature subtype — but NOT for the generic card-type words (creature/permanent/
+# artifact), which are plain reanimation, not a typed-recursion theme.
+_TYPED_GY_RECUR_PATTERN = re.compile(
+    r"\breturn (?:target |all |each |up to \w+ target )?([A-Za-z]+) cards?\b"
+    r"[^.]*from (?:your|a) graveyard[^.]*(?:to|onto) the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _detect_typed_gy_recursion(
+    clause: str, vocab: frozenset[str]
+) -> list[tuple[str, str, str]]:
+    out: list[tuple[str, str, str]] = []
+    for m in _TYPED_GY_RECUR_PATTERN.finditer(clause):
+        raw = m.group(1).lower()
+        if raw == "vehicle":
+            out.append(("vehicles_matter", "you", ""))
+            continue
+        subject = _resolve_subject(m.group(1), vocab)
+        if subject:
+            out.append((signal_keys.TYPE_MATTERS, "you", subject))
+    return out
+
+
 # ── Tier 3: structural-anchor floor detectors + theme_presets reuse ────────────
 
 
@@ -837,6 +864,26 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     ("cascade_matters", re.compile(r"\bcascade\b", re.IGNORECASE), "you"),
     ("regenerate_matters", re.compile(r"\bregenerate\b", re.IGNORECASE), "you"),
+    # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
+    # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
+    # (Goreclaw), or a Ferocious-style "if you control a creature with power N or
+    # greater" payoff (Colossal Majesty, Crater's Claws). Every branch is anchored on a
+    # "you control" / "you cast" / "under your control" context so that removal and
+    # combat tricks that merely reference a target "creature with power N or greater"
+    # (Bring to Trial, Bolt Bend) — which are NOT a power-matters theme — never fire.
+    (
+        "power_matters",
+        re.compile(
+            r"(?:total|greatest|combined) power of creatures you control"
+            r"|creature spells? you cast with power \d+ or (?:greater|more)"
+            r"|if you control [^.]*?with power \d+ or (?:greater|more)"
+            r"|creature with power \d+ or (?:greater|more) enters"
+            r" the battlefield under your control"
+            r"|the greatest power among creatures you control",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
 )
 
 # One registration path: the curated hand-written detectors plus the exhaustively-
@@ -1256,6 +1303,8 @@ def extract_signals(
             add(key, "you", subject, stripped)
         for key, subject in _detect_token_maker(clause, vocab):
             add(key, "you", subject, stripped)
+        for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
+            add(key, scope, subject, stripped)
         draw = _detect_card_draw(clause)
         if draw is not None:
             add(draw[0], draw[1], "", stripped)

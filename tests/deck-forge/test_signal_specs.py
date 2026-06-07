@@ -931,22 +931,46 @@ class TestStructuredServeExtension:
 
     def test_superfriends_serves_planeswalkers_and_proliferate(self):
         sig = _sig("superfriends_matters", "you")
-        karn = {"type_line": "Legendary Planeswalker — Karn", "oracle_text": "...", "keywords": []}
+        karn = {
+            "type_line": "Legendary Planeswalker — Karn",
+            "oracle_text": "...",
+            "keywords": [],
+        }
         atraxa = {
             "type_line": "Legendary Creature — Phyrexian Angel Horror",
             "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate.",
-            "keywords": ["Flying", "Vigilance", "Deathtouch", "Lifelink", "Proliferate"],
+            "keywords": [
+                "Flying",
+                "Vigilance",
+                "Deathtouch",
+                "Lifelink",
+                "Proliferate",
+            ],
         }
-        bolt = {"type_line": "Instant", "oracle_text": "Lightning Bolt deals 3 damage to any target.", "keywords": []}
+        bolt = {
+            "type_line": "Instant",
+            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+            "keywords": [],
+        }
         assert serves(karn, sig) is True  # planeswalker type
         assert serves(atraxa, sig) is True  # proliferate keyword
         assert serves(bolt, sig) is False
 
     def test_modified_serves_equipment_auras_and_counters(self):
         sig = _sig("modified_matters", "you")
-        glitters = {"type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 for each artifact and enchantment you control."}
-        hardened_scales = {"type_line": "Enchantment", "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead."}
-        equipment = {"type_line": "Artifact — Equipment", "oracle_text": "Equipped creature gets +1/+1.\nEquip {1}", "keywords": ["Equip"]}
+        glitters = {
+            "type_line": "Enchantment — Aura",
+            "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 for each artifact and enchantment you control.",
+        }
+        hardened_scales = {
+            "type_line": "Enchantment",
+            "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.",
+        }
+        equipment = {
+            "type_line": "Artifact — Equipment",
+            "oracle_text": "Equipped creature gets +1/+1.\nEquip {1}",
+            "keywords": ["Equip"],
+        }
         sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."}
         assert serves(glitters, sig) is True  # Aura type
         assert serves(equipment, sig) is True  # Equipment type
@@ -955,9 +979,19 @@ class TestStructuredServeExtension:
 
     def test_voltron_serves_buff_auras_but_not_control_auras(self):
         sig = _sig("voltron_matters", "you")
-        skullclamp = {"type_line": "Artifact — Equipment", "oracle_text": "Equipped creature gets +1/-1.\nEquip {1}", "keywords": ["Equip"]}
-        flight = {"type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nEnchanted creature has flying."}
-        pacifism = {"type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nEnchanted creature can't attack or block."}
+        skullclamp = {
+            "type_line": "Artifact — Equipment",
+            "oracle_text": "Equipped creature gets +1/-1.\nEquip {1}",
+            "keywords": ["Equip"],
+        }
+        flight = {
+            "type_line": "Enchantment — Aura",
+            "oracle_text": "Enchant creature\nEnchanted creature has flying.",
+        }
+        pacifism = {
+            "type_line": "Enchantment — Aura",
+            "oracle_text": "Enchant creature\nEnchanted creature can't attack or block.",
+        }
         sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."}
         assert serves(skullclamp, sig) is True  # Equipment
         assert serves(flight, sig) is True  # buff Aura
@@ -966,11 +1000,36 @@ class TestStructuredServeExtension:
 
     def test_devotion_serves_heavy_pip_permanents_via_structured_pips(self):
         sig = _sig("devotion_matters", "you")
-        gray_merchant = {"type_line": "Creature — Zombie", "mana_cost": "{3}{B}{B}", "cmc": 5.0, "oracle_text": "When this creature enters, each opponent loses life equal to your devotion to black."}
-        heavy_pip_vanilla = {"type_line": "Creature — Elemental", "mana_cost": "{2}{R}{R}", "cmc": 4.0, "oracle_text": "Trample"}
-        llanowar = {"type_line": "Creature — Elf Druid", "mana_cost": "{G}", "cmc": 1.0, "oracle_text": "{T}: Add {G}."}
-        bolt = {"type_line": "Instant", "mana_cost": "{R}", "cmc": 1.0, "oracle_text": "deals 3 damage to any target."}
-        sol_ring = {"type_line": "Artifact", "mana_cost": "{1}", "cmc": 1.0, "oracle_text": "{T}: Add {C}{C}."}
+        gray_merchant = {
+            "type_line": "Creature — Zombie",
+            "mana_cost": "{3}{B}{B}",
+            "cmc": 5.0,
+            "oracle_text": "When this creature enters, each opponent loses life equal to your devotion to black.",
+        }
+        heavy_pip_vanilla = {
+            "type_line": "Creature — Elemental",
+            "mana_cost": "{2}{R}{R}",
+            "cmc": 4.0,
+            "oracle_text": "Trample",
+        }
+        llanowar = {
+            "type_line": "Creature — Elf Druid",
+            "mana_cost": "{G}",
+            "cmc": 1.0,
+            "oracle_text": "{T}: Add {G}.",
+        }
+        bolt = {
+            "type_line": "Instant",
+            "mana_cost": "{R}",
+            "cmc": 1.0,
+            "oracle_text": "deals 3 damage to any target.",
+        }
+        sol_ring = {
+            "type_line": "Artifact",
+            "mana_cost": "{1}",
+            "cmc": 1.0,
+            "oracle_text": "{T}: Add {C}{C}.",
+        }
         assert serves(gray_merchant, sig) is True  # devotion oracle + 2 black pips
         assert serves(heavy_pip_vanilla, sig) is True  # 2 red pips, a permanent
         assert serves(llanowar, sig) is False  # only 1 pip
@@ -979,10 +1038,30 @@ class TestStructuredServeExtension:
 
     def test_cost_reduction_serves_x_spells_and_expensive_bombs(self):
         sig = _sig("cost_reduction", "you")
-        torment = {"type_line": "Sorcery", "mana_cost": "{X}{B}{B}", "cmc": 2.0, "oracle_text": "Each opponent loses life and discards a card for each {X}."}
-        emrakul = {"type_line": "Legendary Creature — Eldrazi", "mana_cost": "{15}", "cmc": 15.0, "oracle_text": "..."}
-        disdainful = {"type_line": "Instant", "mana_cost": "{1}{U}", "cmc": 2.0, "oracle_text": "Counter target spell with mana value 4 or greater."}
-        sun_titan = {"type_line": "Creature — Giant", "mana_cost": "{4}{W}{W}", "cmc": 6.0, "oracle_text": "..."}
+        torment = {
+            "type_line": "Sorcery",
+            "mana_cost": "{X}{B}{B}",
+            "cmc": 2.0,
+            "oracle_text": "Each opponent loses life and discards a card for each {X}.",
+        }
+        emrakul = {
+            "type_line": "Legendary Creature — Eldrazi",
+            "mana_cost": "{15}",
+            "cmc": 15.0,
+            "oracle_text": "...",
+        }
+        disdainful = {
+            "type_line": "Instant",
+            "mana_cost": "{1}{U}",
+            "cmc": 2.0,
+            "oracle_text": "Counter target spell with mana value 4 or greater.",
+        }
+        sun_titan = {
+            "type_line": "Creature — Giant",
+            "mana_cost": "{4}{W}{W}",
+            "cmc": 6.0,
+            "oracle_text": "...",
+        }
         assert serves(torment, sig) is True  # X spell
         assert serves(emrakul, sig) is True  # expensive bomb (cmc>=7)
         assert serves(disdainful, sig) is False  # "mana value 4" no longer matches
@@ -990,7 +1069,10 @@ class TestStructuredServeExtension:
 
     def test_removal_serves_burn_to_any_target(self):
         sig = _sig("removal_matters", "you")
-        bolt = {"type_line": "Instant", "oracle_text": "Lightning Bolt deals 3 damage to any target."}
+        bolt = {
+            "type_line": "Instant",
+            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+        }
         murder = {"type_line": "Instant", "oracle_text": "Destroy target creature."}
         sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."}
         assert serves(bolt, sig) is True  # damage to any target
@@ -1017,10 +1099,23 @@ class TestStructuredServeFixes4:
         amplification. Serve the doublers/triplers ('tap … for mana … add/produces
         twice') + X-spell payoffs."""
         sig = _sig("mana_amplifier", "you")
-        mirari = {"type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1.\nWhenever you tap a land for mana, add one mana of any type that land produced."}
-        reflection = {"type_line": "Enchantment", "oracle_text": "If you tap a permanent for mana, it produces twice as much of that mana instead."}
-        birds = {"type_line": "Creature — Bird", "oracle_text": "Flying\n{T}: Add one mana of any color.", "keywords": ["Flying"]}
-        signet = {"type_line": "Artifact", "oracle_text": "{T}: Add one mana of any color."}
+        mirari = {
+            "type_line": "Enchantment",
+            "oracle_text": "Creatures you control get +1/+1.\nWhenever you tap a land for mana, add one mana of any type that land produced.",
+        }
+        reflection = {
+            "type_line": "Enchantment",
+            "oracle_text": "If you tap a permanent for mana, it produces twice as much of that mana instead.",
+        }
+        birds = {
+            "type_line": "Creature — Bird",
+            "oracle_text": "Flying\n{T}: Add one mana of any color.",
+            "keywords": ["Flying"],
+        }
+        signet = {
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add one mana of any color.",
+        }
         assert serves(mirari, sig) is True
         assert serves(reflection, sig) is True
         assert serves(birds, sig) is False
@@ -1028,11 +1123,31 @@ class TestStructuredServeFixes4:
 
     def test_attack_serves_haste_keyword_and_grants_not_bare_word(self):
         sig = _sig("attack_matters", "you")
-        fervor = {"type_line": "Enchantment", "oracle_text": "Creatures you control have haste.", "keywords": []}
-        haste_beater = {"type_line": "Creature — Goblin", "oracle_text": "Haste", "keywords": ["Haste"]}
-        krenko = {"type_line": "Legendary Creature — Goblin", "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.", "keywords": []}
-        loses_haste = {"type_line": "Instant", "oracle_text": "Target creature loses haste until end of turn.", "keywords": []}
-        sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}.", "keywords": []}
+        fervor = {
+            "type_line": "Enchantment",
+            "oracle_text": "Creatures you control have haste.",
+            "keywords": [],
+        }
+        haste_beater = {
+            "type_line": "Creature — Goblin",
+            "oracle_text": "Haste",
+            "keywords": ["Haste"],
+        }
+        krenko = {
+            "type_line": "Legendary Creature — Goblin",
+            "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
+            "keywords": [],
+        }
+        loses_haste = {
+            "type_line": "Instant",
+            "oracle_text": "Target creature loses haste until end of turn.",
+            "keywords": [],
+        }
+        sol_ring = {
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add {C}{C}.",
+            "keywords": [],
+        }
         assert serves(fervor, sig) is True  # grants haste to team
         assert serves(haste_beater, sig) is True  # Haste keyword
         assert serves(krenko, sig) is True  # creature-token maker
@@ -1043,16 +1158,28 @@ class TestStructuredServeFixes4:
         """`reveal the top card of your library` is a peek (Coiling Oracle), not
         play-from-top. Keep the play/cast-from-top forms."""
         sig = _sig("play_from_top", "you")
-        future_sight = {"type_line": "Enchantment", "oracle_text": "Play with the top card of your library revealed.\nYou may play lands and cast spells from the top of your library."}
-        coiling_oracle = {"type_line": "Creature — Snake Elf", "oracle_text": "When this creature enters, reveal the top card of your library. If it's a land card, put it onto the battlefield."}
+        future_sight = {
+            "type_line": "Enchantment",
+            "oracle_text": "Play with the top card of your library revealed.\nYou may play lands and cast spells from the top of your library.",
+        }
+        coiling_oracle = {
+            "type_line": "Creature — Snake Elf",
+            "oracle_text": "When this creature enters, reveal the top card of your library. If it's a land card, put it onto the battlefield.",
+        }
         assert serves(future_sight, sig) is True
         assert serves(coiling_oracle, sig) is False
 
     def test_pump_matters_drops_minus_bonuses(self):
         """pump's `[+\\-]` matched -X/-X shrink (that's debuff_matters). Positive only."""
         sig = _sig("pump_matters", "you")
-        giant_growth = {"type_line": "Instant", "oracle_text": "Target creature gets +3/+3 until end of turn."}
-        festering_goblin = {"type_line": "Creature — Zombie Goblin", "oracle_text": "When this creature dies, target creature gets -1/-1 until end of turn."}
+        giant_growth = {
+            "type_line": "Instant",
+            "oracle_text": "Target creature gets +3/+3 until end of turn.",
+        }
+        festering_goblin = {
+            "type_line": "Creature — Zombie Goblin",
+            "oracle_text": "When this creature dies, target creature gets -1/-1 until end of turn.",
+        }
         assert serves(giant_growth, sig) is True
         assert serves(festering_goblin, sig) is False
 
@@ -1064,8 +1191,12 @@ class TestStructuredServeFixes4:
         avenue = {"label": spec.label, "search": dict(spec.search)}
         counterspell = {"type_line": "Instant", "oracle_text": "Counter target spell."}
         murder = {"type_line": "Instant", "oracle_text": "Destroy target creature."}
-        served_cs = set(score_candidate(counterspell, active_signals=[], avenues=[avenue])["served"])
-        served_m = set(score_candidate(murder, active_signals=[], avenues=[avenue])["served"])
+        served_cs = set(
+            score_candidate(counterspell, active_signals=[], avenues=[avenue])["served"]
+        )
+        served_m = set(
+            score_candidate(murder, active_signals=[], avenues=[avenue])["served"]
+        )
         assert spec.label not in served_cs  # counterspell is not a crime enabler
         assert spec.label in served_m  # targeted removal is
 
@@ -1083,97 +1214,257 @@ class TestMediumServeFixes:
 
     def test_historic_serves_legendary_artifact_saga_types(self):
         self._ck(
-            "historic_matters", "you",
+            "historic_matters",
+            "you",
             [
-                {"name": "Sol Ring", "type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."},
-                {"name": "The Eldest Reborn", "type_line": "Enchantment — Saga", "oracle_text": "..."},
-                {"name": "Urza", "type_line": "Legendary Creature — Human Artificer", "oracle_text": "..."},
+                {
+                    "name": "Sol Ring",
+                    "type_line": "Artifact",
+                    "oracle_text": "{T}: Add {C}{C}.",
+                },
+                {
+                    "name": "The Eldest Reborn",
+                    "type_line": "Enchantment — Saga",
+                    "oracle_text": "...",
+                },
+                {
+                    "name": "Urza",
+                    "type_line": "Legendary Creature — Human Artificer",
+                    "oracle_text": "...",
+                },
             ],
-            [{"name": "Llanowar Elves", "type_line": "Creature — Elf Druid", "oracle_text": "{T}: Add {G}."}],
+            [
+                {
+                    "name": "Llanowar Elves",
+                    "type_line": "Creature — Elf Druid",
+                    "oracle_text": "{T}: Add {G}.",
+                }
+            ],
         )
 
     def test_legends_serves_legendary_type(self):
         self._ck(
-            "legends_matter", "you",
-            [{"name": "Jodah", "type_line": "Legendary Creature — Human Wizard", "oracle_text": "..."}],
+            "legends_matter",
+            "you",
+            [
+                {
+                    "name": "Jodah",
+                    "type_line": "Legendary Creature — Human Wizard",
+                    "oracle_text": "...",
+                }
+            ],
             [{"name": "Island", "type_line": "Basic Land — Island", "oracle_text": ""}],
         )
 
     def test_party_serves_party_classes_not_bare_word(self):
         self._ck(
-            "party_matters", "you",
+            "party_matters",
+            "you",
             [
-                {"name": "Archpriest", "type_line": "Creature — Human Cleric", "oracle_text": "..."},
-                {"name": "Tazri", "type_line": "Legendary Creature — Human Warrior", "oracle_text": "Your party..."},
+                {
+                    "name": "Archpriest",
+                    "type_line": "Creature — Human Cleric",
+                    "oracle_text": "...",
+                },
+                {
+                    "name": "Tazri",
+                    "type_line": "Legendary Creature — Human Warrior",
+                    "oracle_text": "Your party...",
+                },
             ],
-            [{"name": "Tavern", "type_line": "Sorcery", "oracle_text": "You meet in a tavern. The party gathers."}],
+            [
+                {
+                    "name": "Tavern",
+                    "type_line": "Sorcery",
+                    "oracle_text": "You meet in a tavern. The party gathers.",
+                }
+            ],
         )
 
     def test_ramp_serves_via_produced_mana(self):
         self._ck(
-            "ramp_matters", "you",
+            "ramp_matters",
+            "you",
             [
-                {"name": "Birds", "type_line": "Creature — Bird", "oracle_text": "Flying\n{T}: Add one mana of any color.", "produced_mana": ["W", "U", "B", "R", "G"]},
-                {"name": "Sol Ring", "type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}.", "produced_mana": ["C"]},
-                {"name": "Cultivate", "type_line": "Sorcery", "oracle_text": "Search your library for up to two basic land cards."},
+                {
+                    "name": "Birds",
+                    "type_line": "Creature — Bird",
+                    "oracle_text": "Flying\n{T}: Add one mana of any color.",
+                    "produced_mana": ["W", "U", "B", "R", "G"],
+                },
+                {
+                    "name": "Sol Ring",
+                    "type_line": "Artifact",
+                    "oracle_text": "{T}: Add {C}{C}.",
+                    "produced_mana": ["C"],
+                },
+                {
+                    "name": "Cultivate",
+                    "type_line": "Sorcery",
+                    "oracle_text": "Search your library for up to two basic land cards.",
+                },
             ],
-            [{"name": "Bolt", "type_line": "Instant", "oracle_text": "deals 3 damage to any target."}],
+            [
+                {
+                    "name": "Bolt",
+                    "type_line": "Instant",
+                    "oracle_text": "deals 3 damage to any target.",
+                }
+            ],
         )
 
     def test_opponent_draw_drops_gift_effects(self):
         self._ck(
-            "opponent_draw_matters", "opponents",
-            [{"name": "Bowmasters", "type_line": "Creature — Orc Archer", "oracle_text": "Whenever an opponent draws a card except the first one they draw in each of their draw steps, this creature deals 1 damage to any target."}],
-            [{"name": "Master of the Feast", "type_line": "Creature — Demon", "oracle_text": "Flying\nAt the beginning of your end step, each opponent draws a card."}],
+            "opponent_draw_matters",
+            "opponents",
+            [
+                {
+                    "name": "Bowmasters",
+                    "type_line": "Creature — Orc Archer",
+                    "oracle_text": "Whenever an opponent draws a card except the first one they draw in each of their draw steps, this creature deals 1 damage to any target.",
+                }
+            ],
+            [
+                {
+                    "name": "Master of the Feast",
+                    "type_line": "Creature — Demon",
+                    "oracle_text": "Flying\nAt the beginning of your end step, each opponent draws a card.",
+                }
+            ],
         )
 
     def test_tokens_matter_anchors_token_enters(self):
         self._ck(
-            "tokens_matter", "you",
-            [{"name": "Cathars Crusade", "type_line": "Enchantment", "oracle_text": "Whenever a creature you control enters, put a +1/+1 counter on each creature you control.\nTokens you control..."}],
-            [{"name": "Darksteel Splicer", "type_line": "Creature", "oracle_text": "Whenever a nontoken creature you control enters, it becomes an artifact."}],
+            "tokens_matter",
+            "you",
+            [
+                {
+                    "name": "Cathars Crusade",
+                    "type_line": "Enchantment",
+                    "oracle_text": "Whenever a creature you control enters, put a +1/+1 counter on each creature you control.\nTokens you control...",
+                }
+            ],
+            [
+                {
+                    "name": "Darksteel Splicer",
+                    "type_line": "Creature",
+                    "oracle_text": "Whenever a nontoken creature you control enters, it becomes an artifact.",
+                }
+            ],
         )
 
     def test_exile_removal_excludes_blink(self):
         self._ck(
-            "exile_removal", "you",
-            [{"name": "Swords", "type_line": "Instant", "oracle_text": "Exile target creature. Its controller gains life equal to its power."}],
-            [{"name": "Ephemerate", "type_line": "Instant", "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control."}],
+            "exile_removal",
+            "you",
+            [
+                {
+                    "name": "Swords",
+                    "type_line": "Instant",
+                    "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+                }
+            ],
+            [
+                {
+                    "name": "Ephemerate",
+                    "type_line": "Instant",
+                    "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.",
+                }
+            ],
         )
 
     def test_bounce_tempo_constrains_object(self):
         self._ck(
-            "bounce_tempo", "you",
-            [{"name": "Boomerang", "type_line": "Instant", "oracle_text": "Return target permanent to its owner's hand."}],
-            [{"name": "Reprieve", "type_line": "Instant", "oracle_text": "Return target spell to its owner's hand. Its owner may play it again this turn."}],
+            "bounce_tempo",
+            "you",
+            [
+                {
+                    "name": "Boomerang",
+                    "type_line": "Instant",
+                    "oracle_text": "Return target permanent to its owner's hand.",
+                }
+            ],
+            [
+                {
+                    "name": "Reprieve",
+                    "type_line": "Instant",
+                    "oracle_text": "Return target spell to its owner's hand. Its owner may play it again this turn.",
+                }
+            ],
         )
 
     def test_count_anthem_drops_self_scaling_branch(self):
         self._ck(
-            "count_anthem", "you",
-            [{"name": "Intangible Virtue", "type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1 for each artifact you control."}],
-            [{"name": "Storm-Kiln Artist", "type_line": "Creature — Dwarf Shaman", "oracle_text": "Storm-Kiln Artist gets +1/+0 for each artifact you control."}],
+            "count_anthem",
+            "you",
+            [
+                {
+                    "name": "Intangible Virtue",
+                    "type_line": "Enchantment",
+                    "oracle_text": "Creatures you control get +1/+1 for each artifact you control.",
+                }
+            ],
+            [
+                {
+                    "name": "Storm-Kiln Artist",
+                    "type_line": "Creature — Dwarf Shaman",
+                    "oracle_text": "Storm-Kiln Artist gets +1/+0 for each artifact you control.",
+                }
+            ],
         )
 
     def test_lifeloss_self_drops_painlands(self):
         self._ck(
-            "lifeloss_matters", "you",
-            [{"name": "K'rrik", "type_line": "Legendary Creature — Phyrexian Horror", "oracle_text": "Whenever you lose life, ...\nBlack spells you cast cost {2} less and {2} life more."}],
-            [{"name": "Blood Crypt", "type_line": "Land — Swamp Mountain", "oracle_text": "As this land enters, you may pay 2 life. If you don't, it enters tapped.\n{T}: Add {B} or {R}."}],
+            "lifeloss_matters",
+            "you",
+            [
+                {
+                    "name": "K'rrik",
+                    "type_line": "Legendary Creature — Phyrexian Horror",
+                    "oracle_text": "Whenever you lose life, ...\nBlack spells you cast cost {2} less and {2} life more.",
+                }
+            ],
+            [
+                {
+                    "name": "Blood Crypt",
+                    "type_line": "Land — Swamp Mountain",
+                    "oracle_text": "As this land enters, you may pay 2 life. If you don't, it enters tapped.\n{T}: Add {B} or {R}.",
+                }
+            ],
         )
 
     def test_permanent_etb_recovers_etb_engines(self):
         self._ck(
-            "permanent_etb", "you",
-            [{"name": "Panharmonicon", "type_line": "Artifact", "oracle_text": "If an artifact or creature entering the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time."}],
+            "permanent_etb",
+            "you",
+            [
+                {
+                    "name": "Panharmonicon",
+                    "type_line": "Artifact",
+                    "oracle_text": "If an artifact or creature entering the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+                }
+            ],
             [],
         )
 
     def test_gain_control_requires_you_as_controller(self):
         self._ck(
-            "gain_control", "you",
-            [{"name": "Control Magic", "type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nYou control enchanted creature."}],
-            [{"name": "Sky Swallower", "type_line": "Creature — Leviathan", "oracle_text": "When this creature enters, target opponent gains control of all other permanents you control."}],
+            "gain_control",
+            "you",
+            [
+                {
+                    "name": "Control Magic",
+                    "type_line": "Enchantment — Aura",
+                    "oracle_text": "Enchant creature\nYou control enchanted creature.",
+                }
+            ],
+            [
+                {
+                    "name": "Sky Swallower",
+                    "type_line": "Creature — Leviathan",
+                    "oracle_text": "When this creature enters, target opponent gains control of all other permanents you control.",
+                }
+            ],
         )
 
 
@@ -1189,43 +1480,100 @@ class TestMediumServeFixes2:
 
     def test_opponents_graveyard_recovers_hate_payoffs(self):
         self._ck(
-            "graveyard_matters", "opponents",
+            "graveyard_matters",
+            "opponents",
             [
-                {"name": "Bojuka Bog", "oracle_text": "Bojuka Bog enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}."},
-                {"name": "Ruin Crab", "oracle_text": "Landfall — Whenever a land you control enters, each opponent mills three cards."},
+                {
+                    "name": "Bojuka Bog",
+                    "oracle_text": "Bojuka Bog enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+                },
+                {
+                    "name": "Ruin Crab",
+                    "oracle_text": "Landfall — Whenever a land you control enters, each opponent mills three cards.",
+                },
             ],
-            [{"name": "Stitcher's Supplier", "oracle_text": "When this creature enters or dies, mill three cards."}],
+            [
+                {
+                    "name": "Stitcher's Supplier",
+                    "oracle_text": "When this creature enters or dies, mill three cards.",
+                }
+            ],
         )
 
     def test_opponent_search_requires_opponent_subject(self):
         self._ck(
-            "opponent_search_matters", "opponents",
-            [{"name": "Aven Mindcensor", "oracle_text": "Flash\nFlying\nIf an opponent would search a library, that player searches the top four cards of that library instead."}],
-            [{"name": "Path to Exile", "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle."}],
+            "opponent_search_matters",
+            "opponents",
+            [
+                {
+                    "name": "Aven Mindcensor",
+                    "oracle_text": "Flash\nFlying\nIf an opponent would search a library, that player searches the top four cards of that library instead.",
+                }
+            ],
+            [
+                {
+                    "name": "Path to Exile",
+                    "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+                }
+            ],
         )
 
     def test_group_draw_each_drops_self_only_additional(self):
         self._ck(
-            "card_draw_engine", "each",
-            [{"name": "Howling Mine", "oracle_text": "At the beginning of each player's draw step, that player draws an additional card if Howling Mine is untapped."}],
-            [{"name": "Heightened Awareness", "oracle_text": "When Heightened Awareness enters, draw a card.\nAt the beginning of your draw step, you may draw an additional card."}],
+            "card_draw_engine",
+            "each",
+            [
+                {
+                    "name": "Howling Mine",
+                    "oracle_text": "At the beginning of each player's draw step, that player draws an additional card if Howling Mine is untapped.",
+                }
+            ],
+            [
+                {
+                    "name": "Heightened Awareness",
+                    "oracle_text": "When Heightened Awareness enters, draw a card.\nAt the beginning of your draw step, you may draw an additional card.",
+                }
+            ],
         )
 
     def test_cast_from_exile_narrows_to_engines(self):
         self._ck(
-            "cast_from_exile", "you",
-            [{"name": "Light Up the Stage", "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards."}],
-            [{"name": "Consuming Vapors", "oracle_text": "Each player sacrifices a creature, then you gain life equal to the number of creatures that died this way.\nRebound"}],
+            "cast_from_exile",
+            "you",
+            [
+                {
+                    "name": "Light Up the Stage",
+                    "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards.",
+                }
+            ],
+            [
+                {
+                    "name": "Consuming Vapors",
+                    "oracle_text": "Each player sacrifices a creature, then you gain life equal to the number of creatures that died this way.\nRebound",
+                }
+            ],
         )
 
     def test_doubling_splits_token_and_counter_doublers(self):
         self._ck(
-            "doubling_matters", "you",
+            "doubling_matters",
+            "you",
             [
-                {"name": "Parallel Lives", "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead."},
-                {"name": "Doubling Season", "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead. If an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on it instead."},
+                {
+                    "name": "Parallel Lives",
+                    "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
+                },
+                {
+                    "name": "Doubling Season",
+                    "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead. If an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on it instead.",
+                },
             ],
-            [{"name": "Mycoloth", "oracle_text": "Devour 2\nAt the beginning of your upkeep, create a 1/1 green Saproling creature token for each +1/+1 counter on this creature."}],
+            [
+                {
+                    "name": "Mycoloth",
+                    "oracle_text": "Devour 2\nAt the beginning of your upkeep, create a 1/1 green Saproling creature token for each +1/+1 counter on this creature.",
+                }
+            ],
         )
 
 
@@ -1235,8 +1583,15 @@ class TestSweepHandSpecs:
 
     def test_excess_damage_serves_trample_bodies(self):
         sig = _sig("excess_damage", "you")
-        pelakka = {"type_line": "Creature — Wurm", "oracle_text": "Trample\nWhen this creature enters, you gain 7 life.", "keywords": ["Trample"]}
-        payoff = {"type_line": "Enchantment — Saga", "oracle_text": "If a creature you control would deal excess damage to a creature, deal that excess damage to its controller instead."}
+        pelakka = {
+            "type_line": "Creature — Wurm",
+            "oracle_text": "Trample\nWhen this creature enters, you gain 7 life.",
+            "keywords": ["Trample"],
+        }
+        payoff = {
+            "type_line": "Enchantment — Saga",
+            "oracle_text": "If a creature you control would deal excess damage to a creature, deal that excess damage to its controller instead.",
+        }
         vanilla = {"type_line": "Creature — Bear", "oracle_text": "", "keywords": []}
         assert serves(pelakka, sig) is True  # trample keyword
         assert serves(payoff, sig) is True  # excess damage payoff
@@ -1244,15 +1599,27 @@ class TestSweepHandSpecs:
 
     def test_anthem_static_excludes_until_end_of_turn(self):
         sig = _sig("anthem_static", "you")
-        glorious = {"type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1."}
-        overcome = {"type_line": "Sorcery", "oracle_text": "Creatures you control get +2/+2 and gain trample until end of turn."}
+        glorious = {
+            "type_line": "Enchantment",
+            "oracle_text": "Creatures you control get +1/+1.",
+        }
+        overcome = {
+            "type_line": "Sorcery",
+            "oracle_text": "Creatures you control get +2/+2 and gain trample until end of turn.",
+        }
         assert serves(glorious, sig) is True  # static anthem
         assert serves(overcome, sig) is False  # one-shot pump (until end of turn)
 
     def test_ltb_matters_excludes_o_ring_removal(self):
         sig = _sig("ltb_matters", "you")
-        nikara = {"type_line": "Legendary Creature — Snake Cleric", "oracle_text": "Whenever another creature you control leaves the battlefield, target player loses 1 life and you gain 1 life."}
-        banishing = {"type_line": "Enchantment", "oracle_text": "When Banishing Light enters, exile target nonland permanent an opponent controls until Banishing Light leaves the battlefield."}
+        nikara = {
+            "type_line": "Legendary Creature — Snake Cleric",
+            "oracle_text": "Whenever another creature you control leaves the battlefield, target player loses 1 life and you gain 1 life.",
+        }
+        banishing = {
+            "type_line": "Enchantment",
+            "oracle_text": "When Banishing Light enters, exile target nonland permanent an opponent controls until Banishing Light leaves the battlefield.",
+        }
         assert serves(nikara, sig) is True  # LTB payoff
         assert serves(banishing, sig) is False  # O-Ring exile-until-leaves
 
@@ -1262,36 +1629,62 @@ class TestMediumBatch8:
 
     def test_big_hand_excludes_stax_hand_size_refs(self):
         sig = _sig("big_hand_matters", "you")
-        no_max = {"type_line": "Creature", "oracle_text": "You have no maximum hand size."}
-        ensnaring = {"type_line": "Artifact", "oracle_text": "Creatures with power greater than the number of cards in your hand can't attack."}
+        no_max = {
+            "type_line": "Creature",
+            "oracle_text": "You have no maximum hand size.",
+        }
+        ensnaring = {
+            "type_line": "Artifact",
+            "oracle_text": "Creatures with power greater than the number of cards in your hand can't attack.",
+        }
         assert serves(no_max, sig) is True
         assert serves(ensnaring, sig) is False
 
     def test_counter_manipulation_requires_plus_one_counters(self):
         sig = _sig("counter_manipulation", "you")
-        hex_parasite = {"type_line": "Artifact Creature — Insect", "oracle_text": "{X}, {T}: Remove X +1/+1 counters or X loyalty counters from target permanent."}
-        mana_bloom = {"type_line": "Enchantment", "oracle_text": "At the beginning of your upkeep, remove a charge counter from this enchantment. If you can't, sacrifice it."}
+        hex_parasite = {
+            "type_line": "Artifact Creature — Insect",
+            "oracle_text": "{X}, {T}: Remove X +1/+1 counters or X loyalty counters from target permanent.",
+        }
+        mana_bloom = {
+            "type_line": "Enchantment",
+            "oracle_text": "At the beginning of your upkeep, remove a charge counter from this enchantment. If you can't, sacrifice it.",
+        }
         assert serves(hex_parasite, sig) is True
         assert serves(mana_bloom, sig) is False
 
     def test_life_total_set_drops_symmetric_damage_branch(self):
         sig = _sig("life_total_set", "any")
-        mirror = {"type_line": "Artifact", "oracle_text": "{T}: Exchange your life total with target opponent's life total."}
-        price = {"type_line": "Sorcery", "oracle_text": "Price of Progress deals damage to each player equal to twice the number of nonbasic lands that player controls."}
+        mirror = {
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Exchange your life total with target opponent's life total.",
+        }
+        price = {
+            "type_line": "Sorcery",
+            "oracle_text": "Price of Progress deals damage to each player equal to twice the number of nonbasic lands that player controls.",
+        }
         assert serves(mirror, sig) is True
         assert serves(price, sig) is False
 
     def test_creature_cast_trigger_recovers_you_cast(self):
         from mtg_utils._deck_forge.signals import extract_signals
 
-        beast_whisperer = {"name": "Beast Whisperer", "type_line": "Creature — Elf Shaman", "oracle_text": "Whenever you cast a creature spell, draw a card."}
+        beast_whisperer = {
+            "name": "Beast Whisperer",
+            "type_line": "Creature — Elf Shaman",
+            "oracle_text": "Whenever you cast a creature spell, draw a card.",
+        }
         keys = {s.key for s in extract_signals(beast_whisperer)}
         assert "creature_cast_trigger" in keys
 
     def test_win_lose_game_self_win_not_mislabeled_opponents(self):
         from mtg_utils._deck_forge.signals import extract_signals
 
-        felidar = {"name": "Felidar Sovereign", "type_line": "Creature — Cat Beast", "oracle_text": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game."}
+        felidar = {
+            "name": "Felidar Sovereign",
+            "type_line": "Creature — Cat Beast",
+            "oracle_text": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
+        }
         sigs = [s for s in extract_signals(felidar) if s.key == "win_lose_game"]
         assert sigs and all(s.scope != "opponents" for s in sigs)
 
@@ -1299,17 +1692,39 @@ class TestMediumBatch8:
 class TestMediumBatch9:
     def test_counter_distribute_is_board_wide_only(self):
         sig = _sig("counter_distribute", "you")
-        cathars = {"type_line": "Enchantment", "oracle_text": "Whenever a creature you control enters, put a +1/+1 counter on each creature you control."}
-        venerable = {"type_line": "Creature — Human Knight", "oracle_text": "When this creature dies, put a +1/+1 counter on target Knight you control."}
+        cathars = {
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever a creature you control enters, put a +1/+1 counter on each creature you control.",
+        }
+        venerable = {
+            "type_line": "Creature — Human Knight",
+            "oracle_text": "When this creature dies, put a +1/+1 counter on target Knight you control.",
+        }
         assert serves(cathars, sig) is True
         assert serves(venerable, sig) is False
 
     def test_keyword_tribe_requires_payoff_anchor(self):
         from mtg_utils._deck_forge.signals import extract_signals, signal_keys
 
-        praetors = {"name": "Hand of the Praetors", "type_line": "Creature — Phyrexian", "oracle_text": "Infect\nOther creatures with infect you control get +1/+0.\nWhenever you cast an Infect spell, ..."}
-        whiptongue = {"name": "Whiptongue Hydra", "type_line": "Creature — Hydra", "oracle_text": "Reach\nWhen this creature enters, destroy all creatures with flying."}
-        praetor_kw = {s.subject for s in extract_signals(praetors) if s.key == signal_keys.KEYWORD_TRIBE}
-        whip_kw = {s.subject for s in extract_signals(whiptongue) if s.key == signal_keys.KEYWORD_TRIBE}
+        praetors = {
+            "name": "Hand of the Praetors",
+            "type_line": "Creature — Phyrexian",
+            "oracle_text": "Infect\nOther creatures with infect you control get +1/+0.\nWhenever you cast an Infect spell, ...",
+        }
+        whiptongue = {
+            "name": "Whiptongue Hydra",
+            "type_line": "Creature — Hydra",
+            "oracle_text": "Reach\nWhen this creature enters, destroy all creatures with flying.",
+        }
+        praetor_kw = {
+            s.subject
+            for s in extract_signals(praetors)
+            if s.key == signal_keys.KEYWORD_TRIBE
+        }
+        whip_kw = {
+            s.subject
+            for s in extract_signals(whiptongue)
+            if s.key == signal_keys.KEYWORD_TRIBE
+        }
         assert "Infect" in praetor_kw  # a real keyword-tribe anthem
         assert "Flying" not in whip_kw  # "destroy all creatures with flying" is removal

@@ -27,54 +27,70 @@ def _extra(spec, label):
 
 # Real cards (oracle verified against bulk during the audit).
 IMPACT_TREMORS = {
-    "name": "Impact Tremors", "type_line": "Enchantment",
+    "name": "Impact Tremors",
+    "type_line": "Enchantment",
     "oracle_text": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
 }
 PURPHOROS = {
-    "name": "Purphoros, God of the Forge", "type_line": "Legendary Enchantment Creature — God",
+    "name": "Purphoros, God of the Forge",
+    "type_line": "Legendary Enchantment Creature — God",
     "oracle_text": "Indestructible\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.",
 }
 WARSTORM_SURGE = {
-    "name": "Warstorm Surge", "type_line": "Enchantment",
+    "name": "Warstorm Surge",
+    "type_line": "Enchantment",
     "oracle_text": "Whenever a creature you control enters, it deals damage equal to its power to any target.",
 }
 CORPSE_KNIGHT = {
-    "name": "Corpse Knight", "type_line": "Creature — Zombie Knight",
+    "name": "Corpse Knight",
+    "type_line": "Creature — Zombie Knight",
     "oracle_text": "Whenever another creature you control enters, each opponent loses 1 life.",
 }
 RAVENOUS_CHUPACABRA = {
-    "name": "Ravenous Chupacabra", "type_line": "Creature — Beast",
+    "name": "Ravenous Chupacabra",
+    "type_line": "Creature — Beast",
     "oracle_text": "When this creature enters, destroy target creature an opponent controls.",
 }
 SOLEMN = {
-    "name": "Solemn Simulacrum", "type_line": "Artifact Creature — Golem",
+    "name": "Solemn Simulacrum",
+    "type_line": "Artifact Creature — Golem",
     "oracle_text": "When this creature enters, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
 }
 SOUL_WARDEN = {
-    "name": "Soul Warden", "type_line": "Creature — Human Cleric",
+    "name": "Soul Warden",
+    "type_line": "Creature — Human Cleric",
     "oracle_text": "Whenever another creature enters, you gain 1 life.",
 }
 DOUBLING_SEASON = {
-    "name": "Doubling Season", "type_line": "Enchantment",
+    "name": "Doubling Season",
+    "type_line": "Enchantment",
     "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on it instead.",
 }
 PARALLEL_LIVES = {
-    "name": "Parallel Lives", "type_line": "Enchantment",
+    "name": "Parallel Lives",
+    "type_line": "Enchantment",
     "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
 }
 MONDRAK = {
-    "name": "Mondrak, Glory Dominus", "type_line": "Legendary Creature — Phyrexian Horror",
+    "name": "Mondrak, Glory Dominus",
+    "type_line": "Legendary Creature — Phyrexian Horror",
     "oracle_text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
 }
 FURNACE_OF_RATH = {
-    "name": "Furnace of Rath", "type_line": "Enchantment",
+    "name": "Furnace of Rath",
+    "type_line": "Enchantment",
     "oracle_text": "If a source would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.",
 }
 GRATUITOUS_VIOLENCE = {
-    "name": "Gratuitous Violence", "type_line": "Enchantment",
+    "name": "Gratuitous Violence",
+    "type_line": "Enchantment",
     "oracle_text": "If a creature you control would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.",
 }
-LIGHTNING_BOLT = {"name": "Lightning Bolt", "type_line": "Instant", "oracle_text": "Lightning Bolt deals 3 damage to any target."}
+LIGHTNING_BOLT = {
+    "name": "Lightning Bolt",
+    "type_line": "Instant",
+    "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+}
 
 
 class TestCreatureEtbPayoffs:
@@ -109,7 +125,10 @@ class TestTokenDoublers:
     def test_token_specs_offer_doubler_subavenue(self):
         for key in ("tokens_matter", "token_maker"):
             assert _extra(spec_for(_sig(key)), self.LABEL) is not None, key
-        assert _extra(spec_for(_sig("token_maker", subject="Goblin")), self.LABEL) is not None
+        assert (
+            _extra(spec_for(_sig("token_maker", subject="Goblin")), self.LABEL)
+            is not None
+        )
 
     def test_token_doubler_serve(self):
         extra = _extra(spec_for(_sig("tokens_matter")), self.LABEL)
@@ -126,8 +145,14 @@ class TestDamageDoublers:
         sig = _sig("direct_damage", "you")
         assert serves(FURNACE_OF_RATH, sig) is True
         assert serves(GRATUITOUS_VIOLENCE, sig) is True
-        assert serves(LIGHTNING_BOLT, sig) is True  # burn — legitimately a direct_damage card
-        llanowar = {"name": "Llanowar Elves", "type_line": "Creature — Elf Druid", "oracle_text": "{T}: Add {G}."}
+        assert (
+            serves(LIGHTNING_BOLT, sig) is True
+        )  # burn — legitimately a direct_damage card
+        llanowar = {
+            "name": "Llanowar Elves",
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
+        }
         assert serves(llanowar, sig) is False
 
 
@@ -136,7 +161,8 @@ class TestEtbLifegain:
         sig = _sig("lifegain_matters", "you")
         assert serves(SOUL_WARDEN, sig) is True
         authority = {
-            "name": "Authority of the Consuls", "type_line": "Enchantment",
+            "name": "Authority of the Consuls",
+            "type_line": "Enchantment",
             "oracle_text": "Creatures your opponents control enter tapped.\nWhenever a creature an opponent controls enters, you gain 1 life.",
         }
         assert serves(authority, sig) is True
@@ -156,20 +182,13 @@ class TestBlinkForSelfEtbCommander:
         assert "blink_flicker" in keys
 
     def test_vanilla_etb_does_not_emit_blink(self):
-        # a creature whose ETB is a bare keyword / no value payoff should not.
-        grizzly = {
-            "name": "Gravedigger", "type_line": "Creature — Zombie",
-            "oracle_text": "When this creature enters, you may return target creature card from your graveyard to your hand.",
+        # Gravedigger / Elvish Visionary have VALUE ETBs → they legitimately want
+        # flicker, so they may emit. The true negative is a creature with NO ETB.
+        bear = {
+            "name": "Grizzly Bears",
+            "type_line": "Creature — Bear",
+            "oracle_text": "",
         }
-        # Gravedigger IS a value ETB → it legitimately wants flicker, so it MAY emit.
-        # Use a true non-value ETB instead:
-        elvish = {
-            "name": "Elvish Visionary", "type_line": "Creature — Elf",
-            "oracle_text": "When this creature enters, draw a card.",
-        }
-        # Elvish Visionary draws — that's value — so it emits. The negative case is a
-        # creature with NO ETB at all:
-        bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
         assert "blink_flicker" not in {s.key for s in extract_signals(bear)}
 
 
@@ -180,16 +199,17 @@ class TestVoltronCastTrigger:
 
     def test_cast_equipment_aura_commander_emits_voltron(self):
         sram = {
-            "name": "Sram, Senior Edificer", "type_line": "Legendary Creature — Dwarf Advisor",
+            "name": "Sram, Senior Edificer",
+            "type_line": "Legendary Creature — Dwarf Advisor",
             "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
-        }
-        galea = {
-            "name": "Galea, Kindler of Hope", "type_line": "Legendary Creature — Elf Knight",
-            "oracle_text": "You may look at the top card of your library any time.\nYou may cast Aura and Equipment spells from the top of your library.",
         }
         assert "voltron_matters" in {s.key for s in extract_signals(sram)}
         # a non-equipment commander must NOT
-        bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+        bear = {
+            "name": "Grizzly Bears",
+            "type_line": "Creature — Bear",
+            "oracle_text": "",
+        }
         assert "voltron_matters" not in {s.key for s in extract_signals(bear)}
 
 
@@ -198,8 +218,11 @@ class TestVoltronServesSram:
     like Sram, so an equipment commander surfaces them as candidates."""
 
     def test_voltron_serves_cast_equipment_payoff(self):
-        sram = {"name": "Sram, Senior Edificer", "type_line": "Legendary Creature — Dwarf Advisor",
-                "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card."}
+        sram = {
+            "name": "Sram, Senior Edificer",
+            "type_line": "Legendary Creature — Dwarf Advisor",
+            "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
+        }
         assert serves(sram, _sig("voltron_matters", "you")) is True
 
 
@@ -211,7 +234,188 @@ class TestEtbCommanderSurfacesFlicker:
         for key in ("creature_etb", "permanent_etb"):
             extra = _extra(spec_for(_sig(key, "you")), "Blink / flicker")
             assert extra is not None, key
-            assert extra.serve.matches({"name": "Ephemerate", "type_line": "Instant",
-                "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control."})
-            assert not extra.serve.matches({"name": "Murder", "type_line": "Instant",
-                "oracle_text": "Destroy target creature."})
+            assert extra.serve.matches(
+                {
+                    "name": "Ephemerate",
+                    "type_line": "Instant",
+                    "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.",
+                }
+            )
+            assert not extra.serve.matches(
+                {
+                    "name": "Murder",
+                    "type_line": "Instant",
+                    "oracle_text": "Destroy target creature.",
+                }
+            )
+
+
+# ── Deferred fixes now implemented (engine-change batch) ──────────────────────
+class TestSelfRecurringFodder:
+    """Aristocrats commanders want self-recurring fodder — creatures that return/recast
+    THEMSELVES from the graveyard (Bloodghast, Gravecrawler). Name-aware serve so
+    Sun-Titan-style reanimation of OTHER cards is excluded (CR 603.6e)."""
+
+    def test_aristocrats_specs_offer_self_recur(self):
+        bloodghast = {
+            "name": "Bloodghast",
+            "type_line": "Creature — Vampire",
+            "oracle_text": "Bloodghast can't block.\nBloodghast has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return Bloodghast from your graveyard to the battlefield.",
+        }
+        sun_titan = {
+            "name": "Sun Titan",
+            "type_line": "Creature — Giant",
+            "oracle_text": "Vigilance\nWhenever Sun Titan enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
+        }
+        for key, scope in (("sacrifice_matters", "you"), ("death_matters", "any")):
+            extra = _extra(spec_for(_sig(key, scope)), "Self-recurring fodder")
+            assert extra is not None, key
+            assert extra.serve.matches(bloodghast)
+            assert not extra.serve.matches(sun_titan)
+
+
+class TestDeathtouchGear:
+    """A direct-damage / pinger commander wants deathtouch-granting gear (Basilisk
+    Collar) — deathtouch + 1 damage kills anything (CR 702.2b)."""
+
+    def test_direct_damage_offers_deathtouch_enablers(self):
+        extra = _extra(spec_for(_sig("direct_damage", "you")), "Deathtouch enablers")
+        assert extra is not None
+        assert extra.serve.matches(
+            {
+                "name": "Basilisk Collar",
+                "type_line": "Artifact — Equipment",
+                "oracle_text": "Equipped creature has deathtouch and lifelink.\nEquip {2}",
+            }
+        )
+        assert not extra.serve.matches(
+            {
+                "name": "Swiftfoot Boots",
+                "type_line": "Artifact — Equipment",
+                "oracle_text": "Equipped creature has hexproof and haste.\nEquip {1}",
+            }
+        )
+
+
+class TestProliferateForCounters:
+    """A +1/+1 / charge / loyalty counter commander wants proliferate (CR 701.27)."""
+
+    def test_counters_offer_proliferate(self):
+        extra = _extra(spec_for(_sig("counters_matter", "any")), "Proliferate")
+        assert extra is not None
+        assert extra.serve.matches(
+            {
+                "name": "Flux Channeler",
+                "type_line": "Creature — Human Wizard",
+                "oracle_text": "Whenever you cast a noncreature spell, proliferate.",
+                "keywords": ["Proliferate"],
+            }
+        )
+
+
+class TestDiscardPunishers:
+    """A force-opponents-to-discard commander wants discard-PUNISH payoffs (Megrim)."""
+
+    def test_opponent_discard_offers_punishers(self):
+        extra = _extra(
+            spec_for(_sig("opponent_discard", "opponents")), "Discard punishers"
+        )
+        assert extra is not None
+        assert extra.serve.matches(
+            {
+                "name": "Megrim",
+                "type_line": "Enchantment",
+                "oracle_text": "Whenever an opponent discards a card, this enchantment deals 2 damage to that player.",
+            }
+        )
+        assert not extra.serve.matches(
+            {
+                "name": "Mind Rot",
+                "type_line": "Sorcery",
+                "oracle_text": "Target player discards two cards.",
+            }
+        )
+
+
+class TestPowerMatters:
+    """A commander that cares about creature POWER (cost-reduction-by-power, power
+    thresholds — Ghalta, Goreclaw, Gargos) is a big-creatures deck; surface high-power
+    bodies via the structured power gate (the task's power/toughness dimension)."""
+
+    def test_power_commander_emits_power_matters(self):
+        for n, ot in [
+            (
+                "Ghalta, Primal Hunger",
+                "This spell costs {X} less to cast, where X is the total power of creatures you control.",
+            ),
+            (
+                "Goreclaw, Terror of Qal Sisma",
+                "Creature spells you cast with power 4 or greater cost {2} less to cast.",
+            ),
+        ]:
+            keys = {
+                s.key
+                for s in extract_signals(
+                    {
+                        "name": n,
+                        "type_line": "Legendary Creature — Dinosaur",
+                        "oracle_text": ot,
+                    }
+                )
+            }
+            assert "power_matters" in keys, n
+
+    def test_power_matters_serves_big_creatures(self):
+        sig = _sig("power_matters", "you")
+        big = {
+            "name": "Krosan Cloudscraper",
+            "type_line": "Creature — Beast Mutant",
+            "oracle_text": "",
+            "power": "13",
+            "cmc": 8.0,
+        }
+        small = {
+            "name": "Llanowar Elves",
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
+            "power": "1",
+            "cmc": 1.0,
+        }
+        assert serves(big, sig) is True
+        assert serves(small, sig) is False
+
+
+class TestTypedGraveyardRecursion:
+    """A commander that recurs a TYPED permanent from the graveyard ('return target
+    Vehicle card from your graveyard to the battlefield', Greasefang) is a dedicated
+    deck for that type — emit the type's matters signal."""
+
+    def test_greasefang_emits_vehicles_matter(self):
+        greasefang = {
+            "name": "Greasefang, Okiba Boss",
+            "type_line": "Legendary Creature — Rat Pilot",
+            "oracle_text": "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Sacrifice it at the beginning of the next end step.",
+        }
+        assert "vehicles_matter" in {s.key for s in extract_signals(greasefang)}
+
+    def test_typed_recursion_resolves_creature_subtype(self):
+        dragon_recur = {
+            "name": "Test Dragonlord",
+            "type_line": "Legendary Creature — Dragon",
+            "oracle_text": "Whenever this creature attacks, return target Dragon card from your graveyard to the battlefield.",
+        }
+        subs = {(s.key, s.subject) for s in extract_signals(dragon_recur)}
+        assert ("type_matters", "Dragon") in subs
+
+    def test_generic_reanimation_emits_no_bogus_type(self):
+        # "return target creature card …" is plain reanimation, not a typed-recursion deck.
+        sun_titan = {
+            "name": "Sun Titan",
+            "type_line": "Creature — Giant",
+            "oracle_text": "Whenever Sun Titan enters, return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
+        }
+        subs = {
+            s.subject for s in extract_signals(sun_titan) if s.key == "type_matters"
+        }
+        assert "Permanent" not in subs
+        assert "Creature" not in subs
