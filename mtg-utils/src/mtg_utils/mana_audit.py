@@ -185,19 +185,25 @@ _BASIC_NAMES = frozenset(_BASIC_FOR_COLOR.values())
 _COLOR_FOR_BASIC = {name: color for color, name in _BASIC_FOR_COLOR.items()}
 
 
-def reconcile_basic_lands(hd: HydratedDeck) -> dict[str, dict[str, int]]:
-    """Plan the basic-land changes that fix the mana base, returning
-    ``{"add": {name: qty}, "remove": {name: qty}}``.
+def reconcile_basic_lands(
+    hd: HydratedDeck, *, target_total: int | None = None
+) -> dict[str, dict[str, int]]:
+    """Plan the basic-land changes that move the mana base to a target land count,
+    returning ``{"add": {name: qty}, "remove": {name: qty}}``.
 
-    Targets the FAIL FLOOR (not the recommended count) for total land count, and at
-    that count distributes basics to match color demand — so it both fills a deck
-    that's short AND rebalances the basics of a deck that's already at the floor
-    (swapping over-produced basics for under-produced ones, net-zero count). Only the
-    standard basics are managed; nonbasic lands (duals, fixing, snow basics) are
-    treated as fixed production the basics fill in around."""
+    With ``target_total=None`` (default) the target is the FAIL FLOOR clamped to never
+    drop below the current count — so it tops a short deck up to the floor AND
+    rebalances the basics of a deck already at/above it (swapping over- for
+    under-produced colors, net-zero count). Pass an explicit ``target_total`` to aim
+    elsewhere: the 'Trim lands' FLOOD remedy passes the *recommended* count, below the
+    current one, so the same color-demand allocation removes the over-produced basics
+    down to target. Only the standard basics are managed; nonbasic lands (duals, fixing,
+    snow basics) are treated as fixed production the basics fill in around — so a deck
+    whose nonbasics alone exceed the target trims every basic and stops there."""
     audit = mana_audit(hd)
     land_count = audit["land_count"]
-    target_total = max(land_count, audit["land_count_floor"])
+    if target_total is None:
+        target_total = max(land_count, audit["land_count_floor"])
 
     current: dict[str, int] = {}
     for entry in hd.cards:

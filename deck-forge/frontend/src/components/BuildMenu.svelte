@@ -49,7 +49,7 @@
 
 <div class="bm">
   <button class="chip" on:click={newBuild}>＋ New</button>
-  <button class="chip" on:click={toggle}>Library ▾</button>
+  <button class="chip" on:click={toggle}>Decks ▾</button>
   {#if open}
     <div class="menu">
       {#if loading}

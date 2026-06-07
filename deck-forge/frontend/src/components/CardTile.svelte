@@ -3,6 +3,7 @@
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
   import Mana from "./Mana.svelte";
+  import ManaCost from "./ManaCost.svelte";
   export let card;
   export let onadd;
   export let score = null;
@@ -36,7 +37,7 @@
     <div class="name">{card.name}</div>
     <div class="type">{card.type_line}</div>
     <div class="foot">
-      <span class="cmc">CMC {card.cmc}</span>
+      <ManaCost cost={card.mana_cost} size="0.95rem" />
       <span class="price" class:nolisting={noListing}>
         {noListing ? "no listing" : "$" + price}
       </span>
@@ -131,13 +132,15 @@
   }
   .foot {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 0.4rem;
+    min-height: 1.1rem;
     font-size: 0.76rem;
     color: var(--parchment-dim);
   }
-  .cmc {
-    font-family: var(--display);
-    color: var(--brass);
+  .price {
+    margin-left: auto;
   }
   .price.nolisting {
     color: var(--warn);

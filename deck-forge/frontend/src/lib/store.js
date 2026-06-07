@@ -31,6 +31,14 @@ export const exploreAvenue = writable(null);
 // Card hover preview: { card, x, y } | null — follows the cursor over any card.
 export const hovered = writable(null);
 
+// Whether an interactive Claude session is bridged to the hub (the "● Session" dot
+// and Forge-Friend's status read this one source; App.svelte owns the poll). Distinct
+// from `connected`, which is the browser↔hub SSE link (the "● Hub" dot).
+export const agentAttached = writable(false);
+
+// The Mana Gate detail modal — opened by clicking the land-health pill in the footer.
+export const manaModalOpen = writable(false);
+
 // Apply a snapshot (from /api/snapshot, SSE, or a mutation response).
 export function applySnapshot(snap) {
   if (!snap) return;

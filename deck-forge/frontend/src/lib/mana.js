@@ -17,6 +17,43 @@ export const COLOR_LABEL = {
 // CMC buckets for the curve chart (7 collects everything 7+).
 export const CURVE_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7];
 
+// Deck-size target per Commander-family format (the footer reads "current/target").
+export const FORMAT_TARGET = {
+  commander: 100,
+  brawl: 60,
+  historic_brawl: 100,
+};
+
+// Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).
+// Mirrors DeckList.priceOf so the footer's deck total agrees with the list subtotals.
+export function priceOf(card) {
+  const p = card?.prices?.usd ?? card?.prices?.usd_foil ?? card?.prices?.usd_etched;
+  const n = p == null ? null : Number(p);
+  return n == null || Number.isNaN(n) ? null : n;
+}
+
+// The land-health readout shared by the footer pill and the Mana Gate modal.
+// Adds the soft FLOOD band (recommended + 2) on top of the backend's PASS/WARN/FAIL:
+// above the flood line the deck is over-landed (offer to trim) — but FLOOD never gates
+// finalize, because an all-lands two/three-card combo deck is a legitimate build.
+// See deck-forge CONTEXT.md › "Flood line".
+export function landState(mana) {
+  if (!mana) return null;
+  const count = mana.land_count ?? 0;
+  const recommended = mana.recommended_land_count ?? 0;
+  const ceiling = recommended + 2;
+  const status = count > ceiling ? "FLOOD" : mana.land_count_status;
+  return {
+    count,
+    recommended,
+    floor: mana.land_count_floor ?? 0,
+    ceiling,
+    status, // PASS | WARN | FAIL | FLOOD
+    over: count - recommended, // how many to trim back to recommended (FLOOD only)
+    short: Math.max(0, (mana.land_count_floor ?? 0) - count), // how many to add (FAIL)
+  };
+}
+
 export function bucketCurve(curve) {
   const out = Object.fromEntries(CURVE_BUCKETS.map((b) => [b, 0]));
   for (const [cmc, n] of Object.entries(curve || {})) {

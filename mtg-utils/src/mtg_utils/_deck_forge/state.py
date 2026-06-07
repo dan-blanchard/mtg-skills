@@ -106,3 +106,7 @@ class ForgeState:
     build_id: str = "default"
     build_name: str = "Untitled"
     agent_avenues: list[dict] = field(default_factory=list)
+    # Avenue ids the human has pinned as lanes they're actually building toward (#2).
+    # When non-empty, the candidate synergy score counts only these focused lanes
+    # (see engine.scoring_basis). Runtime state, like agent_avenues — not persisted yet.
+    focused_avenue_ids: set[str] = field(default_factory=set)

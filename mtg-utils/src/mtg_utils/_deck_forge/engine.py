@@ -306,7 +306,29 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
     if sa is not None:
         out.append(sa)
     out.extend(state.agent_avenues)
+    for avenue in out:  # mark which lanes the human has pinned (#2)
+        avenue["focused"] = avenue["id"] in state.focused_avenue_ids
     return out
+
+
+def scoring_basis(
+    state: ForgeState, hydrated: list[dict], sigs: list, context_avenues: list[dict]
+) -> tuple[list, list[dict]]:
+    """Pick the ``(active_signals, avenues)`` a candidate is scored against.
+
+    Default (nothing focused): today's behavior — the deck's scoped signals AND the
+    avenue(s) in context (the one being explored, or a package's own avenue, plus agent
+    avenues). With one or more focused avenues the synergy score is scoped to ONLY the
+    focused lanes: the broad signal counting is dropped (that diffuse "every lane the
+    deck happens to touch" tally is the noise focus exists to remove), so the score
+    reads "serves N of your M focused lanes." See deck-forge CONTEXT.md, Focused avenue.
+    """
+    if not state.focused_avenue_ids:
+        return sigs, context_avenues
+    focused = [
+        a for a in avenues(state, hydrated) if a["id"] in state.focused_avenue_ids
+    ]
+    return [], focused
 
 
 def explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:

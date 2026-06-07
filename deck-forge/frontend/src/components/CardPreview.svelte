@@ -20,19 +20,24 @@
   $: paneW = dfc ? FW * faces.length + GAP * (faces.length - 1) : split ? FH : FW;
   $: paneH = split ? FW : FH;
 
-  function place(x, y, w, h) {
-    let px = x + 22;
-    let py = y + 22;
-    if (typeof window !== "undefined") {
-      if (px + w > window.innerWidth) px = x - w - 22;
-      if (px < 8) px = 8;
-      if (py + h > window.innerHeight) py = window.innerHeight - h - 8;
-      if (py < 8) py = 8;
+  // Anchor beside the hovered card's rect: prefer the right edge, flip to the left
+  // when the popup would overflow the viewport, and clamp as a last resort. Vertically
+  // centered on the card, then clamped to the viewport so it's never cut off.
+  const ANCHOR_GAP = 12;
+  function place(rect, w, h) {
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+    let px = rect.right + ANCHOR_GAP; // right of the card
+    if (px + w > vw - 8) {
+      const left = rect.left - w - ANCHOR_GAP; // no room → flip left
+      px = left >= 8 ? left : Math.max(8, vw - w - 8);
     }
+    let py = rect.top + rect.height / 2 - h / 2; // centered on the card
+    py = Math.max(8, Math.min(py, vh - h - 8));
     return { px, py };
   }
 
-  $: pos = $hovered ? place($hovered.x, $hovered.y, paneW, paneH) : { px: 0, py: 0 };
+  $: pos = $hovered?.rect ? place($hovered.rect, paneW, paneH) : { px: 0, py: 0 };
 </script>
 
 {#if card}

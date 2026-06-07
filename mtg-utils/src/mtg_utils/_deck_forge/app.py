@@ -229,6 +229,32 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
+    @app.post("/api/deck/trim-lands")
+    async def trim_lands() -> dict:
+        """FLOOD remedy (#13): trim basics back down to the recommended land count
+        (max of Burgess/Karsten), removing over-produced colors first. No-op when the
+        deck is already at/under recommended. Soft — never blocks finalize, because an
+        all-lands combo deck is a legitimate build (see CONTEXT Flood line)."""
+        audit = mana_audit(engine.hydrate(state))
+        recommended = audit["recommended_land_count"]
+        applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
+        if audit["land_count"] > recommended:
+            plan = reconcile_basic_lands(
+                engine.hydrate(state), target_total=recommended
+            )
+            for name, qty in plan["remove"].items():
+                state.session.remove(name, qty, zone="cards")
+                applied["remove"][name] = qty
+            for name, qty in plan["add"].items():
+                if name in state.by_name:  # only basics the index can hydrate
+                    state.session.add(name, qty, zone="cards")
+                    applied["add"][name] = qty
+            _autosave(state)
+        snap = engine.snapshot(state)
+        snap["trimmed"] = applied
+        state.hub.publish(json.dumps(snap))
+        return snap
+
     @app.post("/api/search")
     async def search(payload: SearchPayload):
         if not state.bulk_available:
@@ -316,7 +342,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def packages() -> dict:
         if not state.bulk_available:
             return _no_bulk()
-        sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
+        hd = engine.hydrate(state)
+        sigs = engine.ranked_deck_signals(state, hd.records)
         ci = engine.deck_color_identity(state)
         fmt = state.session.format
         in_deck = set(state.session.card_names())
@@ -342,9 +369,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             self_avenue = engine.avenue_with_serve(
                 {"label": spec.label, "search": dict(spec.search)}, spec.serve
             )
-            ranked = rank_candidates(
-                fresh, active_signals=sigs, avenues=[self_avenue, *state.agent_avenues]
-            )[:_PACKAGE_LIMIT]
+            active, avs = engine.scoring_basis(
+                state, hd.records, sigs, [self_avenue, *state.agent_avenues]
+            )
+            ranked = rank_candidates(fresh, active_signals=active, avenues=avs)[
+                :_PACKAGE_LIMIT
+            ]
             out.append(
                 {
                     "signal": engine.signal_dict(sig),
@@ -443,6 +473,19 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.agent_avenues[:] = [
             a for a in state.agent_avenues if a["id"] != avenue_id
         ]
+        state.focused_avenue_ids.discard(avenue_id)  # a removed lane can't stay focused
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
+    @app.post("/api/avenues/{avenue_id}/focus")
+    async def focus_avenue(avenue_id: str) -> dict:
+        """Toggle a lane as 'focused' (#2): the candidate ✦ score then counts only the
+        focused lanes. Idempotent toggle so the pin button can flip it either way."""
+        if avenue_id in state.focused_avenue_ids:
+            state.focused_avenue_ids.discard(avenue_id)
+        else:
+            state.focused_avenue_ids.add(avenue_id)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
@@ -477,10 +520,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             explored = {"label": payload.label, "search": payload.search}
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
-        sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
-        ranked = rank_candidates(
-            fresh, active_signals=sigs, avenues=[explored, *state.agent_avenues]
+        hd = engine.hydrate(state)
+        sigs = engine.ranked_deck_signals(state, hd.records)
+        active, avs = engine.scoring_basis(
+            state, hd.records, sigs, [explored, *state.agent_avenues]
         )
+        ranked = rank_candidates(fresh, active_signals=active, avenues=avs)
         # Page _PACKAGE_LIMIT at a time through the ranked pool (stable order, so "Show
         # more" appends the next slice).
         offset = max(0, payload.offset)

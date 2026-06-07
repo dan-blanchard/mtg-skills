@@ -29,6 +29,9 @@ export const api = {
   remove: (name, zone = "cards", qty = 1) =>
     post("/api/deck/remove", { name, zone, qty }),
   balanceLands: () => post("/api/deck/balance-lands", {}),
+  // Trim excess basics back down to the recommended land count (FLOOD remedy).
+  // Backend endpoint ships in the deck-forge land-model pass; the button is wired now.
+  trimLands: () => post("/api/deck/trim-lands", {}),
   setFormat: (format) => post("/api/deck/format", { format }),
   packages: () => get("/api/packages"),
   presets: () => get("/api/presets"),
@@ -38,6 +41,8 @@ export const api = {
   explore: (label, search, offset = 0) =>
     post("/api/explore", { label, search, offset }),
   removeAvenue: (id) => del(`/api/avenues/${id}`),
+  // Toggle a lane as "focused" (#2): the candidate ✦ score then counts only focused lanes.
+  focusAvenue: (id) => post(`/api/avenues/${encodeURIComponent(id)}/focus`, {}),
   finalize: (override) => post("/api/finalize", { override }),
   builds: () => get("/api/builds"),
   buildsNew: (format = "commander", name = "Untitled") =>

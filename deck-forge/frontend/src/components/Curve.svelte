@@ -2,37 +2,68 @@
   import { stats } from "../lib/store.js";
   import { bucketCurve, CURVE_BUCKETS } from "../lib/mana.js";
 
+  export let collapsed = false;
+
   $: buckets = bucketCurve($stats?.curve);
   $: max = Math.max(1, ...Object.values(buckets));
   $: avg = $stats?.avg_cmc ?? 0;
 </script>
 
-<div class="panel widget">
-  <h3 class="panel-title">Curve · avg {avg}</h3>
-  <div class="chart">
-    {#each CURVE_BUCKETS as b}
-      <div class="col">
-        <div class="bar-track">
-          <div
-            class="bar"
-            style="height: {(buckets[b] / max) * 100}%"
-            class:zero={buckets[b] === 0}
-          >
-            {#if buckets[b] > 0}<span class="n">{buckets[b]}</span>{/if}
+<div class="panel widget curve" class:collapsed>
+  <button class="panel-title bar-toggle" on:click={() => (collapsed = !collapsed)}>
+    Curve · avg {avg}
+    <span class="caret">{collapsed ? "▸" : "▾"}</span>
+  </button>
+  {#if !collapsed}
+    <div class="chart">
+      {#each CURVE_BUCKETS as b}
+        <div class="col">
+          <div class="bar-track">
+            <div
+              class="bar"
+              style="height: {(buckets[b] / max) * 100}%"
+              class:zero={buckets[b] === 0}
+            >
+              {#if buckets[b] > 0}<span class="n">{buckets[b]}</span>{/if}
+            </div>
           </div>
+          <div class="lbl">{b === 7 ? "7+" : b}</div>
         </div>
-        <div class="lbl">{b === 7 ? "7+" : b}</div>
-      </div>
-    {/each}
-  </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
+  /* collapsed = just the title line: drop the widget padding and the panel-title's
+     bottom margin (which only exists to separate the title from the chart). */
+  .curve.collapsed {
+    padding: 0.45rem 1rem;
+  }
+  .curve.collapsed .bar-toggle {
+    margin-bottom: 0;
+  }
+  .bar-toggle {
+    width: 100%;
+    background: transparent;
+    border: none;
+    justify-content: flex-start;
+    cursor: pointer;
+    padding: 0;
+  }
+  .bar-toggle:hover {
+    color: var(--brass-bright);
+  }
+  .caret {
+    margin-left: 0.4rem;
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
   .chart {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
     gap: 0.35rem;
-    height: 140px;
+    height: 96px;
     align-items: end;
   }
   .col {

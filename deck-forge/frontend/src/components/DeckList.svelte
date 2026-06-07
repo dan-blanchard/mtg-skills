@@ -2,6 +2,7 @@
   import { deck, applySnapshot } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { hoverPreview } from "../lib/hover.js";
+  import ManaCost from "./ManaCost.svelte";
 
   async function remove(name, zone) {
     const r = await api.remove(name, zone, 1);
@@ -75,7 +76,7 @@
                 {:else}
                   <span class="price none" title="No listing — likely scarce/expensive, not free">—</span>
                 {/if}
-                <span class="cmc">{c.cmc ?? ""}</span>
+                <span class="cost"><ManaCost cost={c.mana_cost} size="0.82rem" /></span>
                 {#if g.key === "cards" && canHaveMultiple(c)}
                   <button class="rm add" title="Add another" on:click={() => addOne(c.name, g.key)}>+</button>
                 {/if}
@@ -189,12 +190,10 @@
     font-size: 0.78rem;
     color: var(--parchment-dim);
   }
-  .cmc {
-    font-family: var(--display);
-    color: var(--brass);
-    width: 1.2rem;
-    text-align: right;
-    font-size: 0.86rem;
+  .cost {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 2.2rem;
   }
   .rm {
     background: transparent;

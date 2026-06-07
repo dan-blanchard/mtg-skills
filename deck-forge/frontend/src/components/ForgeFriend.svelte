@@ -1,8 +1,6 @@
 <script>
-  import { onMount, onDestroy } from "svelte";
-  import { agentBusy, agentReply, agentThinking } from "../lib/store.js";
+  import { agentBusy, agentReply, agentThinking, agentAttached } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
-  import { api } from "../lib/api.js";
   import ReplyText from "./ReplyText.svelte";
 
   const KIND_LABEL = {
@@ -11,19 +9,9 @@
     novel_synergies: "Novel synergies",
   };
 
-  let attached = false;
-  let timer;
-
-  async function refreshStatus() {
-    const r = await api.agentStatus();
-    attached = r.ok && !!r.data.attached;
-  }
-
-  onMount(() => {
-    refreshStatus();
-    timer = setInterval(refreshStatus, 4000);
-  });
-  onDestroy(() => clearInterval(timer));
+  // Session-attach status is polled once, centrally, in App.svelte and shared via the
+  // store (the footer's ● Session dot reads the same source).
+  $: attached = $agentAttached;
 </script>
 
 <div class="panel widget friend">

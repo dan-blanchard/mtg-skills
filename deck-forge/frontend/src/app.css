@@ -33,6 +33,7 @@
   --pass: #4a9e63;
   --warn: #e8b563;
   --fail: #d4452f;
+  --flood: #4a90d9; /* over-landed: water drowning the fire (soft, never gates) */
 
   --radius: 4px;
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
@@ -182,9 +183,11 @@ select {
 .status-PASS { color: var(--pass); }
 .status-WARN { color: var(--warn); }
 .status-FAIL { color: var(--fail); }
+.status-FLOOD { color: var(--flood); }
 .bg-PASS { background: var(--pass); }
 .bg-WARN { background: var(--warn); }
 .bg-FAIL { background: var(--fail); }
+.bg-FLOOD { background: var(--flood); }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
