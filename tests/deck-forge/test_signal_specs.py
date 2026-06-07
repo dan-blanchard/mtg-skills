@@ -212,6 +212,28 @@ def _subj_sig(key, subject):
     return Signal(key=key, scope="you", subject=subject, text="", source="cmd")
 
 
+class TestCoinFlipSpec:
+    """The coin-flip avenue must fan out a Flip-fixing sub-avenue that surfaces
+    Krark's-Thumb-style fixers (otherwise they sink past the package cap)."""
+
+    def test_coin_flip_has_flip_fixing_subavenue(self):
+        import re
+
+        spec = spec_for(_sig("coin_flip", "you"))
+        assert spec is not None
+        assert spec.label == "Coin flips"
+        fix = {e.label: e for e in spec.extras}.get("Flip fixing")
+        assert fix is not None, "expected a 'Flip fixing' sub-avenue"
+        # Krark's Thumb is the canonical fixer — the sub-avenue's search must surface it.
+        krark = "If you would flip a coin, instead flip two coins and ignore one."
+        assert re.search(fix.search["oracle"], krark, re.IGNORECASE)
+        # but a plain flip payoff is NOT a fixer (stays in the main avenue only).
+        plain = "Flip a coin. If you win the flip, draw a card."
+        assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
+        # the main avenue still recognizes generic flip payoffs.
+        assert spec.serve.search(plain)
+
+
 class TestSubjectSpecs:
     """Subject-bearing avenues must match their label and stay distinct from payoffs."""
 

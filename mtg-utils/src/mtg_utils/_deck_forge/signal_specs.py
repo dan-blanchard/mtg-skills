@@ -124,6 +124,37 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\+1/\+1 counter"},
         r"\+1/\+1 counter|proliferate",
     ),
+    # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
+    # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic
+    # "flip a coin" payoffs and buries Krark's-Thumb-style fixers past the package cap,
+    # even though fixing flips is the whole point of a coin-flip deck.
+    ("coin_flip", "any"): _spec(
+        "Coin flips",
+        "coin-flip payoffs and outlets",
+        {
+            "oracle": (
+                r"flip a coin|flip (?:two|three|\d+) coins"
+                r"|wins? (?:the|a) (?:coin )?flip|lose (?:the|a) (?:coin )?flip"
+            )
+        },
+        (
+            r"flip a coin|flip (?:two|three|\d+) coins"
+            r"|wins? (?:the|a) (?:coin )?flip|lose (?:the|a) (?:coin )?flip"
+        ),
+        extras=(
+            SubAvenue(
+                "Flip fixing",
+                "cards that bias, repeat, or ignore unfavorable coin flips "
+                "(Krark's Thumb effects)",
+                {
+                    "oracle": (
+                        r"instead flip [^.]*coin|\breflip"
+                        r"|flip [^.]*coins? again|flip an additional coin"
+                    )
+                },
+            ),
+        ),
+    ),
     ("draw_matters", "you"): _spec(
         "Draw triggers / wheels",
         "draw-trigger payoffs and extra-draw engines (Nekusar / Chasm Skulker space)",
