@@ -17,7 +17,11 @@
 
   // The popup's box. DFC: a row of faces. Split: the card turned on its side
   // (landscape, so W/H swap). Otherwise: one upright card.
-  $: paneW = dfc ? FW * faces.length + GAP * (faces.length - 1) : split ? FH : FW;
+  $: paneW = dfc
+    ? FW * faces.length + GAP * (faces.length - 1)
+    : split
+      ? FH
+      : FW;
   $: paneH = split ? FW : FH;
 
   // Anchor beside the hovered card's rect: prefer the right edge, flip to the left
@@ -37,11 +41,16 @@
     return { px, py };
   }
 
-  $: pos = $hovered?.rect ? place($hovered.rect, paneW, paneH) : { px: 0, py: 0 };
+  $: pos = $hovered?.rect
+    ? place($hovered.rect, paneW, paneH)
+    : { px: 0, py: 0 };
 </script>
 
 {#if card}
-  <div class="preview" style="left:{pos.px}px; top:{pos.py}px; width:{paneW}px; height:{paneH}px">
+  <div
+    class="preview"
+    style="left:{pos.px}px; top:{pos.py}px; width:{paneW}px; height:{paneH}px"
+  >
     {#if dfc}
       <div class="faces">
         {#each faces as fc (fc.normal)}
@@ -49,13 +58,20 @@
         {/each}
       </div>
     {:else if split && card.images?.normal}
-      <img class="rot" src={card.images.normal} alt={card.name} style="width:{FW}px" />
+      <img
+        class="rot"
+        src={card.images.normal}
+        alt={card.name}
+        style="width:{FW}px"
+      />
     {:else if card.images?.normal}
       <img class="single" src={card.images.normal} alt={card.name} />
     {:else}
       <div class="fallback">
         <div class="nm">{card.name}</div>
-        <div class="tl">{card.type_line}{card.mana_cost ? " · " + card.mana_cost : ""}</div>
+        <div class="tl">
+          {card.type_line}{card.mana_cost ? " · " + card.mana_cost : ""}
+        </div>
         <div class="ot">{card.oracle_text || "—"}</div>
       </div>
     {/if}

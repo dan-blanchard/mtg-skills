@@ -34,7 +34,9 @@
         <p class="reason">{result.error}</p>
       {:else if result.gated}
         <p class="reason">
-          Land gate: <b>{result.land_count}</b> lands, floor <b>{result.recommended_land_count}</b> —
+          Land gate: <b>{result.land_count}</b> lands, floor
+          <b>{result.recommended_land_count}</b>
+          —
           <span class="status-FAIL">FAIL</span>.
         </p>
         <p class="evidence" class:ok={result.evidence.defensible}>
@@ -42,8 +44,9 @@
             Evidence supports running low: avg CMC {result.evidence.avg_cmc},
             {result.evidence.cheap_card_advantage} cheap card-advantage pieces.
           {:else}
-            Nothing here justifies a low land count (avg CMC {result.evidence.avg_cmc},
-            only {result.evidence.cheap_card_advantage} cheap card-advantage pieces).
+            Nothing here justifies a low land count (avg CMC {result.evidence
+              .avg_cmc}, only {result.evidence.cheap_card_advantage} cheap card-advantage
+            pieces).
           {/if}
         </p>
         <button class="btn override" on:click={() => run(true)} disabled={busy}>
@@ -52,7 +55,9 @@
       {:else}
         <p class="done">
           ✦ Deck finalized{result.overridden ? " (land gate overridden)" : ""}.
-          {result.legality_status === "FAIL" ? "Resolve the ⚠ warnings before play." : "Legality clean."}
+          {result.legality_status === "FAIL"
+            ? "Resolve the ⚠ warnings before play."
+            : "Legality clean."}
         </p>
       {/if}
     </div>

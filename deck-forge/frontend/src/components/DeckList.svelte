@@ -18,7 +18,9 @@
   // Shadowborn Apostle, Dragon's Approach…) may have more than one copy.
   function canHaveMultiple(c) {
     if (/\bBasic Land\b/.test(c.type_line || "")) return true;
-    return /a deck can have any number of cards named/i.test(c.oracle_text || "");
+    return /a deck can have any number of cards named/i.test(
+      c.oracle_text || "",
+    );
   }
 
   // Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).
@@ -30,7 +32,10 @@
   const money = (n) => `$${n.toFixed(2)}`;
 
   function groupTotal(cards) {
-    return cards.reduce((sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1), 0);
+    return cards.reduce(
+      (sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1),
+      0,
+    );
   }
 
   $: groups = [
@@ -67,20 +72,36 @@
               </div>
               <div class="info">
                 <div class="name">{c.name}</div>
-                <div class="type">{c.type_line || (c.unknown ? "unknown card" : "")}</div>
+                <div class="type">
+                  {c.type_line || (c.unknown ? "unknown card" : "")}
+                </div>
               </div>
               <div class="right">
                 {#if c.quantity > 1}<span class="qty">×{c.quantity}</span>{/if}
                 {#if priceOf(c) != null}
                   <span class="price">{money(priceOf(c))}</span>
                 {:else}
-                  <span class="price none" title="No listing — likely scarce/expensive, not free">—</span>
+                  <span
+                    class="price none"
+                    title="No listing — likely scarce/expensive, not free"
+                    >—</span
+                  >
                 {/if}
-                <span class="cost"><ManaCost cost={c.mana_cost} size="0.82rem" /></span>
+                <span class="cost"
+                  ><ManaCost cost={c.mana_cost} size="0.82rem" /></span
+                >
                 {#if g.key === "cards" && canHaveMultiple(c)}
-                  <button class="rm add" title="Add another" on:click={() => addOne(c.name, g.key)}>+</button>
+                  <button
+                    class="rm add"
+                    title="Add another"
+                    on:click={() => addOne(c.name, g.key)}>+</button
+                  >
                 {/if}
-                <button class="rm" title="Remove one" on:click={() => remove(c.name, g.key)}>−</button>
+                <button
+                  class="rm"
+                  title="Remove one"
+                  on:click={() => remove(c.name, g.key)}>−</button
+                >
               </div>
             </div>
           {/each}

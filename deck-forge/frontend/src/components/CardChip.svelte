@@ -24,7 +24,12 @@
 </script>
 
 {#if card}
-  <button class="cardchip" use:hoverPreview={card} on:click={add} title={`Add ${name}`}>
+  <button
+    class="cardchip"
+    use:hoverPreview={card}
+    on:click={add}
+    title={`Add ${name}`}
+  >
     {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
     <span class="nm">{name}</span>
   </button>

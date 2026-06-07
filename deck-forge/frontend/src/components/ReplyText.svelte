@@ -38,7 +38,10 @@
   <p class="prose">{#each tokens as tok}{#if tok.t === "text"}{tok.v}{:else if tok.t === "mana"}<Mana sym={tok.v} size="0.95rem" />{:else}<CardChip name={tok.v} card={resolved[tok.v] ?? null} />{/if}{/each}</p>
   {#if extraCards.length}
     <div class="extra">
-      {#each extraCards as n}<CardChip name={n} card={resolved[n] ?? null} />{/each}
+      {#each extraCards as n}<CardChip
+          name={n}
+          card={resolved[n] ?? null}
+        />{/each}
     </div>
   {/if}
 </div>

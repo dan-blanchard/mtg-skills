@@ -59,8 +59,16 @@ body {
   background-color: var(--obsidian);
   /* layered atmosphere: ember glow rising from the base + a cool top + grain */
   background-image:
-    radial-gradient(120% 80% at 50% 118%, rgba(255, 106, 61, 0.16), transparent 55%),
-    radial-gradient(90% 60% at 50% -10%, rgba(74, 144, 217, 0.05), transparent 60%),
+    radial-gradient(
+      120% 80% at 50% 118%,
+      rgba(255, 106, 61, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 60% at 50% -10%,
+      rgba(74, 144, 217, 0.05),
+      transparent 60%
+    ),
     linear-gradient(180deg, var(--obsidian-2), var(--obsidian));
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
@@ -171,25 +179,65 @@ select {
   font-weight: 700;
   font-family: var(--display);
   color: #15110c;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.5);
 }
-.pip-W { background: var(--w); }
-.pip-U { background: var(--u); color: #f3ead0; }
-.pip-B { background: var(--b); color: #f3ead0; }
-.pip-R { background: var(--r); color: #f3ead0; }
-.pip-G { background: var(--g); color: #f3ead0; }
-.pip-C { background: var(--c); }
+.pip-W {
+  background: var(--w);
+}
+.pip-U {
+  background: var(--u);
+  color: #f3ead0;
+}
+.pip-B {
+  background: var(--b);
+  color: #f3ead0;
+}
+.pip-R {
+  background: var(--r);
+  color: #f3ead0;
+}
+.pip-G {
+  background: var(--g);
+  color: #f3ead0;
+}
+.pip-C {
+  background: var(--c);
+}
 
-.status-PASS { color: var(--pass); }
-.status-WARN { color: var(--warn); }
-.status-FAIL { color: var(--fail); }
-.status-FLOOD { color: var(--flood); }
-.bg-PASS { background: var(--pass); }
-.bg-WARN { background: var(--warn); }
-.bg-FAIL { background: var(--fail); }
-.bg-FLOOD { background: var(--flood); }
+.status-PASS {
+  color: var(--pass);
+}
+.status-WARN {
+  color: var(--warn);
+}
+.status-FAIL {
+  color: var(--fail);
+}
+.status-FLOOD {
+  color: var(--flood);
+}
+.bg-PASS {
+  background: var(--pass);
+}
+.bg-WARN {
+  background: var(--warn);
+}
+.bg-FAIL {
+  background: var(--fail);
+}
+.bg-FLOOD {
+  background: var(--flood);
+}
 
 @keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

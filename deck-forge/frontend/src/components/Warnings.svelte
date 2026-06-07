@@ -7,7 +7,10 @@
     <h3 class="panel-title">⚠ Warnings</h3>
     <ul>
       {#each $warnings as w}
-        <li><span class="cat">{w.category.replace("_", " ")}</span>{w.message.replace(w.category.replace("_", " ") + ":", "")}</li>
+        <li>
+          <span class="cat">{w.category.replace("_", " ")}</span
+          >{w.message.replace(w.category.replace("_", " ") + ":", "")}
+        </li>
       {/each}
     </ul>
   </div>

@@ -58,10 +58,18 @@
         {#each builds as b (b.id)}
           <div class="row" class:current={b.id === current}>
             <button class="item" on:click={() => load(b.id)}>
-              <span class="nm">{b.name}{b.id === current ? " ·current" : ""}</span>
-              <span class="meta">{b.format.replace("_", " ")} · {b.card_count}</span>
+              <span class="nm"
+                >{b.name}{b.id === current ? " ·current" : ""}</span
+              >
+              <span class="meta"
+                >{b.format.replace("_", " ")} · {b.card_count}</span
+              >
             </button>
-            <button class="del" title="Delete this build" on:click={() => remove(b.id)}>×</button>
+            <button
+              class="del"
+              title="Delete this build"
+              on:click={() => remove(b.id)}>×</button
+            >
           </div>
         {/each}
       {:else}

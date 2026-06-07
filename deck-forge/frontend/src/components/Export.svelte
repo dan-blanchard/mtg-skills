@@ -40,7 +40,9 @@
 
   <div class="fmts">
     {#each FORMATS as [id, label]}
-      <button class="btn" class:active={fmt === id} on:click={() => run(id)}>{label}</button>
+      <button class="btn" class:active={fmt === id} on:click={() => run(id)}
+        >{label}</button
+      >
     {/each}
     {#if text}<button class="btn copy" on:click={copy}>Copy</button>{/if}
   </div>
@@ -60,7 +62,9 @@
     <div class="handoffs">
       <div class="hh">Hand off the exported JSON to:</div>
       {#each HANDOFFS as [cmd, label]}
-        <div class="handoff"><span class="hl">{label}</span><code>{cmd}</code></div>
+        <div class="handoff">
+          <span class="hl">{label}</span><code>{cmd}</code>
+        </div>
       {/each}
     </div>
   </div>

@@ -64,9 +64,14 @@
           {#each group.list as c}
             <section class="combo" class:near={group.near}>
               <div class="chead">
-                <div class="result">→ {(c.result || []).join(", ") || "synergy"}</div>
+                <div class="result">
+                  → {(c.result || []).join(", ") || "synergy"}
+                </div>
                 {#if missingOf(c).length}
-                  <button class="btn add-missing" on:click={() => addMissing(c)}>
+                  <button
+                    class="btn add-missing"
+                    on:click={() => addMissing(c)}
+                  >
                     + Add {missingOf(c).length} missing
                   </button>
                 {/if}
@@ -110,8 +115,8 @@
     {:else}
       <div class="notice idle">
         A secondary lens: Commander Spellbook combos already in your deck, plus
-        near-misses you're one card away from. Synergy packages are the headline —
-        this is the "win out of nowhere" option.
+        near-misses you're one card away from. Synergy packages are the headline
+        — this is the "win out of nowhere" option.
       </div>
     {/if}
   </div>

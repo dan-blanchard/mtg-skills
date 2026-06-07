@@ -10,7 +10,8 @@ export function hoverPreview(node, card) {
   // Recompute the rect on enter and on move (cheap) so it stays correct if the
   // list scrolls while hovering; the popup position is stable because it's pinned
   // to the card, not the pointer.
-  const show = () => hovered.set({ card: current, rect: node.getBoundingClientRect() });
+  const show = () =>
+    hovered.set({ card: current, rect: node.getBoundingClientRect() });
   const leave = () => hovered.set(null);
   node.addEventListener("mouseenter", show);
   node.addEventListener("mousemove", show);

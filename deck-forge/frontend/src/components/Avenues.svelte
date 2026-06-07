@@ -1,5 +1,10 @@
 <script>
-  import { avenues, activeTab, exploreAvenue, applySnapshot } from "../lib/store.js";
+  import {
+    avenues,
+    activeTab,
+    exploreAvenue,
+    applySnapshot,
+  } from "../lib/store.js";
   import { api } from "../lib/api.js";
 
   // Scope is only shown when it's contrastive — "yours" is the unremarkable default,
@@ -46,10 +51,12 @@
               ? "Focused — the synergy score counts this lane. Click to unpin."
               : "Pin as a lane you're building toward (scopes the synergy score)"}
             on:click|stopPropagation={() => toggleFocus(a)}
-            on:keydown|stopPropagation={(e) => (e.key === "Enter" ? toggleFocus(a) : null)}
-          >✦</span>
+            on:keydown|stopPropagation={(e) =>
+              e.key === "Enter" ? toggleFocus(a) : null}>✦</span
+          >
           <span class="label">{a.label}</span>
-          {#if SCOPE_TAG[a.scope]}<span class="scope">{SCOPE_TAG[a.scope]}</span>{/if}
+          {#if SCOPE_TAG[a.scope]}<span class="scope">{SCOPE_TAG[a.scope]}</span
+            >{/if}
           {#if a.source === "agent"}
             <span
               class="rm"
@@ -57,8 +64,9 @@
               tabindex="0"
               title="Remove this avenue"
               on:click|stopPropagation={() => remove(a)}
-              on:keydown|stopPropagation={(e) => (e.key === "Enter" ? remove(a) : null)}
-            >×</span>
+              on:keydown|stopPropagation={(e) =>
+                e.key === "Enter" ? remove(a) : null}>×</span
+            >
           {/if}
           <span class="go">→</span>
         </button>
@@ -66,9 +74,11 @@
     </div>
     <p class="hint">
       {#if anyFocused}
-        <b class="lit">✦ focused</b> — the synergy score counts only your pinned lanes. Click ✦ to pin / unpin.
+        <b class="lit">✦ focused</b> — the synergy score counts only your pinned lanes.
+        Click ✦ to pin / unpin.
       {:else}
-        Click a lane for ranked candidates. Pin <span class="lit">✦</span> the lanes you're building toward to scope the synergy score.
+        Click a lane for ranked candidates. Pin <span class="lit">✦</span> the lanes
+        you're building toward to scope the synergy score.
       {/if}
     </p>
   </div>

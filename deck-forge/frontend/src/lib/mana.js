@@ -27,7 +27,8 @@ export const FORMAT_TARGET = {
 // Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).
 // Mirrors DeckList.priceOf so the footer's deck total agrees with the list subtotals.
 export function priceOf(card) {
-  const p = card?.prices?.usd ?? card?.prices?.usd_foil ?? card?.prices?.usd_etched;
+  const p =
+    card?.prices?.usd ?? card?.prices?.usd_foil ?? card?.prices?.usd_etched;
   const n = p == null ? null : Number(p);
   return n == null || Number.isNaN(n) ? null : n;
 }

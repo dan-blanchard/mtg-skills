@@ -1,5 +1,10 @@
 <script>
-  import { agentBusy, agentReply, agentThinking, agentAttached } from "../lib/store.js";
+  import {
+    agentBusy,
+    agentReply,
+    agentThinking,
+    agentAttached,
+  } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
   import ReplyText from "./ReplyText.svelte";
 
@@ -17,11 +22,21 @@
 <div class="panel widget friend">
   <h3 class="panel-title">
     Forge-Friend
-    <span class="sess" class:on={attached}>{attached ? "● attached" : "○ no session"}</span>
+    <span class="sess" class:on={attached}
+      >{attached ? "● attached" : "○ no session"}</span
+    >
   </h3>
 
-  <button class="btn btn-ember nudge" on:click={() => askForge("next_move")} disabled={$agentBusy}>
-    {$agentBusy ? ($agentThinking ? "Reasoning…" : "Thinking…") : "✦ Suggest next move"}
+  <button
+    class="btn btn-ember nudge"
+    on:click={() => askForge("next_move")}
+    disabled={$agentBusy}
+  >
+    {$agentBusy
+      ? $agentThinking
+        ? "Reasoning…"
+        : "Thinking…"
+      : "✦ Suggest next move"}
   </button>
 
   {#if $agentReply}
@@ -40,7 +55,11 @@
         : "Asking the forge-friend…"}
     </p>
   {:else if attached}
-    <p class="hint ok">Forge-friend is here. Ask for the next move, or hit <span class="q">?</span> on any card.</p>
+    <p class="hint ok">
+      Forge-friend is here. Ask for the next move, or hit <span class="q"
+        >?</span
+      > on any card.
+    </p>
   {:else}
     <p class="hint">
       No session attached. Run <code>/deck-forge</code> in an interactive Claude Code

@@ -25,7 +25,8 @@ async function del(path) {
 export const api = {
   snapshot: () => fetch("/api/snapshot").then((r) => r.json()),
   search: (filters) => post("/api/search", filters),
-  add: (name, zone = "cards", qty = 1) => post("/api/deck/add", { name, zone, qty }),
+  add: (name, zone = "cards", qty = 1) =>
+    post("/api/deck/add", { name, zone, qty }),
   remove: (name, zone = "cards", qty = 1) =>
     post("/api/deck/remove", { name, zone, qty }),
   balanceLands: () => post("/api/deck/balance-lands", {}),
@@ -72,10 +73,12 @@ export const api = {
     for (let i = 0; i < MAX; i++) {
       const res = await get(`/api/agent/result/${id}?timeout=20`);
       if (res.status === 200) return { result: res.data.result };
-      if (!res.ok && res.status !== 204) return { error: res.data.error || "failed" };
+      if (!res.ok && res.status !== 204)
+        return { error: res.data.error || "failed" };
       if (i + 1 >= QUICK) {
         const st = await get("/api/agent/status");
-        if (st.ok && st.data && st.data.attached === false) return { offline: true };
+        if (st.ok && st.data && st.data.attached === false)
+          return { offline: true };
         if (onThinking) onThinking();
       }
     }

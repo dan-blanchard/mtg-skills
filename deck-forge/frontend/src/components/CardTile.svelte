@@ -10,7 +10,9 @@
 
   $: price = card.prices?.usd;
   // Iterate SYMBOL_ORDER (not the card's identity order) so symbols read C, then WUBRG.
-  $: colors = SYMBOL_ORDER.filter((c) => (card.color_identity || []).includes(c));
+  $: colors = SYMBOL_ORDER.filter((c) =>
+    (card.color_identity || []).includes(c),
+  );
   $: noListing = price == null;
   // Only legendary creatures / other commander-eligible cards (for the deck's current
   // format) can be set as commander — the backend computes this per format.
@@ -45,18 +47,28 @@
     {#if score && score.synergy_fit > 0}
       <div class="synergy" title={score.served.join(", ")}>
         <span class="spark">✦ {score.synergy_fit}</span>
-        {#each score.served.slice(0, 2) as s}<span class="served">{s}</span>{/each}
+        {#each score.served.slice(0, 2) as s}<span class="served">{s}</span
+          >{/each}
       </div>
     {/if}
     <div class="actions">
-      <button class="btn btn-ember add" on:click={() => onadd(card.name, "cards")}>+ Add</button>
+      <button
+        class="btn btn-ember add"
+        on:click={() => onadd(card.name, "cards")}>+ Add</button
+      >
       <button
         class="btn star"
-        title={canCommand ? "Set as commander" : "Not commander-eligible in this format"}
+        title={canCommand
+          ? "Set as commander"
+          : "Not commander-eligible in this format"}
         disabled={!canCommand}
-        on:click={() => onadd(card.name, "commanders")}
-      >★</button>
-      <button class="btn star" title="Ask the forge-friend to explain" on:click={() => askForge("explain", { card: card.name })}>?</button>
+        on:click={() => onadd(card.name, "commanders")}>★</button
+      >
+      <button
+        class="btn star"
+        title="Ask the forge-friend to explain"
+        on:click={() => askForge("explain", { card: card.name })}>?</button
+      >
     </div>
   </div>
 </div>
@@ -70,7 +82,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: border-color 0.15s, transform 0.15s;
+    transition:
+      border-color 0.15s,
+      transform 0.15s;
     animation: rise 0.25s ease both;
   }
   .tile:hover {

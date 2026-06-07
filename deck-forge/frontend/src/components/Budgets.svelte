@@ -28,14 +28,21 @@
               <div
                 class="fill"
                 class:met={$budgets[role].remaining === 0}
-                style="width: {Math.min(100, ($budgets[role].current / Math.max(1, $budgets[role].target)) * 100)}%"
+                style="width: {Math.min(
+                  100,
+                  ($budgets[role].current /
+                    Math.max(1, $budgets[role].target)) *
+                    100,
+                )}%"
               ></div>
             </div>
           </div>
         {/if}
       {/each}
     </div>
-    <p class="hint">Soft template — nudges, not rules. The land gate is enforced above.</p>
+    <p class="hint">
+      Soft template — nudges, not rules. The land gate is enforced above.
+    </p>
   {:else}
     <p class="empty">No data yet.</p>
   {/if}

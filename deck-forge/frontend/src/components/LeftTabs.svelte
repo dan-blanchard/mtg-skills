@@ -16,7 +16,11 @@
 <div class="left">
   <div class="tabbar">
     {#each TABS as [id, label]}
-      <button class="tab" class:active={$activeTab === id} on:click={() => activeTab.set(id)}>
+      <button
+        class="tab"
+        class:active={$activeTab === id}
+        on:click={() => activeTab.set(id)}
+      >
         {label}
       </button>
     {/each}

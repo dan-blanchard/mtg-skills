@@ -15,7 +15,9 @@
   // reference $deck DIRECTLY so they re-run the instant a card is added (a filter
   // hidden inside a helper called from the template would only re-run on re-search).
   $: inDeck = new Set(
-    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map((c) => c.name),
+    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map(
+      (c) => c.name,
+    ),
   );
   $: filteredExploring = exploring
     ? exploring.candidates.filter((c) => !inDeck.has(c.name))
@@ -127,12 +129,19 @@
           {/each}
         </div>
         {#if exploring.hasMore}
-          <button class="more" on:click={loadMoreExplore} disabled={loadingMore}>
+          <button
+            class="more"
+            on:click={loadMoreExplore}
+            disabled={loadingMore}
+          >
             {loadingMore ? "Loading…" : "Show more"}
           </button>
         {/if}
       {:else}
-        <div class="notice">No fresh candidates for this avenue — you may already run the best ones.</div>
+        <div class="notice">
+          No fresh candidates for this avenue — you may already run the best
+          ones.
+        </div>
       {/if}
     {:else if filteredPackages.length}
       {#each filteredPackages as pkg}
@@ -150,8 +159,10 @@
       {/each}
     {:else}
       <div class="notice idle">
-        Click an <b>Avenue</b> (top of the deck column) to explore it here, or hit
-        <b>Discover all</b>. Every candidate is a real Scryfall card — never invented.
+        Click an <b>Avenue</b> (top of the deck column) to explore it here, or
+        hit
+        <b>Discover all</b>. Every candidate is a real Scryfall card — never
+        invented.
       </div>
     {/if}
   </div>

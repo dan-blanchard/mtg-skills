@@ -10,7 +10,10 @@
 </script>
 
 <div class="panel widget curve" class:collapsed>
-  <button class="panel-title bar-toggle" on:click={() => (collapsed = !collapsed)}>
+  <button
+    class="panel-title bar-toggle"
+    on:click={() => (collapsed = !collapsed)}
+  >
     Curve · avg {avg}
     <span class="caret">{collapsed ? "▸" : "▾"}</span>
   </button>

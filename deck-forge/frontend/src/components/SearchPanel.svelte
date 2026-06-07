@@ -7,7 +7,9 @@
 
   // Singleton: drop a search hit once it's in the deck (it can't be added again).
   $: inDeck = new Set(
-    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map((c) => c.name),
+    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map(
+      (c) => c.name,
+    ),
   );
   $: freshResults = results.filter((c) => !inDeck.has(c.name));
 
@@ -120,7 +122,11 @@
 <div class="panel search">
   <div class="head">
     <h3 class="panel-title">Search the Vault</h3>
-    <button class="toggle" type="button" on:click={() => (collapsed = !collapsed)}>
+    <button
+      class="toggle"
+      type="button"
+      on:click={() => (collapsed = !collapsed)}
+    >
       {collapsed ? "▸ Filters" : "▾ Filters"}
     </button>
   </div>
@@ -129,7 +135,10 @@
     {#if !collapsed}
       <div class="grid">
         <label class="wide"
-          >Name<input bind:value={f.name} placeholder="substring, case-insensitive" /></label
+          >Name<input
+            bind:value={f.name}
+            placeholder="substring, case-insensitive"
+          /></label
         >
 
         <div class="field wide">
@@ -141,22 +150,34 @@
                 class="pip"
                 class:on={colors.has(c)}
                 title={c === "C" ? "Colorless" : c}
-                on:click={() => toggleColor(c)}><Mana sym={c} size="1.45rem" /></button
+                on:click={() => toggleColor(c)}
+                ><Mana sym={c} size="1.45rem" /></button
               >
             {/each}
-            <label class="exact" title="Match the color identity exactly, not as a subset">
+            <label
+              class="exact"
+              title="Match the color identity exactly, not as a subset"
+            >
               <input type="checkbox" bind:checked={exactColors} /> exact
             </label>
           </div>
         </div>
 
-        <label>Type<input bind:value={f.type} placeholder="e.g. Creature" /></label>
+        <label
+          >Type<input bind:value={f.type} placeholder="e.g. Creature" /></label
+        >
 
         <div class="field">
           <span class="lbl">Presets</span>
           <div class="presets">
-            <button class="dropbtn" type="button" on:click={() => (presetsOpen = !presetsOpen)}>
-              {selectedPresets.size ? `${selectedPresets.size} selected` : "none"} ▾
+            <button
+              class="dropbtn"
+              type="button"
+              on:click={() => (presetsOpen = !presetsOpen)}
+            >
+              {selectedPresets.size
+                ? `${selectedPresets.size} selected`
+                : "none"} ▾
             </button>
             {#if presetsOpen}
               <div class="dropdown">
@@ -176,7 +197,10 @@
         </div>
 
         <label class="wide"
-          >Oracle text (regex)<input bind:value={f.oracle} placeholder="e.g. create .* token" /></label
+          >Oracle text (regex)<input
+            bind:value={f.oracle}
+            placeholder="e.g. create .* token"
+          /></label
         >
 
         <div class="field wide">
@@ -203,7 +227,14 @@
           </div>
         </div>
 
-        <label>Limit<input type="number" min="1" max="100" bind:value={f.limit} /></label>
+        <label
+          >Limit<input
+            type="number"
+            min="1"
+            max="100"
+            bind:value={f.limit}
+          /></label
+        >
         <label class="check">
           <input type="checkbox" bind:checked={f.is_commander} />
           Commanders only
@@ -236,7 +267,9 @@
     {:else if searched}
       <div class="notice">Every match is already in your deck.</div>
     {:else}
-      <div class="notice idle">Set filters and search to surface candidates.</div>
+      <div class="notice idle">
+        Set filters and search to surface candidates.
+      </div>
     {/if}
   </div>
 </div>
@@ -493,7 +526,9 @@
     font-size: 0.8rem;
     letter-spacing: 0.04em;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .more:hover {
     border-color: var(--brass);

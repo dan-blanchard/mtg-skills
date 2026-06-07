@@ -5,10 +5,23 @@
   //   health   — land pill (CLICK → Mana Gate modal), budgets + warnings (HOVER → popover)
   //   link     — the two genuinely-distinct status dots: ● Hub (SSE) and ● Session (agent)
   import {
-    stats, mana, budgets, warnings, bracket, deck,
-    connected, agentAttached, manaModalOpen,
+    stats,
+    mana,
+    budgets,
+    warnings,
+    bracket,
+    deck,
+    connected,
+    agentAttached,
+    manaModalOpen,
   } from "../lib/store.js";
-  import { landState, priceOf, FORMAT_TARGET, SYMBOL_ORDER, COLOR_LABEL } from "../lib/mana.js";
+  import {
+    landState,
+    priceOf,
+    FORMAT_TARGET,
+    SYMBOL_ORDER,
+    COLOR_LABEL,
+  } from "../lib/mana.js";
   import Mana from "./Mana.svelte";
   import Budgets from "./Budgets.svelte";
   import Warnings from "./Warnings.svelte";
@@ -26,7 +39,9 @@
   $: warnCount = $warnings.length;
   $: bracketFactors = $bracket
     ? [
-        $bracket.game_changers?.length ? `${$bracket.game_changers.length} game changers` : null,
+        $bracket.game_changers?.length
+          ? `${$bracket.game_changers.length} game changers`
+          : null,
         $bracket.mass_land_denial?.length ? "mass land denial" : null,
         $bracket.fast_curve ? "fast curve" : null,
       ].filter(Boolean)
@@ -36,20 +51,32 @@
 <footer class="bar">
   <!-- ── summary ─────────────────────────────────────────────── -->
   <div class="zone summary">
-    <div class="stat"><b>{$stats?.total_cards ?? 0}</b><span class="o">/{target}</span><em>cards</em></div>
+    <div class="stat">
+      <b>{$stats?.total_cards ?? 0}</b><span class="o">/{target}</span><em
+        >cards</em
+      >
+    </div>
     <div class="stat"><b>{$stats?.avg_cmc ?? 0}</b><em>avg</em></div>
-    <div class="stat"><b>{$stats?.creature_count ?? 0}</b><em>creatures</em></div>
+    <div class="stat">
+      <b>{$stats?.creature_count ?? 0}</b><em>creatures</em>
+    </div>
     <div class="stat"><b>{$stats?.ramp_count ?? 0}</b><em>ramp</em></div>
     {#if colorPips.length}
       <div class="stat colors">
         {#each colorPips as c}
-          <span class="src" title={COLOR_LABEL[c]}><Mana sym={c} size="0.95rem" /><i>{$stats.color_sources[c]}</i></span>
+          <span class="src" title={COLOR_LABEL[c]}
+            ><Mana sym={c} size="0.95rem" /><i>{$stats.color_sources[c]}</i
+            ></span
+          >
         {/each}
       </div>
     {/if}
     <div class="stat"><b>${deckTotal.toFixed(0)}</b><em>est.</em></div>
     {#if $bracket}
-      <div class="stat bracket" title={bracketFactors.join(" · ") || "Mechanical estimate"}>
+      <div
+        class="stat bracket"
+        title={bracketFactors.join(" · ") || "Mechanical estimate"}
+      >
         <b>B{$bracket.bracket}</b><em>{$bracket.name}</em>
       </div>
     {/if}
@@ -58,7 +85,11 @@
   <!-- ── health (disclosure) ─────────────────────────────────── -->
   <div class="zone health">
     {#if ls}
-      <button class="pill status-{ls.status}" on:click={() => manaModalOpen.set(true)} title="Land health — click for the Mana Gate">
+      <button
+        class="pill status-{ls.status}"
+        on:click={() => manaModalOpen.set(true)}
+        title="Land health — click for the Mana Gate"
+      >
         <span class="dot bg-{ls.status}"></span>
         <b>{ls.count}</b> lands · {ls.status}
       </button>
@@ -72,7 +103,11 @@
     {/if}
 
     <div class="hc">
-      <span class="chip" class:bad={warnCount} title="Format legality — hover for any violations">
+      <span
+        class="chip"
+        class:bad={warnCount}
+        title="Format legality — hover for any violations"
+      >
         {#if warnCount}⚠ {warnCount}{:else}✓ Legal{/if}
       </span>
       {#if warnCount}<div class="pop"><Warnings /></div>{/if}
@@ -81,10 +116,20 @@
 
   <!-- ── link ────────────────────────────────────────────────── -->
   <div class="zone link">
-    <span class="conn" class:on={$connected} title={$connected ? "Browser ↔ hub: live" : "Browser ↔ hub: offline"}>
+    <span
+      class="conn"
+      class:on={$connected}
+      title={$connected ? "Browser ↔ hub: live" : "Browser ↔ hub: offline"}
+    >
       <span class="d"></span>Hub
     </span>
-    <span class="conn" class:on={$agentAttached} title={$agentAttached ? "Claude session attached" : "No Claude session — run /deck-forge"}>
+    <span
+      class="conn"
+      class:on={$agentAttached}
+      title={$agentAttached
+        ? "Claude session attached"
+        : "No Claude session — run /deck-forge"}
+    >
       <span class="d"></span>Session
     </span>
   </div>
@@ -102,7 +147,8 @@
     padding: 0 1.2rem;
     background: linear-gradient(180deg, #211c18, #17120e);
     border-top: 1px solid var(--hairline);
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45),
+    box-shadow:
+      0 -8px 24px rgba(0, 0, 0, 0.45),
       0 -1px 0 rgba(255, 220, 160, 0.04) inset;
     font-size: 0.78rem;
   }
@@ -112,7 +158,11 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(60% 200% at 50% 100%, rgba(255, 106, 61, 0.07), transparent 70%);
+    background: radial-gradient(
+      60% 200% at 50% 100%,
+      rgba(255, 106, 61, 0.07),
+      transparent 70%
+    );
   }
   .zone {
     display: flex;
@@ -194,7 +244,9 @@
     padding: 0.2rem 0.65rem;
     font-size: 0.76rem;
     color: var(--parchment-dim);
-    transition: border-color 0.14s, box-shadow 0.14s;
+    transition:
+      border-color 0.14s,
+      box-shadow 0.14s;
   }
   .pill b {
     color: var(--parchment);
@@ -244,7 +296,10 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s;
+    transition:
+      opacity 0.14s ease,
+      transform 0.14s ease,
+      visibility 0.14s;
   }
   .hc:hover .pop {
     opacity: 1;

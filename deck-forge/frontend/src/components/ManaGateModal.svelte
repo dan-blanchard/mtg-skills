@@ -15,9 +15,17 @@
   $: action = !ls
     ? null
     : ls.short > 0
-      ? { label: `Balance lands (+${ls.short})`, run: api.balanceLands, kind: "add" }
+      ? {
+          label: `Balance lands (+${ls.short})`,
+          run: api.balanceLands,
+          kind: "add",
+        }
       : ls.status === "FLOOD"
-        ? { label: `Trim lands (−${ls.over})`, run: api.trimLands, kind: "trim" }
+        ? {
+            label: `Trim lands (−${ls.over})`,
+            run: api.trimLands,
+            kind: "trim",
+          }
         : colorsOff
           ? { label: "Rebalance colors", run: api.balanceLands, kind: "swap" }
           : null;
@@ -44,7 +52,13 @@
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="scrim" on:click={close} role="presentation">
     <!-- Escape closes (window handler above); stopPropagation keeps inside-clicks open -->
-    <div class="modal panel" on:click|stopPropagation role="dialog" aria-modal="true" tabindex="-1">
+    <div
+      class="modal panel"
+      on:click|stopPropagation
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+    >
       <header>
         <h3 class="panel-title">Mana Gate</h3>
         <button class="x" on:click={close} aria-label="Close">×</button>
@@ -62,7 +76,13 @@
       </div>
 
       {#if action}
-        <button class="btn act" class:ember={action.kind !== "trim"} class:trim={action.kind === "trim"} on:click={act} disabled={busy}>
+        <button
+          class="btn act"
+          class:ember={action.kind !== "trim"}
+          class:trim={action.kind === "trim"}
+          on:click={act}
+          disabled={busy}
+        >
           {busy ? "Working the bellows…" : action.label}
         </button>
       {/if}
@@ -76,7 +96,10 @@
         {#if $mana.burgess_formula}
           <div class="row">
             <span>Burgess floor</span>
-            <span class="hint">{$mana.burgess_formula.colors}c · cmc {$mana.burgess_formula.commander_cmc}</span>
+            <span class="hint"
+              >{$mana.burgess_formula.colors}c · cmc {$mana.burgess_formula
+                .commander_cmc}</span
+            >
             <b>{$mana.burgess_formula.result}</b>
           </div>
           <div class="row">
@@ -85,12 +108,18 @@
             <b>{$mana.karsten_adjustment.result}</b>
           </div>
         {:else if $mana.constructed_land_target}
-          <div class="row"><span>Target</span><span class="hint"></span><b>{$mana.constructed_land_target.result}</b></div>
+          <div class="row">
+            <span>Target</span><span class="hint"></span><b
+              >{$mana.constructed_land_target.result}</b
+            >
+          </div>
         {/if}
         <div class="row">
           <span>Color balance</span>
           <span class="hint"></span>
-          <b class="status-{$mana.color_balance_status}">{$mana.color_balance_status}</b>
+          <b class="status-{$mana.color_balance_status}"
+            >{$mana.color_balance_status}</b
+          >
         </div>
       </div>
 
@@ -102,8 +131,9 @@
 
       {#if ls.status === "FLOOD"}
         <p class="note">
-          Over the flood line (target + 2). Trim removes basics back to {ls.recommended} —
-          but it's only a nudge: an all-lands combo deck is a fine reason to ignore it.
+          Over the flood line (target + 2). Trim removes basics back to {ls.recommended}
+          — but it's only a nudge: an all-lands combo deck is a fine reason to ignore
+          it.
         </p>
       {/if}
     </div>
@@ -117,7 +147,12 @@
     z-index: 90;
     display: grid;
     place-items: center;
-    background: radial-gradient(120% 90% at 50% 100%, rgba(255, 106, 61, 0.1), transparent 60%),
+    background:
+      radial-gradient(
+        120% 90% at 50% 100%,
+        rgba(255, 106, 61, 0.1),
+        transparent 60%
+      ),
       rgba(10, 8, 6, 0.7);
     backdrop-filter: blur(3px);
     animation: fade 0.16s ease both;
