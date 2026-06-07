@@ -4,8 +4,9 @@
   import CardTile from "./CardTile.svelte";
 
   let packages = [];
-  let exploring = null; // single-avenue result: {label, candidates}
+  let exploring = null; // single-avenue result: {label, search, candidates, hasMore}
   let loading = false;
+  let loadingMore = false;
   let error = "";
   let loaded = false;
   let lastExploredId = null;
@@ -36,13 +37,40 @@
     error = "";
     exploring = null;
     packages = [];
-    const r = await api.explore(av.label, av.search);
+    const r = await api.explore(av.label, av.search, 0);
     loading = false;
     if (!r.ok) {
       error = r.data.error || `explore failed (${r.status})`;
       return;
     }
-    exploring = { label: av.label, candidates: r.data.package.candidates };
+    const pkg = r.data.package;
+    exploring = {
+      label: av.label,
+      search: av.search,
+      candidates: pkg.candidates,
+      hasMore: pkg.has_more,
+    };
+  }
+
+  async function loadMoreExplore() {
+    if (!exploring || loadingMore) return;
+    loadingMore = true;
+    // Offset by raw candidates already fetched (exploring.candidates is the raw page,
+    // not the in-deck-filtered view) so the server returns the next ranked slice.
+    const r = await api.explore(
+      exploring.label,
+      exploring.search,
+      exploring.candidates.length,
+    );
+    loadingMore = false;
+    if (r.ok) {
+      const pkg = r.data.package;
+      exploring = {
+        ...exploring,
+        candidates: [...exploring.candidates, ...pkg.candidates],
+        hasMore: pkg.has_more,
+      };
+    }
   }
 
   async function discoverAll() {
@@ -98,6 +126,11 @@
             <CardTile card={c} score={c.score} onadd={add} />
           {/each}
         </div>
+        {#if exploring.hasMore}
+          <button class="more" on:click={loadMoreExplore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Show more"}
+          </button>
+        {/if}
       {:else}
         <div class="notice">No fresh candidates for this avenue — you may already run the best ones.</div>
       {/if}
@@ -192,6 +225,26 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 0.6rem;
+  }
+  .more {
+    margin: 0.8rem auto 0;
+    display: block;
+    padding: 0.45rem 1.4rem;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    color: var(--brass-bright);
+    font-family: var(--display);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .more:hover {
+    border-color: var(--brass);
+  }
+  .more:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .notice {
     color: var(--parchment-dim);

@@ -31,6 +31,9 @@ from mtg_utils.theme_presets import list_presets
 
 VERSION = "0.1.0"
 _PACKAGE_LIMIT = 12
+# Ranked-candidate pool an avenue ranks over; the explore endpoint pages _PACKAGE_LIMIT
+# at a time through it, so this bounds how deep "Show more" can go on one avenue.
+_EXPLORE_POOL = 96
 
 _PLACEHOLDER_INDEX = """<!doctype html>
 <html lang="en">
@@ -84,6 +87,7 @@ class AvenuePayload(BaseModel):
 class ExplorePayload(BaseModel):
     label: str = "Exploration"
     search: dict = {}
+    offset: int = 0
 
 
 class NewBuildPayload(BaseModel):
@@ -115,6 +119,7 @@ class SearchPayload(BaseModel):
     is_commander: bool = False
     sort: str = "cmc-asc"
     limit: int = 25
+    offset: int = 0
 
 
 def _autosave(state: ForgeState) -> None:
@@ -228,6 +233,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def search(payload: SearchPayload):
         if not state.bulk_available:
             return _no_bulk()
+        page = max(1, payload.limit)
         records = state.search_fn(
             color_identity=payload.color_identity,
             exact_colors=payload.exact_colors,
@@ -243,10 +249,16 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             preset_names=tuple(payload.presets),
             is_commander_filter=payload.is_commander,
             sort=payload.sort,
-            limit=payload.limit,
+            limit=page + 1,  # over-fetch one to detect a next page
+            offset=max(0, payload.offset),
         )
+        has_more = len(records) > page
         fmt = state.session.format
-        return {"results": [views.result_view(r, fmt) for r in records]}
+        return {
+            "results": [views.result_view(r, fmt) for r in records[:page]],
+            "offset": payload.offset,
+            "has_more": has_more,
+        }
 
     @app.get("/api/events")
     async def events() -> StreamingResponse:
@@ -424,7 +436,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         filters = engine.explore_filters(
             payload.search, color_identity=engine.deck_color_identity(state), fmt=fmt
         )
-        found = state.search_fn(limit=40, paper_only=engine.paper_only(fmt), **filters)
+        found = state.search_fn(
+            limit=_EXPLORE_POOL, paper_only=engine.paper_only(fmt), **filters
+        )
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
         sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
@@ -433,11 +447,18 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         explored = {"label": payload.label, "search": payload.search}
         ranked = rank_candidates(
             fresh, active_signals=sigs, avenues=[explored, *state.agent_avenues]
-        )[:_PACKAGE_LIMIT]
+        )
+        # Page _PACKAGE_LIMIT at a time through the ranked pool (stable order, so "Show
+        # more" appends the next slice).
+        offset = max(0, payload.offset)
+        page = ranked[offset : offset + _PACKAGE_LIMIT]
+        has_more = len(ranked) > offset + _PACKAGE_LIMIT
         return {
             "package": {
                 "label": payload.label,
-                "candidates": [views.candidate_view(r, fmt) for r in ranked],
+                "candidates": [views.candidate_view(r, fmt) for r in page],
+                "offset": payload.offset,
+                "has_more": has_more,
             }
         }
 

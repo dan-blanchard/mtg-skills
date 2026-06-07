@@ -35,7 +35,10 @@
   let results = [];
   let error = "";
   let loading = false;
+  let loadingMore = false;
   let searched = false;
+  let hasMore = false;
+  let lastPayload = null; // the filter dict of the current search, for paging
 
   onMount(async () => {
     const r = await api.presets();
@@ -74,15 +77,31 @@
       is_commander: f.is_commander,
       sort: "cmc-asc",
     };
-    const r = await api.search(payload);
+    lastPayload = payload;
+    const r = await api.search({ ...payload, offset: 0 });
     loading = false;
     if (!r.ok) {
       error = r.data.error || `search failed (${r.status})`;
       results = [];
+      hasMore = false;
       return;
     }
     results = r.data.results;
+    hasMore = r.data.has_more;
     collapsed = true; // give the results room to scroll
+  }
+
+  async function loadMore() {
+    if (!lastPayload || loadingMore) return;
+    loadingMore = true;
+    // Offset by the raw rows already fetched (results holds the raw page, not the
+    // in-deck-filtered view), so the server returns the contiguous next page.
+    const r = await api.search({ ...lastPayload, offset: results.length });
+    loadingMore = false;
+    if (r.ok) {
+      results = [...results, ...r.data.results];
+      hasMore = r.data.has_more;
+    }
   }
 
   async function add(name, zone) {
@@ -209,6 +228,11 @@
           <CardTile {card} onadd={add} />
         {/each}
       </div>
+      {#if hasMore}
+        <button class="more" on:click={loadMore} disabled={loadingMore}>
+          {loadingMore ? "Loading…" : "Show more"}
+        </button>
+      {/if}
     {:else if searched}
       <div class="notice">Every match is already in your deck.</div>
     {:else}
@@ -456,6 +480,27 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 0.6rem;
+  }
+  .more {
+    margin: 0.8rem auto 0;
+    display: block;
+    padding: 0.45rem 1.4rem;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    color: var(--brass-bright);
+    font-family: var(--display);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .more:hover {
+    border-color: var(--brass);
+  }
+  .more:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .notice {
     color: var(--parchment-dim);

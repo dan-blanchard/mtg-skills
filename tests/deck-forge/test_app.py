@@ -185,6 +185,57 @@ def test_search_projects_results_with_images():
     assert results[0]["cmc"] == 1.0
 
 
+def test_search_paginates_with_has_more():
+    cards = [
+        {"name": f"C{i}", "type_line": "Instant", "cmc": 1.0, "color_identity": []}
+        for i in range(25)
+    ]
+
+    def fake(*, limit=25, offset=0, **_):
+        return cards[offset : offset + limit]
+
+    client = TestClient(
+        build_app(
+            ForgeState(by_name={}, search_fn=fake, session=DeckSession("commander"))
+        )
+    )
+    first = client.post("/api/search", json={"limit": 10, "offset": 0}).json()
+    assert len(first["results"]) == 10
+    assert first["has_more"] is True
+    last = client.post("/api/search", json={"limit": 10, "offset": 20}).json()
+    assert len(last["results"]) == 5
+    assert last["has_more"] is False
+
+
+def test_explore_paginates_through_ranked_pool():
+    cards = [
+        {
+            "name": f"C{i}",
+            "type_line": "Creature — Elf",
+            "cmc": 2.0,
+            "color_identity": ["G"],
+            "oracle_text": "",
+        }
+        for i in range(20)
+    ]
+
+    def fake(*, limit=40, **_):  # explore pages the ranked pool, not the search call
+        return cards[:limit]
+
+    client = TestClient(
+        build_app(
+            ForgeState(by_name={}, search_fn=fake, session=DeckSession("commander"))
+        )
+    )
+    body = {"label": "X", "search": {"oracle": "x"}}
+    p0 = client.post("/api/explore", json={**body, "offset": 0}).json()["package"]
+    assert len(p0["candidates"]) == 12
+    assert p0["has_more"] is True
+    p1 = client.post("/api/explore", json={**body, "offset": 12}).json()["package"]
+    assert len(p1["candidates"]) == 8
+    assert p1["has_more"] is False
+
+
 def test_stats_endpoint_counts_lands_and_creatures():
     session = DeckSession("commander")
     session.add("Forest")

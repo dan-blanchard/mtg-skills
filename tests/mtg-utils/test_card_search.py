@@ -266,6 +266,20 @@ class TestSearchCards:
         results = search_cards(bulk_path, limit=3)
         assert len(results) == 3
 
+    def test_offset_paginates_contiguously(self, tmp_path):
+        # distinct prices -> deterministic price-desc order
+        cards = [_make_card(name=f"Card {i}", price_usd=f"{10 - i}.00") for i in range(10)]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        full = search_cards(bulk_path, limit=100, sort="price-desc")
+        page1 = search_cards(bulk_path, limit=3, offset=0, sort="price-desc")
+        page2 = search_cards(bulk_path, limit=3, offset=3, sort="price-desc")
+        assert [c["name"] for c in page1] == [c["name"] for c in full[:3]]
+        assert [c["name"] for c in page2] == [c["name"] for c in full[3:6]]
+        # offset past the end yields nothing
+        assert search_cards(bulk_path, limit=3, offset=100) == []
+
     def test_sort_price_desc(self, tmp_path):
         cards = [
             _make_card(name="Cheap", price_usd="1.00"),

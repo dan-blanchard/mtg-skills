@@ -139,6 +139,7 @@ def search_cards(
     price_max: float | None = None,
     sort: str = "price-desc",
     limit: int = 25,
+    offset: int = 0,
     format: str | None = None,  # noqa: A002
     arena_only: bool = False,
     paper_only: bool = False,
@@ -224,7 +225,7 @@ def search_cards(
     sort_key, sort_reverse = _parse_sort(sort)
     deduped.sort(key=sort_key, reverse=sort_reverse)
 
-    return deduped[:limit]
+    return deduped[offset : offset + limit]
 
 
 def format_results(cards: list[dict]) -> str:

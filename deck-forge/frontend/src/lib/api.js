@@ -34,7 +34,8 @@ export const api = {
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
   agentStatus: () => get("/api/agent/status"),
-  explore: (label, search) => post("/api/explore", { label, search }),
+  explore: (label, search, offset = 0) =>
+    post("/api/explore", { label, search, offset }),
   removeAvenue: (id) => del(`/api/avenues/${id}`),
   finalize: (override) => post("/api/finalize", { override }),
   builds: () => get("/api/builds"),
