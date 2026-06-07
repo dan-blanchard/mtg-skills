@@ -233,6 +233,28 @@ class TestCoinFlipSpec:
         # the main avenue still recognizes generic flip payoffs.
         assert spec.serve.search(plain)
 
+    def test_flip_fixing_catches_outcome_forcing_fixers(self):
+        """Edgar, King of Figaro fixes flips by FORCING THE OUTCOME
+        ('those coins come up heads and you win those flips'), not by
+        re-flipping. The Krark's-Thumb-shaped regex missed this whole class —
+        the sub-avenue (and the parent avenue) must surface it."""
+        import re
+
+        spec = spec_for(_sig("coin_flip", "you"))
+        fix = {e.label: e for e in spec.extras}["Flip fixing"]
+        edgar = (
+            "The first time you flip one or more coins each turn, "
+            "those coins come up heads and you win those flips."
+        )
+        # Edgar is a genuine fixer — the sub-avenue search must catch it.
+        assert re.search(fix.search["oracle"], edgar, re.IGNORECASE)
+        # …and it serves the parent coin-flip avenue (it IS a coin-flip card,
+        # phrased "flip one or more coins"/"come up heads", not "flip a coin").
+        assert spec.serve.search(edgar)
+        # but a plain flip-resolution payoff stays out of the fixer sub-avenue.
+        plain = "Flip a coin. If you win the flip, draw a card."
+        assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
+
 
 class TestSubjectSpecs:
     """Subject-bearing avenues must match their label and stay distinct from payoffs."""

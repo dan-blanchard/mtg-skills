@@ -134,12 +134,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {
             "oracle": (
                 r"flip a coin|flip (?:two|three|\d+) coins"
+                r"|flip (?:one or more|a number of) coins"
                 r"|wins? (?:the|a) (?:coin )?flip|lose (?:the|a) (?:coin )?flip"
+                r"|come up heads"
             )
         },
         (
             r"flip a coin|flip (?:two|three|\d+) coins"
+            r"|flip (?:one or more|a number of) coins"
             r"|wins? (?:the|a) (?:coin )?flip|lose (?:the|a) (?:coin )?flip"
+            r"|come up heads"
         ),
         extras=(
             SubAvenue(
@@ -150,6 +154,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                     "oracle": (
                         r"instead flip [^.]*coin|\breflip"
                         r"|flip [^.]*coins? again|flip an additional coin"
+                        r"|come up heads"
+                        r"|you win (?:all|those|each|every)[^.]*flip"
+                        r"|win all (?:coin )?flips"
                     )
                 },
             ),
