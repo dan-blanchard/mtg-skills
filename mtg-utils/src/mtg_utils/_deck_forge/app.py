@@ -175,6 +175,7 @@ def _project(record: dict, fmt: str) -> dict:
         "images": image_urls(record),
         "game_changer": record.get("game_changer"),
         "can_be_commander": is_commander(record, fmt)["eligible"],
+        "layout": record.get("layout", ""),
     }
 
 

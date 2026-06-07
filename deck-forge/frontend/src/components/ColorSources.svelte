@@ -1,10 +1,10 @@
 <script>
   import { stats } from "../lib/store.js";
-  import { COLOR_ORDER, COLOR_LABEL } from "../lib/mana.js";
+  import { SYMBOL_ORDER, COLOR_LABEL } from "../lib/mana.js";
   import Mana from "./Mana.svelte";
 
   $: sources = $stats?.color_sources ?? {};
-  $: present = COLOR_ORDER.filter((c) => sources[c]);
+  $: present = SYMBOL_ORDER.filter((c) => sources[c]);
 </script>
 
 <div class="panel widget">

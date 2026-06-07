@@ -1,5 +1,5 @@
 <script>
-  import { COLOR_ORDER } from "../lib/mana.js";
+  import { SYMBOL_ORDER } from "../lib/mana.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
   import Mana from "./Mana.svelte";
@@ -8,7 +8,8 @@
   export let score = null;
 
   $: price = card.prices?.usd;
-  $: colors = (card.color_identity || []).filter((c) => COLOR_ORDER.includes(c));
+  // Iterate SYMBOL_ORDER (not the card's identity order) so symbols read C, then WUBRG.
+  $: colors = SYMBOL_ORDER.filter((c) => (card.color_identity || []).includes(c));
   $: noListing = price == null;
   // Only legendary creatures / other commander-eligible cards (for the deck's current
   // format) can be set as commander — the backend computes this per format.
@@ -24,9 +25,11 @@
     {:else}
       <div class="noart">{card.name}</div>
     {/if}
-    <div class="ci">
-      {#each colors as c}<Mana sym={c} size="1.05rem" />{/each}
-    </div>
+  </div>
+  <!-- Anchored to the .tile (stable width), NOT .art: Safari doesn't stretch an
+       aspect-ratio flex item to full width, which pushed symbols off .art's right. -->
+  <div class="ci">
+    {#each colors as c}<Mana sym={c} size="1.05rem" />{/each}
   </div>
 
   <div class="body">
@@ -59,6 +62,7 @@
 
 <style>
   .tile {
+    position: relative;
     background: linear-gradient(180deg, var(--panel-2), var(--panel));
     border: 1px solid var(--hairline-soft);
     border-radius: var(--radius);
@@ -74,6 +78,7 @@
   }
   .art {
     position: relative;
+    width: 100%;
     aspect-ratio: 16 / 9;
     background: #0d0a08;
   }

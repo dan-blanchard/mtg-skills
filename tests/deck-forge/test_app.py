@@ -108,6 +108,7 @@ _FOREST_VIEW = {
     "images": None,
     "game_changer": None,
     "can_be_commander": False,
+    "layout": "",
     "unknown": False,
 }
 

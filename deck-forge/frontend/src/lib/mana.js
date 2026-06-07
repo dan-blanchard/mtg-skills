@@ -2,6 +2,9 @@
 
 export const COLOR_ORDER = ["W", "U", "B", "R", "G", "C"];
 
+// Order for DISPLAYING symbols: colorless first, then WUBRG.
+export const SYMBOL_ORDER = ["C", "W", "U", "B", "R", "G"];
+
 export const COLOR_LABEL = {
   W: "White",
   U: "Blue",
