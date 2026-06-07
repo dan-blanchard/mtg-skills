@@ -260,6 +260,22 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "has_more": has_more,
         }
 
+    @app.get("/api/card")
+    async def card_by_name(name: str):
+        """Resolve one card by exact name to a hydrated view (images / mana_cost /
+        oracle / layout) so the UI can render a forge-friend card reference inline
+        with art + the standard hover preview. Exact match first, then a
+        case-insensitive fallback. Returns {"card": None} on a miss."""
+        if not state.bulk_available:
+            return _no_bulk()
+        rec = state.by_name.get(name)
+        if rec is None:
+            low = name.lower()
+            rec = next((r for n, r in state.by_name.items() if n.lower() == low), None)
+        if rec is None:
+            return {"card": None}
+        return {"card": views.result_view(rec, state.session.format)}
+
     @app.get("/api/events")
     async def events() -> StreamingResponse:
         async def gen():

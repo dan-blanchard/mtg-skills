@@ -25,3 +25,32 @@ export function bucketCurve(curve) {
   }
   return out;
 }
+
+// Split a mana-cost string ("{1}{R}{W/U}") into bare symbol codes for <Mana>
+// (which strips braces itself). Hybrid/Phyrexian like "W/U" stay intact; the
+// <Mana> SVG-URL builder normalizes the slash.
+export function parseManaCost(cost) {
+  if (!cost) return [];
+  return (String(cost).match(/\{[^}]+\}/g) || []).map((t) => t.slice(1, -1));
+}
+
+// Tokenize a forge-friend reply into ordered runs for rich rendering:
+//   {t:'text', v}  — plain prose
+//   {t:'card', v}  — a card reference written by the agent as [[Card Name]]
+//   {t:'mana', v}  — a mana/symbol token written as {W}, {1}, {T}, …
+// Everything outside [[…]] / {…} stays plain text, so reasoning is preserved.
+export function tokenizeReply(text) {
+  const out = [];
+  if (!text) return out;
+  const re = /\[\[([^\]]+)\]\]|\{([^}]+)\}/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push({ t: "text", v: text.slice(last, m.index) });
+    if (m[1] != null) out.push({ t: "card", v: m[1].trim() });
+    else out.push({ t: "mana", v: m[2] });
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push({ t: "text", v: text.slice(last) });
+  return out;
+}

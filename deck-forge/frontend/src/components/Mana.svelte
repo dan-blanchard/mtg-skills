@@ -4,7 +4,9 @@
   // (W/U/B/R/G/C), generic ("2", "X"), or other ({T}, etc.) — pass it WITHOUT braces.
   export let sym;
   export let size = "1.1rem";
-  $: code = String(sym).replace(/[{}]/g, "").toUpperCase();
+  // Scryfall's card-symbol SVGs name hybrid/Phyrexian files with a hyphen
+  // ({W/U} -> W-U.svg, {2/W} -> 2-W.svg), so normalize the slash.
+  $: code = String(sym).replace(/[{}]/g, "").replace(/\//g, "-").toUpperCase();
 </script>
 
 <img

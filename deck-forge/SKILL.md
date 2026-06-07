@@ -123,6 +123,19 @@ uv run python -c "import requests; requests.post('http://127.0.0.1:8765/api/agen
 `cards` (optional) is a list of **real** card names you endorsed — the UI links them
 to add. Keep `text` tight and specific; cite oracle clauses and CR rules.
 
+**Write `text` for the rich UI renderer (not as a plaintext dump):**
+- Reference every card by wrapping its name in **double brackets** — `[[Gods Willing]]`,
+  `[[Sol Ring]]`. The UI turns each into an inline card chip (art + the standard
+  hover preview + click-to-add), so **do not paste the card's oracle text** — give
+  the *reasoning* (why it fits), not a transcription the chip already shows.
+- Write mana symbols in **brace notation** — `{W}`, `{1}`, `{T}`, `{W/U}` — the UI
+  renders them as the official mana-symbol SVGs. Don't spell out "one white mana".
+- **Don't restate the request kind.** The UI already labels the panel ("NEXT MOVE",
+  "EXPLANATION", …), so opening with "Next move: …" is redundant — lead with the move.
+- Every `[[name]]` and every entry in `cards` must still be a real, search-grounded
+  card (the Iron Rule). The bracketed name must match the card's exact name so the
+  UI can resolve it.
+
 ## Phase 3 — finalize
 
 When the user is ready: `POST /api/finalize` (the UI's Finalize button). If the land

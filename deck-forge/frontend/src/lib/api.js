@@ -33,6 +33,7 @@ export const api = {
   packages: () => get("/api/packages"),
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
+  card: (name) => get(`/api/card?name=${encodeURIComponent(name)}`),
   agentStatus: () => get("/api/agent/status"),
   explore: (label, search, offset = 0) =>
     post("/api/explore", { label, search, offset }),

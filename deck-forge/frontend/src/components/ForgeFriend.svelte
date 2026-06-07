@@ -1,8 +1,9 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { agentBusy, agentReply, agentThinking, applySnapshot } from "../lib/store.js";
+  import { agentBusy, agentReply, agentThinking } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
   import { api } from "../lib/api.js";
+  import ReplyText from "./ReplyText.svelte";
 
   const KIND_LABEL = {
     next_move: "Next move",
@@ -23,11 +24,6 @@
     timer = setInterval(refreshStatus, 4000);
   });
   onDestroy(() => clearInterval(timer));
-
-  async function add(name) {
-    const r = await api.add(name, "cards", 1);
-    if (r.ok) applySnapshot(r.data);
-  }
 </script>
 
 <div class="panel widget friend">
@@ -43,13 +39,10 @@
   {#if $agentReply}
     <div class="reply" class:offline={$agentReply.offline}>
       <div class="kind">{KIND_LABEL[$agentReply.kind] || $agentReply.kind}</div>
-      <p class="text">{$agentReply.text}</p>
-      {#if $agentReply.cards?.length}
-        <div class="cards">
-          {#each $agentReply.cards as name}
-            <button class="chip" on:click={() => add(name)}>+ {name}</button>
-          {/each}
-        </div>
+      {#if $agentReply.offline}
+        <p class="text">{$agentReply.text}</p>
+      {:else}
+        <ReplyText text={$agentReply.text} cards={$agentReply.cards || []} />
       {/if}
     </div>
   {:else if $agentBusy}
@@ -110,24 +103,6 @@
     font-size: 0.86rem;
     line-height: 1.45;
     white-space: pre-wrap;
-  }
-  .cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-top: 0.5rem;
-  }
-  .chip {
-    background: linear-gradient(180deg, #3a2f22, #2a221a);
-    border: 1px solid var(--hairline);
-    color: var(--parchment);
-    border-radius: 999px;
-    padding: 0.2rem 0.55rem;
-    font-size: 0.76rem;
-  }
-  .chip:hover {
-    border-color: var(--brass);
-    color: var(--brass-bright);
   }
   .hint {
     margin: 0.6rem 0 0;
