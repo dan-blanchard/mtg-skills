@@ -47,18 +47,33 @@ export const api = {
   exportDeck: (fmt) => get(`/api/export?fmt=${fmt}`),
 
   // Raise a reasoning request and long-poll for the session-agent's answer.
-  // Resolves to {result} | {timeout: true} | {error}. A timeout means no
-  // interactive Claude Code session is attached to answer.
-  async agentAsk(kind, payload = {}) {
+  // Resolves to {result} | {offline: true} | {slow: true} | {error}.
+  //
+  // Grounded answers (card-search + per-card oracle verification, sometimes a
+  // rules-lawyer hop) routinely take ~1 minute, so a fixed short budget would
+  // mislabel a working agent as absent. We poll patiently and, past the quick
+  // budget, consult the authoritative /api/agent/status to tell a genuinely
+  // detached session (`offline`) apart from one that's simply still reasoning
+  // (keep waiting; reassure the UI via `onThinking`). Only a confirmed-detached
+  // status yields `offline`; exceeding the hard cap while attached yields
+  // `slow` (still working), never a false "not attached".
+  async agentAsk(kind, payload = {}, { onThinking } = {}) {
     const req = await post("/api/agent/request", { kind, payload });
     if (!req.ok) return { error: req.data.error || "request failed" };
     const id = req.data.request_id;
-    for (let i = 0; i < 3; i++) {
+    const QUICK = 3; // ~60s of quiet waiting before we reassure / re-check attach
+    const MAX = 15; // ~5 min hard cap (each poll is a ~20s server long-poll)
+    for (let i = 0; i < MAX; i++) {
       const res = await get(`/api/agent/result/${id}?timeout=20`);
       if (res.status === 200) return { result: res.data.result };
       if (!res.ok && res.status !== 204) return { error: res.data.error || "failed" };
+      if (i + 1 >= QUICK) {
+        const st = await get("/api/agent/status");
+        if (st.ok && st.data && st.data.attached === false) return { offline: true };
+        if (onThinking) onThinking();
+      }
     }
-    return { timeout: true };
+    return { slow: true };
   },
 };
 

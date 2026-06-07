@@ -15,6 +15,10 @@ export const avenues = writable([]);
 export const warnings = writable([]);
 export const connected = writable(false);
 export const agentBusy = writable(false);
+// True once a slow request has crossed the quick budget while the agent is
+// confirmed attached — lets the UI reassure ("still reasoning") instead of
+// implying the request stalled.
+export const agentThinking = writable(false);
 export const agentReply = writable(null);
 export const buildId = writable(null);
 export const buildName = writable("Untitled");

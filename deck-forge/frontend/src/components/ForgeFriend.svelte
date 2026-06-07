@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { agentBusy, agentReply, applySnapshot } from "../lib/store.js";
+  import { agentBusy, agentReply, agentThinking, applySnapshot } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
   import { api } from "../lib/api.js";
 
@@ -37,7 +37,7 @@
   </h3>
 
   <button class="btn btn-ember nudge" on:click={() => askForge("next_move")} disabled={$agentBusy}>
-    {$agentBusy ? "Thinking…" : "✦ Suggest next move"}
+    {$agentBusy ? ($agentThinking ? "Reasoning…" : "Thinking…") : "✦ Suggest next move"}
   </button>
 
   {#if $agentReply}
@@ -52,9 +52,15 @@
         </div>
       {/if}
     </div>
-  {:else if !$agentBusy && attached}
+  {:else if $agentBusy}
+    <p class="hint ok">
+      {$agentThinking
+        ? "Forge-friend is reasoning — grounded answers (real card-search + oracle checks) can take a minute…"
+        : "Asking the forge-friend…"}
+    </p>
+  {:else if attached}
     <p class="hint ok">Forge-friend is here. Ask for the next move, or hit <span class="q">?</span> on any card.</p>
-  {:else if !$agentBusy}
+  {:else}
     <p class="hint">
       No session attached. Run <code>/deck-forge</code> in an interactive Claude Code
       session for novel synergies, rules answers, and guidance.
