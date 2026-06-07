@@ -1290,3 +1290,22 @@ class TestMediumBatch8:
         felidar = {"name": "Felidar Sovereign", "type_line": "Creature — Cat Beast", "oracle_text": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game."}
         sigs = [s for s in extract_signals(felidar) if s.key == "win_lose_game"]
         assert sigs and all(s.scope != "opponents" for s in sigs)
+
+
+class TestMediumBatch9:
+    def test_counter_distribute_is_board_wide_only(self):
+        sig = _sig("counter_distribute", "you")
+        cathars = {"type_line": "Enchantment", "oracle_text": "Whenever a creature you control enters, put a +1/+1 counter on each creature you control."}
+        venerable = {"type_line": "Creature — Human Knight", "oracle_text": "When this creature dies, put a +1/+1 counter on target Knight you control."}
+        assert serves(cathars, sig) is True
+        assert serves(venerable, sig) is False
+
+    def test_keyword_tribe_requires_payoff_anchor(self):
+        from mtg_utils._deck_forge.signals import extract_signals, signal_keys
+
+        praetors = {"name": "Hand of the Praetors", "type_line": "Creature — Phyrexian", "oracle_text": "Infect\nOther creatures with infect you control get +1/+0.\nWhenever you cast an Infect spell, ..."}
+        whiptongue = {"name": "Whiptongue Hydra", "type_line": "Creature — Hydra", "oracle_text": "Reach\nWhen this creature enters, destroy all creatures with flying."}
+        praetor_kw = {s.subject for s in extract_signals(praetors) if s.key == signal_keys.KEYWORD_TRIBE}
+        whip_kw = {s.subject for s in extract_signals(whiptongue) if s.key == signal_keys.KEYWORD_TRIBE}
+        assert "Infect" in praetor_kw  # a real keyword-tribe anthem
+        assert "Flying" not in whip_kw  # "destroy all creatures with flying" is removal

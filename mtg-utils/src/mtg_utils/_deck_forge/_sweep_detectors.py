@@ -210,7 +210,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "counter_distribute",
         "scope": "you",
         "is_widen_of": "counters_matter",
-        "regex": "put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each (?:other )?creature you control|put (?:a|one|two) \\+1/\\+1 counters? on (?:another|target) creature you control|distribute \\+1/\\+1 counters|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on (?:target |another target |each |up to )|put (?:a |one or more |the same number[^.]*?)\\+1/\\+1 counters? on (?:each of |up to |another target|target creature you control|that creature)|put (?:a|an|one|two|three|x|\\d+) \\+1/\\+1 counters? on (?:a |that )creature you control|enters with (?:a|an|one|two|three|x|\\d+)(?: additional)? \\+1/\\+1 counters? on|enters with that many additional",
+        "regex": "put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each (?:other )?creature you control|distribute \\+1/\\+1 counters|put (?:a |one or more |the same number[^.]*?)\\+1/\\+1 counters? on each of|enters with (?:a|an|one|two|three|x|\\d+)(?: additional)? \\+1/\\+1 counters? on|enters with that many additional",
     },
     {
         "key": "keyword_counter",

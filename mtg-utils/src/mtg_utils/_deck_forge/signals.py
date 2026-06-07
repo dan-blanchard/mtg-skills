@@ -959,7 +959,14 @@ _KEYWORD_TRIBE_PATTERNS = (
     # "creatures you control with deathtouch …"
     (re.compile(r"\bcreatures you control with ([A-Za-z]+)\b", re.IGNORECASE), "you"),
     # "all creatures with deathtouch …" (symmetric)
-    (re.compile(r"\bcreatures with ([A-Za-z]+)\b", re.IGNORECASE), "any"),
+    (
+        re.compile(
+            r"\bcreatures with ([A-Za-z]+)\b[^.]{0,20}?"
+            r"(?:gets? [+\-]|have \"|gains?\b)",
+            re.IGNORECASE,
+        ),
+        "any",
+    ),
 )
 
 
