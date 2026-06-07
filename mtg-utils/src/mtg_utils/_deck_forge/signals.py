@@ -882,6 +882,33 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     ("cascade_matters", re.compile(r"\bcascade\b", re.IGNORECASE), "you"),
     ("regenerate_matters", re.compile(r"\bregenerate\b", re.IGNORECASE), "you"),
+    # ── Keyword-coverage audit (CR 702/701) keyword[]-anchored avenues ──────────
+    # Each fires on a commander/card that bears or cares about the keyword; the matching
+    # SPECS entry serves the keyword[] bearers (authoritative) plus the payoff phrasing.
+    # Madness (CR 702.35): discard to cast — discard_matters covers only 1/61.
+    ("madness_matters", re.compile(r"\bmadness\b", re.IGNORECASE), "you"),
+    # Speed / Max speed (CR 702.179/702.178, Aetherdrift): max-speed payoffs unsurfaced.
+    (
+        "speed_matters",
+        re.compile(r"start your engines|max speed|your speed", re.IGNORECASE),
+        "you",
+    ),
+    # Discover (CR 701.57): cascade-like dig — surface discover sources + low-MV spells.
+    (
+        "discover_matters",
+        re.compile(
+            r"\bdiscover \d|\bdiscover x\b|whenever you discover", re.IGNORECASE
+        ),
+        "you",
+    ),
+    # Foretell (CR 702.143): the foretold-card payoff/engine axis (Alrund, Ranar).
+    ("foretell_matters", re.compile(r"\bforetell\b|foretold", re.IGNORECASE), "you"),
+    # Undying (702.93) / Persist (702.79): death-triggered self-return + their granters.
+    (
+        "undying_persist_matters",
+        re.compile(r"\b(?:undying|persist)\b", re.IGNORECASE),
+        "you",
+    ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
     # (Goreclaw), or a Ferocious-style "if you control a creature with power N or

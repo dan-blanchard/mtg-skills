@@ -1359,6 +1359,48 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|when [^.]* leaves the battlefield",
         serve_not=r"exile [^.]*until [^.]*leaves the battlefield",
     ),
+    # ── Keyword-coverage audit (CR 702/701) keyword[]-anchored avenues ──────────
+    # Serve the keyword[] bearers via serve_keywords (Scryfall's authoritative field —
+    # maximally precise, never matches reminder text) plus the payoff/grant phrasing.
+    ("madness_matters", "you"): _spec(
+        "Madness",
+        "madness cards (discard them to cast for their madness cost) plus the discard "
+        "outlets and madness-granters that enable the loop",
+        {"oracle": r"\bmadness\b"},
+        r"\bmadness\b|if it has madness",
+        serve_keywords=("madness",),
+    ),
+    ("speed_matters", "you"): _spec(
+        "Speed / Max speed",
+        "Start-your-engines and Max-speed payoffs, plus the your-turn life-loss "
+        "sources that advance your speed",
+        {"oracle": r"max speed|start your engines"},
+        r"max speed|start your engines|your speed",
+        serve_keywords=("start your engines!", "max speed"),
+    ),
+    ("discover_matters", "you"): _spec(
+        "Discover",
+        "discover sources to dig for free, plus low-mana-value nonland spells worth "
+        "flipping into",
+        {"oracle": r"\bdiscover \d|\bdiscover x\b"},
+        r"\bdiscover \d|\bdiscover x\b|whenever you discover",
+        serve_keywords=("discover",),
+    ),
+    ("foretell_matters", "you"): _spec(
+        "Foretell",
+        "foretell cards to bank in exile plus the payoffs that reward foretold cards",
+        {"oracle": r"\bforetell\b|foretold"},
+        r"\bforetell\b|foretold",
+        serve_keywords=("foretell",),
+    ),
+    ("undying_persist_matters", "you"): _spec(
+        "Undying / Persist",
+        "Undying and Persist bodies (free, repeatable death-return fodder) plus the "
+        "anthems and grants that hand out the keyword",
+        {"oracle": r"\b(?:undying|persist)\b"},
+        r"\b(?:undying|persist)\b|(?:have|gain|gains|with) (?:undying|persist)",
+        serve_keywords=("undying", "persist"),
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured
