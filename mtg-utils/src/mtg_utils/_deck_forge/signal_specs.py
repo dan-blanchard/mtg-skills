@@ -467,12 +467,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"extra turn|additional turn",
     ),
     # ── Rules mined from the zero-signal commander tail ─────────────────────────
+    # Serve the payoff trigger (CR 510 combat damage) + true-unblockable enablers. The
+    # bare `\bmenace\b` matched every menace creature AND the menace/flying REMINDER
+    # "can't be blocked except by …" — surfacing vanilla evasive bodies, not connect
+    # payoffs. Drop it; gate `can't be blocked` against the "except" reminder.
     ("combat_damage_matters", "opponents"): _spec(
         "Combat damage",
         "evasive attackers and extra-combat enablers to keep connecting",
         {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
-        r"deals combat damage to (?:a player|an opponent|one of your opponents)"
-        r"|can't be blocked|\bmenace\b",
+        r"deals combat damage to (?:a player|an opponent|one of your opponents"
+        r"|each opponent)|can't be blocked(?! except)|\bunblockable\b",
     ),
     ("cost_reduction", "you"): _spec(
         "Cost reduction",
@@ -896,7 +900,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "damage-to-opponent triggers (any damage, not just combat)",
         {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
         r"deals (?:noncombat )?damage to (?:a player|an opponent|one of your opponents"
-        r"|that player)|can't be blocked|\bmenace\b",
+        r"|that player|each opponent)|can't be blocked(?! except)|\bunblockable\b",
     ),
     ("permanent_etb", "you"): _spec(
         "Permanents entering",

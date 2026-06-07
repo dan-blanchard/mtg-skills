@@ -809,3 +809,57 @@ class TestStructuredServeFixes2:
         }
         assert serves(invisible_stalker, sig) is True
         assert serves(sengir, sig) is False
+
+
+class TestStructuredServeFixes3:
+    """Combat-damage connect avenues: drop the bare `\\bmenace\\b` word (matched every
+    menace creature + reminder text) and the `can't be blocked` reminder form. Serve
+    the payoff trigger + true-unblockable enablers, not every vanilla evasive body."""
+
+    def test_combat_damage_opponents_drops_bare_menace(self):
+        sig = _sig("combat_damage_matters", "opponents")
+        edric = {
+            "type_line": "Legendary Creature — Elf Advisor",
+            "oracle_text": "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
+            "keywords": [],
+        }
+        coastal_piracy = {
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever a creature you control deals combat damage to an opponent, you may draw a card.",
+            "keywords": [],
+        }
+        invisible_stalker = {
+            "type_line": "Creature — Human Rogue",
+            "oracle_text": "Hexproof\nThis creature can't be blocked.",
+            "keywords": ["Hexproof"],
+        }
+        vanilla_menace = {
+            "type_line": "Creature — Orc Warrior",
+            "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)",
+            "keywords": ["Menace"],
+        }
+        sengir = {
+            "type_line": "Creature — Vampire",
+            "oracle_text": "Flying (This creature can't be blocked except by creatures with flying or reach.)",
+            "keywords": ["Flying"],
+        }
+        assert serves(edric, sig) is True  # payoff trigger
+        assert serves(coastal_piracy, sig) is True  # payoff trigger
+        assert serves(invisible_stalker, sig) is True  # true unblockable enabler
+        assert serves(vanilla_menace, sig) is False  # bare menace word/reminder
+        assert serves(sengir, sig) is False  # vanilla flier, reminder "except"
+
+    def test_damage_to_opp_drops_bare_menace(self):
+        sig = _sig("damage_to_opp_matters", "opponents")
+        niv = {
+            "type_line": "Legendary Creature — Dragon Avatar",
+            "oracle_text": "Flying\nWhenever a source you control deals noncombat damage to an opponent, you draw that many cards.",
+            "keywords": ["Flying"],
+        }
+        vanilla_menace = {
+            "type_line": "Creature — Orc Warrior",
+            "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)",
+            "keywords": ["Menace"],
+        }
+        assert serves(niv, sig) is True  # noncombat-damage-to-opponent payoff
+        assert serves(vanilla_menace, sig) is False
