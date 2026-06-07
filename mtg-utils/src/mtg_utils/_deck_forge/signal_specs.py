@@ -323,17 +323,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             ),
         ),
     ),
+    # `create .*token` was type-blind — it served every Treasure/Clue/Food maker
+    # (~428 in WBR), none of which are sacrifice fodder. Require the literal "creature
+    # token" (CR 111.10 token types); and exclude "sacrifice a land" (fetchlands) from
+    # the outlet branch.
     ("sacrifice_matters", "you"): _spec(
         "Sacrifice — fodder & outlets",
         "token fodder and free sacrifice outlets",
-        {"oracle": r"create .*token|sacrifice"},
-        r"create .*token|sacrifice (?:a|an|another)",
+        {"oracle": r"create [^.]*creature token|sacrifice"},
+        r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)",
     ),
     ("death_matters", "any"): _spec(
         "Aristocrats",
         "creatures dying as a resource — fodder plus drain payoffs",
-        {"oracle": r"create .*token|whenever .* dies"},
-        r"create .*token|sacrifice (?:a|an|another)|whenever .* dies",
+        {"oracle": r"create [^.]*creature token|whenever .* dies"},
+        r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
+        r"|whenever .* dies",
     ),
     ("attack_matters", "you"): _spec(
         "Combat",
@@ -341,18 +346,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"haste|create .*creature token"},
         r"haste|create .*creature token",
     ),
+    # The bare `onto the battlefield` branch matched every cheat-into-play and
+    # reanimation effect (Sneak Attack, Reanimate). Anchor it to a LAND card, mirroring
+    # lands_matter (CR 305 — landfall fires on a land entering, not any permanent).
     ("landfall", "you"): _spec(
         "Landfall",
         "extra land drops and land fetch",
         {
             "oracle": (
-                r"search your library for .*land"
-                r"|play an additional land|onto the battlefield"
+                r"search your library for .*\bland\b"
+                r"|play (?:an|one|two|\d+) additional lands?"
+                r"|put .*\bland card.*onto the battlefield"
             )
         },
         (
-            r"search your library for .*land"
-            r"|play an additional land|onto the battlefield"
+            r"search your library for .*\bland\b"
+            r"|play (?:an|one|two|\d+) additional lands?"
+            r"|put .*\bland card.*onto the battlefield"
         ),
     ),
     # ── Archetype floor specs (whole themes the baseline was blind to) ──────────
@@ -386,6 +396,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*token"},
         r"\btokens? you control\b|whenever .*token.*enters|\bpopulate\b",
     ),
+    # The bare `your opponents` alternative matched any card that merely names opponents
+    # (Edric's draw trigger, Telepathy's hand reveal). Serve the actual restriction/tax
+    # SHAPES instead (CR 601.2f cost increases, prohibitions) — which also recovers the
+    # symmetric taxes the old regex missed (Thalia: "Noncreature spells cost {1} more").
     ("stax_taxes", "opponents"): _spec(
         "Stax & taxes",
         "tax and restriction effects aimed at your opponents",
@@ -396,7 +410,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 r"|creatures your opponents control"
             )
         },
-        r"opponents? can't|spells your opponents cast cost|your opponents",
+        r"opponents? can't"
+        r"|(?:players?|that player|each player) can't (?:cast|activate|attack|block|"
+        r"untap|search|draw|play)"
+        r"|spells?[^.]*cost \{?\d+\}? more|noncreature spells?[^.]*cost \{?\d"
+        r"|creatures your opponents control"
+        r"|(?:your opponents control|nonbasic lands?) enters?"
+        r"(?: the battlefield)? tapped",
     ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",
@@ -811,11 +831,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"opponent discards|each player discards|target player discards"},
         r"opponent[^.]*discards|each player discards|target player discards",
     ),
+    # Bare `can't be blocked` matched the menace/flying REMINDER "can't be blocked
+    # except by …" on vanilla evasive creatures (~673). Exclude the "except" form (a
+    # conditional restriction, CR 509.1b, not true unblockable) and add landwalk.
     ("evasion_self", "you"): _spec(
         "Evasion / unblockable",
         "unblockable and evasion to keep connecting — strong for voltron",
         {"oracle": r"can't be blocked|\bunblockable\b"},
-        r"can't be blocked",
+        r"can't be blocked(?! except)|\bunblockable\b"
+        r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
     ),
     ("clone_matters", "you"): _spec(
         "Clones / copies",

@@ -703,3 +703,109 @@ class TestStructuredServeFixes:
         }
         assert serves(blood_artist, sig) is True
         assert serves(zulaport, sig) is True
+
+
+class TestStructuredServeFixes2:
+    """Second batch of audit-driven precision fixes (all SPECS-level serve)."""
+
+    def test_aristocrats_serve_requires_creature_token_not_treasure(self):
+        """sacrifice/death serves keyed on `create .*token`, which is type-blind: it
+        served every Treasure/Clue/Food maker (~428 in WBR). Require the literal
+        'creature token' so only real sacrifice fodder qualifies."""
+        sac = _sig("sacrifice_matters", "you")
+        death = _sig("death_matters", "any")
+        bitterblossom = {
+            "type_line": "Kindred Enchantment — Faerie",
+            "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 black Faerie Rogue creature token with flying.",
+        }
+        viscera_seer = {
+            "type_line": "Creature — Vampire Wizard",
+            "oracle_text": "Sacrifice a creature: Scry 1.",
+        }
+        blood_artist = {
+            "type_line": "Creature — Vampire",
+            "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
+        }
+        smothering_tithe = {
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token.",
+        }
+        tireless_tracker = {
+            "type_line": "Creature — Human Scout",
+            "oracle_text": "Whenever a land you control enters, investigate. Create a Clue token.",
+        }
+        assert serves(bitterblossom, sac) is True  # makes creature-token fodder
+        assert serves(viscera_seer, sac) is True  # sac outlet
+        assert serves(blood_artist, death) is True  # dies trigger
+        assert serves(smothering_tithe, sac) is False  # Treasure, not creature token
+        assert serves(smothering_tithe, death) is False
+        assert serves(tireless_tracker, death) is False  # Clue, not creature token
+
+    def test_landfall_serve_is_land_anchored(self):
+        """landfall's bare `onto the battlefield` branch matched any cheat-into-play /
+        reanimation. Anchor it to 'land card … onto the battlefield'."""
+        sig = _sig("landfall", "you")
+        cultivate = {
+            "type_line": "Sorcery",
+            "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+        }
+        azusa = {
+            "type_line": "Legendary Creature — Human Monk",
+            "oracle_text": "You may play two additional lands on each of your turns.",
+        }
+        sneak_attack = {
+            "type_line": "Enchantment",
+            "oracle_text": "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+        }
+        reanimate = {
+            "type_line": "Sorcery",
+            "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+        }
+        assert serves(cultivate, sig) is True
+        assert serves(azusa, sig) is True
+        assert serves(sneak_attack, sig) is False
+        assert serves(reanimate, sig) is False
+
+    def test_stax_serve_requires_restriction_not_bare_your_opponents(self):
+        """stax/opponents had a bare `your opponents` alternative that matched any card
+        naming opponents (Edric's draw trigger, Telepathy's hand reveal). Serve the
+        actual tax/restriction shapes; this also recovers symmetric taxes (Thalia)."""
+        sig = _sig("stax_taxes", "opponents")
+        drannith = {
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": "Your opponents can't cast spells from anywhere other than their hands.",
+        }
+        thalia = {
+            "type_line": "Legendary Creature — Human Soldier",
+            "oracle_text": "First strike\nNoncreature spells cost {1} more to cast.",
+        }
+        edric = {
+            "type_line": "Legendary Creature — Elf Advisor",
+            "oracle_text": "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
+        }
+        telepathy = {
+            "type_line": "Enchantment",
+            "oracle_text": "Your opponents play with their hands revealed.",
+        }
+        assert serves(drannith, sig) is True  # opponents can't
+        assert serves(thalia, sig) is True  # noncreature cost more
+        assert serves(edric, sig) is False  # names opponents, but is a draw payoff
+        assert serves(telepathy, sig) is False  # names opponents, but is hand reveal
+
+    def test_evasion_self_excludes_menace_reminder(self):
+        """evasion_self's bare `can't be blocked` matched the menace/flying REMINDER
+        text 'can't be blocked except by …'. Exclude the 'except' form; keep true
+        unblockable and landwalk."""
+        sig = _sig("evasion_self", "you")
+        invisible_stalker = {
+            "type_line": "Creature — Human Rogue",
+            "oracle_text": "Hexproof (This creature can't be the target of spells or abilities your opponents control.)\nThis creature can't be blocked.",
+            "keywords": ["Hexproof"],
+        }
+        sengir = {
+            "type_line": "Creature — Vampire",
+            "oracle_text": "Flying (This creature can't be blocked except by creatures with flying or reach.)\nWhenever a creature dealt damage by this creature this turn dies, put a +1/+1 counter on this creature.",
+            "keywords": ["Flying"],
+        }
+        assert serves(invisible_stalker, sig) is True
+        assert serves(sengir, sig) is False
