@@ -234,3 +234,118 @@ class TestUndyingPersistMatters:
             "oracle_text": "Other non-Human creatures you control get +1/+1 and have undying.",
         }
         assert "undying_persist_matters" in _keys(mikaeus)
+
+
+# ── Batch C: counter / payoff-regex avenues ──────────────────────────────────
+class TestMinusCountersMatter:
+    """counters_matter is hard-pinned to +1/+1, so the symmetric -1/-1 axis
+    (Wither/Infect/aristocrats — Hapatra, Necroskitter) had no home (CR 122/702.80/702.90)."""
+
+    HAPATRA = {
+        "name": "Hapatra, Vizier of Poisons",
+        "type_line": "Legendary Creature — Human Cleric",
+        "oracle_text": "Whenever Hapatra, Vizier of Poisons deals combat damage to a creature, you may put a -1/-1 counter on that creature.\nWhenever you put one or more -1/-1 counters on a creature, create a 1/1 black Snake creature token with deathtouch.",
+    }
+
+    def test_minus_counter_commander_emits(self):
+        assert "minus_counters_matter" in _keys(self.HAPATRA)
+
+    def test_plus_one_commander_does_not_emit_minus(self):
+        # The +1/+1-pin is load-bearing: a +1/+1 commander must NOT fire minus_counters.
+        ghave = {
+            "name": "Plus Counter Lord",
+            "type_line": "Legendary Creature — Fungus",
+            "oracle_text": "At the beginning of your upkeep, put a +1/+1 counter on each creature you control.",
+        }
+        assert "minus_counters_matter" not in _keys(ghave)
+
+    def test_minus_payoff_served_wither_keyword_served(self):
+        sig = _sig("minus_counters_matter", "you")
+        assert serves(self.HAPATRA, sig)
+        assert serves(
+            {
+                "name": "Spinebiter",
+                "type_line": "Creature — Insect",
+                "oracle_text": "Spinebiter",
+                "keywords": ["Wither"],
+            },
+            sig,
+        )
+
+
+class TestCyclingMatters:
+    """Cycling (CR 702.29) payoffs use "cycle or discard" wording; discard_matters'
+    serve catches 0/32 (it needs a literal "you discard")."""
+
+    DRAKE_HAVEN = {
+        "name": "Drake Haven",
+        "type_line": "Enchantment",
+        "oracle_text": "Whenever you cycle or discard a card, you may pay {1}. If you do, create a 2/2 blue Drake creature token with flying.",
+    }
+
+    def test_cycling_payoff_commander_emits(self):
+        assert "cycling_matters" in _keys(self.DRAKE_HAVEN)
+
+    def test_cycling_payoff_served_not_by_discard_matters(self):
+        assert serves(self.DRAKE_HAVEN, _sig("cycling_matters", "you"))
+        # disjoint from discard_matters (its serve needs "you discard", not "cycle or discard")
+        assert not serves(self.DRAKE_HAVEN, _sig("discard_matters", "you"))
+
+
+class TestKickedSpellMatters:
+    """Kicker (CR 702.33) payoffs trigger on casting a kicked spell; spellcast_matters
+    serves 0/10 of them."""
+
+    VERAZOL = {
+        "name": "Verazol, the Split Current",
+        "type_line": "Legendary Creature — Serpent",
+        "oracle_text": "Whenever you cast a kicked spell, put two +1/+1 counters on Verazol, the Split Current.",
+    }
+
+    def test_kicked_payoff_commander_emits(self):
+        assert "kicked_spell_matters" in _keys(self.VERAZOL)
+
+    def test_kicked_payoff_served_not_spellcast(self):
+        sig = _sig("kicked_spell_matters", "you")
+        assert serves(self.VERAZOL, sig)
+        assert not serves(self.VERAZOL, _sig("spellcast_matters", "you"))
+
+
+class TestColorlessMatters:
+    """Devoid/Eldrazi colorless payoffs (anthems/cost-reduction/cast-triggers) keyed on
+    "colorless creature/spell/permanent" (CR 702.114) had no avenue; type_matters:Eldrazi
+    surfaces by subtype, not the colorless axis."""
+
+    def test_colorless_payoff_commander_emits_and_served(self):
+        monument = {
+            "name": "Forsaken Monument",
+            "type_line": "Legendary Artifact",
+            "oracle_text": "Colorless creatures you control get +1/+1.\nWhenever a colorless creature you control enters, you gain 2 life.",
+        }
+        assert "colorless_matters" in _keys(monument)
+        assert serves(monument, _sig("colorless_matters", "you"))
+
+    def test_colorless_hate_counterspell_excluded(self):
+        # Ceremonious Rejection is colorless-HATE, not a payoff — must not be served.
+        assert not serves(
+            {
+                "name": "Ceremonious Rejection",
+                "type_line": "Instant",
+                "oracle_text": "Counter target colorless spell.",
+            },
+            _sig("colorless_matters", "you"),
+        )
+
+
+class TestExaltedLoneAttacker:
+    """Exalted (CR 702.83) rewards attacking ALONE; the attacks-alone payoff/trigger axis
+    (Rafiq, Sublime Archangel, Angelic Exaltation) was only loosely under voltron."""
+
+    def test_attacks_alone_commander_emits_and_served(self):
+        rafiq = {
+            "name": "Rafiq of the Many",
+            "type_line": "Legendary Creature — Human Wizard",
+            "oracle_text": "Exalted\nWhenever a creature you control attacks alone, that creature gains double strike until end of turn.",
+        }
+        assert "exalted_lone_attacker" in _keys(rafiq)
+        assert serves(rafiq, _sig("exalted_lone_attacker", "you"))

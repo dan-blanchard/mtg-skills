@@ -1401,6 +1401,52 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\b(?:undying|persist)\b|(?:have|gain|gains|with) (?:undying|persist)",
         serve_keywords=("undying", "persist"),
     ),
+    # ── Two-regex payoff avenues (serve = the broad axis, search = enabler pool) ──
+    ("minus_counters_matter", "you"): _spec(
+        "-1/-1 counters",
+        "Wither/Infect bearers and -1/-1 placers plus the payoffs that reward a board "
+        "shrinking under -1/-1 counters (Hapatra, Necroskitter, Nest of Scarabs)",
+        {"oracle": r"-1/-1 counter"},
+        r"-1/-1 counter",
+        serve_keywords=("wither", "infect"),
+    ),
+    ("cycling_matters", "you"): _spec(
+        "Cycling",
+        "cycling cards to churn through your deck plus the payoffs that reward each "
+        "cycle (Astral Slide, Drake Haven, Faith of the Devoted)",
+        {"preset_names": ("cycling",)},
+        r"whenever you cycle|cycles? or discard"
+        r"|whenever (?:a player|another player) cycles",
+        serve_keywords=("cycling",),
+    ),
+    ("kicked_spell_matters", "you"): _spec(
+        "Kicked spells",
+        "kicker/multikicker spells plus the payoffs that trigger on casting a kicked "
+        "spell (Verazol, Hallar, Rumbling Aftershocks)",
+        {"oracle": r"\bkicker\b|\bkicked\b"},
+        r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
+        serve_keywords=("kicker", "multikicker"),
+    ),
+    # colorless-hate counterspells ("Counter target colorless spell" — Ceremonious
+    # Rejection, Consign to Memory) match the oracle arm but are NOT payoffs: veto them.
+    ("colorless_matters", "you"): _spec(
+        "Colorless / Eldrazi",
+        "Devoid and Eldrazi colorless bodies plus the anthems, cost reducers, and "
+        "cast-triggers that reward casting colorless creatures and spells",
+        {"oracle": r"colorless (?:creature|spell|permanent)"},
+        r"colorless (?:creature|spell|permanent)s?",
+        serve_keywords=("devoid",),
+        serve_types=("eldrazi",),
+        serve_not=r"counter target colorless",
+    ),
+    ("exalted_lone_attacker", "you"): _spec(
+        "Exalted / lone attacker",
+        "Exalted enablers plus the payoffs that reward a single attacker connecting "
+        "(Rafiq, Sublime Archangel, Angelic Exaltation)",
+        {"oracle": r"attacks alone|\bexalted\b"},
+        r"attacks alone",
+        serve_keywords=("exalted",),
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

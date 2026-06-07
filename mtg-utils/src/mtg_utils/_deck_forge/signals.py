@@ -909,6 +909,41 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\b(?:undying|persist)\b", re.IGNORECASE),
         "you",
     ),
+    # -1/-1 counters (CR 122 / 702.80 Wither / 702.90 Infect): the symmetric counter
+    # axis counters_matter (hard-pinned to +1/+1) leaves homeless — Hapatra aristocrats.
+    ("minus_counters_matter", re.compile(r"-1/-1 counter", re.IGNORECASE), "you"),
+    # Cycling (CR 702.29): payoffs use "cycle or discard"; discard_matters serves 0/32.
+    (
+        "cycling_matters",
+        re.compile(
+            r"whenever you cycle|cycles? or discard"
+            r"|whenever (?:a player|another player) cycles",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # Kicker (CR 702.33): "cast a kicked spell" payoffs; spellcast_matters serves 0/10.
+    (
+        "kicked_spell_matters",
+        re.compile(
+            r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # Colorless / Devoid / Eldrazi (CR 702.114): colorless-payoff axis (anthems / cost
+    # reduction / cast-triggers) keyed on "colorless creature|spell|permanent".
+    (
+        "colorless_matters",
+        re.compile(r"colorless (?:creature|spell|permanent)", re.IGNORECASE),
+        "you",
+    ),
+    # Exalted (CR 702.83): rewards attacking ALONE — the attacks-alone payoff/trigger.
+    (
+        "exalted_lone_attacker",
+        re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE),
+        "you",
+    ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
     # (Goreclaw), or a Ferocious-style "if you control a creature with power N or
