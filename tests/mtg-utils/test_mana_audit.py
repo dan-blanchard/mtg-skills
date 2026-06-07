@@ -6,6 +6,7 @@ import json
 
 from click.testing import CliRunner
 
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.mana_audit import (
     allocate_basic_lands,
     burgess_formula,
@@ -18,6 +19,10 @@ from mtg_utils.mana_audit import (
     pip_demand,
 )
 from mtg_utils.parse_deck import parse_deck
+
+
+def _hd(deck, hydrated):
+    return HydratedDeck.from_parsed(deck, records=hydrated)
 
 
 class TestAllocateBasicLands:
@@ -166,7 +171,7 @@ class TestColorBalance:
 class TestManaAudit:
     def test_full_audit_pass(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
-        result = mana_audit(deck, hydrated_cards)
+        result = mana_audit(_hd(deck, hydrated_cards))
 
         # Check all required keys are present
         expected_keys = [
@@ -206,7 +211,7 @@ class TestManaAudit:
 
     def test_korvold_commander_cmc(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
-        result = mana_audit(deck, hydrated_cards)
+        result = mana_audit(_hd(deck, hydrated_cards))
         # Korvold is CMC 5, 3 colors (B, R, G)
         assert result["burgess_formula"]["commander_cmc"] == 5
         assert result["burgess_formula"]["colors"] == 3
@@ -214,7 +219,7 @@ class TestManaAudit:
 
     def test_ramp_count(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
-        result = mana_audit(deck, hydrated_cards)
+        result = mana_audit(_hd(deck, hydrated_cards))
         # Sakura-Tribe Elder, Cultivate, Sol Ring, Ashnod's Altar are ramp
         assert result["ramp_count"] >= 3
 
@@ -222,7 +227,7 @@ class TestManaAudit:
         self, moxfield_deck, hydrated_cards
     ):
         deck = parse_deck(moxfield_deck)
-        result = mana_audit(deck, hydrated_cards)
+        result = mana_audit(_hd(deck, hydrated_cards))
         # 2 lands is well below 36, should FAIL
         assert result["overall_status"] == "FAIL"
 
@@ -345,7 +350,7 @@ class TestManaAuditWithFormat:
                 "keywords": [],
             },
         ]
-        result = mana_audit(deck, hydrated)
+        result = mana_audit(_hd(deck, hydrated))
         assert result["land_count"] == 22
         # Burgess for 60-card: round((31+3+5) * 60/100) = round(23.4) = 23
         assert result["burgess_formula"]["result"] == 23
@@ -510,7 +515,7 @@ class TestConstructedManaAudit:
                 "oracle_text": "({T}: Add {R}.)",
             },
         ]
-        result = mana_audit(deck, hydrated)
+        result = mana_audit(_hd(deck, hydrated))
         assert "constructed_land_target" in result
         assert "burgess_formula" not in result
         assert result["land_count"] == 22
@@ -542,5 +547,5 @@ class TestConstructedManaAudit:
                 "oracle_text": "({T}: Add {U}.)",
             },
         ]
-        result = mana_audit(deck, hydrated)
+        result = mana_audit(_hd(deck, hydrated))
         assert result["land_count"] == 22  # sideboard Island not counted

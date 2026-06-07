@@ -3,45 +3,10 @@
 from __future__ import annotations
 
 import re
-import warnings
 
 from mtg_utils.format_config import FORMAT_CONFIGS
 
 SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
-
-_DECK_ZONES = ("commanders", "cards", "sideboard")
-
-
-def check_hydration(label: str, deck: dict, hydrated: list[dict | None] | None) -> None:
-    """Loud guard against the silent 'forgot to hydrate' footgun in deck-attribute
-    functions (deck_stats / mana_audit / legality_audit / …).
-
-    A "deck" is just ``{name, quantity}`` entries; computing curve, colors, lands,
-    legality, or signals needs the cards joined to their Scryfall records ("hydrated").
-    Passing none degrades silently to wrong answers, which has bitten us repeatedly.
-
-    - Raises ``ValueError`` on the unambiguous misuse: deck-entry stubs (no
-      ``type_line``) passed where hydrated records are expected.
-    - Warns when a non-empty deck arrives with no usable card records (degraded; e.g. a
-      caller that skipped hydration, or the no-bulk mode). Empty decks are a no-op.
-    """
-    records = [r for r in (hydrated or []) if r]
-    # The unambiguous misuse: deck entries ({name, quantity}) passed where hydrated
-    # records belong. A "quantity" key with no "type_line" is the tell. (Minimal card
-    # records that legitimately omit type_line — e.g. legality fixtures — are fine.)
-    if any("quantity" in r and "type_line" not in r for r in records):
-        msg = (
-            f"{label}: deck entries ({{name, quantity}}) were passed instead of "
-            f"hydrated Scryfall records (each should have a 'type_line')."
-        )
-        raise ValueError(msg)
-    card_count = sum(len(deck.get(zone) or []) for zone in _DECK_ZONES)
-    if card_count and not records:
-        warnings.warn(
-            f"{label}: deck has {card_count} cards but no hydrated card data — results "
-            f"will be degraded. Pass hydrated cards (e.g. from the bulk index).",
-            stacklevel=3,
-        )
 
 
 # Singleton-rule exemption patterns.

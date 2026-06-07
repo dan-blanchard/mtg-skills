@@ -24,6 +24,7 @@ from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck_stats import deck_stats, detect_bracket
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.theme_presets import list_presets
@@ -131,6 +132,12 @@ def _clamp_timeout(timeout: float) -> float:
     return max(0.0, min(timeout, 30.0))
 
 
+def _hd(state: ForgeState) -> HydratedDeck:
+    """One HydratedDeck per request, joining the live session against the bulk index.
+    Build it once at a handler's entry and thread it — every deck analysis reads it."""
+    return HydratedDeck.from_session(state.session, state.by_name)
+
+
 class SearchPayload(BaseModel):
     color_identity: str | None = None
     exact_colors: bool = False
@@ -189,23 +196,19 @@ def _zone_error(zone: str) -> JSONResponse | None:
 
 
 def _snapshot(state: ForgeState) -> dict:
-    deck = state.session.to_deck_dict()
-    hydrated = state.session.hydrated(state.by_name)
-    stats = deck_stats(deck, hydrated)
+    hd = _hd(state)
+    stats = deck_stats(hd)
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
         "deck": _deck_view(state),
         "stats": stats,
-        "bracket": detect_bracket(hydrated, stats.get("avg_cmc", 0.0)),
-        "mana": mana_audit(deck, hydrated),
-        "budgets": slot_budgets(
-            state.session.hydrated_expanded(state.by_name),
-            deck_size=_deck_size(deck["format"]),
-        ),
-        "signals": [_signal_dict(s) for s in _ranked_deck_signals(state, hydrated)],
-        "avenues": _avenues(state, hydrated),
-        "warnings": _legality_warnings(state),
+        "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
+        "mana": mana_audit(hd),
+        "budgets": slot_budgets(hd.expanded(), deck_size=_deck_size(hd.format)),
+        "signals": [_signal_dict(s) for s in _ranked_deck_signals(state, hd.records)],
+        "avenues": _avenues(state, hd.records),
+        "warnings": _legality_warnings(hd),
     }
 
 
@@ -240,10 +243,8 @@ def _violation_message(category: str, violation: dict) -> dict:
     return {"category": category, "message": f"{label}: {body}".strip(": ")}
 
 
-def _legality_warnings(state: ForgeState) -> list[dict]:
-    audit = legality_audit(
-        state.session.to_deck_dict(), state.session.hydrated(state.by_name)
-    )
+def _legality_warnings(hd: HydratedDeck) -> list[dict]:
+    audit = legality_audit(hd)
     violations = audit.get("violations") or {}
     return [
         _violation_message(cat, v)
@@ -253,17 +254,14 @@ def _legality_warnings(state: ForgeState) -> list[dict]:
 
 
 def _finalize_state(state: ForgeState) -> dict:
-    deck = state.session.to_deck_dict()
-    hydrated = state.session.hydrated(state.by_name)
-    mana = mana_audit(deck, hydrated)
-    avg_cmc = deck_stats(deck, hydrated).get("avg_cmc", 0.0)
+    hd = _hd(state)
+    mana = mana_audit(hd)
+    avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
     cheap_ca = sum(
-        1
-        for r in state.session.hydrated_expanded(state.by_name)
-        if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
+        1 for r in hd.expanded() if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
     )
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
-    warnings = _legality_warnings(state)
+    warnings = _legality_warnings(hd)
     return {
         "land_status": mana["land_count_status"],
         "land_count": mana["land_count"],
@@ -403,13 +401,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/stats")
     async def stats() -> dict:
-        s = state.session
-        return deck_stats(s.to_deck_dict(), s.hydrated(state.by_name))
+        return deck_stats(_hd(state))
 
     @app.get("/api/mana-audit")
     async def mana() -> dict:
-        s = state.session
-        return mana_audit(s.to_deck_dict(), s.hydrated(state.by_name))
+        return mana_audit(_hd(state))
 
     @app.post("/api/deck/add")
     async def add(payload: AddPayload):
@@ -442,9 +438,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
         basics to match color demand (swapping over- for under-produced colors at the
         current count when already at/above the floor)."""
-        deck = state.session.to_deck_dict()
-        hydrated = state.session.hydrated(state.by_name)
-        plan = reconcile_basic_lands(deck, hydrated)
+        plan = reconcile_basic_lands(_hd(state))
         applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
         for name, qty in plan["remove"].items():
             state.session.remove(name, qty, zone="cards")
@@ -501,10 +495,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/signals")
     async def signals() -> dict:
-        hydrated = state.session.hydrated(state.by_name)
-        return {
-            "signals": [_signal_dict(s) for s in _ranked_deck_signals(state, hydrated)]
-        }
+        sigs = _ranked_deck_signals(state, _hd(state).records)
+        return {"signals": [_signal_dict(s) for s in sigs]}
 
     @app.get("/api/presets")
     async def presets() -> dict:
@@ -518,7 +510,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/budgets")
     async def budgets() -> dict:
-        records = state.session.hydrated_expanded(state.by_name)
+        records = _hd(state).expanded()
         return {
             "budgets": slot_budgets(records, deck_size=_deck_size(state.session.format))
         }
@@ -530,7 +522,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": "Scryfall bulk data not found — run `download-bulk` first."},
                 status_code=503,
             )
-        sigs = _ranked_deck_signals(state, state.session.hydrated(state.by_name))
+        sigs = _ranked_deck_signals(state, _hd(state).records)
         ci = _color_identity(state)
         fmt = state.session.format
         in_deck = set(state.session.card_names())
@@ -671,7 +663,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
-        sigs = _ranked_deck_signals(state, state.session.hydrated(state.by_name))
+        sigs = _ranked_deck_signals(state, _hd(state).records)
         # Credit candidates for the avenue actually being explored, so a card the
         # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
         explored = {"label": payload.label, "search": payload.search}
@@ -694,7 +686,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/audit")
     async def audit() -> dict:
-        return {"warnings": _legality_warnings(state)}
+        return {"warnings": _legality_warnings(_hd(state))}
 
     @app.post("/api/finalize")
     async def finalize(payload: FinalizePayload) -> dict:

@@ -28,11 +28,11 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
-    check_hydration,
     has_any_number_exemption,
     named_card_cap,
 )
 from mtg_utils.format_config import get_format_config
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.rules_lookup import load_rules, resolve_rules_path
 
 # Map legality-audit violation reasons to the Comprehensive Rules rules
@@ -381,16 +381,16 @@ def check_deck_minimum(deck_json: dict, config: dict) -> list[dict]:
     return []
 
 
-def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
+def legality_audit(hd: HydratedDeck) -> dict:
     """Run all legality checks and return a structured result."""
-    check_hydration("legality_audit", deck_json, hydrated_cards)
+    deck_json = hd.deck
     config = get_format_config(deck_json)
     legality_key = config["legality_key"]
 
     # Collect all card names across main + sideboard for format legality.
     # Include both deck-side names (which may be Arena display names) and
     # canonical hydrated names so aliased cards aren't silently skipped.
-    hydrated_by_name = build_card_lookup(hydrated_cards)
+    hydrated_by_name = hd.by_name
     all_deck_names: set[str] = set()
     for section in ("commanders", "cards", "sideboard"):
         for entry in deck_json.get(section) or []:
@@ -404,7 +404,7 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
                 all_deck_names.add(card.get("name", ""))
 
     format_violations = check_format_legality(
-        hydrated_cards,
+        hd.records,
         legality_key,
         deck_card_names=all_deck_names,
     )
@@ -417,7 +417,7 @@ def legality_audit(deck_json: dict, hydrated_cards: list[dict]) -> dict:
     if commander_zone_violations:
         ci_violations: list[dict] = []
     else:
-        ci_violations = check_color_identity(deck_json, hydrated_cards, config)
+        ci_violations = check_color_identity(deck_json, hd.records, config)
     copy_violations = check_copy_limits(deck_json, hydrated_by_name, config)
     sb_violations = check_sideboard_size(deck_json, config)
     deck_min_violations = check_deck_minimum(deck_json, config)
@@ -633,7 +633,7 @@ def main(
     deck = json.loads(deck_content)
     hydrated = json.loads(hydrated_content)
 
-    result = legality_audit(deck, hydrated)
+    result = legality_audit(HydratedDeck.from_parsed(deck, records=hydrated))
 
     if cite_rules:
         _attach_rule_citations(result, rules_file, input_path=deck_path)

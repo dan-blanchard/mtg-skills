@@ -17,19 +17,14 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
 from mtg_utils.card_classify import extract_price
 from mtg_utils.card_search import SKIP_LAYOUTS
+from mtg_utils.hydrated_deck import HydratedDeck
 
 
 def _combos(deck: dict, by_name: dict[str, dict]) -> dict:
-    # Pass hydrated deck cards so combo_search can validate template requirements
-    # (e.g. "a Persist Creature") against the deck — without them, near-miss detection
-    # falls back to counting named cards only and over-reports near-misses.
-    names = [
-        entry["name"]
-        for zone in ("commanders", "cards", "sideboard")
-        for entry in deck.get(zone, [])
-    ]
-    hydrated = [by_name.get(n) for n in names]
-    return combo_search.combo_search(deck, hydrated=hydrated)
+    # Build a HydratedDeck so combo_search can validate template requirements
+    # (e.g. "a Persist Creature") against the deck — without records, near-miss
+    # detection falls back to counting named cards only and over-reports near-misses.
+    return combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name))
 
 
 def build_by_name(cards: list[dict]) -> dict[str, dict]:

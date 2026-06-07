@@ -11,13 +11,12 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
-    build_card_lookup,
-    check_hydration,
     color_sources,
     is_land,
     is_ramp,
 )
 from mtg_utils.format_config import get_format_config
+from mtg_utils.hydrated_deck import HydratedDeck
 
 _PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
@@ -186,9 +185,7 @@ _BASIC_NAMES = frozenset(_BASIC_FOR_COLOR.values())
 _COLOR_FOR_BASIC = {name: color for color, name in _BASIC_FOR_COLOR.items()}
 
 
-def reconcile_basic_lands(
-    deck: dict, hydrated: list[dict | None]
-) -> dict[str, dict[str, int]]:
+def reconcile_basic_lands(hd: HydratedDeck) -> dict[str, dict[str, int]]:
     """Plan the basic-land changes that fix the mana base, returning
     ``{"add": {name: qty}, "remove": {name: qty}}``.
 
@@ -198,12 +195,12 @@ def reconcile_basic_lands(
     (swapping over-produced basics for under-produced ones, net-zero count). Only the
     standard basics are managed; nonbasic lands (duals, fixing, snow basics) are
     treated as fixed production the basics fill in around."""
-    audit = mana_audit(deck, hydrated)
+    audit = mana_audit(hd)
     land_count = audit["land_count"]
     target_total = max(land_count, audit["land_count_floor"])
 
     current: dict[str, int] = {}
-    for entry in deck.get("cards", []):
+    for entry in hd.cards:
         color = _COLOR_FOR_BASIC.get(entry["name"])
         if color:
             current[color] = current.get(color, 0) + entry["quantity"]
@@ -216,10 +213,9 @@ def reconcile_basic_lands(
         for c in set(production) | set(current)
     }
 
-    lookup = {r.get("name"): r for r in hydrated if r}
     ci: set[str] = set()
-    for entry in deck.get("commanders", []):
-        record = lookup.get(entry.get("name"))
+    for entry in hd.commanders:
+        record = hd.by_name.get(entry.get("name"))
         if record:
             ci.update(record.get("color_identity") or [])
 
@@ -327,18 +323,17 @@ def _overall_status(statuses: list[str]) -> str:
     return "PASS"
 
 
-def mana_audit(deck: dict, hydrated: list[dict | None]) -> dict:
+def mana_audit(hd: HydratedDeck) -> dict:
     """Run a full mana base audit on the deck."""
-    check_hydration("mana_audit", deck, hydrated)
-    card_lookup = build_card_lookup(hydrated)
+    card_lookup = hd.by_name
 
-    config = get_format_config(deck)
+    config = get_format_config(hd.deck)
     deck_size = config["deck_size"]
     has_commander = config.get("has_commander", True)
 
-    commanders = deck.get("commanders", [])
+    commanders = hd.commanders
     # Only analyze mainboard cards (sideboard doesn't affect mana base)
-    all_entries = list(commanders) + list(deck.get("cards", []))
+    all_entries = list(commanders) + list(hd.cards)
 
     commander_cmc, colors = _commander_stats(commanders, card_lookup)
     (
@@ -540,9 +535,11 @@ def main(
         new_deck = json.loads(new_deck_content)
         new_hydrated = json.loads(new_hydrated_content)
 
-        primary = mana_audit(deck, hydrated)
+        primary = mana_audit(HydratedDeck.from_parsed(deck, records=hydrated))
         primary["source"] = deck_path.name
-        comparison = mana_audit(new_deck, new_hydrated)
+        comparison = mana_audit(
+            HydratedDeck.from_parsed(new_deck, records=new_hydrated)
+        )
         comparison["source"] = new_deck_path.name
 
         result = {
@@ -562,7 +559,7 @@ def main(
                 new_hydrated_content,
             )
     else:
-        result = mana_audit(deck, hydrated)
+        result = mana_audit(HydratedDeck.from_parsed(deck, records=hydrated))
         if output_path is None:
             output_path = _default_output_path(deck_content, hydrated_content)
 

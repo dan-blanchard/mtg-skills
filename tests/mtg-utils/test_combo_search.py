@@ -13,6 +13,12 @@ from mtg_utils.combo_search import (
     main,
     search_combos,
 )
+from mtg_utils.hydrated_deck import HydratedDeck
+
+
+def _cs_hd(deck):
+    return HydratedDeck.from_parsed(deck)
+
 
 SAMPLE_DECK = {
     "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
@@ -40,7 +46,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         assert len(result["combos"]) == 1
         combo = result["combos"][0]
@@ -64,7 +70,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         assert len(result["near_misses"]) == 2
         # First near-miss (by popularity): combo-3 with Dramatic Reversal or Isochron Scepter missing
@@ -84,7 +90,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         # combo-3 (popularity 12000) should come before combo-2 (popularity 8000)
         assert (
@@ -103,7 +109,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK, max_near_misses=1)
+            result = combo_search(_cs_hd(SAMPLE_DECK), max_near_misses=1)
 
         assert len(result["near_misses"]) == 1
 
@@ -113,7 +119,7 @@ class TestComboSearch:
             mock_session.post.side_effect = Exception("Connection refused")
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         assert result == {"combos": [], "near_misses": []}
 
@@ -127,7 +133,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         assert result == {"combos": [], "near_misses": []}
 
@@ -142,7 +148,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search({"commanders": [], "cards": []})
+            result = combo_search(_cs_hd({"commanders": [], "cards": []}))
 
         assert result == {"combos": [], "near_misses": []}
 
@@ -161,7 +167,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         assert len(result["combos"]) == 0
 
@@ -209,7 +215,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(deck)
+            result = combo_search(_cs_hd(deck))
 
         assert len(result["combos"]) == 1
         assert "Infinite mana" in result["combos"][0]["result"]
@@ -265,7 +271,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(deck)
+            result = combo_search(_cs_hd(deck))
 
         # No crash; null popularity is coerced to 0 and sorted last.
         assert len(result["near_misses"]) == 2
@@ -285,7 +291,7 @@ class TestComboSearch:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            combo_search(SAMPLE_DECK)
+            combo_search(_cs_hd(SAMPLE_DECK))
 
         call_kwargs = mock_session.post.call_args
         body = call_kwargs[1]["json"] if "json" in call_kwargs[1] else call_kwargs[0][1]
@@ -325,7 +331,7 @@ class TestFormatAwareLegality:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(brawl_deck)
+            result = combo_search(_cs_hd(brawl_deck))
 
         assert len(result["combos"]) == 1
 
@@ -341,7 +347,7 @@ class TestFormatAwareLegality:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(SAMPLE_DECK)
+            result = combo_search(_cs_hd(SAMPLE_DECK))
 
         assert len(result["combos"]) == 1
 
@@ -374,7 +380,7 @@ class TestFormatAwareLegality:
             mock_session.post.return_value = mock_resp
             mock_requests.Session.return_value = mock_session
 
-            result = combo_search(brawl_deck)
+            result = combo_search(_cs_hd(brawl_deck))
 
         assert len(result["near_misses"]) == 2
 
@@ -712,7 +718,7 @@ def _mock_combo_search(api_response, deck, *, hydrated=None):
         session = MagicMock()
         session.post.return_value = resp
         mock_requests.Session.return_value = session
-        return combo_search(deck, hydrated=hydrated)
+        return combo_search(HydratedDeck.from_parsed(deck, records=hydrated))
 
 
 _PERSIST_CREATURE = {
@@ -764,20 +770,27 @@ def _deck(card_names):
 
 class TestTemplateMatching:
     def test_keyword_and_type(self):
-        assert _card_matches_query(_PERSIST_CREATURE, "keyword:persist t:creature") is True
+        assert (
+            _card_matches_query(_PERSIST_CREATURE, "keyword:persist t:creature") is True
+        )
         assert _card_matches_query(_VANILLA, "keyword:persist t:creature") is False
 
     def test_oracle_quoted(self):
         ring = {"oracle_text": "When this enters, the Ring tempts you."}
         assert _card_matches_query(ring, 'o:"the Ring tempts you"') is True
-        assert _card_matches_query({"oracle_text": "Draw."}, 'o:"the Ring tempts you"') is False
+        assert (
+            _card_matches_query({"oracle_text": "Draw."}, 'o:"the Ring tempts you"')
+            is False
+        )
 
     def test_legal_filter_ignored(self):
         q = "keyword:persist t:creature legal:commander"
         assert _card_matches_query(_PERSIST_CREATURE, q) is True
 
     def test_unknown_predicate_fails_closed(self):
-        assert _card_matches_query(_PERSIST_CREATURE, "mana:{G} keyword:persist") is False
+        assert (
+            _card_matches_query(_PERSIST_CREATURE, "mana:{G} keyword:persist") is False
+        )
 
     def test_template_satisfied(self):
         deck = [_PERSIST_CREATURE, _VANILLA]

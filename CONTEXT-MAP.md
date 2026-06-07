@@ -19,6 +19,10 @@ relevant context and only edit terms inside it.
   for finished Commander / Brawl / Historic Brawl decks. Read-only
   on the deck. Owns the strategy guide / core spine / conditional
   section / role grouping / Rules Audit vocabulary.
+- [deck-forge](./deck-forge/CONTEXT.md) — collaborative, visual
+  deckbuilding (human + assistant build together in a browser). Owns
+  the Signal / Synergy package / Candidate / Slot / Template / Curve
+  gate / HydratedDeck vocabulary.
 
 ## Architecture decisions
 

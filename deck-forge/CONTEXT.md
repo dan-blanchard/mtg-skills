@@ -6,6 +6,33 @@ synergies, directions, and ranked candidates while the human makes every decisio
 
 ## Language
 
+### Deck values
+
+**HydratedDeck**:
+A single immutable value that owns the join of a deck's card names to their Scryfall
+records — the deck dict and its resolved records behind one interface, built once from
+a deck plus a name→record index. A desynced deck/records pair is unconstructable, so
+the analysis functions (`deck_stats`, `mana_audit`, `legality_audit`, …) take a
+`HydratedDeck` rather than a separate `(deck, hydrated)` pair. Deck-domain only; a cube
+is a different shape (see ADR-0012).
+_Avoid_: "hydrated list" (the bare records list it replaces), "(deck, hydrated) pair"
+(the shallow shape it supersedes).
+
+**DROP convention**:
+The single rule for an un-hydratable card name: it is simply absent from a
+HydratedDeck's `.records` / `.expanded()`, never represented as `None`. Callers never
+choose drop-vs-pad — the value enforces DROP, and the one place a miss surfaces is
+`.by_name.get(name)` returning `None`.
+_Avoid_: "None-pad" (the retired outlier convention), "skip" (ambiguous).
+
+**Degraded mode**:
+The state where a deck has cards but no Scryfall records could be joined (no bulk data
+on disk). Exposed as the typed `HydratedDeck.has_records` flag (False only here) —
+distinct from an empty deck, and the queryable successor to the old `check_hydration`
+warning.
+_Avoid_: "empty deck" (an empty deck is not degraded), "no-bulk" alone (the cause, not
+the state).
+
 ### Engine concepts
 
 **Signal**:

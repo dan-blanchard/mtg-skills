@@ -8,6 +8,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from conftest import json_from_cli_output
 
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import (
     check_color_identity,
     check_copy_limits,
@@ -15,6 +16,11 @@ from mtg_utils.legality_audit import (
     legality_audit,
     main,
 )
+
+
+def _hd(deck, hydrated):
+    return HydratedDeck.from_parsed(deck, records=hydrated)
+
 
 # ---------- Card fixtures ----------
 
@@ -316,7 +322,7 @@ class TestCommanderZone:
             },
         ]
 
-        result = legality_audit(deck, hydrated)
+        result = legality_audit(_hd(deck, hydrated))
         # Should report ONE clean error pointing at the commander zone,
         # not three "X not in C" cascading color-identity errors that
         # blame the deck's mainboard cards.
@@ -346,7 +352,7 @@ class TestCommanderZone:
             },
         ]
 
-        result = legality_audit(deck, hydrated)
+        result = legality_audit(_hd(deck, hydrated))
         assert result["counts"]["commander_zone"] == 0
 
     def test_non_commander_format_skips_zone_check(self):
@@ -364,7 +370,7 @@ class TestCommanderZone:
                 "legalities": {"modern": "legal"},
             }
         ]
-        result = legality_audit(deck, hydrated)
+        result = legality_audit(_hd(deck, hydrated))
         assert result["counts"].get("commander_zone", 0) == 0
 
     def test_unresolvable_commander_name_flagged(self):
@@ -397,7 +403,7 @@ class TestCommanderZone:
             },
         ]
 
-        result = legality_audit(deck, hydrated)
+        result = legality_audit(_hd(deck, hydrated))
         assert result["counts"]["commander_zone"] == 1
         # Color-identity cascade is suppressed — no spurious "X not in C".
         assert result["counts"]["color_identity"] == 0
@@ -437,7 +443,7 @@ class TestCommanderZone:
             },
         ]
 
-        result = legality_audit(deck, hydrated)
+        result = legality_audit(_hd(deck, hydrated))
         assert result["counts"]["commander_zone"] == 1
         assert result["counts"]["color_identity"] == 0
         zone = result["violations"]["commander_zone"][0]
@@ -471,7 +477,7 @@ class TestCommanderZone:
                 "legalities": {"commander": "legal"},
             },
         ]
-        result = legality_audit(deck, hydrated)
+        result = legality_audit(_hd(deck, hydrated))
         assert result["counts"]["commander_zone"] == 0
 
 
@@ -608,7 +614,7 @@ class TestLegalityAudit:
             basic("Forest", "G"),
         ]
         d = deck(cards=[("Swords to Plowshares", 1), ("Forest", 30)])
-        result = legality_audit(d, hydrated)
+        result = legality_audit(_hd(d, hydrated))
         assert result["overall_status"] == "PASS"
         assert result["format"] == "historic_brawl"
         assert result["counts"]["format_legality"] == 0
@@ -629,7 +635,7 @@ class TestLegalityAudit:
                 ("Lightning Bolt", 2),  # singleton violation
             ],
         )
-        result = legality_audit(d, hydrated)
+        result = legality_audit(_hd(d, hydrated))
         assert result["overall_status"] == "FAIL"
         assert result["counts"]["format_legality"] == 1
         assert result["counts"]["color_identity"] == 1
@@ -641,7 +647,7 @@ class TestLegalityAudit:
         import pytest
 
         with pytest.raises(ValueError, match="Unknown format"):
-            legality_audit(d, hydrated)
+            legality_audit(_hd(d, hydrated))
 
 
 # ---------- CLI smoke tests ----------

@@ -11,14 +11,13 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
-    build_card_lookup,
-    check_hydration,
     color_sources,
     get_oracle_text,
     is_creature,
     is_land,
     is_ramp,
 )
+from mtg_utils.hydrated_deck import HydratedDeck
 
 ALTERNATIVE_COST_KEYWORDS = {
     "suspend",
@@ -120,9 +119,7 @@ def detect_bracket(hydrated: list[dict | None], avg_cmc: float) -> dict:
 
     Returns the bracket plus the evidence (game-changer names, MLD card names, and a
     fast-curve flag) so the UI can show the reasoning."""
-    game_changers = sorted(
-        {c["name"] for c in hydrated if c and c.get("game_changer")}
-    )
+    game_changers = sorted({c["name"] for c in hydrated if c and c.get("game_changer")})
     mass_land_denial = sorted(
         {
             c["name"]
@@ -146,15 +143,8 @@ def detect_bracket(hydrated: list[dict | None], avg_cmc: float) -> dict:
     }
 
 
-def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
-    """Compute deck statistics from parsed deck + hydrated card data."""
-    check_hydration("deck_stats", deck, hydrated)
-    card_lookup = build_card_lookup(hydrated)
-
-    # Collect all entries (commanders + cards)
-    all_entries: list[dict] = list(deck.get("commanders", []))
-    all_entries.extend(deck.get("cards", []))
-
+def deck_stats(hd: HydratedDeck) -> dict:
+    """Compute deck statistics from a HydratedDeck (deck + joined card records)."""
     total_cards = 0
     land_count = 0
     creature_count = 0
@@ -164,15 +154,14 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
     curve: Counter[int] = Counter()
     sources: Counter[str] = Counter()
 
-    for entry in all_entries:
-        name = entry["name"]
+    # .entries pairs each deck entry with its record (or None) in one walk, so the
+    # deck-side quantity and the record can't desync.
+    main_entries = hd.entries(zones=("commanders", "cards"))
+    for entry, card in main_entries:
         qty = entry.get("quantity", 1)
-        card = card_lookup.get(name)
-        if card is None:
-            total_cards += qty
-            continue
-
         total_cards += qty
+        if card is None:
+            continue
 
         if is_land(card):
             land_count += qty
@@ -190,24 +179,21 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
         if card.get("game_changer"):
             game_changer_count += qty
 
-        card_colors = color_sources(card)
-        for color in card_colors:
+        for color in color_sources(card):
             sources[color] += qty
 
     avg_cmc = sum(nonland_cmcs) / len(nonland_cmcs) if nonland_cmcs else 0.0
 
     # Detect alternative costs
     alternative_cost_cards: list[dict] = []
-    for entry in all_entries:
-        name = entry["name"]
-        card = card_lookup.get(name)
+    for entry, card in main_entries:
         if card is None or is_land(card):
             continue
         alt_costs = _detect_alternative_costs(card)
         if alt_costs:
             alternative_cost_cards.append(
                 {
-                    "name": name,
+                    "name": entry["name"],
                     "cmc": card.get("cmc", 0.0),
                     "alt_costs": alt_costs,
                 }
@@ -225,26 +211,19 @@ def deck_stats(deck: dict, hydrated: list[dict | None]) -> dict:
         "alternative_cost_cards": alternative_cost_cards,
     }
 
-    _add_sideboard_stats(result, deck, card_lookup)
+    _add_sideboard_stats(result, hd)
     return result
 
 
-def _add_sideboard_stats(
-    result: dict,
-    deck: dict,
-    card_lookup: dict[str, dict],
-) -> None:
-    sideboard_entries = deck.get("sideboard", [])
-    if not sideboard_entries:
+def _add_sideboard_stats(result: dict, hd: HydratedDeck) -> None:
+    if not hd.sideboard:
         return
     sb_total = 0
     sb_curve: Counter[int] = Counter()
-    for entry in sideboard_entries:
-        name = entry["name"]
+    for entry, card in hd.entries(zones=("sideboard",)):
         qty = entry.get("quantity", 1)
-        card = card_lookup.get(name)
         sb_total += qty
-        if card and not is_land(card):
+        if card is not None and not is_land(card):
             cmc = card.get("cmc", 0.0)
             sb_curve[int(cmc)] += qty
     result["sideboard_total"] = sb_total
@@ -311,7 +290,7 @@ def main(deck_path: Path, hydrated_path: Path, output_path: Path | None):
     hydrated_content = hydrated_path.read_text(encoding="utf-8")
     deck = json.loads(deck_content)
     hydrated = json.loads(hydrated_content)
-    result = deck_stats(deck, hydrated)
+    result = deck_stats(HydratedDeck.from_parsed(deck, records=hydrated))
 
     if output_path is None:
         output_path = _default_output_path(deck_content, hydrated_content)

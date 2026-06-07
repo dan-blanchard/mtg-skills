@@ -10,7 +10,13 @@ from mtg_utils.deck_stats import (
     main,
     render_text_report,
 )
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.parse_deck import parse_deck
+
+
+def _hd(deck, hydrated):
+    """A HydratedDeck for the analysis under test (records= is the CLI/file path)."""
+    return HydratedDeck.from_parsed(deck, records=hydrated)
 
 
 def _gc(name):
@@ -57,35 +63,35 @@ class TestDeckStats:
     def test_total_cards(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         # 1 commander + 10 cards = 11
         assert result["total_cards"] == 11
 
     def test_land_count(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         # Command Tower + Overgrown Tomb
         assert result["land_count"] == 2
 
     def test_creature_count(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         # Korvold (commander, creature), Viscera Seer, Blood Artist, Sakura-Tribe Elder
         assert result["creature_count"] == 4
 
     def test_ramp_count(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         # Sol Ring, Sakura-Tribe Elder, Cultivate, Ashnod's Altar
         assert result["ramp_count"] == 4
 
     def test_avg_cmc_nonlands(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         # Nonland cards: Korvold(5), Viscera Seer(1), Blood Artist(2),
         # Sakura-Tribe Elder(2), Deadly Rollick(4), Cultivate(3),
         # Sol Ring(1), Ashnod's Altar(3), Dictate of Erebos(5)
@@ -96,7 +102,7 @@ class TestDeckStats:
     def test_curve_populated(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         assert isinstance(result["curve"], dict)
         # CMC 1 should have Sol Ring + Viscera Seer = 2
         assert result["curve"][1] == 2
@@ -104,7 +110,7 @@ class TestDeckStats:
     def test_color_sources(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         # Command Tower -> any, Overgrown Tomb -> B,G, Sol Ring -> C, Ashnod's Altar -> C
         assert "any" in result["color_sources"]
         assert "B" in result["color_sources"]
@@ -117,7 +123,7 @@ class TestAlternativeCostCards:
             "commanders": [],
             "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
         }
-        result = deck_stats(deck, alt_cost_cards)
+        result = deck_stats(_hd(deck, alt_cost_cards))
         alt = {c["name"]: c for c in result["alternative_cost_cards"]}
         assert "Star Whale" in alt
         assert any(a["type"] == "suspend" for a in alt["Star Whale"]["alt_costs"])
@@ -127,7 +133,7 @@ class TestAlternativeCostCards:
             "commanders": [],
             "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
         }
-        result = deck_stats(deck, alt_cost_cards)
+        result = deck_stats(_hd(deck, alt_cost_cards))
         alt = {c["name"]: c for c in result["alternative_cost_cards"]}
         star_whale_suspend = next(
             a for a in alt["Star Whale"]["alt_costs"] if a["type"] == "suspend"
@@ -139,7 +145,7 @@ class TestAlternativeCostCards:
             "commanders": [],
             "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
         }
-        result = deck_stats(deck, alt_cost_cards)
+        result = deck_stats(_hd(deck, alt_cost_cards))
         alt = {c["name"]: c for c in result["alternative_cost_cards"]}
         assert "Fury" in alt
         assert any(a["type"] == "evoke" for a in alt["Fury"]["alt_costs"])
@@ -149,7 +155,7 @@ class TestAlternativeCostCards:
             "commanders": [],
             "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
         }
-        result = deck_stats(deck, alt_cost_cards)
+        result = deck_stats(_hd(deck, alt_cost_cards))
         alt = {c["name"]: c for c in result["alternative_cost_cards"]}
         # Ward, Flying, Vigilance, Trample, Double strike, Delve are NOT alternative costs
         assert "Sol Ring" not in alt
@@ -162,7 +168,7 @@ class TestAlternativeCostCards:
             "commanders": [],
             "cards": [{"name": c["name"], "quantity": 1} for c in alt_cost_cards],
         }
-        result = deck_stats(deck, alt_cost_cards)
+        result = deck_stats(_hd(deck, alt_cost_cards))
         alt_names = {c["name"] for c in result["alternative_cost_cards"]}
         assert "Sol Ring" not in alt_names
         assert "Command Tower" not in alt_names
@@ -183,7 +189,7 @@ class TestSideboardStats:
             {"name": "Smash", "cmc": 2.0, "type_line": "Instant"},
             {"name": "Bolt", "cmc": 1.0, "type_line": "Instant"},
         ]
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         assert result["sideboard_total"] == 5
         assert result["sideboard_curve"] == {1: 2, 2: 3}
 
@@ -196,7 +202,7 @@ class TestSideboardStats:
         hydrated = [
             {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
         ]
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         assert "sideboard_total" not in result
 
     def test_no_sideboard_stats_when_absent(self):
@@ -207,7 +213,7 @@ class TestSideboardStats:
         hydrated = [
             {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
         ]
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         assert "sideboard_total" not in result
 
     def test_sideboard_text_report(self):
@@ -220,7 +226,7 @@ class TestSideboardStats:
             {"name": "Bolt", "cmc": 1.0, "type_line": "Instant"},
             {"name": "Smash", "cmc": 2.0, "type_line": "Instant"},
         ]
-        result = deck_stats(deck, hydrated)
+        result = deck_stats(_hd(deck, hydrated))
         report = render_text_report(result)
         assert "Sideboard: 3 cards" in report
 

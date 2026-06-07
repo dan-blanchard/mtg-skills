@@ -9,8 +9,9 @@ import click
 import requests
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import build_card_lookup, get_oracle_text
+from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
+from mtg_utils.hydrated_deck import HydratedDeck
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 SPELLBOOK_VARIANTS_URL = "https://backend.commanderspellbook.com/variants"
@@ -109,25 +110,23 @@ def _resolve_name(
     return deck_name
 
 
-def combo_search(
-    deck: dict,
-    *,
-    max_near_misses: int = 5,
-    hydrated: list[dict | None] | None = None,
-) -> dict:
+def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
     """Search Commander Spellbook for combos in the deck.
 
     Returns {"combos": [...], "near_misses": [...]}.
     On API error, returns empty results.
 
-    When *hydrated* is provided, deck names are resolved to canonical
-    Scryfall names before querying the API. This prevents missed combos
-    when a deck uses Arena display names (printed_name / flavor_name).
+    When the HydratedDeck has card records (``hd.has_records``), deck names are
+    resolved to canonical Scryfall names before querying the API (so Arena display
+    names don't miss combos) and generic template requirements ("a Persist Creature")
+    are validated against the deck. In the no-bulk degraded state, validation is off
+    and near-miss detection falls back to the cards-only count (legacy behavior).
     """
+    deck = hd.deck
     config = get_format_config(deck)
     legality_key = config["legality_key"]
 
-    card_lookup = build_card_lookup(hydrated) if hydrated else None
+    card_lookup = hd.by_name if hd.has_records else None
 
     commanders = [
         _resolve_name(entry["name"], card_lookup)
@@ -421,7 +420,8 @@ def main(
     hydrated = None
     if hydrated_path is not None:
         hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
-    result = combo_search(deck, max_near_misses=max_near_misses, hydrated=hydrated)
+    hd = HydratedDeck.from_parsed(deck, records=hydrated)
+    result = combo_search(hd, max_near_misses=max_near_misses)
 
     if output_path is None:
         output_path = _default_search_output_path(deck_content, max_near_misses)

@@ -2,8 +2,8 @@
 
 A ``DeckSession`` owns the deck as ordered name→quantity maps per zone and emits the
 canonical parsed-deck dict (``{format, commanders, cards, sideboard}``) that the
-rest of ``mtg_utils`` already speaks. ``hydrated()`` projects the deck-scoped card
-records that ``deck_stats``/``mana_audit`` index by name.
+rest of ``mtg_utils`` already speaks. To analyse a session, join it to the bulk index
+with ``HydratedDeck.from_session(session, by_name)`` (see ``mtg_utils.hydrated_deck``).
 """
 
 from __future__ import annotations
@@ -75,29 +75,6 @@ class DeckSession:
             for name in self._zones[zone]:
                 seen.setdefault(name, None)
         return list(seen)
-
-    def hydrated(self, by_name: dict[str, dict]) -> list[dict]:
-        """Deck-scoped card records for ``deck_stats``/``mana_audit`` (name-indexed)."""
-        return [by_name[n] for n in self.card_names() if n in by_name]
-
-    def hydrated_expanded(
-        self,
-        by_name: dict[str, dict],
-        *,
-        zones: tuple[str, ...] = ("cards", "sideboard"),
-    ) -> list[dict]:
-        """Records repeated by quantity, for copy-aware counting (e.g. slot budgets).
-
-        Excludes the command zone by default — the commander is not part of the 99
-        a deckbuilding template's role counts apply to.
-        """
-        out: list[dict] = []
-        for zone in zones:
-            for name, qty in self._zones[zone].items():
-                record = by_name.get(name)
-                if record is not None:
-                    out.extend([record] * qty)
-        return out
 
     def _bucket(self, zone: str) -> dict[str, int]:
         if zone not in self._zones:
