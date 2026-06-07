@@ -907,12 +907,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "blink_flicker",
         "regex": "exile (?:up to one |another |a |target )?(?:other )?target (?:creature|permanent)[^.]*\\.?\\s*return (?:that|those|it|the[^.]*)[^.]*to the battlefield|exile (?:any number of|all|each)[^.]*creatures[^.]*return|exile [A-Z][a-z']+\\.\\s*return (?:it|that card|them)[^.]*to the battlefield",
     },
-    {
-        "key": "type_matters_anthem",
-        "scope": "you",
-        "is_widen_of": "type_matters",
-        "regex": "\\b([A-Za-z]+?) creatures get [+]",
-    },
+    # type_matters_anthem deleted: its `\b(\w+?) creatures get [+]` was subject-LESS and
+    # redundant — real typed anthems ("Goblins you control get +1/+1") are produced as
+    # subject-bearing type_matters by the parametric detector, and its junk captures
+    # ("all/attacking/color creatures get +") belong to anthem_static.
     {
         "key": "group_hug_draw",
         "scope": "each",
@@ -1251,7 +1249,6 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Trigger doubling",
         "high-value triggered abilities to double",
     ),
-    "type_matters_anthem": ("Type anthem", "creatures of the buffed type to go wide"),
     "typed_anthem_multi": ("Multi-type anthem", "creatures of the named types"),
     "typed_enters_punish": (
         "Typed-ETB punisher",
