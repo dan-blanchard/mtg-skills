@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
 from pathlib import Path
 
 import click
@@ -221,7 +222,8 @@ def reconcile_basic_lands(
 
     ci: set[str] = set()
     for entry in hd.commanders:
-        record = hd.by_name.get(entry.get("name"))
+        cmd_name = entry.get("name")
+        record = hd.by_name.get(cmd_name) if isinstance(cmd_name, str) else None
         if record:
             ci.update(record.get("color_identity") or [])
 
@@ -260,7 +262,7 @@ def _add_color_sources(
 
 
 def _commander_stats(
-    commanders: list[dict], card_lookup: dict[str, dict]
+    commanders: list[dict], card_lookup: Mapping[str, dict]
 ) -> tuple[int, int]:
     """Return (commander_cmc, color_count) from commander list."""
     cmd_cmcs: list[float] = []
@@ -274,7 +276,7 @@ def _commander_stats(
 
 
 def _scan_entries(
-    all_entries: list[dict], card_lookup: dict[str, dict]
+    all_entries: list[dict], card_lookup: Mapping[str, dict]
 ) -> tuple[int, int, list[float], list[dict], dict[str, int], dict[str, int]]:
     """Scan all entries and return (land_count, ramp_count, nonland_cmcs,
     pip_cards, land_color_production, rock_colors)."""

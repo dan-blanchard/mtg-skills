@@ -338,8 +338,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         }
 
-    @app.get("/api/packages")
-    async def packages() -> dict:
+    @app.get("/api/packages", response_model=None)
+    async def packages() -> dict | JSONResponse:
         if not state.bulk_available:
             return _no_bulk()
         hd = engine.hydrate(state)
@@ -490,8 +490,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/explore")
-    async def explore(payload: ExplorePayload) -> dict:
+    @app.post("/api/explore", response_model=None)
+    async def explore(payload: ExplorePayload) -> dict | JSONResponse:
         if not state.bulk_available:
             return _no_bulk()
         fmt = state.session.format
@@ -590,8 +590,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return Response(status_code=204)
         return {"result": result}
 
-    @app.get("/api/combos")
-    async def combos() -> dict:
+    @app.get("/api/combos", response_model=None)
+    async def combos() -> dict | JSONResponse:
         if state.combos_fn is None:
             return {
                 "combos": [],

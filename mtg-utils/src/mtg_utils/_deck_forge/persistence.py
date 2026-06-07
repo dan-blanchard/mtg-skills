@@ -7,6 +7,7 @@ repo's no-resume convention because a creative tool spans days.
 
 from __future__ import annotations
 
+import builtins
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -54,7 +55,7 @@ class BuildStore:
         path.unlink()
         return True
 
-    def list(self) -> list[dict]:
+    def list(self) -> builtins.list[dict]:
         """Summaries of every build, newest first."""
         out: list[dict] = []
         for path in self.root.glob("*.json"):

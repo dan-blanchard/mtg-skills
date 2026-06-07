@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from mtg_utils._sidecar import atomic_write_json
-from mtg_utils._stores._common import Listing
+from mtg_utils._stores._common import Line, Listing
 from mtg_utils.names import normalize_card_name
 
 BASIC_LAND_NAMES = frozenset(
@@ -232,7 +232,7 @@ def allocate(
     out: list[AllocatedCard] = []
 
     for row in rows:
-        candidates = {k: row[k] for k in _LGS_KEYS if row[k] is not None}
+        candidates = {k: v for k in _LGS_KEYS if (v := row[k]) is not None}
         sorted_keys = sorted(candidates, key=lambda k: candidates[k]["price"])
 
         cheapest_lgs = (
@@ -470,7 +470,7 @@ from mtg_utils._stores._common import OptimizedCart  # noqa: E402
 
 
 def optimize_marketplace(
-    marketplace_lines: list[dict],
+    marketplace_lines: list[Line],
     *,
     page_factory=None,
 ) -> dict | None:
@@ -1145,7 +1145,7 @@ def _run_orchestrator(
         allocation = allocate(rows, cfg)
         assert_no_duplicates_invariant(cards, allocation)
 
-        marketplace_lines = [
+        marketplace_lines: list[Line] = [
             {"card_name": a["card_name"], "qty": a["qty"]}
             for a in allocation
             if a["store"] == "marketplace"

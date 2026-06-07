@@ -7,6 +7,7 @@ fail loudly with a "run download-bulk" message rather than silently returning em
 
 from __future__ import annotations
 
+import functools
 import os
 import uuid
 from pathlib import Path
@@ -88,8 +89,9 @@ def default_state(fmt: str = "commander") -> ForgeState:
     if bulk_path is not None and bulk_path.exists():
         by_name = build_by_name(load_bulk_cards(bulk_path))
 
-        def search(**kwargs: object) -> list[dict]:
-            return card_search.search_cards(bulk_path, **kwargs)
+        # partial keeps search_cards's typed keyword signature (a `**kwargs:
+        # object` wrapper would widen every arg to `object` and fail the checker).
+        search = functools.partial(card_search.search_cards, bulk_path)
 
         available = True
 

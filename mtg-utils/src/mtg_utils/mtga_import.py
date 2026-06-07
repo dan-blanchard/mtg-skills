@@ -727,7 +727,7 @@ def _default_output_dir() -> Path:
     return Path(tmpdir) / "mtga-import"
 
 
-def _chown_outputs_to_sudo_user(*paths: Path) -> None:
+def _chown_outputs_to_sudo_user(*paths: Path | None) -> None:
     """Chown each path to the real (non-root) invoking user if we're
     running under sudo.
 

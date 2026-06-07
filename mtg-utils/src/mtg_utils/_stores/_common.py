@@ -6,6 +6,15 @@ import os
 from pathlib import Path
 from typing import Literal, Protocol, TypedDict, runtime_checkable
 
+
+def attr_str(value: str | list[str] | None) -> str:
+    """Coerce a BeautifulSoup attribute (str, multi-valued list, or missing)
+    to a plain string so callers can ``.strip()`` / membership-test safely."""
+    if value is None:
+        return ""
+    return value if isinstance(value, str) else " ".join(value)
+
+
 CONDITION_ORDER = ["NM", "LP", "MP", "HP"]
 
 
@@ -223,8 +232,8 @@ def pick_best_listing(
         pool = non_foil
     # else: keep both (allow_foil) or only foils (no non_foil exists) — price wins
 
-    if prefs.get("prefer_set"):
-        prefer = prefs["prefer_set"].upper()
+    if prefer_set := prefs.get("prefer_set"):
+        prefer = prefer_set.upper()
         in_set = [x for x in pool if x["set_code"].upper() == prefer]
         if in_set:
             pool = in_set

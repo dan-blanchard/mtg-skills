@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from mtg_utils.format_config import FORMAT_CONFIGS
 
@@ -77,7 +78,7 @@ def extract_price(card: dict | None) -> float | None:
     return None
 
 
-def build_card_lookup(hydrated: list[dict | None]) -> dict[str, dict]:
+def build_card_lookup(hydrated: Sequence[dict | None]) -> dict[str, dict]:
     """Build name -> card dict lookup from a hydrated card list.
 
     Indexes by canonical name, DFC/MDFC front-face name, printed_name,

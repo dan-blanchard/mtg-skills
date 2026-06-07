@@ -3,6 +3,7 @@
 import json
 import re
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import click
@@ -81,7 +82,7 @@ def _card_matches_query(card: dict, query: str) -> bool:
     return True
 
 
-def _template_satisfied(query: str, deck_records: list[dict | None]) -> bool:
+def _template_satisfied(query: str, deck_records: Sequence[dict | None]) -> bool:
     return any(_card_matches_query(c, query) for c in deck_records if c)
 
 
@@ -93,7 +94,7 @@ def _is_format_legal(variant: dict, legality_key: str = "commander") -> bool:
 
 def _resolve_name(
     deck_name: str,
-    card_lookup: dict[str, dict] | None,
+    card_lookup: Mapping[str, dict] | None,
 ) -> str:
     """Resolve a deck name to its canonical Scryfall name if possible.
 

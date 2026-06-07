@@ -158,7 +158,7 @@ def search_cards(
     # reporting (e.g.) Ephemerate as a common even though the only
     # Arena-legal printing is a Historic Anthology rare.
     # --paper-only remains an explicit escape hatch for the rare paper case.
-    if is_arena_format(format) and not paper_only:
+    if format is not None and is_arena_format(format) and not paper_only:
         arena_only = True
 
     allowed_colors = set(color_identity.upper()) if color_identity else None

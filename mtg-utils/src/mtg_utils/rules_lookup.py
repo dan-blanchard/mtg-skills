@@ -101,6 +101,9 @@ def parse_rules(text: str) -> dict[str, Any]:
 
     body_start = _find_body_start(lines)
     glossary_start = _find_line_after(lines, "Glossary", body_start)
+    if glossary_start is None:
+        msg = "Comprehensive Rules text has no 'Glossary' section"
+        raise ValueError(msg)
     credits_start = _find_line_after(lines, "Credits", glossary_start + 1)
     if credits_start is None:
         credits_start = len(lines)

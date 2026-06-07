@@ -188,7 +188,7 @@ def _cubecobra_card_to_entry(raw: dict) -> dict | None:
 
 
 def _coerce_float(value: object) -> float | None:
-    if value is None or value == "":
+    if not isinstance(value, (int, float, str)):
         return None
     with contextlib.suppress(ValueError, TypeError):
         return float(value)

@@ -21,6 +21,7 @@ inspect ``overall_status`` to decide what to do with the result.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import click
@@ -118,7 +119,7 @@ def check_format_legality(
 
 def _commander_color_identity(
     deck_json: dict,
-    hydrated_by_name: dict[str, dict],
+    hydrated_by_name: Mapping[str, dict],
 ) -> set[str]:
     ci: set[str] = set()
     for entry in deck_json.get("commanders") or []:
@@ -131,7 +132,7 @@ def _commander_color_identity(
 def check_commander_zone(
     deck_json: dict,
     config: dict,
-    hydrated_by_name: dict[str, dict] | None = None,
+    hydrated_by_name: Mapping[str, dict] | None = None,
 ) -> list[dict]:
     """Verify the commander zone is populated AND fully hydratable for
     commander-format decks.
@@ -269,7 +270,7 @@ def check_color_identity(
 
 def check_copy_limits(
     deck_json: dict,
-    hydrated_by_name: dict[str, dict],
+    hydrated_by_name: Mapping[str, dict],
     config: dict,
 ) -> list[dict]:
     """Return a list of copy-limit violations.

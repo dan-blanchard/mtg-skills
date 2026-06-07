@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 
 import click
@@ -107,7 +108,7 @@ _MASS_LAND_DENIAL_RE = re.compile(
 _FAST_CURVE_CMC = 2.3
 
 
-def detect_bracket(hydrated: list[dict | None], avg_cmc: float) -> dict:
+def detect_bracket(hydrated: Sequence[dict | None], avg_cmc: float) -> dict:
     """Estimate the Commander bracket mechanically from the signals we can read:
     Game Changers (Scryfall's ``game_changer`` flag), mass land denial, and curve
     speed. Maps to brackets 2-4. Bracket 1 (Exhibition, intentionally weak) and 5

@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import cast
 
 import click
 
@@ -236,12 +237,12 @@ def archetype_audit(
     threshold = (
         min_density
         if min_density is not None
-        else int(targets.get("min_archetype_signal_density", 3))
+        else int(cast(float, targets.get("min_archetype_signal_density", 3)))
     )
     warn_threshold = (
         warn_density
         if warn_density is not None
-        else int(targets.get("warn_archetype_signal_density", 5))
+        else int(cast(float, targets.get("warn_archetype_signal_density", 5)))
     )
 
     entries: list[dict] = []

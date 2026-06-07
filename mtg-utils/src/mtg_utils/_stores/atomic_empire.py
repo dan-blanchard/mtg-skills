@@ -27,6 +27,7 @@ from mtg_utils._stores._common import (
     Listing,
     SearchPrefs,
     StoreSelectorError,
+    attr_str,
 )
 
 _BASE_URL = "https://www.atomicempire.com"
@@ -129,7 +130,7 @@ class _AtomicEmpireAdapter:
         itemid_el = row.select_one('input[name="itemid"]')
         if not itemid_el:
             return None  # Out of stock
-        itemid = itemid_el.get("value", "").strip()
+        itemid = attr_str(itemid_el.get("value")).strip()
         if not itemid:
             return None
         title_el = row.select_one("h5 a")
@@ -143,7 +144,7 @@ class _AtomicEmpireAdapter:
         set_el = row.select_one('a[href*="/Card/List?set="]')
         set_text = set_el.get_text(strip=True) if set_el else ""
         # Price text: "SP/NM - $5.35" embedded in a <strong> in the row.
-        price_strong = row.find("strong", string=_PRICE_RE)
+        price_strong = row.find("strong", string=_PRICE_RE)  # ty: ignore[no-matching-overload]
         if not price_strong:
             return None
         price_text = price_strong.get_text(" ", strip=True)

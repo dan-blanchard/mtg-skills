@@ -7,6 +7,8 @@ Each role budget reports target / current / remaining so the build loop can size
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from mtg_utils.card_classify import is_land, is_ramp
 from mtg_utils.theme_presets import get_preset
 
@@ -44,7 +46,7 @@ def role_of(card: dict) -> set[str]:
 
 
 def slot_budgets(
-    records: list[dict | None], *, deck_size: int = 100
+    records: Sequence[dict | None], *, deck_size: int = 100
 ) -> dict[str, dict]:
     """Return ``{role: {target, current, remaining}}`` against the scaled template."""
     scale = deck_size / 100

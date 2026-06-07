@@ -23,6 +23,7 @@ from mtg_utils._stores._common import (
     Listing,
     SearchPrefs,
     StoreSelectorError,
+    attr_str,
 )
 
 _BASE_URL = "https://the-gathering-place.mybigcommerce.com"
@@ -118,7 +119,7 @@ class _TGPAdapter:
         return listings
 
     def _parse_card(self, el: Tag, requested_name: str) -> Listing | None:
-        data_name = (el.get("data-name") or "").strip()
+        data_name = attr_str(el.get("data-name")).strip()
         if not data_name:
             return None
         name, set_code, foil = _parse_data_name(data_name)
@@ -132,7 +133,7 @@ class _TGPAdapter:
         # variants no longer in stock, which would over- or under-report
         # the actual cart-time cost. Fall back to the displayed range only
         # when data-product-price is missing.
-        raw = (el.get("data-product-price") or "").strip()
+        raw = attr_str(el.get("data-product-price")).strip()
         try:
             price = _money(raw)
         except ValueError:
@@ -143,8 +144,9 @@ class _TGPAdapter:
         if price <= 0:
             return None
         link = el.select_one("a.card-figure__link") or el.select_one("a")
-        product_url = link.get("href") if link else self.base_url
-        listing_id = (el.get("data-entity-id") or "").strip()
+        href = attr_str(link.get("href")) if link else ""
+        product_url = href or self.base_url
+        listing_id = attr_str(el.get("data-entity-id")).strip()
         if not listing_id:
             return None
         return Listing(
@@ -350,7 +352,7 @@ class _TGPAdapter:
         if login_links:
             # Any link that's a plain login (not the register variant) means logged out.
             for link in login_links:
-                href = link.get("href", "")
+                href = attr_str(link.get("href"))
                 if "create_account" not in href and link.get_text(strip=True):
                     return False
         # Ambiguous — assume logged in to avoid a spurious login prompt.

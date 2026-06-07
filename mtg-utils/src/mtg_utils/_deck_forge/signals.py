@@ -36,6 +36,7 @@ with mandatory oracle-clause quotes — blind spots are queued, never silently d
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from mtg_utils._deck_forge import signal_keys
@@ -77,7 +78,7 @@ def _re(pattern: str):
     return lambda c: rx.search(c) is not None
 
 
-_DETECTORS: tuple[tuple[str, object, str | None], ...] = (
+_DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     (
         "creature_etb",
         lambda c: (
