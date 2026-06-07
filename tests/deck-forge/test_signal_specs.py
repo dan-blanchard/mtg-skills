@@ -1003,3 +1003,64 @@ class TestStructuredServeExtension:
         }
         keys = {s.key for s in extract_signals(essence_scatter)}
         assert "counter_control" in keys
+
+
+class TestStructuredServeFixes4:
+    """Batch 4: remaining HIGH precision fixes."""
+
+    def test_mana_amplifier_drops_fixing_keeps_doublers(self):
+        """`add .* mana of any` captured fixing (Birds, City of Brass), not
+        amplification. Serve the doublers/triplers ('tap … for mana … add/produces
+        twice') + X-spell payoffs."""
+        sig = _sig("mana_amplifier", "you")
+        mirari = {"type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1.\nWhenever you tap a land for mana, add one mana of any type that land produced."}
+        reflection = {"type_line": "Enchantment", "oracle_text": "If you tap a permanent for mana, it produces twice as much of that mana instead."}
+        birds = {"type_line": "Creature — Bird", "oracle_text": "Flying\n{T}: Add one mana of any color.", "keywords": ["Flying"]}
+        signet = {"type_line": "Artifact", "oracle_text": "{T}: Add one mana of any color."}
+        assert serves(mirari, sig) is True
+        assert serves(reflection, sig) is True
+        assert serves(birds, sig) is False
+        assert serves(signet, sig) is False
+
+    def test_attack_serves_haste_keyword_and_grants_not_bare_word(self):
+        sig = _sig("attack_matters", "you")
+        fervor = {"type_line": "Enchantment", "oracle_text": "Creatures you control have haste.", "keywords": []}
+        haste_beater = {"type_line": "Creature — Goblin", "oracle_text": "Haste", "keywords": ["Haste"]}
+        krenko = {"type_line": "Legendary Creature — Goblin", "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.", "keywords": []}
+        loses_haste = {"type_line": "Instant", "oracle_text": "Target creature loses haste until end of turn.", "keywords": []}
+        sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}.", "keywords": []}
+        assert serves(fervor, sig) is True  # grants haste to team
+        assert serves(haste_beater, sig) is True  # Haste keyword
+        assert serves(krenko, sig) is True  # creature-token maker
+        assert serves(loses_haste, sig) is False  # bare word "haste" (removes it)
+        assert serves(sol_ring, sig) is False
+
+    def test_play_from_top_drops_bare_reveal(self):
+        """`reveal the top card of your library` is a peek (Coiling Oracle), not
+        play-from-top. Keep the play/cast-from-top forms."""
+        sig = _sig("play_from_top", "you")
+        future_sight = {"type_line": "Enchantment", "oracle_text": "Play with the top card of your library revealed.\nYou may play lands and cast spells from the top of your library."}
+        coiling_oracle = {"type_line": "Creature — Snake Elf", "oracle_text": "When this creature enters, reveal the top card of your library. If it's a land card, put it onto the battlefield."}
+        assert serves(future_sight, sig) is True
+        assert serves(coiling_oracle, sig) is False
+
+    def test_pump_matters_drops_minus_bonuses(self):
+        """pump's `[+\\-]` matched -X/-X shrink (that's debuff_matters). Positive only."""
+        sig = _sig("pump_matters", "you")
+        giant_growth = {"type_line": "Instant", "oracle_text": "Target creature gets +3/+3 until end of turn."}
+        festering_goblin = {"type_line": "Creature — Zombie Goblin", "oracle_text": "When this creature dies, target creature gets -1/-1 until end of turn."}
+        assert serves(giant_growth, sig) is True
+        assert serves(festering_goblin, sig) is False
+
+    def test_crimes_avenue_excludes_counterspells(self):
+        """crimes SEARCH `target.*spell` credited every counterspell. Drop it."""
+        from mtg_utils._deck_forge.ranking import score_candidate
+
+        spec = spec_for(_sig("crimes_matter", "you"))
+        avenue = {"label": spec.label, "search": dict(spec.search)}
+        counterspell = {"type_line": "Instant", "oracle_text": "Counter target spell."}
+        murder = {"type_line": "Instant", "oracle_text": "Destroy target creature."}
+        served_cs = set(score_candidate(counterspell, active_signals=[], avenues=[avenue])["served"])
+        served_m = set(score_candidate(murder, active_signals=[], avenues=[avenue])["served"])
+        assert spec.label not in served_cs  # counterspell is not a crime enabler
+        assert spec.label in served_m  # targeted removal is

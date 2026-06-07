@@ -400,11 +400,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
         r"|whenever .* dies",
     ),
+    # The bare word `haste` matched its reminder text and incidental mentions ("loses
+    # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor
+    # the token branch to the literal "creature token".
     ("attack_matters", "you"): _spec(
         "Combat",
         "haste enablers and evasive/aggressive bodies",
         {"oracle": r"haste|create .*creature token"},
-        r"haste|create .*creature token",
+        r"(?:gains?|gain|have|has) haste|create [^.]*creature token",
+        serve_keywords=("haste",),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and
     # reanimation effect (Sneak Attack, Reanimate). Anchor it to a LAND card, mirroring
@@ -625,11 +629,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"preset_names": ("burn",)},
         r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage|double the damage",
     ),
+    # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.
+    # Serve the doublers/triplers (a "tap … for mana" trigger that adds/produces extra)
+    # plus the {x} X-spend payoffs.
     ("mana_amplifier", "you"): _spec(
         "Big mana",
         "mana doublers plus the X-spells and expensive bombs to spend it on",
         {"oracle": r"\{x\}|add .* mana|search your library for .*land"},
-        r"tap.*for mana.*add|add .* mana of any|\{x\}",
+        r"you tap [^.]*for mana[^.]*(?:add|produces?)"
+        r"|produces? (?:twice|three times|\w+ times|an additional|double)"
+        r"|doubles?[^.]*mana|\{x\}",
     ),
     # ── Sweep survivors ─────────────────────────────────────────────────────────
     # Voltron suits up one creature with Equipment (CR 301.5) and BUFF Auras (CR 303).
@@ -848,10 +857,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|\bd20\b"},
         r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|whenever you roll",
     ),
+    # A crime (CR 700.13) targets opponents / their permanents / spells they control —
+    # i.e. targeted removal + explicit-opponent-target. The SEARCH's bare
+    # `target.*spell` credited every counterspell; drop it for concrete removal shapes.
     ("crimes_matter", "you"): _spec(
         "Crimes",
         "targeted removal and abilities that count as committing a crime",
-        {"oracle": r"commit a crime|target (?:opponent|player)|target.*spell"},
+        {
+            "oracle": (
+                r"commit(?:s|ted)? a crime|whenever you commit"
+                r"|target (?:opponent|player|opponents)"
+                r"|destroy target|exile target (?:creature|permanent|nonland)"
+                r"|deals? (?:\d+|x) damage to target (?:creature|player|opponent)"
+            )
+        },
         r"commit(?:s|ted)? a crime|whenever you commit",
     ),
     ("connive_matters", "you"): _spec(

@@ -114,7 +114,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "play_from_top",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "(?:may )?play (?:the )?top card of (?:your|their) library|you may look at the top card of your library (?:any time|at any time)|play with the top card of your library revealed|reveal the top card of your library",
+        "regex": "(?:may )?play (?:the )?top card of (?:your|their) library|you may look at the top card of your library (?:any time|at any time)|play with the top card of your library revealed|(?:play|cast) (?:lands?|spells?|creature spells?)[^.]*from the top of your library",
     },
     {
         "key": "dig_until",
@@ -516,7 +516,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "pump_matters",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "target (?:[a-z]+ )*creature(?: you control)? gets [+\\-][0-9x]/[+\\-][0-9x]|target [A-Z][a-z]+ you control gets [+\\-]|target creature(?: you control)? gets \\+[\\dxX]",
+        "regex": "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]",
     },
     {
         "key": "self_pump",
