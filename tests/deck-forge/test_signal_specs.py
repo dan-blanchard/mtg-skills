@@ -551,7 +551,11 @@ class TestSubjectSpecs:
     def test_token_maker_payoffs_are_a_distinct_sub_avenue(self):
         spec = spec_for(_subj_sig("token_maker", "Dryad"))
         extra_labels = [e.label for e in spec.extras]
-        assert extra_labels == ["Dryad payoffs"]
+        # The tribe-token payoffs come first; the flood deck also gets the audit-added
+        # token-doubler and creature-ETB-payoff sub-avenues (EDHREC gap fix).
+        assert extra_labels[0] == "Dryad payoffs"
+        assert "Token doublers" in extra_labels
+        assert "Creature-ETB payoffs" in extra_labels
         # the main avenue blurb must NOT also claim to cover payoffs (the old confusion).
         assert "payoff" not in spec.avenue.lower()
 

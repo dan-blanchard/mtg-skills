@@ -228,6 +228,43 @@ _SLINGER_SEARCH_ORACLE = (
 )
 
 
+# ── EDHREC-audit sub-avenues shared by the flood/token specs ──────────────────
+# Creature/permanent-ETB PAYOFFS (CR 603.6 zone-change triggers): a flood or
+# aristocrats commander runs Impact Tremors / Purphoros / Corpse Knight — a trigger on
+# "a creature you control enters" with a damage/drain/power payoff — which the token-
+# MAKER serves never surface. The (a|another|one or more) quantifier excludes self-ETBs
+# ("when THIS creature enters"); the payoff clause excludes value-ETBs (Chupacabra).
+_ETB_PAYOFF_ORACLE = (
+    r"whenever (?:a|an|another|one or more)[^.]*"
+    r"\b(?:creature|permanent|artifact|token)s?\b[^.]*enters[^.]*"
+    r"(?:deals? (?:\d+|x) damage|deals? damage equal to"
+    r"|each opponent loses|loses? \d+ life)"
+)
+_ETB_PAYOFF_EXTRA = SubAvenue(
+    "Creature-ETB payoffs",
+    "permanents that punish each creature entering — damage, drain, or power-based "
+    "(Impact Tremors / Purphoros)",
+    {"oracle": _ETB_PAYOFF_ORACLE},
+    serve=Serve(oracle=re.compile(_ETB_PAYOFF_ORACLE, _IC)),
+)
+# Token DOUBLERS (CR 616 replacement effect): a token-flood commander doubles output
+# with Doubling Season / Parallel Lives / Mondrak. Phrasings: "create twice that many",
+# "twice that many … are created", "one or more tokens would be created … twice".
+_TOKEN_DOUBLER_ORACLE = (
+    r"(?:create|put) twice that many[^.]*tokens?"
+    r"|twice that many[^.]*tokens?[^.]*(?:created|instead)"
+    r"|one or more tokens would be created[^.]*twice that many"
+    r"|twice that many (?:of those tokens|tokens?) (?:are|instead)"
+)
+_TOKEN_DOUBLER_EXTRA = SubAvenue(
+    "Token doublers",
+    "replacement effects that double your token output (Doubling Season / Parallel "
+    "Lives / Mondrak)",
+    {"oracle": _TOKEN_DOUBLER_ORACLE},
+    serve=Serve(oracle=re.compile(_TOKEN_DOUBLER_ORACLE, _IC)),
+)
+
+
 SPECS: dict[tuple[str, str], SignalSpec] = {
     ("creature_etb", "you"): _spec(
         "Creatures entering — yours",
@@ -239,6 +276,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             )
         },
         (r"create .*creature token|put .*creature.*onto the battlefield"),
+        extras=(_ETB_PAYOFF_EXTRA,),
     ),
     # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
     # "creature", so it matched Bloodthirst ("an opponent was dealt damage … this
@@ -256,6 +294,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "token swarms and anthems that scale with creature count",
         {"oracle": r"create .*creature token"},
         r"create .*creature token|creatures you control get",
+        extras=(_ETB_PAYOFF_EXTRA,),
     ),
     # Land-creatures theme (e.g. Jyoti, Moag Ancient). Three precise, disjoint
     # angles — proven clean against bulk so a Plant-token maker (Avenger) or a
@@ -451,6 +490,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "more cards that flood the board with creature tokens",
         {"oracle": r"create [^.]*creature token"},
         r"create [^.]*creature token",
+        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
     ),
     ("treasure_matters", "you"): _spec(
         "Treasure",
@@ -480,6 +520,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\btokens? you control\b"
         r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
         r"|\bpopulate\b",
+        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
     ),
     # The bare `your opponents` alternative matched any card that merely names opponents
     # (Edric's draw trigger, Telepathy's hand reveal). Serve the actual restriction/tax
@@ -656,11 +697,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"each player draws|whenever .* draws a card"},
         r"each player[^.]*draws?|that player draws|whenever a player draws",
     ),
+    # Serve the damage DOUBLERS the blurb already promises — replacement effects (CR
+    # 701.10g) worded "deals double/twice that much damage" / "deals that much damage
+    # plus" / "if a source … would deal damage … instead" (Furnace of Rath, Gratuitous
+    # Violence, Torbran). The old `double the damage` literal missed all of them.
     ("direct_damage", "you"): _spec(
         "Burn / pingers",
         "repeatable direct damage — pingers, burn, and damage doublers",
         {"preset_names": ("burn",)},
-        r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage|double the damage",
+        r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage"
+        r"|deals (?:double|twice) that (?:much )?damage|deals that much damage plus"
+        r"|if a source[^.]*would deal damage[^.]*instead",
     ),
     # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.
     # Serve the doublers/triplers (a "tap … for mana" trigger that adds/produces extra)
@@ -1208,12 +1255,14 @@ def _subject_spec(signal) -> SignalSpec:
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
     if signal.key == signal_keys.TOKEN_MAKER:
         token_re = rf"create\b[^.]*\b{esc}\b[^.]*token"
+        # A token-maker commander (Krenko → token_maker:Goblin) is a flood deck: offer
+        # the creature-ETB payoffs and token doublers alongside the tribe-token payoffs.
         return SignalSpec(
             label=f"{subj} tokens",
             avenue=f"cards that create {subj} tokens to go wide",
             search={"oracle": token_re},
             serve=Serve(oracle=re.compile(token_re, _IC)),
-            extras=(_payoff_extra(subj, esc),),
+            extras=(_payoff_extra(subj, esc), _TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
         )
     # tribal (type_matters) / typed spellcast: the cards themselves (type-line match),
     # plus a distinct "{s} payoffs" sub-avenue for the lords/anthems that reward them.

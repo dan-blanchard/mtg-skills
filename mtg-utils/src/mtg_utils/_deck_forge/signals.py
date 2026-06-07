@@ -1082,6 +1082,38 @@ _LOOT_FULLTEXT_RE = re.compile(
 )
 
 
+# Self-ETB VALUE trigger (commander-only): a commander whose own "When ~ enters,
+# <value>" ability is its engine wants blink/flicker to re-use it (CR 603.6). VALUE
+# verbs only — NOT removal (exile/destroy target): O-Ring's "when ~ enters, exile target
+# nonland permanent" is removal with a delayed return, not a flicker engine (the
+# existing test_oring_removal_is_not_flicker guards this). Excludes mana-ritual/keyword
+# ETBs too, so a bare beater doesn't open a Blink avenue.
+_SELF_ETB_PAYOFF = (
+    r"\b(?:draws?|create|creates|search|searches|look at|reveal|returns?"
+    r"|gains? control|put[^.]*counter|mills?|investigate|scry|draft|copy"
+    r"|deals? \d+ damage)\b"
+)
+
+
+def _self_etb_value(text: str, name: str) -> str | None:
+    """Grounding clause if the card has a self enters-the-battlefield VALUE trigger."""
+    first = ""
+    for w in re.split(r"\W+", name):
+        if len(w) > 2 and w.lower() not in _ARTICLES:
+            first = w
+            break
+    alts = r"this creature|this permanent|~" + (
+        ("|" + re.escape(first)) if first else ""
+    )
+    pat = re.compile(
+        rf"\bwhen (?:{alts}) enters\b[^.]*?{_SELF_ETB_PAYOFF}", re.IGNORECASE
+    )
+    for clause in _clauses(text):
+        if pat.search(clause):
+            return clause.strip()
+    return None
+
+
 # ── Narrow Tinybones structural scope rule ────────────────────────────────────
 _COMBAT_DAMAGE_TO_PLAYER = re.compile(r"deals combat damage to a player", re.IGNORECASE)
 _THAT_PLAYERS_ZONE = re.compile(
@@ -1254,6 +1286,14 @@ def extract_signals(
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
         add("discard_matters", "you", "", text[:160])
+
+    # Self-ETB value commander → open the (existing, precise) blink/flicker avenue so
+    # Ephemerate/Cloudshift/Conjurer's Closet get surfaced to re-use the commander's
+    # own ETB (CR 603.6). Commander-only — a flicker package is a suggestion.
+    if include_membership:
+        etb_clause = _self_etb_value(text, name)
+        if etb_clause is not None:
+            add("blink_flicker", "you", "", etb_clause, "low")
 
     # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
     # else gave a strong direction and the creature is a real commander-damage threat
