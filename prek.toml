@@ -1,0 +1,45 @@
+# prek (https://github.com/j178/prek) — a Rust reimplementation of pre-commit.
+#
+# Install the git hook once:  prek install
+# Run against everything:      prek run --all-files
+#
+# Every hook is a local hook that reproduces CI exactly (.github/workflows/ci.yml):
+#
+# - ruff: `cd mtg-utils && uv run ruff ...`. Ruff's config + per-file-ignores live
+#   in mtg-utils/pyproject.toml, and CI invokes ruff from inside mtg-utils so they
+#   resolve — including the `../tests/*` ignores. The repo root has no [tool.ruff],
+#   so the ruff-pre-commit mirror (run from the root) would silently lint tests/
+#   with ruff's defaults instead. Running from mtg-utils keeps "passes prek" ⟹
+#   "passes CI", with the venv's pinned ruff rather than a second, drifting copy.
+# - ty: intentionally UNPINNED (`uvx ty`) — deck-forge ships a Python backend API,
+#   and new ty releases add checks worth catching. Resolves imports against
+#   mtg-utils/.venv, so run `uv sync` once after cloning.
+# - prettier/eslint: the frontend's own toolchain via npx (run `npm install` in
+#   deck-forge/frontend once). svelte-check is CI-only (slower; boots the LS).
+#
+# Not covered here: pytest (too slow for a commit hook) and the deck-forge
+# dist-freshness guard (needs `npm run build`) — both stay CI-only.
+
+[[repos]]
+repo = "local"
+hooks = [
+  { id = "ruff-check", name = "ruff check", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff check --fix src/ ../tests/mtg-utils/'", pass_filenames = false, types = ["python"] },
+  { id = "ruff-format", name = "ruff format", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff format src/ ../tests/mtg-utils/'", pass_filenames = false, types = ["python"] },
+  { id = "ty", name = "ty check", language = "system", entry = "bash -c 'cd mtg-utils && uvx ty check src/'", pass_filenames = false, types = ["python"] },
+  { id = "prettier", name = "prettier (svelte/js/css)", language = "system", entry = "bash -c 'cd deck-forge/frontend && npx prettier --write src/'", pass_filenames = false, files = "^deck-forge/frontend/src/" },
+  { id = "eslint", name = "eslint (svelte/js)", language = "system", entry = "bash -c 'cd deck-forge/frontend && npx eslint --fix src/'", pass_filenames = false, files = "^deck-forge/frontend/src/" },
+]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  # The rewriting hooks skip generated/data artifacts: the committed SPA bundle
+  # (CI asserts it byte-for-byte matches a fresh build), the ASCII-art catalog
+  # (trailing spaces can be load-bearing alignment), and captured HTTP fixtures.
+  { id = "trailing-whitespace", exclude = "(?x)^( deck-forge/frontend/dist/ | mtg-utils/src/mtg_utils/data/card_art/ | tests/[^/]+/fixtures/ )" },
+  { id = "end-of-file-fixer", exclude = "(?x)^( deck-forge/frontend/dist/ | mtg-utils/src/mtg_utils/data/card_art/ | tests/[^/]+/fixtures/ )" },
+  { id = "check-yaml" },
+  { id = "check-toml" },
+  # 1 MiB, not the 500 KiB default: the lgs-search HTML fixtures reach ~516 KiB.
+  { id = "check-added-large-files", args = ["--maxkb=1024"] },
+]

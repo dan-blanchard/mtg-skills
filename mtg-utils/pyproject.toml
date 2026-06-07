@@ -69,6 +69,12 @@ testpaths = ["../tests/mtg-utils"]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.9",
+    # deck-forge's server deps live in deck-forge/pyproject.toml, but the server
+    # module (deck_forge_server / _deck_forge) is in this shared package — so the
+    # type checker run from here needs them importable to resolve and check it.
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic>=2",
 ]
 
 [tool.ruff.lint]

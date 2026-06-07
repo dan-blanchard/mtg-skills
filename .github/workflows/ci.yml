@@ -9,6 +9,9 @@ jobs:
       - run: cd mtg-utils && uv sync
       - run: cd mtg-utils && uv run ruff check src/ ../tests/mtg-utils/
       - run: cd mtg-utils && uv run ruff format --check src/ ../tests/mtg-utils/
+      # ty is intentionally unpinned (uvx fetches latest): deck-forge ships a
+      # Python backend API now, and new ty releases add checks worth catching.
+      - run: cd mtg-utils && uvx ty check src/
       - run: cd mtg-utils && uv run pytest ../tests/mtg-utils/ -v
       - run: cd deck-wizard && uv sync && uv run pytest ../tests/deck-wizard/ -v
       - run: cd cube-wizard && uv sync && uv run pytest ../tests/cube-wizard/ -v
@@ -27,7 +30,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: cd deck-forge/frontend && npm ci && npm run build
+      - run: cd deck-forge/frontend && npm ci
+      - run: cd deck-forge/frontend && npm run format:check
+      - run: cd deck-forge/frontend && npm run lint
+      - run: cd deck-forge/frontend && npm run check
+      - run: cd deck-forge/frontend && npm run build
       - name: Assert committed dist/ matches a fresh build
         run: |
           if [ -n "$(git status --porcelain deck-forge/frontend/dist)" ]; then

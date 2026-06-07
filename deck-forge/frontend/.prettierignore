@@ -1,0 +1,3 @@
+# Build output (committed for end-users; CI asserts it matches a fresh build).
+dist/
+node_modules/

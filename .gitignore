@@ -29,6 +29,7 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 # These override the global dist/ and *.json ignores above.
 !deck-forge/frontend/package.json
 !deck-forge/frontend/package-lock.json
+!deck-forge/frontend/jsconfig.json
 !deck-forge/frontend/dist/
 !deck-forge/frontend/dist/**
 
