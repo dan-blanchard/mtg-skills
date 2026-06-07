@@ -13,6 +13,8 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from mtg_utils._deck_forge import staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.signal_specs import Serve, spec_for
@@ -342,6 +344,78 @@ def explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:
     filters["color_identity"] = search.get("color_identity") or color_identity
     filters["format"] = fmt
     return filters
+
+
+def goldfish_report(
+    state: ForgeState, *, games: int = 100, turns: int = 14, seed: int = 0
+) -> dict:
+    """Run-here handoff (#6, ADR-0016): goldfish the current deck IN-PROCESS — pure
+    local compute, no API key, no subprocess — reusing the ``playtest-goldfish`` core
+    the hub already ships in ``mtg_utils``. Returns the rendered markdown plus the raw
+    schema-v1 envelope. Imports are local so the snapshot path never pays for the
+    playtest module."""
+    import time as _time
+
+    from mtg_utils._playtest_common import envelope, render_goldfish_markdown
+    from mtg_utils.playtest import GOLDFISH_VERSION, _run_goldfish
+
+    hd = hydrate(state)
+    deck = state.session.to_deck_dict()
+    entries = (deck.get("commanders") or []) + (deck.get("cards") or [])
+    records = hd.expanded(zones=("commanders", "cards"))
+    requested = sum(int(e.get("quantity", 1)) for e in entries)
+    missing = sorted({e["name"] for e in entries if e["name"] not in hd.by_name})
+
+    start = _time.perf_counter()
+    results = _run_goldfish(records, games=games, max_turns=turns, base_seed=seed)
+    elapsed = _time.perf_counter() - start
+
+    out = envelope(
+        mode="goldfish",
+        engine="goldfish",
+        engine_version=GOLDFISH_VERSION,
+        seed=seed,
+        format_=deck.get("format"),
+        card_coverage={
+            "requested": requested,
+            "supported": len(records),
+            "missing": missing,
+        },
+        results=results,
+        warnings=[f"{len(missing)} cards not in hydrated cache"] if missing else [],
+        duration_s=elapsed,
+    )
+    return {"markdown": render_goldfish_markdown(out), "report": out}
+
+
+def render_proxies(
+    state: ForgeState, out_path: Path, *, page_size: str = "letter"
+) -> int:
+    """Run-here handoff (#6, ADR-0016): render printable card proxies to ``out_path`` as
+    a PDF, IN-PROCESS via ``proxy_print.build_pdf`` (reportlab is its lazy backend). One
+    proxy per copy of every commander + mainboard card, hydrated from the hub's bulk
+    index. Returns the count rendered (0 = nothing renderable)."""
+    from mtg_utils.deck import hydrate as hydrate_card
+    from mtg_utils.deck import walk_cards
+    from mtg_utils.proxy_print import build_pdf
+
+    deck = state.session.to_deck_dict()
+    items: list[tuple[dict, list[str] | None]] = []
+    for name, qty in walk_cards(deck, include_sideboard=False, copies=1):
+        src = state.by_name.get(name)
+        if src is None:
+            continue  # un-hydratable name → skip (DROP convention)
+        items.extend([(hydrate_card(src), None)] * qty)
+    if not items:
+        return 0
+    build_pdf(
+        out_path,
+        items,
+        page_size=page_size,
+        is_token=False,
+        title=f"deck-forge proxies — {state.build_name}",
+    )
+    return len(items)
 
 
 def snapshot(state: ForgeState) -> dict:

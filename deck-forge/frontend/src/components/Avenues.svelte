@@ -1,19 +1,20 @@
 <script>
-  import {
-    avenues,
-    activeTab,
-    exploreAvenue,
-    applySnapshot,
-  } from "../lib/store.js";
+  import { avenues, activeTab, applySnapshot } from "../lib/store.js";
   import { api } from "../lib/api.js";
 
   // Scope is only shown when it's contrastive — "yours" is the unremarkable default,
   // so we surface only the cases that change how you build (opponents' / each player).
   const SCOPE_TAG = { opponents: "opponents'", each: "each player" };
 
-  function explore(avenue) {
-    exploreAvenue.set(avenue);
-    activeTab.set("synergies");
+  // A lane chip is a focus toggle: pin/unpin it and jump to the Find tab, where the
+  // focused set OR-drives a ranked candidate list (ADR-0015). Multi-select by pinning
+  // several. The ✦ shows focused state.
+  async function toggleFocus(avenue) {
+    const r = await api.focusAvenue(avenue.id);
+    if (r.ok) {
+      applySnapshot(r.data);
+      activeTab.set("find");
+    }
   }
 
   async function remove(avenue) {
@@ -21,13 +22,7 @@
     if (r.ok) applySnapshot(r.data);
   }
 
-  // Pin a lane as "focused": the candidate ✦ score then counts only focused lanes (#2).
-  async function toggleFocus(avenue) {
-    const r = await api.focusAvenue(avenue.id);
-    if (r.ok) applySnapshot(r.data);
-  }
-
-  $: anyFocused = $avenues.some((a) => a.focused);
+  $: focusedCount = $avenues.filter((a) => a.focused).length;
 </script>
 
 {#if $avenues.length}
@@ -39,21 +34,13 @@
           class="avenue"
           class:agent={a.source === "agent"}
           class:focused={a.focused}
-          title={(a.description || a.label) + " — click to explore"}
-          on:click={() => explore(a)}
+          title={a.focused
+            ? (a.description || a.label) + " — focused; click to unpin"
+            : (a.description || a.label) +
+              " — click to focus this lane in Find"}
+          on:click={() => toggleFocus(a)}
         >
-          <span
-            class="pin"
-            class:on={a.focused}
-            role="button"
-            tabindex="0"
-            title={a.focused
-              ? "Focused — the synergy score counts this lane. Click to unpin."
-              : "Pin as a lane you're building toward (scopes the synergy score)"}
-            on:click|stopPropagation={() => toggleFocus(a)}
-            on:keydown|stopPropagation={(e) =>
-              e.key === "Enter" ? toggleFocus(a) : null}>✦</span
-          >
+          <span class="pin" class:on={a.focused}>✦</span>
           <span class="label">{a.label}</span>
           {#if SCOPE_TAG[a.scope]}<span class="scope">{SCOPE_TAG[a.scope]}</span
             >{/if}
@@ -68,17 +55,16 @@
                 e.key === "Enter" ? remove(a) : null}>×</span
             >
           {/if}
-          <span class="go">→</span>
         </button>
       {/each}
     </div>
     <p class="hint">
-      {#if anyFocused}
-        <b class="lit">✦ focused</b> — the synergy score counts only your pinned lanes.
-        Click ✦ to pin / unpin.
+      {#if focusedCount}
+        <b class="lit">✦ {focusedCount} focused</b> — these lanes drive the ranked
+        Find list. Click a lane to pin / unpin.
       {:else}
-        Click a lane for ranked candidates. Pin <span class="lit">✦</span> the lanes
-        you're building toward to scope the synergy score.
+        Click a lane to pin <span class="lit">✦</span> it — focused lanes drive
+        a ranked, real-card candidate list in <b>Find</b>.
       {/if}
     </p>
   </div>
@@ -152,10 +138,6 @@
     color: var(--warn);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-  }
-  .go {
-    color: var(--brass);
-    font-weight: 700;
   }
   .rm {
     color: var(--muted);

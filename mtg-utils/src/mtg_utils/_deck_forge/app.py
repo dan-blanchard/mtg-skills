@@ -128,6 +128,45 @@ def _autosave(state: ForgeState) -> None:
         state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
 
 
+def _has_filters(payload: SearchPayload) -> bool:
+    """Whether the Find payload carries any narrowing filter — so a no-focus, no-filter
+    request returns an idle prompt instead of dumping the whole vault."""
+    return bool(
+        payload.name
+        or payload.oracle
+        or payload.type
+        or payload.color_identity
+        or payload.presets
+        or payload.is_commander
+        or payload.cmc_min is not None
+        or payload.cmc_max is not None
+        or payload.price_min is not None
+        or payload.price_max is not None
+    )
+
+
+def _refine(base: dict, payload: SearchPayload) -> dict:
+    """Merge the user's narrowing filters onto a focused avenue's card_search kwargs.
+    The avenue owns the oracle (its lane definition), so user ``oracle`` is deliberately
+    not merged — name/type/color/cmc/price AND on top to refine the lane's pool."""
+    out = dict(base)
+    if payload.name:
+        out["name"] = payload.name
+    if payload.type:
+        out["card_type"] = payload.type
+    if payload.color_identity:
+        out["color_identity"] = payload.color_identity
+    if payload.cmc_min is not None:
+        out["cmc_min"] = payload.cmc_min
+    if payload.cmc_max is not None:
+        out["cmc_max"] = payload.cmc_max
+    if payload.price_min is not None:
+        out["price_min"] = payload.price_min
+    if payload.price_max is not None:
+        out["price_max"] = payload.price_max
+    return out
+
+
 def _clamp_timeout(timeout: float) -> float:
     return max(0.0, min(timeout, 30.0))
 
@@ -255,6 +294,47 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         snap["trimmed"] = applied
         state.hub.publish(json.dumps(snap))
         return snap
+
+    @app.post("/api/handoff/goldfish", response_model=None)
+    async def handoff_goldfish() -> dict | JSONResponse:
+        """Run-here handoff (#6): goldfish the deck in-process and return the report
+        inline — pure local compute (no LLM, no API key), so it works with no session
+        attached. See ADR-0016."""
+        if not state.bulk_available:
+            return _no_bulk()
+        if len(engine.hydrate(state).expanded(zones=("commanders", "cards"))) < 7:
+            return JSONResponse(
+                {"error": "Add more cards before goldfishing (need a full hand)."},
+                status_code=400,
+            )
+        return engine.goldfish_report(state)
+
+    @app.post("/api/handoff/proxies", response_model=None)
+    def handoff_proxies() -> Response:
+        """Run-here handoff (#6): render a printable proxy PDF in-process (reportlab,
+        no API key) and return it as a download. A SYNC route on purpose — FastAPI runs
+        it in a threadpool, so the blocking PDF render + file I/O never stall the event
+        loop. See ADR-0016."""
+        if not state.bulk_available:
+            return _no_bulk()
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            count = engine.render_proxies(state, tmp_path)
+            if count == 0:
+                return JSONResponse(
+                    {"error": "No renderable cards — add some first."}, status_code=400
+                )
+            data = tmp_path.read_bytes()
+        finally:
+            tmp_path.unlink(missing_ok=True)
+        return Response(
+            content=data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="proxies.pdf"'},
+        )
 
     @app.post("/api/search", response_model=None)
     async def search(payload: SearchPayload) -> dict | JSONResponse:
@@ -539,6 +619,79 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 "offset": payload.offset,
                 "has_more": has_more,
             }
+        }
+
+    @app.post("/api/find", response_model=None)
+    async def find(payload: SearchPayload) -> dict | JSONResponse:
+        """The unified Find surface (#5): one card-finding path that replaces separate
+        search + explore. With one or more FOCUSED avenues, OR-merge their candidate
+        pools and rank by focused-lane fit (a card serving more focused lanes wins),
+        refining by any user filters. With nothing focused but filters present, it's a
+        manual search scored against everything (today's "everything counts"). With
+        neither focus nor filters, return nothing — an idle prompt, not the whole vault.
+        See ADR-0015."""
+        if not state.bulk_available:
+            return _no_bulk()
+        fmt = state.session.format
+        ci = engine.deck_color_identity(state)
+        hd = engine.hydrate(state)
+        sigs = engine.ranked_deck_signals(state, hd.records)
+        all_avenues = engine.avenues(state, hd.records)
+        focused = [a for a in all_avenues if a.get("focused")]
+        in_deck = set(state.session.card_names())
+
+        if focused:
+            pool: dict[str, dict] = {}
+            for av in focused:
+                if (av.get("search") or {}).get("staples"):
+                    found = engine.staple_pool(state)
+                else:
+                    base = engine.explore_filters(
+                        av["search"], color_identity=ci, fmt=fmt
+                    )
+                    found = state.search_fn(
+                        limit=_EXPLORE_POOL,
+                        paper_only=engine.paper_only(fmt),
+                        **_refine(base, payload),
+                    )
+                for card in found:
+                    cname = card.get("name")
+                    if cname:
+                        pool.setdefault(cname, card)
+            cands = [c for c in pool.values() if c.get("name") not in in_deck]
+            active, avs = engine.scoring_basis(state, hd.records, sigs, focused)
+            ranked = rank_candidates(cands, active_signals=active, avenues=avs)
+        elif _has_filters(payload):
+            records = state.search_fn(
+                color_identity=payload.color_identity,
+                exact_colors=payload.exact_colors,
+                oracle=payload.oracle,
+                card_type=payload.type,
+                name=payload.name,
+                cmc_min=payload.cmc_min,
+                cmc_max=payload.cmc_max,
+                price_min=payload.price_min,
+                price_max=payload.price_max,
+                format=payload.format,
+                paper_only=engine.paper_only(payload.format),
+                preset_names=tuple(payload.presets),
+                is_commander_filter=payload.is_commander,
+                sort=payload.sort,
+                limit=_EXPLORE_POOL,
+                offset=0,
+            )
+            cands = [c for c in records if c.get("name") not in in_deck]
+            ranked = rank_candidates(cands, active_signals=sigs, avenues=all_avenues)
+        else:
+            ranked = []
+
+        page = max(1, payload.limit)
+        offset = max(0, payload.offset)
+        window = ranked[offset : offset + page]
+        return {
+            "results": [views.candidate_view(r, fmt) for r in window],
+            "offset": offset,
+            "has_more": len(ranked) > offset + page,
         }
 
     @app.get("/api/audit")

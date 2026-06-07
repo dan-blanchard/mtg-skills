@@ -23,10 +23,9 @@ export const agentReply = writable(null);
 export const buildId = writable(null);
 export const buildName = writable("Untitled");
 
-// Cross-component navigation: which left tab is active, and which avenue (if any)
-// the user clicked to explore in the Synergies tab.
-export const activeTab = writable("search");
-export const exploreAvenue = writable(null);
+// Which left tab is active. Search + Synergies are merged into the unified "find"
+// surface (ADR-0015); focusing avenues drives it via server-side focus state.
+export const activeTab = writable("find");
 
 // Card hover preview: { card, x, y } | null — follows the cursor over any card.
 export const hovered = writable(null);

@@ -25,6 +25,9 @@ async function del(path) {
 export const api = {
   snapshot: () => fetch("/api/snapshot").then((r) => r.json()),
   search: (filters) => post("/api/search", filters),
+  // Unified Find surface (#5): focused avenues (server-side state) OR-drive the pool;
+  // filters refine; returns a flat ✦-ranked candidate list. See ADR-0015.
+  find: (filters) => post("/api/find", filters),
   add: (name, zone = "cards", qty = 1) =>
     post("/api/deck/add", { name, zone, qty }),
   remove: (name, zone = "cards", qty = 1) =>
@@ -52,6 +55,8 @@ export const api = {
   renameBuild: (id, name) => post("/api/builds/rename", { id, name }),
   deleteBuild: (id) => del(`/api/builds/${id}`),
   exportDeck: (fmt) => get(`/api/export?fmt=${fmt}`),
+  // Run-here handoff (#6): goldfish the deck in the hub, report rendered inline.
+  handoffGoldfish: () => post("/api/handoff/goldfish", {}),
 
   // Raise a reasoning request and long-poll for the session-agent's answer.
   // Resolves to {result} | {offline: true} | {slow: true} | {error}.

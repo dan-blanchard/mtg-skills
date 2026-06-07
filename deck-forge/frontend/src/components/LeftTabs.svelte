@@ -1,13 +1,11 @@
 <script>
   import { activeTab } from "../lib/store.js";
-  import SearchPanel from "./SearchPanel.svelte";
-  import Packages from "./Packages.svelte";
+  import Find from "./Find.svelte";
   import Combos from "./Combos.svelte";
   import Export from "./Export.svelte";
 
   const TABS = [
-    ["search", "Search"],
-    ["synergies", "Synergies"],
+    ["find", "Find"],
     ["combos", "Combos"],
     ["export", "Export"],
   ];
@@ -26,14 +24,12 @@
     {/each}
   </div>
   <div class="tabbody">
-    {#if $activeTab === "search"}
-      <SearchPanel />
-    {:else if $activeTab === "synergies"}
-      <Packages />
-    {:else if $activeTab === "combos"}
+    {#if $activeTab === "combos"}
       <Combos />
-    {:else}
+    {:else if $activeTab === "export"}
       <Export />
+    {:else}
+      <Find />
     {/if}
   </div>
 </div>

@@ -114,6 +114,15 @@ Handle each `kind`:
   creature") and artifact animations. Over-broad avenues can be pruned:
   `DELETE /api/avenues/{id}` (the "×" on agent avenues in the UI).
 
+- **`handoff`** — `payload.tool` is `deck-strat` or `lgs-search` (the user clicked a
+  "Run in your session" button in the Export tab). These need reasoning or a headed
+  browser, so they run in THIS session, not the hub (ADR-0016). Export the current deck
+  — `GET /api/export?fmt=json`, write it to `deck.json` in the working dir — then
+  **invoke that skill via the Skill tool** on it: `/deck-strat` (writes
+  `STRATEGY-GUIDE.md`) or `/lgs-search` (opens store carts). Post a one-line result
+  ("Started deck-strat — STRATEGY-GUIDE.md incoming") so the browser confirms the
+  handoff fired; the skill's own output lands in your terminal / filesystem, not the UI.
+
 Post the answer back so the browser shows it:
 
 ```bash

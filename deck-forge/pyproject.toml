@@ -12,6 +12,9 @@ dependencies = [
     "requests>=2.28",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    # The "Print proxies" run-here handoff renders a PDF in-process via proxy_print
+    # (ADR-0016); reportlab is the PDF backend (lazily imported inside build_pdf).
+    "reportlab>=4.0",
 ]
 
 [project.scripts]
