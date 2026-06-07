@@ -268,7 +268,9 @@ class TestSearchCards:
 
     def test_offset_paginates_contiguously(self, tmp_path):
         # distinct prices -> deterministic price-desc order
-        cards = [_make_card(name=f"Card {i}", price_usd=f"{10 - i}.00") for i in range(10)]
+        cards = [
+            _make_card(name=f"Card {i}", price_usd=f"{10 - i}.00") for i in range(10)
+        ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
 

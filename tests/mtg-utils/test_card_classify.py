@@ -721,7 +721,9 @@ class TestPartnerAbility:
         # the search isolates the same group (won't match Partner—Character select).
         s = valid_partner_search(c)
         assert re.search(s["oracle"], "Partner—Father & son (...)", re.IGNORECASE)
-        assert not re.search(s["oracle"], "Partner—Character select (...)", re.IGNORECASE)
+        assert not re.search(
+            s["oracle"], "Partner—Character select (...)", re.IGNORECASE
+        )
 
     def test_choose_a_background_pairs_with_backgrounds(self):
         c = self._ce(
