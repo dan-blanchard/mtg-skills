@@ -349,3 +349,69 @@ class TestExaltedLoneAttacker:
         }
         assert "exalted_lone_attacker" in _keys(rafiq)
         assert serves(rafiq, _sig("exalted_lone_attacker", "you"))
+
+
+# ── Batch D: spell/cast avenues + augments ───────────────────────────────────
+class TestFlashMatters:
+    """Flash (CR 702.8) build-arounds: flash-GRANTING enablers (Yeva, Leyline) plus
+    opponent-turn payoffs. spellslinger excludes creatures, so it never surfaces a flash
+    wantlist (flash creatures + granters)."""
+
+    YEVA = {
+        "name": "Yeva, Nature's Herald",
+        "type_line": "Legendary Creature — Elf Shaman",
+        "oracle_text": "Flash\nYou may cast green creature spells as though they had flash.",
+    }
+
+    def test_flash_enabler_commander_emits_and_served(self):
+        assert "flash_matters" in _keys(self.YEVA)
+        assert serves(self.YEVA, _sig("flash_matters", "you"))
+
+    def test_flash_creature_served_but_not_spellslinger(self):
+        viper = {
+            "name": "Ambush Viper",
+            "type_line": "Creature — Snake",
+            "oracle_text": "Flash\nDeathtouch",
+            "keywords": ["Flash"],
+        }
+        assert serves(viper, _sig("flash_matters", "you"))
+        assert not serves(viper, _sig("spellcast_matters", "you"))
+
+    def test_self_only_flash_grant_not_an_enabler_signal(self):
+        quicken = {
+            "name": "Quicken",
+            "type_line": "Instant",
+            "oracle_text": "The next instant or sorcery spell you cast this turn can be cast as though it had flash.\nDraw a card.",
+        }
+        assert "flash_matters" not in _keys(quicken)
+
+
+class TestTeamEvasionGrant:
+    """Team evasion-keyword grants (Sun Quan horsemanship, Iroas menace) — evasion_self
+    covers single-attacker/landwalk/team-unblockable but misses the keyword grants."""
+
+    SUN_QUAN = {
+        "name": "Sun Quan, Lord of Wu",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": "Horsemanship\nOther creatures you control have horsemanship.",
+    }
+
+    def test_team_evasion_grant_emits_and_served(self):
+        assert "team_evasion_grant" in _keys(self.SUN_QUAN)
+        assert serves(self.SUN_QUAN, _sig("team_evasion_grant", "you"))
+
+    def test_disjoint_from_evasion_self(self):
+        assert not serves(self.SUN_QUAN, _sig("evasion_self", "you"))
+
+
+class TestEnchantmentsCastAugment:
+    """enchantments_matter's {card_type:Enchantment} type-serve + old payoff regex miss
+    14 plain Creatures that trigger on casting an enchantment (Verduran Enchantress)."""
+
+    def test_enchantment_cast_creature_now_served(self):
+        verduran = {
+            "name": "Verduran Enchantress",
+            "type_line": "Creature — Human Druid",
+            "oracle_text": "Whenever you cast an enchantment spell, you may draw a card.",
+        }
+        assert serves(verduran, _sig("enchantments_matter", "you"))

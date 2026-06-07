@@ -944,6 +944,34 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE),
         "you",
     ),
+    # Flash (CR 702.8): flash-GRANTING enablers ("cast … spells … as though they had
+    # flash" — class grant, NOT the one-shot "as though IT had flash") + opponent-turn
+    # cast payoffs. spellslinger's serve is instant/sorcery + prowess/magecraft and
+    # excludes creatures, so it never surfaces a flash wantlist (creatures/granters).
+    (
+        "flash_matters",
+        re.compile(
+            r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash"
+            r"|whenever you cast (?:a |your first )?spells? "
+            r"during (?:an|each|any) opponent",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # Team evasion-keyword grants (CR 702.13/702.14/509): "creatures you control
+    # gain/have <evasion keyword>". evasion_self covers single-attacker/landwalk/team
+    # can't-be-blocked but misses the keyword grants (menace/fear/horsemanship/…).
+    (
+        "team_evasion_grant",
+        re.compile(
+            r"(?:other |attacking )?creatures you control (?:gain|have)\b"
+            r"[^.]{0,40}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk"
+            r"|flying|can't be blocked)\b"
+            r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
     # (Goreclaw), or a Ferocious-style "if you control a creature with power N or

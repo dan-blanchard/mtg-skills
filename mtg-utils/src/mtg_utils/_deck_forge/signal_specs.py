@@ -644,11 +644,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"card_type": "Artifact"},
         r"artifacts? you control|for each artifact|\bmetalcraft\b|\baffinity\b",
     ),
+    # Serve augmented with "whenever you cast an enchantment" so the 14 plain CREATURES
+    # that trigger on enchantment casts (Verduran/Mesa Enchantress, Sythis) — missed by
+    # both the {card_type:Enchantment} type-serve and the count regex — are credited.
     ("enchantments_matter", "you"): _spec(
         "Enchantments",
         "enchantments and enchantment-count payoffs",
         {"card_type": "Enchantment"},
-        r"enchantments? you control|for each enchantment|\bconstellation\b",
+        r"enchantments? you control|for each enchantment|\bconstellation\b"
+        r"|whenever you cast an enchantment",
     ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
@@ -1446,6 +1450,29 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"attacks alone|\bexalted\b"},
         r"attacks alone",
         serve_keywords=("exalted",),
+    ),
+    ("flash_matters", "you"): _spec(
+        "Flash",
+        "flash creatures to ambush-cast plus the flash-granters and opponent-turn "
+        "payoffs that build the deck around instant-speed play",
+        {"preset_names": ("flash",)},
+        r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash"
+        r"|whenever you cast (?:a |your first )?spells? "
+        r"during (?:an|each|any) opponent",
+        serve_keywords=("flash",),
+    ),
+    ("team_evasion_grant", "you"): _spec(
+        "Team evasion grant",
+        "effects that hand an evasion keyword (menace / fear / flying / can't be "
+        "blocked) to your whole board for a go-wide alpha strike",
+        {
+            "oracle": r"creatures you control (?:gain|have)[^.]{0,40}?"
+            r"(?:menace|fear|intimidate|horsemanship|flying|can't be blocked)"
+        },
+        r"(?:other |attacking )?creatures you control (?:gain|have)\b"
+        r"[^.]{0,40}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk"
+        r"|flying|can't be blocked)\b"
+        r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
     ),
 }
 
