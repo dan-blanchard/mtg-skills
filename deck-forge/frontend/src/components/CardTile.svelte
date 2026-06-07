@@ -32,7 +32,7 @@
   <!-- Anchored to the .tile (stable width), NOT .art: Safari doesn't stretch an
        aspect-ratio flex item to full width, which pushed symbols off .art's right. -->
   <div class="ci">
-    {#each colors as c}<Mana sym={c} size="1.05rem" />{/each}
+    {#each colors as c (c)}<Mana sym={c} size="1.05rem" />{/each}
   </div>
 
   <div class="body">
@@ -47,7 +47,8 @@
     {#if score && score.synergy_fit > 0}
       <div class="synergy" title={score.served.join(", ")}>
         <span class="spark">✦ {score.synergy_fit}</span>
-        {#each score.served.slice(0, 2) as s}<span class="served">{s}</span
+        {#each score.served.slice(0, 2) as s, i (i)}<span class="served"
+            >{s}</span
           >{/each}
       </div>
     {/if}

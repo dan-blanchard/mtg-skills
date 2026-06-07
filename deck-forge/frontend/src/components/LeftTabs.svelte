@@ -15,7 +15,7 @@
 
 <div class="left">
   <div class="tabbar">
-    {#each TABS as [id, label]}
+    {#each TABS as [id, label] (id)}
       <button
         class="tab"
         class:active={$activeTab === id}

@@ -8,7 +8,6 @@
   let loading = false;
   let loadingMore = false;
   let error = "";
-  let loaded = false;
   let lastExploredId = null;
 
   // Singleton: drop candidates already in the deck. These reactive derivations
@@ -83,7 +82,6 @@
     error = "";
     const r = await api.packages();
     loading = false;
-    loaded = true;
     if (!r.ok) {
       error = r.data.error || `discovery failed (${r.status})`;
       packages = [];
@@ -144,7 +142,7 @@
         </div>
       {/if}
     {:else if filteredPackages.length}
-      {#each filteredPackages as pkg}
+      {#each filteredPackages as pkg (pkg.signal.label)}
         <section class="pkg">
           <header>
             <span class="ptitle">{pkg.signal.label}</span>

@@ -144,7 +144,7 @@
         <div class="field wide">
           <span class="lbl">Color identity</span>
           <div class="pips">
-            {#each PIPS as [c]}
+            {#each PIPS as [c] (c)}
               <button
                 type="button"
                 class="pip"

@@ -39,7 +39,7 @@
   <h3 class="panel-title">Export & Handoff</h3>
 
   <div class="fmts">
-    {#each FORMATS as [id, label]}
+    {#each FORMATS as [id, label] (id)}
       <button class="btn" class:active={fmt === id} on:click={() => run(id)}
         >{label}</button
       >
@@ -61,7 +61,7 @@
 
     <div class="handoffs">
       <div class="hh">Hand off the exported JSON to:</div>
-      {#each HANDOFFS as [cmd, label]}
+      {#each HANDOFFS as [cmd, label] (cmd)}
         <div class="handoff">
           <span class="hl">{label}</span><code>{cmd}</code>
         </div>

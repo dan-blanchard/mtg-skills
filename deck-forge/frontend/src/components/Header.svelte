@@ -60,7 +60,7 @@
   <div class="meta">
     <BuildMenu />
     <select class="chip format" title="Deck format" on:change={changeFormat}>
-      {#each FORMATS as [val, label]}
+      {#each FORMATS as [val, label] (val)}
         <option value={val} selected={val === $deck.format}>{label}</option>
       {/each}
     </select>

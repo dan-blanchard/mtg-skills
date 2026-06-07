@@ -15,7 +15,7 @@
   <h3 class="panel-title">Slot Budgets</h3>
   {#if $budgets}
     <div class="rows">
-      {#each ORDER as role}
+      {#each ORDER as role (role)}
         {#if $budgets[role]}
           <div class="row">
             <div class="head">

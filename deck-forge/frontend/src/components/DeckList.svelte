@@ -54,7 +54,7 @@
       <p>The forge is cold. Search for a commander and add it to begin.</p>
     </div>
   {:else}
-    {#each groups as g}
+    {#each groups as g (g.key)}
       {#if g.cards.length}
         <div class="group">
           <div class="group-head">

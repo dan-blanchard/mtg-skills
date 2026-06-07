@@ -11,7 +11,7 @@
 
 {#if symbols.length}
   <span class="cost">
-    {#each symbols as s}<Mana sym={s} {size} />{/each}
+    {#each symbols as s, i (i)}<Mana sym={s} {size} />{/each}
   </span>
 {/if}
 

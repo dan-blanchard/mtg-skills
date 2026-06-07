@@ -6,7 +6,7 @@
   <div class="panel widget warnings">
     <h3 class="panel-title">⚠ Warnings</h3>
     <ul>
-      {#each $warnings as w}
+      {#each $warnings as w, i (i)}
         <li>
           <span class="cat">{w.category.replace("_", " ")}</span
           >{w.message.replace(w.category.replace("_", " ") + ":", "")}

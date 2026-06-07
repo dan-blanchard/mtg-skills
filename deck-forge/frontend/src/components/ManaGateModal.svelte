@@ -125,7 +125,7 @@
 
       {#if $mana.color_balance_flags?.length}
         <ul class="flags">
-          {#each $mana.color_balance_flags as flag}<li>{flag}</li>{/each}
+          {#each $mana.color_balance_flags as flag, i (i)}<li>{flag}</li>{/each}
         </ul>
       {/if}
 

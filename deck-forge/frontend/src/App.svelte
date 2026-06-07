@@ -23,6 +23,9 @@
   $: {
     const a = $agentAttached;
     if (prevAttached !== null && a !== prevAttached) railCollapsed = !a;
+    // Persisted across reactive re-runs to detect attach/detach transitions
+    // (read at the top of this block on the next run, not within it).
+    // eslint-disable-next-line no-useless-assignment
     prevAttached = a;
   }
 

@@ -63,7 +63,7 @@
     <div class="stat"><b>{$stats?.ramp_count ?? 0}</b><em>ramp</em></div>
     {#if colorPips.length}
       <div class="stat colors">
-        {#each colorPips as c}
+        {#each colorPips as c (c)}
           <span class="src" title={COLOR_LABEL[c]}
             ><Mana sym={c} size="0.95rem" /><i>{$stats.color_sources[c]}</i
             ></span

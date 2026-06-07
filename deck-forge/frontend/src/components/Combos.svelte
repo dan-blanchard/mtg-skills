@@ -58,10 +58,10 @@
     {:else if loaded && combos.length === 0 && nearMisses.length === 0}
       <div class="notice">No catalogued combos in the deck yet.</div>
     {:else if loaded}
-      {#each [{ label: "In your deck", list: combos, near: false }, { label: "Near misses — one piece away", list: nearMisses, near: true }] as group}
+      {#each [{ label: "In your deck", list: combos, near: false }, { label: "Near misses — one piece away", list: nearMisses, near: true }] as group (group.label)}
         {#if group.list.length}
           <div class="group-head">{group.label} ({group.list.length})</div>
-          {#each group.list as c}
+          {#each group.list as c, i (i)}
             <section class="combo" class:near={group.near}>
               <div class="chead">
                 <div class="result">
@@ -223,11 +223,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 0.5rem;
-  }
-  .missing {
-    font-size: 0.74rem;
-    color: var(--warn);
-    margin-top: 0.15rem;
   }
   .notice {
     color: var(--parchment-dim);

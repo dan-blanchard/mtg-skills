@@ -19,7 +19,7 @@
   </button>
   {#if !collapsed}
     <div class="chart">
-      {#each CURVE_BUCKETS as b}
+      {#each CURVE_BUCKETS as b (b)}
         <div class="col">
           <div class="bar-track">
             <div
