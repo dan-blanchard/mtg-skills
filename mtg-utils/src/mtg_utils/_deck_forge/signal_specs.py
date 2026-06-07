@@ -263,6 +263,19 @@ _TOKEN_DOUBLER_EXTRA = SubAvenue(
     {"oracle": _TOKEN_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_DOUBLER_ORACLE, _IC)),
 )
+# Flicker enablers (CR 603.6e) for a repeated-ETB commander — re-use your own ETBs.
+# Pronoun/"you control"-return anchor keeps reanimation (graveyard return) out.
+_FLICKER_ORACLE = (
+    r"exile[^.]*(?:creature|permanent)s?(?: you control)?[^.]*return "
+    r"(?:it|them|that card|those cards|that permanent)[^.]*battlefield"
+)
+_FLICKER_EXTRA = SubAvenue(
+    "Blink / flicker",
+    "exile-and-return your own ETB creatures to re-use their enter triggers "
+    "(Ephemerate / Cloudshift / Conjurer's Closet)",
+    {"preset_names": ("blink",)},
+    serve=Serve(oracle=re.compile(_FLICKER_ORACLE, _IC)),
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -276,7 +289,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             )
         },
         (r"create .*creature token|put .*creature.*onto the battlefield"),
-        extras=(_ETB_PAYOFF_EXTRA,),
+        extras=(_ETB_PAYOFF_EXTRA, _FLICKER_EXTRA),
     ),
     # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
     # "creature", so it matched Bloodthirst ("an opponent was dealt damage … this
@@ -731,7 +744,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"preset_names": ("equip",)},
         r"equipped creature|enchanted creature gets|equip \{"
         r"|attach [^.]*(?:equipment|aura)"
-        r"|equipment you control|for each (?:equipment|aura)",
+        r"|equipment you control|for each (?:equipment|aura)"
+        r"|cast an? (?:aura|equipment)|cast aura and equipment",
         serve_types=("equipment", "aura"),
         serve_keywords=("reconfigure",),
         serve_not=r"can't attack|can't block|doesn't untap during"
@@ -1152,6 +1166,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|when (?:this|[A-Z][\w']+)[^.]*enters"
         r"|(?:a|an|another|one or more)[^.]*permanents? you control enters"
         r"|(?:artifact or creature|creature or artifact)[^.]*enter",
+        extras=(_FLICKER_EXTRA,),
     ),
     # Serve was `…|\bequipment\b|whenever[^.]*attacks`, which matched any creature
     # that merely mentions equipment or attacks (~1104). The avenue is Equipment-for-a-

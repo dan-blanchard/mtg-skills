@@ -191,3 +191,27 @@ class TestVoltronCastTrigger:
         # a non-equipment commander must NOT
         bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
         assert "voltron_matters" not in {s.key for s in extract_signals(bear)}
+
+
+class TestVoltronServesSram:
+    """The voltron SERVE (not just extraction) must credit cast-Equipment/Aura payoffs
+    like Sram, so an equipment commander surfaces them as candidates."""
+
+    def test_voltron_serves_cast_equipment_payoff(self):
+        sram = {"name": "Sram, Senior Edificer", "type_line": "Legendary Creature — Dwarf Advisor",
+                "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card."}
+        assert serves(sram, _sig("voltron_matters", "you")) is True
+
+
+class TestEtbCommanderSurfacesFlicker:
+    """A repeated-ETB commander (creature_etb / permanent_etb) should surface a flicker
+    sub-avenue so Ephemerate/Cloudshift/Conjurer's Closet get offered."""
+
+    def test_creature_etb_offers_flicker_subavenue(self):
+        for key in ("creature_etb", "permanent_etb"):
+            extra = _extra(spec_for(_sig(key, "you")), "Blink / flicker")
+            assert extra is not None, key
+            assert extra.serve.matches({"name": "Ephemerate", "type_line": "Instant",
+                "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control."})
+            assert not extra.serve.matches({"name": "Murder", "type_line": "Instant",
+                "oracle_text": "Destroy target creature."})
