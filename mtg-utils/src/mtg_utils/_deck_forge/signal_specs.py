@@ -774,6 +774,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 "cards that let you play off the top of your library",
                 {"oracle": r"from the top of your library"},
             ),
+            # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than
+            # your hand" payoffs (Vega, Iraxxa) the literal-"from exile" serve misses.
+            SubAvenue(
+                "Paradox payoffs",
+                "zone-agnostic payoffs that reward casting/playing from anywhere other "
+                "than your hand",
+                {"oracle": r"from anywhere other than your hand"},
+                serve=Serve(
+                    oracle=re.compile(
+                        r"(?:cast a spell|play a land|play a card)[^.]*?"
+                        r"from anywhere other than your hand",
+                        _IC,
+                    )
+                ),
+            ),
         ),
     ),
     ("discard_matters", "you"): _spec(
@@ -1474,6 +1489,36 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|flying|can't be blocked)\b"
         r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
     ),
+    # Override the auto-registered saga_matters sweep spec: surface the FULL Saga pool
+    # via a subtype search (the sweep spec only found lore-counter cards), and serve the
+    # Sagas (serve_types) plus the lore-counter/chapter payoffs (Tom Bombadil, Narci).
+    ("saga_matters", "you"): _spec(
+        "Sagas",
+        "Sagas to chain chapter abilities, plus the lore-counter and chapter-retrigger "
+        "payoffs that reward them",
+        {"card_type": "Saga"},
+        r"lore counter|sagas? you control|chapter abilit|read ahead",
+        serve_types=("saga",),
+    ),
+    ("lessons_matter", "you"): _spec(
+        "Lessons",
+        "Lesson spells (your wishboard payload) plus the Learn enablers and Lesson "
+        "payoffs that reward casting them",
+        {"card_type": "Lesson"},
+        r"lesson spells?|cast (?:an? )?(?:artifact or )?lesson|lesson card",
+        serve_types=("lesson",),
+    ),
+    # Override the auto-registered suspend_matters sweep spec (serve was `\bsuspend\b`
+    # only): widen to the whole time-counter superstructure — Suspend (702.62),
+    # Vanishing (702.63), Impending, and time-counter/time-travel manipulation (701.56).
+    ("suspend_matters", "you"): _spec(
+        "Suspend / time counters",
+        "suspend, vanishing, and impending cards plus the time-counter manipulators "
+        "and payoffs (As Foretold, Jhoira, Dust of Moments) that exploit them",
+        {"oracle": r"\bsuspend\b|time counter"},
+        r"\bsuspend\b|\bvanishing\b|\bimpending\b|time counter|time travel",
+        serve_keywords=("suspend", "vanishing", "impending"),
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured
@@ -1526,11 +1571,22 @@ def _subject_spec(signal) -> SignalSpec:
     # tribal (type_matters) / typed spellcast: the cards themselves (type-line match),
     # plus a distinct "{s} payoffs" sub-avenue for the lords/anthems that reward them.
     label_t, avenue_t = _SUBJECT_TEMPLATES.get(signal.key, ("{s}", "{s} synergies"))
+    # Changelings (CR 702.73a) are every creature type, so they count for EVERY tribe —
+    # but they type-line as "Shapeshifter", so the {card_type: subj} search misses every
+    # one. Fold them (the keyword bearers + the "is/are every creature type" granters)
+    # into the type-tribal serve so a Goblin/Elf/Zombie deck credits its changelings.
+    is_type_tribal = signal.key == signal_keys.TYPE_MATTERS
+    serve_oracle = rf"\b{esc}s?\b" + (
+        r"|(?:is|are) every creature type" if is_type_tribal else ""
+    )
     return SignalSpec(
         label=label_t.format(s=subj),
         avenue=avenue_t.format(s=subj),
         search={"card_type": subj},
-        serve=Serve(oracle=re.compile(rf"\b{esc}s?\b", _IC)),
+        serve=Serve(
+            oracle=re.compile(serve_oracle, _IC),
+            keywords=frozenset({"changeling"}) if is_type_tribal else frozenset(),
+        ),
         extras=(_payoff_extra(subj, esc),),
     )
 

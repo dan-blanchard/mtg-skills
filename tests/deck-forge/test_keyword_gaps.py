@@ -415,3 +415,152 @@ class TestEnchantmentsCastAugment:
             "oracle_text": "Whenever you cast an enchantment spell, you may draw a card.",
         }
         assert serves(verduran, _sig("enchantments_matter", "you"))
+
+
+# ── Batch E: subtype avenues, tribal wiring, low-severity, conflict resolutions ─
+class TestSagaMatters:
+    """Saga-matters (CR 714/702.155) commanders (Tom Bombadil, Narci) care about chapter
+    retriggers / lore counters; enchantments_matter serves Sagas as enchantments but
+    catches only 1/14 chapter-retrigger payoffs."""
+
+    LORD = {
+        "name": "Test Saga Lord",
+        "type_line": "Legendary Creature — Avatar",
+        "oracle_text": "Sagas you control have read ahead.\nWhenever you put one or more lore counters on a Saga, draw a card.",
+    }
+
+    def test_saga_commander_emits(self):
+        assert "saga_matters" in _keys(self.LORD)
+
+    def test_saga_search_is_subtype_and_serves(self):
+        spec = spec_for(_sig("saga_matters", "you"))
+        assert spec.search == {"card_type": "Saga"}
+        assert serves(self.LORD, _sig("saga_matters", "you"))
+        # a Saga enabler is served via its subtype
+        assert serves(
+            {
+                "name": "Fall of the Thran",
+                "type_line": "Enchantment — Saga",
+                "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)",
+            },
+            _sig("saga_matters", "you"),
+        )
+
+
+class TestLessonsMatter:
+    """Lessons (CR 701.48) — typed_spellcast drops "Lesson" (subject validated against
+    creature-subtype vocab), so a Lessons commander had no avenue; needs type:Lesson."""
+
+    def test_lesson_commander_emits(self):
+        iroh = {
+            "name": "Uncle Iroh",
+            "type_line": "Legendary Creature — Human",
+            "oracle_text": "Lesson spells you cast cost {1} less.\nWhenever you cast a Lesson spell, you gain 2 life.",
+        }
+        assert "lessons_matter" in _keys(iroh)
+
+    def test_lesson_search_is_subtype_and_serves(self):
+        spec = spec_for(_sig("lessons_matter", "you"))
+        assert spec.search == {"card_type": "Lesson"}
+        assert serves(
+            {
+                "name": "Environmental Sciences",
+                "type_line": "Sorcery — Lesson",
+                "oracle_text": "Search your library for a basic land card, reveal it, put it into your hand.",
+            },
+            _sig("lessons_matter", "you"),
+        )
+
+
+class TestPlayFromTopAlreadyCovered:
+    """The audit proposed play_from_top_matters, but play_from_top already exists (a
+    stale-vocab false gap). Pin that it covers the cited card so we don't re-add it."""
+
+    def test_existing_play_from_top_covers_oracle_of_mul_daya(self):
+        oracle = {
+            "name": "Oracle of Mul Daya",
+            "type_line": "Creature — Elf Shaman",
+            "oracle_text": "Play with the top card of your library revealed.\nYou may play lands from the top of your library.",
+        }
+        assert "play_from_top" in _keys(oracle)
+        assert serves(oracle, _sig("play_from_top", "you"))
+
+
+class TestChangelingTribalEnabler:
+    """Changelings (CR 702.73a) are every creature type, but they type-line as
+    "Shapeshifter", so {card_type: <subtype>} tribal searches miss all 62 of them for
+    every tribe. Inject them into the tribal serve."""
+
+    MAULER = {
+        "name": "Taurean Mauler",
+        "type_line": "Creature — Shapeshifter",
+        "oracle_text": "Changeling (This card is every creature type.)",
+        "keywords": ["Changeling"],
+    }
+
+    def test_changeling_served_by_any_tribe(self):
+        assert serves(self.MAULER, _sig("type_matters", "you", "Goblin"))
+        assert serves(self.MAULER, _sig("type_matters", "you", "Elf"))
+
+    def test_type_granter_served(self):
+        nexus = {
+            "name": "Maskwood Nexus",
+            "type_line": "Artifact",
+            "oracle_text": "Creatures you control are every creature type.",
+        }
+        assert serves(nexus, _sig("type_matters", "you", "Zombie"))
+
+    def test_unrelated_creature_not_served_as_tribe(self):
+        bear = {
+            "name": "Grizzly Bears",
+            "type_line": "Creature — Bear",
+            "oracle_text": "",
+            "keywords": [],
+        }
+        assert not serves(bear, _sig("type_matters", "you", "Goblin"))
+
+
+class TestParadoxPayoffs:
+    """Paradox (CR 207.2c / 601.2): "cast a spell from anywhere other than your hand"
+    payoffs (Vega, Iraxxa). cast_from_exile's serve needs the literal "from exile" and
+    misses 16/17 — surface them as a sub-avenue under cast_from_exile."""
+
+    VEGA = {
+        "name": "Vega, the Watcher",
+        "type_line": "Legendary Creature — Bird",
+        "oracle_text": "Whenever you cast a spell from anywhere other than your hand, draw a card.",
+    }
+
+    def test_paradox_commander_emits_cast_from_exile(self):
+        assert "cast_from_exile" in _keys(self.VEGA)
+
+    def test_paradox_subavenue_serves_vega(self):
+        spec = spec_for(_sig("cast_from_exile", "you"))
+        extra = next((e for e in spec.extras if "Paradox" in e.label), None)
+        assert extra is not None
+        assert extra.serve.matches(self.VEGA)
+
+
+class TestTimeCountersWiden:
+    """suspend_matters existed but served only `\\bsuspend\\b`. Widen the same avenue to
+    the time-counter superstructure (CR 701.56 time travel / 702.63 vanishing / impending
+    / As Foretold) rather than adding a duplicate key."""
+
+    AS_FORETOLD = {
+        "name": "As Foretold",
+        "type_line": "Enchantment",
+        "oracle_text": "At the beginning of your upkeep, put a time counter on As Foretold.\nOnce each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value less than or equal to the number of time counters on As Foretold.",
+    }
+    VANISHING = {
+        "name": "Aeon Chronicler",
+        "type_line": "Creature — Avatar",
+        "oracle_text": "Vanishing\nSuspend X",
+        "keywords": ["Vanishing", "Suspend"],
+    }
+
+    def test_time_counter_card_emits_suspend_matters(self):
+        assert "suspend_matters" in _keys(self.AS_FORETOLD)
+
+    def test_vanishing_keyword_served(self):
+        assert serves(self.VANISHING, _sig("suspend_matters", "you"))
+        assert serves(self.AS_FORETOLD, _sig("suspend_matters", "you"))

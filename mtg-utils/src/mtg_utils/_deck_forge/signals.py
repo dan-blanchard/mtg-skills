@@ -463,7 +463,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|spells? you cast from exile"
             r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
             r"[^.]*?(?:for as long as it remains exiled|from exile)"
-            r"|you may play (?:a |that )?card[^.]*?from exile",
+            r"|you may play (?:a |that )?card[^.]*?from exile"
+            # Paradox (CR 207.2c): zone-agnostic "from anywhere other than your hand"
+            # payoffs (Vega, Iraxxa) — the literal-"from exile" branches miss 16/17.
+            r"|(?:cast a spell|play a land|play a card)[^.]*?"
+            r"from anywhere other than your hand",
             re.IGNORECASE,
         ),
         "you",
@@ -969,6 +973,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|flying|can't be blocked)\b"
             r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
             re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # Lessons (CR 701.48): typed_spellcast drops "Lesson" (its subject vocab is
+    # creature-only), so a Lessons commander (Uncle Iroh, Aang) had no avenue.
+    ("lessons_matter", re.compile(r"\blesson\b", re.IGNORECASE), "you"),
+    # Widen the existing suspend_matters avenue (sweep fires only on "suspend") to the
+    # whole time-counter superstructure: CR 701.56 time travel, 702.63 Vanishing,
+    # Impending, and the cross-pool enablers/payoffs (As Foretold, Jhoira, Dust of
+    # Moments) that manipulate time counters without bearing Suspend themselves.
+    (
+        "suspend_matters",
+        re.compile(
+            r"time counter|time travel|\bvanishing\b|\bimpending\b", re.IGNORECASE
         ),
         "you",
     ),
