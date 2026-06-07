@@ -13,13 +13,14 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
-from mtg_utils._deck_forge import views
+from mtg_utils._deck_forge import staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
+from mtg_utils.format_config import FORMAT_CONFIGS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
@@ -102,6 +103,52 @@ def partner_search(state: ForgeState) -> dict | None:
     if record is None:
         return None
     return valid_partner_search(record)
+
+
+def _legality_key(fmt: str) -> str:
+    cfg = FORMAT_CONFIGS.get(fmt)
+    return cfg["legality_key"] if cfg else "commander"
+
+
+def staple_pool(state: ForgeState) -> list[dict]:
+    """The curated 'good stuff' staples offered to this deck — the hardcoded staple
+    list (see ``staples``) filtered to the deck's color identity AND format legality,
+    resolved from the bulk index. Empty without bulk. This is the candidate source for
+    the always-present Staples avenue (a name list, not a search pattern)."""
+    if not state.by_name:
+        return []
+    return staples.staples_for(
+        deck_color_identity(state),
+        state.by_name,
+        legality_key=_legality_key(state.session.format),
+    )
+
+
+def staples_serve() -> dict:
+    """The name serve shared by the Staples avenue and its explore call, so ranking
+    credits every curated staple as on-theme for that avenue."""
+    return {"names": sorted(staples.staple_names())}
+
+
+def staples_avenue(state: ForgeState) -> dict | None:
+    """The always-present 'Staples / good stuff' avenue, or ``None`` when no staple is
+    in-identity and format-legal (so an empty avenue never renders). Its candidates are
+    resolved at explore time via ``staple_pool``; the name serve lets ranking credit
+    every staple as on-theme for this avenue."""
+    if not staple_pool(state):
+        return None
+    return {
+        "id": "engine:staples",
+        "label": "Staples / good stuff",
+        "description": (
+            "cards that are good in most commander decks — ramp, fixing, removal, "
+            "card draw, interaction, protection — filtered to your colors and format"
+        ),
+        "scope": "you",
+        "source": "engine",
+        "search": {"staples": True},
+        "serve": staples_serve(),
+    }
 
 
 def _violation_message(category: str, violation: dict) -> dict:
@@ -253,6 +300,11 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                     extra.serve,
                 )
             )
+    # Always-present "good stuff" avenue — independent of the deck's signals, so even a
+    # signal-less commander gets a curated staples shortlist (scoped to colors/format).
+    sa = staples_avenue(state)
+    if sa is not None:
+        out.append(sa)
     out.extend(state.agent_avenues)
     return out
 

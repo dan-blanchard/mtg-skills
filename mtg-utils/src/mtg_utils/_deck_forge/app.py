@@ -436,18 +436,32 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         if not state.bulk_available:
             return _no_bulk()
         fmt = state.session.format
-        filters = engine.explore_filters(
-            payload.search, color_identity=engine.deck_color_identity(state), fmt=fmt
-        )
-        found = state.search_fn(
-            limit=_EXPLORE_POOL, paper_only=engine.paper_only(fmt), **filters
-        )
+        # The Staples avenue is a curated NAME list, not a search pattern: resolve it
+        # directly from the bulk index (color-identity- and format-filtered) instead of
+        # routing through search_fn, and credit it via its name serve so the staples
+        # don't read as zero-fit irrelevant hits.
+        if payload.search.get("staples"):
+            found = engine.staple_pool(state)
+            explored = {
+                "label": payload.label,
+                "search": payload.search,
+                "serve": engine.staples_serve(),
+            }
+        else:
+            filters = engine.explore_filters(
+                payload.search,
+                color_identity=engine.deck_color_identity(state),
+                fmt=fmt,
+            )
+            found = state.search_fn(
+                limit=_EXPLORE_POOL, paper_only=engine.paper_only(fmt), **filters
+            )
+            # Credit candidates for the avenue actually being explored, so a card the
+            # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
+            explored = {"label": payload.label, "search": payload.search}
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
         sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
-        # Credit candidates for the avenue actually being explored, so a card the
-        # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
-        explored = {"label": payload.label, "search": payload.search}
         ranked = rank_candidates(
             fresh, active_signals=sigs, avenues=[explored, *state.agent_avenues]
         )
