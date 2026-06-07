@@ -1047,7 +1047,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|spells? your opponents cast",
     ),
     # Drop the bare `opponents? draws?` — it matched group-hug GIFT effects (Master of
-    # the Feast) that HAND opponents cards rather than punishing the draw (a scope flip).
+    # the Feast) that HAND opponents cards rather than punishing the draw.
     ("opponent_draw_matters", "opponents"): _spec(
         "Punish opponents' draw",
         "wheels and draw-denial punishers that trigger on opponents drawing",
