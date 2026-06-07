@@ -863,3 +863,57 @@ class TestStructuredServeFixes3:
         }
         assert serves(niv, sig) is True  # noncombat-damage-to-opponent payoff
         assert serves(vanilla_menace, sig) is False
+
+
+class TestSweepDetectorFixes:
+    """Mined sweep-detector regexes whose open-ended alternations over-fire."""
+
+    def test_self_counter_grow_is_self_only_not_distribution(self):
+        """The `put … +1/+1 counter on [A-Z][a-z]+` branch matched any capitalized
+        word after 'on' — so distributors (counter on target Knight / on target
+        creature for each Elf) read as SELF-growth (~1072 FP). Self-growth only."""
+        sig = _sig("self_counter_grow", "you")
+        walking_ballista = {
+            "type_line": "Artifact Creature — Construct",
+            "oracle_text": "This creature enters with X +1/+1 counters on it.\n{4}: Put a +1/+1 counter on this creature.",
+        }
+        venerable_knight = {
+            "type_line": "Creature — Human Knight",
+            "oracle_text": "When this creature dies, put a +1/+1 counter on target Knight you control.",
+        }
+        immaculate = {
+            "type_line": "Creature — Elf Shaman",
+            "oracle_text": "{T}: Put a +1/+1 counter on target creature for each Elf you control.",
+        }
+        assert serves(walking_ballista, sig) is True
+        assert serves(venerable_knight, sig) is False
+        assert serves(immaculate, sig) is False
+
+    def test_facedown_requires_morph_vocab_not_bare_face_down(self):
+        """The bare `face-down|face down` and `is turned face up` branches matched
+        impulse/hideaway exile ('exile one face down'). Require the morph/manifest
+        vocabulary or the 'face-down creature(s)' payoff noun (~212 FP)."""
+        sig = _sig("facedown_matters", "you")
+        secret_plans = {
+            "type_line": "Enchantment",
+            "oracle_text": "Face-down creatures you control get +0/+1.\nWhenever a permanent you control is turned face up, draw a card.",
+        }
+        morph_creature = {
+            "type_line": "Creature — Beast",
+            "oracle_text": "Morph {2}{G} (You may cast this card face down as a 2/2 creature for {3}.)",
+            "keywords": ["Morph"],
+        }
+        gonti = {
+            "type_line": "Legendary Creature — Aetherborn Rogue",
+            "oracle_text": "Deathtouch\nWhen Gonti enters, look at the top four cards of target opponent's library, exile one of them face down, then put the rest on the bottom.",
+            "keywords": ["Deathtouch"],
+        }
+        spinerock = {
+            "type_line": "Land",
+            "oracle_text": "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom.)",
+            "keywords": ["Hideaway"],
+        }
+        assert serves(secret_plans, sig) is True  # face-down creatures payoff
+        assert serves(morph_creature, sig) is True  # morph vocab
+        assert serves(gonti, sig) is False  # impulse exile "face down"
+        assert serves(spinerock, sig) is False  # hideaway exile "face down"

@@ -240,13 +240,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "self_counter_grow",
         "scope": "you",
         "is_widen_of": "counters_matter",
-        "regex": "enters with (?:x|\\d+|a|an|one|two|three) \\+1/\\+1 counters? on (?:him|her|it|this)|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on (?:him|her|it|this creature|[A-Z][a-z]+)(?:\\b| )|put two \\+1/\\+1 counters? on [A-Z]|put three \\+1/\\+1 counters? on [A-Z]|put that many \\+1/\\+1 counters? on",
+        "regex": "enters with (?:x|\\d+|a|an|one|two|three) \\+1/\\+1 counters? on (?:him|her|it|itself|this)|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)\\b|put that many \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)",
     },
     {
         "key": "facedown_matters",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "face-down|face down|\\bmorph\\b|\\bmanifest\\b|\\bdisguise\\b|\\bcloak\\b|turn[^.]*face up|is turned face up",
+        "regex": "\\bmorph\\b|\\bmegamorph\\b|\\bmanifest\\b|\\bdisguise\\b|\\bcloak\\b|face-?down creatures?|as a 2/2 face-?down|turn (?:it|that creature|this creature|them|a permanent you control) face up",
     },
     {
         "key": "targeting_matters",
