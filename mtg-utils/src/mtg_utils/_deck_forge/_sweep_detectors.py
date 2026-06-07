@@ -42,7 +42,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "count_anthem",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "(?:creatures you control get|each creature you control gets|[A-Z][a-z]+ gets?) [+]\\d+/[+]\\d+ for each",
+        "regex": "(?:creatures you control get|each creature you control gets) [+]\\d+/[+]\\d+ for each",
     },
     {
         "key": "tapper_engine",

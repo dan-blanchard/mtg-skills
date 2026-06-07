@@ -1064,3 +1064,110 @@ class TestStructuredServeFixes4:
         served_m = set(score_candidate(murder, active_signals=[], avenues=[avenue])["served"])
         assert spec.label not in served_cs  # counterspell is not a crime enabler
         assert spec.label in served_m  # targeted removal is
+
+
+class TestMediumServeFixes:
+    """MEDIUM findings: recall recoveries via type/keyword/produced_mana, plus serve
+    tightenings that drop a bad branch. Each pins the audit's +/- fixtures."""
+
+    def _ck(self, key, scope, plus, minus):
+        sig = _sig(key, scope)
+        for card in plus:
+            assert serves(card, sig) is True, (key, card.get("name"))
+        for card in minus:
+            assert serves(card, sig) is False, (key, card.get("name"))
+
+    def test_historic_serves_legendary_artifact_saga_types(self):
+        self._ck(
+            "historic_matters", "you",
+            [
+                {"name": "Sol Ring", "type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."},
+                {"name": "The Eldest Reborn", "type_line": "Enchantment — Saga", "oracle_text": "..."},
+                {"name": "Urza", "type_line": "Legendary Creature — Human Artificer", "oracle_text": "..."},
+            ],
+            [{"name": "Llanowar Elves", "type_line": "Creature — Elf Druid", "oracle_text": "{T}: Add {G}."}],
+        )
+
+    def test_legends_serves_legendary_type(self):
+        self._ck(
+            "legends_matter", "you",
+            [{"name": "Jodah", "type_line": "Legendary Creature — Human Wizard", "oracle_text": "..."}],
+            [{"name": "Island", "type_line": "Basic Land — Island", "oracle_text": ""}],
+        )
+
+    def test_party_serves_party_classes_not_bare_word(self):
+        self._ck(
+            "party_matters", "you",
+            [
+                {"name": "Archpriest", "type_line": "Creature — Human Cleric", "oracle_text": "..."},
+                {"name": "Tazri", "type_line": "Legendary Creature — Human Warrior", "oracle_text": "Your party..."},
+            ],
+            [{"name": "Tavern", "type_line": "Sorcery", "oracle_text": "You meet in a tavern. The party gathers."}],
+        )
+
+    def test_ramp_serves_via_produced_mana(self):
+        self._ck(
+            "ramp_matters", "you",
+            [
+                {"name": "Birds", "type_line": "Creature — Bird", "oracle_text": "Flying\n{T}: Add one mana of any color.", "produced_mana": ["W", "U", "B", "R", "G"]},
+                {"name": "Sol Ring", "type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}.", "produced_mana": ["C"]},
+                {"name": "Cultivate", "type_line": "Sorcery", "oracle_text": "Search your library for up to two basic land cards."},
+            ],
+            [{"name": "Bolt", "type_line": "Instant", "oracle_text": "deals 3 damage to any target."}],
+        )
+
+    def test_opponent_draw_drops_gift_effects(self):
+        self._ck(
+            "opponent_draw_matters", "opponents",
+            [{"name": "Bowmasters", "type_line": "Creature — Orc Archer", "oracle_text": "Whenever an opponent draws a card except the first one they draw in each of their draw steps, this creature deals 1 damage to any target."}],
+            [{"name": "Master of the Feast", "type_line": "Creature — Demon", "oracle_text": "Flying\nAt the beginning of your end step, each opponent draws a card."}],
+        )
+
+    def test_tokens_matter_anchors_token_enters(self):
+        self._ck(
+            "tokens_matter", "you",
+            [{"name": "Cathars Crusade", "type_line": "Enchantment", "oracle_text": "Whenever a creature you control enters, put a +1/+1 counter on each creature you control.\nTokens you control..."}],
+            [{"name": "Darksteel Splicer", "type_line": "Creature", "oracle_text": "Whenever a nontoken creature you control enters, it becomes an artifact."}],
+        )
+
+    def test_exile_removal_excludes_blink(self):
+        self._ck(
+            "exile_removal", "you",
+            [{"name": "Swords", "type_line": "Instant", "oracle_text": "Exile target creature. Its controller gains life equal to its power."}],
+            [{"name": "Ephemerate", "type_line": "Instant", "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control."}],
+        )
+
+    def test_bounce_tempo_constrains_object(self):
+        self._ck(
+            "bounce_tempo", "you",
+            [{"name": "Boomerang", "type_line": "Instant", "oracle_text": "Return target permanent to its owner's hand."}],
+            [{"name": "Reprieve", "type_line": "Instant", "oracle_text": "Return target spell to its owner's hand. Its owner may play it again this turn."}],
+        )
+
+    def test_count_anthem_drops_self_scaling_branch(self):
+        self._ck(
+            "count_anthem", "you",
+            [{"name": "Intangible Virtue", "type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1 for each artifact you control."}],
+            [{"name": "Storm-Kiln Artist", "type_line": "Creature — Dwarf Shaman", "oracle_text": "Storm-Kiln Artist gets +1/+0 for each artifact you control."}],
+        )
+
+    def test_lifeloss_self_drops_painlands(self):
+        self._ck(
+            "lifeloss_matters", "you",
+            [{"name": "K'rrik", "type_line": "Legendary Creature — Phyrexian Horror", "oracle_text": "Whenever you lose life, ...\nBlack spells you cast cost {2} less and {2} life more."}],
+            [{"name": "Blood Crypt", "type_line": "Land — Swamp Mountain", "oracle_text": "As this land enters, you may pay 2 life. If you don't, it enters tapped.\n{T}: Add {B} or {R}."}],
+        )
+
+    def test_permanent_etb_recovers_etb_engines(self):
+        self._ck(
+            "permanent_etb", "you",
+            [{"name": "Panharmonicon", "type_line": "Artifact", "oracle_text": "If an artifact or creature entering the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time."}],
+            [],
+        )
+
+    def test_gain_control_requires_you_as_controller(self):
+        self._ck(
+            "gain_control", "you",
+            [{"name": "Control Magic", "type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nYou control enchanted creature."}],
+            [{"name": "Sky Swallower", "type_line": "Creature — Leviathan", "oracle_text": "When this creature enters, target opponent gains control of all other permanents you control."}],
+        )

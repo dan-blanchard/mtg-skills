@@ -52,6 +52,7 @@ class Serve:
     keywords: frozenset[str] = frozenset()
     cmc_min: float | None = None
     min_devotion: int | None = None
+    produces_mana: bool = False  # serve if the card has a non-empty produced_mana
     not_oracle: re.Pattern[str] | None = None
 
     def search(self, text: str):
@@ -75,6 +76,8 @@ class Serve:
                 return True
         if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
             return True
+        if self.produces_mana and card.get("produced_mana"):
+            return True
         return (
             self.min_devotion is not None
             and "instant" not in type_line
@@ -96,6 +99,8 @@ class Serve:
             out["cmc_min"] = self.cmc_min
         if self.min_devotion is not None:
             out["min_devotion"] = self.min_devotion
+        if self.produces_mana:
+            out["produces_mana"] = True
         if self.not_oracle is not None:
             out["not_oracle"] = self.not_oracle.pattern
         return out
@@ -108,6 +113,7 @@ class Serve:
             or self.keywords
             or self.cmc_min is not None
             or self.min_devotion is not None
+            or self.produces_mana
             or self.not_oracle is not None
         )
 
@@ -141,6 +147,7 @@ def serve_from_dict(data: dict) -> Serve:
         keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
         cmc_min=data.get("cmc_min"),
         min_devotion=data.get("min_devotion"),
+        produces_mana=bool(data.get("produces_mana")),
         not_oracle=_compile(data.get("not_oracle")),
     )
 
@@ -182,6 +189,7 @@ def _spec(
     serve_keywords=(),
     serve_cmc_min=None,
     serve_min_devotion=None,
+    serve_produces_mana=False,
     serve_not=None,
 ):
     return SignalSpec(
@@ -194,6 +202,7 @@ def _spec(
             keywords=frozenset(k.lower() for k in serve_keywords),
             cmc_min=serve_cmc_min,
             min_devotion=serve_min_devotion,
+            produces_mana=serve_produces_mana,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
         extras=tuple(extras),
@@ -454,11 +463,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"card_type": "Enchantment"},
         r"enchantments? you control|for each enchantment|\bconstellation\b",
     ),
+    # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
+    # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
+    # object to a token in the SAME clause.
     ("tokens_matter", "you"): _spec(
         "Tokens matter",
         "token makers and payoffs that scale with tokens you control",
         {"oracle": r"create [^.]*token"},
-        r"\btokens? you control\b|whenever .*token.*enters|\bpopulate\b",
+        r"\btokens? you control\b"
+        r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
+        r"|\bpopulate\b",
     ),
     # The bare `your opponents` alternative matched any card that merely names opponents
     # (Edric's draw trigger, Telepathy's hand reveal). Serve the actual restriction/tax
@@ -583,11 +597,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
         r"|(?:target player|that player|a player) loses? [^.]*\blife\b",
     ),
+    # The bare `pay \d+ life` matched 39 painlands/fetchlands (Blood Crypt, Sacred
+    # Foundry) that are mana fixing, not a life-as-resource engine. VETO lands; keep the
+    # lose-life payoff/enabler clauses.
     ("lifeloss_matters", "you"): _spec(
         "Self life-loss",
         "ways to pay or lose life on demand to fuel your payoffs",
         {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
-        r"whenever you lose life|you lose \d+ life|pay \d+ life",
+        r"whenever you (?:gain or )?lose life|you lose (?:\d+|x) life"
+        r"|pay (?:\d+|x) life",
+        serve_not=r"\bas this land enters\b|enters tapped",
     ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
@@ -723,17 +742,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_types=("planeswalker",),
         serve_keywords=("proliferate",),
     ),
+    # Historic (CR 700.6) = artifact, legendary, OR Saga — all type_line tokens. The
+    # serve named only the keyword; gate on the three structural categories.
     ("historic_matters", "you"): _spec(
         "Historic",
         "artifacts, legendaries, and Sagas — the historic permanents that trigger it",
         {"oracle": r"\bhistoric\b|\blegendary\b|\bsaga\b"},
         r"\bhistoric\b",
+        serve_types=("legendary", "artifact", "saga"),
     ),
     ("legends_matter", "you"): _spec(
         "Legends matter",
         "legendary creatures and the payoffs that reward a board of legends",
         {"oracle": r"\blegendary\b"},
         r"legendary creatures? you control|another legendary|for each legendary",
+        serve_types=("legendary",),
     ),
     ("big_hand_matters", "you"): _spec(
         "Big hand / no max hand size",
@@ -741,11 +764,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"cards in your hand|no maximum hand size"},
         r"maximum hand size|cards in your hand",
     ),
+    # A party (CR 700.x) is one each of Cleric/Rogue/Warrior/Wizard — those creature
+    # SUBTYPES are the members. The bare `\bparty\b` caught 3 flavor FPs; gate the
+    # members on the subtype field, keep the party-phrase oracle for the payoffs.
     ("party_matters", "you"): _spec(
         "Party",
         "Clerics, Rogues, Warriors, and Wizards to assemble a full party",
         {"oracle": r"your party|assemble.*party|\bcleric|\brogue|\bwarrior|\bwizard"},
-        r"\bparty\b",
+        r"your party|members? of your party|full party|creatures? in your party"
+        r"|assemble[^.]*party",
+        serve_types=("cleric", "rogue", "warrior", "wizard"),
     ),
     ("exile_matters", "you"): _spec(
         "Exile pile matters",
@@ -904,11 +932,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|deals? (?:\d+|x|that much) [^.\n]*damage to "
         r"(?:target (?:creature|permanent|planeswalker)|any target)",
     ),
+    # VETO exile-and-return (blink): a card that exiles a creature then returns it is a
+    # flicker engine, not removal (Ephemerate, Cloudshift) — CR 603.6e.
     ("exile_removal", "you"): _spec(
         "Exile removal",
         "exile-based removal that bypasses indestructible and stops recursion",
         {"oracle": r"exile target (?:creature|permanent|artifact|enchantment)"},
         r"exile target (?:creature|permanent|artifact|enchantment|nonland)",
+        serve_not=r"return (?:it|them|that card|those cards|that permanent)"
+        r"[^.]*battlefield",
     ),
     ("counter_control", "you"): _spec(
         "Counterspells / control",
@@ -916,11 +948,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"counter target"},
         r"counter target",
     ),
+    # The bare `… (gain|have)` tail matched any "creatures you control gain/have X". Tie
+    # it to the actual keyword-grant list or a static (+N/+N, not "until end of turn")
+    # anthem, so a one-shot pump or a non-keyword clause doesn't read as a team grant.
     ("team_buff", "you"): _spec(
         "Team keyword grants",
         "keyword grants and anthems for your board",
         {"oracle": r"creatures you control (?:gain|have)"},
-        r"creatures? you control (?:gain|gains|have|has)",
+        r"creatures? you control (?:gain|gains|have|has) (?:flying|trample|menace"
+        r"|hexproof|indestructible|protection|deathtouch|lifelink|double strike"
+        r"|first strike|vigilance|haste|ward|reach)"
+        r"|creatures you control get \+\d+/\+\d+",
+        serve_not=r"creatures you control get \+\d+/\+\d+ until end of turn",
     ),
     ("tutor_matters", "you"): _spec(
         "Tutors",
@@ -934,17 +973,26 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"untap (?:target|all|another|each)"},
         r"untap (?:target|all|another|each)",
     ),
+    # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
+    # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
     ("gain_control", "you"): _spec(
         "Theft",
         "steal effects and ways to keep or sacrifice what you take",
         {"oracle": r"gain control of"},
-        r"gain control of",
+        r"you (?:gain|may gain) control of|gain control of (?:target|all|each|another)"
+        r"|you control enchanted (?:creature|permanent)"
+        r"|you may (?:play|cast)[^.]*from (?:that|target) (?:player|opponent)",
+        serve_not=r"(?:opponent|another player|target player|that player) "
+        r"gains control of",
     ),
+    # Align the serve with the extraction regex so the wheel-punishers and "each
+    # opponent/player discards" forms (Bottomless Pit, Hymn) are recovered.
     ("opponent_discard", "opponents"): _spec(
         "Hand attack",
         "forced discard and hand disruption aimed at opponents",
         {"oracle": r"opponent discards|each player discards|target player discards"},
-        r"opponent[^.]*discards|each player discards|target player discards",
+        r"(?:each opponent|target opponent|an opponent|that opponent|each player"
+        r"|target player|that player) discards|opponent[^.]*discards",
     ),
     # Bare `can't be blocked` matched the menace/flying REMINDER "can't be blocked
     # except by …" on vanilla evasive creatures (~673). Exclude the "except" form (a
@@ -969,11 +1017,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"onto the battlefield from your (?:hand|library)"
         r"|put .*creature card.*onto the battlefield",
     ),
+    # Greedy `return target .*owner's hand` matched "return target spell" (Reprieve →
+    # counterspell space) and spanned clauses. Constrain the object + the dot.
     ("bounce_tempo", "you"): _spec(
         "Bounce / tempo",
         "bounce effects for tempo and ETB re-use",
         {"oracle": r"return target .*to (?:its|their) owner's hand"},
-        r"return target .*owner's hand",
+        r"return (?:up to \w+ )?target (?:creature|permanent|nonland permanent)"
+        r"[^.\n]*to (?:its|their) owner's hand",
     ),
     ("cascade_matters", "you"): _spec(
         "Cascade",
@@ -987,17 +1038,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bregenerate\b"},
         r"\bregenerate\b",
     ),
+    # Drop the bare `opponents? cast` — only the TRIGGER/tax forms are punishers.
     ("opponent_cast_matters", "opponents"): _spec(
         "Punish opponents' spells",
         "taxes and punishers that trigger when opponents cast",
         {"oracle": r"whenever an opponent casts|spells? your opponents cast"},
-        r"whenever an opponent casts|opponents? cast",
+        r"whenever an opponent casts|whenever a player casts"
+        r"|spells? your opponents cast",
     ),
+    # Drop the bare `opponents? draws?` — it matched group-hug GIFT effects (Master of
+    # the Feast) that HAND opponents cards rather than punishing the draw (a scope flip).
     ("opponent_draw_matters", "opponents"): _spec(
         "Punish opponents' draw",
         "wheels and draw-denial punishers that trigger on opponents drawing",
         {"oracle": r"whenever an opponent draws|each opponent draws"},
-        r"whenever an opponent draws|opponents? draws?",
+        r"whenever an opponent draws|whenever each opponent draws"
+        r"|whenever a player (?:other than you )?draws"
+        r"|whenever a player draws a card (?:except|other than)",
     ),
     ("opponent_search_matters", "opponents"): _spec(
         "Punish opponents' tutors / selection",
@@ -1013,12 +1070,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"deals (?:noncombat )?damage to (?:a player|an opponent|one of your opponents"
         r"|that player|each opponent)|can't be blocked(?! except)|\bunblockable\b",
     ),
+    # `enters the battlefield` is a DEAD branch — Scryfall templated the phrase down to
+    # bare "enters" years ago (CR glossary), so it matched ~1 card and the serve missed
+    # every Panharmonicon/Yarok ETB-engine. Key on the ETB-trigger / flicker clauses.
     ("permanent_etb", "you"): _spec(
         "Permanents entering",
         "cheap permanents, token makers, and flicker to repeatedly trigger your "
         "permanent enters-the-battlefield value engine",
         {"oracle": r"create [^.]*token|enters the battlefield"},
-        r"create [^.]*token|put [^.]*onto the battlefield|enters the battlefield",
+        r"create [^.]*token|put [^.]*onto the battlefield"
+        r"|when (?:this|[A-Z][\w']+)[^.]*enters"
+        r"|(?:a|an|another|one or more)[^.]*permanents? you control enters"
+        r"|(?:artifact or creature|creature or artifact)[^.]*enter",
     ),
     # Serve was `…|\bequipment\b|whenever[^.]*attacks`, which matched any creature
     # that merely mentions equipment or attacks (~1104). The avenue is Equipment-for-a-
