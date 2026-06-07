@@ -1,8 +1,11 @@
-"""deck-forge FastAPI app factory.
+"""deck-forge FastAPI app factory — the transport adapter.
 
-``build_app(state)`` wires the deterministic endpoints, the SSE stream, and (when a
-built SPA is present) static file serving. Everything the app needs is injected via
-``ForgeState`` so the endpoints are testable without Scryfall bulk data on disk.
+``build_app(state)`` wires the HTTP endpoints, the SSE stream, and (when a built SPA is
+present) static file serving. Each route is a thin adapter: parse the payload, call the
+``engine`` (deck analysis over ``ForgeState``) and ``views`` (wire serialization), apply
+side effects (mutation / autosave / SSE publish), and return. Everything the app needs
+is injected via ``ForgeState`` so the endpoints are testable without bulk data on disk;
+the deck logic itself is tested directly through ``engine`` / ``views``.
 """
 
 from __future__ import annotations
@@ -16,37 +19,18 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from mtg_utils._deck_forge.budgets import role_of, slot_budgets
+from mtg_utils._deck_forge import engine, views
+from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.exporters import export_as
-from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
-from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.card_classify import is_commander, valid_partner_search
-from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.hydrated_deck import HydratedDeck
-from mtg_utils.legality_audit import legality_audit
+from mtg_utils.deck_stats import deck_stats
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.theme_presets import list_presets
 
 VERSION = "0.1.0"
-_VALID_ZONES = ("commanders", "cards", "sideboard")
-_DECK_SIZE = {"commander": 100, "historic_brawl": 100, "brawl": 60}
-_PAPER_FORMATS = {"commander"}
-# deck_minimum is intentionally excluded: a deck-in-progress is always below the
-# size minimum, so it's the normal building state, not a warning.
-_AUDIT_CATEGORIES = (
-    "format_legality",
-    "commander_zone",
-    "color_identity",
-    "copy_limits",
-    "sideboard_size",
-)
 _PACKAGE_LIMIT = 12
-# Low-land defensibility heuristic (D8): a low avg CMC backed by cheap card advantage.
-_DEFENSIBLE_AVG_CMC = 2.3
-_DEFENSIBLE_CHEAP_CA = 8
 
 _PLACEHOLDER_INDEX = """<!doctype html>
 <html lang="en">
@@ -102,18 +86,6 @@ class ExplorePayload(BaseModel):
     search: dict = {}
 
 
-# Only these card_search kwargs may come from an avenue's stored search spec.
-_EXPLORE_KEYS = (
-    "oracle",
-    "card_type",
-    "name",
-    "cmc_min",
-    "cmc_max",
-    "price_min",
-    "price_max",
-)
-
-
 class NewBuildPayload(BaseModel):
     format: str = "commander"
     name: str = "Untitled"
@@ -126,21 +98,6 @@ class LoadBuildPayload(BaseModel):
 class RenameBuildPayload(BaseModel):
     id: str
     name: str
-
-
-def _autosave(state: ForgeState) -> None:
-    if state.store is not None:
-        state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
-
-
-def _clamp_timeout(timeout: float) -> float:
-    return max(0.0, min(timeout, 30.0))
-
-
-def _hd(state: ForgeState) -> HydratedDeck:
-    """One HydratedDeck per request, joining the live session against the bulk index.
-    Build it once at a handler's entry and thread it — every deck analysis reads it."""
-    return HydratedDeck.from_session(state.session, state.by_name)
 
 
 class SearchPayload(BaseModel):
@@ -160,266 +117,26 @@ class SearchPayload(BaseModel):
     limit: int = 25
 
 
-def _project(record: dict, fmt: str) -> dict:
-    """Display fields for one real card record (no name/quantity). ``fmt`` is the
-    deck's format, so ``can_be_commander`` reflects the right legality mode (different
-    cards are commander-eligible in commander vs brawl vs historic_brawl)."""
-    return {
-        "type_line": record.get("type_line", ""),
-        "mana_cost": record.get("mana_cost", ""),
-        "cmc": record.get("cmc", 0.0),
-        "color_identity": record.get("color_identity", []),
-        "oracle_text": record.get("oracle_text", ""),
-        "rarity": record.get("rarity", ""),
-        "prices": record.get("prices", {}),
-        "images": image_urls(record),
-        "game_changer": record.get("game_changer"),
-        "can_be_commander": is_commander(record, fmt)["eligible"],
-        "layout": record.get("layout", ""),
-    }
+def _autosave(state: ForgeState) -> None:
+    if state.store is not None:
+        state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
 
 
-def _card_view(name: str, qty: int, by_name: dict[str, dict], fmt: str) -> dict:
-    record = by_name.get(name)
-    if record is None:
-        return {"name": name, "quantity": qty, "unknown": True}
-    return {"name": name, "quantity": qty, "unknown": False, **_project(record, fmt)}
-
-
-def _deck_view(state: ForgeState) -> dict:
-    deck = state.session.to_deck_dict()
-    by_name = state.by_name
-    fmt = deck["format"]
-    return {
-        "format": fmt,
-        **{
-            zone: [
-                _card_view(e["name"], e["quantity"], by_name, fmt) for e in deck[zone]
-            ]
-            for zone in _VALID_ZONES
-        },
-    }
+def _clamp_timeout(timeout: float) -> float:
+    return max(0.0, min(timeout, 30.0))
 
 
 def _zone_error(zone: str) -> JSONResponse | None:
-    if zone not in _VALID_ZONES:
+    if zone not in views.VALID_ZONES:
         return JSONResponse({"error": f"unknown zone {zone!r}"}, status_code=400)
     return None
 
 
-def _snapshot(state: ForgeState) -> dict:
-    hd = _hd(state)
-    stats = deck_stats(hd)
-    return {
-        "build_id": state.build_id,
-        "build_name": state.build_name,
-        "deck": _deck_view(state),
-        "stats": stats,
-        "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
-        "mana": mana_audit(hd),
-        "budgets": slot_budgets(hd.expanded(), deck_size=_deck_size(hd.format)),
-        "signals": [_signal_dict(s) for s in _ranked_deck_signals(state, hd.records)],
-        "avenues": _avenues(state, hd.records),
-        "warnings": _legality_warnings(hd),
-    }
-
-
-def _deck_size(fmt: str) -> int:
-    return _DECK_SIZE.get(fmt, 100)
-
-
-def _paper_only(fmt: str | None) -> bool:
-    return fmt in _PAPER_FORMATS
-
-
-def _partner_search(state: ForgeState) -> dict | None:
-    """The ``card_search`` filter for cards legally eligible to be the deck's second
-    commander (CR 702.124), or ``None`` when there's no open partner slot — i.e. the
-    deck doesn't have exactly one commander, or that commander has no partner ability.
-    Used to make the Partner / Background avenue surface only valid partners."""
-    commanders = state.session.to_deck_dict()["commanders"]
-    if len(commanders) != 1:
-        return None  # 0 commanders (unknown) or 2 (slot already filled)
-    record = state.by_name.get(commanders[0]["name"])
-    if record is None:
-        return None
-    return valid_partner_search(record)
-
-
-def _color_identity(state: ForgeState) -> str:
-    """Union of the commanders' color identities (the deck's color identity)."""
-    colors: set[str] = set()
-    for entry in state.session.to_deck_dict()["commanders"]:
-        record = state.by_name.get(entry["name"])
-        if record:
-            colors.update(record.get("color_identity", []))
-    return "".join(sorted(colors))
-
-
-def _violation_message(category: str, violation: dict) -> dict:
-    name = violation.get("name") or violation.get("card") or ""
-    detail = (
-        violation.get("legality")
-        or violation.get("reason")
-        or violation.get("message")
-        or ""
+def _no_bulk() -> JSONResponse:
+    return JSONResponse(
+        {"error": "Scryfall bulk data not found — run `download-bulk` first."},
+        status_code=503,
     )
-    label = category.replace("_", " ")
-    body = name if not detail else (f"{name} ({detail})" if name else str(detail))
-    return {"category": category, "message": f"{label}: {body}".strip(": ")}
-
-
-def _legality_warnings(hd: HydratedDeck) -> list[dict]:
-    audit = legality_audit(hd)
-    violations = audit.get("violations") or {}
-    return [
-        _violation_message(cat, v)
-        for cat in _AUDIT_CATEGORIES
-        for v in (violations.get(cat) or [])
-    ]
-
-
-def _finalize_state(state: ForgeState) -> dict:
-    hd = _hd(state)
-    mana = mana_audit(hd)
-    avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
-    cheap_ca = sum(
-        1 for r in hd.expanded() if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
-    )
-    defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
-    warnings = _legality_warnings(hd)
-    return {
-        "land_status": mana["land_count_status"],
-        "land_count": mana["land_count"],
-        "recommended_land_count": mana["recommended_land_count"],
-        "evidence": {
-            "avg_cmc": avg_cmc,
-            "cheap_card_advantage": cheap_ca,
-            "defensible": defensible,
-        },
-        "legality_status": "FAIL" if warnings else "PASS",
-        "warnings": warnings,
-    }
-
-
-# Engine avenues are capped so the panel reads as "what the deck cares about" (its
-# dominant themes), not an exhaustive every-card dump. Ranking: the commander's own
-# signals first, then by how many cards support the theme, then high-confidence first.
-_AVENUE_CAP = 12
-
-
-def _ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
-    """Deck signals deduped by (key, scope, subject) and ranked by relevance.
-
-    Membership signals (own-subtype tribal, voltron fallback) are taken from the
-    COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
-    theme's ``support`` (how many cards feed it) drives the ranking."""
-    commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
-    support: dict[tuple[str, str, str], int] = {}
-    from_commander: set[tuple[str, str, str]] = set()
-    first: dict[tuple[str, str, str], object] = {}
-    for card in hydrated:
-        is_cmd = card.get("name") in commander_names
-        for sig in extract_signals(card, include_membership=is_cmd):
-            ident = (sig.key, sig.scope, sig.subject)
-            support[ident] = support.get(ident, 0) + 1
-            if is_cmd:
-                from_commander.add(ident)
-            first.setdefault(ident, sig)
-    return sorted(
-        first.values(),
-        key=lambda s: (
-            (s.key, s.scope, s.subject) in from_commander,
-            support[(s.key, s.scope, s.subject)],
-            s.confidence == "high",
-        ),
-        reverse=True,
-    )
-
-
-def _signal_dict(signal) -> dict:
-    spec = spec_for(signal)
-    return {
-        "key": signal.key,
-        "scope": signal.scope,
-        "subject": signal.subject,
-        "source": signal.source,
-        "confidence": signal.confidence,
-        "label": spec.label if spec else signal.key,
-        "avenue": spec.avenue if spec else "",
-        "actionable": spec is not None,
-    }
-
-
-def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
-    """All explorable avenues: engine-derived (from scoped signals with specs)
-    plus any the session-agent has discovered and posted. Each carries the search
-    spec needed to surface its candidates."""
-    out: list[dict] = []
-    # Dedupe by label: a signal that fires at two scopes (you + any) can resolve to
-    # the same scope-agnostic spec, which would otherwise render twice.
-    seen_labels: set[str] = set()
-    for sig in _ranked_deck_signals(state, hydrated):
-        if len(seen_labels) >= _AVENUE_CAP:
-            break
-        spec = spec_for(sig)
-        if spec is None or spec.label in seen_labels:
-            continue
-        main_search = dict(spec.search)
-        # The Partner / Background avenue is commander-specific: replace its generic
-        # "any partner card" search with one scoped to cards that can LEGALLY be this
-        # commander's second commander (CR 702.124). Skip it entirely when there's no
-        # open partner slot.
-        if sig.key == "partner_background":
-            psearch = _partner_search(state)
-            if psearch is None:
-                continue
-            main_search = psearch
-        seen_labels.add(spec.label)
-        # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
-        suffix = f":{sig.subject}" if sig.subject else ""
-        avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
-        out.append(
-            {
-                "id": avenue_id,
-                "label": spec.label,
-                "description": spec.avenue,
-                "scope": sig.scope,
-                "source": "engine",
-                "search": main_search,
-            }
-        )
-        # A signal can fan out into several precise sub-avenues (e.g. the
-        # land-creatures theme: creature-lands / payoffs / animators).
-        for i, extra in enumerate(spec.extras):
-            if extra.label in seen_labels:
-                continue
-            seen_labels.add(extra.label)
-            out.append(
-                {
-                    "id": f"{avenue_id}:{i}",
-                    "label": extra.label,
-                    "description": extra.avenue,
-                    "scope": sig.scope,
-                    "source": "engine",
-                    "search": dict(extra.search),
-                }
-            )
-    out.extend(state.agent_avenues)
-    return out
-
-
-def _explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:
-    filters = {k: search[k] for k in _EXPLORE_KEYS if search.get(k) is not None}
-    presets = search.get("preset_names") or search.get("presets")
-    if presets:
-        filters["preset_names"] = tuple(presets)
-    # An avenue may carry its own color_identity (e.g. partner avenues pass "WUBRG" to
-    # stay color-agnostic — partner legality has no color restriction); otherwise scope
-    # to the deck's identity.
-    filters["color_identity"] = search.get("color_identity") or color_identity
-    filters["format"] = fmt
-    return filters
 
 
 def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAPI:
@@ -432,19 +149,19 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/deck")
     async def deck() -> dict:
-        return {"deck": _deck_view(state)}
+        return {"deck": views.deck_view(state)}
 
     @app.get("/api/snapshot")
     async def snapshot() -> dict:
-        return _snapshot(state)
+        return engine.snapshot(state)
 
     @app.get("/api/stats")
     async def stats() -> dict:
-        return deck_stats(_hd(state))
+        return deck_stats(engine.hydrate(state))
 
     @app.get("/api/mana-audit")
     async def mana() -> dict:
-        return mana_audit(_hd(state))
+        return mana_audit(engine.hydrate(state))
 
     @app.post("/api/deck/add")
     async def add(payload: AddPayload):
@@ -457,7 +174,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         state.session.add(payload.name, payload.qty, zone=payload.zone)
         _autosave(state)
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
@@ -468,7 +185,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return bad_zone
         state.session.remove(payload.name, payload.qty, zone=payload.zone)
         _autosave(state)
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
@@ -477,13 +194,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Change the current build's format (commander / brawl / historic_brawl).
         The deck's cards are kept; everything format-dependent (deck size, land floor,
         legality, commander eligibility) re-derives on the next snapshot."""
-        if payload.format not in _DECK_SIZE:
+        if payload.format not in engine.SUPPORTED_FORMATS:
             return JSONResponse(
                 {"error": f"unsupported format: {payload.format!r}"}, status_code=400
             )
         state.session.format = payload.format
         _autosave(state)
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
@@ -492,7 +209,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
         basics to match color demand (swapping over- for under-produced colors at the
         current count when already at/above the floor)."""
-        plan = reconcile_basic_lands(_hd(state))
+        plan = reconcile_basic_lands(engine.hydrate(state))
         applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
         for name, qty in plan["remove"].items():
             state.session.remove(name, qty, zone="cards")
@@ -502,7 +219,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 state.session.add(name, qty, zone="cards")
                 applied["add"][name] = qty
         _autosave(state)
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         snap["balanced"] = applied
         state.hub.publish(json.dumps(snap))
         return snap
@@ -510,10 +227,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.post("/api/search")
     async def search(payload: SearchPayload):
         if not state.bulk_available:
-            return JSONResponse(
-                {"error": "Scryfall bulk data not found — run `download-bulk` first."},
-                status_code=503,
-            )
+            return _no_bulk()
         records = state.search_fn(
             color_identity=payload.color_identity,
             exact_colors=payload.exact_colors,
@@ -525,18 +239,14 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             price_min=payload.price_min,
             price_max=payload.price_max,
             format=payload.format,
-            paper_only=_paper_only(payload.format),
+            paper_only=engine.paper_only(payload.format),
             preset_names=tuple(payload.presets),
             is_commander_filter=payload.is_commander,
             sort=payload.sort,
             limit=payload.limit,
         )
         fmt = state.session.format
-        return {
-            "results": [
-                {"name": r.get("name", ""), **_project(r, fmt)} for r in records
-            ]
-        }
+        return {"results": [views.result_view(r, fmt) for r in records]}
 
     @app.get("/api/events")
     async def events() -> StreamingResponse:
@@ -544,7 +254,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             # Send current state immediately so a (re)connecting browser re-syncs —
             # e.g. after a server restart — with no manual refresh, and never keeps a
             # stale snapshot (which is how a removed avenue lingered client-side).
-            yield f"data: {json.dumps(_snapshot(state))}\n\n"
+            yield f"data: {json.dumps(engine.snapshot(state))}\n\n"
             async for message in state.hub.stream():
                 yield message
 
@@ -552,8 +262,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/signals")
     async def signals() -> dict:
-        sigs = _ranked_deck_signals(state, _hd(state).records)
-        return {"signals": [_signal_dict(s) for s in sigs]}
+        sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
+        return {"signals": [engine.signal_dict(s) for s in sigs]}
 
     @app.get("/api/presets")
     async def presets() -> dict:
@@ -567,20 +277,19 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/budgets")
     async def budgets() -> dict:
-        records = _hd(state).expanded()
+        records = engine.hydrate(state).expanded()
         return {
-            "budgets": slot_budgets(records, deck_size=_deck_size(state.session.format))
+            "budgets": slot_budgets(
+                records, deck_size=engine.deck_size(state.session.format)
+            )
         }
 
     @app.get("/api/packages")
     async def packages() -> dict:
         if not state.bulk_available:
-            return JSONResponse(
-                {"error": "Scryfall bulk data not found — run `download-bulk` first."},
-                status_code=503,
-            )
-        sigs = _ranked_deck_signals(state, _hd(state).records)
-        ci = _color_identity(state)
+            return _no_bulk()
+        sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
+        ci = engine.deck_color_identity(state)
         fmt = state.session.format
         in_deck = set(state.session.card_names())
         out = []
@@ -589,31 +298,26 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             if spec is None:
                 continue
             if sig.key == "partner_background":
-                psearch = _partner_search(state)
+                psearch = engine.partner_search(state)
                 if psearch is None:
                     continue  # no open partner slot → no partner package
                 filters = {**psearch, "format": fmt}
             else:
                 filters = search_filters(sig, color_identity=ci, fmt=fmt)
-            found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
+            found = state.search_fn(
+                limit=40, paper_only=engine.paper_only(fmt), **filters
+            )
             fresh = [c for c in found if c.get("name") not in in_deck]
-            # Credit candidates for this signal's own avenue (its main search),
-            # not just any agent-added avenues.
+            # Credit candidates for this signal's own avenue (its main search), not
+            # just any agent-added avenues.
             self_avenue = {"label": spec.label, "search": dict(spec.search)}
             ranked = rank_candidates(
                 fresh, active_signals=sigs, avenues=[self_avenue, *state.agent_avenues]
             )[:_PACKAGE_LIMIT]
             out.append(
                 {
-                    "signal": _signal_dict(sig),
-                    "candidates": [
-                        {
-                            "name": r["card"].get("name", ""),
-                            **_project(r["card"], fmt),
-                            "score": r["score"],
-                        }
-                        for r in ranked
-                    ],
+                    "signal": engine.signal_dict(sig),
+                    "candidates": [views.candidate_view(r, fmt) for r in ranked],
                 }
             )
         return {"packages": out}
@@ -631,7 +335,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.build_id = uuid.uuid4().hex[:8]
         state.build_name = payload.name or "Untitled"
         _autosave(state)
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return {"build_id": state.build_id, **snap}
 
@@ -647,7 +351,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.session = DeckSession.from_deck_dict(record.get("deck") or {})
         state.build_id = payload.id
         state.build_name = record.get("name", "Untitled")
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return {"build_id": state.build_id, **snap}
 
@@ -662,7 +366,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             record = state.store.load(payload.id)
             if record is not None:
                 state.store.save(payload.id, payload.name, record.get("deck") or {})
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
@@ -699,7 +403,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "search": payload.search,
         }
         state.agent_avenues.append(avenue)
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return {"avenue": avenue, **snap}
 
@@ -708,25 +412,22 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.agent_avenues[:] = [
             a for a in state.agent_avenues if a["id"] != avenue_id
         ]
-        snap = _snapshot(state)
+        snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
     @app.post("/api/explore")
     async def explore(payload: ExplorePayload) -> dict:
         if not state.bulk_available:
-            return JSONResponse(
-                {"error": "Scryfall bulk data not found — run `download-bulk` first."},
-                status_code=503,
-            )
+            return _no_bulk()
         fmt = state.session.format
-        filters = _explore_filters(
-            payload.search, color_identity=_color_identity(state), fmt=fmt
+        filters = engine.explore_filters(
+            payload.search, color_identity=engine.deck_color_identity(state), fmt=fmt
         )
-        found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
+        found = state.search_fn(limit=40, paper_only=engine.paper_only(fmt), **filters)
         in_deck = set(state.session.card_names())
         fresh = [c for c in found if c.get("name") not in in_deck]
-        sigs = _ranked_deck_signals(state, _hd(state).records)
+        sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
         # Credit candidates for the avenue actually being explored, so a card the
         # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
         explored = {"label": payload.label, "search": payload.search}
@@ -736,24 +437,17 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         return {
             "package": {
                 "label": payload.label,
-                "candidates": [
-                    {
-                        "name": r["card"].get("name", ""),
-                        **_project(r["card"], fmt),
-                        "score": r["score"],
-                    }
-                    for r in ranked
-                ],
+                "candidates": [views.candidate_view(r, fmt) for r in ranked],
             }
         }
 
     @app.get("/api/audit")
     async def audit() -> dict:
-        return {"warnings": _legality_warnings(_hd(state))}
+        return {"warnings": engine.legality_warnings(engine.hydrate(state))}
 
     @app.post("/api/finalize")
     async def finalize(payload: FinalizePayload) -> dict:
-        fs = _finalize_state(state)
+        fs = engine.finalize_state(state)
         land_fail = fs["land_status"] == "FAIL"
         gated = land_fail and not payload.override
         return {
@@ -817,14 +511,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         fmt = state.session.format
 
         def _card_views(names: list[str]) -> list[dict]:
-            out = []
-            for name in names or []:
-                view = {"name": name, "in_deck": name in in_deck}
-                record = state.by_name.get(name)
-                if record is not None:
-                    view.update(_project(record, fmt))
-                out.append(view)
-            return out
+            return [
+                views.combo_card_view(
+                    name, state.by_name.get(name), in_deck=name in in_deck, fmt=fmt
+                )
+                for name in (names or [])
+            ]
 
         for group in ("combos", "near_misses"):
             for combo in result.get(group) or []:

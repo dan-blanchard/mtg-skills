@@ -104,6 +104,24 @@ serves the browser surface, and is the message bus between the browser and the
 Session-agent.
 _Avoid_: "the server" alone (ambiguous about the hub role).
 
+**Engine module** (`engine.py`):
+The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, finalize
+report, partner search — as free functions over a `ForgeState`. Free functions, not a
+class, so they read state at call time and can't desync from the mutable session; the
+interface is the direct test surface (no HTTP round-trip).
+_Avoid_: "the backend logic" (the engine is the analysis part only).
+
+**Views module** (`views.py`) / **wire card shape**:
+The serialization seam owning the card shapes the browser SPA consumes — one atomic
+`project` plus the deck / search / candidate / combo variants. Centralized so the
+frontend contract has one module to diff against.
+_Avoid_: "serializer" alone, "DTO".
+
+**Transport adapter**:
+The FastAPI route closures in `app.py`: parse payload → call Engine/Views → apply side
+effects (mutation, autosave, SSE publish) → return. Holds no deck logic.
+_Avoid_: "the API", "the route layer" (those undersell that it's deliberately thin).
+
 ### Gates & accuracy
 
 **Curve gate**:
