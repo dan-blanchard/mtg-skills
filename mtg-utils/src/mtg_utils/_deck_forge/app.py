@@ -321,8 +321,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
             fresh = [c for c in found if c.get("name") not in in_deck]
             # Credit candidates for this signal's own avenue (its main search), not
-            # just any agent-added avenues.
-            self_avenue = {"label": spec.label, "search": dict(spec.search)}
+            # just any agent-added avenues. Carry the structured serve classifier so a
+            # cantrip is credited by TYPE, not a value permanent by "draw a card".
+            self_avenue = engine.avenue_with_serve(
+                {"label": spec.label, "search": dict(spec.search)}, spec.serve
+            )
             ranked = rank_candidates(
                 fresh, active_signals=sigs, avenues=[self_avenue, *state.agent_avenues]
             )[:_PACKAGE_LIMIT]

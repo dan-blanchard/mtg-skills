@@ -247,6 +247,292 @@ class TestCoinFlipSpec:
         plain = "Flip a coin. If you win the flip, draw a card."
         assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
 
+    def test_flip_fixing_excludes_conditional_payoffs(self):
+        """The e21b7d6 broadening (bare 'come up heads' / 'you win … flip') wrongly
+        caught three PAYOFFS that reference a flip result as a CONDITION rather than
+        GRANTING/manipulating the flip. A regex can't separate a grant from a condition,
+        so the fixer sub-avenue must pin {Krark's Thumb, Edgar} and exclude these three
+        (verified against bulk: the precise matcher yields exactly the two real fixers)."""
+        import re
+
+        spec = spec_for(_sig("coin_flip", "you"))
+        fix = {e.label: e for e in spec.extras}["Flip fixing"]
+        rx = re.compile(fix.search["oracle"], re.IGNORECASE)
+
+        # The two REAL fixers — must match (a grant / a re-flip).
+        edgar = (
+            "The first time you flip one or more coins each turn, those coins come up "
+            "heads and you win those flips."
+        )
+        krark = "If you would flip a coin, instead flip two coins and ignore one."
+        assert rx.search(edgar)
+        assert rx.search(krark)
+
+        # Three PAYOFFS that merely reference a flip result — must NOT match.
+        mana_clash = (
+            "You and target opponent each flip a coin. Mana Clash deals 1 damage to "
+            "each player whose coin comes up tails. Repeat this process until both "
+            "players' coins come up heads on the same flip."
+        )
+        two_headed_giant = (
+            "Whenever this creature attacks, flip two coins. If both coins come up "
+            "heads, this creature gains double strike until end of turn. If both coins "
+            "come up tails, this creature gains menace until end of turn."
+        )
+        squees_revenge = (
+            "Choose a number. Flip a coin that many times or until you lose a flip, "
+            "whichever comes first. If you win all the flips, draw two cards for each "
+            "flip."
+        )
+        assert not rx.search(mana_clash)
+        assert not rx.search(two_headed_giant)
+        assert not rx.search(squees_revenge)
+
+
+class TestSpellslingerServe:
+    """The canonical false-positive: 'Spellslinger' (spellcast_matters) must NOT be
+    served by any value permanent that merely draws a card. A cantrip is specifically
+    an Instant or Sorcery that draws (CR 601.2: casting is determined by the card's
+    type), prowess marks a payoff (CR 702.108a), and magecraft is an ability word that
+    lives only in oracle prose (CR 207.2c). Copies aren't cast (CR 707.10)."""
+
+    SLINGER = _sig("spellcast_matters", "you")
+
+    def test_value_permanent_that_draws_does_not_serve(self):
+        rhystic = {
+            "name": "Rhystic Study",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever an opponent casts a spell, you may draw a card unless that "
+                "player pays {1}."
+            ),
+        }
+        assert serves(rhystic, self.SLINGER) is False
+
+    def test_opponent_cast_drawer_does_not_serve(self):
+        # Esper Sentinel: "opponent casts … noncreature spell" — the "you cast" gate
+        # must reject it (it's an opponents-cast payoff, not a spellslinger enabler).
+        esper = {
+            "name": "Esper Sentinel",
+            "type_line": "Artifact Creature — Human Soldier",
+            "oracle_text": (
+                "Whenever an opponent casts their first noncreature spell each turn, "
+                "draw a card unless that player pays {X}, where X is this creature's "
+                "power."
+            ),
+            "keywords": [],
+        }
+        assert serves(esper, self.SLINGER) is False
+
+    def test_equipment_that_draws_does_not_serve(self):
+        sword = {
+            "name": "Sword of Fire and Ice",
+            "type_line": "Artifact — Equipment",
+            "oracle_text": (
+                "Equipped creature gets +2/+2 and has protection from red and from "
+                "blue.\nWhenever equipped creature deals combat damage to a player, "
+                "this Equipment deals 2 damage to any target and you draw a card."
+            ),
+            "keywords": ["Equip"],
+        }
+        assert serves(sword, self.SLINGER) is False
+
+    def test_coinflip_value_creature_does_not_serve(self):
+        # Zndrsplt: draws on a won coin flip, never on YOUR cast — the canonical FP.
+        zndrsplt = {
+            "name": "Zndrsplt, Eye of Wisdom",
+            "type_line": "Legendary Creature — Homunculus",
+            "oracle_text": (
+                "At the beginning of combat on your turn, flip a coin until you lose "
+                "a flip.\nWhenever a player wins a coin flip, draw a card."
+            ),
+            "keywords": ["Partner"],
+        }
+        assert serves(zndrsplt, self.SLINGER) is False
+
+    def test_instant_cantrip_serves(self):
+        opt = {
+            "name": "Opt",
+            "type_line": "Instant",
+            "oracle_text": "Scry 1.\nDraw a card.",
+        }
+        assert serves(opt, self.SLINGER) is True
+
+    def test_prowess_creature_serves_via_keyword(self):
+        swiftspear = {
+            "name": "Monastery Swiftspear",
+            "type_line": "Creature — Human Monk",
+            "oracle_text": "Haste\nProwess",
+            "keywords": ["Prowess", "Haste"],
+        }
+        assert serves(swiftspear, self.SLINGER) is True
+
+    def test_cast_trigger_payoff_serves_via_oracle(self):
+        # Young Pyromancer: a payoff with NO prowess keyword and not itself an
+        # instant/sorcery — caught by the "whenever you cast an instant or sorcery"
+        # oracle branch.
+        pyromancer = {
+            "name": "Young Pyromancer",
+            "type_line": "Creature — Human Shaman",
+            "oracle_text": (
+                "Whenever you cast an instant or sorcery spell, create a 1/1 red "
+                "Elemental creature token."
+            ),
+            "keywords": [],
+        }
+        assert serves(pyromancer, self.SLINGER) is True
+
+    def test_magecraft_payoff_serves_via_oracle(self):
+        storm_kiln = {
+            "name": "Storm-Kiln Artist",
+            "type_line": "Creature — Dwarf Shaman",
+            "oracle_text": (
+                "This creature gets +1/+0 for each artifact you control.\nMagecraft — "
+                "Whenever you cast or copy an instant or sorcery spell, create a "
+                "Treasure token."
+            ),
+            "keywords": ["Treasure", "Magecraft"],
+        }
+        assert serves(storm_kiln, self.SLINGER) is True
+
+    def test_avenue_classifies_by_structured_serve_not_draw(self):
+        """The avenue-credit path (ranking._avenue_matchers) must apply the SAME
+        precise predicate the spec serves on — so exploring the Spellslinger avenue
+        credits a real cantrip (matched by TYPE, whose oracle says only 'draw a card')
+        and a prowess creature (matched by KEYWORD), but NOT a value permanent."""
+        from mtg_utils._deck_forge.ranking import score_candidate
+
+        spec = spec_for(self.SLINGER)
+        avenue = {
+            "label": spec.label,
+            "search": dict(spec.search),
+            "serve": spec.serve.as_dict(),
+        }
+
+        def served(card):
+            return set(
+                score_candidate(card, active_signals=[], avenues=[avenue])["served"]
+            )
+
+        opt = {
+            "name": "Opt",
+            "type_line": "Instant",
+            "oracle_text": "Scry 1.\nDraw a card.",
+        }
+        swiftspear = {
+            "name": "Monastery Swiftspear",
+            "type_line": "Creature — Human Monk",
+            "oracle_text": "Haste\nProwess",
+            "keywords": ["Prowess"],
+        }
+        rhystic = {
+            "name": "Rhystic Study",
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever an opponent casts a spell, you may draw a card.",
+        }
+        assert "Spellslinger" in served(opt)  # by type
+        assert "Spellslinger" in served(swiftspear)  # by keyword
+        assert "Spellslinger" not in served(rhystic)  # value permanent excluded
+
+
+class TestMagecraftServe:
+    """magecraft_matters is the same spellslinger archetype (CR 207.2c: magecraft's
+    reminder is 'whenever you cast or copy an instant or sorcery spell'). Its matcher
+    must be as precise as Spellslinger's — no bare 'draw a card' search, no bare
+    'instant or sorcery' serve branch that credits counterspell-shelters/value lands."""
+
+    MAGE = _sig("magecraft_matters", "you")
+
+    def test_protective_land_does_not_serve(self):
+        # Boseiju mentions "instant or sorcery" but only to protect a spell — not a
+        # spellslinger payoff. The old bare 'instant or sorcery' serve branch caught it.
+        boseiju = {
+            "name": "Boseiju, Who Shelters All",
+            "type_line": "Legendary Land",
+            "oracle_text": (
+                "Boseiju enters tapped.\n{T}, Pay 2 life: Add {C}. If that mana is "
+                "spent on an instant or sorcery spell, that spell can't be countered."
+            ),
+            "keywords": [],
+        }
+        assert serves(boseiju, self.MAGE) is False
+
+    def test_cast_trigger_payoff_serves(self):
+        murmuring = {
+            "name": "Murmuring Mystic",
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": (
+                "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird "
+                "Illusion creature token with flying."
+            ),
+            "keywords": [],
+        }
+        assert serves(murmuring, self.MAGE) is True
+
+    def test_instant_serves_by_type(self):
+        opt = {
+            "name": "Opt",
+            "type_line": "Instant",
+            "oracle_text": "Scry 1.\nDraw a card.",
+        }
+        assert serves(opt, self.MAGE) is True
+
+    def test_avenue_does_not_credit_value_permanent(self):
+        from mtg_utils._deck_forge.ranking import score_candidate
+
+        spec = spec_for(self.MAGE)
+        avenue = engine_avenue(spec)
+        rhystic = {
+            "name": "Rhystic Study",
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever an opponent casts a spell, you may draw a card.",
+        }
+        served = set(
+            score_candidate(rhystic, active_signals=[], avenues=[avenue])["served"]
+        )
+        assert spec.label not in served
+
+
+def engine_avenue(spec):
+    """An engine-emitted avenue dict for a spec (main avenue, with structured serve)."""
+    from mtg_utils._deck_forge.engine import avenue_with_serve
+
+    return avenue_with_serve(
+        {"label": spec.label, "search": dict(spec.search)}, spec.serve
+    )
+
+
+class TestSecondSpellSearch:
+    """second_spell_matters' serve is precise, but its SEARCH carried the same bare
+    'draw a card' branch — so the avenue credited value permanents. The search must
+    surface second-spell / storm payoffs, not every drawer."""
+
+    SIG = _sig("second_spell_matters", "you")
+
+    def test_avenue_excludes_value_permanent(self):
+        from mtg_utils._deck_forge.ranking import score_candidate
+
+        spec = spec_for(self.SIG)
+        avenue = engine_avenue(spec)
+        rhystic = {
+            "name": "Rhystic Study",
+            "type_line": "Enchantment",
+            "oracle_text": "Whenever an opponent casts a spell, you may draw a card.",
+        }
+        served = set(
+            score_candidate(rhystic, active_signals=[], avenues=[avenue])["served"]
+        )
+        assert spec.label not in served
+
+    def test_serve_matches_a_real_second_spell_payoff(self):
+        payoff = {
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": (
+                "Whenever you cast your second spell each turn, draw a card."
+            ),
+        }
+        assert serves(payoff, self.SIG) is True
+
 
 class TestSubjectSpecs:
     """Subject-bearing avenues must match their label and stay distinct from payoffs."""
@@ -276,3 +562,144 @@ class TestSubjectSpecs:
         payoff = spec.extras[0]
         assert payoff.label == "Elemental payoffs"
         assert "you control" in payoff.search["oracle"]  # the lords/anthems
+
+
+class TestStructuredServeFixes:
+    """Audit-driven precision fixes that convert imprecise oracle regexes to the
+    proper structured characteristic (type / keyword / count gate). Each pins a
+    measured false-positive AND a false-negative against real cards."""
+
+    def test_card_draw_engine_rejects_one_shot_cantrips(self):
+        """card_draw_engine's serve `draw \\w+ cards?` let \\w+ eat 'draw a card',
+        so ~753 one-shot cantrips were mislabeled an 'engine'. A recurring/bulk gate
+        keeps Phyrexian Arena (recurring) and Blue Sun's Zenith (X cards) but drops a
+        one-shot instant draw (Remand) and a death-triggered single draw (Solemn)."""
+        sig = _sig("card_draw_engine", "you")
+        phyrexian_arena = {
+            "type_line": "Enchantment",
+            "oracle_text": "At the beginning of your upkeep, you draw a card and you lose 1 life.",
+        }
+        blue_suns = {
+            "type_line": "Instant",
+            "oracle_text": "Draw X cards. Put Blue Sun's Zenith into its owner's library third from the top.",
+        }
+        remand = {
+            "type_line": "Instant",
+            "oracle_text": "Counter target spell. If that spell is countered this way, put it into its owner's hand instead. Draw a card.",
+        }
+        solemn = {
+            "type_line": "Artifact Creature — Golem",
+            "oracle_text": "When this creature dies, you may draw a card.",
+        }
+        assert serves(phyrexian_arena, sig) is True
+        assert serves(blue_suns, sig) is True
+        assert serves(remand, sig) is False
+        assert serves(solemn, sig) is False
+
+    def test_lifegain_uses_lifelink_keyword_not_the_bare_word(self):
+        """lifegain's serve matched the bare word 'lifelink' anywhere in oracle text,
+        so Crystalline Giant (which only lists lifelink among random counters) served.
+        Gate on the keywords[] field instead; a card that GRANTS lifelink to the team
+        still serves via an oracle grant-branch."""
+        sig = _sig("lifegain_matters", "you")
+        soul_warden = {
+            "type_line": "Creature — Human Cleric",
+            "oracle_text": "Whenever another creature enters, you gain 1 life.",
+            "keywords": [],
+        }
+        baneslayer = {
+            "type_line": "Creature — Angel",
+            "oracle_text": "Flying, first strike, lifelink, protection from Demons and from Dragons",
+            "keywords": ["Flying", "First strike", "Lifelink"],
+        }
+        whip = {
+            "type_line": "Legendary Enchantment Artifact",
+            "oracle_text": "Creatures you control have lifelink.",
+            "keywords": [],
+        }
+        crystalline_giant = {
+            "type_line": "Artifact Creature — Giant",
+            "oracle_text": (
+                "At the beginning of combat on your turn, choose a kind of counter at "
+                "random that this creature doesn't have on it from among flying, first "
+                "strike, deathtouch, hexproof, lifelink, menace, reach, trample, and "
+                "vigilance, then put a counter of that kind on this creature."
+            ),
+            "keywords": [],
+        }
+        assert serves(soul_warden, sig) is True  # gains life
+        assert serves(baneslayer, sig) is True  # lifelink keyword
+        assert serves(whip, sig) is True  # grants lifelink to the team
+        assert serves(crystalline_giant, sig) is False  # bare word in a counter list
+
+    def test_dash_avenue_keys_on_equipment_type_and_dash_keyword(self):
+        """dash_matters' serve had `whenever[^.]*attacks` and a bare `\\bequipment\\b`
+        that matched any creature mentioning equipment/attacks (~1104). The avenue is
+        Equipment-for-a-dasher: gate on the Equipment TYPE and the dash KEYWORD."""
+        sig = _sig("dash_matters", "you")
+        skullclamp = {
+            "type_line": "Artifact — Equipment",
+            "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
+            "keywords": ["Equip"],
+        }
+        mangara = {
+            "type_line": "Legendary Creature — Human Cleric",
+            "oracle_text": "Lifelink\nWhenever an opponent attacks with creatures, draw a card.",
+            "keywords": ["Lifelink"],
+        }
+        elder_gargaroth = {
+            "type_line": "Creature — Beast",
+            "oracle_text": "Vigilance, reach, trample\nWhenever this creature attacks or blocks, choose one.",
+            "keywords": ["Vigilance", "Reach", "Trample"],
+        }
+        assert serves(skullclamp, sig) is True  # Equipment type
+        assert serves(mangara, sig) is False  # not equipment, no dash
+        assert serves(elder_gargaroth, sig) is False  # "attacks" no longer triggers
+
+    def test_creature_etb_opponents_matches_punisher_not_bloodthirst(self):
+        """creature_etb/opponents' serve `opponent.*creature.*enters` required
+        opponent BEFORE creature, so it matched Bloodthirst ('an opponent was dealt
+        damage … this creature enters') and MISSED the real punisher ('a creature an
+        opponent controls enters'). A near-total inversion."""
+        sig = _sig("creature_etb", "opponents")
+        suture_priest = {
+            "type_line": "Creature — Phyrexian Cleric",
+            "oracle_text": (
+                "Whenever another creature you control enters, you may gain 1 life.\n"
+                "Whenever a creature an opponent controls enters, you may have that "
+                "player lose 1 life."
+            ),
+        }
+        authority = {
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creatures your opponents control enter tapped.\nWhenever a creature "
+                "an opponent controls enters, you gain 1 life."
+            ),
+        }
+        bloodthirst = {
+            "type_line": "Creature — Vampire Warrior",
+            "oracle_text": (
+                "Bloodthirst 2 (If an opponent was dealt damage this turn, this "
+                "creature enters with two +1/+1 counters on it.)"
+            ),
+        }
+        assert serves(suture_priest, sig) is True
+        assert serves(authority, sig) is True
+        assert serves(bloodthirst, sig) is False
+
+    def test_drain_avenue_serves_blood_artist(self):
+        """lifeloss_matters/opponents (the 'Drain' avenue) required the literal word
+        'opponent' next to 'loses', so it MISSED the keystone aristocrats drains that
+        read 'target player loses N life' (Blood Artist, Zulaport Cutthroat)."""
+        sig = _sig("lifeloss_matters", "opponents")
+        blood_artist = {
+            "type_line": "Creature — Vampire",
+            "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
+        }
+        zulaport = {
+            "type_line": "Creature — Human Cleric",
+            "oracle_text": "Whenever this creature or another creature you control dies, each opponent loses 1 life and you gain 1 life.",
+        }
+        assert serves(blood_artist, sig) is True
+        assert serves(zulaport, sig) is True

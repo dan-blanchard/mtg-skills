@@ -91,3 +91,59 @@ def test_bare_tribe_member_routes_to_agent_low_confidence():
     needs, reason = coverage_gate(c, extract_signals(c))
     assert needs is True
     assert reason == "low_confidence"
+
+
+# ── precision gate: non-creature-type nouns must NEVER mint a tribal subject ──
+# (Audit: 'the' (article), basic land types, and 'time' polluted CREATURE_SUBTYPES;
+#  'the' alone served ~11,458 cards via its \bThes?\b serve. CR 205.3m: these are not
+#  creature types — 'the' is an article, forest/island/mountain are basic LAND types
+#  (CR 305.6), and the only two-word creature type is 'Time Lord', not bare 'Time'.)
+def test_basic_land_type_is_not_a_creature_tribe():
+    subs = _subjects(
+        "Titania, Nature's Force",
+        "Legendary Creature — Elemental",
+        "Whenever a Forest you control enters, create a 5/3 green Elemental creature "
+        "token.",
+    )
+    assert "Forest" not in subs
+
+
+def test_check_land_reference_is_not_a_creature_tribe():
+    subs = _subjects(
+        "Sunpetal Grove",
+        "Land",
+        "Sunpetal Grove enters tapped unless you control a Plains or a Forest.",
+    )
+    assert "Forest" not in subs
+    assert "Plains" not in subs
+
+
+def test_article_is_not_a_typed_spellcast_subject():
+    # Taigam: "exile the spell you cast …" captured 'the' → typed_spellcast subject='The'.
+    sigs = extract_signals(
+        _card(
+            "Taigam, Master Opportunist",
+            "Legendary Creature — Human Wizard",
+            "Whenever you cast your second spell each turn, copy that spell. Then "
+            "exile the spell you cast with four time counters on it.",
+        )
+    )
+    assert all(s.subject != "The" for s in sigs)
+
+
+def test_time_counter_reference_is_not_a_creature_tribe():
+    subs = _subjects(
+        "TARDIS",
+        "Legendary Artifact — Vehicle",
+        "If you control a Time Lord, the next spell you cast this turn costs {3} less.",
+    )
+    assert "Time" not in subs
+
+
+def test_real_tribe_still_minted_after_vocab_prune():
+    # the prune must not remove a genuine creature tribe.
+    assert "Goblin" in _subjects(
+        "Goblin King",
+        "Creature — Goblin",
+        "Other Goblins you control get +1/+1 and have mountainwalk.",
+    )

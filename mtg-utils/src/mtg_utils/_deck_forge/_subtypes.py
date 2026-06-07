@@ -14,6 +14,10 @@ from __future__ import annotations
 
 # Card-type / spell-type / noise nouns that must NEVER become a tribal subject —
 # they fall through to the generic key instead (e.g. "creatures you control").
+# Articles/stopwords and the five basic LAND types (CR 305.6 — NOT creature types,
+# CR 205.3m) are denied here as defense-in-depth: _resolve_subject checks this set
+# BEFORE the vocab, so even if CREATURE_SUBTYPES regresses, "the spell you cast"
+# (→'the', which served ~11,458 cards) and "a Forest you control" can't mint a tribe.
 NON_SUBJECT_WORDS: frozenset[str] = frozenset(
     {
         "creature",
@@ -36,6 +40,27 @@ NON_SUBJECT_WORDS: frozenset[str] = frozenset(
         "sorcery",
         "sorceries",
         "battle",
+        # articles / stopwords (an article is not a subtype)
+        "the",
+        "a",
+        "an",
+        "this",
+        "that",
+        "another",
+        "other",
+        "your",
+        "their",
+        "its",
+        "each",
+        "target",
+        # basic land types (CR 305.6) — land, not creature, types
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        # not the two-word creature type "Time Lord"; bare "time" is noise
+        "time",
     }
 )
 
@@ -202,7 +227,6 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "fish",
         "flagbearer",
         "food",
-        "forest",
         "fox",
         "fractal",
         "frog",
@@ -252,7 +276,6 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "inkling",
         "inquisitor",
         "insect",
-        "island",
         "jackal",
         "jellyfish",
         "judge",
@@ -299,7 +322,6 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "moogle",
         "moonfolk",
         "mount",
-        "mountain",
         "mouse",
         "mummy",
         "mutant",
@@ -408,11 +430,9 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "symbiote",
         "synth",
         "thalakos",
-        "the",
         "thopter",
         "thrull",
         "tiefling",
-        "time",
         "townsfolk",
         "toy",
         "treasure",

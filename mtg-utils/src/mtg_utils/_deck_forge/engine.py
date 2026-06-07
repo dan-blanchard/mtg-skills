@@ -54,6 +54,18 @@ _EXPLORE_KEYS = (
 )
 
 
+def avenue_with_serve(avenue: dict, serve) -> dict:
+    """Attach an avenue's structured ``serve`` classifier (type/keyword/oracle) so
+    ranking credits candidates by the SAME precise predicate the spec serves on —
+    but ONLY when it carries a structured dimension (types/keywords) the bare
+    ``search`` fragment can't express (e.g. Spellslinger's Instant/Sorcery type gate).
+    Oracle-only serves are left to the legacy search-AND classification, so no
+    oracle-only avenue's behavior shifts."""
+    if serve is not None and (serve.types or serve.keywords):
+        avenue["serve"] = serve.as_dict()
+    return avenue
+
+
 def hydrate(state: ForgeState) -> HydratedDeck:
     """One HydratedDeck per request, joining the live session against the bulk index.
     Build it once at a handler's entry and thread it — every deck analysis reads it."""
@@ -210,14 +222,17 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         suffix = f":{sig.subject}" if sig.subject else ""
         avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
         out.append(
-            {
-                "id": avenue_id,
-                "label": spec.label,
-                "description": spec.avenue,
-                "scope": sig.scope,
-                "source": "engine",
-                "search": main_search,
-            }
+            avenue_with_serve(
+                {
+                    "id": avenue_id,
+                    "label": spec.label,
+                    "description": spec.avenue,
+                    "scope": sig.scope,
+                    "source": "engine",
+                    "search": main_search,
+                },
+                spec.serve,
+            )
         )
         # A signal can fan out into several precise sub-avenues (e.g. the land-creatures
         # theme: creature-lands / payoffs / animators).
@@ -226,14 +241,17 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                 continue
             seen_labels.add(extra.label)
             out.append(
-                {
-                    "id": f"{avenue_id}:{i}",
-                    "label": extra.label,
-                    "description": extra.avenue,
-                    "scope": sig.scope,
-                    "source": "engine",
-                    "search": dict(extra.search),
-                }
+                avenue_with_serve(
+                    {
+                        "id": f"{avenue_id}:{i}",
+                        "label": extra.label,
+                        "description": extra.avenue,
+                        "scope": sig.scope,
+                        "source": "engine",
+                        "search": dict(extra.search),
+                    },
+                    extra.serve,
+                )
             )
     out.extend(state.agent_avenues)
     return out

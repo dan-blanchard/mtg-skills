@@ -23,15 +23,96 @@ _IC = re.IGNORECASE
 
 
 @dataclass(frozen=True)
+class Serve:
+    """The precise classifier deciding whether a candidate card FEEDS a signal.
+
+    Oracle-regex is the wrong surface for many characteristics — a "cantrip" is an
+    Instant or Sorcery that draws (CR 601.2: what you cast is fixed by the card's
+    type), prowess is a `keywords[]` entry (CR 702.108a), devotion/voltron live in
+    structured fields. So a Serve ORs three precise dimensions over the full card:
+
+      - ``oracle``: a regex on oracle text (the only signal for effects that truly
+        live in prose — e.g. magecraft, an ability word with no rules meaning, CR
+        207.2c),
+      - ``types``: type-line words (lowercased substring, mirroring ``card_search``'s
+        ``card_type``) — ``{"instant", "sorcery"}`` is the gate the bare ``draw a
+        card`` regex was missing,
+      - ``keywords``: authoritative Scryfall ``keywords`` (prowess, flying, …) —
+        exact, never regex-guessed out of prose.
+
+    A card serves iff ANY provided dimension matches (the canonical Spellslinger
+    case is an OR). ``search(text)`` is a back-compat shim so the oracle regex is
+    still directly testable."""
+
+    oracle: re.Pattern[str] | None = None
+    types: frozenset[str] = frozenset()
+    keywords: frozenset[str] = frozenset()
+
+    def search(self, text: str):
+        """Back-compat: raw oracle-regex search over a string (legacy call sites)."""
+        return self.oracle.search(text) if self.oracle is not None else None
+
+    def matches(self, card: dict) -> bool:
+        """True if the card feeds this signal on ANY structured/oracle dimension."""
+        if self.oracle is not None and self.oracle.search(get_oracle_text(card) or ""):
+            return True
+        if self.types:
+            type_line = (card.get("type_line") or "").lower()
+            if any(t in type_line for t in self.types):
+                return True
+        if self.keywords:
+            card_kw = {k.lower() for k in (card.get("keywords") or [])}
+            if card_kw & self.keywords:
+                return True
+        return False
+
+    def as_dict(self) -> dict:
+        """Serialize for an avenue dict (JSON-safe), so ranking can re-apply the
+        SAME precise predicate to candidates it surfaced."""
+        out: dict = {}
+        if self.oracle is not None:
+            out["oracle"] = self.oracle.pattern
+        if self.types:
+            out["types"] = sorted(self.types)
+        if self.keywords:
+            out["keywords"] = sorted(self.keywords)
+        return out
+
+
+def serve_from_dict(data: dict) -> Serve:
+    """Rebuild a Serve from an avenue dict's stored ``serve`` (or a bare ``search``
+    fragment: ``oracle`` + ``card_type``). Used by ranking to classify candidates with
+    the same predicate the spec serves on."""
+    oracle = data.get("oracle")
+    types = data.get("types")
+    if types is None and data.get("card_type"):
+        types = [data["card_type"]]
+    try:
+        pattern = re.compile(oracle, _IC) if oracle else None
+    except re.error:
+        pattern = None
+    return Serve(
+        oracle=pattern,
+        types=frozenset(t.lower() for t in (types or ())),
+        keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
+    )
+
+
+@dataclass(frozen=True)
 class SubAvenue:
     """An additional, separately-searchable angle on the same signal. A theme like
     land-creatures has genuinely distinct buckets — be the land-creatures (manlands),
     reward them (payoffs), turn lands into creatures (animators) — each needing its
-    own precise search, so one signal fans out into several explorable avenues."""
+    own precise search, so one signal fans out into several explorable avenues.
+
+    ``serve`` is the precise classifier for the sub-avenue; when None, ranking falls
+    back to the sub-avenue's ``search`` (oracle + card_type), which is correct for the
+    many sub-avenues whose effect genuinely only lives in oracle prose."""
 
     label: str
     avenue: str
     search: dict
+    serve: Serve | None = None
 
 
 @dataclass(frozen=True)
@@ -39,18 +120,43 @@ class SignalSpec:
     label: str
     avenue: str
     search: dict  # card_search kwargs fragment (oracle / preset_names / card_type)
-    serve: re.Pattern[str]  # matcher on a candidate card's oracle text
+    serve: Serve  # the precise classifier (type / keyword / oracle), CR-grounded
     extras: tuple[SubAvenue, ...] = ()  # additional precise sub-avenues (optional)
 
 
-def _spec(label, avenue, search, serve, extras=()):
+def _spec(
+    label, avenue, search, serve, extras=(), *, serve_types=(), serve_keywords=()
+):
     return SignalSpec(
         label=label,
         avenue=avenue,
         search=search,
-        serve=re.compile(serve, _IC),
+        serve=Serve(
+            oracle=re.compile(serve, _IC) if serve else None,
+            types=frozenset(t.lower() for t in serve_types),
+            keywords=frozenset(k.lower() for k in serve_keywords),
+        ),
         extras=tuple(extras),
     )
+
+
+# Spellslinger serve, shared by spellcast_matters and magecraft_matters (the SAME
+# archetype — magecraft's reminder is "whenever you cast or copy an instant or sorcery
+# spell", CR 207.2c). A card FEEDS it by TYPE (Instant/Sorcery — what you cast is fixed
+# by the card's type, CR 601.2), by the prowess KEYWORD (CR 702.108a), or by a magecraft
+# / cast-trigger in prose. Bare "draw a card" (mislabels ~1250 permanents) and bare
+# "instant or sorcery" (mislabels counterspell-shelters like Boseiju and graveyard
+# payoffs) are neither, so they are excluded.
+_SLINGER_SERVE_ORACLE = (
+    r"\bmagecraft\b|whenever you cast (?:an instant|a sorcery|a noncreature|your)"
+)
+_SLINGER_TYPES = ("instant", "sorcery")
+_SLINGER_KEYWORDS = ("prowess",)
+_SLINGER_SEARCH_ORACLE = (
+    r"\bmagecraft\b|\bprowess\b"
+    r"|whenever you cast (?:an instant|a sorcery|a noncreature|your)"
+    r"|instant and sorcery spells you cast"
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -65,11 +171,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         },
         (r"create .*creature token|put .*creature.*onto the battlefield"),
     ),
+    # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
+    # "creature", so it matched Bloodthirst ("an opponent was dealt damage … this
+    # creature enters") and MISSED the real punisher, "a creature an opponent controls
+    # enters" (creature before opponent). Align serve to the (correct) search anchor.
     ("creature_etb", "opponents"): _spec(
         "Creatures entering — opponents'",
         "punish creatures your opponents play",
         {"oracle": r"whenever a creature an opponent controls enters"},
-        r"opponent.*creature.*enters",
+        r"creature an opponent controls enters"
+        r"|creatures? your opponents control enter",
     ),
     ("creatures_matter", "you"): _spec(
         "Go wide",
@@ -113,11 +224,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"into your graveyard|surveil"},
         r"into your graveyard|from your graveyard|surveil\b|self-mill",
     ),
+    # Lifegain. The bare `lifelink` oracle word matched any card listing it (Crystalline
+    # Giant's random-counter menu, reminder text). Lifelink is a keyword (CR 702.15), so
+    # gate on keywords[]; a card that GRANTS lifelink to the team still serves via the
+    # grant oracle branch. Keep the actual gain-life clauses.
     ("lifegain_matters", "you"): _spec(
         "Lifegain",
         "incidental and repeatable lifegain",
         {"oracle": r"gain .* life"},
-        r"gain \d+ life|gain x life|gains? [^.]*life|lifelink",
+        r"gain \d+ life|gain x life|gains? [^.]*\blife\b"
+        r"|whenever[^.]*gain[^.]*life"
+        r"|(?:creatures? you control|enchanted creature|equipped creature|they)"
+        r"[^.]*\blifelink\b|(?:gain|gains|have|has) lifelink",
+        serve_keywords=("lifelink",),
     ),
     ("counters_matter", "any"): _spec(
         "+1/+1 counters",
@@ -147,6 +266,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"|come up heads"
         ),
         extras=(
+            # A flip FIXER either re-flips/ignores (the Krark's Thumb family) or
+            # declaratively GRANTS the result ("come up heads AND you win", Edgar). The
+            # bare branches `come up heads` / `you win … flip` (e21b7d6) wrongly caught
+            # PAYOFFS that reference a flip result as a CONDITION: Mana Clash ("come up
+            # heads on the same flip"), Two-Headed Giant ("if both come up heads"),
+            # Squee's Revenge ("if you win all the flips, draw"). A regex can't separate
+            # a grant from a condition, so we match only the declarative grant. Verified
+            # against bulk: this yields EXACTLY {Krark's Thumb, Edgar}.
             SubAvenue(
                 "Flip fixing",
                 "cards that bias, repeat, or ignore unfavorable coin flips "
@@ -155,9 +282,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                     "oracle": (
                         r"instead flip [^.]*coin|\breflip"
                         r"|flip [^.]*coins? again|flip an additional coin"
-                        r"|come up heads"
-                        r"|you win (?:all|those|each|every)[^.]*flip"
-                        r"|win all (?:coin )?flips"
+                        r"|come up heads and you win"
                     )
                 },
             ),
@@ -169,11 +294,34 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"whenever you draw|draw an additional card"},
         r"whenever you draw|draws? (?:your )?(?:second|an additional) card",
     ),
+    # Spellslinger. A card FEEDS this iff casting it is "casting an instant or sorcery"
+    # — fixed by its TYPE (CR 601.2), OR it has prowess (CR 702.108a, a keyword payoff),
+    # OR it carries a magecraft / "whenever you cast a (noncreature|instant|sorcery)
+    # spell" trigger (magecraft is an ability word — CR 207.2c — so it lives ONLY in
+    # prose). Bare "draw a card" is none of these: it mislabeled ~1250 value permanents
+    # (Rhystic Study, Esper Sentinel, The One Ring) as Spellslinger. Copies aren't cast
+    # (CR 707.10), so spell-copy payoffs belong to spell_copy, not here.
     ("spellcast_matters", "you"): _spec(
         "Spellslinger",
-        "cheap instants/sorceries and cantrips to chain casts",
-        {"oracle": r"draw a card"},
-        r"draw a card|prowess|magecraft",
+        "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
+        {"oracle": _SLINGER_SEARCH_ORACLE},
+        _SLINGER_SERVE_ORACLE,
+        serve_types=_SLINGER_TYPES,
+        serve_keywords=_SLINGER_KEYWORDS,
+        extras=(
+            SubAvenue(
+                "Cheap instants (fuel)",
+                "cheap instants to chain casts and trigger your payoffs",
+                {"card_type": "Instant", "cmc_max": 3},
+                serve=Serve(types=frozenset({"instant"})),
+            ),
+            SubAvenue(
+                "Cheap sorceries (fuel)",
+                "cheap sorceries to chain casts and trigger your payoffs",
+                {"card_type": "Sorcery", "cmc_max": 3},
+                serve=Serve(types=frozenset({"sorcery"})),
+            ),
+        ),
     ),
     ("sacrifice_matters", "you"): _spec(
         "Sacrifice — fodder & outlets",
@@ -274,11 +422,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"preset_names": ("proliferate",)},
         r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
     ),
+    # Same archetype + matcher as spellcast_matters (a magecraft commander triggers off
+    # the same instants/sorceries as a prowess one). Was the canonical bug twice over:
+    # a "draw a card" search and an "instant or sorcery" serve branch that credited
+    # counterspell-shelters and graveyard payoffs.
     ("magecraft_matters", "you"): _spec(
         "Magecraft / spellslinger",
-        "cheap instants and sorceries and cantrips to trigger magecraft",
-        {"oracle": r"draw a card"},
-        r"\bmagecraft\b|\bprowess\b|instant or sorcery",
+        "cheap instants and sorceries plus magecraft/prowess payoffs to chain casts",
+        {"oracle": _SLINGER_SEARCH_ORACLE},
+        _SLINGER_SERVE_ORACLE,
+        serve_types=_SLINGER_TYPES,
+        serve_keywords=_SLINGER_KEYWORDS,
     ),
     ("extra_combats", "you"): _spec(
         "Extra combats",
@@ -326,11 +480,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
         r"|draw [^.]*then discard",
     ),
+    # Drain. The serve required "opponent" adjacent to "loses", so it MISSED the
+    # keystone aristocrats drains worded "target/that player loses N life" (Blood
+    # Artist, Falkenrath Noble). Add the player-loses branch; "each player" is excluded
+    # to keep symmetric self-damage out of the opponents-drain avenue.
     ("lifeloss_matters", "opponents"): _spec(
         "Drain",
         "repeatable life-drain and aristocrats payoffs",
         {"oracle": r"each opponent loses|target opponent loses|whenever .* dies"},
-        r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b",
+        r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
+        r"|(?:target player|that player|a player) loses? [^.]*\blife\b",
     ),
     ("lifeloss_matters", "you"): _spec(
         "Self life-loss",
@@ -351,11 +510,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"the number of lands you control|for each land you control"
         r"|play an additional land",
     ),
+    # An ENGINE is recurring or bulk draw — NOT a one-shot cantrip. The serve's
+    # `draw \w+ cards?` let \w+ eat the article in "draw a card", mislabeling ~753
+    # one-shot cantrips (Remand, Cryptic Command) as engines — contradicting the
+    # extractor's own _CARD_DRAW_RE. Mirror that: a recurring "at the beginning of …
+    # draw" OR a bulk 2+ / additional draw. (Single-draw permanents like Rhystic Study
+    # are surfaced by their own triggers' signals, not this avenue.)
     ("card_draw_engine", "you"): _spec(
         "Card-advantage engine",
         "protection, recursion, and payoffs for a repeatable draw engine",
         {"preset_names": ("card-draw",)},
-        r"draw \w+ cards?|draw cards equal to|draws? an additional card",
+        r"at the beginning of [^.]*\bdraws? "
+        r"(?:a|an|two|three|four|five|six|seven|eight|nine|ten|x|\d+)[^.]*\bcard"
+        r"|draws? (?:two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?"
+        r"|draw cards equal to|draws? an additional card",
     ),
     ("card_draw_engine", "each"): _spec(
         "Group draw / wheel",
@@ -536,11 +704,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"twice that many|double the (?:number|amount)"},
         r"twice that many|double the (?:number|amount)",
     ),
+    # Serve is precise (the second-spell payoff). The SEARCH carried the same bare
+    # "draw a card" FP; narrow it to the payoffs (second/third spell, multi-spell,
+    # storm) so the avenue stops crediting every value permanent that draws.
     ("second_spell_matters", "you"): _spec(
         "Second-spell / storm-lite",
-        "cheap spells and cantrips to reliably cast a second spell each turn",
-        {"oracle": r"instant or sorcery|draw a card|\bstorm\b"},
-        r"second spell you cast|cast your second spell",
+        "second-spell, multi-spell, and storm payoffs that reward chaining casts",
+        {
+            "oracle": (
+                r"(?:second|third) spell you cast|cast your (?:second|third) spell"
+                r"|cast two or more spells|\bstorm\b"
+            )
+        },
+        r"(?:second|third) spell you cast|cast your (?:second|third) spell",
     ),
     # ── Mechanics recovered from the "rejected" families ────────────────────────
     ("token_copy_matters", "you"): _spec(
@@ -705,14 +881,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*token|enters the battlefield"},
         r"create [^.]*token|put [^.]*onto the battlefield|enters the battlefield",
     ),
+    # Serve was `…|\bequipment\b|whenever[^.]*attacks`, which matched any creature
+    # that merely mentions equipment or attacks (~1104). The avenue is Equipment-for-a-
+    # dasher: gate on the Equipment TYPE (CR 301.5 — the persistent buff) and the dash /
+    # reconfigure KEYWORD (CR 702.109/702.151), plus a small oracle branch for cards
+    # that move/cheat Equipment without the subtype.
     ("dash_matters", "you"): _spec(
         "Dash / hit-and-run Equipment",
         "Equipment — it stays on the battlefield when Dash returns the creature to "
         "your hand at end of turn (Auras and counters don't), so it's the resilient "
         "buff for a recurring haste attacker; plus haste enablers and cheap recursion",
         {"preset_names": ("equip",)},
-        r"equipped creature|equip \{|\bequipment\b|\breconfigure\b"
-        r"|attach [^.]*equipment|whenever[^.]*attacks",
+        r"equip \{|attach [^.]*equipment",
+        serve_types=("equipment",),
+        serve_keywords=("dash", "reconfigure"),
     ),
 }
 
@@ -748,7 +930,7 @@ def _subject_spec(signal) -> SignalSpec:
             label=f"{subj} matters",
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
             search={"oracle": rf"\b{esc.lower()}\b"},
-            serve=re.compile(rf"\b{esc}\b", _IC),
+            serve=Serve(oracle=re.compile(rf"\b{esc}\b", _IC)),
         )
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
@@ -758,7 +940,7 @@ def _subject_spec(signal) -> SignalSpec:
             label=f"{subj} tokens",
             avenue=f"cards that create {subj} tokens to go wide",
             search={"oracle": token_re},
-            serve=re.compile(token_re, _IC),
+            serve=Serve(oracle=re.compile(token_re, _IC)),
             extras=(_payoff_extra(subj, esc),),
         )
     # tribal (type_matters) / typed spellcast: the cards themselves (type-line match),
@@ -768,7 +950,7 @@ def _subject_spec(signal) -> SignalSpec:
         label=label_t.format(s=subj),
         avenue=avenue_t.format(s=subj),
         search={"card_type": subj},
-        serve=re.compile(rf"\b{esc}s?\b", _IC),
+        serve=Serve(oracle=re.compile(rf"\b{esc}s?\b", _IC)),
         extras=(_payoff_extra(subj, esc),),
     )
 
@@ -811,11 +993,12 @@ def spec_for(signal) -> SignalSpec | None:
 
 
 def serves(card: dict, signal) -> bool:
-    """True if ``card``'s oracle text feeds ``signal`` (scope-aware)."""
+    """True if ``card`` feeds ``signal`` (scope-aware), on any structured/oracle
+    dimension of the spec's precise ``Serve`` predicate — no longer oracle-only."""
     spec = spec_for(signal)
     if spec is None:
         return False
-    return spec.serve.search(get_oracle_text(card) or "") is not None
+    return spec.serve.matches(card)
 
 
 def search_filters(signal, *, color_identity: str, fmt: str) -> dict:

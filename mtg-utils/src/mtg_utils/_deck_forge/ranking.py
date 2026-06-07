@@ -16,30 +16,56 @@ import math
 import re
 
 from mtg_utils._deck_forge.budgets import role_of
-from mtg_utils._deck_forge.signal_specs import serves, spec_for
+from mtg_utils._deck_forge.signal_specs import serve_from_dict, serves, spec_for
 from mtg_utils.card_classify import extract_price, get_oracle_text
 
 
-def _avenue_matchers(avenues) -> list[tuple[str, re.Pattern[str] | None, str]]:
-    """(label, oracle-regex|None, card_type-substring) per avenue. A card serves an
-    avenue only if it satisfies BOTH constraints the avenue's search declares — so an
-    avenue scoped to ``card_type='Land'`` won't credit a non-land that merely matches
-    the oracle regex (mirrors how the search itself ANDs type + oracle)."""
-    out: list[tuple[str, re.Pattern[str] | None, str]] = []
+def _avenue_predicates(avenues):
+    """(label, card->bool) per avenue.
+
+    Two classification regimes, matching how each was authored:
+      - explicit structured ``serve`` (type/keyword/oracle, e.g. Spellslinger): the
+        SAME precise OR-predicate the spec serves on, so the avenue credits a real
+        cantrip by TYPE (oracle says only 'draw a card') and a prowess creature by
+        KEYWORD.
+      - bare ``search`` fragment (legacy): oracle regex AND card_type substring — the
+        original behavior, so an avenue scoped to ``card_type='Land'`` won't credit a
+        non-land clone that merely matches the oracle regex."""
+    out = []
     for avenue in avenues:
-        search = avenue.get("search") or {}
-        pattern = search.get("oracle")
-        card_type = (search.get("card_type") or "").lower()
-        regex: re.Pattern[str] | None = None
-        if pattern:
-            try:
-                regex = re.compile(pattern, re.IGNORECASE)
-            except re.error:
-                continue
-        if regex is None and not card_type:
+        serve_data = avenue.get("serve")
+        if serve_data is not None:
+            label = avenue.get("label", "avenue")
+            out.append((label, serve_from_dict(serve_data).matches))
             continue
-        out.append((avenue.get("label", "avenue"), regex, card_type))
+        search = avenue.get("search") or {}
+        oracle = search.get("oracle")
+        card_type = (search.get("card_type") or "").lower()
+        if not oracle and not card_type:
+            continue
+        regex: re.Pattern[str] | None = None
+        if oracle:
+            try:
+                regex = re.compile(oracle, re.IGNORECASE)
+            except re.error:
+                continue  # an uncompilable avenue regex credits nothing
+        out.append((avenue.get("label", "avenue"), _search_and(regex, card_type)))
     return out
+
+
+def _search_and(regex: re.Pattern[str] | None, card_type: str):
+    """A card serves the avenue only if it satisfies BOTH the avenue's oracle regex
+    and its card_type substring (mirrors how the card_search FIND ANDs them)."""
+
+    def predicate(card: dict) -> bool:
+        oracle_ok = (
+            regex is None or regex.search(get_oracle_text(card) or "") is not None
+        )
+        type_line = (card.get("type_line") or "").lower()
+        type_ok = not card_type or card_type in type_line
+        return oracle_ok and type_ok
+
+    return predicate
 
 
 def score_candidate(card: dict, *, active_signals: list, avenues=()) -> dict:
@@ -49,14 +75,9 @@ def score_candidate(card: dict, *, active_signals: list, avenues=()) -> dict:
         if serves(card, signal):
             spec = spec_for(signal)
             served.append(spec.label if spec else signal.key)
-    oracle = get_oracle_text(card) or ""
-    type_line = (card.get("type_line") or "").lower()
-    for label, regex, card_type in _avenue_matchers(avenues):
-        if regex is not None and not regex.search(oracle):
-            continue
-        if card_type and card_type not in type_line:
-            continue
-        served.append(label)
+    for label, predicate in _avenue_predicates(avenues):
+        if predicate(card):
+            served.append(label)
     seen: set[str] = set()
     unique = [s for s in served if not (s in seen or seen.add(s))]
     return {
