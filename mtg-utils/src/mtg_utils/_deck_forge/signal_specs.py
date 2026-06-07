@@ -15,6 +15,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS, SWEEP_LABELS
 from mtg_utils.card_classify import get_oracle_text
 
@@ -717,16 +718,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured
 # subject (a Goblin lord and a Sliver lord must not share one static spec).
-_SUBJECT_KEYS = frozenset(
-    {"type_matters", "token_maker", "typed_spellcast", "keyword_tribe"}
-)
+_SUBJECT_KEYS = signal_keys.SUBJECT_KEYS
 # Two distinct sub-avenues are always offered for a subject: the *cards* (the tribe
 # members, or the token-makers) and the *payoffs* (lords/anthems that reward a board of
 # them). Keeping them clearly separate — and never folding "payoffs" into the cards
 # avenue's blurb — is what stops "X tribal" / "X payoffs" reading as the same thing.
 _SUBJECT_TEMPLATES = {
-    "type_matters": ("{s} tribal", "{s} creatures to grow the tribe"),
-    "typed_spellcast": ("{s} spells", "{s} spells to cast"),
+    signal_keys.TYPE_MATTERS: ("{s} tribal", "{s} creatures to grow the tribe"),
+    signal_keys.TYPED_SPELLCAST: ("{s} spells", "{s} spells to cast"),
 }
 
 
@@ -744,7 +743,7 @@ def _subject_spec(signal) -> SignalSpec:
     esc = re.escape(subj)
     # keyword-tribe: the subject is an ability keyword (Flying), not a creature type —
     # find creatures that HAVE the keyword (oracle), not a type-line match.
-    if signal.key == "keyword_tribe":
+    if signal.key == signal_keys.KEYWORD_TRIBE:
         return SignalSpec(
             label=f"{subj} matters",
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
@@ -753,7 +752,7 @@ def _subject_spec(signal) -> SignalSpec:
         )
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
-    if signal.key == "token_maker":
+    if signal.key == signal_keys.TOKEN_MAKER:
         token_re = rf"create\b[^.]*\b{esc}\b[^.]*token"
         return SignalSpec(
             label=f"{subj} tokens",
@@ -826,3 +825,29 @@ def search_filters(signal, *, color_identity: str, fmt: str) -> dict:
     base["color_identity"] = color_identity
     base["format"] = fmt
     return base
+
+
+def _assert_every_producible_key_resolves() -> None:
+    """Key-agreement gate (ADR-0014). Every subject-less key a detector can produce
+    must resolve to a spec. A detector key with no spec used to be a silent no-avenue
+    (extraction worked, ``spec_for`` returned None, the avenue was dropped); now it
+    fails loudly at import — which ``app.py`` / ``ranking.py`` / every test trigger
+    transitively. ``signals`` is imported lazily to keep the module import order
+    one-way (signals never imports signal_specs)."""
+    from mtg_utils._deck_forge.signals import Signal, producible_static_keys
+
+    orphans = sorted(
+        key
+        for key in producible_static_keys()
+        if spec_for(Signal(key=key, scope="any", subject="", text="", source=""))
+        is None
+    )
+    if orphans:
+        msg = (
+            f"signal keys produced by a detector but resolved by no spec: {orphans} — "
+            "add a SPECS entry (or sweep row), or exclude a subject key."
+        )
+        raise AssertionError(msg)
+
+
+_assert_every_producible_key_resolves()

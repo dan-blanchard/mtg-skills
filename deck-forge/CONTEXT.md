@@ -82,6 +82,26 @@ used as a *soft* target for Slot budgets — a starting point, not a rule. Disti
 from the mana-curve / land-count **gate**, which is hard.
 _Avoid_: "rule", "requirement" (Templates never block).
 
+### Signal plumbing
+
+**Signal key**:
+The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between
+the detector (`signals.py`, which emits it) and the exploitation map (`signal_specs.py`,
+which maps it to an avenue). Cross-file keys live as constants in `signal_keys.py`.
+_Avoid_: "signal name", "signal type".
+
+**Silent orphan** (silent no-avenue):
+A Signal key a detector produces but no spec resolves — historically a *silent* failure
+(extraction worked, `spec_for` returned `None`, the avenue was just dropped). The
+key-agreement gate turns it into a loud import-time error.
+_Avoid_: "missing spec" alone (understates that it failed silently).
+
+**Key-agreement gate**:
+The import-time assertion in `signal_specs.py` that every producible static key resolves
+to a spec, derived from `signals.producible_static_keys()` (a union of the producer
+tables, so it can't lag). The successor to a hand-typed coverage list.
+_Avoid_: "validation", "check" (too generic).
+
 ### Roles & surfaces
 
 **Session-agent** (a.k.a. the reasoning layer):

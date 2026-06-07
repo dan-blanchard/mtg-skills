@@ -162,23 +162,15 @@ def test_token_maker_subject_spec_and_generic_fallback():
     assert "oracle" in generic.search
 
 
-def test_all_new_floor_keys_have_specs():
-    new_keys = [
-        ("treasure_matters", "you"),
-        ("artifacts_matter", "you"),
-        ("enchantments_matter", "you"),
-        ("tokens_matter", "you"),
-        ("stax_taxes", "opponents"),
-        ("blink_flicker", "you"),
-        ("mill_matters", "any"),
-        ("goad_matters", "opponents"),
-        ("proliferate_matters", "you"),
-        ("magecraft_matters", "you"),
-        ("extra_combats", "you"),
-        ("extra_turns", "you"),
-    ]
-    for key, scope in new_keys:
-        spec = spec_for(_sig_sub(key, "", scope))
+def test_every_producible_key_resolves_to_a_spec():
+    """The readable twin of the import-time key-agreement gate (ADR-0014): every
+    subject-less key a detector can emit must resolve to a spec, so a new detector
+    without a spec can't silently produce a no-op avenue. DERIVED from the producer
+    tables (replaces the old hand-typed list, which was exactly the drift this guards)."""
+    from mtg_utils._deck_forge.signals import producible_static_keys
+
+    for key in sorted(producible_static_keys()):
+        spec = spec_for(_sig(key, "any"))
         assert spec is not None, key
         assert spec.label, key
         assert spec.search, key

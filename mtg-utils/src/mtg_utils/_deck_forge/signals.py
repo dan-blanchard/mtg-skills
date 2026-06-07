@@ -38,6 +38,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import (
     CARD_TYPE_SUBJECTS,
     CREATURE_SUBTYPES,
@@ -300,7 +301,7 @@ def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, 
         for m in pat.finditer(clause):
             subject = _resolve_subject(m.group(1), vocab)
             if subject:
-                out.append(("type_matters", subject))
+                out.append((signal_keys.TYPE_MATTERS, subject))
     return out
 
 
@@ -311,7 +312,7 @@ def _detect_typed_spellcast(
     for m in _TYPED_SPELLCAST_PATTERN.finditer(clause):
         subject = _resolve_subject(m.group(1), vocab)
         if subject:
-            out.append(("typed_spellcast", subject))
+            out.append((signal_keys.TYPED_SPELLCAST, subject))
     return out
 
 
@@ -324,7 +325,7 @@ def _detect_token_maker(clause: str, vocab: frozenset[str]) -> list[tuple[str, s
             if w.lower() in vocab:
                 chosen = w.capitalize()
                 break
-        out.append(("token_maker", chosen))
+        out.append((signal_keys.TOKEN_MAKER, chosen))
     return out
 
 
@@ -967,7 +968,7 @@ def _detect_keyword_tribe(clause: str) -> list[tuple[str, str, str]]:
         for m in pat.finditer(clause):
             kw = m.group(1).lower()
             if kw in _ABILITY_KEYWORDS:
-                out.append(("keyword_tribe", scope, kw.capitalize()))
+                out.append((signal_keys.KEYWORD_TRIBE, scope, kw.capitalize()))
     return out
 
 
@@ -1231,7 +1232,7 @@ def extract_signals(
         for tok in type_line.split("—", 1)[1].split():
             sub = tok.strip().lower()
             if sub in TRIBAL_SUBTYPES:
-                add("type_matters", "you", sub.capitalize(), type_line, "low")
+                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), type_line, "low")
 
     # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
     # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).
@@ -1317,3 +1318,32 @@ def coverage_gate(card: dict, signals: list[Signal]) -> tuple[bool, str]:
     if _scope_uncertain(get_oracle_text(card) or ""):
         return (True, "scope_uncertain")
     return (False, "")
+
+
+# Keys emitted by hand-written full-text / function detectors via a direct add(), i.e.
+# NOT carried by a producer table — co-listed so the key-agreement gate guards them too.
+# (Subject-bearing keys live in signal_keys.SUBJECT_KEYS and are excluded below; they
+# resolve dynamically via signal_specs._subject_spec, not a static spec.)
+_LITERAL_ADD_KEYS = frozenset(
+    {"self_blink", "combat_buff_engine", "discard_matters", "card_draw_engine"}
+)
+
+
+def producible_static_keys() -> set[str]:
+    """Every scope-bearing, subject-LESS signal key a detector can emit into
+    ``Signal.key`` — DERIVED from the producer tables (so it can never lag the
+    detectors) and fed to the key-agreement gate in signal_specs.py. Subject-bearing
+    keys are excluded: they have no static spec (signal_specs._subject_spec builds one
+    from the captured subject) and so must not be probed with an empty subject."""
+    keys: set[str] = set()
+    keys.update(key for key, _matcher, _scope in _DETECTORS)
+    keys.update(key for key, _pattern, _scope in _HAND_FLOOR)
+    keys.update(d["key"] for d in SWEEP_DETECTORS)
+    for table in (
+        _PRESET_KEYWORD_SIGNALS,
+        _PRESET_REGEX_SIGNALS,
+        _DIRECT_KEYWORD_SIGNALS,
+    ):
+        keys.update(key for key, _scope in table.values())
+    keys.update(_LITERAL_ADD_KEYS)
+    return keys - signal_keys.SUBJECT_KEYS
