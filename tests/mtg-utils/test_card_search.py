@@ -127,6 +127,22 @@ class TestMatchesFilters:
             price_max=None,
         )
 
+    def test_rejects_reversible_card_layout(self):
+        # Secret Lair "reversible" novelty reprints (e.g. Krark, the Thumbless //
+        # Krark, the Thumbless) are legally single-faced cosmetic dupes with a null
+        # top-level cmc/type_line; the canonical printing always exists, so skip them.
+        card = _make_card(layout="reversible_card")
+        assert not _matches_filters(
+            card,
+            allowed_colors=None,
+            oracle_re=None,
+            type_lower=None,
+            cmc_min=None,
+            cmc_max=None,
+            price_min=None,
+            price_max=None,
+        )
+
     def test_rejects_non_commander_legal(self):
         card = _make_card(legalities={"commander": "not_legal"})
         assert not _matches_filters(

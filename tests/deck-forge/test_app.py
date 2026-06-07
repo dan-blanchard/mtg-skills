@@ -44,7 +44,19 @@ ATRAXA = {
     "prices": {"usd": "12.00"},
 }
 
-INDEX = {c["name"]: c for c in (LLANOWAR, FOREST, ATRAXA)}
+PLANESWALKER = {
+    "name": "Test Walker",
+    "type_line": "Legendary Planeswalker — Test",
+    "mana_cost": "{2}{U}",
+    "cmc": 3.0,
+    "color_identity": ["U"],
+    "oracle_text": "+1: Draw a card.",
+    "rarity": "mythic",
+    "prices": {"usd": "5.00"},
+    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
+}
+
+INDEX = {c["name"]: c for c in (LLANOWAR, FOREST, ATRAXA, PLANESWALKER)}
 
 
 def make_client(*, search_results=None, session=None):
@@ -95,8 +107,38 @@ _FOREST_VIEW = {
     "prices": {"usd": "0.05"},
     "images": None,
     "game_changer": None,
+    "can_be_commander": False,
     "unknown": False,
 }
+
+
+def test_card_view_flags_commander_eligibility():
+    session = DeckSession("commander")
+    session.add("Atraxa, Praetors' Voice", zone="commanders")
+    session.add("Forest", 1)
+    client = make_client(session=session)
+    snap = client.get("/api/snapshot").json()
+    assert snap["deck"]["commanders"][0]["can_be_commander"] is True
+    assert snap["deck"]["cards"][0]["can_be_commander"] is False
+
+
+def test_commander_eligibility_is_format_aware():
+    # A legendary planeswalker is a commander in historic_brawl but NOT in commander.
+    client = make_client(search_results=[PLANESWALKER])
+    body = {"name": "Test Walker"}
+    res_cmd = client.post("/api/search", json=body).json()["results"][0]
+    assert res_cmd["can_be_commander"] is False  # default commander format
+    client.post("/api/deck/format", json={"format": "historic_brawl"})
+    res_hb = client.post("/api/search", json=body).json()["results"][0]
+    assert res_hb["can_be_commander"] is True
+
+
+def test_set_format_changes_format_and_rejects_unknown():
+    client = make_client()
+    snap = client.post("/api/deck/format", json={"format": "brawl"}).json()
+    assert snap["deck"]["format"] == "brawl"
+    bad = client.post("/api/deck/format", json={"format": "bogus"})
+    assert bad.status_code == 400
 
 
 def test_search_projects_results_with_images():

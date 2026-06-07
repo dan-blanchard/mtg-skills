@@ -6,7 +6,14 @@ import re
 
 from mtg_utils.format_config import FORMAT_CONFIGS
 
-SKIP_LAYOUTS = frozenset(("token", "double_faced_token", "art_series"))
+SKIP_LAYOUTS = frozenset(
+    # token / art_series / reversible_card are non-gameplay or cosmetic-reprint
+    # printings. "reversible_card" is the Secret Lair novelty layout (e.g. Krark,
+    # the Thumbless // Krark, the Thumbless): legally single-faced, with a null
+    # top-level cmc/type_line, and always backed by a canonical printing — so it
+    # would otherwise show up as a duplicate, mis-parsed search entry.
+    ("token", "double_faced_token", "art_series", "reversible_card")
+)
 
 
 # Singleton-rule exemption patterns.

@@ -6,6 +6,18 @@
   let editing = false;
   let draft = "";
 
+  // The Commander-family formats deck-forge builds (paper Commander + Arena Brawl).
+  const FORMATS = [
+    ["commander", "Commander"],
+    ["brawl", "Brawl"],
+    ["historic_brawl", "Historic Brawl"],
+  ];
+
+  async function changeFormat(e) {
+    const r = await api.setFormat(e.target.value);
+    if (r.ok) applySnapshot(r.data);
+  }
+
   function startEdit() {
     draft = $buildName;
     editing = true;
@@ -47,7 +59,11 @@
 
   <div class="meta">
     <BuildMenu />
-    <span class="chip format">{$deck.format.replace("_", " ")}</span>
+    <select class="chip format" title="Deck format" on:change={changeFormat}>
+      {#each FORMATS as [val, label]}
+        <option value={val} selected={val === $deck.format}>{label}</option>
+      {/each}
+    </select>
     <span class="chip">{$stats?.total_cards ?? 0} cards</span>
     {#if $mana}
       <span class="chip gate status-{$mana.overall_status}">
@@ -136,6 +152,22 @@
   .format {
     color: var(--brass-bright);
     border-color: var(--hairline);
+  }
+  select.format {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 1.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 0l4 6 4-6z' fill='%23d9a441'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.55rem center;
+    font-family: var(--body);
+  }
+  select.format:hover {
+    border-color: var(--brass);
+  }
+  select.format option {
+    background: var(--panel);
+    color: var(--parchment);
   }
   .gate {
     display: inline-flex;

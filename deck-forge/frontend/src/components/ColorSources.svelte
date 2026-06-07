@@ -1,6 +1,7 @@
 <script>
   import { stats } from "../lib/store.js";
   import { COLOR_ORDER, COLOR_LABEL } from "../lib/mana.js";
+  import Mana from "./Mana.svelte";
 
   $: sources = $stats?.color_sources ?? {};
   $: present = COLOR_ORDER.filter((c) => sources[c]);
@@ -12,7 +13,7 @@
     <div class="pips">
       {#each present as c}
         <div class="src" title={COLOR_LABEL[c]}>
-          <span class="pip pip-{c}">{c}</span>
+          <Mana sym={c} size="1.2rem" />
           <span class="cnt">{sources[c]}</span>
         </div>
       {/each}

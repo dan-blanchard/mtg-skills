@@ -3,6 +3,7 @@
   import { api } from "../lib/api.js";
   import { applySnapshot, deck } from "../lib/store.js";
   import CardTile from "./CardTile.svelte";
+  import Mana from "./Mana.svelte";
 
   // Singleton: drop a search hit once it's in the deck (it can't be added again).
   $: inDeck = new Set(
@@ -115,14 +116,13 @@
         <div class="field wide">
           <span class="lbl">Color identity</span>
           <div class="pips">
-            {#each PIPS as [c, bg]}
+            {#each PIPS as [c]}
               <button
                 type="button"
                 class="pip"
                 class:on={colors.has(c)}
-                style="--pip:{bg}"
                 title={c === "C" ? "Colorless" : c}
-                on:click={() => toggleColor(c)}>{c}</button
+                on:click={() => toggleColor(c)}><Mana sym={c} size="1.45rem" /></button
               >
             {/each}
             <label class="exact" title="Match the color identity exactly, not as a subset">
@@ -301,24 +301,25 @@
     gap: 0.3rem;
   }
   .pip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 1.7rem;
     height: 1.7rem;
+    padding: 0;
     border-radius: 50%;
-    border: 2px solid var(--hairline);
+    border: 2px solid transparent;
     background: rgba(0, 0, 0, 0.3);
-    color: var(--muted);
-    font-family: var(--display);
-    font-weight: 700;
-    font-size: 0.82rem;
-    opacity: 0.5;
+    opacity: 0.45;
+    filter: grayscale(0.55);
     transition: all 0.12s ease;
+    cursor: pointer;
   }
   .pip.on {
-    background: var(--pip);
-    color: #1a1410;
     border-color: #fff;
     opacity: 1;
-    box-shadow: 0 0 8px var(--pip);
+    filter: none;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
   }
   .exact {
     flex-direction: row;

@@ -23,6 +23,7 @@ from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.card_classify import is_commander
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
@@ -70,6 +71,10 @@ class RemovePayload(BaseModel):
     name: str
     qty: int = 1
     zone: str = "cards"
+
+
+class FormatPayload(BaseModel):
+    format: str
 
 
 class AgentRequestPayload(BaseModel):
@@ -155,8 +160,10 @@ class SearchPayload(BaseModel):
     limit: int = 25
 
 
-def _project(record: dict) -> dict:
-    """Display fields for one real card record (no name/quantity)."""
+def _project(record: dict, fmt: str) -> dict:
+    """Display fields for one real card record (no name/quantity). ``fmt`` is the
+    deck's format, so ``can_be_commander`` reflects the right legality mode (different
+    cards are commander-eligible in commander vs brawl vs historic_brawl)."""
     return {
         "type_line": record.get("type_line", ""),
         "mana_cost": record.get("mana_cost", ""),
@@ -167,23 +174,27 @@ def _project(record: dict) -> dict:
         "prices": record.get("prices", {}),
         "images": image_urls(record),
         "game_changer": record.get("game_changer"),
+        "can_be_commander": is_commander(record, fmt)["eligible"],
     }
 
 
-def _card_view(name: str, qty: int, by_name: dict[str, dict]) -> dict:
+def _card_view(name: str, qty: int, by_name: dict[str, dict], fmt: str) -> dict:
     record = by_name.get(name)
     if record is None:
         return {"name": name, "quantity": qty, "unknown": True}
-    return {"name": name, "quantity": qty, "unknown": False, **_project(record)}
+    return {"name": name, "quantity": qty, "unknown": False, **_project(record, fmt)}
 
 
 def _deck_view(state: ForgeState) -> dict:
     deck = state.session.to_deck_dict()
     by_name = state.by_name
+    fmt = deck["format"]
     return {
-        "format": deck["format"],
+        "format": fmt,
         **{
-            zone: [_card_view(e["name"], e["quantity"], by_name) for e in deck[zone]]
+            zone: [
+                _card_view(e["name"], e["quantity"], by_name, fmt) for e in deck[zone]
+            ]
             for zone in _VALID_ZONES
         },
     }
@@ -433,6 +444,21 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
+    @app.post("/api/deck/format")
+    async def set_format(payload: FormatPayload):
+        """Change the current build's format (commander / brawl / historic_brawl).
+        The deck's cards are kept; everything format-dependent (deck size, land floor,
+        legality, commander eligibility) re-derives on the next snapshot."""
+        if payload.format not in _DECK_SIZE:
+            return JSONResponse(
+                {"error": f"unsupported format: {payload.format!r}"}, status_code=400
+            )
+        state.session.format = payload.format
+        _autosave(state)
+        snap = _snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
     @app.post("/api/deck/balance-lands")
     async def balance_lands() -> dict:
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
@@ -477,8 +503,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             sort=payload.sort,
             limit=payload.limit,
         )
+        fmt = state.session.format
         return {
-            "results": [{"name": r.get("name", ""), **_project(r)} for r in records]
+            "results": [
+                {"name": r.get("name", ""), **_project(r, fmt)} for r in records
+            ]
         }
 
     @app.get("/api/events")
@@ -546,7 +575,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                     "candidates": [
                         {
                             "name": r["card"].get("name", ""),
-                            **_project(r["card"]),
+                            **_project(r["card"], fmt),
                             "score": r["score"],
                         }
                         for r in ranked
@@ -676,7 +705,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 "candidates": [
                     {
                         "name": r["card"].get("name", ""),
-                        **_project(r["card"]),
+                        **_project(r["card"], fmt),
                         "score": r["score"],
                     }
                     for r in ranked
@@ -751,6 +780,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         # Enrich each combo's cards with hydrated views (image/type/price) + an in-deck
         # flag, so the UI can render them as the same CardTiles as search/synergies.
         in_deck = set(state.session.card_names())
+        fmt = state.session.format
 
         def _card_views(names: list[str]) -> list[dict]:
             out = []
@@ -758,7 +788,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 view = {"name": name, "in_deck": name in in_deck}
                 record = state.by_name.get(name)
                 if record is not None:
-                    view.update(_project(record))
+                    view.update(_project(record, fmt))
                 out.append(view)
             return out
 

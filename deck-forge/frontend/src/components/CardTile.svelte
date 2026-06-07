@@ -2,6 +2,7 @@
   import { COLOR_ORDER } from "../lib/mana.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
+  import Mana from "./Mana.svelte";
   export let card;
   export let onadd;
   export let score = null;
@@ -9,6 +10,9 @@
   $: price = card.prices?.usd;
   $: colors = (card.color_identity || []).filter((c) => COLOR_ORDER.includes(c));
   $: noListing = price == null;
+  // Only legendary creatures / other commander-eligible cards (for the deck's current
+  // format) can be set as commander — the backend computes this per format.
+  $: canCommand = card.can_be_commander === true;
 </script>
 
 <div class="tile" use:hoverPreview={card}>
@@ -21,7 +25,7 @@
       <div class="noart">{card.name}</div>
     {/if}
     <div class="ci">
-      {#each colors as c}<span class="pip pip-{c}">{c}</span>{/each}
+      {#each colors as c}<Mana sym={c} size="1.05rem" />{/each}
     </div>
   </div>
 
@@ -42,7 +46,12 @@
     {/if}
     <div class="actions">
       <button class="btn btn-ember add" on:click={() => onadd(card.name, "cards")}>+ Add</button>
-      <button class="btn star" title="Set as commander" on:click={() => onadd(card.name, "commanders")}>★</button>
+      <button
+        class="btn star"
+        title={canCommand ? "Set as commander" : "Not commander-eligible in this format"}
+        disabled={!canCommand}
+        on:click={() => onadd(card.name, "commanders")}
+      >★</button>
       <button class="btn star" title="Ask the forge-friend to explain" on:click={() => askForge("explain", { card: card.name })}>?</button>
     </div>
   </div>
@@ -87,9 +96,16 @@
   .ci {
     position: absolute;
     top: 0.35rem;
-    right: 0.35rem;
+    /* Bound to BOTH edges and right-align so the symbols can never overflow the
+       card's right edge (the old right-only anchor let the last pip get clipped);
+       wrap downward if a card somehow has many symbols. */
+    right: 0.4rem;
+    left: 0.4rem;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 0.2rem;
+    pointer-events: none;
   }
   .body {
     padding: 0.55rem 0.6rem 0.6rem;
@@ -157,5 +173,9 @@
   .star {
     width: 2rem;
     padding: 0.42rem 0;
+  }
+  .star:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 </style>

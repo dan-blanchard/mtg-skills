@@ -29,6 +29,7 @@ export const api = {
   remove: (name, zone = "cards", qty = 1) =>
     post("/api/deck/remove", { name, zone, qty }),
   balanceLands: () => post("/api/deck/balance-lands", {}),
+  setFormat: (format) => post("/api/deck/format", { format }),
   packages: () => get("/api/packages"),
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
