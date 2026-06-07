@@ -327,16 +327,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "regex": "lore counter|on (?:a|target) saga you control",
     },
     {
+        # Scope is "any": the row matches both self-wins ("you win the game") and
+        # opponent-losses ("that player loses the game"), so a single forced scope can't
+        # be correct — "any" avoids the old "opponents" mislabel of self-wincons. A true
+        # per-branch scope split would need clause-scope extraction (the sweep table's
+        # unique-key invariant forbids two win_lose_game rows).
         "key": "win_lose_game",
-        "scope": "you",
+        "scope": "any",
         "is_widen_of": "",
-        "regex": "you win the game",
-    },
-    {
-        "key": "win_lose_game",
-        "scope": "opponents",
-        "is_widen_of": "",
-        "regex": "that player loses the game|each opponent loses the game|target (?:player|opponent) loses the game",
+        "regex": "you win the game|(?:that player|each opponent|target (?:player|opponent)) loses the game",
     },
     {
         "key": "target_player_draws",

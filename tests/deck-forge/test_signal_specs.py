@@ -1284,9 +1284,9 @@ class TestMediumBatch8:
         keys = {s.key for s in extract_signals(beast_whisperer)}
         assert "creature_cast_trigger" in keys
 
-    def test_win_lose_game_scope_splits_self_win(self):
+    def test_win_lose_game_self_win_not_mislabeled_opponents(self):
         from mtg_utils._deck_forge.signals import extract_signals
 
         felidar = {"name": "Felidar Sovereign", "type_line": "Creature — Cat Beast", "oracle_text": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game."}
         sigs = [s for s in extract_signals(felidar) if s.key == "win_lose_game"]
-        assert any(s.scope == "you" for s in sigs)
+        assert sigs and all(s.scope != "opponents" for s in sigs)
