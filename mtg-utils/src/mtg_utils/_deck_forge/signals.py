@@ -356,6 +356,24 @@ def _detect_typed_gy_recursion(
     return out
 
 
+# Keyword abilities whose presence implies a creature-subtype tribal theme the literal
+# "<Subtype>s you control" patterns miss. Ninjutsu (CR 702.49) is ONLY granted to/by
+# Ninjas, so a ninjutsu commander (Yuriko, Satoru, Higure — whose text never says
+# "Ninjas you control") is a Ninja-tribal deck; emit type_matters:Ninja so the tribal
+# bodies + lords/equipment/ETB payoffs surface alongside the existing ninjutsu_matters.
+_KEYWORD_IMPLIES_TRIBE: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bninjutsu\b"), "Ninja"),
+)
+
+
+def _detect_keyword_implied_tribe(clause: str) -> list[tuple[str, str]]:
+    return [
+        (signal_keys.TYPE_MATTERS, subj)
+        for pat, subj in _KEYWORD_IMPLIES_TRIBE
+        if pat.search(clause)
+    ]
+
+
 # ── Tier 3: structural-anchor floor detectors + theme_presets reuse ────────────
 
 
@@ -1305,6 +1323,8 @@ def extract_signals(
             add(key, "you", subject, stripped)
         for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
             add(key, scope, subject, stripped)
+        for key, subject in _detect_keyword_implied_tribe(clause):
+            add(key, "you", subject, stripped)
         draw = _detect_card_draw(clause)
         if draw is not None:
             add(draw[0], draw[1], "", stripped)

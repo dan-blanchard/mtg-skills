@@ -587,11 +587,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # The bare word `haste` matched its reminder text and incidental mentions ("loses
     # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor
     # the token branch to the literal "creature token".
+    # The serve once credited only haste-grant + token-makers — 40/223 (18%) of the
+    # attack-trigger payoff axis. Widen with the "whenever you attack" / "whenever a
+    # creature you control attacks" alternation (CR 508 declare-attackers triggers) so
+    # the avenue surfaces attack-trigger payoffs (Hellrider, Adeline, Shared Animosity),
+    # not just speed. Anchored on "you attack" / "you control attacks" so a defensive
+    # "whenever a creature attacks you" trigger never matches.
     ("attack_matters", "you"): _spec(
         "Combat",
-        "haste enablers and evasive/aggressive bodies",
-        {"oracle": r"haste|create .*creature token"},
-        r"(?:gains?|gain|have|has) haste|create [^.]*creature token",
+        "attack-trigger payoffs, haste enablers, and aggressive bodies",
+        {
+            "oracle": r"haste|create .*creature token"
+            r"|whenever you attack|you control attacks"
+        },
+        r"(?:gains?|gain|have|has) haste|create [^.]*creature token"
+        r"|whenever you attack\b"
+        r"|whenever (?:a|an|another|one or more)[^.]*creatures? you control attacks?",
         serve_keywords=("haste",),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and
