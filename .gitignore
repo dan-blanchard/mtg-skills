@@ -31,3 +31,7 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 !deck-forge/frontend/package-lock.json
 !deck-forge/frontend/dist/
 !deck-forge/frontend/dist/**
+
+# Local scratch / session dirs (skill working output + Claude Code session state)
+.deck-wizard-work/
+.claude/
