@@ -563,7 +563,7 @@ def main(
     include_commanders: bool,
     show_matches: bool,
     emit_json: bool,
-):
+) -> None:
     """Cross-reference theme queries against color pairs in a cube.
 
     Themes can come from four sources (combined): ``--preset <name>`` for

@@ -416,7 +416,7 @@ def main(
     output_path: Path | None,
     *,
     emit_json: bool,
-):
+) -> None:
     """Parse a cube list file into canonical cube JSON."""
     result = parse_cube(
         cube_path,

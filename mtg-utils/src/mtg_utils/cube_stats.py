@@ -292,7 +292,7 @@ def main(
     output_path: Path | None,
     *,
     emit_json: bool,
-):
+) -> None:
     """Compute descriptive cube metrics from cube JSON and hydrated card data."""
     cube_content = cube_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")

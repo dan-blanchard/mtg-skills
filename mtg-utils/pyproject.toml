@@ -81,7 +81,6 @@ dev = [
 select = ["ALL"]
 ignore = [
     "D",       # pydocstyle — skip docstring enforcement
-    "ANN",     # flake8-annotations — skip type annotation enforcement
     "ERA",     # eradicate — skip commented-out code detection
     "FIX",     # fixme — allow TODO/FIXME comments
     "TD",      # flake8-todos — skip TODO format enforcement
@@ -112,10 +111,12 @@ ignore = [
     "SLF001",  # private member access — tests need to test internals
     "E501",    # line length — test data and assertions can be long
     "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
+    "ANN",     # flake8-annotations — test functions don't need annotations
 ]
 "../tests/*" = [
     "SLF001",  # private member access — tests need to test internals
     "E501",    # line length — test data and assertions can be long
     "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
     "N999",    # invalid module name — directory uses hyphen convention
+    "ANN",     # flake8-annotations — test functions don't need annotations
 ]

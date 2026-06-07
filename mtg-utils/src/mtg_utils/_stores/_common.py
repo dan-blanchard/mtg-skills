@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal, Protocol, TypedDict, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, runtime_checkable
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
 
 
 def attr_str(value: str | list[str] | None) -> str:
@@ -117,9 +120,9 @@ class StoreSession(Protocol):
     base_url: str
 
     def name_for_search(self, card_name: str) -> str: ...
-    def get_existing_cart(self, page) -> list[Listing]: ...
-    def clear_cart(self, page) -> None: ...
-    def is_logged_in(self, page) -> bool: ...
+    def get_existing_cart(self, page: Page) -> list[Listing]: ...
+    def clear_cart(self, page: Page) -> None: ...
+    def is_logged_in(self, page: Page) -> bool: ...
     def open_login(self, profile_dir: Path) -> None: ...
     def open_handoff(self, profile_dir: Path) -> None: ...
 
@@ -135,13 +138,15 @@ class LGSAdapter(StoreSession, Protocol):
 
     def search(
         self,
-        page,
+        page: Page,
         card_name: str,
         *,
         qty: int,
         prefs: SearchPrefs,
     ) -> list[Listing]: ...
-    def add_to_cart(self, page, listing: Listing, qty: int) -> AddToCartResult: ...
+    def add_to_cart(
+        self, page: Page, listing: Listing, qty: int
+    ) -> AddToCartResult: ...
 
 
 @runtime_checkable
@@ -156,7 +161,7 @@ class MarketplaceAdapter(StoreSession, Protocol):
 
     def bulk_submit_and_optimize(
         self,
-        page,
+        page: Page,
         lines: list[Line],
     ) -> OptimizedCart: ...
 

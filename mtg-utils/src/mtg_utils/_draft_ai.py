@@ -7,6 +7,7 @@ open-signal weight that rewards colors other seats are passing).
 
 from __future__ import annotations
 
+import random
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -80,7 +81,7 @@ def draft_pod(
     players: int,
     packs: int,
     pack_size: int,
-    rng,
+    rng: random.Random,
 ) -> list[list[dict]]:
     """Run one pod's worth of drafting; return one card pile per player.
 

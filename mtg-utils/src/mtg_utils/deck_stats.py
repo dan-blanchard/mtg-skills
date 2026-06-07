@@ -285,7 +285,7 @@ def _default_output_path(deck_content: str, hydrated_content: str) -> Path:
     default=None,
     help="Override the default sha-keyed path for the full JSON output.",
 )
-def main(deck_path: Path, hydrated_path: Path, output_path: Path | None):
+def main(deck_path: Path, hydrated_path: Path, output_path: Path | None) -> None:
     """Compute deck statistics from parsed deck and hydrated card data."""
     deck_content = deck_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")

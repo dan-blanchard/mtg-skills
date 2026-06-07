@@ -502,7 +502,7 @@ def render_text_report(result: dict) -> str:
     return "\n".join(_render_single_audit(result)) + "\n"
 
 
-def _default_output_path(*args) -> Path:
+def _default_output_path(*args: object) -> Path:
     return sha_keyed_path("mana-audit", *args)
 
 
@@ -529,7 +529,7 @@ def main(
     hydrated_path: Path,
     compare: tuple[Path, Path] | None,
     output_path: Path | None,
-):
+) -> None:
     """Audit a deck's mana base for land count and color balance."""
     deck_content = deck_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")

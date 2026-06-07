@@ -466,7 +466,14 @@ def _run_goldfish(
     default=None,
     help="Write full JSON envelope to this path (markdown report printed to stdout)",
 )
-def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> None:
+def goldfish_main(
+    deck_path: str,
+    hydrated_path: str,
+    games: int,
+    turns: int,
+    seed: int,
+    output_path: str | None,
+) -> None:
     """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
     deck = json.loads(Path(deck_path).read_text())
     hydrated_raw = json.loads(Path(hydrated_path).read_text())
@@ -538,7 +545,16 @@ def goldfish_main(deck_path, hydrated_path, games, turns, seed, output_path) -> 
     help="Run even if phase coverage is below the threshold",
 )
 @click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
-def match_main(deck_a, deck_b, games, seed, difficulty, timeout_s, force, output_path):
+def match_main(
+    deck_a: str,
+    deck_b: str,
+    games: int,
+    seed: int,
+    difficulty: str,
+    timeout_s: int,
+    force: bool,  # noqa: FBT001
+    output_path: str | None,
+) -> None:
     """AI vs AI batch (phase-rs).
 
     Runs --games games between deck A and deck B and reports win % per side
@@ -653,15 +669,15 @@ def match_main(deck_a, deck_b, games, seed, difficulty, timeout_s, force, output
 @click.option("--timeout-s", default=600, show_default=True, type=int)
 @click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
 def gauntlet_main(
-    cube_path,
-    hydrated_path,
-    gauntlet_path,
-    games_per_pair,
-    seed,
-    difficulty,
-    timeout_s,
-    output_path,
-):
+    cube_path: str,
+    hydrated_path: str,
+    gauntlet_path: str | None,
+    games_per_pair: int,
+    seed: int,
+    difficulty: str,
+    timeout_s: int,
+    output_path: str | None,
+) -> None:
     """Cube archetype-gauntlet round-robin (phase-rs)."""
     import importlib.resources
     import tempfile as _tempfile
@@ -830,17 +846,17 @@ def gauntlet_main(
 @click.option("--seed", default=0, show_default=True, type=int)
 @click.option("--output", "output_path", type=click.Path(dir_okay=False), default=None)
 def draft_main(
-    cube_path,
-    hydrated_path,
-    pods,
-    players,
-    packs,
-    pack_size,
-    goldfish_games,
-    goldfish_turns,
-    seed,
-    output_path,
-):
+    cube_path: str,
+    hydrated_path: str,
+    pods: int,
+    players: int,
+    packs: int,
+    pack_size: int,
+    goldfish_games: int,
+    goldfish_turns: int,
+    seed: int,
+    output_path: str | None,
+) -> None:
     """Heuristic cube draft + per-deck goldfish."""
     from mtg_utils._archetype_resolver import matcher_for, resolve_stated_archetypes
     from mtg_utils._draft_ai import draft_pod
@@ -1113,18 +1129,18 @@ def install_phase_main() -> None:
     default=None,
 )
 def custom_format_main(
-    cube_path,
-    hydrated_path,
-    format_module_name,
-    preset_names,
-    from_cube,
-    archetype_groups,
-    players,
-    turns,
-    games,
-    seed,
-    output_path,
-):
+    cube_path: str,
+    hydrated_path: str,
+    format_module_name: str,
+    preset_names: tuple[str, ...],
+    from_cube: bool,  # noqa: FBT001
+    archetype_groups: tuple[str, ...],
+    players: int | None,
+    turns: int | None,
+    games: int,
+    seed: int,
+    output_path: str | None,
+) -> None:
     """Simulate a non-standard cube format (e.g., shared_library)."""
     from mtg_utils._custom_format import FORMAT_REGISTRY
     from mtg_utils._custom_format._common import (

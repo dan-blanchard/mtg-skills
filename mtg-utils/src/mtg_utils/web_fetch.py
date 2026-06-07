@@ -99,7 +99,7 @@ def fetch_page(url: str) -> str:
     default=None,
     help="Truncate output to this many characters.",
 )
-def main(url: str, max_length: int | None):
+def main(url: str, max_length: int | None) -> None:
     """Fetch a web page and print its text content."""
     text = fetch_page(url)
     if max_length and len(text) > max_length:

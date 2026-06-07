@@ -443,7 +443,7 @@ def main(
     batch: Path | None,
     bulk_data: Path | None,
     cache_dir: Path | None,
-):
+) -> None:
     """Look up MTG card data from Scryfall."""
     if batch:
         results, cache_path, names = lookup_cards(

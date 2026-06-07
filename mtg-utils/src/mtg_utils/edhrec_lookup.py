@@ -78,7 +78,7 @@ def edhrec_lookup(commanders: list[str]) -> dict:
 
 @click.command()
 @click.argument("commanders", nargs=-1, required=True)
-def main(commanders: tuple[str, ...]):
+def main(commanders: tuple[str, ...]) -> None:
     """Fetch EDHREC recommendations for a commander."""
     result = edhrec_lookup(list(commanders))
     click.echo(json.dumps(result, indent=2))

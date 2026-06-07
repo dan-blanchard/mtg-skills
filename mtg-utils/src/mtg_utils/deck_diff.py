@@ -136,7 +136,7 @@ def main(
     new_deck_path: Path,
     old_hydrated_path: Path,
     new_hydrated_path: Path,
-):
+) -> None:
     """Compare two deck lists and compute impact metrics."""
     old_deck = json.loads(old_deck_path.read_text(encoding="utf-8"))
     new_deck = json.loads(new_deck_path.read_text(encoding="utf-8"))

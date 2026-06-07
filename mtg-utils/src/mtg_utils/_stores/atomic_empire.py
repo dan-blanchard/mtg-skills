@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup, Tag
 
@@ -29,6 +29,10 @@ from mtg_utils._stores._common import (
     StoreSelectorError,
     attr_str,
 )
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
 
 _BASE_URL = "https://www.atomicempire.com"
 
@@ -91,7 +95,7 @@ class _AtomicEmpireAdapter:
 
     def search(
         self,
-        page,
+        page: Page,
         card_name: str,
         *,
         qty: int,
@@ -169,7 +173,7 @@ class _AtomicEmpireAdapter:
             url=f"{self.base_url}/Card/{itemid}",
         )
 
-    def add_to_cart(self, page, listing: Listing, qty: int) -> AddToCartResult:
+    def add_to_cart(self, page: Page, listing: Listing, qty: int) -> AddToCartResult:
         """Use AE's REST endpoint via Playwright's request context.
 
         page.request preserves the persistent profile's cookies, so the add
@@ -198,7 +202,7 @@ class _AtomicEmpireAdapter:
             ctx.new_page().goto(f"{self.base_url}/Cart")
             ctx.wait_for_event("close", timeout=0)
 
-    def get_existing_cart(self, page) -> list[Listing]:
+    def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/Cart", wait_until="domcontentloaded")
             page.wait_for_timeout(500)
@@ -225,7 +229,7 @@ class _AtomicEmpireAdapter:
             )
         return out
 
-    def clear_cart(self, page) -> None:
+    def clear_cart(self, page: Page) -> None:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/Cart", wait_until="domcontentloaded")
             page.wait_for_timeout(500)
@@ -239,7 +243,7 @@ class _AtomicEmpireAdapter:
             page.wait_for_load_state("networkidle", timeout=15000)
             page.wait_for_timeout(300)
 
-    def is_logged_in(self, page) -> bool:
+    def is_logged_in(self, page: Page) -> bool:
         # Pragmatic: AE renders both Sign-in and Sign-out links in the DOM
         # toggled via JS, so static parsing can't distinguish state. We
         # assume logged in. The orchestrator's lazy-fallback handles real

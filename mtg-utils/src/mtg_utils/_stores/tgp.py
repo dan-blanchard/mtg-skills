@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup, Tag
 
@@ -25,6 +25,10 @@ from mtg_utils._stores._common import (
     StoreSelectorError,
     attr_str,
 )
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
 
 _BASE_URL = "https://the-gathering-place.mybigcommerce.com"
 
@@ -86,7 +90,7 @@ class _TGPAdapter:
 
     def search(
         self,
-        page,
+        page: Page,
         card_name: str,
         *,
         qty: int,
@@ -212,7 +216,7 @@ class _TGPAdapter:
         out.sort(key=lambda v: (v["price"], _SHORT_TO_INDEX[v["condition"]]))
         return out
 
-    def add_to_cart(self, page, listing: Listing, qty: int) -> AddToCartResult:
+    def add_to_cart(self, page: Page, listing: Listing, qty: int) -> AddToCartResult:
         """Navigate to the product URL and add the cheapest in-stock variant.
 
         Selection of the variant on the product page is best-effort: we
@@ -282,7 +286,7 @@ class _TGPAdapter:
             # Block until the user closes the window.
             ctx.wait_for_event("close", timeout=0)
 
-    def get_existing_cart(self, page) -> list[Listing]:
+    def get_existing_cart(self, page: Page) -> list[Listing]:
         """Inspect the cart page and return one stub Listing per cart item.
 
         Only the card_name field is populated; cart pollution detection
@@ -318,7 +322,7 @@ class _TGPAdapter:
             )
         return out
 
-    def clear_cart(self, page) -> None:
+    def clear_cart(self, page: Page) -> None:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart.php", wait_until="domcontentloaded")
             page.wait_for_timeout(500)
@@ -337,7 +341,7 @@ class _TGPAdapter:
             page.evaluate("document.querySelector('.modal button.confirm')?.click()")
             page.wait_for_timeout(800)
 
-    def is_logged_in(self, page) -> bool:
+    def is_logged_in(self, page: Page) -> bool:
         """Detect logged-in state from header navigation links.
 
         Logged-out: header has a 'login.php' link with text "LOGIN" or "Sign in".

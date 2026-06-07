@@ -14,10 +14,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS, SWEEP_LABELS
 from mtg_utils.card_classify import get_oracle_text
+
+if TYPE_CHECKING:
+    from mtg_utils._deck_forge.signals import Signal
 
 _IC = re.IGNORECASE
 
@@ -58,7 +62,7 @@ class Serve:
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     not_oracle: re.Pattern[str] | None = None
 
-    def search(self, text: str):
+    def search(self, text: str) -> re.Match[str] | None:
         """Back-compat: raw oracle-regex search over a string (legacy call sites)."""
         return self.oracle.search(text) if self.oracle is not None else None
 
@@ -180,7 +184,7 @@ def _self_recurs(card: dict, oracle_text: str) -> bool:
     return pat.search(oracle_text) is not None
 
 
-def _compile(pat):
+def _compile(pat: str | None) -> re.Pattern[str] | None:
     try:
         return re.compile(pat, _IC) if pat else None
     except re.error:
@@ -235,21 +239,21 @@ class SignalSpec:
 
 
 def _spec(
-    label,
-    avenue,
-    search,
-    serve,
-    extras=(),
+    label: str,
+    avenue: str,
+    search: dict,
+    serve: str | None,
+    extras: tuple[SubAvenue, ...] = (),
     *,
-    serve_types=(),
-    serve_keywords=(),
-    serve_cmc_min=None,
-    serve_min_devotion=None,
-    serve_produces_mana=False,
-    serve_power_min=None,
-    serve_self_recur=False,
-    serve_not=None,
-):
+    serve_types: tuple[str, ...] = (),
+    serve_keywords: tuple[str, ...] = (),
+    serve_cmc_min: float | None = None,
+    serve_min_devotion: int | None = None,
+    serve_produces_mana: bool = False,
+    serve_power_min: int | None = None,
+    serve_self_recur: bool = False,
+    serve_not: str | None = None,
+) -> SignalSpec:
     return SignalSpec(
         label=label,
         avenue=avenue,
@@ -1566,7 +1570,7 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
     )
 
 
-def _subject_spec(signal) -> SignalSpec:
+def _subject_spec(signal: Signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
     esc = re.escape(subj)
@@ -1638,7 +1642,7 @@ for _d in SWEEP_DETECTORS:
     SPECS[_ident] = _spec(_label, _avenue, {"oracle": _d["regex"]}, _d["regex"])
 
 
-def spec_for(signal) -> SignalSpec | None:
+def spec_for(signal: Signal) -> SignalSpec | None:
     """Resolve a spec. Subject-bearing signals build a per-subject spec; otherwise
     exact (key, scope) → (key, any) → first entry by key."""
     if signal.key in _SUBJECT_KEYS and signal.subject:
@@ -1652,7 +1656,7 @@ def spec_for(signal) -> SignalSpec | None:
     return next((spec for (key, _), spec in SPECS.items() if key == signal.key), None)
 
 
-def serves(card: dict, signal) -> bool:
+def serves(card: dict, signal: Signal) -> bool:
     """True if ``card`` feeds ``signal`` (scope-aware), on any structured/oracle
     dimension of the spec's precise ``Serve`` predicate — no longer oracle-only."""
     spec = spec_for(signal)
@@ -1661,7 +1665,7 @@ def serves(card: dict, signal) -> bool:
     return spec.serve.matches(card)
 
 
-def search_filters(signal, *, color_identity: str, fmt: str) -> dict:
+def search_filters(signal: Signal, *, color_identity: str, fmt: str) -> dict:
     """Build ``card_search`` kwargs to find cards that feed ``signal`` in-identity."""
     spec = spec_for(signal)
     base = dict(spec.search) if spec else {}

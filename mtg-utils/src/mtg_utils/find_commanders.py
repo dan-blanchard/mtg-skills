@@ -312,7 +312,7 @@ def main(
     color_identity: str | None,
     min_quantity: int,
     output_path: Path | None,
-):
+) -> None:
     """Find commander-eligible cards in a parsed deck/collection JSON."""
     parsed_deck_content = parsed_deck_path.read_text(encoding="utf-8")
     parsed_deck = json.loads(parsed_deck_content)

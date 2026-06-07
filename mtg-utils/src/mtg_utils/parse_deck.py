@@ -274,7 +274,7 @@ def main(
     deck_format: str,
     deck_size: int | None,
     output_path: Path | None,
-):
+) -> None:
     """Parse a deck list file and output JSON."""
     result = parse_deck(deck_path, format=deck_format, deck_size=deck_size)
     payload = json.dumps(result, indent=2)

@@ -103,7 +103,7 @@ def fetch_csv(cube_id: str) -> str:
     show_default=True,
     help="Preferred format. Falls back through json → csv → list on error.",
 )
-def main(cube_ref: str, output_dir: Path, preferred_format: str):
+def main(cube_ref: str, output_dir: Path, preferred_format: str) -> None:
     """Fetch a cube from CubeCobra. Accepts a cube ID or a CubeCobra URL."""
     cube_id = extract_cube_id(cube_ref)
     output_dir.mkdir(parents=True, exist_ok=True)

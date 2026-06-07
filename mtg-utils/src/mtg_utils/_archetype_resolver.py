@@ -19,7 +19,12 @@ from __future__ import annotations
 
 import re
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mtg_utils.theme_presets import Preset
 
 
 @dataclass(frozen=True)
@@ -164,7 +169,7 @@ def resolve_stated_archetypes(cube: dict) -> ResolvedArchetypes:
     )
 
 
-def matcher_for(name: str, resolved: ResolvedArchetypes):
+def matcher_for(name: str, resolved: ResolvedArchetypes) -> Callable[[dict], bool]:
     """Return a single ``(card) -> bool`` predicate for the named archetype.
 
     Resolves across all three stated_archetype shapes:
@@ -197,7 +202,7 @@ def matcher_for(name: str, resolved: ResolvedArchetypes):
     raise KeyError(msg)
 
 
-def merge_member_presets(name: str, members: tuple[str, ...] | list[str]):
+def merge_member_presets(name: str, members: tuple[str, ...] | list[str]) -> Preset:
     """Synthesize a single :class:`Preset` whose matcher ORs each member's.
 
     The :class:`Preset` class's :meth:`matches` method is already an OR

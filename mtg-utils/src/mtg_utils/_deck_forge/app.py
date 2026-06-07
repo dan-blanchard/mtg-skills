@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi import FastAPI, Response
@@ -168,8 +169,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def mana() -> dict:
         return mana_audit(engine.hydrate(state))
 
-    @app.post("/api/deck/add")
-    async def add(payload: AddPayload):
+    @app.post("/api/deck/add", response_model=None)
+    async def add(payload: AddPayload) -> dict | JSONResponse:
         bad_zone = _zone_error(payload.zone)
         if bad_zone is not None:
             return bad_zone
@@ -183,8 +184,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/deck/remove")
-    async def remove(payload: RemovePayload):
+    @app.post("/api/deck/remove", response_model=None)
+    async def remove(payload: RemovePayload) -> dict | JSONResponse:
         bad_zone = _zone_error(payload.zone)
         if bad_zone is not None:
             return bad_zone
@@ -194,8 +195,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/deck/format")
-    async def set_format(payload: FormatPayload):
+    @app.post("/api/deck/format", response_model=None)
+    async def set_format(payload: FormatPayload) -> dict | JSONResponse:
         """Change the current build's format (commander / brawl / historic_brawl).
         The deck's cards are kept; everything format-dependent (deck size, land floor,
         legality, commander eligibility) re-derives on the next snapshot."""
@@ -255,8 +256,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/search")
-    async def search(payload: SearchPayload):
+    @app.post("/api/search", response_model=None)
+    async def search(payload: SearchPayload) -> dict | JSONResponse:
         if not state.bulk_available:
             return _no_bulk()
         page = max(1, payload.limit)
@@ -286,8 +287,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "has_more": has_more,
         }
 
-    @app.get("/api/card")
-    async def card_by_name(name: str):
+    @app.get("/api/card", response_model=None)
+    async def card_by_name(name: str) -> dict | JSONResponse:
         """Resolve one card by exact name to a hydrated view (images / mana_cost /
         oracle / layout) so the UI can render a forge-friend card reference inline
         with art + the standard hover preview. Exact match first, then a
@@ -304,7 +305,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/events")
     async def events() -> StreamingResponse:
-        async def gen():
+        async def gen() -> AsyncIterator[str]:
             # Send current state immediately so a (re)connecting browser re-syncs —
             # e.g. after a server restart — with no manual refresh, and never keeps a
             # stale snapshot (which is how a removed avenue lingered client-side).
@@ -400,8 +401,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return {"build_id": state.build_id, **snap}
 
-    @app.post("/api/builds/load")
-    async def builds_load(payload: LoadBuildPayload):
+    @app.post("/api/builds/load", response_model=None)
+    async def builds_load(payload: LoadBuildPayload) -> dict | JSONResponse:
         if state.store is None:
             return JSONResponse({"error": "no build store"}, status_code=400)
         record = state.store.load(payload.id)
@@ -440,8 +441,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "builds": state.store.list() if state.store else [],
         }
 
-    @app.get("/api/export")
-    async def export(fmt: str = "json"):
+    @app.get("/api/export", response_model=None)
+    async def export(fmt: str = "json") -> dict | JSONResponse:
         deck = state.session.to_deck_dict()
         if fmt == "json":
             return {"format": "json", "deck": deck}
@@ -569,8 +570,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def agent_request(payload: AgentRequestPayload) -> dict:
         return {"request_id": state.bridge.submit(payload.kind, payload.payload)}
 
-    @app.get("/api/agent/next")
-    async def agent_next(timeout: float = 25.0):  # noqa: ASYNC109
+    @app.get("/api/agent/next", response_model=None)
+    async def agent_next(timeout: float = 25.0) -> dict | Response:  # noqa: ASYNC109
         req = await state.bridge.next_request(timeout=_clamp_timeout(timeout))
         if req is None:
             return Response(status_code=204)
@@ -581,8 +582,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         ok = state.bridge.complete(payload.request_id, payload.result)
         return {"ok": ok}
 
-    @app.get("/api/agent/result/{request_id}")
-    async def agent_result_wait(request_id: str, timeout: float = 25.0):  # noqa: ASYNC109
+    @app.get("/api/agent/result/{request_id}", response_model=None)
+    async def agent_result_wait(
+        request_id: str,
+        timeout: float = 25.0,  # noqa: ASYNC109
+    ) -> dict | Response:
         result = await state.bridge.wait_result(
             request_id, timeout=_clamp_timeout(timeout)
         )

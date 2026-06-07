@@ -14,13 +14,16 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable, Sequence
 
 from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.signal_specs import serve_from_dict, serves, spec_for
 from mtg_utils.card_classify import extract_price, get_oracle_text
 
 
-def _avenue_predicates(avenues):
+def _avenue_predicates(
+    avenues: Sequence[dict],
+) -> list[tuple[str, Callable[[dict], bool]]]:
     """(label, card->bool) per avenue.
 
     Two classification regimes, matching how each was authored:
@@ -53,7 +56,9 @@ def _avenue_predicates(avenues):
     return out
 
 
-def _search_and(regex: re.Pattern[str] | None, card_type: str):
+def _search_and(
+    regex: re.Pattern[str] | None, card_type: str
+) -> Callable[[dict], bool]:
     """A card serves the avenue only if it satisfies BOTH the avenue's oracle regex
     and its card_type substring (mirrors how the card_search FIND ANDs them)."""
 
@@ -68,7 +73,9 @@ def _search_and(regex: re.Pattern[str] | None, card_type: str):
     return predicate
 
 
-def score_candidate(card: dict, *, active_signals: list, avenues=()) -> dict:
+def score_candidate(
+    card: dict, *, active_signals: list, avenues: Sequence[dict] = ()
+) -> dict:
     """Return the multi-axis readout for one candidate (signals + avenues served)."""
     served: list[str] = []
     for signal in active_signals:
@@ -90,7 +97,7 @@ def score_candidate(card: dict, *, active_signals: list, avenues=()) -> dict:
 
 
 def rank_candidates(
-    cards: list[dict], *, active_signals: list, avenues=()
+    cards: list[dict], *, active_signals: list, avenues: Sequence[dict] = ()
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last)."""
     scored = [

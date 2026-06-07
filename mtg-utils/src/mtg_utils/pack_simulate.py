@@ -277,7 +277,7 @@ def main(
     output_path: Path | None,
     *,
     emit_json: bool,
-):
+) -> None:
     """Generate seeded packs from a cube."""
     cube_content = cube_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")

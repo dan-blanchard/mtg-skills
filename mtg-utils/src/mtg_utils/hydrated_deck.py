@@ -27,8 +27,16 @@ import json
 import os
 from collections.abc import Iterator, Mapping
 from pathlib import Path
+from typing import Protocol
 
 from mtg_utils.card_classify import build_card_lookup
+
+
+class _DeckSource(Protocol):
+    """Anything exposing ``to_deck_dict()`` (e.g. a deck-forge DeckSession)."""
+
+    def to_deck_dict(self) -> dict: ...
+
 
 _ZONES = ("commanders", "cards", "sideboard")
 
@@ -105,7 +113,9 @@ class HydratedDeck:
         return cls(deck, resolved)
 
     @classmethod
-    def from_session(cls, session, by_name: Mapping[str, dict]) -> HydratedDeck:
+    def from_session(
+        cls, session: _DeckSource, by_name: Mapping[str, dict]
+    ) -> HydratedDeck:
         """Build from a deck-forge session (anything exposing ``to_deck_dict()``) and a
         name->record index, joining once. Subsumes ``DeckSession.hydrated`` /
         ``hydrated_expanded`` and the per-request re-derivations in the backend hub."""

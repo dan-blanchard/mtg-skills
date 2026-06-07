@@ -20,8 +20,9 @@ actual `$N.NN` Total values (not the `-` placeholder) before reading.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup
 
@@ -32,6 +33,10 @@ from mtg_utils._stores._common import (
     OptimizedCart,
     StoreSelectorError,
 )
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
 
 _BASE_URL = "https://manapool.com"
 
@@ -113,8 +118,8 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
 
 
 def _await_optimized_alternatives(
-    read_html,
-    sleep_ms,
+    read_html: Callable[[], str],
+    sleep_ms: Callable[[int], None],
     *,
     max_polls: int = 45,
     stable_needed: int = 3,
@@ -163,7 +168,7 @@ class _ManaPoolAdapter:
 
     def bulk_submit_and_optimize(
         self,
-        page,
+        page: Page,
         lines: list[Line],
     ) -> OptimizedCart:
         """Submit the line list and run Mana Pool's optimizer.
@@ -257,7 +262,7 @@ class _ManaPoolAdapter:
             ctx.new_page().goto(f"{self.base_url}/cart")
             ctx.wait_for_event("close", timeout=0)
 
-    def get_existing_cart(self, page) -> list[Listing]:
+    def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
@@ -282,7 +287,7 @@ class _ManaPoolAdapter:
             ]
         return []
 
-    def clear_cart(self, page) -> None:
+    def clear_cart(self, page: Page) -> None:
         # KNOWN LIMITATION: MP's "Clear cart" button is broken in MP itself
         # under our Playwright session — clicking it fires two Sentry error
         # reports (ingest.sentry.io) and a no-op `synchronize_cart_metadata`
@@ -313,7 +318,7 @@ class _ManaPoolAdapter:
                 confirm.click()
                 page.wait_for_timeout(1500)
 
-    def is_logged_in(self, page) -> bool:
+    def is_logged_in(self, page: Page) -> bool:
         soup = BeautifulSoup(page.content(), "html.parser")
         text = soup.get_text(" ", strip=True)
         return not ("Sign In" in text and "Sign Out" not in text)

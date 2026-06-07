@@ -69,11 +69,11 @@ class Signal:
 # ── Tier 1: baseline detectors ────────────────────────────────────────────────
 # Each detector: (key, clause-matcher, forced_scope|None). When forced_scope is
 # None the clause's own scope is used (critical for creature_etb / graveyard_matters).
-def _has(*needles: str):
+def _has(*needles: str) -> Callable[[str], bool]:
     return lambda c: all(n in c for n in needles)
 
 
-def _re(pattern: str):
+def _re(pattern: str) -> Callable[[str], bool]:
     rx = re.compile(pattern)
     return lambda c: rx.search(c) is not None
 

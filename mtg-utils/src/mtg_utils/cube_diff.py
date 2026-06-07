@@ -218,7 +218,7 @@ def main(
     *,
     metrics: bool,
     emit_json: bool,
-):
+) -> None:
     """Compare two cube JSON snapshots."""
     old_content = old_path.read_text(encoding="utf-8")
     new_content = new_path.read_text(encoding="utf-8")

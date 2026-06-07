@@ -91,7 +91,7 @@ def download_bulk(
     default=None,
     help="Path to an existing bulk data file to reuse.",
 )
-def main(output_dir: Path | None, existing: Path | None):
+def main(output_dir: Path | None, existing: Path | None) -> None:
     """Download or locate Scryfall bulk data."""
     path = download_bulk(output_dir=output_dir, existing_path=existing)
     click.echo(str(path))

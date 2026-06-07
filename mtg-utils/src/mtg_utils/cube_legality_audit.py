@@ -254,7 +254,7 @@ def main(
     output_path: Path | None,
     *,
     emit_json: bool,
-):
+) -> None:
     """Validate a cube against its format's rarity, legality, and ban rules."""
     cube_content = cube_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")

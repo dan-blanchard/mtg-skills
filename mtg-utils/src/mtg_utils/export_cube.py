@@ -107,7 +107,7 @@ def export_text(cube: dict) -> str:
     default=None,
     help="Write to file instead of stdout.",
 )
-def main(cube_path: Path, output_format: str, output_path: Path | None):
+def main(cube_path: Path, output_format: str, output_path: Path | None) -> None:
     """Export a canonical cube JSON to CubeCobra CSV or plain text."""
     cube = json.loads(cube_path.read_text(encoding="utf-8"))
 

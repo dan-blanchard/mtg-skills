@@ -377,7 +377,7 @@ def _default_search_output_path(deck_content: str, max_near_misses: int) -> Path
     return sha_keyed_path("combo-search", deck_content, max_near_misses)
 
 
-def _default_discover_output_path(*args) -> Path:
+def _default_discover_output_path(*args: object) -> Path:
     """Hash all filter args including --bulk-data so a bulk refresh busts cache.
 
     combo-discover uses bulk data for arena/paper filtering (via
@@ -480,17 +480,17 @@ def main(
     help="Override the default sha-keyed path for the full JSON output.",
 )
 def discover_main(
-    result,
-    cards,
-    color_identity,
-    ordering,
-    limit,
-    combo_format,
-    arena_only,
-    paper_only,
-    bulk_data,
-    output_path,
-):
+    result: str | None,
+    cards: str | None,
+    color_identity: str | None,
+    ordering: str,
+    limit: int,
+    combo_format: str | None,
+    arena_only: bool,  # noqa: FBT001
+    paper_only: bool,  # noqa: FBT001
+    bulk_data: Path | None,
+    output_path: Path | None,
+) -> None:
     """Discover combos by mechanic, outcome, or card name."""
     if arena_only and paper_only:
         raise click.UsageError("--arena-only and --paper-only are mutually exclusive.")

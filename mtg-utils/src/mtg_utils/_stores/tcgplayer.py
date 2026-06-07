@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup
 
@@ -34,6 +34,10 @@ from mtg_utils._stores._common import (
     OptimizedCart,
     StoreSelectorError,
 )
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
 
 _BASE_URL = "https://www.tcgplayer.com"
 
@@ -133,7 +137,7 @@ class _TCGPlayerAdapter:
 
     def bulk_submit_and_optimize(
         self,
-        page,
+        page: Page,
         lines: list[Line],
     ) -> OptimizedCart:
         """Submit the line list and run TCG's cart optimizer.
@@ -227,7 +231,7 @@ class _TCGPlayerAdapter:
             ctx.new_page().goto(f"{self.base_url}/cart")
             ctx.wait_for_event("close", timeout=0)
 
-    def get_existing_cart(self, page) -> list[Listing]:
+    def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
@@ -256,7 +260,7 @@ class _TCGPlayerAdapter:
             ]
         return []
 
-    def clear_cart(self, page) -> None:
+    def clear_cart(self, page: Page) -> None:
         if hasattr(page, "goto"):
             page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
@@ -271,7 +275,7 @@ class _TCGPlayerAdapter:
                 confirm.click()
                 page.wait_for_timeout(1500)
 
-    def is_logged_in(self, page) -> bool:
+    def is_logged_in(self, page: Page) -> bool:
         soup = BeautifulSoup(page.content(), "html.parser")
         text = soup.get_text(" ", strip=True)
         # "Sign In" in header without "Sign Out" → logged out.

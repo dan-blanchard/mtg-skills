@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -112,7 +114,10 @@ _SORT_DEFAULTS = {
 }
 
 
-def _parse_sort(sort: str):
+# Sort-key factory: each branch returns a homogeneous comparable key (price/cmc
+# -> number, name -> str); the union across branches is dynamic, so the key
+# return is Any (the standard sort-key shape, à la _typeshed.SupportsRichComparison).
+def _parse_sort(sort: str) -> tuple[Callable[[dict], Any], bool]:
     field, _, direction = sort.partition("-")
 
     reverse = direction != "asc" if direction else _SORT_DEFAULTS.get(field, True)

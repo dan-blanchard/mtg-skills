@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from mtg_utils._deck_forge import staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.signal_specs import Serve, spec_for
+from mtg_utils._deck_forge.signals import Signal, extract_signals
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
@@ -55,7 +55,7 @@ _EXPLORE_KEYS = (
 )
 
 
-def avenue_with_serve(avenue: dict, serve) -> dict:
+def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
     """Attach an avenue's structured ``serve`` classifier (type/keyword/oracle) so
     ranking credits candidates by the SAME precise predicate the spec serves on —
     but ONLY when it carries a structured dimension (types/keywords) the bare
@@ -227,7 +227,7 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     )
 
 
-def signal_dict(signal) -> dict:
+def signal_dict(signal: Signal) -> dict:
     spec = spec_for(signal)
     return {
         "key": signal.key,

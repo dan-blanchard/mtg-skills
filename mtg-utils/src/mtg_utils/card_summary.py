@@ -113,7 +113,7 @@ def main(
     type_filter: str | None,
     deck_path: Path | None,
     sideboard: bool,
-):
+) -> None:
     """Format hydrated card data as a compact readable table."""
     hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
     if sideboard:

@@ -7,14 +7,18 @@ build carts → handoff. See specs/2026-05-04-lgs-search-design.md.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils._stores._common import Line, Listing
 from mtg_utils.names import normalize_card_name
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
 
 BASIC_LAND_NAMES = frozenset(
     {"Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"},
@@ -390,9 +394,9 @@ def sweep_lgs(
     prefs: SearchPrefs,
     max_workers: int = 8,
     per_store_concurrency: int = 4,
-    page_factory=None,
+    page_factory: Callable[[str], Page | None] | None = None,
     sequential: bool = False,
-    progress=None,
+    progress: Callable[[str, str, Listing | None], None] | None = None,
 ) -> list[SearchResultRow]:
     """Search every LGS for every card; return one SearchResultRow per card.
 
@@ -408,12 +412,12 @@ def sweep_lgs(
     not safe to use across threads.
     """
 
-    def _search_one(card, store):
+    def _search_one(card: NeededCard, store: str) -> tuple[str, str, Listing | None]:
         adapter = LGS_ADAPTERS[store]
         try:
             page = page_factory(store) if page_factory else None
             listings = adapter.search(
-                page,
+                cast("Page", page),
                 card["card_name"],
                 qty=card["qty"],
                 prefs=prefs,
@@ -434,7 +438,9 @@ def sweep_lgs(
     else:
         semaphores = {name: Semaphore(per_store_concurrency) for name in LGS_STORES}
 
-        def _search_one_locked(card, store):
+        def _search_one_locked(
+            card: NeededCard, store: str
+        ) -> tuple[str, str, Listing | None]:
             with semaphores[store]:
                 return _search_one(card, store)
 
@@ -472,7 +478,7 @@ from mtg_utils._stores._common import OptimizedCart  # noqa: E402
 def optimize_marketplace(
     marketplace_lines: list[Line],
     *,
-    page_factory=None,
+    page_factory: Callable[[str], Page | None] | None = None,
 ) -> dict | None:
     """Submit `marketplace_lines` to each Marketplace adapter and pick
     the cheapest total.
@@ -493,7 +499,7 @@ def optimize_marketplace(
         page = page_factory(store) if page_factory else None
         try:
             results[store] = adapter.bulk_submit_and_optimize(
-                page,
+                cast("Page", page),
                 marketplace_lines,
             )
         except Exception as exc:  # noqa: BLE001
@@ -574,7 +580,7 @@ def handoff_to_browsers(targets: list[tuple]) -> None:
 
 
 def _build_lgs_carts_and_handoff(
-    allocation,
+    allocation: list[AllocatedCard],
     *,
     clear_existing: bool,
     no_handoff: bool,
@@ -749,14 +755,16 @@ from mtg_utils._stores._common import profile_dir_for  # noqa: E402
     type=click.Path(path_type=Path),
 )
 @click.pass_context
-def main(ctx, **kwargs):
+def main(ctx: click.Context, **kwargs: object) -> None:
     """Search LGS + online stores; allocate; build carts."""
     if ctx.invoked_subcommand is not None:
         return
     if kwargs.get("input_path") is None:
         click.echo("--input is required", err=True)
         ctx.exit(2)
-    _run_orchestrator(**kwargs)
+    # Click collects validated options into kwargs; the typed _run_orchestrator
+    # signature is the real contract (ty can't see through the **kwargs forward).
+    _run_orchestrator(**kwargs)  # ty: ignore[invalid-argument-type]
 
 
 @main.command()
@@ -783,7 +791,9 @@ from contextlib import contextmanager  # noqa: E402
 
 
 @contextmanager
-def _playwright_pages(stores: list[str], *, headless: bool = True):
+def _playwright_pages(
+    stores: list[str], *, headless: bool = True
+) -> Iterator[Callable[[str], Page | None]]:
     """Open one persistent_context + one page per store; yield a page_factory.
 
     Persistent profiles live at `~/.cache/mtg-skills/lgs-profiles/<store>/`
@@ -814,7 +824,7 @@ def _playwright_pages(stores: list[str], *, headless: bool = True):
                     err=True,
                 )
 
-        def factory(store: str):
+        def factory(store: str) -> Page | None:
             return pages.get(store)
 
         try:
@@ -956,7 +966,9 @@ def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, 
     return {name: min_by_name.get(name, 0.0) for name in names}
 
 
-def _render_summary(allocation, marketplace, basics) -> str:
+def _render_summary(
+    allocation: list[AllocatedCard], marketplace: dict | None, basics: dict[str, int]
+) -> str:
     """Render the markdown summary printed to stdout."""
     lines = ["## Cart allocation"]
     by_store: dict[str, list] = {}
@@ -1017,27 +1029,27 @@ def _render_summary(allocation, marketplace, basics) -> str:
 
 def _run_orchestrator(
     *,
-    input_path,
-    collection,
-    bulk_data,
-    condition,
-    allow_foil,
-    prefer_set,
-    lgs_online_threshold_pct,
-    lgs_online_threshold_usd,
-    consolidate_threshold_pct,
-    consolidate_threshold_usd,
-    no_handoff,
-    dry_run,
-    retry_relaxed,
-    clear_existing_carts,
-    include_basics,
-    yes,
-    search_timeout_seconds,
-    cart_timeout_seconds,
-    max_retries,
-    output_dir,
-):
+    input_path: Path,
+    collection: Path | None,
+    bulk_data: Path | None,
+    condition: Literal["nm", "lp", "mp", "hp", "any"],
+    allow_foil: bool,
+    prefer_set: str | None,
+    lgs_online_threshold_pct: float,
+    lgs_online_threshold_usd: float,
+    consolidate_threshold_pct: float,
+    consolidate_threshold_usd: float,
+    no_handoff: bool,
+    dry_run: bool,
+    retry_relaxed: bool,
+    clear_existing_carts: bool,
+    include_basics: bool,
+    yes: bool,
+    search_timeout_seconds: int,
+    cart_timeout_seconds: int,
+    max_retries: int,
+    output_dir: Path,
+) -> None:
     # Flags still not wired: retry-relaxed (Phase 6), per-step timeouts, and
     # the explicit cart-add retry counter. Warn so users don't silently expect
     # behavior that isn't there yet.
@@ -1113,7 +1125,7 @@ def _run_orchestrator(
     progress_count = {"done": 0}
     total_searches = len(cards) * len(LGS_STORES)
 
-    def _progress(name, store, listing):
+    def _progress(name: str, store: str, listing: Listing | None) -> None:
         progress_count["done"] += 1
         marker = "+" if listing else "-"
         click.echo(

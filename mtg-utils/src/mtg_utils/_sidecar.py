@@ -32,10 +32,9 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
 
 
-def _hash_part(hasher: hashlib._Hash, part: Any) -> None:
+def _hash_part(hasher: hashlib._Hash, part: object) -> None:
     """Feed a single part into the running hasher with a typed separator."""
     if isinstance(part, Path):
         try:
@@ -56,7 +55,7 @@ def _hash_part(hasher: hashlib._Hash, part: Any) -> None:
         hasher.update(f"|{part}".encode())
 
 
-def sha_keyed_path(prefix: str, *parts: Any) -> Path:
+def sha_keyed_path(prefix: str, *parts: object) -> Path:
     """Return a deterministic path for a sidecar JSON file under $TMPDIR.
 
     Args:
@@ -76,7 +75,7 @@ def sha_keyed_path(prefix: str, *parts: Any) -> Path:
     return (tmpdir / f"{prefix}-{digest}.json").resolve()
 
 
-def atomic_write_json(path: Path, data: Any) -> None:
+def atomic_write_json(path: Path, data: object) -> None:
     """Write JSON to *path* via a temp file plus atomic rename.
 
     Ensures concurrent readers never observe a half-written file. Creates

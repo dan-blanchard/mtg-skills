@@ -9,8 +9,10 @@ from __future__ import annotations
 import random
 import re
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
+from types import ModuleType
 
 from mtg_utils.card_classify import is_land as _is_land
 from mtg_utils.theme_presets import PRESETS
@@ -316,7 +318,7 @@ def choose_pick(
     *,
     committed: str | None,
     available_mana: int,
-    available_colors,
+    available_colors: frozenset[str],
 ) -> PickDecision:
     """Decide whether to pick from marketplace and which card.
 
@@ -407,7 +409,7 @@ def lookup_card(
     idx: int,
     *,
     cube_metadata: list[CardMetadata],
-    basic_metadata,
+    basic_metadata: Sequence[CardMetadata],
 ) -> CardMetadata:
     """Resolve a combined card index → metadata.
 
@@ -420,10 +422,10 @@ def lookup_card(
 
 
 def simulate_one_game(
-    format_module,
+    format_module: ModuleType,
     *,
     cube_metadata: list[CardMetadata],
-    basic_metadata,
+    basic_metadata: Sequence[CardMetadata],
     rng: random.Random,
     n_players: int,
     max_turns: int,
@@ -452,10 +454,10 @@ def simulate_one_game(
 
 
 def run_simulation(
-    format_module,
+    format_module: ModuleType,
     *,
     cube_metadata: list[CardMetadata],
-    basic_metadata,
+    basic_metadata: Sequence[CardMetadata],
     archetype_names: list[str],
     n_players: int,
     max_turns: int,
