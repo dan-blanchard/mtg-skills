@@ -721,10 +721,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "you",
     ),
     (
+        # Allow an adjective gap so "counter target CREATURE spell" / "noncreature
+        # spell" fire (Essence Scatter, Negate were missed by the keyword-immediately-
+        # after-"target" anchor). The serve is already FP-free at this breadth.
         "counter_control",
-        re.compile(
-            r"counter target (?:spell|ability|activated|triggered)", re.IGNORECASE
-        ),
+        re.compile(r"counter target (?:[a-z-]+ )*(?:spell|ability)", re.IGNORECASE),
         "you",
     ),
     (

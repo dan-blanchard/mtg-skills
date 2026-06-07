@@ -40,31 +40,47 @@ class Serve:
       - ``keywords``: authoritative Scryfall ``keywords`` (prowess, flying, …) —
         exact, never regex-guessed out of prose.
 
-    A card serves iff ANY provided dimension matches (the canonical Spellslinger
-    case is an OR). ``search(text)`` is a back-compat shim so the oracle regex is
-    still directly testable."""
+    A card serves iff ANY positive dimension matches (the canonical Spellslinger case
+    is an OR): ``oracle``, ``types``, ``keywords``, ``cmc_min`` (big bombs), or
+    ``min_devotion`` (a nonland permanent with ≥N single-color mana pips — the
+    structured devotion enabler, CR 700.5). ``not_oracle`` VETOes all of them (a
+    control Aura must not serve voltron even though its type is Aura). ``search(text)``
+    is a back-compat shim so the oracle regex is still directly testable."""
 
     oracle: re.Pattern[str] | None = None
     types: frozenset[str] = frozenset()
     keywords: frozenset[str] = frozenset()
+    cmc_min: float | None = None
+    min_devotion: int | None = None
+    not_oracle: re.Pattern[str] | None = None
 
     def search(self, text: str):
         """Back-compat: raw oracle-regex search over a string (legacy call sites)."""
         return self.oracle.search(text) if self.oracle is not None else None
 
     def matches(self, card: dict) -> bool:
-        """True if the card feeds this signal on ANY structured/oracle dimension."""
-        if self.oracle is not None and self.oracle.search(get_oracle_text(card) or ""):
+        """True if the card feeds this signal on ANY structured/oracle dimension and is
+        not vetoed by ``not_oracle``."""
+        oracle_text = get_oracle_text(card) or ""
+        if self.not_oracle is not None and self.not_oracle.search(oracle_text):
+            return False
+        if self.oracle is not None and self.oracle.search(oracle_text):
             return True
-        if self.types:
-            type_line = (card.get("type_line") or "").lower()
-            if any(t in type_line for t in self.types):
-                return True
+        type_line = (card.get("type_line") or "").lower()
+        if self.types and any(t in type_line for t in self.types):
+            return True
         if self.keywords:
             card_kw = {k.lower() for k in (card.get("keywords") or [])}
             if card_kw & self.keywords:
                 return True
-        return False
+        if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
+            return True
+        return (
+            self.min_devotion is not None
+            and "instant" not in type_line
+            and "sorcery" not in type_line
+            and _max_color_pips(card.get("mana_cost") or "") >= self.min_devotion
+        )
 
     def as_dict(self) -> dict:
         """Serialize for an avenue dict (JSON-safe), so ranking can re-apply the
@@ -76,25 +92,56 @@ class Serve:
             out["types"] = sorted(self.types)
         if self.keywords:
             out["keywords"] = sorted(self.keywords)
+        if self.cmc_min is not None:
+            out["cmc_min"] = self.cmc_min
+        if self.min_devotion is not None:
+            out["min_devotion"] = self.min_devotion
+        if self.not_oracle is not None:
+            out["not_oracle"] = self.not_oracle.pattern
         return out
+
+    def is_structured(self) -> bool:
+        """True if it carries a dimension the bare ``search`` fragment can't express,
+        so the engine should thread it into avenues for precise classification."""
+        return bool(
+            self.types
+            or self.keywords
+            or self.cmc_min is not None
+            or self.min_devotion is not None
+            or self.not_oracle is not None
+        )
+
+
+def _max_color_pips(mana_cost: str) -> int:
+    """Max count of any single color's mana symbols in a mana cost ({3}{B}{B} → 2).
+    Hybrid/Phyrexian symbols are ignored (they don't pin a single color's devotion)."""
+    from collections import Counter
+
+    syms = re.findall(r"\{([WUBRG])\}", mana_cost or "")
+    return max(Counter(syms).values()) if syms else 0
+
+
+def _compile(pat):
+    try:
+        return re.compile(pat, _IC) if pat else None
+    except re.error:
+        return None
 
 
 def serve_from_dict(data: dict) -> Serve:
     """Rebuild a Serve from an avenue dict's stored ``serve`` (or a bare ``search``
     fragment: ``oracle`` + ``card_type``). Used by ranking to classify candidates with
     the same predicate the spec serves on."""
-    oracle = data.get("oracle")
     types = data.get("types")
     if types is None and data.get("card_type"):
         types = [data["card_type"]]
-    try:
-        pattern = re.compile(oracle, _IC) if oracle else None
-    except re.error:
-        pattern = None
     return Serve(
-        oracle=pattern,
+        oracle=_compile(data.get("oracle")),
         types=frozenset(t.lower() for t in (types or ())),
         keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
+        cmc_min=data.get("cmc_min"),
+        min_devotion=data.get("min_devotion"),
+        not_oracle=_compile(data.get("not_oracle")),
     )
 
 
@@ -125,7 +172,17 @@ class SignalSpec:
 
 
 def _spec(
-    label, avenue, search, serve, extras=(), *, serve_types=(), serve_keywords=()
+    label,
+    avenue,
+    search,
+    serve,
+    extras=(),
+    *,
+    serve_types=(),
+    serve_keywords=(),
+    serve_cmc_min=None,
+    serve_min_devotion=None,
+    serve_not=None,
 ):
     return SignalSpec(
         label=label,
@@ -135,6 +192,9 @@ def _spec(
             oracle=re.compile(serve, _IC) if serve else None,
             types=frozenset(t.lower() for t in serve_types),
             keywords=frozenset(k.lower() for k in serve_keywords),
+            cmc_min=serve_cmc_min,
+            min_devotion=serve_min_devotion,
+            not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
         extras=tuple(extras),
     )
@@ -478,11 +538,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"deals combat damage to (?:a player|an opponent|one of your opponents"
         r"|each opponent)|can't be blocked(?! except)|\bunblockable\b",
     ),
+    # The discount-exploiting target set is defined by high cmc (structured) + X-spells
+    # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,
+    # Abrupt Decay). Drop that branch; gate on cmc (expensive bombs) + {x} + storm.
     ("cost_reduction", "you"): _spec(
         "Cost reduction",
         "expensive bombs and X-spells that exploit the discount",
         {"oracle": r"\{x\}|with mana value"},
-        r"\{x\}|mana value \d|\bstorm\b",
+        r"\{x\}|\bstorm\b",
+        serve_cmc_min=7,
     ),
     ("cast_from_exile", "you"): _spec(
         "Impulse / cast-from-exile",
@@ -568,6 +632,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"tap.*for mana.*add|add .* mana of any|\{x\}",
     ),
     # ── Sweep survivors ─────────────────────────────────────────────────────────
+    # Voltron suits up one creature with Equipment (CR 301.5) and BUFF Auras (CR 303).
+    # Gate on the Equipment/Aura subtype, but VETO pure-control Auras (Pacifism /
+    # Faith's Fetters — ~167 of them) that pacify rather than buff. Keep the oracle as a
+    # residual for equip-cost reducers / tutors that aren't themselves Equipment.
     ("voltron_matters", "you"): _spec(
         "Voltron / equipment & auras",
         "equipment, auras, equip-cost reducers, and tutors to suit up one creature",
@@ -575,6 +643,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"equipped creature|enchanted creature gets|equip \{"
         r"|attach [^.]*(?:equipment|aura)"
         r"|equipment you control|for each (?:equipment|aura)",
+        serve_types=("equipment", "aura"),
+        serve_keywords=("reconfigure",),
+        serve_not=r"can't attack|can't block|doesn't untap during"
+        r"|enchant creature you don't control|defending player controls",
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
@@ -620,17 +692,27 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\{e\}|energy counter"},
         r"\{e\}|energy counter",
     ),
+    # Devotion (CR 700.5) counts single-color mana SYMBOLS among permanents you control,
+    # so the enablers are structurally heavy-pip permanents — a dimension oracle text
+    # can't express. Keep `devotion to` for the payoffs; add the pip gate (≥2 of one
+    # color, nonland permanent) for the enablers the old serve was blind to.
     ("devotion_matters", "you"): _spec(
         "Devotion",
         "heavy colored pips to grow devotion and devotion payoffs",
         {"oracle": r"devotion to"},
         r"devotion to",
+        serve_min_devotion=2,
     ),
+    # The central body of the archetype IS the planeswalkers (type) and the proliferate
+    # payoffs (keyword) — both authoritative Scryfall fields the oracle-only serve named
+    # none of (43/303 → 303/303 served, zero added FPs per the audit).
     ("superfriends_matters", "you"): _spec(
         "Superfriends",
         "planeswalkers plus proliferate and loyalty payoffs to protect them",
         {"oracle": r"planeswalker|loyalty"},
         r"planeswalkers? you control|loyalty counters?",
+        serve_types=("planeswalker",),
+        serve_keywords=("proliferate",),
     ),
     ("historic_matters", "you"): _spec(
         "Historic",
@@ -674,11 +756,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\binfect\b|\btoxic\b|poison counter|proliferate"},
         r"poison counter|\binfect\b|\btoxic\b",
     ),
+    # "Modified" (CR 122) = a creature with a +1/+1 counter, Aura, OR Equipment. The
+    # serve named only the literal word (the payoffs); the ENABLERS are structurally
+    # Equipment/Aura permanents and counter-placers. Add those dimensions.
     ("modified_matters", "you"): _spec(
         "Modified",
         "counters, Auras, and Equipment to keep creatures modified",
         {"oracle": r"\bmodified\b|\+1/\+1 counter|aura or equipment"},
-        r"\bmodified\b",
+        r"\bmodified\b|\+1/\+1 counters?",
+        serve_types=("equipment", "aura"),
     ),
     ("mutate_matters", "you"): _spec(
         "Mutate",
@@ -787,11 +873,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"add \{|search your library for .*\bland\b"},
         r"\{t\}[^.]*:\s*add|add .* mana|search your library for .*\bland\b",
     ),
+    # The `deals .* damage to target creature` branch missed every burn spell pointed at
+    # ANY target (Lightning Bolt, Shock — "deals N damage to any target"). Broaden the
+    # damage clause to any-target / player burn; constrain `.*` to a single clause.
     ("removal_matters", "you"): _spec(
         "Removal / interaction",
         "destroy and burn removal — note indestructible/regeneration blank it",
         {"oracle": r"destroy target|deals .* damage to target"},
-        r"destroy target|deals .* damage to target creature",
+        r"destroy target (?:creature|permanent|artifact|enchantment|planeswalker|land"
+        r"|nonland)"
+        r"|deals? (?:\d+|x|that much) [^.\n]*damage to "
+        r"(?:target (?:creature|permanent|planeswalker)|any target)",
     ),
     ("exile_removal", "you"): _spec(
         "Exile removal",

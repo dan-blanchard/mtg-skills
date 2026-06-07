@@ -917,3 +917,89 @@ class TestSweepDetectorFixes:
         assert serves(morph_creature, sig) is True  # morph vocab
         assert serves(gonti, sig) is False  # impulse exile "face down"
         assert serves(spinerock, sig) is False  # hideaway exile "face down"
+
+
+class TestStructuredServeExtension:
+    """fp=0 HIGH findings the audit flagged as RECALL failures: the serve named only
+    the payoffs and could not express the structured enablers. Now type/keyword/cmc/
+    devotion-pip dimensions recover them — the heart of the 'use the structured field'
+    thesis. Each pins recovered enablers (+) and confirms non-members stay out (-)."""
+
+    def test_superfriends_serves_planeswalkers_and_proliferate(self):
+        sig = _sig("superfriends_matters", "you")
+        karn = {"type_line": "Legendary Planeswalker — Karn", "oracle_text": "...", "keywords": []}
+        atraxa = {
+            "type_line": "Legendary Creature — Phyrexian Angel Horror",
+            "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate.",
+            "keywords": ["Flying", "Vigilance", "Deathtouch", "Lifelink", "Proliferate"],
+        }
+        bolt = {"type_line": "Instant", "oracle_text": "Lightning Bolt deals 3 damage to any target.", "keywords": []}
+        assert serves(karn, sig) is True  # planeswalker type
+        assert serves(atraxa, sig) is True  # proliferate keyword
+        assert serves(bolt, sig) is False
+
+    def test_modified_serves_equipment_auras_and_counters(self):
+        sig = _sig("modified_matters", "you")
+        glitters = {"type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 for each artifact and enchantment you control."}
+        hardened_scales = {"type_line": "Enchantment", "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead."}
+        equipment = {"type_line": "Artifact — Equipment", "oracle_text": "Equipped creature gets +1/+1.\nEquip {1}", "keywords": ["Equip"]}
+        sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."}
+        assert serves(glitters, sig) is True  # Aura type
+        assert serves(equipment, sig) is True  # Equipment type
+        assert serves(hardened_scales, sig) is True  # +1/+1 counter oracle
+        assert serves(sol_ring, sig) is False
+
+    def test_voltron_serves_buff_auras_but_not_control_auras(self):
+        sig = _sig("voltron_matters", "you")
+        skullclamp = {"type_line": "Artifact — Equipment", "oracle_text": "Equipped creature gets +1/-1.\nEquip {1}", "keywords": ["Equip"]}
+        flight = {"type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nEnchanted creature has flying."}
+        pacifism = {"type_line": "Enchantment — Aura", "oracle_text": "Enchant creature\nEnchanted creature can't attack or block."}
+        sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."}
+        assert serves(skullclamp, sig) is True  # Equipment
+        assert serves(flight, sig) is True  # buff Aura
+        assert serves(pacifism, sig) is False  # control Aura — vetoed
+        assert serves(sol_ring, sig) is False
+
+    def test_devotion_serves_heavy_pip_permanents_via_structured_pips(self):
+        sig = _sig("devotion_matters", "you")
+        gray_merchant = {"type_line": "Creature — Zombie", "mana_cost": "{3}{B}{B}", "cmc": 5.0, "oracle_text": "When this creature enters, each opponent loses life equal to your devotion to black."}
+        heavy_pip_vanilla = {"type_line": "Creature — Elemental", "mana_cost": "{2}{R}{R}", "cmc": 4.0, "oracle_text": "Trample"}
+        llanowar = {"type_line": "Creature — Elf Druid", "mana_cost": "{G}", "cmc": 1.0, "oracle_text": "{T}: Add {G}."}
+        bolt = {"type_line": "Instant", "mana_cost": "{R}", "cmc": 1.0, "oracle_text": "deals 3 damage to any target."}
+        sol_ring = {"type_line": "Artifact", "mana_cost": "{1}", "cmc": 1.0, "oracle_text": "{T}: Add {C}{C}."}
+        assert serves(gray_merchant, sig) is True  # devotion oracle + 2 black pips
+        assert serves(heavy_pip_vanilla, sig) is True  # 2 red pips, a permanent
+        assert serves(llanowar, sig) is False  # only 1 pip
+        assert serves(bolt, sig) is False  # 2 pips but an instant (not a permanent)
+        assert serves(sol_ring, sig) is False  # colorless
+
+    def test_cost_reduction_serves_x_spells_and_expensive_bombs(self):
+        sig = _sig("cost_reduction", "you")
+        torment = {"type_line": "Sorcery", "mana_cost": "{X}{B}{B}", "cmc": 2.0, "oracle_text": "Each opponent loses life and discards a card for each {X}."}
+        emrakul = {"type_line": "Legendary Creature — Eldrazi", "mana_cost": "{15}", "cmc": 15.0, "oracle_text": "..."}
+        disdainful = {"type_line": "Instant", "mana_cost": "{1}{U}", "cmc": 2.0, "oracle_text": "Counter target spell with mana value 4 or greater."}
+        sun_titan = {"type_line": "Creature — Giant", "mana_cost": "{4}{W}{W}", "cmc": 6.0, "oracle_text": "..."}
+        assert serves(torment, sig) is True  # X spell
+        assert serves(emrakul, sig) is True  # expensive bomb (cmc>=7)
+        assert serves(disdainful, sig) is False  # "mana value 4" no longer matches
+        assert serves(sun_titan, sig) is False  # cmc 6 below the bomb threshold
+
+    def test_removal_serves_burn_to_any_target(self):
+        sig = _sig("removal_matters", "you")
+        bolt = {"type_line": "Instant", "oracle_text": "Lightning Bolt deals 3 damage to any target."}
+        murder = {"type_line": "Instant", "oracle_text": "Destroy target creature."}
+        sol_ring = {"type_line": "Artifact", "oracle_text": "{T}: Add {C}{C}."}
+        assert serves(bolt, sig) is True  # damage to any target
+        assert serves(murder, sig) is True
+        assert serves(sol_ring, sig) is False
+
+    def test_counter_control_extraction_allows_adjective_gap(self):
+        from mtg_utils._deck_forge.signals import extract_signals
+
+        essence_scatter = {
+            "name": "Essence Scatter",
+            "type_line": "Instant",
+            "oracle_text": "Counter target creature spell.",
+        }
+        keys = {s.key for s in extract_signals(essence_scatter)}
+        assert "counter_control" in keys

@@ -61,7 +61,7 @@ def avenue_with_serve(avenue: dict, serve) -> dict:
     ``search`` fragment can't express (e.g. Spellslinger's Instant/Sorcery type gate).
     Oracle-only serves are left to the legacy search-AND classification, so no
     oracle-only avenue's behavior shifts."""
-    if serve is not None and (serve.types or serve.keywords):
+    if serve is not None and serve.is_structured():
         avenue["serve"] = serve.as_dict()
     return avenue
 
