@@ -23,7 +23,7 @@ from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.card_classify import is_commander
+from mtg_utils.card_classify import is_commander, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
@@ -232,6 +232,20 @@ def _paper_only(fmt: str | None) -> bool:
     return fmt in _PAPER_FORMATS
 
 
+def _partner_search(state: ForgeState) -> dict | None:
+    """The ``card_search`` filter for cards legally eligible to be the deck's second
+    commander (CR 702.124), or ``None`` when there's no open partner slot — i.e. the
+    deck doesn't have exactly one commander, or that commander has no partner ability.
+    Used to make the Partner / Background avenue surface only valid partners."""
+    commanders = state.session.to_deck_dict()["commanders"]
+    if len(commanders) != 1:
+        return None  # 0 commanders (unknown) or 2 (slot already filled)
+    record = state.by_name.get(commanders[0]["name"])
+    if record is None:
+        return None
+    return valid_partner_search(record)
+
+
 def _color_identity(state: ForgeState) -> str:
     """Union of the commanders' color identities (the deck's color identity)."""
     colors: set[str] = set()
@@ -351,6 +365,16 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         spec = spec_for(sig)
         if spec is None or spec.label in seen_labels:
             continue
+        main_search = dict(spec.search)
+        # The Partner / Background avenue is commander-specific: replace its generic
+        # "any partner card" search with one scoped to cards that can LEGALLY be this
+        # commander's second commander (CR 702.124). Skip it entirely when there's no
+        # open partner slot.
+        if sig.key == "partner_background":
+            psearch = _partner_search(state)
+            if psearch is None:
+                continue
+            main_search = psearch
         seen_labels.add(spec.label)
         # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
         suffix = f":{sig.subject}" if sig.subject else ""
@@ -362,7 +386,7 @@ def _avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                 "description": spec.avenue,
                 "scope": sig.scope,
                 "source": "engine",
-                "search": dict(spec.search),
+                "search": main_search,
             }
         )
         # A signal can fan out into several precise sub-avenues (e.g. the
@@ -390,7 +414,10 @@ def _explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:
     presets = search.get("preset_names") or search.get("presets")
     if presets:
         filters["preset_names"] = tuple(presets)
-    filters["color_identity"] = color_identity
+    # An avenue may carry its own color_identity (e.g. partner avenues pass "WUBRG" to
+    # stay color-agnostic — partner legality has no color restriction); otherwise scope
+    # to the deck's identity.
+    filters["color_identity"] = search.get("color_identity") or color_identity
     filters["format"] = fmt
     return filters
 
@@ -561,7 +588,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             spec = spec_for(sig)
             if spec is None:
                 continue
-            filters = search_filters(sig, color_identity=ci, fmt=fmt)
+            if sig.key == "partner_background":
+                psearch = _partner_search(state)
+                if psearch is None:
+                    continue  # no open partner slot → no partner package
+                filters = {**psearch, "format": fmt}
+            else:
+                filters = search_filters(sig, color_identity=ci, fmt=fmt)
             found = state.search_fn(limit=40, paper_only=_paper_only(fmt), **filters)
             fresh = [c for c in found if c.get("name") not in in_deck]
             # Credit candidates for this signal's own avenue (its main search),

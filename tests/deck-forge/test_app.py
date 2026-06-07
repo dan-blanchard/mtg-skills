@@ -56,7 +56,17 @@ PLANESWALKER = {
     "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
 }
 
-INDEX = {c["name"]: c for c in (LLANOWAR, FOREST, ATRAXA, PLANESWALKER)}
+ISHAI = {
+    "name": "Ishai, Ojutai Dragonspeaker",
+    "type_line": "Legendary Creature — Bird Monk",
+    "mana_cost": "{W}{U}",
+    "cmc": 2.0,
+    "color_identity": ["W", "U"],
+    "oracle_text": "Flying\nPartner (You can have two commanders if both have partner.)",
+    "legalities": {"commander": "legal"},
+}
+
+INDEX = {c["name"]: c for c in (LLANOWAR, FOREST, ATRAXA, PLANESWALKER, ISHAI)}
 
 
 def make_client(*, search_results=None, session=None):
@@ -140,6 +150,29 @@ def test_set_format_changes_format_and_rejects_unknown():
     assert snap["deck"]["format"] == "brawl"
     bad = client.post("/api/deck/format", json={"format": "bogus"})
     assert bad.status_code == 400
+
+
+def test_partner_avenue_filters_to_valid_partners():
+    # One commander with plain Partner → the avenue searches for legal partners
+    # (color-agnostic), not the generic "any partner/background card".
+    session = DeckSession("commander")
+    session.add("Ishai, Ojutai Dragonspeaker", zone="commanders")
+    client = make_client(session=session)
+    avenues = {a["label"]: a for a in client.get("/api/snapshot").json()["avenues"]}
+    assert "Partner / Background" in avenues
+    search = avenues["Partner / Background"]["search"]
+    assert search.get("color_identity") == "WUBRG"  # partners aren't color-restricted
+    assert "partner" in (search.get("oracle") or "").lower()
+
+
+def test_partner_avenue_hidden_when_slot_filled():
+    # Two commanders → no open partner slot → no partner avenue offered.
+    session = DeckSession("commander")
+    session.add("Ishai, Ojutai Dragonspeaker", zone="commanders")
+    session.add("Atraxa, Praetors' Voice", zone="commanders")
+    client = make_client(session=session)
+    labels = {a["label"] for a in client.get("/api/snapshot").json()["avenues"]}
+    assert "Partner / Background" not in labels
 
 
 def test_search_projects_results_with_images():

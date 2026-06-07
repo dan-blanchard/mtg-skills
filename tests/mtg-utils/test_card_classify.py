@@ -1,5 +1,7 @@
 """Tests for card classification helpers."""
 
+import re
+
 from mtg_utils.card_classify import (
     build_card_lookup,
     classify_cube_category,
@@ -8,6 +10,8 @@ from mtg_utils.card_classify import (
     is_creature,
     is_land,
     is_ramp,
+    partner_ability,
+    valid_partner_search,
 )
 
 
@@ -674,3 +678,96 @@ class TestBuildCardLookup:
         lookup = build_card_lookup(hydrated)
         # Exactly one entry; no accidental aliasing.
         assert len(lookup) == 1
+
+
+class TestPartnerAbility:
+    """Partner pairing variants (CR 702.124) drive the deck-forge partner avenue."""
+
+    def _ce(self, name, type_line, oracle):
+        return {"name": name, "type_line": type_line, "oracle_text": oracle}
+
+    def test_plain_partner(self):
+        c = self._ce(
+            "Ishai",
+            "Legendary Creature — Bird Monk",
+            "Flying\nPartner (You can have two commanders if both have partner.)",
+        )
+        assert partner_ability(c) == {"kind": "plain", "value": ""}
+        s = valid_partner_search(c)
+        assert "partner \\(you can have two commanders" in s["oracle"]
+
+    def test_partner_with_named_card_only(self):
+        # CR 702.124j: pairs ONLY with the named card, even though it also carries the
+        # bare `partner` keyword — the specific variant must win.
+        c = self._ce(
+            "Krav, the Unredeemed",
+            "Legendary Creature — Demon",
+            "Partner with Regna, the Redeemer (When this creature enters, ...)\n{B}...",
+        )
+        pa = partner_ability(c)
+        assert pa["kind"] == "with"
+        assert pa["value"] == "Regna, the Redeemer"
+        assert valid_partner_search(c)["name"] == "Regna, the Redeemer"
+
+    def test_partner_group_same_group_only(self):
+        c = self._ce(
+            "Atreus, Impulsive Son",
+            "Legendary Creature — God Archer",
+            "Reach\nPartner—Father & son (You can have two commanders if both ...)",
+        )
+        pa = partner_ability(c)
+        assert pa["kind"] == "group"
+        assert pa["value"] == "Father & son"
+        # the search isolates the same group (won't match Partner—Character select).
+        s = valid_partner_search(c)
+        assert re.search(s["oracle"], "Partner—Father & son (...)", re.IGNORECASE)
+        assert not re.search(s["oracle"], "Partner—Character select (...)", re.IGNORECASE)
+
+    def test_choose_a_background_pairs_with_backgrounds(self):
+        c = self._ce(
+            "Wilson, Refined Grizzly",
+            "Legendary Creature — Bear",
+            "Vigilance, trample\nChoose a Background (You can have a Background ...)",
+        )
+        assert partner_ability(c)["kind"] == "choose_background"
+        assert valid_partner_search(c)["card_type"] == "Background"
+
+    def test_background_pairs_with_choosers(self):
+        c = self._ce(
+            "Far Traveler",
+            "Legendary Enchantment — Background",
+            "Commander creatures you own have ...",
+        )
+        assert partner_ability(c)["kind"] == "background"
+        assert "choose a background" in valid_partner_search(c)["oracle"]
+
+    def test_doctors_companion_pairs_with_doctors(self):
+        c = self._ce(
+            "Rory Williams",
+            "Legendary Creature — Human",
+            "Doctor's companion (You can have two commanders if the other is ...)",
+        )
+        assert partner_ability(c)["kind"] == "doctors_companion"
+        assert valid_partner_search(c)["card_type"] == "Time Lord Doctor"
+
+    def test_time_lord_doctor_pairs_with_companions(self):
+        c = self._ce(
+            "The Tenth Doctor",
+            "Legendary Creature — Time Lord Doctor",
+            "Whenever you attack, ...",
+        )
+        assert partner_ability(c)["kind"] == "doctor"
+        assert "doctor's companion" in valid_partner_search(c)["oracle"]
+
+    def test_no_partner_ability(self):
+        c = self._ce("Llanowar Elves", "Creature — Elf Druid", "{T}: Add {G}.")
+        assert partner_ability(c)["kind"] is None
+        assert valid_partner_search(c) is None
+
+    def test_partner_searches_are_color_agnostic(self):
+        # Legal partners aren't restricted by color identity (CR 702.124c union).
+        for c in (
+            self._ce("X", "Legendary Creature — Bird", "Partner (You can have ...)"),
+            self._ce("Y", "Legendary Creature — Demon", "Partner with Regna ()"),
+        ):
+            assert valid_partner_search(c)["color_identity"] == "WUBRG"

@@ -286,6 +286,77 @@ def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
     return {"eligible": False, "requires_partner": False}
 
 
+# Partner pairing (CR 702.124). Each variant pairs only within its own kind, and the
+# variants can't be mixed (702.124f). `kind` ∈ {plain, group, with, choose_background,
+# background, doctors_companion, doctor} or None; `value` is the group name (group) or
+# the named partner (with).
+_PARTNER_WITH_RE = re.compile(r"partner with ([^.\n(]+)", re.IGNORECASE)
+# Separator may be em-dash, en-dash, or hyphen (\u escapes keep the source ASCII).
+_PARTNER_SEP = "[\u2014\u2013-]"  # em-dash, en-dash, or hyphen
+_PARTNER_GROUP_RE = re.compile(rf"partner\s*{_PARTNER_SEP}\s*([^.\n(]+)", re.IGNORECASE)
+
+
+def partner_ability(card: dict) -> dict:
+    """Classify a card's partner-style ability for second-commander pairing.
+
+    Order matters: the specific variants (choose-a-Background, partner-with,
+    partner—[group], Doctor's companion) are checked before plain ``partner``, because
+    a "partner with [name]" card also carries the bare ``partner`` keyword (CR 702.124j)
+    but pairs ONLY with its named partner, not with arbitrary partners (702.124f)."""
+    type_line = card.get("type_line", "") or ""
+    oracle = get_oracle_text(card)
+    low = oracle.lower()
+
+    if "choose a background" in low:
+        return {"kind": "choose_background", "value": ""}
+    if "Background" in type_line:
+        return {"kind": "background", "value": ""}
+    m = _PARTNER_WITH_RE.search(oracle)
+    if m:
+        return {"kind": "with", "value": m.group(1).strip().rstrip(",")}
+    m = _PARTNER_GROUP_RE.search(oracle)
+    if m:
+        return {"kind": "group", "value": m.group(1).strip()}
+    if "doctor's companion" in low:
+        return {"kind": "doctors_companion", "value": ""}
+    if "Time Lord Doctor" in type_line:
+        return {"kind": "doctor", "value": ""}
+    if re.search(r"\bpartner\b", low):
+        return {"kind": "plain", "value": ""}
+    return {"kind": None, "value": ""}
+
+
+def valid_partner_search(card: dict) -> dict | None:
+    """``card_search`` filter that finds the cards legally eligible to be ``card``'s
+    paired second commander (CR 702.124), or ``None`` if it has no partner ability.
+
+    Color-agnostic on purpose: partner legality has no color-identity restriction — the
+    pair's identity is the union of the two (702.124c) — so we pass ``color_identity``
+    "WUBRG" (every identity is a subset) to disable the color filter rather than wrongly
+    hide an off-color legal partner (e.g. a "partner with [name]" target in a new
+    color).
+    """
+    pa = partner_ability(card)
+    kind = pa["kind"]
+    base = {"color_identity": "WUBRG"}
+    if kind == "choose_background":
+        return {**base, "card_type": "Background"}
+    if kind == "background":
+        return {**base, "oracle": r"choose a background"}
+    if kind == "with":
+        return {**base, "name": pa["value"]}
+    if kind == "group":
+        grp = re.escape(pa["value"])
+        return {**base, "oracle": rf"partner\s*{_PARTNER_SEP}\s*{grp}"}
+    if kind == "doctors_companion":
+        return {**base, "card_type": "Time Lord Doctor"}
+    if kind == "doctor":
+        return {**base, "oracle": r"doctor's companion"}
+    if kind == "plain":
+        return {**base, "oracle": r"partner \(you can have two commanders"}
+    return None
+
+
 def has_any_number_exemption(card: dict) -> bool:
     """True if oracle text reads "A deck can have any number of cards named X".
 
