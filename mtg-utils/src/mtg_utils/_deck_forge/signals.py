@@ -990,6 +990,23 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Casualty (CR 702.153) sacrifices a creature as a cost — a casualty granter
+    # (Anhelo, Silverquill) wants the sac-fodder avenue. Route the grant to sacrifice.
+    ("sacrifice_matters", re.compile(r"\bcasualty\b", re.IGNORECASE), "you"),
+    # Saddle / Mount (CR 702.171): attacks-while-saddled payoffs (Calamity, Gitrog
+    # Ravenous Ride) the crew-keyed vehicles_matter avenue (1/33) doesn't surface.
+    (
+        "saddle_matters",
+        re.compile(r"\bsaddled\b|whenever you saddle", re.IGNORECASE),
+        "you",
+    ),
+    # Suspect (CR 701.60): a designation granting menace + can't-block. Key on the
+    # oracle term — the keyword[] field is incomplete here (misses Cases / instants).
+    (
+        "suspect_matters",
+        re.compile(r"\bsuspects?\b|\bsuspected\b", re.IGNORECASE),
+        "you",
+    ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
     # (Goreclaw), or a Ferocious-style "if you control a creature with power N or
@@ -1080,6 +1097,11 @@ _DIRECT_KEYWORD_SIGNALS = {
     "extort": ("lifeloss_matters", "opponents"),
     "amass": ("tokens_matter", "you"),
     "mobilize": ("tokens_matter", "you"),
+    # Station (702.184) accrues charge counters → route to the proliferate avenue (which
+    # already serves charge-counter cards); station commanders fire no +1/+1 counter
+    # signal otherwise. Saddle (702.171) bodies want the dedicated saddle/Mount avenue.
+    "station": ("proliferate_matters", "you"),
+    "saddle": ("saddle_matters", "you"),
 }
 
 

@@ -564,3 +564,93 @@ class TestTimeCountersWiden:
     def test_vanishing_keyword_served(self):
         assert serves(self.VANISHING, _sig("suspend_matters", "you"))
         assert serves(self.AS_FORETOLD, _sig("suspend_matters", "you"))
+
+
+# ── Batch F: deferred quick-tweaks (serve/routing widens + 2 thin new avenues) ─
+class TestLostLifeThresholdWiden:
+    """lifeloss_matters/opponents matched only continuous "loses life" triggers, not the
+    past-tense "if an opponent lost life this turn" THRESHOLD (Spectacle/Rakdos payoffs)."""
+
+    def test_opponent_lost_life_threshold_served(self):
+        stromkirk = {
+            "name": "Stromkirk Bloodthief",
+            "type_line": "Creature — Vampire",
+            "oracle_text": "At the beginning of your end step, if an opponent lost life this turn, put a +1/+1 counter on target Vampire you control.",
+        }
+        assert serves(stromkirk, _sig("lifeloss_matters", "opponents"))
+
+    def test_self_lost_life_not_served(self):
+        # "if you lost life this turn" is a self-payoff, not an opponents-drain payoff.
+        ludevic = {
+            "name": "Self Lifeloss",
+            "type_line": "Enchantment",
+            "oracle_text": "At the beginning of your upkeep, if you lost life this turn, draw a card.",
+        }
+        assert not serves(ludevic, _sig("lifeloss_matters", "opponents"))
+
+
+class TestCasualtyRouting:
+    """Casualty (CR 702.153) sacrifices a creature as an additional cost; a casualty
+    commander/granter (Anhelo) should surface the sacrifice-fodder avenue."""
+
+    def test_casualty_grant_emits_sacrifice_matters(self):
+        anhelo = {
+            "name": "Anhelo, the Painter",
+            "type_line": "Legendary Creature — Vampire",
+            "oracle_text": "Deathtouch\nThe first instant or sorcery spell you cast each turn has casualty 2.",
+        }
+        assert "sacrifice_matters" in _keys(anhelo)
+
+
+class TestStationDetection:
+    """Station (CR 702.184) uses charge counters; station commanders fire neither
+    counters_matter (+1/+1-gated) nor proliferate_matters — route them to proliferate."""
+
+    def test_station_keyword_emits_proliferate(self):
+        ship = {
+            "name": "Hearthhull, the Worldseed",
+            "type_line": "Legendary Artifact — Spacecraft",
+            "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft.)",
+            "keywords": ["Station"],
+        }
+        assert "proliferate_matters" in _keys(ship)
+
+
+class TestSaddleMatters:
+    """Saddle / Mount (CR 702.171) — vehicles_matter catches only 1/33 and serves the
+    crew/Vehicle pool, not the attacks-while-saddled payoff axis."""
+
+    CALAMITY = {
+        "name": "Calamity, Galloping Inferno",
+        "type_line": "Legendary Creature — Phyrexian Horror Mount",
+        "oracle_text": "Haste\nWhenever Calamity attacks while saddled, create a tapped and attacking token copy of a creature that saddled it.",
+        "keywords": ["Saddle", "Haste"],
+    }
+
+    def test_saddle_commander_emits_and_served(self):
+        assert "saddle_matters" in _keys(self.CALAMITY)
+        assert serves(self.CALAMITY, _sig("saddle_matters", "you"))
+
+    def test_saddle_mount_body_served(self):
+        mount = {
+            "name": "Stitched Assistant",
+            "type_line": "Artifact Creature — Mount",
+            "oracle_text": "Saddle 1",
+            "keywords": ["Saddle"],
+        }
+        assert serves(mount, _sig("saddle_matters", "you"))
+
+
+class TestSuspectMatters:
+    """Suspect (CR 701.60) — crimes_matter's search catches 2/24 suspect cards; the
+    suspect enabler pool was otherwise invisible (niche Mardu/Dimir aggro)."""
+
+    NELLY = {
+        "name": "Nelly Borca, Impulsive Accuser",
+        "type_line": "Legendary Creature — Human Detective",
+        "oracle_text": "Vigilance\nWhenever Nelly Borca attacks, suspect target creature. Then goad all suspected creatures. (A suspected creature has menace and can't block.)",
+    }
+
+    def test_suspect_commander_emits_and_served(self):
+        assert "suspect_matters" in _keys(self.NELLY)
+        assert serves(self.NELLY, _sig("suspect_matters", "you"))

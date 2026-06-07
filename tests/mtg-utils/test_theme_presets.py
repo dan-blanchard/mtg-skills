@@ -1106,6 +1106,11 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": ["Firebending"],
         "oracle_text": "Firebending 3\nYou may cast Ally spells and artifact spells as though they had flash.",
     },
+    # Grants firebending via oracle without bearing the keyword — the preset widen.
+    "Sozin's Comet": {
+        "keywords": ["Foretell"],
+        "oracle_text": "Each creature you control gains firebending 5 until end of turn. (Whenever it attacks, add {R}{R}{R}{R}{R}. This mana lasts until end of combat.)\nForetell {2}{R}",
+    },
     # ── Turn manipulation ──
     "Time Walk": {
         "keywords": [],

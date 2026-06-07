@@ -1815,7 +1815,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "crossover mechanic."
         ),
         keywords=("Firebending",),
-        should_match=("Mai and Zuko",),
+        # Also match the grant/token cards that reference firebending in oracle without
+        # bearing the keyword (Sozin's Comet, Iroh, Fire Nation Palace). "firebending"
+        # is a CR-702.189 keyword term, so it never appears as incidental flavor; the
+        # word in card NAMES (Firebending Lesson) isn't in the oracle, so no FP.
+        patterns=_rx(r"\bfirebending\b"),
+        should_match=("Mai and Zuko", "Sozin's Comet"),
         should_not_match=("Lightning Bolt",),
     ),
     # ── Turn manipulation ──────────────────────────────────────────────

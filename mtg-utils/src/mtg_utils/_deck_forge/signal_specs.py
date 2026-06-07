@@ -802,12 +802,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # keystone aristocrats drains worded "target/that player loses N life" (Blood
     # Artist, Falkenrath Noble). Add the player-loses branch; "each player" is excluded
     # to keep symmetric self-damage out of the opponents-drain avenue.
+    # Serve/search widened with the past-tense "lost life this turn" THRESHOLD wording
+    # (Spectacle / Rakdos payoffs — Stromkirk Bloodthief, Rakdos Lord of Riots) the
+    # continuous "loses life" branches missed. Opponent-anchored so a self "you lost
+    # life this turn" payoff (Ludevic) never matches.
     ("lifeloss_matters", "opponents"): _spec(
         "Drain",
         "repeatable life-drain and aristocrats payoffs",
-        {"oracle": r"each opponent loses|target opponent loses|whenever .* dies"},
+        {
+            "oracle": r"each opponent loses|target opponent loses|whenever .* dies"
+            r"|(?:an? |each )?opponents? lost life this turn"
+        },
         r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
-        r"|(?:target player|that player|a player) loses? [^.]*\blife\b",
+        r"|(?:target player|that player|a player) loses? [^.]*\blife\b"
+        r"|(?:an? opponent|each opponent|opponents?|a player|each player)"
+        r"(?: who)? lost life this turn",
     ),
     # The bare `pay \d+ life` matched 39 painlands/fetchlands (Blood Crypt, Sacred
     # Foundry) that are mana fixing, not a life-as-resource engine. VETO lands; keep the
@@ -1518,6 +1527,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bsuspend\b|time counter"},
         r"\bsuspend\b|\bvanishing\b|\bimpending\b|time counter|time travel",
         serve_keywords=("suspend", "vanishing", "impending"),
+    ),
+    ("saddle_matters", "you"): _spec(
+        "Saddle / Mounts",
+        "Mounts to ride plus the cheap wide creatures that pay the Saddle cost and the "
+        "attacks-while-saddled payoffs (Calamity, Gitrog Ravenous Ride)",
+        {"oracle": r"\bsaddle\b|\bsaddled\b|\bmount\b"},
+        r"\bsaddled\b|whenever you saddle|while saddled",
+        serve_keywords=("saddle",),
+    ),
+    ("suspect_matters", "you"): _spec(
+        "Suspect",
+        "cards that suspect creatures (menace + can't block) plus the payoffs that "
+        "reward having suspected creatures",
+        {"oracle": r"\bsuspect\b|\bsuspected\b"},
+        r"\bsuspects?\b|\bsuspected\b",
     ),
 }
 
