@@ -171,3 +171,23 @@ class TestBlinkForSelfEtbCommander:
         # creature with NO ETB at all:
         bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
         assert "blink_flicker" not in {s.key for s in extract_signals(bear)}
+
+
+class TestVoltronCastTrigger:
+    """Equipment/Aura commanders whose trigger keys on CASTING an Aura/Equipment spell
+    (Sram, Galea, Danitha) didn't emit voltron_matters — the floor detector only had
+    attach/equip/equipped anchors. CR 601 cast + CR 301.5/303 Equipment/Aura."""
+
+    def test_cast_equipment_aura_commander_emits_voltron(self):
+        sram = {
+            "name": "Sram, Senior Edificer", "type_line": "Legendary Creature — Dwarf Advisor",
+            "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
+        }
+        galea = {
+            "name": "Galea, Kindler of Hope", "type_line": "Legendary Creature — Elf Knight",
+            "oracle_text": "You may look at the top card of your library any time.\nYou may cast Aura and Equipment spells from the top of your library.",
+        }
+        assert "voltron_matters" in {s.key for s in extract_signals(sram)}
+        # a non-equipment commander must NOT
+        bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+        assert "voltron_matters" not in {s.key for s in extract_signals(bear)}

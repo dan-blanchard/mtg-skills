@@ -468,7 +468,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|whenever you attach (?:a |an )?(?:equipment|aura|role)"
             r"|whenever an? (?:equipment|aura) (?:you control )?enters"
             r"|as long as \w+ is equipped|\bequipment you control\b"
-            r"|pay [^.]*equip cost",
+            r"|pay [^.]*equip cost"
+            # Sram / Galea / Danitha: a CAST-trigger or cast-from-top keyed on Aura/
+            # Equipment spells (CR 601 cast) — the deck IS a voltron deck even though
+            # the wording is "cast an Aura/Equipment", not "attach"/"equipped".
+            r"|cast an? (?:aura|equipment)|cast aura and equipment"
+            r"|whenever you cast an aura, equipment",
             re.IGNORECASE,
         ),
         "you",
