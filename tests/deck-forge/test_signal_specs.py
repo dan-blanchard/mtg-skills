@@ -1251,3 +1251,42 @@ class TestSweepHandSpecs:
         banishing = {"type_line": "Enchantment", "oracle_text": "When Banishing Light enters, exile target nonland permanent an opponent controls until Banishing Light leaves the battlefield."}
         assert serves(nikara, sig) is True  # LTB payoff
         assert serves(banishing, sig) is False  # O-Ring exile-until-leaves
+
+
+class TestMediumBatch8:
+    """MEDIUM batch 8: sweep-regex surgeries + extraction/scope fixes."""
+
+    def test_big_hand_excludes_stax_hand_size_refs(self):
+        sig = _sig("big_hand_matters", "you")
+        no_max = {"type_line": "Creature", "oracle_text": "You have no maximum hand size."}
+        ensnaring = {"type_line": "Artifact", "oracle_text": "Creatures with power greater than the number of cards in your hand can't attack."}
+        assert serves(no_max, sig) is True
+        assert serves(ensnaring, sig) is False
+
+    def test_counter_manipulation_requires_plus_one_counters(self):
+        sig = _sig("counter_manipulation", "you")
+        hex_parasite = {"type_line": "Artifact Creature — Insect", "oracle_text": "{X}, {T}: Remove X +1/+1 counters or X loyalty counters from target permanent."}
+        mana_bloom = {"type_line": "Enchantment", "oracle_text": "At the beginning of your upkeep, remove a charge counter from this enchantment. If you can't, sacrifice it."}
+        assert serves(hex_parasite, sig) is True
+        assert serves(mana_bloom, sig) is False
+
+    def test_life_total_set_drops_symmetric_damage_branch(self):
+        sig = _sig("life_total_set", "any")
+        mirror = {"type_line": "Artifact", "oracle_text": "{T}: Exchange your life total with target opponent's life total."}
+        price = {"type_line": "Sorcery", "oracle_text": "Price of Progress deals damage to each player equal to twice the number of nonbasic lands that player controls."}
+        assert serves(mirror, sig) is True
+        assert serves(price, sig) is False
+
+    def test_creature_cast_trigger_recovers_you_cast(self):
+        from mtg_utils._deck_forge.signals import extract_signals
+
+        beast_whisperer = {"name": "Beast Whisperer", "type_line": "Creature — Elf Shaman", "oracle_text": "Whenever you cast a creature spell, draw a card."}
+        keys = {s.key for s in extract_signals(beast_whisperer)}
+        assert "creature_cast_trigger" in keys
+
+    def test_win_lose_game_scope_splits_self_win(self):
+        from mtg_utils._deck_forge.signals import extract_signals
+
+        felidar = {"name": "Felidar Sovereign", "type_line": "Creature — Cat Beast", "oracle_text": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game."}
+        sigs = [s for s in extract_signals(felidar) if s.key == "win_lose_game"]
+        assert any(s.scope == "you" for s in sigs)

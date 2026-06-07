@@ -150,7 +150,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "life_total_set",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "life total (?:becomes|equal to)|equal to half (?:that|your|a) (?:player'?s? )?life|deals damage to each player equal to|exchange (?:your )?life total|exchange life totals?|set your life total to",
+        "regex": "life total (?:becomes|equal to)|equal to half (?:that|your|a) (?:player'?s? )?life|exchange (?:your )?life total|exchange life totals?|set your life total to|double target player's life total",
     },
     {
         "key": "animate_artifact",
@@ -234,7 +234,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "counter_manipulation",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "remove (?:a|one|any number of|x|\\d+) [^.]{0,30}?counters?\\b (?:from|of)|remove a counter from|remove any number of counters from",
+        "regex": "(?:remove|move) (?:a|one|any number of|x|\\d+) (?:\\+1/\\+1|-1/-1) counters?|(?:remove|move) (?:a|one|any number of|x|\\d+) [^.]{0,20}?(?:\\+1/\\+1|-1/-1) counters?",
     },
     {
         "key": "self_counter_grow",
@@ -328,9 +328,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     },
     {
         "key": "win_lose_game",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "you win the game",
+    },
+    {
+        "key": "win_lose_game",
         "scope": "opponents",
         "is_widen_of": "",
-        "regex": "you win the game|that player loses the game",
+        "regex": "that player loses the game|each opponent loses the game|target (?:player|opponent) loses the game",
     },
     {
         "key": "target_player_draws",
@@ -810,7 +816,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "creature_cast_trigger",
         "scope": "any",
         "is_widen_of": "opponent_cast_matters",
-        "regex": "whenever (?:a player|an opponent|each opponent) casts? a creature spell|whenever (?:a|another) creature spell is cast",
+        "regex": "whenever (?:you|a player|an opponent|each opponent) casts? a creature spell|whenever (?:a|another) creature spell is cast",
     },
     {
         "key": "spell_copy_matters",

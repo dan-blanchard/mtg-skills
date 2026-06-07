@@ -772,11 +772,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"legendary creatures? you control|another legendary|for each legendary",
         serve_types=("legendary",),
     ),
+    # The bare `cards in your hand` matched stax/hand-size references (Ensnaring Bridge,
+    # Ivory Tower). Require a no-max-hand-size or a full-grip payoff/scaling phrase.
     ("big_hand_matters", "you"): _spec(
         "Big hand / no max hand size",
         "card draw and no-max-hand-size payoffs that reward a full grip",
         {"oracle": r"cards in your hand|no maximum hand size"},
-        r"maximum hand size|cards in your hand",
+        r"maximum hand size"
+        r"|(?:\d+|five|six|seven|eight) or more cards in (?:your )?hand"
+        r"|for each card in your hand|equal to the number of cards in your hand",
     ),
     # A party (CR 700.x) is one each of Cleric/Rogue/Warrior/Wizard — those creature
     # SUBTYPES are the members. The bare `\bparty\b` caught 3 flavor FPs; gate the
