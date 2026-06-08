@@ -362,9 +362,11 @@ explicitly-absent per-card rate judgment), "speed" alone.
 **Focus** (the anti-"spread too thin" metric):
 The concentration of [[Engine card]]s across the deck's signal-derived [[Exploration
 avenue]]s (Staples excluded). Lead readout: the deck's *themes* and their depths, scored on
-a **two-tier floor** — a **main** theme at/above ~20-per-100 and a **sub**-theme at/above
+a **tiered floor** — a **main** theme at/above ~20-per-100, a **sub**-theme at/above
 ~10-per-100 (a sub is genuinely shallower than the main, so it is NOT held to the main's
-bar). Plus a top-2 concentration ratio and the filler rate. The research ideal is one main +
+bar), and an **emerging** theme at/above ~5-per-100 (a real-but-under-supported direction
+the deck started but didn't commit to — surfaced as a "commit more or cut" nudge, not
+dropped as noise). Plus a top-2 concentration ratio and the filler rate. The research ideal is one main +
 one sub; 3+ themes reads `SPREAD-THIN`. Two exclusions keep the count honest: **lands** never
 count as theme support (mana base, not a lane), and **Spine-role avenues** (ramp / draw /
 removal — they mirror the [[Template]]) are dropped, so scaffolding can't masquerade as the

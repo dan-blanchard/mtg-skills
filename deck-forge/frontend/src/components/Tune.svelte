@@ -231,6 +231,16 @@
             </div>
           {/each}
         {/if}
+        {#if sc.focus.emerging && sc.focus.emerging.length}
+          <div class="m-sub">under-supported — commit or cut</div>
+          {#each sc.focus.emerging as a (a.label)}
+            <div class="m-line avenue">
+              <span class="tier emerging">emerging</span>
+              {a.label} <b>{a.depth}</b>
+              <CardList names={a.cards || []} label="" />
+            </div>
+          {/each}
+        {/if}
       </div>
 
       <!-- Tier-2 advisory flags -->
@@ -512,6 +522,10 @@
   .tier.sub {
     border: 1px solid var(--hairline);
     color: var(--parchment-dim);
+  }
+  .tier.emerging {
+    border: 1px dashed var(--brass);
+    color: var(--brass);
   }
   .role-gap {
     margin-right: 0.7rem;

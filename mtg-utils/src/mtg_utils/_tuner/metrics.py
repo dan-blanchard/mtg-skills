@@ -202,6 +202,21 @@ def focus(
         viable.append(lbl)
     mains = [lbl for lbl in viable if depth[lbl] >= main_floor]
     subs = [lbl for lbl in viable if depth[lbl] < main_floor]
+
+    # Emerging themes: a real-but-under-supported direction (emerging floor ≤ depth <
+    # sub floor) the deck started but didn't commit to — flagged "commit more or cut"
+    # rather than dropped as noise. Deduped against the viable themes (a subset of a
+    # real theme is not its own emerging theme).
+    emerging_floor = max(1, _scaled(5, deck_size))
+    emerging: list[str] = []
+    for lbl in sorted(depth, key=lambda x: depth[x], reverse=True):
+        if not emerging_floor <= depth[lbl] < sub_floor:
+            continue
+        s = set(members[lbl])
+        if any(len(s & set(members[k])) / len(s) >= 0.8 for k in viable + emerging):
+            continue
+        emerging.append(lbl)
+
     top2 = viable[:2]
     in_top2 = sum(1 for c in engine if set(top2).intersection(themes(c)))
     top2_share = round(in_top2 / engine_pool, 2) if engine_pool else 0.0
@@ -239,6 +254,10 @@ def focus(
         ],
         "mains": mains,
         "subs": subs,
+        "emerging": [
+            {"label": lbl, "depth": depth[lbl], "cards": members[lbl]}
+            for lbl in emerging
+        ],
         "main_floor": main_floor,
         "sub_floor": sub_floor,
         "top2_concentration": top2_share,
@@ -365,6 +384,17 @@ def top_issues(
                 "severity": b["deviation"],
                 "message": f"{role.replace('_', ' ')} over by {b['deviation']} "
                 f"({b['current']}/{b['min']}-{b['max']})",
+            }
+        )
+
+    for e in focus_r.get("emerging", []):
+        issues.append(
+            {
+                "kind": "under_supported_theme",
+                "label": e["label"],
+                "severity": 2,
+                "message": f"{e['label']} ({e['depth']}) is an under-supported theme — "
+                "commit more or cut it",
             }
         )
 

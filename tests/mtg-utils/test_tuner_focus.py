@@ -63,6 +63,22 @@ def test_two_tier_main_and_sub_themes():
     assert fr["verdict"] == "FOCUSED"  # one main + one sub = the research ideal
 
 
+def test_emerging_theme_surfaces_below_the_sub_floor():
+    # deck_size 100 → main floor 20, sub floor 10, emerging floor 5. An under-supported
+    # theme (5 ≤ depth < 10) is surfaced as emerging, not dropped as noise.
+    classes = (
+        [_cc(f"M{i}", "engine", ["Main"]) for i in range(22)]
+        + [_cc(f"P{i}", "engine", ["Proliferate"]) for i in range(7)]
+        + [_cc(f"N{i}", "engine", ["Noise"]) for i in range(3)]
+    )
+    fr = focus(classes, deck_size=100)
+    assert [a["label"] for a in fr["viable_avenues"]] == ["Main"]
+    assert [e["label"] for e in fr["emerging"]] == ["Proliferate"]
+    assert "Noise" not in {
+        e["label"] for e in fr["emerging"]
+    }  # depth 3 < emerging floor
+
+
 def test_efficiency_thin_top_end_is_actionable():
     # A curve issue (thin top-end) must source an add at the missing CMC band — scoped to
     # the deck's main theme — not be silently advisory.

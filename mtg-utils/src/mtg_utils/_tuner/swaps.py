@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 
+from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass
@@ -191,9 +192,18 @@ def propose_swaps(
     spent = 0.0
     cmc_cap = 4.0 if top_heavy else None
 
+    # Roles already at/above their template ceiling — an add filling one would push the
+    # deck OFF-template, so fixing one issue must not regress the template.
+    full_roles = {r for r, b in budgets.items() if b["current"] >= b["max"]}
+
     def find_add(spec: dict, *, synergy_first: bool) -> tuple[dict, float] | None:
         """The best affordable add for this spec — does NOT commit spend (the caller
-        commits once a cut is secured, so an unpaired add can't inflate the total)."""
+        commits once a cut is secured, so an unpaired add can't inflate the total).
+
+        Prefers an add that does NOT overshoot an already-full Spine role (so a curve
+        fix can't break the template); only falls back to an overshooting add when
+        nothing cleaner is affordable.
+        """
         found = _run_search(
             search_fn,
             spec,
@@ -211,11 +221,16 @@ def propose_swaps(
             ranked = sorted(
                 pool, key=lambda c: (c.get("cmc", 0.0), extract_price(c) or 1e9)
             )
+        fallback: tuple[dict, float] | None = None
         for card in ranked:
             cost = _acquire_cost(card, owned, budget, spent)
-            if cost is not None:
-                return card, cost
-        return None
+            if cost is None:
+                continue
+            if role_of(card) & full_roles:
+                fallback = fallback or (card, cost)  # keep the best overshooting option
+                continue
+            return card, cost
+        return fallback
 
     for issue in issues:
         if len(swaps) >= max_swaps:
