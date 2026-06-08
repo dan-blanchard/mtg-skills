@@ -7,7 +7,8 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.card_classify import build_card_lookup, get_oracle_text, is_land
+from mtg_utils.card_classify import get_oracle_text, is_land
+from mtg_utils.hydrated_deck import HydratedDeck
 
 
 def card_summary(
@@ -68,23 +69,6 @@ def card_summary(
     return "\n".join(lines)
 
 
-def _filter_to_section(
-    hydrated: list[dict | None],
-    deck: dict,
-    section: str,
-) -> list[dict | None]:
-    """Filter hydrated list to only cards in the given deck section."""
-    lookup = build_card_lookup(hydrated)
-    names: set[str] = set()
-    for entry in deck.get(section, []):
-        deck_name = entry["name"]
-        names.add(deck_name)
-        card = lookup.get(deck_name)
-        if card is not None:
-            names.add(card.get("name", ""))
-    return [c for c in hydrated if c is not None and c.get("name") in names]
-
-
 @click.command()
 @click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--lands-only", is_flag=True, default=False, help="Show only lands.")
@@ -115,12 +99,17 @@ def main(
     sideboard: bool,
 ) -> None:
     """Format hydrated card data as a compact readable table."""
-    hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
     if sideboard:
         if deck_path is None:
             raise click.UsageError("--sideboard requires --deck")
-        deck = json.loads(deck_path.read_text(encoding="utf-8"))
-        hydrated = _filter_to_section(hydrated, deck, "sideboard")
+        # The deck owns the join: from_paths reads both files (raising on a stub
+        # hydrated file), and entries() pairs each distinct sideboard entry with its
+        # alias-resolved record in one walk — the replacement for _filter_to_section.
+        # card_summary drops the None misses itself, so no filter is needed here.
+        hd = HydratedDeck.from_paths(deck_path, hydrated_path)
+        hydrated = [rec for _, rec in hd.entries(zones=("sideboard",))]
+    else:
+        hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
     output = card_summary(
         hydrated,
         lands_only=lands_only,

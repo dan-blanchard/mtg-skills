@@ -137,3 +137,71 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Viscera Seer" in result.output
         assert "Sol Ring" not in result.output
+
+
+class TestSideboard:
+    """--sideboard joins through a HydratedDeck (from_paths) and shows only the
+    sideboard zone — the replacement for the deleted _filter_to_section helper."""
+
+    def _write(self, tmp_path, deck, hydrated):
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(deck))
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated))
+        return deck_path, hydrated_path
+
+    def test_shows_only_sideboard_cards(self, tmp_path):
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+            "sideboard": [{"name": "Smash", "quantity": 3}],
+        }
+        hydrated = [
+            {
+                "name": "Sol Ring",
+                "mana_cost": "{1}",
+                "cmc": 1.0,
+                "type_line": "Artifact",
+                "oracle_text": "{T}: Add {C}{C}.",
+            },
+            {
+                "name": "Smash",
+                "mana_cost": "{1}{R}",
+                "cmc": 2.0,
+                "type_line": "Instant",
+                "oracle_text": "Destroy target artifact.",
+            },
+        ]
+        deck_path, hydrated_path = self._write(tmp_path, deck, hydrated)
+        runner = CliRunner()
+        result = runner.invoke(
+            main, [str(hydrated_path), "--deck", str(deck_path), "--sideboard"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "Smash" in result.output
+        assert "Sol Ring" not in result.output
+
+    def test_requires_deck(self, hydrated_cards, tmp_path):
+        hydrated_path = tmp_path / "hydrated.json"
+        hydrated_path.write_text(json.dumps(hydrated_cards))
+        runner = CliRunner()
+        result = runner.invoke(main, [str(hydrated_path), "--sideboard"])
+        assert result.exit_code != 0
+        assert "--sideboard requires --deck" in result.output
+
+    def test_rejects_stub_hydrated_file(self, tmp_path):
+        """A stale/stub hydrated file (deck entries where records belong) now RAISEs
+        via from_paths, where the old _filter_to_section silently produced junk."""
+        deck = {
+            "commanders": [],
+            "cards": [],
+            "sideboard": [{"name": "Smash", "quantity": 1}],
+        }
+        stub_hydrated = [{"name": "Smash", "quantity": 1}]  # no type_line -> a stub
+        deck_path, hydrated_path = self._write(tmp_path, deck, stub_hydrated)
+        runner = CliRunner()
+        result = runner.invoke(
+            main, [str(hydrated_path), "--deck", str(deck_path), "--sideboard"]
+        )
+        assert result.exit_code != 0
+        assert isinstance(result.exception, ValueError)

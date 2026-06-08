@@ -8,7 +8,9 @@ from pathlib import Path
 
 import click
 
+from mtg_utils.card_classify import build_card_lookup
 from mtg_utils.format_config import get_format_config
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.names import normalize_card_name
 from mtg_utils.scryfall_lookup import lookup_single
 
@@ -67,8 +69,15 @@ def build_deck(
     sideboard_cuts: list[dict] | None = None,
     sideboard_adds: list[dict] | None = None,
     extra_hydrated: list[dict] | None = None,
-) -> tuple[dict, list[dict | None], list[str]]:
-    """Return (new_deck, new_hydrated, unmatched_cuts) after applying cuts and adds.
+) -> tuple[HydratedDeck, list[str]]:
+    """Return (hydrated_deck, unmatched_cuts) after applying cuts and adds.
+
+    The returned ``HydratedDeck`` owns the join of the rebuilt deck to its records:
+    ``.deck`` is the final deck (with ``total_cards`` / ``total_sideboard``
+    recomputed) and ``.records`` are the deck-projected Scryfall records drawn from
+    the input *hydrated* plus any freshly-looked-up *extra_hydrated*. An added card
+    whose record never resolved is absent from ``.records`` (surfaced via
+    ``.has_records``) — the same gap as before, now behind the value.
 
     Uses case-insensitive matching.  *unmatched_cuts* lists any cut names
     that were not found in the deck — callers should surface these as
@@ -79,18 +88,9 @@ def build_deck(
     Does not modify the originals.
     """
     new_deck = copy.deepcopy(deck)
-    new_hydrated = list(hydrated)
 
     cuts = [_normalize_entry(c) for c in cuts]
     adds = [_normalize_entry(a) for a in adds]
-
-    # Merge extra_hydrated for newly added cards
-    if extra_hydrated:
-        existing_names = {c["name"] for c in new_hydrated if c}
-        for card in extra_hydrated:
-            if card and card.get("name") not in existing_names:
-                new_hydrated.append(card)
-                existing_names.add(card["name"])
 
     # Apply mainboard cuts and adds
     cards = new_deck.get("cards", [])
@@ -111,7 +111,25 @@ def build_deck(
             _apply_adds(sb, [_normalize_entry(a) for a in sideboard_adds])
         new_deck["sideboard"] = sb
 
-    return new_deck, new_hydrated, unmatched_cuts
+    # Recompute the persisted totals so the returned ``.deck`` is final. This used to
+    # live in the CLI after the call; folding it in keeps the HydratedDeck's deck
+    # canonical-and-final (otherwise legality-audit's deck_minimum check, which reads
+    # ``total_cards`` first, sees the stale pre-build count — a 100-card commander
+    # deck falsely flagged 99/100).
+    main_total, sb_total = _count_total(new_deck)
+    new_deck["total_cards"] = main_total
+    new_deck["total_sideboard"] = sb_total
+
+    # Build the merged name->record index (input hydrated + freshly-looked-up adds)
+    # and construct via the TRUSTED by_name path: the records are assembled
+    # in-process, so the records= stub-guard (which is for untrusted JSON files) does
+    # not apply. from_parsed projects to the final deck's distinct names, dropping
+    # cut-card records as desired.
+    records_in: list[dict | None] = list(hydrated)
+    if extra_hydrated:
+        records_in.extend(extra_hydrated)
+    hd = HydratedDeck.from_parsed(new_deck, by_name=build_card_lookup(records_in))
+    return hd, unmatched_cuts
 
 
 def _count_total(deck: dict) -> tuple[int, int]:
@@ -199,7 +217,7 @@ def main(
             else:
                 click.echo(f"Warning: card not found in Scryfall: {name}", err=True)
 
-    new_deck, new_hydrated, unmatched_cuts = build_deck(
+    hd, unmatched_cuts = build_deck(
         deck,
         hydrated,
         cuts,
@@ -208,20 +226,16 @@ def main(
         sideboard_adds=raw_sb_adds,
         extra_hydrated=extra_hydrated,
     )
+    new_deck = hd.deck
 
     for name in unmatched_cuts:
         click.echo(f"Warning: cut not found in deck: {name}", err=True)
 
+    # build_deck has already recomputed and persisted the post-build totals onto
+    # ``hd.deck`` (see its docstring); the CLI only reads them for size warnings.
     config = get_format_config(new_deck)
-    main_total, sb_total = _count_total(new_deck)
-    # Update the persisted ``total_cards`` / ``total_sideboard`` fields so
-    # downstream tools (notably legality-audit's deck_minimum check, which
-    # reads ``deck_json.get("total_cards")`` first) see the post-build size.
-    # Without this rewrite, build-deck inherits the pre-cut count from the
-    # input deck JSON via ``copy.deepcopy`` and a 100-card commander deck is
-    # falsely flagged as 99/100.
-    new_deck["total_cards"] = main_total
-    new_deck["total_sideboard"] = sb_total
+    main_total = new_deck["total_cards"]
+    sb_total = new_deck["total_sideboard"]
     deck_size = config["deck_size"]
     if main_total != deck_size:
         click.echo(
@@ -241,6 +255,6 @@ def main(
         json.dumps(new_deck, indent=2), encoding="utf-8"
     )
     (output_dir / "new-hydrated.json").write_text(
-        json.dumps(new_hydrated, indent=2), encoding="utf-8"
+        json.dumps(hd.records, indent=2), encoding="utf-8"
     )
     click.echo(f"Wrote new-deck.json and new-hydrated.json to {output_dir}")

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import click
 
-from mtg_utils.card_classify import build_card_lookup, is_land, is_ramp
+from mtg_utils.card_classify import is_land, is_ramp
+from mtg_utils.hydrated_deck import HydratedDeck
 
 
 def _build_name_qty(deck: dict) -> dict[str, int]:
@@ -32,7 +34,7 @@ def _build_sideboard_qty(deck: dict) -> dict[str, int]:
 
 
 def _compute_stats(
-    name_qty: dict[str, int], card_lookup: dict[str, dict]
+    name_qty: dict[str, int], by_name: Mapping[str, dict]
 ) -> tuple[int, float, int, int]:
     """Compute count, avg_cmc, land_count, ramp_count."""
     total = sum(name_qty.values())
@@ -41,7 +43,7 @@ def _compute_stats(
     ramp_count = 0
 
     for name, qty in name_qty.items():
-        card = card_lookup.get(name)
+        card = by_name.get(name)
         if card is None:
             continue
 
@@ -77,26 +79,18 @@ def _diff_card_lists(
     return added, removed
 
 
-def deck_diff(
-    old_deck: dict,
-    new_deck: dict,
-    old_hydrated: list[dict | None],
-    new_hydrated: list[dict | None],
-) -> dict:
+def deck_diff(old: HydratedDeck, new: HydratedDeck) -> dict:
     """Compare two deck lists and compute impact metrics."""
-    old_qty = _build_name_qty(old_deck)
-    new_qty = _build_name_qty(new_deck)
-
-    old_lookup = build_card_lookup(old_hydrated)
-    new_lookup = build_card_lookup(new_hydrated)
+    old_qty = _build_name_qty(old.deck)
+    new_qty = _build_name_qty(new.deck)
 
     added, removed = _diff_card_lists(old_qty, new_qty)
 
     count_before, avg_cmc_before, land_before, ramp_before = _compute_stats(
-        old_qty, old_lookup
+        old_qty, old.by_name
     )
     count_after, avg_cmc_after, land_after, ramp_after = _compute_stats(
-        new_qty, new_lookup
+        new_qty, new.by_name
     )
 
     result = {
@@ -116,8 +110,8 @@ def deck_diff(
     }
 
     # Sideboard diff — directly compare sideboard sections
-    old_sb_qty = _build_sideboard_qty(old_deck)
-    new_sb_qty = _build_sideboard_qty(new_deck)
+    old_sb_qty = _build_sideboard_qty(old.deck)
+    new_sb_qty = _build_sideboard_qty(new.deck)
     if old_sb_qty or new_sb_qty:
         sb_added, sb_removed = _diff_card_lists(old_sb_qty, new_sb_qty)
         result["sideboard_added"] = sb_added
@@ -138,10 +132,7 @@ def main(
     new_hydrated_path: Path,
 ) -> None:
     """Compare two deck lists and compute impact metrics."""
-    old_deck = json.loads(old_deck_path.read_text(encoding="utf-8"))
-    new_deck = json.loads(new_deck_path.read_text(encoding="utf-8"))
-    old_hydrated = json.loads(old_hydrated_path.read_text(encoding="utf-8"))
-    new_hydrated = json.loads(new_hydrated_path.read_text(encoding="utf-8"))
-
-    result = deck_diff(old_deck, new_deck, old_hydrated, new_hydrated)
+    old = HydratedDeck.from_paths(old_deck_path, old_hydrated_path)
+    new = HydratedDeck.from_paths(new_deck_path, new_hydrated_path)
+    result = deck_diff(old, new)
     click.echo(json.dumps(result, indent=2))

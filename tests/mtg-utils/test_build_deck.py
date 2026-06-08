@@ -26,11 +26,11 @@ class TestBuildDeck:
         ]
         cuts = [{"name": "Bad Card", "quantity": 1}]
         adds = [{"name": "Good Card", "quantity": 1}]
-        new_deck, _new_hydrated, _unmatched = build_deck(deck, hydrated, cuts, adds)
-        card_names = [c["name"] for c in new_deck["cards"]]
+        hd, _unmatched = build_deck(deck, hydrated, cuts, adds)
+        card_names = [c["name"] for c in hd.cards]
         assert "Bad Card" not in card_names
         assert "Good Card" in card_names
-        assert len(new_deck["cards"]) == 2
+        assert len(hd.cards) == 2
 
     def test_quantity_adjustment(self):
         deck = {
@@ -47,8 +47,8 @@ class TestBuildDeck:
         ]
         cuts = [{"name": "Mountain", "quantity": 1}]
         adds = [{"name": "Island", "quantity": 1}]
-        new_deck, _, _unmatched = build_deck(deck, hydrated, cuts, adds)
-        by_name = {c["name"]: c for c in new_deck["cards"]}
+        hd, _unmatched = build_deck(deck, hydrated, cuts, adds)
+        by_name = {c["name"]: c for c in hd.cards}
         assert by_name["Mountain"]["quantity"] == 1
         assert by_name["Island"]["quantity"] == 3
 
@@ -62,8 +62,8 @@ class TestBuildDeck:
             {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
         ]
         cuts = [{"name": "Bad Card", "quantity": 1}]
-        new_deck, _, _unmatched = build_deck(deck, hydrated, cuts, [])
-        assert len(new_deck["cards"]) == 0
+        hd, _unmatched = build_deck(deck, hydrated, cuts, [])
+        assert len(hd.cards) == 0
 
     def test_does_not_modify_original(self):
         deck = {
@@ -85,11 +85,31 @@ class TestBuildDeck:
         hydrated = [{"name": "Korvold", "cmc": 5, "type_line": "Creature"}]
         new_card_data = {"name": "New Card", "cmc": 2, "type_line": "Instant"}
         adds = [{"name": "New Card", "quantity": 1}]
-        _, new_hydrated, _um = build_deck(
-            deck, hydrated, [], adds, extra_hydrated=[new_card_data]
-        )
-        names = [c["name"] for c in new_hydrated if c]
+        hd, _um = build_deck(deck, hydrated, [], adds, extra_hydrated=[new_card_data])
+        names = [r["name"] for r in hd.records]
         assert "New Card" in names
+
+    def test_records_drop_cut_card(self):
+        """Option B (ADR-0020): the returned .records is the final-deck projection,
+        so a cut card's record is dropped — where the old list(hydrated)+extra
+        lingered it. Pins the new contract against a revert to the records= path."""
+        deck = {
+            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Bad Card", "quantity": 1},
+            ],
+        }
+        hydrated = [
+            {"name": "Korvold", "cmc": 5, "type_line": "Creature"},
+            {"name": "Sol Ring", "cmc": 1, "type_line": "Artifact"},
+            {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
+        ]
+        hd, _ = build_deck(deck, hydrated, [{"name": "Bad Card", "quantity": 1}], [])
+        record_names = [r["name"] for r in hd.records]
+        assert "Bad Card" not in record_names  # cut -> dropped from the projection
+        assert "Sol Ring" in record_names  # kept -> retained
+        assert "Korvold" in record_names  # commander -> retained
 
 
 class TestCLI:
@@ -170,8 +190,8 @@ class TestFlexibleInput:
             {"name": "Bad Card", "cmc": 3, "type_line": "Creature"},
         ]
         cuts = ["Bad Card"]
-        new_deck, _, _um = build_deck(deck, hydrated, cuts, [])
-        card_names = [c["name"] for c in new_deck["cards"]]
+        hd, _um = build_deck(deck, hydrated, cuts, [])
+        card_names = [c["name"] for c in hd.cards]
         assert "Bad Card" not in card_names
 
     def test_accepts_string_adds(self):
@@ -184,8 +204,8 @@ class TestFlexibleInput:
             {"name": "Good Card", "cmc": 2, "type_line": "Instant"},
         ]
         adds = ["Good Card"]
-        new_deck, _, _um = build_deck(deck, hydrated, [], adds)
-        card_names = [c["name"] for c in new_deck["cards"]]
+        hd, _um = build_deck(deck, hydrated, [], adds)
+        card_names = [c["name"] for c in hd.cards]
         assert "Good Card" in card_names
 
     def test_accepts_mixed_string_and_dict(self):
@@ -200,8 +220,8 @@ class TestFlexibleInput:
         ]
         cuts = ["Bad Card"]
         adds = [{"name": "Good Card", "quantity": 1}]
-        new_deck, _, _um = build_deck(deck, hydrated, cuts, adds)
-        card_names = [c["name"] for c in new_deck["cards"]]
+        hd, _um = build_deck(deck, hydrated, cuts, adds)
+        card_names = [c["name"] for c in hd.cards]
         assert "Bad Card" not in card_names
         assert "Good Card" in card_names
 
@@ -479,14 +499,14 @@ class TestSideboardCutsAdds:
             {"name": "Smash to Smithereens", "cmc": 2, "type_line": "Instant"},
             {"name": "Roiling Vortex", "cmc": 2, "type_line": "Enchantment"},
         ]
-        new_deck, _, unmatched = build_deck(
+        hd, unmatched = build_deck(
             deck,
             hydrated,
             [],
             [],
             sideboard_cuts=[{"name": "Roiling Vortex", "quantity": 2}],
         )
-        sb_names = [c["name"] for c in new_deck["sideboard"]]
+        sb_names = [c["name"] for c in hd.sideboard]
         assert "Roiling Vortex" not in sb_names
         assert "Smash to Smithereens" in sb_names
         assert unmatched == []
@@ -503,14 +523,14 @@ class TestSideboardCutsAdds:
             {"name": "Smash", "cmc": 2, "type_line": "Instant"},
             {"name": "Vortex", "cmc": 2, "type_line": "Enchantment"},
         ]
-        new_deck, _, _ = build_deck(
+        hd, _ = build_deck(
             deck,
             hydrated,
             [],
             [],
             sideboard_adds=[{"name": "Vortex", "quantity": 3}],
         )
-        sb_names = {c["name"] for c in new_deck["sideboard"]}
+        sb_names = {c["name"] for c in hd.sideboard}
         assert "Vortex" in sb_names
         assert "Smash" in sb_names
 
@@ -522,7 +542,7 @@ class TestSideboardCutsAdds:
             "sideboard": [],
         }
         hydrated = [{"name": "Bolt", "cmc": 1, "type_line": "Instant"}]
-        _, _, unmatched = build_deck(
+        _hd, unmatched = build_deck(
             deck,
             hydrated,
             [],
@@ -542,11 +562,11 @@ class TestSideboardCutsAdds:
             {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
             {"name": "Smash", "cmc": 2, "type_line": "Instant"},
         ]
-        new_deck, _, _ = build_deck(
+        hd, _ = build_deck(
             deck,
             hydrated,
             [],
             [],
             sideboard_cuts=[{"name": "Smash", "quantity": 1}],
         )
-        assert new_deck["cards"] == [{"name": "Bolt", "quantity": 4}]
+        assert hd.cards == [{"name": "Bolt", "quantity": 4}]

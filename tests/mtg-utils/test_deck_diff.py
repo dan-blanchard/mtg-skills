@@ -5,7 +5,16 @@ import json
 from click.testing import CliRunner
 
 from mtg_utils.deck_diff import deck_diff, main
+from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.parse_deck import parse_deck
+
+
+def _diff(old_deck, new_deck, old_hydrated, new_hydrated):
+    """Build the two HydratedDecks a deck_diff comparison takes."""
+    return deck_diff(
+        HydratedDeck.from_parsed(old_deck, records=old_hydrated),
+        HydratedDeck.from_parsed(new_deck, records=new_hydrated),
+    )
 
 
 def _make_modified_deck(deck):
@@ -23,7 +32,7 @@ class TestDeckDiff:
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
         new_deck = _make_modified_deck(deck)
-        result = deck_diff(deck, new_deck, hydrated, hydrated)
+        result = _diff(deck, new_deck, hydrated, hydrated)
         added_names = [a["name"] for a in result["added"]]
         assert "Rhystic Study" in added_names
 
@@ -31,7 +40,7 @@ class TestDeckDiff:
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
         new_deck = _make_modified_deck(deck)
-        result = deck_diff(deck, new_deck, hydrated, hydrated)
+        result = _diff(deck, new_deck, hydrated, hydrated)
         removed_names = [r["name"] for r in result["removed"]]
         assert "Viscera Seer" in removed_names
 
@@ -39,14 +48,14 @@ class TestDeckDiff:
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
         new_deck = _make_modified_deck(deck)
-        result = deck_diff(deck, new_deck, hydrated, hydrated)
+        result = _diff(deck, new_deck, hydrated, hydrated)
         assert result["count_before"] == result["count_after"]
 
     def test_cmc_impact(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
         new_deck = _make_modified_deck(deck)
-        result = deck_diff(deck, new_deck, hydrated, hydrated)
+        result = _diff(deck, new_deck, hydrated, hydrated)
         # Swapping Viscera Seer (cmc 1) for Rhystic Study (cmc 3) increases avg CMC
         assert result["avg_cmc_delta"] > 0
 
@@ -54,14 +63,14 @@ class TestDeckDiff:
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
         new_deck = _make_modified_deck(deck)
-        result = deck_diff(deck, new_deck, hydrated, hydrated)
+        result = _diff(deck, new_deck, hydrated, hydrated)
         assert result["land_count_delta"] == 0
 
     def test_ramp_count_delta(self, moxfield_deck, hydrated_cards):
         deck = parse_deck(moxfield_deck)
         hydrated = hydrated_cards
         new_deck = _make_modified_deck(deck)
-        result = deck_diff(deck, new_deck, hydrated, hydrated)
+        result = _diff(deck, new_deck, hydrated, hydrated)
         # Viscera Seer is not ramp, Rhystic Study is not ramp, so delta = 0
         assert result["ramp_count_delta"] == 0
 
@@ -82,7 +91,7 @@ class TestSideboardDiff:
             {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
             {"name": "Smash", "cmc": 2, "type_line": "Instant"},
         ]
-        result = deck_diff(old_deck, new_deck, hydrated, hydrated)
+        result = _diff(old_deck, new_deck, hydrated, hydrated)
         assert result["sideboard_added"] == [{"name": "Smash", "quantity": 3}]
         assert result["sideboard_removed"] == []
 
@@ -101,7 +110,7 @@ class TestSideboardDiff:
             {"name": "Bolt", "cmc": 1, "type_line": "Instant"},
             {"name": "Smash", "cmc": 2, "type_line": "Instant"},
         ]
-        result = deck_diff(old_deck, new_deck, hydrated, hydrated)
+        result = _diff(old_deck, new_deck, hydrated, hydrated)
         assert result["sideboard_removed"] == [{"name": "Smash", "quantity": 2}]
 
     def test_no_sideboard_keys_when_no_sideboard(self):
@@ -114,7 +123,7 @@ class TestSideboardDiff:
             "cards": [{"name": "Bolt", "quantity": 4}],
         }
         hydrated = [{"name": "Bolt", "cmc": 1, "type_line": "Instant"}]
-        result = deck_diff(old_deck, new_deck, hydrated, hydrated)
+        result = _diff(old_deck, new_deck, hydrated, hydrated)
         assert "sideboard_added" not in result
         assert "sideboard_removed" not in result
 
