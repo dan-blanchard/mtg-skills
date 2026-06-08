@@ -51,9 +51,15 @@ _PROTECT_GRANT = re.compile(
     r"\b(?:hexproof|indestructible|ward|shroud|protection from)\b",
     re.IGNORECASE,
 )
-# Single-use saves that protect your stuff for a turn.
+# Single-use saves that protect your stuff for a turn. Regenerate / phase-out must apply
+# to a TARGET or your permanents — a creature that only regenerates or phases ITSELF
+# (Frenetic Efreet) is self-protection, which doesn't count (same rule as the keywords).
 _PROTECT_SAVE = re.compile(
-    r"\bregenerate\b|\bprevent (?:the next|all|that)\b|\bphases? out\b",
+    r"regenerate (?:target|another|each|all|up to|creatures? you control|"
+    r"permanents? you control)|"
+    r"prevent (?:the next|all|that)\b[^.]*\bdamage|"
+    r"(?:target|another target|each|all|creatures? you control|permanents? you control)"
+    r"[^.]*phases? out",
     re.IGNORECASE,
 )
 # Pillow-fort / attack-deterrent effects that protect YOU the player (Ghostly Prison,

@@ -327,9 +327,15 @@ def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict
         # "Commit" to the emerging theme: add more cards that feed it.
         return _avenue_search_for(issue["label"], deck_signals)
     if kind == "role_over":
-        # Trim the excess: the cut comes from the over role (routed in propose_swaps);
-        # the add deepens the deck's main theme. The full-role filter in find_add keeps
-        # the add from re-filling the role we are trimming.
+        # Trim the excess: the cut comes from the over role (routed in propose_swaps).
+        # The add deepens an under-supported emerging theme if any (commit while
+        # trimming), else the main theme. find_add's full-role filter keeps it from
+        # re-filling the role being trimmed.
+        emerging = focus_result.get("emerging", [])
+        if emerging:
+            spec = _avenue_search_for(emerging[0]["label"], deck_signals)
+            if spec is not None:
+                return spec
         return _main_avenue_search(focus_result, deck_signals)
     if kind == "efficiency":
         # A curve problem is fixed by adding a synergistic card at the missing CMC band

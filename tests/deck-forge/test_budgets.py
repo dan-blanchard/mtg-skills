@@ -102,6 +102,30 @@ def test_protection_requires_granting_not_a_self_keyword():
     assert protects(pillow) is True
 
 
+def test_protection_excludes_self_only_saves():
+    # A creature that only phases/regenerates ITSELF is self-protection — doesn't count.
+    self_phase = {
+        "name": "Frenetic Efreet",
+        "type_line": "Creature — Efreet",
+        "oracle_text": "{0}: Flip a coin. If you win the flip, Frenetic Efreet phases "
+        "out. If you lose the flip, sacrifice it.",
+    }
+    assert protects(self_phase) is False
+    # Saving / shielding OTHERS still counts.
+    fog = {
+        "name": "Fog",
+        "type_line": "Instant",
+        "oracle_text": "Prevent all combat damage that would be dealt this turn.",
+    }
+    save_target = {
+        "name": "Sejiri Refuge Save",
+        "type_line": "Instant",
+        "oracle_text": "Regenerate target creature you control.",
+    }
+    assert protects(fog) is True
+    assert protects(save_target) is True
+
+
 def test_current_counts_reflect_deck():
     b = slot_budgets([FOREST, LLANOWAR, MURDER, DIVINATION, WRATH], deck_size=100)
     assert b["lands"]["current"] == 1
