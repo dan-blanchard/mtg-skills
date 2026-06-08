@@ -173,6 +173,16 @@ def test_suggest_commander_path_is_wired_and_safe():
     assert out2["commander_suggestions"] is None
 
 
+def test_combos_failure_degrades_gracefully():
+    # combos ride a network call; a failure must degrade to heuristic-only win-cons,
+    # never break the whole diagnosis.
+    def boom(_deck):
+        raise RuntimeError("commander spellbook unreachable")
+
+    out = tune(_hd(), search_fn=_fake_search, params=TuneParams(), combos_fn=boom)
+    assert out["scorecard"]["wincons"]["from_combos"] == 0
+
+
 def test_shape_override_respected():
     out = tune(
         _hd(),

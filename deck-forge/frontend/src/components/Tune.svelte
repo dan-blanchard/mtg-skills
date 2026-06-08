@@ -26,7 +26,12 @@
       body.budget = Number(budget);
     const r = await api.tune(body);
     if (!r.ok) {
-      error = (r.data && r.data.error) || "Tune failed";
+      const hint =
+        r.status === 404 || r.status === 405
+          ? " — restart the hub to load the Tune route"
+          : "";
+      error =
+        (r.data && r.data.error) || `Tune failed (HTTP ${r.status})${hint}`;
       result = null;
     } else {
       result = r.data;

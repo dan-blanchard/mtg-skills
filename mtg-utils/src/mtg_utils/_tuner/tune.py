@@ -56,6 +56,18 @@ def _focus_public(focus_r: dict) -> dict:
     return {k: v for k, v in focus_r.items() if not k.startswith("_")}
 
 
+def _safe_combos(combos_fn: Callable[[dict], dict] | None, deck: dict) -> dict | None:
+    """Combos feed win-con detection but ride a network call (Commander Spellbook). On
+    any failure, degrade to heuristic-only win-cons rather than failing the whole Tune —
+    the deterministic diagnosis must never depend on an external service."""
+    if combos_fn is None:
+        return None
+    try:
+        return combos_fn(deck)
+    except Exception:  # noqa: BLE001 — any combos failure degrades, never breaks Tune
+        return None
+
+
 def tune(
     hd: HydratedDeck,
     *,
@@ -73,7 +85,7 @@ def tune(
     identity = _deck_identity(hd)
 
     avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
-    combos = combos_fn(deck) if combos_fn else None
+    combos = _safe_combos(combos_fn, deck)
     combo_count = len((combos or {}).get("combos") or [])
 
     deck_signals = rank_deck_signals(hd.records, commander_names)
