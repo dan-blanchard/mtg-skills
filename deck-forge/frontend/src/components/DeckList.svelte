@@ -8,6 +8,7 @@
   } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { hoverPreview } from "../lib/hover.js";
+  import { displayName } from "../lib/cards.js";
   import ManaCost from "./ManaCost.svelte";
 
   async function remove(name, zone) {
@@ -116,7 +117,7 @@
               </div>
               <div class="info">
                 <div class="name">
-                  {c.name}{#if c.owned}<span
+                  {displayName(c.name)}{#if c.owned}<span
                       class="owned-tick"
                       title="Owned ×{c.owned_qty}">✓</span
                     >{/if}

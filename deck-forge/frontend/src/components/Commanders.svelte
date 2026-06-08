@@ -8,6 +8,7 @@
   import { applySnapshot, collectionOpen } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
+  import { displayName } from "../lib/cards.js";
   import Mana from "./Mana.svelte";
 
   const PIPS = ["W", "U", "B", "R", "G", "C"];
@@ -141,7 +142,7 @@
               {#if r.images?.art_crop}
                 <img src={r.images.art_crop} alt={r.name} loading="lazy" />
               {:else}
-                <div class="noart">{r.name}</div>
+                <div class="noart">{displayName(r.name)}</div>
               {/if}
               <div class="ci">
                 {#each PIPS.filter( (c) => (r.color_identity || []).includes(c), ) as c (c)}
@@ -156,7 +157,7 @@
               >
             </div>
             <div class="body">
-              <div class="name">{r.name}</div>
+              <div class="name">{displayName(r.name)}</div>
               <div class="lanes">
                 {#each r.lanes.slice(0, 3) as lane (lane.label)}
                   <span class="lane">{lane.label} · <b>{lane.owned}</b></span>

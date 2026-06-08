@@ -14,6 +14,7 @@
 
   // server filters
   let name = "";
+  let nameInput; // bound <input> so the clear-✕ can refocus it
   let oracle = "";
   let colors = new Set();
   let exactColors = false;
@@ -21,6 +22,7 @@
   let allPresets = [];
   let selectedPresets = new Set();
   let presetsOpen = false;
+  let presetFilter = ""; // narrows the 138-preset list inside the dropdown (client-side)
   let advanced = false;
 
   // client-side facets (narrow the returned list without a round-trip)
@@ -131,6 +133,21 @@
     selectedPresets.has(n) ? selectedPresets.delete(n) : selectedPresets.add(n);
     selectedPresets = new Set(selectedPresets);
   }
+  function clearName() {
+    name = "";
+    nameInput?.focus();
+  }
+  // The 138-preset list, narrowed live by the in-dropdown filter (matches name OR
+  // description, so "sacrifice" surfaces edict/exploit presets by their blurb too).
+  $: filteredPresets = presetFilter.trim()
+    ? allPresets.filter((p) => {
+        const q = presetFilter.toLowerCase();
+        return (
+          p.name.toLowerCase().includes(q) ||
+          (p.description || "").toLowerCase().includes(q)
+        );
+      })
+    : allPresets;
 
   // Singleton: drop a card the instant it's added, plus apply the client facets.
   $: inDeck = new Set(
@@ -138,41 +155,77 @@
       (c) => c.name,
     ),
   );
-  function facetOk(c) {
-    if (facetType && !new RegExp(facetType, "i").test(c.type_line || ""))
-      return false;
-    if (facetCmc) {
+  // Pure facet test. The facet values are passed in (not closed over) ON PURPOSE: the
+  // `visible` reactive below must REFERENCE them so Svelte tracks them as dependencies.
+  // Svelte's dependency analysis traverses the inline arrow inside the reactive
+  // statement but NOT a separately-declared function's body — so reading the facets only
+  // inside this function (the old shape) left `visible` recomputing solely on Find/add,
+  // and facet toggles silently did nothing until the next Find.
+  function facetOk(c, fType, fCmc, fPrice, fOwned) {
+    if (fType && !new RegExp(fType, "i").test(c.type_line || "")) return false;
+    if (fCmc) {
       const v = c.cmc ?? 0;
-      if (facetCmc === "0-2" && v > 2) return false;
-      if (facetCmc === "3" && v !== 3) return false;
-      if (facetCmc === "4" && v !== 4) return false;
-      if (facetCmc === "5+" && v < 5) return false;
+      if (fCmc === "0-2" && v > 2) return false;
+      if (fCmc === "3" && v !== 3) return false;
+      if (fCmc === "4" && v !== 4) return false;
+      if (fCmc === "5+" && v < 5) return false;
     }
-    if (facetPrice) {
+    if (fPrice) {
       const p = c.prices?.usd == null ? Infinity : Number(c.prices.usd);
-      if (p > Number(facetPrice)) return false;
+      if (p > Number(fPrice)) return false;
     }
-    if (facetOwned && !c.owned) return false;
+    if (fOwned && !c.owned) return false;
     return true;
   }
-  $: visible = results.filter((c) => !inDeck.has(c.name) && facetOk(c));
+  $: visible = results.filter(
+    (c) =>
+      !inDeck.has(c.name) &&
+      facetOk(c, facetType, facetCmc, facetPrice, facetOwned),
+  );
 </script>
 
 <div class="panel find">
   <form class="filters" on:submit|preventDefault={run}>
     <div class="row1">
-      <input class="name" bind:value={name} placeholder="Search by name…" />
-      <div class="pips">
-        {#each PIPS as c (c)}
+      <div class="namewrap">
+        <input
+          class="name"
+          bind:value={name}
+          bind:this={nameInput}
+          placeholder="Search by name…"
+        />
+        {#if name}
           <button
             type="button"
-            class="pip"
-            class:on={colors.has(c)}
-            title={c === "C" ? "Colorless" : c}
-            on:click={() => toggleColor(c)}
-            ><Mana sym={c} size="1.2rem" /></button
+            class="clear"
+            title="Clear search"
+            aria-label="Clear search"
+            on:click={clearName}>✕</button
           >
-        {/each}
+        {/if}
+      </div>
+      <!-- color identity pips + Exact, kept together (#5: Exact belongs by the colors) -->
+      <div class="colorgroup">
+        <div class="pips">
+          {#each PIPS as c (c)}
+            <button
+              type="button"
+              class="pip"
+              class:on={colors.has(c)}
+              title={c === "C" ? "Colorless" : c}
+              on:click={() => toggleColor(c)}
+              ><Mana sym={c} size="1.2rem" /></button
+            >
+          {/each}
+        </div>
+        <button
+          type="button"
+          class="exact"
+          class:on={exactColors}
+          class:dim={!colors.size}
+          title="Exact colors — match this color identity exactly, no broader pools"
+          on:click={() => (exactColors = !exactColors)}>⊜ Exact</button
+        >
       </div>
       <button class="btn btn-ember go" type="submit" disabled={loading}>
         {loading ? "…" : "⚒ Find"}
@@ -191,7 +244,24 @@
           /></label
         >
         <div class="field">
-          <span class="lbl">Presets</span>
+          <span class="lbl">Theme presets</span>
+          {#if selectedPresets.size}
+            <div class="selchips">
+              {#each [...selectedPresets] as n (n)}
+                <button
+                  type="button"
+                  class="selchip"
+                  title="Remove {n}"
+                  on:click={() => togglePreset(n)}>{n} <em>✕</em></button
+                >
+              {/each}
+              <button
+                type="button"
+                class="clearpresets"
+                on:click={() => (selectedPresets = new Set())}>clear all</button
+              >
+            </div>
+          {/if}
           <div class="presets">
             <button
               class="dropbtn"
@@ -199,28 +269,41 @@
               on:click={() => (presetsOpen = !presetsOpen)}
             >
               {selectedPresets.size
-                ? `${selectedPresets.size} selected`
-                : "none"} ▾
+                ? `${selectedPresets.size} selected — add more`
+                : "Choose theme presets"} ▾
             </button>
             {#if presetsOpen}
               <div class="dropdown">
-                {#each allPresets as p (p.name)}
-                  <label class="opt" title={p.description}>
-                    <input
-                      type="checkbox"
-                      checked={selectedPresets.has(p.name)}
-                      on:change={() => togglePreset(p.name)}
-                    />
-                    <span>{p.name}</span>
-                  </label>
-                {/each}
+                <input
+                  class="presearch"
+                  type="search"
+                  placeholder="Filter {allPresets.length} presets…"
+                  bind:value={presetFilter}
+                />
+                <div class="optlist">
+                  {#each filteredPresets as p (p.name)}
+                    <label class="opt" class:sel={selectedPresets.has(p.name)}>
+                      <input
+                        type="checkbox"
+                        checked={selectedPresets.has(p.name)}
+                        on:change={() => togglePreset(p.name)}
+                      />
+                      <span class="opt-text">
+                        <span class="opt-name">{p.name}</span>
+                        <span class="opt-desc">{p.description}</span>
+                      </span>
+                    </label>
+                  {/each}
+                  {#if !filteredPresets.length}
+                    <div class="opt-empty">
+                      No preset matches “{presetFilter}”.
+                    </div>
+                  {/if}
+                </div>
               </div>
             {/if}
           </div>
         </div>
-        <label class="check">
-          <input type="checkbox" bind:checked={exactColors} /> exact colors
-        </label>
         <label class="check">
           <input type="checkbox" bind:checked={commandersOnly} /> commanders only
         </label>
@@ -321,22 +404,56 @@
   .row1 {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
-  .name {
+  .namewrap {
+    position: relative;
     flex: 1;
+    min-width: 8rem;
+    display: flex;
+  }
+  .name {
+    width: 100%;
     min-width: 0;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--hairline-soft);
     border-radius: var(--radius);
     color: var(--parchment);
-    padding: 0.45rem 0.55rem;
+    padding: 0.45rem 1.9rem 0.45rem 0.55rem;
     font-size: 0.9rem;
   }
   .name:focus {
     outline: none;
     border-color: var(--brass);
     box-shadow: 0 0 0 1px rgba(200, 150, 75, 0.3);
+  }
+  /* clear-✕ overlaid at the input's right edge; only rendered when there's text */
+  .clear {
+    position: absolute;
+    right: 0.3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.3rem;
+    height: 1.3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      color 0.12s,
+      background 0.12s;
+  }
+  .clear:hover {
+    color: var(--parchment);
+    background: rgba(212, 69, 47, 0.4);
   }
   .pips {
     display: flex;
@@ -363,6 +480,39 @@
     filter: none;
     box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
   }
+  /* pips + Exact travel together; Exact dims when no colors are chosen (#5) */
+  .colorgroup {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .exact {
+    font-size: 0.72rem;
+    color: var(--parchment-dim);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--hairline-soft);
+    border-radius: 999px;
+    padding: 0.3rem 0.55rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      color 0.12s,
+      border-color 0.12s,
+      opacity 0.12s;
+  }
+  .exact:hover {
+    color: var(--brass-bright);
+    border-color: var(--brass);
+  }
+  .exact.on {
+    color: var(--brass-bright);
+    border-color: var(--brass);
+    background: rgba(200, 150, 75, 0.18);
+    box-shadow: 0 0 8px rgba(232, 181, 99, 0.16);
+  }
+  .exact.dim {
+    opacity: 0.5;
+  }
   .go {
     font-family: var(--display);
     letter-spacing: 0.06em;
@@ -382,10 +532,10 @@
     border-color: var(--brass);
   }
   .row2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem 0.6rem;
-    margin-top: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
   }
   label,
   .field {
@@ -423,6 +573,47 @@
   .lbl {
     font-size: 0.7rem;
   }
+  /* selected presets surface as removable chips, visible without opening the list */
+  .selchips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .selchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    color: var(--brass-bright);
+    background: rgba(200, 150, 75, 0.16);
+    border: 1px solid var(--brass);
+    border-radius: 999px;
+    padding: 0.12rem 0.55rem;
+    cursor: pointer;
+  }
+  .selchip em {
+    font-style: normal;
+    color: var(--parchment-dim);
+  }
+  .selchip:hover {
+    background: rgba(212, 69, 47, 0.25);
+    border-color: rgba(212, 69, 47, 0.6);
+    color: var(--parchment);
+  }
+  .clearpresets {
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.12rem 0.3rem;
+  }
+  .clearpresets:hover {
+    color: var(--parchment-dim);
+  }
   .presets {
     position: relative;
   }
@@ -444,31 +635,74 @@
     top: 110%;
     left: 0;
     right: 0;
-    max-height: 240px;
-    overflow-y: auto;
     background: linear-gradient(180deg, var(--panel-2), var(--panel));
     border: 1px solid var(--hairline);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 0.3rem;
+    padding: 0.35rem;
+  }
+  /* search pinned above the scrolling list so 138 presets are findable, not scrolled */
+  .presearch {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--hairline-soft);
+    border-radius: var(--radius);
+    color: var(--parchment);
+    padding: 0.4rem 0.5rem;
+    font-size: 0.82rem;
+    margin-bottom: 0.35rem;
+  }
+  .presearch:focus {
+    outline: none;
+    border-color: var(--brass);
+  }
+  .optlist {
+    max-height: 260px;
+    overflow-y: auto;
   }
   .opt {
     display: flex;
     flex-direction: row;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.35rem;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.3rem 0.35rem;
     border-radius: var(--radius);
     text-transform: none;
     letter-spacing: 0;
-    font-size: 0.8rem;
     color: var(--parchment);
   }
   .opt:hover {
     background: rgba(255, 220, 160, 0.06);
   }
+  .opt.sel {
+    background: rgba(200, 150, 75, 0.12);
+  }
   .opt input {
     width: auto;
+    margin-top: 0.18rem;
+  }
+  .opt-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+  }
+  .opt-name {
+    font-size: 0.82rem;
+    color: var(--parchment);
+  }
+  .opt-desc {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    color: var(--muted);
+  }
+  .opt-empty {
+    padding: 0.5rem 0.4rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
   }
   /* focused-lanes echo */
   .focusbar {

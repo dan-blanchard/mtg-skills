@@ -1,5 +1,6 @@
 <script>
   import { SYMBOL_ORDER } from "../lib/mana.js";
+  import { displayName } from "../lib/cards.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
   import Mana from "./Mana.svelte";
@@ -26,7 +27,7 @@
     {:else if card.images?.small}
       <img src={card.images.small} alt={card.name} loading="lazy" />
     {:else}
-      <div class="noart">{card.name}</div>
+      <div class="noart">{displayName(card.name)}</div>
     {/if}
   </div>
   <!-- Anchored to the .tile (stable width), NOT .art: Safari doesn't stretch an
@@ -36,7 +37,7 @@
   </div>
 
   <div class="body">
-    <div class="name">{card.name}</div>
+    <div class="name">{displayName(card.name)}</div>
     <div class="type">{card.type_line}</div>
     <div class="foot">
       <ManaCost cost={card.mana_cost} size="0.95rem" />

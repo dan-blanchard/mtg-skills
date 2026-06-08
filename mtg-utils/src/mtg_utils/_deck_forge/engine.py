@@ -488,14 +488,47 @@ def _violation_message(category: str, violation: dict) -> dict:
     return {"category": category, "message": f"{label}: {body}".strip(": ")}
 
 
-def legality_warnings(hd: HydratedDeck) -> list[dict]:
+def _overflow_warnings(hd: HydratedDeck, max_cards: int | None) -> list[dict]:
+    """Two failure modes the shared ``legality_audit`` deliberately doesn't own, because
+    they're build-surface concerns: a deck that has grown PAST its size cap (the mirror
+    of the excluded ``deck_minimum`` — under is normal building, over is never legal),
+    and card names that resolved to no Scryfall record (a typo or a failed paste-import,
+    which ADR-0012 otherwise DROPs silently from the hydrated records)."""
+    out: list[dict] = []
+    if max_cards is not None:
+        total = sum(
+            int(e.get("quantity", 1))
+            for zone in ("commanders", "cards")
+            for e in hd.deck.get(zone) or []
+        )
+        if total > max_cards:
+            out.append(
+                {
+                    "category": "deck_maximum",
+                    "message": f"deck maximum: {total} cards (max {max_cards})",
+                }
+            )
+    unimported = [
+        e["name"]
+        for zone in ("commanders", "cards", "sideboard")
+        for e in hd.deck.get(zone) or []
+        if e.get("name") and e["name"] not in hd.by_name
+    ]
+    out.extend(
+        {"category": "unimported", "message": f"did not import: {name}"}
+        for name in unimported
+    )
+    return out
+
+
+def legality_warnings(hd: HydratedDeck, *, max_cards: int | None = None) -> list[dict]:
     audit = legality_audit(hd)
     violations = audit.get("violations") or {}
     return [
         _violation_message(cat, v)
         for cat in _AUDIT_CATEGORIES
         for v in (violations.get(cat) or [])
-    ]
+    ] + _overflow_warnings(hd, max_cards)
 
 
 def finalize_state(state: ForgeState) -> dict:
@@ -507,7 +540,7 @@ def finalize_state(state: ForgeState) -> dict:
         1 for r in hd.expanded() if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
     )
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
-    warnings = legality_warnings(hd)
+    warnings = legality_warnings(hd, max_cards=state.session.deck_size)
     return {
         "land_status": mana["land_count_status"],
         "land_count": mana["land_count"],
@@ -901,7 +934,7 @@ def snapshot(state: ForgeState) -> dict:
         "budgets": slot_budgets(hd.expanded(), deck_size=state.session.deck_size),
         "signals": [signal_dict(s) for s in ranked_deck_signals(state, hd.records)],
         "avenues": avenues(state, hd.records),
-        "warnings": legality_warnings(hd),
+        "warnings": legality_warnings(hd, max_cards=state.session.deck_size),
         "collection": collection_summary(state, owned),
         "wildcards": wildcard_cost(state),
     }

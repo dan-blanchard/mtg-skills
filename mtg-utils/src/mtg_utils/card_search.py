@@ -25,6 +25,15 @@ from mtg_utils.theme_presets import PRESETS, Preset, get_preset
 _extract_price = extract_price
 _get_oracle_text = get_oracle_text
 
+# A card-name query matches slash- and whitespace-insensitively, so a player who types
+# "odds ends" finds the split card "Odds // Ends": both the query and the candidate name
+# collapse runs of slashes/whitespace to a single space before the substring test.
+_NAME_NORM_RE = re.compile(r"[\s/]+")
+
+
+def _norm_name(text: str) -> str:
+    return _NAME_NORM_RE.sub(" ", text).strip()
+
 
 def _matches_filters(
     card: dict,
@@ -83,7 +92,9 @@ def _matches_filters(
     ):
         return False
 
-    if name_substr is not None and name_substr not in (card.get("name") or "").lower():
+    if name_substr is not None and _norm_name(name_substr) not in _norm_name(
+        (card.get("name") or "").lower()
+    ):
         return False
 
     cmc = card.get("cmc", 0)

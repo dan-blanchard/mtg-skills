@@ -114,6 +114,37 @@ class TestMatchesFilters:
             price_max=None,
         )
 
+    def test_name_substr_matches_across_split_card_separator(self):
+        # Players type "odds ends" for the split card "Odds // Ends" — the " // "
+        # face separator must not block a multi-word substring (issue: find misses).
+        card = _make_card(name="Odds // Ends")
+        assert _matches_filters(
+            card,
+            allowed_colors=None,
+            oracle_re=None,
+            type_lower=None,
+            name_substr="odds ends",
+            cmc_min=None,
+            cmc_max=None,
+            price_min=None,
+            price_max=None,
+        )
+
+    def test_name_substr_matches_single_face_of_split_card(self):
+        # A single face still matches (regression guard for the normalization).
+        card = _make_card(name="Fire // Ice")
+        assert _matches_filters(
+            card,
+            allowed_colors=None,
+            oracle_re=None,
+            type_lower=None,
+            name_substr="ice",
+            cmc_min=None,
+            cmc_max=None,
+            price_min=None,
+            price_max=None,
+        )
+
     def test_rejects_token_layout(self):
         card = _make_card(layout="token")
         assert not _matches_filters(

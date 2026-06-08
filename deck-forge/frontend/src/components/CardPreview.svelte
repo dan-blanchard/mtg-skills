@@ -1,5 +1,6 @@
 <script>
   import { hovered } from "../lib/store.js";
+  import { displayName } from "../lib/cards.js";
 
   // Single-face popup dimensions, enlarged 50% over the old 244×340 so the rules
   // text in the card image is legible. (FH/FW == the MTG card aspect ratio.)
@@ -68,7 +69,7 @@
       <img class="single" src={card.images.normal} alt={card.name} />
     {:else}
       <div class="fallback">
-        <div class="nm">{card.name}</div>
+        <div class="nm">{displayName(card.name)}</div>
         <div class="tl">
           {card.type_line}{card.mana_cost ? " · " + card.mana_cost : ""}
         </div>

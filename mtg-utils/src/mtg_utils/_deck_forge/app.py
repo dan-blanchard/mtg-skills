@@ -667,7 +667,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/audit")
     async def audit() -> dict:
-        return {"warnings": engine.legality_warnings(engine.hydrate(state))}
+        return {
+            "warnings": engine.legality_warnings(
+                engine.hydrate(state), max_cards=state.session.deck_size
+            )
+        }
 
     @app.post("/api/tune", response_model=None)
     async def tune(payload: TunePayload) -> dict | JSONResponse:

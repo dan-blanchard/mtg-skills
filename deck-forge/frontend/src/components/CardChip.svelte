@@ -7,6 +7,7 @@
   import { hoverPreview } from "../lib/hover.js";
   import { applySnapshot } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { displayName } from "../lib/cards.js";
 
   export let name;
   export let card = null; // hydrated card object (images/oracle/…) once resolved
@@ -15,6 +16,9 @@
   export let clickable = true;
 
   $: art = card?.images?.art_crop || card?.images?.small || null;
+  // Display the player-facing name (split-card " // " → " / "); `name` itself stays
+  // canonical for the add API below.
+  $: shown = displayName(name);
 
   let adding = false;
   async function add() {
@@ -31,18 +35,18 @@
     class="cardchip"
     use:hoverPreview={card}
     on:click={add}
-    title={`Add ${name}`}
+    title={`Add ${shown}`}
   >
     {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
-    <span class="nm">{name}</span>
+    <span class="nm">{shown}</span>
   </button>
 {:else if card}
   <span class="cardchip static" use:hoverPreview={card}>
     {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
-    <span class="nm">{name}</span>
+    <span class="nm">{shown}</span>
   </span>
 {:else}
-  <span class="cardchip pending">{name}</span>
+  <span class="cardchip pending">{shown}</span>
 {/if}
 
 <style>
