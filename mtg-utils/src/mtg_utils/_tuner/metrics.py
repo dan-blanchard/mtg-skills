@@ -14,8 +14,14 @@ import re
 from collections.abc import Sequence
 
 from mtg_utils._deck_forge.budgets import protects
+from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils.theme_presets import get_preset
+
+# Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
+# themes, so focus excludes their avenues: a "Ramp / big mana" avenue full of mana rocks
+# and lands is scaffolding, not a lane the deck is built around.
+_SPINE_AVENUE_KEYS = frozenset({"ramp_matters", "card_draw_engine", "removal_matters"})
 
 # Shape → (lo, hi) nonland average-MV band; ~4.0 is the soft ceiling (waived when the
 # deck cheats costs). Centred ~3.0 per the verified research.
@@ -149,35 +155,58 @@ def efficiency(
 # ── Focus ─────────────────────────────────────────────────────────────────────
 
 
-def focus(classes: Sequence[CardClass], *, deck_size: int) -> dict:
+def focus(
+    classes: Sequence[CardClass], *, deck_size: int, deck_signals: Sequence = ()
+) -> dict:
+    # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
+    # them so the deck's mana base + scaffolding can't masquerade as its main lane.
+    excluded = {
+        spec.label
+        for sig in deck_signals
+        if sig.key in _SPINE_AVENUE_KEYS and (spec := spec_for(sig)) is not None
+    }
+
+    def themes(card: CardClass) -> list[str]:
+        return [lbl for lbl in card.served if lbl not in excluded]
+
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
     engine = [c for c in classes if c.bucket == "engine"]
     engine_pool = len(engine)
 
-    # All cards back an avenue's depth (engine + dual-purpose Spine + theme-lands), so
-    # the per-avenue member list is the honest support behind each number.
+    # Depth counts NONLAND supporters only (a land is mana base, never theme support) of
+    # genuine theme avenues — engine cards + dual-purpose Spine cards that feed a theme.
     members: dict[str, list[str]] = {}
     for c in classes:
-        for label in c.served:
+        if c.bucket == "land":
+            continue
+        for label in themes(c):
             members.setdefault(label, []).append(c.name)
     depth = {lbl: len(names) for lbl, names in members.items()}
 
     floor = max(1, _scaled(20, deck_size))
-    viable = sorted(
+    candidates = sorted(
         (lbl for lbl, d in depth.items() if d >= floor),
         key=lambda lbl: depth[lbl],
         reverse=True,
     )
+    # Collapse near-duplicate avenues that are really one theme: drop a shallower avenue
+    # ≥80% covered by a deeper one already kept (e.g. Spellslinger / Magecraft).
+    viable: list[str] = []
+    for lbl in candidates:
+        s = set(members[lbl])
+        if any(len(s & set(members[k])) / len(s) >= 0.8 for k in viable):
+            continue
+        viable.append(lbl)
     top2 = sorted(depth, key=lambda lbl: depth[lbl], reverse=True)[:2]
     top2_set = set(top2)
-    in_top2 = sum(1 for c in engine if top2_set.intersection(c.served))
+    in_top2 = sum(1 for c in engine if top2_set.intersection(themes(c)))
     top2_share = round(in_top2 / engine_pool, 2) if engine_pool else 0.0
 
     filler_cards = [c.name for c in nonland if c.bucket == "filler"]
     filler = len(filler_cards)
     filler_rate = round(filler / max(1, len(nonland)), 2)
 
-    engine_labels = {lbl for c in engine for lbl in c.served}
+    engine_labels = {lbl for c in engine for lbl in themes(c)}
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
 
     spine_led_floor = max(1, _scaled(8, deck_size))

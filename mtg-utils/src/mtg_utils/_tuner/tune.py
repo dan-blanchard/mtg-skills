@@ -101,7 +101,7 @@ def tune(
 
     budgets = slot_budgets(hd.expanded(), deck_size=deck_size, shape=shape)
     eff = metrics.efficiency(classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size)
-    foc = metrics.focus(classes, deck_size=deck_size)
+    foc = metrics.focus(classes, deck_size=deck_size, deck_signals=deck_signals)
     tmpl = metrics.template_deviation(budgets)
     wins = metrics.win_conditions(classes, shape=shape, combo_count=combo_count)
     prot = metrics.protection(classes, shape=shape, deck_size=deck_size)
