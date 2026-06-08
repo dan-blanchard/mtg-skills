@@ -63,6 +63,37 @@ def test_protection_is_advisory_not_a_counted_role():
     assert "protection" not in role_of(COUNTERSPELL)  # never a counted role
 
 
+def test_protection_requires_granting_not_a_self_keyword():
+    # A permanent that is merely indestructible/hexproof itself protects only itself.
+    self_indestructible = {
+        "name": "Darksteel Reactor",
+        "type_line": "Artifact",
+        "oracle_text": "Indestructible",
+        "keywords": ["Indestructible"],
+    }
+    self_hexproof = {
+        "name": "Carnage Tyrant",
+        "type_line": "Creature — Dinosaur",
+        "oracle_text": "Trample, hexproof",
+        "keywords": ["Trample", "Hexproof"],
+    }
+    assert protects(self_indestructible) is False
+    assert protects(self_hexproof) is False
+    # Granting a protective quality to ANOTHER permanent does count.
+    grants = {
+        "name": "Swiftfoot Boots",
+        "type_line": "Artifact — Equipment",
+        "oracle_text": "Equipped creature has hexproof and haste. Equip {1}",
+    }
+    save = {
+        "name": "Boros Charm",
+        "type_line": "Instant",
+        "oracle_text": "Permanents you control gain indestructible until end of turn.",
+    }
+    assert protects(grants) is True
+    assert protects(save) is True
+
+
 def test_current_counts_reflect_deck():
     b = slot_budgets([FOREST, LLANOWAR, MURDER, DIVINATION, WRATH], deck_size=100)
     assert b["lands"]["current"] == 1

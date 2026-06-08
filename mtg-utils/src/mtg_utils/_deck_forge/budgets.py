@@ -15,9 +15,10 @@ counted roles here — they are Tier-2 advisory flags (ADR-0024).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
-from mtg_utils.card_classify import is_land, is_ramp
+from mtg_utils.card_classify import get_oracle_text, is_land, is_ramp
 from mtg_utils.theme_presets import get_preset
 
 # Command Zone template bands, per 100 cards (min, max). Scaled by deck size for Brawl.
@@ -40,13 +41,20 @@ _SHAPE_BANDS: dict[str, dict[str, tuple[int, int]]] = {
 
 # Targeted removal + counterspells fold together into one `interaction` role (ADR-0024).
 _INTERACTION_PRESETS = ("removal", "creature-removal", "counterspell", "bounce")
-# Tier-2 "protect your own board/commander" — advisory, never a counted template role.
-_PROTECTION_PRESETS = (
-    "hexproof",
-    "indestructible",
-    "protection",
-    "ward",
-    "counterspell",
+
+# Protection (Tier-2, advisory) must GRANT a protective quality to another permanent — a
+# card that merely HAS indestructible/hexproof itself (Darksteel Reactor) protects only
+# itself, not your board, so the keyword-on-itself presets are deliberately NOT used. We
+# anchor on a granting verb + the keyword in oracle text (reminder text stripped).
+_PROTECT_GRANT = re.compile(
+    r"\b(?:gains?|have|has|gets?)\b[^.]*?"
+    r"\b(?:hexproof|indestructible|ward|shroud|protection from)\b",
+    re.IGNORECASE,
+)
+# Single-use saves that protect your stuff for a turn.
+_PROTECT_SAVE = re.compile(
+    r"\bregenerate\b|\bprevent (?:the next|all|that)\b|\bphases? out\b",
+    re.IGNORECASE,
 )
 
 
@@ -78,8 +86,16 @@ def role_of(card: dict) -> set[str]:
 
 
 def protects(card: dict) -> bool:
-    """Tier-2 (advisory, ADR-0024): does this card protect your own board/commander?"""
-    return _matches_any(card, _PROTECTION_PRESETS)
+    """Tier-2 (advisory, ADR-0024): does this card protect your own board/commander?
+
+    Counts counterspells (answer removal) and cards that GRANT a protective quality to
+    another permanent or save it for a turn — NOT a permanent that merely has hexproof /
+    indestructible / ward on itself (which protects only itself, not your board).
+    """
+    if _matches_preset(card, "counterspell"):
+        return True
+    text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")  # strip reminder text
+    return bool(_PROTECT_GRANT.search(text) or _PROTECT_SAVE.search(text))
 
 
 def bands_for(shape: str | None) -> dict[str, tuple[int, int]]:
