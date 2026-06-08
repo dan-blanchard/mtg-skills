@@ -23,8 +23,6 @@ from pydantic import BaseModel
 from mtg_utils._deck_forge import collection, engine, views
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.exporters import export_as
-from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
@@ -32,10 +30,6 @@ from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
 
 VERSION = "0.1.0"
-_PACKAGE_LIMIT = 12
-# Ranked-candidate pool an avenue ranks over; the explore endpoint pages _PACKAGE_LIMIT
-# at a time through it, so this bounds how deep "Show more" can go on one avenue.
-_EXPLORE_POOL = 96
 
 _PLACEHOLDER_INDEX = """<!doctype html>
 <html lang="en">
@@ -92,12 +86,6 @@ class AvenuePayload(BaseModel):
     label: str
     description: str = ""
     search: dict = {}
-
-
-class ExplorePayload(BaseModel):
-    label: str = "Exploration"
-    search: dict = {}
-    offset: int = 0
 
 
 class NewBuildPayload(BaseModel):
@@ -159,43 +147,27 @@ def _autosave(state: ForgeState) -> None:
         state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
 
 
-def _has_filters(payload: SearchPayload) -> bool:
-    """Whether the Find payload carries any narrowing filter — so a no-focus, no-filter
-    request returns an idle prompt instead of dumping the whole vault."""
-    return bool(
-        payload.name
-        or payload.oracle
-        or payload.type
-        or payload.color_identity
-        or payload.presets
-        or payload.is_commander
-        or payload.cmc_min is not None
-        or payload.cmc_max is not None
-        or payload.price_min is not None
-        or payload.price_max is not None
+def _find_params(payload: SearchPayload) -> engine.FindParams:
+    """Adapt the transport ``SearchPayload`` to the engine's ``FindParams`` struct. The
+    field mapping is the transport adapter's job, kept here so the engine's Find
+    pipeline stays free of the FastAPI/pydantic payload type (ADR-0013 / ADR-0021)."""
+    return engine.FindParams(
+        color_identity=payload.color_identity,
+        exact_colors=payload.exact_colors,
+        oracle=payload.oracle,
+        type=payload.type,
+        name=payload.name,
+        cmc_min=payload.cmc_min,
+        cmc_max=payload.cmc_max,
+        price_min=payload.price_min,
+        price_max=payload.price_max,
+        format=payload.format,
+        presets=tuple(payload.presets),
+        is_commander=payload.is_commander,
+        sort=payload.sort,
+        limit=payload.limit,
+        offset=payload.offset,
     )
-
-
-def _refine(base: dict, payload: SearchPayload) -> dict:
-    """Merge the user's narrowing filters onto a focused avenue's card_search kwargs.
-    The avenue owns the oracle (its lane definition), so user ``oracle`` is deliberately
-    not merged — name/type/color/cmc/price AND on top to refine the lane's pool."""
-    out = dict(base)
-    if payload.name:
-        out["name"] = payload.name
-    if payload.type:
-        out["card_type"] = payload.type
-    if payload.color_identity:
-        out["color_identity"] = payload.color_identity
-    if payload.cmc_min is not None:
-        out["cmc_min"] = payload.cmc_min
-    if payload.cmc_max is not None:
-        out["cmc_max"] = payload.cmc_max
-    if payload.price_min is not None:
-        out["price_min"] = payload.price_min
-    if payload.price_max is not None:
-        out["price_max"] = payload.price_max
-    return out
 
 
 def _clamp_timeout(timeout: float) -> float:
@@ -399,37 +371,6 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             headers={"Content-Disposition": 'attachment; filename="proxies.pdf"'},
         )
 
-    @app.post("/api/search", response_model=None)
-    async def search(payload: SearchPayload) -> dict | JSONResponse:
-        if not state.bulk_available:
-            return _no_bulk()
-        page = max(1, payload.limit)
-        records = state.search_fn(
-            color_identity=payload.color_identity,
-            exact_colors=payload.exact_colors,
-            oracle=payload.oracle,
-            card_type=payload.type,
-            name=payload.name,
-            cmc_min=payload.cmc_min,
-            cmc_max=payload.cmc_max,
-            price_min=payload.price_min,
-            price_max=payload.price_max,
-            format=payload.format,
-            paper_only=engine.paper_only(payload.format),
-            preset_names=tuple(payload.presets),
-            is_commander_filter=payload.is_commander,
-            sort=payload.sort,
-            limit=page + 1,  # over-fetch one to detect a next page
-            offset=max(0, payload.offset),
-        )
-        has_more = len(records) > page
-        fmt = state.session.format
-        return {
-            "results": [views.result_view(r, fmt) for r in records[:page]],
-            "offset": payload.offset,
-            "has_more": has_more,
-        }
-
     @app.get("/api/card", response_model=None)
     async def card_by_name(name: str) -> dict | JSONResponse:
         """Resolve one card by exact name to a hydrated view (images / mana_cost /
@@ -477,53 +418,6 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def budgets() -> dict:
         records = engine.hydrate(state).expanded()
         return {"budgets": slot_budgets(records, deck_size=state.session.deck_size)}
-
-    @app.get("/api/packages", response_model=None)
-    async def packages() -> dict | JSONResponse:
-        if not state.bulk_available:
-            return _no_bulk()
-        hd = engine.hydrate(state)
-        sigs = engine.ranked_deck_signals(state, hd.records)
-        ci = engine.deck_color_identity(state)
-        fmt = state.session.format
-        in_deck = set(state.session.card_names())
-        out = []
-        for sig in sigs:
-            spec = spec_for(sig)
-            if spec is None:
-                continue
-            widening_base = None
-            if sig.key == "partner_background":
-                psearch = engine.partner_search(state)
-                if psearch is None:
-                    continue  # no open partner slot → no partner package
-                filters = {**psearch, "format": fmt}
-                widening_base = ci  # partner sort: color widening first (ADR-0019)
-            else:
-                filters = search_filters(sig, color_identity=ci, fmt=fmt)
-            found = state.search_fn(
-                limit=40, paper_only=engine.paper_only(fmt), **filters
-            )
-            fresh = [c for c in found if c.get("name") not in in_deck]
-            # Credit candidates for this signal's own avenue (its main search), not
-            # just any agent-added avenues. Carry the structured serve classifier so a
-            # cantrip is credited by TYPE, not a value permanent by "draw a card".
-            self_avenue = engine.avenue_with_serve(
-                {"label": spec.label, "search": dict(spec.search)}, spec.serve
-            )
-            active, avs = engine.scoring_basis(
-                state, hd.records, sigs, [self_avenue, *state.agent_avenues]
-            )
-            ranked = rank_candidates(
-                fresh, active_signals=active, avenues=avs, widening_base=widening_base
-            )[:_PACKAGE_LIMIT]
-            out.append(
-                {
-                    "signal": engine.signal_dict(sig),
-                    "candidates": [views.candidate_view(r, fmt) for r in ranked],
-                }
-            )
-        return {"packages": out}
 
     @app.get("/api/builds")
     async def builds() -> dict:
@@ -741,144 +635,26 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/explore", response_model=None)
-    async def explore(payload: ExplorePayload) -> dict | JSONResponse:
-        if not state.bulk_available:
-            return _no_bulk()
-        fmt = state.session.format
-        # The Staples avenue is a curated NAME list, not a search pattern: resolve it
-        # directly from the bulk index (color-identity- and format-filtered) instead of
-        # routing through search_fn, and credit it via its name serve so the staples
-        # don't read as zero-fit irrelevant hits.
-        if payload.search.get("staples"):
-            found = engine.staple_pool(state)
-            explored = {
-                "label": payload.label,
-                "search": payload.search,
-                "serve": engine.staples_serve(),
-            }
-        else:
-            filters = engine.explore_filters(
-                payload.search,
-                color_identity=engine.deck_color_identity(state),
-                fmt=fmt,
-            )
-            found = state.search_fn(
-                limit=_EXPLORE_POOL, paper_only=engine.paper_only(fmt), **filters
-            )
-            # Credit candidates for the avenue actually being explored, so a card the
-            # avenue surfaced doesn't read as a zero-fit (irrelevant) hit.
-            explored = {"label": payload.label, "search": payload.search}
-        in_deck = set(state.session.card_names())
-        fresh = [c for c in found if c.get("name") not in in_deck]
-        hd = engine.hydrate(state)
-        sigs = engine.ranked_deck_signals(state, hd.records)
-        active, avs = engine.scoring_basis(
-            state, hd.records, sigs, [explored, *state.agent_avenues]
-        )
-        ranked = rank_candidates(fresh, active_signals=active, avenues=avs)
-        # Page _PACKAGE_LIMIT at a time through the ranked pool (stable order, so "Show
-        # more" appends the next slice).
-        offset = max(0, payload.offset)
-        page = ranked[offset : offset + _PACKAGE_LIMIT]
-        has_more = len(ranked) > offset + _PACKAGE_LIMIT
-        return {
-            "package": {
-                "label": payload.label,
-                "candidates": [views.candidate_view(r, fmt) for r in page],
-                "offset": payload.offset,
-                "has_more": has_more,
-            }
-        }
-
     @app.post("/api/find", response_model=None)
     async def find(payload: SearchPayload) -> dict | JSONResponse:
         """The unified Find surface (#5): one card-finding path that replaces separate
-        search + explore. With one or more FOCUSED avenues, OR-merge their candidate
-        pools and rank by focused-lane fit (a card serving more focused lanes wins),
-        refining by any user filters. With nothing focused but filters present, it's a
-        manual search scored against everything (today's "everything counts"). With
-        neither focus nor filters, return nothing — an idle prompt, not the whole vault.
-        See ADR-0015."""
+        search + explore (ADR-0015). The pipeline — focused-avenue OR-merge /
+        filter-only manual search / idle, in-deck stripping, scoring, ranking, paging —
+        lives in ``engine.find_candidates`` (the extraction ADR-0013 parked; ADR-0021).
+        This route adapts the payload, projects the ranked rows via
+        ``views.candidate_view``, and flags ownership (the active Collection slot,
+        ADR-0018)."""
         if not state.bulk_available:
             return _no_bulk()
+        page = engine.find_candidates(state, _find_params(payload))
         fmt = state.session.format
-        ci = engine.deck_color_identity(state)
-        hd = engine.hydrate(state)
-        sigs = engine.ranked_deck_signals(state, hd.records)
-        all_avenues = engine.avenues(state, hd.records)
-        focused = [a for a in all_avenues if a.get("focused")]
-        in_deck = set(state.session.card_names())
-
-        if focused:
-            pool: dict[str, dict] = {}
-            for av in focused:
-                if (av.get("search") or {}).get("staples"):
-                    found = engine.staple_pool(state)
-                else:
-                    base = engine.explore_filters(
-                        av["search"], color_identity=ci, fmt=fmt
-                    )
-                    found = state.search_fn(
-                        limit=_EXPLORE_POOL,
-                        paper_only=engine.paper_only(fmt),
-                        **_refine(base, payload),
-                    )
-                for card in found:
-                    cname = card.get("name")
-                    if cname:
-                        pool.setdefault(cname, card)
-            cands = [c for c in pool.values() if c.get("name") not in in_deck]
-            active, avs = engine.scoring_basis(state, hd.records, sigs, focused)
-            # The partner avenue ranks by color widening first (ADR-0019): pass the
-            # deck's current identity as the widening base when it's among the focused
-            # lanes, so the broadest color-openers surface above synergy.
-            widening_base = ci if any(a.get("widening") for a in focused) else None
-            ranked = rank_candidates(
-                cands, active_signals=active, avenues=avs, widening_base=widening_base
+        results = [
+            views.candidate_view(
+                row, fmt, owned_qty=engine.owned_of(state, row["card"].get("name", ""))
             )
-        elif _has_filters(payload):
-            records = state.search_fn(
-                color_identity=payload.color_identity,
-                exact_colors=payload.exact_colors,
-                oracle=payload.oracle,
-                card_type=payload.type,
-                name=payload.name,
-                cmc_min=payload.cmc_min,
-                cmc_max=payload.cmc_max,
-                price_min=payload.price_min,
-                price_max=payload.price_max,
-                format=payload.format,
-                paper_only=engine.paper_only(payload.format),
-                preset_names=tuple(payload.presets),
-                is_commander_filter=payload.is_commander,
-                sort=payload.sort,
-                limit=_EXPLORE_POOL,
-                offset=0,
-            )
-            cands = [c for c in records if c.get("name") not in in_deck]
-            ranked = rank_candidates(cands, active_signals=sigs, avenues=all_avenues)
-        else:
-            ranked = []
-
-        page = max(1, payload.limit)
-        offset = max(0, payload.offset)
-        window = ranked[offset : offset + page]
-        results = []
-        for r in window:
-            cv = views.candidate_view(r, fmt)
-            # Flag candidates already in the active Collection slot so the UI's
-            # "Owned only" facet can filter client-side (ADR-0018 / Q6).
-            qty = engine.owned_of(state, cv["name"])
-            if qty is not None:
-                cv["owned"] = True
-                cv["owned_qty"] = qty
-            results.append(cv)
-        return {
-            "results": results,
-            "offset": offset,
-            "has_more": len(ranked) > offset + page,
-        }
+            for row in page.rows
+        ]
+        return {"results": results, "offset": page.offset, "has_more": page.has_more}
 
     @app.get("/api/audit")
     async def audit() -> dict:

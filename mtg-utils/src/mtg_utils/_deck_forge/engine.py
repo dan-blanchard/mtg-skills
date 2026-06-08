@@ -14,11 +14,13 @@ reads ``state`` at call time and can never go stale.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 from mtg_utils import mark_owned, price_check, theme_presets
 from mtg_utils._deck_forge import collection, staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
+from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import Serve, spec_for
 from mtg_utils._deck_forge.signals import Signal, extract_signals
 from mtg_utils._deck_forge.state import ForgeState
@@ -58,6 +60,9 @@ _EXPLORE_KEYS = (
     "price_min",
     "price_max",
 )
+# The ranked-candidate pool the Find surface ranks over; the route windows the caller's
+# page size into it, so this bounds how deep "Show more" can page on one request.
+_FIND_POOL = 96
 
 
 def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
@@ -655,6 +660,164 @@ def explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:
     filters["color_identity"] = search.get("color_identity") or color_identity
     filters["format"] = fmt
     return filters
+
+
+@dataclass(frozen=True)
+class FindParams:
+    """A Find request as the engine's own struct — the transport-agnostic mirror of the
+    route's ``SearchPayload``. Keeping engine free of FastAPI/pydantic types (ADR-0013:
+    engine takes a ForgeState, not a Request) lets ``find_candidates`` be driven
+    directly in tests; the route adapts its ``SearchPayload`` into this struct."""
+
+    color_identity: str | None = None
+    exact_colors: bool = False
+    oracle: str | None = None
+    type: str | None = None
+    name: str | None = None
+    cmc_min: float | None = None
+    cmc_max: float | None = None
+    price_min: float | None = None
+    price_max: float | None = None
+    format: str | None = None
+    presets: tuple[str, ...] = ()
+    is_commander: bool = False
+    sort: str = "cmc-asc"
+    limit: int = 25
+    offset: int = 0
+
+
+@dataclass(frozen=True)
+class CandidatePage:
+    """A window of ranked candidate rows plus paging metadata. ``rows`` are
+    ``rank_candidates`` rows (``{"card", "score"}``) — RANKED RECORDS, not serialized
+    wire dicts. The route projects them via ``views.candidate_view`` (ADR-0013 keeps
+    the views seam separate), so ``find_candidates`` is tested on selection and
+    ordering, not the wire shape. ``total`` is the pre-window ranked count."""
+
+    rows: list[dict]
+    offset: int
+    has_more: bool
+    total: int
+
+
+def has_user_filters(params: FindParams) -> bool:
+    """Whether a Find request carries any narrowing filter — so a no-focus, no-filter
+    request returns an idle empty page instead of dumping the whole vault."""
+    return bool(
+        params.name
+        or params.oracle
+        or params.type
+        or params.color_identity
+        or params.presets
+        or params.is_commander
+        or params.cmc_min is not None
+        or params.cmc_max is not None
+        or params.price_min is not None
+        or params.price_max is not None
+    )
+
+
+def refine_filters(base: dict, params: FindParams) -> dict:
+    """Merge the user's narrowing filters onto a focused avenue's card_search kwargs.
+    The avenue owns the oracle (its lane definition), so user ``oracle`` is deliberately
+    not merged — name/type/color/cmc/price AND on top to refine the lane's pool."""
+    out = dict(base)
+    if params.name:
+        out["name"] = params.name
+    if params.type:
+        out["card_type"] = params.type
+    if params.color_identity:
+        out["color_identity"] = params.color_identity
+    if params.cmc_min is not None:
+        out["cmc_min"] = params.cmc_min
+    if params.cmc_max is not None:
+        out["cmc_max"] = params.cmc_max
+    if params.price_min is not None:
+        out["price_min"] = params.price_min
+    if params.price_max is not None:
+        out["price_max"] = params.price_max
+    return out
+
+
+def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
+    """The unified Find pipeline (ADR-0015) as a free function over ForgeState — the
+    candidate-pipeline extraction ADR-0013 parked. Three branches on focus state:
+
+    * FOCUSED avenues → OR-merge each lane's pool (a Staples lane resolves the curated
+      name pool via ``staple_pool``; others ``search_fn`` the lane's ``explore_filters``
+      base, AND-refined by the user's filters), score against the focused lanes, rank
+      (with color-widening when a focused avenue carries it, ADR-0019).
+    * no focus but user FILTERS → a manual ``search_fn`` scored against everything.
+    * neither → an empty page (an idle prompt, not the whole vault).
+
+    Strips cards already in the deck, then returns the requested window of ranked rows.
+    The route serializes the rows and annotates ownership; this stops at ranked records.
+    """
+    fmt = state.session.format
+    ci = deck_color_identity(state)
+    hd = hydrate(state)
+    sigs = ranked_deck_signals(state, hd.records)
+    all_avenues = avenues(state, hd.records)
+    focused = [a for a in all_avenues if a.get("focused")]
+    in_deck = set(state.session.card_names())
+
+    if focused:
+        pool: dict[str, dict] = {}
+        for av in focused:
+            if (av.get("search") or {}).get("staples"):
+                found = staple_pool(state)
+            else:
+                base = explore_filters(av["search"], color_identity=ci, fmt=fmt)
+                found = state.search_fn(
+                    limit=_FIND_POOL,
+                    paper_only=paper_only(fmt),
+                    **refine_filters(base, params),
+                )
+            for card in found:
+                cname = card.get("name")
+                if cname:
+                    pool.setdefault(cname, card)
+        cands = [c for c in pool.values() if c.get("name") not in in_deck]
+        active, avs = scoring_basis(state, hd.records, sigs, focused)
+        # The partner avenue ranks by color widening first (ADR-0019): pass the deck's
+        # current identity as the widening base when it is among the focused lanes, so
+        # the broadest color-openers surface above synergy.
+        widening_base = ci if any(a.get("widening") for a in focused) else None
+        ranked = rank_candidates(
+            cands, active_signals=active, avenues=avs, widening_base=widening_base
+        )
+    elif has_user_filters(params):
+        records = state.search_fn(
+            color_identity=params.color_identity,
+            exact_colors=params.exact_colors,
+            oracle=params.oracle,
+            card_type=params.type,
+            name=params.name,
+            cmc_min=params.cmc_min,
+            cmc_max=params.cmc_max,
+            price_min=params.price_min,
+            price_max=params.price_max,
+            format=params.format,
+            paper_only=paper_only(params.format),
+            preset_names=tuple(params.presets),
+            is_commander_filter=params.is_commander,
+            sort=params.sort,
+            limit=_FIND_POOL,
+            offset=0,
+        )
+        cands = [c for c in records if c.get("name") not in in_deck]
+        ranked = rank_candidates(cands, active_signals=sigs, avenues=all_avenues)
+    else:
+        ranked = []
+
+    page = max(1, params.limit)
+    offset = max(0, params.offset)
+    return CandidatePage(
+        rows=ranked[offset : offset + page],
+        offset=offset,
+        has_more=len(ranked) > offset + page,
+        total=len(ranked),
+    )
 
 
 def goldfish_report(

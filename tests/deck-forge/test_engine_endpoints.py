@@ -70,21 +70,6 @@ def test_budgets_endpoint_returns_template_targets():
     assert budgets["ramp"]["target"] == 10
 
 
-def test_packages_endpoint_ranks_fresh_candidates_for_a_signal():
-    client = _client(search_results=[TOK, ALREADY])
-    packages = client.get("/api/packages").json()["packages"]
-    etb_pkg = next(p for p in packages if p["signal"]["key"] == "creature_etb")
-    names = [c["name"] for c in etb_pkg["candidates"]]
-    assert "Token Maker" in names
-    assert "In Deck Tokens" not in names  # already in the deck → excluded
-    assert etb_pkg["candidates"][0]["score"]["synergy_fit"] >= 1
-
-
-def test_packages_endpoint_503_without_bulk():
-    resp = _client(bulk=False).get("/api/packages")
-    assert resp.status_code == 503
-
-
 def test_combos_endpoint_uses_injected_fn():
     def fake(_deck):
         return {"combos": [{"cards": ["A", "B"]}], "near_misses": []}
@@ -152,18 +137,6 @@ def test_agent_avenue_can_be_removed():
     assert all(a["id"] != rid for a in after["avenues"])
 
 
-def test_explore_returns_ranked_package_excluding_in_deck():
-    client = _client(search_results=[TOK, ALREADY])
-    pkg = client.post(
-        "/api/explore",
-        json={"label": "Go wide", "search": {"oracle": "create .*creature token"}},
-    ).json()["package"]
-    names = [c["name"] for c in pkg["candidates"]]
-    assert "Token Maker" in names
-    assert "In Deck Tokens" not in names
-    assert pkg["label"] == "Go wide"
-
-
 JYOTI = {
     "name": "Jyoti, Moag Ancient",
     "type_line": "Legendary Creature — Elemental",
@@ -189,32 +162,6 @@ def _jyoti_client():
         bulk_available=True,
     )
     return TestClient(build_app(state))
-
-
-MANLAND = {
-    "name": "Treetop Village",
-    "type_line": "Land",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "oracle_text": "Treetop Village becomes a 3/3 green Ape creature until end of turn.",
-    "prices": {"usd": "0.50"},
-}
-
-
-def test_explore_credits_candidates_for_the_explored_avenue():
-    """A card surfaced *by* the avenue you clicked should score for it — otherwise a
-    perfect creature-land match shows synergy_fit 0 and reads as an irrelevant hit."""
-    client = _client(search_results=[MANLAND])
-    pkg = client.post(
-        "/api/explore",
-        json={
-            "label": "Creature-lands",
-            "search": {"card_type": "Land", "oracle": "becomes a [^.]*creature"},
-        },
-    ).json()["package"]
-    top = pkg["candidates"][0]
-    assert top["score"]["synergy_fit"] >= 1
-    assert "Creature-lands" in top["score"]["served"]
 
 
 def test_avenues_deduped_when_same_spec_via_two_scopes():

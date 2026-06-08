@@ -8,6 +8,7 @@ import re
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 
@@ -118,3 +119,86 @@ def test_no_focus_no_filter_returns_nothing():
     client, _ = _client()
     res = client.post("/api/find", json={"limit": 25}).json()
     assert res["results"] == []
+
+
+# ── transport-level invariants (serialization / guards / ownership) ───────────
+# Migrated here from the deleted /api/search and /api/packages route tests, since
+# /api/find is now the single card-finding endpoint (ADR-0015 / ADR-0021).
+
+LLANOWAR = {
+    "name": "Llanowar Elves",
+    "type_line": "Creature — Elf Druid",
+    "mana_cost": "{G}",
+    "cmc": 1.0,
+    "color_identity": ["G"],
+    "oracle_text": "{T}: Add {G}.",
+    "rarity": "common",
+    "prices": {"usd": "0.15"},
+    "image_uris": {"normal": "https://img/elf-normal.jpg"},
+}
+PLANESWALKER = {
+    "name": "Test Walker",
+    "type_line": "Legendary Planeswalker — Test",
+    "mana_cost": "{2}{U}",
+    "cmc": 3.0,
+    "color_identity": ["U"],
+    "oracle_text": "+1: Draw a card.",
+    "rarity": "mythic",
+    "prices": {"usd": "5.00"},
+    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
+}
+
+
+def _client_returning(cards):
+    state = ForgeState(
+        by_name={},
+        search_fn=lambda **_: cards,
+        session=DeckSession("commander"),
+        bulk_available=True,
+    )
+    return TestClient(build_app(state)), state
+
+
+def test_find_returns_503_without_bulk():
+    state = ForgeState(
+        by_name={},
+        search_fn=_fake_search,
+        session=DeckSession("commander"),
+        bulk_available=False,
+    )
+    resp = TestClient(build_app(state)).post("/api/find", json={"name": "x"})
+    assert resp.status_code == 503
+    assert "download-bulk" in resp.json()["error"]
+
+
+def test_results_carry_projection_and_images():
+    client, _ = _client_returning([LLANOWAR])
+    res = client.post("/api/find", json={"type": "Creature"}).json()["results"]
+    assert res[0]["name"] == "Llanowar Elves"
+    assert res[0]["images"]["normal"] == "https://img/elf-normal.jpg"
+    assert res[0]["cmc"] == 1.0
+
+
+def test_can_be_commander_is_format_aware():
+    # A legendary planeswalker is a commander in historic_brawl but not in commander.
+    client, _ = _client_returning([PLANESWALKER])
+    body = {"name": "Test Walker"}
+    cmd = client.post("/api/find", json=body).json()["results"][0]
+    assert cmd["can_be_commander"] is False  # default commander format
+    client.post("/api/deck/format", json={"format": "historic_brawl"})
+    hb = client.post("/api/find", json=body).json()["results"][0]
+    assert hb["can_be_commander"] is True
+
+
+def test_owned_candidate_carries_ownership_keys():
+    # F3: owned/owned_qty flow through views.candidate_view (the active Collection slot,
+    # ADR-0018); a non-owned candidate carries no ownership keys (byte-compatible wire).
+    tok = _avenue("agent:1", "Tokens", "create.*token")
+    client, state = _client(focused=("agent:1",), agent_avenues=(tok,))
+    engine.set_collection(state, "paper", {"cards": [{"name": "Token Maker", "quantity": 2}]})
+    res = client.post("/api/find", json={"limit": 25}).json()["results"]
+    tm = next(r for r in res if r["name"] == "Token Maker")
+    assert tm["owned"] is True
+    assert tm["owned_qty"] == 2
+    other = next(r for r in res if r["name"] == "Both")  # in the pool, not owned
+    assert "owned" not in other

@@ -133,17 +133,6 @@ def test_card_view_flags_commander_eligibility():
     assert snap["deck"]["cards"][0]["can_be_commander"] is False
 
 
-def test_commander_eligibility_is_format_aware():
-    # A legendary planeswalker is a commander in historic_brawl but NOT in commander.
-    client = make_client(search_results=[PLANESWALKER])
-    body = {"name": "Test Walker"}
-    res_cmd = client.post("/api/search", json=body).json()["results"][0]
-    assert res_cmd["can_be_commander"] is False  # default commander format
-    client.post("/api/deck/format", json={"format": "historic_brawl"})
-    res_hb = client.post("/api/search", json=body).json()["results"][0]
-    assert res_hb["can_be_commander"] is True
-
-
 def test_set_format_changes_format_and_rejects_unknown():
     client = make_client()
     snap = client.post("/api/deck/format", json={"format": "brawl"}).json()
@@ -173,67 +162,6 @@ def test_partner_avenue_hidden_when_slot_filled():
     client = make_client(session=session)
     labels = {a["label"] for a in client.get("/api/snapshot").json()["avenues"]}
     assert "Partner / Background" not in labels
-
-
-def test_search_projects_results_with_images():
-    client = make_client(search_results=[LLANOWAR])
-    resp = client.post("/api/search", json={"color_identity": "G", "type": "Creature"})
-    assert resp.status_code == 200
-    results = resp.json()["results"]
-    assert results[0]["name"] == "Llanowar Elves"
-    assert results[0]["images"]["normal"] == "https://img/elf-normal.jpg"
-    assert results[0]["cmc"] == 1.0
-
-
-def test_search_paginates_with_has_more():
-    cards = [
-        {"name": f"C{i}", "type_line": "Instant", "cmc": 1.0, "color_identity": []}
-        for i in range(25)
-    ]
-
-    def fake(*, limit=25, offset=0, **_):
-        return cards[offset : offset + limit]
-
-    client = TestClient(
-        build_app(
-            ForgeState(by_name={}, search_fn=fake, session=DeckSession("commander"))
-        )
-    )
-    first = client.post("/api/search", json={"limit": 10, "offset": 0}).json()
-    assert len(first["results"]) == 10
-    assert first["has_more"] is True
-    last = client.post("/api/search", json={"limit": 10, "offset": 20}).json()
-    assert len(last["results"]) == 5
-    assert last["has_more"] is False
-
-
-def test_explore_paginates_through_ranked_pool():
-    cards = [
-        {
-            "name": f"C{i}",
-            "type_line": "Creature — Elf",
-            "cmc": 2.0,
-            "color_identity": ["G"],
-            "oracle_text": "",
-        }
-        for i in range(20)
-    ]
-
-    def fake(*, limit=40, **_):  # explore pages the ranked pool, not the search call
-        return cards[:limit]
-
-    client = TestClient(
-        build_app(
-            ForgeState(by_name={}, search_fn=fake, session=DeckSession("commander"))
-        )
-    )
-    body = {"label": "X", "search": {"oracle": "x"}}
-    p0 = client.post("/api/explore", json={**body, "offset": 0}).json()["package"]
-    assert len(p0["candidates"]) == 12
-    assert p0["has_more"] is True
-    p1 = client.post("/api/explore", json={**body, "offset": 12}).json()["package"]
-    assert len(p1["candidates"]) == 8
-    assert p1["has_more"] is False
 
 
 def test_stats_endpoint_counts_lands_and_creatures():

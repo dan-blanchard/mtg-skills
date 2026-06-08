@@ -61,11 +61,17 @@ def card_view(
     return {**base, "unknown": False, **project(record, fmt)}
 
 
-def candidate_view(row: dict, fmt: str) -> dict:
+def candidate_view(row: dict, fmt: str, *, owned_qty: int | None = None) -> dict:
     """A ranked candidate — a ``rank_candidates`` row ``{"card", "score"}`` — as
-    name + projection + score."""
+    name + projection + score. ``owned_qty`` (when set) marks it owned in the active
+    Collection slot (ADR-0018), mirroring ``card_view``; absent → no ownership keys, so
+    the wire shape stays byte-compatible for a no-collection request."""
     card = row["card"]
-    return {"name": card.get("name", ""), **project(card, fmt), "score": row["score"]}
+    view = {"name": card.get("name", ""), **project(card, fmt), "score": row["score"]}
+    if owned_qty is not None:
+        view["owned"] = True
+        view["owned_qty"] = owned_qty
+    return view
 
 
 def combo_card_view(name: str, record: dict | None, *, in_deck: bool, fmt: str) -> dict:

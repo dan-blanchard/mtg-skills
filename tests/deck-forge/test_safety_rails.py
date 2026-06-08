@@ -88,10 +88,3 @@ def test_finalize_allowed_with_override():
     resp = client.post("/api/finalize", json={"override": True}).json()
     assert resp["finalized"] is True
     assert resp["overridden"] is True
-
-
-def test_paper_format_search_sets_paper_only():
-    s = DeckSession("commander")
-    client, captured = _client(s)
-    client.post("/api/search", json={"type": "Creature", "format": "commander"})
-    assert captured["paper_only"] is True

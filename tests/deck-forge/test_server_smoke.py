@@ -28,9 +28,11 @@ def test_index_serves_placeholder(monkeypatch):
     assert "deck-forge" in resp.text
 
 
-def test_search_without_bulk_fails_loudly(monkeypatch):
+def test_find_without_bulk_fails_loudly(monkeypatch):
+    # The production wiring (create_app + no bulk on disk) must surface the 503 guard
+    # on the live card-finding endpoint. /api/find replaced /api/search (ADR-0021).
     monkeypatch.setattr(production, "default_bulk_path", lambda: None)
     client = TestClient(create_app())
-    resp = client.post("/api/search", json={"type": "Creature"})
+    resp = client.post("/api/find", json={"type": "Creature"})
     assert resp.status_code == 503
     assert "download-bulk" in resp.json()["error"]

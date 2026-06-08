@@ -9,10 +9,7 @@ the expected color identity during authoring. Tests here use synthetic records (
 network / bulk — same constraint as the rest of the suite).
 """
 
-from fastapi.testclient import TestClient
-
 from mtg_utils._deck_forge import engine, staples
-from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 
 SOL_RING = {
@@ -156,43 +153,5 @@ class TestStaplesAvenue:
         assert "Sol Ring" in avenue["serve"]["names"]
 
 
-class TestStaplesExploreEndpoint:
-    """POST /api/explore with the staples search resolves the curated list by name
-    (NOT via search_fn), scoped to the deck's color identity + format."""
-
-    def _client(self, commander, fmt="commander"):
-        session = DeckSession(fmt)
-        session.add(commander, 1, zone="commanders")
-        state = ForgeState(
-            by_name=ENGINE_INDEX,
-            # A poisoned search_fn: if the staples path wrongly fell through to it, the
-            # test would surface these instead of the real staples.
-            search_fn=lambda **_: [{"name": "WRONG PATH", "type_line": "Land"}],
-            session=session,
-            bulk_available=True,
-        )
-        return TestClient(build_app(state))
-
-    def test_explore_staples_returns_color_identity_filtered_pool(self):
-        client = self._client("Test Gruul Commander")  # CI = RG
-        resp = client.post(
-            "/api/explore",
-            json={"label": "Staples / good stuff", "search": {"staples": True}},
-        )
-        names = {c["name"] for c in resp.json()["package"]["candidates"]}
-        assert "Sol Ring" in names  # colorless
-        assert "Cultivate" in names  # green, in identity
-        assert "Counterspell" not in names  # blue, out of identity
-        assert "WRONG PATH" not in names  # never hits search_fn
-
-    def test_explore_staples_are_credited_on_theme(self):
-        client = self._client("Test Gruul Commander")
-        resp = client.post(
-            "/api/explore",
-            json={"label": "Staples / good stuff", "search": {"staples": True}},
-        )
-        sol = next(
-            c for c in resp.json()["package"]["candidates"] if c["name"] == "Sol Ring"
-        )
-        # Credited by the avenue's name serve, not read as a zero-fit irrelevant hit.
-        assert sol["score"]["synergy_fit"] >= 1
+# The staples lane FOCUSED through engine.find_candidates (its live home after
+# /api/explore was removed, ADR-0021) is covered in test_find_candidates.py.
