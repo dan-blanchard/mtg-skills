@@ -18,7 +18,7 @@ memory.
 
 **NEVER name a card from memory, and NEVER assert what a card does from
 assumption.** You propose *patterns, searches, and judgments*; the deterministic
-core (`card-search` / `/api/search` + `theme_presets` + Commander Spellbook)
+core (`card-search` / `/api/find` + `theme_presets` + Commander Spellbook)
 names the real cards. Every card you endorse MUST come from a search result — if
 you can't express a hunch as a search, that's a prompt to widen the search, not
 to invent a card. (ADR-0009.)
@@ -72,7 +72,7 @@ loop: loop inline and the chat freezes; chat instead and the UI buttons ("?",
 "Suggest next move", "Discover") queue unanswered and the browser hangs. So dispatch
 a background subagent (the `Agent` tool, `run_in_background: true`) whose only job is
 the loop below, and keep this session free. Give it the load-bearing contract
-(never name a card from memory; ground every card in `/api/search`; scope to the
+(never name a card from memory; ground every card in `/api/find`; scope to the
 commander) plus the loop spec. Re-dispatch it when it idles out; a heartbeat keeps
 the UI's "attached" indicator warm between runs. (If you're doing nothing else, you
 *can* run the loop inline instead — same steps.)
