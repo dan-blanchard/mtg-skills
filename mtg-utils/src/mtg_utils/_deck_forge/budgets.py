@@ -1,8 +1,16 @@
 """Slot budgets vs the (soft) Command Zone deckbuilding template.
 
-Role targets are *nudges* (D8): the hard land/curve gate lives in ``mana_audit``.
-Each role budget reports target / current / remaining so the build loop can size a
-"choose up to N" batch and surface the most under-filled slot as a suggested avenue.
+Role targets are *nudges* (D8): the hard land/curve gate lives in ``mana_audit``. Each
+role budget reports min/max band, current, remaining (to the floor), and deviation
+(distance outside the band) so the build loop can size a "choose up to N" batch and the
+Tune surface can rank template gaps.
+
+The template is **bands** (Command Zone Ep. 658, verified multi-source), not single
+points, and ``slot_budgets`` takes an optional ``shape``: ``None`` (the always-on
+Budgets panel) uses flat bands; a Shape (the Tune surface, near-complete deck) scales
+them.
+Counterspells fold into a single ``interaction`` role; win-cons and protection are NOT
+counted roles here — they are Tier-2 advisory flags (ADR-0024).
 """
 
 from __future__ import annotations
@@ -12,14 +20,34 @@ from collections.abc import Sequence
 from mtg_utils.card_classify import is_land, is_ramp
 from mtg_utils.theme_presets import get_preset
 
-# Command Zone template, per 100 cards. Scaled by deck size for Brawl (60).
-COMMANDER_TEMPLATE: dict[str, int] = {
-    "lands": 38,
-    "ramp": 10,
-    "card_draw": 10,
-    "removal": 10,
-    "board_wipe": 4,
+# Command Zone template bands, per 100 cards (min, max). Scaled by deck size for Brawl.
+COMMANDER_TEMPLATE: dict[str, tuple[int, int]] = {
+    "lands": (36, 38),
+    "ramp": (10, 12),
+    "card_draw": (10, 12),
+    "interaction": (10, 12),
+    "board_wipe": (3, 4),
 }
+
+# Shape-scaled band overrides (ADR-0024 — the literature scales by archetype, not by
+# power bracket). Only roles that differ from the base are listed; the rest keep it.
+_SHAPE_BANDS: dict[str, dict[str, tuple[int, int]]] = {
+    "control": {"interaction": (12, 15), "board_wipe": (5, 7), "card_draw": (10, 14)},
+    "aggro": {"interaction": (8, 10), "ramp": (8, 10), "board_wipe": (1, 2)},
+    "combo": {"interaction": (8, 12), "board_wipe": (2, 3)},
+    "midrange": {},
+}
+
+# Targeted removal + counterspells fold together into one `interaction` role (ADR-0024).
+_INTERACTION_PRESETS = ("removal", "creature-removal", "counterspell", "bounce")
+# Tier-2 "protect your own board/commander" — advisory, never a counted template role.
+_PROTECTION_PRESETS = (
+    "hexproof",
+    "indestructible",
+    "protection",
+    "ward",
+    "counterspell",
+)
 
 
 def _matches_preset(card: dict, name: str) -> bool:
@@ -29,8 +57,12 @@ def _matches_preset(card: dict, name: str) -> bool:
         return False
 
 
+def _matches_any(card: dict, names: Sequence[str]) -> bool:
+    return any(_matches_preset(card, name) for name in names)
+
+
 def role_of(card: dict) -> set[str]:
-    """Roles a card fills (a card may fill several)."""
+    """Hard-counted template roles a card fills (a card may fill several)."""
     roles: set[str] = set()
     if is_land(card):
         roles.add("lands")
@@ -40,17 +72,36 @@ def role_of(card: dict) -> set[str]:
         roles.add("card_draw")
     if _matches_preset(card, "board-wipe"):
         roles.add("board_wipe")
-    if _matches_preset(card, "removal") or _matches_preset(card, "creature-removal"):
-        roles.add("removal")
+    if _matches_any(card, _INTERACTION_PRESETS):
+        roles.add("interaction")
     return roles
 
 
+def protects(card: dict) -> bool:
+    """Tier-2 (advisory, ADR-0024): does this card protect your own board/commander?"""
+    return _matches_any(card, _PROTECTION_PRESETS)
+
+
+def bands_for(shape: str | None) -> dict[str, tuple[int, int]]:
+    """The role→(min,max) bands for a Shape (or flat Command Zone bands when None)."""
+    bands = dict(COMMANDER_TEMPLATE)
+    if shape:
+        bands.update(_SHAPE_BANDS.get(shape, {}))
+    return bands
+
+
 def slot_budgets(
-    records: Sequence[dict | None], *, deck_size: int = 100
+    records: Sequence[dict | None], *, deck_size: int = 100, shape: str | None = None
 ) -> dict[str, dict]:
-    """Return ``{role: {target, current, remaining}}`` against the scaled template."""
+    """Return ``{role: {min, max, target, current, remaining, deviation}}`` vs the band.
+
+    ``deviation`` is 0 inside the band, negative when short of the floor, positive when
+    over the ceiling. ``remaining`` is the gap up to the floor (0 once in band).
+    ``target`` is the band ceiling, kept for the existing Budgets-panel bar.
+    """
     scale = deck_size / 100
-    current: dict[str, int] = dict.fromkeys(COMMANDER_TEMPLATE, 0)
+    bands = bands_for(shape)
+    current: dict[str, int] = dict.fromkeys(bands, 0)
     for record in records:
         if not record:
             continue
@@ -58,12 +109,22 @@ def slot_budgets(
             if role in current:
                 current[role] += 1
     out: dict[str, dict] = {}
-    for role, base in COMMANDER_TEMPLATE.items():
-        target = round(base * scale)
+    for role, (lo, hi) in bands.items():
+        rmin = round(lo * scale)
+        rmax = round(hi * scale)
         have = current[role]
+        if have < rmin:
+            deviation = have - rmin
+        elif have > rmax:
+            deviation = have - rmax
+        else:
+            deviation = 0
         out[role] = {
-            "target": target,
+            "min": rmin,
+            "max": rmax,
+            "target": rmax,
             "current": have,
-            "remaining": max(0, target - have),
+            "remaining": max(0, rmin - have),
+            "deviation": deviation,
         }
     return out

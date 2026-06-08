@@ -24,6 +24,8 @@ from mtg_utils._deck_forge import collection, engine, views
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.exporters import export_as
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils._tuner.tune import TuneParams
+from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
@@ -140,6 +142,13 @@ class SearchPayload(BaseModel):
     sort: str = "cmc-asc"
     limit: int = 25
     offset: int = 0
+
+
+class TunePayload(BaseModel):
+    budget: float | None = None  # None = owned-only zero-spend pass
+    max_swaps: int = 0  # 0 = diagnose only
+    shape_override: str | None = None
+    suggest_commander: bool = False
 
 
 def _autosave(state: ForgeState) -> None:
@@ -659,6 +668,33 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.get("/api/audit")
     async def audit() -> dict:
         return {"warnings": engine.legality_warnings(engine.hydrate(state))}
+
+    @app.post("/api/tune", response_model=None)
+    async def tune(payload: TunePayload) -> dict | JSONResponse:
+        """The deterministic Tune surface — a thin Transport adapter (ADR-0013) over the
+        skill-agnostic tuner core (ADR-0023). ForgeState -> HydratedDeck -> tune(); no
+        tuning logic here. Pure Deterministic core, so it runs hub-side with no agent
+        attached. ``owned`` is the active Collection slot; budget is USD (paper) — Arena
+        wildcard budgeting is a v1 simplification (the core treats owned as free either
+        way, so an owned-only pass is medium-correct now)."""
+        if not state.bulk_available:
+            return _no_bulk()
+        fmt = state.session.format
+        params = TuneParams(
+            budget=payload.budget,
+            max_swaps=max(0, min(payload.max_swaps, 25)),
+            shape_override=payload.shape_override,
+            suggest_commander=payload.suggest_commander,
+            paper_only=engine.paper_only(fmt),
+            medium=state.session.medium,
+        )
+        return run_tune(
+            engine.hydrate(state),
+            search_fn=state.search_fn,
+            params=params,
+            owned=engine.owned_quantities(state),
+            combos_fn=state.combos_fn,
+        )
 
     @app.post("/api/finalize")
     async def finalize(payload: FinalizePayload) -> dict:

@@ -22,7 +22,11 @@ from mtg_utils._deck_forge import collection, staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import Serve, spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    rank_deck_signals,
+)
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils.card_classify import is_commander, valid_partner_search
@@ -521,30 +525,10 @@ def finalize_state(state: ForgeState) -> dict:
 def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     """Deck signals deduped by (key, scope, subject) and ranked by relevance.
 
-    Membership signals (own-subtype tribal, voltron fallback) are taken from the
-    COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
-    theme's ``support`` (how many cards feed it) drives the ranking."""
+    Thin ForgeState wrapper over the shared ``signals.rank_deck_signals`` core that the
+    deterministic tuner also calls (ADR-0023)."""
     commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
-    support: dict[tuple[str, str, str], int] = {}
-    from_commander: set[tuple[str, str, str]] = set()
-    first: dict[tuple[str, str, str], object] = {}
-    for card in hydrated:
-        is_cmd = card.get("name") in commander_names
-        for sig in extract_signals(card, include_membership=is_cmd):
-            ident = (sig.key, sig.scope, sig.subject)
-            support[ident] = support.get(ident, 0) + 1
-            if is_cmd:
-                from_commander.add(ident)
-            first.setdefault(ident, sig)
-    return sorted(
-        first.values(),
-        key=lambda s: (
-            (s.key, s.scope, s.subject) in from_commander,
-            support[(s.key, s.scope, s.subject)],
-            s.confidence == "high",
-        ),
-        reverse=True,
-    )
+    return rank_deck_signals(hydrated, commander_names)
 
 
 def signal_dict(signal: Signal) -> dict:

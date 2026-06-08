@@ -22,7 +22,9 @@ relevant context and only edit terms inside it.
 - [deck-forge](./deck-forge/CONTEXT.md) — collaborative, visual
   deckbuilding (human + assistant build together in a browser). Owns
   the Signal / Synergy package / Candidate / Slot / Template / Curve
-  gate / HydratedDeck vocabulary.
+  gate / HydratedDeck vocabulary, plus the deterministic Tune
+  vocabulary (Spine / Engine card / Filler / Shape / Efficiency /
+  Focus / Template deviation / Commander fit).
 
 ## Architecture decisions
 
@@ -54,6 +56,12 @@ surfaces a term that the skill's prose doesn't already pin down.
   finished deck. Both share the working dir and the SHA-keyed
   hydrated cache, so deck-strat reuses deck-wizard's parse + hydrate
   output transparently. No Skill-tool invocation between them.
+- **deck-forge → deck-wizard** (planned, ADR-0023) — the deterministic
+  tuning core (`mtg_utils/_tuner/`, `HydratedDeck → scorecard + swaps`)
+  is built skill-agnostic so deck-wizard's slow, agent-driven tuner can
+  later offload its mechanical steps (role counts, curve/efficiency,
+  focus, cut/add proposal) to it and keep the LLM only for judgment.
+  Not yet wired; deck-forge is consumer #1.
 - **cube-wizard ↔ lgs-search** — independent today; a cube author
   could in principle pipe a "wishlist" cube diff into lgs-search,
   but no automated bridge exists.

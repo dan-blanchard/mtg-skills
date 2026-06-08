@@ -4,10 +4,12 @@
   import Commanders from "./Commanders.svelte";
   import Combos from "./Combos.svelte";
   import Export from "./Export.svelte";
+  import Tune from "./Tune.svelte";
 
   const TABS = [
     ["find", "Find"],
     ["commanders", "Commanders"],
+    ["tune", "Tune"],
     ["combos", "Combos"],
     ["export", "Export"],
   ];
@@ -28,6 +30,8 @@
   <div class="tabbody">
     {#if $activeTab === "commanders"}
       <Commanders />
+    {:else if $activeTab === "tune"}
+      <Tune />
     {:else if $activeTab === "combos"}
       <Combos />
     {:else if $activeTab === "export"}

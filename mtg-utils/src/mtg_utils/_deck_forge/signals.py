@@ -36,7 +36,7 @@ with mandatory oracle-clause quotes — blind spots are queued, never silently d
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from mtg_utils._deck_forge import signal_keys
@@ -1547,6 +1547,40 @@ def aggregate_signals(records: list[dict | None]) -> list[Signal]:
             ident = (sig.key, sig.scope, sig.subject)
             seen.setdefault(ident, sig)
     return list(seen.values())
+
+
+def rank_deck_signals(
+    records: Sequence[dict | None], commander_names: set[str]
+) -> list[Signal]:
+    """Deck signals deduped by (key, scope, subject) and ranked by relevance.
+
+    Membership signals (own-subtype tribal, voltron fallback) are taken from the
+    COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
+    signal's *support* (how many cards feed it) drives the ranking. Kept ForgeState-free
+    so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
+    tuner share one ranking (ADR-0023)."""
+    support: dict[tuple[str, str, str], int] = {}
+    from_commander: set[tuple[str, str, str]] = set()
+    first: dict[tuple[str, str, str], Signal] = {}
+    for card in records:
+        if not card:
+            continue
+        is_cmd = card.get("name") in commander_names
+        for sig in extract_signals(card, include_membership=is_cmd):
+            ident = (sig.key, sig.scope, sig.subject)
+            support[ident] = support.get(ident, 0) + 1
+            if is_cmd:
+                from_commander.add(ident)
+            first.setdefault(ident, sig)
+    return sorted(
+        first.values(),
+        key=lambda s: (
+            (s.key, s.scope, s.subject) in from_commander,
+            support[(s.key, s.scope, s.subject)],
+            s.confidence == "high",
+        ),
+        reverse=True,
+    )
 
 
 # ── Coverage gate — the agent-augmentation (M3) hook ──────────────────────────

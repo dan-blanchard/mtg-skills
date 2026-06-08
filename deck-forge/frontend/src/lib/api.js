@@ -66,6 +66,9 @@ export const api = {
   exportDeck: (fmt) => get(`/api/export?fmt=${fmt}`),
   // Run-here handoff (#6): goldfish the deck in the hub, report rendered inline.
   handoffGoldfish: () => post("/api/handoff/goldfish", {}),
+  // The deterministic Tune surface (ADR-0023): diagnose + budgeted swap proposals.
+  // Pure deterministic core — works with no session attached.
+  tune: (body) => post("/api/tune", body),
 
   // Raise a reasoning request and long-poll for the session-agent's answer.
   // Resolves to {result} | {offline: true} | {slow: true} | {error}.

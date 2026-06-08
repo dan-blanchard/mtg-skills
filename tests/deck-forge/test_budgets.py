@@ -1,6 +1,6 @@
-"""Tests for slot budgets vs the (soft) Command Zone template."""
+"""Tests for slot budgets vs the (soft) Command Zone template (band model, ADR-0024)."""
 
-from mtg_utils._deck_forge.budgets import role_of, slot_budgets
+from mtg_utils._deck_forge.budgets import protects, role_of, slot_budgets
 
 FOREST = {
     "name": "Forest",
@@ -18,6 +18,12 @@ MURDER = {
     "type_line": "Instant",
     "oracle_text": "Destroy target creature.",
 }
+COUNTERSPELL = {
+    "name": "Counterspell",
+    "type_line": "Instant",
+    "oracle_text": "Counter target spell.",
+    "keywords": [],
+}
 DIVINATION = {
     "name": "Divination",
     "type_line": "Sorcery",
@@ -30,20 +36,31 @@ WRATH = {
 }
 
 
-def test_empty_deck_targets_scale_to_deck_size():
+def test_empty_deck_bands_scale_to_deck_size():
     b100 = slot_budgets([], deck_size=100)
-    assert b100["ramp"]["target"] == 10
-    assert b100["lands"]["target"] == 38
+    assert b100["ramp"]["min"] == 10
+    assert b100["ramp"]["max"] == 12
+    assert b100["lands"]["min"] == 36
+    assert b100["lands"]["max"] == 38
     b60 = slot_budgets([], deck_size=60)
-    assert b60["ramp"]["target"] == 6  # round(10 * 0.6)
+    assert b60["ramp"]["min"] == 6  # round(10 * 0.6)
+    assert b60["ramp"]["max"] == 7  # round(12 * 0.6)
 
 
-def test_role_classification():
+def test_role_classification_folds_counterspells_into_interaction():
     assert "lands" in role_of(FOREST)
     assert "ramp" in role_of(LLANOWAR)
-    assert "removal" in role_of(MURDER)
+    assert "interaction" in role_of(MURDER)
+    assert "interaction" in role_of(COUNTERSPELL)  # counterspell folds into interaction
     assert "card_draw" in role_of(DIVINATION)
     assert "board_wipe" in role_of(WRATH)
+
+
+def test_protection_is_advisory_not_a_counted_role():
+    # Counterspell counts as both interaction (template) AND protection (Tier-2 flag).
+    assert protects(COUNTERSPELL) is True
+    assert protects(MURDER) is False
+    assert "protection" not in role_of(COUNTERSPELL)  # never a counted role
 
 
 def test_current_counts_reflect_deck():
@@ -52,10 +69,15 @@ def test_current_counts_reflect_deck():
     assert b["ramp"]["current"] == 1
     assert b["card_draw"]["current"] == 1
     assert b["board_wipe"]["current"] == 1
-    assert b["removal"]["current"] >= 1
+    assert b["interaction"]["current"] >= 1
 
 
-def test_remaining_clamps_at_zero():
+def test_deviation_signs_short_in_band_and_over():
+    # 1 ramp source against a 10-12 band → short by 9.
+    short = slot_budgets([LLANOWAR], deck_size=100)
+    assert short["ramp"]["deviation"] == -9
+    assert short["ramp"]["remaining"] == 9
+    # 12 ramp sources → in band → deviation 0, remaining 0.
     rocks = [
         {
             "name": f"Rock {i}",
@@ -63,8 +85,22 @@ def test_remaining_clamps_at_zero():
             "oracle_text": "{T}: Add {C}.",
             "produced_mana": ["C"],
         }
-        for i in range(15)
+        for i in range(12)
     ]
-    b = slot_budgets(rocks, deck_size=100)
-    assert b["ramp"]["current"] == 15
-    assert b["ramp"]["remaining"] == 0
+    inband = slot_budgets(rocks, deck_size=100)
+    assert inband["ramp"]["deviation"] == 0
+    assert inband["ramp"]["remaining"] == 0
+    # 15 ramp sources → over the 12 ceiling → +3.
+    over = slot_budgets(rocks + rocks[:3], deck_size=100)
+    assert over["ramp"]["deviation"] == 3
+
+
+def test_shape_scales_control_interaction_up():
+    flat = slot_budgets([], deck_size=100, shape=None)
+    control = slot_budgets([], deck_size=100, shape="control")
+    assert flat["interaction"]["max"] == 12
+    assert control["interaction"]["min"] == 12
+    assert control["interaction"]["max"] == 15
+    # Aggro trims wraths.
+    aggro = slot_budgets([], deck_size=100, shape="aggro")
+    assert aggro["board_wipe"]["max"] == 2

@@ -5,10 +5,10 @@
     lands: "Lands",
     ramp: "Ramp",
     card_draw: "Card draw",
-    removal: "Removal",
+    interaction: "Interaction",
     board_wipe: "Wraths",
   };
-  const ORDER = ["lands", "ramp", "card_draw", "removal", "board_wipe"];
+  const ORDER = ["lands", "ramp", "card_draw", "interaction", "board_wipe"];
 </script>
 
 <div class="panel widget">

@@ -64,10 +64,15 @@ def test_presets_endpoint_lists_discoverable_presets():
     assert [p["name"] for p in presets] == sorted(names)
 
 
-def test_budgets_endpoint_returns_template_targets():
+def test_budgets_endpoint_returns_template_bands():
     budgets = _client().get("/api/budgets").json()["budgets"]
-    assert budgets["lands"]["target"] == 38
-    assert budgets["ramp"]["target"] == 10
+    assert budgets["lands"]["min"] == 36
+    assert budgets["lands"]["max"] == 38
+    assert budgets["ramp"]["min"] == 10
+    assert budgets["ramp"]["max"] == 12
+    # `interaction` replaces `removal` (counterspells fold in, ADR-0024).
+    assert "interaction" in budgets
+    assert "removal" not in budgets
 
 
 def test_combos_endpoint_uses_injected_fn():
@@ -103,7 +108,7 @@ def test_snapshot_includes_bracket_estimate():
 
 def test_snapshot_includes_live_budgets_and_signals():
     snap = _client().get("/api/snapshot").json()
-    assert snap["budgets"]["ramp"]["target"] == 10
+    assert snap["budgets"]["ramp"]["max"] == 12
     assert any(s["key"] == "creature_etb" for s in snap["signals"])
 
 

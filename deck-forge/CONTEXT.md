@@ -285,3 +285,110 @@ A card for which neither bulk data nor the live price API returns a price. Treat
 as *likely scarce/expensive*, never as free ($0). A deliberate domain term to stop
 the "missing price = $0" mistake.
 _Avoid_: "free card", "$0 card", "priceless".
+
+### Deterministic tuning
+
+The vocabulary of the agent-less deck-evaluation pass that scores a deck and proposes
+budgeted swaps (the "Tune" surface). Distinct from the [[Session-agent]] reasoning loop:
+this is pure [[Deterministic core]] compute, runnable with no session attached. Its unit
+of *direction* is the existing [[Exploration avenue]]; this feature coins no new
+"theme"/"lane" concept.
+
+**Tune** (the deterministic tuner):
+The agent-less, hub-side evaluation-and-swap pass, surfaced as its own left tab. Three layers:
+**diagnose** (the [[Shape]] chip + [[Efficiency]] / [[Template deviation]] / [[Focus]] panels +
+[[Commander fit]] + a severity-ranked Top-issues list), **cut candidates**, and budgeted
+**swaps** (a cut+add pair per top issue; [[Spine]] swaps efficiency-first, [[Engine card]] swaps
+synergy-first). Pure [[Deterministic core]] — runs with no [[Session-agent]] attached, so it
+works in deterministic-only mode and lives in the always-visible left column, not the
+attach-gated rail. Proposes only; the human confirms each swap or "applies all."
+_Avoid_: "auto-tune" / "auto-fix" (it never mutates the deck itself — propose-only), "tuner
+mode" (that is deck-wizard's *agent-driven* pipeline; Tune is the deterministic subset).
+
+**Spine**:
+The mandatory scaffolding every deck needs regardless of [[Shape]]. Two tiers: a
+**hard-counted** tier measured against the [[Template]] (lands, ramp, card draw,
+interaction, board wipes — counterspells fold into *interaction*, never a separate
+role), and a **conditional** tier surfaced as [[Shape]]-scaled advisory flags rather
+than fixed counts (win conditions; protection, only when the [[Shape]] calls for it).
+Deliberately **exempt from the focus judgment** — a deck is never "spread too thin" for
+running its interaction; the Spine's health is template deviation, not focus.
+_Avoid_: "core" (overloaded), "staples" (a Spine card need not be a generically-good
+staple — see the always-on staples avenue, a different thing), "protection" as a
+*counted* role (it is a conditional flag, and counterspells fold into interaction).
+
+**Engine card**:
+A nonland deck card whose primary job is to serve one of the deck's signal-derived
+[[Exploration avenue]]s — payoffs, enablers, synergy pieces. The ONLY pool the **focus**
+metric measures for concentration (the always-on Staples avenue is excluded — good-stuff
+is not a theme, the same exclusion [[Support depth]] makes). A [[Spine]] card may *also*
+serve an avenue (a dual-purpose "win-win" card); that synergy only ever *adds* to focus,
+never subtracts.
+_Avoid_: "Engine module" (that is `engine.py`, a code term — unrelated), "Synergy
+package" (a surfaced set of suggestions, not a deck card's role), "theme"/"lane" for the
+avenue it serves (an [[Exploration avenue]] is the canonical unit; a *theme* is a
+`theme_presets` matcher — the plumbing *under* an avenue).
+
+**Filler**:
+A nonland deck card that is neither [[Spine]] nor serves any [[Exploration avenue]] — the
+"good stuff that does nothing *here*" pile. A high filler share is itself a
+spread/efficiency signal, and the first place cut-selection looks.
+_Avoid_: "bad card" (filler may be individually strong; it is just unsupported *here*),
+"cut" (filler is a *candidate* to cut, not a cut).
+
+**Shape** (the speed/role axis):
+The aggro / midrange / control / combo classification of a deck, inferred deterministically
+from its composition (curve, creature density, interaction density, combo presence). Scales
+the conditional Spine floors (win-cons, protection) and the curve expectations; orthogonal
+to the **synergy axis** (its [[Exploration avenue]]s), which drives focus. One deck has
+exactly one Shape but many avenues. The same aggro/midrange/control/combo axis cube-wizard
+defines as **Shape** — reused here with identical meaning, now *inferred* from a finished
+deck rather than declared on a cube.
+_Avoid_: "archetype" unqualified (cube-wizard reserves it for stated / gauntlet
+archetypes; here the speed axis is Shape, the synergy axis is an [[Exploration avenue]]),
+"bracket" (power level, a different axis).
+
+**Efficiency** (curve / tempo health):
+A [[Shape]]-aware panel of curve and tempo readouts — avg mana value within the Shape's
+band, ramp adequacy for that curve, early-play front-load, and *closing power* (enough
+top-end to not durdle, not so much it clogs). A transparent multi-readout (matching
+`mana_audit`'s gate style), NOT one opaque score, and deliberately **not a per-card
+power/rate judgment** — deck-forge has no card-quality model and won't fake one (ADR-0009).
+Distinct from the [[Curve gate]] / `mana_audit`, which own *land* count and color;
+Efficiency owns the *nonland* curve.
+_Avoid_: "power level" ([[Shape]]/bracket-adjacent, not curve health), "card quality" (the
+explicitly-absent per-card rate judgment), "speed" alone.
+
+**Focus** (the anti-"spread too thin" metric):
+The concentration of [[Engine card]]s across the deck's signal-derived [[Exploration
+avenue]]s (Staples excluded). Lead readout: the count of *viable* avenues (those at/above a
+~20-per-100-cards support floor) and their depths, plus a top-2 concentration ratio and the
+filler rate. The research ideal is one main + one sub avenue; 3+ shallow avenues reads
+`SPREAD-THIN`. [[Shape]]-aware: a small-engine-pool control deck reads `SPINE-LED`, never
+spread-thin — the [[Spine]] is its plan. Dual-purpose [[Spine]] cards *deepen* an avenue
+(bonus), never penalize.
+_Avoid_: "synergy score" (it is concentration, not a quality score), "archetype focus" (the
+avenue is the unit, not a cube archetype).
+
+**Template deviation** (the Spine-health metric):
+How far the deck's [[Spine]] role counts sit *outside* the [[Template]] bands — 0 within the
+band, otherwise the distance to the nearest edge. Computed by the one shared `slot_budgets`,
+which takes an optional [[Shape]]: the always-on Budgets panel passes none (flat Command Zone
+bands), the Tune surface passes the inferred Shape (scaled — e.g. control wants more
+interaction). The hard-counted roles (lands / ramp / draw / interaction / wipes) drive
+deviation; the conditional roles (win-cons, protection) surface as [[Shape]]-scaled advisory
+flags, not deviation.
+_Avoid_: "off-template" as failure (deviation is a nudge, never a gate — the [[Curve gate]]
+is the only hard land check), "budget" alone (a slot budget is the *remaining count*; this is
+the distance over it).
+
+**Commander fit** (built-deck alignment):
+How well the *current* commander's signal-derived avenues align with the deck's dominant
+viable [[Exploration avenue]]s — surfaced as a cheap default-diagnostic flag ("serves 1 of
+your 3 viable avenues → maybe built for a different commander"). Its opt-in companion ranks
+*alternative* commanders to the deck you already built ([[Commander discovery]] scored against
+the deck instead of a stated intent), each shown with its **identity cost**: the in-deck cards
+that fall out of color identity on the switch. The one tuning fix card swaps structurally
+cannot make.
+_Avoid_: "best commander" (it is fit-to-*this*-deck, not context-free best — same caveat as
+[[Commander discovery]]), "recommendation" (the human switches; the tool ranks).
