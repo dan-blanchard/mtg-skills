@@ -10,6 +10,9 @@
 
   export let name;
   export let card = null; // hydrated card object (images/oracle/…) once resolved
+  // Hover-only mode (clickable=false): identify + preview a card that is already in the
+  // deck, without the click-to-add action that only makes sense for new candidates.
+  export let clickable = true;
 
   $: art = card?.images?.art_crop || card?.images?.small || null;
 
@@ -23,7 +26,7 @@
   }
 </script>
 
-{#if card}
+{#if card && clickable}
   <button
     class="cardchip"
     use:hoverPreview={card}
@@ -33,6 +36,11 @@
     {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
     <span class="nm">{name}</span>
   </button>
+{:else if card}
+  <span class="cardchip static" use:hoverPreview={card}>
+    {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
+    <span class="nm">{name}</span>
+  </span>
 {:else}
   <span class="cardchip pending">{name}</span>
 {/if}
@@ -56,6 +64,9 @@
   .cardchip:hover {
     border-color: var(--brass);
     color: var(--brass-bright);
+  }
+  .cardchip.static {
+    cursor: help;
   }
   .cardchip.pending {
     cursor: default;

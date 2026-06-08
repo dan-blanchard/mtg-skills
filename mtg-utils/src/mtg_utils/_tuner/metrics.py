@@ -83,9 +83,10 @@ def efficiency(
     classes: Sequence[CardClass], *, shape: str, avg_cmc: float, deck_size: int
 ) -> dict:
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
-    ramp = sum(1 for c in classes if "ramp" in c.roles)
-    low = sum(1 for c in nonland if c.cmc <= 2.0)
-    top = sum(1 for c in nonland if c.cmc >= 6.0)
+    ramp_cards = [c.name for c in classes if "ramp" in c.roles]
+    low_cards = [c.name for c in nonland if c.cmc <= 2.0]
+    top_cards = [c.name for c in nonland if c.cmc >= 6.0]
+    ramp, low, top = len(ramp_cards), len(low_cards), len(top_cards)
     cheats = sum(1 for c in classes if _matches(c.record, "reanimate")) >= 2
 
     lo, hi = _AVG_BANDS.get(shape, _AVG_BANDS["midrange"])
@@ -123,9 +124,24 @@ def efficiency(
     return {
         "verdict": verdict,
         "avg_mv": {"value": round(avg_cmc, 2), "band": [lo, hi], "status": avg_status},
-        "ramp": {"have": ramp, "want": ramp_want, "status": ramp_status},
-        "front_load": {"have": low, "want": front_want, "status": front_status},
-        "top_end": {"have": top, "want": [top_lo, top_hi], "status": top_status},
+        "ramp": {
+            "have": ramp,
+            "want": ramp_want,
+            "status": ramp_status,
+            "cards": ramp_cards,
+        },
+        "front_load": {
+            "have": low,
+            "want": front_want,
+            "status": front_status,
+            "cards": low_cards,
+        },
+        "top_end": {
+            "have": top,
+            "want": [top_lo, top_hi],
+            "status": top_status,
+            "cards": top_cards,
+        },
         "cost_cheat_waiver": cheats,
     }
 
@@ -138,10 +154,13 @@ def focus(classes: Sequence[CardClass], *, deck_size: int) -> dict:
     engine = [c for c in classes if c.bucket == "engine"]
     engine_pool = len(engine)
 
-    depth: dict[str, int] = {}
-    for c in classes:  # all cards count toward depth (engine + dual-purpose + lands)
+    # All cards back an avenue's depth (engine + dual-purpose Spine + theme-lands), so
+    # the per-avenue member list is the honest support behind each number.
+    members: dict[str, list[str]] = {}
+    for c in classes:
         for label in c.served:
-            depth[label] = depth.get(label, 0) + 1
+            members.setdefault(label, []).append(c.name)
+    depth = {lbl: len(names) for lbl, names in members.items()}
 
     floor = max(1, _scaled(20, deck_size))
     viable = sorted(
@@ -154,7 +173,8 @@ def focus(classes: Sequence[CardClass], *, deck_size: int) -> dict:
     in_top2 = sum(1 for c in engine if top2_set.intersection(c.served))
     top2_share = round(in_top2 / engine_pool, 2) if engine_pool else 0.0
 
-    filler = sum(1 for c in nonland if c.bucket == "filler")
+    filler_cards = [c.name for c in nonland if c.bucket == "filler"]
+    filler = len(filler_cards)
     filler_rate = round(filler / max(1, len(nonland)), 2)
 
     engine_labels = {lbl for c in engine for lbl in c.served}
@@ -174,11 +194,14 @@ def focus(classes: Sequence[CardClass], *, deck_size: int) -> dict:
     return {
         "verdict": verdict,
         "engine_pool": engine_pool,
-        "viable_avenues": [{"label": lbl, "depth": depth[lbl]} for lbl in viable],
+        "viable_avenues": [
+            {"label": lbl, "depth": depth[lbl], "cards": members[lbl]} for lbl in viable
+        ],
         "viability_floor": floor,
         "top2_concentration": top2_share,
         "filler": filler,
         "filler_rate": filler_rate,
+        "filler_cards": filler_cards,
         "stranded_avenues": stranded,
         "_depth": depth,
     }
@@ -214,20 +237,20 @@ def _is_wincon_card(card: dict) -> bool:
 def win_conditions(
     classes: Sequence[CardClass], *, shape: str, combo_count: int
 ) -> dict:
-    heuristic = [c.name for c in classes if _is_wincon_card(c.record)]
-    count = len(set(heuristic)) + combo_count
+    cards = sorted({c.name for c in classes if _is_wincon_card(c.record)})
+    count = len(cards) + combo_count
     lo, hi = _WINCON_TARGET.get(shape, (3, 6))
     return {
         "count": count,
         "from_combos": combo_count,
-        "heuristic": heuristic,
+        "cards": cards,  # the heuristic finisher cards (combos add to count, not names)
         "target": [lo, hi],
         "status": "low" if count < lo else "ok",
     }
 
 
 def protection(classes: Sequence[CardClass], *, shape: str, deck_size: int) -> dict:
-    count = sum(1 for c in classes if protects(c.record))
+    cards = [c.name for c in classes if protects(c.record)]
     equip_aura = sum(
         1 for c in classes if _matches(c.record, "equip") or _matches(c.record, "auras")
     )
@@ -235,11 +258,12 @@ def protection(classes: Sequence[CardClass], *, shape: str, deck_size: int) -> d
     wants = shape in ("combo", "control") or voltron
     target = _scaled(5, deck_size) if wants else 0
     return {
-        "count": count,
+        "count": len(cards),
+        "cards": cards,
         "target": target,
         "wants_protection": wants,
         "voltron": voltron,
-        "status": "low" if wants and count < target else "ok",
+        "status": "low" if wants and len(cards) < target else "ok",
     }
 
 

@@ -21,7 +21,7 @@ SHAPES = ("aggro", "midrange", "control", "combo")
 class ShapeResult:
     shape: str
     scores: dict[str, float]
-    evidence: list[str]
+    evidence: list[dict]  # [{label, cards}] — count text + the cards behind it
     inferred: bool  # False when the user overrode the inference
 
 
@@ -43,10 +43,15 @@ def infer_shape(
     """
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
     n = max(1, len(nonland))
-    creatures = sum(1 for c in nonland if _is_creature(c.record))
-    interaction = sum(1 for c in nonland if "interaction" in c.roles)
-    draw = sum(1 for c in nonland if "card_draw" in c.roles)
+    creature_cards = [c.name for c in nonland if _is_creature(c.record)]
+    interaction_cards = [c.name for c in nonland if "interaction" in c.roles]
+    draw_cards = [c.name for c in nonland if "card_draw" in c.roles]
     low_drops = sum(1 for c in nonland if c.cmc <= 2.0)
+    creatures, interaction, draw = (
+        len(creature_cards),
+        len(interaction_cards),
+        len(draw_cards),
+    )
 
     creat = creatures / n
     inter = interaction / n
@@ -72,12 +77,16 @@ def infer_shape(
         # baseline keeps a featureless deck out of the extremes.
         shape, inferred = max(scores, key=lambda s: scores[s]), True
 
+    # Structured so the UI can show each count and reveal the cards behind it on demand.
     evidence = [
-        f"avg MV {avg_cmc:.1f}",
-        f"{creatures} creatures ({creat * 100:.0f}%)",
-        f"{interaction} interaction",
-        f"{draw} card draw",
+        {"label": f"avg MV {avg_cmc:.1f}", "cards": []},
+        {
+            "label": f"{creatures} creatures ({creat * 100:.0f}%)",
+            "cards": creature_cards,
+        },
+        {"label": f"{interaction} interaction", "cards": interaction_cards},
+        {"label": f"{draw} card draw", "cards": draw_cards},
     ]
     if combo_present:
-        evidence.append("combo line present")
+        evidence.append({"label": "combo line present", "cards": []})
     return ShapeResult(shape=shape, scores=scores, evidence=evidence, inferred=inferred)
