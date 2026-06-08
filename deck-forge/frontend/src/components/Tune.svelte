@@ -222,9 +222,10 @@
           <CardList names={sc.focus.filler_cards || []} label="" />
         </div>
         {#if sc.focus.viable_avenues.length}
-          <div class="m-sub">viable avenues</div>
+          <div class="m-sub">themes</div>
           {#each sc.focus.viable_avenues as a (a.label)}
             <div class="m-line avenue">
+              <span class="tier {a.tier}">{a.tier}</span>
               {a.label} <b>{a.depth}</b>
               <CardList names={a.cards || []} label="" />
             </div>
@@ -494,6 +495,23 @@
   }
   .avenue {
     margin-top: 0.15rem;
+  }
+  .tier {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-radius: 4px;
+    padding: 0.02rem 0.35rem;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+  }
+  .tier.main {
+    background: var(--brass);
+    color: #1a1206;
+  }
+  .tier.sub {
+    border: 1px solid var(--hairline);
+    color: var(--parchment-dim);
   }
   .role-gap {
     margin-right: 0.7rem;

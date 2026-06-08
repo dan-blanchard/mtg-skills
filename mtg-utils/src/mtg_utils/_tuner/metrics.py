@@ -183,9 +183,12 @@ def focus(
             members.setdefault(label, []).append(c.name)
     depth = {lbl: len(names) for lbl, names in members.items()}
 
-    floor = max(1, _scaled(20, deck_size))
+    # Two-tier viability (research: 1 main + 1 *sub*-theme; a sub is shallower than the
+    # main, so it gets a lower floor — not the same bar as the main).
+    main_floor = max(1, _scaled(20, deck_size))
+    sub_floor = max(1, _scaled(10, deck_size))
     candidates = sorted(
-        (lbl for lbl, d in depth.items() if d >= floor),
+        (lbl for lbl, d in depth.items() if d >= sub_floor),
         key=lambda lbl: depth[lbl],
         reverse=True,
     )
@@ -197,9 +200,10 @@ def focus(
         if any(len(s & set(members[k])) / len(s) >= 0.8 for k in viable):
             continue
         viable.append(lbl)
-    top2 = sorted(depth, key=lambda lbl: depth[lbl], reverse=True)[:2]
-    top2_set = set(top2)
-    in_top2 = sum(1 for c in engine if top2_set.intersection(themes(c)))
+    mains = [lbl for lbl in viable if depth[lbl] >= main_floor]
+    subs = [lbl for lbl in viable if depth[lbl] < main_floor]
+    top2 = viable[:2]
+    in_top2 = sum(1 for c in engine if set(top2).intersection(themes(c)))
     top2_share = round(in_top2 / engine_pool, 2) if engine_pool else 0.0
 
     filler_cards = [c.name for c in nonland if c.bucket == "filler"]
@@ -213,20 +217,30 @@ def focus(
     if engine_pool < spine_led_floor:
         verdict = "SPINE-LED"
     elif len(viable) >= 3:
+        # More than a main + a sub — too many directions competing for the engine slots.
         verdict = "SPREAD-THIN"
     elif viable:
-        verdict = "FOCUSED"
+        verdict = "FOCUSED"  # 1 main, or 1 main + 1 sub — the research ideal
     else:
-        # A substantial engine pool that coheres into no viable avenue is scattered.
-        verdict = "SPREAD-THIN" if filler_rate >= 0.3 else "FOCUSED"
+        # A substantial engine pool that coheres into no theme at all is scattered.
+        verdict = "SPREAD-THIN"
 
     return {
         "verdict": verdict,
         "engine_pool": engine_pool,
         "viable_avenues": [
-            {"label": lbl, "depth": depth[lbl], "cards": members[lbl]} for lbl in viable
+            {
+                "label": lbl,
+                "depth": depth[lbl],
+                "cards": members[lbl],
+                "tier": "main" if depth[lbl] >= main_floor else "sub",
+            }
+            for lbl in viable
         ],
-        "viability_floor": floor,
+        "mains": mains,
+        "subs": subs,
+        "main_floor": main_floor,
+        "sub_floor": sub_floor,
         "top2_concentration": top2_share,
         "filler": filler,
         "filler_rate": filler_rate,

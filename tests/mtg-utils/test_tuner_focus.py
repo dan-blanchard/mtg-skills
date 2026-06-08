@@ -47,6 +47,22 @@ def test_lands_and_spine_avenues_are_not_themes():
         assert "Hallowed Fountain" not in a["cards"]
 
 
+def test_two_tier_main_and_sub_themes():
+    # A sub-theme is shallower than the main and must not be held to the main's floor.
+    # deck_size 100 → main floor 20, sub floor 10.
+    classes = (
+        [_cc(f"A{i}", "engine", ["Theme A"]) for i in range(20)]
+        + [_cc(f"B{i}", "engine", ["Theme B"]) for i in range(12)]
+        + [_cc(f"C{i}", "engine", ["Theme C"]) for i in range(5)]
+    )
+    fr = focus(classes, deck_size=100)
+    by = {a["label"]: a for a in fr["viable_avenues"]}
+    assert by["Theme A"]["tier"] == "main"  # depth 20 ≥ main floor
+    assert by["Theme B"]["tier"] == "sub"  # depth 12: sub floor ≤ d < main floor
+    assert "Theme C" not in by  # depth 5 < sub floor → dropped, not a theme
+    assert fr["verdict"] == "FOCUSED"  # one main + one sub = the research ideal
+
+
 def test_near_duplicate_avenues_collapse_to_one():
     # The same cards back both labels (one theme described two ways) → one survives.
     classes = [
