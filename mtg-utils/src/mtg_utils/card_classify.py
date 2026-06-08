@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from mtg_utils._name_index import NameIndex, build_name_index
 from mtg_utils.format_config import FORMAT_CONFIGS
 
 SKIP_LAYOUTS = frozenset(
@@ -78,47 +79,19 @@ def extract_price(card: dict | None) -> float | None:
     return None
 
 
-def build_card_lookup(hydrated: Sequence[dict | None]) -> dict[str, dict]:
-    """Build name -> card dict lookup from a hydrated card list.
+def build_card_lookup(hydrated: Sequence[dict | None]) -> NameIndex:
+    """Build a folding name -> card index from a hydrated (resolved-records) list.
 
-    Indexes by canonical name, DFC/MDFC front-face name, printed_name,
-    and flavor_name so downstream tools (deck_stats, mana_audit, etc.)
-    find cards regardless of which spelling the deck author used.
-    Canonical names take priority — alias keys never overwrite them.
-
-    DFC aliasing mirrors ``mark_owned._build_alias_lookup``: Moxfield,
-    Arena, and plain-text deck exports commonly list a card by front
-    face only (``"Hengegate Pathway"``) while Scryfall's bulk data uses
-    the canonical combined form (``"Hengegate Pathway // Mistgate
-    Pathway"``). Without this alias, ``card_lookup.get`` misses the
-    entry and the card silently drops out of every downstream count
-    (land_count, creature_count, CMC, color sources, legality checks).
+    The keying — NFKD folding, every-face DFC aliases, Arena printed_name / flavor_name
+    — is the shared ``_name_index`` core, so a deck author's spelling resolves to the
+    canonical record regardless of case, diacritics ("Lim-Dul's Vault"), or which face
+    they typed ("Hengegate Pathway"). Hydration already picked one record per name, so
+    there's nothing to dedup (first-seen) and no prefilter. The returned ``NameIndex``
+    folds the query on ``.get`` / ``in`` the same way the keys were folded — without
+    that, a miss silently drops the card from every downstream count (lands, CMC,
+    colors, legality).
     """
-    lookup: dict[str, dict] = {}
-    # Pass 1: canonical names
-    for card in hydrated:
-        if card is not None:
-            lookup[card["name"]] = card
-    # Pass 2: DFC / MDFC / split / adventure front-face aliases.
-    # Standalone-wins: skip if a canonical card already owns this key.
-    for card in hydrated:
-        if card is None:
-            continue
-        name = card["name"]
-        if " // " not in name:
-            continue
-        front_face = name.split(" // ", 1)[0]
-        if front_face and front_face not in lookup:
-            lookup[front_face] = card
-    # Pass 3: Arena alternate names (printed_name / flavor_name)
-    for card in hydrated:
-        if card is None:
-            continue
-        for field in ("printed_name", "flavor_name"):
-            alias = card.get(field)
-            if alias and alias != card["name"] and alias not in lookup:
-                lookup[alias] = card
-    return lookup
+    return build_name_index(hydrated)
 
 
 def color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:

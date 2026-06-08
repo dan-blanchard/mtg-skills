@@ -11,9 +11,12 @@ underlying JSON is newer or when the on-disk format version doesn't match.
 Concurrent rebuilds are safe: writes go through a temp file plus an atomic
 rename so a partially-written sidecar can never be observed.
 
-Each caller still builds its own in-memory index on top of the returned
-list — the indexing strategies are too divergent (cheapest-printing,
-face-aware, rarity-aware, games-aware) to share a single dict shape.
+Callers build a name->record index on top of the returned list through the
+shared ``mtg_utils._name_index`` core (``build_name_index`` / ``alias_keys``):
+the keying — NFKD folding, every-face DFC handling, Arena aliases — is one
+implementation, while the genuinely per-caller policy (cheapest-printing vs
+lowest-rarity vs first-seen, the stored value shape, the prefilter) stays as
+knobs there.
 """
 
 from __future__ import annotations
