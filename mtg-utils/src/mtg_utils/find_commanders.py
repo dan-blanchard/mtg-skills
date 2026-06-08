@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._name_index import NameIndex, build_name_index
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.card_classify import (
@@ -99,45 +100,24 @@ def _build_owned_index(parsed_deck: dict, min_quantity: int) -> dict[str, int]:
     return owned
 
 
-def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
-    """Build a name->card lookup from Scryfall bulk data.
+def _load_bulk_index(bulk_path: Path) -> NameIndex:
+    """Build a folding name -> card index from Scryfall bulk data.
 
-    Indexes by normalized full name AND every face name from card_faces[].
-    Face indexing handles MDFC, transform, flip, adventure, and meld cards
-    uniformly: a user collection that lists the front face of a flip card
-    (e.g. "Bruna, the Fading Light") will still match even though the bulk
-    data lists the meld pair under the full "Bruna, the Fading Light //
-    Brisela, Voice of Nightmares" name.
-
-    Unlike scryfall_lookup's index, this preserves every Scryfall field on
-    the card object since find-commanders needs edhrec_rank and other
-    fields stripped by scryfall_lookup's CARD_FIELDS projection.
+    Keyed by canonical name, every face (card_faces[], handling MDFC / transform / flip
+    / adventure / meld), and Arena printed_name / flavor_name aliases — all NFKD-folded
+    via the shared name-index core, so a collection listing a front face ("Bruna, the
+    Fading Light"), an Arena display name, or ASCII spelling still matches. First-seen
+    wins among printings (bulk lists the canonical printing first and find-commanders
+    surfaces no prices). Tokens / memorabilia / non-game layouts are skipped. Preserves
+    the full Scryfall record (find-commanders needs edhrec_rank and other fields).
     """
-    cards = load_bulk_cards(bulk_path)
-
-    index: dict[str, dict] = {}
-    for card in cards:
-        if card.get("layout") in SKIP_LAYOUTS:
-            continue
-        if card.get("set_type") in ("token", "memorabilia"):
-            continue
-        name = card.get("name", "")
-        if not name:
-            continue
-        # First-seen wins; bulk data typically lists the most canonical
-        # printing first, and we don't need cheapest-printing logic here
-        # because find-commanders doesn't surface prices.
-        key = _normalize_name(name)
-        if key not in index:
-            index[key] = card
-        for face in card.get("card_faces") or []:
-            face_name = face.get("name") or ""
-            if not face_name:
-                continue
-            face_key = _normalize_name(face_name)
-            if face_key not in index:
-                index[face_key] = card
-    return index
+    return build_name_index(
+        load_bulk_cards(bulk_path),
+        prefilter=lambda card: (
+            card.get("layout") not in SKIP_LAYOUTS
+            and card.get("set_type") not in ("token", "memorabilia")
+        ),
+    )
 
 
 def _build_candidate(card: dict, owned_quantity: int) -> dict:
@@ -157,7 +137,7 @@ def _build_candidate(card: dict, owned_quantity: int) -> dict:
 
 def find_commanders(
     parsed_deck: dict,
-    bulk_index: dict[str, dict],
+    bulk_index: NameIndex,
     *,
     format: str = "commander",  # noqa: A002
     color_identity: str | None = None,

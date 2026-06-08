@@ -16,6 +16,7 @@ from mtg_utils._deck_forge.agent_bridge import AgentBridge
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
+from mtg_utils._name_index import NameIndex
 from mtg_utils.format_config import FORMAT_CONFIGS
 
 _ZONES = ("commanders", "cards", "sideboard")
@@ -185,7 +186,7 @@ class ForgeState:
     # Arena rarity index per legality_key (``build_rarity_index`` walks all of bulk, so
     # it's computed once per format and reused).
     bulk_path: Path | None = None
-    rarity_index: dict[str, dict] = field(default_factory=dict)
+    rarity_index: dict[str, NameIndex] = field(default_factory=dict)
     # Lazily-built novelty support: per-format signal-rarity table over the whole legal
     # commander pool (fmt -> (freq, total)). Cached because the sweep over every
     # commander-eligible bulk card is the one expensive part of Commander discovery.

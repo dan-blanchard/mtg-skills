@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 import requests
 
+from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price
 from mtg_utils.format_config import FORMAT_CONFIGS
@@ -141,7 +142,7 @@ def _api_price_lookup(name: str) -> float | None:
 def _check_arena_wildcards(
     deck_entries: list[tuple[str, int]],
     owned_map: dict[str, int],
-    rarity_index: dict[str, dict],
+    rarity_index: NameIndex,
 ) -> dict:
     """Build wildcard-based price result for Arena formats.
 
@@ -235,7 +236,7 @@ def _check_arena_wildcards(
 
 def arena_wildcard_cost(
     deck: list | dict,
-    rarity_index: dict[str, dict],
+    rarity_index: NameIndex,
     *,
     owned_cards: list | None = None,
 ) -> dict:

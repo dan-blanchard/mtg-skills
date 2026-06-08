@@ -10,6 +10,7 @@ from typing import Any
 
 import click
 
+from mtg_utils._name_index import keep_cheaper
 from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
@@ -213,17 +214,12 @@ def search_cards(
         )
     ]
 
-    # Deduplicate by name, keeping the cheapest printing
+    # Deduplicate by name, keeping the cheapest printing (shared acquisition-cost rule:
+    # a priced printing beats a price-less one, cheapest among priced).
     best: dict[str, dict] = {}
     for card in matched:
         name = card.get("name", "")
-        if name not in best:
-            best[name] = card
-        else:
-            cur_price = _extract_price(best[name])
-            new_price = _extract_price(card)
-            if new_price is not None and (cur_price is None or new_price < cur_price):
-                best[name] = card
+        best[name] = keep_cheaper(best[name], card) if name in best else card
     deduped = list(best.values())
 
     # Sort

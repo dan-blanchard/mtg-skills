@@ -28,6 +28,7 @@ from typing import Any
 import click
 import requests
 
+from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
@@ -77,7 +78,7 @@ def lookup_rulings(
     name: str,
     *,
     bulk_path: Path | None = None,
-    bulk_index: dict[str, dict] | None = None,
+    bulk_index: NameIndex | None = None,
     refresh: bool = False,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
@@ -137,7 +138,7 @@ def lookup_rulings_batch(
     commander deck paid ~30s of avoidable I/O.
     """
     session = _new_session()
-    bulk_index: dict[str, dict] | None = None
+    bulk_index: NameIndex | None = None
     if bulk_path is not None:
         # Import locally to keep the module import graph narrow for
         # consumers (e.g., the SKILL.md smoke tests) that never batch.

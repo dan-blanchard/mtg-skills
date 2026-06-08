@@ -11,11 +11,11 @@ from pathlib import Path
 import click
 import requests
 
+from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
-    extract_price,
     get_oracle_text,
     has_copy_limit_exemption,
 )
@@ -60,74 +60,27 @@ RARITY_ORDER = {
 _DRAFT_RARITY_SETS = frozenset({"j21", "jmp", "ajmp"})
 
 
-_cheapest_usd = extract_price
+def _load_bulk_index(bulk_path: Path) -> NameIndex:
+    """Load bulk data into a folding name index, keeping the cheapest printing.
 
-
-def _load_bulk_index(bulk_path: Path) -> dict[str, dict]:
-    """Load bulk data and build name→card lookup.
-
-    Indexes by full name, front face name (before ' // '), and Arena
-    alternate names (printed_name / flavor_name).  When multiple
-    printings exist, prefers the one with the lowest USD price.
-    Uses three passes so standalone cards always win the front-face key
-    over split/MDFC cards (e.g., looking up "Bind" returns the standalone
-    card, not "Bind // Liberate"), and alias keys never overwrite
-    canonical keys.
+    Keyed by canonical name, every DFC face, and Arena printed_name / flavor_name
+    (NFKD-folded for diacritic- and case-robust lookups) via the shared name-index core.
+    When printings share a key the cheapest USD one wins — a priced printing beats a
+    price-less one.
     """
-    cards = load_bulk_cards(bulk_path)
+    return build_name_index(
+        load_bulk_cards(bulk_path),
+        reduce=keep_cheaper,
+        prefilter=lambda card: card.get("layout") not in SKIP_LAYOUTS,
+    )
 
-    index: dict[str, dict] = {}
-    split_cards: list[dict] = []
 
-    # Pass 1: index every card by its full name, preferring cheapest printing.
-    for card in cards:
-        if card.get("layout") in SKIP_LAYOUTS:
-            continue
-
-        name = card.get("name", "")
-        key = name.lower()
-
-        if key in index:
-            existing_price = _cheapest_usd(index[key])
-            new_price = _cheapest_usd(card)
-            if existing_price is not None and (
-                new_price is None or new_price >= existing_price
-            ):
-                continue  # keep existing — it's cheaper or equally priced
-
-        index[key] = card
-
-        if " // " in name:
-            split_cards.append(card)
-
-    # Pass 2: add front-face aliases for split/MDFC cards, but only where
-    # no full-name entry already exists (standalone cards win).
-    for card in split_cards:
-        front_key = card["name"].split(" // ")[0].lower()
-        if front_key not in index:
-            index[front_key] = card
-
-    # Pass 3: add printed_name / flavor_name aliases (Arena-specific names).
-    # Only add if the alias key isn't already claimed by a canonical name.
-    for card in cards:
-        if card.get("layout") in SKIP_LAYOUTS:
-            continue
-        if card.get("lang", "en") != "en":
-            continue
-        name = card.get("name", "")
-        for field in ("printed_name", "flavor_name"):
-            alias = card.get(field, "")
-            if not alias or alias == name:
-                continue
-            alias_key = alias.lower()
-            if alias_key not in index:
-                # Point to the canonical entry (which may have been updated
-                # to the cheapest printing in pass 1).
-                canonical_key = name.lower()
-                if canonical_key in index:
-                    index[alias_key] = index[canonical_key]
-
-    return index
+def _keep_lowest_rarity(existing: dict, new: dict) -> dict:
+    """Arena acquisition-cost reducer: a card's wildcard cost is the LOWEST rarity among
+    its legal printings, so the lower ``RARITY_ORDER`` rank wins."""
+    existing_rank = RARITY_ORDER.get(existing.get("rarity", "rare"), 2)
+    new_rank = RARITY_ORDER.get(new.get("rarity", "rare"), 2)
+    return new if new_rank < existing_rank else existing
 
 
 def build_rarity_index(
@@ -135,8 +88,8 @@ def build_rarity_index(
     legality_key: str,
     *,
     arena_only: bool = False,
-) -> dict[str, dict]:
-    """Build ``name_lower -> {rarity, exempt_from_4cap}`` index.
+) -> NameIndex:
+    """Build a folding ``name -> {rarity, exempt_from_4cap}`` index.
 
     For Arena formats, a card's wildcard cost equals its lowest rarity among
     printings available in that format.  When *arena_only* is True, only
@@ -156,68 +109,35 @@ def build_rarity_index(
     5th, but that substitution does not apply to exempt cards — a deck
     can legitimately want 17 Hare Apparent.
     """
-    cards = load_bulk_cards(bulk_path)
 
-    best: dict[str, int] = {}  # name_lower -> best rarity rank
-    entries: dict[str, dict] = {}  # name_lower -> {rarity, exempt_from_4cap}
-
-    for card in cards:
-        # Skip tokens and non-game cards
+    def _legal(card: dict) -> bool:
         if card.get("layout") in SKIP_LAYOUTS:
-            continue
-        legalities = card.get("legalities", {})
-        if legalities.get(legality_key) not in ("legal", "restricted"):
-            continue
+            return False
+        if card.get("legalities", {}).get(legality_key) not in ("legal", "restricted"):
+            return False
         if arena_only and "arena" not in (card.get("games") or []):
-            continue
-
-        # Skip reprints from digital-only draft sets whose rarities
-        # reflect limited design, not Arena wildcard cost.
-        if (
+            return False
+        # Reprints in digital-only draft sets carry limited-design rarities that don't
+        # reflect Arena's wildcard cost; defer to the real printing.
+        return not (
             arena_only
             and card.get("set", "") in _DRAFT_RARITY_SETS
             and card.get("reprint", False)
-        ):
-            continue
+        )
 
-        name = card.get("name", "")
-        name_lower = name.lower()
+    def _rarity(card: dict) -> dict:
         rarity = card.get("rarity", "rare")
-        rank = RARITY_ORDER.get(rarity, 2)
-        normalized = "rare" if rarity in ("special", "bonus") else rarity
-        exempt = has_copy_limit_exemption(card)
+        return {
+            "rarity": "rare" if rarity in ("special", "bonus") else rarity,
+            "exempt_from_4cap": has_copy_limit_exemption(card),
+        }
 
-        # Index full name and front face (for split/MDFC cards).
-        # These are canonical keys — lower rarity wins across printings.
-        canonical_keys = [name_lower]
-        if " // " in name:
-            front = name.split(" // ")[0].lower()
-            canonical_keys.append(front)
-
-        for key in canonical_keys:
-            if key not in best or rank < best[key]:
-                best[key] = rank
-                entries[key] = {
-                    "rarity": normalized,
-                    "exempt_from_4cap": exempt,
-                }
-
-        # printed_name / flavor_name aliases (Arena display names).
-        # Alias keys never overwrite canonical keys — they only populate
-        # empty slots, consistent with _load_bulk_index Pass 3.
-        if card.get("lang", "en") == "en":
-            for field in ("printed_name", "flavor_name"):
-                alias = card.get(field, "")
-                if alias and alias != name:
-                    alias_key = alias.lower()
-                    if alias_key not in best:
-                        best[alias_key] = rank
-                        entries[alias_key] = {
-                            "rarity": normalized,
-                            "exempt_from_4cap": exempt,
-                        }
-
-    return entries
+    return build_name_index(
+        load_bulk_cards(bulk_path),
+        reduce=_keep_lowest_rarity,
+        value=_rarity,
+        prefilter=_legal,
+    )
 
 
 def _extract_fields(card: dict) -> dict:
@@ -244,7 +164,7 @@ def _api_lookup(name: str) -> dict | None:
 def lookup_single(
     name: str,
     bulk_path: Path | None = None,
-    bulk_index: dict[str, dict] | None = None,
+    bulk_index: NameIndex | None = None,
 ) -> dict | None:
     if bulk_index is None and bulk_path is not None:
         bulk_index = _load_bulk_index(bulk_path)

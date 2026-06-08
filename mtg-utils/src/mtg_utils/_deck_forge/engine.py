@@ -24,6 +24,7 @@ from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import Serve, spec_for
 from mtg_utils._deck_forge.signals import Signal, extract_signals
 from mtg_utils._deck_forge.state import ForgeState
+from mtg_utils._name_index import NameIndex
 from mtg_utils.card_classify import is_commander, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.format_config import FORMAT_CONFIGS
@@ -184,7 +185,7 @@ def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
     }
 
 
-def _rarity_index(state: ForgeState) -> dict | None:
+def _rarity_index(state: ForgeState) -> NameIndex | None:
     """The Arena rarity index for the current format's legality key, built once from
     bulk and cached on the state (``build_rarity_index`` walks all of bulk)."""
     if state.bulk_path is None:

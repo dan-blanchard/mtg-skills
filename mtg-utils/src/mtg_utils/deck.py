@@ -24,6 +24,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mtg_utils._name_index import NameIndex, build_name_index
 from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.card_classify import SKIP_LAYOUTS
 
@@ -132,7 +133,7 @@ def walk_cards(
 
 def discover_tokens(
     deck: dict,
-    by_name: dict[str, dict],
+    by_name: NameIndex,
     by_id: dict[str, dict],
     *,
     log_warn: Callable[[str], None],
@@ -184,32 +185,32 @@ def discover_tokens(
     return sorted(by_oid.values(), key=sort_key)
 
 
-def load_bulk_indexes(bulk_path: Path) -> tuple[dict[str, dict], dict[str, dict]]:
+def _prefer_oracle(existing: dict, new: dict) -> dict:
+    """Tiebreak for the proxy/art path: keep a printing WITH oracle text over a
+    text-less placeholder (so a card never renders a blank proxy); else first wins."""
+    if not existing.get("oracle_text") and new.get("oracle_text"):
+        return new
+    return existing
+
+
+def load_bulk_indexes(bulk_path: Path) -> tuple[NameIndex, dict[str, dict]]:
     """Build ``(by_name, by_id)`` indexes from Scryfall bulk data.
 
-    ``by_name`` skips token / art-series layouts (so a card-name lookup
-    never accidentally returns a token). ``by_id`` includes everything,
-    including tokens — needed to resolve ``all_parts`` token references.
+    ``by_name`` is a folding name index (NFKD + every face + Arena aliases, via the
+    shared name-index core) that skips token / art-series layouts so a card-name lookup
+    never returns a token, and keeps a printing with oracle text over a text-less
+    placeholder. ``by_id`` includes EVERYTHING, tokens included — needed to resolve
+    ``all_parts`` token references — so it stays a plain id-keyed dict in the same pass.
     """
     cards = load_bulk_cards(bulk_path)
-    by_name: dict[str, dict] = {}
     by_id: dict[str, dict] = {}
     for card in cards:
         cid = card.get("id")
         if cid:
             by_id[cid] = card
-        layout = card.get("layout")
-        if layout in SKIP_LAYOUTS:
-            continue
-        name = card.get("name", "")
-        if not name:
-            continue
-        key = name.lower()
-        if key not in by_name:
-            by_name[key] = card
-            continue
-        # Already indexed — keep the entry that has oracle text if the
-        # other one doesn't. Otherwise leave existing (first writer wins).
-        if not by_name[key].get("oracle_text") and card.get("oracle_text"):
-            by_name[key] = card
+    by_name = build_name_index(
+        cards,
+        reduce=_prefer_oracle,
+        prefilter=lambda card: card.get("layout") not in SKIP_LAYOUTS,
+    )
     return by_name, by_id
