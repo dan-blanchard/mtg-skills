@@ -185,12 +185,30 @@ def test_queries_for_no_synonyms() -> None:
 
 def test_select_picks_best_in_budget() -> None:
     pool = [
-        {"title": "Bat tiny", "artist": "x", "width": 6, "height": 3,
-         "source_path": "a", "art": "x"},
-        {"title": "Bat big-but-fits", "artist": "x", "width": 20, "height": 10,
-         "source_path": "a", "art": "x"},
-        {"title": "Bat too big", "artist": "x", "width": 50, "height": 50,
-         "source_path": "a", "art": "x"},
+        {
+            "title": "Bat tiny",
+            "artist": "x",
+            "width": 6,
+            "height": 3,
+            "source_path": "a",
+            "art": "x",
+        },
+        {
+            "title": "Bat big-but-fits",
+            "artist": "x",
+            "width": 20,
+            "height": 10,
+            "source_path": "a",
+            "art": "x",
+        },
+        {
+            "title": "Bat too big",
+            "artist": "x",
+            "width": 50,
+            "height": 50,
+            "source_path": "a",
+            "art": "x",
+        },
     ]
     chosen = select(["bat"], pool)
     assert chosen is not None
@@ -199,16 +217,28 @@ def test_select_picks_best_in_budget() -> None:
 
 def test_select_returns_none_when_no_match() -> None:
     pool = [
-        {"title": "Spider", "artist": "x", "width": 20, "height": 10,
-         "source_path": "a", "art": "x"},
+        {
+            "title": "Spider",
+            "artist": "x",
+            "width": 20,
+            "height": 10,
+            "source_path": "a",
+            "art": "x",
+        },
     ]
     assert select(["bat"], pool) is None
 
 
 def test_select_falls_through_to_synonyms() -> None:
     pool = [
-        {"title": "Gorilla portrait", "artist": "x", "width": 20, "height": 10,
-         "source_path": "a", "art": "x"},
+        {
+            "title": "Gorilla portrait",
+            "artist": "x",
+            "width": 20,
+            "height": 10,
+            "source_path": "a",
+            "art": "x",
+        },
     ]
     # No 'ape' match — but synonym 'gorilla' is in the pool.
     chosen = select(queries_for("ape"), pool)
@@ -516,9 +546,7 @@ def test_build_pool_filters_website_cats_by_subtype() -> None:
     art_fetcher.build_pool(fetcher, subtypes=["dinosaur", "cat"])
     # Aardvark tag was skipped (browse.php fetched but tag.php skipped).
     # Verify we fetched only the matching two tag.php URLs.
-    fetched_tag_urls = [
-        u for u in fetcher.urls_fetched() if "tag.php?tag_id=" in u
-    ]
+    fetched_tag_urls = [u for u in fetcher.urls_fetched() if "tag.php?tag_id=" in u]
     assert any("tag_id=47" in u for u in fetched_tag_urls)
     assert any("tag_id=474" in u for u in fetched_tag_urls)
     assert not any("tag_id=12" in u for u in fetched_tag_urls)
@@ -527,13 +555,13 @@ def test_build_pool_filters_website_cats_by_subtype() -> None:
 @pytest.mark.parametrize(
     ("tok", "expected_stems"),
     [
-        ("cats", {"cats", "cat"}),                # regular -s plural
-        ("foxes", {"foxes", "foxe", "fox"}),      # -es plural
+        ("cats", {"cats", "cat"}),  # regular -s plural
+        ("foxes", {"foxes", "foxe", "fox"}),  # -es plural
         ("butterflies", {"butterflies", "butterfly", "butterflie"}),  # -ies → -y
-        ("wolves", {"wolves", "wolf"}),           # irregular -ves
-        ("mice", {"mice", "mouse"}),              # full irregular
-        ("dragon", {"dragon"}),                   # singular, no stem
-        ("ox", {"ox"}),                            # too short to strip
+        ("wolves", {"wolves", "wolf"}),  # irregular -ves
+        ("mice", {"mice", "mouse"}),  # full irregular
+        ("dragon", {"dragon"}),  # singular, no stem
+        ("ox", {"ox"}),  # too short to strip
     ],
 )
 def test_stems_covers_plural_variants(tok: str, expected_stems: set[str]) -> None:
@@ -576,7 +604,7 @@ def test_relevant_tags_keeps_subtype_matches() -> None:
     out = art_fetcher.relevant_tags(cats, ["dinosaur", "cat"])
     names = {n for _, n in out}
     assert "Dinosaurs" in names  # plural matches singular subtype
-    assert "Big Cats" in names    # word-level match
+    assert "Big Cats" in names  # word-level match
     assert "Star Wars" not in names
     assert "Aardvarks" not in names  # aardvark isn't an MTG subtype
 
@@ -584,13 +612,13 @@ def test_relevant_tags_keeps_subtype_matches() -> None:
 def test_relevant_tags_drops_franchise_tags() -> None:
     """Franchise tags get dropped even though their names match an MTG keyword."""
     tags = [
-        ("1", "Lion King"),         # lion matches Cat synonym
-        ("2", "Donald Duck"),       # duck matches PW synonym
-        ("3", "Dragon Ball"),       # dragon matches Dragon subtype
-        ("4", "Star Wars"),         # broad franchise (would pollute many subtypes)
-        ("5", "Disney"),            # broad franchise
-        ("6", "Dragon"),            # legit
-        ("7", "Lion"),              # legit
+        ("1", "Lion King"),  # lion matches Cat synonym
+        ("2", "Donald Duck"),  # duck matches PW synonym
+        ("3", "Dragon Ball"),  # dragon matches Dragon subtype
+        ("4", "Star Wars"),  # broad franchise (would pollute many subtypes)
+        ("5", "Disney"),  # broad franchise
+        ("6", "Dragon"),  # legit
+        ("7", "Lion"),  # legit
     ]
     out = art_fetcher.relevant_tags(tags, ["lion", "dragon"])
     names = {n for _, n in out}
@@ -754,7 +782,10 @@ def test_fetch_by_name_dedupes_against_existing_catalog(tmp_path: Path) -> None:
     routes = {"asciiart.eu/search": SAMPLE_HTML}
     fetcher = FakeFetcher(routes=routes)
     ok = art_fetcher.fetch_by_name(
-        fetcher, "Vampire Bat", out_dir, existing_bodies=existing,
+        fetcher,
+        "Vampire Bat",
+        out_dir,
+        existing_bodies=existing,
     )
     assert ok is False
     assert not (out_dir / "vampire-bat.txt").exists()
@@ -764,9 +795,7 @@ def test_load_existing_bodies_strips_header(tmp_path: Path) -> None:
     """_load_existing_bodies returns just the art bodies, not the headers."""
     out_dir = tmp_path / "attributed"
     out_dir.mkdir()
-    (out_dir / "a.txt").write_text(
-        "# Title (by Artist)\n# Source: x\n# x\n\nBODY-A\n"
-    )
+    (out_dir / "a.txt").write_text("# Title (by Artist)\n# Source: x\n# x\n\nBODY-A\n")
     (out_dir / "b.txt").write_text(
         "# Title2 (by Artist2)\n# Source: y\n# y\n\nBODY-B\n"
     )
@@ -808,7 +837,10 @@ def test_fetch_by_name_website_fallback_requires_word_in_title(
     }
     fetcher = FakeFetcher(routes=routes)
     ok = art_fetcher.fetch_by_name(
-        fetcher, "Master Breeder", out_dir, website_csrf="fake-csrf-token",
+        fetcher,
+        "Master Breeder",
+        out_dir,
+        website_csrf="fake-csrf-token",
     )
     # Master Breeder has two words ≥4 chars (Master, Breeder); both
     # search routes return the Sail Boat hit, but title-match filters
@@ -856,13 +888,19 @@ def test_parse_website_search_returns_empty_on_error_status() -> None:
 
 def test_search_pool_website_posts_with_csrf_and_secret() -> None:
     """search_pool_website hits /api/search2api.php; FakeFetcher returns canned JSON."""
-    json_blob = json.dumps({
-        "status": "success",
-        "artworks": [{
-            "id": 100, "art": "  /\\__/\\\n ( o.o )",
-            "title": "Cat", "artist_name": "AA",
-        }],
-    })
+    json_blob = json.dumps(
+        {
+            "status": "success",
+            "artworks": [
+                {
+                    "id": 100,
+                    "art": "  /\\__/\\\n ( o.o )",
+                    "title": "Cat",
+                    "artist_name": "AA",
+                }
+            ],
+        }
+    )
     routes = {"/api/search2api.php": json_blob}
     fetcher = FakeFetcher(routes=routes)
     pool = art_fetcher.search_pool_website(fetcher, "cat", csrf_token="fake-csrf")
@@ -880,13 +918,19 @@ def test_refresh_website_csrf_extracts_token() -> None:
 def test_fetch_by_name_falls_back_to_website_per_word(tmp_path: Path) -> None:
     """When asciiart.eu's full-name search misses, words ≥4 chars are tried
     on asciiart.website. The first single-word hit wins."""
-    json_blob = json.dumps({
-        "status": "success",
-        "artworks": [{
-            "id": 200, "art": "  ELF-ART  \n  / | \\\n / | \\",
-            "title": "Elf piece", "artist_name": "Test",
-        }],
-    })
+    json_blob = json.dumps(
+        {
+            "status": "success",
+            "artworks": [
+                {
+                    "id": 200,
+                    "art": "  ELF-ART  \n  / | \\\n / | \\",
+                    "title": "Elf piece",
+                    "artist_name": "Test",
+                }
+            ],
+        }
+    )
     routes = {
         # asciiart.eu /search returns nothing fitting (the SAMPLE_HTML's
         # only in-budget piece has title "Vampire Bat", not matching).
@@ -897,7 +941,9 @@ def test_fetch_by_name_falls_back_to_website_per_word(tmp_path: Path) -> None:
     }
     fetcher = FakeFetcher(routes=routes)
     ok = art_fetcher.fetch_by_name(
-        fetcher, "Llanowar Elves", tmp_path,
+        fetcher,
+        "Llanowar Elves",
+        tmp_path,
         website_csrf="fake-csrf",
     )
     assert ok is True
@@ -953,7 +999,7 @@ def test_fetch_website_tags_decodes_html_entities() -> None:
     html_blob = (
         '<a href="tag.php?tag_id=212" onclick="">'
         '  Wallace &amp; Gromit  <span class="tag-count">(7)</span>'
-        '</a>'
+        "</a>"
         '<a href="tag.php?tag_id=576" onclick="">'
         '  Blue&#039;s Clues  <span class="tag-count">(3)</span>'
         "</a>"
@@ -1049,22 +1095,30 @@ def test_http_fetcher_retries_on_429(tmp_path: Path, monkeypatch) -> None:
     """A 429 followed by a 200 retries and succeeds."""
     monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
     from unittest.mock import MagicMock
+
     fetcher = HttpFetcher(cache_dir=tmp_path)
     fetcher._session = MagicMock()
-    fetcher._session.get = MagicMock(side_effect=[
-        MagicMock(status_code=429, content=b"slow down", raise_for_status=MagicMock()),
-        MagicMock(status_code=200, content=b"ok", raise_for_status=MagicMock()),
-    ])
+    fetcher._session.get = MagicMock(
+        side_effect=[
+            MagicMock(
+                status_code=429, content=b"slow down", raise_for_status=MagicMock()
+            ),
+            MagicMock(status_code=200, content=b"ok", raise_for_status=MagicMock()),
+        ]
+    )
 
     result = fetcher.fetch("https://x/y", "cached.bin", max_retries=2)
     assert result == b"ok"
     assert fetcher._session.get.call_count == 2
 
 
-def test_http_fetcher_raises_after_exhausted_retries(tmp_path: Path, monkeypatch) -> None:
+def test_http_fetcher_raises_after_exhausted_retries(
+    tmp_path: Path, monkeypatch
+) -> None:
     """Persistent 429s eventually raise via raise_for_status."""
     monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
     from unittest.mock import MagicMock
+
     fetcher = HttpFetcher(cache_dir=tmp_path)
 
     def make_429() -> MagicMock:

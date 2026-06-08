@@ -56,10 +56,16 @@ def test_picks_cheapest_printing_across_reprints(tmp_path):
     bulk.write_text(
         json.dumps(
             [
-                {"name": "Beast Within", "prices": {"usd": "5.00"}},   # original
-                {"name": "Beast Within", "prices": {"usd": None}},      # rare reprint, no usd
-                {"name": "Beast Within", "prices": {"usd": "0.50"}},   # commander reprint
-                {"name": "Beast Within", "prices": {"usd": "1.20"}},   # secret lair
+                {"name": "Beast Within", "prices": {"usd": "5.00"}},  # original
+                {
+                    "name": "Beast Within",
+                    "prices": {"usd": None},
+                },  # rare reprint, no usd
+                {
+                    "name": "Beast Within",
+                    "prices": {"usd": "0.50"},
+                },  # commander reprint
+                {"name": "Beast Within", "prices": {"usd": "1.20"}},  # secret lair
             ]
         )
     )
@@ -138,6 +144,7 @@ class TestLocateBulkData:
         # Ensure new is strictly newer than old.
         import os
         import time
+
         os.utime(old, (time.time() - 3600, time.time() - 3600))
         monkeypatch.delenv("MTG_SKILLS_BULK_DATA", raising=False)
         monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)

@@ -56,6 +56,13 @@ _PROTECT_SAVE = re.compile(
     r"\bregenerate\b|\bprevent (?:the next|all|that)\b|\bphases? out\b",
     re.IGNORECASE,
 )
+# Pillow-fort / attack-deterrent effects that protect YOU the player (Ghostly Prison,
+# Propaganda, Sphere of Safety, Crawlspace, Silent Arbiter, …).
+_PROTECT_DETER = re.compile(
+    r"can'?t attack you|"
+    r"no more than \w+ creatures? can attack",
+    re.IGNORECASE,
+)
 
 
 def _matches_preset(card: dict, name: str) -> bool:
@@ -95,7 +102,11 @@ def protects(card: dict) -> bool:
     if _matches_preset(card, "counterspell"):
         return True
     text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")  # strip reminder text
-    return bool(_PROTECT_GRANT.search(text) or _PROTECT_SAVE.search(text))
+    return bool(
+        _PROTECT_GRANT.search(text)
+        or _PROTECT_SAVE.search(text)
+        or _PROTECT_DETER.search(text)
+    )
 
 
 def bands_for(shape: str | None) -> dict[str, tuple[int, int]]:

@@ -42,7 +42,9 @@ def test_medium_drives_the_active_collection_slot():
 
 def test_set_medium_endpoint_rejects_digital_commander():
     client = TestClient(build_app(_state("commander")))
-    assert client.post("/api/deck/medium", json={"medium": "digital"}).status_code == 400
+    assert (
+        client.post("/api/deck/medium", json={"medium": "digital"}).status_code == 400
+    )
 
 
 def test_set_medium_endpoint_switches_slot():
@@ -72,9 +74,7 @@ def test_deck_size_endpoint_and_footer_target():
 
 def test_deck_size_endpoint_rejects_bad_value():
     client = TestClient(build_app(_state("historic_brawl")))
-    assert (
-        client.post("/api/deck/deck-size", json={"deck_size": 42}).status_code == 400
-    )
+    assert client.post("/api/deck/deck-size", json={"deck_size": 42}).status_code == 400
 
 
 # ── wildcard cost for digital builds ─────────────────────────────────────────

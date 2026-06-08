@@ -195,7 +195,9 @@ def test_owned_candidate_carries_ownership_keys():
     # ADR-0018); a non-owned candidate carries no ownership keys (byte-compatible wire).
     tok = _avenue("agent:1", "Tokens", "create.*token")
     client, state = _client(focused=("agent:1",), agent_avenues=(tok,))
-    engine.set_collection(state, "paper", {"cards": [{"name": "Token Maker", "quantity": 2}]})
+    engine.set_collection(
+        state, "paper", {"cards": [{"name": "Token Maker", "quantity": 2}]}
+    )
     res = client.post("/api/find", json={"limit": 25}).json()["results"]
     tm = next(r for r in res if r["name"] == "Token Maker")
     assert tm["owned"] is True

@@ -29,6 +29,7 @@ from mtg_utils.proxy_print import (
 # Fake measure_width.
 # ---------------------------------------------------------------------------
 
+
 # Every character is 0.6 * size points wide — close to reportlab's Courier
 # behaviour and stable enough for testing geometry decisions. The font
 # parameter is ignored: we don't model font-specific kerning.
@@ -65,9 +66,12 @@ def make_card(**overrides) -> dict:
 
 def test_slot_zero_top_left_corner() -> None:
     layout = compute_layout(
-        make_card(), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     # Slot 0 is the top-left of the 3x3 grid; x and y are positive.
     assert layout.x > 0
@@ -78,9 +82,12 @@ def test_two_slots_share_a_row() -> None:
     """Slots 0 and 1 must share a y; slot 2 the same; slot 3 jumps down."""
     layouts = [
         compute_layout(
-            make_card(), slot=i,
-            page_w=LETTER_W, page_h=LETTER_H,
-            is_token=False, measure_width=fixed_width,
+            make_card(),
+            slot=i,
+            page_w=LETTER_W,
+            page_h=LETTER_H,
+            is_token=False,
+            measure_width=fixed_width,
         )
         for i in (0, 1, 2, 3)
     ]
@@ -97,9 +104,12 @@ def test_two_slots_share_a_row() -> None:
 def test_card_name_left_aligned_with_mana_cost() -> None:
     """A non-token card has the name left-aligned and the mana cost on the right."""
     layout = compute_layout(
-        make_card(name="Counterspell", mana_cost="{U}{U}"), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(name="Counterspell", mana_cost="{U}{U}"),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.name_centered is False
     assert layout.mana_cost_text == "{U}{U}"
@@ -107,9 +117,12 @@ def test_card_name_left_aligned_with_mana_cost() -> None:
 
 def test_token_name_centred_no_mana_cost() -> None:
     layout = compute_layout(
-        make_card(name="Soldier", mana_cost="{W}"), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=True, measure_width=fixed_width,
+        make_card(name="Soldier", mana_cost="{W}"),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=True,
+        measure_width=fixed_width,
     )
     assert layout.name_centered is True
     assert layout.mana_cost_text == ""  # tokens drop the cost
@@ -119,9 +132,12 @@ def test_name_font_shrinks_to_fit() -> None:
     """A very long name must produce a font size below 9.5."""
     long = "Sliver Hivelord, Magus of the Disjunction"
     layout = compute_layout(
-        make_card(name=long, mana_cost=""), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(name=long, mana_cost=""),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.name_text_size < 9.5
     # Minimum floor is 6.0.
@@ -131,9 +147,12 @@ def test_name_font_shrinks_to_fit() -> None:
 def test_name_font_full_size_when_short() -> None:
     """A short name keeps the default 9.5 size."""
     layout = compute_layout(
-        make_card(name="Bolt", mana_cost=""), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(name="Bolt", mana_cost=""),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.name_text_size == 9.5
 
@@ -145,9 +164,12 @@ def test_name_font_full_size_when_short() -> None:
 
 def test_creature_pt_text() -> None:
     layout = compute_layout(
-        make_card(power="3", toughness="4"), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(power="3", toughness="4"),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.pt_text == "3 / 4"
 
@@ -157,10 +179,15 @@ def test_planeswalker_loyalty_text() -> None:
         make_card(
             name="Ajani",
             type_line="Legendary Planeswalker — Ajani",
-            power=None, toughness=None, loyalty="4",
+            power=None,
+            toughness=None,
+            loyalty="4",
         ),
-        slot=0, page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.pt_text == "L: 4"
 
@@ -170,11 +197,16 @@ def test_no_pt_for_non_creature_non_planeswalker() -> None:
         make_card(
             name="Counterspell",
             type_line="Instant",
-            power=None, toughness=None, loyalty=None,
+            power=None,
+            toughness=None,
+            loyalty=None,
             oracle_text="Counter target spell.",
         ),
-        slot=0, page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.pt_text == ""
 
@@ -187,14 +219,19 @@ def test_no_pt_for_non_creature_non_planeswalker() -> None:
 def test_token_sources_no_longer_appear_in_footer(monkeypatch) -> None:
     """Tokens no longer render 'from: X' — only artist credit takes the footer."""
     from mtg_utils import proxy_print
+
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _type_line: ("art", "subtype", "soldier", ""),
     )
     layout = compute_layout(
-        make_card(name="Soldier"), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=True, measure_width=fixed_width,
+        make_card(name="Soldier"),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=True,
+        measure_width=fixed_width,
     )
     assert "from:" not in layout.footer_text
     assert layout.footer_text == ""
@@ -203,28 +240,38 @@ def test_token_sources_no_longer_appear_in_footer(monkeypatch) -> None:
 def test_non_token_card_no_credit_empty_footer(monkeypatch) -> None:
     """A regular card with no attributed art credit has an empty footer."""
     from mtg_utils import proxy_print
+
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _type_line: ("art", "subtype", "elf", ""),
     )
     layout = compute_layout(
-        make_card(), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.footer_text == ""
 
 
 def test_non_token_with_artist_credit_renders_art_by(monkeypatch) -> None:
     from mtg_utils import proxy_print
+
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _type_line: ("art", "subtype", "elf", "Joan Stark"),
     )
     layout = compute_layout(
-        make_card(), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.footer_text == "art by Joan Stark"
 
@@ -232,29 +279,39 @@ def test_non_token_with_artist_credit_renders_art_by(monkeypatch) -> None:
 def test_token_with_artist_credit_renders_art_by(monkeypatch) -> None:
     """Even with token sources passed, the footer prefers the artist credit."""
     from mtg_utils import proxy_print
+
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _type_line: ("art", "subtype", "soldier", "Joan Stark"),
     )
     layout = compute_layout(
         make_card(name="Soldier", type_line="Token Creature — Soldier"),
-        slot=0, page_w=LETTER_W, page_h=LETTER_H,
-        is_token=True, measure_width=fixed_width,
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=True,
+        measure_width=fixed_width,
     )
     assert layout.footer_text == "art by Joan Stark"
 
 
 def test_long_artist_credit_gets_ellipsized(monkeypatch) -> None:
     from mtg_utils import proxy_print
+
     very_long = "Some Extremely Long Multi-Word Artist Name " * 4
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _type_line: ("art", "subtype", "x", very_long),
     )
     layout = compute_layout(
-        make_card(), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.footer_text.endswith("…")
 
@@ -269,16 +326,20 @@ def test_type_banner_fixed_at_third_for_non_tokens() -> None:
     how much oracle text or art the card has.
     """
     from mtg_utils.proxy_print import CARD_H
+
     layouts = [
         compute_layout(
-            make_card(oracle_text=oracle), slot=0,
-            page_w=LETTER_W, page_h=LETTER_H,
-            is_token=False, measure_width=fixed_width,
+            make_card(oracle_text=oracle),
+            slot=0,
+            page_w=LETTER_W,
+            page_h=LETTER_H,
+            is_token=False,
+            measure_width=fixed_width,
         )
         for oracle in (
-            "{T}: Add {G}.",                                  # tiny
-            "Flying, vigilance, haste, trample. " * 4,        # huge
-            "",                                                # none
+            "{T}: Add {G}.",  # tiny
+            "Flying, vigilance, haste, trample. " * 4,  # huge
+            "",  # none
         )
     ]
     expected = layouts[0].y + CARD_H / 3
@@ -291,14 +352,20 @@ def test_type_banner_fixed_at_third_for_non_tokens() -> None:
 def test_token_banner_remains_dynamic() -> None:
     """Tokens keep the legacy dynamic layout — banner Y depends on content."""
     short = compute_layout(
-        make_card(oracle_text=""), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=True, measure_width=fixed_width,
+        make_card(oracle_text=""),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=True,
+        measure_width=fixed_width,
     )
     long = compute_layout(
-        make_card(oracle_text="Trample. " * 30), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=True, measure_width=fixed_width,
+        make_card(oracle_text="Trample. " * 30),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=True,
+        measure_width=fixed_width,
     )
     # On a token with lots of oracle, the banner shifts up to make room.
     assert long.type_banner_y > short.type_banner_y
@@ -306,9 +373,12 @@ def test_token_banner_remains_dynamic() -> None:
 
 def test_no_oracle_zero_oracle_lines() -> None:
     layout = compute_layout(
-        make_card(oracle_text=""), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(oracle_text=""),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.oracle_lines == []
     assert layout.oracle_size == 0.0
@@ -321,9 +391,12 @@ def test_no_oracle_zero_oracle_lines() -> None:
 
 def test_dfc_name_strips_back_face() -> None:
     layout = compute_layout(
-        make_card(name="Delver of Secrets // Insectile Aberration"), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(name="Delver of Secrets // Insectile Aberration"),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.name_text == "Delver of Secrets"
 
@@ -334,8 +407,11 @@ def test_dfc_type_line_strips_back_face() -> None:
             name="Delver of Secrets",
             type_line="Creature — Human Wizard // Creature — Human Insect",
         ),
-        slot=0, page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.type_text == "Creature — Human Wizard"
 
@@ -347,9 +423,12 @@ def test_dfc_type_line_strips_back_face() -> None:
 
 def test_layout_is_frozen() -> None:
     layout = compute_layout(
-        make_card(), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     with pytest.raises(AttributeError):
         layout.name_text = "Mutated"  # type: ignore[misc]
@@ -357,14 +436,19 @@ def test_layout_is_frozen() -> None:
 
 def test_layout_returns_lookup_art_tier_and_key(monkeypatch) -> None:
     from mtg_utils import proxy_print
+
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _type_line: ("ascii-art", "subtype", "wolf", ""),
     )
     layout = compute_layout(
-        make_card(type_line="Creature — Wolf"), slot=0,
-        page_w=LETTER_W, page_h=LETTER_H,
-        is_token=False, measure_width=fixed_width,
+        make_card(type_line="Creature — Wolf"),
+        slot=0,
+        page_w=LETTER_W,
+        page_h=LETTER_H,
+        is_token=False,
+        measure_width=fixed_width,
     )
     assert layout.art_tier == "subtype"
     assert layout.art_key == "wolf"

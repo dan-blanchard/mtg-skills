@@ -45,7 +45,8 @@ def test_render_summary_handles_single_marketplace(monkeypatch):
     not crash.
     """
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.LGS_ADAPTERS", {},
+        "mtg_utils.lgs_search.LGS_ADAPTERS",
+        {},
     )
     monkeypatch.setattr(
         "mtg_utils.lgs_search.MARKETPLACE_ADAPTERS",

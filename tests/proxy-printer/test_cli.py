@@ -35,11 +35,16 @@ def test_missing_kind_exits_nonzero() -> None:
 
 def test_invalid_deck_path_exits_nonzero(tmp_path: Path) -> None:
     out = tmp_path / "out.pdf"
-    r = _run([
-        "--kind", "cards",
-        "--deck", str(tmp_path / "nonexistent.json"),
-        "--out", str(out),
-    ])
+    r = _run(
+        [
+            "--kind",
+            "cards",
+            "--deck",
+            str(tmp_path / "nonexistent.json"),
+            "--out",
+            str(out),
+        ]
+    )
     assert r.returncode != 0
 
 
@@ -49,12 +54,18 @@ def test_malformed_deck_json_exits_with_deck_error(tmp_path: Path) -> None:
     out = tmp_path / "out.pdf"
     bulk = tmp_path / "fake-bulk.json"
     bulk.write_text("[]")
-    r = _run([
-        "--kind", "cards",
-        "--deck", str(bad),
-        "--out", str(out),
-        "--bulk-data", str(bulk),
-    ])
+    r = _run(
+        [
+            "--kind",
+            "cards",
+            "--deck",
+            str(bad),
+            "--out",
+            str(out),
+            "--bulk-data",
+            str(bulk),
+        ]
+    )
     # Either click rejects (json parse fails) or the CLI exits with the
     # documented EXIT_DECK_INVALID = 2.
     assert r.returncode != 0
@@ -67,12 +78,18 @@ def test_deck_missing_required_keys_exits_two(tmp_path: Path) -> None:
     out = tmp_path / "out.pdf"
     bulk = tmp_path / "fake-bulk.json"
     bulk.write_text("[]")
-    r = _run([
-        "--kind", "cards",
-        "--deck", str(bad),
-        "--out", str(out),
-        "--bulk-data", str(bulk),
-    ])
+    r = _run(
+        [
+            "--kind",
+            "cards",
+            "--deck",
+            str(bad),
+            "--out",
+            str(out),
+            "--bulk-data",
+            str(bulk),
+        ]
+    )
     assert r.returncode == 2
 
 
@@ -81,11 +98,17 @@ def test_missing_bulk_exits_one(tmp_path: Path) -> None:
     deck = tmp_path / "deck.json"
     deck.write_text(json.dumps({"cards": [{"name": "Sol Ring", "quantity": 1}]}))
     out = tmp_path / "out.pdf"
-    r = _run([
-        "--kind", "cards",
-        "--deck", str(deck),
-        "--out", str(out),
-        "--bulk-data", str(tmp_path / "missing.json"),
-    ])
+    r = _run(
+        [
+            "--kind",
+            "cards",
+            "--deck",
+            str(deck),
+            "--out",
+            str(out),
+            "--bulk-data",
+            str(tmp_path / "missing.json"),
+        ]
+    )
     # Click rejects nonexistent path before we get to our own check.
     assert r.returncode != 0

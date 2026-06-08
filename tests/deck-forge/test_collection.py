@@ -66,9 +66,7 @@ def test_reads_are_strictly_single_slot_by_format():
     client.post("/api/collection/import", json={"text": PAPER, "slot": "paper"})
     # Switching to an Arena format makes `arena` the active slot — and it's empty, so a
     # paper deck's ownership does NOT leak across (no union, no fallback).
-    snap = client.post(
-        "/api/deck/format", json={"format": "historic_brawl"}
-    ).json()
+    snap = client.post("/api/deck/format", json={"format": "historic_brawl"}).json()
     assert snap["collection"]["active_slot"] == "arena"
     assert snap["collection"]["owned"] == 0
     assert all("owned" not in c for c in snap["deck"]["cards"])
@@ -142,7 +140,9 @@ def test_find_candidates_carry_the_owned_flag():
         session=DeckSession("commander"),
         bulk_available=True,
     )
-    engine.set_collection(state, "paper", {"cards": [{"name": "Sol Ring", "quantity": 3}]})
+    engine.set_collection(
+        state, "paper", {"cards": [{"name": "Sol Ring", "quantity": 3}]}
+    )
     client = TestClient(build_app(state))
     res = client.post("/api/find", json={"name": "a", "limit": 25}).json()["results"]
     by_res = {c["name"]: c for c in res}

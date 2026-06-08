@@ -7,7 +7,8 @@ from mtg_utils.lgs_search import optimize_marketplace
 
 def _patch_marketplaces(monkeypatch, mapping: dict) -> None:
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.MARKETPLACE_ADAPTERS", mapping,
+        "mtg_utils.lgs_search.MARKETPLACE_ADAPTERS",
+        mapping,
     )
 
 

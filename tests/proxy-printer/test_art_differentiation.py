@@ -21,7 +21,8 @@ def _card(name: str, type_line: str) -> dict:
 def test_same_name_multiple_copies_share_one_art(monkeypatch) -> None:
     """24 basic Plains all use the same art (intentional — helps table-scanning)."""
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _tl: ("PLAINS-ART", "subtype", "plains", "Artist A"),
     )
     items = [(_card("Plains", "Basic Land — Plains"), None) for _ in range(24)]
@@ -31,13 +32,15 @@ def test_same_name_multiple_copies_share_one_art(monkeypatch) -> None:
 
 
 def test_different_names_with_name_keyed_files_get_differentiated(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ) -> None:
     """Karplusan Forest + Sacred Foundry would both hit mountain.txt; with
     name-keyed files present they each get their own."""
     # Stub the type-keyed lookup to always return mountain.txt.
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _tl: ("MOUNTAIN-ART", "subtype", "mountain", "Type Artist"),
     )
     # Stage name-keyed attributed files for both.
@@ -66,13 +69,15 @@ def test_different_names_with_name_keyed_files_get_differentiated(
 
 
 def test_different_names_without_name_keyed_files_keep_shared_art(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ) -> None:
     """When name-keyed files don't exist, distinct-name cards still share —
     the differentiation pass tries, finds nothing, and leaves type-keyed
     art in place."""
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _tl: ("MOUNTAIN-ART", "subtype", "mountain", "Type Artist"),
     )
     monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
@@ -90,8 +95,13 @@ def test_mixed_same_and_different_names(tmp_path, monkeypatch) -> None:
     """A pool of 4 Plains + 1 Karplusan Forest + 1 Sacred Foundry: the two
     distinct-name lands try name-keyed; the 4 Plains all keep their shared
     plains.txt regardless of whether plains.txt has name-keyed alternatives."""
+
     def fake_lookup(type_line):
-        if "Plains" in type_line and "Forest" not in type_line and "Mountain" not in type_line:
+        if (
+            "Plains" in type_line
+            and "Forest" not in type_line
+            and "Mountain" not in type_line
+        ):
             return ("PLAINS", "subtype", "plains", "")
         return ("MOUNTAIN", "subtype", "mountain", "")
 
@@ -118,7 +128,8 @@ def test_mixed_same_and_different_names(tmp_path, monkeypatch) -> None:
 
 
 def test_name_slug_colliding_with_subtype_doesnt_fake_a_swap(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ) -> None:
     """Regression: ``"Eldrazi"`` (card name) slugs to the same key as the
     ``eldrazi`` subtype. Without the body-content group + same-art guard,
@@ -130,15 +141,14 @@ def test_name_slug_colliding_with_subtype_doesnt_fake_a_swap(
     their original (subtype, eldrazi) tuple so the warn pass groups them
     together."""
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _tl: ("ELDRAZI-ART", "subtype", "eldrazi", "Type Artist"),
     )
     monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
     # The eldrazi.txt that BOTH the subtype lookup AND the name lookup
     # for "Eldrazi" would return — same content, same file.
-    (tmp_path / "eldrazi.txt").write_text(
-        "# Eldrazi (by X)\n# x\n# x\n\nELDRAZI-ART\n"
-    )
+    (tmp_path / "eldrazi.txt").write_text("# Eldrazi (by X)\n# x\n# x\n\nELDRAZI-ART\n")
     # No name-keyed file for "Eldrazi Spawn" — it stays on subtype.
     items = [
         (_card("Eldrazi", "Token Creature — Eldrazi"), None),
@@ -216,12 +226,14 @@ def test_warn_silent_when_only_canonical_name(capsys) -> None:
 
 
 def test_dfc_name_strips_back_face_for_name_keyed_lookup(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ) -> None:
     """A DFC card whose front face has a name-keyed file should match it
     (the back-face suffix shouldn't poison the lookup)."""
     monkeypatch.setattr(
-        proxy_print, "lookup_art",
+        proxy_print,
+        "lookup_art",
         lambda _tl: ("CREATURE", "card-type", "creature", ""),
     )
     monkeypatch.setattr(proxy_print, "attributed_art_dir", lambda: tmp_path)
@@ -229,10 +241,13 @@ def test_dfc_name_strips_back_face_for_name_keyed_lookup(
         "# Delver of Secrets (by DOS)\n# x\n# x\n\nDELVER\n"
     )
     items = [
-        (_card(
-            "Delver of Secrets // Insectile Aberration",
-            "Creature — Human Wizard",
-        ), None),
+        (
+            _card(
+                "Delver of Secrets // Insectile Aberration",
+                "Creature — Human Wizard",
+            ),
+            None,
+        ),
         (_card("Some Other Creature", "Creature — Beast"), None),
     ]
     resolutions = _resolve_art_with_differentiation(items)

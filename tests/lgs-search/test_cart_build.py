@@ -93,7 +93,8 @@ def test_build_lgs_carts_and_handoff_happy_path(monkeypatch, tmp_path):
         "cart_url": "http://tgp.test/cart",
     }
     monkeypatch.setattr(
-        "mtg_utils.lgs_search.LGS_ADAPTERS", {"tgp": tgp},
+        "mtg_utils.lgs_search.LGS_ADAPTERS",
+        {"tgp": tgp},
     )
     monkeypatch.setattr("mtg_utils.lgs_search.LGS_STORES", ["tgp"])
 
@@ -182,7 +183,9 @@ def test_build_lgs_carts_clears_pollution_when_flagged(monkeypatch, tmp_path):
         },
     ]
     _build_lgs_carts_and_handoff(
-        allocation, clear_existing=True, no_handoff=True,
+        allocation,
+        clear_existing=True,
+        no_handoff=True,
     )
     tgp.clear_cart.assert_called_once()
     tgp.add_to_cart.assert_called_once()

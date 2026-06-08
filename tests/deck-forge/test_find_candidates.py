@@ -173,7 +173,9 @@ def test_paper_only_propagates_to_search_for_commander():
     search_fn. Migrated from the deleted test_paper_format_search_sets_paper_only."""
     search = _recording_search(CATALOG)
     state = _state(search_fn=search)
-    engine.find_candidates(state, engine.FindParams(type="Creature", format="commander"))
+    engine.find_candidates(
+        state, engine.FindParams(type="Creature", format="commander")
+    )
     assert search.calls[-1]["paper_only"] is True
 
 
@@ -195,7 +197,9 @@ def test_slice_paging_windows_the_ranked_pool():
         for i in range(20)
     ]
     state = _state(search_fn=_recording_search(cards))
-    first = engine.find_candidates(state, engine.FindParams(name="C", limit=12, offset=0))
+    first = engine.find_candidates(
+        state, engine.FindParams(name="C", limit=12, offset=0)
+    )
     assert len(first.rows) == 12
     assert first.total == 20
     assert first.has_more is True
@@ -244,8 +248,7 @@ GRUUL_COMMANDER = {
     "legalities": {"commander": "legal"},
 }
 _STAPLES_INDEX = {
-    c["name"]: c
-    for c in (GRUUL_COMMANDER, SOL_RING, CULTIVATE, COUNTERSPELL)
+    c["name"]: c for c in (GRUUL_COMMANDER, SOL_RING, CULTIVATE, COUNTERSPELL)
 }
 
 

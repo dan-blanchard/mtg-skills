@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from mtg_utils._deck_forge.budgets import role_of
+from mtg_utils._deck_forge.budgets import protects, role_of
 from mtg_utils._deck_forge.ranking import score_candidate
 from mtg_utils.card_classify import is_land
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -56,6 +56,8 @@ def classify_deck(
             bucket = "spine"
         elif served:
             bucket = "engine"
+        elif protects(rec):
+            bucket = "spine"  # protection is conditional Spine (Tier-2), never filler
         else:
             bucket = "filler"
         out.append(

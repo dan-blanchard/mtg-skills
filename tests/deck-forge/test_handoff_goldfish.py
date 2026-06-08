@@ -23,7 +23,9 @@ def _card(name, type_line, cmc, mana_cost, produced=()):
 
 FOREST = _card("Forest", "Basic Land — Forest", 0, "", ["G"])
 CMD = _card("Verdant Lord", "Legendary Creature — Elf", 4, "{2}{G}{G}")
-CREATURES = {f"Bear {i}": _card(f"Bear {i}", "Creature — Bear", 2, "{1}{G}") for i in range(4)}
+CREATURES = {
+    f"Bear {i}": _card(f"Bear {i}", "Creature — Bear", 2, "{1}{G}") for i in range(4)
+}
 IDX = {"Forest": FOREST, "Verdant Lord": CMD, **CREATURES}
 
 

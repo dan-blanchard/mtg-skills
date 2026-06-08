@@ -35,7 +35,13 @@ _SPINE_KINDS = {"role_short", "protection_short"}
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
-    return any(budgets.get(r, {}).get("deviation", 0) < 0 for r in card.roles)
+    """True if the card fills a role already at/below its floor — cutting it would drop
+    that role below the template minimum, so it is never a safe trim (e.g. don't cut the
+    lone board wipe to fix interaction overflow)."""
+    return any(
+        budgets.get(r, {}).get("current", 0) <= budgets.get(r, {}).get("min", 0)
+        for r in card.roles
+    )
 
 
 def cut_candidates(
@@ -62,8 +68,9 @@ def cut_candidates(
     ):
         push("filler", c)
 
-    # 2. Over-band Spine excess — weakest (low synergy, high CMC) first, never a card
-    #    that also fills a short role, never a dual-purpose card.
+    # 2. Over-band Spine excess, weakest (low synergy, high CMC) first. Never a card
+    #    also filling a floor role. Dual-purpose cards are eligible (the role is over),
+    #    sorted last so the least-synergistic excess goes first.
     for role, b in budgets.items():
         if role == "lands" or b["deviation"] <= 0:
             continue
@@ -72,7 +79,6 @@ def cut_candidates(
             for c in classes
             if c.bucket == "spine"
             and role in c.roles
-            and not c.dual_purpose
             and not _fills_short_role(c, budgets)
         ]
         members.sort(key=lambda c: (len(c.served), -c.cmc))
@@ -186,7 +192,23 @@ def propose_swaps(
         focus_verdict=focus_result["verdict"],
         stranded=stranded,
     )
-    cut_iter = iter(cuts)
+    # Route cuts: a role_over trim cuts from THAT over role; other issues draw from the
+    # generic pool (filler then stranded), so a trim isn't derailed onto filler.
+    over_cuts: dict[str, list[tuple[str, CardClass]]] = {}
+    generic_cuts: list[tuple[str, CardClass]] = []
+    for reason, card in cuts:
+        if reason.startswith("over:"):
+            over_cuts.setdefault(reason.split(":", 1)[1], []).append((reason, card))
+        else:
+            generic_cuts.append((reason, card))
+    gen_iter = iter(generic_cuts)
+    over_iters = {role: iter(items) for role, items in over_cuts.items()}
+
+    def take_cut(issue: dict) -> tuple[str, CardClass] | None:
+        if issue["kind"] == "role_over":
+            return next(over_iters.get(issue["role"], iter(())), None)
+        return next(gen_iter, None)
+
     used_adds: set[str] = set()
     swaps: list[dict] = []
     spent = 0.0
@@ -242,10 +264,10 @@ def propose_swaps(
         picked = find_add(spec, synergy_first=synergy_first)
         if picked is None:
             continue
-        try:
-            reason, cut = next(cut_iter)
-        except StopIteration:
-            break
+        cut_entry = take_cut(issue)
+        if cut_entry is None:
+            continue  # no appropriate cut for this issue — skip, don't grab a wrong one
+        reason, cut = cut_entry
         add_card, cost = picked
         spent += cost  # commit the spend only now that the swap is finalized
         used_adds.add(add_card.get("name", ""))
@@ -301,6 +323,14 @@ def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict
         if viable:
             return _avenue_search_for(viable[0]["label"], deck_signals)
         return None
+    if kind == "under_supported_theme":
+        # "Commit" to the emerging theme: add more cards that feed it.
+        return _avenue_search_for(issue["label"], deck_signals)
+    if kind == "role_over":
+        # Trim the excess: the cut comes from the over role (routed in propose_swaps);
+        # the add deepens the deck's main theme. The full-role filter in find_add keeps
+        # the add from re-filling the role we are trimming.
+        return _main_avenue_search(focus_result, deck_signals)
     if kind == "efficiency":
         # A curve problem is fixed by adding a synergistic card at the missing CMC band
         # (a thin top-end wants a 6+ MV finisher on the deck's main theme, etc.).

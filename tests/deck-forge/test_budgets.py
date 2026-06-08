@@ -92,6 +92,14 @@ def test_protection_requires_granting_not_a_self_keyword():
     }
     assert protects(grants) is True
     assert protects(save) is True
+    # Pillow-fort / attack-deterrent effects protect YOU the player.
+    pillow = {
+        "name": "Ghostly Prison",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures can't attack you unless their controller pays {2} "
+        "for each creature that's attacking you.",
+    }
+    assert protects(pillow) is True
 
 
 def test_current_counts_reflect_deck():

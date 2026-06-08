@@ -1,7 +1,18 @@
-"""Swap engine: an add must not overshoot an already-full Spine role (off-template)."""
+"""Swap engine: template-safety, role-over trims, and emerging-theme commits."""
 
+from mtg_utils._deck_forge.signal_specs import spec_for
+from mtg_utils._deck_forge.signals import Signal
 from mtg_utils._tuner.classify import CardClass
-from mtg_utils._tuner.swaps import propose_swaps
+from mtg_utils._tuner.swaps import _spec_for_issue, propose_swaps
+
+
+def _focus(viable=(), emerging=(), stranded=()):
+    return {
+        "viable_avenues": list(viable),
+        "emerging": list(emerging),
+        "stranded_avenues": list(stranded),
+        "verdict": "FOCUSED",
+    }
 
 
 def _cc(name, bucket, roles=(), served=(), cmc=2.0):
@@ -83,3 +94,63 @@ def test_curve_fix_does_not_overshoot_a_full_role():
     assert len(out["swaps"]) == 1
     # The clean finisher is chosen over the one that would push interaction over its band.
     assert out["swaps"][0]["add"]["name"] == "Big Wincon"
+
+
+def test_role_over_trims_the_over_role_not_a_floor_role():
+    classes = [
+        _cc("Pure Removal", "spine", roles=["interaction"]),
+        _cc("Lone Wrath", "spine", roles=["interaction", "board_wipe"]),
+    ]
+    budgets = {
+        "interaction": _band(13, 8, 12),  # over by 1 — trim from here
+        "board_wipe": _band(2, 2, 3),  # AT floor — its card must not be trimmed
+    }
+    issue = {
+        "kind": "role_over",
+        "role": "interaction",
+        "severity": 1,
+        "message": "interaction over",
+    }
+    add = {
+        "name": "Token Maker",
+        "type_line": "Sorcery",
+        "oracle_text": "Create a token.",
+        "cmc": 3.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+        deck_signals=[],
+        search_fn=lambda **_: [add],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    # Trims the pure removal, never the lone board wipe (which sits at its floor).
+    assert out["swaps"][0]["cut"]["name"] == "Pure Removal"
+
+
+def test_emerging_theme_proposes_a_commit_add():
+    sig = Signal(
+        key="proliferate_matters",
+        scope="you",
+        subject="",
+        text="",
+        source="X",
+        confidence="high",
+    )
+    label = spec_for(sig).label
+    issue = {"kind": "under_supported_theme", "label": label}
+    spec = _spec_for_issue(
+        issue, _focus(emerging=[{"label": label, "depth": 7, "cards": []}]), [sig]
+    )
+    assert spec is not None  # resolves to the emerging theme's search → "commit" adds

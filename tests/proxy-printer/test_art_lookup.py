@@ -31,7 +31,11 @@ def test_slug(name: str, expected: str) -> None:
     [
         ("Sorcery", ["sorcery"], []),
         ("Instant", ["instant"], []),
-        ("Legendary Creature — Vampire Knight", ["legendary", "creature"], ["vampire", "knight"]),
+        (
+            "Legendary Creature — Vampire Knight",
+            ["legendary", "creature"],
+            ["vampire", "knight"],
+        ),
         ("Token Artifact — Treasure", ["token", "artifact"], ["treasure"]),
         ("Basic Land — Forest", ["basic", "land"], ["forest"]),
         ("", [], []),

@@ -108,11 +108,7 @@ def test_color_filter_narrows_the_pool():
 
 
 def test_theme_filter_keeps_only_matching_commanders():
-    res = (
-        _client()
-        .post("/api/commanders/discover", json={"theme": "lifegain"})
-        .json()
-    )
+    res = _client().post("/api/commanders/discover", json={"theme": "lifegain"}).json()
     assert [r["name"] for r in res["results"]] == ["Lifelord"]
 
 

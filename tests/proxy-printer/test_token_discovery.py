@@ -65,7 +65,12 @@ def test_dedup_by_oracle_id() -> None:
 
     by_name = {"deadly dispute": deadly, "mahadi": mahadi}
     by_id = {treasure["id"]: treasure}
-    deck = {"cards": [{"name": "Deadly Dispute", "quantity": 1}, {"name": "Mahadi", "quantity": 1}]}
+    deck = {
+        "cards": [
+            {"name": "Deadly Dispute", "quantity": 1},
+            {"name": "Mahadi", "quantity": 1},
+        ]
+    }
 
     warnings: list[str] = []
     groups = discover_tokens(deck, by_name, by_id, log_warn=warnings.append)
@@ -78,8 +83,22 @@ def test_dedup_by_oracle_id() -> None:
 
 def test_distinct_tokens_are_separate() -> None:
     """Different oracle_ids stay separate."""
-    saproling = _token("Saproling", oid="sap-oid", type_line="Token Creature — Saproling", colors=["G"], power=1, toughness=1)
-    spider = _token("Spider", oid="spider-oid", type_line="Token Creature — Spider", colors=["G"], power=1, toughness=2)
+    saproling = _token(
+        "Saproling",
+        oid="sap-oid",
+        type_line="Token Creature — Saproling",
+        colors=["G"],
+        power=1,
+        toughness=1,
+    )
+    spider = _token(
+        "Spider",
+        oid="spider-oid",
+        type_line="Token Creature — Spider",
+        colors=["G"],
+        power=1,
+        toughness=2,
+    )
     arachno = _src("Arachnogenesis", parts=[_all_part(spider)])
     mycoloth = _src("Mycoloth", parts=[_all_part(saproling)])
 
@@ -122,9 +141,30 @@ def test_card_with_no_tokens_emits_no_warning() -> None:
 def test_sort_order_artifact_first_then_color() -> None:
     """Artifacts before colored creatures; color order WUBRG; alpha within."""
     treasure = _token("Treasure", oid="treasure", type_line="Token Artifact — Treasure")
-    soldier = _token("Soldier", oid="sold", type_line="Token Creature — Soldier", colors=["W"], power=1, toughness=1)
-    zombie = _token("Zombie", oid="zomb", type_line="Token Creature — Zombie", colors=["B"], power=2, toughness=2)
-    beast = _token("Beast", oid="beast", type_line="Token Creature — Beast", colors=["G"], power=3, toughness=3)
+    soldier = _token(
+        "Soldier",
+        oid="sold",
+        type_line="Token Creature — Soldier",
+        colors=["W"],
+        power=1,
+        toughness=1,
+    )
+    zombie = _token(
+        "Zombie",
+        oid="zomb",
+        type_line="Token Creature — Zombie",
+        colors=["B"],
+        power=2,
+        toughness=2,
+    )
+    beast = _token(
+        "Beast",
+        oid="beast",
+        type_line="Token Creature — Beast",
+        colors=["G"],
+        power=3,
+        toughness=3,
+    )
 
     src1 = _src("X", parts=[_all_part(beast)])
     src2 = _src("Y", parts=[_all_part(zombie)])

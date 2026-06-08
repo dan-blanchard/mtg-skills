@@ -25,7 +25,11 @@ def _card(name, type_line, *, cmc=2.0, cost="{1}{G}", pt=None):
 
 IDX = {
     "Verdant Lord": _card(
-        "Verdant Lord", "Legendary Creature — Elf", cmc=4, cost="{2}{G}{G}", pt=("4", "4")
+        "Verdant Lord",
+        "Legendary Creature — Elf",
+        cmc=4,
+        cost="{2}{G}{G}",
+        pt=("4", "4"),
     ),
     "Grizzly Bears": _card("Grizzly Bears", "Creature — Bear", pt=("2", "2")),
     "Giant Growth": _card("Giant Growth", "Instant", cmc=1, cost="{G}"),
