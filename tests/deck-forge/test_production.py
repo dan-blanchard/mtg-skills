@@ -1,8 +1,9 @@
-"""Regression tests for the proper-case card index (the Jyoti add-validation bug).
+"""Tests for the deck-forge card index (build_by_name).
 
-`deck.load_bulk_indexes` keys by lowercased name, which doesn't match the
-proper-case names search emits and users type. `build_by_name` must key by the
-exact name so a searchable card is always addable + hydratable.
+It folds lookups (NFKD) via the shared name-index core, so search's proper-case names
+and any case/diacritic spelling resolve to the same record — the original Jyoti
+add-validation bug (proper-case search output vs a lowercased index) is moot under
+folding. The stored record keeps its real proper-case name for display.
 """
 
 from mtg_utils._deck_forge.persistence import BuildStore
@@ -33,13 +34,16 @@ def test_resume_or_new_starts_fresh_when_empty(tmp_path):
     assert session.to_deck_dict()["cards"] == []
 
 
-def test_keys_are_proper_case_not_lowercased():
+def test_folds_lookups_and_keeps_proper_case_record():
+    # Folding (not proper-case keying) is what keeps a searchable card addable now:
+    # the proper-case name AND a lowercased spelling both resolve, and the stored
+    # record keeps its real name for display.
     cards = [
         {"name": "Jyoti, Moag Ancient", "layout": "normal", "prices": {"usd": "5"}}
     ]
     idx = build_by_name(cards)
-    assert "Jyoti, Moag Ancient" in idx
-    assert "jyoti, moag ancient" not in idx
+    assert idx.get("Jyoti, Moag Ancient")["name"] == "Jyoti, Moag Ancient"
+    assert idx.get("jyoti, moag ancient")["name"] == "Jyoti, Moag Ancient"
 
 
 def test_tokens_and_art_series_skipped():
@@ -50,7 +54,10 @@ def test_tokens_and_art_series_skipped():
         {"name": "Memo", "layout": "normal", "set_type": "memorabilia", "prices": {}},
     ]
     idx = build_by_name(cards)
-    assert set(idx) == {"Real Card"}
+    assert "Real Card" in idx
+    assert "Soldier" not in idx
+    assert "Showcase" not in idx
+    assert "Memo" not in idx
 
 
 def test_dedupes_to_cheapest_printing():

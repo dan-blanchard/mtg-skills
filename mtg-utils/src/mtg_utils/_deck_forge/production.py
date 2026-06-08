@@ -10,6 +10,7 @@ from __future__ import annotations
 import functools
 import os
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 
 from mtg_utils import card_search, combo_search, mark_owned
@@ -17,42 +18,34 @@ from mtg_utils._deck_forge import collection
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
-from mtg_utils.card_classify import extract_price
 from mtg_utils.card_search import SKIP_LAYOUTS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.names import build_name_alias_map
 
 
-def _combos(deck: dict, by_name: dict[str, dict]) -> dict:
+def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:
     # Build a HydratedDeck so combo_search can validate template requirements
     # (e.g. "a Persist Creature") against the deck — without records, near-miss
     # detection falls back to counting named cards only and over-reports near-misses.
     return combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name))
 
 
-def build_by_name(cards: list[dict]) -> dict[str, dict]:
-    """Index real cards by their EXACT (proper-case) name, deduped to the cheapest
-    printing — mirroring what ``card_search`` returns, so a card that appears in
-    search results is always addable and hydrates with matching art/price.
-
-    (``deck.load_bulk_indexes`` keys by *lowercased* name, which does not match the
-    proper-case names search emits and users type — hence this dedicated index.)
-    """
-    best: dict[str, dict] = {}
-    for card in cards:
-        name = card.get("name")
-        if not name or card.get("layout") in SKIP_LAYOUTS:
-            continue
-        if card.get("set_type") in ("token", "memorabilia"):
-            continue
-        if name not in best:
-            best[name] = card
-            continue
-        cur, new = extract_price(best[name]), extract_price(card)
-        if new is not None and (cur is None or new < cur):
-            best[name] = card
-    return best
+def build_by_name(cards: list[dict]) -> NameIndex:
+    """Index real cards by name (NFKD-folded, every DFC face + Arena alias, via the
+    shared name-index core), deduped to the cheapest printing — so a searchable card is
+    always addable and hydrates with matching art/price. Folding makes lookups
+    case- and diacritic-robust, so this no longer needs proper-case keys to match
+    search output (which an earlier hand-rolled version did)."""
+    return build_name_index(
+        cards,
+        reduce=keep_cheaper,
+        prefilter=lambda card: (
+            card.get("layout") not in SKIP_LAYOUTS
+            and card.get("set_type") not in ("token", "memorabilia")
+        ),
+    )
 
 
 def _deck_forge_dir() -> Path:
@@ -110,7 +103,7 @@ def default_state(fmt: str = "commander") -> ForgeState:
     session, build_id, build_name = resume_or_new(store, fmt)
     collection_store = CollectionStore(_deck_forge_dir() / "collection.json")
     bulk_path = default_bulk_path()
-    by_name: dict[str, dict] = {}
+    by_name: Mapping[str, dict] = {}
     search = _no_search
     available = False
     # Built from bulk so the Collection's ownership matching honors Arena printed_name /

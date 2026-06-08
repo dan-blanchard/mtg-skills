@@ -315,7 +315,14 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
         return cached
     freq: dict[tuple[str, str], int] = {}
     total = 0
+    # by_name folds and indexes every face/alias, so the same record appears under
+    # several keys — dedup by canonical name so each commander is counted once.
+    seen: set[str] = set()
     for rec in state.by_name.values():
+        name = rec.get("name", "")
+        if name in seen:
+            continue
+        seen.add(name)
         if not is_commander(rec, fmt)["eligible"]:
             continue
         total += 1

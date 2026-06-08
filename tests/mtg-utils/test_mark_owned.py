@@ -228,6 +228,28 @@ class TestDFCAliasing:
             },
         ]
 
+    def test_deck_back_face_matches_collection_full_form(self):
+        """Back-face matching (regression for ADR-0022): a deck listing the BACK face of
+        a split / MDFC card matches a collection's combined form. mark_owned used to
+        index the front face only, so this silently missed."""
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Reflection of Kiki-Jiki", "quantity": 1}],
+        }
+        collection = {
+            "commanders": [],
+            "cards": [
+                {
+                    "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+                    "quantity": 2,
+                },
+            ],
+        }
+        result = mark_owned(deck, collection)
+        assert result["owned_cards"] == [
+            {"name": "Reflection of Kiki-Jiki", "quantity": 2},
+        ]
+
     def test_both_full_form_matches(self):
         """Baseline sanity — when both sides use the full form, the
         primary-key match fires and the alias code path is irrelevant."""

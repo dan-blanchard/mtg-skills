@@ -8,7 +8,7 @@ with ``HydratedDeck.from_session(session, by_name)`` (see ``mtg_utils.hydrated_d
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -154,7 +154,7 @@ class ForgeState:
     silently returning nothing.
     """
 
-    by_name: dict[str, dict]
+    by_name: Mapping[str, dict]
     search_fn: Callable[..., list[dict]]
     session: DeckSession
     hub: EventHub = field(default_factory=EventHub)

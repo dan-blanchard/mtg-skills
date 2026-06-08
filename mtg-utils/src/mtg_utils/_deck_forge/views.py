@@ -10,6 +10,8 @@ the deck / search / candidate / combo serializers had already drifted).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import is_commander
@@ -44,7 +46,7 @@ def result_view(record: dict, fmt: str) -> dict:
 def card_view(
     name: str,
     qty: int,
-    by_name: dict[str, dict],
+    by_name: Mapping[str, dict],
     fmt: str,
     owned_qty: int | None = None,
 ) -> dict:

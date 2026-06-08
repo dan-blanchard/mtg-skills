@@ -20,6 +20,7 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._name_index import alias_keys
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.names import build_name_alias_map, normalize_card_name
 
@@ -88,11 +89,11 @@ def _build_alias_lookup(
     earlier ones):
 
     - **Pass 1: primaries.** Every primary key maps to itself.
-    - **Pass 2: DFC front-face aliases.** For each primary whose name
-      contains ``" // "``, add the front-face normalized key as an alias,
-      unless already claimed (standalone-wins rule). This lets
-      ``"Fable of the Mirror-Breaker"`` match
-      ``"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"``.
+    - **Pass 2: DFC face aliases.** For each primary that is a split / MDFC /
+      adventure form, add EVERY face's normalized key as an alias (via the
+      shared ``_name_index`` keying core), unless already claimed (standalone-
+      wins). So either ``"Fable of the Mirror-Breaker"`` (front) OR
+      ``"Reflection of Kiki-Jiki"`` (back) matches the combined form.
     - **Pass 3: printed_name / flavor_name aliases.** If ``name_aliases``
       is provided (built from Scryfall bulk data by
       ``names.build_name_alias_map``), add aliases for cards whose Arena
@@ -105,13 +106,13 @@ def _build_alias_lookup(
     """
     lookup: dict[str, str] = {k: k for k in primary}
 
-    # Pass 2: DFC front-face aliases
+    # Pass 2: DFC face aliases — every face (front AND back), via the shared keying
+    # core, so either face of a split / MDFC / adventure card matches. Standalone-wins:
+    # don't overwrite a key a primary already claims.
     for key, (name, _qty) in primary.items():
-        if " // " not in name:
-            continue
-        front_key = normalize_card_name(name.split(" // ")[0])
-        if front_key not in lookup:
-            lookup[front_key] = key
+        for face_key, _tier in alias_keys({"name": name}):
+            if face_key != key and face_key not in lookup:
+                lookup[face_key] = key
 
     # Pass 3: printed_name / flavor_name aliases from bulk data
     if name_aliases:
@@ -129,28 +130,22 @@ def _build_alias_lookup(
 
 
 def _match_collection_key(
-    deck_key: str,
+    deck_name: str,
     coll_lookup: dict[str, str],
 ) -> str | None:
-    """Resolve a deck entry's normalized key to a collection primary key.
+    """Resolve a deck entry's name to a collection primary key.
 
-    Tries, in order:
-
-    1. Direct lookup in ``coll_lookup``. This handles exact primary
-       matches, DFC front-face aliases, and printed_name/flavor_name
-       aliases (all injected by ``_build_alias_lookup``).
-    2. If the deck key itself is a DFC combined form, try its front
-       face as a fallback. This handles the reverse case — the deck
-       uses the combined form while the collection stores only the
-       front-face (rarer, but possible with Moxfield CSV exports that
-       chose front-only).
+    Tries the deck name's NFKD-folded canonical key, then each of its DFC faces
+    (canonical-first, via the shared ``_name_index`` keying core). Combined with the
+    collection-side face aliasing in ``_build_alias_lookup``, this matches a split /
+    MDFC / adventure card whichever face EITHER side wrote — deck combined vs
+    collection face, or deck face vs collection combined — plus the printed_name /
+    flavor_name aliases injected into ``coll_lookup``.
     """
-    if deck_key in coll_lookup:
-        return coll_lookup[deck_key]
-    if " // " in deck_key:
-        front = deck_key.split(" // ", 1)[0]
-        if front in coll_lookup:
-            return coll_lookup[front]
+    for key, _tier in alias_keys({"name": deck_name}):
+        primary = coll_lookup.get(key)
+        if primary is not None:
+            return primary
     return None
 
 
@@ -180,7 +175,7 @@ def owned_quantity(
     """Owned copies of ``deck_name`` against a precomputed :func:`owned_lookup`, or
     ``None`` when un-owned. Mirrors ``_mark_owned_with_count``'s per-card resolution
     (DFC / Arena aliasing; quantity-0 wishlist rows count as un-owned)."""
-    primary = _match_collection_key(normalize_card_name(deck_name), alias_lookup)
+    primary = _match_collection_key(deck_name, alias_lookup)
     if primary is None:
         return None
     qty = entries[primary][1]
@@ -338,7 +333,7 @@ def _mark_owned_with_count(
     coll_lookup = _build_alias_lookup(collection_entries, name_aliases=name_aliases)
     owned: list[dict] = []
     for deck_key in sorted(deck_entries, key=lambda k: deck_entries[k][0].lower()):
-        coll_primary_key = _match_collection_key(deck_key, coll_lookup)
+        coll_primary_key = _match_collection_key(deck_entries[deck_key][0], coll_lookup)
         if coll_primary_key is None:
             continue
         _coll_name, coll_qty = collection_entries[coll_primary_key]

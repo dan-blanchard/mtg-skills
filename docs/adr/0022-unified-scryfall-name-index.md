@@ -54,18 +54,24 @@ lookup index now flows through the core. Consumers were transparent — they que
 `.get(name.lower())`, both of which the `NameIndex` folds — so only return-type annotations
 changed (`dict[str, dict]` → `NameIndex`).
 
-## Deferred (documented, not dropped)
+## Follow-up (completed)
 
-- **`mark_owned`** keeps its own alias lookup for now. It already folds with `normalize_card_name`
-  and en-gates correctly — it has neither the diacritic nor the DFC bug this candidate targets —
-  and its value shape is a *bidirectional alias→canonical string map plus a sum/max quantity
-  table*, not a record index. Consolidating its keying onto `alias_keys` is pure DRY with no
-  bug-fix payoff and a different shape, so it is a separate, careful follow-up.
-- **deck-forge `production.build_by_name`** stays proper-case for now. Its whole reason to exist
-  (per its docstring) — keying proper-case so the deck-forge `by_name` matches search's emitted
-  names — *dissolves* under universal folding, so the clean follow-up is to fold it (or drop it in
-  favor of `deck.load_bulk_indexes`'s `by_name`). It works as-is (exact proper-case match), so it
-  is deferred rather than half-migrated mid-change.
+Both items first deferred here were addressed in a follow-up commit.
+
+- **`mark_owned`** now consumes `alias_keys` for its DFC face derivation, keeping its own value
+  shape (the bidirectional alias→canonical string map + sum/max quantity table — it does NOT use
+  `build_name_index`, which is a record index). It was filed as pure DRY, but it turned out
+  `mark_owned` *did* carry a smaller form of the DFC bug: it indexed the FRONT face only, so a
+  deck/collection listing the BACK face of a split / MDFC / "prepare" card (e.g.
+  `"Reflection of Kiki-Jiki"` of `"Emeritus of Woe // Demonic Tutor"`) silently missed.
+  Consolidating onto `alias_keys` (every face, both directions) fixed it; pinned by a regression
+  test.
+- **deck-forge `production.build_by_name`** now folds — `build_name_index(reduce=keep_cheaper)` →
+  a `NameIndex`. Its proper-case keying dissolved (folding makes search's proper-case output match
+  any spelling), so `ForgeState.by_name` is now typed `Mapping[str, dict]`. One consumer needed a
+  fix: `engine._signal_freq` iterated `by_name.values()`, which under a folding index yields the
+  same record under several keys — it now dedups by card name so the commander-pool sweep counts
+  each card once.
 
 ## What this stops re-suggesting
 

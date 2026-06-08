@@ -24,6 +24,8 @@ expected color identity and per-format legality during authoring.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 # Ordered so a grouped render reads ramp → fixing → advantage → removal → interaction →
 # protection → lands. Used both to validate categories and to order the offered pool.
 CATEGORY_ORDER: tuple[str, ...] = (
@@ -132,7 +134,7 @@ def staple_names() -> frozenset[str]:
 
 
 def staples_for(
-    color_identity: str, by_name: dict[str, dict], *, legality_key: str = "commander"
+    color_identity: str, by_name: Mapping[str, dict], *, legality_key: str = "commander"
 ) -> list[dict]:
     """Resolve the curated staples to the bulk records offered to a deck whose color
     identity is ``color_identity`` and whose format uses ``legality_key``.
