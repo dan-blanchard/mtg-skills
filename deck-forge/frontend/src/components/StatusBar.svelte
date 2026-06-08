@@ -11,6 +11,8 @@
     warnings,
     bracket,
     deck,
+    collection,
+    wildcards,
     connected,
     agentAttached,
     manaModalOpen,
@@ -27,10 +29,32 @@
   import Warnings from "./Warnings.svelte";
 
   $: ls = landState($mana);
-  $: target = FORMAT_TARGET[$deck.format] ?? 100;
+  // Effective deck-size target (60 or 100 for paper Historic Brawl), else format default.
+  $: target = $deck.deck_size ?? FORMAT_TARGET[$deck.format] ?? 100;
+  // Arena wildcard tiers (mythic→common), shown for digital builds in place of USD.
+  const WC_TIERS = [
+    ["mythic", "M", "mythic"],
+    ["rare", "R", "rare"],
+    ["uncommon", "U", "uncommon"],
+    ["common", "C", "common"],
+  ];
+  $: wcTotal = $wildcards
+    ? Object.values($wildcards).reduce((a, b) => a + b, 0)
+    : 0;
   $: colorPips = SYMBOL_ORDER.filter((c) => ($stats?.color_sources || {})[c]);
   $: deckTotal = [...$deck.commanders, ...$deck.cards].reduce(
     (sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1),
+    0,
+  );
+  // How much of the estimate is cards you DON'T already own (the spend to acquire the
+  // deck). Only meaningful when a Collection is loaded for the active slot; basics are
+  // excluded (assumed owned, matching the owned readout). Owned-ness is the derived flag.
+  $: collectionLoaded =
+    $collection && ($collection.slots?.[$collection.active_slot] || 0) > 0;
+  const isBasic = (c) => /\bBasic Land\b/.test(c.type_line || "");
+  $: unownedTotal = [...$deck.commanders, ...$deck.cards].reduce(
+    (sum, c) =>
+      c.owned || isBasic(c) ? sum : sum + (priceOf(c) ?? 0) * (c.quantity || 1),
     0,
   );
   // Slot budgets met / tracked, for the compact chip (full bars live in the popover).
@@ -71,7 +95,36 @@
         {/each}
       </div>
     {/if}
-    <div class="stat"><b>${deckTotal.toFixed(0)}</b><em>est.</em></div>
+    {#if $deck.medium === "digital"}
+      <div
+        class="stat wc"
+        title="Arena wildcards needed for cards you don't own (basics are free)"
+      >
+        {#if $wildcards && wcTotal}
+          {#each WC_TIERS as [k, label, cls] (k)}
+            {#if $wildcards[k]}
+              <span class="wc-{cls}">{$wildcards[k]}{label}</span>
+            {/if}
+          {/each}
+        {:else if $wildcards}
+          <b class="owned-all">✓</b>
+        {:else}
+          <b>—</b>
+        {/if}
+        <em>wildcards</em>
+      </div>
+    {:else}
+      <div class="stat">
+        <b>${deckTotal.toFixed(0)}</b><em>est.</em>
+        {#if collectionLoaded}
+          <span
+            class="unowned"
+            title="Estimated cost of cards not in your {$collection.active_slot} collection (basics excluded)"
+            >(${unownedTotal.toFixed(0)} unowned)</span
+          >
+        {/if}
+      </div>
+    {/if}
     {#if $bracket}
       <div
         class="stat bracket"
@@ -222,6 +275,36 @@
     font-style: normal;
     color: var(--parchment-dim);
     font-variant-numeric: tabular-nums;
+  }
+  .unowned {
+    color: var(--warn);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    margin-left: -0.05rem;
+  }
+  /* Arena wildcard tiers — tinted by rarity (mythic→common). */
+  .wc {
+    gap: 0.4rem;
+  }
+  .wc span {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 0.82rem;
+  }
+  .wc-mythic {
+    color: #f08a3c;
+  }
+  .wc-rare {
+    color: var(--brass-bright);
+  }
+  .wc-uncommon {
+    color: #b9c2cc;
+  }
+  .wc-common {
+    color: var(--parchment-dim);
+  }
+  .wc .owned-all {
+    color: var(--pass);
   }
   .bracket b {
     color: var(--brass-bright);

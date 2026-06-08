@@ -233,6 +233,28 @@ def _check_arena_wildcards(
     }
 
 
+def arena_wildcard_cost(
+    deck: list | dict,
+    rarity_index: dict[str, dict],
+    *,
+    owned_cards: list | None = None,
+) -> dict:
+    """Wildcard cost for an Arena deck against a PREBUILT rarity index.
+
+    Splits the index-building (expensive — walks all of bulk) from the per-deck costing
+    so a caller that re-costs on every edit (deck-forge's live footer) can build the
+    index once and reuse it. Returns the same shape as the Arena branch of
+    ``check_prices``: ``{cards, wildcard_cost, owned_cards_count, illegal_or_missing}``.
+    ``owned_cards`` (a ``{name, quantity}`` list) subtracts copies already owned; when
+    omitted it falls back to the deck's own ``owned_cards`` field.
+    """
+    deck_entries = _extract_deck_entries(deck)
+    if owned_cards is None and isinstance(deck, dict):
+        owned_cards = deck.get("owned_cards", [])
+    owned_map = _normalize_owned_cards(owned_cards or [])
+    return _check_arena_wildcards(deck_entries, owned_map, rarity_index)
+
+
 def check_prices(
     names_or_deck: list[str] | dict,
     *,

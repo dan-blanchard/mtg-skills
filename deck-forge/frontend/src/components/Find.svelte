@@ -27,6 +27,7 @@
   let facetType = "";
   let facetCmc = "";
   let facetPrice = "";
+  let facetOwned = false; // "Owned only" — candidates already in your active collection
   const TYPE_FACETS = [
     ["", "All"],
     ["creature", "Creatures"],
@@ -151,6 +152,7 @@
       const p = c.prices?.usd == null ? Infinity : Number(c.prices.usd);
       if (p > Number(facetPrice)) return false;
     }
+    if (facetOwned && !c.owned) return false;
     return true;
   }
   $: visible = results.filter((c) => !inDeck.has(c.name) && facetOk(c));
@@ -262,6 +264,13 @@
             on:click={() => (facetPrice = v)}>{lbl}</button
           >
         {/each}
+        <span class="fsep"></span>
+        <button
+          class="fc"
+          class:on={facetOwned}
+          title="Only cards in your active collection"
+          on:click={() => (facetOwned = !facetOwned)}>✓ Owned</button
+        >
       </div>
     </div>
   {/if}

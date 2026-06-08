@@ -197,7 +197,23 @@ def parse_deck(
     format: str = "commander",  # noqa: A002
     deck_size: int | None = None,
 ) -> dict:
-    content = path.read_text(encoding="utf-8")
+    return parse_deck_text(
+        path.read_text(encoding="utf-8"), format=format, deck_size=deck_size
+    )
+
+
+def parse_deck_text(
+    content: str,
+    *,
+    format: str = "commander",  # noqa: A002
+    deck_size: int | None = None,
+) -> dict:
+    """Parse raw deck-list text (auto-detecting Moxfield / MTGO / Arena / CSV / plain).
+
+    The body of ``parse_deck`` minus the file read, so in-process callers (deck-forge's
+    import endpoint, ADR-0017) can parse a pasted/uploaded list without writing a temp
+    file just to hand it a ``Path``.
+    """
     fmt = _detect_format(content)
     result = _PARSERS[fmt](content)
 

@@ -1,6 +1,6 @@
 <script>
   import { api } from "../lib/api.js";
-  import { applySnapshot } from "../lib/store.js";
+  import { applySnapshot, importOpen, collectionOpen } from "../lib/store.js";
 
   let open = false;
   let builds = [];
@@ -49,6 +49,10 @@
 
 <div class="bm">
   <button class="chip" on:click={newBuild}>＋ New</button>
+  <button class="chip" on:click={() => importOpen.set(true)}>⬇ Import</button>
+  <button class="chip" on:click={() => collectionOpen.set(true)}
+    >📦 Collection</button
+  >
   <button class="chip" on:click={toggle}>Decks ▾</button>
   {#if open}
     <div class="menu">

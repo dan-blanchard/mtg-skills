@@ -790,7 +790,9 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "impulse_top_play",
         "scope": "you",
-        "is_widen_of": "cast_from_exile",
+        # Its own avenue ("Impulse draw (top)") — no longer folded into cast-from-exile,
+        # which is now the distinct cast/play-from-exile payoff lane.
+        "is_widen_of": "",
         "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|you may play those cards this turn|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled",
     },
     {

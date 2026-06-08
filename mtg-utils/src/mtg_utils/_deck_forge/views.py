@@ -41,13 +41,24 @@ def result_view(record: dict, fmt: str) -> dict:
     return {"name": record.get("name", ""), **project(record, fmt)}
 
 
-def card_view(name: str, qty: int, by_name: dict[str, dict], fmt: str) -> dict:
+def card_view(
+    name: str,
+    qty: int,
+    by_name: dict[str, dict],
+    fmt: str,
+    owned_qty: int | None = None,
+) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
-    name resolves against the bulk index)."""
+    name resolves against the bulk index). ``owned_qty`` (when set) marks the card as
+    owned in the active Collection slot — DERIVED upstream, never stored (ADR-0018)."""
+    base: dict = {"name": name, "quantity": qty}
+    if owned_qty is not None:
+        base["owned"] = True
+        base["owned_qty"] = owned_qty
     record = by_name.get(name)
     if record is None:
-        return {"name": name, "quantity": qty, "unknown": True}
-    return {"name": name, "quantity": qty, "unknown": False, **project(record, fmt)}
+        return {**base, "unknown": True}
+    return {**base, "unknown": False, **project(record, fmt)}
 
 
 def candidate_view(row: dict, fmt: str) -> dict:
@@ -65,17 +76,25 @@ def combo_card_view(name: str, record: dict | None, *, in_deck: bool, fmt: str) 
     return view
 
 
-def deck_view(state: ForgeState) -> dict:
+def deck_view(state: ForgeState, owned: dict[str, int] | None = None) -> dict:
     """The serialized deck: ``{format, commanders[], cards[], sideboard[]}``, each zone
-    a list of ``card_view`` dicts."""
+    a list of ``card_view`` dicts. ``owned`` (deck card name → owned count in the active
+    Collection slot) marks owned cards; absent → no ownership shown (no collection)."""
     deck = state.session.to_deck_dict()
     by_name = state.by_name
     fmt = deck["format"]
+    owned = owned or {}
     return {
         "format": fmt,
+        # medium (paper/digital) drives the slot + cost mode; deck_size is the effective
+        # size (60/100 for paper Historic Brawl). Both surface so the header can render
+        # the medium toggle + the size selector.
+        "medium": state.session.medium,
+        "deck_size": state.session.deck_size,
         **{
             zone: [
-                card_view(e["name"], e["quantity"], by_name, fmt) for e in deck[zone]
+                card_view(e["name"], e["quantity"], by_name, fmt, owned.get(e["name"]))
+                for e in deck[zone]
             ]
             for zone in VALID_ZONES
         },

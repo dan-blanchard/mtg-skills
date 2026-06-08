@@ -13,19 +13,22 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
-from mtg_utils._deck_forge import staples, views
+from mtg_utils import mark_owned, price_check, theme_presets
+from mtg_utils._deck_forge import collection, staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.signal_specs import Serve, spec_for
 from mtg_utils._deck_forge.signals import Signal, extract_signals
 from mtg_utils._deck_forge.state import ForgeState
-from mtg_utils.card_classify import valid_partner_search
+from mtg_utils.card_classify import is_commander, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.format_config import FORMAT_CONFIGS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
+from mtg_utils.scryfall_lookup import build_rarity_index
 
 _DECK_SIZE = {"commander": 100, "historic_brawl": 100, "brawl": 60}
 SUPPORTED_FORMATS = frozenset(_DECK_SIZE)
@@ -91,6 +94,308 @@ def deck_color_identity(state: ForgeState) -> str:
         if record:
             colors.update(record.get("color_identity", []))
     return "".join(sorted(colors))
+
+
+def is_paper(state: ForgeState) -> bool:
+    """Whether this build is paper (vs digital/Arena). Drives the Collection slot and
+    the cost mode (USD vs wildcards). Commander is always paper; Brawl / Historic Brawl
+    follow the chosen medium (ADR-0018, amended: medium not format decides the slot)."""
+    return state.session.medium == "paper"
+
+
+def active_slot(state: ForgeState) -> str:
+    """The Collection slot read for this build: ``paper`` for a paper build, ``arena``
+    for a digital one. Keyed off medium, not format — so a paper Historic Brawl reads
+    the paper slot. Reads are strictly single-slot."""
+    return "paper" if is_paper(state) else "arena"
+
+
+def _is_basic(record: dict | None) -> bool:
+    return bool(record) and "Basic Land" in (record.get("type_line") or "")
+
+
+def owned_quantities(state: ForgeState) -> dict[str, int]:
+    """Owned-copy map (deck card name → count) against the ACTIVE Collection slot only —
+    empty when that slot holds no imported Collection. Basic lands are excluded: owning
+    basics is assumed, so they never read as an un-owned 'miss' nor clutter the
+    readout. DERIVED fresh each call from the cached per-slot lookup; never stored."""
+    idx = state.collection_index.get(active_slot(state))
+    if not idx:
+        return {}
+    entries, lookup = idx
+    out: dict[str, int] = {}
+    for name in state.session.card_names():
+        if _is_basic(state.by_name.get(name)):
+            continue
+        qty = mark_owned.owned_quantity(name, entries, lookup)
+        if qty is not None:
+            out[name] = qty
+    return out
+
+
+def owned_of(state: ForgeState, name: str) -> int | None:
+    """Owned copies of an arbitrary card name in the active Collection slot, or None.
+    Unlike :func:`owned_quantities` (deck-scoped) this answers for any card — so Find
+    can flag whether a *candidate* is already on your shelf (the 'Owned only' facet)."""
+    idx = state.collection_index.get(active_slot(state))
+    if not idx:
+        return None
+    entries, lookup = idx
+    return mark_owned.owned_quantity(name, entries, lookup)
+
+
+def set_collection(state: ForgeState, slot: str, pile: dict) -> None:
+    """Load a parsed Collection ``pile`` into ``slot``: cache its precomputed ownership
+    lookup (so snapshots stay O(deck size)) and persist. The single mutation point for a
+    Collection slot."""
+    pile = collection.owned_only(pile)  # drop quantity-0 (un-owned/wishlist) rows
+    state.collections[slot] = pile
+    state.collection_index[slot] = mark_owned.owned_lookup(
+        pile, name_aliases=state.name_aliases or None
+    )
+    if state.collection_store is not None:
+        state.collection_store.save(state.collections)
+
+
+def clear_collection(state: ForgeState, slot: str) -> None:
+    """Drop a Collection slot (and its cached lookup), then persist."""
+    state.collections.pop(slot, None)
+    state.collection_index.pop(slot, None)
+    if state.collection_store is not None:
+        state.collection_store.save(state.collections)
+
+
+def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
+    """The Collection readout the SPA renders: which slot is active, each slot's size,
+    and the deck's owned count vs its non-basic distinct total (the 'N of M owned')."""
+    deck_total = sum(
+        1 for n in state.session.card_names() if not _is_basic(state.by_name.get(n))
+    )
+    return {
+        "active_slot": active_slot(state),
+        "slots": collection.slot_sizes(state.collections),
+        "owned": len(owned),
+        "deck_total": deck_total,
+    }
+
+
+def _rarity_index(state: ForgeState) -> dict | None:
+    """The Arena rarity index for the current format's legality key, built once from
+    bulk and cached on the state (``build_rarity_index`` walks all of bulk)."""
+    if state.bulk_path is None:
+        return None
+    key = _legality_key(state.session.format)
+    cached = state.rarity_index.get(key)
+    if cached is None:
+        cached = build_rarity_index(state.bulk_path, key, arena_only=True)
+        state.rarity_index[key] = cached
+    return cached
+
+
+def wildcard_cost(state: ForgeState) -> dict | None:
+    """Arena wildcard cost for a DIGITAL build — ``{mythic, rare, uncommon, common}``
+    needed for cards NOT already owned in the active (arena) Collection slot, reusing
+    ``price_check``'s Arena costing (4-cap-exemption aware). ``None`` for paper builds
+    (USD cost) or with no bulk. Basic lands are stripped — Arena never charges wildcards
+    for them."""
+    if is_paper(state) or state.bulk_path is None:
+        return None
+    rarity_index = _rarity_index(state)
+    if not rarity_index:
+        return None
+    deck = state.session.to_deck_dict()
+    no_basics = dict(deck)
+    for zone in ("commanders", "cards", "sideboard"):
+        if zone in deck:
+            no_basics[zone] = [
+                e
+                for e in (deck.get(zone) or [])
+                if not _is_basic(state.by_name.get(e["name"]))
+            ]
+    owned = owned_quantities(state)  # deck cards owned in the active slot (basics-free)
+    owned_cards = [{"name": n, "quantity": q} for n, q in owned.items()]
+    result = price_check.arena_wildcard_cost(
+        no_basics, rarity_index, owned_cards=owned_cards
+    )
+    return result["wildcard_cost"]
+
+
+# Commander discovery (ADR-0018). "Best" is intent-driven, never EDHREC popularity:
+# Support depth (how much of a commander's strategy your collection already fills) or
+# Novelty (signal rarity), each over the active Collection slot.
+_DISCOVER_SORTS = ("support", "novelty")
+_SUPPORT_FLOOR = 5  # owned in-identity cards a lane needs to count as supported
+
+
+def _resolve_record(state: ForgeState, name: str) -> dict | None:
+    """A collection card name → its bulk record (exact, then case-insensitive)."""
+    rec = state.by_name.get(name)
+    if rec is not None:
+        return rec
+    low = name.lower()
+    return next((r for n, r in state.by_name.items() if n.lower() == low), None)
+
+
+def _resolved_collection(state: ForgeState) -> list[dict]:
+    """Every active-slot collection card resolved to a bulk record (un-resolvable names
+    dropped — we can't reason about cards we have no data for)."""
+    pile = state.collections.get(active_slot(state)) or {}
+    out: dict[str, dict] = {}
+    for section in ("commanders", "cards", "sideboard"):
+        for entry in pile.get(section) or []:
+            name = entry.get("name")
+            if not name:
+                continue
+            rec = _resolve_record(state, name)
+            if rec is not None and rec["name"] not in out:
+                out[rec["name"]] = rec
+    return list(out.values())
+
+
+def owned_commander_records(state: ForgeState) -> list[dict]:
+    """Bulk records for the commander-eligible cards in the active Collection slot."""
+    fmt = state.session.format
+    return [r for r in _resolved_collection(state) if is_commander(r, fmt)["eligible"]]
+
+
+def _commander_lanes(record: dict) -> list[tuple[str, Serve]]:
+    """The commander's actionable signal-derived lanes as ``(label, serve)`` pairs,
+    deduped by label. The generic Staples lane is NOT a signal spec, so it's naturally
+    excluded — owning good-stuff isn't commander-specific support (Q9)."""
+    out: list[tuple[str, Serve]] = []
+    seen: set[str] = set()
+    for sig in extract_signals(record, include_membership=True):
+        spec = spec_for(sig)
+        if spec is None or spec.label in seen:
+            continue
+        seen.add(spec.label)
+        out.append((spec.label, spec.serve))
+    return out
+
+
+def _support_depth(
+    record: dict, owned_in_identity: list[dict]
+) -> tuple[float, list, int]:
+    """Breadth-down-weighted owned support (ADR-0018 / Q10): sum over lanes of
+    ``own(L) * log(N / own(L))`` where ``own(L)`` = in-identity owned cards serving lane
+    L and ``N`` = total in-identity owned. A near-universal lane (own close to N)
+    contributes ~0 (IDF), so breadth isn't mistaken for quality. Returns
+    ``(score, per-lane breakdown, # supported lanes)``."""
+    n = len(owned_in_identity)
+    if n == 0:
+        return 0.0, [], 0
+    score = 0.0
+    breakdown: list[dict] = []
+    supported = 0
+    for label, serve in _commander_lanes(record):
+        k = sum(1 for c in owned_in_identity if serve.matches(c))
+        if k == 0:
+            continue
+        score += k * math.log(n / k) if k < n else 0.0
+        breakdown.append({"label": label, "owned": k})
+        if k >= _SUPPORT_FLOOR:
+            supported += 1
+    breakdown.sort(key=lambda b: -b["owned"])
+    return score, breakdown, supported
+
+
+def _signal_freq(state: ForgeState) -> tuple[dict, int]:
+    """Per-format signal-rarity table over the whole legal commander pool, cached on the
+    state (the one expensive sweep in discovery). Maps ``(key, subject)`` → occurrences,
+    plus the commander count, for the Novelty IDF."""
+    fmt = state.session.format
+    cached = state.commander_signal_freq.get(fmt)
+    if cached is not None:
+        return cached
+    freq: dict[tuple[str, str], int] = {}
+    total = 0
+    for rec in state.by_name.values():
+        if not is_commander(rec, fmt)["eligible"]:
+            continue
+        total += 1
+        for key in {(s.key, s.subject) for s in extract_signals(rec)}:
+            freq[key] = freq.get(key, 0) + 1
+    state.commander_signal_freq[fmt] = (freq, total)
+    return freq, total
+
+
+def _novelty(record: dict, freq: dict, total: int) -> float:
+    """Signal rarity: summed inverse-frequency of the commander's signals over the pool,
+    so an off-beat hook outranks tokens / counters / ramp. Blind by design to commanders
+    whose ability fires no detector (they score 0) — the accepted limit of signal-based
+    novelty."""
+    keys = {
+        (s.key, s.subject) for s in extract_signals(record, include_membership=True)
+    }
+    return sum(math.log((total + 1) / freq.get(key, 1)) for key in keys)
+
+
+def discover_commanders(
+    state: ForgeState,
+    *,
+    sort: str = "support",
+    colors: str | None = None,
+    theme: str | None = None,
+    limit: int = 24,
+) -> list[dict]:
+    """Intent-ranked owned commanders from the active Collection slot (ADR-0018).
+
+    ``support`` (default) ranks by breadth-down-weighted owned support; ``novelty``
+    ranks by signal rarity, HARD-GATED to commanders you own some support for.
+    ``colors`` (a color-identity subset) and ``theme`` (a ``theme_presets`` lane) narrow
+    the pool. Never uses EDHREC popularity.
+    """
+    if sort not in _DISCOVER_SORTS:
+        sort = "support"
+    records = owned_commander_records(state)
+    if colors:
+        allowed = set(colors.upper())
+        records = [r for r in records if set(r.get("color_identity") or []) <= allowed]
+    if theme:
+        records = [r for r in records if theme_presets.matches(theme, r)]
+
+    coll = _resolved_collection(state)
+    fmt = state.session.format
+    freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
+
+    results: list[dict] = []
+    for rec in records:
+        identity = set(rec.get("color_identity") or [])
+        # Support is OTHER owned cards that feed the commander's lanes — the commander
+        # itself is the build's centerpiece, not its own support, so exclude it (and it
+        # keeps the breadth denominator honest: a lane can't read as 100%-of-pool just
+        # because the commander matches its own lane).
+        in_identity = [
+            c
+            for c in coll
+            if c["name"] != rec["name"]
+            and set(c.get("color_identity") or []) <= identity
+        ]
+        depth, lanes, supported = _support_depth(rec, in_identity)
+        item = {
+            "name": rec["name"],
+            **views.project(rec, fmt),
+            "support_depth": round(depth, 2),
+            "lanes": lanes,
+            "supported_lanes": supported,
+        }
+        if sort == "novelty":
+            item["novelty"] = round(_novelty(rec, freq, total), 2)
+        results.append(item)
+
+    if sort == "novelty":
+        # Hard support gate: only the buildable weird ones (own SOME support), then sort
+        # by strangeness, with support depth as the tiebreak. Gate on a non-empty lane
+        # breakdown (own ≥ 1 supporting card) rather than support_depth > 0 — the IDF
+        # weight is 0 for a single lane every owned card serves (k == N), and such a
+        # commander is still buildable, so it must not be silently dropped.
+        results = [r for r in results if r["lanes"]]
+        results.sort(key=lambda r: (-r["novelty"], -r["support_depth"], r["name"]))
+    else:
+        results.sort(
+            key=lambda r: (-r["support_depth"], -r["supported_lanes"], r["name"])
+        )
+    return results[:limit]
 
 
 def partner_search(state: ForgeState) -> dict | None:
@@ -258,6 +563,7 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         if spec is None or spec.label in seen_labels:
             continue
         main_search = dict(spec.search)
+        widening = False
         # The Partner / Background avenue is commander-specific: replace its generic
         # "any partner card" search with one scoped to cards that can LEGALLY be this
         # commander's second commander (CR 702.124). Skip it when there's no open slot.
@@ -266,6 +572,10 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
             if psearch is None:
                 continue
             main_search = psearch
+            # Flag the partner avenue so the Find ranker sorts its candidates by color
+            # widening first, then synergy (ADR-0019). A second commander is the only
+            # card that can change the deck's color identity, so this flag lives here.
+            widening = True
         seen_labels.add(spec.label)
         # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
         suffix = f":{sig.subject}" if sig.subject else ""
@@ -279,6 +589,7 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                     "scope": sig.scope,
                     "source": "engine",
                     "search": main_search,
+                    "widening": widening,
                 },
                 spec.serve,
             )
@@ -424,15 +735,18 @@ def snapshot(state: ForgeState) -> dict:
     bulk index once. Pure read of state; never mutates, publishes, or autosaves."""
     hd = hydrate(state)
     stats = deck_stats(hd)
+    owned = owned_quantities(state)
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
-        "deck": views.deck_view(state),
+        "deck": views.deck_view(state, owned),
         "stats": stats,
         "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
         "mana": mana_audit(hd),
-        "budgets": slot_budgets(hd.expanded(), deck_size=deck_size(hd.format)),
+        "budgets": slot_budgets(hd.expanded(), deck_size=state.session.deck_size),
         "signals": [signal_dict(s) for s in ranked_deck_signals(state, hd.records)],
         "avenues": avenues(state, hd.records),
         "warnings": legality_warnings(hd),
+        "collection": collection_summary(state, owned),
+        "wildcards": wildcard_cost(state),
     }

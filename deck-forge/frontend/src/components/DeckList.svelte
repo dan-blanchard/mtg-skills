@@ -1,5 +1,11 @@
 <script>
-  import { deck, applySnapshot } from "../lib/store.js";
+  import {
+    deck,
+    applySnapshot,
+    importOpen,
+    collection,
+    activeTab,
+  } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { hoverPreview } from "../lib/hover.js";
   import ManaCost from "./ManaCost.svelte";
@@ -12,6 +18,17 @@
   async function addOne(name, zone) {
     const r = await api.add(name, zone, 1);
     if (r.ok) applySnapshot(r.data);
+  }
+
+  // Promote a card already in the deck from the mainboard into the command zone
+  // (#1, ADR-0017) — the inverse of adding-as-commander. An imported list with no
+  // marked commander lands as a pile; ★ here moves a legendary into the command zone.
+  // Move = remove one from cards, then add one to commanders (no single move endpoint).
+  async function promote(name) {
+    const r1 = await api.remove(name, "cards", 1);
+    if (!r1.ok) return;
+    const r2 = await api.add(name, "commanders", 1);
+    applySnapshot((r2.ok ? r2 : r1).data);
   }
 
   // Singleton: only basics and "any number of cards named X" cards (Relentless Rats,
@@ -43,15 +60,42 @@
     { key: "cards", label: "Deck", cards: $deck.cards },
   ];
   $: empty = !$deck.commanders.length && !$deck.cards.length;
+  // The owned readout shows only when a Collection is loaded for the ACTIVE slot
+  // (strictly single-slot, ADR-0018) — otherwise there's nothing to compare against.
+  $: ownedReadout =
+    $collection && ($collection.slots?.[$collection.active_slot] || 0) > 0
+      ? $collection
+      : null;
 </script>
 
 <div class="panel deck">
   <h3 class="panel-title">The Deck</h3>
+  {#if ownedReadout}
+    <div
+      class="owned-readout"
+      title="Owned in your {ownedReadout.active_slot} collection"
+    >
+      <span class="own-tick">✓</span>
+      {ownedReadout.owned} of {ownedReadout.deck_total} owned
+      <span class="own-slot">· {ownedReadout.active_slot}</span>
+    </div>
+  {/if}
 
   {#if empty}
     <div class="cold">
       <span class="glyph">🜂</span>
-      <p>The forge is cold. Search for a commander and add it to begin.</p>
+      <p>The forge is cold. Search for a commander and add it to begin,</p>
+      <p class="or">or bring a list you already have:</p>
+      <div class="cold-actions">
+        <button class="import-btn" on:click={() => importOpen.set(true)}
+          >⬇ Import a deck</button
+        >
+        <button
+          class="import-btn ghost"
+          on:click={() => activeTab.set("commanders")}
+          >✦ Discover from your collection</button
+        >
+      </div>
     </div>
   {:else}
     {#each groups as g (g.key)}
@@ -71,7 +115,12 @@
                 {/if}
               </div>
               <div class="info">
-                <div class="name">{c.name}</div>
+                <div class="name">
+                  {c.name}{#if c.owned}<span
+                      class="owned-tick"
+                      title="Owned ×{c.owned_qty}">✓</span
+                    >{/if}
+                </div>
                 <div class="type">
                   {c.type_line || (c.unknown ? "unknown card" : "")}
                 </div>
@@ -90,6 +139,13 @@
                 <span class="cost"
                   ><ManaCost cost={c.mana_cost} size="0.82rem" /></span
                 >
+                {#if g.key === "cards" && c.can_be_commander}
+                  <button
+                    class="rm star"
+                    title="Promote to commander"
+                    on:click={() => promote(c.name)}>★</button
+                  >
+                {/if}
                 {#if g.key === "cards" && canHaveMultiple(c)}
                   <button
                     class="rm add"
@@ -233,5 +289,66 @@
   .rm.add:hover {
     border-color: var(--brass);
     color: var(--brass-bright);
+  }
+  .rm.star {
+    font-size: 0.95rem;
+  }
+  .rm.star:hover {
+    border-color: var(--brass);
+    color: var(--brass-bright);
+  }
+  .cold .or {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+  }
+  .import-btn {
+    margin-top: 0.8rem;
+    padding: 0.5rem 1.2rem;
+    background: rgba(200, 150, 75, 0.08);
+    border: 1px solid var(--brass);
+    border-radius: 999px;
+    color: var(--brass-bright);
+    font-family: var(--display);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .import-btn:hover {
+    background: rgba(255, 106, 61, 0.12);
+    border-color: var(--brass-bright);
+  }
+  .cold-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .import-btn.ghost {
+    background: transparent;
+    border-color: var(--hairline);
+    color: var(--parchment-dim);
+  }
+  .import-btn.ghost:hover {
+    color: var(--brass-bright);
+    border-color: var(--brass);
+  }
+  .owned-readout {
+    font-size: 0.74rem;
+    color: var(--pass);
+    margin: 0.15rem 0 0.3rem;
+    letter-spacing: 0.02em;
+  }
+  .owned-readout .own-tick {
+    margin-right: 0.2rem;
+  }
+  .owned-readout .own-slot {
+    color: var(--muted);
+    text-transform: capitalize;
+  }
+  .owned-tick {
+    color: var(--pass);
+    font-size: 0.72rem;
+    margin-left: 0.35rem;
+    vertical-align: middle;
   }
 </style>

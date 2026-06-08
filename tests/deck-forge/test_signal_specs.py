@@ -1536,21 +1536,29 @@ class TestMediumServeFixes2:
             ],
         )
 
-    def test_cast_from_exile_narrows_to_engines(self):
+    def test_cast_from_exile_is_payoffs_not_impulse(self):
+        # Cast-from-exile is now the PAYOFF lane (rewards for casting from exile).
+        # A rebound self-cast (Consuming Vapors) isn't an engine; and a pure impulse
+        # enabler (Light Up the Stage) belongs to the separate impulse_top_play avenue,
+        # not here.
         self._ck(
             "cast_from_exile",
             "you",
             [
                 {
-                    "name": "Light Up the Stage",
-                    "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards.",
+                    "name": "Exile Payoff",
+                    "oracle_text": "Whenever you cast a spell from exile, draw a card.",
                 }
             ],
             [
                 {
                     "name": "Consuming Vapors",
                     "oracle_text": "Each player sacrifices a creature, then you gain life equal to the number of creatures that died this way.\nRebound",
-                }
+                },
+                {
+                    "name": "Light Up the Stage",
+                    "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards.",
+                },
             ],
         )
 
@@ -1728,3 +1736,34 @@ class TestMediumBatch9:
         }
         assert "Infect" in praetor_kw  # a real keyword-tribe anthem
         assert "Flying" not in whip_kw  # "destroy all creatures with flying" is removal
+
+
+def test_play_from_top_is_its_own_avenue_and_excludes_look_at_top():
+    """Play-from-top-of-library (Future Sight) is its own avenue — it casts from the
+    LIBRARY, not exile, so it's neither impulse nor cast-from-exile. The serve requires a
+    play/cast verb so look/scry/mill ("look at ... from the top", Stargaze) don't match.
+    """
+    top = _sig("play_from_top")
+    cfe = _sig("cast_from_exile")
+    stargaze = {
+        "name": "Stargaze",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Look at twice X cards from the top of your library. Put X cards from "
+            "among them into your hand and the rest into your graveyard. You lose X life."
+        ),
+    }
+    future_sight = {
+        "name": "Future Sight",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Play with the top card of your library revealed. You may play lands and "
+            "cast spells from the top of your library."
+        ),
+    }
+    # Future Sight serves play_from_top, NOT cast-from-exile (different zone).
+    assert serves(future_sight, top)
+    assert not serves(future_sight, cfe)
+    # A look-at-top effect serves neither.
+    assert not serves(stargaze, top)
+    assert not serves(stargaze, cfe)

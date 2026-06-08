@@ -19,6 +19,21 @@
     if (r.ok) applySnapshot(r.data);
   }
 
+  async function changeMedium(e) {
+    const r = await api.setMedium(e.target.value);
+    if (r.ok) applySnapshot(r.data);
+  }
+
+  async function changeDeckSize(e) {
+    const r = await api.setDeckSize(Number(e.target.value));
+    if (r.ok) applySnapshot(r.data);
+  }
+
+  // Medium toggle only for the Arena-family formats (commander is paper-only); the
+  // 60/100 size picker only for paper Historic Brawl (both legal for paper "Brawl").
+  $: showMedium = $deck.format === "brawl" || $deck.format === "historic_brawl";
+  $: showSize = $deck.format === "historic_brawl" && $deck.medium === "paper";
+
   function startEdit() {
     draft = $buildName;
     editing = true;
@@ -64,6 +79,28 @@
         <option value={val} selected={val === $deck.format}>{label}</option>
       {/each}
     </select>
+    {#if showMedium}
+      <select
+        class="chip format"
+        title="Paper or digital (Arena) — sets the collection & cost mode"
+        on:change={changeMedium}
+      >
+        <option value="digital" selected={$deck.medium === "digital"}
+          >Arena</option
+        >
+        <option value="paper" selected={$deck.medium === "paper"}>Paper</option>
+      </select>
+    {/if}
+    {#if showSize}
+      <select
+        class="chip format"
+        title="Paper Historic Brawl may be 60 or 100 cards"
+        on:change={changeDeckSize}
+      >
+        <option value="100" selected={$deck.deck_size === 100}>100</option>
+        <option value="60" selected={$deck.deck_size === 60}>60</option>
+      </select>
+    {/if}
     <FinalizeButton />
   </div>
 </header>

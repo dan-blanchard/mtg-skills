@@ -762,22 +762,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\{x\}|\bstorm\b",
         serve_cmc_min=7,
     ),
-    # Narrow the bare `from exile` to the impulse/engine phrasing, so single-card
-    # rebound/foretell self-casts (Consuming Vapors) don't read as an engine.
+    # Cast-from-exile MATTERS: payoffs + explicit "cast/play from exile" enablers (plot,
+    # suspend, "whenever you cast a spell from exile", paradox). NOT impulse draw (its
+    # own avenue, the impulse_top_play sweep) and NOT play-from-top-of-library
+    # (`play_from_top` below) — both are different mechanics. The "you may play … from
+    # exile" branch REQUIRES the literal "from exile", so a bare impulse "you may play
+    # those cards" reads as impulse, not as this payoff lane.
     ("cast_from_exile", "you"): _spec(
-        "Impulse / cast-from-exile",
-        "impulse-draw enablers and cast-from-exile payoffs",
-        {"oracle": r"from the top of your library|from exile"},
-        r"from the top of your library|spells? you cast from exile"
+        "Cast-from-exile",
+        "payoffs and enablers that cast or play cards from exile (plot, suspend, "
+        '"whenever you cast a spell from exile")',
+        {"oracle": r"from exile"},
+        r"spells? you cast from exile"
         r"|whenever you cast a spell from exile"
         r"|you may (?:play|cast) (?:it|that card|those cards?|them|the exiled)"
+        r"[^.]*?from exile"
         r"|\bplot\b",
         extras=(
-            SubAvenue(
-                "Top-of-library engines",
-                "cards that let you play off the top of your library",
-                {"oracle": r"from the top of your library"},
-            ),
             # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than
             # your hand" payoffs (Vega, Iraxxa) the literal-"from exile" serve misses.
             SubAvenue(
@@ -794,6 +795,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 ),
             ),
         ),
+    ),
+    # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
+    # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct
+    # from cast-from-exile and impulse. Needs a play/cast verb so look/scry/mill don't
+    # match.
+    ("play_from_top", "you"): _spec(
+        "Play from the top of your library",
+        "engines that let you play or cast off the top of your library (Future Sight, "
+        "Bolas's Citadel) — top-of-library control and extra-land effects amplify them",
+        {"oracle": r"(?:play|cast)\b[^.]*?\bfrom the top of your library"},
+        r"(?:play|cast)\b[^.]*?\bfrom the top of your library",
     ),
     ("discard_matters", "you"): _spec(
         "Discard",

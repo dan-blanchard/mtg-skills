@@ -336,7 +336,10 @@ def mana_audit(hd: HydratedDeck) -> dict:
     card_lookup = hd.by_name
 
     config = get_format_config(hd.deck)
-    deck_size = config["deck_size"]
+    # Honor an explicit deck-size on the deck (e.g. a 60-card paper Historic Brawl, or
+    # an 80-card Yorion deck) so the Burgess/Karsten/constructed land math scales to the
+    # real size — falling back to the format default when the deck doesn't declare one.
+    deck_size = hd.deck.get("deck_size") or config["deck_size"]
     has_commander = config.get("has_commander", True)
 
     commanders = hd.commanders

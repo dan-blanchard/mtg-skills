@@ -33,6 +33,67 @@ warning.
 _Avoid_: "empty deck" (an empty deck is not degraded), "no-bulk" alone (the cause, not
 the state).
 
+### Collection & ownership
+
+**Medium** (paper / digital):
+Whether a build is played on paper or digitally (Arena). Per-build state on the
+`DeckSession`; commander is always paper, Brawl / Historic Brawl default to digital. The
+**medium** — not the format — decides the active Collection slot (digital → arena, paper →
+paper) and the cost mode (digital → wildcards, paper → USD). This is the amendment to
+ADR-0018, whose first cut keyed the slot off format via `paper_only`.
+_Avoid_: "format" as a synonym (a paper and a digital Historic Brawl share one format but
+differ in medium), "Arena" as the only digital sense (it's the digital medium here).
+
+**Collection**:
+The user's owned cards as a name→quantity pile (the `parse_deck` pile shape, same as a
+deck) — *what you own*, distinct from a deck (*what you're building*). Global to the hub,
+not per-build: it lives on `ForgeState`, persisted in one `collection.json`, auto-loaded
+on launch. Held in **two slots**, `paper` and `arena`, because the two real libraries are
+distinct; the active slot is auto-picked by the build's **Medium** (digital → arena,
+paper → paper), not by format. Reads are strictly single-slot — a paper deck
+never consults the Arena slot — and an empty active slot surfaces an import prompt, never
+a silent "owns nothing."
+_Avoid_: "deck" (a Collection is owned cards, not a build), "owned_cards" (that's the
+CLI's stored field — see Owned), "library" alone (collides with the MTG in-game zone).
+
+**Owned**:
+A deck card's derived ownership: it intersects the active Collection slot (matched with
+`mark_owned`'s DFC / Arena-alias logic), surfaced as a per-card flag in `deck_view` plus
+a deck-level "N of M owned" readout. DERIVED fresh on every snapshot from the live deck ×
+the global Collection — never the stored `owned_cards` field `mark_owned` writes into a
+deck JSON, which would go stale the moment the deck mutates.
+_Avoid_: "owned_cards" (the stored CLI field this deliberately replaces with a live
+derivation), "have / missing" (reserve those for a future buy-list framing).
+
+**Commander discovery**:
+The browser panel that surfaces commander-eligible cards from your active Collection slot,
+ranked to a *stated intent* rather than to popularity — a theme filter (a `theme_presets`
+lane) and a color filter narrow the owned pool, and the sort is **Support depth** or
+**Novelty**. Deterministic and EDHREC-free (ADR-0009): it never orders by community
+popularity. The browser-native realization of deck-wizard's "Commander Selection from a
+Collection" — intent controls in place of a chat interview.
+_Avoid_: "best commanders" (there is no context-free best — ranking is always to a stated
+intent), "recommendation" (the human picks; see [[Candidate]]).
+
+**Support depth**:
+How much of a commander's strategy you already own — the breadth-down-weighted count of
+in-identity cards in your active Collection slot that serve the commander's signal-derived
+lanes. The default Commander-discovery sort. Deliberately NOT raw signal/lane count:
+*lane breadth is not quality* — owning the pieces is — so a near-universal lane
+("creatures matter") is down-weighted and the generic Staples lane is excluded (owning
+good-stuff isn't commander-specific support).
+_Avoid_: "signal richness" / "lane count" (the rejected breadth-as-quality proxy),
+"owned count" alone (it's lane-weighted, not a flat tally).
+
+**Novelty** (unusual-ability sort):
+The Commander-discovery sort that ranks owned commanders by **signal rarity** — the inverse
+frequency of their signals across the whole legal commander pool — so an off-beat hook
+outranks tokens / counters / ramp. Hard-gated by Support depth: only the *buildable* weird
+ones surface. Blind by construction to commanders whose ability is so singular no detector
+fires (they emit no signals, so score zero) — the accepted limit of any signal-based
+novelty.
+_Avoid_: "best" / "strongest" (novelty is strangeness, not power), "random".
+
 ### Engine concepts
 
 **Signal**:
@@ -79,6 +140,19 @@ honest cost. Every Candidate is a real Scryfall card the deterministic core foun
 never named from the assistant's memory.
 _Avoid_: "recommendation" (implies the tool decides; the human chooses),
 "pick" (that's the human's act of selecting a Candidate).
+
+**Color widening** (the partner sort):
+The *primary* ranking axis for the Partner / Background avenue: the count of NEW colors a
+candidate second commander adds to the deck's current identity (`partner.color_identity −
+deck identity`). A second commander is the only card that can change color identity, so
+widening exists only here. The partner sort is strict-tiered — widening first, then
+[[Candidate]] synergy fit, then price/cmc — so the broadest color-openers surface first
+and synergy merely orders them *within* a widening tier (a high-widen / low-synergy
+partner outranks a low-widen / high-synergy one, deliberately). It counts *colors*, is
+unbounded (a five-color opener tops a two-color one), and never measures "synergy
+unlocked."
+_Avoid_: "synergy widening" (it counts colors, not unlocked cards — that alternative was
+weighed and dropped), "color fixing" (a manabase concern, unrelated).
 
 **Find surface** (the unified Search ⊕ Synergies tab):
 The single card-finding surface that replaces the separate Search and Synergies tabs.
@@ -155,6 +229,18 @@ bridge and greys out when detached. The boundary is load-bearing: the hub may ex
 pure-compute tools but must never run a reasoning/browser skill itself (ADR-0010, ADR-0016).
 _Avoid_: "handoff" as if all four behave alike (the two tiers are not interchangeable),
 "the hub runs the skill" (it runs pure-compute tools; skills go to the session).
+
+**Import** (bring-in, the mirror of Handoff):
+Bringing an external list INTO the hub — a decklist or a Collection — parsed and
+populated in-process by the Deterministic core (`parse_deck` / `mark_owned` /
+`find_commanders`), no LLM and no API key. The *inbound* mirror of a **Handoff** (which
+routes a *finished deck out*); like a run-here handoff it is pure compute the hub runs
+itself, never the Session-agent. A **deck import** always mints a NEW build rather than
+overwriting the live one — build data is never clobbered — and never guesses a commander
+(an unmarked list lands as a pile the user promotes from).
+_Avoid_: "handoff" for an import (opposite direction), "load" (reserve that for
+reopening a saved build via `BuildStore`), "parse" alone (parsing is one step of
+importing).
 
 **Engine module** (`engine.py`):
 The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, finalize

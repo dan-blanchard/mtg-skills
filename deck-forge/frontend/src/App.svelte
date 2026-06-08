@@ -11,6 +11,8 @@
   import StatusBar from "./components/StatusBar.svelte";
   import CardPreview from "./components/CardPreview.svelte";
   import ManaGateModal from "./components/ManaGateModal.svelte";
+  import ImportDialog from "./components/ImportDialog.svelte";
+  import CollectionDialog from "./components/CollectionDialog.svelte";
 
   let es;
   let statusTimer;
@@ -88,6 +90,8 @@
 
 <CardPreview />
 <ManaGateModal />
+<ImportDialog />
+<CollectionDialog />
 
 <style>
   .shell {

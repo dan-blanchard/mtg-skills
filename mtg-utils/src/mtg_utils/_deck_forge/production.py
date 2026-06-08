@@ -12,13 +12,16 @@ import os
 import uuid
 from pathlib import Path
 
-from mtg_utils import card_search, combo_search
+from mtg_utils import card_search, combo_search, mark_owned
+from mtg_utils._deck_forge import collection
+from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
 from mtg_utils.card_classify import extract_price
 from mtg_utils.card_search import SKIP_LAYOUTS
 from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.names import build_name_alias_map
 
 
 def _combos(deck: dict, by_name: dict[str, dict]) -> dict:
@@ -52,10 +55,14 @@ def build_by_name(cards: list[dict]) -> dict[str, dict]:
     return best
 
 
-def _builds_dir() -> Path:
+def _deck_forge_dir() -> Path:
     base = os.environ.get("MTG_SKILLS_CACHE_DIR")
     root = Path(base) if base else Path.home() / ".cache" / "mtg-skills"
-    return root / "deck-forge" / "builds"
+    return root / "deck-forge"
+
+
+def _builds_dir() -> Path:
+    return _deck_forge_dir() / "builds"
 
 
 def resume_or_new(store: BuildStore, fmt: str) -> tuple[DeckSession, str, str]:
@@ -78,14 +85,37 @@ def _no_search(**_: object) -> list[dict]:
     return []
 
 
+def _load_collections(
+    store: CollectionStore,
+    name_aliases: dict[str, str] | None = None,
+) -> tuple[dict[str, dict], dict[str, tuple]]:
+    """Load both Collection slots and precompute each slot's ownership lookup once, so a
+    per-snapshot ownership check stays O(deck size) (ADR-0018). ``name_aliases`` (built
+    from bulk) threads Arena printed_name / flavor_name matching into the lookup."""
+    # Drop quantity-0 (un-owned / wishlist) rows up front so size, ownership, and
+    # discovery all see owned-only — even for collections saved before this rule.
+    collections = {
+        slot: collection.owned_only(pile) for slot, pile in store.load().items()
+    }
+    index = {
+        slot: mark_owned.owned_lookup(pile, name_aliases=name_aliases or None)
+        for slot, pile in collections.items()
+    }
+    return collections, index
+
+
 def default_state(fmt: str = "commander") -> ForgeState:
     """Build the live backend state, loading bulk data when available."""
     store = BuildStore(_builds_dir())
     session, build_id, build_name = resume_or_new(store, fmt)
+    collection_store = CollectionStore(_deck_forge_dir() / "collection.json")
     bulk_path = default_bulk_path()
     by_name: dict[str, dict] = {}
     search = _no_search
     available = False
+    # Built from bulk so the Collection's ownership matching honors Arena printed_name /
+    # flavor_name aliases (ADR-0018). Empty without bulk → DFC-only matching (fine).
+    name_aliases: dict[str, str] = {}
     if bulk_path is not None and bulk_path.exists():
         by_name = build_by_name(load_bulk_cards(bulk_path))
 
@@ -93,7 +123,10 @@ def default_state(fmt: str = "commander") -> ForgeState:
         # object` wrapper would widen every arg to `object` and fail the checker).
         search = functools.partial(card_search.search_cards, bulk_path)
 
+        name_aliases = build_name_alias_map(bulk_path)
         available = True
+
+    collections, collection_index = _load_collections(collection_store, name_aliases)
 
     return ForgeState(
         by_name=by_name,
@@ -104,4 +137,9 @@ def default_state(fmt: str = "commander") -> ForgeState:
         store=store,
         build_id=build_id,
         build_name=build_name,
+        collection_store=collection_store,
+        collections=collections,
+        collection_index=collection_index,
+        name_aliases=name_aliases,
+        bulk_path=bulk_path if available else None,
     )

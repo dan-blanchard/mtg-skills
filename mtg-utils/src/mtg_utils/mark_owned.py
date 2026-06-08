@@ -154,6 +154,39 @@ def _match_collection_key(
     return None
 
 
+def owned_lookup(
+    collection: dict,
+    *,
+    name_aliases: dict[str, str] | None = None,
+) -> tuple[dict[str, tuple[str, int]], dict[str, str]]:
+    """Precompute the collection-side index for repeated ownership checks.
+
+    Returns ``(entries, alias_lookup)``: ``entries`` maps a normalized key ->
+    (original-name, summed-quantity); ``alias_lookup`` maps every normalized + alias key
+    -> its primary entry key. deck-forge caches this once per Collection slot so a
+    per-snapshot ownership check is O(deck size), not O(collection size) (ADR-0018) —
+    the expensive ``_collect_entries`` + ``_build_alias_lookup`` work runs at import,
+    not on every snapshot.
+    """
+    entries = _collect_entries(collection, sum_duplicates=True)
+    return entries, _build_alias_lookup(entries, name_aliases=name_aliases)
+
+
+def owned_quantity(
+    deck_name: str,
+    entries: dict[str, tuple[str, int]],
+    alias_lookup: dict[str, str],
+) -> int | None:
+    """Owned copies of ``deck_name`` against a precomputed :func:`owned_lookup`, or
+    ``None`` when un-owned. Mirrors ``_mark_owned_with_count``'s per-card resolution
+    (DFC / Arena aliasing; quantity-0 wishlist rows count as un-owned)."""
+    primary = _match_collection_key(normalize_card_name(deck_name), alias_lookup)
+    if primary is None:
+        return None
+    qty = entries[primary][1]
+    return qty if qty >= 1 else None
+
+
 def mark_owned(
     deck: dict,
     collection: dict,

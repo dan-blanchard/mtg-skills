@@ -9,6 +9,8 @@ def test_new_session_is_empty_with_format():
     s = DeckSession("commander")
     assert s.to_deck_dict() == {
         "format": "commander",
+        "medium": "paper",
+        "deck_size": 100,
         "commanders": [],
         "cards": [],
         "sideboard": [],

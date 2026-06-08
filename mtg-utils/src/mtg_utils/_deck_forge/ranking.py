@@ -73,10 +73,30 @@ def _search_and(
     return predicate
 
 
+def _color_widening(card: dict, widening_base: str | None) -> int:
+    """Count of NEW colors a candidate second commander adds to the deck's current
+    identity (ADR-0019). ``0`` when ``widening_base`` is None — i.e. for every ranking
+    that is not the partner avenue, where a card can't change the deck's color identity.
+    """
+    if widening_base is None:
+        return 0
+    return len(set(card.get("color_identity") or []) - set(widening_base))
+
+
 def score_candidate(
-    card: dict, *, active_signals: list, avenues: Sequence[dict] = ()
+    card: dict,
+    *,
+    active_signals: list,
+    avenues: Sequence[dict] = (),
+    widening_base: str | None = None,
 ) -> dict:
-    """Return the multi-axis readout for one candidate (signals + avenues served)."""
+    """Return the multi-axis readout for one candidate (signals + avenues served).
+
+    ``widening_base`` (the deck's current color identity) is set ONLY on the partner
+    avenue: it adds the ``color_widening`` axis — how many new colors this candidate
+    second commander unlocks — which becomes the primary partner sort key (ADR-0019).
+    It is ``0`` everywhere else, so non-partner rankings are unchanged.
+    """
     served: list[str] = []
     for signal in active_signals:
         if serves(card, signal):
@@ -93,22 +113,40 @@ def score_candidate(
         "cmc": card.get("cmc", 0.0),
         "price": extract_price(card),
         "roles": sorted(role_of(card)),
+        "color_widening": _color_widening(card, widening_base),
     }
 
 
 def rank_candidates(
-    cards: list[dict], *, active_signals: list, avenues: Sequence[dict] = ()
+    cards: list[dict],
+    *,
+    active_signals: list,
+    avenues: Sequence[dict] = (),
+    widening_base: str | None = None,
 ) -> list[dict]:
-    """Score and sort candidates: synergy desc, then price asc (no-listing last)."""
+    """Score and sort candidates: synergy desc, then price asc (no-listing last).
+
+    On the partner avenue (``widening_base`` set to the deck's color identity) the sort
+    becomes strict-tiered with **color widening first** — the broadest color-openers
+    surface above synergy (ADR-0019). With ``widening_base=None`` every
+    ``color_widening`` is 0, so the leading key is constant and the order is identical
+    to the legacy (synergy → price → cmc) sort.
+    """
     scored = [
         {
             "card": c,
-            "score": score_candidate(c, active_signals=active_signals, avenues=avenues),
+            "score": score_candidate(
+                c,
+                active_signals=active_signals,
+                avenues=avenues,
+                widening_base=widening_base,
+            ),
         }
         for c in cards
     ]
     scored.sort(
         key=lambda r: (
+            -r["score"]["color_widening"],
             -r["score"]["synergy_fit"],
             r["score"]["price"] if r["score"]["price"] is not None else math.inf,
             r["score"]["cmc"],

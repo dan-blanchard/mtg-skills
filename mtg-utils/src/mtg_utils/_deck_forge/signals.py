@@ -451,14 +451,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Impulse-draw / cast-from-exile. Self-anchored branches only (each requires
-    # "from the top of your library" / "from exile" / "plot") — the bare-pronoun
-    # branch is dropped to stay precise without paragraph-level parsing.
+    # Cast-from-exile MATTERS: payoffs and enablers that cast/play cards FROM EXILE
+    # (plot, suspend, "whenever you cast a spell from exile", paradox). Two neighbours
+    # are deliberately NOT here: impulse draw (exile-top + temporary play) is its own
+    # avenue (the impulse_top_play sweep), and playing off the top of your LIBRARY
+    # (Future Sight) is `play_from_top` below — a different zone, not exile.
     (
         "cast_from_exile",
         re.compile(
-            r"(?:play|cast|plot)\b[^.]*?\bfrom the top of your library"
-            r"|top card of your library has plot"
+            r"top card of your library has plot"
             r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
             r"|play a land or cast a spell)[^.]*?from exile"
             r"|spells? you cast from exile"
@@ -469,6 +470,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # payoffs (Vega, Iraxxa) — the literal-"from exile" branches miss 16/17.
             r"|(?:cast a spell|play a land|play a card)[^.]*?"
             r"from anywhere other than your hand",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # Play from the TOP OF YOUR LIBRARY (Future Sight, Bolas's Citadel, Oracle of Mul
+    # Daya). Casts from the LIBRARY zone — not exile — so it's neither impulse nor
+    # cast-from-exile. Requires a play/cast verb so look/scry/surveil/mill ("look at ...
+    # from the top of your library", Stargaze) don't match.
+    (
+        "play_from_top",
+        re.compile(
+            r"(?:play|cast)\b[^.]*?\bfrom the top of your library",
             re.IGNORECASE,
         ),
         "you",

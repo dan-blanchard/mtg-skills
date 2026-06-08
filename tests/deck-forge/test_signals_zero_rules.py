@@ -38,12 +38,16 @@ def test_cost_reduction():
     assert ("cost_reduction", "you") in _ks(c)
 
 
-def test_cast_from_exile_from_top_of_library():
+def test_play_from_top_of_library_is_its_own_signal():
+    # Playing off the top of the LIBRARY (Future Sight / Glarb) is play_from_top — a
+    # different zone than exile, so it is NOT cast_from_exile.
     c = {
         "name": "Glarb, Calamity's Augur",
         "oracle_text": "You may play lands and cast spells from the top of your library.",
     }
-    assert ("cast_from_exile", "you") in _ks(c)
+    keys = _ks(c)
+    assert ("play_from_top", "you") in keys
+    assert ("cast_from_exile", "you") not in keys
 
 
 def test_cast_from_exile_play_from_exile_trigger():

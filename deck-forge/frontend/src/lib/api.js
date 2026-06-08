@@ -37,6 +37,10 @@ export const api = {
   // Backend endpoint ships in the deck-forge land-model pass; the button is wired now.
   trimLands: () => post("/api/deck/trim-lands", {}),
   setFormat: (format) => post("/api/deck/format", { format }),
+  // Paper vs digital (Brawl / Historic Brawl) — drives the collection slot + cost mode.
+  setMedium: (medium) => post("/api/deck/medium", { medium }),
+  // 60 or 100 cards (paper Historic Brawl only).
+  setDeckSize: (deck_size) => post("/api/deck/deck-size", { deck_size }),
   packages: () => get("/api/packages"),
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
@@ -51,6 +55,15 @@ export const api = {
   builds: () => get("/api/builds"),
   buildsNew: (format = "commander", name = "Untitled") =>
     post("/api/builds/new", { format, name }),
+  // Import an existing list (paste or uploaded file text) as a NEW build (ADR-0017).
+  importDeck: (text, format = "commander", name = null) =>
+    post("/api/builds/import", { text, format, name }),
+  // Import a collection into a slot (paper | arena) — derived ownership (ADR-0018).
+  importCollection: (text, slot) =>
+    post("/api/collection/import", { text, slot }),
+  clearCollection: (slot) => post("/api/collection/clear", { slot }),
+  // Owned commander discovery over the active slot (ADR-0018): intent-ranked, no EDHREC.
+  discoverCommanders: (filters) => post("/api/commanders/discover", filters),
   buildsLoad: (id) => post("/api/builds/load", { id }),
   renameBuild: (id, name) => post("/api/builds/rename", { id, name }),
   deleteBuild: (id) => del(`/api/builds/${id}`),

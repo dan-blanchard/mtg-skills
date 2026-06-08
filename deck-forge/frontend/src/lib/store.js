@@ -13,6 +13,12 @@ export const budgets = writable(null);
 export const signals = writable([]);
 export const avenues = writable([]);
 export const warnings = writable([]);
+// The global Collection summary (#2, ADR-0018): { active_slot, slots:{paper,arena},
+// owned, deck_total } — drives the owned readout and the discovery panel's empty-prompt.
+export const collection = writable(null);
+// Arena wildcard cost for a digital build: { mythic, rare, uncommon, common } needed,
+// or null for a paper build (USD cost). Drives the footer cost readout.
+export const wildcards = writable(null);
 export const connected = writable(false);
 export const agentBusy = writable(false);
 // True once a slow request has crossed the quick budget while the agent is
@@ -38,6 +44,14 @@ export const agentAttached = writable(false);
 // The Mana Gate detail modal — opened by clicking the land-health pill in the footer.
 export const manaModalOpen = writable(false);
 
+// Import-a-deck dialog (#1, ADR-0017) — opened from the BuildMenu and the cold-forge
+// empty state; rendered once at App level.
+export const importOpen = writable(false);
+
+// Import-a-collection dialog (#2, ADR-0018) — distinct from the deck import (it targets a
+// Collection slot, not a build). Opened from the BuildMenu and the Commanders panel.
+export const collectionOpen = writable(false);
+
 // Apply a snapshot (from /api/snapshot, SSE, or a mutation response).
 export function applySnapshot(snap) {
   if (!snap) return;
@@ -49,6 +63,9 @@ export function applySnapshot(snap) {
   if (snap.signals) signals.set(snap.signals);
   if (snap.avenues) avenues.set(snap.avenues);
   if (snap.warnings) warnings.set(snap.warnings);
+  if (snap.collection) collection.set(snap.collection);
+  // wildcards is null for paper builds — set unconditionally (don't keep a stale value).
+  if ("wildcards" in snap) wildcards.set(snap.wildcards);
   if (snap.build_id !== undefined) buildId.set(snap.build_id);
   if (snap.build_name !== undefined) buildName.set(snap.build_name);
 }

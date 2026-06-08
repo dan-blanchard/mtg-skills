@@ -9,6 +9,8 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 
 DECK = {
     "format": "commander",
+    "medium": "paper",
+    "deck_size": 100,
     "commanders": [{"name": "Atraxa", "quantity": 1}],
     "cards": [{"name": "Forest", "quantity": 8}, {"name": "Sol Ring", "quantity": 1}],
     "sideboard": [],

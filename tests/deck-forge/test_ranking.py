@@ -119,3 +119,56 @@ def test_rank_sorts_by_synergy_then_price_with_no_listing_last():
     # with the no-listing card last.
     assert names[0] == "Lifegain Tokens"
     assert names.index("Token Maker") < names.index("Rare Token Maker")
+
+
+# ── Partner color widening (ADR-0019) ────────────────────────────────────────
+_ENTERS_AVENUE = [{"label": "Enters", "search": {"oracle": "enters"}}]
+
+
+def _partner(name: str, identity: list[str], oracle: str) -> dict:
+    return {
+        "name": name,
+        "type_line": "Legendary Creature — Human",
+        "cmc": 3.0,
+        "color_identity": identity,
+        "oracle_text": oracle,
+        "prices": {"usd": "1.00"},
+    }
+
+
+def test_color_widening_zero_without_a_base():
+    # Off the partner avenue (no base), the axis is inert: 0 for everyone, and the
+    # legacy synergy→price→cmc order is unchanged.
+    score = score_candidate(TOKEN_MAKER, active_signals=[ETB])
+    assert score["color_widening"] == 0
+
+
+def test_partner_widening_dominates_synergy():
+    # Mono-blue deck. A four-color opener with ZERO synergy must outrank a perfect-
+    # synergy same-color partner — colors before synergy, strictly (ADR-0019).
+    wide = _partner("Wide Opener", ["W", "B", "R", "G"], "")  # +4 colors, no synergy
+    on_color = _partner("On-Color", ["U"], "a creature enters")  # +0 colors, synergy 1
+    ranked = rank_candidates(
+        [on_color, wide],
+        active_signals=[],
+        avenues=_ENTERS_AVENUE,
+        widening_base="U",
+    )
+    assert [r["card"]["name"] for r in ranked] == ["Wide Opener", "On-Color"]
+    assert ranked[0]["score"]["color_widening"] == 4
+    assert ranked[1]["score"]["color_widening"] == 0
+    assert ranked[1]["score"]["synergy_fit"] == 1  # higher synergy, still ranked below
+
+
+def test_partner_widening_synergy_breaks_ties_within_a_widening_tier():
+    # Two partners each widen by exactly one color; synergy then orders them.
+    adds_g = _partner("Adds G + synergy", ["G"], "whenever a creature enters")
+    adds_w = _partner("Adds W only", ["W"], "")
+    ranked = rank_candidates(
+        [adds_w, adds_g],
+        active_signals=[],
+        avenues=_ENTERS_AVENUE,
+        widening_base="U",
+    )
+    assert [r["card"]["name"] for r in ranked] == ["Adds G + synergy", "Adds W only"]
+    assert {r["score"]["color_widening"] for r in ranked} == {1}

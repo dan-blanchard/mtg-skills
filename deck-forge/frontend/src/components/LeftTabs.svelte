@@ -1,11 +1,13 @@
 <script>
   import { activeTab } from "../lib/store.js";
   import Find from "./Find.svelte";
+  import Commanders from "./Commanders.svelte";
   import Combos from "./Combos.svelte";
   import Export from "./Export.svelte";
 
   const TABS = [
     ["find", "Find"],
+    ["commanders", "Commanders"],
     ["combos", "Combos"],
     ["export", "Export"],
   ];
@@ -24,7 +26,9 @@
     {/each}
   </div>
   <div class="tabbody">
-    {#if $activeTab === "combos"}
+    {#if $activeTab === "commanders"}
+      <Commanders />
+    {:else if $activeTab === "combos"}
       <Combos />
     {:else if $activeTab === "export"}
       <Export />

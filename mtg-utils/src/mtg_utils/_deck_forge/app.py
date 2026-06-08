@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from mtg_utils._deck_forge import engine, views
+from mtg_utils._deck_forge import collection, engine, views
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.exporters import export_as
 from mtg_utils._deck_forge.ranking import rank_candidates
@@ -28,6 +28,7 @@ from mtg_utils._deck_forge.signal_specs import search_filters, spec_for
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
+from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
 
 VERSION = "0.1.0"
@@ -65,6 +66,14 @@ class FormatPayload(BaseModel):
     format: str
 
 
+class MediumPayload(BaseModel):
+    medium: str  # "paper" | "digital"
+
+
+class DeckSizePayload(BaseModel):
+    deck_size: int  # 60 | 100 (paper Historic Brawl)
+
+
 class AgentRequestPayload(BaseModel):
     kind: str
     payload: dict = {}
@@ -94,6 +103,28 @@ class ExplorePayload(BaseModel):
 class NewBuildPayload(BaseModel):
     format: str = "commander"
     name: str = "Untitled"
+
+
+class ImportDeckPayload(BaseModel):
+    text: str
+    format: str = "commander"
+    name: str | None = None
+
+
+class ImportCollectionPayload(BaseModel):
+    text: str
+    slot: str = "paper"
+
+
+class ClearCollectionPayload(BaseModel):
+    slot: str = "paper"
+
+
+class DiscoverCommandersPayload(BaseModel):
+    sort: str = "support"  # "support" (owned-support depth) | "novelty" (signal rarity)
+    colors: str | None = None  # color-identity subset filter (e.g. "BG")
+    theme: str | None = None  # a theme_presets lane to require
+    limit: int = 24
 
 
 class LoadBuildPayload(BaseModel):
@@ -194,7 +225,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/deck")
     async def deck() -> dict:
-        return {"deck": views.deck_view(state)}
+        return {"deck": views.deck_view(state, engine.owned_quantities(state))}
 
     @app.get("/api/snapshot")
     async def snapshot() -> dict:
@@ -244,6 +275,38 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": f"unsupported format: {payload.format!r}"}, status_code=400
             )
         state.session.format = payload.format
+        _autosave(state)
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
+    @app.post("/api/deck/medium", response_model=None)
+    async def set_medium(payload: MediumPayload) -> dict | JSONResponse:
+        """Set paper vs digital for the build (Brawl / Historic Brawl). Drives the
+        active Collection slot and the cost mode — digital → Arena slot + wildcards;
+        paper → paper slot + USD (ADR-0018, amended)."""
+        if payload.medium not in ("paper", "digital"):
+            return JSONResponse(
+                {"error": f"unknown medium: {payload.medium!r}"}, status_code=400
+            )
+        if payload.medium == "digital" and state.session.format == "commander":
+            return JSONResponse({"error": "commander is paper-only"}, status_code=400)
+        state.session.set_medium(payload.medium)
+        _autosave(state)
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
+    @app.post("/api/deck/deck-size", response_model=None)
+    async def set_deck_size(payload: DeckSizePayload) -> dict | JSONResponse:
+        """Choose 60 or 100 cards. Only paper Historic Brawl honors it (both are legal
+        for paper "Brawl"); every other format/medium keeps its fixed size, so the
+        override lies dormant until it applies."""
+        if payload.deck_size not in (60, 100):
+            return JSONResponse(
+                {"error": "deck size must be 60 or 100"}, status_code=400
+            )
+        state.session.set_deck_size(payload.deck_size)
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
@@ -413,11 +476,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.get("/api/budgets")
     async def budgets() -> dict:
         records = engine.hydrate(state).expanded()
-        return {
-            "budgets": slot_budgets(
-                records, deck_size=engine.deck_size(state.session.format)
-            )
-        }
+        return {"budgets": slot_budgets(records, deck_size=state.session.deck_size)}
 
     @app.get("/api/packages", response_model=None)
     async def packages() -> dict | JSONResponse:
@@ -433,11 +492,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             spec = spec_for(sig)
             if spec is None:
                 continue
+            widening_base = None
             if sig.key == "partner_background":
                 psearch = engine.partner_search(state)
                 if psearch is None:
                     continue  # no open partner slot → no partner package
                 filters = {**psearch, "format": fmt}
+                widening_base = ci  # partner sort: color widening first (ADR-0019)
             else:
                 filters = search_filters(sig, color_identity=ci, fmt=fmt)
             found = state.search_fn(
@@ -453,9 +514,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             active, avs = engine.scoring_basis(
                 state, hd.records, sigs, [self_avenue, *state.agent_avenues]
             )
-            ranked = rank_candidates(fresh, active_signals=active, avenues=avs)[
-                :_PACKAGE_LIMIT
-            ]
+            ranked = rank_candidates(
+                fresh, active_signals=active, avenues=avs, widening_base=widening_base
+            )[:_PACKAGE_LIMIT]
             out.append(
                 {
                     "signal": engine.signal_dict(sig),
@@ -480,6 +541,49 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return {"build_id": state.build_id, **snap}
+
+    @app.post("/api/builds/import", response_model=None)
+    async def builds_import(payload: ImportDeckPayload) -> dict | JSONResponse:
+        """Import an existing list as a NEW build (ADR-0017). Parse the raw pasted /
+        uploaded text IN-PROCESS (pure compute — `parse_deck_text`, no LLM, no API key),
+        seed a fresh session, switch to it. Never overwrites the live build; never
+        guesses a commander — an unmarked list lands as a pile in ``cards`` that the
+        user promotes from (the DeckList ★)."""
+        if payload.format not in engine.SUPPORTED_FORMATS:
+            return JSONResponse(
+                {"error": f"unsupported format: {payload.format!r}"}, status_code=400
+            )
+        try:
+            parsed = parse_deck_text(payload.text, format=payload.format)
+        except Exception as exc:  # noqa: BLE001 — a bad paste is a 400, never a 500
+            return JSONResponse(
+                {"error": f"could not parse deck list: {exc}"}, status_code=400
+            )
+        session = DeckSession.from_deck_dict(parsed)
+        if not session.card_names():
+            return JSONResponse(
+                {"error": "no cards found in the imported list"}, status_code=400
+            )
+        state.session = session
+        state.build_id = uuid.uuid4().hex[:8]
+        state.build_name = payload.name or "Imported deck"
+        _autosave(state)
+        # Names the bulk index can't hydrate (typos, un-owned tokens, Arena-only cards
+        # when no bulk) surface as `unknown` cards; report them so the UI can warn.
+        unknown = sorted(n for n in session.card_names() if n not in state.by_name)
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return {
+            "build_id": state.build_id,
+            "imported": {
+                "commanders": len(parsed.get("commanders") or []),
+                "cards": sum(
+                    int(e.get("quantity", 1)) for e in (parsed.get("cards") or [])
+                ),
+                "unknown": unknown,
+            },
+            **snap,
+        }
 
     @app.post("/api/builds/load", response_model=None)
     async def builds_load(payload: LoadBuildPayload) -> dict | JSONResponse:
@@ -519,6 +623,72 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "deleted": deleted,
             "current": state.build_id,
             "builds": state.store.list() if state.store else [],
+        }
+
+    @app.post("/api/collection/import", response_model=None)
+    async def collection_import(
+        payload: ImportCollectionPayload,
+    ) -> dict | JSONResponse:
+        """Import a Collection into a slot (paper | arena), parsed IN-PROCESS (pure
+        compute — `parse_deck_text`, no LLM/API key; ADR-0017). Ownership is then
+        derived per snapshot from this slot, never stored on a build (ADR-0018)."""
+        if payload.slot not in collection.SLOTS:
+            return JSONResponse(
+                {"error": f"unknown collection slot: {payload.slot!r}"}, status_code=400
+            )
+        try:
+            pile = parse_deck_text(payload.text)
+        except Exception as exc:  # noqa: BLE001 — a bad paste is a 400, never a 500
+            return JSONResponse(
+                {"error": f"could not parse collection: {exc}"}, status_code=400
+            )
+        engine.set_collection(state, payload.slot, pile)
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return {
+            "slot": payload.slot,
+            "size": collection.slot_sizes(state.collections).get(payload.slot, 0),
+            **snap,
+        }
+
+    @app.post("/api/collection/clear", response_model=None)
+    async def collection_clear(payload: ClearCollectionPayload) -> dict | JSONResponse:
+        if payload.slot not in collection.SLOTS:
+            return JSONResponse(
+                {"error": f"unknown collection slot: {payload.slot!r}"}, status_code=400
+            )
+        engine.clear_collection(state, payload.slot)
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
+    @app.post("/api/commanders/discover", response_model=None)
+    async def commanders_discover(
+        payload: DiscoverCommandersPayload,
+    ) -> dict | JSONResponse:
+        """Intent-ranked owned commanders from the active Collection slot (ADR-0018) —
+        support-depth or novelty, theme/color filters, never EDHREC. Pure compute."""
+        if not state.bulk_available:
+            return _no_bulk()
+        # Validate the theme like the sibling slot/format guards (a clean 400, not a
+        # 500): theme_presets.matches raises KeyError on an unknown preset name.
+        if payload.theme and payload.theme not in list_presets():
+            return JSONResponse(
+                {"error": f"unknown theme preset: {payload.theme!r}"}, status_code=400
+            )
+        slot = engine.active_slot(state)
+        results = engine.discover_commanders(
+            state,
+            sort=payload.sort,
+            colors=payload.colors,
+            theme=payload.theme,
+            limit=max(1, payload.limit),
+        )
+        return {
+            "results": results,
+            "sort": payload.sort,
+            "active_slot": slot,
+            "slot_size": collection.slot_sizes(state.collections).get(slot, 0),
         }
 
     @app.get("/api/export", response_model=None)
@@ -660,7 +830,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                         pool.setdefault(cname, card)
             cands = [c for c in pool.values() if c.get("name") not in in_deck]
             active, avs = engine.scoring_basis(state, hd.records, sigs, focused)
-            ranked = rank_candidates(cands, active_signals=active, avenues=avs)
+            # The partner avenue ranks by color widening first (ADR-0019): pass the
+            # deck's current identity as the widening base when it's among the focused
+            # lanes, so the broadest color-openers surface above synergy.
+            widening_base = ci if any(a.get("widening") for a in focused) else None
+            ranked = rank_candidates(
+                cands, active_signals=active, avenues=avs, widening_base=widening_base
+            )
         elif _has_filters(payload):
             records = state.search_fn(
                 color_identity=payload.color_identity,
@@ -688,8 +864,18 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         page = max(1, payload.limit)
         offset = max(0, payload.offset)
         window = ranked[offset : offset + page]
+        results = []
+        for r in window:
+            cv = views.candidate_view(r, fmt)
+            # Flag candidates already in the active Collection slot so the UI's
+            # "Owned only" facet can filter client-side (ADR-0018 / Q6).
+            qty = engine.owned_of(state, cv["name"])
+            if qty is not None:
+                cv["owned"] = True
+                cv["owned_qty"] = qty
+            results.append(cv)
         return {
-            "results": [views.candidate_view(r, fmt) for r in window],
+            "results": results,
             "offset": offset,
             "has_more": len(ranked) > offset + page,
         }
