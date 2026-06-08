@@ -24,7 +24,6 @@ async function del(path) {
 
 export const api = {
   snapshot: () => fetch("/api/snapshot").then((r) => r.json()),
-  search: (filters) => post("/api/search", filters),
   // Unified Find surface (#5): focused avenues (server-side state) OR-drive the pool;
   // filters refine; returns a flat ✦-ranked candidate list. See ADR-0015.
   find: (filters) => post("/api/find", filters),
@@ -41,13 +40,10 @@ export const api = {
   setMedium: (medium) => post("/api/deck/medium", { medium }),
   // 60 or 100 cards (paper Historic Brawl only).
   setDeckSize: (deck_size) => post("/api/deck/deck-size", { deck_size }),
-  packages: () => get("/api/packages"),
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
   card: (name) => get(`/api/card?name=${encodeURIComponent(name)}`),
   agentStatus: () => get("/api/agent/status"),
-  explore: (label, search, offset = 0) =>
-    post("/api/explore", { label, search, offset }),
   removeAvenue: (id) => del(`/api/avenues/${id}`),
   // Toggle a lane as "focused" (#2): the candidate ✦ score then counts only focused lanes.
   focusAvenue: (id) => post(`/api/avenues/${encodeURIComponent(id)}/focus`, {}),
