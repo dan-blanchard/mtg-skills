@@ -63,6 +63,19 @@ def test_two_tier_main_and_sub_themes():
     assert fr["verdict"] == "FOCUSED"  # one main + one sub = the research ideal
 
 
+def test_efficiency_thin_top_end_is_actionable():
+    # A curve issue (thin top-end) must source an add at the missing CMC band — scoped to
+    # the deck's main theme — not be silently advisory.
+    from mtg_utils._tuner.swaps import _spec_for_issue
+
+    issue = {"kind": "efficiency", "subkind": "thin top-end"}
+    spec = _spec_for_issue(issue, {"viable_avenues": []}, [])
+    assert spec is not None
+    assert spec.get("cmc_min") == 6  # asks for a 6+ MV finisher
+    # An unhandled curve subkind stays advisory.
+    assert _spec_for_issue({"kind": "efficiency", "subkind": "ok"}, {}, []) is None
+
+
 def test_near_duplicate_avenues_collapse_to_one():
     # The same cards back both labels (one theme described two ways) → one survives.
     classes = [

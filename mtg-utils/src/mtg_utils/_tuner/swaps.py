@@ -119,16 +119,25 @@ def _run_search(
     identity: str,
     fmt: str,
     paper_only: bool,
-    cmc_max: float | None,
+    cmc_cap: float | None,
     limit: int = 60,
 ) -> list[dict]:
+    # A spec may carry its own cmc band (a thin-top-end fix wants cmc_min 6); combine
+    # its ceiling with the top-heavy cap so both hold.
+    spec_max = spec.get("cmc_max")
+    if cmc_cap is None:
+        cmc_max = spec_max
+    elif spec_max is None:
+        cmc_max = cmc_cap
+    else:
+        cmc_max = min(spec_max, cmc_cap)
     return search_fn(
         color_identity=spec.get("color_identity") or identity,
         exact_colors=False,
         oracle=spec.get("oracle"),
         card_type=spec.get("card_type"),
         name=None,
-        cmc_min=None,
+        cmc_min=spec.get("cmc_min"),
         cmc_max=cmc_max,
         price_min=None,
         price_max=None,
@@ -191,7 +200,7 @@ def propose_swaps(
             identity=identity,
             fmt=fmt,
             paper_only=paper_only,
-            cmc_max=cmc_cap,
+            cmc_cap=cmc_cap,
         )
         pool = [c for c in found if c.get("name") not in in_deck | used_adds]
         if synergy_first:
@@ -242,10 +251,26 @@ def propose_swaps(
     note = None
     if len(swaps) < max_swaps:
         note = (
-            f"Proposed {len(swaps)} of {max_swaps} requested — ran out of safe cuts or "
-            "affordable adds (no silent padding)."
+            f"Proposed {len(swaps)} of {max_swaps} — no further actionable issues, or "
+            "out of safe cuts / affordable adds (set a Budget to allow buys)."
         )
     return {"swaps": swaps, "spent": round(spent, 2), "note": note}
+
+
+# Efficiency curve issues → a CMC band to add into, scoped to the deck's main theme.
+_EFFICIENCY_BANDS: dict[str, dict] = {
+    "thin top-end": {"cmc_min": 6},
+    "thin early game": {"cmc_max": 2},
+    "top-heavy": {"cmc_max": 3},
+}
+
+
+def _main_avenue_search(focus_result: dict, deck_signals: list) -> dict:
+    """The deck's main-theme serve spec, or an empty (identity-only) spec when none."""
+    viable = focus_result["viable_avenues"]
+    if viable:
+        return _avenue_search_for(viable[0]["label"], deck_signals) or {}
+    return {}
 
 
 def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict | None:
@@ -260,6 +285,14 @@ def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict
         viable = focus_result["viable_avenues"]
         if viable:
             return _avenue_search_for(viable[0]["label"], deck_signals)
+        return None
+    if kind == "efficiency":
+        # A curve problem is fixed by adding a synergistic card at the missing CMC band
+        # (a thin top-end wants a 6+ MV finisher on the deck's main theme, etc.).
+        band = _EFFICIENCY_BANDS.get(issue.get("subkind", ""))
+        if band is None:
+            return None
+        return {**_main_avenue_search(focus_result, deck_signals), **band}
     return None
 
 
