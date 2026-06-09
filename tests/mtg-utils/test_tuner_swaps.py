@@ -455,3 +455,98 @@ def test_emerging_theme_proposes_a_commit_add():
         issue, _focus(emerging=[{"label": label, "depth": 7, "cards": []}]), [sig]
     )
     assert spec is not None  # resolves to the emerging theme's search → "commit" adds
+
+
+def _finisher(name, rarity):
+    return {
+        "name": name,
+        "type_line": "Sorcery",
+        "oracle_text": "You win the game.",
+        "cmc": 7.0,
+        "rarity": rarity,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+
+
+def test_wildcard_budget_gates_adds_by_rarity():
+    """Digital: an add is only sourced while its rarity's wildcard budget holds, and the
+    spend is tracked per tier (wildcards aren't interchangeable)."""
+    classes = [_cc("Filler One", "filler", cmc=4.0)]
+    budgets = {"card_draw": _band(10, 10, 12)}  # room, no role pressure
+    issue = {
+        "kind": "efficiency",
+        "subkind": "thin top-end",
+        "severity": 3,
+        "message": "curve: thin top-end",
+    }
+    # Budget allows one rare but no mythic — the mythic must be skipped, the rare taken.
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(),
+        deck_signals=[],
+        search_fn=lambda **_: [
+            _finisher("Pricey Mythic", "mythic"),
+            _finisher("Fine Rare", "rare"),
+        ],
+        identity="",
+        fmt="historic_brawl",
+        paper_only=False,
+        owned={},
+        budget=None,
+        max_swaps=1,
+        top_heavy=False,
+        wildcard_budget={"mythic": 0, "rare": 1, "uncommon": 0, "common": 0},
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Fine Rare"
+    assert out["spent"] == 0.0  # USD total is always a float (0 in digital)
+    assert out["wildcards_spent"] == {
+        "mythic": 0,
+        "rare": 1,
+        "uncommon": 0,
+        "common": 0,
+    }
+
+
+def test_wildcard_owned_is_free_even_at_zero_budget():
+    """Digital: an owned card costs no wildcard, so it's added under an all-zero budget
+    while an unowned one of the same rarity is not."""
+    classes = [_cc("Filler One", "filler", cmc=4.0)]
+    budgets = {"card_draw": _band(10, 10, 12)}
+    issue = {
+        "kind": "efficiency",
+        "subkind": "thin top-end",
+        "severity": 3,
+        "message": "curve: thin top-end",
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(),
+        deck_signals=[],
+        search_fn=lambda **_: [
+            _finisher("Unowned Rare", "rare"),
+            _finisher("Owned Rare", "rare"),
+        ],
+        identity="",
+        fmt="historic_brawl",
+        paper_only=False,
+        owned={"Owned Rare": 1},
+        budget=None,
+        max_swaps=1,
+        top_heavy=False,
+        wildcard_budget={"mythic": 0, "rare": 0, "uncommon": 0, "common": 0},
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Owned Rare"
+    assert out["spent"] == 0.0
+    assert out["wildcards_spent"] == {
+        "mythic": 0,
+        "rare": 0,
+        "uncommon": 0,
+        "common": 0,
+    }

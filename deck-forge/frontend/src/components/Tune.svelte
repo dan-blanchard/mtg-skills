@@ -7,10 +7,12 @@
 
   // The deterministic Tune surface (ADR-0023): diagnose → cut candidates → budgeted
   // swaps, all from the pure deterministic core (works with no session attached).
-  let budget = ""; // "" → owned-only zero-spend pass
-  // Digital builds spend wildcards, not dollars — the buy pool is opened by a toggle
-  // (owned-only vs. allow-crafting) rather than a USD cap, which Arena has no concept of.
-  let allowCraft = false;
+  let budget = ""; // "" → owned-only zero-spend pass (paper / USD)
+  // Digital builds spend Arena wildcards, not dollars, and the four tiers aren't
+  // interchangeable — so the budget is four per-rarity quantities. Defaults reflect
+  // scarcity (commons/uncommons plentiful, rare/mythic dear); the user dials them to
+  // their actual stock. All-zero = owned-only.
+  let wcBudget = { mythic: 1, rare: 5, uncommon: 15, common: 40 };
   let maxSwaps = 5;
   let shapeOverride = ""; // "" → inferred
   let suggestCommander = false;
@@ -48,9 +50,14 @@
       suggest_commander: suggestCommander,
     };
     if ($isDigital) {
-      // No dollar cap for Arena: allow-crafting opens the full buy pool (each unowned
-      // add costs one wildcard of its rarity); otherwise stay an owned-only pass.
-      if (allowCraft) body.budget = 1e9;
+      // Per-rarity wildcard allowance — the tuner gates each unowned add against the
+      // budget for that card's rarity (all-zero = owned-only).
+      body.wildcard_budget = {
+        mythic: Number(wcBudget.mythic) || 0,
+        rare: Number(wcBudget.rare) || 0,
+        uncommon: Number(wcBudget.uncommon) || 0,
+        common: Number(wcBudget.common) || 0,
+      };
     } else if (budget !== "" && !Number.isNaN(Number(budget))) {
       body.budget = Number(budget);
     }
@@ -108,21 +115,15 @@
     return entry.cost === 0 ? "free" : `$${entry.cost}`;
   }
 
-  // Wildcards the proposed swaps would cost, by tier (digital only) — one wildcard per
-  // unowned add of its rarity. Reactive on `resolved` so it firms up as cards hydrate.
-  $: wcSpend = (() => {
-    const t = { mythic: 0, rare: 0, uncommon: 0, common: 0 };
-    if (!result) return t;
-    for (const s of result.swaps) {
-      if (s.add.owned) continue;
-      // || not ??: "" (the backend's missing-rarity default) must fall through too.
-      const rarity = s.add.rarity || resolved[s.add.name]?.rarity;
-      if (rarity in t) t[rarity] += 1;
-    }
-    return t;
-  })();
+  // Wildcards the proposed swaps cost, by tier (digital only) — the backend's
+  // authoritative per-tier total (one wildcard per unowned add of its rarity).
+  $: wcSpend = result?.wildcards_spent ?? {};
   $: wcSpendTiers = WC_TIERS.filter(([k]) => wcSpend[k]).map(
-    ([k, label, cls]) => ({ label, cls, n: wcSpend[k] }),
+    ([k, label, cls]) => ({
+      label,
+      cls,
+      n: wcSpend[k],
+    }),
   );
 </script>
 
@@ -135,10 +136,19 @@
     </p>
     <div class="grid">
       {#if $isDigital}
-        <label class="check">
-          <input type="checkbox" bind:checked={allowCraft} />
-          Allow crafting cards you don't own (costs wildcards)
-        </label>
+        <div class="wc-budget">
+          <span class="wc-budget-label"
+            >Wildcard budget <em>— what you'll craft, by rarity</em></span
+          >
+          <div class="wc-inputs">
+            {#each WC_TIERS as [k, label, cls] (k)}
+              <label class="wc-in" title="{label} wildcards you'll spend">
+                <span class="wc-{cls}">{label}</span>
+                <input type="number" min="0" bind:value={wcBudget[k]} />
+              </label>
+            {/each}
+          </div>
+        </div>
       {:else}
         <label
           >Budget ($)
@@ -448,6 +458,42 @@
   }
   label.check input {
     width: auto;
+  }
+  /* Digital wildcard budget — four per-rarity inputs (spans the grid row). */
+  .wc-budget {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .wc-budget-label {
+    font-size: 0.8rem;
+    color: var(--parchment);
+  }
+  .wc-budget-label em {
+    color: var(--parchment-dim);
+    font-style: normal;
+    font-size: 0.72rem;
+  }
+  .wc-inputs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+  }
+  .wc-in {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .wc-in span {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    width: 1ch;
+    text-align: center;
+  }
+  .wc-in input {
+    width: 100%;
+    min-width: 0;
   }
   button {
     background: var(--brass);

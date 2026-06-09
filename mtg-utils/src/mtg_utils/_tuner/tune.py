@@ -24,7 +24,10 @@ from mtg_utils.mana_audit import mana_audit
 @dataclass(frozen=True)
 class TuneParams:
     """A Tune request. ``budget=None`` is the owned-only zero-spend default; an explicit
-    number opens the buy pool. ``paper_only``/``medium`` come from the deck's Medium."""
+    number opens the buy pool. ``paper_only``/``medium`` come from the deck's Medium.
+    ``wildcard_budget`` (digital builds) is the per-rarity Arena wildcard allowance
+    ``{mythic, rare, uncommon, common}`` — when set it replaces the USD ``budget``: each
+    unowned add costs one wildcard of its rarity, gated per tier (they don't swap)."""
 
     budget: float | None = None
     max_swaps: int = 0
@@ -32,6 +35,7 @@ class TuneParams:
     suggest_commander: bool = False
     paper_only: bool = True
     medium: str = "paper"
+    wildcard_budget: Mapping[str, int] | None = None
 
 
 def _deck_identity(hd: HydratedDeck) -> str:
@@ -160,7 +164,7 @@ def tune(
         "counts": _bucket_counts(classes),
     }
 
-    swaps_out: dict = {"swaps": [], "spent": 0.0, "note": None}
+    swaps_out: dict = {"swaps": [], "spent": 0.0, "wildcards_spent": None, "note": None}
     if params.max_swaps > 0 and hd.has_records:
         recommended_lands = int(mana_audit(hd).get("recommended_land_count") or 0)
         fill_slots, land_gap = _fill_gap(deck, classes, deck_size, recommended_lands)
@@ -179,6 +183,7 @@ def tune(
             max_swaps=params.max_swaps,
             top_heavy=eff["verdict"] == "top-heavy",
             fill_slots=fill_slots,
+            wildcard_budget=params.wildcard_budget,
         )
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
         # user runs the land tooling (balance-lands), not Tune, to finish it.
@@ -208,6 +213,7 @@ def tune(
         "scorecard": scorecard,
         "swaps": swaps_out["swaps"],
         "spent": swaps_out["spent"],
+        "wildcards_spent": swaps_out["wildcards_spent"],
         "swaps_note": swaps_out["note"],
         "commander_suggestions": suggestions,
     }

@@ -54,14 +54,15 @@
     ["5", "≤$5"],
     ["20", "≤$20"],
   ];
-  // Digital builds cost wildcards, not dollars — so the cost facet becomes a max
-  // wildcard rarity (a card costs one wildcard of its rarity). Ceilings mirror the
-  // price ceilings: "≤U" = commons + uncommons (the cheap-to-craft pool).
+  // Digital builds cost wildcards, not dollars. Wildcards aren't interchangeable and
+  // common/uncommon are plentiful while rare/mythic are scarce — so the cost facet is
+  // "≤U" (the cheap, abundant pool: commons + uncommons) then the two scarce tiers R and
+  // M on their own. ["leU" is a ceiling; "rare"/"mythic" match that exact rarity.]
   const RARITY_FACETS = [
     ["", "Any"],
-    ["common", "≤C"],
-    ["uncommon", "≤U"],
-    ["rare", "≤R"],
+    ["leU", "≤U"],
+    ["rare", "R"],
+    ["mythic", "M"],
   ];
 
   let results = [];
@@ -182,11 +183,14 @@
       if (fCmc === "5+" && v < 5) return false;
     }
     if (digital) {
-      // Max wildcard rarity ceiling — keep cards whose rarity is at or below it.
-      // Unknown-rarity cards always pass (never hidden by a cost filter).
-      if (fRarity) {
-        const r = RARITY_RANK[c.rarity];
-        if (r != null && r > RARITY_RANK[fRarity]) return false;
+      // Wildcard cost filter. "leU" is a ceiling (commons + uncommons, the cheap pool);
+      // "rare"/"mythic" match that exact scarce tier. Unknown-rarity cards always pass.
+      if (fRarity && c.rarity) {
+        if (fRarity === "leU") {
+          if (RARITY_RANK[c.rarity] > RARITY_RANK.uncommon) return false;
+        } else if (c.rarity !== fRarity) {
+          return false;
+        }
       }
     } else if (fPrice) {
       const p = c.prices?.usd == null ? Infinity : Number(c.prices.usd);

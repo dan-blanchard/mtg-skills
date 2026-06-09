@@ -146,7 +146,10 @@ class SearchPayload(BaseModel):
 
 
 class TunePayload(BaseModel):
-    budget: float | None = None  # None = owned-only zero-spend pass
+    budget: float | None = None  # None = owned-only zero-spend pass (paper / USD)
+    # Digital builds budget in Arena wildcards, not dollars: a per-rarity allowance
+    # {mythic, rare, uncommon, common}. When set (medium=digital) it replaces `budget`.
+    wildcard_budget: dict[str, int] | None = None
     max_swaps: int = 0  # 0 = diagnose only
     shape_override: str | None = None
     suggest_commander: bool = False
@@ -681,14 +684,19 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """The deterministic Tune surface — a thin Transport adapter (ADR-0013) over the
         skill-agnostic tuner core (ADR-0023). ForgeState -> HydratedDeck -> tune(); no
         tuning logic here. Pure Deterministic core, so it runs hub-side with no agent
-        attached. ``owned`` is the active Collection slot; budget is USD (paper) — Arena
-        wildcard budgeting is a v1 simplification (the core treats owned as free either
-        way, so an owned-only pass is medium-correct now)."""
+        attached. ``owned`` is the active Collection slot. Cost mode follows the medium:
+        paper budgets in USD (``budget``); digital budgets in Arena wildcards
+        (``wildcard_budget`` per rarity) — each unowned add costs one wildcard of its
+        rarity, gated per tier (wildcards aren't interchangeable)."""
         if not state.bulk_available:
             return _no_bulk()
         fmt = state.session.format
+        is_digital = state.session.medium == "digital"
         params = TuneParams(
-            budget=payload.budget,
+            # Paper budgets in dollars; digital in per-rarity wildcards (a missing
+            # wildcard_budget on a digital build → all-zero → owned-only pass).
+            budget=None if is_digital else payload.budget,
+            wildcard_budget=(payload.wildcard_budget or {}) if is_digital else None,
             # Cap high enough to FILL a near-empty deck (an under-sized build can need
             # ~40+ adds to reach 100); the old 25 cap silently clamped large requests
             # and starved the fill pass.

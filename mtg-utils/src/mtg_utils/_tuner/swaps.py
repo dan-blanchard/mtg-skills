@@ -129,20 +129,81 @@ def cut_candidates(
     return out
 
 
-def _acquire_cost(
-    record: dict, owned: Mapping[str, int], budget: float | None, spent: float
-) -> float | None:
-    """Cost to acquire this add, or None when not affordable. Owned = free; a no-listing
-    card is never free (treated as scarce); budget None = owned-only."""
-    name = record.get("name", "")
-    if owned.get(name, 0) >= 1:
+_WC_TIERS: tuple[str, ...] = ("mythic", "rare", "uncommon", "common")
+
+
+def _is_basic_land(record: dict) -> bool:
+    return "basic" in (record.get("type_line") or "").lower() and is_land(record)
+
+
+class _UsdLedger:
+    """Paper acquisition budget: a single USD pool. Owned = free; a no-listing card is
+    never free (treated as scarce); ``budget is None`` is the owned-only pass."""
+
+    def __init__(self, budget: float | None) -> None:
+        self.budget = budget
+        self.spent = 0.0
+
+    def acquire_cost(self, record: dict, owned: Mapping[str, int]) -> float | None:
+        """The card's USD cost, or None when unaffordable. Read-only (the caller charges
+        on commit) so probing many candidates can't inflate the running total."""
+        if owned.get(record.get("name", ""), 0) >= 1:
+            return 0.0
+        price = extract_price(record)
+        if price is None:  # no-listing: never $0
+            return None
+        if self.budget is None:  # owned-only pass
+            return None
+        return price if self.spent + price <= self.budget else None
+
+    def charge(self, record: dict, owned: Mapping[str, int], cost: float) -> None:
+        self.spent += cost
+
+    @property
+    def usd_spent(self) -> float:
+        return round(self.spent, 2)
+
+    @property
+    def wildcards_spent(self) -> dict[str, int] | None:
+        return None
+
+
+class _WildcardLedger:
+    """Digital (Arena) acquisition budget: four per-rarity wildcard pools. A card costs
+    ONE wildcard of its rarity; owned cards and basic lands are free. Wildcards are NOT
+    interchangeable, so each tier is gated independently — an all-zero budget is the
+    owned-only pass. The swap's USD ``cost`` is 0.0 (the UI costs by rarity); ``total``
+    is the per-tier wildcards spent."""
+
+    def __init__(self, budget: Mapping[str, int]) -> None:
+        self.remaining = {t: int(budget.get(t, 0)) for t in _WC_TIERS}
+        self.spent = dict.fromkeys(_WC_TIERS, 0)
+
+    def acquire_cost(self, record: dict, owned: Mapping[str, int]) -> float | None:
+        """0.0 when the card is craftable within the remaining wildcard budget for its
+        rarity (or free: owned / basic), else None. Read-only — commit charges."""
+        if owned.get(record.get("name", ""), 0) >= 1 or _is_basic_land(record):
+            return 0.0
+        rarity = record.get("rarity")
+        if rarity not in self.remaining or self.remaining[rarity] <= 0:
+            return None
         return 0.0
-    price = extract_price(record)
-    if price is None:  # no-listing: never $0
-        return None
-    if budget is None:  # owned-only pass
-        return None
-    return price if spent + price <= budget else None
+
+    def charge(self, record: dict, owned: Mapping[str, int], cost: float) -> None:
+        if owned.get(record.get("name", ""), 0) >= 1 or _is_basic_land(record):
+            return
+        rarity = record.get("rarity")
+        if rarity in self.remaining:
+            self.remaining[rarity] -= 1
+            self.spent[rarity] += 1
+
+    @property
+    def usd_spent(self) -> float:
+        return 0.0  # Arena spends wildcards, not dollars — see wildcards_spent.
+
+    @property
+    def wildcards_spent(self) -> dict[str, int]:
+        return dict(self.spent)
 
 
 def _run_search(
@@ -208,10 +269,15 @@ def propose_swaps(
     max_swaps: int,
     top_heavy: bool,
     fill_slots: int = 0,
+    wildcard_budget: Mapping[str, int] | None = None,
 ) -> dict:
     """Walk the ranked issues, sourcing a (cut, add) pair per actionable issue up to
     ``max_swaps``. When ``fill_slots`` > 0 (an under-sized deck) a fill pass then adds
-    pure adds (no cut) into the open slots. Returns the swaps + a note."""
+    pure adds (no cut) into the open slots. Returns the swaps + a note.
+
+    ``wildcard_budget`` (digital builds) switches costing from a single USD pool to four
+    per-rarity Arena wildcard pools — a card costs one wildcard of its rarity, so an add
+    is only sourced while that tier's budget holds. ``budget`` is ignored when set."""
     in_deck = {c.name for c in classes}
     stranded = set(focus_result["stranded_avenues"])
     cuts = cut_candidates(
@@ -249,7 +315,11 @@ def propose_swaps(
 
     used_adds: set[str] = set()
     swaps: list[dict] = []
-    spent = 0.0
+    ledger: _UsdLedger | _WildcardLedger = (
+        _WildcardLedger(wildcard_budget)
+        if wildcard_budget is not None
+        else _UsdLedger(budget)
+    )
     cmc_cap = 4.0 if top_heavy else None
 
     # Roles already at/above their template ceiling — an add filling one would push the
@@ -311,7 +381,7 @@ def propose_swaps(
             )
         fallback: tuple[dict, float] | None = None
         for card in ranked:
-            cost = _acquire_cost(card, owned, budget, spent)
+            cost = ledger.acquire_cost(card, owned)
             if cost is None:
                 continue
             if role_of(card) & full_roles:
@@ -323,8 +393,9 @@ def propose_swaps(
     def commit(
         issue: dict, reason: str, cut: CardClass | None, add_card: dict, cost: float
     ) -> None:
-        nonlocal spent
-        spent += cost  # commit the spend only now that the swap is finalized
+        # Charge only now that the swap is finalized (find_add probed read-only, so an
+        # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
+        ledger.charge(add_card, owned, cost)
         if cut is not None:
             used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))
@@ -450,20 +521,34 @@ def propose_swaps(
             msg="fill open slots with in-identity cards",
         )
 
+    digital = wildcard_budget is not None
+    raise_budget = "raise your wildcard budget" if digital else "raise the budget"
+    allow_buys = (
+        "set a wildcard budget to allow crafting"
+        if digital
+        else "set a Budget to allow buys"
+    )
     note = None
     if fill_slots and fills_done < fill_slots:
         why = (
             "hit the max-swaps limit — raise it"
             if len(swaps) >= max_swaps
-            else "out of distinct affordable in-identity adds — raise the budget"
+            else f"out of distinct affordable in-identity adds — {raise_budget}"
         )
         note = f"Filled {fills_done} of {fill_slots} open nonland slots ({why})."
     elif not fill_slots and len(swaps) < max_swaps:
         note = (
             f"Proposed {len(swaps)} of {max_swaps} — no further actionable issues, or "
-            "out of safe cuts / affordable adds (set a Budget to allow buys)."
+            f"out of safe cuts / affordable adds ({allow_buys})."
         )
-    return {"swaps": swaps, "spent": round(spent, 2), "note": note}
+    return {
+        "swaps": swaps,
+        # `spent` is always a USD float (0.0 in digital); per-tier wildcards go in
+        # `wildcards_spent` (None for paper), so neither field is a union type.
+        "spent": ledger.usd_spent,
+        "wildcards_spent": ledger.wildcards_spent,
+        "note": note,
+    }
 
 
 # Efficiency curve issues → a CMC band to add into, scoped to the deck's main theme.
