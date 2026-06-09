@@ -1,8 +1,9 @@
 <script>
-  import { SYMBOL_ORDER } from "../lib/mana.js";
+  import { SYMBOL_ORDER, wildcardLabel } from "../lib/mana.js";
   import { displayName } from "../lib/cards.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
+  import { isDigital } from "../lib/store.js";
   import Mana from "./Mana.svelte";
   import ManaCost from "./ManaCost.svelte";
   export let card;
@@ -10,6 +11,8 @@
   export let score = null;
 
   $: price = card.prices?.usd;
+  // Digital builds cost wildcards by rarity, not dollars (see lib/mana.wildcardLabel).
+  $: wc = $isDigital ? wildcardLabel(card) : null;
   // Iterate SYMBOL_ORDER (not the card's identity order) so symbols read C, then WUBRG.
   $: colors = SYMBOL_ORDER.filter((c) =>
     (card.color_identity || []).includes(c),
@@ -41,9 +44,13 @@
     <div class="type">{card.type_line}</div>
     <div class="foot">
       <ManaCost cost={card.mana_cost} size="0.95rem" />
-      <span class="price" class:nolisting={noListing}>
-        {noListing ? "no listing" : "$" + price}
-      </span>
+      {#if wc}
+        <span class="wcprice wc-{wc.cls}" title={wc.title}>{wc.text}</span>
+      {:else}
+        <span class="price" class:nolisting={noListing}>
+          {noListing ? "no listing" : "$" + price}
+        </span>
+      {/if}
     </div>
     {#if score && score.synergy_fit > 0}
       <div class="synergy" title={score.served.join(", ")}>
@@ -161,6 +168,12 @@
   .price.nolisting {
     color: var(--warn);
     font-style: italic;
+  }
+  /* Wildcard cost (digital builds) — layout only; the .wc-* global class tints it. */
+  .wcprice {
+    margin-left: auto;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
   .synergy {
     display: flex;

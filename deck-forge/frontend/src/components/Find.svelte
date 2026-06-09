@@ -5,7 +5,8 @@
   // Type/CMC/Price chips facet the returned list client-side (instant, no round-trip).
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
-  import { applySnapshot, deck, avenues } from "../lib/store.js";
+  import { applySnapshot, deck, avenues, isDigital } from "../lib/store.js";
+  import { RARITY_RANK } from "../lib/mana.js";
   import CardTile from "./CardTile.svelte";
   import Mana from "./Mana.svelte";
 
@@ -28,7 +29,8 @@
   // client-side facets (narrow the returned list without a round-trip)
   let facetType = "";
   let facetCmc = "";
-  let facetPrice = "";
+  let facetPrice = ""; // paper: USD ceiling. digital uses facetRarity instead.
+  let facetRarity = ""; // digital: max wildcard rarity (a card costs 1 WC of its rarity)
   let facetOwned = false; // "Owned only" — candidates already in your active collection
   const TYPE_FACETS = [
     ["", "All"],
@@ -51,6 +53,15 @@
     ["1", "≤$1"],
     ["5", "≤$5"],
     ["20", "≤$20"],
+  ];
+  // Digital builds cost wildcards, not dollars — so the cost facet becomes a max
+  // wildcard rarity (a card costs one wildcard of its rarity). Ceilings mirror the
+  // price ceilings: "≤U" = commons + uncommons (the cheap-to-craft pool).
+  const RARITY_FACETS = [
+    ["", "Any"],
+    ["common", "≤C"],
+    ["uncommon", "≤U"],
+    ["rare", "≤R"],
   ];
 
   let results = [];
@@ -161,7 +172,7 @@
   // statement but NOT a separately-declared function's body — so reading the facets only
   // inside this function (the old shape) left `visible` recomputing solely on Find/add,
   // and facet toggles silently did nothing until the next Find.
-  function facetOk(c, fType, fCmc, fPrice, fOwned) {
+  function facetOk(c, fType, fCmc, fPrice, fRarity, fOwned, digital) {
     if (fType && !new RegExp(fType, "i").test(c.type_line || "")) return false;
     if (fCmc) {
       const v = c.cmc ?? 0;
@@ -170,7 +181,14 @@
       if (fCmc === "4" && v !== 4) return false;
       if (fCmc === "5+" && v < 5) return false;
     }
-    if (fPrice) {
+    if (digital) {
+      // Max wildcard rarity ceiling — keep cards whose rarity is at or below it.
+      // Unknown-rarity cards always pass (never hidden by a cost filter).
+      if (fRarity) {
+        const r = RARITY_RANK[c.rarity];
+        if (r != null && r > RARITY_RANK[fRarity]) return false;
+      }
+    } else if (fPrice) {
       const p = c.prices?.usd == null ? Infinity : Number(c.prices.usd);
       if (p > Number(fPrice)) return false;
     }
@@ -180,7 +198,15 @@
   $: visible = results.filter(
     (c) =>
       !inDeck.has(c.name) &&
-      facetOk(c, facetType, facetCmc, facetPrice, facetOwned),
+      facetOk(
+        c,
+        facetType,
+        facetCmc,
+        facetPrice,
+        facetRarity,
+        facetOwned,
+        $isDigital,
+      ),
   );
 </script>
 
@@ -340,13 +366,24 @@
           >
         {/each}
         <span class="fsep"></span>
-        {#each PRICE_FACETS as [v, lbl] (v)}
-          <button
-            class="fc"
-            class:on={facetPrice === v}
-            on:click={() => (facetPrice = v)}>{lbl}</button
-          >
-        {/each}
+        {#if $isDigital}
+          {#each RARITY_FACETS as [v, lbl] (v)}
+            <button
+              class="fc"
+              class:on={facetRarity === v}
+              title="Max wildcard rarity — a card costs one wildcard of its rarity"
+              on:click={() => (facetRarity = v)}>{lbl}</button
+            >
+          {/each}
+        {:else}
+          {#each PRICE_FACETS as [v, lbl] (v)}
+            <button
+              class="fc"
+              class:on={facetPrice === v}
+              on:click={() => (facetPrice = v)}>{lbl}</button
+            >
+          {/each}
+        {/if}
         <span class="fsep"></span>
         <button
           class="fc"

@@ -339,6 +339,9 @@ def propose_swaps(
                     "cmc": add_card.get("cmc", 0.0),
                     "cost": cost,
                     "owned": owned.get(add_card.get("name", ""), 0) >= 1,
+                    # Rarity rides along so a digital build can show the add's wildcard
+                    # cost (one wildcard of its rarity) without a second card lookup.
+                    "rarity": add_card.get("rarity", ""),
                 },
             }
         )

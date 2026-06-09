@@ -35,6 +35,14 @@
   --fail: #d4452f;
   --flood: #4a90d9; /* over-landed: water drowning the fire (soft, never gates) */
 
+  /* Arena wildcard tiers — a digital build costs wildcards by rarity, not dollars.
+     One source of truth for the tint; every cost read-out (footer, tiles, deck list,
+     tune swaps) shares it via the global .wc-* classes below. */
+  --wc-mythic: #f08a3c;
+  --wc-rare: var(--brass-bright);
+  --wc-uncommon: #b9c2cc;
+  --wc-common: var(--parchment-dim);
+
   --radius: 4px;
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
   --shadow-inset: inset 0 1px 0 rgba(255, 220, 160, 0.04);
@@ -229,6 +237,32 @@ select {
 }
 .bg-FLOOD {
   background: var(--flood);
+}
+
+/* Arena wildcard tier colors — applied to any cost read-out in a digital build.
+   Kept global (not component-scoped) so tiles, deck list, footer, and tune swaps
+   tint identically without each redefining the palette. */
+.wc-mythic {
+  color: var(--wc-mythic);
+}
+.wc-rare {
+  color: var(--wc-rare);
+}
+.wc-uncommon {
+  color: var(--wc-uncommon);
+}
+.wc-common {
+  color: var(--wc-common);
+}
+.wc-owned {
+  color: var(--pass);
+}
+.wc-free {
+  color: var(--muted);
+  font-style: italic;
+}
+.wc-unknown {
+  color: var(--muted);
 }
 
 @keyframes rise {

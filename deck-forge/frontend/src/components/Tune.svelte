@@ -1,11 +1,16 @@
 <script>
   import { api } from "../lib/api.js";
+  import { isDigital } from "../lib/store.js";
+  import { WC_TIERS } from "../lib/mana.js";
   import CardChip from "./CardChip.svelte";
   import CardList from "./CardList.svelte";
 
   // The deterministic Tune surface (ADR-0023): diagnose → cut candidates → budgeted
   // swaps, all from the pure deterministic core (works with no session attached).
   let budget = ""; // "" → owned-only zero-spend pass
+  // Digital builds spend wildcards, not dollars — the buy pool is opened by a toggle
+  // (owned-only vs. allow-crafting) rather than a USD cap, which Arena has no concept of.
+  let allowCraft = false;
   let maxSwaps = 5;
   let shapeOverride = ""; // "" → inferred
   let suggestCommander = false;
@@ -42,8 +47,13 @@
       shape_override: shapeOverride || null,
       suggest_commander: suggestCommander,
     };
-    if (budget !== "" && !Number.isNaN(Number(budget)))
+    if ($isDigital) {
+      // No dollar cap for Arena: allow-crafting opens the full buy pool (each unowned
+      // add costs one wildcard of its rarity); otherwise stay an owned-only pass.
+      if (allowCraft) body.budget = 1e9;
+    } else if (budget !== "" && !Number.isNaN(Number(budget))) {
       body.budget = Number(budget);
+    }
     const r = await api.tune(body);
     if (!r.ok) {
       const hint =
@@ -78,8 +88,42 @@
   }
 
   const pct = (x) => Math.round((x || 0) * 100);
-  const money = (a) =>
-    a.owned ? "owned" : a.cost === 0 ? "free" : `$${a.cost}`;
+  const WC_LETTER = { mythic: "M", rare: "R", uncommon: "U", common: "C" };
+
+  // Cost tag for a swap/commander entry. Paper: owned / free / $X. Digital: owned, or
+  // the wildcard the unowned card costs ("1R") — rarity rides the swap add (backend), or
+  // the resolved card as a fallback. `digital` and `resolvedCard` are passed in (not
+  // closed over) so the {costTag(...)} markup expression tracks them as dependencies and
+  // re-renders when the medium toggles — Svelte doesn't trace a function body's reads.
+  function costTag(entry, digital, resolvedCard) {
+    if (entry.owned) return "owned";
+    if (digital) {
+      // || not ??: the backend sends "" (not null) for a missing rarity, and no valid
+      // rarity is ever falsy — so empty-string must also fall through to the resolved card.
+      const rarity = entry.rarity || resolvedCard?.rarity;
+      const letter = WC_LETTER[rarity];
+      return letter ? `1${letter}` : "craft";
+    }
+    if (entry.cost == null) return "buy"; // commander suggestion carries no $ cost
+    return entry.cost === 0 ? "free" : `$${entry.cost}`;
+  }
+
+  // Wildcards the proposed swaps would cost, by tier (digital only) — one wildcard per
+  // unowned add of its rarity. Reactive on `resolved` so it firms up as cards hydrate.
+  $: wcSpend = (() => {
+    const t = { mythic: 0, rare: 0, uncommon: 0, common: 0 };
+    if (!result) return t;
+    for (const s of result.swaps) {
+      if (s.add.owned) continue;
+      // || not ??: "" (the backend's missing-rarity default) must fall through too.
+      const rarity = s.add.rarity || resolved[s.add.name]?.rarity;
+      if (rarity in t) t[rarity] += 1;
+    }
+    return t;
+  })();
+  $: wcSpendTiers = WC_TIERS.filter(([k]) => wcSpend[k]).map(
+    ([k, label, cls]) => ({ label, cls, n: wcSpend[k] }),
+  );
 </script>
 
 <div class="tune">
@@ -90,15 +134,22 @@
       swaps.
     </p>
     <div class="grid">
-      <label
-        >Budget ($)
-        <input
-          type="number"
-          min="0"
-          bind:value={budget}
-          placeholder="owned-only"
-        />
-      </label>
+      {#if $isDigital}
+        <label class="check">
+          <input type="checkbox" bind:checked={allowCraft} />
+          Allow crafting cards you don't own (costs wildcards)
+        </label>
+      {:else}
+        <label
+          >Budget ($)
+          <input
+            type="number"
+            min="0"
+            bind:value={budget}
+            placeholder="owned-only"
+          />
+        </label>
+      {/if}
       <label
         >Swaps
         <input type="number" min="0" max="25" bind:value={maxSwaps} />
@@ -299,7 +350,9 @@
                 card={resolved[s.add.name] ?? null}
                 clickable={false}
               />
-              <span class="tag">{money(s.add)}</span>
+              <span class="tag"
+                >{costTag(s.add, $isDigital, resolved[s.add.name])}</span
+              >
             </div>
             <div class="swap-meta">
               <span class="why">{s.reason}</span>
@@ -309,7 +362,18 @@
             </div>
           </div>
         {/each}
-        <p class="spent">Spend: ${result.spent}</p>
+        {#if $isDigital}
+          <p class="spent">
+            Wildcards:
+            {#each wcSpendTiers as t (t.cls)}
+              <span class="wc-{t.cls}">{t.n}{t.label}</span>
+            {:else}
+              <span class="wc-owned">none — all owned</span>
+            {/each}
+          </p>
+        {:else}
+          <p class="spent">Spend: ${result.spent}</p>
+        {/if}
       </div>
     {/if}
     {#if result.swaps_note}<p class="note">{result.swaps_note}</p>{/if}
@@ -325,7 +389,8 @@
                 card={resolved[c.name] ?? null}
                 clickable={false}
               />
-              <span class="tag">{c.owned ? "owned" : "buy"}</span>
+              <span class="tag">{costTag(c, $isDigital, resolved[c.name])}</span
+              >
             </div>
             <div class="cmd-meta">serves {c.serves.join(", ")}</div>
             {#if c.identity_cost && c.identity_cost.length}
@@ -607,6 +672,12 @@
     font-size: 0.82rem;
     color: var(--parchment-dim);
     margin: 0.5rem 0 0;
+  }
+  /* Wildcard tier chips in the spend total — layout only; .wc-* globals tint them. */
+  .spent span {
+    margin-left: 0.4rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
   .note {
     font-size: 0.8rem;

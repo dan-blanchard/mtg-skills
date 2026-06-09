@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { writable, derived } from "svelte/store";
 
 export const deck = writable({
   format: "commander",
@@ -6,6 +6,10 @@ export const deck = writable({
   cards: [],
   sideboard: [],
 });
+// True for an Arena/digital build (Brawl / Historic Brawl with the medium toggle set to
+// digital). Drives every cost read-out: digital shows Arena wildcards by rarity, paper
+// shows USD. Derived so components subscribe to one flag instead of repeating the test.
+export const isDigital = derived(deck, ($d) => $d.medium === "digital");
 export const stats = writable(null);
 export const bracket = writable(null);
 export const mana = writable(null);

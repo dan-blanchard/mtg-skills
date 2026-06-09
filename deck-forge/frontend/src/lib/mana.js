@@ -33,6 +33,72 @@ export function priceOf(card) {
   return n == null || Number.isNaN(n) ? null : n;
 }
 
+// ─── Arena wildcards ────────────────────────────────────────────────────────
+// In a digital (Arena) build a card costs nothing in dollars — it costs one wildcard
+// of its rarity (and owned cards / basic lands cost nothing). These helpers are the
+// medium-aware counterpart to priceOf, shared by every cost read-out.
+
+// Tiers high→low, with the chip letter and the rarity key (= the .wc-<key> color class).
+export const WC_TIERS = [
+  ["mythic", "M", "mythic"],
+  ["rare", "R", "rare"],
+  ["uncommon", "U", "uncommon"],
+  ["common", "C", "common"],
+];
+
+// Rarity ordering for the "max wildcard rarity" facet ceiling (≤C / ≤U / ≤R).
+export const RARITY_RANK = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
+
+const WC_LETTER = { mythic: "M", rare: "R", uncommon: "U", common: "C" };
+const WC_WORD = {
+  mythic: "mythic",
+  rare: "rare",
+  uncommon: "uncommon",
+  common: "common",
+};
+
+export function isBasicLand(card) {
+  return /\bBasic Land\b/.test(card?.type_line || "");
+}
+
+// Per-card Arena cost for a digital build → { text, cls, title } for display.
+// Owned cards and basics are free; everything else is one wildcard of its rarity.
+// `cls` is a .wc-* class suffix (owned | free | mythic | rare | uncommon | common).
+export function wildcardLabel(card) {
+  if (card?.owned)
+    return {
+      text: "owned",
+      cls: "owned",
+      title: "Already in your Arena collection",
+    };
+  if (isBasicLand(card))
+    return {
+      text: "free",
+      cls: "free",
+      title: "Basic land — no wildcard needed",
+    };
+  const letter = WC_LETTER[card?.rarity];
+  if (!letter) return { text: "—", cls: "unknown", title: "Rarity unknown" };
+  return {
+    text: letter,
+    cls: card.rarity,
+    title: `1 ${WC_WORD[card.rarity]} wildcard`,
+  };
+}
+
+// Wildcards needed across a list of deck cards, by tier — owned cards and basics are
+// free, so they don't count. Singleton Commander-family formats are one copy each, so a
+// card contributes exactly one wildcard of its rarity. Mirrors the backend wildcard_cost
+// definition the footer's $wildcards aggregate uses, but per-group (Command Zone / Deck).
+export function wildcardTotals(cards) {
+  const out = { mythic: 0, rare: 0, uncommon: 0, common: 0 };
+  for (const c of cards || []) {
+    if (c.owned || isBasicLand(c)) continue;
+    if (c.rarity in out) out[c.rarity] += c.quantity || 1;
+  }
+  return out;
+}
+
 // The land-health readout shared by the footer pill and the Mana Gate modal.
 // Adds the soft FLOOD band (recommended + 2) on top of the backend's PASS/WARN/FAIL:
 // above the flood line the deck is over-landed (offer to trim) — but FLOOD never gates

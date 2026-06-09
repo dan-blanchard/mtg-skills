@@ -23,6 +23,7 @@
     FORMAT_TARGET,
     SYMBOL_ORDER,
     COLOR_LABEL,
+    WC_TIERS,
   } from "../lib/mana.js";
   import Mana from "./Mana.svelte";
   import Budgets from "./Budgets.svelte";
@@ -32,12 +33,6 @@
   // Effective deck-size target (60 or 100 for paper Historic Brawl), else format default.
   $: target = $deck.deck_size ?? FORMAT_TARGET[$deck.format] ?? 100;
   // Arena wildcard tiers (mythic→common), shown for digital builds in place of USD.
-  const WC_TIERS = [
-    ["mythic", "M", "mythic"],
-    ["rare", "R", "rare"],
-    ["uncommon", "U", "uncommon"],
-    ["common", "C", "common"],
-  ];
   $: wcTotal = $wildcards
     ? Object.values($wildcards).reduce((a, b) => a + b, 0)
     : 0;
@@ -282,7 +277,7 @@
     font-variant-numeric: tabular-nums;
     margin-left: -0.05rem;
   }
-  /* Arena wildcard tiers — tinted by rarity (mythic→common). */
+  /* Arena wildcard tiers — tinted by rarity via the global .wc-* classes (app.css). */
   .wc {
     gap: 0.4rem;
   }
@@ -290,18 +285,6 @@
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     font-size: 0.82rem;
-  }
-  .wc-mythic {
-    color: #f08a3c;
-  }
-  .wc-rare {
-    color: var(--brass-bright);
-  }
-  .wc-uncommon {
-    color: #b9c2cc;
-  }
-  .wc-common {
-    color: var(--parchment-dim);
   }
   .wc .owned-all {
     color: var(--pass);

@@ -5,10 +5,12 @@
     importOpen,
     collection,
     activeTab,
+    isDigital,
   } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { hoverPreview } from "../lib/hover.js";
   import { displayName } from "../lib/cards.js";
+  import { wildcardLabel, wildcardTotals, WC_TIERS } from "../lib/mana.js";
   import ManaCost from "./ManaCost.svelte";
 
   async function remove(name, zone) {
@@ -54,6 +56,17 @@
       (sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1),
       0,
     );
+  }
+
+  // Non-zero wildcard tiers for a group's subtotal in a digital build, e.g. [["rare",
+  // "R","rare"], …] paired with counts → "2R 5U". Empty when nothing needs crafting.
+  function wcSubtotal(cards) {
+    const totals = wildcardTotals(cards);
+    return WC_TIERS.filter(([k]) => totals[k]).map(([k, label, cls]) => ({
+      label,
+      cls,
+      n: totals[k],
+    }));
   }
 
   $: groups = [
@@ -104,7 +117,20 @@
         <div class="group">
           <div class="group-head">
             {g.label} <span>· {g.cards.length}</span>
-            <span class="subtotal">{money(groupTotal(g.cards))}</span>
+            {#if $isDigital}
+              <span
+                class="subtotal wc-sub"
+                title="Wildcards to craft this group"
+              >
+                {#each wcSubtotal(g.cards) as t (t.cls)}
+                  <span class="wc-{t.cls}">{t.n}{t.label}</span>
+                {:else}
+                  <span class="wc-owned">✓</span>
+                {/each}
+              </span>
+            {:else}
+              <span class="subtotal">{money(groupTotal(g.cards))}</span>
+            {/if}
           </div>
           {#each g.cards as c (c.name)}
             <div class="row" use:hoverPreview={c}>
@@ -128,7 +154,12 @@
               </div>
               <div class="right">
                 {#if c.quantity > 1}<span class="qty">×{c.quantity}</span>{/if}
-                {#if priceOf(c) != null}
+                {#if $isDigital}
+                  {@const wc = wildcardLabel(c)}
+                  <span class="wcprice wc-{wc.cls}" title={wc.title}
+                    >{wc.text}</span
+                  >
+                {:else if priceOf(c) != null}
                   <span class="price">{money(priceOf(c))}</span>
                 {:else}
                   <span
@@ -209,6 +240,18 @@
   .price.none {
     color: var(--muted);
     font-style: italic;
+  }
+  /* Wildcard cost (digital) — layout only; the .wc-* global classes supply the tint. */
+  .wcprice {
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .wc-sub {
+    display: inline-flex;
+    gap: 0.32rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
   .row {
     display: flex;
