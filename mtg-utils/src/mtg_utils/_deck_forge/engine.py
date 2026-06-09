@@ -143,6 +143,27 @@ def owned_quantities(state: ForgeState) -> dict[str, int]:
     return out
 
 
+def owned_collection(state: ForgeState) -> dict[str, int]:
+    """EVERY owned card in the active Collection slot (name -> copies), basics excluded.
+
+    Distinct from :func:`owned_quantities`, which is deck-scoped (the "X of Y owned"
+    readout). The tuner judges *candidate* adds — cards NOT yet in the deck — so a
+    deck-scoped map makes every candidate read as un-owned: at a zero wildcard budget
+    nothing would be affordable (no owned-card fills), and owned-but-not-in-deck cards
+    would wrongly burn budget. This whole-slot map lets the tuner treat any owned
+    candidate as free. Keyed by the collection's own names (canonical for Untapped/Arena
+    and Moxfield exports), which match the canonical names ``card_search`` returns."""
+    idx = state.collection_index.get(active_slot(state))
+    if not idx:
+        return {}
+    entries, _lookup = idx
+    return {
+        name: qty
+        for name, qty in entries.values()
+        if qty >= 1 and not _is_basic(state.by_name.get(name))
+    }
+
+
 def owned_of(state: ForgeState, name: str) -> int | None:
     """Owned copies of an arbitrary card name in the active Collection slot, or None.
     Unlike :func:`owned_quantities` (deck-scoped) this answers for any card — so Find

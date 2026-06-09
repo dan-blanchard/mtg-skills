@@ -714,7 +714,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             engine.hydrate(state),
             search_fn=state.search_fn,
             params=params,
-            owned=engine.owned_quantities(state),
+            # The WHOLE active Collection slot, not the deck-scoped owned map: the tuner
+            # costs CANDIDATE adds (not in the deck yet), so it must see every card you
+            # own as free — otherwise a zero wildcard budget fills nothing and owned
+            # cards wrongly consume budget.
+            owned=engine.owned_collection(state),
             combos_fn=state.combos_fn,
         )
 

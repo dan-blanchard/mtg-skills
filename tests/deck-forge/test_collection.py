@@ -96,6 +96,29 @@ def test_owned_quantities_reads_only_the_active_slot():
     assert engine.owned_quantities(state) == {}
 
 
+def test_owned_collection_surfaces_cards_not_in_the_deck():
+    # The tuner costs CANDIDATE adds (cards NOT yet in the deck), so owned_collection
+    # must return the WHOLE active slot — unlike the deck-scoped owned_quantities.
+    # Regression: feeding the tuner the deck-scoped map made every candidate read as
+    # un-owned, so a zero wildcard budget filled nothing and owned cards burned budget.
+    state = _state()  # deck: Sol Ring, Cultivate, Llanowar Elves, Forest
+    engine.set_collection(
+        state,
+        "paper",
+        {
+            "cards": [
+                {"name": "Cultivate", "quantity": 1},  # in the deck
+                {"name": "Kodama's Reach", "quantity": 1},  # NOT in the deck (candidate)
+                {"name": "Forest", "quantity": 30},  # basic — excluded
+            ]
+        },
+    )
+    owned = engine.owned_collection(state)
+    assert owned == {"Cultivate": 1, "Kodama's Reach": 1}  # whole slot, basics dropped
+    # The deck-scoped map can't see the candidate — the bug this function fixes.
+    assert "Kodama's Reach" not in engine.owned_quantities(state)
+
+
 def test_collection_store_round_trips(tmp_path):
     store = CollectionStore(tmp_path / "collection.json")
     store.save({"paper": {"cards": [{"name": "Sol Ring", "quantity": 3}]}})
