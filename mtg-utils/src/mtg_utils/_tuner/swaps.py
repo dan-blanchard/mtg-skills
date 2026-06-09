@@ -16,7 +16,7 @@ from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
-from mtg_utils.card_classify import extract_price, is_land
+from mtg_utils.card_classify import extract_price, get_oracle_text, is_land, is_ramp
 
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
 _UNPLAYED = 10**9
@@ -28,14 +28,33 @@ def _popularity(card: dict) -> int:
     return rank if rank is not None else _UNPLAYED
 
 
+# The mana ability of these rocks is gated on board state a deck may not have (Mox Opal
+# wants metalcraft, Mox Jasper a Dragon: "Activate only if you control …") — so they
+# read as ramp but do nothing here. Match the gate phrase itself (not the "Activate[
+# this ability]" prefix) so re-templating can't sneak one back in. Mox Amber has no such
+# gate ("…among legendary creatures … you control"), so it's correctly still sourced.
+_RAMP_CONDITIONAL = "only if you control"
+
+
+def _reliable_ramp(card: dict) -> bool:
+    """Ramp the tuner will SOURCE: a genuine producer (is_ramp — which already rejects
+    mana an opponent receives, like An Offer You Can't Refuse's Treasures) whose ability
+    isn't conditionally gated. The deck's existing conditional rocks still COUNT as ramp
+    (is_ramp), but the tuner won't suggest one the deck can't reliably turn on."""
+    return is_ramp(card) and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
+
+
 _ROLE_SEARCH: dict[str, dict] = {
     # Ramp has NO theme_preset (it's detected by card_classify.is_ramp, not a matcher),
     # so it must be sourced by oracle text — mirroring is_ramp's own patterns (mana
     # production or land-fetch). Using a nonexistent "ramp" preset here previously made
-    # card_search raise and 500'd /api/tune for any ramp-short deck.
+    # card_search raise and 500'd /api/tune for any ramp-short deck. The "_filter" is a
+    # tuner-side precision pass (applied in _ranked_pool) the coarse regex can't do — it
+    # drops opponent-mana and conditionally-gated rocks the regex would let through.
     "ramp": {
         "oracle": r"add (?:\{|one mana|mana of|an amount of mana)|"
-        r"search your library for [^.]*\bland"
+        r"search your library for [^.]*\bland",
+        "_filter": _reliable_ramp,
     },
     "card_draw": {"preset_names": ("card-draw",)},
     "interaction": {
@@ -352,6 +371,9 @@ def propose_swaps(
         pool = [c for c in found if c.get("name") not in in_deck]
         if nonland_only:
             pool = [c for c in pool if not is_land(c)]
+        spec_filter = spec.get("_filter")
+        if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
+            pool = [c for c in pool if spec_filter(c)]
         if synergy_first:
             # Synergy first (the deck's themes), then play-rate so a real staple beats
             # the cheapest chaff that nominally serves the same lane, then price. The

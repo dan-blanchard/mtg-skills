@@ -178,6 +178,44 @@ class TestIsRamp:
         }
         assert is_ramp(card) is False
 
+    def test_an_offer_you_cant_refuse_not_ramp(self):
+        """Opponent-directed Treasure is anti-ramp: the "Add one mana" lives only in the
+        token reminder and the Treasures go to the countered spell's controller."""
+        card = {
+            "type_line": "Instant",
+            "oracle_text": (
+                "Counter target noncreature spell. Its controller creates two "
+                "Treasure tokens. (They're artifacts with \"{T}, Sacrifice this "
+                'token: Add one mana of any color.")'
+            ),
+        }
+        assert is_ramp(card) is False
+
+    def test_you_directed_treasure_is_ramp(self):
+        """A Treasure-maker you keep (Dockside / Brass's Bounty) is ramp, even though the
+        "Add one mana" is only in the token reminder text."""
+        card = {
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Create five Treasure tokens. (They're artifacts with "
+                '"{T}, Sacrifice this token: Add one mana of any color.")'
+            ),
+        }
+        assert is_ramp(card) is True
+
+    def test_conditional_mox_still_counts_as_ramp(self):
+        """is_ramp counts a conditionally-gated rock the user chose to run (it DOES add
+        mana directly). The tuner's separate reliable-ramp filter is what keeps it from
+        being SUGGESTED into a deck that can't turn it on."""
+        card = {
+            "type_line": "Legendary Artifact",
+            "oracle_text": (
+                "Metalcraft — {T}: Add one mana of any color. Activate only if "
+                "you control three or more artifacts."
+            ),
+        }
+        assert is_ramp(card) is True
+
 
 class TestColorSources:
     def test_overgrown_tomb(self):

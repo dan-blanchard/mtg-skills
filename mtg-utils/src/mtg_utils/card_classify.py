@@ -121,6 +121,21 @@ def is_creature(card: dict) -> bool:
     return "Creature" in _classifying_type_line(card)
 
 
+# Reminder text (always parenthetical) describes a TOKEN's ability, not the card's own
+# — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
+# though it produces no mana for you.
+_REMINDER_RE = re.compile(r"\([^)]*\)")
+_ADD_MANA_RE = re.compile(r"add\s+(?:\{|one mana|mana of|an amount of mana)")
+# Phrases that hand a created token to someone other than you (An Offer You Can't
+# Refuse: "Its controller creates two Treasure tokens").
+_OPPONENT_DIRECTED = (
+    "its controller",
+    "target opponent",
+    "each opponent",
+    "target player",
+)
+
+
 def is_ramp(card: dict) -> bool:
     """Check if a non-land card produces mana or fetches lands."""
     if is_land(card):
@@ -134,8 +149,14 @@ def is_ramp(card: dict) -> bool:
     #   "Add one mana of any color" — flexible mana (e.g. Birds of Paradise)
     #   "add mana of that color" — conditional mana (e.g. Bloom Tender)
     #   "Add X mana" — scaled mana (e.g. Nykthos)
-    if re.search(r"add\s+(?:\{|one mana|mana of|an amount of mana)", oracle_lower):
+    # The card ITSELF adds mana when the match survives stripping reminder text.
+    if _ADD_MANA_RE.search(_REMINDER_RE.sub("", oracle_lower)):
         return True
+    # Otherwise the only "add mana" is a token's reminder (Treasure/Gold/…). That's ramp
+    # when YOU keep the token (Dockside, Smothering Tithe), NOT when it's handed to an
+    # opponent (An Offer You Can't Refuse counters a spell, Treasuring its controller).
+    if _ADD_MANA_RE.search(oracle_lower):
+        return not any(p in oracle_lower for p in _OPPONENT_DIRECTED)
 
     # Cards that search library for lands
     return "search your library for" in oracle_lower and "land" in oracle_lower

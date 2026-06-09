@@ -7,6 +7,7 @@ from mtg_utils._tuner.metrics import top_issues
 from mtg_utils._tuner.swaps import (
     _PROTECTION_SEARCH,
     _ROLE_SEARCH,
+    _reliable_ramp,
     _spec_for_issue,
     propose_swaps,
 )
@@ -550,3 +551,33 @@ def test_wildcard_owned_is_free_even_at_zero_budget():
         "uncommon": 0,
         "common": 0,
     }
+
+
+def test_reliable_ramp_excludes_conditional_and_opponent_mana():
+    """The tuner sources only ramp it can rely on: genuine producers that aren't gated
+    on board state, and never mana an opponent receives."""
+
+    def rock(oracle, type_line="Artifact"):
+        return {"type_line": type_line, "oracle_text": oracle}
+
+    # Genuine, unconditional ramp → sourced.
+    assert _reliable_ramp(rock("{T}: Add one mana of any color."))
+    # Mox Opal (metalcraft) / Mox Jasper (a Dragon): conditional rocks → not sourced.
+    assert not _reliable_ramp(
+        rock(
+            "Metalcraft — {T}: Add one mana of any color. Activate only if you "
+            "control three or more artifacts."
+        )
+    )
+    assert not _reliable_ramp(
+        rock("{T}: Add one mana of any color. Activate only if you control a Dragon.")
+    )
+    # An Offer You Can't Refuse: the Treasures (and their mana) go to the opponent.
+    assert not _reliable_ramp(
+        rock(
+            "Counter target noncreature spell. Its controller creates two Treasure "
+            "tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one "
+            'mana of any color.")',
+            type_line="Instant",
+        )
+    )
