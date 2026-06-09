@@ -59,6 +59,34 @@ class TestComboSearch:
         assert "Infinite colorless mana" in combo["result"]
         assert combo["bracket_tag"] == "B3"
 
+    def test_post_uses_a_hard_timeout(self, sample_combo_response):
+        # Regression: an unbounded Spellbook call wedged the deck-forge hub (combos run
+        # inline on the async event loop). Every request must carry a timeout.
+        from mtg_utils.combo_search import SPELLBOOK_TIMEOUT
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = sample_combo_response
+        mock_resp.raise_for_status = MagicMock()
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+            combo_search(_cs_hd(SAMPLE_DECK))
+            assert (
+                mock_session.post.call_args.kwargs.get("timeout") == SPELLBOOK_TIMEOUT
+            )
+
+    def test_timeout_degrades_to_empty_combos(self):
+        # A stalled/raised request must NOT propagate — combo search degrades to empty.
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.side_effect = Exception(
+                "HTTPSConnectionPool: read timed out"
+            )
+            mock_requests.Session.return_value = mock_session
+            result = combo_search(_cs_hd(SAMPLE_DECK))
+        assert result == {"combos": [], "near_misses": []}
+
     def test_extracts_near_misses_with_missing_card(self, sample_combo_response):
         mock_resp = MagicMock()
         mock_resp.status_code = 200

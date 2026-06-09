@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi import FastAPI, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -351,7 +352,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": "Add more cards before goldfishing (need a full hand)."},
                 status_code=400,
             )
-        return engine.goldfish_report(state)
+        # The goldfish sim is heavy local compute (many simulated turns); offload it so
+        # a long run keeps the loop responsive (same reason proxies is a sync route).
+        return await run_in_threadpool(engine.goldfish_report, state)
 
     @app.post("/api/handoff/proxies", response_model=None)
     def handoff_proxies() -> Response:
@@ -695,7 +698,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             paper_only=engine.paper_only(fmt),
             medium=state.session.medium,
         )
-        return run_tune(
+        # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
+        # searches); offload it to a worker thread so a slow combo lookup can't stall
+        # the event loop and wedge the whole hub. Pure read of state, so thread-safe.
+        return await run_in_threadpool(
+            run_tune,
             engine.hydrate(state),
             search_fn=state.search_fn,
             params=params,
@@ -761,7 +768,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 "error": "combo lookup unavailable",
             }
         try:
-            result = state.combos_fn(state.session.to_deck_dict())
+            # Combos ride a network call (Spellbook); run it off the event loop so a
+            # slow response can't stall the hub.
+            result = await run_in_threadpool(
+                state.combos_fn, state.session.to_deck_dict()
+            )
         except Exception as exc:  # noqa: BLE001 — network/3rd-party; surface, don't crash
             return JSONResponse(
                 {"error": f"combo lookup failed: {exc}"}, status_code=502

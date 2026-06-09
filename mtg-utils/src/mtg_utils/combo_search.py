@@ -17,6 +17,11 @@ from mtg_utils.hydrated_deck import HydratedDeck
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 SPELLBOOK_VARIANTS_URL = "https://backend.commanderspellbook.com/variants"
 USER_AGENT = "commander-utils/0.1.0"
+# Hard timeout (connect, read) on every Spellbook request. Without it a stalled response
+# hangs the caller indefinitely — and since deck-forge's /api/tune runs combos inline on
+# the async event loop, an unbounded combo call wedges the entire hub (not just one
+# request). On timeout requests raises → callers degrade to heuristic-only combos.
+SPELLBOOK_TIMEOUT = (5, 15)
 
 
 def _extract_combo(variant: dict) -> dict:
@@ -149,7 +154,7 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
     try:
         session = requests.Session()
         session.headers["User-Agent"] = USER_AGENT
-        resp = session.post(SPELLBOOK_URL, json=body)
+        resp = session.post(SPELLBOOK_URL, json=body, timeout=SPELLBOOK_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
     except Exception:  # noqa: BLE001
@@ -268,6 +273,7 @@ def search_combos(
         resp = session.get(
             SPELLBOOK_VARIANTS_URL,
             params={"q": q, "ordering": ordering, "limit": limit},
+            timeout=SPELLBOOK_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
