@@ -1,6 +1,6 @@
 <script>
   import { api } from "../lib/api.js";
-  import { isDigital } from "../lib/store.js";
+  import { isDigital, applySnapshot } from "../lib/store.js";
   import { WC_TIERS } from "../lib/mana.js";
   import CardChip from "./CardChip.svelte";
   import CardList from "./CardList.svelte";
@@ -77,21 +77,43 @@
   }
 
   async function applySwap(s) {
+    if (applying) return;
     applying = true;
-    if (s.cut) await api.remove(s.cut.name); // a fill only adds
-    await api.add(s.add.name);
-    applying = false;
-    await run();
+    // Drop it from the list up front so it vanishes immediately and can't be applied
+    // twice (the old flow re-enabled the button before the slow re-tune finished, so a
+    // second click on the still-showing row double-added the card).
+    result = { ...result, swaps: result.swaps.filter((x) => x !== s) };
+    try {
+      // applySnapshot keeps the deck list + footer live; a single apply skips the full
+      // re-tune (slow combos + search) so working through the list stays snappy — the
+      // scorecard refreshes on the next Run Tune.
+      if (s.cut) {
+        const r = await api.remove(s.cut.name); // a fill only adds
+        if (r.ok) applySnapshot(r.data);
+      }
+      const r = await api.add(s.add.name);
+      if (r.ok) applySnapshot(r.data);
+    } finally {
+      applying = false;
+    }
   }
 
   async function applyAll() {
+    if (applying) return;
     applying = true;
-    for (const s of result.swaps) {
-      if (s.cut) await api.remove(s.cut.name);
-      await api.add(s.add.name);
+    try {
+      for (const s of result.swaps) {
+        if (s.cut) {
+          const r = await api.remove(s.cut.name);
+          if (r.ok) applySnapshot(r.data);
+        }
+        const r = await api.add(s.add.name);
+        if (r.ok) applySnapshot(r.data);
+      }
+      await run(); // one re-tune after the batch to refresh the scorecard + proposals
+    } finally {
+      applying = false;
     }
-    applying = false;
-    await run();
   }
 
   const pct = (x) => Math.round((x || 0) * 100);
@@ -115,9 +137,17 @@
     return entry.cost === 0 ? "free" : `$${entry.cost}`;
   }
 
-  // Wildcards the proposed swaps cost, by tier (digital only) — the backend's
-  // authoritative per-tier total (one wildcard per unowned add of its rarity).
-  $: wcSpend = result?.wildcards_spent ?? {};
+  // Wildcards the swaps STILL in the list cost, by tier (digital only) — one wildcard
+  // per unowned add of its rarity. Recomputed from the rows (each carries rarity +
+  // owned, from the backend) so the total stays in sync when a single Apply removes one,
+  // rather than reading the backend's now-stale full-batch wildcards_spent.
+  $: wcSpend = (result?.swaps ?? []).reduce(
+    (t, s) => {
+      if (!s.add.owned && s.add.rarity in t) t[s.add.rarity] += 1;
+      return t;
+    },
+    { mythic: 0, rare: 0, uncommon: 0, common: 0 },
+  );
   $: wcSpendTiers = WC_TIERS.filter(([k]) => wcSpend[k]).map(
     ([k, label, cls]) => ({
       label,
