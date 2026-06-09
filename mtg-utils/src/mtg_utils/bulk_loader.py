@@ -83,21 +83,64 @@ def _write_sidecar(sidecar: Path, cards: list[dict]) -> None:
                 tmp.unlink()
 
 
-def load_bulk_cards(bulk_path: Path) -> list[dict]:
-    """Load Scryfall bulk data, preferring a pickled sidecar cache.
+def bulk_mtime(bulk_path: Path) -> float:
+    """The sidecar's mtime (or 0.0 if absent) — a cheap version token callers use to key
+    their own derived caches so a ``download-bulk`` refresh invalidates them in lockstep
+    with :func:`load_bulk_cards`'s in-memory cache."""
+    sidecar = _sidecar_path(bulk_path)
+    try:
+        return sidecar.stat().st_mtime if sidecar.exists() else 0.0
+    except OSError:
+        return 0.0
 
-    Builds the sidecar on the first call (or after the JSON is refreshed)
-    so subsequent calls in the same session — and across sessions — pay
-    only the pickle deserialization cost.
+
+# In-memory cache of the deserialized bulk list, keyed by path. Re-reading the sidecar
+# via pickle.load costs ~0.9s for the full list, and one tune issues ~30 searches that
+# each call load_bulk_cards — so without this, one tune re-deserializes the whole DB ~30
+# times (~26s, measured). The list is shared BY REFERENCE; every caller treats it
+# read-only (search builds new lists; nothing mutates a bulk record). The stored sidecar
+# mtime invalidates the entry the moment download-bulk rebuilds the sidecar.
+_MEM_CACHE: dict[str, tuple[float, list[dict]]] = {}
+
+
+def clear_memory_cache() -> None:
+    """Drop the in-memory bulk cache (test hygiene; rarely needed in production since
+    the mtime key already self-invalidates on a bulk refresh)."""
+    _MEM_CACHE.clear()
+
+
+def load_bulk_cards(bulk_path: Path) -> list[dict]:
+    """Load Scryfall bulk data, preferring an in-memory cache, then a pickled sidecar.
+
+    Builds the sidecar on the first call (or after the JSON is refreshed) so subsequent
+    calls pay only the pickle deserialization cost. An in-memory cache (keyed by path +
+    sidecar mtime) then makes repeated calls in one process free, which keeps a
+    multi-search tune from re-unpickling the whole DB on every search.
     """
     sidecar = _sidecar_path(bulk_path)
+    key = str(bulk_path)
+    # Only trust the in-memory entry when the sidecar is still FRESH (not older than
+    # the JSON) AND unchanged since we cached it — otherwise a hit would skip
+    # _read_sidecar's staleness check and serve data from a since-refreshed bulk file.
+    try:
+        sidecar_mtime = sidecar.stat().st_mtime if sidecar.exists() else None
+        fresh = sidecar_mtime is not None and sidecar_mtime >= bulk_path.stat().st_mtime
+    except OSError:
+        sidecar_mtime, fresh = None, False
+    if fresh:
+        hit = _MEM_CACHE.get(key)
+        if hit is not None and hit[0] == sidecar_mtime:
+            return hit[1]
+
     cached = _read_sidecar(sidecar, bulk_path)
     if cached is not None:
+        _MEM_CACHE[key] = (sidecar.stat().st_mtime, cached)
         return cached
 
     with bulk_path.open(encoding="utf-8") as f:
         cards = json.load(f)
     _write_sidecar(sidecar, cards)
+    _MEM_CACHE[key] = (bulk_mtime(bulk_path), cards)
     return cards
 
 

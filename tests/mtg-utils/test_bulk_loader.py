@@ -11,6 +11,7 @@ from mtg_utils.bulk_loader import (
     SIDECAR_VERSION,
     _sidecar_path,
     build_sidecar,
+    clear_memory_cache,
     load_bulk_cards,
 )
 
@@ -52,6 +53,32 @@ def test_warm_load_uses_sidecar_not_json(bulk_path: Path):
     cards = load_bulk_cards(bulk_path)
     assert len(cards) == 2
     assert cards[0]["name"] == "Sol Ring"
+
+
+def test_in_memory_cache_reuses_the_list(bulk_path: Path):
+    # Repeated loads in one process return the SAME list object (the 46x tuning win: a
+    # multi-search tune must not re-unpickle the whole DB on every search). clear cache
+    # forces a fresh read.
+    first = load_bulk_cards(bulk_path)
+    assert load_bulk_cards(bulk_path) is first  # served from memory, not re-read
+
+    clear_memory_cache()
+    fresh = load_bulk_cards(bulk_path)
+    assert fresh is not first  # cache cleared → reloaded from the sidecar
+    assert fresh == first  # ...with identical contents
+
+
+def test_in_memory_cache_invalidates_on_refresh(bulk_path: Path):
+    # A download-bulk refresh (newer JSON → rebuilt sidecar) must invalidate the
+    # in-memory entry, not serve the pre-refresh list.
+    first = load_bulk_cards(bulk_path)
+    bulk_path.write_text(json.dumps([{"name": "Opt", "type_line": "Instant"}]))
+    newer = _sidecar_path(bulk_path).stat().st_mtime + 10
+    os.utime(bulk_path, (newer, newer))
+
+    refreshed = load_bulk_cards(bulk_path)
+    assert refreshed is not first
+    assert [c["name"] for c in refreshed] == ["Opt"]
 
 
 def test_stale_sidecar_triggers_rebuild(bulk_path: Path):

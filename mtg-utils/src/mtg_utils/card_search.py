@@ -11,7 +11,7 @@ from typing import Any
 import click
 
 from mtg_utils._name_index import keep_cheaper
-from mtg_utils.bulk_loader import load_bulk_cards
+from mtg_utils.bulk_loader import bulk_mtime, load_bulk_cards
 from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
     color_identity_subset,
@@ -119,6 +119,51 @@ def _matches_filters(
     return True
 
 
+# Cached format-invariant "playable" subsets of bulk, keyed by
+# (path, sidecar mtime, legality_key, arena_only, paper_only). The legality / layout /
+# game (paper|arena) filters don't depend on the per-query filters (colors, oracle,
+# type, cmc, price, presets), so we compute that subset ONCE per format and rescan only
+# it. For an Arena format that's ~7k cards vs all ~114k bulk records — so a tune's many
+# searches stop re-scanning the whole database each time. mtime keys invalidate on a
+# download-bulk refresh, matching load_bulk_cards's own in-memory cache.
+_POOL_CACHE: dict[tuple[str, float, str, bool, bool], list[dict]] = {}
+
+
+def _playable_pool(
+    bulk_path: Path,
+    cards: list[dict],
+    *,
+    legality_key: str,
+    arena_only: bool,
+    paper_only: bool,
+) -> list[dict]:
+    key = (str(bulk_path), bulk_mtime(bulk_path), legality_key, arena_only, paper_only)
+    pool = _POOL_CACHE.get(key)
+    if pool is None:
+        # Reuse _matches_filters with the per-query filters disabled so the
+        # format-invariant predicate stays in ONE place — this runs exactly the
+        # layout / set_type / legality / games checks.
+        pool = [
+            c
+            for c in cards
+            if _matches_filters(
+                c,
+                allowed_colors=None,
+                oracle_re=None,
+                type_lower=None,
+                cmc_min=None,
+                cmc_max=None,
+                price_min=None,
+                price_max=None,
+                legality_key=legality_key,
+                arena_only=arena_only,
+                paper_only=paper_only,
+            )
+        ]
+        _POOL_CACHE[key] = pool
+    return pool
+
+
 _SORT_DEFAULTS = {
     "price": True,  # descending
     "cmc": False,  # ascending
@@ -200,11 +245,20 @@ def search_cards(
         presets = tuple(resolved)
 
     cards = load_bulk_cards(bulk_path)
+    # Scan only the format-invariant playable subset (cached) rather than all ~114k bulk
+    # records; the per-query filters below still run on every pool member.
+    pool = _playable_pool(
+        bulk_path,
+        cards,
+        legality_key=legality_key,
+        arena_only=arena_only,
+        paper_only=paper_only,
+    )
 
     # Filter
     matched = [
         card
-        for card in cards
+        for card in pool
         if _matches_filters(
             card,
             allowed_colors=allowed_colors,

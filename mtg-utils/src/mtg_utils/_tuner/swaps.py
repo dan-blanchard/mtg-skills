@@ -326,20 +326,20 @@ def propose_swaps(
     # deck OFF-template, so fixing one issue must not regress the template.
     full_roles = {r for r, b in budgets.items() if b["current"] >= b["max"]}
 
-    def find_add(
-        spec: dict, *, synergy_first: bool, nonland_only: bool = False, limit: int = 60
-    ) -> tuple[dict, float] | None:
-        """The best affordable add for this spec — does NOT commit spend (the caller
-        commits once a cut is secured, so an unpaired add can't inflate the total).
+    # Search + rank a spec ONCE per propose_swaps call, memoized. The ranked ORDER
+    # depends only on in_deck (fixed), not on which cards have been used — so the fill
+    # pass, which asks for the same spec repeatedly to fill many slots, reuses the pool
+    # instead of re-searching + re-ranking ~1000 cards per card added (the dominant
+    # redundant cost). used_adds is applied at pick time in find_add, not here.
+    _pool_memo: dict[tuple, list[dict]] = {}
 
-        Prefers an add that does NOT overshoot an already-full Spine role (so a curve
-        fix can't break the template); only falls back to an overshooting add when
-        nothing cleaner is affordable. ``nonland_only`` drops lands — Spine roles count
-        only nonland producers, and the fill pass reserves land slots for the land tool,
-        so the ramp oracle (which matches mana-producing lands) must not pull them in.
-        ``limit`` widens the candidate pool — the fill pass adds many cards per spec, so
-        a 60-card page runs dry after dedup; it requests a deeper page.
-        """
+    def _ranked_pool(
+        spec: dict, *, synergy_first: bool, nonland_only: bool, limit: int
+    ) -> list[dict]:
+        key = (tuple(sorted(spec.items())), synergy_first, nonland_only, limit)
+        cached = _pool_memo.get(key)
+        if cached is not None:
+            return cached
         found = _run_search(
             search_fn,
             spec,
@@ -349,7 +349,7 @@ def propose_swaps(
             cmc_cap=cmc_cap,
             limit=limit,
         )
-        pool = [c for c in found if c.get("name") not in in_deck | used_adds]
+        pool = [c for c in found if c.get("name") not in in_deck]
         if nonland_only:
             pool = [c for c in pool if not is_land(c)]
         if synergy_first:
@@ -379,8 +379,31 @@ def propose_swaps(
                     extract_price(c) or 1e9,
                 ),
             )
+        _pool_memo[key] = ranked
+        return ranked
+
+    def find_add(
+        spec: dict, *, synergy_first: bool, nonland_only: bool = False, limit: int = 60
+    ) -> tuple[dict, float] | None:
+        """The best affordable, not-yet-used add for this spec — does NOT commit spend
+        (the caller commits once a cut is secured, so an unpaired add can't inflate the
+        total).
+
+        Prefers an add that does NOT overshoot an already-full Spine role (so a curve
+        fix can't break the template); only falls back to an overshooting add when
+        nothing cleaner is affordable. ``nonland_only`` drops lands — Spine roles count
+        only nonland producers, and the fill pass reserves land slots for the land tool,
+        so the ramp oracle (which matches mana-producing lands) must not pull them in.
+        ``limit`` widens the candidate pool — the fill pass adds many cards per spec, so
+        a 60-card page runs dry after dedup; it requests a deeper page.
+        """
+        ranked = _ranked_pool(
+            spec, synergy_first=synergy_first, nonland_only=nonland_only, limit=limit
+        )
         fallback: tuple[dict, float] | None = None
         for card in ranked:
+            if card.get("name") in used_adds:  # already taken — skip to the next best
+                continue
             cost = ledger.acquire_cost(card, owned)
             if cost is None:
                 continue
