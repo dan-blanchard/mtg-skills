@@ -371,6 +371,75 @@ def test_dead_weight_fires_on_fringe_theme_cards_without_filler():
     assert "dead_weight" in {i["kind"] for i in top_issues(focus_r=fr, **base)}
 
 
+def test_fill_pass_adds_without_cuts_to_grow_an_undersized_deck():
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+    classes = [_cc("Existing Theme Card", "engine", served=[label], edhrec_rank=500)]
+    budgets = {"ramp": _band(0, 10, 12)}  # ramp short → fill toward floor
+    adds = [
+        {
+            "name": f"Mana Dork {i}",
+            "type_line": "Creature — Elf",
+            "oracle_text": "Add {G}.",
+            "cmc": 1.0,
+            "prices": {"usd": "1.00"},
+            "color_identity": ["G"],
+            "edhrec_rank": 300,
+        }
+        for i in range(20)
+    ]
+    # A land matching the ramp oracle ("Add") must NOT be filled — land slots are reserved.
+    a_land = {
+        "name": "Sneaky Land",
+        "type_line": "Land",
+        "oracle_text": "{T}: Add {G}.",
+        "cmc": 0.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": ["G"],
+        "edhrec_rank": 100,
+    }
+    out = propose_swaps(
+        classes,
+        [],
+        budgets=budgets,
+        focus_result=_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+        deck_signals=[sig],
+        search_fn=lambda **_: [a_land, *adds],
+        identity="G",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=100.0,
+        max_swaps=50,
+        top_heavy=False,
+        fill_slots=8,
+    )
+    fills = [s for s in out["swaps"] if s["cut"] is None]
+    assert len(fills) == 8  # filled exactly the open slots, with pure adds (no cut)
+    assert "Sneaky Land" not in {s["add"]["name"] for s in fills}  # lands reserved
+
+
+def test_fill_slots_zero_leaves_a_full_deck_untouched():
+    # A complete deck (fill_slots=0) gets no fill adds — only the normal swap behavior.
+    out = propose_swaps(
+        [_cc("Filler", "filler", cmc=3.0)],
+        [],
+        budgets={},
+        focus_result=_focus(),
+        deck_signals=[],
+        search_fn=lambda **_: [],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=100.0,
+        max_swaps=50,
+        top_heavy=False,
+        fill_slots=0,
+    )
+    assert out["swaps"] == []
+
+
 def test_emerging_theme_proposes_a_commit_add():
     sig = Signal(
         key="proliferate_matters",

@@ -28,7 +28,7 @@
   }
   $: if (result) {
     for (const s of result.swaps) {
-      resolveOne(s.cut.name);
+      if (s.cut) resolveOne(s.cut.name); // fills have no cut (pure add into an open slot)
       resolveOne(s.add.name);
     }
     for (const c of result.commander_suggestions || []) resolveOne(c.name);
@@ -61,7 +61,7 @@
 
   async function applySwap(s) {
     applying = true;
-    await api.remove(s.cut.name);
+    if (s.cut) await api.remove(s.cut.name); // a fill only adds
     await api.add(s.add.name);
     applying = false;
     await run();
@@ -70,7 +70,7 @@
   async function applyAll() {
     applying = true;
     for (const s of result.swaps) {
-      await api.remove(s.cut.name);
+      if (s.cut) await api.remove(s.cut.name);
       await api.add(s.add.name);
     }
     applying = false;
@@ -275,21 +275,24 @@
     {#if result.swaps.length}
       <div class="panel widget">
         <div class="swap-head">
-          <h3 class="panel-title">Proposed swaps</h3>
+          <h3 class="panel-title">Proposed changes</h3>
           <button class="apply-all" on:click={applyAll} disabled={applying}>
             Apply all ({result.swaps.length})
           </button>
         </div>
-        {#each result.swaps as s (s.cut.name + s.add.name)}
+        {#each result.swaps as s ((s.cut?.name ?? "") + "→" + s.add.name)}
           <div class="swap">
             <div class="pair">
-              <span class="pm cut">−</span>
-              <CardChip
-                name={s.cut.name}
-                card={resolved[s.cut.name] ?? null}
-                clickable={false}
-              />
-              <span class="arrow">→</span>
+              <!-- A fill has no cut: it's a pure add into an open slot, shown as just "+ Card". -->
+              {#if s.cut}
+                <span class="pm cut">−</span>
+                <CardChip
+                  name={s.cut.name}
+                  card={resolved[s.cut.name] ?? null}
+                  clickable={false}
+                />
+                <span class="arrow">→</span>
+              {/if}
               <span class="pm add">+</span>
               <CardChip
                 name={s.add.name}

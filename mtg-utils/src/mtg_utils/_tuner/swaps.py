@@ -16,7 +16,7 @@ from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
-from mtg_utils.card_classify import extract_price
+from mtg_utils.card_classify import extract_price, is_land
 
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
 _UNPLAYED = 10**9
@@ -207,9 +207,11 @@ def propose_swaps(
     budget: float | None,
     max_swaps: int,
     top_heavy: bool,
+    fill_slots: int = 0,
 ) -> dict:
     """Walk the ranked issues, sourcing a (cut, add) pair per actionable issue up to
-    ``max_swaps``. Returns the swaps + a note when fewer than asked were found."""
+    ``max_swaps``. When ``fill_slots`` > 0 (an under-sized deck) a fill pass then adds
+    pure adds (no cut) into the open slots. Returns the swaps + a note."""
     in_deck = {c.name for c in classes}
     stranded = set(focus_result["stranded_avenues"])
     cuts = cut_candidates(
@@ -254,13 +256,19 @@ def propose_swaps(
     # deck OFF-template, so fixing one issue must not regress the template.
     full_roles = {r for r, b in budgets.items() if b["current"] >= b["max"]}
 
-    def find_add(spec: dict, *, synergy_first: bool) -> tuple[dict, float] | None:
+    def find_add(
+        spec: dict, *, synergy_first: bool, nonland_only: bool = False, limit: int = 60
+    ) -> tuple[dict, float] | None:
         """The best affordable add for this spec — does NOT commit spend (the caller
         commits once a cut is secured, so an unpaired add can't inflate the total).
 
         Prefers an add that does NOT overshoot an already-full Spine role (so a curve
         fix can't break the template); only falls back to an overshooting add when
-        nothing cleaner is affordable.
+        nothing cleaner is affordable. ``nonland_only`` drops lands — Spine roles count
+        only nonland producers, and the fill pass reserves land slots for the land tool,
+        so the ramp oracle (which matches mana-producing lands) must not pull them in.
+        ``limit`` widens the candidate pool — the fill pass adds many cards per spec, so
+        a 60-card page runs dry after dedup; it requests a deeper page.
         """
         found = _run_search(
             search_fn,
@@ -269,8 +277,11 @@ def propose_swaps(
             fmt=fmt,
             paper_only=paper_only,
             cmc_cap=cmc_cap,
+            limit=limit,
         )
         pool = [c for c in found if c.get("name") not in in_deck | used_adds]
+        if nonland_only:
+            pool = [c for c in pool if not is_land(c)]
         if synergy_first:
             # Synergy first (the deck's themes), then play-rate so a real staple beats
             # the cheapest chaff that nominally serves the same lane, then price. The
@@ -310,17 +321,19 @@ def propose_swaps(
         return fallback
 
     def commit(
-        issue: dict, reason: str, cut: CardClass, add_card: dict, cost: float
+        issue: dict, reason: str, cut: CardClass | None, add_card: dict, cost: float
     ) -> None:
         nonlocal spent
         spent += cost  # commit the spend only now that the swap is finalized
-        used_cuts.add(cut.name)
+        if cut is not None:
+            used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))
         swaps.append(
             {
                 "issue": issue["kind"],
                 "reason": issue["message"],
-                "cut": {"name": cut.name, "why": _cut_why(reason)},
+                # cut is None for a fill (a pure add into an open slot, not a trade).
+                "cut": ({"name": cut.name, "why": _cut_why(reason)} if cut else None),
                 "add": {
                     "name": add_card.get("name", ""),
                     "cmc": add_card.get("cmc", 0.0),
@@ -357,7 +370,11 @@ def propose_swaps(
         if spec is None:
             continue  # advisory-only issue (e.g. commander_misfit, efficiency)
         synergy_first = issue["kind"] not in _SPINE_KINDS
-        picked = find_add(spec, synergy_first=synergy_first)
+        # Spine roles count nonland producers only, so don't let the ramp oracle pull a
+        # mana-land in as "ramp".
+        picked = find_add(
+            spec, synergy_first=synergy_first, nonland_only=not synergy_first
+        )
         if picked is None:
             continue
         cut_entry = take_cut(issue)
@@ -367,8 +384,78 @@ def propose_swaps(
         add_card, cost = picked
         commit(issue, reason, cut, add_card, cost)
 
+    # Fill pass — grow an under-sized deck toward target with PURE ADDS (no cut). The
+    # swap loop above is cut-bound (every move trades a card), so a partially-built deck
+    # with open slots never grows. Here we add into the open slots, prioritised by the
+    # same needs: short Spine roles to floor → emerging/main themes → in-identity good
+    # stuff. Lands are out of scope (the mana base is the land tooling's job).
+    fills_done = 0
+
+    def take_fills(
+        spec: dict | None, quota: int, *, synergy_first: bool, kind: str, msg: str
+    ) -> None:
+        nonlocal fills_done
+        if spec is None:
+            return
+        added = 0
+        while added < quota and fills_done < fill_slots and len(swaps) < max_swaps:
+            # Fill is nonland-only (land slots reserved) and pulls a DEEP page: an
+            # identity-only good-stuff search is cmc-asc, so its first few hundred hits
+            # are mostly CMC-0 lands — we need to page well past them to find enough
+            # distinct nonland cards.
+            picked = find_add(
+                spec, synergy_first=synergy_first, nonland_only=True, limit=1000
+            )
+            if picked is None:
+                break
+            add_card, cost = picked
+            commit({"kind": kind, "message": msg}, "", None, add_card, cost)
+            added += 1
+            fills_done += 1
+
+    if fill_slots > 0:
+        for role in ("ramp", "card_draw", "interaction", "board_wipe"):
+            b = budgets.get(role)
+            if b and b["current"] < b["min"]:
+                take_fills(
+                    _ROLE_SEARCH[role],
+                    b["min"] - b["current"],
+                    synergy_first=False,
+                    kind="fill_role",
+                    msg=f"fill {role.replace('_', ' ')} toward the floor",
+                )
+        for e in focus_result.get("emerging", []):
+            take_fills(
+                _avenue_search_for(e["label"], deck_signals),
+                fill_slots,
+                synergy_first=True,
+                kind="fill_theme",
+                msg=f"deepen {e['label']}",
+            )
+        take_fills(
+            _main_avenue_search(focus_result, deck_signals),
+            fill_slots,
+            synergy_first=True,
+            kind="fill_theme",
+            msg="deepen the deck's main theme",
+        )
+        take_fills(
+            {},
+            fill_slots,
+            synergy_first=True,
+            kind="fill",
+            msg="fill open slots with in-identity cards",
+        )
+
     note = None
-    if len(swaps) < max_swaps:
+    if fill_slots and fills_done < fill_slots:
+        why = (
+            "hit the max-swaps limit — raise it"
+            if len(swaps) >= max_swaps
+            else "out of distinct affordable in-identity adds — raise the budget"
+        )
+        note = f"Filled {fills_done} of {fill_slots} open nonland slots ({why})."
+    elif not fill_slots and len(swaps) < max_swaps:
         note = (
             f"Proposed {len(swaps)} of {max_swaps} — no further actionable issues, or "
             "out of safe cuts / affordable adds (set a Budget to allow buys)."

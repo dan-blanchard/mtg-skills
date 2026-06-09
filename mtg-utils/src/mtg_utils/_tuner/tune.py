@@ -18,6 +18,7 @@ from mtg_utils._tuner.classify import CardClass, classify_deck
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.mana_audit import mana_audit
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,33 @@ def _deck_identity(hd: HydratedDeck) -> str:
     for rec in records:
         colors.update(rec.get("color_identity") or [])
     return "".join(sorted(colors))
+
+
+def _fill_gap(
+    deck: dict, classes: Sequence[CardClass], deck_size: int, recommended_lands: int
+) -> tuple[int, int]:
+    """Open NONLAND slots in an under-sized deck: returns (fill_slots, land_gap).
+
+    fill_slots is the nonland target (deck_size, less recommended lands and commanders)
+    minus the current nonland count -- the nonland adds the fill pass makes. land_gap is
+    the lands still owed to the recommended mana base, left to the land tooling."""
+    land_names = {c.name for c in classes if c.bucket == "land"}
+
+    def qty(zone: str) -> int:
+        return sum(int(e.get("quantity", 1)) for e in deck.get(zone) or [])
+
+    num_cmd = len(deck.get("commanders") or [])
+    total = qty("commanders") + qty("cards")
+    lands = sum(
+        int(e.get("quantity", 1))
+        for e in deck.get("cards") or []
+        if e["name"] in land_names
+    )
+    nonland_target = deck_size - recommended_lands - num_cmd
+    current_nonland = total - lands - num_cmd
+    fill_slots = max(0, nonland_target - current_nonland)
+    land_gap = max(0, recommended_lands - lands)
+    return fill_slots, land_gap
 
 
 def _bucket_counts(classes: Sequence[CardClass]) -> dict[str, int]:
@@ -134,6 +162,8 @@ def tune(
 
     swaps_out: dict = {"swaps": [], "spent": 0.0, "note": None}
     if params.max_swaps > 0 and hd.has_records:
+        recommended_lands = int(mana_audit(hd).get("recommended_land_count") or 0)
+        fill_slots, land_gap = _fill_gap(deck, classes, deck_size, recommended_lands)
         swaps_out = swaps_mod.propose_swaps(
             classes,
             issues,
@@ -148,7 +178,18 @@ def tune(
             budget=params.budget,
             max_swaps=params.max_swaps,
             top_heavy=eff["verdict"] == "top-heavy",
+            fill_slots=fill_slots,
         )
+        # The fill pass deliberately skips lands; flag any mana-base shortfall so the
+        # user runs the land tooling (balance-lands), not Tune, to finish it.
+        if land_gap > 0:
+            land_note = (
+                f"Also ~{land_gap} lands short — run Balance Lands to finish the "
+                "mana base."
+            )
+            swaps_out["note"] = (
+                f"{swaps_out['note']} {land_note}" if swaps_out["note"] else land_note
+            )
 
     suggestions = None
     if params.suggest_commander:

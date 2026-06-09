@@ -686,7 +686,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         fmt = state.session.format
         params = TuneParams(
             budget=payload.budget,
-            max_swaps=max(0, min(payload.max_swaps, 25)),
+            # Cap high enough to FILL a near-empty deck (an under-sized build can need
+            # ~40+ adds to reach 100); the old 25 cap silently clamped large requests
+            # and starved the fill pass.
+            max_swaps=max(0, min(payload.max_swaps, 99)),
             shape_override=payload.shape_override,
             suggest_commander=payload.suggest_commander,
             paper_only=engine.paper_only(fmt),
