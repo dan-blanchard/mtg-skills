@@ -20,6 +20,19 @@ from mtg_utils.hydrated_deck import HydratedDeck
 # The hard-counted Spine roles; ``lands`` is its own bucket (the curve gate's domain).
 _SPINE_ROLES = frozenset({"ramp", "card_draw", "interaction", "board_wipe"})
 
+# Card-quality signal (the ONE place the tuner leans on EDHREC popularity, by explicit
+# user direction — ADR-0009 still bars it from the Find ranker). Scryfall's edhrec_rank
+# is a global play-rate rank (lower = more played); absent ≈ unplayed. A card
+# ranked worse than this floor in a themed deck is "fringe": it nominally feeds a broad
+# avenue but almost nobody runs it, so it's an upgrade target. Calibrated against the
+# benchmark — vanilla beaters sit >23k/None while real theme cards are <8k.
+FRINGE_RANK = 15000
+
+
+def is_fringe(rank: int | None) -> bool:
+    """True when a card is barely-played (an upgrade candidate within its theme)."""
+    return rank is None or rank > FRINGE_RANK
+
 
 @dataclass(frozen=True)
 class CardClass:
@@ -32,6 +45,7 @@ class CardClass:
     dual_purpose: bool  # Spine AND serves an avenue (a "win-win" card)
     cmc: float
     record: dict
+    edhrec_rank: int | None = None  # play-rate rank; lower=more played, None=unplayed
 
 
 def classify_deck(
@@ -69,6 +83,7 @@ def classify_deck(
                 dual_purpose=(bucket == "spine" and bool(served)),
                 cmc=float(rec.get("cmc", 0.0) or 0.0),
                 record=rec,
+                edhrec_rank=rec.get("edhrec_rank"),
             )
         )
     return out

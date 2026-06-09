@@ -10,16 +10,33 @@ existing search + ranking (ADR-0023).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 
 from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._tuner.classify import CardClass
+from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.card_classify import extract_price
 
+# Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
+_UNPLAYED = 10**9
+
+
+def _popularity(card: dict) -> int:
+    """edhrec_rank as a quality key (lower = more played); absent → unplayed."""
+    rank = card.get("edhrec_rank")
+    return rank if rank is not None else _UNPLAYED
+
+
 _ROLE_SEARCH: dict[str, dict] = {
-    "ramp": {"preset_names": ("ramp",)},
+    # Ramp has NO theme_preset (it's detected by card_classify.is_ramp, not a matcher),
+    # so it must be sourced by oracle text — mirroring is_ramp's own patterns (mana
+    # production or land-fetch). Using a nonexistent "ramp" preset here previously made
+    # card_search raise and 500'd /api/tune for any ramp-short deck.
+    "ramp": {
+        "oracle": r"add (?:\{|one mana|mana of|an amount of mana)|"
+        r"search your library for [^.]*\bland"
+    },
     "card_draw": {"preset_names": ("card-draw",)},
     "interaction": {
         "preset_names": ("removal", "creature-removal", "counterspell", "bounce")
@@ -67,6 +84,15 @@ def cut_candidates(
         reverse=True,
     ):
         push("filler", c)
+
+    # 1b. Low-value Engine cards — feed a theme but are barely played (fringe
+    #     edhrec_rank), e.g. a vanilla beater that "counts" as creature support. Upgrade
+    #     targets, worst play-rate (incl. unranked) first.
+    for c in sorted(
+        (c for c in classes if c.bucket == "engine" and is_fringe(c.edhrec_rank)),
+        key=lambda c: -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
+    ):
+        push("low_value", c)
 
     # 2. Over-band Spine excess, weakest (low synergy, high CMC) first. Never a card
     #    also filling a floor role. Dual-purpose cards are eligible (the role is over),
@@ -203,11 +229,21 @@ def propose_swaps(
             generic_cuts.append((reason, card))
     gen_iter = iter(generic_cuts)
     over_iters = {role: iter(items) for role, items in over_cuts.items()}
+    # The dead-weight pass cuts filler ONLY (a separate view of the same cards); a
+    # shared used_cuts guard stops it and the generic pass cutting the same card twice.
+    filler_iter = iter([(r, c) for r, c in cuts if r in ("filler", "low_value")])
+    used_cuts: set[str] = set()
+
+    def _pull(it: Iterator[tuple[str, CardClass]]) -> tuple[str, CardClass] | None:
+        for reason, card in it:
+            if card.name not in used_cuts:
+                return reason, card
+        return None
 
     def take_cut(issue: dict) -> tuple[str, CardClass] | None:
         if issue["kind"] == "role_over":
-            return next(over_iters.get(issue["role"], iter(())), None)
-        return next(gen_iter, None)
+            return _pull(over_iters.get(issue["role"], iter(())))
+        return _pull(gen_iter)
 
     used_adds: set[str] = set()
     swaps: list[dict] = []
@@ -236,12 +272,31 @@ def propose_swaps(
         )
         pool = [c for c in found if c.get("name") not in in_deck | used_adds]
         if synergy_first:
+            # Synergy first (the deck's themes), then play-rate so a real staple beats
+            # the cheapest chaff that nominally serves the same lane, then price. The
+            # play-rate tiebreak is the one EDHREC-popularity lean (user-directed).
+            scored = rank_candidates(pool, active_signals=deck_signals)
             ranked = [
-                r["card"] for r in rank_candidates(pool, active_signals=deck_signals)
+                r["card"]
+                for r in sorted(
+                    scored,
+                    key=lambda r: (
+                        -r["score"]["synergy_fit"],
+                        _popularity(r["card"]),
+                        extract_price(r["card"]) or 1e9,
+                    ),
+                )
             ]
         else:
+            # Spine fills: cheapest-MV does-the-job first (efficiency), then play-rate
+            # so a played staple beats a fringe same-cost role-filler, then price.
             ranked = sorted(
-                pool, key=lambda c: (c.get("cmc", 0.0), extract_price(c) or 1e9)
+                pool,
+                key=lambda c: (
+                    c.get("cmc", 0.0),
+                    _popularity(c),
+                    extract_price(c) or 1e9,
+                ),
             )
         fallback: tuple[dict, float] | None = None
         for card in ranked:
@@ -254,22 +309,12 @@ def propose_swaps(
             return card, cost
         return fallback
 
-    for issue in issues:
-        if len(swaps) >= max_swaps:
-            break
-        spec = _spec_for_issue(issue, focus_result, deck_signals)
-        if spec is None:
-            continue  # advisory-only issue (e.g. commander_misfit, efficiency)
-        synergy_first = issue["kind"] not in _SPINE_KINDS
-        picked = find_add(spec, synergy_first=synergy_first)
-        if picked is None:
-            continue
-        cut_entry = take_cut(issue)
-        if cut_entry is None:
-            continue  # no appropriate cut for this issue — skip, don't grab a wrong one
-        reason, cut = cut_entry
-        add_card, cost = picked
+    def commit(
+        issue: dict, reason: str, cut: CardClass, add_card: dict, cost: float
+    ) -> None:
+        nonlocal spent
         spent += cost  # commit the spend only now that the swap is finalized
+        used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))
         swaps.append(
             {
@@ -284,6 +329,43 @@ def propose_swaps(
                 },
             }
         )
+
+    for issue in issues:
+        if len(swaps) >= max_swaps:
+            break
+        # Dead weight: drain filler, replacing each with the best on-theme / role card.
+        # One issue → many swaps (a deck can carry several do-nothing cards), so this is
+        # the only multi-swap branch — and it runs first (top severity) so the genuinely
+        # dead cards go before any role trim churns a functional card.
+        if issue["kind"] == "dead_weight":
+            spec = _dead_weight_spec(focus_result, deck_signals, budgets)
+            if spec is None:
+                continue
+            while len(swaps) < max_swaps:
+                cut_entry = _pull(filler_iter)
+                if cut_entry is None:
+                    break
+                picked = find_add(spec, synergy_first=True)
+                if picked is None:
+                    break
+                reason, cut = cut_entry
+                add_card, cost = picked
+                commit(issue, reason, cut, add_card, cost)
+            continue
+
+        spec = _spec_for_issue(issue, focus_result, deck_signals)
+        if spec is None:
+            continue  # advisory-only issue (e.g. commander_misfit, efficiency)
+        synergy_first = issue["kind"] not in _SPINE_KINDS
+        picked = find_add(spec, synergy_first=synergy_first)
+        if picked is None:
+            continue
+        cut_entry = take_cut(issue)
+        if cut_entry is None:
+            continue  # no appropriate cut for this issue — skip, don't grab a wrong one
+        reason, cut = cut_entry
+        add_card, cost = picked
+        commit(issue, reason, cut, add_card, cost)
 
     note = None
     if len(swaps) < max_swaps:
@@ -308,6 +390,26 @@ def _main_avenue_search(focus_result: dict, deck_signals: list) -> dict:
     if viable:
         return _avenue_search_for(viable[0]["label"], deck_signals) or {}
     return {}
+
+
+def _dead_weight_spec(
+    focus_result: dict, deck_signals: list, budgets: dict
+) -> dict | None:
+    """Where to redeploy a dead-weight card: deepen the deck's main theme if it has one,
+    else fill the worst-short Spine role. None when neither exists (nothing better to
+    add than the filler being replaced, so don't churn)."""
+    main = _main_avenue_search(focus_result, deck_signals)
+    if main:
+        return main
+    short = sorted(
+        (
+            (r, b)
+            for r, b in budgets.items()
+            if b.get("deviation", 0) < 0 and r in _ROLE_SEARCH
+        ),
+        key=lambda kv: kv[1]["deviation"],
+    )
+    return _ROLE_SEARCH[short[0][0]] if short else None
 
 
 def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict | None:
@@ -350,6 +452,8 @@ def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict
 def _cut_why(reason: str) -> str:
     if reason == "filler":
         return "serves no avenue here (filler)"
+    if reason == "low_value":
+        return "barely played for this theme — upgrade target"
     if reason.startswith("over:"):
         return f"{reason.split(':', 1)[1].replace('_', ' ')} over template band"
     if reason == "stranded":

@@ -15,7 +15,7 @@ from collections.abc import Sequence
 
 from mtg_utils._deck_forge.budgets import protects
 from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._tuner.classify import CardClass
+from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.theme_presets import get_preset
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
@@ -225,6 +225,14 @@ def focus(
     filler = len(filler_cards)
     filler_rate = round(filler / max(1, len(nonland)), 2)
 
+    # Low-value: an Engine card that feeds a theme but is barely played (fringe
+    # edhrec_rank) — the vanilla beater that "counts" as creature support in a go-wide
+    # deck. Dead weight the bucket test alone misses, surfaced as an upgrade target (the
+    # one EDHREC-popularity lean, by user direction).
+    low_value_cards = [
+        c.name for c in nonland if c.bucket == "engine" and is_fringe(c.edhrec_rank)
+    ]
+
     engine_labels = {lbl for c in engine for lbl in themes(c)}
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
 
@@ -264,6 +272,8 @@ def focus(
         "filler": filler,
         "filler_rate": filler_rate,
         "filler_cards": filler_cards,
+        "low_value": len(low_value_cards),
+        "low_value_cards": low_value_cards,
         "stranded_avenues": stranded,
         "_depth": depth,
     }
@@ -384,6 +394,35 @@ def top_issues(
                 "severity": b["deviation"],
                 "message": f"{role.replace('_', ' ')} over by {b['deviation']} "
                 f"({b['current']}/{b['min']}-{b['max']})",
+            }
+        )
+
+    # Dead weight: cards that serve no avenue AND fill no template role. Swapping a
+    # do-nothing card for an on-theme / role card is almost always the highest-value
+    # move, so it ranks above template trims — but only when there's somewhere
+    # productive to redeploy (a viable theme to deepen or a short Spine role to fill);
+    # with no target it's advisory, not a swap (the swap engine has nothing better to
+    # add). A couple of off-theme good-stuff cards is normal, so a small tolerance
+    # keeps this from churning a healthy deck.
+    # Dead weight = do-nothing fillers PLUS barely-played fringe theme cards (the
+    # upgrade targets the bucket test alone misses, e.g. a vanilla beater in a go-wide
+    # deck). Both are replaced with stronger on-theme/role cards.
+    dead = focus_r.get("filler", 0) + focus_r.get("low_value", 0)
+    has_target = bool(focus_r.get("viable_avenues")) or bool(template_r["short"])
+    filler_tol = 2
+    if dead > filler_tol and has_target:
+        excess = dead - filler_tol
+        issues.append(
+            {
+                "kind": "dead_weight",
+                # Ranks above theme-refocus (spread_thin) and template trims: replacing
+                # a do-nothing card with an on-theme/role card is higher-value and only
+                # ever cuts filler, so it should consume the swap budget before any pass
+                # that risks churning a functional card.
+                "severity": 7 + min(excess, 3),
+                "count": excess,
+                "message": f"{dead} cards are dead weight (no avenue/role, or barely "
+                "played) — replace with stronger on-theme cards",
             }
         )
 
