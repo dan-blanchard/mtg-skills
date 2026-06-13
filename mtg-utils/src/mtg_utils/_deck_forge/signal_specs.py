@@ -1054,7 +1054,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # the fat bodies they exploit (Ghalta / Worldspine Wurm), not just the engine cards.
     ("power_double", "you"): _sweep_spec_with_extras("power_double", serve_power_min=5),
     ("creature_ping", "you"): _sweep_spec_with_extras(
-        "creature_ping", serve_power_min=5
+        "creature_ping", (_DEATHTOUCH_GEAR_EXTRA,), serve_power_min=5
+    ),
+    # Deathtouch gear (Basilisk Collar) makes any ping / power-as-damage lethal — credit
+    # it on the noncombat-damage and power-fling lanes too, not only the Burn lane.
+    ("noncombat_damage_payoff", "you"): _sweep_spec_with_extras(
+        "noncombat_damage_payoff", (_DEATHTOUCH_GEAR_EXTRA,)
+    ),
+    ("damage_equal_power", "you"): _sweep_spec_with_extras(
+        "damage_equal_power", (_DEATHTOUCH_GEAR_EXTRA,)
     ),
     # Same archetype as spellcast_matters (a magecraft commander triggers off the same
     # instants/sorceries as a prowess one), so it shares the one _SPELLSLINGER_SPEC — a

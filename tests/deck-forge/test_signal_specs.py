@@ -2576,3 +2576,16 @@ def test_activated_ability_does_not_serve_a_vanilla_bear():
     sig = _sig("activated_ability")
     bear = {"name": "Bear", "type_line": "Creature — Bear", "oracle_text": ""}
     assert not _lane_covers(bear, sig)
+
+
+def test_deathtouch_gear_serves_ping_and_noncombat_lanes():
+    """Basilisk Collar (deathtouch gear) is top-synergy for pingers / power-as-damage /
+    noncombat-damage commanders (Ghyrson, Tahngarth, Hidetsugu) — deathtouch + any ping
+    kills anything. Previously only the Burn lane carried the deathtouch extra."""
+    collar = {
+        "name": "Basilisk Collar",
+        "type_line": "Artifact — Equipment",
+        "oracle_text": "Equipped creature has deathtouch and lifelink.\nEquip {2}",
+    }
+    for key in ("creature_ping", "noncombat_damage_payoff", "damage_equal_power"):
+        assert _lane_covers(collar, _sig(key)), key
