@@ -4,12 +4,30 @@ Headline guard: a card that feeds an *opponents'-graveyard* signal must mill
 opponents, not yourself. Self-mill must NOT register as serving it.
 """
 
-from mtg_utils._deck_forge.signal_specs import search_filters, serves, spec_for
+from mtg_utils._deck_forge.signal_specs import (
+    search_filters,
+    serve_from_dict,
+    serves,
+    spec_for,
+)
 from mtg_utils._deck_forge.signals import Signal
 
 
 def _sig(key, scope="you"):
     return Signal(key=key, scope=scope, subject="", text="", source="cmd")
+
+
+def _lane_covers(card, sig):
+    """True if a card is surfaced by the lane via its main serve OR any sub-avenue —
+    mirroring how the engine renders an avenue plus its extras."""
+    spec = spec_for(sig)
+    if spec is None:
+        return False
+    if spec.serve.matches(card):
+        return True
+    return any(
+        (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in spec.extras
+    )
 
 
 SELF_MILL = {
@@ -175,6 +193,43 @@ def test_landfall_serves_payoffs_extra_lands_and_recursion():
 
 def test_landfall_does_not_serve_unrelated_burn():
     assert serves(BURN, _sig("landfall", "you")) is False
+
+
+# --- blink: the lane must surface ETB-value creatures + ETB-trigger doublers ----
+ETB_VALUE_CREATURE = {
+    "name": "Mulldrifter",
+    "type_line": "Creature — Elemental",
+    "oracle_text": "Flying\nWhen Mulldrifter enters, draw two cards.",
+}
+ETB_DOUBLER = {
+    "name": "Panharmonicon",
+    "type_line": "Artifact",
+    "oracle_text": (
+        "If an artifact or creature entering causes a triggered ability of a permanent "
+        "you control to trigger, that ability triggers an additional time."
+    ),
+}
+FLICKER_EFFECT = {
+    "name": "Ephemerate",
+    "type_line": "Instant",
+    "oracle_text": "Exile target creature you control, then return it to the battlefield.",
+}
+
+
+def test_blink_lane_surfaces_targets_and_doublers_not_just_flicker():
+    sig = _sig("blink_flicker", "you")
+    assert _lane_covers(FLICKER_EFFECT, sig) is True  # the flicker effect (existing)
+    assert _lane_covers(ETB_VALUE_CREATURE, sig) is True  # the target to flicker (new)
+    assert _lane_covers(ETB_DOUBLER, sig) is True  # ETB-trigger doubler (new)
+
+
+def test_blink_lane_does_not_surface_vanilla_creature():
+    vanilla = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert _lane_covers(vanilla, _sig("blink_flicker", "you")) is False
 
 
 # --- land-creatures theme (the Jyoti case) -------------------------------------

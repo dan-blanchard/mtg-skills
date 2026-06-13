@@ -340,6 +340,31 @@ _FLICKER_EXTRA = SubAvenue(
     {"preset_names": ("blink",)},
     serve=Serve(oracle=re.compile(_FLICKER_ORACLE, _IC)),
 )
+# Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
+# 603.6 zone-change triggers) and the ETB-trigger DOUBLERS that multiply every enter
+# (Panharmonicon / Yarok). The value regex requires an enter trigger PLUS a value verb,
+# so a vanilla creature never registers.
+_ETB_VALUE_ORACLE = (
+    r"when[^.]*enters[^.]*(?:draw|return target|search your library"
+    r"|create [^.]*token|destroy target|gain \d+ life|untap"
+    r"|put [^.]*onto the battlefield|exile target)"
+)
+_ETB_VALUE_EXTRA = SubAvenue(
+    "ETB-value creatures",
+    "creatures with strong enter triggers worth flickering "
+    "(Mulldrifter / Eternal Witness / Reflector Mage)",
+    {"card_type": "Creature", "oracle": _ETB_VALUE_ORACLE},
+    serve=Serve(oracle=re.compile(_ETB_VALUE_ORACLE, _IC)),
+)
+_ETB_DOUBLER_ORACLE = (
+    r"entering[^.]*causes a triggered ability[^.]*triggers an additional time"
+)
+_ETB_DOUBLER_EXTRA = SubAvenue(
+    "ETB-trigger doublers",
+    "permanents that double every enter trigger (Panharmonicon / Yarok)",
+    {"oracle": _ETB_DOUBLER_ORACLE},
+    serve=Serve(oracle=re.compile(_ETB_DOUBLER_ORACLE, _IC)),
+)
 # Self-recurring fodder (CR 603.6e): aristocrats wants creatures that return/recast
 # THEMSELVES from the graveyard (Bloodghast / Gravecrawler). Name-aware serve (see
 # _self_recurs) excludes Sun-Titan-style reanimation of OTHER cards.
@@ -772,9 +797,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",
-        "exile-and-return effects to re-use enter-the-battlefield abilities",
+        "exile-and-return effects, the high-ETB creatures worth re-using, and the "
+        "doublers that multiply each enter trigger",
         {"preset_names": ("blink",)},
         r"exile[^.]*?return[^.]*?battlefield",
+        extras=(_ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
     ("mill_matters", "any"): _spec(
         "Mill",
