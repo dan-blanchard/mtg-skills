@@ -25,6 +25,20 @@ if TYPE_CHECKING:
 
 _IC = re.IGNORECASE
 
+# "Is-a" subtype hierarchies (CR 205.3g / 205.3h): every one of these subtypes IS an
+# artifact / enchantment, so a card that makes or cares about one is an
+# artifact-count / enchantment-count enabler. Used to widen the parent-type serves so a
+# Vehicle / Equipment maker feeds artifacts_matter and a Saga / Aura feeds
+# enchantments_matter (the generalization of the Food->artifact case).
+_ART_SUBTYPES = (
+    r"artifact|treasure|food|clue|blood|gold|map|powerstone|junk|lander"
+    r"|equipment|vehicle|attraction|bobblehead|contraption|fortification"
+    r"|incubator|spacecraft|mutagen"
+)
+_ENCH_SUBTYPES = (
+    r"aura|saga|class|curse|shrine|background|cartouche|case|room|rune|shard"
+)
+
 
 @dataclass(frozen=True)
 class Serve:
@@ -839,11 +853,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Type-GRANTERS that turn your stuff into artifacts enable the whole deck
         # (Mycosynth Lattice, Liquimetal Coating, March of the Machines).
         r"|becomes? an? artifact|(?:are|is an?) artifacts?"
-        # Makers of artifact-TOKEN types make artifacts: Treasure/Food/Clue/Blood/Gold/
-        # Map/Powerstone/Junk/Lander are all artifact tokens, and Investigate makes a
-        # Clue — affinity/metalcraft/artifact-count fuel.
-        r"|create [^.]*\b(?:artifact|treasure|food|clue|blood|gold|map"
-        r"|powerstone|junk|lander)\b[^.]*token|\binvestigate\b",
+        # Every artifact subtype (CR 205.3g) IS an artifact: makers ("create a Treasure
+        # / Vehicle / Equipment … token"), references ("Equipment/Vehicles you control",
+        # "for each Treasure"), and Investigate (makes a Clue) all feed artifact-count /
+        # affinity / metalcraft.
+        r"|create [^.]*\b(?:" + _ART_SUBTYPES + r")\b[^.]*token"
+        r"|\b(?:" + _ART_SUBTYPES + r")s? you control\b"
+        r"|for each (?:an? )?(?:" + _ART_SUBTYPES + r")\b"
+        r"|\binvestigate\b",
     ),
     # Serve augmented with "whenever you cast an enchantment" so the 14 plain CREATURES
     # that trigger on enchantment casts (Verduran/Mesa Enchantress, Sythis) — missed by
@@ -856,10 +873,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|whenever you cast an enchantment"
         # Enchantment-GRANTERS (Enchanted Evening, Nyx: "are enchantments in addition").
         r"|(?:are|is|becomes?) (?:an? )?enchantments? in addition"
-        # Makers of enchantment-TOKEN types make enchantments: Role (Aura Role) and
-        # Shard are enchantment tokens (constellation / enchantment-count fuel).
-        r"|create [^.]*\b(?:role|shard)\b[^.]*token"
-        r"|create [^.]*(?:enchantment|aura) token",
+        # Every enchantment subtype (CR 205.3h) IS an enchantment: Role/Shard/Aura
+        # token makers plus references ("Auras/Sagas you control", "for each Saga",
+        # "whenever a Class you control …") all feed constellation / enchantment-count.
+        r"|create [^.]*(?:" + _ENCH_SUBTYPES + r"|enchantment)[^.]*token"
+        r"|\b(?:" + _ENCH_SUBTYPES + r")s? you control\b"
+        r"|for each (?:an? )?(?:" + _ENCH_SUBTYPES + r")\b"
+        r"|whenever (?:a|an|another) (?:" + _ENCH_SUBTYPES + r")\b",
     ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering

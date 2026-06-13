@@ -449,6 +449,37 @@ def test_grant_become_credited_for_clone_enchantment_food():
         assert _lane_covers(card, _sig(key, "you")) is True, key
 
 
+def test_artifact_subtypes_count_as_artifacts():
+    # CR 205.3g: Equipment, Vehicle, etc. ARE artifact types, so a card that makes or
+    # cares about them is an artifact-count / affinity / metalcraft enabler.
+    sig = _sig("artifacts_matter", "you")
+    cards = [
+        ("Vehicle maker", "Create a colorless Vehicle artifact token."),
+        ("Equipment count", "For each Equipment you control, scry 1."),
+        ("Vehicles lord", "Vehicles you control get +1/+1."),
+    ]
+    for n, o in cards:
+        assert (
+            serves({"name": n, "type_line": "Artifact", "oracle_text": o}, sig) is True
+        ), n
+
+
+def test_enchantment_subtypes_count_as_enchantments():
+    # CR 205.3h: Aura, Saga, Class, Curse, etc. ARE enchantment types, so a card that
+    # makes or cares about them is a constellation / enchantment-count enabler.
+    sig = _sig("enchantments_matter", "you")
+    cards = [
+        ("Saga count", "For each Saga you control, draw a card."),
+        ("Auras lord", "Auras you control have totem armor."),
+        ("Class matters", "Whenever a Class you control levels up, gain 1 life."),
+    ]
+    for n, o in cards:
+        assert (
+            serves({"name": n, "type_line": "Enchantment", "oracle_text": o}, sig)
+            is True
+        ), n
+
+
 def test_enchantment_token_makers_are_enchantments():
     # Role (Aura Role) and Shard tokens are enchantment tokens, so their makers make
     # enchantments — constellation / enchantment-count fuel.
