@@ -848,7 +848,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "enchantments and enchantment-count payoffs",
         {"card_type": "Enchantment"},
         r"enchantments? you control|for each enchantment|\bconstellation\b"
-        r"|whenever you cast an enchantment",
+        r"|whenever you cast an enchantment"
+        # Enchantment-GRANTERS (Enchanted Evening, Nyx: "are enchantments in addition").
+        r"|(?:are|is|becomes?) (?:an? )?enchantments? in addition",
     ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
@@ -1275,7 +1277,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Food",
         "Food makers plus sacrifice outlets and lifegain payoffs",
         {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
-        r"\bfood token|foods? you control|sacrifice a food",
+        # Food-GRANTERS (Ragost, The Food Court, Ygra: "are Foods in addition").
+        r"\bfood token|foods? you control|sacrifice a food"
+        r"|(?:are|is|becomes?) (?:an? )?foods? in addition",
     ),
     ("clue_matters", "you"): _spec(
         "Clues / investigate",
@@ -1470,8 +1474,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("clone_matters", "you"): _spec(
         "Clones / copies",
         "clone effects plus strong creatures worth copying",
-        {"oracle": r"becomes a copy|copy of (?:target|another)"},
-        r"becomes a copy|copy of (?:target|another)",
+        {"oracle": r"becomes a copy|copy of (?:target|another|any|a)|as a copy of"},
+        r"becomes a copy|copy of (?:target|another|any|a)\b|as a copy of",
     ),
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",

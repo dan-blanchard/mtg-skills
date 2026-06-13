@@ -408,6 +408,32 @@ def test_become_a_type_cards_match_the_type_lane():
         assert serves(card, goblin) is True, n
 
 
+def test_grant_become_credited_for_clone_enchantment_food():
+    # DB-mined grant phrasings (search the DB, don't guess) — a clone ("as a copy of any
+    # creature"), an enchantment-grant ("are enchantments in addition"), and a Food-grant
+    # ("are Foods in addition") must hit their lanes (main serve or a sub-avenue).
+    cases = [
+        (
+            "clone_matters",
+            "Clone",
+            "You may have Clone enter the battlefield as a copy of any creature on the battlefield.",
+        ),
+        (
+            "enchantments_matter",
+            "Enchanted Evening",
+            "All permanents are enchantments in addition to their other types.",
+        ),
+        (
+            "food_matters",
+            "The Food Court",
+            "Artifacts are Foods in addition to their other types.",
+        ),
+    ]
+    for key, name, oracle in cases:
+        card = {"name": name, "type_line": "Enchantment", "oracle_text": oracle}
+        assert _lane_covers(card, _sig(key, "you")) is True, key
+
+
 def test_theme_cost_reducers_are_credited():
     # A spell-type cost reducer is prime synergy for that theme's deck.
     etherium = {
