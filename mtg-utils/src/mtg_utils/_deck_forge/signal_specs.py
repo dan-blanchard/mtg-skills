@@ -1590,6 +1590,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"onto the battlefield"},
         r"onto the battlefield from your (?:hand|library)"
         r"|put .*creature card.*onto the battlefield",
+        # The PAYOFF of a cheat-into-play deck is the fat creatures it cheats in
+        # (Craterhoof, Worldspine Wurm, Eldrazi) — credit big bodies as on-theme.
+        serve_power_min=5,
     ),
     # Greedy `return target .*owner's hand` matched "return target spell" (Reprieve →
     # counterspell space) and spanned clauses. Constrain the object + the dot.

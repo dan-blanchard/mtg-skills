@@ -2324,3 +2324,39 @@ def test_play_from_top_is_its_own_avenue_and_excludes_look_at_top():
     # A look-at-top effect serves neither.
     assert not serves(stargaze, top)
     assert not serves(stargaze, cfe)
+
+
+def test_cheat_into_play_credits_fat_creatures_as_payoff():
+    """The PAYOFF of a cheat-into-play deck is the huge body it cheats in (Craterhoof,
+    Worldspine Wurm, Emrakul) — a power-5+ creature must be on-theme for the lane, even
+    though its own text never says 'onto the battlefield'."""
+    sig = _sig("cheat_into_play")
+    worldspine = {
+        "name": "Worldspine Wurm",
+        "type_line": "Legendary Creature — Wurm",
+        "power": "15",
+        "toughness": "15",
+        "oracle_text": "Trample\nWhen Worldspine Wurm dies, create fifteen 5/5 tokens.",
+    }
+    assert _lane_covers(worldspine, sig)
+    # The enabler (a reanimation/cheat spell) still serves via the main serve.
+    sneak = {
+        "name": "Sneak Attack",
+        "type_line": "Enchantment",
+        "oracle_text": "{R}: You may put a creature card from your hand onto the "
+        "battlefield. It gains haste. Sacrifice it at the beginning of the next end step.",
+    }
+    assert _lane_covers(sneak, sig)
+
+
+def test_cheat_into_play_does_not_credit_small_creatures():
+    """A 2/2 bear is not the payoff of a cheat deck — power gate keeps it off-theme."""
+    sig = _sig("cheat_into_play")
+    bear = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert not _lane_covers(bear, sig)
