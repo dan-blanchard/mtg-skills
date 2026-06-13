@@ -282,6 +282,8 @@ def _spec(
 # payoffs) are neither, so they are excluded.
 _SLINGER_SERVE_ORACLE = (
     r"\bmagecraft\b|whenever you cast (?:an instant|a sorcery|a noncreature|your)"
+    # Spell-type cost reducers (Goblin Electromancer) are core spellslinger glue.
+    r"|(?:instant|sorcery|noncreature|instant and sorcery) spells? you cast cost"
 )
 _SLINGER_TYPES = ("instant", "sorcery")
 _SLINGER_KEYWORDS = ("prowess",)
@@ -826,7 +828,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Artifacts",
         "artifacts and artifact-count payoffs",
         {"card_type": "Artifact"},
-        r"artifacts? you control|for each artifact|\bmetalcraft\b|\baffinity\b",
+        r"artifacts? you control|for each artifact|\bmetalcraft\b|\baffinity\b"
+        r"|artifact spells? you cast cost",
     ),
     # Serve augmented with "whenever you cast an enchantment" so the 14 plain CREATURES
     # that trigger on enchantment casts (Verduran/Mesa Enchantress, Sythis) — missed by

@@ -338,6 +338,23 @@ def test_aristocrats_credits_plural_creatures_die():
     assert serves(morbid, _sig("death_matters", "any")) is True
 
 
+def test_theme_cost_reducers_are_credited():
+    # A spell-type cost reducer is prime synergy for that theme's deck.
+    etherium = {
+        "name": "Etherium Sculptor",
+        "type_line": "Artifact Creature — Construct",
+        "oracle_text": "Artifact spells you cast cost {1} less to cast.",
+    }
+    electromancer = {
+        "name": "Goblin Electromancer",
+        "type_line": "Creature — Goblin Wizard",
+        "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.",
+    }
+    assert serves(etherium, _sig("artifacts_matter", "you")) is True
+    assert serves(electromancer, _sig("spellcast_matters", "you")) is True
+    assert serves(electromancer, _sig("magecraft_matters", "you")) is True
+
+
 def test_aristocrats_lane_surfaces_board_wipes():
     wrath = {
         "name": "Wrath of God",
