@@ -136,7 +136,12 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     (
         "death_matters",
         lambda c: (
-            ("whenever" in c and "dies" in c) or ("dying" in c and "trigger" in c)
+            ("whenever" in c and "dies" in c)
+            # Plural "creatures die" (Morbid Opportunist, Grave Pact-style) — the CR
+            # term is "dies", but cards phrase mass death as "one or more creatures
+            # die". Scoped to creature/permanent/token to avoid "roll a die" dice cards.
+            or _re(r"whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b")(c)
+            or ("dying" in c and "trigger" in c)
         ),
         None,
     ),

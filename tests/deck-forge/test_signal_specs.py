@@ -10,7 +10,7 @@ from mtg_utils._deck_forge.signal_specs import (
     serves,
     spec_for,
 )
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._deck_forge.signals import Signal, extract_signals
 
 
 def _sig(key, scope="you"):
@@ -322,6 +322,20 @@ def test_etb_lane_surfaces_value_creatures_and_doublers():
     sig = _sig("creature_etb", "you")
     assert _lane_covers(ETB_VALUE_CREATURE, sig) is True  # Mulldrifter
     assert _lane_covers(ETB_DOUBLER, sig) is True  # Panharmonicon
+
+
+def test_aristocrats_credits_plural_creatures_die():
+    # "Whenever one or more creatures die" (Morbid Opportunist) is the same payoff as
+    # "dies" — plural phrasing must not be missed.
+    morbid = {
+        "name": "Morbid Opportunist",
+        "type_line": "Creature — Human Rogue",
+        "oracle_text": "Whenever one or more other creatures die, draw a card. This "
+        "ability triggers only once each turn.",
+    }
+    keys = {(s.key, s.scope) for s in extract_signals(morbid)}
+    assert any(k == "death_matters" for k, _ in keys)
+    assert serves(morbid, _sig("death_matters", "any")) is True
 
 
 def test_aristocrats_lane_surfaces_board_wipes():

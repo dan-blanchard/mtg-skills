@@ -753,7 +753,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Also credit the death-DRAIN payoff: a sac deck wants Blood Artist / Zulaport,
         # which trigger on creatures dying, not on the act of sacrificing.
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
-        r"|whenever [^.]*\bdies\b",
+        r"|whenever [^.]*\bdies\b"
+        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
     ),
     ("death_matters", "any"): _spec(
@@ -761,7 +762,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "creatures dying as a resource — fodder plus drain payoffs",
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
-        r"|whenever .* dies",
+        r"|whenever .* dies"
+        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
     ),
     # The bare word `haste` matched its reminder text and incidental mentions ("loses
