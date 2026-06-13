@@ -2756,3 +2756,23 @@ def test_ltb_serves_flicker_effects():
         "control, then return those cards to the battlefield.",
     }
     assert _lane_covers(ghostly, sig)
+
+
+def test_regenerate_lane_serves_voltron_auras():
+    """A regenerate/resilience commander is a resilient beater — a voltron plan. Its
+    top-synergy cards are buff/protection Auras and gear (Rancor, Bear Umbra, Alpha
+    Authority) that the bare regenerate serve missed."""
+    sig = _sig("regenerate_matters")
+    rancor = {
+        "name": "Rancor",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\nEnchanted creature gets +2/+0 and has trample.",
+    }
+    alpha = {
+        "name": "Alpha Authority",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\nEnchanted creature has hexproof and can't be "
+        "blocked by more than one creature.",
+    }
+    assert _lane_covers(rancor, sig)
+    assert _lane_covers(alpha, sig)

@@ -1776,6 +1776,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "regeneration and resilience to keep your threats around",
         {"oracle": r"\bregenerate\b"},
         r"\bregenerate\b",
+        # A regenerating/resilient beater is a voltron plan — surface the gear, buff
+        # Auras (Rancor, Bear Umbra), and protection (Alpha Authority) you suit it with.
+        extras=(_COMBAT_SUPPORT_EXTRA, _VOLTRON_PROTECT_EXTRA),
     ),
     # Drop the bare `opponents? cast` — only the TRIGGER/tax forms are punishers.
     ("opponent_cast_matters", "opponents"): _spec(
