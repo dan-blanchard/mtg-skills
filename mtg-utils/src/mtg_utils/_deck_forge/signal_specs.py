@@ -815,7 +815,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # "attacks you" triggers out.
         r"|whenever [^.]*\battacks\b(?! you)"
         r"|whenever [^.]*deals combat damage to "
-        r"(?:a player|an opponent|each opponent|that player)",
+        r"(?:a player|an opponent|each opponent|that player)"
+        # Combat keyword-anthems that buff your attackers (Blade Historian, Odric:
+        # "attacking creatures you control have double strike" / "gain first strike").
+        r"|(?:attacking )?creatures you control (?:have|gain|get)[^.]*"
+        r"(?:double strike|first strike|trample|menace|deathtouch|vigilance"
+        r"|indestructible|can't be blocked)"
+        # Equipment/Auras suit up the attacker (a combat deck wants the gear).
+        r"|equipped creature|enchanted creature gets|\bequip \{",
         serve_keywords=("haste",),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and
