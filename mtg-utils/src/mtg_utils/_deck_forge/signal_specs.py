@@ -719,7 +719,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Your graveyard",
         "self-mill and recursion fuel for your own graveyard",
         {"oracle": r"into your graveyard|surveil"},
-        r"into your graveyard|from your graveyard|surveil\b|self-mill",
+        # "in your graveyard" catches recursion spells that pick a target there before
+        # returning it (Victimize: "creature cards in your graveyard … return those").
+        r"into your graveyard|from your graveyard|in your graveyard"
+        r"|surveil\b|self-mill",
     ),
     # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
     # creatures, because Celes-style commanders reward a creature re-entering play from

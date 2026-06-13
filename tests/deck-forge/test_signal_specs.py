@@ -2515,3 +2515,27 @@ def test_blink_does_not_match_unrelated_exile_then_return_land():
         "the battlefield.",
     }
     assert not _lane_covers(card, sig)
+
+
+def test_graveyard_serves_cards_in_your_graveyard():
+    """Victimize and many recursion spells say 'creature cards IN your graveyard' — the
+    serve only had into/from, missing the very common 'in your graveyard' phrasing."""
+    sig = _sig("graveyard_matters")
+    victimize = {
+        "name": "Victimize",
+        "type_line": "Sorcery",
+        "oracle_text": "Choose two target creature cards in your graveyard. Sacrifice "
+        "a creature, then return those creature cards to the battlefield tapped.",
+    }
+    assert _lane_covers(victimize, sig)
+
+
+def test_graveyard_you_does_not_serve_opponent_graveyard():
+    # Precision: an opponents'-graveyard card must NOT serve the YOUR-graveyard lane.
+    sig = _sig("graveyard_matters")
+    card = {
+        "name": "Bojuka Bog-like",
+        "type_line": "Instant",
+        "oracle_text": "Exile target opponent's graveyard.",
+    }
+    assert not _lane_covers(card, sig)
