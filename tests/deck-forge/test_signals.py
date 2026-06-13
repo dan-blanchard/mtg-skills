@@ -494,3 +494,37 @@ def test_etb_trigger_doubler_opens_etb_lane():
         ),
     }
     assert ("creature_etb", "you") in _keys(yarok)
+
+
+# ── Artifact-token makers ARE artifact commanders (Food/Treasure/Clue are artifacts) ─
+# A Treasure / Food / Clue / Blood maker should open the artifacts lane so artifact
+# payoffs (Academy Manufactor, Foundry Inspector, artifact sac) surface — the serve
+# already credits them; the detector missed the lane-opening (Korvold, Gyome).
+def test_treasure_maker_opens_artifacts_lane():
+    goldspan = {
+        "name": "Goldspan Dragon",
+        "type_line": "Legendary Creature — Dragon",
+        "oracle_text": "Flying, haste\nWhenever Goldspan Dragon attacks or becomes "
+        "the target of a spell, create a Treasure token.",
+    }
+    assert ("artifacts_matter", "you") in _keys(goldspan)
+
+
+def test_food_maker_opens_artifacts_lane():
+    gyome = {
+        "name": "Gyome, Master Chef",
+        "type_line": "Legendary Creature — Elf Peasant",
+        "oracle_text": "Whenever you gain life, create a Food token.",
+    }
+    assert ("artifacts_matter", "you") in _keys(gyome)
+
+
+def test_creature_token_maker_does_not_open_artifacts_lane():
+    # Precision: a Soldier-token maker is NOT an artifacts commander.
+    card = {
+        "name": "Soldier Boss",
+        "type_line": "Legendary Creature — Human",
+        "oracle_text": "At the beginning of your end step, create two 1/1 white "
+        "Soldier creature tokens.",
+    }
+    assert ("artifacts_matter", "you") not in _keys(card)

@@ -516,7 +516,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|sacrifices? (?:an?|another|two|three|x|\d+) artifacts?\b"
             r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
             r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
-            r"|becomes? an? artifact\b",
+            r"|becomes? an? artifact\b"
+            # Artifact-TOKEN makers are artifact commanders: Treasure / Food / Clue /
+            # Blood / Gold / etc. are artifact tokens (CR 205.3g), so a maker feeds
+            # affinity / metalcraft / Academy Manufactor (Goldspan, Gyome, Korvold).
+            r"|create[^.]*\b(?:treasure|food|clue|blood|gold|map|powerstone"
+            r"|junk|incubator|lander)\b[^.]*token",
             re.IGNORECASE,
         ),
         "you",
