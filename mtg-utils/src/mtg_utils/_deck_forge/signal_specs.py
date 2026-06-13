@@ -1281,6 +1281,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bfood token|foods? you control|sacrifice a food"
         r"|(?:are|is|becomes?) (?:an? )?foods? in addition",
     ),
+    # Hand-spec overriding the mined sweep detector so the serve also credits the Domain
+    # ENABLERS — "lands you control are every basic land type" (Prismatic Omen, Dryad of
+    # the Ilysian Grove) — not just the "domain" / "basic land types among" payoffs.
+    ("domain_matters", "you"): _spec(
+        "Domain",
+        "basic land types and fixing to grow domain",
+        {"oracle": r"\bdomain\b|basic land types?"},
+        r"\bdomain\b|number of basic land types?|basic land types? among"
+        r"|every basic land type",
+    ),
     ("clue_matters", "you"): _spec(
         "Clues / investigate",
         "investigate enablers and artifact/draw payoffs for Clues",

@@ -428,6 +428,11 @@ def test_grant_become_credited_for_clone_enchantment_food():
             "The Food Court",
             "Artifacts are Foods in addition to their other types.",
         ),
+        (
+            "domain_matters",
+            "Prismatic Omen",
+            "Lands you control are every basic land type in addition to their other types.",
+        ),
     ]
     for key, name, oracle in cases:
         card = {"name": name, "type_line": "Enchantment", "oracle_text": oracle}
