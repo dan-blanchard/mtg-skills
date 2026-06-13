@@ -633,6 +633,18 @@ _VOLTRON_PROTECT_EXTRA = SubAvenue(
     {"oracle": _VOLTRON_PROTECT_ORACLE},
     serve=Serve(oracle=re.compile(_VOLTRON_PROTECT_ORACLE, _IC)),
 )
+# Creature cost reducers (Goreclaw, Cloud Key for creatures) for a creature-cast /
+# ramp-into-fatties deck — they make every creature spell cheaper.
+_CREATURE_COST_ORACLE = (
+    r"creature spells? you cast[^.]*\bcost\b|creature spells? cost \{?\d"
+)
+_CREATURE_COST_EXTRA = SubAvenue(
+    "Creature cost reducers",
+    "cards that make your creature spells cheaper so you deploy threats faster "
+    "(Goreclaw)",
+    {"oracle": _CREATURE_COST_ORACLE},
+    serve=Serve(oracle=re.compile(_CREATURE_COST_ORACLE, _IC)),
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -1062,6 +1074,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # and keyword-anthems that grow their attackers.
     ("combat_buff_engine", "you"): _sweep_spec_with_extras(
         "combat_buff_engine", (_COMBAT_SUPPORT_EXTRA,)
+    ),
+    # Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties: surface
+    # creature cost reducers (Goreclaw) and genuine bombs (Ghalta — power_min=6 keeps it
+    # to true fatties, not every 5/5 the trigger would also accept).
+    ("creature_cast_trigger", "you"): _sweep_spec_with_extras(
+        "creature_cast_trigger", (_CREATURE_COST_EXTRA,), serve_power_min=6
     ),
     # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
     # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit
@@ -1708,6 +1726,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "high-value spells to hit off cascade plus more cascade enablers",
         {"oracle": r"\bcascade\b"},
         r"\bcascade\b",
+        # Cascade cheats big nonland bombs into play for free — credit genuine fatties
+        # (Ghalta, Etali) as the payoff, not just more cascade sources.
+        serve_power_min=6,
     ),
     ("regenerate_matters", "you"): _spec(
         "Regenerate / resilience",

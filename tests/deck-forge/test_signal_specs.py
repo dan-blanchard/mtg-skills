@@ -2617,3 +2617,36 @@ def test_all_counter_lanes_serve_sources_and_doublers():
     ):
         assert _lane_covers(forgotten, _sig(key)), f"source/{key}"
         assert _lane_covers(scales, _sig(key)), f"doubler/{key}"
+
+
+def test_creature_cast_trigger_credits_cost_reducers_and_fatties():
+    """Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties — they
+    want creature cost reducers (Goreclaw) and genuine bombs (Ghalta), the top-synergy
+    cards that lane missed. power_min=6 keeps it to true fatties, not every 5/5."""
+    sig = _sig("creature_cast_trigger")
+    goreclaw = {
+        "name": "Goreclaw, Terror of Qal Sisma",
+        "type_line": "Legendary Creature — Bear",
+        "power": "4",
+        "toughness": "6",
+        "oracle_text": "Creature spells you cast with power 4 or greater cost {2} less "
+        "to cast.",
+    }
+    ghalta = {
+        "name": "Ghalta, Primal Hunger",
+        "type_line": "Legendary Creature — Elder Dinosaur",
+        "power": "12",
+        "toughness": "12",
+        "oracle_text": "This spell costs {X} less to cast, where X is the total power "
+        "of creatures you control.\nTrample",
+    }
+    midsize = {
+        "name": "Hill Giant",
+        "type_line": "Creature — Giant",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": "",
+    }
+    assert _lane_covers(goreclaw, sig)
+    assert _lane_covers(ghalta, sig)
+    assert not _lane_covers(midsize, sig)
