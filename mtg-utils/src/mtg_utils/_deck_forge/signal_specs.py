@@ -727,7 +727,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Also credit team anthems ("creatures you control have/gain …") and the
         # ETB-value creatures a creatures deck fills its board with.
         r"create .*creature token|creatures you control (?:get|have|gain)",
-        extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA),
+        # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon).
+        extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta) or a power-N-or-greater threshold
@@ -1057,7 +1058,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Pillowfort + rhystic taxes (Ghostly Prison / Propaganda / Smothering Tithe /
         # Rhystic Study): "can't attack you unless …" and "unless that player pays / may
         # pay {N}".
-        r"|can't attack you|unless [^.]*\bpays?\b|may pay \{",
+        r"|can't attack you|unless [^.]*\bpays?\b|may pay \{"
+        # Search-hate as a REPLACEMENT (Aven Mindcensor / Opposition Agent / Ashiok):
+        # "if an opponent would search a library, … top four … instead".
+        r"|if (?:a player|an opponent|that player|they) would search[^.]*library",
     ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",

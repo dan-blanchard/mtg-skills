@@ -2813,3 +2813,31 @@ def test_token_copy_credits_big_creatures():
         "library, then you may cast any number of spells from among them for free.",
     }
     assert _lane_covers(etali, sig)
+
+
+def test_go_wide_credits_etb_doubler():
+    """A go-wide deck full of creature ETBs wants Panharmonicon — the go-wide lane had
+    ETB-value/payoff extras but not the ETB-doubler."""
+    sig = _sig("creatures_matter")
+    panharmonicon = {
+        "name": "Panharmonicon",
+        "type_line": "Artifact",
+        "oracle_text": "If an artifact or creature entering the battlefield causes a "
+        "triggered ability of a permanent you control to trigger, that ability triggers "
+        "an additional time.",
+    }
+    assert _lane_covers(panharmonicon, sig)
+
+
+def test_stax_serves_replacement_search_hate():
+    """Aven Mindcensor / Maze of Ith-style search hate uses a REPLACEMENT ('if an
+    opponent would search ... top four instead'), not 'can't search' — the stax serve
+    only had the prohibition form."""
+    sig = _sig("stax_taxes", "opponents")
+    aven = {
+        "name": "Aven Mindcensor",
+        "type_line": "Creature — Bird Wizard",
+        "oracle_text": "Flash\nFlying\nIf an opponent would search a library, that "
+        "player searches the top four cards of that library instead.",
+    }
+    assert _lane_covers(aven, sig)
