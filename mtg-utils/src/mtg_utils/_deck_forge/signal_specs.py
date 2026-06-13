@@ -1734,6 +1734,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "clone effects plus strong creatures worth copying",
         {"oracle": r"becomes a copy|copy of (?:target|another|any|a)|as a copy of"},
         r"becomes a copy|copy of (?:target|another|any|a)\b|as a copy of",
+        # Deliver on "strong creatures worth copying": a clone/token-copy deck wants big
+        # bombs to copy (Etali, power 6). power_min=6 keeps it to genuine bombs.
+        serve_power_min=6,
     ),
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",

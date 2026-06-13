@@ -2681,3 +2681,32 @@ def test_toughness_combat_credits_big_butts_and_walls():
     assert _lane_covers(wall, sig)
     assert _lane_covers(big_butt, sig)
     assert not _lane_covers(small, sig)
+
+
+def test_clone_credits_big_creatures_worth_copying():
+    """The clone blurb promises 'strong creatures worth copying' — deliver it: Etali (a
+    6/6 bomb) is a top clone/token-copy target, not just the clone effects themselves."""
+    sig = _sig("clone_matters")
+    etali = {
+        "name": "Etali, Primal Storm",
+        "type_line": "Legendary Creature — Elder Dinosaur",
+        "power": "6",
+        "toughness": "6",
+        "oracle_text": "Whenever Etali attacks, exile the top card of each player's "
+        "library, then you may cast any number of spells from among them without "
+        "paying their mana costs.",
+    }
+    assert _lane_covers(etali, sig)
+
+
+def test_go_wide_credits_board_protection():
+    """Go-wide decks want mass-indestructible to survive wraths (Selfless Spirit) — the
+    protection extra now reaches the go-wide lane, not just voltron."""
+    sig = _sig("creatures_matter")
+    selfless = {
+        "name": "Selfless Spirit",
+        "type_line": "Creature — Spirit",
+        "oracle_text": "Flying\nSacrifice this creature: Creatures you control gain "
+        "indestructible until end of turn.",
+    }
+    assert _lane_covers(selfless, sig)
