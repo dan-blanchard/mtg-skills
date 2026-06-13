@@ -433,6 +433,16 @@ def test_grant_become_credited_for_clone_enchantment_food():
             "Prismatic Omen",
             "Lands you control are every basic land type in addition to their other types.",
         ),
+        (
+            "color_change",
+            "Painter's Servant",
+            "As this creature enters, choose a color. All cards that aren't on the battlefield, spells, and permanents are the chosen color.",
+        ),
+        (
+            "color_change",
+            "Indigo Faerie",
+            "{U}: Target permanent becomes blue in addition to its other colors.",
+        ),
     ]
     for key, name, oracle in cases:
         card = {"name": name, "type_line": "Enchantment", "oracle_text": oracle}

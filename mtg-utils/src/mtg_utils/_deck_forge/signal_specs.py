@@ -1281,6 +1281,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bfood token|foods? you control|sacrifice a food"
         r"|(?:are|is|becomes?) (?:an? )?foods? in addition",
     ),
+    # Hand-spec overriding the mined sweep detector so the serve also credits color
+    # GRANTERS / fixers — "are the chosen color" (Painter's Servant, Shifting Sky) and
+    # "<color> in addition to its colors" (Indigo Faerie) — not just "becomes the color
+    # of your choice / all colors". Kept precise (no bare "becomes blue") to avoid
+    # mana-color false positives.
+    ("color_change", "you"): _spec(
+        "Color change",
+        "effects that add or change colors — fixing plus color-matters enablers",
+        {
+            "oracle": r"becomes the color of your choice|the chosen color"
+            r"|in addition to (?:its|their) (?:other )?colors?"
+        },
+        r"becomes the color of your choice|becomes? (?:the color|all colors)"
+        r"|(?:are|is) the chosen color"
+        r"|(?:is|are|becomes?) [^.]*(?:white|blue|black|red|green) "
+        r"in addition to (?:its|their)",
+    ),
     # Hand-spec overriding the mined sweep detector so the serve also credits the Domain
     # ENABLERS — "lands you control are every basic land type" (Prismatic Omen, Dryad of
     # the Ilysian Grove) — not just the "domain" / "basic land types among" payoffs.
