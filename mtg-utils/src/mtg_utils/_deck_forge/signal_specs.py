@@ -775,8 +775,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "token fodder and free sacrifice outlets",
         {"oracle": r"create [^.]*creature token|sacrifice"},
         # Also credit the death-DRAIN payoff: a sac deck wants Blood Artist / Zulaport,
-        # which trigger on creatures dying, not on the act of sacrificing.
-        r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
+        # which trigger on creatures dying, not on the act of sacrificing. "sacrifices?"
+        # (3rd person) also catches edicts ("each player sacrifices a creature").
+        r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
         r"|whenever [^.]*\bdies\b"
         r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
@@ -785,7 +786,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Aristocrats",
         "creatures dying as a resource — fodder plus drain payoffs",
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
-        r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
+        r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
         r"|whenever .* dies"
         r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
@@ -924,7 +925,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|spells?[^.]*cost \{?\d+\}? more|noncreature spells?[^.]*cost \{?\d"
         r"|creatures your opponents control"
         r"|(?:your opponents control|nonbasic lands?) enters?"
-        r"(?: the battlefield)? tapped",
+        r"(?: the battlefield)? tapped"
+        # Pillowfort + rhystic taxes (Ghostly Prison / Propaganda / Smothering Tithe /
+        # Rhystic Study): "can't attack you unless …" and "unless that player pays / may
+        # pay {N}".
+        r"|can't attack you|unless [^.]*\bpays?\b|may pay \{",
     ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",

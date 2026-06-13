@@ -449,6 +449,41 @@ def test_grant_become_credited_for_clone_enchantment_food():
         assert _lane_covers(card, _sig(key, "you")) is True, key
 
 
+def test_edicts_and_third_person_sac_feed_aristocrats():
+    # Edict creatures ("each player sacrifices a creature" — Plaguecrafter, Fleshbag)
+    # are the aristocrats sac package; the serve matched only "sacrifice a", not the
+    # 3rd-person "sacrifices a".
+    for key, scope in [("sacrifice_matters", "you"), ("death_matters", "any")]:
+        for n, o in [
+            (
+                "Plaguecrafter",
+                "When this enters, each player sacrifices a creature or planeswalker.",
+            ),
+            (
+                "Fleshbag Marauder",
+                "When this enters, each player sacrifices a creature.",
+            ),
+        ]:
+            card = {"name": n, "type_line": "Creature", "oracle_text": o}
+            assert _lane_covers(card, _sig(key, scope)), (key, n)
+
+
+def test_pillowfort_and_tax_feed_stax():
+    sig = _sig("stax_taxes", "opponents")
+    for n, o in [
+        (
+            "Ghostly Prison",
+            "Creatures can't attack you unless their controller pays {2} for each creature.",
+        ),
+        (
+            "Smothering Tithe",
+            "Whenever an opponent draws a card, that player may pay {2}. If they don't, you create a Treasure token.",
+        ),
+    ]:
+        card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
+        assert _lane_covers(card, sig), n
+
+
 def test_power_matters_credits_threshold_payoffs():
     # power_matters should credit the PAYOFFS that key on power thresholds (Garruk's
     # Uprising, ferocious dorks), not only the big bodies themselves.
