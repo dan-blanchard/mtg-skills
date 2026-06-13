@@ -72,6 +72,50 @@ def test_unknown_signal_has_no_spec_and_serves_false():
     assert serves(TOKEN_MAKER, sig) is False
 
 
+# --- reanimator payoff (the Celes case) ----------------------------------------
+# The avenue must surface the two enabler families that trigger the payoff:
+# reanimation effects (a creature enters from a graveyard) and cast-from-graveyard
+# creatures (escape/disturb). Self-mill alone is FUEL, not a reanimator enabler.
+REANIMATION_SPELL = {
+    "name": "Animate Dead-like",
+    "oracle_text": "Return target creature card from your graveyard to the battlefield.",
+}
+ESCAPE_CREATURE = {
+    "name": "Woe Strider-like",
+    "type_line": "Creature — Horror",
+    "oracle_text": (
+        "Sacrifice another creature: Scry 1.\n"
+        "Escape—{3}{B}{B}, Exile four other cards from your graveyard."
+    ),
+    "keywords": ["Escape"],
+}
+GRAVEYARD_RETURN = {
+    "name": "Regrowth",
+    "oracle_text": "Return target card from your graveyard to your hand.",
+}
+
+
+def test_reanimator_served_by_reanimation_and_escape():
+    sig = _sig("reanimator", "you")
+    assert serves(REANIMATION_SPELL, sig) is True
+    assert serves(ESCAPE_CREATURE, sig) is True
+    # graveyard-return to HAND is not a reanimator enabler (no creature re-enters play)
+    assert serves(GRAVEYARD_RETURN, sig) is False
+    # pure self-mill is fuel, not an enabler
+    assert serves(SELF_MILL, sig) is False
+
+
+def test_reanimator_spec_searches_with_a_discriminator():
+    spec = spec_for(_sig("reanimator", "you"))
+    assert spec is not None
+    assert spec.label
+    assert spec.avenue
+    filters = search_filters(
+        _sig("reanimator", "you"), color_identity="BRW", fmt="commander"
+    )
+    assert "oracle" in filters or "preset_names" in filters
+
+
 # --- land-creatures theme (the Jyoti case) -------------------------------------
 
 LAND_CREATURE_PAYOFF = {

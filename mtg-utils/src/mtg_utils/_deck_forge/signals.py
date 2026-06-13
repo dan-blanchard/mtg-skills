@@ -109,6 +109,24 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
+    # Reanimator PAYOFF: a trigger that rewards a creature ENTERING from a graveyard
+    # (reanimation) or being CAST from a graveyard (escape/disturb) — Celes, Prized
+    # Amalgam, Flayer of the Hatebound, River Kelpie. Distinct from graveyard_matters
+    # above, which is the FUEL (fill your own yard / self-mill); this is the PAYOFF, and
+    # it opens a reanimation-effects avenue, not a self-mill one. Forced "you": the deck
+    # always reanimates / recasts from its OWN graveyard. The phrasing ("enters/cast
+    # FROM a graveyard") never matches a plain reanimation spell ("…to the battlefield")
+    # or a regrowth ("…to your hand"), so those stay enablers the avenue FINDS, not
+    # payoff signals. Verified against bulk: 36 cards, all genuine.
+    (
+        "reanimator",
+        _re(
+            r"enter(?:s|ed)?(?: the battlefield)? from "
+            r"(?:a|your|their|an? \w+'?s?) graveyard"
+            r"|\bcast from (?:a|your|their) graveyard"
+        ),
+        "you",
+    ),
     ("spellcast_matters", _has("whenever you cast", "spell"), "you"),
     ("death_matters", lambda c: "whenever" in c and "dies" in c, None),
     ("sacrifice_matters", _re(r"sacrifice (?:a|an|another|two|three|x|\d)"), "you"),

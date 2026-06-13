@@ -382,6 +382,35 @@ _DISCARD_PUNISH_EXTRA = SubAvenue(
 )
 
 
+# Reanimator PAYOFF (Celes, Rune Knight): a creature ENTERING from a graveyard
+# (reanimation) or being CAST from one (escape/disturb) fires the payoff. Two enabler
+# families. (1) Reanimation effects that return a creature card from a graveyard to the
+# battlefield — the highest-leverage triggers (you pick the fattest target). Anchored on
+# "creature card … from … graveyard … to/onto the battlefield", so a regrowth ("…to your
+# hand") and a token-copy ("create a token that's a copy of…") never qualify.
+_REANIMATE_ORACLE = (
+    r"(?:return|put)[^.]*creature card[^.]*from (?:a|your|their)[^.]*graveyard"
+    r"[^.]*(?:to|onto) the battlefield"
+)
+# (2) Cast-from-graveyard CREATURES recast themselves from the yard, re-firing the
+# payoff each turn (CR 702.146 Disturb / Escape). The graveyard-cast umbrella preset is
+# filtered to card_type Creature so the instant/sorcery flashback half (which never puts
+# a creature into play) drops out; the serve credits the authoritative keywords.
+_CAST_FROM_GY_EXTRA = SubAvenue(
+    "Cast from your graveyard",
+    "creatures with escape or disturb that recast themselves from your graveyard, "
+    "re-firing the payoff each time (Woe Strider / Kroxa)",
+    {"preset_names": ("graveyard-cast",), "card_type": "Creature"},
+    serve=Serve(keywords=frozenset({"escape", "disturb"})),
+)
+# Top-level serve credits BOTH enabler families plus self-recurring fodder, so any
+# genuine reanimator piece reads as on-theme no matter which sub-avenue surfaced it.
+_REANIMATOR_SERVE_ORACLE = (
+    _REANIMATE_ORACLE
+    + r"|\bescape\b|\bdisturb\b|cast [^.]*from (?:a|your|their) graveyard"
+)
+
+
 SPECS: dict[tuple[str, str], SignalSpec] = {
     ("creature_etb", "you"): _spec(
         "Creatures entering — yours",
@@ -468,6 +497,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "self-mill and recursion fuel for your own graveyard",
         {"oracle": r"into your graveyard|surveil"},
         r"into your graveyard|from your graveyard|surveil\b|self-mill",
+    ),
+    # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
+    # creatures, because Celes-style commanders reward a creature re-entering play from
+    # the graveyard, not merely a full graveyard. See _REANIMATE_ORACLE above.
+    ("reanimator", "you"): _spec(
+        "Reanimation",
+        "reanimation effects that return a creature from your graveyard to the "
+        "battlefield — each one fires your payoff and you choose the target",
+        {"oracle": _REANIMATE_ORACLE},
+        _REANIMATOR_SERVE_ORACLE,
+        serve_keywords=("escape", "disturb"),
+        serve_self_recur=True,
+        extras=(_CAST_FROM_GY_EXTRA, _SELF_RECUR_EXTRA),
     ),
     # Lifegain. The bare `lifelink` oracle word matched any card listing it (Crystalline
     # Giant's random-counter menu, reminder text). Lifelink is a keyword (CR 702.15), so

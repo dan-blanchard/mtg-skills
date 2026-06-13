@@ -140,3 +140,56 @@ def test_aggregate_dedupes_across_records():
 def test_signal_is_hashable_frozen():
     s = Signal(key="x", scope="you", subject="", text="t", source="c")
     assert len({s, s}) == 1
+
+
+# ── Reanimator payoff: "entered/cast from a graveyard" (Celes, Rune Knight) ──────
+# The generic graveyard_matters lane is the FUEL (fill your yard / self-mill); a
+# commander that rewards a creature ENTERING from a graveyard (reanimation) or being
+# CAST from a graveyard (escape/disturb) is a reanimator PAYOFF — its own avenue.
+CELES = {
+    "name": "Celes, Rune Knight",
+    "type_line": "Legendary Creature — Human Wizard Knight",
+    "oracle_text": (
+        "When Celes enters, discard any number of cards, then draw that many cards "
+        "plus one.\n"
+        "Whenever one or more other creatures you control enter, if one or more of them "
+        "entered from a graveyard or was cast from a graveyard, put a +1/+1 counter on "
+        "each creature you control."
+    ),
+    "color_identity": ["B", "R", "W"],
+}
+
+
+def test_reanimator_payoff_detected_for_celes():
+    assert ("reanimator", "you") in _keys(CELES)
+
+
+def test_reanimator_and_graveyard_fuel_both_fire_for_celes():
+    keys = _keys(CELES)
+    assert ("reanimator", "you") in keys  # the payoff (reanimation/cast-from-grave)
+    assert ("graveyard_matters", "you") in keys  # the fuel (fill your own graveyard)
+
+
+def test_reanimator_quotes_the_payoff_clause():
+    sig = next(s for s in extract_signals(CELES) if s.key == "reanimator")
+    assert sig.scope == "you"
+    assert "from a graveyard" in sig.text.lower()
+
+
+def test_reanimator_not_fired_by_regrowth_to_hand():
+    # Returning a card to HAND is graveyard-return, not reanimation — no payoff trigger.
+    card = {
+        "name": "Regrowth",
+        "oracle_text": "Return target card from your graveyard to your hand.",
+    }
+    assert ("reanimator", "you") not in _keys(card)
+
+
+def test_reanimator_not_fired_by_plain_reanimation_spell():
+    # A reanimation spell is an ENABLER (found by the avenue's search), not itself the
+    # payoff trigger — its text says "to the battlefield", never "enters/cast from".
+    card = {
+        "name": "Animate Dead-like",
+        "oracle_text": "Return target creature card from your graveyard to the battlefield.",
+    }
+    assert ("reanimator", "you") not in _keys(card)
