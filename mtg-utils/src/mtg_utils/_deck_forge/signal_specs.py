@@ -1654,6 +1654,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "mana rocks, dorks, and land ramp to accelerate into your payoffs",
         {"oracle": r"add \{|search your library for .*\bland\b"},
         r"\{t\}[^.]*:\s*add|add .* mana|search your library for .*\bland\b",
+        # Deliver on "accelerate into your payoffs": the big bombs (Ghalta) and creature
+        # cost reducers (Goreclaw). Only ~3% of commanders open this big-mana lane, so
+        # crediting power-6+ fatties is on-theme, not noise.
+        serve_power_min=6,
+        extras=(_CREATURE_COST_EXTRA,),
     ),
     # The `deals .* damage to target creature` branch missed every burn spell pointed at
     # ANY target (Lightning Bolt, Shock — "deals N damage to any target"). Broaden the

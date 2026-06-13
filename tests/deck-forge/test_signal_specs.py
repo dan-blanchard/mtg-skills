@@ -2861,3 +2861,27 @@ def test_reanimator_credits_etb_value_targets():
     }
     assert _lane_covers(mulldrifter, sig)
     assert _lane_covers(plaguecrafter, sig)
+
+
+def test_ramp_credits_the_fatties_it_accelerates_into():
+    """ramp_matters promises 'accelerate into your payoffs' — deliver them: the big
+    bombs (Ghalta, power 12) and creature cost reducers (Goreclaw). Only 3% of
+    commanders open this 'big mana' lane, so power_min=6 is clean. A 2/2 stays off."""
+    sig = _sig("ramp_matters")
+    ghalta = {
+        "name": "Ghalta, Primal Hunger",
+        "type_line": "Legendary Creature — Elder Dinosaur",
+        "power": "12",
+        "toughness": "12",
+        "oracle_text": "Trample\nThis spell costs {X} less, where X is the total power "
+        "of creatures you control.",
+    }
+    bear = {
+        "name": "Bear",
+        "type_line": "Creature — Bear",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert _lane_covers(ghalta, sig)
+    assert not _lane_covers(bear, sig)
