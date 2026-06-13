@@ -609,8 +609,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Go wide",
         "token swarms and anthems that scale with creature count",
         {"oracle": r"create .*creature token"},
-        r"create .*creature token|creatures you control get",
-        extras=(_ETB_PAYOFF_EXTRA,),
+        # Also credit team anthems ("creatures you control have/gain …") and the
+        # ETB-value creatures a creatures deck fills its board with.
+        r"create .*creature token|creatures you control (?:get|have|gain)",
+        extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA),
     ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta) or a power-N-or-greater threshold
