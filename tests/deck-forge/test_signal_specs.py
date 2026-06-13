@@ -2480,3 +2480,38 @@ def test_creature_ping_credits_big_bodies():
         "oracle_text": "Trample",
     }
     assert serves(fatty, sig)
+
+
+def test_blink_serves_two_sentence_flicker():
+    """Flickerwisp / Charming Prince write the flicker as two sentences ('exile … .
+    Return it …'); the serve must cross the one sentence boundary, anchored to a
+    return-pronoun so an unrelated exile+return-a-land doesn't match."""
+    sig = _sig("blink_flicker")
+    flickerwisp = {
+        "name": "Flickerwisp",
+        "type_line": "Creature — Elemental",
+        "oracle_text": "Flying\nWhen this creature enters, exile another target "
+        "permanent. Return that card to the battlefield under its owner's control at "
+        "the beginning of the next end step.",
+    }
+    charming = {
+        "name": "Charming Prince",
+        "type_line": "Creature — Human Noble",
+        "oracle_text": "When this creature enters, choose one —\n• Scry 2.\n• You gain "
+        "3 life.\n• Exile another target creature you own. Return it to the battlefield "
+        "under your control at the beginning of the next end step.",
+    }
+    assert _lane_covers(flickerwisp, sig)
+    assert _lane_covers(charming, sig)
+
+
+def test_blink_does_not_match_unrelated_exile_then_return_land():
+    # Precision: exile-removal followed by an unrelated land-return is not flicker.
+    sig = _sig("blink_flicker")
+    card = {
+        "name": "Not Flicker",
+        "type_line": "Sorcery",
+        "oracle_text": "Exile target creature. Return a Forest from your graveyard to "
+        "the battlefield.",
+    }
+    assert not _lane_covers(card, sig)

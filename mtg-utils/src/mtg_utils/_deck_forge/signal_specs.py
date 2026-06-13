@@ -994,7 +994,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "exile-and-return effects, the high-ETB creatures worth re-using, and the "
         "doublers that multiply each enter trigger",
         {"preset_names": ("blink",)},
-        r"exile[^.]*?return[^.]*?battlefield",
+        # Same-sentence "exile … then return … battlefield" (Restoration Angel), PLUS
+        # the two-sentence form "exile … . Return it/that/those … battlefield"
+        # (Flickerwisp, Charming Prince). The pronoun anchor + single-period limit keep
+        # an unrelated exile-removal-then-return-a-land off the lane.
+        r"exile[^.]*?return[^.]*?battlefield"
+        r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield",
         extras=(_ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
     ("mill_matters", "any"): _spec(
