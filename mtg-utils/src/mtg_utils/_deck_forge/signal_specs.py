@@ -1176,7 +1176,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"preset_names": ("burn",)},
         r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage"
         r"|deals (?:double|twice) that (?:much )?damage|deals that much damage plus"
-        r"|if a source[^.]*would deal damage[^.]*instead",
+        r"|if a source[^.]*would deal damage[^.]*instead"
+        # Symmetric "punisher" burn enchantments (Manabarbs, Roiling Vortex,
+        # Spellshock): recurring damage to each/that player.
+        r"|deals \d+ damage to (?:each|that|target) (?:player|opponent|creature)"
+        r"|whenever (?:a|an|each) (?:player|opponent)[^.]*deals \d+ damage",
         extras=(_DEATHTOUCH_GEAR_EXTRA,),
     ),
     # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.
@@ -1572,6 +1576,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"can't be blocked|\bunblockable\b"},
         r"can't be blocked(?! except)|\bunblockable\b"
         r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+        extras=(_COMBAT_SUPPORT_EXTRA,),
     ),
     ("clone_matters", "you"): _spec(
         "Clones / copies",
