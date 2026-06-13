@@ -1600,6 +1600,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"can't be blocked|\bunblockable\b"},
         r"can't be blocked(?! except)|\bunblockable\b"
         r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+        # Keyword-only evasion (horsemanship/menace/fear/intimidate/shadow/skulk) trips
+        # the "can't be blocked except" lookahead, so credit it by Scryfall keyword[].
+        serve_keywords=(
+            "horsemanship",
+            "menace",
+            "fear",
+            "intimidate",
+            "shadow",
+            "skulk",
+        ),
         extras=(_COMBAT_SUPPORT_EXTRA,),
     ),
     ("clone_matters", "you"): _spec(

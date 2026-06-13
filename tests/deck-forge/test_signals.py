@@ -279,3 +279,74 @@ def test_land_recursion_commander_opens_landfall_lane():
         ),
     }
     assert ("landfall", "you") in _keys(windgrace)
+
+
+# ── Lifegain payoffs that gate on HAVING gained life (Aerith / Celestine) ────────
+# "if you gained life this turn" / "the amount of life you gained this turn" is a
+# lifegain PAYOFF — it cares whether you gained life — but the detector only caught
+# "whenever you gain life". These commanders showed ONLY an incidental graveyard
+# signal; their real theme (lifegain) was invisible.
+def test_lifegain_conditional_payoff_opens_lane():
+    aerith = {
+        "name": "Aerith, Last Ancient",
+        "oracle_text": (
+            "Lifelink\nRaise — At the beginning of your end step, if you gained life "
+            "this turn, return target creature card from your graveyard to your hand. "
+            "If you gained 7 or more life this turn, return that card to the "
+            "battlefield instead."
+        ),
+    }
+    assert ("lifegain_matters", "you") in _keys(aerith)
+
+
+def test_lifegain_amount_gained_payoff_opens_lane():
+    celestine = {
+        "name": "Celestine, the Living Saint",
+        "oracle_text": (
+            "Flying, lifelink\nHealing Tears — At the beginning of your end step, "
+            "return target creature card with mana value X or less from your graveyard "
+            "to the battlefield, where X is the amount of life you gained this turn."
+        ),
+    }
+    assert ("lifegain_matters", "you") in _keys(celestine)
+
+
+def test_combat_damage_to_player_does_not_open_lifegain():
+    # Precision: a card that merely says "life" in passing (lose life) must not mint
+    # the lifegain lane via the new past-tense branch.
+    card = {
+        "name": "Drainer",
+        "oracle_text": "When this creature deals combat damage to a player, they lose 2 life.",
+    }
+    assert ("lifegain_matters", "you") not in _keys(card)
+
+
+# ── Evasion keywords whose "can't be blocked" lives only in stripped reminder text ─
+# Horsemanship / menace / fear / intimidate / shadow / skulk are all CR blocking
+# restrictions (702.31 / .111 / .36 / .13 / .28 / .118). Their mechanic is in the
+# parenthetical reminder, which extract_signals strips — so the bare keyword word is
+# all that's left and the detector must recognize it (Guan Yu showed NO evasion lane).
+def test_horsemanship_opens_evasion_lane():
+    guan_yu = {
+        "name": "Guan Yu, Sainted Warrior",
+        "oracle_text": (
+            "Horsemanship (This creature can't be blocked except by creatures with "
+            "horsemanship.)\nWhen Guan Yu is put into your graveyard from the "
+            "battlefield, you may shuffle Guan Yu into your library."
+        ),
+    }
+    assert ("evasion_self", "you") in _keys(guan_yu)
+
+
+def test_menace_opens_evasion_lane():
+    card = {
+        "name": "Menacer",
+        "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)",
+    }
+    assert ("evasion_self", "you") in _keys(card)
+
+
+def test_plain_vigilance_creature_no_evasion_lane():
+    # Precision: a non-evasion keyword must not open the evasion lane.
+    card = {"name": "Watcher", "oracle_text": "Vigilance"}
+    assert ("evasion_self", "you") not in _keys(card)

@@ -2430,3 +2430,17 @@ def test_voltron_protection_does_not_credit_plain_anthems():
         "oracle_text": "Creatures you control have flying and get +1/+1.",
     }
     assert not _lane_covers(anthem, sig)
+
+
+def test_evasion_serves_horsemanship_via_keyword():
+    """A horsemanship creature feeds the evasion lane — but its 'can't be blocked
+    except' text trips the serve's negative lookahead, so credit it by the keyword[]."""
+    sig = _sig("evasion_self")
+    shu_general = {
+        "name": "Shu General",
+        "type_line": "Creature — Human Soldier",
+        "oracle_text": "Vigilance; horsemanship (This creature can't be blocked except "
+        "by creatures with horsemanship.)",
+        "keywords": ["Vigilance", "Horsemanship"],
+    }
+    assert _lane_covers(shu_general, sig)

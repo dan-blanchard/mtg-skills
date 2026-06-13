@@ -103,9 +103,14 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         None,
     ),
     (
-        # Lifegain payoff ("whenever you gain life") OR the act of gaining life.
+        # Lifegain payoff ("whenever you gain life") OR the act of gaining life OR a
+        # payoff that gates on HAVING gained life this turn ("if you gained life this
+        # turn", "the amount of life you gained" — Aerith / Celestine / Lathiel).
         "lifegain_matters",
-        _re(r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"),
+        _re(
+            r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
+            r"|you gained[^.]*life|life you gained"
+        ),
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
@@ -926,10 +931,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         # Evasion = a blocking RESTRICTION (CR 509.1b). "attacks if able" is a
         # forced-attack REQUIREMENT (CR 508.1d) — that belongs to forced_attack/goad.
         # Landwalk (CR 702.14) is conditional unblockable-by-that-land-type evasion.
+        # The keyword-only evasion words (horsemanship 702.31, menace 702.111, fear
+        # 702.36, intimidate 702.13, skulk 702.118) carry their "can't be blocked …"
+        # only in reminder text, which is stripped above — so the bare keyword is all
+        # that survives (Guan Yu's horsemanship). "shadow" (702.28) is deliberately
+        # EXCLUDED here: it collides with card-name self-references in oracle text
+        # ("Whenever Shadow the Hedgehog…", Rasaad Shadow Monk) — the serve still
+        # credits real Shadow-keyword cards via the exact keyword[] match.
         "evasion_self",
         re.compile(
             r"can't be blocked|\bunblockable\b"
-            r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+            r"|\b(?:forest|island|mountain|plains|swamp)walk\b"
+            r"|\b(?:horsemanship|menace|fear|intimidate|skulk)\b",
             re.IGNORECASE,
         ),
         "you",
