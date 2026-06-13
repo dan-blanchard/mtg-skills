@@ -855,7 +855,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"enchantments? you control|for each enchantment|\bconstellation\b"
         r"|whenever you cast an enchantment"
         # Enchantment-GRANTERS (Enchanted Evening, Nyx: "are enchantments in addition").
-        r"|(?:are|is|becomes?) (?:an? )?enchantments? in addition",
+        r"|(?:are|is|becomes?) (?:an? )?enchantments? in addition"
+        # Makers of enchantment-TOKEN types make enchantments: Role (Aura Role) and
+        # Shard are enchantment tokens (constellation / enchantment-count fuel).
+        r"|create [^.]*\b(?:role|shard)\b[^.]*token"
+        r"|create [^.]*(?:enchantment|aura) token",
     ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering

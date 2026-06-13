@@ -449,6 +449,25 @@ def test_grant_become_credited_for_clone_enchantment_food():
         assert _lane_covers(card, _sig(key, "you")) is True, key
 
 
+def test_enchantment_token_makers_are_enchantments():
+    # Role (Aura Role) and Shard tokens are enchantment tokens, so their makers make
+    # enchantments — constellation / enchantment-count fuel.
+    makers = [
+        (
+            "Cursed Courtier",
+            "When this creature enters, create a Cursed Role token attached to it.",
+        ),
+        ("Shard Maker", "Create a Shard token."),
+        (
+            "Aura Token Maker",
+            "Create a white Aura enchantment token with enchant creature and totem armor.",
+        ),
+    ]
+    for n, o in makers:
+        card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
+        assert serves(card, _sig("enchantments_matter", "you")) is True, n
+
+
 def test_artifact_token_makers_are_artifacts():
     # Treasure/Food/Clue/Blood/Gold/Map/Powerstone tokens ARE artifact tokens, so a
     # maker of them makes an artifact — affinity/metalcraft/artifact-count fuel.
