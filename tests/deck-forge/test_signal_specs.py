@@ -2798,3 +2798,18 @@ def test_power_growth_lanes_serve_fling_payoffs():
     for key in ("power_matters", "self_pump", "variable_pt", "power_double"):
         assert _lane_covers(ignition, _sig(key)), f"ignition/{key}"
         assert _lane_covers(fling, _sig(key)), f"fling/{key}"
+
+
+def test_token_copy_credits_big_creatures():
+    """token_copy's blurb promises 'strong creatures to copy' — deliver it: Etali (6/6
+    bomb) is a top token-copy target (Cadric, Feldon), not just the copy effects."""
+    sig = _sig("token_copy_matters")
+    etali = {
+        "name": "Etali, Primal Storm",
+        "type_line": "Legendary Creature — Elder Dinosaur",
+        "power": "6",
+        "toughness": "6",
+        "oracle_text": "Whenever Etali attacks, exile the top card of each player's "
+        "library, then you may cast any number of spells from among them for free.",
+    }
+    assert _lane_covers(etali, sig)

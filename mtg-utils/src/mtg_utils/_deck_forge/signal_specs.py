@@ -1594,6 +1594,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "strong creatures to copy plus token-copy and populate engines",
         {"oracle": r"token that's a copy|tokens? that are copies|\bpopulate\b"},
         r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|\bpopulate\b",
+        # Deliver on "strong creatures to copy": a token-copy deck wants big bombs to
+        # copy (Etali). power_min=6 keeps it to genuine bombs, mirroring clone_matters.
+        serve_power_min=6,
     ),
     ("specialize_matters", "you"): _spec(
         "Specialize",
