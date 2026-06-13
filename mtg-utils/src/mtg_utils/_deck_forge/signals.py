@@ -149,7 +149,14 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # package — cost reducers (Training Grounds), untappers + haste-for-abilities
     # (Thousand-Year Elixir), and ability copiers (Rings of Brighthearth). The tap
     # symbol followed by a cost separator (":" or ",") is the activated-ability anchor.
-    ("activated_ability", _re(r"\{t\}\s*[,:]|\{q\}\s*[,:]"), "you"),
+    # {T}:/{Q}: tap abilities, plus mana-cost activated abilities with a generic-numeral
+    # cost ("{2}{U}{B}: …" — The Scarab God, Kenrith). The generic numeral excludes
+    # cheap colored-only firebreathing ("{R}: +1/+0"), which has its own pump lane.
+    (
+        "activated_ability",
+        _re(r"\{t\}\s*[,:]|\{q\}\s*[,:]|\{(?:\d+|x)\}[^.\n]{0,18}:"),
+        "you",
+    ),
     # Reanimator PAYOFF: a trigger that rewards a creature ENTERING from a graveyard
     # (reanimation) or being CAST from a graveyard (escape/disturb) — Celes, Prized
     # Amalgam, Flayer of the Hatebound, River Kelpie. Distinct from graveyard_matters

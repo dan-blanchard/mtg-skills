@@ -580,3 +580,28 @@ def test_multi_tribe_anthem_ignores_non_subtype_words():
     }
     subjects = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
     assert subjects == set() or "attacking" not in {x.lower() for x in subjects}
+
+
+# ── Mana-cost activated abilities also want the activated-ability package ─────────
+# The {T}: anchor missed commanders whose engine is a mana-cost activated ability
+# (The Scarab God '{2}{U}{B}: reanimate', Kenrith, Varragoth). A generic-numeral cost
+# excludes cheap colored-only firebreathing ({R}:) for precision.
+def test_mana_cost_activated_ability_opens_lane():
+    scarab = {
+        "name": "The Scarab God",
+        "type_line": "Legendary Creature — God",
+        "oracle_text": "{2}{U}{B}: Exile target creature card from a graveyard, then "
+        "create a token that's a copy of it, except it's a 4/4 black Zombie.",
+    }
+    assert ("activated_ability", "you") in _keys(scarab)
+
+
+def test_cheap_firebreathing_does_not_open_activated_lane():
+    # Precision: a bare colored-only pump ({R}: +1/+0) is firebreathing, not an
+    # activated-ability engine — no generic numeral in the cost.
+    card = {
+        "name": "Firebreather",
+        "type_line": "Legendary Creature — Dragon",
+        "oracle_text": "Flying\n{R}: This creature gets +1/+0 until end of turn.",
+    }
+    assert ("activated_ability", "you") not in _keys(card)
