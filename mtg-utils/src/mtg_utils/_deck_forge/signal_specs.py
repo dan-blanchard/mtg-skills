@@ -72,6 +72,7 @@ class Serve:
     min_devotion: int | None = None
     produces_mana: bool = False  # serve if the card has a non-empty produced_mana
     power_min: int | None = None  # serve a creature whose power >= this (big-creature)
+    toughness_min: int | None = None  # serve a creature whose toughness >= this (Doran)
     self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     not_oracle: re.Pattern[str] | None = None
@@ -107,6 +108,12 @@ class Serve:
             and _power(card) >= self.power_min
         ):
             return True
+        if (
+            self.toughness_min is not None
+            and "creature" in type_line
+            and _toughness(card) >= self.toughness_min
+        ):
+            return True
         if self.self_recur and _self_recurs(card, oracle_text):
             return True
         return (
@@ -134,6 +141,8 @@ class Serve:
             out["produces_mana"] = True
         if self.power_min is not None:
             out["power_min"] = self.power_min
+        if self.toughness_min is not None:
+            out["toughness_min"] = self.toughness_min
         if self.self_recur:
             out["self_recur"] = True
         if self.names:
@@ -152,6 +161,7 @@ class Serve:
             or self.min_devotion is not None
             or self.produces_mana
             or self.power_min is not None
+            or self.toughness_min is not None
             or self.self_recur
             or self.names
             or self.not_oracle is not None
@@ -172,6 +182,13 @@ def _power(card: dict) -> int:
         return int(str(card.get("power", "0")))
     except ValueError:
         return 0  # */X or non-numeric power doesn't count toward a power threshold
+
+
+def _toughness(card: dict) -> int:
+    try:
+        return int(str(card.get("toughness", "0")))
+    except ValueError:
+        return 0  # */X or non-numeric toughness doesn't count toward a threshold
 
 
 _ARTICLES_NAME = frozenset({"the", "a", "an", "of", "and"})
@@ -220,6 +237,7 @@ def serve_from_dict(data: dict) -> Serve:
         min_devotion=data.get("min_devotion"),
         produces_mana=bool(data.get("produces_mana")),
         power_min=data.get("power_min"),
+        toughness_min=data.get("toughness_min"),
         self_recur=bool(data.get("self_recur")),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
         not_oracle=_compile(data.get("not_oracle")),
@@ -265,6 +283,7 @@ def _spec(
     serve_min_devotion: int | None = None,
     serve_produces_mana: bool = False,
     serve_power_min: int | None = None,
+    serve_toughness_min: int | None = None,
     serve_self_recur: bool = False,
     serve_not: str | None = None,
 ) -> SignalSpec:
@@ -280,6 +299,7 @@ def _spec(
             min_devotion=serve_min_devotion,
             produces_mana=serve_produces_mana,
             power_min=serve_power_min,
+            toughness_min=serve_toughness_min,
             self_recur=serve_self_recur,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
@@ -580,13 +600,16 @@ def _sweep_spec_with_extras(
     extras: tuple[SubAvenue, ...] = (),
     *,
     serve_power_min: int | None = None,
+    serve_toughness_min: int | None = None,
+    serve_keywords: tuple[str, ...] = (),
 ) -> SignalSpec:
     """Promote a mined sweep detector to a hand-spec that keeps its regex (as both
     search and serve) but fans out extra sub-avenues — used where a sweep-derived lane
     needs to surface payoffs its bare regex can't (e.g. every counter lane wants the
-    counter doublers). ``serve_power_min`` additionally credits big bodies (power
-    doublers / power-as-damage lanes want the fat creatures they exploit). Reuses
-    SWEEP_DETECTORS so the regex never drifts from the mine.
+    counter doublers). ``serve_power_min`` / ``serve_toughness_min`` additionally credit
+    big bodies (power doublers / toughness-as-power lanes want the stat-line they
+    exploit); ``serve_keywords`` adds a keyword dimension. Reuses SWEEP_DETECTORS so the
+    regex never drifts from the mine.
     """
     d = next(x for x in SWEEP_DETECTORS if x["key"] == key)
     label, avenue = SWEEP_LABELS[key]
@@ -597,6 +620,8 @@ def _sweep_spec_with_extras(
         d["regex"],
         extras=extras,
         serve_power_min=serve_power_min,
+        serve_toughness_min=serve_toughness_min,
+        serve_keywords=serve_keywords,
     )
 
 
@@ -1080,6 +1105,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # to true fatties, not every 5/5 the trigger would also accept).
     ("creature_cast_trigger", "you"): _sweep_spec_with_extras(
         "creature_cast_trigger", (_CREATURE_COST_EXTRA,), serve_power_min=6
+    ),
+    # Toughness-as-power (Doran, Arcades) and damage-reflection (Boros Reckoner) decks
+    # want big-TOUGHNESS bodies and Walls — credit them by toughness>=4 and Defender.
+    ("toughness_combat", "you"): _sweep_spec_with_extras(
+        "toughness_combat", serve_toughness_min=4, serve_keywords=("defender",)
+    ),
+    ("damage_reflect", "you"): _sweep_spec_with_extras(
+        "damage_reflect", serve_toughness_min=4, serve_keywords=("defender",)
     ),
     # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
     # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit

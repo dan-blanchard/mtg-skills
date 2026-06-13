@@ -2650,3 +2650,34 @@ def test_creature_cast_trigger_credits_cost_reducers_and_fatties():
     assert _lane_covers(goreclaw, sig)
     assert _lane_covers(ghalta, sig)
     assert not _lane_covers(midsize, sig)
+
+
+def test_toughness_combat_credits_big_butts_and_walls():
+    """Doran / Arcades deal damage with TOUGHNESS — they want big-toughness bodies and
+    Walls (defenders), which the toughness lane previously couldn't surface."""
+    sig = _sig("toughness_combat")
+    wall = {
+        "name": "Wall of Denial",
+        "type_line": "Creature — Wall",
+        "power": "0",
+        "toughness": "4",
+        "keywords": ["Defender"],
+        "oracle_text": "Defender, flying",
+    }
+    big_butt = {
+        "name": "Indomitable Ancients",
+        "type_line": "Creature — Treefolk Warrior",
+        "power": "2",
+        "toughness": "10",
+        "oracle_text": "",
+    }
+    small = {
+        "name": "Bear",
+        "type_line": "Creature — Bear",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert _lane_covers(wall, sig)
+    assert _lane_covers(big_butt, sig)
+    assert not _lane_covers(small, sig)
