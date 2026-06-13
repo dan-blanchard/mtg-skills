@@ -449,6 +449,31 @@ def test_grant_become_credited_for_clone_enchantment_food():
         assert _lane_covers(card, _sig(key, "you")) is True, key
 
 
+def test_being_an_artifact_or_enchantment_by_type_is_on_theme():
+    # The big "floor" miss: a card is on-theme for an artifacts/enchantments deck by
+    # BEING that type (affinity/metalcraft/constellation/count all count the card),
+    # even with no "artifact"/"enchantment" oracle text. EDHREC synergy proves it —
+    # artifact lands / rocks are disproportionately in artifact decks.
+    art = _sig("artifacts_matter", "you")
+    for n, tl, o in [
+        ("Seat of the Synod", "Artifact Land", "{T}: Add {U}."),
+        ("Mind Stone", "Artifact", "{T}: Add {C}. {1}, {T}, Sacrifice: Draw a card."),
+        (
+            "Solemn Simulacrum",
+            "Artifact Creature — Golem",
+            "When this enters, search your library for a basic land card.",
+        ),
+    ]:
+        assert serves({"name": n, "type_line": tl, "oracle_text": o}, art) is True, n
+    ench = _sig("enchantments_matter", "you")
+    spirited = {
+        "name": "Spirited Companion",
+        "type_line": "Enchantment Creature — Dog",
+        "oracle_text": "When this enters, draw a card.",
+    }
+    assert serves(spirited, ench) is True
+
+
 def test_artifact_subtypes_count_as_artifacts():
     # CR 205.3g: Equipment, Vehicle, etc. ARE artifact types, so a card that makes or
     # cares about them is an artifact-count / affinity / metalcraft enabler.

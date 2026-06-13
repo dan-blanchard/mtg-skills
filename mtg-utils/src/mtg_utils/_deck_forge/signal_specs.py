@@ -861,6 +861,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|\b(?:" + _ART_SUBTYPES + r")s? you control\b"
         r"|for each (?:an? )?(?:" + _ART_SUBTYPES + r")\b"
         r"|\binvestigate\b",
+        # BEING an artifact is on-theme: an artifact-count / affinity / metalcraft deck
+        # counts every artifact — lands (Seat of the Synod), rocks (Mind Stone),
+        # Equipment, Vehicles — even with no "artifact" in the oracle. The oracle-only
+        # serve missed these and wrongly read them as generic "good stuff".
+        serve_types=("artifact",),
     ),
     # Serve augmented with "whenever you cast an enchantment" so the 14 plain CREATURES
     # that trigger on enchantment casts (Verduran/Mesa Enchantress, Sythis) — missed by
@@ -880,6 +885,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|\b(?:" + _ENCH_SUBTYPES + r")s? you control\b"
         r"|for each (?:an? )?(?:" + _ENCH_SUBTYPES + r")\b"
         r"|whenever (?:a|an|another) (?:" + _ENCH_SUBTYPES + r")\b",
+        # BEING an enchantment is on-theme: constellation / enchantment-count counts
+        # every enchantment (Auras, Sagas, enchantment creatures like Spirited
+        # Companion), even with no "enchantment" in the oracle.
+        serve_types=("enchantment",),
     ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
