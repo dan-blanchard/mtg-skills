@@ -197,6 +197,9 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
                 or "number of" in c
                 or "on each creature you control" in c
                 or "creatures you control with +1/+1 counter" in c
+                # A VARIABLE count ("put X +1/+1 counters …") is a scaling counter
+                # engine, not bare self-growth (Halana and Alena, Champion of Lambholt).
+                or "x +1/+1 counter" in c
             )
         ),
         None,
@@ -341,6 +344,10 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\b([A-Za-z]+?)s? you control get [+\-](?:\d|x)", re.IGNORECASE),
     re.compile(r"\b(?:number of|for each) ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control have\b", re.IGNORECASE),
+    # Global lords with no "you control" / "other": "Bird creatures get +1/+1"
+    # (Soraya). The subtype-vocab gate drops "all"/"other"/"creature" so only a real
+    # tribe is captured.
+    re.compile(r"\b([A-Za-z]+?) creatures? get [+\-](?:\d|x)", re.IGNORECASE),
 )
 # typed_spellcast: subject-bearing extension of spellcast_matters — catches tribal
 # spell payoffs ("Sliver spells you cast") the literal spellcast_matters misses.
@@ -1288,6 +1295,15 @@ _VOLTRON_KEYWORDS = frozenset(
         "skulk",
         "trample",
         "double strike",
+        # Resilience / aggression keywords that make a themeless legend a real
+        # commander-damage threat worth suiting up (Konda: indestructible+vigilance).
+        "indestructible",
+        "hexproof",
+        "vigilance",
+        "first strike",
+        "lifelink",
+        "deathtouch",
+        "haste",
     }
 )
 
@@ -1601,8 +1617,9 @@ def extract_signals(
 
     # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
     # else gave a strong direction and the creature is a real commander-damage threat
-    # (an evasion keyword or power >=4). Low confidence — a generic plan, not a detected
-    # synergy. Commander-only at the deck level — see include_membership.
+    # (an evasion/resilience keyword, or power >=2 — Isamaru is a 2/2). Low confidence —
+    # a generic plan, not a detected synergy. Commander-only at the deck level (see
+    # include_membership); a 0/1 themeless wall is excluded by the power floor.
     type_line = card.get("type_line") or ""
     has_strong = any(s.confidence == "high" and s.key not in _GENERIC_KEYS for s in out)
     if include_membership and not has_strong and "creature" in type_line.lower():
@@ -1611,7 +1628,7 @@ def extract_signals(
             power = int(str(card.get("power", "0")))
         except ValueError:
             power = 0
-        if kws & _VOLTRON_KEYWORDS or power >= 4:
+        if kws & _VOLTRON_KEYWORDS or power >= 2:
             add("voltron_matters", "you", "", "commander damage (CR 903.10a)", "low")
 
     return out

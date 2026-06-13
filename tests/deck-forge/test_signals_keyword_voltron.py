@@ -7,7 +7,7 @@
    group creatures by a keyword characteristic (like subtype tribal, CR 109.3).
 3. VOLTRON FALLBACK: a vanilla beater still has a deterministic plan — commander
    damage (CR 903.10a). When nothing else fires and the creature is voltron-viable
-   (evasion keyword or power ≥4), surface a low-confidence voltron avenue.
+   (an evasion/resilience keyword or power ≥2), surface a low-confidence voltron avenue.
 """
 
 from mtg_utils._deck_forge.signals import coverage_gate, extract_signals
@@ -104,9 +104,11 @@ def test_vanilla_beater_gets_voltron_fallback():
 
 
 def test_small_vanilla_no_voltron():
-    # 2/2 with no evasion and no abilities → genuinely nothing (not even voltron).
+    # A 1/1 themeless legend is below the commander-damage floor → nothing. (A 2/2
+    # vanilla legend like Isamaru now DOES open voltron — the iconic cheap voltron
+    # commander; see test_cheap_vanilla_legend_opens_voltron_fallback in test_signals.)
     assert "voltron_matters" not in _keys(
-        oracle="", type_line="Legendary Creature — Dog", power="2", toughness="2"
+        oracle="", type_line="Legendary Creature — Dog", power="1", toughness="1"
     )
 
 

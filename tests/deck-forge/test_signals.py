@@ -350,3 +350,72 @@ def test_plain_vigilance_creature_no_evasion_lane():
     # Precision: a non-evasion keyword must not open the evasion lane.
     card = {"name": "Watcher", "oracle_text": "Vigilance"}
     assert ("evasion_self", "you") not in _keys(card)
+
+
+# ── Zero-avenue commander recovery: themeless beaters, variable counters, global lords
+# These commanders extracted NO avenues at all — the worst case (0/10 coverage).
+def test_variable_x_counters_opens_counters_lane():
+    # Halana and Alena: a recurring engine that puts a VARIABLE number of +1/+1
+    # counters on your team each combat — a counters commander, but the count-anchor
+    # ('for each'/'number of') gate missed the 'X +1/+1 counters' scaling form.
+    halana = {
+        "name": "Halana and Alena, Partners",
+        "type_line": "Legendary Creature — Human Ranger",
+        "oracle_text": (
+            "First strike\nReach\nAt the beginning of combat on your turn, put X "
+            "+1/+1 counters on another target creature you control, where X is Halana "
+            "and Alena's power. That creature gains haste until end of turn."
+        ),
+    }
+    assert any(k == "counters_matter" for k, _ in _keys(halana))
+
+
+def test_cheap_vanilla_legend_opens_voltron_fallback():
+    # Isamaru: the iconic 2/2 vanilla voltron commander. Commander damage is the only
+    # plan, so the themeless-creature fallback must open voltron even at low power.
+    isamaru = {
+        "name": "Isamaru, Hound of Konda",
+        "type_line": "Legendary Creature — Dog",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert ("voltron_matters", "you") in _keys(isamaru)
+
+
+def test_indestructible_beater_opens_voltron_fallback():
+    # Konda: indestructible + vigilance beater — a resilient commander-damage threat
+    # whose keywords weren't in the voltron set.
+    konda = {
+        "name": "Konda, Lord of Eiganjo",
+        "type_line": "Legendary Creature — Human Samurai",
+        "power": "3",
+        "toughness": "3",
+        "keywords": ["Vigilance", "Indestructible"],
+        "oracle_text": "Vigilance, indestructible\nBushido 5",
+    }
+    assert ("voltron_matters", "you") in _keys(konda)
+
+
+def test_themeless_one_one_does_not_open_voltron():
+    # Precision: a 1/1 themeless legend is too small to be a commander-damage plan.
+    chump = {
+        "name": "Tiny Legend",
+        "type_line": "Legendary Creature — Human",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "",
+    }
+    assert ("voltron_matters", "you") not in _keys(chump)
+
+
+def test_global_tribal_anthem_opens_tribe():
+    # Soraya: "Bird creatures get +1/+1" is a Bird lord — but the anthem patterns
+    # required 'you control'/'other', missing the bare global-lord phrasing.
+    soraya = {
+        "name": "Soraya the Falconer",
+        "type_line": "Legendary Creature — Human",
+        "oracle_text": "Bird creatures get +1/+1.",
+    }
+    sigs = extract_signals(soraya)
+    assert any(s.key == "type_matters" and s.subject == "Bird" for s in sigs)
