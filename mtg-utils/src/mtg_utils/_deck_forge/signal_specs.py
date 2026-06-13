@@ -1130,9 +1130,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
-        "Vehicle bodies plus crew payoffs, lords, and cheap creatures to crew them",
+        "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",
         {"preset_names": ("crew",)},
-        r"\bvehicles? you control\b|\bcrew\b|create [^.]*vehicle artifact",
+        # Also credit vehicle SUPPORT: cheat a Vehicle into play, ramp/cost-reduction
+        # for Vehicle spells (Oviya, Intrepid Stablemaster), not just core text.
+        r"\bvehicles? you control\b|\bcrew\b|create [^.]*vehicle artifact"
+        r"|\bvehicles? (?:card|spell)s?\b",
     ),
     ("scry_surveil_matters", "you"): _spec(
         "Scry / surveil matters",

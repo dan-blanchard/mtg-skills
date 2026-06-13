@@ -591,7 +591,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|\bwhenever[^.]*\bcrews?\b"
             r"|\b(?:mount|equipment) or vehicle (?:card|spell)\b"
             r"|\bvehicle or artifact (?:creature )?(?:card|spell)\b"
-            r"|create [^.]*\bvehicle artifact (?:creature )?token\b",
+            r"|create [^.]*\bvehicle artifact (?:creature )?token\b"
+            # Vehicle GRANTERS (Captain Rex Nebula: "becomes a Vehicle … gains crew")
+            # care about Vehicles too, even without "Vehicles you control".
+            r"|\bbecomes? a vehicle\b|\bgains? crew\b",
             re.IGNORECASE,
         ),
         "you",

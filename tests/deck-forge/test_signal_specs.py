@@ -338,6 +338,37 @@ def test_aristocrats_credits_plural_creatures_die():
     assert serves(morbid, _sig("death_matters", "any")) is True
 
 
+def test_vehicles_lane_opens_for_granter_and_credits_support():
+    # A vehicle-GRANTER ("becomes a Vehicle … gains crew") must open the Vehicles lane,
+    # and vehicle SUPPORT (cheat a Vehicle into play, mana to cast Vehicle spells) must
+    # be credited — not just core "Vehicles you control / crew" text.
+    rex = {
+        "name": "Captain Rex Nebula",
+        "type_line": "Legendary Creature — Human Pilot",
+        "oracle_text": (
+            "At the beginning of combat on your turn, choose target nonland permanent "
+            "you control. Until end of turn, it becomes a Vehicle artifact with base "
+            "power and toughness each equal to its mana value, and it gains crew 2."
+        ),
+    }
+    assert any(
+        k == "vehicles_matter"
+        for k, _ in {(s.key, s.scope) for s in extract_signals(rex)}
+    )
+    oviya = {
+        "name": "Oviya, Automech Artisan",
+        "type_line": "Creature — Vedalken Artificer",
+        "oracle_text": "{G}, {T}: You may put a creature or Vehicle card from your hand onto the battlefield.",
+    }
+    stablemaster = {
+        "name": "Intrepid Stablemaster",
+        "type_line": "Creature — Elf",
+        "oracle_text": "{T}: Add two mana of any one color. Spend this mana only to cast Mount or Vehicle spells.",
+    }
+    assert serves(oviya, _sig("vehicles_matter", "you")) is True
+    assert serves(stablemaster, _sig("vehicles_matter", "you")) is True
+
+
 def test_theme_cost_reducers_are_credited():
     # A spell-type cost reducer is prime synergy for that theme's deck.
     etherium = {
