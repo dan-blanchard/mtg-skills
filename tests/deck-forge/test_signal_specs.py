@@ -302,6 +302,18 @@ def test_self_growth_lane_surfaces_counter_placement_support():
     assert _lane_covers(placement, _sig("self_counter_grow", "you")) is True
 
 
+def test_keyword_counter_cards_surface_across_counter_lanes():
+    # Keyword counters (flying/trample/deathtouch/…) are counters too — a counters
+    # commander wants them (proliferate fuel, voltron protection), even with no +1/+1.
+    kwc = {
+        "name": "Pure Keyword Counter Card",
+        "type_line": "Instant",
+        "oracle_text": "Put a flying counter and a trample counter on target creature.",
+    }
+    for key, scope in COUNTER_LANES:
+        assert _lane_covers(kwc, _sig(key, scope)), f"{key}: keyword-counter uncovered"
+
+
 # --- land-creatures theme (the Jyoti case) -------------------------------------
 
 LAND_CREATURE_PAYOFF = {
