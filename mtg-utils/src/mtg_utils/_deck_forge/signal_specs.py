@@ -675,6 +675,18 @@ _CREATURE_COST_EXTRA = SubAvenue(
     {"oracle": _CREATURE_COST_ORACLE},
     serve=Serve(oracle=re.compile(_CREATURE_COST_ORACLE, _IC)),
 )
+# Power-as-damage payoffs: convert a big/pumped creature's power into damage (Fling,
+# Chandra's Ignition, Soul's Fire). Matches single-target AND board-sweep forms — the
+# mined fling regex only had single-target ("to any target"), missing Ignition's "to
+# each other creature and player".
+_POWER_FLING_ORACLE = r"deals? damage equal to (?:its|that creature's|[^.]{0,30}) power"
+_POWER_FLING_EXTRA = SubAvenue(
+    "Power-as-damage payoffs",
+    "fling effects that turn your big creature's power into damage (Fling / Chandra's "
+    "Ignition / Soul's Fire)",
+    {"oracle": _POWER_FLING_ORACLE},
+    serve=Serve(oracle=re.compile(_POWER_FLING_ORACLE, _IC)),
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -731,6 +743,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # dorks: "creature with power 4 or greater"), not just the big bodies.
         r"power \d+ or (?:greater|more)|with power \d+ or|\bferocious\b",
         serve_power_min=4,
+        extras=(_POWER_FLING_EXTRA,),
     ),
     # Land-creatures theme (e.g. Jyoti, Moag Ancient). Three precise, disjoint
     # angles — proven clean against bulk so a Plant-token maker (Avenger) or a
@@ -1122,7 +1135,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
     # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit
     # the fat bodies they exploit (Ghalta / Worldspine Wurm), not just the engine cards.
-    ("power_double", "you"): _sweep_spec_with_extras("power_double", serve_power_min=5),
+    ("power_double", "you"): _sweep_spec_with_extras(
+        "power_double", (_POWER_FLING_EXTRA,), serve_power_min=5
+    ),
+    # Firebreathing / variable-P/T decks pump power, then fling it for damage.
+    ("self_pump", "you"): _sweep_spec_with_extras("self_pump", (_POWER_FLING_EXTRA,)),
+    ("variable_pt", "you"): _sweep_spec_with_extras(
+        "variable_pt", (_POWER_FLING_EXTRA,)
+    ),
     ("creature_ping", "you"): _sweep_spec_with_extras(
         "creature_ping", (_DEATHTOUCH_GEAR_EXTRA,), serve_power_min=5
     ),

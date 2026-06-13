@@ -2776,3 +2776,25 @@ def test_regenerate_lane_serves_voltron_auras():
     }
     assert _lane_covers(rancor, sig)
     assert _lane_covers(alpha, sig)
+
+
+def test_power_growth_lanes_serve_fling_payoffs():
+    """Power-growth decks (firebreathing, variable P/T, +1/+1, power-double) want to
+    convert that power into damage — Fling / Chandra's Ignition / Soul's Fire. The
+    board-sweep form ('to each other creature and player') was missed by the
+    single-target fling regex."""
+    ignition = {
+        "name": "Chandra's Ignition",
+        "type_line": "Sorcery",
+        "oracle_text": "Target creature you control deals damage equal to its power to "
+        "each other creature and player.",
+    }
+    fling = {
+        "name": "Fling",
+        "type_line": "Instant",
+        "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\n"
+        "Fling deals damage equal to the sacrificed creature's power to any target.",
+    }
+    for key in ("power_matters", "self_pump", "variable_pt", "power_double"):
+        assert _lane_covers(ignition, _sig(key)), f"ignition/{key}"
+        assert _lane_covers(fling, _sig(key)), f"fling/{key}"
