@@ -2589,3 +2589,31 @@ def test_deathtouch_gear_serves_ping_and_noncombat_lanes():
     }
     for key in ("creature_ping", "noncombat_damage_payoff", "damage_equal_power"):
         assert _lane_covers(collar, _sig(key)), key
+
+
+def test_all_counter_lanes_serve_sources_and_doublers():
+    """Every +1/+1-counter lane should surface the core package — counter SOURCES
+    (Forgotten Ancient: 'put a +1/+1 counter') and counter DOUBLERS (Hardened Scales) —
+    no matter which fragmented counter lane the commander opened."""
+    forgotten = {
+        "name": "Forgotten Ancient",
+        "type_line": "Creature — Elemental",
+        "oracle_text": "Whenever a player casts a spell, you may put a +1/+1 counter "
+        "on Forgotten Ancient.",
+    }
+    scales = {
+        "name": "Hardened Scales",
+        "type_line": "Enchantment",
+        "oracle_text": "If one or more +1/+1 counters would be put on a creature you "
+        "control, that many plus one are put on it instead.",
+    }
+    for key in (
+        "counter_place_trigger",
+        "keyword_counter",
+        "counter_replace_bonus",
+        "counter_move",
+        "counter_distribute",
+        "counter_manipulation",
+    ):
+        assert _lane_covers(forgotten, _sig(key)), f"source/{key}"
+        assert _lane_covers(scales, _sig(key)), f"doubler/{key}"

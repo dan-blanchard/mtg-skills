@@ -520,6 +520,18 @@ _KEYWORD_COUNTER_EXTRA = SubAvenue(
     {"oracle": _KEYWORD_COUNTER_ORACLE},
     serve=Serve(oracle=re.compile(_KEYWORD_COUNTER_ORACLE, _IC)),
 )
+# The shared +1/+1-counter package every counter-adjacent lane wants: SOURCES that
+# place counters (Forgotten Ancient), DOUBLERS (Hardened Scales / Doubling Season),
+# keyword-counter placers, and proliferate. The sweep fragments counter themes into
+# many lanes (placement-triggers / keyword / doubling / movement / distribution); this
+# package unifies what they all surface so a counters commander sees the whole package
+# no matter which lane opened.
+_COUNTERS_PACKAGE = (
+    _COUNTER_PLACE_EXTRA,
+    _COUNTER_DOUBLER_EXTRA,
+    _KEYWORD_COUNTER_EXTRA,
+    _PROLIFERATE_EXTRA,
+)
 # Discard-PUNISH payoffs (CR 701.8 discard): reward forcing opponents to discard.
 _DISCARD_PUNISH_ORACLE = (
     r"whenever (?:a player|an opponent|that player|each opponent|target opponent)"
@@ -1024,30 +1036,32 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
         extras=(_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA),
     ),
-    # Hand-promote the mined counter lanes so they surface the counter DOUBLERS (the
-    # universal counters payoff) regardless of which lane a counters commander opens,
-    # plus keyword-counter and placement support. self_counter_grow's own blurb already
-    # promises doublers; now its serve delivers.
+    # Hand-promote EVERY mined +1/+1-counter lane with the shared counters package so a
+    # counters commander surfaces sources (Forgotten Ancient), doublers (Hardened
+    # Scales), keyword counters, and proliferate no matter which fragmented lane opened.
     ("self_counter_grow", "you"): _sweep_spec_with_extras(
-        "self_counter_grow",
-        (
-            _COUNTER_DOUBLER_EXTRA,
-            _COUNTER_PLACE_EXTRA,
-            _KEYWORD_COUNTER_EXTRA,
-            _PROLIFERATE_EXTRA,
-        ),
+        "self_counter_grow", _COUNTERS_PACKAGE
     ),
     ("counter_manipulation", "you"): _sweep_spec_with_extras(
-        "counter_manipulation", (_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA)
+        "counter_manipulation", _COUNTERS_PACKAGE
     ),
+    ("counter_distribute", "you"): _sweep_spec_with_extras(
+        "counter_distribute", _COUNTERS_PACKAGE
+    ),
+    ("counter_place_trigger", "you"): _sweep_spec_with_extras(
+        "counter_place_trigger", _COUNTERS_PACKAGE
+    ),
+    ("keyword_counter", "you"): _sweep_spec_with_extras(
+        "keyword_counter", _COUNTERS_PACKAGE
+    ),
+    ("counter_replace_bonus", "you"): _sweep_spec_with_extras(
+        "counter_replace_bonus", _COUNTERS_PACKAGE
+    ),
+    ("counter_move", "you"): _sweep_spec_with_extras("counter_move", _COUNTERS_PACKAGE),
     # Beginning-of-combat / attack-buff commanders are combat decks — surface the gear
     # and keyword-anthems that grow their attackers.
     ("combat_buff_engine", "you"): _sweep_spec_with_extras(
         "combat_buff_engine", (_COMBAT_SUPPORT_EXTRA,)
-    ),
-    ("counter_distribute", "you"): _sweep_spec_with_extras(
-        "counter_distribute",
-        (_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA, _PROLIFERATE_EXTRA),
     ),
     # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
     # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit
