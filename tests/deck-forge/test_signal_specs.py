@@ -116,6 +116,38 @@ def test_reanimator_spec_searches_with_a_discriminator():
     assert "oracle" in filters or "preset_names" in filters
 
 
+# --- aristocrats death-drain payoff (Blood Artist / Zulaport) -------------------
+BLOOD_ARTIST = {
+    "name": "Blood Artist",
+    "type_line": "Creature — Vampire",
+    "oracle_text": (
+        "Whenever this creature or another creature dies, target player loses 1 life "
+        "and you gain 1 life."
+    ),
+}
+ZULAPORT = {
+    "name": "Zulaport Cutthroat",
+    "type_line": "Creature — Human Rogue Ally",
+    "oracle_text": (
+        "Whenever this creature or another creature you control dies, each opponent "
+        "loses 1 life and you gain 1 life."
+    ),
+}
+
+
+def test_death_drain_served_by_both_aristocrats_and_sacrifice_lanes():
+    # The drain payoff must be on-theme for BOTH the death lane and the sacrifice lane
+    # (a sac-outlet commander like Yawgmoth opens sacrifice_matters, not death_matters).
+    for sig in (_sig("death_matters", "any"), _sig("sacrifice_matters", "you")):
+        assert serves(BLOOD_ARTIST, sig) is True
+        assert serves(ZULAPORT, sig) is True
+
+
+def test_sacrifice_lane_does_not_serve_plain_lifegain():
+    # A bare lifegain card is not a sacrifice/aristocrats enabler.
+    assert serves(LIFEGAIN, _sig("sacrifice_matters", "you")) is False
+
+
 # --- land-creatures theme (the Jyoti case) -------------------------------------
 
 LAND_CREATURE_PAYOFF = {

@@ -193,3 +193,29 @@ def test_reanimator_not_fired_by_plain_reanimation_spell():
         "oracle_text": "Return target creature card from your graveyard to the battlefield.",
     }
     assert ("reanimator", "you") not in _keys(card)
+
+
+# ── Aristocrats: death-trigger doublers open the lane (the Teysa case) ───────────
+# A commander that DOUBLES death triggers ("if a creature dying causes a triggered
+# ability ... that ability triggers an additional time") is an aristocrats commander
+# even though it never says "whenever ... dies". It must open the death lane so the
+# drain payoffs (Blood Artist / Zulaport) surface.
+def test_death_trigger_doubler_opens_aristocrats_lane():
+    teysa = {
+        "name": "Teysa Karlov",
+        "oracle_text": (
+            "If a creature dying causes a triggered ability of a permanent you control "
+            "to trigger, that ability triggers an additional time.\n"
+            "Creature tokens you control have vigilance and lifelink."
+        ),
+    }
+    assert any(k == "death_matters" for k, _ in _keys(teysa))
+
+
+def test_dies_in_passing_does_not_open_aristocrats():
+    # A one-off non-death clause must NOT mint the aristocrats lane (no over-general).
+    card = {
+        "name": "Exiler",
+        "oracle_text": "When this creature deals combat damage to a player, exile it.",
+    }
+    assert not any(k == "death_matters" for k, _ in _keys(card))

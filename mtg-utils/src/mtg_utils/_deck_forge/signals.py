@@ -128,7 +128,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "you",
     ),
     ("spellcast_matters", _has("whenever you cast", "spell"), "you"),
-    ("death_matters", lambda c: "whenever" in c and "dies" in c, None),
+    # Aristocrats: a "whenever … dies" trigger (CR 700.4: "dies" = put into a graveyard
+    # from the battlefield), OR a death-trigger DOUBLER ("if a creature dying causes a
+    # triggered ability … that ability triggers an additional time" — Teysa, Drivnod),
+    # an aristocrats commander even without a literal "whenever … dies". Verified vs
+    # bulk: the "dying"+"trigger" branch adds only ~5 cards, all death-doublers.
+    (
+        "death_matters",
+        lambda c: (
+            ("whenever" in c and "dies" in c) or ("dying" in c and "trigger" in c)
+        ),
+        None,
+    ),
     ("sacrifice_matters", _re(r"sacrifice (?:a|an|another|two|three|x|\d)"), "you"),
     (
         "attack_matters",

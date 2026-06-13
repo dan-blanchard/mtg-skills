@@ -350,6 +350,25 @@ _SELF_RECUR_EXTRA = SubAvenue(
     {"oracle": r"from your graveyard to the battlefield"},
     serve=Serve(self_recur=True),
 )
+# Aristocrats DRAIN payoff (CR 700.4 "dies"): the heart of the archetype — a permanent
+# that punishes creatures dying with a drain, life swing, or token (Blood Artist /
+# Zulaport Cutthroat / Cruel Celebrant / Pitiless Plunderer). Anchored on a "whenever …
+# creature … dies" TRIGGER plus a payoff clause, so a bare death-draw creature ("when
+# this dies, draw a card") or a removal spell does not register. Verified: 76 bulk hits,
+# all genuine. Shared by the death and sacrifice lanes (a sac-outlet commander opens
+# sacrifice_matters, not death_matters, but wants the same drain payoffs).
+_DEATH_DRAIN_ORACLE = (
+    r"whenever [^.]*\bcreatures?\b[^.]*dies[^.]*"
+    r"(?:each opponent loses|target player loses|loses? \d+ life|you (?:may )?gain"
+    r"|create (?:a|one|two|x) [^.]*(?:treasure|blood|clue))"
+)
+_DEATH_DRAIN_EXTRA = SubAvenue(
+    "Death payoffs / drain",
+    "payoffs that punish creatures dying — drain, life swings, and tokens "
+    "(Blood Artist / Zulaport Cutthroat / Pitiless Plunderer)",
+    {"oracle": _DEATH_DRAIN_ORACLE},
+    serve=Serve(oracle=re.compile(_DEATH_DRAIN_ORACLE, _IC)),
+)
 # Deathtouch-granting gear (CR 702.2b): with a repeatable pinger, deathtouch + 1 damage
 # kills anything. "(equipped|enchanted) creature … deathtouch" is Equipment/Aura-only.
 _DEATHTOUCH_GEAR_ORACLE = r"(?:equipped|enchanted) creature[^.]*\bdeathtouch\b"
@@ -619,8 +638,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Sacrifice — fodder & outlets",
         "token fodder and free sacrifice outlets",
         {"oracle": r"create [^.]*creature token|sacrifice"},
-        r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)",
-        extras=(_SELF_RECUR_EXTRA,),
+        # Also credit the death-DRAIN payoff: a sac deck wants Blood Artist / Zulaport,
+        # which trigger on creatures dying, not on the act of sacrificing.
+        r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
+        r"|whenever [^.]*\bdies\b",
+        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
     ),
     ("death_matters", "any"): _spec(
         "Aristocrats",
@@ -628,7 +650,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
         r"|whenever .* dies",
-        extras=(_SELF_RECUR_EXTRA,),
+        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
     ),
     # The bare word `haste` matched its reminder text and incidental mentions ("loses
     # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor
