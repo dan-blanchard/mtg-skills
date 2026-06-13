@@ -528,3 +528,30 @@ def test_creature_token_maker_does_not_open_artifacts_lane():
         "Soldier creature tokens.",
     }
     assert ("artifacts_matter", "you") not in _keys(card)
+
+
+# ── Activated-ability commanders want the untap / copy / cost-reduction package ──
+# A commander whose engine is a {T}: activated ability (Arcum, Captain Sisay, Ertai,
+# Kaho, Sanctum Weaver) wants Training Grounds / Thousand-Year Elixir / Rings of
+# Brighthearth — none of which any existing lane surfaced.
+def test_tap_ability_commander_opens_activated_lane():
+    arcum = {
+        "name": "Arcum Dagsson",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": "{T}: Target artifact creature's controller sacrifices it. That "
+        "player may search their library for a noncreature artifact card, put it onto "
+        "the battlefield, then shuffle.",
+    }
+    assert ("activated_ability", "you") in _keys(arcum)
+
+
+def test_non_tap_vanilla_no_activated_lane():
+    # Precision: a creature with no activated ability must not open the lane.
+    card = {
+        "name": "Beater",
+        "type_line": "Legendary Creature — Giant",
+        "oracle_text": "Trample\nWhenever this creature attacks, it gets +1/+1.",
+        "power": "6",
+        "toughness": "6",
+    }
+    assert ("activated_ability", "you") not in _keys(card)

@@ -2539,3 +2539,40 @@ def test_graveyard_you_does_not_serve_opponent_graveyard():
         "oracle_text": "Exile target opponent's graveyard.",
     }
     assert not _lane_covers(card, sig)
+
+
+def test_activated_ability_serves_support_package():
+    """The activated-ability engine surfaces cost reducers, untappers, haste-for-
+    abilities, and ability copiers — the package that powers a {T}: commander."""
+    sig = _sig("activated_ability")
+    training = {
+        "name": "Training Grounds",
+        "type_line": "Enchantment",
+        "oracle_text": "Activated abilities of creatures you control cost {2} less to "
+        "activate. This effect can't reduce the mana in that cost to less than one mana.",
+    }
+    elixir = {
+        "name": "Thousand-Year Elixir",
+        "type_line": "Artifact",
+        "oracle_text": "You may activate abilities of creatures you control as though "
+        "those creatures had haste.\n{1}, {T}: Untap target creature.",
+    }
+    rings = {
+        "name": "Rings of Brighthearth",
+        "type_line": "Artifact",
+        "oracle_text": "Whenever you activate an ability, if it isn't a mana ability, "
+        "you may pay {2}. If you do, copy that ability.",
+    }
+    ioreth = {
+        "name": "Ioreth of the Healing House",
+        "type_line": "Legendary Creature — Halfling Cleric",
+        "oracle_text": "{T}: Untap another target permanent.",
+    }
+    for c in (training, elixir, rings, ioreth):
+        assert _lane_covers(c, sig), c["name"]
+
+
+def test_activated_ability_does_not_serve_a_vanilla_bear():
+    sig = _sig("activated_ability")
+    bear = {"name": "Bear", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert not _lane_covers(bear, sig)

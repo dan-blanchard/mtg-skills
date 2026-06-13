@@ -144,6 +144,12 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
+    # Activated-ability engine: a commander whose engine is a {T}: (or {Q}:) activated
+    # ability (Arcum, Captain Sisay, Ertai, Kaho, Sanctum Weaver) wants the support
+    # package — cost reducers (Training Grounds), untappers + haste-for-abilities
+    # (Thousand-Year Elixir), and ability copiers (Rings of Brighthearth). The tap
+    # symbol followed by a cost separator (":" or ",") is the activated-ability anchor.
+    ("activated_ability", _re(r"\{t\}\s*[,:]|\{q\}\s*[,:]"), "you"),
     # Reanimator PAYOFF: a trigger that rewards a creature ENTERING from a graveyard
     # (reanimation) or being CAST from a graveyard (escape/disturb) — Celes, Prized
     # Amalgam, Flayer of the Hatebound, River Kelpie. Distinct from graveyard_matters

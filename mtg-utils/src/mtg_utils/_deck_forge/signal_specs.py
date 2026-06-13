@@ -1598,6 +1598,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"untap (?:target|all|another|each)"},
         r"untap (?:target|all|another|each)",
     ),
+    # Activated-ability engine: the support package for a {T}: commander — activated-
+    # ability cost reducers (Training Grounds), untappers + haste-for-abilities
+    # (Thousand-Year Elixir, Ioreth), and ability copiers (Rings of Brighthearth,
+    # Illusionist's Bracers — keyed on "isn't a mana ability", their shared marker).
+    ("activated_ability", "you"): _spec(
+        "Activated-ability engine",
+        "cost reducers, untappers, haste-for-abilities, and copiers that power your "
+        "commander's activated abilities",
+        {"oracle": r"activated abilit|untap (?:target|another)"},
+        r"activated abilities[^.]*\bcost\b"
+        r"|untap (?:target|all|another|each)"
+        r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
+        r"|as though (?:those creatures|it|they) (?:had|have) haste"
+        r"|isn't a mana ability",
+    ),
     # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
     # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
     ("gain_control", "you"): _spec(
