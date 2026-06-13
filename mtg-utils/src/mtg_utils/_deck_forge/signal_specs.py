@@ -394,6 +394,14 @@ _DEATH_DRAIN_EXTRA = SubAvenue(
     {"oracle": _DEATH_DRAIN_ORACLE},
     serve=Serve(oracle=re.compile(_DEATH_DRAIN_ORACLE, _IC)),
 )
+# Board wipes are an aristocrats payoff: a mass-death event fires every dies-trigger and
+# drain at once (Wrath of God + Blood Artist). A death/sacrifice commander wants them.
+_BOARD_WIPE_EXTRA = SubAvenue(
+    "Board wipes (mass death)",
+    "sweepers that turn a board into a mass-death trigger for your aristocrats payoffs",
+    {"preset_names": ("board-wipe",)},
+    serve=Serve(oracle=re.compile(r"destroy all|exile all (?:creatures|other)", _IC)),
+)
 # Landfall (CR 207.2c ability word; canonical "Landfall — whenever a land you control
 # enters"): the payoffs PLUS the engines that fire them — extra land drops (Azusa /
 # Dryad), land fetch, and graveyard land recursion (Crucible / Ramunap). One regex
@@ -534,7 +542,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             )
         },
         (r"create .*creature token|put .*creature.*onto the battlefield"),
-        extras=(_ETB_PAYOFF_EXTRA, _FLICKER_EXTRA),
+        # An ETB commander wants the high-value ETB creatures and the doublers, not just
+        # the punisher payoffs — same extras the blink lane uses (A3).
+        extras=(
+            _ETB_PAYOFF_EXTRA,
+            _ETB_VALUE_EXTRA,
+            _ETB_DOUBLER_EXTRA,
+            _FLICKER_EXTRA,
+        ),
     ),
     # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
     # "creature", so it matched Bloodthirst ("an opponent was dealt damage … this
@@ -739,7 +754,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # which trigger on creatures dying, not on the act of sacrificing.
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
         r"|whenever [^.]*\bdies\b",
-        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
+        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
     ),
     ("death_matters", "any"): _spec(
         "Aristocrats",
@@ -747,7 +762,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
         r"create [^.]*creature token|sacrifice (?:a|an|another)(?! land\b)"
         r"|whenever .* dies",
-        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
+        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
     ),
     # The bare word `haste` matched its reminder text and incidental mentions ("loses
     # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor
@@ -767,7 +782,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         },
         r"(?:gains?|gain|have|has) haste|create [^.]*creature token"
         r"|whenever you attack\b"
-        r"|whenever (?:a|an|another|one or more)[^.]*creatures? you control attacks?",
+        r"|whenever (?:a|an|another|one or more)[^.]*creatures? you control attacks?"
+        # Single-creature attack triggers + combat-damage riders are the aggro payoff
+        # bodies (Vicious Conquistador, Hellrider); "(?! you)" keeps defensive
+        # "attacks you" triggers out.
+        r"|whenever [^.]*\battacks\b(?! you)"
+        r"|whenever [^.]*deals combat damage to "
+        r"(?:a player|an opponent|each opponent|that player)",
         serve_keywords=("haste",),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and

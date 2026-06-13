@@ -302,6 +302,38 @@ def test_self_growth_lane_surfaces_counter_placement_support():
     assert _lane_covers(placement, _sig("self_counter_grow", "you")) is True
 
 
+def test_combat_lane_credits_single_creature_attack_triggers():
+    sig = _sig("attack_matters", "you")
+    aggro = {
+        "name": "Vicious Conquistador",
+        "type_line": "Creature — Vampire Soldier",
+        "oracle_text": "Whenever this creature attacks, each opponent loses 1 life.",
+    }
+    defensive = {
+        "name": "Wall of Defense",
+        "type_line": "Creature — Wall",
+        "oracle_text": "Whenever a creature attacks you, you gain 1 life.",
+    }
+    assert serves(aggro, sig) is True
+    assert serves(defensive, sig) is False  # "attacks you" is not an aggro payoff
+
+
+def test_etb_lane_surfaces_value_creatures_and_doublers():
+    sig = _sig("creature_etb", "you")
+    assert _lane_covers(ETB_VALUE_CREATURE, sig) is True  # Mulldrifter
+    assert _lane_covers(ETB_DOUBLER, sig) is True  # Panharmonicon
+
+
+def test_aristocrats_lane_surfaces_board_wipes():
+    wrath = {
+        "name": "Wrath of God",
+        "type_line": "Sorcery",
+        "oracle_text": "Destroy all creatures. They can't be regenerated.",
+    }
+    assert _lane_covers(wrath, _sig("death_matters", "any")) is True
+    assert _lane_covers(wrath, _sig("sacrifice_matters", "you")) is True
+
+
 def test_keyword_counter_cards_surface_across_counter_lanes():
     # Keyword counters (flying/trample/deathtouch/…) are counters too — a counters
     # commander wants them (proliferate fuel, voltron protection), even with no +1/+1.
