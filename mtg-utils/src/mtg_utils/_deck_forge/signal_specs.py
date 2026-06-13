@@ -1889,6 +1889,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|whenever [^.]*(?:leaves the battlefield|leave the battlefield)"
         r"|when [^.]* leaves the battlefield",
         serve_not=r"exile [^.]*until [^.]*leaves the battlefield",
+        # Flicker your own permanents to FIRE the LTB trigger (and a fresh ETB) on
+        # demand — the "blink fodder" the blurb promises (Ghostly Flicker / Eerie
+        # Interlude). Reuses the precise flicker classifier.
+        extras=(_FLICKER_EXTRA,),
     ),
     # ── Keyword-coverage audit (CR 702/701) keyword[]-anchored avenues ──────────
     # Serve the keyword[] bearers via serve_keywords (Scryfall's authoritative field —

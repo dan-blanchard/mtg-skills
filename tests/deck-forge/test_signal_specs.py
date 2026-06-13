@@ -2742,3 +2742,17 @@ def test_landfall_does_not_serve_a_nonland_tutor():
         "oracle_text": "Search your library for a card, put it into your hand, then shuffle.",
     }
     assert not _lane_covers(demonic, sig)
+
+
+def test_ltb_serves_flicker_effects():
+    """A leaves-the-battlefield commander (Bilbo, Genku, Lagrella) wants flicker — it
+    blinks your own permanents, firing both LTB and a fresh ETB. The serve matched LTB
+    triggers but not the flicker effects its own blurb ('blink fodder') promises."""
+    sig = _sig("ltb_matters")
+    ghostly = {
+        "name": "Ghostly Flicker",
+        "type_line": "Instant",
+        "oracle_text": "Exile two target artifacts, creatures, and/or lands you "
+        "control, then return those cards to the battlefield.",
+    }
+    assert _lane_covers(ghostly, sig)
