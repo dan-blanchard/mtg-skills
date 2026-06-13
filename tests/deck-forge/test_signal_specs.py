@@ -369,6 +369,45 @@ def test_vehicles_lane_opens_for_granter_and_credits_support():
     assert serves(stablemaster, _sig("vehicles_matter", "you")) is True
 
 
+def test_become_a_type_cards_match_the_type_lane():
+    # "Become"/"are" TYPE granters belong in that type's deck: artifact-makers in
+    # artifact decks, tribal type-granters in that tribe's deck.
+    artifact_makers = [
+        (
+            "Mycosynth Lattice",
+            "All permanents are artifacts in addition to their other types.",
+        ),
+        (
+            "Liquimetal Coating",
+            "{T}: Target nonland permanent becomes an artifact in addition to its other types.",
+        ),
+        (
+            "March of the Machines",
+            "Each noncreature artifact is an artifact creature with power and toughness each equal to its mana value.",
+        ),
+    ]
+    for n, o in artifact_makers:
+        card = {"name": n, "type_line": "Artifact", "oracle_text": o}
+        assert serves(card, _sig("artifacts_matter", "you")) is True, n
+    # Type-agnostic tribal enablers credit EVERY tribe (they grant the chosen type).
+    goblin = Signal(
+        key="type_matters", scope="you", subject="Goblin", text="", source="c"
+    )
+    tribal_enablers = [
+        (
+            "Xenograft",
+            "As Xenograft enters, choose a creature type. Each creature you control is the chosen type in addition to its other types.",
+        ),
+        (
+            "Arcane Adaptation",
+            "As this enters, choose a creature type. Other creatures you control are the chosen type in addition to their other types.",
+        ),
+    ]
+    for n, o in tribal_enablers:
+        card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
+        assert serves(card, goblin) is True, n
+
+
 def test_theme_cost_reducers_are_credited():
     # A spell-type cost reducer is prime synergy for that theme's deck.
     etherium = {

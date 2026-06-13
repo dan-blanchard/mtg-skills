@@ -835,7 +835,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "artifacts and artifact-count payoffs",
         {"card_type": "Artifact"},
         r"artifacts? you control|for each artifact|\bmetalcraft\b|\baffinity\b"
-        r"|artifact spells? you cast cost",
+        r"|artifact spells? you cast cost"
+        # Type-GRANTERS that turn your stuff into artifacts enable the whole deck
+        # (Mycosynth Lattice, Liquimetal Coating, March of the Machines).
+        r"|becomes? an? artifact|(?:are|is an?) artifacts?",
     ),
     # Serve augmented with "whenever you cast an enchantment" so the 14 plain CREATURES
     # that trigger on enchantment casts (Verduran/Mesa Enchantress, Sythis) — missed by
@@ -1824,8 +1827,13 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # one. Fold them (the keyword bearers + the "is/are every creature type" granters)
     # into the type-tribal serve so a Goblin/Elf/Zombie deck credits its changelings.
     is_type_tribal = signal.key == signal_keys.TYPE_MATTERS
+    # Type-agnostic tribal enablers grant the chosen type to your board (Xenograft,
+    # Arcane Adaptation), so they count for EVERY tribe — credit the "every creature
+    # type" / "the chosen type" grant phrasings, not just changelings.
     serve_oracle = rf"\b{esc}s?\b" + (
-        r"|(?:is|are) every creature type" if is_type_tribal else ""
+        r"|(?:is|are) every creature type|(?:is|are) the chosen type"
+        if is_type_tribal
+        else ""
     )
     return SignalSpec(
         label=label_t.format(s=subj),
