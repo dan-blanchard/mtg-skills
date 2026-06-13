@@ -221,6 +221,38 @@ def test_dies_in_passing_does_not_open_aristocrats():
     assert not any(k == "death_matters" for k, _ in _keys(card))
 
 
+# ── Cast-an-X-spell routes to the X lane, not Spellslinger (Sythis / Emry) ──────
+def test_enchantment_cast_opens_enchantments_not_spellslinger():
+    # "Whenever you cast an enchantment spell" is ENCHANTRESS, not spellslinger — the
+    # greedy spellcast detector used to mis-route Sythis to instants/sorceries.
+    sythis = {
+        "name": "Sythis, Harvest's Hand",
+        "type_line": "Legendary Enchantment Creature — Dryad",
+        "oracle_text": "Whenever you cast an enchantment spell, you gain 1 life and draw a card.",
+    }
+    keys = _keys(sythis)
+    assert ("enchantments_matter", "you") in keys
+    assert not any(k == "spellcast_matters" for k, _ in keys)
+
+
+def test_affinity_and_artifact_cast_open_artifacts_lane():
+    # Affinity (reminder text stripped) + casting artifacts from graveyard make Emry an
+    # artifacts commander; she must open the Artifacts lane.
+    emry = {
+        "name": "Emry, Lurker of the Loch",
+        "type_line": "Legendary Creature — Merfolk Wizard",
+        "oracle_text": "Affinity for artifacts\nWhen Emry enters, mill four cards.\n"
+        "{T}: Choose target artifact card in your graveyard. You may cast that card this turn.",
+    }
+    assert ("artifacts_matter", "you") in _keys(emry)
+    sai = {
+        "name": "Sai, Master Thopterist",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": "Whenever you cast an artifact spell, create a 1/1 colorless Thopter artifact creature token with flying.",
+    }
+    assert ("artifacts_matter", "you") in _keys(sai)
+
+
 # ── Landfall: a land-recursion commander opens the lands lane (the Windgrace case) ─
 # A commander whose payoff replays lands from the graveyard ("return … land cards from
 # your graveyard to the battlefield") is a lands-matter commander and must open the

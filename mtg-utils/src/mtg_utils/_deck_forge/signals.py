@@ -127,7 +127,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "you",
     ),
-    ("spellcast_matters", _has("whenever you cast", "spell"), "you"),
+    # Spellslinger cast trigger — but NOT when the only cast trigger is an *enchantment*
+    # or *artifact* spell: those are enchantress / artifact-cast archetypes (Sythis,
+    # Sai), routed to their own type lanes below, not to cheap instants/sorceries.
+    (
+        "spellcast_matters",
+        lambda c: (
+            "whenever you cast" in c
+            and "spell" in c
+            and not _re(r"whenever you cast an (?:enchantment|artifact) spell")(c)
+        ),
+        "you",
+    ),
     # Aristocrats: a "whenever … dies" trigger (CR 700.4: "dies" = put into a graveyard
     # from the battlefield), OR a death-trigger DOUBLER ("if a creature dying causes a
     # triggered ability … that ability triggers an additional time" — Teysa, Drivnod),
@@ -450,7 +461,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(
             r"\bartifacts? you control\b"
             r"|for each artifact you control"
-            r"|whenever an? artifact (?:you control )?enters",
+            r"|whenever an? artifact (?:you control )?enters"
+            # Artifact-cast / affinity / artifact-recursion commanders are artifact
+            # decks (Sai, Emry); affinity's reminder is stripped, so key on the keyword.
+            r"|whenever you cast an artifact|\baffinity\b"
+            r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard",
             re.IGNORECASE,
         ),
         "you",
@@ -460,7 +475,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(
             r"\benchantments? you control\b"
             r"|for each enchantment you control"
-            r"|whenever an? enchantment (?:you control )?enters",
+            r"|whenever an? enchantment (?:you control )?enters"
+            # Enchantress: "whenever you cast an enchantment spell" (Sythis, the
+            # Enchantress cycle) — the core payoff, previously sent to spellslinger.
+            r"|whenever you cast an enchantment",
             re.IGNORECASE,
         ),
         "you",
