@@ -727,9 +727,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Go wide",
         "token swarms and anthems that scale with creature count",
         {"oracle": r"create .*creature token"},
-        # Also credit team anthems ("creatures you control have/gain …") and the
-        # ETB-value creatures a creatures deck fills its board with.
-        r"create .*creature token|creatures you control (?:get|have|gain)",
+        # Also credit team anthems ("creatures you control have/gain …"), token anthems
+        # (Intangible Virtue: "creature tokens you control get …"), and the ETB-value
+        # creatures a creatures deck fills its board with.
+        r"create .*creature token|creatures you control (?:get|have|gain)"
+        r"|(?:creature )?tokens? you control (?:get|have|gain)",
         # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon).
         extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
@@ -972,7 +974,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Token generators",
         "more cards that flood the board with creature tokens",
         {"oracle": r"create [^.]*creature token"},
-        r"create [^.]*creature token",
+        # Also credit token ANTHEMS (Intangible Virtue, Cathars' Crusade): "creature
+        # tokens you control get/have …" — the go-wide "creatures you control" branch
+        # misses the "creature TOKENS" phrasing.
+        r"create [^.]*creature token"
+        r"|(?:creature )?tokens? you control (?:get|have|gain)",
         extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
     ),
     ("treasure_matters", "you"): _spec(

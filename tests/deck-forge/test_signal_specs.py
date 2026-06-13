@@ -2885,3 +2885,16 @@ def test_ramp_credits_the_fatties_it_accelerates_into():
     }
     assert _lane_covers(ghalta, sig)
     assert not _lane_covers(bear, sig)
+
+
+def test_token_anthems_serve_token_lanes():
+    """Intangible Virtue / token anthems ('creature TOKENS you control get +1/+1') are
+    top-synergy for token commanders — but the go-wide serve matched 'creatures you
+    control get', not the 'creature tokens you control' phrasing."""
+    virtue = {
+        "name": "Intangible Virtue",
+        "type_line": "Enchantment",
+        "oracle_text": "Creature tokens you control get +1/+1 and have vigilance.",
+    }
+    assert _lane_covers(virtue, _sig("token_maker"))
+    assert _lane_covers(virtue, _sig("creatures_matter"))
