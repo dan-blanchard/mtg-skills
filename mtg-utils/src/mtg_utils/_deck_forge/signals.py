@@ -407,6 +407,30 @@ def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, 
     return out
 
 
+# Multi-tribe anthem: "each creature that's a Barbarian, a Warrior, or a Berserker gets
+# +2/+2" (Lovisa) — a multi-tribe lord. Emit type_matters for EVERY named type so each
+# tribe's creatures surface; the single-type patterns above require "other"/"you
+# control" and miss this "that's a X, a Y, or a Z" form. The vocab gate drops the
+# connective words ("a"/"or"/"and"/"attacking"), keeping only real subtypes.
+_MULTI_TRIBE_HEAD_RE = re.compile(
+    r"creatures? (?:you control )?that(?:'s| is| are)\b(.{0,80}?)"
+    r"\b(?:gets?|have|has|gains?)\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_multi_tribe_anthem(
+    clause: str, vocab: frozenset[str]
+) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
+    for m in _MULTI_TRIBE_HEAD_RE.finditer(clause):
+        for word in re.findall(r"[A-Za-z]+", m.group(1)):
+            subject = _resolve_subject(word, vocab)
+            if subject:
+                out.append((signal_keys.TYPE_MATTERS, subject))
+    return out
+
+
 def _detect_typed_spellcast(
     clause: str, vocab: frozenset[str]
 ) -> list[tuple[str, str]]:
@@ -1604,6 +1628,8 @@ def extract_signals(
             add(key, scope, "", stripped, conf)
         # Tier 2 — parametric subject detectors (forced scope=you: "you control")
         for key, subject in _detect_type_matters(clause, vocab):
+            add(key, "you", subject, stripped)
+        for key, subject in _detect_multi_tribe_anthem(clause, vocab):
             add(key, "you", subject, stripped)
         for key, scope, subject in _detect_keyword_tribe(clause):
             add(key, scope, subject, stripped)

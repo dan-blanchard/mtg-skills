@@ -555,3 +555,28 @@ def test_non_tap_vanilla_no_activated_lane():
         "toughness": "6",
     }
     assert ("activated_ability", "you") not in _keys(card)
+
+
+# ── Multi-tribe anthem: "each creature that's a Barbarian, a Warrior, or a Berserker
+# gets +2/+2" (Lovisa) — emit type_matters per named type so each tribe's creatures
+# surface. The single-type patterns required 'other'/'you control', missing this form.
+def test_multi_tribe_anthem_emits_each_type():
+    lovisa = {
+        "name": "Lovisa Coldeyes",
+        "type_line": "Legendary Creature — Human Barbarian",
+        "oracle_text": "Each creature that's a Barbarian, a Warrior, or a Berserker "
+        "gets +2/+2 and has haste.",
+    }
+    subjects = {s.subject for s in extract_signals(lovisa) if s.key == "type_matters"}
+    assert {"Barbarian", "Warrior", "Berserker"} <= subjects
+
+
+def test_multi_tribe_anthem_ignores_non_subtype_words():
+    # Precision: "each creature that's attacking gets +1/+0" names no tribe.
+    card = {
+        "name": "Attack Anthem",
+        "type_line": "Enchantment",
+        "oracle_text": "Each creature that's attacking gets +1/+0.",
+    }
+    subjects = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    assert subjects == set() or "attacking" not in {x.lower() for x in subjects}
