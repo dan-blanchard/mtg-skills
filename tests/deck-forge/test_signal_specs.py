@@ -2841,3 +2841,23 @@ def test_stax_serves_replacement_search_hate():
         "player searches the top four cards of that library instead.",
     }
     assert _lane_covers(aven, sig)
+
+
+def test_reanimator_credits_etb_value_targets():
+    """A reanimator deck wants high-ETB creatures to reanimate — Mulldrifter (draw) and
+    edict-ETB creatures (Plaguecrafter, Accursed Marauder: 'each player sacrifices').
+    The reanimator lane served the spells but not the targets."""
+    sig = _sig("reanimator")
+    mulldrifter = {
+        "name": "Mulldrifter",
+        "type_line": "Creature — Elemental",
+        "oracle_text": "Flying\nWhen Mulldrifter enters, draw two cards.",
+    }
+    plaguecrafter = {
+        "name": "Plaguecrafter",
+        "type_line": "Creature — Human Shaman",
+        "oracle_text": "When Plaguecrafter enters, each player sacrifices a creature or "
+        "planeswalker.",
+    }
+    assert _lane_covers(mulldrifter, sig)
+    assert _lane_covers(plaguecrafter, sig)

@@ -410,7 +410,10 @@ _FLICKER_EXTRA = SubAvenue(
 _ETB_VALUE_ORACLE = (
     r"when[^.]*enters[^.]*(?:draw|return target|search your library"
     r"|create [^.]*token|destroy target|gain \d+ life|untap"
-    r"|put [^.]*onto the battlefield|exile target)"
+    r"|put [^.]*onto the battlefield|exile target"
+    # Edict-ETB creatures (Plaguecrafter, Accursed Marauder) are ETB value worth
+    # blinking/reanimating for repeated forced sacrifice.
+    r"|each player sacrifices|sacrifices? a (?:creature|nontoken|permanent))"
 )
 _ETB_VALUE_EXTRA = SubAvenue(
     "ETB-value creatures",
@@ -805,7 +808,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # death, so it re-enters from a graveyard and fires the reanimator payoff.
         serve_keywords=("escape", "disturb", "persist", "undying"),
         serve_self_recur=True,
-        extras=(_CAST_FROM_GY_EXTRA, _SELF_RECUR_EXTRA),
+        # A reanimator deck wants the high-ETB creatures it reanimates (Mulldrifter,
+        # Plaguecrafter), not just the reanimation spells.
+        extras=(_CAST_FROM_GY_EXTRA, _SELF_RECUR_EXTRA, _ETB_VALUE_EXTRA),
     ),
     # Lifegain. The bare `lifelink` oracle word matched any card listing it (Crystalline
     # Giant's random-counter menu, reminder text). Lifelink is a keyword (CR 702.15), so
