@@ -78,16 +78,46 @@ def _re(pattern: str) -> Callable[[str], bool]:
     return lambda c: rx.search(c) is not None
 
 
+# creature_etb scope tracks who controls the ENTERING creature, never the payoff
+# target: "another creature you control enters … deal 2 to each opponent" is YOUR
+# go-wide engine (Purphoros), not an opponents-scoped punisher. Only an
+# opponent-controlled entering creature is the punisher.
+_ETB_OPP_RE = re.compile(
+    r"creature an opponent controls enters"
+    r"|creatures? your opponents? control enter"
+    r"|creature[s]?[^.]*enters?[^.]*under (?:an |your )?opponent",
+    re.IGNORECASE,
+)
+_ETB_ANY_RE = re.compile(
+    r"\b(?:a|another|one or more|each)\b[^.]*\bcreature[s]?\b[^.]*\benter",
+    re.IGNORECASE,
+)
+# ETB-trigger doublers (Panharmonicon / Yarok) are ETB-value commanders: they want
+# ETB creatures, flicker, and more doublers, so route them to the creature_etb lane.
+_ETB_DOUBLER_RE = re.compile(r"entering[^.]*triggers an additional time", re.IGNORECASE)
+
+
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     (
         "creature_etb",
         lambda c: (
-            _re(r"\b(?:a|another|one or more|each)\b[^.]*\bcreature[s]?\b[^.]*\benter")(
-                c
+            (
+                (
+                    _ETB_ANY_RE.search(c) is not None
+                    and ("whenever" in c or "when " in c)
+                )
+                or _ETB_DOUBLER_RE.search(c) is not None
             )
-            and ("whenever" in c or "when " in c)
+            and _ETB_OPP_RE.search(c) is None
         ),
-        None,
+        "you",
+    ),
+    (
+        "creature_etb",
+        lambda c: (
+            _ETB_OPP_RE.search(c) is not None and ("whenever" in c or "when " in c)
+        ),
+        "opponents",
     ),
     ("creatures_matter", _has("creatures you control"), "you"),
     # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland

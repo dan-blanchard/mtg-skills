@@ -462,3 +462,35 @@ def test_artifact_removal_does_not_open_artifacts_lane():
         "oracle_text": "When this creature enters, destroy target artifact or enchantment.",
     }
     assert ("artifacts_matter", "you") not in _keys(card)
+
+
+# ── creature_etb scope tracks the ENTERING creature's controller, not the payoff ──
+# Purphoros: "Whenever another creature YOU control enters, deal 2 damage to each
+# opponent." The entering creature is yours — so this is creature_etb YOU (an ETB
+# go-wide engine that wants Panharmonicon / flicker / ETB creatures). The payoff
+# hitting opponents must NOT flip the scope.
+def test_creature_etb_scope_follows_entering_controller_not_payoff():
+    purphoros = {
+        "name": "Purphoros, God of the Forge",
+        "oracle_text": (
+            "Indestructible\nWhenever another creature you control enters, Purphoros "
+            "deals 2 damage to each opponent."
+        ),
+    }
+    keys = _keys(purphoros)
+    assert ("creature_etb", "you") in keys
+    assert ("creature_etb", "opponents") not in keys
+
+
+def test_etb_trigger_doubler_opens_etb_lane():
+    # Yarok doubles every permanent-ETB trigger — he's an ETB-value commander who wants
+    # ETB creatures, flicker, and other doublers, so he must open the creature_etb lane.
+    yarok = {
+        "name": "Yarok, the Desecrated",
+        "oracle_text": (
+            "Deathtouch, lifelink\nIf a permanent entering causes a triggered ability "
+            "of a permanent you control to trigger, that ability triggers an "
+            "additional time."
+        ),
+    }
+    assert ("creature_etb", "you") in _keys(yarok)
