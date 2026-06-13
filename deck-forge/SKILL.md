@@ -48,42 +48,44 @@ cd deck-forge && uv sync
 uv run download-bulk --output-dir /tmp/scryfall-bulk
 uv run deck-forge           # starts the hub on :8765 and opens the browser
 ```
-Leave the server running. The user interacts in the browser; you watch this terminal
-and run the reasoning loop below. Tell the user the UI is open and to start by
-choosing a format and a commander (typed, parsed, or discovered).
+Leave the server running. **The moment the hub answers (`GET /api/snapshot` returns
+200), your very FIRST action is to attach the reasoning loop — Phase 1 below.** Do NOT
+inspect deck state, read oracle text, or run probe searches inline first: the loop is
+what makes the UI's buttons work, and the whole point of deck-forge is that nearly all
+interaction happens in the browser — so the loop goes up before anything else. Only
+once it's dispatched, tell the user the UI is open and to start by choosing a format
+and a commander (typed, parsed, or discovered); acquisition (Phase 2) then happens
+mostly in the browser while the loop answers.
 
-## Phase 1 — acquire the deck
+## Phase 1 — attach the reasoning loop (do this FIRST, before acquisition)
 
-- **Build from scratch:** ask format (commander / brawl / historic_brawl) and either
-  a commander the user names, or help discover one — `/api/commanders` (or
-  `card-search --is-commander --oracle ...`) finds commanders by *signal*, not
-  popularity. Set it via the UI (★) or `set-commander`.
-- **Tune existing:** `parse-deck` the user's list, then load it.
+The loop is the engine of the whole UX: it answers the UI's buttons ("?", "Suggest
+next move", "Discover", per-avenue "novel synergies"). Get it running the instant the
+hub is up — before you touch deck state — so the browser is live and this session stays
+free to talk direction. This is the step the agent most often defers; don't.
 
-Once a commander is set, the backend extracts its scoped **signals** automatically
-and the UI shows them as **avenues**. Read them; confirm the scopes by quoting the
-commander's oracle (the Iron Rule).
+**Dispatch it as a background subagent** (the `Agent` tool, `run_in_background: true`)
+whose only job is the loop spec below, then keep this session free. One session can't
+both build *with* the user (answering in chat, editing code) and sit in a blocking poll
+loop — loop inline and the chat freezes; chat instead and the UI buttons queue
+unanswered and the browser hangs. Give the subagent:
+- the load-bearing contract (never name a card from memory; ground every card in
+  `/api/find`; read + quote the oracle clause before asserting a synergy),
+- the loop spec below (poll → handle the request `kind` → post the result), and
+- the instruction to **`GET /api/snapshot` at the start of every request** for the
+  *current* commander, color identity, and signals — so it works even when dispatched
+  before a commander is chosen, and adapts when the user switches builds. (Don't bake a
+  specific commander into the subagent prompt.)
 
-## Phase 2 — the reasoning loop
-
-**Run this loop in a background subagent (recommended).** One session can't both
-build *with* the user (answering in chat, editing code) and sit in a blocking poll
-loop: loop inline and the chat freezes; chat instead and the UI buttons ("?",
-"Suggest next move", "Discover") queue unanswered and the browser hangs. So dispatch
-a background subagent (the `Agent` tool, `run_in_background: true`) whose only job is
-the loop below, and keep this session free. Give it the load-bearing contract
-(never name a card from memory; ground every card in `/api/find`; scope to the
-commander) plus the loop spec. Re-dispatch it when it idles out; a heartbeat keeps
-the UI's "attached" indicator warm between runs. (If you're doing nothing else, you
-*can* run the loop inline instead — same steps.)
-
-So the UI shows a session is attached (and stops nagging the user to run the skill),
-send a heartbeat whenever you act on the deck this session — `POST
-/api/agent/heartbeat` (polling `/api/agent/next` and posting results also count).
-A simple option is a background loop while you build:
+Re-dispatch it whenever it idles out. A lightweight heartbeat keeps the UI's "attached"
+indicator warm in the gaps (and stops the UI nagging the user to run the skill) — start
+one in the background right after dispatch:
 `while sleep 20; do curl -fsS -X POST http://127.0.0.1:8765/api/agent/heartbeat || break; done &`
+(Polling `/api/agent/next` and posting results also count as heartbeats.) If you are
+genuinely doing nothing else this session, you *may* run the loop inline instead — same
+spec — but the background subagent is the default.
 
-Poll the agent bridge and answer the user's requests. Run, in a loop:
+Poll the agent bridge and answer the user's requests. The subagent runs, in a loop:
 
 ```bash
 # Long-poll for the next reasoning request the user raised in the UI.
@@ -144,6 +146,21 @@ to add. Keep `text` tight and specific; cite oracle clauses and CR rules.
 - Every `[[name]]` and every entry in `cards` must still be a real, search-grounded
   card (the Iron Rule). The bracketed name must match the card's exact name so the
   UI can resolve it.
+
+## Phase 2 — acquire & collaborate
+
+With the loop already attached, acquisition usually happens in the browser while the
+loop answers — you don't drive it from this session.
+
+- **Build from scratch:** the user picks format (commander / brawl / historic_brawl) and
+  a commander, typed or via the UI's ★. To help discover one, `/api/commanders` (or
+  `card-search --is-commander --oracle ...`) finds commanders by *signal*, not
+  popularity. Set it via the UI (★) or `set-commander`.
+- **Tune existing:** `parse-deck` the user's list, then load it.
+
+Once a commander is set, the backend extracts its scoped **signals** automatically and
+the UI shows them as **avenues**. Read them; confirm the scopes by quoting the
+commander's oracle (the Iron Rule).
 
 ## Phase 3 — finalize
 
