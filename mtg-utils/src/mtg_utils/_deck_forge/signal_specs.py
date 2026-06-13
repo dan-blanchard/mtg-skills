@@ -588,6 +588,25 @@ _COMBAT_SUPPORT_EXTRA = SubAvenue(
     {"oracle": _COMBAT_SUPPORT_ORACLE},
     serve=Serve(oracle=re.compile(_COMBAT_SUPPORT_ORACLE, _IC)),
 )
+# Protecting the single suited-up threat IS the voltron support package (Mother of
+# Runes, Bastion Protector, Avacyn, Vexilus Praetor are top-synergy on EDHREC for
+# voltron commanders). Gate on GRANTING a shield keyword — hexproof / shroud /
+# protection / indestructible / "can't be the target" — to a creature/permanent YOU
+# control. Plain anthems (flying, +1/+1) never match: the keyword list is shield-only.
+_VOLTRON_PROTECT_ORACLE = (
+    r"(?:target creature|equipped creature|enchanted creature|creatures? you control"
+    r"|permanents? you control|commanders? (?:creatures? )?you control)"
+    r"[^.]{0,40}(?:gains?|have|has|get)[^.]{0,25}"
+    r"(?:hexproof|shroud|indestructible|protection)"
+    r"|(?:target creature|creature you control|it) can't be (?:the )?target"
+)
+_VOLTRON_PROTECT_EXTRA = SubAvenue(
+    "Protect the suited-up threat",
+    "hexproof / protection / indestructible granters that keep your one big threat "
+    "alive through removal (Mother of Runes / Bastion Protector / Avacyn)",
+    {"oracle": _VOLTRON_PROTECT_ORACLE},
+    serve=Serve(oracle=re.compile(_VOLTRON_PROTECT_ORACLE, _IC)),
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -1206,11 +1225,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"equipped creature|enchanted creature gets|equip \{"
         r"|attach [^.]*(?:equipment|aura)"
         r"|equipment you control|for each (?:equipment|aura)"
-        r"|cast an? (?:aura|equipment)|cast aura and equipment",
+        r"|cast an? (?:aura|equipment)|cast aura and equipment"
+        # Aura/Equipment cost reducers (Danitha) and tutors (Open the Armory,
+        # Steelshaper's Gift) are top-synergy voltron payoffs that aren't Equipment.
+        r"|(?:aura|equipment)s?[^.]*spells? you cast cost"
+        r"|search your library for an? (?:aura|equipment)",
         serve_types=("equipment", "aura"),
         serve_keywords=("reconfigure",),
         serve_not=r"can't attack|can't block|doesn't untap during"
         r"|enchant creature you don't control|defending player controls",
+        extras=(_VOLTRON_PROTECT_EXTRA,),
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",

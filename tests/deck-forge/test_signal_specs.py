@@ -2360,3 +2360,73 @@ def test_cheat_into_play_does_not_credit_small_creatures():
         "oracle_text": "",
     }
     assert not _lane_covers(bear, sig)
+
+
+def test_voltron_credits_aura_equipment_cost_reduction():
+    """Danitha-style 'Aura and Equipment spells you cast cost {1} less' is a voltron
+    payoff — it makes suiting up cheaper. EDHREC ranks it top-synergy for voltron."""
+    sig = _sig("voltron_matters")
+    danitha = {
+        "name": "Danitha Capashen, Paragon",
+        "type_line": "Legendary Creature — Human Knight",
+        "oracle_text": "First strike, vigilance, lifelink\nAura and Equipment spells "
+        "you cast cost {1} less to cast.",
+    }
+    assert _lane_covers(danitha, sig)
+
+
+def test_voltron_credits_equipment_aura_tutors():
+    """Open the Armory / Steelshaper's Gift fetch the suit — top voltron synergy."""
+    sig = _sig("voltron_matters")
+    armory = {
+        "name": "Open the Armory",
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library for an Aura or Equipment card, reveal it, "
+        "put it into your hand, then shuffle.",
+    }
+    gift = {
+        "name": "Steelshaper's Gift",
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library for an Equipment card, reveal that card, "
+        "put it into your hand, then shuffle.",
+    }
+    assert _lane_covers(armory, sig)
+    assert _lane_covers(gift, sig)
+
+
+def test_voltron_credits_protection_for_the_threat():
+    """Protecting the one suited-up creature is THE voltron support package — Mother of
+    Runes, Bastion Protector, Avacyn are top-synergy for voltron commanders."""
+    sig = _sig("voltron_matters")
+    mom = {
+        "name": "Mother of Runes",
+        "type_line": "Creature — Human Cleric",
+        "oracle_text": "{T}: Target creature you control gains protection from the "
+        "color of your choice until end of turn.",
+    }
+    bastion = {
+        "name": "Bastion Protector",
+        "type_line": "Creature — Human Soldier",
+        "oracle_text": "Commander creatures you control get +2/+2 and have indestructible.",
+    }
+    avacyn = {
+        "name": "Avacyn, Angel of Hope",
+        "type_line": "Legendary Creature — Angel",
+        "oracle_text": "Flying, vigilance, indestructible\nOther permanents you control "
+        "have indestructible.",
+    }
+    assert _lane_covers(mom, sig)
+    assert _lane_covers(bastion, sig)
+    assert _lane_covers(avacyn, sig)
+
+
+def test_voltron_protection_does_not_credit_plain_anthems():
+    """A flying/+1+1 anthem is not protection — precision guard so the protect-extra
+    doesn't swallow every team buff."""
+    sig = _sig("voltron_matters")
+    anthem = {
+        "name": "Flying Anthem",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures you control have flying and get +1/+1.",
+    }
+    assert not _lane_covers(anthem, sig)
