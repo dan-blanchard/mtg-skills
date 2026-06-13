@@ -419,3 +419,46 @@ def test_global_tribal_anthem_opens_tribe():
     }
     sigs = extract_signals(soraya)
     assert any(s.key == "type_matters" and s.subject == "Bird" for s in sigs)
+
+
+# ── Artifact commanders that phrase the theme without "artifacts you control" ─────
+# Foundry Inspector (artifact cost reducer) is top-synergy for these but the lane
+# never opened: they sacrifice artifacts (Bosh), copy artifact abilities (Kurkesh),
+# or turn permanents INTO artifacts (Memnarch).
+def test_artifact_sac_outlet_opens_artifacts_lane():
+    bosh = {
+        "name": "Bosh, Iron Golem",
+        "type_line": "Legendary Artifact Creature — Golem",
+        "oracle_text": "Trample\n{3}{R}, Sacrifice an artifact: Bosh deals damage "
+        "equal to that artifact's mana value to any target.",
+    }
+    assert ("artifacts_matter", "you") in _keys(bosh)
+
+
+def test_artifact_ability_payoff_opens_artifacts_lane():
+    kurkesh = {
+        "name": "Kurkesh, Onakke Ancient",
+        "type_line": "Legendary Creature — Ogre Shaman",
+        "oracle_text": "Whenever you activate an ability of an artifact, if it isn't a "
+        "mana ability, you may pay {R}. If you do, copy that ability.",
+    }
+    assert ("artifacts_matter", "you") in _keys(kurkesh)
+
+
+def test_artifact_type_granter_opens_artifacts_lane():
+    memnarch = {
+        "name": "Memnarch",
+        "type_line": "Legendary Artifact Creature — Wizard",
+        "oracle_text": "{1}{U}: Target permanent becomes an artifact in addition to "
+        "its other types.\n{3}{U}{U}: Gain control of target artifact.",
+    }
+    assert ("artifacts_matter", "you") in _keys(memnarch)
+
+
+def test_artifact_removal_does_not_open_artifacts_lane():
+    # Precision: destroying an opponent's artifact is removal, not an artifact theme.
+    card = {
+        "name": "Disenchanter",
+        "oracle_text": "When this creature enters, destroy target artifact or enchantment.",
+    }
+    assert ("artifacts_matter", "you") not in _keys(card)

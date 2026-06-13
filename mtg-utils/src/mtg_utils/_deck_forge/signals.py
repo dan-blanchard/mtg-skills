@@ -472,12 +472,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "artifacts_matter",
         re.compile(
             r"\bartifacts? you control\b"
+            r"|artifact creatures? you control"
             r"|for each artifact you control"
             r"|whenever an? artifact (?:you control )?enters"
             # Artifact-cast / affinity / artifact-recursion commanders are artifact
             # decks (Sai, Emry); affinity's reminder is stripped, so key on the keyword.
             r"|whenever you cast an artifact|\baffinity\b"
-            r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard",
+            r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard"
+            # Sac outlets (Bosh), artifact-ability payoffs (Kurkesh), and type-granters
+            # (Memnarch: "becomes an artifact") are artifact commanders too. The sac
+            # lookahead drops the generic any-permanent list ("sacrifice an artifact,
+            # creature, enchantment …" — Braids), which is an aristocrats outlet.
+            r"|sacrifices? (?:an?|another|two|three|x|\d+) artifacts?\b"
+            r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
+            r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
+            r"|becomes? an? artifact\b",
             re.IGNORECASE,
         ),
         "you",
