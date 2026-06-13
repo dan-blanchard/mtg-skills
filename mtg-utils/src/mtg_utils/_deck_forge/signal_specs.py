@@ -563,15 +563,29 @@ _REANIMATOR_SERVE_ORACLE = (
 )
 
 
-def _sweep_spec_with_extras(key: str, extras: tuple[SubAvenue, ...]) -> SignalSpec:
+def _sweep_spec_with_extras(
+    key: str,
+    extras: tuple[SubAvenue, ...] = (),
+    *,
+    serve_power_min: int | None = None,
+) -> SignalSpec:
     """Promote a mined sweep detector to a hand-spec that keeps its regex (as both
     search and serve) but fans out extra sub-avenues — used where a sweep-derived lane
     needs to surface payoffs its bare regex can't (e.g. every counter lane wants the
-    counter doublers). Reuses SWEEP_DETECTORS so the regex never drifts from the mine.
+    counter doublers). ``serve_power_min`` additionally credits big bodies (power
+    doublers / power-as-damage lanes want the fat creatures they exploit). Reuses
+    SWEEP_DETECTORS so the regex never drifts from the mine.
     """
     d = next(x for x in SWEEP_DETECTORS if x["key"] == key)
     label, avenue = SWEEP_LABELS[key]
-    return _spec(label, avenue, {"oracle": d["regex"]}, d["regex"], extras=extras)
+    return _spec(
+        label,
+        avenue,
+        {"oracle": d["regex"]},
+        d["regex"],
+        extras=extras,
+        serve_power_min=serve_power_min,
+    )
 
 
 # Combat support shared by the combat lanes: gear that suits up the attacker plus the
@@ -1026,6 +1040,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("counter_distribute", "you"): _sweep_spec_with_extras(
         "counter_distribute",
         (_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA, _PROLIFERATE_EXTRA),
+    ),
+    # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
+    # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit
+    # the fat bodies they exploit (Ghalta / Worldspine Wurm), not just the engine cards.
+    ("power_double", "you"): _sweep_spec_with_extras("power_double", serve_power_min=5),
+    ("creature_ping", "you"): _sweep_spec_with_extras(
+        "creature_ping", serve_power_min=5
     ),
     # Same archetype as spellcast_matters (a magecraft commander triggers off the same
     # instants/sorceries as a prowess one), so it shares the one _SPELLSLINGER_SPEC — a

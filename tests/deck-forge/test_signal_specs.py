@@ -2444,3 +2444,39 @@ def test_evasion_serves_horsemanship_via_keyword():
         "keywords": ["Vigilance", "Horsemanship"],
     }
     assert _lane_covers(shu_general, sig)
+
+
+def test_power_double_credits_big_bodies():
+    """A power-doubler (Rhonas / Mr. Orfeo) wants high BASE power to double — Ghalta
+    (12 power) is the payoff, not a 2/2."""
+    sig = _sig("power_double")
+    ghalta = {
+        "name": "Ghalta, Primal Hunger",
+        "type_line": "Legendary Creature — Elder Dinosaur",
+        "power": "12",
+        "toughness": "12",
+        "oracle_text": "This spell costs {X} less to cast, where X is the total power "
+        "of creatures you control.\nTrample",
+    }
+    bear = {
+        "name": "Bear",
+        "type_line": "Creature — Bear",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert serves(ghalta, sig)
+    assert not serves(bear, sig)
+
+
+def test_creature_ping_credits_big_bodies():
+    """A power-as-damage commander (Itzquinth) wants high power for more ping damage."""
+    sig = _sig("creature_ping")
+    fatty = {
+        "name": "Worldspine Wurm",
+        "type_line": "Creature — Wurm",
+        "power": "15",
+        "toughness": "15",
+        "oracle_text": "Trample",
+    }
+    assert serves(fatty, sig)
