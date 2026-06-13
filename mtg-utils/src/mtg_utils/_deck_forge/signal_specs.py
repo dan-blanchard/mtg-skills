@@ -606,7 +606,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "battlefield — each one fires your payoff and you choose the target",
         {"oracle": _REANIMATE_ORACLE},
         _REANIMATOR_SERVE_ORACLE,
-        serve_keywords=("escape", "disturb"),
+        # persist/undying (CR 702.79/702.93) return the creature FROM THE GRAVEYARD on
+        # death, so it re-enters from a graveyard and fires the reanimator payoff.
+        serve_keywords=("escape", "disturb", "persist", "undying"),
         serve_self_recur=True,
         extras=(_CAST_FROM_GY_EXTRA, _SELF_RECUR_EXTRA),
     ),

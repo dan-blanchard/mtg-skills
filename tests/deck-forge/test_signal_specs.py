@@ -123,6 +123,28 @@ def test_reanimator_served_by_reanimation_and_escape():
     assert serves(SELF_MILL, sig) is False
 
 
+def test_reanimator_credits_persist_and_undying():
+    # CR 702.79 / 702.93: persist & undying return the creature FROM THE GRAVEYARD to
+    # the battlefield, so it re-enters from a graveyard — a reanimator payoff fires.
+    sig = _sig("reanimator", "you")
+    persist = {
+        "name": "Murderous Redcap",
+        "type_line": "Creature — Goblin Assassin",
+        "oracle_text": "When this creature enters, it deals damage equal to its power "
+        "to any target.\nPersist",
+        "keywords": ["Persist"],
+    }
+    undying = {
+        "name": "Geralf's Messenger",
+        "type_line": "Creature — Zombie",
+        "oracle_text": "This creature enters tapped.\nWhen this creature enters, each "
+        "opponent loses 2 life.\nUndying",
+        "keywords": ["Undying"],
+    }
+    assert serves(persist, sig) is True
+    assert serves(undying, sig) is True
+
+
 def test_reanimator_spec_searches_with_a_discriminator():
     spec = spec_for(_sig("reanimator", "you"))
     assert spec is not None
