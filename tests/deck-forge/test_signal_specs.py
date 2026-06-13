@@ -449,6 +449,23 @@ def test_grant_become_credited_for_clone_enchantment_food():
         assert _lane_covers(card, _sig(key, "you")) is True, key
 
 
+def test_artifact_token_makers_are_artifacts():
+    # Treasure/Food/Clue/Blood/Gold/Map/Powerstone tokens ARE artifact tokens, so a
+    # maker of them makes an artifact — affinity/metalcraft/artifact-count fuel.
+    makers = [
+        (
+            "Smothering Tithe",
+            "Whenever an opponent draws a card, … create a Treasure token.",
+        ),
+        ("Witch's Oven", "{T}, Sacrifice a creature: Create a Food token …"),
+        ("Tireless Tracker", "Whenever a land you control enters, investigate."),
+        ("Powerstone Maker", "When this enters, create a tapped Powerstone token."),
+    ]
+    for n, o in makers:
+        card = {"name": n, "type_line": "Artifact", "oracle_text": o}
+        assert serves(card, _sig("artifacts_matter", "you")) is True, n
+
+
 def test_theme_cost_reducers_are_credited():
     # A spell-type cost reducer is prime synergy for that theme's deck.
     etherium = {

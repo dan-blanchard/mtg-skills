@@ -838,7 +838,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|artifact spells? you cast cost"
         # Type-GRANTERS that turn your stuff into artifacts enable the whole deck
         # (Mycosynth Lattice, Liquimetal Coating, March of the Machines).
-        r"|becomes? an? artifact|(?:are|is an?) artifacts?",
+        r"|becomes? an? artifact|(?:are|is an?) artifacts?"
+        # Makers of artifact-TOKEN types make artifacts: Treasure/Food/Clue/Blood/Gold/
+        # Map/Powerstone/Junk/Lander are all artifact tokens, and Investigate makes a
+        # Clue — affinity/metalcraft/artifact-count fuel.
+        r"|create [^.]*\b(?:artifact|treasure|food|clue|blood|gold|map"
+        r"|powerstone|junk|lander)\b[^.]*token|\binvestigate\b",
     ),
     # Serve augmented with "whenever you cast an enchantment" so the 14 plain CREATURES
     # that trigger on enchantment casts (Verduran/Mesa Enchantress, Sythis) — missed by
