@@ -369,6 +369,24 @@ _DEATH_DRAIN_EXTRA = SubAvenue(
     {"oracle": _DEATH_DRAIN_ORACLE},
     serve=Serve(oracle=re.compile(_DEATH_DRAIN_ORACLE, _IC)),
 )
+# Landfall (CR 207.2c ability word; canonical "Landfall — whenever a land you control
+# enters"): the payoffs PLUS the engines that fire them — extra land drops (Azusa /
+# Dryad), land fetch, and graveyard land recursion (Crucible / Ramunap). One regex
+# shared by the avenue's search and its serve.
+_LANDFALL_ORACLE = (
+    r"\blandfall\b"
+    r"|search your library for [^.]*\bland\b"
+    r"|play (?:an|one|two|three|\d+) additional lands?"
+    r"|play lands? from your graveyard"
+    r"|put [^.]*\bland card[^.]*onto the battlefield"
+)
+_LANDS_FROM_GRAVE_EXTRA = SubAvenue(
+    "Lands from your graveyard",
+    "recursion that replays fetched/sacrificed lands for repeat landfall "
+    "(Crucible of Worlds / Ramunap Excavator)",
+    {"oracle": r"play lands? from your graveyard"},
+    serve=Serve(oracle=re.compile(r"play lands? from your graveyard", _IC)),
+)
 # Deathtouch-granting gear (CR 702.2b): with a repeatable pinger, deathtouch + 1 damage
 # kills anything. "(equipped|enchanted) creature … deathtouch" is Equipment/Aura-only.
 _DEATHTOUCH_GEAR_ORACLE = r"(?:equipped|enchanted) creature[^.]*\bdeathtouch\b"
@@ -676,21 +694,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # The bare `onto the battlefield` branch matched every cheat-into-play and
     # reanimation effect (Sneak Attack, Reanimate). Anchor it to a LAND card, mirroring
     # lands_matter (CR 305 — landfall fires on a land entering, not any permanent).
+    # The landfall lane wants the PAYOFFS most of all (Lotus Cobra / Scute Swarm /
+    # Tatyova — "Landfall — whenever a land you control enters …"), then the enablers
+    # that fire them repeatedly: extra land drops (Azusa / Dryad) and land recursion
+    # (Crucible / Ramunap — "play lands from your graveyard"). The old serve credited
+    # only fetch + extra-lands, so every landfall payoff read as off-theme.
     ("landfall", "you"): _spec(
         "Landfall",
-        "extra land drops and land fetch",
-        {
-            "oracle": (
-                r"search your library for .*\bland\b"
-                r"|play (?:an|one|two|\d+) additional lands?"
-                r"|put .*\bland card.*onto the battlefield"
-            )
-        },
-        (
-            r"search your library for .*\bland\b"
-            r"|play (?:an|one|two|\d+) additional lands?"
-            r"|put .*\bland card.*onto the battlefield"
-        ),
+        "landfall payoffs plus the extra land drops, fetch, and recursion firing them",
+        {"oracle": _LANDFALL_ORACLE},
+        _LANDFALL_ORACLE,
+        extras=(_LANDS_FROM_GRAVE_EXTRA,),
     ),
     # ── Archetype floor specs (whole themes the baseline was blind to) ──────────
     ("token_maker", "you"): _spec(

@@ -148,11 +148,19 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ),
     ("draw_matters", _has("whenever you draw"), "you"),
     (
+        # Landfall / lands-matter: the ability word, a land-enter trigger, extra land
+        # drops, OR land RECURSION from the graveyard (Lord Windgrace, Crucible) — a
+        # lands-matter commander even with no "landfall". Verified vs bulk: the
+        # recursion branch opens the lane for ~31 cards, all genuine lands-matter.
         "landfall",
         lambda c: (
             "landfall" in c
             or ("whenever a land" in c and "enter" in c)
             or _re(r"play (?:an|one|two|three|\d+) additional lands?")(c)
+            or _re(
+                r"play lands? from your graveyard"
+                r"|return [^.]*\blands?\b[^.]*from your graveyard to the battlefield"
+            )(c)
         ),
         "you",
     ),

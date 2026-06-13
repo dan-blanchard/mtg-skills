@@ -148,6 +148,35 @@ def test_sacrifice_lane_does_not_serve_plain_lifegain():
     assert serves(LIFEGAIN, _sig("sacrifice_matters", "you")) is False
 
 
+# --- landfall: payoffs + extra lands + lands-from-graveyard ---------------------
+LANDFALL_PAYOFF = {
+    "name": "Lotus Cobra",
+    "type_line": "Creature — Snake",
+    "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
+}
+EXTRA_LANDS = {
+    "name": "Azusa, Lost but Seeking",
+    "type_line": "Creature — Human Monk",
+    "oracle_text": "You may play two additional lands on each of your turns.",
+}
+LANDS_FROM_GRAVE = {
+    "name": "Ramunap Excavator",
+    "type_line": "Creature — Naga Cleric",
+    "oracle_text": "You may play lands from your graveyard.",
+}
+
+
+def test_landfall_serves_payoffs_extra_lands_and_recursion():
+    sig = _sig("landfall", "you")
+    assert serves(LANDFALL_PAYOFF, sig) is True  # the payoff itself (was uncovered)
+    assert serves(EXTRA_LANDS, sig) is True  # extra-land enabler
+    assert serves(LANDS_FROM_GRAVE, sig) is True  # land recursion (was uncovered)
+
+
+def test_landfall_does_not_serve_unrelated_burn():
+    assert serves(BURN, _sig("landfall", "you")) is False
+
+
 # --- land-creatures theme (the Jyoti case) -------------------------------------
 
 LAND_CREATURE_PAYOFF = {

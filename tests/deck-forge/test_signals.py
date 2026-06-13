@@ -219,3 +219,19 @@ def test_dies_in_passing_does_not_open_aristocrats():
         "oracle_text": "When this creature deals combat damage to a player, exile it.",
     }
     assert not any(k == "death_matters" for k, _ in _keys(card))
+
+
+# ── Landfall: a land-recursion commander opens the lands lane (the Windgrace case) ─
+# A commander whose payoff replays lands from the graveyard ("return … land cards from
+# your graveyard to the battlefield") is a lands-matter commander and must open the
+# landfall lane so its payoffs (Lotus Cobra / Scute Swarm) surface, even with no literal
+# "landfall" / "play an additional land".
+def test_land_recursion_commander_opens_landfall_lane():
+    windgrace = {
+        "name": "Lord Windgrace",
+        "oracle_text": (
+            "−3: Return up to two target land cards from your graveyard to the "
+            "battlefield."
+        ),
+    }
+    assert ("landfall", "you") in _keys(windgrace)
