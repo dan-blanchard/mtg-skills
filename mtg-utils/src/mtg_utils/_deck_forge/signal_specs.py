@@ -472,6 +472,11 @@ _BOARD_WIPE_EXTRA = SubAvenue(
 _LANDFALL_ORACLE = (
     r"\blandfall\b"
     r"|search your library for [^.]*\bland\b"
+    # Basic-type ramp names the type, not the word "land": Skyshroud Claim ("Forest
+    # cards"), Farseek ("a Plains, Island, Swamp, or Mountain"), Nature's Lore. It must
+    # PUT them onto the battlefield (ramp), not just fetch to hand.
+    r"|search your library for [^.]*\b(?:forest|island|plains|mountain|swamp)\b"
+    r"[^.]*onto the battlefield"
     r"|play (?:an|one|two|three|\d+) additional lands?"
     r"|play lands? from your graveyard"
     r"|put [^.]*\bland card[^.]*onto the battlefield"

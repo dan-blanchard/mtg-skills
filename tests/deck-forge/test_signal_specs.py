@@ -2710,3 +2710,35 @@ def test_go_wide_credits_board_protection():
         "indestructible until end of turn.",
     }
     assert _lane_covers(selfless, sig)
+
+
+def test_landfall_serves_basic_type_ramp():
+    """Skyshroud Claim / Nature's Lore / Farseek search for 'Forest'/'a Plains or
+    Island' — basic-type names, never the word 'land' — so the landfall ramp serve
+    missed them. These put lands onto the battlefield, the bread-and-butter landfall
+    fuel."""
+    sig = _sig("landfall")
+    skyshroud = {
+        "name": "Skyshroud Claim",
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library for up to two Forest cards, put them onto "
+        "the battlefield, then shuffle.",
+    }
+    farseek = {
+        "name": "Farseek",
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain "
+        "card, put it onto the battlefield tapped, then shuffle.",
+    }
+    assert _lane_covers(skyshroud, sig)
+    assert _lane_covers(farseek, sig)
+
+
+def test_landfall_does_not_serve_a_nonland_tutor():
+    sig = _sig("landfall")
+    demonic = {
+        "name": "Demonic Tutor",
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library for a card, put it into your hand, then shuffle.",
+    }
+    assert not _lane_covers(demonic, sig)
