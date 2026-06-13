@@ -292,6 +292,33 @@ _SLINGER_SEARCH_ORACLE = (
     r"|whenever you cast (?:an instant|a sorcery|a noncreature|your)"
     r"|instant and sorcery spells you cast"
 )
+# Spellslinger and magecraft are ONE archetype (CR 207.2c: magecraft = "whenever you
+# cast or copy an instant or sorcery spell" — the same cast trigger as prowess/spell-
+# cast). Defined once and bound to BOTH the spellcast_matters and magecraft_matters
+# keys, so a commander that fires both detectors renders a single "Spellslinger" avenue
+# (the render layer dedupes by label) instead of two near-identical lanes (Phase C).
+_SPELLSLINGER_SPEC = _spec(
+    "Spellslinger",
+    "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
+    {"oracle": _SLINGER_SEARCH_ORACLE},
+    _SLINGER_SERVE_ORACLE,
+    serve_types=_SLINGER_TYPES,
+    serve_keywords=_SLINGER_KEYWORDS,
+    extras=(
+        SubAvenue(
+            "Cheap instants (fuel)",
+            "cheap instants to chain casts and trigger your payoffs",
+            {"card_type": "Instant", "cmc_max": 3},
+            serve=Serve(types=frozenset({"instant"})),
+        ),
+        SubAvenue(
+            "Cheap sorceries (fuel)",
+            "cheap sorceries to chain casts and trigger your payoffs",
+            {"card_type": "Sorcery", "cmc_max": 3},
+            serve=Serve(types=frozenset({"sorcery"})),
+        ),
+    ),
+)
 
 
 # ── EDHREC-audit sub-avenues shared by the flood/token specs ──────────────────
@@ -722,28 +749,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # prose). Bare "draw a card" is none of these: it mislabeled ~1250 value permanents
     # (Rhystic Study, Esper Sentinel, The One Ring) as Spellslinger. Copies aren't cast
     # (CR 707.10), so spell-copy payoffs belong to spell_copy, not here.
-    ("spellcast_matters", "you"): _spec(
-        "Spellslinger",
-        "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
-        {"oracle": _SLINGER_SEARCH_ORACLE},
-        _SLINGER_SERVE_ORACLE,
-        serve_types=_SLINGER_TYPES,
-        serve_keywords=_SLINGER_KEYWORDS,
-        extras=(
-            SubAvenue(
-                "Cheap instants (fuel)",
-                "cheap instants to chain casts and trigger your payoffs",
-                {"card_type": "Instant", "cmc_max": 3},
-                serve=Serve(types=frozenset({"instant"})),
-            ),
-            SubAvenue(
-                "Cheap sorceries (fuel)",
-                "cheap sorceries to chain casts and trigger your payoffs",
-                {"card_type": "Sorcery", "cmc_max": 3},
-                serve=Serve(types=frozenset({"sorcery"})),
-            ),
-        ),
-    ),
+    ("spellcast_matters", "you"): _SPELLSLINGER_SPEC,
     # `create .*token` was type-blind — it served every Treasure/Clue/Food maker
     # (~428 in WBR), none of which are sacrifice fodder. Require the literal "creature
     # token" (CR 111.10 token types); and exclude "sacrifice a land" (fetchlands) from
@@ -922,18 +928,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "counter_distribute",
         (_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA, _PROLIFERATE_EXTRA),
     ),
-    # Same archetype + matcher as spellcast_matters (a magecraft commander triggers off
-    # the same instants/sorceries as a prowess one). Was the canonical bug twice over:
-    # a "draw a card" search and an "instant or sorcery" serve branch that credited
-    # counterspell-shelters and graveyard payoffs.
-    ("magecraft_matters", "you"): _spec(
-        "Magecraft / spellslinger",
-        "cheap instants and sorceries plus magecraft/prowess payoffs to chain casts",
-        {"oracle": _SLINGER_SEARCH_ORACLE},
-        _SLINGER_SERVE_ORACLE,
-        serve_types=_SLINGER_TYPES,
-        serve_keywords=_SLINGER_KEYWORDS,
-    ),
+    # Same archetype as spellcast_matters (a magecraft commander triggers off the same
+    # instants/sorceries as a prowess one), so it shares the one _SPELLSLINGER_SPEC — a
+    # commander firing both detectors now renders a single "Spellslinger" avenue, not
+    # two near-identical lanes (Phase C). CR 207.2c: magecraft = the cast trigger.
+    ("magecraft_matters", "you"): _SPELLSLINGER_SPEC,
     ("extra_combats", "you"): _spec(
         "Extra combats",
         "additional combat phases and the attackers to exploit them",
