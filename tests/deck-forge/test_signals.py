@@ -253,6 +253,18 @@ def test_affinity_and_artifact_cast_open_artifacts_lane():
     assert ("artifacts_matter", "you") in _keys(sai)
 
 
+def test_token_doubler_opens_tokens_lane():
+    # A token DOUBLER (Adrix) wants token-MAKERS to double — it must open the tokens
+    # lane, not only "Doubling".
+    adrix = {
+        "name": "Adrix and Nev, Twincasters",
+        "type_line": "Legendary Creature — Crab Wizard",
+        "oracle_text": "If one or more tokens would be created under your control, twice "
+        "that many of those tokens are created instead.",
+    }
+    assert ("tokens_matter", "you") in _keys(adrix)
+
+
 # ── Landfall: a land-recursion commander opens the lands lane (the Windgrace case) ─
 # A commander whose payoff replays lands from the graveyard ("return … land cards from
 # your graveyard to the battlefield") is a lands-matter commander and must open the

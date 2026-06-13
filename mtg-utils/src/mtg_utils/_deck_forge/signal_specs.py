@@ -622,7 +622,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "high-power bodies to exploit your power-based payoffs (cost reduction, "
         "power thresholds) — big beaters, not utility dorks",
         {"card_type": "Creature", "cmc_min": 5},
-        r"",
+        # Credit the power-threshold PAYOFFS/enablers too (Garruk's Uprising, ferocious
+        # dorks: "creature with power 4 or greater"), not just the big bodies.
+        r"power \d+ or (?:greater|more)|with power \d+ or|\bferocious\b",
         serve_power_min=4,
     ),
     # Land-creatures theme (e.g. Jyoti, Moag Ancient). Three precise, disjoint

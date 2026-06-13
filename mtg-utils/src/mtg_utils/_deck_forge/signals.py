@@ -487,7 +487,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "tokens_matter",
         re.compile(
             r"\btokens? you control\b"
-            r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters?\b",
+            r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters?\b"
+            # A token DOUBLER (Adrix, Parallel Lives) wants token-MAKERS to double, so
+            # it is a tokens commander — open the lane that surfaces them.
+            r"|tokens? would be (?:created|put)|create twice that many[^.]*token"
+            r"|twice that many[^.]*tokens?",
             re.IGNORECASE,
         ),
         "you",

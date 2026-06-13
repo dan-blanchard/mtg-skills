@@ -449,6 +449,20 @@ def test_grant_become_credited_for_clone_enchantment_food():
         assert _lane_covers(card, _sig(key, "you")) is True, key
 
 
+def test_power_matters_credits_threshold_payoffs():
+    # power_matters should credit the PAYOFFS that key on power thresholds (Garruk's
+    # Uprising, ferocious dorks), not only the big bodies themselves.
+    sig = _sig("power_matters", "you")
+    for o in [
+        "If you control a creature with power 4 or greater, draw a card.",
+        "Ferocious — {T}: Add {G}{G}.",
+    ]:
+        assert (
+            serves({"name": "x", "type_line": "Enchantment", "oracle_text": o}, sig)
+            is True
+        )
+
+
 def test_being_an_artifact_or_enchantment_by_type_is_on_theme():
     # The big "floor" miss: a card is on-theme for an artifacts/enchantments deck by
     # BEING that type (affinity/metalcraft/constellation/count all count the card),
