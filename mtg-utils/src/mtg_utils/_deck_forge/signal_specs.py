@@ -574,6 +574,22 @@ def _sweep_spec_with_extras(key: str, extras: tuple[SubAvenue, ...]) -> SignalSp
     return _spec(label, avenue, {"oracle": d["regex"]}, d["regex"], extras=extras)
 
 
+# Combat support shared by the combat lanes: gear that suits up the attacker plus the
+# keyword-anthems that buff your attackers (double strike / trample / evasion).
+_COMBAT_SUPPORT_ORACLE = (
+    r"equipped creature|enchanted creature gets|\bequip \{"
+    r"|(?:attacking )?creatures you control (?:have|gain|get)[^.]*"
+    r"(?:double strike|first strike|trample|menace|deathtouch|vigilance"
+    r"|can't be blocked)"
+)
+_COMBAT_SUPPORT_EXTRA = SubAvenue(
+    "Combat support (gear & keyword anthems)",
+    "equipment/auras and keyword-anthems that suit up and buff your attackers",
+    {"oracle": _COMBAT_SUPPORT_ORACLE},
+    serve=Serve(oracle=re.compile(_COMBAT_SUPPORT_ORACLE, _IC)),
+)
+
+
 SPECS: dict[tuple[str, str], SignalSpec] = {
     ("creature_etb", "you"): _spec(
         "Creatures entering — yours",
@@ -982,6 +998,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("counter_manipulation", "you"): _sweep_spec_with_extras(
         "counter_manipulation", (_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA)
+    ),
+    # Beginning-of-combat / attack-buff commanders are combat decks — surface the gear
+    # and keyword-anthems that grow their attackers.
+    ("combat_buff_engine", "you"): _sweep_spec_with_extras(
+        "combat_buff_engine", (_COMBAT_SUPPORT_EXTRA,)
     ),
     ("counter_distribute", "you"): _sweep_spec_with_extras(
         "counter_distribute",
