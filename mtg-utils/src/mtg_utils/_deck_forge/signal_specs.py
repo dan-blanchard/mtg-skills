@@ -430,6 +430,32 @@ _PROLIFERATE_EXTRA = SubAvenue(
         keywords=frozenset({"proliferate"}), oracle=re.compile(r"\bproliferate\b", _IC)
     ),
 )
+# Counter DOUBLERS / amplifiers (CR 122.3 + 614 replacement): the universal payoff for
+# ANY counters commander — Doubling Season, Hardened Scales, Corpsejack, Branching
+# Evolution, Vorinclex. Note Doubling Season says "counters" generically (not "+1/+1
+# counter"), so the bare counters_matter serve missed it. Shared across every counter
+# lane below, since a counters commander can open any of them. 94 genuine bulk hits.
+_COUNTER_DOUBLER_ORACLE = (
+    r"twice that many [^.]*counters?|that many plus (?:one|\d+) [^.]*counters?"
+    r"|counters?[^.]*twice that many|double the number of [^.]*counters?"
+    r"|if one or more (?:\+1/\+1 )?counters? would be put[^.]*instead"
+)
+_COUNTER_DOUBLER_EXTRA = SubAvenue(
+    "Counter doublers",
+    "replacement effects that multiply every counter you place "
+    "(Doubling Season / Hardened Scales / Corpsejack Menace / Vorinclex)",
+    {"oracle": _COUNTER_DOUBLER_ORACLE},
+    serve=Serve(oracle=re.compile(_COUNTER_DOUBLER_ORACLE, _IC)),
+)
+# +1/+1 counter PLACEMENT support: spells/abilities that drop +1/+1 counters on your
+# creatures (the fuel a self-growth / counters commander wants alongside the doublers).
+_COUNTER_PLACE_ORACLE = r"put (?:a|one|two|three|x|\d+|that many)[^.]*\+1/\+1 counters?"
+_COUNTER_PLACE_EXTRA = SubAvenue(
+    "Counter placement",
+    "ways to drop more +1/+1 counters on your creatures (Hardened Scales fuel)",
+    {"oracle": _COUNTER_PLACE_ORACLE},
+    serve=Serve(oracle=re.compile(_COUNTER_PLACE_ORACLE, _IC)),
+)
 # Discard-PUNISH payoffs (CR 701.8 discard): reward forcing opponents to discard.
 _DISCARD_PUNISH_ORACLE = (
     r"whenever (?:a player|an opponent|that player|each opponent|target opponent)"
@@ -471,6 +497,17 @@ _REANIMATOR_SERVE_ORACLE = (
     _REANIMATE_ORACLE
     + r"|\bescape\b|\bdisturb\b|cast [^.]*from (?:a|your|their) graveyard"
 )
+
+
+def _sweep_spec_with_extras(key: str, extras: tuple[SubAvenue, ...]) -> SignalSpec:
+    """Promote a mined sweep detector to a hand-spec that keeps its regex (as both
+    search and serve) but fans out extra sub-avenues — used where a sweep-derived lane
+    needs to surface payoffs its bare regex can't (e.g. every counter lane wants the
+    counter doublers). Reuses SWEEP_DETECTORS so the regex never drifts from the mine.
+    """
+    d = next(x for x in SWEEP_DETECTORS if x["key"] == key)
+    label, avenue = SWEEP_LABELS[key]
+    return _spec(label, avenue, {"oracle": d["regex"]}, d["regex"], extras=extras)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -589,10 +626,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("counters_matter", "any"): _spec(
         "+1/+1 counters",
-        "counter generators and proliferate",
+        "counter generators, doublers, and proliferate",
         {"oracle": r"\+1/\+1 counter"},
-        r"\+1/\+1 counter|proliferate",
-        extras=(_PROLIFERATE_EXTRA,),
+        # Credit generic-counter doublers (Doubling Season) the bare "+1/+1 counter"
+        # serve missed.
+        r"\+1/\+1 counter|proliferate|" + _COUNTER_DOUBLER_ORACLE,
+        extras=(_COUNTER_DOUBLER_EXTRA, _PROLIFERATE_EXTRA),
     ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
     # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic
@@ -817,9 +856,23 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("proliferate_matters", "you"): _spec(
         "Proliferate",
-        "proliferate plus any-kind counter sources (poison/loyalty/charge/+1+1)",
+        "proliferate plus any-kind counter sources and doublers (Vorinclex)",
         {"preset_names": ("proliferate",)},
         r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
+        extras=(_COUNTER_DOUBLER_EXTRA,),
+    ),
+    # Hand-promote the mined counter lanes so they surface the counter DOUBLERS (the
+    # universal counters payoff) regardless of which lane a counters commander opens.
+    # self_counter_grow's own blurb already promises doublers; now its serve delivers.
+    ("self_counter_grow", "you"): _sweep_spec_with_extras(
+        "self_counter_grow",
+        (_COUNTER_DOUBLER_EXTRA, _COUNTER_PLACE_EXTRA, _PROLIFERATE_EXTRA),
+    ),
+    ("counter_manipulation", "you"): _sweep_spec_with_extras(
+        "counter_manipulation", (_COUNTER_DOUBLER_EXTRA,)
+    ),
+    ("counter_distribute", "you"): _sweep_spec_with_extras(
+        "counter_distribute", (_COUNTER_DOUBLER_EXTRA, _PROLIFERATE_EXTRA)
     ),
     # Same archetype + matcher as spellcast_matters (a magecraft commander triggers off
     # the same instants/sorceries as a prowess one). Was the canonical bug twice over:

@@ -232,6 +232,54 @@ def test_blink_lane_does_not_surface_vanilla_creature():
     assert _lane_covers(vanilla, _sig("blink_flicker", "you")) is False
 
 
+# --- counter doublers must surface across every counter lane -------------------
+DOUBLING_SEASON = {
+    "name": "Doubling Season",
+    "type_line": "Enchantment",
+    "oracle_text": (
+        "If an effect would put one or more counters on a permanent you control, it "
+        "puts twice that many of those counters on that permanent instead.\n"
+        "If an effect would create one or more tokens under your control, it creates "
+        "twice that many of those tokens instead."
+    ),
+}
+HARDENED_SCALES = {
+    "name": "Hardened Scales",
+    "type_line": "Enchantment",
+    "oracle_text": (
+        "If one or more +1/+1 counters would be put on a creature you control, that "
+        "many plus one +1/+1 counters are put on it instead."
+    ),
+}
+COUNTER_LANES = [
+    ("counters_matter", "any"),
+    ("proliferate_matters", "you"),
+    ("self_counter_grow", "you"),
+    ("counter_manipulation", "you"),
+    ("counter_distribute", "you"),
+]
+
+
+def test_counter_doublers_surface_across_every_counter_lane():
+    # A counters commander wants the doublers (Doubling Season / Hardened Scales /
+    # Corpsejack) no matter which counter lane its oracle happens to open.
+    for key, scope in COUNTER_LANES:
+        sig = _sig(key, scope)
+        assert _lane_covers(DOUBLING_SEASON, sig), f"{key}: Doubling Season uncovered"
+        assert _lane_covers(HARDENED_SCALES, sig), f"{key}: Hardened Scales uncovered"
+
+
+def test_self_growth_lane_surfaces_counter_placement_support():
+    # A self-growth counters commander (Skullbriar) wants +1/+1 counter placement, not
+    # just doublers.
+    placement = {
+        "name": "Unexpected Fangs",
+        "type_line": "Instant",
+        "oracle_text": "Put a +1/+1 counter and a lifelink counter on target creature.",
+    }
+    assert _lane_covers(placement, _sig("self_counter_grow", "you")) is True
+
+
 # --- land-creatures theme (the Jyoti case) -------------------------------------
 
 LAND_CREATURE_PAYOFF = {
