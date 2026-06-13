@@ -22,6 +22,20 @@ class TestSlugify:
         result = slugify("Thrasios, Triton Hero", "Tymna the Weaver")
         assert result == "thrasios-triton-hero-tymna-the-weaver"
 
+    def test_accented_letters_transliterate_not_dropped(self):
+        # Accented letters must fold to their ASCII base (á->a), matching EDHREC's
+        # slugs — NOT be deleted (which produced "mrton-stromgald" and a 403).
+        assert slugify("Márton Stromgald") == "marton-stromgald"
+        assert slugify("Lord of the Nazgûl") == "lord-of-the-nazgul"
+
+    def test_special_unicode_char_dropped(self):
+        # A non-decomposable special char (U+A789 modifier-letter colon) drops cleanly;
+        # built with chr() to keep the source ASCII (avoids an ambiguous-unicode lint).
+        name = (
+            "Ratonhnhak" + "\N{LATIN SMALL LETTER E WITH ACUTE}" + chr(0xA789) + "ton"
+        )
+        assert slugify(name) == "ratonhnhaketon"
+
 
 class TestEdhrecLookup:
     def test_fetches_commander_data(self, sample_edhrec_response):

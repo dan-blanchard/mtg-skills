@@ -6,6 +6,8 @@ import re
 import click
 import requests
 
+from mtg_utils.names import normalize_card_name
+
 EDHREC_JSON_URL = "https://json.edhrec.com/pages/commanders/{slug}.json"
 USER_AGENT = "commander-utils/0.1.0"
 
@@ -30,8 +32,13 @@ def slugify(*names: str) -> str:
         # Hyphens in card names (e.g., "Fae-Cursed") must become word separators
         # in the slug, so convert to spaces before stripping non-alphanumeric chars.
         hyphen_to_space = name.replace("-", " ")
-        cleaned = re.sub(r"[^a-zA-Z0-9 ]", "", hyphen_to_space)
-        slug = re.sub(r"\s+", "-", cleaned.strip()).lower()
+        # ASCII-fold accented letters to their base (Márton -> marton, Nazgûl ->
+        # nazgul), matching EDHREC's slugs. Deleting them outright (the old
+        # re.sub([^a-zA-Z0-9 ])) gave "mrton-stromgald" and a 403. normalize_card_name
+        # NFKD-decomposes, drops combining marks, and lowercases.
+        folded = normalize_card_name(hyphen_to_space)
+        cleaned = re.sub(r"[^a-z0-9 ]", "", folded)
+        slug = re.sub(r"\s+", "-", cleaned.strip())
         parts.append(slug)
     return "-".join(parts)
 
