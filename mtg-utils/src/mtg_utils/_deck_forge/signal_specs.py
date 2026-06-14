@@ -891,12 +891,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     ("graveyard_matters", "you"): _spec(
         "Your graveyard",
-        "self-mill and recursion fuel for your own graveyard",
+        "self-mill and recursion fuel for your own graveyard, plus the high-ETB and "
+        "self-recurring creatures worth putting there and bringing back",
         {"oracle": r"into your graveyard|surveil"},
         # "in your graveyard" catches recursion spells that pick a target there before
         # returning it (Victimize: "creature cards in your graveyard … return those").
         r"into your graveyard|from your graveyard|in your graveyard"
         r"|surveil\b|self-mill",
+        # A graveyard/reanimator deck recurs creatures with strong ETBs (Fleshbag
+        # Marauder, Eternal Witness) and self-recurring fodder (Gravecrawler).
+        extras=(_ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA),
     ),
     # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
     # creatures, because Celes-style commanders reward a creature re-entering play from

@@ -3260,3 +3260,24 @@ def test_legend_rule_off_serves_copy_effects():
     }
     assert _lane_covers(helm, sig)
     assert _lane_covers(blade, sig)
+
+
+def test_graveyard_lane_serves_etb_value_recursion_targets():
+    """Graveyard/reanimator commanders (Alesha, Gisa) recur creatures with strong ETBs —
+    edict-ETB (Fleshbag Marauder), value-ETB (Eternal Witness). The fuel lane served the
+    mill/recursion but not the targets worth recurring."""
+    sig = _sig("graveyard_matters", "you")
+    fleshbag = {
+        "name": "Fleshbag Marauder",
+        "type_line": "Creature — Zombie",
+        "oracle_text": "When this creature enters, each player sacrifices a creature of "
+        "their choice.",
+    }
+    witness = {
+        "name": "Eternal Witness",
+        "type_line": "Creature — Human Shaman",
+        "oracle_text": "When Eternal Witness enters, return target card from your "
+        "graveyard to your hand.",
+    }
+    assert _lane_covers(fleshbag, sig)
+    assert _lane_covers(witness, sig)
