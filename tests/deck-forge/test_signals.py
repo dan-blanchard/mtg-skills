@@ -1085,3 +1085,15 @@ def test_aura_equipment_cost_reducer_opens_voltron():
         "cast cost {1} less to cast.",
     }
     assert ("voltron_matters", "you") in _keys(danitha)
+
+
+def test_greatest_power_among_other_opens_power():
+    # Arni Brokenbrow: "greatest power among OTHER creatures you control" — the power
+    # detector required 'among creatures you control' (no 'other').
+    arni = {
+        "name": "Arni Brokenbrow",
+        "type_line": "Legendary Creature — Human Berserker",
+        "oracle_text": "Haste\nBoast — {1}: Change Arni's base power to 1 plus the "
+        "greatest power among other creatures you control until end of turn.",
+    }
+    assert ("power_matters", "you") in _keys(arni)

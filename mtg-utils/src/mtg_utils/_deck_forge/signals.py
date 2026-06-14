@@ -1315,7 +1315,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|if you control [^.]*?with power \d+ or (?:greater|more)"
             r"|creature with power \d+ or (?:greater|more) enters"
             r" the battlefield under your control"
-            r"|the greatest power among creatures you control",
+            r"|(?:total|greatest) power among (?:other )?creatures you control",
             re.IGNORECASE,
         ),
         "you",
