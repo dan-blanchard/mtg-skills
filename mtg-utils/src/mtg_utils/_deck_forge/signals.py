@@ -414,6 +414,12 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             # Past-tense life-loss COUNT payoff ("for each 1 life your opponents have
             # lost this turn" — Neheb, Rakdos Lord of Riots, Wound Reflection).
             r"|\blife [^.]*?lost this turn\b"
+            # The natural "lost … life this turn" order (lost-before-life) the above
+            # life-before-lost pattern misses — drain payoffs that reward an opponent
+            # having lost life (Sygg: "an opponent lost 3 or more life this turn";
+            # Belbe: "opponents who lost life this turn").
+            r"|opponents? (?:who|that) lost life this turn"
+            r"|opponent lost \d+ or more life this turn"
         ),
         None,
     ),
@@ -923,7 +929,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|(?:aura|equipment)[^.]*spells? you cast cost"
             # Hakim: Aura RECURSION onto a creature ("return … Aura … attached") — aura
             # voltron even though the wording isn't "attach an Aura".
-            r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b",
+            r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b"
+            # "enchanted or equipped" payoffs (Koll), an Aura/Equipment BECOMING
+            # attached (Siona), and Equipment-attached combat payoffs (Kassandra) —
+            # the lane keyed on "attach"/"equipped creatures" and missed these.
+            r"|enchanted or equipped|equipped or enchanted"
+            r"|(?:aura|equipment) you control becomes attached"
+            r"|(?:legendary )?equipment attached to it",
             re.IGNORECASE,
         ),
         "you",

@@ -1765,3 +1765,49 @@ def test_heist_opens_theft():
         ),
     }
     assert ("theft_matters", "opponents") in _keys(card)
+
+
+# ── Long-tail batch 3 (voltron / noncombat-engine / drain) ────────────────────
+
+
+def test_enchanted_or_equipped_opens_voltron():
+    # Koll buffs "enchanted or equipped" creature tokens — a voltron/auras+equip
+    # payoff the detector missed (it keyed on "attach"/"equipped creatures").
+    card = {
+        "name": "Koll, the Forgemaster",
+        "type_line": "Legendary Creature — Dwarf Warrior",
+        "oracle_text": (
+            "Whenever another nontoken creature you control dies, if it was "
+            "enchanted or equipped, return it to its owner's hand.\nCreature "
+            "tokens you control that are enchanted or equipped get +1/+1."
+        ),
+    }
+    assert ("voltron_matters", "you") in _keys(card)
+
+
+def test_mv_scaling_burn_opens_noncombat_damage():
+    # Kaervek scales noncombat damage off opponents' spells — a burn-engine payoff
+    # commander; the lane keyed only on doublers / "deals that much damage".
+    card = {
+        "name": "Kaervek the Merciless",
+        "type_line": "Legendary Creature — Human Shaman",
+        "oracle_text": (
+            "Whenever an opponent casts a spell, Kaervek deals damage equal to "
+            "that spell's mana value to any target."
+        ),
+    }
+    assert ("noncombat_damage_payoff", "you") in _keys(card)
+
+
+def test_opponent_lost_life_this_turn_opens_drain():
+    # Sygg pays off "an opponent lost 3 or more life this turn" — a drain/lifeloss
+    # payoff the detector missed (it only matched "life ... lost this turn").
+    card = {
+        "name": "Sygg, River Cutthroat",
+        "type_line": "Legendary Creature — Merfolk Rogue",
+        "oracle_text": (
+            "At the beginning of each end step, if an opponent lost 3 or more "
+            "life this turn, you may draw a card. (Damage causes loss of life.)"
+        ),
+    }
+    assert ("lifeloss_matters", "opponents") in _keys(card)

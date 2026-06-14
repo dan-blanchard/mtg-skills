@@ -83,8 +83,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "noncombat_damage_payoff",
         "scope": "you",
+        # Also: damage DOUBLERS/triplers ("deals double/triple that damage" — Gisela,
+        # Obosh, Jeska) and MV/card-value-SCALING burn engines ("deals damage equal to
+        # that spell's / the exiled card's / that card's mana value" — Kaervek, Vial
+        # Smasher, Hidetsugu) — both are noncombat-damage-matters commanders.
         "is_widen_of": "",
-        "regex": "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage",
+        "regex": "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals (?:double|triple) that damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value",
     },
     {
         "key": "mass_removal",
