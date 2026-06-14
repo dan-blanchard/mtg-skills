@@ -127,6 +127,15 @@ STAPLES: dict[str, str] = {
 
 _LEGAL = ("legal", "restricted")
 
+# Colorless on the card, but only useful in a MULTICOLOR deck: any-color FIXING lands
+# tap for "a color in your identity", so in a mono-color deck they're a strictly-worse
+# (often tapped) basic — never surface them there (matches the no-Command-Tower-in-mono
+# rule). Mana ROCKS (Arcane Signet, Fellwar, Commander's Sphere) still ramp in mono and
+# stay universal; this set is only the fixing lands.
+_MULTICOLOR_ONLY: frozenset[str] = frozenset(
+    {"Command Tower", "Path of Ancestry", "Exotic Orchard"}
+)
+
 
 def staple_names() -> frozenset[str]:
     """The full curated staple name set (color-/format-agnostic)."""
@@ -145,11 +154,14 @@ def staples_for(
     silently skipped. Sorted by category order then name for a stable, grouped render.
     """
     deck_ci = set(color_identity)
+    multicolor = len(deck_ci) >= 2
     out: list[dict] = []
     for name in STAPLES:
         rec = by_name.get(name)
         if rec is None:
             continue
+        if name in _MULTICOLOR_ONLY and not multicolor:
+            continue  # any-color fixing land is dead in a mono-color deck
         if not set(rec.get("color_identity") or []) <= deck_ci:
             continue
         if (rec.get("legalities") or {}).get(legality_key) not in _LEGAL:

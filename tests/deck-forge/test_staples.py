@@ -51,7 +51,20 @@ COUNTERSPELL = {
         "brawl": "legal",
     },
 }
-INDEX = {c["name"]: c for c in (SOL_RING, CULTIVATE, COUNTERSPELL)}
+COMMAND_TOWER = {
+    "name": "Command Tower",
+    "type_line": "Land",
+    "cmc": 0.0,
+    "color_identity": [],
+    "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+    "prices": {"usd": "0.50"},
+    "legalities": {
+        "commander": "legal",
+        "standardbrawl": "not_legal",
+        "brawl": "legal",
+    },
+}
+INDEX = {c["name"]: c for c in (SOL_RING, CULTIVATE, COUNTERSPELL, COMMAND_TOWER)}
 
 
 class TestStaplesData:
@@ -78,6 +91,16 @@ class TestColorIdentityFilter:
         assert CULTIVATE in green
         assert CULTIVATE not in blue
         assert COUNTERSPELL in blue
+
+    def test_command_tower_gated_to_multicolor(self):
+        # Command Tower (any-color fixing LAND) is dead in a mono-color deck — a
+        # strictly-worse basic — so it's withheld there but offered to 2+ color decks.
+        mono = staples.staples_for("W", INDEX, legality_key="commander")
+        multi = staples.staples_for("WU", INDEX, legality_key="commander")
+        assert COMMAND_TOWER not in mono
+        assert COMMAND_TOWER in multi
+        # Sol Ring (a mana ROCK) stays universal — useful even in mono.
+        assert SOL_RING in mono
 
 
 class TestFormatLegalityFilter:
