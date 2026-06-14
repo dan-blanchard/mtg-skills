@@ -3394,13 +3394,13 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
-def test_pillowfort_served_to_evidenced_archetypes_only():
+def test_pillowfort_served_to_control_engine_archetypes():
     """Pillowfort (Ghostly Prison, Propaganda, Sphere of Safety, Crawlspace) is attached
-    to the lanes the EDHREC-uncovered pillowfort commanders ACTUALLY open (Dan's evidence
-    check), not to speculative ones. Served: activated-ability engine (9 commanders),
-    damage-prevention/fog (4), card-advantage engine (3), voltron (3), goad/politics (3),
-    monarch/initiative. NOT served: go-wide token decks (blockers to spare), spellslinger
-    (interacts with control/burn — no need), or counterspell-control (zero evidence)."""
+    to the non-go-wide control/engine lanes the pillowfort commanders open, tallied over
+    the FULL EDHREC cache (Dan's evidence check): activated-ability engine (17),
+    goad/politics (6), voltron (5), damage-prevention/fog (4), card-advantage (3),
+    spellslinger (3), superfriends (3), monarch/initiative, and counterspell-control
+    (sound prior — pillowfort is combat control). NOT go-wide/aggro/tribal/tokens."""
     fort = [
         ("Ghostly Prison", "Creatures can't attack you unless their controller pays {2} "
          "for each creature they control that's attacking you."),
@@ -3411,15 +3411,15 @@ def test_pillowfort_served_to_evidenced_archetypes_only():
     served = [("monarch_matters", "you"), ("initiative_matters", "you"),
               ("activated_ability", "you"), ("damage_prevention", "you"),
               ("card_draw_engine", "you"), ("voltron_matters", "you"),
-              ("goad_matters", "opponents")]
+              ("goad_matters", "opponents"), ("spellcast_matters", "you"),
+              ("superfriends_matters", "you"), ("counter_control", "you")]
     for key, scope in served:
         sig = _sig(key, scope)
         for name, oracle in fort:
             assert _lane_covers({"name": name, "type_line": "Enchantment", "oracle_text": oracle}, sig), f"{key}/{name}"
-    # NOT served: go-wide (has blockers), spellslinger (interacts), counterspell-control.
+    # NOT served: a GO-WIDE token deck has blockers to spare.
     gp = {"name": "Ghostly Prison", "type_line": "Enchantment", "oracle_text": "Creatures can't attack you unless their controller pays {2}."}
-    for key in ("token_maker", "spellcast_matters", "counter_control"):
-        assert _lane_covers(gp, _sig(key, "you")) is False, key
+    assert _lane_covers(gp, _sig("token_maker", "you")) is False
 
 
 def test_token_lanes_serve_creature_anthems():

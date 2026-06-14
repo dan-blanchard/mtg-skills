@@ -359,13 +359,14 @@ _SLINGER_SEARCH_ORACLE = (
 # keys, so a commander that fires both detectors renders a single "Spellslinger" avenue
 # (the render layer dedupes by label) instead of two near-identical lanes (Phase C).
 # Pillowfort: make attacking YOU costly/limited (Ghostly Prison, Propaganda, Sphere of
-# Safety, Crawlspace). Wanted by NON-GO-WIDE decks that can't afford to chump-block.
-# Attached to the lanes the EDHREC-uncovered pillowfort commanders actually open (Dan's
-# evidence check): activated-ability engines (9 commanders), damage-prevention/fog (4),
-# card-advantage engines (3), voltron (3, single threat), goad/politics (3), and
-# monarch/initiative (defend the crown). NOT go-wide/aggro (Combat, tribal — they have
-# blockers to spare) and NOT spellslinger (interacts with control/burn constantly, no
-# evidence) or superfriends/counterspell-control (zero pillowfort evidence in the data).
+# Safety, Crawlspace). Wanted by NON-GO-WIDE control/engine decks that can't afford to
+# chump-block. Attached to the lanes pillowfort commanders open, tallied over the full
+# EDHREC cache: activated-ability engines (17), goad/politics (6),
+# voltron (5), damage-prevention/fog (4), card-advantage (3), spellslinger (3),
+# superfriends (3, planeswalker decks), monarch/initiative (defend the crown), and
+# counterspell-control (a control shell; pillowfort is combat control — "high synergy"
+# excludes it as a staple but the prior is sound). NOT go-wide/aggro/tribal/tokens
+# (blockers to spare). NB: EDHREC cache holds only top-10 synergy; top-20 = re-fetch.
 _PILLOWFORT_ORACLE = (
     r"can't attack you\b|no more than (?:one|two|\w+) creatures? can attack you"
 )
@@ -396,6 +397,7 @@ _SPELLSLINGER_SPEC = _spec(
             {"card_type": "Sorcery", "cmc_max": 3},
             serve=Serve(types=frozenset({"sorcery"})),
         ),
+        _PILLOWFORT_EXTRA,  # low-creature control/durdle shell (EDHREC: 3 commanders)
     ),
 )
 
@@ -1842,6 +1844,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"planeswalkers? you control|loyalty counters?",
         serve_types=("planeswalker",),
         serve_keywords=("proliferate",),
+        extras=(_PILLOWFORT_EXTRA,),  # protect the walkers (EDHREC: 3 commanders)
     ),
     # Historic (CR 700.6) = artifact, legendary, OR Saga — all type_line tokens. The
     # serve named only the keyword; gate on the three structural categories.
@@ -2102,6 +2105,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "counterspells and stack interaction",
         {"oracle": r"counter target"},
         r"counter target",
+        extras=(_PILLOWFORT_EXTRA,),  # a control shell; pillowfort is combat control
     ),
     # The bare `… (gain|have)` tail matched any "creatures you control gain/have X". Tie
     # it to the actual keyword-grant list or a static (+N/+N, not "until end of turn")
