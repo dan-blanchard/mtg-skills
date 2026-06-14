@@ -844,6 +844,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|whenever an? (?:equipment|aura) (?:you control )?enters"
             r"|as long as \w+ is equipped|\bequipment you control\b"
             r"|pay [^.]*equip cost"
+            # A commander that rewards / cares about "equipped creatures" (PLURAL — the
+            # Equipment payload "Equipped creature gets…" is singular, so this stays off
+            # gear) or moves Equipment around (Akiri: "unattach an Equipment").
+            r"|equipped creatures\b|\bunattach\b"
             # Sram / Galea / Danitha: a CAST-trigger or cast-from-top keyed on Aura/
             # Equipment spells (CR 601 cast) — the deck IS a voltron deck even though
             # the wording is "cast an Aura/Equipment", not "attach"/"equipped".
@@ -1924,6 +1928,11 @@ def extract_signals(
         add("discard_matters", "you", "", text[:160])
     if _detect_self_damage_prevention(text, name):
         add("damage_redirect", "you", "", text[:160])
+        # An unkillable body (prevents all damage to itself: Cho-Manno) is the ideal
+        # Equipment/Aura carrier — it's a voltron commander too (membership-only, since
+        # the commander-damage plan is a suggestion for the commander itself).
+        if include_membership:
+            add("voltron_matters", "you", "", text[:160], "low")
     # Self-power-scaling commander (Mona Lisa: "X is Mona Lisa's power") wants to pump
     # its OWN power with +1/+1 counters — open the self-counter-growth lane. Name-aware
     # (name + "this creature", not "its") so a fling's "target creature's power" is out.

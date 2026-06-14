@@ -1149,6 +1149,30 @@ def test_plural_death_trigger_opens_death_matters():
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
+def test_equipped_creature_reference_opens_voltron():
+    # Akiri: "attack a player with one or more equipped creatures … unattach an
+    # Equipment" — an equipment/voltron commander the attach/cast patterns missed.
+    akiri = {
+        "name": "Akiri, Fearless Voyager",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": "Whenever you attack a player with one or more equipped "
+        "creatures, draw a card.\n{W}: You may unattach an Equipment from a creature "
+        "you control.",
+    }
+    assert ("voltron_matters", "you") in {(s.key, s.scope) for s in extract_signals(akiri)}
+
+
+def test_unkillable_self_prevention_opens_voltron():
+    # Cho-Manno: "Prevent all damage that would be dealt to Cho-Manno" — an unkillable
+    # body is the ideal Equipment/Aura carrier, so it's a voltron commander.
+    cho = {
+        "name": "Cho-Manno, Revolutionary",
+        "type_line": "Legendary Creature — Human Rebel",
+        "oracle_text": "Prevent all damage that would be dealt to Cho-Manno.",
+    }
+    assert ("voltron_matters", "you") in {(s.key, s.scope) for s in extract_signals(cho)}
+
+
 def test_boast_keyword_opens_attack_matters():
     # Boast (CR 702.135) can only be activated "if this creature attacked this turn", so
     # a Boast commander is an attack-matters deck. The condition lives in reminder text
