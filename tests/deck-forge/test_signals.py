@@ -1007,3 +1007,14 @@ def test_pacify_control_commander_opens_pillowfort():
         "can't attack or block.",
     }
     assert ("stax_taxes", "opponents") in _keys(gwafa)
+
+
+def test_banding_commander_opens_banding_lane():
+    # Ayesha Tanaka has Banding — she wants other banding creatures to form bands.
+    ayesha = {
+        "name": "Ayesha Tanaka",
+        "type_line": "Legendary Creature — Human Soldier",
+        "keywords": ["Banding"],
+        "oracle_text": "Banding\n{U}, {T}: Counter target activated ability of an artifact.",
+    }
+    assert ("banding_matters", "you") in _keys(ayesha)

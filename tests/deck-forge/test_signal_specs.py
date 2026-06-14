@@ -3215,3 +3215,14 @@ def test_donate_lane_serves_drawback_creatures():
     }
     for c in (persecutor, reaver, taskmaster):
         assert _lane_covers(c, sig), c["name"]
+
+
+def test_banding_lane_serves_banding_creatures():
+    sig = _sig("banding_matters")
+    hero = {
+        "name": "Benalish Hero",
+        "type_line": "Creature — Human Soldier",
+        "keywords": ["Banding"],
+        "oracle_text": "Banding",
+    }
+    assert _lane_covers(hero, sig)

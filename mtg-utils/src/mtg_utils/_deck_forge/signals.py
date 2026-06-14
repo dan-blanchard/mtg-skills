@@ -1381,6 +1381,9 @@ _DIRECT_KEYWORD_SIGNALS = {
     # signal otherwise. Saddle (702.171) bodies want the dedicated saddle/Mount avenue.
     "station": ("proliferate_matters", "you"),
     "saddle": ("saddle_matters", "you"),
+    # Banding (CR 702.21): a commander with banding wants other banding creatures to
+    # form attacking/blocking bands (Ayesha Tanaka, General Jarkeld's pile).
+    "banding": ("banding_matters", "you"),
 }
 
 

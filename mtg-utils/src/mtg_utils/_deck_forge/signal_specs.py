@@ -1098,6 +1098,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"creatures? with no abilities",
         serve_vanilla=True,
     ),
+    # Banding (CR 702.21): a banding commander (Ayesha, Jarkeld) wants other banding
+    # creatures to form attacking/blocking bands. Keyword[]-anchored + the oracle word.
+    ("banding_matters", "you"): _spec(
+        "Banding",
+        "creatures with banding to form attacking and blocking bands",
+        {"oracle": r"\bbanding\b"},
+        r"\bbands? with other|\bbanding\b",
+        serve_keywords=("banding",),
+    ),
     # Outlaw tribal (Vial Smasher): the 5 outlaw creature types plus "outlaws you
     # control" anthems/payoffs. (CR: outlaw = Assassin/Mercenary/Pirate/Rogue/Warlock.)
     ("outlaw_matters", "you"): _spec(
