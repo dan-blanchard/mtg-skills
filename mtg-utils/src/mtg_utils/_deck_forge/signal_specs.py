@@ -618,6 +618,19 @@ _REANIMATION_EXTRA = SubAvenue(
     {"oracle": _REANIMATE_ORACLE},
     serve=Serve(oracle=re.compile(_REANIMATE_ORACLE, _IC)),
 )
+# Untap effects to reuse tap abilities / retrigger a tap-untap commander — covers the
+# "enchanted/this/that creature" forms (Freed from the Real) the bare target/all form
+# missed, plus the untap symbol {Q}.
+_UNTAP_ORACLE = (
+    r"untap (?:target|all|another|each|enchanted|this|that|it|two|up to)|\{q\}"
+)
+_UNTAP_EXTRA = SubAvenue(
+    "Untap effects",
+    "untap your permanents to reuse their tap abilities or retrigger (Freed from the "
+    "Real / Pemmin's Aura / Kiora's Follower)",
+    {"oracle": _UNTAP_ORACLE},
+    serve=Serve(oracle=re.compile(_UNTAP_ORACLE, _IC)),
+)
 # (2) Cast-from-graveyard CREATURES recast themselves from the yard, re-firing the
 # payoff each turn (CR 702.146 Disturb / Escape). The graveyard-cast umbrella preset is
 # filtered to card_type Creature so the instant/sorcery flashback half (which never puts
@@ -1818,8 +1831,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("untap_engine", "you"): _spec(
         "Untap engine",
         "untap effects to reuse tap abilities and generate value",
-        {"oracle": r"untap (?:target|all|another|each)"},
-        r"untap (?:target|all|another|each)",
+        {"oracle": _UNTAP_ORACLE},
+        _UNTAP_ORACLE,
+    ),
+    # Tap/untap commander (Tui and La) wants the untap effects that retrigger it.
+    ("tap_untap_matters", "you"): _sweep_spec_with_extras(
+        "tap_untap_matters", (_UNTAP_EXTRA,)
     ),
     # Activated-ability engine: the support package for a {T}: commander — activated-
     # ability cost reducers (Training Grounds), untappers + haste-for-abilities

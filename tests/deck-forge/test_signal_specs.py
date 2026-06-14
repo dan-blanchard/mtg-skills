@@ -3086,3 +3086,17 @@ def test_self_blink_serves_etb_payoffs():
     }
     assert _lane_covers(tremors, sig)
     assert _lane_covers(panharmonicon, sig)
+
+
+def test_untap_lanes_serve_untap_auras():
+    """Tui and La (tap-for-draw / untap-for-counter) wants untap auras like Freed from
+    the Real ('{U}: untap enchanted creature') — the serve only had target/all/another/
+    each, missing the 'enchanted/this' forms."""
+    freed = {
+        "name": "Freed from the Real",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\n{U}: Tap enchanted creature.\n{U}: Untap "
+        "enchanted creature.",
+    }
+    assert _lane_covers(freed, _sig("untap_engine"))
+    assert _lane_covers(freed, _sig("tap_untap_matters"))
