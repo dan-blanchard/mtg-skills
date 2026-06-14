@@ -2898,3 +2898,20 @@ def test_token_anthems_serve_token_lanes():
     }
     assert _lane_covers(virtue, _sig("token_maker"))
     assert _lane_covers(virtue, _sig("creatures_matter"))
+
+
+def test_snow_lane_serves_snow_cards():
+    sig = _sig("snow_matters")
+    rime = {
+        "name": "Rime Tender",
+        "type_line": "Snow Creature — Human Druid",
+        "oracle_text": "{T}: Untap another target snow permanent.",
+    }
+    search = {
+        "name": "Search for Glory",
+        "type_line": "Snow Sorcery",
+        "oracle_text": "Search your library for a snow permanent card, a legendary "
+        "card, or a Saga card, reveal it, put it into your hand, then shuffle.",
+    }
+    assert _lane_covers(rime, sig)
+    assert _lane_covers(search, sig)

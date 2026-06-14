@@ -987,6 +987,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*treasure token|treasures? you control"},
         r"\btreasure\b",
     ),
+    # Snow (Isu the Abominable): snow permanents (Snow type), snow payoffs ("number of
+    # snow permanents"), and snow mana. "snow" is essentially only the MTG supertype.
+    ("snow_matters", "you"): _spec(
+        "Snow",
+        "snow permanents, snow lands, and snow-count payoffs",
+        {"oracle": r"\bsnow\b"},
+        r"\bsnow\b",
+        serve_types=("snow",),
+    ),
     ("artifacts_matter", "you"): _spec(
         "Artifacts",
         "artifacts and artifact-count payoffs",

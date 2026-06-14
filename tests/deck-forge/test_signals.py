@@ -605,3 +605,19 @@ def test_cheap_firebreathing_does_not_open_activated_lane():
         "oracle_text": "Flying\n{R}: This creature gets +1/+0 until end of turn.",
     }
     assert ("activated_ability", "you") not in _keys(card)
+
+
+# ── Snow matters (Isu the Abominable) — a real niche archetype with a clean anchor ──
+def test_snow_commander_opens_snow_lane():
+    isu = {
+        "name": "Isu the Abominable",
+        "type_line": "Legendary Snow Creature — Yeti",
+        "oracle_text": "You may look at the top card of your library any time.\nYou may "
+        "play snow lands and cast snow spells from the top of your library.",
+    }
+    assert ("snow_matters", "you") in _keys(isu)
+
+
+def test_non_snow_card_does_not_open_snow_lane():
+    card = {"name": "Bear", "type_line": "Creature — Bear", "oracle_text": "Vigilance"}
+    assert ("snow_matters", "you") not in _keys(card)

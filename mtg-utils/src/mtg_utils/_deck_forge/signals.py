@@ -144,6 +144,16 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
+    # Snow matters (Isu the Abominable, Yeti tribal): a commander referencing snow
+    # permanents / lands / spells / mana opens the snow archetype.
+    (
+        "snow_matters",
+        _re(
+            r"\bsnow (?:permanent|land|spell|creature|mana)|for each snow"
+            r"|affinity for snow"
+        ),
+        "you",
+    ),
     # Activated-ability engine: a commander whose engine is a {T}: (or {Q}:) activated
     # ability (Arcum, Captain Sisay, Ertai, Kaho, Sanctum Weaver) wants the support
     # package — cost reducers (Training Grounds), untappers + haste-for-abilities
