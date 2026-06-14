@@ -1149,6 +1149,25 @@ def test_plural_death_trigger_opens_death_matters():
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
+def test_artifact_type_commander_opens_artifacts():
+    # A commander that IS an artifact (type line has the Artifact card type) is an
+    # artifact deck — wants affinity / cost reducers / artifact synergy, just as a
+    # creature is a member of its own tribe (the type-line membership insight).
+    ede = {
+        "name": "ED-E, Lonesome Eyebot",
+        "type_line": "Legendary Artifact Creature — Robot",
+        "oracle_text": "Flying\nWhenever ED-E attacks, draw a card.",
+    }
+    assert ("artifacts_matter", "you") in {(s.key, s.scope) for s in extract_signals(ede)}
+    # A plain (non-artifact) creature commander does NOT open the artifacts lane.
+    human = {
+        "name": "Some Human",
+        "type_line": "Legendary Creature — Human Noble",
+        "oracle_text": "Vigilance",
+    }
+    assert ("artifacts_matter", "you") not in {(s.key, s.scope) for s in extract_signals(human)}
+
+
 def test_equipped_creature_reference_opens_voltron():
     # Akiri: "attack a player with one or more equipped creatures … unattach an
     # Equipment" — an equipment/voltron commander the attach/cast patterns missed.
