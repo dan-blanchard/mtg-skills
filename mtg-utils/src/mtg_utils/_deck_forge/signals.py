@@ -353,6 +353,12 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
                 # Recurring placement on ANOTHER creature (Anafenza: "+1/+1 counter on
                 # another target …") is an engine, not self-growth.
                 or "+1/+1 counter on another" in c
+                # Placement on a CHOSEN creature — "counter on target/up to one target/
+                # that creature" — is a counters engine (Leinore's Coven, Shelinda),
+                # distinct from bare self-growth "counter on it".
+                or "+1/+1 counter on target" in c
+                or "+1/+1 counter on up to one target" in c
+                or "+1/+1 counter on that creature" in c
             )
         ),
         None,
@@ -1477,6 +1483,20 @@ _DIRECT_KEYWORD_SIGNALS = {
     "afflict": ("lifeloss_matters", "opponents"),  # becomes blocked → player loses life
     "spectacle": ("lifeloss_matters", "opponents"),  # alt cost if opponent lost life
     "dethrone": ("counters_matter", "any"),  # attacks the top life total → +1/+1
+    # +1/+1-counter keyword abilities: a commander with one is a counters deck (Exava=
+    # Unleash, Indoraptor=Bloodthirst, Cytoplast=Graft). Mirrors the counters SERVE set.
+    "undying": ("counters_matter", "any"),
+    "persist": ("counters_matter", "any"),
+    "graft": ("counters_matter", "any"),
+    "riot": ("counters_matter", "any"),
+    "bloodthirst": ("counters_matter", "any"),
+    "fabricate": ("counters_matter", "any"),
+    "sunburst": ("counters_matter", "any"),
+    "tribute": ("counters_matter", "any"),
+    "unleash": ("counters_matter", "any"),
+    "ravenous": ("counters_matter", "any"),
+    "reinforce": ("counters_matter", "any"),
+    "scavenge": ("counters_matter", "any"),
 }
 
 

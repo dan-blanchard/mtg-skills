@@ -1234,6 +1234,39 @@ def test_ability_words_open_their_lane():
         assert key in {s.key for s in extract_signals(card)}, aw
 
 
+def test_triggered_counter_placement_opens_counters():
+    # Leinore (Coven) / Shelinda: a recurring trigger that places a +1/+1 counter on a
+    # CHOSEN creature is a counters engine — distinct from bare self-growth "on it".
+    for oracle in [
+        "At the beginning of combat on your turn, put a +1/+1 counter on up to one "
+        "target creature you control.",
+        "Whenever another creature you control enters, put a +1/+1 counter on that "
+        "creature if its power is less than this creature's power.",
+    ]:
+        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        assert "counters_matter" in {s.key for s in extract_signals(card)}, oracle
+    # Precision: bare self-growth ("a +1/+1 counter on it") still stays OUT.
+    selfgrow = {
+        "name": "Self Grower",
+        "type_line": "Legendary Creature — Test",
+        "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
+    }
+    assert "counters_matter" not in {s.key for s in extract_signals(selfgrow)}
+
+
+def test_counter_keyword_commander_opens_counters():
+    # A commander whose own keyword is a +1/+1-counter mechanic (Exava=Unleash,
+    # Cayth, Indoraptor=Bloodthirst) is a counters deck — open counters_matter.
+    for kw in ["Unleash", "Bloodthirst", "Graft", "Undying", "Riot"]:
+        card = {
+            "name": f"{kw} Lord",
+            "type_line": "Legendary Creature — Test",
+            "keywords": [kw],
+            "oracle_text": "Some ability.",
+        }
+        assert "counters_matter" in {s.key for s in extract_signals(card)}, kw
+
+
 def test_archetype_keywords_open_their_lane():
     # CR-keyword audit (Dan): an archetype-defining keyword ability on the COMMANDER
     # opens that lane via the keyword (the mechanic is reminder text, stripped).
