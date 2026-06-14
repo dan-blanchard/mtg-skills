@@ -828,3 +828,25 @@ def test_a_creature_you_control_does_not_capture_creature():
     }
     subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
     assert "creature" not in {x.lower() for x in subs} and "Creature" not in subs
+
+
+def test_more_race_tribes_open():
+    for tl, sub in [
+        ("Legendary Creature — Griffin", "Griffin"),
+        ("Legendary Creature — Leviathan", "Leviathan"),
+        ("Legendary Creature — Wall", "Wall"),
+        ("Legendary Creature — Human Samurai", "Samurai"),
+        ("Legendary Creature — Sphinx", "Sphinx"),
+    ]:
+        c = {"name": "X", "type_line": tl, "oracle_text": ""}
+        subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
+        assert sub in subs, f"{sub} not in {subs}"
+
+
+def test_generic_class_types_still_excluded_from_membership():
+    # Warrior / Soldier / Wizard are too ubiquitous for membership tribal.
+    for cls in ("Warrior", "Soldier", "Wizard"):
+        c = {"name": "X", "type_line": f"Legendary Creature — Human {cls}",
+             "oracle_text": ""}
+        subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
+        assert cls not in subs
