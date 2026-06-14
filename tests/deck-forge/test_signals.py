@@ -720,3 +720,15 @@ def test_fog_does_not_open_redirect_lane():
         "oracle_text": "Prevent all combat damage that would be dealt this turn.",
     }
     assert ("damage_redirect", "you") not in _keys(card)
+
+
+def test_aura_recursion_opens_voltron_lane():
+    # Hakim: "return target Aura card ... attached to Hakim" — aura voltron, but the
+    # detector caught "attach an Aura", not the "Aura ... attached" recursion form.
+    hakim = {
+        "name": "Hakim, Loreweaver",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": "Flying\n{U}{U}: Return target Aura card from your graveyard to "
+        "the battlefield attached to Hakim.",
+    }
+    assert ("voltron_matters", "you") in _keys(hakim)

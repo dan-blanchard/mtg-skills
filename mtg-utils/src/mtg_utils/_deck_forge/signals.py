@@ -718,7 +718,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Equipment spells (CR 601 cast) — the deck IS a voltron deck even though
             # the wording is "cast an Aura/Equipment", not "attach"/"equipped".
             r"|cast an? (?:aura|equipment)|cast aura and equipment"
-            r"|whenever you cast an aura, equipment",
+            r"|whenever you cast an aura, equipment"
+            # Hakim: Aura RECURSION onto a creature ("return … Aura … attached") — aura
+            # voltron even though the wording isn't "attach an Aura".
+            r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b",
             re.IGNORECASE,
         ),
         "you",
