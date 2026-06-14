@@ -2980,3 +2980,34 @@ def test_combat_damage_lane_serves_gear_and_pump():
     }
     assert _lane_covers(ring, sig)
     assert _lane_covers(giant_growth, sig)
+
+
+def test_toughness_lane_credits_butts_by_statline():
+    """The ideal toughness-deck creature is a BUTT — toughness > power (1/5, 0/3) — which
+    a flat toughness>=4 threshold misses. Detect it from the actual stat line, not
+    oracle. A balanced 3/3 (not toughness-skewed, below the >=4 floor) stays off."""
+    sig = _sig("toughness_combat")
+    one_five = {
+        "name": "Wall-ish",
+        "type_line": "Creature — Wall",
+        "power": "1",
+        "toughness": "5",
+        "oracle_text": "Defender",
+    }
+    zero_three = {
+        "name": "Small Wall",
+        "type_line": "Creature — Wall",
+        "power": "0",
+        "toughness": "3",
+        "oracle_text": "",
+    }
+    balanced = {
+        "name": "Bear",
+        "type_line": "Creature — Bear",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": "",
+    }
+    assert _lane_covers(one_five, sig)
+    assert _lane_covers(zero_three, sig)
+    assert not _lane_covers(balanced, sig)
