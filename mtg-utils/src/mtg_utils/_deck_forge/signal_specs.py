@@ -611,6 +611,13 @@ _REANIMATE_ORACLE = (
     r"(?:return|put)[^.]*creature card[^.]*from (?:a|your|their)[^.]*graveyard"
     r"[^.]*(?:to|onto) the battlefield"
 )
+_REANIMATION_EXTRA = SubAvenue(
+    "Reanimation",
+    "return creatures from your graveyard to the battlefield to rebuild after a wipe "
+    "(Breath of Life / Resurrection)",
+    {"oracle": _REANIMATE_ORACLE},
+    serve=Serve(oracle=re.compile(_REANIMATE_ORACLE, _IC)),
+)
 # (2) Cast-from-graveyard CREATURES recast themselves from the yard, re-firing the
 # payoff each turn (CR 702.146 Disturb / Escape). The graveyard-cast umbrella preset is
 # filtered to card_type Creature so the instant/sorcery flashback half (which never puts
@@ -1234,6 +1241,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Firebreathing / variable-P/T decks pump power, then fling it for damage.
     ("self_pump", "you"): _sweep_spec_with_extras("self_pump", (_POWER_FLING_EXTRA,)),
+    # A repeatable-wrath commander (Mageta) wants to rebuild after the sweep:
+    # reanimation (Breath of Life) plus indestructible bombs (Zetalpa) that survive it.
+    ("mass_removal", "you"): _sweep_spec_with_extras(
+        "mass_removal", (_REANIMATION_EXTRA,), serve_keywords=("indestructible",)
+    ),
     ("variable_pt", "you"): _sweep_spec_with_extras(
         "variable_pt", (_POWER_FLING_EXTRA,)
     ),

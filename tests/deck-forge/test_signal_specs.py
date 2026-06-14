@@ -3044,3 +3044,23 @@ def test_opponents_mill_serves_exile_library_artifacts():
     }
     assert _lane_covers(pyxis, sig)
     assert _lane_covers(codex, sig)
+
+
+def test_board_wipe_lane_serves_reanimation_and_resilient_bombs():
+    """The 'Board wipes' blurb promises 'resilience to rebuild' — deliver it: a
+    repeatable-wrath commander (Mageta) wants reanimation (Breath of Life) to rebuild
+    after the sweep and indestructible bombs (Zetalpa) that survive it."""
+    sig = _sig("mass_removal")
+    breath = {
+        "name": "Breath of Life",
+        "type_line": "Sorcery",
+        "oracle_text": "Return target creature card from your graveyard to the battlefield.",
+    }
+    zetalpa = {
+        "name": "Zetalpa, Primal Dawn",
+        "type_line": "Legendary Creature — Elder Dinosaur",
+        "keywords": ["Flying", "Double strike", "Vigilance", "Trample", "Indestructible"],
+        "oracle_text": "Flying, double strike, vigilance, trample, indestructible",
+    }
+    assert _lane_covers(breath, sig)
+    assert _lane_covers(zetalpa, sig)
