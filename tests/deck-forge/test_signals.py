@@ -1175,6 +1175,19 @@ def test_plural_combat_damage_opens_combat_damage_matters():
     }
 
 
+def test_keyword_grant_lord_gain_opens_type_matters():
+    # "Spirits you control GAIN …" — a keyword-grant tribal lord ("gain", which the
+    # have/has pattern missed). 33 tribe-specific cards (Valiant Knight, Quintorius).
+    # Isolated to the gain clause (no "get"/"have") so it actually exercises the fix.
+    card = {
+        "name": "Grant Lord",
+        "type_line": "Legendary Creature — Test",
+        "oracle_text": "Spirits you control gain flying and hexproof.",
+    }
+    subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    assert "Spirit" in subs
+
+
 def test_singular_lord_has_opens_type_matters():
     # "Each Ally you control HAS …" — the singular lord conjugation ("has" not "have").
     card = {
