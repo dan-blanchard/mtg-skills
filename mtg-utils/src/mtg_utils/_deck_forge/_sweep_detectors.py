@@ -252,7 +252,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "targeting_matters",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "becomes the target of a spell or ability|whenever [^.]{0,60}?becomes? the target of",
+        "regex": "becomes the target of a spell or ability|whenever [^.]{0,60}?becomes? the target of|\\bheroic\\b|whenever you cast (?:an instant or sorcery spell |a spell )?that targets",
     },
     {
         "key": "protection_grant",

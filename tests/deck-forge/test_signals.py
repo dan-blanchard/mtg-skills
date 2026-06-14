@@ -1187,6 +1187,24 @@ def test_boast_keyword_opens_attack_matters():
     assert ("attack_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
 
 
+def test_ability_words_open_their_lane():
+    # CR 207.2c ability-word audit: most ability words already open via their spelled-out
+    # condition, but three didn't. The italic word itself prints in the oracle, so match
+    # it (no rules meaning, but unambiguous): Metalcraft→artifacts, Heroic→targeting,
+    # Formidable→power.
+    cases = [
+        ("metalcraft", "Metalcraft — This gets +2/+2 as long as you control three or "
+         "more artifacts.", "artifacts_matter"),
+        ("heroic", "Heroic — Whenever you cast a spell that targets this creature, put a "
+         "+1/+1 counter on it.", "targeting_matters"),
+        ("formidable", "Formidable — {2}: Draw a card. Activate this ability only if "
+         "creatures you control have total power 8 or greater.", "power_matters"),
+    ]
+    for aw, oracle, key in cases:
+        card = {"name": f"{aw} Boss", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        assert key in {s.key for s in extract_signals(card)}, aw
+
+
 def test_archetype_keywords_open_their_lane():
     # CR-keyword audit (Dan): an archetype-defining keyword ability on the COMMANDER
     # opens that lane via the keyword (the mechanic is reminder text, stripped).

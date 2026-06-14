@@ -703,7 +703,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Blood / Gold / etc. are artifact tokens (CR 205.3g), so a maker feeds
             # affinity / metalcraft / Academy Manufactor (Goldspan, Gyome, Korvold).
             r"|create[^.]*\b(?:treasure|food|clue|blood|gold|map|powerstone"
-            r"|junk|incubator|lander)\b[^.]*token",
+            r"|junk|incubator|lander)\b[^.]*token"
+            # Metalcraft (CR 207.2c ability word: "control three or more artifacts") is
+            # an artifacts deck; the italic word prints in the oracle, so match it.
+            r"|\bmetalcraft\b",
             re.IGNORECASE,
         ),
         "you",
@@ -1369,7 +1372,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|if you control [^.]*?with power \d+ or (?:greater|more)"
             r"|creature with power \d+ or (?:greater|more) enters"
             r" the battlefield under your control"
-            r"|(?:total|greatest) power among (?:other )?creatures you control",
+            r"|(?:total|greatest) power among (?:other )?creatures you control"
+            # Formidable (CR 207.2c ability word: "creatures you control have total
+            # power 8 or greater") is a big-creatures/power deck; match the italic word.
+            r"|\bformidable\b",
             re.IGNORECASE,
         ),
         "you",
