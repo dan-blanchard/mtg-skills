@@ -254,9 +254,14 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     (
         "spellcast_matters",
         lambda c: (
-            "whenever you cast" in c
-            and "spell" in c
-            and not _re(r"whenever you cast an (?:enchantment|artifact) spell")(c)
+            (
+                "whenever you cast" in c
+                and "spell" in c
+                and not _re(r"whenever you cast an (?:enchantment|artifact) spell")(c)
+            )
+            # Past-tense spell-COUNT payoff ("for each spell you've cast this turn" —
+            # Gnostro, Rionya, Narset) the present-tense "whenever you cast" missed.
+            or _re(r"spells? you've cast this turn")(c)
         ),
         "you",
     ),
@@ -290,10 +295,25 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ("sacrifice_matters", _re(r"sacrifice (?:a|an|another|two|three|x|\d)"), "you"),
     (
         "attack_matters",
-        lambda c: ("whenever" in c and "attack" in c) or "attacking causes" in c,
+        # Past-tense "attacked this turn" is a combat-count payoff (Relentless Assault,
+        # Alesha) the present-tense "whenever … attack" trigger missed.
+        lambda c: (
+            ("whenever" in c and "attack" in c)
+            or "attacking causes" in c
+            or "attacked this turn" in c
+        ),
         None,
     ),
-    ("draw_matters", _has("whenever you draw"), "you"),
+    # Present "whenever you draw" OR the past-tense draw-COUNT payoff ("for each card
+    # you've drawn this turn" — Proft's Eidetic Memory, Kydele, Thundering Djinn).
+    (
+        "draw_matters",
+        lambda c: (
+            "whenever you draw" in c
+            or _re(r"(?:you've|you have) drawn (?:this turn|your|\d|two|three)")(c)
+        ),
+        "you",
+    ),
     (
         # Landfall / lands-matter: the ability word, a land-enter trigger, extra land
         # drops, OR land RECURSION from the graveyard (Lord Windgrace, Crucible) — a
@@ -373,6 +393,9 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             r"|\bwhenever you (?:gain or )?lose life\b"
             r"|\bwhenever (?:an opponent|a player|one or more (?:players|opponents))"
             r" loses? life\b"
+            # Past-tense life-loss COUNT payoff ("for each 1 life your opponents have
+            # lost this turn" — Neheb, Rakdos Lord of Riots, Wound Reflection).
+            r"|\blife [^.]*?lost this turn\b"
         ),
         None,
     ),

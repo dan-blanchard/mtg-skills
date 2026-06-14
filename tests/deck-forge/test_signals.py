@@ -1149,6 +1149,25 @@ def test_plural_death_trigger_opens_death_matters():
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
+def test_past_tense_count_payoffs_open_their_lane():
+    # Tense audit (Dan): past-tense "this turn" COUNT payoffs are a class, like
+    # "died this turn". Each rewards an accumulated count and should open the present-
+    # tense lane. Verified real templating + commanders via bulk.
+    cases = [
+        # Neheb / Rakdos: "for each 1 life your opponents have lost this turn"
+        ("lifeloss_matters", "Add {R} for each 1 life your opponents have lost this turn."),
+        # Varragoth / Relentless Assault: combat-count payoff
+        ("attack_matters", "Draw a card for each creature you control that attacked this turn."),
+        # Proft / Kydele: "for each card you've drawn this turn"
+        ("draw_matters", "This creature gets +1/+1 for each card you've drawn this turn."),
+        # Gnostro / Rionya: "for each spell you've cast this turn"
+        ("spellcast_matters", "Scry X, where X is the number of spells you've cast this turn."),
+    ]
+    for key, oracle in cases:
+        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        assert key in {s.key for s in extract_signals(card)}, (key, oracle)
+
+
 def test_past_tense_death_count_opens_death_matters():
     # "create a Treasure for each creature that DIED this turn" — a past-tense death-COUNT
     # payoff (Mahadi, Gadrak, Shessra). The detector keyed on the present-tense trigger
