@@ -3321,6 +3321,23 @@ def test_tribal_lane_serves_type_agnostic_anthems():
     assert _lane_covers(bolt, sig) is False
 
 
+def test_activated_ability_lane_serves_costly_activated_creatures():
+    """A cost-reducer / untapper commander (Agatha, Training Grounds) wants the PAYOFF
+    targets — creatures with an expensive mana-cost activated ability to exploit the
+    discount/untap. The serve credited reducers but not the targets."""
+    sig = _sig("activated_ability", "you")
+    for name, oracle in [
+        ("Bhaal's Invoker", "{8}: This creature deals 4 damage to each opponent."),
+        ("Wildheart Invoker", "{8}: Target creature gets +5/+5 and gains trample."),
+        ("Captivating Crew", "{3}{R}: Gain control of target creature you don't control."),
+    ]:
+        card = {"name": name, "type_line": "Creature", "oracle_text": oracle}
+        assert _lane_covers(card, sig) is True, name
+    # control: a {T}-only ability (no mana cost) isn't a mana-discount target
+    tapper = {"name": "Llanowar Elves", "type_line": "Creature", "oracle_text": "{T}: Add {G}."}
+    assert _lane_covers(tapper, sig) is False
+
+
 def test_graveyard_lane_serves_recursion_keyword_cards():
     """A self-graveyard deck wants the graveyard-recursion KEYWORD cards (Dredge,
     Flashback, Unearth, Escape, Disturb, Scavenge) whose graveyard mechanic is reminder

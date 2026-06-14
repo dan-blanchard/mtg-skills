@@ -2048,7 +2048,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|untap (?:target|all|another|each)"
         r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
         r"|as though (?:those creatures|it|they) (?:had|have) haste"
-        r"|isn't a mana ability",
+        r"|isn't a mana ability"
+        # The PAYOFF targets: creatures with an expensive mana-cost activated ability
+        # ("{8}:", "{3}{R}:", "{X}, {T}:") the cost-reducer/untapper exploits. Requires
+        # a mana symbol in the cost (a {T}-only dork gains nothing from a discount).
+        r"|\{(?:\d+|x)\}[^.:\n]{0,25}:",
     ),
     # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
     # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
