@@ -1163,7 +1163,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # (3rd person) also catches edicts ("each player sacrifices a creature").
         r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
         r"|whenever [^.]*\bdies\b"
-        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
+        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b"
+        # Death-VALUE fodder: a permanent that replaces itself when it dies / is put
+        # into a graveyard (Ichor Wellspring, Filigree Familiar, Mycosynth Wellspring).
+        # Keyed on "dies"/"put into a graveyard" + a value verb — artifacts use "put
+        # into a graveyard" (not "dies"), "When … dies" isn't "whenever". (Audit:
+        # Sacrifice lane, 9.2x lift.)
+        r"|(?:dies|put into a graveyard)[^.]{0,45}?"
+        r"(?:draws? (?:a|an|\d+|x)|creates?|investigate|search your library"
+        r"|gains? \d+ life)",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
     ),
     # A forced/symmetric-sacrifice commander (Braids, Endrek Sahr — "each player

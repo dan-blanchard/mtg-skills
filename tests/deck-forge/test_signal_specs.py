@@ -3514,6 +3514,27 @@ def test_ramp_serves_basic_land_type_fetches():
         assert _lane_covers(card, sig) is True, name
 
 
+def test_sacrifice_serves_death_value_fodder():
+    """A sacrifice deck wants DEATH-VALUE fodder — permanents that replace themselves
+    with a card/token/search when they die or are put into a graveyard (Ichor Wellspring,
+    Filigree Familiar, Mycosynth Wellspring). The serve keyed on 'whenever … dies' and
+    missed the 'put into a graveyard' (artifacts) and 'When … dies' forms. (Confirmed by
+    the cross-archetype audit: Sacrifice lane, 9.2x lift.)"""
+    sig = _sig("sacrifice_matters", "you")
+    for name, oracle in [
+        ("Ichor Wellspring", "When this artifact enters or is put into a graveyard from "
+         "the battlefield, draw a card."),
+        ("Filigree Familiar", "When this creature enters, you gain 2 life.\nWhen this "
+         "creature dies, draw a card."),
+        ("Mycosynth Wellspring", "When this artifact enters or is put into a graveyard "
+         "from the battlefield, you may search your library for a basic land card."),
+    ]:
+        assert _lane_covers({"name": name, "type_line": "Artifact", "oracle_text": oracle}, sig), name
+    # Precision: a plain cantrip with no death/graveyard trigger is not sac fodder.
+    cantrip = {"name": "Opt", "type_line": "Instant", "oracle_text": "Scry 1. Draw a card."}
+    assert _lane_covers(cantrip, sig) is False
+
+
 def test_symmetric_edict_serves_recurring_fodder():
     """A forced/symmetric-sacrifice commander (Braids — "each player sacrifices") loses
     its OWN board too, so it wants recurring fodder to survive: recurring token makers
