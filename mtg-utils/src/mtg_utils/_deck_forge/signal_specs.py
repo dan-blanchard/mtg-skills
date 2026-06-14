@@ -628,6 +628,19 @@ _EXTRA_COMBAT_EXTRA = SubAvenue(
     {"oracle": r"additional combat|extra combat"},
     serve=Serve(oracle=re.compile(r"additional combat|extra combat", _IC)),
 )
+# Self-copy effects for a legend-rule-off / copy commander (Brothers Yamazaki): make
+# token copies of your own creature (Helm of the Host / Blade of Selves / Mirror Box).
+_COPY_ORACLE = (
+    r"token that's a copy|tokens? that are copies|becomes a copy"
+    r"|copy of (?:target|another|any|a)\b|as a copy of|\bmyriad\b|\bpopulate\b"
+)
+_COPY_EXTRA = SubAvenue(
+    "Copy effects",
+    "make token copies of your creatures (Helm of the Host / Blade of Selves / "
+    "Mirror Box / Spark Double)",
+    {"oracle": _COPY_ORACLE},
+    serve=Serve(oracle=re.compile(_COPY_ORACLE, _IC)),
+)
 # Drawback creatures whose downside PUNISHES their controller — the donate target
 # (Abyssal Persecutor "you can't win", Flesh Reaver "deals damage to you", Demonic
 # Taskmaster "upkeep: sacrifice a creature"): hand them to an opponent for the downside.
@@ -1311,6 +1324,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # hand to opponents for the downside.
     ("donate_matters", "you"): _sweep_spec_with_extras(
         "donate_matters", (_DRAWBACK_EXTRA,)
+    ),
+    # Legend-rule-off commander (Brothers Yamazaki) wants self-copy effects to run
+    # multiple copies of itself.
+    ("legend_rule_off", "you"): _sweep_spec_with_extras(
+        "legend_rule_off", (_COPY_EXTRA,)
     ),
     # A self-blinking commander (Norin) re-enters constantly, firing "whenever a
     # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).

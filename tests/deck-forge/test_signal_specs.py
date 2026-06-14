@@ -3241,3 +3241,22 @@ def test_flicker_extra_handles_two_sentence():
         "under your control at the beginning of the next end step.",
     }
     assert _lane_covers(charming, sig)
+
+
+def test_legend_rule_off_serves_copy_effects():
+    """A legend-rule-off commander (Brothers Yamazaki) wants self-copy effects — having
+    multiple copies of itself (Helm of the Host, Blade of Selves, Mirror Box)."""
+    sig = _sig("legend_rule_off")
+    helm = {
+        "name": "Helm of the Host",
+        "type_line": "Legendary Artifact — Equipment",
+        "oracle_text": "At the beginning of combat on your turn, create a token that's a "
+        "copy of equipped creature, except the token isn't legendary.",
+    }
+    blade = {
+        "name": "Blade of Selves",
+        "type_line": "Artifact — Equipment",
+        "oracle_text": "Equipped creature has myriad.",
+    }
+    assert _lane_covers(helm, sig)
+    assert _lane_covers(blade, sig)
