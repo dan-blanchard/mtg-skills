@@ -1254,6 +1254,19 @@ def test_triggered_counter_placement_opens_counters():
     assert "counters_matter" not in {s.key for s in extract_signals(selfgrow)}
 
 
+def test_lifelink_commander_opens_lifegain():
+    # A lifelink commander (Liesa, Elenda) gains life in combat → it's a lifegain deck
+    # (lifelink + Sanguine Bond / Archangel of Thune is the payoff). The keyword carries
+    # the gain (no "gain life" oracle text), so open lifegain via the keyword.
+    card = {
+        "name": "Elenda, Saint of Dusk",
+        "type_line": "Legendary Creature — Vampire Cleric",
+        "keywords": ["Lifelink", "Deathtouch"],
+        "oracle_text": "Deathtouch, lifelink",
+    }
+    assert ("lifegain_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
+
+
 def test_counter_keyword_commander_opens_counters():
     # A commander whose own keyword is a +1/+1-counter mechanic (Exava=Unleash,
     # Cayth, Indoraptor=Bloodthirst) is a counters deck — open counters_matter.

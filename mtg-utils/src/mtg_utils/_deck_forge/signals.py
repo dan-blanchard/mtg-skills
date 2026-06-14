@@ -1478,6 +1478,7 @@ _DIRECT_KEYWORD_SIGNALS = {
     "annihilator": ("attack_matters", "you"),  # attacks → defending player sacrifices
     "flanking": ("attack_matters", "you"),  # combat (blockers get -1/-1)
     "frenzy": ("attack_matters", "you"),  # attacks unblocked → +N/+0
+    "lifelink": ("lifegain_matters", "you"),  # gains life in combat → lifegain payoffs
     "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
     "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
     "afflict": ("lifeloss_matters", "opponents"),  # becomes blocked → player loses life
