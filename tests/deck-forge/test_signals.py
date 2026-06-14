@@ -994,3 +994,16 @@ def test_outlaw_commander_opens_outlaw_lane():
         "1 damage to target opponent.",
     }
     assert ("outlaw_matters", "you") in _keys(vial)
+
+
+def test_pacify_control_commander_opens_pillowfort():
+    # Gwafa Hazid neutralizes opponents' creatures ("can't attack or block") — a
+    # control/pillowfort identity that wants Propaganda / Ghostly Prison / Windborn Muse.
+    gwafa = {
+        "name": "Gwafa Hazid, Profiteer",
+        "type_line": "Legendary Creature — Human Advisor",
+        "oracle_text": "{W}{U}, {T}: Put a bribery counter on target creature you don't "
+        "control. Its controller draws a card.\nCreatures with bribery counters on them "
+        "can't attack or block.",
+    }
+    assert ("stax_taxes", "opponents") in _keys(gwafa)

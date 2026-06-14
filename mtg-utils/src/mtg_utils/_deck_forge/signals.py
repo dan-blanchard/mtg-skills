@@ -169,6 +169,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         _re(r"\boutlaws?\b you control|another outlaw|outlaws? enter"),
         "you",
     ),
+    # Pacify/control commander (Gwafa Hazid): neutralizing OTHER creatures so they
+    # "can't attack or block" is a pillowfort/control identity wanting Propaganda.
+    # Scoped to others (with/you-don't-control) so a Wall's self-restriction
+    # ("this creature can't attack") doesn't qualify.
+    (
+        "stax_taxes",
+        _re(
+            r"creatures? (?:with|you don't control|an opponent controls)"
+            r"[^.]*can't attack|can't attack you\b"
+        ),
+        "opponents",
+    ),
     # Toughness-as-value payoffs beyond Doran's "assigns combat damage equal to
     # toughness" (already mined): a token/damage/value keyed on a creature's TOUGHNESS
     # (Geralf: "X is the sacrificed creature's toughness"). The "(?! are each)" guard
