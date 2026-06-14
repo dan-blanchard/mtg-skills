@@ -142,6 +142,9 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             r"|you gained[^.]*life|life you gained"
             # Variable lifegain: "gain X life" (Atalya), "gain life equal to …" (Ayli).
             r"|gains? x life|gains? life equal to"
+            # Lifegain amplifiers: "if you would gain life, you gain … instead"
+            # (Bilbo, Boon Reflection, Rhox Faithmender, Alhammarret's Archive).
+            r"|if you would gain life"
         ),
         "you",
     ),
@@ -747,6 +750,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(
             r"deals? (?:\d+|x) damage to any target"
             r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
+            # Tap-ping with a non-literal amount ("{T}: deals damage … equal to half …"
+            # — Heartless Hidetsugu): still a repeatable pinger.
+            r"|\{t\}[^.]*?:[^.]*?deals? damage to (?:each|any|target|that)"
             r"|would deal damage[^.]*?(?:it deals double|it deals twice"
             r"|deals that much damage plus)"
             # Land/mana PUNISHER (Zo-Zu): "whenever a land enters / a player taps a land
@@ -793,6 +799,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # the wording is "cast an Aura/Equipment", not "attach"/"equipped".
             r"|cast an? (?:aura|equipment)|cast aura and equipment"
             r"|whenever you cast an aura, equipment"
+            # Aura/Equipment cost reducers (Danitha, Galea): "Aura and Equipment spells
+            # you cast cost {1} less" is a voltron payoff, not generic cost reduction.
+            r"|(?:aura|equipment)[^.]*spells? you cast cost"
             # Hakim: Aura RECURSION onto a creature ("return … Aura … attached") — aura
             # voltron even though the wording isn't "attach an Aura".
             r"|(?:return|put)[^.]*\baura\b[^.]*\battached\b",

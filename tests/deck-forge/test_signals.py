@@ -1050,3 +1050,38 @@ def test_variable_lifegain_opens_lifegain():
     }
     assert ("lifegain_matters", "you") in _keys(atalya)
     assert ("lifegain_matters", "you") in _keys(ayli)
+
+
+def test_if_you_would_gain_life_opens_lifegain():
+    # Bilbo / Boon Reflection / Rhox Faithmender: "if you would gain life, you gain …
+    # instead" is a lifegain amplifier — a lifegain commander.
+    bilbo = {
+        "name": "Bilbo, Birthday Celebrant",
+        "type_line": "Legendary Creature — Halfling",
+        "oracle_text": "If you would gain life, you gain that much life plus 1 instead.",
+    }
+    assert ("lifegain_matters", "you") in _keys(bilbo)
+
+
+def test_tap_deals_damage_opens_burn():
+    # Heartless Hidetsugu: "{T}: deals damage to each player equal to half …" — a pinger
+    # the digit-keyed branch missed (no literal number).
+    hidetsugu = {
+        "name": "Heartless Hidetsugu",
+        "type_line": "Legendary Creature — Ogre Shaman",
+        "oracle_text": "{T}: Heartless Hidetsugu deals damage to each player equal to "
+        "half that player's life total, rounded down.",
+    }
+    assert ("direct_damage", "you") in _keys(hidetsugu)
+
+
+def test_aura_equipment_cost_reducer_opens_voltron():
+    # Danitha: "Aura and Equipment spells you cast cost {1} less" — a voltron payoff the
+    # detector's 'cast an Aura/Equipment' branch missed.
+    danitha = {
+        "name": "Danitha Capashen, Paragon",
+        "type_line": "Legendary Creature — Human Knight",
+        "oracle_text": "First strike, vigilance, lifelink\nAura and Equipment spells you "
+        "cast cost {1} less to cast.",
+    }
+    assert ("voltron_matters", "you") in _keys(danitha)
