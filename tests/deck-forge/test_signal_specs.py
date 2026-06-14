@@ -3377,6 +3377,23 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_ramp_serves_basic_land_type_fetches():
+    """Ramp serve must credit the basic-land-TYPE fetches (Skyshroud Claim, Nature's
+    Lore, Three Visits, Farseek) — they search for "Forest/Plains/… cards", which don't
+    contain the word "land", so the bare "search … for … land" missed them."""
+    sig = _sig("ramp_matters", "you")
+    for name, oracle in [
+        ("Skyshroud Claim", "Search your library for up to two Forest cards, put them "
+         "onto the battlefield tapped, then shuffle."),
+        ("Nature's Lore", "Search your library for a Forest card, put that card onto "
+         "the battlefield, then shuffle."),
+        ("Farseek", "Search your library for a Plains, Island, Swamp, or Mountain card, "
+         "put it onto the battlefield tapped, then shuffle."),
+    ]:
+        card = {"name": name, "type_line": "Sorcery", "oracle_text": oracle}
+        assert _lane_covers(card, sig) is True, name
+
+
 def test_symmetric_edict_serves_recurring_fodder():
     """A forced/symmetric-sacrifice commander (Braids — "each player sacrifices") loses
     its OWN board too, so it wants recurring fodder to survive: recurring token makers

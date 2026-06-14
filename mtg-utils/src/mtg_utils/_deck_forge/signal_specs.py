@@ -794,6 +794,12 @@ _PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_mat
 _EDICT_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "edict_matters"
 )
+# Basic-land-TYPE fetches (Skyshroud Claim, Nature's Lore, Farseek) search for
+# "Forest/Plains/… cards" — no "land" in the text, so the bare "search … land" missed
+# them. These ARE land ramp.
+_BASIC_LAND_FETCH = (
+    r"search your library for [^.]*\b(?:forest|plains|island|swamp|mountain)s?\b"
+)
 _PUMP_EXTRA = SubAvenue(
     "Combat tricks / pump",
     "instant-speed pump to push extra combat damage through and survive blocks",
@@ -1991,8 +1997,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("ramp_matters", "you"): _spec(
         "Ramp / big mana",
         "mana rocks, dorks, and land ramp to accelerate into your payoffs",
-        {"oracle": r"add \{|search your library for .*\bland\b"},
-        r"\{t\}[^.]*:\s*add|add .* mana|search your library for .*\bland\b",
+        {"oracle": r"add \{|search your library for .*\bland\b|" + _BASIC_LAND_FETCH},
+        r"\{t\}[^.]*:\s*add|add .* mana|search your library for .*\bland\b|"
+        + _BASIC_LAND_FETCH,
         # Deliver on "accelerate into your payoffs": the big bombs (Ghalta) and creature
         # cost reducers (Goreclaw). Only ~3% of commanders open this big-mana lane, so
         # crediting power-6+ fatties is on-theme, not noise.
