@@ -98,8 +98,12 @@ def test_lifeloss_widened_for_pay_life_engine():
 
 
 def test_type_matters_other_x_creatures():
-    # Eladamri: "Other Elf creatures have forestwalk." (no "you control")
-    c = {"name": "Eladamri", "oracle_text": "Other Elf creatures have forestwalk."}
+    # Eladamri, Lord of Leaves: "Other Elf creatures have forestwalk." (no "you control")
+    c = {
+        "name": "Eladamri, Lord of Leaves",
+        "type_line": "Legendary Creature — Elf Warrior",
+        "oracle_text": "Other Elf creatures have forestwalk. (They can't be blocked as long as defending player controls a Forest.)\nOther Elves have shroud. (They can't be the targets of spells or abilities.)",
+    }
     got = {(s.key, s.subject) for s in extract_signals(c)}
     assert ("type_matters", "Elf") in got
 
@@ -144,7 +148,7 @@ def test_opponent_library_manipulation_punisher():
     # scope — distinct from your own scry_surveil payoff).
     c = {
         "name": "River Song",
-        "oracle_text": "Whenever an opponent scries, surveils, or searches their library, put a +1/+1 counter on this creature.",
+        "oracle_text": "Meet in Reverse — You draw cards from the bottom of your library rather than the top.\nSpoilers — Whenever an opponent scries, surveils, or searches their library, put a +1/+1 counter on River Song. Then River Song deals damage to that player equal to its power.",
     }
     assert ("opponent_search_matters", "opponents") in _ks(c)
 

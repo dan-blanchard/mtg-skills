@@ -17,7 +17,7 @@ def _keys(card):
 ZURGO = {
     "name": "Zurgo Bellstriker",
     "type_line": "Legendary Creature — Orc Warrior",
-    "oracle_text": "Zurgo Bellstriker can't block creatures with power 2 or greater.\nDash {1}{R}",
+    "oracle_text": "Zurgo can't block creatures with power 2 or greater.\nDash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)",
     "keywords": ["Dash"],
 }
 

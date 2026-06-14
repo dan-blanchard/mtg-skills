@@ -34,7 +34,7 @@ CANTRIP = {
     "type_line": "Instant",
     "cmc": 1.0,
     "color_identity": ["U"],
-    "oracle_text": "Draw a card.",
+    "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
     "legalities": {"commander": "legal"},
 }
 INDEX = {c["name"]: c for c in (CMD, BANNED, FOREST, CANTRIP)}

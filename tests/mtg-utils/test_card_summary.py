@@ -169,7 +169,7 @@ class TestSideboard:
                 "mana_cost": "{1}{R}",
                 "cmc": 2.0,
                 "type_line": "Instant",
-                "oracle_text": "Destroy target artifact.",
+                "oracle_text": "Destroy target artifact.\nDraw a card.",
             },
         ]
         deck_path, hydrated_path = self._write(tmp_path, deck, hydrated)

@@ -127,8 +127,8 @@ def test_voltron_fallback_suppressed_when_real_signal_exists():
 def test_voltron_fallback_routes_low_confidence():
     c = {
         "name": "Marit Lage",
-        "oracle_text": "",
-        "type_line": "Legendary Creature — Avatar",
+        "oracle_text": "Flying, indestructible",
+        "type_line": "Token Legendary Creature — Avatar",
         "keywords": ["Flying", "Indestructible"],
         "power": "20",
         "toughness": "20",

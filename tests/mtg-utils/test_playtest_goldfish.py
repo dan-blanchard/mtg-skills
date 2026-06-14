@@ -337,7 +337,7 @@ class TestGoldfishCLI:
                     "type_line": "Basic Land — Mountain",
                     "cmc": 0,
                     "mana_cost": "",
-                    "oracle_text": "",
+                    "oracle_text": "({T}: Add {R}.)",
                     "produced_mana": ["R"],
                 }
             )

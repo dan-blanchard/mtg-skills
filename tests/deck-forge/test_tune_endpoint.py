@@ -18,8 +18,7 @@ RABBLE = {
     "type_line": "Creature — Goblin Warrior",
     "cmc": 3.0,
     "color_identity": ["R"],
-    "oracle_text": "At the beginning of combat on your turn, create a 1/1 red Goblin "
-    "creature token with haste.",
+    "oracle_text": "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin.",
     "prices": {"usd": "2.00"},
 }
 FILLER = {

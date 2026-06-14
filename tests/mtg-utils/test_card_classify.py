@@ -679,7 +679,7 @@ class TestBuildCardLookup:
             {
                 "name": "Masked Meower",
                 "printed_name": "Skittering Kitten",
-                "type_line": "Creature",
+                "type_line": "Creature — Spider Cat Hero",
             }
         ]
         lookup = build_card_lookup(hydrated)

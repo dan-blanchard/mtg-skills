@@ -34,7 +34,7 @@ IMPACT_TREMORS = {
 PURPHOROS = {
     "name": "Purphoros, God of the Forge",
     "type_line": "Legendary Enchantment Creature — God",
-    "oracle_text": "Indestructible\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.",
+    "oracle_text": "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn.",
 }
 WARSTORM_SURGE = {
     "name": "Warstorm Surge",
@@ -48,13 +48,13 @@ CORPSE_KNIGHT = {
 }
 RAVENOUS_CHUPACABRA = {
     "name": "Ravenous Chupacabra",
-    "type_line": "Creature — Beast",
+    "type_line": "Creature — Beast Horror",
     "oracle_text": "When this creature enters, destroy target creature an opponent controls.",
 }
 SOLEMN = {
     "name": "Solemn Simulacrum",
     "type_line": "Artifact Creature — Golem",
-    "oracle_text": "When this creature enters, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+    "oracle_text": "When this creature enters, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.\nWhen this creature dies, you may draw a card.",
 }
 SOUL_WARDEN = {
     "name": "Soul Warden",
@@ -64,7 +64,7 @@ SOUL_WARDEN = {
 DOUBLING_SEASON = {
     "name": "Doubling Season",
     "type_line": "Enchantment",
-    "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on it instead.",
+    "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead.",
 }
 PARALLEL_LIVES = {
     "name": "Parallel Lives",
@@ -74,7 +74,7 @@ PARALLEL_LIVES = {
 MONDRAK = {
     "name": "Mondrak, Glory Dominus",
     "type_line": "Legendary Creature — Phyrexian Horror",
-    "oracle_text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
+    "oracle_text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n{1}{W/P}{W/P}, Sacrifice two other artifacts and/or creatures: Put an indestructible counter on Mondrak. ({W/P} can be paid with either {W} or 2 life.)",
 }
 FURNACE_OF_RATH = {
     "name": "Furnace of Rath",
@@ -84,7 +84,7 @@ FURNACE_OF_RATH = {
 GRATUITOUS_VIOLENCE = {
     "name": "Gratuitous Violence",
     "type_line": "Enchantment",
-    "oracle_text": "If a creature you control would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.",
+    "oracle_text": "If a creature you control would deal damage to a permanent or player, it deals double that damage instead.",
 }
 LIGHTNING_BOLT = {
     "name": "Lightning Bolt",
@@ -173,12 +173,12 @@ class TestBlinkForSelfEtbCommander:
     the existing blink/flicker avenue (so Ephemerate/Cloudshift get surfaced)."""
 
     def test_self_etb_value_commander_emits_blink(self):
-        atris = {
-            "name": "Atris, Oracle of Half-Truths",
-            "type_line": "Legendary Creature — Merfolk Wizard",
-            "oracle_text": "Deathtouch\nWhen Atris dies, draw a card.\nWhen Atris enters, look at the top three cards of your library, then an opponent puts one into your hand and the rest into your graveyard.",
+        fblthp = {
+            "name": "Fblthp, the Lost",
+            "type_line": "Legendary Creature — Homunculus",
+            "oracle_text": "When Fblthp enters, draw a card. If it entered from your library or was cast from your library, draw two cards instead.\nWhen Fblthp becomes the target of a spell, shuffle Fblthp into its owner's library.",
         }
-        keys = {s.key for s in extract_signals(atris)}
+        keys = {s.key for s in extract_signals(fblthp)}
         assert "blink_flicker" in keys
 
     def test_vanilla_etb_does_not_emit_blink(self):
@@ -238,7 +238,7 @@ class TestEtbCommanderSurfacesFlicker:
                 {
                     "name": "Ephemerate",
                     "type_line": "Instant",
-                    "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.",
+                    "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
                 }
             )
             assert not extra.serve.matches(
@@ -259,13 +259,13 @@ class TestSelfRecurringFodder:
     def test_aristocrats_specs_offer_self_recur(self):
         bloodghast = {
             "name": "Bloodghast",
-            "type_line": "Creature — Vampire",
-            "oracle_text": "Bloodghast can't block.\nBloodghast has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return Bloodghast from your graveyard to the battlefield.",
+            "type_line": "Creature — Vampire Spirit",
+            "oracle_text": "This creature can't block.\nThis creature has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return this card from your graveyard to the battlefield.",
         }
         sun_titan = {
             "name": "Sun Titan",
             "type_line": "Creature — Giant",
-            "oracle_text": "Vigilance\nWhenever Sun Titan enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
+            "oracle_text": "Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
         }
         for key, scope in (("sacrifice_matters", "you"), ("death_matters", "any")):
             extra = _extra(spec_for(_sig(key, scope)), "Self-recurring fodder")
@@ -285,14 +285,14 @@ class TestDeathtouchGear:
             {
                 "name": "Basilisk Collar",
                 "type_line": "Artifact — Equipment",
-                "oracle_text": "Equipped creature has deathtouch and lifelink.\nEquip {2}",
+                "oracle_text": "Equipped creature has deathtouch and lifelink. (Any amount of damage it deals to a creature is enough to destroy it. Damage dealt by this creature also causes you to gain that much life.)\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
             }
         )
         assert not extra.serve.matches(
             {
                 "name": "Swiftfoot Boots",
                 "type_line": "Artifact — Equipment",
-                "oracle_text": "Equipped creature has hexproof and haste.\nEquip {1}",
+                "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
             }
         )
 
@@ -307,7 +307,7 @@ class TestProliferateForCounters:
             {
                 "name": "Flux Channeler",
                 "type_line": "Creature — Human Wizard",
-                "oracle_text": "Whenever you cast a noncreature spell, proliferate.",
+                "oracle_text": "Whenever you cast a noncreature spell, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
                 "keywords": ["Proliferate"],
             }
         )
@@ -370,7 +370,7 @@ class TestPowerMatters:
         big = {
             "name": "Krosan Cloudscraper",
             "type_line": "Creature — Beast Mutant",
-            "oracle_text": "",
+            "oracle_text": "At the beginning of your upkeep, sacrifice this creature unless you pay {G}{G}.\nMorph {7}{G}{G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
             "power": "13",
             "cmc": 8.0,
         }
@@ -394,7 +394,7 @@ class TestTypedGraveyardRecursion:
         greasefang = {
             "name": "Greasefang, Okiba Boss",
             "type_line": "Legendary Creature — Rat Pilot",
-            "oracle_text": "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Sacrifice it at the beginning of the next end step.",
+            "oracle_text": "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
         }
         assert "vehicles_matter" in {s.key for s in extract_signals(greasefang)}
 
@@ -412,7 +412,7 @@ class TestTypedGraveyardRecursion:
         sun_titan = {
             "name": "Sun Titan",
             "type_line": "Creature — Giant",
-            "oracle_text": "Whenever Sun Titan enters, return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
+            "oracle_text": "Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
         }
         subs = {
             s.subject for s in extract_signals(sun_titan) if s.key == "type_matters"

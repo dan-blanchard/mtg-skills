@@ -13,7 +13,7 @@ ISHAI = {
     "type_line": "Legendary Creature — Bird Monk",
     "cmc": 2.0,
     "color_identity": ["W", "U"],
-    "oracle_text": "Flying\nPartner (You can have two commanders if both have partner.)",
+    "oracle_text": "Flying\nWhenever an opponent casts a spell, put a +1/+1 counter on Ishai.\nPartner (You can have two commanders if both have partner.)",
     "legalities": {"commander": "legal"},
 }
 ATRAXA = {
@@ -21,7 +21,7 @@ ATRAXA = {
     "type_line": "Legendary Creature — Phyrexian Angel Horror",
     "cmc": 4.0,
     "color_identity": ["W", "U", "B", "G"],
-    "oracle_text": "Flying, vigilance, deathtouch, lifelink",
+    "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
     "legalities": {"commander": "legal"},
 }
 FOREST = {

@@ -111,7 +111,7 @@ def cubecobra_v2_json_file(tmp_path: Path) -> Path:
                             "cardID": "def-456",
                             "name": "Bloodghast",
                             "cmc": "2",
-                            "type_line": "Creature",
+                            "type_line": "Creature — Vampire Spirit",
                             "colors": ["B"],
                             "tags": [],
                             "colorCategory": "Black",

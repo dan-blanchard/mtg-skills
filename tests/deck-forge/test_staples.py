@@ -30,7 +30,7 @@ CULTIVATE = {
     "type_line": "Sorcery",
     "cmc": 3.0,
     "color_identity": ["G"],
-    "oracle_text": "Search your library for up to two basic land cards.",
+    "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
     "prices": {"usd": "0.25"},
     "legalities": {
         "commander": "legal",

@@ -21,7 +21,10 @@ class TestLookupSingle:
         result = lookup_single("Viscera Seer", bulk_path=sample_bulk_data)
         assert result is not None
         assert result["name"] == "Viscera Seer"
-        assert result["oracle_text"] == "Sacrifice a creature: Scry 1."
+        assert (
+            result["oracle_text"]
+            == "Sacrifice a creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)"
+        )
         assert result["mana_cost"] == "{B}"
         assert result["cmc"] == 1.0
         assert result["game_changer"] is False
@@ -337,10 +340,7 @@ class TestBuildRarityIndex:
                 "rarity": "common",
                 "legalities": {"commander": "legal"},
                 "oracle_text": (
-                    "When Hare Apparent enters, create X 1/1 white Rabbit "
-                    "creature tokens, where X is the number of other "
-                    "creatures named Hare Apparent you control.\n"
-                    "A deck can have any number of cards named Hare Apparent."
+                    "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent."
                 ),
             },
             {
@@ -366,9 +366,7 @@ class TestBuildRarityIndex:
                 "rarity": "rare",
                 "legalities": {"commander": "legal"},
                 "oracle_text": (
-                    "Seven Dwarves gets +1/+1 for each other creature "
-                    "named Seven Dwarves you control.\n"
-                    "A deck can have up to seven cards named Seven Dwarves."
+                    "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves."
                 ),
             },
         ]
@@ -547,7 +545,10 @@ class TestCLI:
         cached = json.loads(cache_path.read_text())
         assert len(cached) == 3
         viscera = next(c for c in cached if c["name"] == "Viscera Seer")
-        assert viscera["oracle_text"] == "Sacrifice a creature: Scry 1."
+        assert (
+            viscera["oracle_text"]
+            == "Sacrifice a creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)"
+        )
         assert viscera["mana_cost"] == "{B}"
 
         # produced_mana field survives the projection (regression: was being
@@ -647,14 +648,17 @@ class TestBuildDigest:
         assert digest["missing"] == []
 
     def test_missing_cards_populate_missing_list(self):
-        results = [{"name": "Forest", "type_line": "Basic Land", "cmc": 0}, None]
+        results = [
+            {"name": "Forest", "type_line": "Basic Land — Forest", "cmc": 0},
+            None,
+        ]
         digest = build_digest(results, ["Forest", "Bogus"])
         assert digest["missing"] == ["Bogus"]
         assert digest["categories"]["lands"] == 1
 
     def test_avg_cmc_excludes_lands(self):
         results = [
-            {"name": "Forest", "type_line": "Basic Land", "cmc": 0},
+            {"name": "Forest", "type_line": "Basic Land — Forest", "cmc": 0},
             {"name": "Creature", "type_line": "Creature", "cmc": 4},
             {"name": "Instant", "type_line": "Instant", "cmc": 2},
         ]

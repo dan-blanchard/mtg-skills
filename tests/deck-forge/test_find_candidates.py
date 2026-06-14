@@ -126,7 +126,7 @@ def test_focused_avenue_credits_its_own_candidates():
         "type_line": "Land",
         "cmc": 0.0,
         "color_identity": ["G"],
-        "oracle_text": "Treetop Village becomes a 3/3 green Ape creature until end of turn.",
+        "oracle_text": "This land enters tapped.\n{T}: Add {G}.\n{1}{G}: This land becomes a 3/3 green Ape creature with trample until end of turn. It's still a land. (It can deal excess combat damage to the player or planeswalker it's attacking.)",
         "prices": {"usd": "0.50"},
     }
     av = _avenue(
@@ -226,7 +226,7 @@ CULTIVATE = {
     "type_line": "Sorcery",
     "cmc": 3.0,
     "color_identity": ["G"],
-    "oracle_text": "Search your library for up to two basic land cards.",
+    "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
     "prices": {"usd": "0.25"},
     "legalities": {"commander": "legal"},
 }

@@ -148,10 +148,7 @@ JYOTI = {
     "cmc": 4.0,
     "color_identity": ["G", "U"],
     "oracle_text": (
-        "When Jyoti enters, create a 1/1 green Forest Dryad land creature token "
-        "for each time you've cast your commander from the command zone this game.\n"
-        "At the beginning of each combat, land creatures you control get +X/+X "
-        "until end of turn, where X is Jyoti's power."
+        "When Jyoti enters, create a 1/1 green Forest Dryad land creature token for each time you've cast your commander from the command zone this game. (They're affected by summoning sickness.)\nAt the beginning of each combat, land creatures you control get +X/+X until end of turn, where X is Jyoti's power."
     ),
     "prices": {"usd": "0.21"},
 }

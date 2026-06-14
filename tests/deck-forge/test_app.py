@@ -39,7 +39,7 @@ ATRAXA = {
     "mana_cost": "{G}{W}{U}{B}",
     "cmc": 4.0,
     "color_identity": ["W", "U", "B", "G"],
-    "oracle_text": "Flying, vigilance, deathtouch, lifelink",
+    "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
     "rarity": "mythic",
     "prices": {"usd": "12.00"},
 }
@@ -62,7 +62,7 @@ ISHAI = {
     "mana_cost": "{W}{U}",
     "cmc": 2.0,
     "color_identity": ["W", "U"],
-    "oracle_text": "Flying\nPartner (You can have two commanders if both have partner.)",
+    "oracle_text": "Flying\nWhenever an opponent casts a spell, put a +1/+1 counter on Ishai.\nPartner (You can have two commanders if both have partner.)",
     "legalities": {"commander": "legal"},
 }
 

@@ -127,7 +127,7 @@ class TestScoreCardThemeBased:
             "cmc": 0,
             "color_identity": ["R"],
             "type_line": "Basic Land — Mountain",
-            "oracle_text": "",
+            "oracle_text": "({T}: Add {R}.)",
         }
         s = score_card(land, colors={"R"}, matchers=[_matches_text("anything")])
         assert s == 0.0

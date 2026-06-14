@@ -358,9 +358,7 @@ class TestArenaWildcardMode:
                 "games": ["arena"],
                 "prices": {},
                 "oracle_text": (
-                    "When Hare Apparent enters, create X 1/1 white Rabbit "
-                    "creature tokens...\n"
-                    "A deck can have any number of cards named Hare Apparent."
+                    "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent."
                 ),
             },
         ]
@@ -388,7 +386,7 @@ class TestArenaWildcardMode:
                 "games": ["arena"],
                 "prices": {},
                 "oracle_text": (
-                    "A deck can have any number of cards named Hare Apparent."
+                    "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent."
                 ),
             },
         ]
@@ -422,9 +420,7 @@ class TestArenaWildcardMode:
                 "games": ["arena"],
                 "prices": {},
                 "oracle_text": (
-                    "Seven Dwarves gets +1/+1 for each other creature "
-                    "named Seven Dwarves you control.\n"
-                    "A deck can have up to seven cards named Seven Dwarves."
+                    "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves."
                 ),
             },
         ]
@@ -455,7 +451,7 @@ class TestArenaWildcardMode:
                 "games": ["arena"],
                 "prices": {},
                 "oracle_text": (
-                    "A deck can have any number of cards named Persistent Petitioners."
+                    "{1}, {T}: Target player mills a card. (They put the top card of their library into their graveyard.)\nTap four untapped Advisors you control: Target player mills twelve cards.\nA deck can have any number of cards named Persistent Petitioners."
                 ),
             },
         ]

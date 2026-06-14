@@ -241,15 +241,14 @@ class TestMergeMemberPresets:
         reanimate_card = {
             "name": "Reanimate",
             "type_line": "Sorcery",
-            "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control.",
+            "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
         }
         # Self-mill match: a self-mill card (oracle uses the preset's pattern).
         self_mill_card = {
             "name": "Stitcher's Supplier",
             "type_line": "Creature — Zombie",
             "oracle_text": (
-                "When Stitcher's Supplier enters the battlefield or dies, "
-                "put the top three cards of your library into your graveyard."
+                "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)"
             ),
         }
         # Neither — should NOT match the union.

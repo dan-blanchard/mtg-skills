@@ -39,7 +39,7 @@ IDX = {
         "cmc": 0.0,
         "mana_cost": "",
         "color_identity": [],
-        "oracle_text": "",
+        "oracle_text": "({T}: Add {G}.)",
         "keywords": [],
     },
 }

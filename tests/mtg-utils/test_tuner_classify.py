@@ -8,8 +8,7 @@ KRENKO = {
     "name": "Krenko, Mob Boss",
     "type_line": "Legendary Creature — Goblin Warrior",
     "oracle_text": (
-        "{T}: Create a number of 1/1 red Goblin creature tokens equal to the number "
-        "of Goblins you control."
+        "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
     ),
     "cmc": 4.0,
     "color_identity": ["R"],
@@ -18,8 +17,7 @@ RABBLEMASTER = {
     "name": "Goblin Rabblemaster",
     "type_line": "Creature — Goblin Warrior",
     "oracle_text": (
-        "At the beginning of combat on your turn, create a 1/1 red Goblin creature "
-        "token with haste."
+        "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin."
     ),
     "cmc": 3.0,
 }
@@ -34,7 +32,7 @@ DUAL = {
 RAMP_ROCK = {
     "name": "Mind Stone",
     "type_line": "Artifact",
-    "oracle_text": "{T}: Add {C}.",
+    "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
     "produced_mana": ["C"],
     "cmc": 2.0,
 }

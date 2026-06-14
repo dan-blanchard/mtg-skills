@@ -90,14 +90,14 @@ def test_avenue_card_type_constraint_excludes_wrong_types():
         "name": "Mishra's Factory",
         "type_line": "Land",
         "cmc": 0.0,
-        "oracle_text": "This land becomes a 2/2 Assembly-Worker artifact creature.",
+        "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a land.\n{T}: Target Assembly-Worker creature gets +1/+1 until end of turn.",
         "prices": {"usd": "1"},
     }
     clone = {
         "name": "Silent Hallcreeper",
         "type_line": "Enchantment Creature — Horror",
         "cmc": 5.0,
-        "oracle_text": "This creature becomes a copy of another target creature.",
+        "oracle_text": "This creature can't be blocked.\nWhenever this creature deals combat damage to a player, choose one that hasn't been chosen —\n• Put two +1/+1 counters on this creature.\n• Draw a card.\n• This creature becomes a copy of another target creature you control.",
         "prices": {"usd": "1"},
     }
     assert (

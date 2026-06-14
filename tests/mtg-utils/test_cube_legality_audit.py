@@ -136,7 +136,7 @@ class TestLegalityKey:
             "name": "Mana Drain",
             "cmc": 2.0,
             "type_line": "Instant",
-            "oracle_text": "Counter target spell.",
+            "oracle_text": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
             "colors": ["U"],
             "color_identity": ["U"],
             "rarity": "rare",

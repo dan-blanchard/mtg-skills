@@ -32,7 +32,7 @@ DIVINATION = {
 WRATH = {
     "name": "Wrath of God",
     "type_line": "Sorcery",
-    "oracle_text": "Destroy all creatures.",
+    "oracle_text": "Destroy all creatures. They can't be regenerated.",
 }
 
 
@@ -68,13 +68,13 @@ def test_protection_requires_granting_not_a_self_keyword():
     self_indestructible = {
         "name": "Darksteel Reactor",
         "type_line": "Artifact",
-        "oracle_text": "Indestructible",
+        "oracle_text": 'Indestructible (Effects that say "destroy" don\'t destroy this artifact.)\nAt the beginning of your upkeep, you may put a charge counter on this artifact.\nWhen this artifact has twenty or more charge counters on it, you win the game.',
         "keywords": ["Indestructible"],
     }
     self_hexproof = {
         "name": "Carnage Tyrant",
         "type_line": "Creature — Dinosaur",
-        "oracle_text": "Trample, hexproof",
+        "oracle_text": "This spell can't be countered.\nTrample, hexproof",
         "keywords": ["Trample", "Hexproof"],
     }
     assert protects(self_indestructible) is False
@@ -83,12 +83,12 @@ def test_protection_requires_granting_not_a_self_keyword():
     grants = {
         "name": "Swiftfoot Boots",
         "type_line": "Artifact — Equipment",
-        "oracle_text": "Equipped creature has hexproof and haste. Equip {1}",
+        "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
     }
     save = {
         "name": "Boros Charm",
         "type_line": "Instant",
-        "oracle_text": "Permanents you control gain indestructible until end of turn.",
+        "oracle_text": "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn.",
     }
     assert protects(grants) is True
     assert protects(save) is True
@@ -96,8 +96,7 @@ def test_protection_requires_granting_not_a_self_keyword():
     pillow = {
         "name": "Ghostly Prison",
         "type_line": "Enchantment",
-        "oracle_text": "Creatures can't attack you unless their controller pays {2} "
-        "for each creature that's attacking you.",
+        "oracle_text": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
     }
     assert protects(pillow) is True
 
@@ -107,8 +106,7 @@ def test_protection_excludes_self_only_saves():
     self_phase = {
         "name": "Frenetic Efreet",
         "type_line": "Creature — Efreet",
-        "oracle_text": "{0}: Flip a coin. If you win the flip, Frenetic Efreet phases "
-        "out. If you lose the flip, sacrifice it.",
+        "oracle_text": "Flying\n{0}: Flip a coin. If you win the flip, this creature phases out. If you lose the flip, sacrifice this creature. (While it's phased out, it's treated as though it doesn't exist. It phases in before you untap during your next untap step.)",
     }
     assert protects(self_phase) is False
     # Saving / shielding OTHERS still counts.

@@ -61,7 +61,7 @@ def test_type_matters_irregular_plural_resolves():
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
     c = {
         "name": "Urza, Lord High Artificer",
-        "oracle_text": "When Urza enters, create a 0/0 colorless Construct artifact creature token.",
+        "oracle_text": 'When Urza enters, create a 0/0 colorless Construct artifact creature token with "This token gets +1/+1 for each artifact you control."\nTap an untapped artifact you control: Add {U}.\n{5}: Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost.',
     }
     assert ("token_maker", "you", "Construct") in _ksub(c)
 
@@ -69,7 +69,7 @@ def test_token_maker_prefers_creature_subtype_over_artifact_word():
 def test_typed_spellcast_captures_tribe():
     c = {
         "name": "The First Sliver",
-        "oracle_text": "Cascade\nSliver spells you cast have cascade.",
+        "oracle_text": "Cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)\nSliver spells you cast have cascade.",
     }
     assert ("typed_spellcast", "you", "Sliver") in _ksub(c)
 
@@ -78,7 +78,7 @@ def test_typed_spellcast_rejects_instant_and_sorcery():
     # "Instant and sorcery spells you cast" is spellslinger, NOT a tribe.
     c = {
         "name": "Mizzix of the Izmagnus",
-        "oracle_text": "Instant and sorcery spells you cast cost {X} less to cast.",
+        "oracle_text": "Whenever you cast an instant or sorcery spell with mana value greater than the number of experience counters you have, you get an experience counter.\nInstant and sorcery spells you cast cost {1} less to cast for each experience counter you have.",
     }
     assert "typed_spellcast" not in _keys(c)
 
@@ -89,7 +89,7 @@ def test_typed_spellcast_rejects_instant_and_sorcery():
 def test_clone_yields_no_subject_signal():
     c = {
         "name": "Silent Hallcreeper",
-        "oracle_text": "This creature becomes a copy of another target creature.",
+        "oracle_text": "This creature can't be blocked.\nWhenever this creature deals combat damage to a player, choose one that hasn't been chosen —\n• Put two +1/+1 counters on this creature.\n• Draw a card.\n• This creature becomes a copy of another target creature you control.",
     }
     assert _keys(c).isdisjoint({"type_matters", "token_maker", "typed_spellcast"})
 
@@ -99,7 +99,7 @@ def test_plant_token_maker_keeps_subject_but_not_land_creatures():
     # mistaken for the land-creatures theme.
     c = {
         "name": "Avenger of Zendikar",
-        "oracle_text": "When Avenger of Zendikar enters, create a 0/1 green Plant creature token for each land you control.",
+        "oracle_text": "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.",
     }
     s = _ksub(c)
     assert ("token_maker", "you", "Plant") in s
@@ -130,7 +130,7 @@ def test_tokens_matter_payoff():
 def test_stax_taxes_scoped_to_opponents():
     c = {
         "name": "Grand Arbiter Augustin IV",
-        "oracle_text": "Spells your opponents cast cost {1} more to cast.",
+        "oracle_text": "White spells you cast cost {1} less to cast.\nBlue spells you cast cost {1} less to cast.\nSpells your opponents cast cost {1} more to cast.",
     }
     assert ("stax_taxes", "opponents") in _ks(c)
 
@@ -167,7 +167,7 @@ def test_goad_via_keyword_array_scoped_opponents():
 def test_proliferate_via_keyword_array():
     c = {
         "name": "Atraxa, Praetors' Voice",
-        "oracle_text": "At the beginning of your end step, proliferate.",
+        "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
         "keywords": ["Proliferate"],
     }
     assert ("proliferate_matters", "you") in _ks(c)
@@ -180,8 +180,7 @@ def test_tinybones_combat_damage_zone_scoped_opponents():
     c = {
         "name": "Tinybones, the Pickpocket",
         "oracle_text": (
-            "Whenever Tinybones, the Pickpocket deals combat damage to a player, "
-            "you may cast target card from that player's graveyard this turn."
+            "Deathtouch\nWhenever Tinybones deals combat damage to a player, you may cast target nonland permanent card from that player's graveyard, and mana of any type can be spent to cast that spell."
         ),
     }
     sigs = extract_signals(c)
@@ -248,9 +247,7 @@ def test_reminder_text_does_not_produce_signals():
     c = {
         "name": "Ba Sing Se",
         "oracle_text": (
-            "{2}{G}, {T}: Earthbend 2. (Target land you control becomes a 0/0 "
-            "creature with haste that's still a land. When it dies or is exiled, "
-            "return it to the battlefield tapped.)"
+            "This land enters tapped unless you control a basic land.\n{T}: Add {G}.\n{2}{G}, {T}: Earthbend 2. Activate only as a sorcery. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)"
         ),
     }
     assert "blink_flicker" not in _keys(c)
@@ -284,7 +281,7 @@ def test_self_reference_resolves_any_scope_to_you_high_confidence():
     # card's own name resolves it to "you" with high confidence (Krenko Tin Street).
     c = {
         "name": "Krenko, Tin Street Kingpin",
-        "oracle_text": "Whenever Krenko attacks, create tokens equal to its power.",
+        "oracle_text": "Whenever Krenko attacks, put a +1/+1 counter on it, then create a number of 1/1 red Goblin creature tokens equal to Krenko's power.",
     }
     s = _by_key(c, "attack_matters")
     assert s.scope == "you"
@@ -294,10 +291,10 @@ def test_self_reference_resolves_any_scope_to_you_high_confidence():
 def test_self_reference_skips_leading_article():
     # "The" must not be treated as the card's self-reference name.
     c = {
-        "name": "The Scarab God",
-        "oracle_text": "Whenever another creature dies, scry 1.",
+        "name": "The Scorpion God",
+        "oracle_text": "Whenever a creature with a -1/-1 counter on it dies, draw a card.\n{1}{B}{R}: Put a -1/-1 counter on another target creature.\nWhen The Scorpion God dies, return it to its owner's hand at the beginning of the next end step.",
     }
-    # death_matters here is scope "any" (no self-ref to "Scarab"); not forced to you.
+    # death_matters here is scope "any" (no self-ref to "Scorpion"); not forced to you.
     s = _by_key(c, "death_matters")
     assert s.scope != "you" or s.confidence == "high"  # not a spurious self-ref flip
 
@@ -319,8 +316,7 @@ def test_narrow_tinybones_rule_is_high_confidence():
     c = {
         "name": "Tinybones, the Pickpocket",
         "oracle_text": (
-            "Whenever Tinybones deals combat damage to a player, you may cast "
-            "target card from that player's graveyard this turn."
+            "Deathtouch\nWhenever Tinybones deals combat damage to a player, you may cast target nonland permanent card from that player's graveyard, and mana of any type can be spent to cast that spell."
         ),
     }
     s = _by_key(c, "graveyard_matters")

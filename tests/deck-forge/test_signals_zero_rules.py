@@ -33,7 +33,7 @@ def test_combat_damage_does_not_fire_on_plain_attack():
 def test_cost_reduction():
     c = {
         "name": "Danitha Capashen, Paragon",
-        "oracle_text": "Aura and Equipment spells you cast cost {1} less to cast.",
+        "oracle_text": "First strike, vigilance, lifelink\nAura and Equipment spells you cast cost {1} less to cast.",
     }
     assert ("cost_reduction", "you") in _ks(c)
 
@@ -43,7 +43,7 @@ def test_play_from_top_of_library_is_its_own_signal():
     # different zone than exile, so it is NOT cast_from_exile.
     c = {
         "name": "Glarb, Calamity's Augur",
-        "oracle_text": "You may play lands and cast spells from the top of your library.",
+        "oracle_text": "Deathtouch\nYou may look at the top card of your library any time.\nYou may play lands and cast spells with mana value 4 or greater from the top of your library.\n{T}: Surveil 2.",
     }
     keys = _ks(c)
     assert ("play_from_top", "you") in keys
@@ -54,9 +54,7 @@ def test_cast_from_exile_play_from_exile_trigger():
     c = {
         "name": "Prosper, Tome-Bound",
         "oracle_text": (
-            "At the beginning of your postcombat main phase, exile the top card of "
-            "your library. You may play that card this turn.\n"
-            "Whenever you play a card from exile, create a Treasure token."
+            "Deathtouch\nMystic Arcanum — At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.\nPact Boon — Whenever you play a card from exile, create a Treasure token."
         ),
     }
     assert ("cast_from_exile", "you") in _ks(c)
@@ -65,7 +63,7 @@ def test_cast_from_exile_play_from_exile_trigger():
 def test_discard_matters():
     c = {
         "name": "Hashaton, Scarab's Fist",
-        "oracle_text": "Whenever you discard a creature card, you may pay {2}{U}.",
+        "oracle_text": "Whenever you discard a creature card, you may pay {2}{U}. If you do, create a tapped token that's a copy of that card, except it's a 4/4 black Zombie.",
     }
     assert ("discard_matters", "you") in _ks(c)
 
@@ -97,7 +95,7 @@ def test_lands_matter_count_payoff():
 def test_card_draw_engine_bulk_draw():
     c = {
         "name": "Jin-Gitaxias, Core Augur",
-        "oracle_text": "At the beginning of your end step, draw seven cards.",
+        "oracle_text": "Flash\nAt the beginning of your end step, draw seven cards.\nEach opponent's maximum hand size is reduced by seven.",
     }
     assert ("card_draw_engine", "you") in _ks(c)
 
@@ -126,7 +124,7 @@ def test_card_draw_engine_each_player_wheel_scoped_each():
 def test_direct_damage_pinger():
     c = {
         "name": "Kamahl, Pit Fighter",
-        "oracle_text": "Haste\n{T}: Kamahl, Pit Fighter deals 3 damage to any target.",
+        "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{T}: Kamahl deals 3 damage to any target.",
     }
     assert ("direct_damage", "you") in _ks(c)
 
@@ -134,7 +132,7 @@ def test_direct_damage_pinger():
 def test_mana_amplifier():
     c = {
         "name": "Vorinclex, Voice of Hunger",
-        "oracle_text": "Whenever you tap a land for mana, add one mana of any type that land produced.",
+        "oracle_text": "Trample\nWhenever you tap a land for mana, add one mana of any type that land produced.\nWhenever an opponent taps a land for mana, that land doesn't untap during its controller's next untap step.",
     }
     assert ("mana_amplifier", "you") in _ks(c)
 

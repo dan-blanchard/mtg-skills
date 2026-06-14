@@ -753,7 +753,7 @@ _PERSIST_CREATURE = {
     "name": "Murderous Redcap",
     "type_line": "Creature — Goblin Assassin",
     "keywords": ["Persist"],
-    "oracle_text": "Persist",
+    "oracle_text": "When this creature enters, it deals damage equal to its power to any target.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
 }
 _VANILLA = {
     "name": "Grizzly Bears",
@@ -846,7 +846,7 @@ class TestNearMissTemplateValidation:
             "name": "Moritte of the Frost",
             "type_line": "Legendary Snow Creature — Shapeshifter",
             "keywords": [],
-            "oracle_text": "",
+            "oracle_text": "Changeling (This card is every creature type.)\nYou may have Moritte enter as a copy of a permanent you control, except it's legendary and snow in addition to its other types and, if it's a creature, it enters with two additional +1/+1 counters on it and has changeling.",
         }
         result = _mock_combo_search(
             _API, _deck(["Moritte of the Frost"]), hydrated=[_CMDR, moritte]

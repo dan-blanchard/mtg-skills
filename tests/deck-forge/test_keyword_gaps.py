@@ -31,12 +31,12 @@ class TestNinjaTribal:
     YURIKO = {
         "name": "Yuriko, the Tiger's Shadow",
         "type_line": "Legendary Creature — Human Ninja",
-        "oracle_text": "Commander ninjutsu {U}{B}\nWhenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put it into your hand. Each opponent loses life equal to that card's mana value.",
+        "oracle_text": "Commander ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand or the command zone tapped and attacking.)\nWhenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put that card into your hand. Each opponent loses life equal to that card's mana value.",
     }
     SATORU = {
         "name": "Satoru Umezawa",
         "type_line": "Legendary Creature — Human Ninja",
-        "oracle_text": "Each creature card in your hand has ninjutsu {1}{U}{B}.\nWhenever a creature you control deals combat damage to a player, you may draw a card.",
+        "oracle_text": "Whenever you activate a ninjutsu ability, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. This ability triggers only once each turn.\nEach creature card in your hand has ninjutsu {2}{U}{B}.",
     }
 
     def test_ninjutsu_commander_emits_ninja_subject(self):
@@ -52,7 +52,7 @@ class TestNinjaTribal:
         assert serves(
             {
                 "name": "Throatseeker",
-                "type_line": "Creature — Rat Ninja",
+                "type_line": "Creature — Vampire Ninja",
                 "oracle_text": "Unblocked attacking Ninjas you control have lifelink.",
             },
             _sig("type_matters", "you", "Ninja"),
@@ -79,7 +79,7 @@ class TestAttackTriggerPayoffs:
             {
                 "name": "Hellrider",
                 "type_line": "Creature — Devil",
-                "oracle_text": "Haste\nWhenever a creature you control attacks, Hellrider deals 1 damage to the player or planeswalker it's attacking.",
+                "oracle_text": "Haste\nWhenever a creature you control attacks, this creature deals 1 damage to the player or planeswalker it's attacking.",
             },
             {
                 "name": "Shared Animosity",
@@ -88,8 +88,8 @@ class TestAttackTriggerPayoffs:
             },
             {
                 "name": "Adeline, Resplendent Cathar",
-                "type_line": "Legendary Creature — Human Soldier",
-                "oracle_text": "Whenever you attack, for each opponent, create a 1/1 white Human creature token.",
+                "type_line": "Legendary Creature — Human Knight",
+                "oracle_text": "Vigilance\nAdeline's power is equal to the number of creatures you control.\nWhenever you attack, for each opponent, create a 1/1 white Human creature token that's tapped and attacking that player or a planeswalker they control.",
             },
         ):
             assert serves(card, self.SIG), card["name"]
@@ -99,7 +99,7 @@ class TestAttackTriggerPayoffs:
             {
                 "name": "Fervor",
                 "type_line": "Enchantment",
-                "oracle_text": "Creatures you control have haste.",
+                "oracle_text": "Creatures you control have haste. (They can attack and {T} as soon as they come under your control.)",
                 "keywords": [],
             },
             self.SIG,
@@ -126,7 +126,7 @@ class TestMadnessMatters:
         anje = {
             "name": "Anje Falkenrath",
             "type_line": "Legendary Creature — Vampire",
-            "oracle_text": "Haste\n{T}, Discard a card: Draw a card. Then if the discarded card has madness, untap Anje Falkenrath.",
+            "oracle_text": "Haste\n{T}, Discard a card: Draw a card.\nWhenever you discard a card, if it has madness, untap Anje Falkenrath.",
         }
         assert "madness_matters" in _keys(anje)
 
@@ -134,7 +134,7 @@ class TestMadnessMatters:
         visitor = {
             "name": "Asylum Visitor",
             "type_line": "Creature — Vampire Wizard",
-            "oracle_text": "Madness {B}",
+            "oracle_text": "At the beginning of each player's upkeep, if that player has no cards in hand, you draw a card and you lose 1 life.\nMadness {1}{B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
             "keywords": ["Madness"],
         }
         assert "madness_matters" in _keys(visitor)
@@ -159,8 +159,8 @@ class TestSpeedMatters:
     def test_speed_commander_emits(self):
         samut = {
             "name": "Samut, the Driving Force",
-            "type_line": "Legendary Creature — Human",
-            "oracle_text": "Start your engines!\nMax speed — Whenever you attack, exile the top card of your library.",
+            "type_line": "Legendary Creature — Human Warrior Cleric",
+            "oracle_text": "First strike, vigilance, haste\nStart your engines! (If you have no speed, it starts at 1. It increases once on each of your turns when an opponent loses life. Max speed is 4.)\nOther creatures you control get +X/+0, where X is your speed.\nNoncreature spells you cast cost {X} less to cast, where X is your speed.",
             "keywords": ["Start your engines!", "Max speed"],
         }
         assert "speed_matters" in _keys(samut)
@@ -168,8 +168,8 @@ class TestSpeedMatters:
     def test_speed_keyword_card_served(self):
         card = {
             "name": "Howlsquad Heavy",
-            "type_line": "Creature — Goblin",
-            "oracle_text": "Max speed — Other Goblins you control cost {1} less.",
+            "type_line": "Creature — Goblin Mercenary",
+            "oracle_text": "Start your engines!\nOther Goblins you control have haste.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able.\nMax speed — {T}: Add {R} for each Goblin you control.",
             "keywords": ["Max speed"],
         }
         assert serves(card, _sig("speed_matters", "you"))
@@ -182,8 +182,8 @@ class TestDiscoverMatters:
     def test_discover_card_emits_and_served(self):
         appraiser = {
             "name": "Geological Appraiser",
-            "type_line": "Creature — Human",
-            "oracle_text": "When this creature enters, discover 3.",
+            "type_line": "Creature — Human Artificer",
+            "oracle_text": "When this creature enters, if you cast it, discover 3. (Exile cards from the top of your library until you exile a nonland card with mana value 3 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
             "keywords": ["Discover"],
         }
         assert "discover_matters" in _keys(appraiser)
@@ -198,7 +198,7 @@ class TestForetellMatters:
         doomskar = {
             "name": "Doomskar",
             "type_line": "Sorcery",
-            "oracle_text": "Foretell {1}{W}{W}\nDestroy all creatures.",
+            "oracle_text": "Destroy all creatures.\nForetell {1}{W}{W} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
             "keywords": ["Foretell"],
         }
         assert "foretell_matters" in _keys(doomskar)
@@ -221,7 +221,7 @@ class TestUndyingPersistMatters:
         finks = {
             "name": "Kitchen Finks",
             "type_line": "Creature — Ouphe",
-            "oracle_text": "When this creature enters, you gain 2 life.\nPersist",
+            "oracle_text": "When this creature enters, you gain 2 life.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
             "keywords": ["Persist"],
         }
         assert "undying_persist_matters" in _keys(finks)
@@ -230,8 +230,8 @@ class TestUndyingPersistMatters:
     def test_grant_card_emits(self):
         mikaeus = {
             "name": "Mikaeus, the Unhallowed",
-            "type_line": "Legendary Creature — Zombie",
-            "oracle_text": "Other non-Human creatures you control get +1/+1 and have undying.",
+            "type_line": "Legendary Creature — Zombie Cleric",
+            "oracle_text": "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)\nWhenever a Human deals damage to you, destroy it.\nOther non-Human creatures you control get +1/+1 and have undying. (When a creature with undying dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)",
         }
         assert "undying_persist_matters" in _keys(mikaeus)
 
@@ -244,7 +244,7 @@ class TestMinusCountersMatter:
     HAPATRA = {
         "name": "Hapatra, Vizier of Poisons",
         "type_line": "Legendary Creature — Human Cleric",
-        "oracle_text": "Whenever Hapatra, Vizier of Poisons deals combat damage to a creature, you may put a -1/-1 counter on that creature.\nWhenever you put one or more -1/-1 counters on a creature, create a 1/1 black Snake creature token with deathtouch.",
+        "oracle_text": "Whenever Hapatra deals combat damage to a player, you may put a -1/-1 counter on target creature.\nWhenever you put one or more -1/-1 counters on a creature, create a 1/1 green Snake creature token with deathtouch.",
     }
 
     def test_minus_counter_commander_emits(self):
@@ -264,9 +264,9 @@ class TestMinusCountersMatter:
         assert serves(self.HAPATRA, sig)
         assert serves(
             {
-                "name": "Spinebiter",
-                "type_line": "Creature — Insect",
-                "oracle_text": "Spinebiter",
+                "name": "Twinblade Slasher",
+                "type_line": "Creature — Elf Warrior",
+                "oracle_text": "Wither (This deals damage to creatures in the form of -1/-1 counters.)\n{1}{G}: This creature gets +2/+2 until end of turn. Activate only once each turn.",
                 "keywords": ["Wither"],
             },
             sig,
@@ -299,7 +299,7 @@ class TestKickedSpellMatters:
     VERAZOL = {
         "name": "Verazol, the Split Current",
         "type_line": "Legendary Creature — Serpent",
-        "oracle_text": "Whenever you cast a kicked spell, put two +1/+1 counters on Verazol, the Split Current.",
+        "oracle_text": "Verazol enters with a +1/+1 counter on it for each mana spent to cast it.\nWhenever you cast a kicked spell, you may remove two +1/+1 counters from Verazol. If you do, copy that spell. You may choose new targets for the copy. (A copy of a permanent spell becomes a token.)",
     }
 
     def test_kicked_payoff_commander_emits(self):
@@ -320,7 +320,7 @@ class TestColorlessMatters:
         monument = {
             "name": "Forsaken Monument",
             "type_line": "Legendary Artifact",
-            "oracle_text": "Colorless creatures you control get +1/+1.\nWhenever a colorless creature you control enters, you gain 2 life.",
+            "oracle_text": "Colorless creatures you control get +2/+2.\nWhenever you tap a permanent for {C}, add an additional {C}.\nWhenever you cast a colorless spell, you gain 2 life.",
         }
         assert "colorless_matters" in _keys(monument)
         assert serves(monument, _sig("colorless_matters", "you"))
@@ -344,8 +344,8 @@ class TestExaltedLoneAttacker:
     def test_attacks_alone_commander_emits_and_served(self):
         rafiq = {
             "name": "Rafiq of the Many",
-            "type_line": "Legendary Creature — Human Wizard",
-            "oracle_text": "Exalted\nWhenever a creature you control attacks alone, that creature gains double strike until end of turn.",
+            "type_line": "Legendary Creature — Human Knight",
+            "oracle_text": "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)\nWhenever a creature you control attacks alone, it gains double strike until end of turn.",
         }
         assert "exalted_lone_attacker" in _keys(rafiq)
         assert serves(rafiq, _sig("exalted_lone_attacker", "you"))
@@ -360,7 +360,7 @@ class TestFlashMatters:
     YEVA = {
         "name": "Yeva, Nature's Herald",
         "type_line": "Legendary Creature — Elf Shaman",
-        "oracle_text": "Flash\nYou may cast green creature spells as though they had flash.",
+        "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nYou may cast green creature spells as though they had flash.",
     }
 
     def test_flash_enabler_commander_emits_and_served(self):
@@ -381,7 +381,7 @@ class TestFlashMatters:
         quicken = {
             "name": "Quicken",
             "type_line": "Instant",
-            "oracle_text": "The next instant or sorcery spell you cast this turn can be cast as though it had flash.\nDraw a card.",
+            "oracle_text": "The next sorcery spell you cast this turn can be cast as though it had flash. (It can be cast any time you could cast an instant.)\nDraw a card.",
         }
         assert "flash_matters" not in _keys(quicken)
 
@@ -393,7 +393,7 @@ class TestTeamEvasionGrant:
     SUN_QUAN = {
         "name": "Sun Quan, Lord of Wu",
         "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": "Horsemanship\nOther creatures you control have horsemanship.",
+        "oracle_text": "Creatures you control have horsemanship. (They can't be blocked except by creatures with horsemanship.)",
     }
 
     def test_team_evasion_grant_emits_and_served(self):
@@ -441,7 +441,7 @@ class TestSagaMatters:
             {
                 "name": "Fall of the Thran",
                 "type_line": "Enchantment — Saga",
-                "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)",
+                "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Destroy all lands.\nII, III — Each player returns two land cards from their graveyard to the battlefield.",
             },
             _sig("saga_matters", "you"),
         )
@@ -454,8 +454,8 @@ class TestLessonsMatter:
     def test_lesson_commander_emits(self):
         iroh = {
             "name": "Uncle Iroh",
-            "type_line": "Legendary Creature — Human",
-            "oracle_text": "Lesson spells you cast cost {1} less.\nWhenever you cast a Lesson spell, you gain 2 life.",
+            "type_line": "Legendary Creature — Human Noble Ally",
+            "oracle_text": "Firebending 1 (Whenever this creature attacks, add {R}. This mana lasts until end of combat.)\nLesson spells you cast cost {1} less to cast.",
         }
         assert "lessons_matter" in _keys(iroh)
 
@@ -466,7 +466,7 @@ class TestLessonsMatter:
             {
                 "name": "Environmental Sciences",
                 "type_line": "Sorcery — Lesson",
-                "oracle_text": "Search your library for a basic land card, reveal it, put it into your hand.",
+                "oracle_text": "Search your library for a basic land card, reveal it, put it into your hand, then shuffle. You gain 2 life.",
             },
             _sig("lessons_matter", "you"),
         )
@@ -480,7 +480,7 @@ class TestPlayFromTopAlreadyCovered:
         oracle = {
             "name": "Oracle of Mul Daya",
             "type_line": "Creature — Elf Shaman",
-            "oracle_text": "Play with the top card of your library revealed.\nYou may play lands from the top of your library.",
+            "oracle_text": "You may play an additional land on each of your turns.\nPlay with the top card of your library revealed.\nYou may play lands from the top of your library.",
         }
         assert "play_from_top" in _keys(oracle)
         assert serves(oracle, _sig("play_from_top", "you"))
@@ -494,7 +494,7 @@ class TestChangelingTribalEnabler:
     MAULER = {
         "name": "Taurean Mauler",
         "type_line": "Creature — Shapeshifter",
-        "oracle_text": "Changeling (This card is every creature type.)",
+        "oracle_text": "Changeling (This card is every creature type.)\nWhenever an opponent casts a spell, you may put a +1/+1 counter on this creature.",
         "keywords": ["Changeling"],
     }
 
@@ -506,7 +506,7 @@ class TestChangelingTribalEnabler:
         nexus = {
             "name": "Maskwood Nexus",
             "type_line": "Artifact",
-            "oracle_text": "Creatures you control are every creature type.",
+            "oracle_text": "Creatures you control are every creature type. The same is true for creature spells you control and creature cards you own that aren't on the battlefield.\n{3}, {T}: Create a 2/2 blue Shapeshifter creature token with changeling. (It is every creature type.)",
         }
         assert serves(nexus, _sig("type_matters", "you", "Zombie"))
 
@@ -527,8 +527,8 @@ class TestParadoxPayoffs:
 
     VEGA = {
         "name": "Vega, the Watcher",
-        "type_line": "Legendary Creature — Bird",
-        "oracle_text": "Whenever you cast a spell from anywhere other than your hand, draw a card.",
+        "type_line": "Legendary Creature — Bird Spirit",
+        "oracle_text": "Flying\nWhenever you cast a spell from anywhere other than your hand, draw a card.",
     }
 
     def test_paradox_commander_emits_cast_from_exile(self):
@@ -549,12 +549,12 @@ class TestTimeCountersWiden:
     AS_FORETOLD = {
         "name": "As Foretold",
         "type_line": "Enchantment",
-        "oracle_text": "At the beginning of your upkeep, put a time counter on As Foretold.\nOnce each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value less than or equal to the number of time counters on As Foretold.",
+        "oracle_text": "At the beginning of your upkeep, put a time counter on this enchantment.\nOnce each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of time counters on this enchantment.",
     }
     VANISHING = {
         "name": "Aeon Chronicler",
         "type_line": "Creature — Avatar",
-        "oracle_text": "Vanishing\nSuspend X",
+        "oracle_text": "Aeon Chronicler's power and toughness are each equal to the number of cards in your hand.\nSuspend X—{X}{3}{U}. X can't be 0.\nWhenever a time counter is removed from this card while it's exiled, draw a card.",
         "keywords": ["Vanishing", "Suspend"],
     }
 
@@ -574,7 +574,7 @@ class TestLostLifeThresholdWiden:
     def test_opponent_lost_life_threshold_served(self):
         stromkirk = {
             "name": "Stromkirk Bloodthief",
-            "type_line": "Creature — Vampire",
+            "type_line": "Creature — Vampire Rogue",
             "oracle_text": "At the beginning of your end step, if an opponent lost life this turn, put a +1/+1 counter on target Vampire you control.",
         }
         assert serves(stromkirk, _sig("lifeloss_matters", "opponents"))
@@ -596,8 +596,8 @@ class TestCasualtyRouting:
     def test_casualty_grant_emits_sacrifice_matters(self):
         anhelo = {
             "name": "Anhelo, the Painter",
-            "type_line": "Legendary Creature — Vampire",
-            "oracle_text": "Deathtouch\nThe first instant or sorcery spell you cast each turn has casualty 2.",
+            "type_line": "Legendary Creature — Vampire Assassin",
+            "oracle_text": "Deathtouch\nThe first instant or sorcery spell you cast each turn has casualty 2. (As you cast that spell, you may sacrifice a creature with power 2 or greater. When you do, copy the spell and you may choose new targets for the copy.)",
         }
         assert "sacrifice_matters" in _keys(anhelo)
 
@@ -610,7 +610,7 @@ class TestStationDetection:
         ship = {
             "name": "Hearthhull, the Worldseed",
             "type_line": "Legendary Artifact — Spacecraft",
-            "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft.)",
+            "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)\n2+ | {1}, {T}, Sacrifice a land: Draw two cards. You may play an additional land this turn.\n8+ | Flying, vigilance, haste\nWhenever you sacrifice a land, each opponent loses 2 life.",
             "keywords": ["Station"],
         }
         assert "proliferate_matters" in _keys(ship)
@@ -622,8 +622,8 @@ class TestSaddleMatters:
 
     CALAMITY = {
         "name": "Calamity, Galloping Inferno",
-        "type_line": "Legendary Creature — Phyrexian Horror Mount",
-        "oracle_text": "Haste\nWhenever Calamity attacks while saddled, create a tapped and attacking token copy of a creature that saddled it.",
+        "type_line": "Legendary Creature — Horse Mount",
+        "oracle_text": "Haste\nWhenever Calamity attacks while saddled, choose a nonlegendary creature that saddled it this turn and create a tapped and attacking token that's a copy of it. Sacrifice that token at the beginning of the next end step. Repeat this process once.\nSaddle 1",
         "keywords": ["Saddle", "Haste"],
     }
 
@@ -633,9 +633,9 @@ class TestSaddleMatters:
 
     def test_saddle_mount_body_served(self):
         mount = {
-            "name": "Stitched Assistant",
-            "type_line": "Artifact Creature — Mount",
-            "oracle_text": "Saddle 1",
+            "name": "Bulwark Ox",
+            "type_line": "Creature — Ox Mount",
+            "oracle_text": "Whenever this creature attacks while saddled, put a +1/+1 counter on target creature.\nSacrifice this creature: Creatures you control with counters on them gain hexproof and indestructible until end of turn.\nSaddle 1 (Tap any number of other creatures you control with total power 1 or more: This Mount becomes saddled until end of turn. Saddle only as a sorcery.)",
             "keywords": ["Saddle"],
         }
         assert serves(mount, _sig("saddle_matters", "you"))
@@ -648,7 +648,7 @@ class TestSuspectMatters:
     NELLY = {
         "name": "Nelly Borca, Impulsive Accuser",
         "type_line": "Legendary Creature — Human Detective",
-        "oracle_text": "Vigilance\nWhenever Nelly Borca attacks, suspect target creature. Then goad all suspected creatures. (A suspected creature has menace and can't block.)",
+        "oracle_text": "Vigilance\nWhenever Nelly Borca attacks, suspect target creature. Then goad all suspected creatures. (A suspected creature has menace and can't block.)\nWhenever one or more creatures an opponent controls deal combat damage to one or more of your opponents, you and the controller of those creatures each draw a card.",
     }
 
     def test_suspect_commander_emits_and_served(self):

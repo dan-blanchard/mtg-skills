@@ -32,9 +32,11 @@ def test_graveyard_signal_scoped_to_opponents_not_generic():
     # The Tinybones case: benefits from OPPONENTS' graveyards filling.
     card = {
         "name": "Tinybones, the Pickpocket",
+        "type_line": "Legendary Creature — Skeleton Rogue",
         "oracle_text": (
-            "Whenever an opponent puts one or more cards into their graveyard, "
-            "you may exile a card from that graveyard and play it."
+            "Deathtouch\nWhenever Tinybones deals combat damage to a player, you "
+            "may cast target nonland permanent card from that player's graveyard, "
+            "and mana of any type can be spent to cast that spell."
         ),
     }
     sigs = extract_signals(card)
@@ -104,8 +106,7 @@ def test_plant_token_maker_is_not_a_land_creatures_signal():
     avenger = {
         "name": "Avenger of Zendikar",
         "oracle_text": (
-            "When Avenger of Zendikar enters, create a 0/1 green Plant creature "
-            "token for each land you control."
+            "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control."
         ),
     }
     keys = _keys(avenger)
@@ -227,7 +228,7 @@ def test_enchantment_cast_opens_enchantments_not_spellslinger():
     # greedy spellcast detector used to mis-route Sythis to instants/sorceries.
     sythis = {
         "name": "Sythis, Harvest's Hand",
-        "type_line": "Legendary Enchantment Creature — Dryad",
+        "type_line": "Legendary Enchantment Creature — Nymph",
         "oracle_text": "Whenever you cast an enchantment spell, you gain 1 life and draw a card.",
     }
     keys = _keys(sythis)
@@ -241,14 +242,13 @@ def test_affinity_and_artifact_cast_open_artifacts_lane():
     emry = {
         "name": "Emry, Lurker of the Loch",
         "type_line": "Legendary Creature — Merfolk Wizard",
-        "oracle_text": "Affinity for artifacts\nWhen Emry enters, mill four cards.\n"
-        "{T}: Choose target artifact card in your graveyard. You may cast that card this turn.",
+        "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nWhen Emry enters, mill four cards.\n{T}: Choose target artifact card in your graveyard. You may cast that card this turn. (You still pay its costs. Timing rules still apply.)",
     }
     assert ("artifacts_matter", "you") in _keys(emry)
     sai = {
         "name": "Sai, Master Thopterist",
         "type_line": "Legendary Creature — Human Artificer",
-        "oracle_text": "Whenever you cast an artifact spell, create a 1/1 colorless Thopter artifact creature token with flying.",
+        "oracle_text": "Whenever you cast an artifact spell, create a 1/1 colorless Thopter artifact creature token with flying.\n{1}{U}, Sacrifice two artifacts: Draw a card.",
     }
     assert ("artifacts_matter", "you") in _keys(sai)
 
@@ -258,9 +258,8 @@ def test_token_doubler_opens_tokens_lane():
     # lane, not only "Doubling".
     adrix = {
         "name": "Adrix and Nev, Twincasters",
-        "type_line": "Legendary Creature — Crab Wizard",
-        "oracle_text": "If one or more tokens would be created under your control, twice "
-        "that many of those tokens are created instead.",
+        "type_line": "Legendary Creature — Merfolk Wizard",
+        "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nIf one or more tokens would be created under your control, twice that many of those tokens are created instead.",
     }
     assert ("tokens_matter", "you") in _keys(adrix)
 
@@ -274,8 +273,7 @@ def test_land_recursion_commander_opens_landfall_lane():
     windgrace = {
         "name": "Lord Windgrace",
         "oracle_text": (
-            "−3: Return up to two target land cards from your graveyard to the "
-            "battlefield."
+            "+2: Discard a card, then draw a card. If a land card is discarded this way, draw an additional card.\n−3: Return up to two target land cards from your graveyard to the battlefield.\n−11: Destroy up to six target nonland permanents, then create six 2/2 green Cat Warrior creature tokens with forestwalk.\nLord Windgrace can be your commander."
         ),
     }
     assert ("landfall", "you") in _keys(windgrace)
@@ -362,9 +360,7 @@ def test_variable_x_counters_opens_counters_lane():
         "name": "Halana and Alena, Partners",
         "type_line": "Legendary Creature — Human Ranger",
         "oracle_text": (
-            "First strike\nReach\nAt the beginning of combat on your turn, put X "
-            "+1/+1 counters on another target creature you control, where X is Halana "
-            "and Alena's power. That creature gains haste until end of turn."
+            "First strike (This creature deals combat damage before creatures without first strike.)\nReach (This creature can block creatures with flying.)\nAt the beginning of combat on your turn, put X +1/+1 counters on another target creature you control, where X is Halana and Alena's power. That creature gains haste until end of turn."
         ),
     }
     assert any(k == "counters_matter" for k, _ in _keys(halana))
@@ -392,7 +388,7 @@ def test_indestructible_beater_opens_voltron_fallback():
         "power": "3",
         "toughness": "3",
         "keywords": ["Vigilance", "Indestructible"],
-        "oracle_text": "Vigilance, indestructible\nBushido 5",
+        "oracle_text": "Vigilance, indestructible\nBushido 5 (Whenever this creature blocks or becomes blocked, it gets +5/+5 until end of turn.)",
     }
     assert ("voltron_matters", "you") in _keys(konda)
 
@@ -415,7 +411,7 @@ def test_global_tribal_anthem_opens_tribe():
     soraya = {
         "name": "Soraya the Falconer",
         "type_line": "Legendary Creature — Human",
-        "oracle_text": "Bird creatures get +1/+1.",
+        "oracle_text": "Bird creatures get +1/+1.\n{1}{W}: Target Bird creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding a player controls are blocking or being blocked by a creature, that player divides that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
     }
     sigs = extract_signals(soraya)
     assert any(s.key == "type_matters" and s.subject == "Bird" for s in sigs)
@@ -429,8 +425,7 @@ def test_artifact_sac_outlet_opens_artifacts_lane():
     bosh = {
         "name": "Bosh, Iron Golem",
         "type_line": "Legendary Artifact Creature — Golem",
-        "oracle_text": "Trample\n{3}{R}, Sacrifice an artifact: Bosh deals damage "
-        "equal to that artifact's mana value to any target.",
+        "oracle_text": "Trample\n{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the sacrificed artifact's mana value to any target.",
     }
     assert ("artifacts_matter", "you") in _keys(bosh)
 
@@ -438,9 +433,8 @@ def test_artifact_sac_outlet_opens_artifacts_lane():
 def test_artifact_ability_payoff_opens_artifacts_lane():
     kurkesh = {
         "name": "Kurkesh, Onakke Ancient",
-        "type_line": "Legendary Creature — Ogre Shaman",
-        "oracle_text": "Whenever you activate an ability of an artifact, if it isn't a "
-        "mana ability, you may pay {R}. If you do, copy that ability.",
+        "type_line": "Legendary Creature — Ogre Spirit",
+        "oracle_text": "Whenever you activate an ability of an artifact, if it isn't a mana ability, you may pay {R}. If you do, copy that ability. You may choose new targets for the copy.",
     }
     assert ("artifacts_matter", "you") in _keys(kurkesh)
 
@@ -449,8 +443,7 @@ def test_artifact_type_granter_opens_artifacts_lane():
     memnarch = {
         "name": "Memnarch",
         "type_line": "Legendary Artifact Creature — Wizard",
-        "oracle_text": "{1}{U}: Target permanent becomes an artifact in addition to "
-        "its other types.\n{3}{U}{U}: Gain control of target artifact.",
+        "oracle_text": "{1}{U}{U}: Target permanent becomes an artifact in addition to its other types. (This effect lasts indefinitely.)\n{3}{U}: Gain control of target artifact. (This effect lasts indefinitely.)",
     }
     assert ("artifacts_matter", "you") in _keys(memnarch)
 
@@ -473,8 +466,7 @@ def test_creature_etb_scope_follows_entering_controller_not_payoff():
     purphoros = {
         "name": "Purphoros, God of the Forge",
         "oracle_text": (
-            "Indestructible\nWhenever another creature you control enters, Purphoros "
-            "deals 2 damage to each opponent."
+            "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn."
         ),
     }
     keys = _keys(purphoros)
@@ -503,9 +495,8 @@ def test_etb_trigger_doubler_opens_etb_lane():
 def test_treasure_maker_opens_artifacts_lane():
     goldspan = {
         "name": "Goldspan Dragon",
-        "type_line": "Legendary Creature — Dragon",
-        "oracle_text": "Flying, haste\nWhenever Goldspan Dragon attacks or becomes "
-        "the target of a spell, create a Treasure token.",
+        "type_line": "Creature — Dragon",
+        "oracle_text": 'Flying, haste\nWhenever this creature attacks or becomes the target of a spell, create a Treasure token.\nTreasures you control have "{T}, Sacrifice this artifact: Add two mana of any one color."',
     }
     assert ("artifacts_matter", "you") in _keys(goldspan)
 
@@ -513,8 +504,8 @@ def test_treasure_maker_opens_artifacts_lane():
 def test_food_maker_opens_artifacts_lane():
     gyome = {
         "name": "Gyome, Master Chef",
-        "type_line": "Legendary Creature — Elf Peasant",
-        "oracle_text": "Whenever you gain life, create a Food token.",
+        "type_line": "Legendary Creature — Troll Warlock",
+        "oracle_text": "Trample\nAt the beginning of your end step, create a number of Food tokens equal to the number of nontoken creatures you had enter the battlefield under your control this turn.\n{1}, Sacrifice a Food: Target creature gains indestructible until end of turn. Tap it.",
     }
     assert ("artifacts_matter", "you") in _keys(gyome)
 
@@ -563,7 +554,7 @@ def test_non_tap_vanilla_no_activated_lane():
 def test_multi_tribe_anthem_emits_each_type():
     lovisa = {
         "name": "Lovisa Coldeyes",
-        "type_line": "Legendary Creature — Human Barbarian",
+        "type_line": "Legendary Creature — Human",
         "oracle_text": "Each creature that's a Barbarian, a Warrior, or a Berserker "
         "gets +2/+2 and has haste.",
     }
@@ -590,8 +581,7 @@ def test_mana_cost_activated_ability_opens_lane():
     scarab = {
         "name": "The Scarab God",
         "type_line": "Legendary Creature — God",
-        "oracle_text": "{2}{U}{B}: Exile target creature card from a graveyard, then "
-        "create a token that's a copy of it, except it's a 4/4 black Zombie.",
+        "oracle_text": "At the beginning of your upkeep, each opponent loses X life and you scry X, where X is the number of Zombies you control.\n{2}{U}{B}: Exile target creature card from a graveyard. Create a token that's a copy of it, except it's a 4/4 black Zombie.\nWhen The Scarab God dies, return it to its owner's hand at the beginning of the next end step.",
     }
     assert ("activated_ability", "you") in _keys(scarab)
 
@@ -612,8 +602,7 @@ def test_snow_commander_opens_snow_lane():
     isu = {
         "name": "Isu the Abominable",
         "type_line": "Legendary Snow Creature — Yeti",
-        "oracle_text": "You may look at the top card of your library any time.\nYou may "
-        "play snow lands and cast snow spells from the top of your library.",
+        "oracle_text": "You may look at the top card of your library any time.\nYou may play snow lands and cast snow spells from the top of your library.\nWhenever another snow permanent you control enters, you may pay {G}, {W}, or {U}. If you do, put a +1/+1 counter on Isu.",
     }
     assert ("snow_matters", "you") in _keys(isu)
 
@@ -630,8 +619,7 @@ def test_kraken_commander_opens_kraken_tribe():
     brinelin = {
         "name": "Brinelin, the Moon Kraken",
         "type_line": "Legendary Creature — Kraken",
-        "oracle_text": "Whenever you cast a spell with mana value 5 or greater, you "
-        "may return target permanent to its owner's hand.",
+        "oracle_text": "When Brinelin enters and whenever you cast a spell with mana value 6 or greater, you may return target nonland permanent to its owner's hand.\nPartner (You can have two commanders if both have partner.)",
     }
     sigs = extract_signals(brinelin)
     assert any(s.key == "type_matters" and s.subject == "Kraken" for s in sigs)
@@ -665,8 +653,7 @@ def test_vanilla_matters_opens_for_no_abilities_commander():
     ruxa = {
         "name": "Ruxa, Patient Professor",
         "type_line": "Legendary Creature — Bear Druid",
-        "oracle_text": "Whenever Ruxa enters or attacks, return target creature card "
-        "with no abilities from your graveyard to your hand.",
+        "oracle_text": "Whenever Ruxa enters or attacks, return target creature card with no abilities from your graveyard to your hand.\nCreatures you control with no abilities get +1/+1.\nFor each creature you control with no abilities, you may have that creature assign its combat damage as though it weren't blocked.",
     }
     assert ("vanilla_matters", "you") in _keys(ruxa)
 
@@ -675,7 +662,7 @@ def test_vanilla_matters_opens_for_no_abilities_commander():
 def test_toughness_value_payoff_opens_toughness_lane():
     geralf = {
         "name": "Geralf, Visionary Stitcher",
-        "type_line": "Legendary Creature — Zombie Wizard",
+        "type_line": "Legendary Creature — Human Wizard",
         "oracle_text": "Zombies you control have flying.\n{U}, {T}, Sacrifice another "
         "nontoken creature: Create an X/X blue Zombie creature token, where X is the "
         "sacrificed creature's toughness.",
@@ -689,8 +676,7 @@ def test_set_base_pt_does_not_open_toughness_lane():
     card = {
         "name": "Abominable Treefolk",
         "type_line": "Snow Creature — Treefolk",
-        "oracle_text": "Trample\nAbominable Treefolk's power and toughness are each "
-        "equal to the number of snow permanents you control.",
+        "oracle_text": "Trample\nAbominable Treefolk's power and toughness are each equal to the number of snow permanents you control.\nWhen this creature enters, tap target creature an opponent controls. That creature doesn't untap during its controller's next untap step.",
     }
     assert ("toughness_combat", "you") not in _keys(card)
 
@@ -706,8 +692,8 @@ def test_self_damage_prevention_opens_redirect_lane():
     }
     anti = {
         "name": "Anti-Venom, Horrifying Healer",
-        "type_line": "Legendary Creature — Symbiote",
-        "oracle_text": "If damage would be dealt to Anti-Venom, prevent that damage.",
+        "type_line": "Legendary Creature — Symbiote Hero",
+        "oracle_text": "When Anti-Venom enters, if he was cast, return target creature card from your graveyard to the battlefield.\nIf damage would be dealt to Anti-Venom, prevent that damage and put that many +1/+1 counters on him.",
     }
     assert ("damage_redirect", "you") in _keys(cho)
     assert ("damage_redirect", "you") in _keys(anti)
@@ -729,8 +715,7 @@ def test_aura_recursion_opens_voltron_lane():
     hakim = {
         "name": "Hakim, Loreweaver",
         "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": "Flying\n{U}{U}: Return target Aura card from your graveyard to "
-        "the battlefield attached to Hakim.",
+        "oracle_text": "Flying\n{U}{U}: Return target Aura card from your graveyard to the battlefield attached to Hakim. Activate only during your upkeep and only if Hakim isn't enchanted.\n{U}{U}, {T}: Destroy all Auras attached to Hakim.",
     }
     assert ("voltron_matters", "you") in _keys(hakim)
 
@@ -756,8 +741,7 @@ def test_multi_counter_placement_opens_counters_lane():
     minsc = {
         "name": "Minsc & Boo, Timeless Heroes",
         "type_line": "Legendary Planeswalker — Minsc",
-        "oracle_text": "+1: Put three +1/+1 counters on up to one target creature with "
-        "trample or haste.",
+        "oracle_text": "When Minsc & Boo enters and at the beginning of your upkeep, you may create Boo, a legendary 1/1 red Hamster creature token with trample and haste.\n+1: Put three +1/+1 counters on up to one target creature with trample or haste.\n−2: Sacrifice a creature. When you do, Minsc & Boo deals X damage to any target, where X is that creature's power. If the sacrificed creature was a Hamster, draw X cards.\nMinsc & Boo, Timeless Heroes can be your commander.",
     }
     assert any(k == "counters_matter" for k, _ in _keys(minsc))
 
@@ -776,10 +760,8 @@ def test_opponent_library_exile_opens_opponents_mill():
     # a mill variant the graveyard detector (keyed on "graveyard") missed.
     circu = {
         "name": "Circu, Dimir Lobotomist",
-        "type_line": "Legendary Creature — Zombie Wizard",
-        "oracle_text": "Whenever you cast a blue spell, exile the top card of target "
-        "player's library.\nWhenever you cast a black spell, exile the top card of "
-        "target player's library.",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": "Whenever you cast a blue spell, exile the top card of target player's library.\nWhenever you cast a black spell, exile the top card of target player's library.\nYour opponents can't cast spells with the same name as a card exiled with Circu.",
     }
     assert ("graveyard_matters", "opponents") in _keys(circu)
 
@@ -788,46 +770,53 @@ def test_self_library_exile_does_not_open_opponents_mill():
     # Precision: impulse-drawing off YOUR OWN library is not opponent mill.
     card = {
         "name": "Light Up the Stage",
-        "oracle_text": "Exile the top two cards of your library. You may play them.",
+        "oracle_text": "Spectacle {R} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)\nExile the top two cards of your library. Until the end of your next turn, you may play those cards.",
     }
     assert ("graveyard_matters", "opponents") not in _keys(card)
 
 
 # ── "a <Type> you control <verb>" and "attacking <Type>" tribal triggers ─────────
 def test_a_type_you_control_verb_opens_tribe():
-    patron = {
-        "name": "Patron of the Nezumi",
-        "type_line": "Legendary Creature — Demon Spirit",
-        "oracle_text": "Whenever a Rat you control deals combat damage to a player, "
-        "that player discards a card.",
+    # "a Griffin you control deals combat damage" — the 'deals' trigger verb.
+    zeriam = {
+        "name": "Zeriam, Golden Wind",
+        "type_line": "Legendary Creature — Griffin",
+        "oracle_text": "Flying\nWhenever a Griffin you control deals combat damage "
+        "to a player, create a 2/2 white Griffin creature token with flying.",
     }
-    sylvia = {
-        "name": "Sylvia Brightspear",
-        "type_line": "Legendary Creature — Human Knight",
-        "oracle_text": "Whenever Sylvia Brightspear and a Dragon you control attack, "
-        "Sylvia gets +1/+1 until end of turn for each of those Dragons.",
+    # "a Dragon you control attacks" — the 'attacks' trigger verb.
+    dromoka = {
+        "name": "Dromoka, the Eternal",
+        "type_line": "Legendary Creature — Dragon",
+        "oracle_text": "Flying\nWhenever a Dragon you control attacks, bolster 2. "
+        "(Choose a creature with the least toughness among creatures you control "
+        "and put two +1/+1 counters on it.)",
     }
-    assert ("type_matters", "you") in {(k, s) for k, s in _keys(patron)}
+    assert ("type_matters", "you") in {(k, s) for k, s in _keys(zeriam)}
     assert any(
-        s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters"
+        s.subject == "Griffin"
+        for s in extract_signals(zeriam)
+        if s.key == "type_matters"
     )
     assert any(
         s.subject == "Dragon"
-        for s in extract_signals(sylvia)
+        for s in extract_signals(dromoka)
         if s.key == "type_matters"
     )
 
 
 def test_attacking_type_opens_tribe():
-    nagao = {
-        "name": "Nagao, Bound by Honor",
-        "type_line": "Legendary Creature — Human Samurai",
-        "oracle_text": "Whenever Nagao attacks, you may pay {1}. If you do, put a "
-        "+1/+1 counter on each attacking Samurai.",
+    clavileno = {
+        "name": "Clavileño, First of the Blessed",
+        "type_line": "Legendary Creature — Vampire Cleric",
+        "oracle_text": "Whenever you attack, target attacking Vampire that isn't a "
+        'Demon becomes a Demon in addition to its other types. It gains "When this '
+        "creature dies, draw a card and create a tapped 4/3 white and black Vampire "
+        'Demon creature token with flying."',
     }
     assert any(
-        s.subject == "Samurai"
-        for s in extract_signals(nagao)
+        s.subject == "Vampire"
+        for s in extract_signals(clavileno)
         if s.key == "type_matters"
     )
 
@@ -888,10 +877,8 @@ def test_offering_keyword_opens_tribe():
     # survives).
     patron = {
         "name": "Patron of the Nezumi",
-        "type_line": "Legendary Creature — Demon Spirit",
-        "oracle_text": "Rat offering (You may cast this spell any time you could cast "
-        "an instant by sacrificing a Rat and paying the difference in mana costs.)\n"
-        "Whenever a permanent is put into an opponent's graveyard, that player loses 1 life.",
+        "type_line": "Legendary Creature — Spirit",
+        "oracle_text": "Rat offering (You may cast this spell any time you could cast an instant by sacrificing a Rat and paying the difference in mana costs between this and the sacrificed Rat. Mana cost includes color.)\nWhenever a permanent is put into an opponent's graveyard, that player loses 1 life.",
     }
     assert any(
         s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters"
@@ -904,7 +891,7 @@ def test_your_team_controls_opens_tribe():
     sylvia = {
         "name": "Sylvia Brightspear",
         "type_line": "Legendary Creature — Human Knight",
-        "oracle_text": "Double strike\nDragons your team controls have double strike.",
+        "oracle_text": "Partner with Khorvath Brightflame (When this creature enters, target player may put Khorvath into their hand from their library, then shuffle.)\nDouble strike\nDragons your team controls have double strike.",
     }
     assert any(
         s.subject == "Dragon"
@@ -921,11 +908,9 @@ def test_high_cmc_etb_commander_opens_clone():
     # _self_etb_value does, or it misses the very commander it was built for.
     gyruda = {
         "name": "Gyruda, Doom of Depths",
-        "type_line": "Legendary Creature — Kraken Horror",
+        "type_line": "Legendary Creature — Demon Kraken",
         "cmc": 6.0,
-        "oracle_text": "When Gyruda enters, each player mills four cards. Put a "
-        "creature card with an even mana value from among the milled cards onto the "
-        "battlefield under your control.",
+        "oracle_text": "Companion — Your starting deck contains only cards with even mana values. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nWhen Gyruda enters, each player mills four cards. Put a creature card with an even mana value from among the milled cards onto the battlefield under your control.",
     }
     assert ("clone_matters", "you") in _keys(gyruda)
 
@@ -935,9 +920,9 @@ def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
     # to re-fire — both need a high CMC AND an ETB.
     cheap = {
         "name": "Elvish Visionary",
-        "type_line": "Creature — Elf",
+        "type_line": "Creature — Elf Shaman",
         "cmc": 2.0,
-        "oracle_text": "When Elvish Visionary enters, draw a card.",
+        "oracle_text": "When this creature enters, draw a card.",
     }
     vanilla = {
         "name": "Colossus",
@@ -976,8 +961,7 @@ def test_cheap_dies_trigger_does_not_open_clone():
         "name": "Doomed Dissenter",
         "type_line": "Creature — Human",
         "cmc": 2.0,
-        "oracle_text": "When Doomed Dissenter dies, create a 2/2 black Zombie creature "
-        "token.",
+        "oracle_text": "When this creature dies, create a 2/2 black Zombie creature token.",
     }
     assert ("clone_matters", "you") not in _keys(cheap)
 
@@ -988,9 +972,8 @@ def test_land_enter_punisher_opens_burn_lane():
     # opponents-scoped punish side.
     zozu = {
         "name": "Zo-Zu the Punisher",
-        "type_line": "Legendary Creature — Goblin",
-        "oracle_text": "Whenever a land enters, Zo-Zu the Punisher deals 2 damage to "
-        "that land's controller.",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "oracle_text": "Whenever a land enters, Zo-Zu deals 2 damage to that land's controller.",
     }
     assert ("direct_damage", "you") in _keys(zozu)
 
@@ -1000,9 +983,8 @@ def test_source_deals_damage_opens_burn():
     # matters commander who wants to deal lots of damage (burn).
     terror = {
         "name": "The Red Terror",
-        "type_line": "Legendary Creature — Dinosaur",
-        "oracle_text": "Whenever a red source you control deals damage to one or more "
-        "permanents and/or players, put a +1/+1 counter on The Red Terror.",
+        "type_line": "Legendary Creature — Tyranid",
+        "oracle_text": "Advanced Species — Whenever a red source you control deals damage to one or more permanents and/or players, put a +1/+1 counter on The Red Terror.",
     }
     assert ("direct_damage", "you") in _keys(terror)
 
@@ -1012,7 +994,7 @@ def test_self_power_scaling_opens_counters():
     # her OWN power, so she wants to pump it with +1/+1 counters (Stony Strength).
     mona = {
         "name": "Mona Lisa, Science Geek",
-        "type_line": "Legendary Creature — Spider Inventor",
+        "type_line": "Legendary Creature — Lizard Mutant",
         "oracle_text": "Reach\n{T}: Add X mana of any one color, where X is Mona Lisa's "
         "power.",
     }
@@ -1023,7 +1005,7 @@ def test_fling_target_power_does_not_open_self_counters():
     # Precision: "X is TARGET creature's power" (fling) isn't self-scaling.
     card = {
         "name": "Fling",
-        "oracle_text": "Fling deals damage equal to the sacrificed creature's power to any target.",
+        "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nFling deals damage equal to the sacrificed creature's power to any target.",
     }
     assert not any(k == "self_counter_grow" for k, _ in _keys(card))
 
@@ -1033,7 +1015,7 @@ def test_punish_non_attackers_opens_forced_attack():
     # incentive (attack or take damage), a goad/aggro commander.
     kratos = {
         "name": "Kratos, God of War",
-        "type_line": "Legendary Creature — God",
+        "type_line": "Legendary Creature — God Warrior",
         "oracle_text": "Double strike\nAll creatures have haste.\nAt the beginning of "
         "each player's end step, Kratos deals damage to that player equal to the number "
         "of creatures that player controls that didn't attack this turn.",
@@ -1046,9 +1028,8 @@ def test_punish_non_attackers_opens_forced_attack():
 def test_outlaw_commander_opens_outlaw_lane():
     vial = {
         "name": "Vial Smasher, Gleeful Grenadier",
-        "type_line": "Legendary Creature — Goblin Pirate",
-        "oracle_text": "Whenever another outlaw you control enters, Vial Smasher deals "
-        "1 damage to target opponent.",
+        "type_line": "Legendary Creature — Goblin Mercenary",
+        "oracle_text": "Whenever another outlaw you control enters, Vial Smasher deals 1 damage to target opponent. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)",
     }
     assert ("outlaw_matters", "you") in _keys(vial)
 
@@ -1058,7 +1039,7 @@ def test_pacify_control_commander_opens_pillowfort():
     # control/pillowfort identity that wants Propaganda / Ghostly Prison / Windborn Muse.
     gwafa = {
         "name": "Gwafa Hazid, Profiteer",
-        "type_line": "Legendary Creature — Human Advisor",
+        "type_line": "Legendary Creature — Human Rogue",
         "oracle_text": "{W}{U}, {T}: Put a bribery counter on target creature you don't "
         "control. Its controller draws a card.\nCreatures with bribery counters on them "
         "can't attack or block.",
@@ -1070,9 +1051,9 @@ def test_banding_commander_opens_banding_lane():
     # Ayesha Tanaka has Banding — she wants other banding creatures to form bands.
     ayesha = {
         "name": "Ayesha Tanaka",
-        "type_line": "Legendary Creature — Human Soldier",
+        "type_line": "Legendary Creature — Human Artificer",
         "keywords": ["Banding"],
-        "oracle_text": "Banding\n{U}, {T}: Counter target activated ability of an artifact.",
+        "oracle_text": "Banding (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)\n{T}: Counter target activated ability from an artifact source unless that ability's controller pays {W}. (Mana abilities can't be targeted.)",
     }
     assert ("banding_matters", "you") in _keys(ayesha)
 
@@ -1084,8 +1065,7 @@ def test_counter_on_another_opens_counters():
     anafenza = {
         "name": "Anafenza, the Foremost",
         "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": "Whenever Anafenza, the Foremost attacks, put a +1/+1 counter on "
-        "another target tapped creature.",
+        "oracle_text": "Whenever Anafenza attacks, put a +1/+1 counter on another target tapped creature you control.\nIf a nontoken creature an opponent owns would die or a creature card not on the battlefield would be put into an opponent's graveyard, exile that card instead.",
     }
     assert any(k == "counters_matter" for k, _ in _keys(anafenza))
 
@@ -1096,14 +1076,12 @@ def test_variable_lifegain_opens_lifegain():
     atalya = {
         "name": "Atalya, Samite Master",
         "type_line": "Legendary Creature — Human Cleric",
-        "oracle_text": "{X}, {T}: Atalya, Samite Master gains X life. Spend only white "
-        "mana on X.",
+        "oracle_text": "{X}, {T}: Choose one —\n• Prevent the next X damage that would be dealt to target creature this turn. Spend only white mana on X.\n• You gain X life. Spend only white mana on X.",
     }
     ayli = {
         "name": "Ayli, Eternal Pilgrim",
         "type_line": "Legendary Creature — Kor Cleric",
-        "oracle_text": "{1}, Sacrifice another creature: You gain life equal to the "
-        "sacrificed creature's toughness.",
+        "oracle_text": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\n{1}, Sacrifice another creature: You gain life equal to the sacrificed creature's toughness.\n{1}{W}{B}, Sacrifice another creature: Exile target nonland permanent. Activate only if you have at least 10 life more than your starting life total.",
     }
     assert ("lifegain_matters", "you") in _keys(atalya)
     assert ("lifegain_matters", "you") in _keys(ayli)
@@ -1114,8 +1092,8 @@ def test_if_you_would_gain_life_opens_lifegain():
     # instead" is a lifegain amplifier — a lifegain commander.
     bilbo = {
         "name": "Bilbo, Birthday Celebrant",
-        "type_line": "Legendary Creature — Halfling",
-        "oracle_text": "If you would gain life, you gain that much life plus 1 instead.",
+        "type_line": "Legendary Creature — Halfling Rogue",
+        "oracle_text": "If you would gain life, you gain that much life plus 1 instead.\n{2}{W}{B}{G}, {T}, Exile Bilbo: Search your library for any number of creature cards, put them onto the battlefield, then shuffle. Activate only if you have 111 or more life.",
     }
     assert ("lifegain_matters", "you") in _keys(bilbo)
 
@@ -1150,8 +1128,7 @@ def test_greatest_power_among_other_opens_power():
     arni = {
         "name": "Arni Brokenbrow",
         "type_line": "Legendary Creature — Human Berserker",
-        "oracle_text": "Haste\nBoast — {1}: Change Arni's base power to 1 plus the "
-        "greatest power among other creatures you control until end of turn.",
+        "oracle_text": "Haste\nBoast — {1}: You may change Arni's base power to 1 plus the greatest power among other creatures you control until end of turn. (Activate only if this creature attacked this turn and only once each turn.)",
     }
     assert ("power_matters", "you") in _keys(arni)
 
@@ -1181,7 +1158,7 @@ def test_artifact_type_commander_opens_artifacts():
     ede = {
         "name": "ED-E, Lonesome Eyebot",
         "type_line": "Legendary Artifact Creature — Robot",
-        "oracle_text": "Flying\nWhenever ED-E attacks, draw a card.",
+        "oracle_text": "Flying\nED-E My Love — Whenever you attack, if the number of attacking creatures is greater than the number of quest counters on ED-E, put a quest counter on it.\n{2}, Sacrifice ED-E: Draw a card, then draw an additional card for each quest counter on ED-E.",
     }
     assert ("artifacts_matter", "you") in {
         (s.key, s.scope) for s in extract_signals(ede)
@@ -1199,8 +1176,7 @@ def test_artifact_type_commander_opens_artifacts():
     anikthea = {
         "name": "Anikthea, Hand of Erebos",
         "type_line": "Legendary Enchantment Creature — Demigod",
-        "oracle_text": "At the beginning of combat on your turn, create a token that's a "
-        "copy of target enchantment card in your graveyard.",
+        "oracle_text": "Menace\nOther enchantment creatures you control have menace.\nWhenever Anikthea enters or attacks, exile up to one target non-Aura enchantment card from your graveyard. Create a token that's a copy of that card, except it's a 3/3 black Zombie creature in addition to its other types.",
     }
     assert ("enchantments_matter", "you") in {
         (s.key, s.scope) for s in extract_signals(anikthea)
@@ -1212,10 +1188,8 @@ def test_equipped_creature_reference_opens_voltron():
     # Equipment" — an equipment/voltron commander the attach/cast patterns missed.
     akiri = {
         "name": "Akiri, Fearless Voyager",
-        "type_line": "Legendary Creature — Human Warrior",
-        "oracle_text": "Whenever you attack a player with one or more equipped "
-        "creatures, draw a card.\n{W}: You may unattach an Equipment from a creature "
-        "you control.",
+        "type_line": "Legendary Creature — Kor Warrior",
+        "oracle_text": "Whenever you attack a player with one or more equipped creatures, draw a card.\n{W}: You may unattach an Equipment from a creature you control. If you do, tap that creature and it gains indestructible until end of turn.",
     }
     assert ("voltron_matters", "you") in {
         (s.key, s.scope) for s in extract_signals(akiri)
@@ -1241,10 +1215,9 @@ def test_boast_keyword_opens_attack_matters():
     # (stripped before detection), so match the KEYWORD (Dan's point).
     card = {
         "name": "Varragoth, Bloodsky Sire",
-        "type_line": "Legendary Creature — Demon",
+        "type_line": "Legendary Creature — Demon Rogue",
         "keywords": ["Boast", "Deathtouch"],
-        "oracle_text": "Deathtouch\nBoast — {1}{B}: Target player searches their "
-        "library for a card, then shuffles and puts that card on top.",
+        "oracle_text": "Deathtouch\nBoast — {1}{B}: Target player searches their library for a card, then shuffles and puts that card on top. (Activate only if this creature attacked this turn and only once each turn.)",
     }
     assert ("attack_matters", "you") in {
         (s.key, s.scope) for s in extract_signals(card)
@@ -1257,8 +1230,7 @@ def test_enchantress_first_spell_opens_enchantments():
     card = {
         "name": "Psemilla, Meletian Poet",
         "type_line": "Legendary Creature — Human Bard",
-        "oracle_text": "Whenever you cast your first enchantment spell each turn, create "
-        "a 2/2 white Nymph enchantment creature token.",
+        "oracle_text": "Whenever you cast your first enchantment spell each turn, create a 2/2 white Nymph enchantment creature token.\nAt the beginning of each combat, if you control five or more enchantments, Psemilla gets +4/+4 and gains lifelink until end of turn. (Damage dealt by this creature also causes you to gain that much life.)",
     }
     assert "enchantments_matter" in {s.key for s in extract_signals(card)}
 
@@ -1269,7 +1241,7 @@ def test_for_each_creature_opens_creatures_matter():
     card = {
         "name": "Shanna, Sisay's Legacy",
         "type_line": "Legendary Creature — Human Warrior",
-        "oracle_text": "Shanna gets +1/+1 for each creature you control.",
+        "oracle_text": "Shanna can't be the target of abilities your opponents control.\nShanna gets +1/+1 for each creature you control.",
     }
     assert "creatures_matter" in {s.key for s in extract_signals(card)}
 
@@ -1339,10 +1311,8 @@ def test_fliers_matter_commander_opens_flying_keyword_tribe():
     # "creature you control with flying" / "creature spell with flying" forms.
     momo = {
         "name": "Momo, Friendly Flier",
-        "type_line": "Legendary Creature — Lemur",
-        "oracle_text": "Flying\nThe first non-Lemur creature spell with flying you cast "
-        "during each of your turns costs {1} less to cast.\nWhenever another creature "
-        "you control with flying enters, scry 1.",
+        "type_line": "Legendary Creature — Lemur Bat Ally",
+        "oracle_text": "Flying\nThe first non-Lemur creature spell with flying you cast during each of your turns costs {1} less to cast.\nWhenever another creature you control with flying enters, Momo gets +1/+1 until end of turn.",
     }
     subs = {s.subject for s in extract_signals(momo) if s.key == "keyword_tribe"}
     assert "Flying" in subs
@@ -1352,7 +1322,7 @@ def test_fliers_matter_commander_opens_flying_keyword_tribe():
         "name": "Isperia, Supreme Judge",
         "type_line": "Legendary Creature — Sphinx",
         "keywords": ["Flying"],
-        "oracle_text": "Flying\nWhenever a creature attacks you, you may draw a card.",
+        "oracle_text": "Flying\nWhenever a creature attacks you or a planeswalker you control, you may draw a card.",
     }
     assert "keyword_tribe" not in {s.key for s in extract_signals(isperia)}
 
@@ -1363,9 +1333,9 @@ def test_lifelink_commander_opens_lifegain():
     # the gain (no "gain life" oracle text), so open lifegain via the keyword.
     card = {
         "name": "Elenda, Saint of Dusk",
-        "type_line": "Legendary Creature — Vampire Cleric",
+        "type_line": "Legendary Creature — Vampire Knight",
         "keywords": ["Lifelink", "Deathtouch"],
-        "oracle_text": "Deathtouch, lifelink",
+        "oracle_text": "Lifelink, hexproof from instants\nAs long as your life total is greater than your starting life total, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total.",
     }
     assert ("lifegain_matters", "you") in {
         (s.key, s.scope) for s in extract_signals(card)
@@ -1479,8 +1449,7 @@ def test_plural_death_does_not_open_on_dice():
     card = {
         "name": "Velukan Dragon",
         "type_line": "Creature — Dragon",
-        "oracle_text": "Whenever this creature attacks or blocks, roll a six-sided die. "
-        "This creature gets +X/+0 until end of turn, where X is the result.",
+        "oracle_text": "Flying\nWhenever this creature attacks or blocks, roll a six-sided die. This creature gets +X/+0 until end of turn, where X is the result minus 1.",
     }
     assert "death_matters" not in {s.key for s in extract_signals(card)}
 
@@ -1491,9 +1460,8 @@ def test_plural_combat_damage_opens_combat_damage_matters():
     # deal combat damage to a player" form the singular-only regex missed.
     card = {
         "name": "Excogitator Sphinx",
-        "type_line": "Creature — Sphinx",
-        "oracle_text": "Whenever one or more creatures you control deal combat damage "
-        "to a player, investigate.",
+        "type_line": "Creature — Sphinx Detective",
+        "oracle_text": "Flying\nWhenever one or more creatures you control deal combat damage to a player, investigate.\n{1}, Sacrifice a Clue: Seek an instant or sorcery card.",
     }
     assert ("combat_damage_matters", "opponents") in {
         (s.key, s.scope) for s in extract_signals(card)
@@ -1517,8 +1485,8 @@ def test_singular_lord_has_opens_type_matters():
     # "Each Ally you control HAS …" — the singular lord conjugation ("has" not "have").
     card = {
         "name": "Great Divide Guide",
-        "type_line": "Creature — Goblin Scout",
-        "oracle_text": 'Each Ally you control has "{T}: Add one mana of any color."',
+        "type_line": "Creature — Human Scout Ally",
+        "oracle_text": 'Each land and Ally you control has "{T}: Add one mana of any color."',
     }
     subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
     assert "Ally" in subs
@@ -1546,7 +1514,7 @@ def test_singular_tribal_lord_gets_opens_type_matters():
     thelon = {
         "name": "Thelon of Havenwood",
         "type_line": "Legendary Creature — Elf Druid",
-        "oracle_text": "Each Fungus creature gets +1/+1 for each spore counter on it.",
+        "oracle_text": "Each Fungus creature gets +1/+1 for each spore counter on it.\n{B}{G}, Exile a Fungus card from a graveyard: Put a spore counter on each Fungus on the battlefield.",
     }
     assert ("type_matters", "you") in _keys(thelon)
     subs = {s.subject for s in extract_signals(thelon) if s.key == "type_matters"}
@@ -1559,7 +1527,7 @@ def test_reward_for_attacking_opponents_opens_goad():
     # one of your OTHER opponents — firing the reward (CR 701.39).
     gahiji = {
         "name": "Gahiji, Honored One",
-        "type_line": "Legendary Creature — Cat",
+        "type_line": "Legendary Creature — Beast",
         "oracle_text": "Whenever a creature attacks one of your opponents or a "
         "planeswalker an opponent controls, that creature gets +2/+0 until end of turn.",
     }

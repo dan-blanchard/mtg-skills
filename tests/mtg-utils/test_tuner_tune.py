@@ -6,16 +6,14 @@ from mtg_utils.hydrated_deck import HydratedDeck
 KRENKO = {
     "name": "Krenko, Mob Boss",
     "type_line": "Legendary Creature — Goblin Warrior",
-    "oracle_text": "{T}: Create a number of 1/1 red Goblin creature tokens equal to "
-    "the number of Goblins you control.",
+    "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
     "cmc": 4.0,
     "color_identity": ["R"],
 }
 RABBLE = {
     "name": "Goblin Rabblemaster",
     "type_line": "Creature — Goblin Warrior",
-    "oracle_text": "At the beginning of combat on your turn, create a 1/1 red Goblin "
-    "creature token with haste.",
+    "oracle_text": "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin.",
     "cmc": 3.0,
     "color_identity": ["R"],
 }
@@ -36,8 +34,8 @@ FILLER1 = {
 }
 FILLER2 = {
     "name": "Lumbering Battlement",
-    "type_line": "Artifact Creature — Wall",
-    "oracle_text": "",
+    "type_line": "Creature — Beast",
+    "oracle_text": "Vigilance\nWhen this creature enters, exile any number of other nontoken creatures you control until it leaves the battlefield.\nThis creature gets +2/+2 for each card exiled with it.",
     "cmc": 6.0,
     "color_identity": [],
 }

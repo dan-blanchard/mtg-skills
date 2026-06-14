@@ -763,7 +763,7 @@ class TestFromCubeViaResolver:
             {
                 "name": "Lightning Bolt",
                 "type_line": "Instant",
-                "oracle_text": "~ deals 3 damage to any target.",
+                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
                 "color_identity": ["R"],
                 "mana_cost": "{R}",
                 "cmc": 1,
@@ -807,7 +807,7 @@ class TestFromCubeViaResolver:
             {
                 "name": "Reanimate",
                 "type_line": "Sorcery",
-                "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control.",
+                "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
                 "color_identity": ["B"],
                 "mana_cost": "{B}",
                 "cmc": 1,
