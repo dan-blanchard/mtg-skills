@@ -3321,6 +3321,27 @@ def test_tribal_lane_serves_type_agnostic_anthems():
     assert _lane_covers(bolt, sig) is False
 
 
+def test_clone_lane_serves_token_copy_effects():
+    """A clone/copy commander (Stangg, Yosei) wants the token-copy gear too — Helm of
+    the Host ("a token that's a copy of equipped creature"), Blade of Selves (myriad),
+    Rite of Replication. The clone serve's bare "copy of target/that" missed the
+    "equipped"/"it"/myriad forms."""
+    sig = _sig("clone_matters", "you")
+    helm = {
+        "name": "Helm of the Host",
+        "type_line": "Legendary Artifact — Equipment",
+        "oracle_text": "At the beginning of combat on your turn, create a token that's "
+        "a copy of equipped creature, except the token isn't legendary.",
+    }
+    blade = {
+        "name": "Blade of Selves",
+        "type_line": "Artifact — Equipment",
+        "oracle_text": "Equipped creature has myriad. Equip {4}",
+    }
+    assert _lane_covers(helm, sig) is True
+    assert _lane_covers(blade, sig) is True
+
+
 def test_blocked_matters_serves_force_block_effects():
     """A 'becomes blocked' payoff (General Marhault Elsdragon: +3/+3 for each creature
     blocking it) wants force-block effects so the per-blocker bonus maxes — Lure /

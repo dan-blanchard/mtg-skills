@@ -2040,6 +2040,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Deliver on "strong creatures worth copying": a clone/token-copy deck wants big
         # bombs to copy (Etali, power 6). power_min=6 keeps it to genuine bombs.
         serve_power_min=6,
+        # The token-copy GEAR is the same archetype: Helm of the Host ("a token that's
+        # a copy of equipped creature"), Blade of Selves (myriad), Rite of Replication —
+        # forms the bare "copy of target/that" serve missed (equipped/it/myriad).
+        extras=(_COPY_EXTRA,),
     ),
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",
