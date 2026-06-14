@@ -1241,6 +1241,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Firebreathing / variable-P/T decks pump power, then fling it for damage.
     ("self_pump", "you"): _sweep_spec_with_extras("self_pump", (_POWER_FLING_EXTRA,)),
+    # A self-blinking commander (Norin) re-enters constantly, firing "whenever a
+    # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).
+    ("self_blink", "you"): _sweep_spec_with_extras(
+        "self_blink", (_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA)
+    ),
     # A repeatable-wrath commander (Mageta) wants to rebuild after the sweep:
     # reanimation (Breath of Life) plus indestructible bombs (Zetalpa) that survive it.
     ("mass_removal", "you"): _sweep_spec_with_extras(

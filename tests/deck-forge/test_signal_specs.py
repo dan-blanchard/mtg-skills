@@ -3064,3 +3064,25 @@ def test_board_wipe_lane_serves_reanimation_and_resilient_bombs():
     }
     assert _lane_covers(breath, sig)
     assert _lane_covers(zetalpa, sig)
+
+
+def test_self_blink_serves_etb_payoffs():
+    """A self-blinking commander (Norin) re-enters constantly, firing 'whenever a
+    creature enters' payoffs (Impact Tremors, Genesis Chamber) and doublers
+    (Panharmonicon). The lane served neither."""
+    sig = _sig("self_blink")
+    tremors = {
+        "name": "Impact Tremors",
+        "type_line": "Enchantment",
+        "oracle_text": "Whenever a creature you control enters, Impact Tremors deals 1 "
+        "damage to each opponent.",
+    }
+    panharmonicon = {
+        "name": "Panharmonicon",
+        "type_line": "Artifact",
+        "oracle_text": "If an artifact or creature entering the battlefield causes a "
+        "triggered ability of a permanent you control to trigger, that ability triggers "
+        "an additional time.",
+    }
+    assert _lane_covers(tremors, sig)
+    assert _lane_covers(panharmonicon, sig)
