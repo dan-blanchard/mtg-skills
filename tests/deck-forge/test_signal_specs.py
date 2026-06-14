@@ -4160,3 +4160,22 @@ def test_landfall_serves_return_lands_from_graveyard():
         "oracle_text": "Return target creature card from your graveyard to your hand.",
     }
     assert _lane_covers(raise_dead, sig) is False
+
+
+def test_gain_control_serves_steal_and_cast_engines():
+    # A steal commander (Dragonlord Silumgar, Nihiloor) wants the borrow-and-cast
+    # engines too — Gonti/Hostage Taker seize an opponent's card and let you cast it.
+    # gain_control only matched the literal "gain control of" / Bribery library steal.
+    sig = _sig("gain_control", "you")
+    assert _lane_covers(GONTI, sig) is True
+    assert _lane_covers(HOSTAGE_TAKER, sig) is True
+    # Over-fire guard: self-reanimation (your own graveyard) is not theft/control.
+    reanimate = {
+        "name": "Reanimate",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Put target creature card from a graveyard onto the battlefield under "
+            "your control. You lose life equal to its mana value."
+        ),
+    }
+    assert _lane_covers(reanimate, sig) is False

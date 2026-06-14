@@ -2337,7 +2337,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # under your control — theft, not self-reanimation. Anchored to "opponent's
         # library" so a graveyard reanimator ("under your control" from a graveyard)
         # is excluded.
-        r"|opponent's library for [^.]*onto the battlefield under your control",
+        r"|opponent's library for [^.]*onto the battlefield under your control"
+        # Borrow-and-cast engines (Gonti, Hostage Taker): exile a card and cast it for
+        # as long as it remains exiled — taking control of what you don't own.
+        r"|" + _STEAL_CAST_ORACLE,
         serve_not=r"(?:opponent|another player|target player|that player) "
         r"gains control of",
     ),
