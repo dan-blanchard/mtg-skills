@@ -3394,6 +3394,27 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_targeting_heroic_serves_single_target_buffs():
+    """A heroic / targeting commander triggers when YOU cast a spell that TARGETS its
+    creature (CR 115), so the enablers are cheap single-TARGET pumps/protection (Gods
+    Willing, Brute Force, Defiant Strike). "each creature" anthems don't target and must
+    NOT count; targeted REMOVAL ("destroy target creature") isn't a buff."""
+    sig = _sig("targeting_matters", "any")
+    for name, oracle in [
+        ("Gods Willing", "Target creature you control gains protection from the color "
+         "of your choice until end of turn."),
+        ("Brute Force", "Target creature gets +3/+3 until end of turn."),
+        ("Temur Battle Rage", "Target creature gains double strike until end of turn."),
+    ]:
+        assert _lane_covers({"name": name, "type_line": "Instant", "oracle_text": oracle}, sig), name
+    # "each creature" anthem doesn't TARGET — must not count as a heroic enabler.
+    anthem = {"name": "Glorious Anthem", "type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1."}
+    assert _lane_covers(anthem, sig) is False
+    # targeted removal is not a buff for your own creature.
+    rm = {"name": "Murder", "type_line": "Instant", "oracle_text": "Destroy target creature."}
+    assert _lane_covers(rm, sig) is False
+
+
 def test_opponent_draw_punish_serves_group_draw_enablers():
     """A "whenever an opponent draws → punish" commander (Nekusar) wants the SYMMETRIC /
     forced group-draw enablers that make opponents draw extra (Howling Mine, Temple

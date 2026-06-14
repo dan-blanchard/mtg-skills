@@ -800,6 +800,22 @@ _EDICT_SWEEP_REGEX = next(
 _BASIC_LAND_FETCH = (
     r"search your library for [^.]*\b(?:forest|plains|island|swamp|mountain)s?\b"
 )
+_TARGETING_SWEEP_REGEX = next(
+    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "targeting_matters"
+)
+# Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
+# the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
+# (CR 115.1a) and BUFF it (gets +/gains) — an "each creature" anthem doesn't target (so
+# won't trigger heroic) and targeted REMOVAL ("gets -N/-N", destroy) isn't a self-buff,
+# so both stay out.
+_TARGETED_BUFF_ORACLE = r"target creature (?:you control )?(?:gets? \+|gains?\b)"
+_TARGETED_BUFF_EXTRA = SubAvenue(
+    "Single-target pump / protection",
+    "cheap spells that target one of your creatures to trigger heroic (Gods Willing / "
+    "Brute Force / Defiant Strike)",
+    {"oracle": _TARGETED_BUFF_ORACLE},
+    serve=Serve(oracle=re.compile(_TARGETED_BUFF_ORACLE, _IC)),
+)
 _PUMP_EXTRA = SubAvenue(
     "Combat tricks / pump",
     "instant-speed pump to push extra combat damage through and survive blocks",
@@ -1409,6 +1425,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # bonus.
     ("blocked_matters", "you"): _sweep_spec_with_extras(
         "blocked_matters", (_LURE_EXTRA,)
+    ),
+    # Heroic / target-matters: the payoff fires when YOU target your own creature, so
+    # surface the single-target pumps/protection that do it (Gods Willing, Brute Force).
+    ("targeting_matters", "any"): _spec(
+        *SWEEP_LABELS["targeting_matters"],
+        {"oracle": _TARGETING_SWEEP_REGEX},
+        _TARGETING_SWEEP_REGEX,
+        extras=(_TARGETED_BUFF_EXTRA,),
     ),
     # Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties: surface
     # creature cost reducers (Goreclaw) and genuine bombs (Ghalta — power_min=6 keeps it
