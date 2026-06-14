@@ -425,6 +425,9 @@ _FLICKER_ORACLE = (
     # Two-sentence form: "exile … . Return it/that … battlefield" (Charming Prince,
     # Flickerwisp) — crosses one sentence boundary, anchored to a return-pronoun.
     r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield"
+    # Death-return (Feign Death, undying): "when … dies, return it … battlefield"
+    # re-fires the ETB via death — an ETB-reuse payoff for blink/etb/ltb decks.
+    r"|dies, return (?:it|that card|them)[^.]*battlefield"
 )
 _FLICKER_EXTRA = SubAvenue(
     "Blink / flicker",
@@ -1243,7 +1246,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # (Flickerwisp, Charming Prince). The pronoun anchor + single-period limit keep
         # an unrelated exile-removal-then-return-a-land off the lane.
         r"exile[^.]*?return[^.]*?battlefield"
-        r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield",
+        r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield"
+        # Death-return (Feign Death, undying) re-fires the ETB via death.
+        r"|dies, return (?:it|that card|them)[^.]*battlefield",
         extras=(_ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
     ("mill_matters", "any"): _spec(

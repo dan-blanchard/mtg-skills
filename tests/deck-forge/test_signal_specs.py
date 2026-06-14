@@ -3281,3 +3281,17 @@ def test_graveyard_lane_serves_etb_value_recursion_targets():
     }
     assert _lane_covers(fleshbag, sig)
     assert _lane_covers(witness, sig)
+
+
+def test_flicker_extra_serves_death_return():
+    """'When this dies, return it to the battlefield' (Feign Death, undying) re-fires the
+    ETB via death — an ETB/blink/ltb commander (Gonti, Junji) wants it, so _FLICKER_EXTRA
+    (shared by those lanes) should serve it."""
+    feign = {
+        "name": "Feign Death",
+        "type_line": "Instant",
+        "oracle_text": "Until end of turn, target creature gains \"When this creature "
+        "dies, return it to the battlefield tapped under its owner's control.\"",
+    }
+    assert _lane_covers(feign, _sig("blink_flicker"))
+    assert _lane_covers(feign, _sig("ltb_matters"))
