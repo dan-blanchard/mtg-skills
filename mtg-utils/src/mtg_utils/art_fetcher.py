@@ -1675,10 +1675,11 @@ def main(
             log=lambda s: click.echo(s, err=True),
         )
     except requests.HTTPError as e:
-        click.echo(
-            f"ERROR: HTTP {e.response.status_code} from {e.request.url}",
-            err=True,
-        )
+        # e.response / e.request are Optional on the exception type even though a
+        # raise_for_status() error always carries them; guard so it's None-safe.
+        code = e.response.status_code if e.response is not None else "?"
+        url = e.request.url if e.request is not None else "?"
+        click.echo(f"ERROR: HTTP {code} from {url}", err=True)
         sys.exit(EXIT_FETCH_FAILED)
     except requests.RequestException as e:
         click.echo(f"ERROR: network failure: {e}", err=True)

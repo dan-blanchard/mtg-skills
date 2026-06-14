@@ -7,4 +7,3 @@ build/
 .ruff_cache/
 *.json
 .cache/
-uv.lock
