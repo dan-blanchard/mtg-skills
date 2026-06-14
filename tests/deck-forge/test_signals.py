@@ -890,3 +890,36 @@ def test_your_team_controls_opens_tribe():
         "oracle_text": "Double strike\nDragons your team controls have double strike.",
     }
     assert any(s.subject == "Dragon" for s in extract_signals(sylvia) if s.key == "type_matters")
+
+
+# ── Clone synergy: a HIGH-CMC commander with a strong ETB is worth copying (Dan's
+# insight) — copying it re-fires the expensive ETB on a token for cheap (Gyruda). ──
+def test_high_cmc_etb_commander_opens_clone():
+    gyruda = {
+        "name": "Gyruda, Doom of Depths",
+        "type_line": "Legendary Creature — Kraken Horror",
+        "cmc": 6.0,
+        "oracle_text": "When Gyruda, Doom of Depths enters, each player mills four "
+        "cards, then you put a creature card with an even mana value from among them "
+        "onto the battlefield.",
+    }
+    assert ("clone_matters", "you") in _keys(gyruda)
+
+
+def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
+    # Precision: copying a CHEAP ETB isn't worth a clone, and a big VANILLA has no ETB
+    # to re-fire — both need a high CMC AND an ETB.
+    cheap = {
+        "name": "Elvish Visionary",
+        "type_line": "Creature — Elf",
+        "cmc": 2.0,
+        "oracle_text": "When Elvish Visionary enters, draw a card.",
+    }
+    vanilla = {
+        "name": "Colossus",
+        "type_line": "Creature — Golem",
+        "cmc": 8.0,
+        "oracle_text": "Trample",
+    }
+    assert ("clone_matters", "you") not in _keys(cheap)
+    assert ("clone_matters", "you") not in _keys(vanilla)

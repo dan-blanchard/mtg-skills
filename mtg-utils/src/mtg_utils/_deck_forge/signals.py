@@ -1786,6 +1786,18 @@ def extract_signals(
         etb_clause = _self_etb_value(text, name)
         if etb_clause is not None:
             add("blink_flicker", "you", "", etb_clause, "low")
+    # A HIGH-CMC commander with a strong ETB is worth COPYING — a clone/token copy
+    # re-fires the expensive ETB on a cheap body (Gyruda). Gate on mana value >= 5
+    # (copying a cheap ETB isn't worth a clone). Full-name self-ETB so "When Gyruda,
+    # Doom of Depths enters" matches (the first-word-only helper misses it).
+    if include_membership and (card.get("cmc") or 0) >= 5:
+        self_etb = re.compile(
+            rf"when (?:{re.escape(name)}|this creature|this permanent) enters\b"
+            rf"[^.]*?{_SELF_ETB_PAYOFF}",
+            re.IGNORECASE,
+        )
+        if self_etb.search(text):
+            add("clone_matters", "you", "", text[:160], "low")
 
     # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
     # else gave a strong direction and the creature is a real commander-damage threat
