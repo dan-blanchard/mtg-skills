@@ -1782,14 +1782,29 @@ def extract_signals(
     # include_membership); a 0/1 themeless wall is excluded by the power floor.
     type_line = card.get("type_line") or ""
     has_strong = any(s.confidence == "high" and s.key not in _GENERIC_KEYS for s in out)
-    if include_membership and not has_strong and "creature" in type_line.lower():
-        kws = {k.lower() for k in (card.get("keywords") or [])}
-        try:
-            power = int(str(card.get("power", "0")))
-        except ValueError:
-            power = 0
-        if kws & _VOLTRON_KEYWORDS or power >= 2:
-            add("voltron_matters", "you", "", "commander damage (CR 903.10a)", "low")
+    try:
+        power = int(str(card.get("power", "0")))
+    except ValueError:
+        power = 0
+    kws = {k.lower() for k in (card.get("keywords") or [])}
+    # Hexproof / indestructible / shroud creatures are PRIME voltron targets — un-
+    # removable beaters you safely suit up (Sigarda, Uril, Geist of Saint Traft) — so
+    # open voltron even when another signal already fired (these decks are voltron
+    # regardless of the commander's incidental text).
+    if (
+        include_membership
+        and "creature" in type_line.lower()
+        and power >= 2
+        and kws & {"hexproof", "indestructible", "shroud"}
+    ):
+        add("voltron_matters", "you", "", "hexproof/indestructible beater", "low")
+    if (
+        include_membership
+        and not has_strong
+        and "creature" in type_line.lower()
+        and (kws & _VOLTRON_KEYWORDS or power >= 2)
+    ):
+        add("voltron_matters", "you", "", "commander damage (CR 903.10a)", "low")
 
     return out
 

@@ -850,3 +850,18 @@ def test_generic_class_types_still_excluded_from_membership():
              "oracle_text": ""}
         subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
         assert cls not in subs
+
+
+def test_hexproof_beater_opens_voltron_despite_other_signals():
+    # Sigarda: Flying, Hexproof, 5/5 — THE aura-voltron target (hexproof protects the
+    # auras). She has a strong sacrifice-protection signal, but is voltron regardless.
+    sigarda = {
+        "name": "Sigarda, Host of Herons",
+        "type_line": "Legendary Creature — Angel",
+        "power": "5",
+        "toughness": "5",
+        "keywords": ["Flying", "Hexproof"],
+        "oracle_text": "Flying, hexproof\nSpells and abilities your opponents control "
+        "can't cause you to sacrifice permanents.",
+    }
+    assert ("voltron_matters", "you") in _keys(sigarda)
