@@ -268,6 +268,12 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             # Past-tense spell-COUNT payoff ("for each spell you've cast this turn" —
             # Gnostro, Rionya, Narset) the present-tense "whenever you cast" missed.
             or _re(r"spells? you've cast this turn")(c)
+            # Instant/sorcery COST reducers (Baral, Magnus, Vadrik) and cast-from-zone
+            # / next-cast-copy payoffs (Johann, Zaffai, Najal) — core spellslinger glue
+            # with no "whenever you cast" trigger.
+            or _re(r"instant and sorcery spells? you cast cost")(c)
+            or _re(r"cast an instant or sorcery spell from")(c)
+            or _re(r"when you (?:next )?cast an instant or sorcery spell this turn")(c)
         ),
         "you",
     ),
@@ -743,7 +749,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|junk|incubator|lander)\b[^.]*token"
             # Metalcraft (CR 207.2c ability word: "control three or more artifacts") is
             # an artifacts deck; the italic word prints in the oracle, so match it.
-            r"|\bmetalcraft\b",
+            r"|\bmetalcraft\b"
+            # Artifact tutors / digs that reference artifact CARDS (Arcum: "search …
+            # for a noncreature artifact card"; Casey/Ashe: "reveal an artifact card")
+            # and an artifact-ETB CONDITION (Akal Pakal: "if an artifact entered the
+            # battlefield under your control this turn"), plus artifact-spell cost
+            # reducers (Urza, Lord Protector).
+            r"|search (?:your library )?for an?[^.]*artifact card"
+            r"|reveal an artifact card"
+            r"|if an artifact entered the battlefield under your control"
+            r"|artifact,? instant,? and sorcery spells",
             re.IGNORECASE,
         ),
         "you",
@@ -757,7 +772,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Enchantress: "whenever you cast an enchantment spell" (Sythis) — also the
             # "your first enchantment spell each turn" wording (Psemilla). The bare
             # "cast an enchantment" missed the "first/second … enchantment spell" forms.
-            r"|cast (?:an?|your (?:first|second)) enchantment",
+            r"|cast (?:an?|your (?:first|second)) enchantment"
+            # Tutors / recursion / hand-matters that reference enchantment CARDS (Zur:
+            # "search … for an enchantment card"; Estrid: "return … enchantment cards
+            # from your graveyard"; Marina: "put all enchantment cards … into your
+            # hand"; Aminatou: "enchantment card in your hand") — the lane keyed only on
+            # "enchantments you control" / casting and missed card references.
+            r"|search (?:your library )?for an?[^.]*enchantment card"
+            r"|return [^.]*enchantment cards?[^.]*(?:graveyard|hand)"
+            r"|enchantment cards? in your hand"
+            r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards",
             re.IGNORECASE,
         ),
         "you",

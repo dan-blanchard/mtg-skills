@@ -1700,3 +1700,52 @@ def test_yasharn_opens_stax_taxes():
         ),
     }
     assert ("stax_taxes", "opponents") in _keys(card)
+
+
+# ── Long-tail batch 2 (salvaged workflow proposals: detector-open gaps) ────────
+
+
+def test_enchantment_card_tutor_opens_enchantments():
+    # Zur the Enchanter tutors enchantment CARDS; the detector keyed only on
+    # "enchantments you control" / "cast an enchantment" and missed card-references.
+    card = {
+        "name": "Zur the Enchanter",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "Flying\nWhenever Zur attacks, you may search your library for an "
+            "enchantment card with mana value 3 or less, put it onto the "
+            "battlefield, then shuffle."
+        ),
+    }
+    assert ("enchantments_matter", "you") in _keys(card)
+
+
+def test_instant_sorcery_cost_reducer_opens_spellslinger():
+    # Baral reduces instant/sorcery cost — a core spellslinger payoff the
+    # "whenever you cast" lambda missed (no cast trigger).
+    card = {
+        "name": "Baral, Chief of Compliance",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "Instant and sorcery spells you cast cost {1} less to cast.\n"
+            "Whenever a spell or ability you control counters a spell, you may "
+            "draw a card. If you do, discard a card."
+        ),
+    }
+    assert ("spellcast_matters", "you") in _keys(card)
+
+
+def test_artifact_entered_condition_opens_artifacts():
+    # Akal Pakal keys on "if an artifact entered the battlefield under your
+    # control this turn" — an artifacts-matters condition the detector missed.
+    card = {
+        "name": "Akal Pakal, First Among Equals",
+        "type_line": "Legendary Creature — Human Advisor",
+        "oracle_text": (
+            "At the beginning of each player's end step, if an artifact entered "
+            "the battlefield under your control this turn, look at the top two "
+            "cards of your library. Put one of them into your hand and the other "
+            "into your graveyard."
+        ),
+    }
+    assert ("artifacts_matter", "you") in _keys(card)
