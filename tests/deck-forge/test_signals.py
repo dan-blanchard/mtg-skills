@@ -936,3 +936,15 @@ def test_land_enter_punisher_opens_burn_lane():
         "that land's controller.",
     }
     assert ("direct_damage", "you") in _keys(zozu)
+
+
+def test_source_deals_damage_opens_burn():
+    # The Red Terror: "whenever a red source you control deals damage …" — a damage-
+    # matters commander who wants to deal lots of damage (burn).
+    terror = {
+        "name": "The Red Terror",
+        "type_line": "Legendary Creature — Dinosaur",
+        "oracle_text": "Whenever a red source you control deals damage to one or more "
+        "permanents and/or players, put a +1/+1 counter on The Red Terror.",
+    }
+    assert ("direct_damage", "you") in _keys(terror)

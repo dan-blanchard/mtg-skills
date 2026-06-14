@@ -725,7 +725,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Land/mana PUNISHER (Zo-Zu): "whenever a land enters / a player taps a land
             # … deals N damage" — the opponents-landfall-punish side (Ankh, Manabarbs).
             r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
-            r"[^.]*?deals? (?:\d+|x) damage",
+            r"[^.]*?deals? (?:\d+|x) damage"
+            # Damage-matters commander: "whenever a (red) source you control deals
+            # damage …" wants to deal lots of damage (The Red Terror, Toralf).
+            r"|whenever a (?:\w+ )?source you control deals damage",
             re.IGNORECASE,
         ),
         "you",

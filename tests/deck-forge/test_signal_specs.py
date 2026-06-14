@@ -3137,3 +3137,23 @@ def test_burn_serves_land_enter_punishers():
         "land's controller.",
     }
     assert _lane_covers(ankh, sig)
+
+
+def test_redirect_lane_serves_damage_prevention():
+    """A redirect-to-self commander (Hazduhr, Cho-Manno) also wants damage PREVENTION —
+    Battlefield Medic, Worship — to blank the damage it soaks."""
+    sig = _sig("damage_redirect")
+    medic = {
+        "name": "Battlefield Medic",
+        "type_line": "Creature — Human Cleric",
+        "oracle_text": "{T}: Prevent the next 1 damage that would be dealt to any "
+        "target this turn for each Cleric you control.",
+    }
+    worship = {
+        "name": "Worship",
+        "type_line": "Enchantment",
+        "oracle_text": "If you control a creature, damage that would reduce your life "
+        "total to less than 1 reduces it to 1 instead.",
+    }
+    assert _lane_covers(medic, sig)
+    assert _lane_covers(worship, sig)

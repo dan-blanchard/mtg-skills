@@ -1055,11 +1055,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # protection grants that keep the redirect target alive.
     ("damage_redirect", "you"): _spec(
         "Damage redirection",
-        "redirect-all-damage effects (Pariah) onto your unkillable creature, plus the "
-        "indestructible/protection that keeps it alive",
-        {"oracle": r"damage that would be dealt to you is dealt to"},
+        "redirect-all-damage effects (Pariah) onto your unkillable creature, damage "
+        "prevention to blank it, plus indestructible/protection to keep it alive",
+        {"oracle": r"damage that would be dealt to you|prevent [^.]*damage"},
         r"damage that would be dealt to you is dealt to [^.]*creature instead"
-        r"|all damage[^.]*dealt to you[^.]*dealt to [^.]*instead",
+        r"|all damage[^.]*dealt to you[^.]*dealt to [^.]*instead"
+        # Damage PREVENTION (Battlefield Medic, Worship) blanks the soaked damage — a
+        # redirect-to-self commander (Hazduhr, Cho-Manno) wants it.
+        r"|prevent (?:the next |all )?[^.]*damage"
+        r"|damage that would (?:reduce|be dealt)[^.]*(?:instead|prevented)",
         extras=(_VOLTRON_PROTECT_EXTRA,),
     ),
     # Vanilla (Ruxa, Muraganda Petroglyphs): creatures with NO rules text (the tribe)
