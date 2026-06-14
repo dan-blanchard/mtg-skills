@@ -3394,6 +3394,23 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_token_lanes_serve_creature_anthems():
+    """A token go-wide deck's tokens ARE creatures, so symmetric creature anthems pump
+    them — "creatures you control get +1/+1" (Glorious Anthem, Dictate of Heliod), not
+    just token-specific ones. token_maker (incl. subject specs) and tokens_matter served
+    only token anthems. These are SYMMETRIC ("creatures you control"), not "target
+    creature" single pumps."""
+    glorious = {"name": "Glorious Anthem", "type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1."}
+    virtue = {"name": "Intangible Virtue", "type_line": "Enchantment", "oracle_text": "Creature tokens you control get +1/+1 and have vigilance."}
+    for sig in [_sig("tokens_matter", "you"), _sig("token_maker", "you"), _sig_sub("token_maker", "Spirit")]:
+        label = f"{sig.key}/{sig.subject or '-'}"
+        assert _lane_covers(glorious, sig), f"{label}/glorious"
+        assert _lane_covers(virtue, sig), f"{label}/virtue"
+    # precision: a single-TARGET pump is not a go-wide anthem.
+    brute = {"name": "Brute Force", "type_line": "Instant", "oracle_text": "Target creature gets +3/+3 until end of turn."}
+    assert _lane_covers(brute, _sig("token_maker", "you")) is False
+
+
 def test_targeting_heroic_serves_single_target_buffs():
     """A heroic / targeting commander triggers when YOU cast a spell that TARGETS its
     creature (CR 115), so the enablers are cheap single-TARGET pumps/protection (Gods

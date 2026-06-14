@@ -417,6 +417,20 @@ _TOKEN_DOUBLER_EXTRA = SubAvenue(
     {"oracle": _TOKEN_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_DOUBLER_ORACLE, _IC)),
 )
+# Symmetric go-wide anthems: "creatures you control get +1/+1" (Glorious Anthem) and
+# "creature tokens you control get …" (Intangible Virtue). SYMMETRIC ("you control"),
+# not "target creature" single pumps (CR 115 — those needn't hit your team). A token /
+# go-wide deck's tokens ARE creatures, so creature anthems pump them.
+_GOWIDE_ANTHEM_ORACLE = (
+    r"(?:creatures?|(?:creature )?tokens?) you control (?:gets?|have|has|gains?)\b"
+)
+_GOWIDE_ANTHEM_EXTRA = SubAvenue(
+    "Go-wide anthems",
+    "team anthems that pump every creature/token you control (Glorious Anthem, Dictate "
+    "of Heliod, Intangible Virtue)",
+    {"oracle": _GOWIDE_ANTHEM_ORACLE},
+    serve=Serve(oracle=re.compile(_GOWIDE_ANTHEM_ORACLE, _IC)),
+)
 # Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
 # she'd create into a copy of a chosen creature, so the more tokens she'd have made,
 # the more copies). Matches "create … creature token(s)" (Hornet Queen / Avenger of
@@ -1210,7 +1224,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # misses the "creature TOKENS" phrasing.
         r"create [^.]*creature token"
         r"|(?:creature )?tokens? you control (?:get|have|gain)",
-        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
+        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
     ),
     ("treasure_matters", "you"): _spec(
         "Treasure",
@@ -1328,7 +1342,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\btokens? you control\b"
         r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
         r"|\bpopulate\b",
-        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
+        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
     ),
     # The bare `your opponents` alternative matched any card that merely names opponents
     # (Edric's draw trigger, Telepathy's hand reveal). Serve the actual restriction/tax
@@ -2542,7 +2556,12 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             avenue=f"cards that create {subj} tokens to go wide",
             search={"oracle": token_re},
             serve=Serve(oracle=re.compile(token_re, _IC)),
-            extras=(_payoff_extra(subj, esc), _TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA),
+            extras=(
+                _payoff_extra(subj, esc),
+                _TOKEN_DOUBLER_EXTRA,
+                _ETB_PAYOFF_EXTRA,
+                _GOWIDE_ANTHEM_EXTRA,
+            ),
         )
     # tribal (type_matters) / typed spellcast: the cards themselves (type-line match),
     # plus a distinct "{s} payoffs" sub-avenue for the lords/anthems that reward them.
