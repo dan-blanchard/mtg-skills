@@ -2961,3 +2961,22 @@ def test_vanilla_lane_serves_vanilla_creatures_and_payoffs():
     assert _lane_covers(gigantosaurus, sig)  # vanilla member
     assert _lane_covers(muraganda, sig)  # the payoff
     assert not _lane_covers(bear_with_text, sig)  # has an ability → not vanilla
+
+
+def test_combat_damage_lane_serves_gear_and_pump():
+    """A combat-damage-trigger commander (Benton, Ojutai, Edric) wants to CONNECT and
+    survive: gear (Ring of Thune) and pump (Giant Growth). The lane served evasion but
+    not the gear/pump that keeps the attacker alive and bigger."""
+    sig = _sig("combat_damage_matters", "opponents")
+    ring = {
+        "name": "Ring of Thune",
+        "type_line": "Artifact — Equipment",
+        "oracle_text": "Equipped creature gets +1/+1 and has vigilance.\nEquip {1}",
+    }
+    giant_growth = {
+        "name": "Giant Growth",
+        "type_line": "Instant",
+        "oracle_text": "Target creature gets +3/+3 until end of turn.",
+    }
+    assert _lane_covers(ring, sig)
+    assert _lane_covers(giant_growth, sig)

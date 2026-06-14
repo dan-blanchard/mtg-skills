@@ -660,6 +660,15 @@ _COMBAT_SUPPORT_EXTRA = SubAvenue(
     {"oracle": _COMBAT_SUPPORT_ORACLE},
     serve=Serve(oracle=re.compile(_COMBAT_SUPPORT_ORACLE, _IC)),
 )
+# Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
+# survive blocks — reuses the mined pump_matters regex so it never drifts.
+_PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
+_PUMP_EXTRA = SubAvenue(
+    "Combat tricks / pump",
+    "instant-speed pump to push extra combat damage through and survive blocks",
+    {"oracle": _PUMP_ORACLE},
+    serve=Serve(oracle=re.compile(_PUMP_ORACLE, _IC)),
+)
 # Protecting the single suited-up threat IS the voltron support package (Mother of
 # Runes, Bastion Protector, Avacyn, Vexilus Praetor are top-synergy on EDHREC for
 # voltron commanders). Gate on GRANTING a shield keyword — hexproof / shroud /
@@ -1228,6 +1237,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
         r"deals combat damage to (?:a player|an opponent|one of your opponents"
         r"|each opponent)|can't be blocked(?! except)|\bunblockable\b",
+        # A combat-damage-trigger commander needs to CONNECT and survive: gear to suit
+        # up (Ojutai) and instant pump to push through / survive blocks (Benton).
+        extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA),
+    ),
+    ("combat_damage_to_opp", "opponents"): _sweep_spec_with_extras(
+        "combat_damage_to_opp", (_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA)
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,
