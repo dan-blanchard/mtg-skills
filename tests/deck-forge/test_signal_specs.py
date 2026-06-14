@@ -3295,3 +3295,58 @@ def test_flicker_extra_serves_death_return():
     }
     assert _lane_covers(feign, _sig("blink_flicker"))
     assert _lane_covers(feign, _sig("ltb_matters"))
+
+
+def test_blocked_matters_serves_force_block_effects():
+    """A 'becomes blocked' payoff (General Marhault Elsdragon: +3/+3 for each creature
+    blocking it) wants force-block effects so the per-blocker bonus maxes — Lure /
+    Nemesis Mask / Roar of Challenge force every able creature to block."""
+    sig = _sig("blocked_matters", "you")
+    lure = {
+        "name": "Lure",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\nAll creatures able to block enchanted "
+        "creature do so.",
+    }
+    roar = {
+        "name": "Roar of Challenge",
+        "type_line": "Sorcery",
+        "oracle_text": "All creatures able to block target creature this turn do so.",
+    }
+    assert _lane_covers(lure, sig) is True
+    assert _lane_covers(roar, sig) is True
+    # A plain anthem is not a force-block effect.
+    anthem = {
+        "name": "Glorious Anthem",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures you control get +1/+1.",
+    }
+    assert _lane_covers(anthem, sig) is False
+
+
+def test_token_copy_serves_makers_and_doublers():
+    """Esix converts each token she'd create into a copy of a chosen creature — so she
+    wants token MAKERS (more tokens → more copies) and token DOUBLERS (double the
+    copies), not just big bodies to copy."""
+    sig = _sig("token_copy_matters", "you")
+    hornet = {
+        "name": "Hornet Queen",
+        "type_line": "Creature — Insect",
+        "oracle_text": "Flying, deathtouch\nWhen this creature enters, create four 1/1 "
+        "green Insect creature tokens with flying and deathtouch.",
+    }
+    avenger = {
+        "name": "Avenger of Zendikar",
+        "type_line": "Creature — Elemental",
+        "oracle_text": "When this creature enters, create a 0/1 green Plant creature "
+        "token for each land you control.",
+    }
+    adrix = {
+        "name": "Adrix and Nev, Twincasters",
+        "type_line": "Legendary Creature — Merfolk Wizard",
+        "oracle_text": "Ward {2}\nIf one or more tokens would be created under your "
+        "control, twice that many of those tokens are created instead.",
+    }
+    assert _lane_covers(hornet, sig) is True
+    assert _lane_covers(avenger, sig) is True
+    assert _lane_covers(adrix, sig) is True

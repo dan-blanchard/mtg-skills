@@ -417,6 +417,18 @@ _TOKEN_DOUBLER_EXTRA = SubAvenue(
     {"oracle": _TOKEN_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_DOUBLER_ORACLE, _IC)),
 )
+# Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
+# she'd create into a copy of a chosen creature, so the more tokens she'd have made,
+# the more copies). Matches "create … creature token(s)" (Hornet Queen / Avenger of
+# Zendikar / Deep Forest Hermit).
+_TOKEN_MAKER_ORACLE = r"create [^.]*?\bcreature tokens?\b"
+_TOKEN_MAKER_EXTRA = SubAvenue(
+    "Token makers",
+    "creature-token makers whose tokens become copies (Hornet Queen / Avenger of "
+    "Zendikar / Deep Forest Hermit)",
+    {"oracle": _TOKEN_MAKER_ORACLE},
+    serve=Serve(oracle=re.compile(_TOKEN_MAKER_ORACLE, _IC)),
+)
 # Flicker enablers (CR 603.6e) for a repeated-ETB commander — re-use your own ETBs.
 # Pronoun/"you control"-return anchor keeps reanimation (graveyard return) out.
 _FLICKER_ORACLE = (
@@ -789,6 +801,18 @@ _POWER_FLING_EXTRA = SubAvenue(
     "Ignition / Soul's Fire)",
     {"oracle": _POWER_FLING_ORACLE},
     serve=Serve(oracle=re.compile(_POWER_FLING_ORACLE, _IC)),
+)
+# Force-block effects for a "becomes blocked" payoff commander (General Marhault
+# Elsdragon: +3/+3 for each creature blocking the attacker). Forcing every able
+# creature to block MAXES the per-blocker bonus (CR 509.1c). The canonical Lure phrase
+# is "all creatures able to block … do so"; Provoke (CR 702.39) forces a single block.
+_LURE_ORACLE = r"able to block [^.]*?\bdo so\b"
+_LURE_EXTRA = SubAvenue(
+    "Force blocks (Lure)",
+    "effects that force opponents' creatures to block your attacker, maxing a "
+    '"becomes blocked" payoff (Lure / Nemesis Mask / Roar of Challenge)',
+    {"oracle": _LURE_ORACLE},
+    serve=Serve(oracle=re.compile(_LURE_ORACLE, _IC), keywords=frozenset({"provoke"})),
 )
 
 
@@ -1296,6 +1320,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # and keyword-anthems that grow their attackers.
     ("combat_buff_engine", "you"): _sweep_spec_with_extras(
         "combat_buff_engine", (_COMBAT_SUPPORT_EXTRA,)
+    ),
+    # A "becomes blocked" payoff (General Marhault: +3/+3 for each creature blocking it)
+    # wants Lure effects — forcing every able creature to block maxes the per-blocker
+    # bonus.
+    ("blocked_matters", "you"): _sweep_spec_with_extras(
+        "blocked_matters", (_LURE_EXTRA,)
     ),
     # Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties: surface
     # creature cost reducers (Goreclaw) and genuine bombs (Ghalta — power_min=6 keeps it
@@ -1826,6 +1856,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Deliver on "strong creatures to copy": a token-copy deck wants big bombs to
         # copy (Etali). power_min=6 keeps it to genuine bombs, mirroring clone_matters.
         serve_power_min=6,
+        # A token-copy commander (Esix) turns each token it would create into a copy —
+        # so it also wants raw token MAKERS (more tokens → more copies) and token
+        # DOUBLERS (double the copies).
+        extras=(_TOKEN_MAKER_EXTRA, _TOKEN_DOUBLER_EXTRA),
     ),
     ("specialize_matters", "you"): _spec(
         "Specialize",

@@ -167,6 +167,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Force-attack incentive (Kratos): "creatures that didn't attack this turn" punishes
     # not attacking — a goad/aggro commander that wants everyone swinging.
     ("forced_attack", _re(r"didn't attack this turn|that attacked this turn"), "you"),
+    # Rewards-for-attacking-opponents (Gahiji, Frontier Warmonger): a creature that
+    # attacks "one of your opponents" earns a buff. Goad forces opponents' creatures to
+    # attack a player other than their controller — one of your OTHER opponents — which
+    # fires the reward (CR 701.39). So such a commander wants goad effects.
+    (
+        "goad_matters",
+        _re(r"attacks? one of your opponents|attacks? a player other than you"),
+        "opponents",
+    ),
     # Outlaw tribal (Outlaws of Thunder Junction): Assassins/Mercenaries/Pirates/Rogues/
     # Warlocks are collectively "outlaws" (Vial Smasher, Kellan).
     (

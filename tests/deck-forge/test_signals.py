@@ -1097,3 +1097,16 @@ def test_greatest_power_among_other_opens_power():
         "greatest power among other creatures you control until end of turn.",
     }
     assert ("power_matters", "you") in _keys(arni)
+
+
+def test_reward_for_attacking_opponents_opens_goad():
+    # Gahiji / Frontier Warmonger reward any creature that attacks your opponents. Goad
+    # forces opponents' creatures to attack a player other than their controller — i.e.
+    # one of your OTHER opponents — firing the reward (CR 701.39).
+    gahiji = {
+        "name": "Gahiji, Honored One",
+        "type_line": "Legendary Creature — Cat",
+        "oracle_text": "Whenever a creature attacks one of your opponents or a "
+        "planeswalker an opponent controls, that creature gets +2/+0 until end of turn.",
+    }
+    assert ("goad_matters", "opponents") in _keys(gahiji)
