@@ -1135,6 +1135,20 @@ def test_greatest_power_among_other_opens_power():
     assert ("power_matters", "you") in _keys(arni)
 
 
+def test_singular_tribal_lord_gets_opens_type_matters():
+    # "Each Fungus creature GETS +1/+1" — a singular-subject lord (Thelon of Havenwood).
+    # The global-lord pattern matched only plural "get" ("Goblins … get"), missing the
+    # singular "creature gets" conjugation, so the whole tribe read uncovered.
+    thelon = {
+        "name": "Thelon of Havenwood",
+        "type_line": "Legendary Creature — Elf Druid",
+        "oracle_text": "Each Fungus creature gets +1/+1 for each spore counter on it.",
+    }
+    assert ("type_matters", "you") in _keys(thelon)
+    subs = {s.subject for s in extract_signals(thelon) if s.key == "type_matters"}
+    assert "Fungus" in subs
+
+
 def test_reward_for_attacking_opponents_opens_goad():
     # Gahiji / Frontier Warmonger reward any creature that attacks your opponents. Goad
     # forces opponents' creatures to attack a player other than their controller — i.e.

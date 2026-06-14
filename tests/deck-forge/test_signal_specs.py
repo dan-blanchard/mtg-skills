@@ -3297,6 +3297,30 @@ def test_flicker_extra_serves_death_return():
     assert _lane_covers(feign, _sig("ltb_matters"))
 
 
+def test_tribal_lane_serves_type_agnostic_anthems():
+    """Every tribal lane should credit the type-AGNOSTIC tribal payoffs — "choose a
+    creature type … of the chosen type" anthems (Vanquisher's Banner, Herald's Horn)
+    and "shares a creature type" pumps (Shared Animosity, Coat of Arms) work for ANY
+    tribe, so a Knight / Elf / Soldier deck wants them."""
+    sig = _sig_sub("type_matters", "Knight")
+    cards = {
+        "Shared Animosity": "Whenever a creature you control attacks, it gets +1/+0 "
+        "until end of turn for each other attacking creature that shares a creature "
+        "type with it.",
+        "Coat of Arms": "Each creature gets +1/+1 for each other creature on the "
+        "battlefield that shares at least one creature type with it.",
+        "Vanquisher's Banner": "As this artifact enters, choose a creature type.\n"
+        "Creatures you control of the chosen type get +1/+1.",
+        "Herald's Horn": "As this artifact enters, choose a creature type.\nCreature "
+        "spells you cast of the chosen type cost {1} less to cast.",
+    }
+    for name, oracle in cards.items():
+        assert _lane_covers({"name": name, "oracle_text": oracle}, sig), name
+    # Precision: a plain unrelated card is NOT credited as a tribal anthem.
+    bolt = {"name": "Lightning Bolt", "oracle_text": "Deal 3 damage to any target."}
+    assert _lane_covers(bolt, sig) is False
+
+
 def test_blocked_matters_serves_force_block_effects():
     """A 'becomes blocked' payoff (General Marhault Elsdragon: +3/+3 for each creature
     blocking it) wants force-block effects so the per-blocker bonus maxes — Lure /

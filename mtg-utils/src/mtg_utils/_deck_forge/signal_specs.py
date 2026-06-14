@@ -2370,7 +2370,14 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
     return SubAvenue(
         f"{subj} payoffs",
         f"lords and anthems that reward a board of {subj}s",
-        {"oracle": rf"{esc}s? you control"},
+        # The tribe's own lords ("{subj}s you control") PLUS the type-AGNOSTIC tribal
+        # anthems that reward ANY tribe: "choose a creature type … of the chosen type"
+        # (Vanquisher's Banner, Herald's Horn, Door of Destinies) and "shares a creature
+        # type" pumps (Shared Animosity, Coat of Arms).
+        {
+            "oracle": rf"{esc}s? you control"
+            r"|\bthe chosen type\b|shares (?:a|at least one) creature type"
+        },
     )
 
 

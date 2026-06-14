@@ -426,7 +426,9 @@ def _singularize(raw: str) -> str:
         return w[:-3] + "f"
     if w.endswith("ve") and len(w) > 3 and w not in ("cave", "wave", "brave"):
         return w[:-2] + "f"
-    if w.endswith("s") and len(w) > 1 and not w.endswith("ss"):
+    # Never strip the trailing "s" of an "-us" word: Fungus / Octopus / Pegasus /
+    # Homunculus are SINGULAR subtypes (their plurals are "Fungi" etc., mapped above).
+    if w.endswith("s") and len(w) > 1 and not w.endswith(("ss", "us")):
         return w[:-1]
     return w
 
@@ -476,13 +478,13 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\bother ([A-Za-z]+?) creatures?\b", re.IGNORECASE),
     re.compile(r"\buntapped ([A-Za-z]+?) you control\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?) you control\s*:", re.IGNORECASE),
-    re.compile(r"\b([A-Za-z]+?)s? you control get [+\-](?:\d|x)", re.IGNORECASE),
+    re.compile(r"\b([A-Za-z]+?)s? you control gets? [+\-](?:\d|x)", re.IGNORECASE),
     re.compile(r"\b(?:number of|for each) ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control have\b", re.IGNORECASE),
     # Global lords with no "you control" / "other": "Bird creatures get +1/+1"
-    # (Soraya). The subtype-vocab gate drops "all"/"other"/"creature" so only a real
-    # tribe is captured.
-    re.compile(r"\b([A-Za-z]+?) creatures? get [+\-](?:\d|x)", re.IGNORECASE),
+    # (Soraya) or the singular "Each Fungus creature gets +1/+1" (Thelon). The
+    # subtype-vocab gate drops "all"/"other"/"creature" so only a real tribe sticks.
+    re.compile(r"\b([A-Za-z]+?) creatures? gets? [+\-](?:\d|x)", re.IGNORECASE),
     # Multiplayer "your team controls" (Sylvia: "Dragons your team controls have …").
     re.compile(
         r"\b([A-Za-z]+?)s? your team controls? (?:have|has|get|gain)\b", re.IGNORECASE
