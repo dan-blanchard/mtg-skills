@@ -641,7 +641,9 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "theft_matters",
         "scope": "opponents",
         "is_widen_of": "gain_control",
-        "regex": "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library",
+        # \bheist\b — the Arena keyword action that exiles cards from a target
+        # opponent's library and lets you cast them (theft / cast-what-you-don't-own).
+        "regex": "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|\\bheist\\b",
     },
     {
         "key": "cast_as_named_card",

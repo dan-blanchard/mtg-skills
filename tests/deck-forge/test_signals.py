@@ -1749,3 +1749,19 @@ def test_artifact_entered_condition_opens_artifacts():
         ),
     }
     assert ("artifacts_matter", "you") in _keys(card)
+
+
+def test_heist_opens_theft():
+    # Heist (Arena keyword) steals + casts an opponent's cards — a theft payoff
+    # the detector missed. Grenzo, Crooked Jailer / Axavar / Mr. Monopoly.
+    card = {
+        "name": "Grenzo, Crooked Jailer",
+        "type_line": "Legendary Creature — Goblin Rogue",
+        "oracle_text": (
+            "When Grenzo enters and at the beginning of your upkeep, heist target "
+            "opponent's library.\nOnce each turn, you may pay {0} rather than pay "
+            "the mana cost for a spell you cast that you don't own with mana value "
+            "3 or less."
+        ),
+    }
+    assert ("theft_matters", "opponents") in _keys(card)
