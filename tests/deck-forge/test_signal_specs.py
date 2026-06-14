@@ -3858,3 +3858,195 @@ def test_artifacts_matter_serves_artifact_dig():
         ),
     }
     assert _lane_covers(casey, sig) is True
+
+
+# ── Serve-gap fixes from the archetype-normalized failing-tail analysis ───────
+# Real cards (full oracle_text + type_line from Scryfall bulk) that the failing
+# commanders rank as top-synergy but the lanes they open were not crediting.
+
+COMBAT_CELEBRANT = {
+    "name": "Combat Celebrant",
+    "type_line": "Creature — Human Warrior",
+    "oracle_text": (
+        "If this creature hasn't been exerted this turn, you may exert it as it "
+        "attacks. When you do, untap all other creatures you control and after "
+        "this phase, there is an additional combat phase. (An exerted creature "
+        "won't untap during your next untap step.)"
+    ),
+}
+MORAUG = {
+    "name": "Moraug, Fury of Akoum",
+    "type_line": "Legendary Creature — Minotaur Warrior",
+    "oracle_text": (
+        "Each creature you control gets +1/+0 for each time it has attacked this "
+        "turn.\nLandfall — Whenever a land you control enters, if it's your main "
+        "phase, there's an additional combat phase after this phase. At the "
+        "beginning of that combat, untap all creatures you control."
+    ),
+}
+AGGRAVATED_ASSAULT = {
+    "name": "Aggravated Assault",
+    "type_line": "Enchantment",
+    "oracle_text": (
+        "{3}{R}{R}: Untap all creatures you control. After this main phase, there "
+        "is an additional combat phase followed by an additional main phase. "
+        "Activate only as a sorcery."
+    ),
+}
+
+
+def test_attack_matters_serves_extra_combat_enablers():
+    # An attack-trigger commander wants more combats — each extra combat is another
+    # round of attack triggers. These were only credited to the narrow extra_combats
+    # lane, so attack_matters commanders (Winota, Johan, Umaro) read them as off-theme.
+    sig = _sig("attack_matters", "you")
+    assert _lane_covers(COMBAT_CELEBRANT, sig) is True
+    assert _lane_covers(MORAUG, sig) is True
+    assert _lane_covers(AGGRAVATED_ASSAULT, sig) is True
+    # Over-fire guard: a vanilla beater with no attack payoff is NOT served.
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
+BRIBERY = {
+    "name": "Bribery",
+    "type_line": "Sorcery",
+    "oracle_text": (
+        "Search target opponent's library for a creature card and put that card "
+        "onto the battlefield under your control. Then that player shuffles."
+    ),
+}
+ACQUIRE = {
+    "name": "Acquire",
+    "type_line": "Sorcery",
+    "oracle_text": (
+        "Search target opponent's library for an artifact card and put that card "
+        "onto the battlefield under your control. Then that player shuffles."
+    ),
+}
+
+
+def test_gain_control_serves_steal_from_opponent_library():
+    # Bribery/Acquire take a card from an opponent's deck and seat it under YOUR
+    # control — theft, the gain_control lane's whole point — but the serve only
+    # matched the literal "gain control of" phrasing.
+    sig = _sig("gain_control", "you")
+    assert _lane_covers(BRIBERY, sig) is True
+    assert _lane_covers(ACQUIRE, sig) is True
+    # Over-fire guard: self-reanimation also "put ... onto the battlefield under
+    # your control" but takes from a graveyard, not an opponent's LIBRARY — not theft.
+    reanimate = {
+        "name": "Reanimate",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Put target creature card from a graveyard onto the battlefield under "
+            "your control. You lose life equal to its mana value."
+        ),
+    }
+    assert _lane_covers(reanimate, sig) is False
+
+
+PANHARMONICON = {
+    "name": "Panharmonicon",
+    "type_line": "Artifact",
+    "oracle_text": (
+        "If an artifact or creature entering causes a triggered ability of a "
+        "permanent you control to trigger, that ability triggers an additional time."
+    ),
+}
+STRIONIC_RESONATOR = {
+    "name": "Strionic Resonator",
+    "type_line": "Artifact",
+    "oracle_text": (
+        "{2}, {T}: Copy target triggered ability you control. You may choose new "
+        'targets for the copy. (A triggered ability uses the words "when," '
+        '"whenever," or "at.")'
+    ),
+}
+
+
+def test_creature_etb_serves_trigger_doublers():
+    # Panharmonicon literally doubles ETB triggers; Strionic copies any triggered
+    # ability. An ETB-payoff commander wants both, but they name no "enters" trigger
+    # of their own, so the creature_etb serve missed them.
+    sig = _sig("creature_etb", "you")
+    assert _lane_covers(PANHARMONICON, sig) is True
+    assert _lane_covers(STRIONIC_RESONATOR, sig) is True
+    # Over-fire guard: a plain vanilla creature is NOT a trigger doubler.
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
+# ── Theft / cast-an-exiled-card cluster (Gonti / Hostage Taker / Thief of Sanity) ──
+GONTI = {
+    "name": "Gonti, Lord of Luxury",
+    "type_line": "Legendary Creature — Aetherborn Rogue",
+    "oracle_text": (
+        "Deathtouch\n"
+        "When Gonti enters, look at the top four cards of target opponent's "
+        "library, exile one of them face down, then put the rest on the bottom of "
+        "that library in a random order. You may cast that card for as long as it "
+        "remains exiled, and you may spend mana as though it were mana of any "
+        "color to cast it."
+    ),
+}
+HOSTAGE_TAKER = {
+    "name": "Hostage Taker",
+    "type_line": "Creature — Aetherborn Pirate",
+    "oracle_text": (
+        "When Hostage Taker enters, exile another target artifact or creature "
+        "until Hostage Taker leaves the battlefield. You may cast that card for "
+        "as long as it remains exiled, and you may spend mana as though it were "
+        "mana of any color to cast it."
+    ),
+}
+THIEF_OF_SANITY = {
+    "name": "Thief of Sanity",
+    "type_line": "Creature — Specter",
+    "oracle_text": (
+        "Flying\n"
+        "Whenever Thief of Sanity deals combat damage to a player, look at the "
+        "top three cards of that player's library, exile one of them face down, "
+        "then put the rest into that player's graveyard. You may look at and play "
+        "that card for as long as it remains exiled, and you may spend mana as "
+        "though it were mana of any color to cast it."
+    ),
+}
+# Over-fire guard for theft_matters: self-impulse (your OWN library) is not theft.
+VALAKUT_EXPLORATION = {
+    "name": "Valakut Exploration",
+    "type_line": "Enchantment",
+    "oracle_text": (
+        "At the beginning of your end step, exile the top card of your library "
+        "for each land that entered the battlefield under your control this turn. "
+        "You may play those cards until the end of your next turn. At the "
+        "beginning of your next end step, Valakut Exploration deals damage to "
+        "each opponent equal to the number of those cards that remain exiled."
+    ),
+}
+
+
+def test_impulse_and_cast_from_exile_serve_exile_then_cast_engines():
+    # "Exile a card, you may cast it for as long as it remains exiled" is the impulse /
+    # cast-from-exile engine (Gonti, Hostage Taker, Thief of Sanity).
+    for sig in (_sig("impulse_top_play"), _sig("cast_from_exile")):
+        assert _lane_covers(GONTI, sig) is True, sig.key
+        assert _lane_covers(HOSTAGE_TAKER, sig) is True, sig.key
+        assert _lane_covers(THIEF_OF_SANITY, sig) is True, sig.key
+
+
+def test_theft_matters_serves_opponent_library_theft_not_self_impulse():
+    # theft_matters is steal-from-OPPONENT — Gonti/Thief dig an opponent's library;
+    # Valakut Exploration impulses YOUR OWN library and must NOT register as theft.
+    sig = _sig("theft_matters", "opponents")
+    assert _lane_covers(GONTI, sig) is True
+    assert _lane_covers(THIEF_OF_SANITY, sig) is True
+    assert _lane_covers(VALAKUT_EXPLORATION, sig) is False

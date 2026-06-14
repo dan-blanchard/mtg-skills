@@ -510,6 +510,16 @@ _ETB_DOUBLER_EXTRA = SubAvenue(
     {"oracle": _ETB_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_ETB_DOUBLER_ORACLE, _IC)),
 )
+# Trigger COPIERS (Strionic Resonator / Lithoform Engine): copy a triggered ability
+# you control — a payoff for any trigger-heavy deck, ETB triggers included. Distinct
+# from the Panharmonicon doubler (which keys on the "entering" wording).
+_TRIGGER_COPY_ORACLE = r"copy target [^.]*triggered ability you control"
+_TRIGGER_COPY_EXTRA = SubAvenue(
+    "Trigger copiers",
+    "copy a triggered ability you control (Strionic Resonator / Lithoform Engine)",
+    {"oracle": _TRIGGER_COPY_ORACLE},
+    serve=Serve(oracle=re.compile(_TRIGGER_COPY_ORACLE, _IC)),
+)
 # Self-recurring fodder (CR 603.6e): aristocrats wants creatures that return/recast
 # THEMSELVES from the graveyard (Bloodghast / Gravecrawler). Name-aware serve (see
 # _self_recurs) excludes Sun-Titan-style reanimation of OTHER cards.
@@ -852,6 +862,28 @@ _BASIC_LAND_FETCH = (
 _TARGETING_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "targeting_matters"
 )
+# "Exile a card, then you may cast/play it for as long as it remains exiled" — the
+# impulse / cast-from-exile / steal-and-cast engine (Gonti, Hostage Taker, Thief of
+# Sanity, Kheru Spellsnatcher, Court of Locthwain). Distinct from "play those cards
+# THIS TURN" impulse: this keeps the card castable until it's used.
+_STEAL_CAST_ORACLE = (
+    r"you may (?:cast|play|look at and play) "
+    r"(?:that (?:card|spell)|it|them|those cards?)[^.]*?"
+    r"for as long as (?:it|they) remains? exiled"
+)
+# Opponent-library theft: dig into a specific opponent's library (Gonti, Black Cat,
+# Thief of Sanity, Lord of the Void). Opponent-anchored so a SELF-impulse engine
+# (Valakut Exploration — "exile the top card of YOUR library") never reads as theft.
+_OPP_LIBRARY_THEFT_ORACLE = (
+    r"(?:top (?:\w+|\d+) cards?|the top card) of "
+    r"(?:target |an |each )?(?:opponent's|that player's) library"
+)
+_IMPULSE_SWEEP_REGEX = next(
+    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "impulse_top_play"
+)
+_THEFT_SWEEP_REGEX = next(
+    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "theft_matters"
+)
 # Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
 # the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
 # (CR 115.1a) and BUFF it (gets +/gains) — an "each creature" anthem doesn't target (so
@@ -945,6 +977,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _ETB_PAYOFF_EXTRA,
             _ETB_VALUE_EXTRA,
             _ETB_DOUBLER_EXTRA,
+            _TRIGGER_COPY_EXTRA,
             _FLICKER_EXTRA,
         ),
     ),
@@ -1242,7 +1275,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:double strike|first strike|trample|menace|deathtouch|vigilance"
         r"|indestructible|can't be blocked)"
         # Equipment/Auras suit up the attacker (a combat deck wants the gear).
-        r"|equipped creature|enchanted creature gets|\bequip \{",
+        r"|equipped creature|enchanted creature gets|\bequip \{"
+        # Extra combats (Combat Celebrant, Moraug, Aggravated Assault): every added
+        # combat phase is another round of attack triggers — a top attack payoff. The
+        # narrow extra_combats lane already served these, but attack-trigger commanders
+        # (Winota, Johan, Umaro) open attack_matters, not extra_combats.
+        r"|additional combat phase",
         serve_keywords=("haste",),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and
@@ -1663,7 +1701,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|whenever you cast a spell from exile"
         r"|you may (?:play|cast) (?:it|that card|those cards?|them|the exiled)"
         r"[^.]*?from exile"
-        r"|\bplot\b",
+        r"|" + _STEAL_CAST_ORACLE + r"|\bplot\b",
         extras=(
             # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than
             # your hand" payoffs (Vega, Iraxxa) the literal-"from exile" serve misses.
@@ -1681,6 +1719,30 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 ),
             ),
         ),
+    ),
+    # Impulse (top-of-YOUR-library exile-and-play): hand-written so the serve also
+    # credits the "exile then cast it for as long as it remains exiled" engines
+    # (Gonti, Hostage Taker, Thief of Sanity) the bare "play those cards this turn"
+    # sweep regex missed. Detector regex (commander side) is unchanged — same key,
+    # so the auto-register loop skips it.
+    ("impulse_top_play", "you"): _spec(
+        *SWEEP_LABELS["impulse_top_play"],
+        {"oracle": _IMPULSE_SWEEP_REGEX},
+        _IMPULSE_SWEEP_REGEX + r"|" + _STEAL_CAST_ORACLE,
+    ),
+    # Theft (steal an OPPONENT's cards and cast them): serve credits the opponent-
+    # library dig (Gonti, Black Cat, Thief of Sanity) and the steal-and-cast engines
+    # (Hostage Taker). Opponent-anchored / "remains exiled"-anchored so a self-impulse
+    # engine (Valakut Exploration — your own library, "until end of next turn") stays
+    # out. Detector regex unchanged.
+    ("theft_matters", "opponents"): _spec(
+        *SWEEP_LABELS["theft_matters"],
+        {"oracle": _THEFT_SWEEP_REGEX},
+        _THEFT_SWEEP_REGEX
+        + r"|"
+        + _OPP_LIBRARY_THEFT_ORACLE
+        + r"|"
+        + _STEAL_CAST_ORACLE,
     ),
     # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
     # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct
@@ -2219,7 +2281,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"gain control of"},
         r"you (?:gain|may gain) control of|gain control of (?:target|all|each|another)"
         r"|you control enchanted (?:creature|permanent)"
-        r"|you may (?:play|cast)[^.]*from (?:that|target) (?:player|opponent)",
+        r"|you may (?:play|cast)[^.]*from (?:that|target) (?:player|opponent)"
+        # Bribery / Acquire: seize a card out of an OPPONENT's library and seat it
+        # under your control — theft, not self-reanimation. Anchored to "opponent's
+        # library" so a graveyard reanimator ("under your control" from a graveyard)
+        # is excluded.
+        r"|opponent's library for [^.]*onto the battlefield under your control",
         serve_not=r"(?:opponent|another player|target player|that player) "
         r"gains control of",
     ),
