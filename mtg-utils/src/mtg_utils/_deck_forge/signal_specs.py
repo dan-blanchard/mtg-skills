@@ -824,7 +824,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|opponent[^.]*\bmill|mill[^.]*opponent"
         r"|exile (?:target player'?s?|each opponent'?s?|a) graveyard"
         r"|(?:cards?|creature cards?)[^.]*in [^.]*opponents'? graveyards?"
-        r"|each opponent'?s graveyard",
+        r"|each opponent'?s graveyard"
+        # Exile-mill artifacts (Pyxis, Mesmeric Orb-style): a player-subject exiling the
+        # top of a LIBRARY is an exile-mill enabler (Circu).
+        r"|(?:each player|target player|an opponent|each opponent|that player)"
+        r"[^.]*exiles?[^.]*\blibrar",
     ),
     ("graveyard_matters", "you"): _spec(
         "Your graveyard",

@@ -3028,3 +3028,19 @@ def test_redirect_lane_serves_pariah_and_indestructible():
     }
     assert _lane_covers(pariah, sig)
     assert _lane_covers(shielded, sig)
+
+
+def test_opponents_mill_serves_exile_library_artifacts():
+    sig = _sig("graveyard_matters", "opponents")
+    pyxis = {
+        "name": "Pyxis of Pandemonium",
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Each player exiles the top card of their library face down.",
+    }
+    codex = {
+        "name": "Codex Shredder",
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Target player mills a card.",
+    }
+    assert _lane_covers(pyxis, sig)
+    assert _lane_covers(codex, sig)

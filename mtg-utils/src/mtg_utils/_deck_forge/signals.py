@@ -144,6 +144,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
+    # Exile-mill of OPPONENTS (Circu): "exile the top card of target player's library"
+    # is a mill variant the graveyard ("graveyard"-keyed) detector misses. Scoped
+    # opponents — exiling YOUR OWN library (impulse draw) never matches.
+    (
+        "graveyard_matters",
+        _re(
+            r"exile (?:the top|\w+ cards?|cards?)[^.]*"
+            r"(?:target player'?s?|an opponent'?s?|each (?:player|opponent)'?s?"
+            r"|that player'?s?) librar"
+        ),
+        "opponents",
+    ),
     # Vanilla matters (Ruxa, Muraganda Petroglyphs): a commander rewarding "creatures
     # with no abilities" wants vanilla beaters.
     ("vanilla_matters", _re(r"creatures? (?:card )?with no abilities"), "you"),

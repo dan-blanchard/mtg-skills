@@ -768,3 +768,25 @@ def test_single_self_counter_still_excluded():
         "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
     }
     assert not any(k == "counters_matter" for k, _ in _keys(card))
+
+
+def test_opponent_library_exile_opens_opponents_mill():
+    # Circu: "exile the top card of target player's library" — exile-mill of opponents,
+    # a mill variant the graveyard detector (keyed on "graveyard") missed.
+    circu = {
+        "name": "Circu, Dimir Lobotomist",
+        "type_line": "Legendary Creature — Zombie Wizard",
+        "oracle_text": "Whenever you cast a blue spell, exile the top card of target "
+        "player's library.\nWhenever you cast a black spell, exile the top card of "
+        "target player's library.",
+    }
+    assert ("graveyard_matters", "opponents") in _keys(circu)
+
+
+def test_self_library_exile_does_not_open_opponents_mill():
+    # Precision: impulse-drawing off YOUR OWN library is not opponent mill.
+    card = {
+        "name": "Light Up the Stage",
+        "oracle_text": "Exile the top two cards of your library. You may play them.",
+    }
+    assert ("graveyard_matters", "opponents") not in _keys(card)
