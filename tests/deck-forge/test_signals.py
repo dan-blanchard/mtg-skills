@@ -1216,6 +1216,29 @@ def test_boast_keyword_opens_attack_matters():
     assert ("attack_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
 
 
+def test_enchantress_first_spell_opens_enchantments():
+    # Psemilla: "Whenever you cast your FIRST enchantment spell each turn …" — the bare
+    # "cast an enchantment" missed the "first/second enchantment spell" wording.
+    card = {
+        "name": "Psemilla, Meletian Poet",
+        "type_line": "Legendary Creature — Human Bard",
+        "oracle_text": "Whenever you cast your first enchantment spell each turn, create "
+        "a 2/2 white Nymph enchantment creature token.",
+    }
+    assert "enchantments_matter" in {s.key for s in extract_signals(card)}
+
+
+def test_for_each_creature_opens_creatures_matter():
+    # Shanna: "gets +1/+1 for each creature you control" — singular count the plural
+    # "creatures you control" substring missed.
+    card = {
+        "name": "Shanna, Sisay's Legacy",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": "Shanna gets +1/+1 for each creature you control.",
+    }
+    assert "creatures_matter" in {s.key for s in extract_signals(card)}
+
+
 def test_ability_words_open_their_lane():
     # CR 207.2c ability-word audit: most ability words already open via their spelled-out
     # condition, but three didn't. The italic word itself prints in the oracle, so match

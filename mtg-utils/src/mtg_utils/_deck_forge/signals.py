@@ -119,7 +119,13 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "opponents",
     ),
-    ("creatures_matter", _has("creatures you control"), "you"),
+    # Plural "creatures you control" OR the singular go-wide count "for each creature
+    # you control" (Shanna: P/T scales with your creature count).
+    (
+        "creatures_matter",
+        lambda c: "creatures you control" in c or "for each creature you control" in c,
+        "you",
+    ),
     # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland
     # creature" / "Plant creature" / "island creature" do NOT register — only a
     # genuine land-creature reference (the Jyoti / Sylvan Advocate theme).
@@ -723,9 +729,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"\benchantments? you control\b"
             r"|for each enchantment you control"
             r"|whenever an? enchantment (?:you control )?enters"
-            # Enchantress: "whenever you cast an enchantment spell" (Sythis, the
-            # Enchantress cycle) — the core payoff, previously sent to spellslinger.
-            r"|whenever you cast an enchantment",
+            # Enchantress: "whenever you cast an enchantment spell" (Sythis) — also the
+            # "your first enchantment spell each turn" wording (Psemilla). The bare
+            # "cast an enchantment" missed the "first/second … enchantment spell" forms.
+            r"|cast (?:an?|your (?:first|second)) enchantment",
             re.IGNORECASE,
         ),
         "you",
