@@ -1135,6 +1135,57 @@ def test_greatest_power_among_other_opens_power():
     assert ("power_matters", "you") in _keys(arni)
 
 
+def test_plural_death_trigger_opens_death_matters():
+    # "one or more creatures YOU CONTROL die" — the plural death conjugation ("die" with
+    # "you control" between the noun and the verb). The regex required the noun adjacent
+    # to "die", so Vraan / Éomer / G'raha-style plural triggers read uncovered.
+    for oracle in [
+        "Whenever one or more other creatures you control die, each opponent loses 2 "
+        "life and you gain 2 life.",
+        "Whenever one or more other creatures and/or artifacts you control die, draw a "
+        "card.",
+    ]:
+        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
+
+
+def test_plural_death_does_not_open_on_dice():
+    # Precision: a dice "die" ("roll a six-sided die") must NOT read as a death trigger.
+    card = {
+        "name": "Velukan Dragon",
+        "type_line": "Creature — Dragon",
+        "oracle_text": "Whenever this creature attacks or blocks, roll a six-sided die. "
+        "This creature gets +X/+0 until end of turn, where X is the result.",
+    }
+    assert "death_matters" not in {s.key for s in extract_signals(card)}
+
+
+def test_plural_combat_damage_opens_combat_damage_matters():
+    # "creatures you control DEAL combat damage" — the plural verb ("deal" not "deals").
+    # 200+ cards (Yarus, Gonti Canny Acquisitor, Neheb) use the "one or more creatures …
+    # deal combat damage to a player" form the singular-only regex missed.
+    card = {
+        "name": "Excogitator Sphinx",
+        "type_line": "Creature — Sphinx",
+        "oracle_text": "Whenever one or more creatures you control deal combat damage "
+        "to a player, investigate.",
+    }
+    assert ("combat_damage_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals(card)
+    }
+
+
+def test_singular_lord_has_opens_type_matters():
+    # "Each Ally you control HAS …" — the singular lord conjugation ("has" not "have").
+    card = {
+        "name": "Great Divide Guide",
+        "type_line": "Creature — Goblin Scout",
+        "oracle_text": "Each Ally you control has \"{T}: Add one mana of any color.\"",
+    }
+    subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    assert "Ally" in subs
+
+
 def test_singular_tribal_lord_gets_opens_type_matters():
     # "Each Fungus creature GETS +1/+1" — a singular-subject lord (Thelon of Havenwood).
     # The global-lord pattern matched only plural "get" ("Goblins … get"), missing the

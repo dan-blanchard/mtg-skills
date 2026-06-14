@@ -272,7 +272,13 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             # Plural "creatures die" (Morbid Opportunist, Grave Pact-style) — the CR
             # term is "dies", but cards phrase mass death as "one or more creatures
             # die". Scoped to creature/permanent/token to avoid "roll a die" dice cards.
-            or _re(r"whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b")(c)
+            # The "control" alternative handles the conjugation where "you control" sits
+            # between the noun and the verb ("creatures you control die" — Vraan, Éomer,
+            # G'raha Tia); the dice noun "die" follows an article ("a die", "sided
+            # die"), never "control", so this stays off the dice cards.
+            or _re(
+                r"whenever [^.]*(?:creatures?|permanents?|tokens?|they|control) die\b"
+            )(c)
             or ("dying" in c and "trigger" in c)
         ),
         None,
@@ -333,7 +339,10 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     (
         "combat_damage_matters",
         _re(
-            r"\bwhen(?:ever)?\b[^.]*?\bdeals combat damage to "
+            # "deals?" — singular subject ("a creature … deals") AND plural ("one or
+            # more creatures you control deal combat damage", 200+ cards: Yarus, Gonti
+            # Canny Acquisitor, Neheb the Eternal).
+            r"\bwhen(?:ever)?\b[^.]*?\bdeals? combat damage to "
             r"(?:a player|an opponent|one of your opponents|each opponent"
             r"|a player or planeswalker|a player or battle)\b"
             # Passive form: a commander that cares about HAVING dealt combat damage
@@ -480,7 +489,8 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\b([A-Za-z]+?) you control\s*:", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control gets? [+\-](?:\d|x)", re.IGNORECASE),
     re.compile(r"\b(?:number of|for each) ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
-    re.compile(r"\b([A-Za-z]+?)s? you control have\b", re.IGNORECASE),
+    # "have" (plural subject) AND "has" (singular: "Each Ally you control has …").
+    re.compile(r"\b([A-Za-z]+?)s? you control ha(?:ve|s)\b", re.IGNORECASE),
     # Global lords with no "you control" / "other": "Bird creatures get +1/+1"
     # (Soraya) or the singular "Each Fungus creature gets +1/+1" (Thelon). The
     # subtype-vocab gate drops "all"/"other"/"creature" so only a real tribe sticks.
