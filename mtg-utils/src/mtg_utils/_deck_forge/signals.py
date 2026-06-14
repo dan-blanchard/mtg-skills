@@ -1919,11 +1919,14 @@ def extract_signals(
             sub = tok.strip().lower()
             if sub in TRIBAL_SUBTYPES:
                 add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), type_line, "low")
-    # A commander that IS an artifact (the Artifact card type is in its type line) is an
-    # artifact deck — it wants affinity / cost reducers / artifact synergy, just as a
-    # creature is a member of its own tribe. Membership-only, low confidence.
+    # A commander that IS an artifact / enchantment (the card type is in its type line)
+    # is an artifact / enchantment deck — it wants that type's support (affinity & cost
+    # reducers; constellation & cheap enchantments), just as a creature is a member of
+    # its own tribe. Membership-only, low confidence.
     if include_membership and "artifact" in type_line.lower():
         add("artifacts_matter", "you", "", type_line, "low")
+    if include_membership and "enchantment" in type_line.lower():
+        add("enchantments_matter", "you", "", type_line, "low")
 
     # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
     # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).

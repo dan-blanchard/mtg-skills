@@ -1166,6 +1166,16 @@ def test_artifact_type_commander_opens_artifacts():
         "oracle_text": "Vigilance",
     }
     assert ("artifacts_matter", "you") not in {(s.key, s.scope) for s in extract_signals(human)}
+    # Same for enchantment-type commanders (Anikthea, Arasta) → enchantments_matter.
+    anikthea = {
+        "name": "Anikthea, Hand of Erebos",
+        "type_line": "Legendary Enchantment Creature — Demigod",
+        "oracle_text": "At the beginning of combat on your turn, create a token that's a "
+        "copy of target enchantment card in your graveyard.",
+    }
+    assert ("enchantments_matter", "you") in {
+        (s.key, s.scope) for s in extract_signals(anikthea)
+    }
 
 
 def test_equipped_creature_reference_opens_voltron():
