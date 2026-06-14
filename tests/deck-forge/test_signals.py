@@ -621,3 +621,39 @@ def test_snow_commander_opens_snow_lane():
 def test_non_snow_card_does_not_open_snow_lane():
     card = {"name": "Bear", "type_line": "Creature — Bear", "oracle_text": "Vigilance"}
     assert ("snow_matters", "you") not in _keys(card)
+
+
+# ── Missing race tribes: build-around-able races with deep pools but no lords were
+# absent from the membership vocab (gated at >=8 tribal-SUPPORT cards). A Kraken /
+# Wolf / Shade / Yeti commander builds a pile of its tribe (Brinelin, Anara, Ihsan, Isu).
+def test_kraken_commander_opens_kraken_tribe():
+    brinelin = {
+        "name": "Brinelin, the Moon Kraken",
+        "type_line": "Legendary Creature — Kraken",
+        "oracle_text": "Whenever you cast a spell with mana value 5 or greater, you "
+        "may return target permanent to its owner's hand.",
+    }
+    sigs = extract_signals(brinelin)
+    assert any(s.key == "type_matters" and s.subject == "Kraken" for s in sigs)
+
+
+def test_shade_and_wolf_and_yeti_tribes_open():
+    for tl, sub in [
+        ("Legendary Creature — Shade Knight", "Shade"),
+        ("Legendary Creature — Wolf Beast", "Wolf"),
+        ("Legendary Snow Creature — Yeti", "Yeti"),
+    ]:
+        c = {"name": "X", "type_line": tl, "oracle_text": ""}
+        subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
+        assert sub in subs, f"{sub} not in {subs}"
+
+
+def test_class_type_commander_does_not_open_class_tribe():
+    # Precision: class types (Human/Wizard/Warrior) stay OUT — they're near-ubiquitous.
+    c = {
+        "name": "Spellslinger",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": "Whenever you cast an instant or sorcery spell, draw a card.",
+    }
+    subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
+    assert "Human" not in subs and "Wizard" not in subs

@@ -476,12 +476,14 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
 
 # Race/iconic creature tribes a commander can be built around purely by BEING one —
 # the subtype characteristic (CR 205.3) is what tribal cards reference (CR 702.38a),
-# independent of oracle text. Derived deterministically: creature subtypes with >=8
-# tribal-support cards in the bulk pool (cards emitting type_matters for that subject),
-# MINUS generic class types (human/soldier/warrior/wizard/cleric/rogue/...), which are
-# near-ubiquitous and only become a build-around with explicit oracle support (already
-# a high-confidence type_matters). Used to emit a LOW-confidence own-subtype signal so
-# a vanilla Dragon/Angel/Giant surfaces its tribe instead of reading as zero-signal.
+# independent of oracle text. Originally derived from creature subtypes with >=8
+# tribal-support cards, MINUS generic class types (human/soldier/warrior/wizard/cleric/
+# rogue/...), which are near-ubiquitous and only become a build-around with explicit
+# oracle support. The second block adds iconic RACES with deep creature pools (>=16
+# creatures) but no lords — for a Kraken / Wolf / Shade / Yeti commander you still build
+# a pile of the tribe, so the membership signal surfaces it. Class types stay excluded.
+# Used to emit a LOW-confidence own-subtype signal so a vanilla Dragon/Kraken/Beast
+# surfaces its tribe instead of reading as zero-signal.
 TRIBAL_SUBTYPES: frozenset[str] = frozenset(
     {
         "ally",
@@ -509,5 +511,31 @@ TRIBAL_SUBTYPES: frozenset[str] = frozenset(
         "squirrel",
         "vampire",
         "zombie",
+        # Deep-pool races with no lords but real "build a pile of this type" identity.
+        "beast",
+        "horror",
+        "insect",
+        "snake",
+        "hydra",
+        "wurm",
+        "treefolk",
+        "ooze",
+        "fungus",
+        "elephant",
+        "frog",
+        "kraken",
+        "wolf",
+        "werewolf",
+        "shade",
+        "yeti",
+        "drake",
+        "dryad",
+        "plant",
+        "lizard",
+        "minotaur",
+        "ogre",
+        "dwarf",
+        "golem",
+        "eldrazi",
     }
 )
