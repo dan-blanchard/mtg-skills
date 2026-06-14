@@ -1487,3 +1487,171 @@ def test_reward_for_attacking_opponents_opens_goad():
         "planeswalker an opponent controls, that creature gets +2/+0 until end of turn.",
     }
     assert ("goad_matters", "opponents") in _keys(gahiji)
+
+
+# ── Long-tail coverage clusters (workflow-diagnosed, verify-before-add) ────────
+
+
+def _subjects(card, key):
+    return {s.subject for s in extract_signals(card) if s.key == key}
+
+
+def test_tribal_capture_cant_be_blocked():
+    # Rocksteady, Crash Courser is a Rhino Mutant — NOT a Boar — yet it buffs
+    # "Boars you control can't be blocked". A commander that buffs a tribe isn't
+    # always that tribe, so type-line membership can't supply the Boar lane; only
+    # the can't-be-blocked trigger pattern opens it.
+    card = {
+        "name": "Rocksteady, Crash Courser",
+        "type_line": "Legendary Creature — Rhino Mutant",
+        "oracle_text": (
+            "Rocksteady can't be blocked by more than one creature.\n"
+            "Boars you control can't be blocked by more than one creature.\n"
+            "Forestcycling {2} ({2}, Discard this card: Search your library for a "
+            "Forest card, reveal it, put it into your hand, then shuffle.)"
+        ),
+    }
+    subs = _subjects(card, "type_matters")
+    assert "Boar" in subs  # the buffed tribe, captured from the clause not the type
+
+
+def test_tribal_capture_cant_be_blocked_vocab_gated():
+    # Yuan Shao, the Indecisive — "Each creature you control can't be blocked …".
+    # The generic card-type word "creature" must be dropped by the vocab gate, not
+    # emitted as a bogus "Creature" tribal subject.
+    card = {
+        "name": "Yuan Shao, the Indecisive",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "Horsemanship (This creature can't be blocked except by creatures "
+            "with horsemanship.)\n"
+            "Each creature you control can't be blocked by more than one creature."
+        ),
+    }
+    assert "Creature" not in _subjects(card, "type_matters")
+
+
+def test_two_tribe_trigger_emits_both_subjects():
+    # Gorbag of Minas Morgul is an Orc Soldier (membership supplies Orc but never
+    # Goblin); "a Goblin or Orc you control deals …" must open BOTH tribal lanes.
+    card = {
+        "name": "Gorbag of Minas Morgul",
+        "type_line": "Legendary Creature — Orc Soldier",
+        "oracle_text": (
+            "Whenever a Goblin or Orc you control deals combat damage to a "
+            "player, you may sacrifice it. When you do, choose one —\n"
+            "• Draw a card.\n"
+            '• Create a Treasure token. (It\'s an artifact with "{T}, Sacrifice '
+            'this token: Add one mana of any color.")'
+        ),
+    }
+    subs = _subjects(card, "type_matters")
+    assert {"Goblin", "Orc"} <= subs
+
+
+def test_impulse_look_at_and_play_opens_lane():
+    # Headliner Scarlett — "You may look at and play that card this turn" is an
+    # impulse engine the existing regex misses ("look at and" splits "you may"/"play").
+    card = {
+        "name": "Headliner Scarlett",
+        "type_line": "Legendary Creature — Human Warlock",
+        "oracle_text": (
+            "Haste\n"
+            "When Headliner Scarlett enters, creatures target player controls "
+            "can't block this turn.\n"
+            "At the beginning of your upkeep, exile the top card of your library "
+            "face down. You may look at and play that card this turn."
+        ),
+    }
+    assert ("impulse_top_play", "you") in _keys(card)
+
+
+def test_extra_upkeep_lane_opens():
+    # Obeka grants many additional upkeep steps; The Ninth Doctor grants one.
+    obeka = {
+        "name": "Obeka, Splitter of Seconds",
+        "type_line": "Legendary Creature — Ogre Warlock",
+        "oracle_text": (
+            "Menace\n"
+            "Whenever Obeka deals combat damage to a player, you get that many "
+            "additional upkeep steps after this phase."
+        ),
+    }
+    ninth = {
+        "name": "The Ninth Doctor",
+        "type_line": "Legendary Creature — Time Lord Doctor",
+        "oracle_text": (
+            "Haste\n"
+            "Into the TARDIS — Whenever The Ninth Doctor becomes untapped during "
+            "your untap step, you get an additional upkeep step after this step."
+        ),
+    }
+    assert ("extra_upkeep", "you") in _keys(obeka)
+    assert ("extra_upkeep", "you") in _keys(ninth)
+
+
+def test_extra_end_step_lane_opens():
+    # Y'shtola Rhul grants an additional end step; the end-step payoff lane must open.
+    card = {
+        "name": "Y'shtola Rhul",
+        "type_line": "Legendary Creature — Cat Druid",
+        "oracle_text": (
+            "At the beginning of your end step, exile target creature you control, "
+            "then return it to the battlefield under its owner's control. Then if "
+            "it's the first end step of the turn, there is an additional end step "
+            "after this step."
+        ),
+    }
+    assert ("extra_end_step", "you") in _keys(card)
+
+
+def test_extra_beginning_phase_decomposes_to_upkeep_and_draw():
+    # CR 501: the beginning phase contains untap, upkeep, AND draw steps — so an
+    # extra beginning phase (Sphinx of the Second Sun) re-triggers upkeep- and
+    # draw-step payoffs. The untap step has no servable payoff, so no untap lane.
+    card = {
+        "name": "Sphinx of the Second Sun",
+        "type_line": "Creature — Sphinx",
+        "oracle_text": (
+            "Flying\n"
+            "At the beginning of each of your postcombat main phases, there is an "
+            "additional beginning phase after this phase. (The beginning phase "
+            "includes the untap, upkeep, and draw steps.)"
+        ),
+    }
+    keys = _keys(card)
+    assert ("extra_upkeep", "you") in keys
+    assert ("extra_draw_step", "you") in keys
+
+
+def test_flying_from_top_opens_keyword_tribe():
+    # Errant and Giada — "cast spells with flash or flying from the top" rewards
+    # fliers; open the Flying keyword-tribe lane.
+    card = {
+        "name": "Errant and Giada",
+        "type_line": "Legendary Creature — Human Angel",
+        "oracle_text": (
+            "Flash\nFlying\n"
+            "You may look at the top card of your library any time.\n"
+            "You may cast spells with flash or flying from the top of your library."
+        ),
+    }
+    assert ("keyword_tribe", "you") in _keys(card)
+    assert "Flying" in _subjects(card, "keyword_tribe")
+
+
+def test_yasharn_opens_stax_taxes():
+    # Yasharn's cost-lock is a tax piece; the lane must OPEN so its hatebear
+    # synergy package (Thalia, Archon of Emeria, …) is surfaced.
+    card = {
+        "name": "Yasharn, Implacable Earth",
+        "type_line": "Legendary Creature — Elemental Boar",
+        "oracle_text": (
+            "When Yasharn enters, search your library for a basic Forest card and "
+            "a basic Plains card, reveal those cards, put them into your hand, "
+            "then shuffle.\n"
+            "Players can't pay life or sacrifice nonland permanents to cast "
+            "spells or activate abilities."
+        ),
+    }
+    assert ("stax_taxes", "opponents") in _keys(card)

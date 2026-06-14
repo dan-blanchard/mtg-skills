@@ -555,6 +555,18 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(
         r"\bfor each ([A-Za-z]+?)s? (?:on the battlefield|you control)\b", re.IGNORECASE
     ),
+    # Evasion-grant lord: "Boars you control can't be blocked …" (Rocksteady — a
+    # Rhino Mutant buffing Boars, so type-line membership can't supply the tribe).
+    # The vocab gate drops the generic "Creatures you control can't be blocked".
+    re.compile(r"\b([A-Za-z]+?)s? you control can't be blocked\b", re.IGNORECASE),
+)
+# Two-tribe trigger: "a Goblin or Orc you control deals …" (Gorbag — an Orc, so
+# membership supplies Orc but never Goblin). Emit BOTH captured subtypes; the
+# single-subject "a X you control <verb>" pattern captures only the first side.
+_TWO_TRIBE_TRIGGER_RE = re.compile(
+    r"\b(?:a|an) ([A-Za-z]+?) or ([A-Za-z]+?) you control "
+    r"(?:enters|attacks?|dies|deals|blocks?)\b",
+    re.IGNORECASE,
 )
 # typed_spellcast: subject-bearing extension of spellcast_matters — catches tribal
 # spell payoffs ("Sliver spells you cast") the literal spellcast_matters misses.
@@ -573,6 +585,12 @@ def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, 
     for pat in _TYPE_MATTERS_PATTERNS:
         for m in pat.finditer(clause):
             subject = _resolve_subject(m.group(1), vocab)
+            if subject:
+                out.append((signal_keys.TYPE_MATTERS, subject))
+    # Two-tribe head ("a Goblin or Orc you control deals …"): emit for BOTH sides.
+    for m in _TWO_TRIBE_TRIGGER_RE.finditer(clause):
+        for raw in (m.group(1), m.group(2)):
+            subject = _resolve_subject(raw, vocab)
             if subject:
                 out.append((signal_keys.TYPE_MATTERS, subject))
     return out
@@ -1585,6 +1603,15 @@ _KEYWORD_TRIBE_PATTERNS = (
             re.IGNORECASE,
         ),
         "any",
+    ),
+    # "cast spells with flash or flying from the top …" (Errant and Giada) — a
+    # play-from-top engine gated on a keyword rewards that keyword's tribe (here
+    # fliers). Capture the second keyword; the _ABILITY_KEYWORDS gate validates it.
+    (
+        re.compile(
+            r"cast spells with flash or ([A-Za-z]+) from the top", re.IGNORECASE
+        ),
+        "you",
     ),
 )
 

@@ -3651,3 +3651,119 @@ def test_token_copy_serves_makers_and_doublers():
     assert _lane_covers(hornet, sig) is True
     assert _lane_covers(avenger, sig) is True
     assert _lane_covers(adrix, sig) is True
+
+
+# ── Long-tail coverage clusters (workflow-diagnosed, verify-before-add) ────────
+
+
+def test_extra_upkeep_serves_upkeep_payoffs_not_ramp():
+    sig = _sig("extra_upkeep", "you")
+    as_foretold = {
+        "name": "As Foretold",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "At the beginning of your upkeep, put a time counter on this "
+            "enchantment.\nOnce each turn, you may pay {0} rather than pay the "
+            "mana cost for a spell you cast with mana value X or less, where X is "
+            "the number of time counters on this enchantment."
+        ),
+    }
+    sol_ring = {
+        "name": "Sol Ring",
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add {C}{C}.",
+    }
+    assert _lane_covers(as_foretold, sig) is True
+    assert _lane_covers(sol_ring, sig) is False  # no upkeep trigger — not a payoff
+
+
+def test_extra_end_step_serves_end_step_payoffs():
+    sig = _sig("extra_end_step", "you")
+    agent = {
+        "name": "Agent of Treachery",
+        "type_line": "Creature — Human Rogue",
+        "oracle_text": (
+            "When this creature enters, gain control of target permanent.\n"
+            "At the beginning of your end step, if you control three or more "
+            "permanents you don't own, draw three cards."
+        ),
+    }
+    chimil = {
+        "name": "Chimil, the Inner Sun",
+        "type_line": "Legendary Artifact",
+        "oracle_text": (
+            "Spells you control can't be countered.\n"
+            "At the beginning of your end step, discover 5. (Exile cards from the "
+            "top of your library until you exile a nonland card with mana value 5 "
+            "or less. Cast it without paying its mana cost or put it into your "
+            "hand. Put the rest on the bottom in a random order.)"
+        ),
+    }
+    assert _lane_covers(agent, sig) is True
+    assert _lane_covers(chimil, sig) is True
+
+
+def test_noncombat_damage_serves_player_directed_burn():
+    sig = _sig("noncombat_damage_payoff", "you")
+    boltwave = {
+        "name": "Boltwave",
+        "type_line": "Sorcery",
+        "oracle_text": "Boltwave deals 3 damage to each opponent.",
+    }
+    # "deals damage … equal to" (no explicit number) must still serve a doubler.
+    hidetsugu = {
+        "name": "Heartless Hidetsugu",
+        "type_line": "Legendary Creature — Ogre Shaman",
+        "oracle_text": (
+            "{T}: Heartless Hidetsugu deals damage to each player equal to half "
+            "that player's life total, rounded down."
+        ),
+    }
+    price = {
+        "name": "Price of Progress",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Price of Progress deals damage to each player equal to twice the "
+            "number of nonbasic lands that player controls."
+        ),
+    }
+    # A creature-only sweeper hits no player and must NOT serve the doubler lane.
+    pyroclasm = {
+        "name": "Pyroclasm",
+        "type_line": "Sorcery",
+        "oracle_text": "Pyroclasm deals 2 damage to each creature.",
+    }
+    assert _lane_covers(boltwave, sig) is True
+    assert _lane_covers(hidetsugu, sig) is True
+    assert _lane_covers(price, sig) is True
+    assert _lane_covers(pyroclasm, sig) is False
+
+
+def test_creatures_matter_serves_board_scaling_lord():
+    sig = _sig("creatures_matter", "you")
+    leonardo = {
+        "name": "Leonardo, Big Brother",
+        "type_line": "Legendary Creature — Mutant Ninja Turtle",
+        "oracle_text": (
+            "Sneak {W} (You may cast this spell for {W} if you also return an "
+            "unblocked attacker you control to hand during the declare blockers "
+            "step. He enters tapped and attacking.)\n"
+            "Leonardo gets +1/+0 for each other creature you control."
+        ),
+    }
+    assert _lane_covers(leonardo, sig) is True
+
+
+def test_artifacts_matter_serves_artifact_dig():
+    sig = _sig("artifacts_matter", "you")
+    casey = {
+        "name": "Casey Jones, Jury-Rig Justiciar",
+        "type_line": "Legendary Creature — Human Berserker",
+        "oracle_text": (
+            "Haste\n"
+            "When Casey Jones enters, look at the top four cards of your library. "
+            "You may reveal an artifact card from among them and put it into your "
+            "hand. Put the rest on the bottom of your library in a random order."
+        ),
+    }
+    assert _lane_covers(casey, sig) is True

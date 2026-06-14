@@ -579,6 +579,21 @@ _DEATHTOUCH_GEAR_EXTRA = SubAvenue(
     {"oracle": _DEATHTOUCH_GEAR_ORACLE},
     serve=Serve(oracle=re.compile(_DEATHTOUCH_GEAR_ORACLE, _IC)),
 )
+# Player/opponent-directed noncombat burn — the genuine payoff space for a damage
+# DOUBLER (Solphim, Torbran): every source that deals damage to a player or opponent
+# is doubled. The amount is OPTIONAL so "deals damage to each player equal to …"
+# (Heartless Hidetsugu, Price of Progress) is caught alongside numbered/X burn; the
+# player/opponent target list excludes creature-only sweepers (Pyroclasm, Languish).
+_NONCOMBAT_BURN_ORACLE = (
+    r"deals?(?: (?:\d+|x|that much))? (?:noncombat )?damage to "
+    r"(?:each opponent|each player|target opponent|target player|that player)"
+)
+_NONCOMBAT_BURN_EXTRA = SubAvenue(
+    "Player-directed burn",
+    "noncombat damage aimed at players/opponents — doubled by your damage doubler",
+    {"oracle": _NONCOMBAT_BURN_ORACLE},
+    serve=Serve(oracle=re.compile(_NONCOMBAT_BURN_ORACLE, _IC)),
+)
 # Proliferate (CR 701.27) for any counter commander — adds another of EVERY counter.
 _PROLIFERATE_EXTRA = SubAvenue(
     "Proliferate",
@@ -952,7 +967,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # (Intangible Virtue: "creature tokens you control get …"), and the ETB-value
         # creatures a creatures deck fills its board with.
         r"create .*creature token|creatures you control (?:get|have|gain)"
-        r"|(?:creature )?tokens? you control (?:get|have|gain)",
+        r"|(?:creature )?tokens? you control (?:get|have|gain)"
+        # Board-scaling lord: a creature that "gets +X/+Y for each other creature
+        # you control" (Leonardo, Big Brother) — a go-wide payoff that grows wide.
+        r"|gets \+[0-9x]+/\+[0-9x]+ for each other creature you control",
         # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon).
         extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
@@ -1330,7 +1348,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|create [^.]*\b(?:" + _ART_SUBTYPES + r")\b[^.]*token"
         r"|\b(?:" + _ART_SUBTYPES + r")s? you control\b"
         r"|for each (?:an? )?(?:" + _ART_SUBTYPES + r")\b"
-        r"|\binvestigate\b",
+        r"|\binvestigate\b"
+        # Artifact dig/tutor: "reveal an artifact card … put it into your hand"
+        # (Casey Jones, Glint-Nest Crane, Ingenious Smith) finds the deck's payoffs.
+        r"|reveal an artifact card[^.]*put it into your hand",
         # BEING an artifact is on-theme: an artifact-count / affinity / metalcraft deck
         # counts every artifact — lands (Seat of the Synod), rocks (Mind Stone),
         # Equipment, Vehicles — even with no "artifact" in the oracle. The oracle-only
@@ -1540,10 +1561,40 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("creature_ping", "you"): _sweep_spec_with_extras(
         "creature_ping", (_DEATHTOUCH_GEAR_EXTRA,), serve_power_min=5
     ),
+    # Extra upkeep STEPS (Obeka, The Ninth Doctor): each added upkeep step is another
+    # instance every "at the beginning of your/each upkeep" ability triggers in (CR
+    # 500.7 / 503 / 603.2), so the whole upkeep-trigger pool IS the payoff package.
+    # The narrow OPEN regex lives in the sweep detector; this hand-spec exists so the
+    # auto-register doesn't bind the serve to that 4-card open regex — it serves the
+    # broad upkeep-trigger pool instead. The lane opens for only the ~2 extra-upkeep
+    # commanders, so the broad serve never floods an unrelated deck.
+    ("extra_upkeep", "you"): _spec(
+        "Extra upkeeps",
+        "repeatable upkeep-trigger payoffs, multiplied by every added upkeep step",
+        {"oracle": r"at the beginning of (?:your|each) upkeep"},
+        r"at the beginning of (?:your|each) upkeep",
+    ),
+    # Extra end steps (Y'shtola Rhul): every "at the beginning of your/each end step"
+    # payoff (Agent of Treachery, Chimil, the Inner Sun) re-triggers in each added end
+    # step (CR 513). Same open-gated-narrow / serve-broad split as Extra upkeeps.
+    ("extra_end_step", "you"): _spec(
+        "Extra end steps",
+        "end-step-trigger payoffs, multiplied by every added end step",
+        {"oracle": r"at the beginning of (?:your|each) end step"},
+        r"at the beginning of (?:your|each) end step",
+    ),
+    # Extra draw steps (opened by a beginning-phase grant, CR 501/504): "at the
+    # beginning of your draw step" payoffs re-trigger in each added draw step.
+    ("extra_draw_step", "you"): _spec(
+        "Extra draw steps",
+        "draw-step-trigger payoffs, multiplied by every added draw step",
+        {"oracle": r"at the beginning of (?:your|each) draw step"},
+        r"at the beginning of (?:your|each) draw step",
+    ),
     # Deathtouch gear (Basilisk Collar) makes any ping / power-as-damage lethal — credit
     # it on the noncombat-damage and power-fling lanes too, not only the Burn lane.
     ("noncombat_damage_payoff", "you"): _sweep_spec_with_extras(
-        "noncombat_damage_payoff", (_DEATHTOUCH_GEAR_EXTRA,)
+        "noncombat_damage_payoff", (_DEATHTOUCH_GEAR_EXTRA, _NONCOMBAT_BURN_EXTRA)
     ),
     # Power-as-damage / fling commander (Brion Stoutarm) wants big bodies as fling
     # fodder (power_min) plus the power-fling payoffs and deathtouch gear.

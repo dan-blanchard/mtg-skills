@@ -755,7 +755,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "stax_taxes",
         "scope": "opponents",
         "is_widen_of": "stax_taxes",
-        "regex": "(?:target player|that player|each player|a player|that opponent)[^.]{0,90}?can't (?:cast|activate|attack|block|search|untap|draw)|must pay \\{?\\d?\\}?[^.]*additional|spells?[^.]*cost \\{?\\d+\\}? more to (?:cast|activate)|noncreature spells?[^.]*cost(?:s)? \\{?\\d|noncreature spells?[^.]*can't be cast|spells? with mana value \\d[^.]*can't be cast|players? can't cast|that player can't cast spells|spells can't be cast|can cast spells only|your opponents control enter(?:s)? tapped|nonbasic lands enter(?:s)? tapped|costs? players \\{?\\d+\\}? more|doing the chosen action costs",
+        "regex": "(?:target player|that player|each player|a player|that opponent)[^.]{0,90}?can't (?:cast|activate|attack|block|search|untap|draw)|must pay \\{?\\d?\\}?[^.]*additional|spells?[^.]*cost \\{?\\d+\\}? more to (?:cast|activate)|noncreature spells?[^.]*cost(?:s)? \\{?\\d|noncreature spells?[^.]*can't be cast|spells? with mana value \\d[^.]*can't be cast|players? can't cast|that player can't cast spells|spells can't be cast|can cast spells only|your opponents control enter(?:s)? tapped|nonbasic lands enter(?:s)? tapped|costs? players \\{?\\d+\\}? more|doing the chosen action costs|players? can't pay life or sacrifice nonland permanents",
     },
     {
         "key": "symmetric_stax",
@@ -793,7 +793,39 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         # Its own avenue ("Impulse draw (top)") — no longer folded into cast-from-exile,
         # which is now the distinct cast/play-from-exile payoff lane.
         "is_widen_of": "",
-        "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|you may play those cards this turn|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled",
+        "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|you may play those cards this turn|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled|you may look at (?:it )?and (?:play|cast)",
+    },
+    {
+        # Extra upkeep STEPS (Obeka, The Ninth Doctor) — each added upkeep step is
+        # another instance every "at the beginning of your upkeep" ability triggers
+        # in (CR 500.7 / 503 / 603.2), so the whole upkeep-payoff space is doubled.
+        # A beginning phase (CR 501) contains the untap, upkeep, AND draw steps, so an
+        # extra beginning phase (Sphinx of the Second Sun) re-triggers upkeep too.
+        # Narrow OPEN regex; the hand-spec serves the broad upkeep-trigger pool.
+        "key": "extra_upkeep",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "additional upkeep step|additional beginning phase",
+    },
+    {
+        # Extra END STEPS (Y'shtola Rhul) re-trigger every "at the beginning of your
+        # end step" ability (CR 513). An extra ENDING phase (CR 513) likewise contains
+        # the end step. Combat / main-phase grants are NOT here — those co-occur as the
+        # extra-combat package (Aggravated Assault) owned by extra_combats.
+        "key": "extra_end_step",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "additional end step|additional ending phase",
+    },
+    {
+        # Extra DRAW STEPS re-trigger "at the beginning of your draw step" abilities
+        # (CR 504). Opened by a beginning-phase grant (CR 501 — untap/upkeep/draw) too.
+        # The untap step has no triggered-ability payoff pool (its value is the untap
+        # itself), so there is no extra_untap_step lane.
+        "key": "extra_draw_step",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "additional draw step|additional beginning phase",
     },
     {
         "key": "tribe_damage_trigger",
