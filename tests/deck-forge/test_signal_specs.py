@@ -1870,7 +1870,11 @@ class TestMediumServeFixes:
             ],
         )
 
-    def test_opponent_draw_drops_gift_effects(self):
+    def test_opponent_draw_serves_payoffs_and_force_draw_enablers(self):
+        # The punish-draw lane wants BOTH the payoff trigger (Bowmasters) AND the
+        # enablers that make opponents draw extra so it fires — including "each opponent
+        # draws" gifts (Master of the Feast), a known Nekusar staple. Dan's asymmetry
+        # point: forcing opponents to draw is on-theme; a pure self-cantrip is not.
         self._ck(
             "opponent_draw_matters",
             "opponents",
@@ -1879,13 +1883,18 @@ class TestMediumServeFixes:
                     "name": "Bowmasters",
                     "type_line": "Creature — Orc Archer",
                     "oracle_text": "Whenever an opponent draws a card except the first one they draw in each of their draw steps, this creature deals 1 damage to any target.",
-                }
-            ],
-            [
+                },
                 {
                     "name": "Master of the Feast",
                     "type_line": "Creature — Demon",
                     "oracle_text": "Flying\nAt the beginning of your end step, each opponent draws a card.",
+                },
+            ],
+            [
+                {
+                    "name": "Cantrip",
+                    "type_line": "Instant",
+                    "oracle_text": "You draw a card.",
                 }
             ],
         )
@@ -3375,6 +3384,27 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Cytoplast Root-Kin"] is True
     assert results["Zhur-Taa Swine"] is True
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
+
+
+def test_opponent_draw_punish_serves_group_draw_enablers():
+    """A "whenever an opponent draws → punish" commander (Nekusar) wants the SYMMETRIC /
+    forced group-draw enablers that make opponents draw extra (Howling Mine, Temple
+    Bell, Dictate of Kruphix, Forced Fruition, Windfall) — distinct from "target player
+    draws" (which could benefit only you). The serve credited only the payoff trigger."""
+    sig = _sig("opponent_draw_matters", "opponents")
+    cards = {
+        "Temple Bell": "{T}: Each player draws a card.",
+        "Howling Mine": "At the beginning of each player's draw step, if Howling Mine is "
+        "untapped, that player draws an additional card.",
+        "Forced Fruition": "Whenever an opponent casts a spell, that player draws seven "
+        "cards.",
+        "Windfall": "Each player discards their hand, then draws cards equal to the "
+        "greatest number of cards a player discarded this way.",
+    }
+    for name, oracle in cards.items():
+        assert _lane_covers({"name": name, "type_line": "Artifact", "oracle_text": oracle}, sig), name
+    # Precision: your OWN cantrip ("You draw a card.") is not a force-opponents-draw enabler.
+    assert _lane_covers({"name": "Cantrip", "type_line": "Instant", "oracle_text": "You draw a card."}, sig) is False
 
 
 def test_lands_matter_serves_land_ramp():

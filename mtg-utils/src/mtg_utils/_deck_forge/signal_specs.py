@@ -2196,10 +2196,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("opponent_draw_matters", "opponents"): _spec(
         "Punish opponents' draw",
         "wheels and draw-denial punishers that trigger on opponents drawing",
-        {"oracle": r"whenever an opponent draws|each opponent draws"},
+        {"oracle": r"whenever an opponent draws|each opponent draws|each player draws"},
         r"whenever an opponent draws|whenever each opponent draws"
         r"|whenever a player (?:other than you )?draws"
-        r"|whenever a player draws a card (?:except|other than)",
+        r"|whenever a player draws a card (?:except|other than)"
+        # The ENABLERS that make opponents draw extra (so the punish fires): symmetric
+        # group-draw (Temple Bell, Howling Mine, Dictate of Kruphix), forced opponent
+        # draw (Forced Fruition), and wheels (Windfall). NOT "target player draws" or
+        # your own cantrip — those needn't benefit opponents.
+        r"|each player draws|all players draw|each opponent draws"
+        r"|target (?:player|opponent) draws|that player draws"
+        r"|each player's draw step"
+        r"|discards? (?:their|his or her) hand[^.]*draws?",
     ),
     # Drop the bare `search their library` — your OWN tutor reads "search their
     # library" too (Path to Exile). Require an opponent/player subject.
