@@ -10,12 +10,15 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils.rules_lookup import (
+    _DIGITAL_RULES_FILE,
+    _merge_digital,
     find_citations_for_terms,
     grep_rules,
     load_rules,
     lookup_rule,
     lookup_term,
     main,
+    parse_digital_rules,
     parse_rules,
     resolve_rules_path,
 )
@@ -585,3 +588,74 @@ class TestRealCR:
             "double strike",
             "deathtouch",
         }, f"no expected keyword cited: {cited_terms}"
+
+
+class TestDigitalRulesSupplement:
+    """The bundled Arena/Alchemy digital-mechanics supplement (not in the CR) is
+    parsed and merged into rules-lookup, with the CR taking precedence."""
+
+    def test_bundled_file_parses_into_rules_and_glossary(self):
+        parsed = parse_digital_rules(_DIGITAL_RULES_FILE.read_text(encoding="utf-8"))
+        # Categories DD1..DD14 present as rules.
+        assert "DD1" in parsed["rules"]
+        assert parsed["rules"]["DD1"]["kind"] == "category"
+        assert "DD9.1" in parsed["rules"]
+        # Every headline mechanic has a glossary term.
+        for term in (
+            "perpetually",
+            "conjure",
+            "seek",
+            "specialize",
+            "spellbook",
+            "boon",
+            "intensity",
+            "heist",
+            "double team",
+            "unstoppable",
+        ):
+            assert term in parsed["glossary"], term
+
+    def test_merged_into_load_rules(self, rules_file):
+        parsed = load_rules(rules_file)
+        # Digital glossary term + digital rule resolve alongside the CR.
+        assert lookup_term(parsed, "perpetually") is not None
+        assert lookup_rule(parsed, "DD9.1") is not None
+        # A grep over rule text finds the digital rule.
+        hits = grep_rules(parsed, "heist target opponent")
+        assert any(h["number"].startswith("DD") for h in hits)
+
+    def test_cr_takes_precedence_on_shared_key(self):
+        # A pre-existing (CR) entry must NOT be overwritten by the digital merge.
+        parsed = {
+            "rules": {"DD1": {"number": "DD1", "kind": "category", "title": "CR-WINS"}},
+            "glossary": {
+                "perpetually": {
+                    "term": "Perpetually",
+                    "definition": "CR-WINS",
+                    "see_rules": [],
+                }
+            },
+        }
+        _merge_digital(parsed)
+        assert parsed["rules"]["DD1"]["title"] == "CR-WINS"
+        assert parsed["glossary"]["perpetually"]["definition"] == "CR-WINS"
+
+    def test_grounding_unstoppable_is_assign_damage_not_unblockable(self):
+        # Guard against the hallucination "can't be blocked": Unstoppable lets a
+        # creature ASSIGN combat damage as though it weren't blocked (it can still
+        # be blocked).
+        d = parse_digital_rules(_DIGITAL_RULES_FILE.read_text(encoding="utf-8"))
+        defn = d["glossary"]["unstoppable"]["definition"].lower()
+        assert "as though it weren't blocked" in defn
+        assert "can't be blocked" not in defn
+
+    def test_grounding_heist_is_three_random_choose_one(self):
+        d = parse_digital_rules(_DIGITAL_RULES_FILE.read_text(encoding="utf-8"))
+        heist = d["rules"]["DD9.1"]["text"].lower()
+        assert "three random nonland cards" in heist
+        assert "from the top" not in heist  # not a top-of-library effect
+
+    def test_grounding_perpetually_clone_uses_original_stats(self):
+        d = parse_digital_rules(_DIGITAL_RULES_FILE.read_text(encoding="utf-8"))
+        defn = d["glossary"]["perpetually"]["definition"].lower()
+        assert "original card's printed statistics" in defn

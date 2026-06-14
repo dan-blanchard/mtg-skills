@@ -34,6 +34,18 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 
+# Bundled CR-style supplement for MTG Arena / Alchemy "designed-for-digital"
+# mechanics, which are NOT in the Comprehensive Rules. Shipped with the package
+# (rarely changes — digital mechanics are seldom added) and merged into every
+# lookup so --rule/--term/--grep resolve them too. The CR takes precedence on any
+# shared key. See data/digital-rules.txt.
+_DIGITAL_RULES_FILE = Path(__file__).parent / "data" / "digital-rules.txt"
+
+# Digital-supplement numbering ("DD1", "DD1.2") — disjoint from CR \d{3} numbers.
+_DD_CATEGORY_RE = re.compile(r"^(DD\d+)\. (.+)$")
+_DD_RULE_RE = re.compile(r"^(DD\d+\.\d+[a-z]?)\s+(.+)$")
+_DD_REF_RE = re.compile(r"\b(DD\d+(?:\.\d+[a-z]?)?)\b")
+
 # On-disk pickle schema version; bump if the parsed shape changes.
 _PARSED_VERSION = 1
 _PARSED_SUFFIX = ".parsed.pkl"
@@ -298,6 +310,109 @@ def _parse_glossary(lines: list[str]) -> dict[str, dict]:
 
 
 # ---------------------------------------------------------------------------
+# Designed-for-digital supplement
+# ---------------------------------------------------------------------------
+
+
+def parse_digital_rules(text: str) -> dict[str, dict[str, dict]]:
+    """Parse the digital-rules supplement into ``{"rules": ..., "glossary": ...}``,
+    matching the shape ``parse_rules`` produces for the CR so the two merge cleanly.
+
+    Format (see data/digital-rules.txt): a preamble, a ``Rules`` header, DD-numbered
+    categories (``DD1. Perpetually``) and rules (``DD1.2 ...``), then a ``Glossary``
+    header with blank-line-separated Term/Definition blocks.
+    """
+    lines = text.splitlines()
+    rules_start = next((i for i, ln in enumerate(lines) if ln.strip() == "Rules"), None)
+    gloss_start = next(
+        (i for i, ln in enumerate(lines) if ln.strip() == "Glossary"), None
+    )
+    if rules_start is None or gloss_start is None:
+        return {"rules": {}, "glossary": {}}
+
+    rules: dict[str, dict] = {}
+    current: str | None = None
+    for raw in lines[rules_start + 1 : gloss_start]:
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        if m := _DD_CATEGORY_RE.match(stripped):
+            num = m.group(1)
+            rules[num] = {
+                "number": num,
+                "kind": "category",
+                "title": m.group(2),
+                "text": "",
+                "section": "DD",
+                "examples": [],
+                "see_rules": [],
+            }
+            current = num
+        elif m := _DD_RULE_RE.match(stripped):
+            num = m.group(1)
+            rules[num] = {
+                "number": num,
+                "kind": "rule",
+                "text": m.group(2),
+                "section": "DD",
+                "category": num.split(".")[0],
+                "examples": [],
+                "see_rules": [],
+            }
+            current = num
+        elif current and rules[current]["kind"] != "category":
+            rules[current]["text"] += " " + stripped
+
+    for entry in rules.values():
+        body = entry.get("text") or entry.get("title") or ""
+        entry["see_rules"] = sorted(
+            {r for r in _DD_REF_RE.findall(body) if r != entry["number"]}
+        )
+
+    glossary: dict[str, dict] = {}
+    term: str | None = None
+    buf: list[str] = []
+
+    def flush() -> None:
+        nonlocal term, buf
+        if term is not None:
+            definition = "\n".join(buf).strip()
+            glossary[term.lower()] = {
+                "term": term,
+                "definition": definition,
+                "see_rules": sorted(set(_DD_REF_RE.findall(definition))),
+            }
+        term, buf = None, []
+
+    for raw in lines[gloss_start + 1 :]:
+        stripped = raw.strip()
+        if not stripped:
+            flush()
+        elif term is None:
+            term = stripped
+        else:
+            buf.append(stripped)
+    flush()
+    return {"rules": rules, "glossary": glossary}
+
+
+def _merge_digital(parsed: dict[str, Any]) -> None:
+    """Merge the bundled digital-mechanics supplement into ``parsed`` in place. The
+    Comprehensive Rules take precedence — a digital entry is added only when its key
+    (rule number / glossary term) is not already present."""
+    if not _DIGITAL_RULES_FILE.exists():
+        return
+    try:
+        dig = parse_digital_rules(_DIGITAL_RULES_FILE.read_text(encoding="utf-8"))
+    except OSError:
+        return
+    for num, entry in dig["rules"].items():
+        parsed["rules"].setdefault(num, entry)
+    for key, entry in dig["glossary"].items():
+        parsed["glossary"].setdefault(key, entry)
+
+
+# ---------------------------------------------------------------------------
 # Parsed-cache sidecar
 # ---------------------------------------------------------------------------
 
@@ -324,7 +439,11 @@ def load_rules(rules_path: Path) -> dict[str, Any]:
                 and payload.get("version") == _PARSED_VERSION
                 and isinstance(payload.get("parsed"), dict)
             ):
-                return payload["parsed"]
+                parsed = payload["parsed"]
+                # Merge the digital supplement AFTER the cache (not into the pickle),
+                # so editing digital-rules.txt takes effect without CR-mtime change.
+                _merge_digital(parsed)
+                return parsed
         except (pickle.PickleError, EOFError, OSError):
             pass  # fall through to reparse
 
@@ -346,6 +465,9 @@ def load_rules(rules_path: Path) -> dict[str, Any]:
         with contextlib.suppress(OSError):
             tmp.unlink(missing_ok=True)
 
+    # Merge AFTER pickling so the cached sidecar stays CR-only (editing
+    # digital-rules.txt then takes effect without touching the CR's mtime).
+    _merge_digital(parsed)
     return parsed
 
 

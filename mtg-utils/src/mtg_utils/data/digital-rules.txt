@@ -1,0 +1,108 @@
+Magic: The Gathering — Designed-for-Digital Rules Supplement
+
+These rules cover MTG Arena / Alchemy "designed-for-digital" mechanics, which are
+deliberately NOT part of the Comprehensive Rules (Wizards has confirmed the CR is
+not updated to support them; they operate per MTG Arena's programmed rules). Every
+statement below is taken from the MTG Wiki "Designed-for-digital" article and its
+per-mechanic pages, corroborated against Scryfall oracle/reminder text; the
+worked examples are verbatim Scryfall oracle text. rules-lookup consults this
+ALONGSIDE the Comprehensive Rules so --rule / --term / --grep resolve digital-only
+mechanics too. The Comprehensive Rules take precedence on any shared term.
+
+Source: https://mtg.fandom.com/wiki/Designed-for-digital
+Effective as of June 14, 2026.
+
+Rules
+
+DD1. Perpetually
+DD1.1 A perpetual effect modifies a specific card permanently for the rest of the game, regardless of zone changes; the modification persists even as the card moves between battlefield, hand, library, graveyard, and exile, and resets to the printed characteristics only when the game ends.
+DD1.2 A perpetual modification applies only to that one specific card. If a card that was perpetually changed gets cloned, the clone still uses the original card's printed statistics.
+DD1.3 Common templates: "perpetually gains [ability]", "perpetually gets +X/+X", "perpetually becomes [characteristic]". Example: Ethereal Grasp — Tap target creature. That creature perpetually gains "This creature doesn't untap during your untap step" and "{8}: Untap this creature."
+
+DD2. Conjure
+DD2.1 Conjure is a keyword action that creates one or more actual cards that were not in the player's deck or sideboard. A conjured object is a real card for all rules purposes — not a token and not a copy of a spell.
+DD2.2 A conjured card may be created into any zone the effect specifies (hand, library, graveyard, or directly onto the battlefield) and behaves like any other card thereafter. A conjured card can be a card not otherwise present or legal in the set/format, and ceases to exist when the game ends. See rules DD5 (Spellbook).
+
+DD3. Seek
+DD3.1 Seek is a keyword action: the game automatically chooses, at random, a card matching the specified criteria from the seeking player's library and puts it into that player's hand.
+DD3.2 Seek is a digital twist on a tutor, but it is RANDOM and NOT a player choice — the player does not look through the library, does not choose which matching card is found, and the library is NOT shuffled afterward. "Seek a [type] card" rewards the sought card type and thins the library, but is not equivalent to "search your library for [card]".
+
+DD4. Specialize
+DD4.1 Specialize is an activated ability written "Specialize [cost]", where the cost is an entirely generic mana cost. To specialize, pay the cost and discard a card of your choice.
+DD4.2 Specializing permanently changes the legendary creature into one of five color-specific counterparts; the available option is determined by the color and/or basic land type of the discarded card. A specialized creature has a different name, an extra mana symbol of the chosen color, and added abilities. Specialize parallels "Choose a Background". Example: Viconia, Nightsinger's Disciple — Specialize {2} / {1}: Exile target card from a graveyard.
+DD4.3 Commander: a card with specialize has a unique color identity when used as a commander in Brawl. During deck construction the player picks one of the five colors (one per specialized counterpart); that chosen color becomes part of the commander's color identity for deck construction. The card then behaves like a transforming card with a single alternative counterpart.
+
+DD5. Spellbook
+DD5.1 A spellbook is a curated list of up to fifteen flavor-resonant cards that exist outside the game and are associated with a specific card. Spellbook cards are accessed by the conjure or draft keyword actions.
+DD5.2 The cards in a spellbook are NOT part of the associated card's color identity, and are not part of any deck or sideboard.
+
+DD6. Draft (from a spellbook)
+DD6.1 As a designed-for-digital keyword action, draft presents the player with three cards chosen at random from an associated spellbook; the player selects one. (Contrast conjure, which may take one chosen card from the entire spellbook.) Drafting from a spellbook can occur as part of a spell or an activated or triggered ability. This is a card-advantage / selection effect.
+
+DD7. Boon
+DD7.1 A boon is a marker, similar to an emblem, that represents a delayed triggered ability granted to a player.
+DD7.2 A one-time boon is removed once the criteria for its stored trigger have been met. A multiple-time boon can trigger a set number of times before it is removed.
+DD7.3 Like emblems, nothing interacts with or modifies an existing boon. There is therefore no "boons matter" payoff; a boon's relevance is entirely the effect of its stored ability.
+
+DD8. Intensity
+DD8.1 Intensity is a tracked numeric value on a permanent, written "Starting intensity N". The keyword action "intensify" raises a permanent's intensity, and effects can reference its current intensity. Example: Bellowsbreath Ogre — Starting intensity 1. Whenever this creature attacks, it deals damage equal to its intensity to any target. Then this creature intensifies by 1.
+
+DD9. Heist
+DD9.1 Heist is a keyword action that steals from an opponent. When a player commits a heist ("heist target opponent's library"), three random nonland cards from that opponent's deck are presented and the player may choose one to exile; that card can then be cast from exile for the remainder of the game. It is a theft / cast-from-exile effect (a tweaked version of Gonti, Lord of Luxury's ability).
+DD9.2 Example: Grenzo, Crooked Jailer — When Grenzo enters and at the beginning of your upkeep, heist target opponent's library. Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast that you don't own with mana value 3 or less. (The cost-reduction rider is specific to Grenzo, not part of the heist action itself.)
+
+DD10. Double team
+DD10.1 Double team is a keyword ability on a creature: when the creature attacks, its controller conjures a duplicate of it into their hand, then both that creature and the duplicate perpetually lose double team. It rewards going wide, attack triggers, and copy/token themes. Example reminder: "Double team (When this creature attacks, conjure a duplicate into your hand, then both of them perpetually lose double team.)" See rules DD1 (Perpetually) and DD2 (Conjure).
+
+DD11. Incorporate
+DD11.1 Incorporate is a keyword action. When a card incorporates [quality], it adds an additional mandatory mana cost to another card, which also perpetually gains additional attributes, mechanics, or abilities; the characteristics of that added mandatory cost (such as its color) are also added to the card. It is used to turn monocolored spells multicolored. Example: Guildpact Greenwalker — When it enters, you may choose a creature card in your hand. If you do, that card perpetually incorporates {1}{G} and gets +4/+4. See rule DD1 (Perpetually).
+
+DD12. Backbone
+DD12.1 Backbone is the MTG Arena keyword for the effect, informally called the "Doran ability", that causes a creature to assign combat damage equal to its toughness rather than its power. It appears in white, black, and green, often paired with letting Defenders attack. (Mechanically equivalent to the toughness-as-power theme; Doran, the Siege Tower was the first card with the effect.)
+
+DD13. Unstoppable
+DD13.1 Unstoppable is the MTG Arena keyword for an ability, primarily green (slang "Super Trample"), that lets a creature assign its combat damage as though it weren't blocked. The creature CAN still be blocked; it simply assigns its combat damage as if unblocked. Example: Thorn Elemental — You may have this creature assign its combat damage as though it weren't blocked.
+
+DD14. Not the starting player
+DD14.1 "Not the starting player" is a designed-for-digital condition: certain Arena cards give a beneficial effect if you were not the starting player of the game, to counteract the play-first advantage in best-of-one. It is tracked only at the immediate start of the game.
+
+Glossary
+
+Perpetually
+A designed-for-digital keyword. A perpetual effect modifies a specific card permanently for the rest of the game, persisting across all zone changes and resetting only when the game ends; only that exact card is affected, so a clone of a perpetually-changed card uses the original card's printed statistics. Not in the Comprehensive Rules. See rules: DD1.
+
+Conjure
+A designed-for-digital keyword action that creates a real card (not a token or spell copy) from outside the deck and sideboard into a specified zone; it is a full card thereafter and ceases to exist when the game ends. See rules: DD2, DD5.
+
+Seek
+A designed-for-digital keyword action: the game randomly chooses a card matching given criteria from your library and puts it into your hand, without shuffling and without player choice. A random, non-controllable tutor analog. See rules: DD3.
+
+Specialize
+A designed-for-digital activated ability ("Specialize [generic cost]"): pay the cost and discard a card to permanently change a legendary creature into one of five color-specific counterparts, the option set by the discarded card. Parallels Choose a Background; as a Brawl commander, the chosen color is fixed at deck construction and becomes the commander's color identity. See rules: DD4.
+
+Spellbook
+A curated list of up to fifteen out-of-game cards tied to a specific card, accessed by conjure or draft. Spellbook cards are not part of color identity. See rules: DD5.
+
+Draft
+As a designed-for-digital keyword action, draft presents three random cards from an associated spellbook and you choose one. (Distinct from the limited-format drafting of booster packs.) See rules: DD6.
+
+Boon
+A designed-for-digital marker, like an emblem, representing a delayed triggered ability; one-time or multiple-time. Nothing interacts with a boon. See rules: DD7.
+
+Intensity
+A designed-for-digital tracked numeric value on a permanent ("Starting intensity N"); the keyword action "intensify" raises it, and effects can reference it. See rules: DD8.
+
+Heist
+A designed-for-digital keyword action: three random nonland cards from a target opponent's deck are presented; you choose one to exile and may cast it from exile for the rest of the game. Theft / cast-from-exile. See rules: DD9.
+
+Double team
+A designed-for-digital keyword ability: when this creature attacks, conjure a duplicate into your hand, then both perpetually lose double team. See rules: DD10.
+
+Incorporate
+A designed-for-digital keyword action that adds a mandatory additional mana cost to a target card and perpetually adds attributes/abilities and the added cost's characteristics (e.g. color) to it; used to turn monocolored cards multicolored. See rules: DD11.
+
+Backbone
+The MTG Arena keyword for the "Doran ability": a creature assigns combat damage equal to its toughness instead of its power. Not in the Comprehensive Rules. See rules: DD12.
+
+Unstoppable
+The MTG Arena keyword (slang "Super Trample"): a creature may assign its combat damage as though it weren't blocked. It can still be blocked. See rules: DD13.
