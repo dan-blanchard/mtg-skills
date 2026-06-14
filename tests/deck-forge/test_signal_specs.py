@@ -3100,3 +3100,29 @@ def test_untap_lanes_serve_untap_auras():
     }
     assert _lane_covers(freed, _sig("untap_engine"))
     assert _lane_covers(freed, _sig("tap_untap_matters"))
+
+
+def test_self_lifeloss_serves_life_total_manipulation():
+    """Selenia pays life as a resource (lifeloss scope you) — she wants life-total
+    swaps/resets (Axis of Mortality, Repay in Kind), life recovery (Children of Korlis),
+    and low-life wincons (Near-Death Experience)."""
+    sig = _sig("lifeloss_matters", "you")
+    axis = {
+        "name": "Axis of Mortality",
+        "type_line": "Enchantment",
+        "oracle_text": "At the beginning of your upkeep, you may have two target players "
+        "exchange life totals.",
+    }
+    children = {
+        "name": "Children of Korlis",
+        "type_line": "Creature — Human Rebel",
+        "oracle_text": "Sacrifice this creature: You gain life equal to the life you've "
+        "lost this turn.",
+    }
+    repay = {
+        "name": "Repay in Kind",
+        "type_line": "Sorcery",
+        "oracle_text": "Each player's life total becomes the lowest life total among all players.",
+    }
+    for c in (axis, children, repay):
+        assert _lane_covers(c, sig), c["name"]

@@ -1400,10 +1400,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # lose-life payoff/enabler clauses.
     ("lifeloss_matters", "you"): _spec(
         "Self life-loss",
-        "ways to pay or lose life on demand to fuel your payoffs",
+        "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
+        "swaps/resets and recovery that turn a low life total into an advantage",
         {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
         r"whenever you (?:gain or )?lose life|you lose (?:\d+|x) life"
-        r"|pay (?:\d+|x) life",
+        r"|pay (?:\d+|x) life"
+        # Life-as-a-resource payoffs (Selenia): swap/reset your low life total (Axis of
+        # Mortality / Repay in Kind / Magus of the Mirror), recover it (Children of
+        # Korlis), or win from it (Near-Death Experience).
+        r"|exchange life totals?|life totals? becomes?|lowest life total"
+        r"|gain life equal to[^.]*lost|life you(?:'ve| have)? lost this turn"
+        r"|if you have [^.]*life[^.]*win the game",
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
     ("lands_matter", "you"): _spec(
