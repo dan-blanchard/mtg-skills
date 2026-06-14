@@ -1149,6 +1149,20 @@ def test_plural_death_trigger_opens_death_matters():
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
+def test_past_tense_death_count_opens_death_matters():
+    # "create a Treasure for each creature that DIED this turn" — a past-tense death-COUNT
+    # payoff (Mahadi, Gadrak, Shessra). The detector keyed on the present-tense trigger
+    # "dies"/"die" and missed the morbid "died this turn" count (31 legendary creatures).
+    for oracle in [
+        "At the beginning of your end step, create a Treasure token for each creature "
+        "that died this turn.",
+        "At the beginning of your end step, if a creature died this turn, you may pay 2 "
+        "life. If you do, draw a card.",
+    ]:
+        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
+
+
 def test_plural_death_does_not_open_on_dice():
     # Precision: a dice "die" ("roll a six-sided die") must NOT read as a death trigger.
     card = {

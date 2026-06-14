@@ -279,6 +279,10 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             or _re(
                 r"whenever [^.]*(?:creatures?|permanents?|tokens?|they|control) die\b"
             )(c)
+            # Past-tense death COUNT payoff ("create a Treasure for each creature that
+            # died this turn" / "if a creature died this turn") — a morbid/aristocrats
+            # commander (Mahadi, Gadrak, Shessra) the present-tense "dies" branch lost.
+            or _re(r"creatures? (?:that )?died this turn")(c)
             or ("dying" in c and "trigger" in c)
         ),
         None,
