@@ -948,3 +948,24 @@ def test_source_deals_damage_opens_burn():
         "permanents and/or players, put a +1/+1 counter on The Red Terror.",
     }
     assert ("direct_damage", "you") in _keys(terror)
+
+
+def test_self_power_scaling_opens_counters():
+    # Mona Lisa: "{T}: Add X mana, where X is Mona Lisa's power" — her value scales with
+    # her OWN power, so she wants to pump it with +1/+1 counters (Stony Strength).
+    mona = {
+        "name": "Mona Lisa, Science Geek",
+        "type_line": "Legendary Creature — Spider Inventor",
+        "oracle_text": "Reach\n{T}: Add X mana of any one color, where X is Mona Lisa's "
+        "power.",
+    }
+    assert any(k == "self_counter_grow" for k, _ in _keys(mona))
+
+
+def test_fling_target_power_does_not_open_self_counters():
+    # Precision: "X is TARGET creature's power" (fling) isn't self-scaling.
+    card = {
+        "name": "Fling",
+        "oracle_text": "Fling deals damage equal to the sacrificed creature's power to any target.",
+    }
+    assert not any(k == "self_counter_grow" for k, _ in _keys(card))

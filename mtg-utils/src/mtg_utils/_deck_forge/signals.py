@@ -1785,6 +1785,23 @@ def extract_signals(
         add("discard_matters", "you", "", text[:160])
     if _detect_self_damage_prevention(text, name):
         add("damage_redirect", "you", "", text[:160])
+    # Self-power-scaling commander (Mona Lisa: "X is Mona Lisa's power") wants to pump
+    # its OWN power with +1/+1 counters — open the self-counter-growth lane. Name-aware
+    # (name + "this creature", not "its") so a fling's "target creature's power" is out.
+    _first = ""
+    for _w in re.split(r"\W+", name):
+        if len(_w) > 2 and _w.lower() not in _ARTICLES:
+            _first = _w
+            break
+    _self = r"this creature|this permanent"
+    if _first:
+        _self += "|" + re.escape(_first)
+    if re.search(
+        rf"(?:equal to|x is|x equals?|where x is) [^.]*?(?:{_self})[^.]*?\bpower\b",
+        text,
+        re.IGNORECASE,
+    ):
+        add("self_counter_grow", "you", "", text[:160], "low")
 
     # Self-ETB value commander → open the (existing, precise) blink/flicker avenue so
     # Ephemerate/Cloudshift/Conjurer's Closet get surfaced to re-use the commander's
