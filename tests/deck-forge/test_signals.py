@@ -732,3 +732,39 @@ def test_aura_recursion_opens_voltron_lane():
         "the battlefield attached to Hakim.",
     }
     assert ("voltron_matters", "you") in _keys(hakim)
+
+
+def test_passive_combat_damage_opens_combat_lane():
+    # Hope of Ghirapur: "target player who was dealt combat damage by Hope this turn" —
+    # a voltron/combat commander that cares about HAVING dealt combat damage (passive
+    # form). It wants gear to connect (combat_damage lane carries the gear extra).
+    hope = {
+        "name": "Hope of Ghirapur",
+        "type_line": "Legendary Artifact Creature — Thopter",
+        "oracle_text": "Flying\nSacrifice Hope of Ghirapur: Until your next turn, "
+        "target player who was dealt combat damage by Hope of Ghirapur this turn can't "
+        "cast noncreature spells.",
+    }
+    assert any(k == "combat_damage_matters" for k, _ in _keys(hope))
+
+
+def test_multi_counter_placement_opens_counters_lane():
+    # Minsc & Boo: "+1: Put three +1/+1 counters on up to one target creature" — a
+    # recurring counter engine. Plural 'counters' (multi-placement) distinguishes it
+    # from bare 'put a +1/+1 counter on it' self-growth.
+    minsc = {
+        "name": "Minsc & Boo, Timeless Heroes",
+        "type_line": "Legendary Planeswalker — Minsc",
+        "oracle_text": "+1: Put three +1/+1 counters on up to one target creature with "
+        "trample or haste.",
+    }
+    assert any(k == "counters_matter" for k, _ in _keys(minsc))
+
+
+def test_single_self_counter_still_excluded():
+    # Precision: bare single self-growth must NOT open counters (the original guard).
+    card = {
+        "name": "Lonely Grower",
+        "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
+    }
+    assert not any(k == "counters_matter" for k, _ in _keys(card))

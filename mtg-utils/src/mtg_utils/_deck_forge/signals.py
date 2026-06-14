@@ -268,6 +268,10 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
                 # A VARIABLE count ("put X +1/+1 counters …") is a scaling counter
                 # engine, not bare self-growth (Halana and Alena, Champion of Lambholt).
                 or "x +1/+1 counter" in c
+                # MULTI-counter placement ("put three +1/+1 counters on …" — plural)
+                # is a counter engine; bare single self-growth ("put a +1/+1 counter on
+                # it") stays out (Minsc & Boo, Hardened Scales decks).
+                or "+1/+1 counters on" in c
             )
         ),
         None,
@@ -281,6 +285,10 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             r"\bwhen(?:ever)?\b[^.]*?\bdeals combat damage to "
             r"(?:a player|an opponent|one of your opponents|each opponent"
             r"|a player or planeswalker|a player or battle)\b"
+            # Passive form: a commander that cares about HAVING dealt combat damage
+            # (Hope of Ghirapur: "player who was dealt combat damage by Hope") wants to
+            # connect — it's a voltron/combat deck.
+            r"|(?:was|were) dealt combat damage by"
         ),
         "opponents",
     ),
