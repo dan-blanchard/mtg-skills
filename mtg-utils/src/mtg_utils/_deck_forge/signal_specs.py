@@ -2176,6 +2176,11 @@ def _subject_spec(signal: Signal) -> SignalSpec:
         search={"card_type": subj},
         serve=Serve(
             oracle=re.compile(serve_oracle, _IC),
+            # A creature IS a member of its own tribe (CR 205.3) — match by TYPE-LINE,
+            # not only the oracle "Xs you control" payoff phrasing. Without this,
+            # vanilla / oracle-silent members (Dread Shade, Llanowar Elves) were
+            # dropped — fatal for lord-less tribes (Shade/Kraken/Yeti read 0/10).
+            types=frozenset({subj.lower()}) if is_type_tribal else frozenset(),
             keywords=frozenset({"changeling"}) if is_type_tribal else frozenset(),
         ),
         extras=(_payoff_extra(subj, esc),),

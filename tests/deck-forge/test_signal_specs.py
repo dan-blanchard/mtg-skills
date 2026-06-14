@@ -2915,3 +2915,25 @@ def test_snow_lane_serves_snow_cards():
     }
     assert _lane_covers(rime, sig)
     assert _lane_covers(search, sig)
+
+
+def test_tribal_serve_matches_members_by_type_not_just_oracle():
+    """A creature is a member of its own tribe — the tribal serve must match by
+    TYPE-LINE, not only oracle. Dread Shade (oracle '{B}: +1/+1', no 'Shade' word) and
+    Llanowar Elves (oracle '{T}: Add {G}') are tribe members that the oracle-only serve
+    silently dropped — fatal for lord-less tribes (Shade was 0/10)."""
+    dread = {
+        "name": "Dread Shade",
+        "type_line": "Creature — Shade",
+        "oracle_text": "{B}: Dread Shade gets +1/+1 until end of turn.",
+    }
+    llanowar = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert _lane_covers(dread, _sig_sub("type_matters", "Shade"))
+    assert _lane_covers(llanowar, _sig_sub("type_matters", "Elf"))
+    # Precision: a Goblin does NOT serve Elf tribal.
+    goblin = {"name": "Goblin", "type_line": "Creature — Goblin", "oracle_text": ""}
+    assert not _lane_covers(goblin, _sig_sub("type_matters", "Elf"))
