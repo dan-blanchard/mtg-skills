@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from mtg_utils import proxy_print
@@ -76,13 +74,13 @@ def test_lookup_skips_meta_words() -> None:
     """'Token' / 'Legendary' / 'Basic' / 'Snow' must never become lookup keys."""
     # type_line is "Legendary Creature" with no subtypes — should fall through
     # to creature.txt (card-type tier), NOT legendary.txt.
-    art, tier, key, _credit = lookup_art("Legendary Creature")
+    _art, tier, key, _credit = lookup_art("Legendary Creature")
     assert tier == "card-type"
     assert key == "creature"
 
 
 def test_lookup_sorcery_card_type() -> None:
-    art, tier, key, _credit = lookup_art("Sorcery")
+    _art, tier, key, _credit = lookup_art("Sorcery")
     assert tier == "card-type"
     assert key == "sorcery"
 

@@ -108,7 +108,10 @@ def test_owned_collection_surfaces_cards_not_in_the_deck():
         {
             "cards": [
                 {"name": "Cultivate", "quantity": 1},  # in the deck
-                {"name": "Kodama's Reach", "quantity": 1},  # NOT in the deck (candidate)
+                {
+                    "name": "Kodama's Reach",
+                    "quantity": 1,
+                },  # NOT in the deck (candidate)
                 {"name": "Forest", "quantity": 30},  # basic — excluded
             ]
         },

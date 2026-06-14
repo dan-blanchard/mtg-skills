@@ -13,15 +13,8 @@ from __future__ import annotations
 import pytest
 
 from mtg_utils.proxy_print import (
-    BANNER_GAP,
-    BANNER_H,
     CARD_H,
-    CARD_W,
-    PAD,
     PAGE_SIZES,
-    PT_BOX_H,
-    PT_BOX_W,
-    ProxyLayout,
     compute_layout,
 )
 
@@ -325,7 +318,6 @@ def test_type_banner_fixed_at_third_for_non_tokens() -> None:
     """Non-token cards have type_banner_y at exactly y + CARD_H/3, regardless of
     how much oracle text or art the card has.
     """
-    from mtg_utils.proxy_print import CARD_H
 
     layouts = [
         compute_layout(

@@ -5,10 +5,6 @@ art (helps players scan across the table)."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from mtg_utils import proxy_print
 from mtg_utils.proxy_print import _resolve_art_with_differentiation
 

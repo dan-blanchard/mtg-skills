@@ -656,7 +656,8 @@ def test_class_type_commander_does_not_open_class_tribe():
         "oracle_text": "Whenever you cast an instant or sorcery spell, draw a card.",
     }
     subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
-    assert "Human" not in subs and "Wizard" not in subs
+    assert "Human" not in subs
+    assert "Wizard" not in subs
 
 
 def test_vanilla_matters_opens_for_no_abilities_commander():
@@ -807,8 +808,14 @@ def test_a_type_you_control_verb_opens_tribe():
         "Sylvia gets +1/+1 until end of turn for each of those Dragons.",
     }
     assert ("type_matters", "you") in {(k, s) for k, s in _keys(patron)}
-    assert any(s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters")
-    assert any(s.subject == "Dragon" for s in extract_signals(sylvia) if s.key == "type_matters")
+    assert any(
+        s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters"
+    )
+    assert any(
+        s.subject == "Dragon"
+        for s in extract_signals(sylvia)
+        if s.key == "type_matters"
+    )
 
 
 def test_attacking_type_opens_tribe():
@@ -818,7 +825,11 @@ def test_attacking_type_opens_tribe():
         "oracle_text": "Whenever Nagao attacks, you may pay {1}. If you do, put a "
         "+1/+1 counter on each attacking Samurai.",
     }
-    assert any(s.subject == "Samurai" for s in extract_signals(nagao) if s.key == "type_matters")
+    assert any(
+        s.subject == "Samurai"
+        for s in extract_signals(nagao)
+        if s.key == "type_matters"
+    )
 
 
 def test_a_creature_you_control_does_not_capture_creature():
@@ -827,7 +838,8 @@ def test_a_creature_you_control_does_not_capture_creature():
         "oracle_text": "Whenever a creature you control dies, draw a card.",
     }
     subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
-    assert "creature" not in {x.lower() for x in subs} and "Creature" not in subs
+    assert "creature" not in {x.lower() for x in subs}
+    assert "Creature" not in subs
 
 
 def test_more_race_tribes_open():
@@ -846,8 +858,11 @@ def test_more_race_tribes_open():
 def test_generic_class_types_still_excluded_from_membership():
     # Warrior / Soldier / Wizard are too ubiquitous for membership tribal.
     for cls in ("Warrior", "Soldier", "Wizard"):
-        c = {"name": "X", "type_line": f"Legendary Creature — Human {cls}",
-             "oracle_text": ""}
+        c = {
+            "name": "X",
+            "type_line": f"Legendary Creature — Human {cls}",
+            "oracle_text": "",
+        }
         subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
         assert cls not in subs
 
@@ -878,7 +893,9 @@ def test_offering_keyword_opens_tribe():
         "an instant by sacrificing a Rat and paying the difference in mana costs.)\n"
         "Whenever a permanent is put into an opponent's graveyard, that player loses 1 life.",
     }
-    assert any(s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters")
+    assert any(
+        s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters"
+    )
 
 
 def test_your_team_controls_opens_tribe():
@@ -889,7 +906,11 @@ def test_your_team_controls_opens_tribe():
         "type_line": "Legendary Creature — Human Knight",
         "oracle_text": "Double strike\nDragons your team controls have double strike.",
     }
-    assert any(s.subject == "Dragon" for s in extract_signals(sylvia) if s.key == "type_matters")
+    assert any(
+        s.subject == "Dragon"
+        for s in extract_signals(sylvia)
+        if s.key == "type_matters"
+    )
 
 
 # ── Clone synergy: a HIGH-CMC commander with a strong ETB is worth copying (Dan's
@@ -1145,7 +1166,11 @@ def test_plural_death_trigger_opens_death_matters():
         "Whenever one or more other creatures and/or artifacts you control die, draw a "
         "card.",
     ]:
-        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        card = {
+            "name": "X",
+            "type_line": "Legendary Creature — Test",
+            "oracle_text": oracle,
+        }
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
@@ -1158,14 +1183,18 @@ def test_artifact_type_commander_opens_artifacts():
         "type_line": "Legendary Artifact Creature — Robot",
         "oracle_text": "Flying\nWhenever ED-E attacks, draw a card.",
     }
-    assert ("artifacts_matter", "you") in {(s.key, s.scope) for s in extract_signals(ede)}
+    assert ("artifacts_matter", "you") in {
+        (s.key, s.scope) for s in extract_signals(ede)
+    }
     # A plain (non-artifact) creature commander does NOT open the artifacts lane.
     human = {
         "name": "Some Human",
         "type_line": "Legendary Creature — Human Noble",
         "oracle_text": "Vigilance",
     }
-    assert ("artifacts_matter", "you") not in {(s.key, s.scope) for s in extract_signals(human)}
+    assert ("artifacts_matter", "you") not in {
+        (s.key, s.scope) for s in extract_signals(human)
+    }
     # Same for enchantment-type commanders (Anikthea, Arasta) → enchantments_matter.
     anikthea = {
         "name": "Anikthea, Hand of Erebos",
@@ -1188,7 +1217,9 @@ def test_equipped_creature_reference_opens_voltron():
         "creatures, draw a card.\n{W}: You may unattach an Equipment from a creature "
         "you control.",
     }
-    assert ("voltron_matters", "you") in {(s.key, s.scope) for s in extract_signals(akiri)}
+    assert ("voltron_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals(akiri)
+    }
 
 
 def test_unkillable_self_prevention_opens_voltron():
@@ -1199,7 +1230,9 @@ def test_unkillable_self_prevention_opens_voltron():
         "type_line": "Legendary Creature — Human Rebel",
         "oracle_text": "Prevent all damage that would be dealt to Cho-Manno.",
     }
-    assert ("voltron_matters", "you") in {(s.key, s.scope) for s in extract_signals(cho)}
+    assert ("voltron_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals(cho)
+    }
 
 
 def test_boast_keyword_opens_attack_matters():
@@ -1213,7 +1246,9 @@ def test_boast_keyword_opens_attack_matters():
         "oracle_text": "Deathtouch\nBoast — {1}{B}: Target player searches their "
         "library for a card, then shuffles and puts that card on top.",
     }
-    assert ("attack_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
+    assert ("attack_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals(card)
+    }
 
 
 def test_enchantress_first_spell_opens_enchantments():
@@ -1245,15 +1280,31 @@ def test_ability_words_open_their_lane():
     # it (no rules meaning, but unambiguous): Metalcraft→artifacts, Heroic→targeting,
     # Formidable→power.
     cases = [
-        ("metalcraft", "Metalcraft — This gets +2/+2 as long as you control three or "
-         "more artifacts.", "artifacts_matter"),
-        ("heroic", "Heroic — Whenever you cast a spell that targets this creature, put a "
-         "+1/+1 counter on it.", "targeting_matters"),
-        ("formidable", "Formidable — {2}: Draw a card. Activate this ability only if "
-         "creatures you control have total power 8 or greater.", "power_matters"),
+        (
+            "metalcraft",
+            "Metalcraft — This gets +2/+2 as long as you control three or "
+            "more artifacts.",
+            "artifacts_matter",
+        ),
+        (
+            "heroic",
+            "Heroic — Whenever you cast a spell that targets this creature, put a "
+            "+1/+1 counter on it.",
+            "targeting_matters",
+        ),
+        (
+            "formidable",
+            "Formidable — {2}: Draw a card. Activate this ability only if "
+            "creatures you control have total power 8 or greater.",
+            "power_matters",
+        ),
     ]
     for aw, oracle, key in cases:
-        card = {"name": f"{aw} Boss", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        card = {
+            "name": f"{aw} Boss",
+            "type_line": "Legendary Creature — Test",
+            "oracle_text": oracle,
+        }
         assert key in {s.key for s in extract_signals(card)}, aw
 
 
@@ -1266,7 +1317,11 @@ def test_triggered_counter_placement_opens_counters():
         "Whenever another creature you control enters, put a +1/+1 counter on that "
         "creature if its power is less than this creature's power.",
     ]:
-        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        card = {
+            "name": "X",
+            "type_line": "Legendary Creature — Test",
+            "oracle_text": oracle,
+        }
         assert "counters_matter" in {s.key for s in extract_signals(card)}, oracle
     # Precision: bare self-growth ("a +1/+1 counter on it") still stays OUT.
     selfgrow = {
@@ -1312,7 +1367,9 @@ def test_lifelink_commander_opens_lifegain():
         "keywords": ["Lifelink", "Deathtouch"],
         "oracle_text": "Deathtouch, lifelink",
     }
-    assert ("lifegain_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
+    assert ("lifegain_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals(card)
+    }
 
 
 def test_counter_keyword_commander_opens_counters():
@@ -1370,16 +1427,32 @@ def test_past_tense_count_payoffs_open_their_lane():
     # tense lane. Verified real templating + commanders via bulk.
     cases = [
         # Neheb / Rakdos: "for each 1 life your opponents have lost this turn"
-        ("lifeloss_matters", "Add {R} for each 1 life your opponents have lost this turn."),
+        (
+            "lifeloss_matters",
+            "Add {R} for each 1 life your opponents have lost this turn.",
+        ),
         # Varragoth / Relentless Assault: combat-count payoff
-        ("attack_matters", "Draw a card for each creature you control that attacked this turn."),
+        (
+            "attack_matters",
+            "Draw a card for each creature you control that attacked this turn.",
+        ),
         # Proft / Kydele: "for each card you've drawn this turn"
-        ("draw_matters", "This creature gets +1/+1 for each card you've drawn this turn."),
+        (
+            "draw_matters",
+            "This creature gets +1/+1 for each card you've drawn this turn.",
+        ),
         # Gnostro / Rionya: "for each spell you've cast this turn"
-        ("spellcast_matters", "Scry X, where X is the number of spells you've cast this turn."),
+        (
+            "spellcast_matters",
+            "Scry X, where X is the number of spells you've cast this turn.",
+        ),
     ]
     for key, oracle in cases:
-        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        card = {
+            "name": "X",
+            "type_line": "Legendary Creature — Test",
+            "oracle_text": oracle,
+        }
         assert key in {s.key for s in extract_signals(card)}, (key, oracle)
 
 
@@ -1393,7 +1466,11 @@ def test_past_tense_death_count_opens_death_matters():
         "At the beginning of your end step, if a creature died this turn, you may pay 2 "
         "life. If you do, draw a card.",
     ]:
-        card = {"name": "X", "type_line": "Legendary Creature — Test", "oracle_text": oracle}
+        card = {
+            "name": "X",
+            "type_line": "Legendary Creature — Test",
+            "oracle_text": oracle,
+        }
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
@@ -1441,7 +1518,7 @@ def test_singular_lord_has_opens_type_matters():
     card = {
         "name": "Great Divide Guide",
         "type_line": "Creature — Goblin Scout",
-        "oracle_text": "Each Ally you control has \"{T}: Add one mana of any color.\"",
+        "oracle_text": 'Each Ally you control has "{T}: Add one mana of any color."',
     }
     subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
     assert "Ally" in subs
@@ -1541,7 +1618,7 @@ def test_two_tribe_trigger_emits_both_subjects():
             "Whenever a Goblin or Orc you control deals combat damage to a "
             "player, you may sacrifice it. When you do, choose one —\n"
             "• Draw a card.\n"
-            '• Create a Treasure token. (It\'s an artifact with "{T}, Sacrifice '
+            "• Create a Treasure token. (It's an artifact with \"{T}, Sacrifice "
             'this token: Add one mana of any color.")'
         ),
     }

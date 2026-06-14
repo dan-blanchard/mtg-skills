@@ -23,8 +23,8 @@
 [[repos]]
 repo = "local"
 hooks = [
-  { id = "ruff-check", name = "ruff check", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff check --fix src/ ../tests/mtg-utils/'", pass_filenames = false, types = ["python"] },
-  { id = "ruff-format", name = "ruff format", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff format src/ ../tests/mtg-utils/'", pass_filenames = false, types = ["python"] },
+  { id = "ruff-check", name = "ruff check", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff check --fix src/ ../tests/'", pass_filenames = false, types = ["python"] },
+  { id = "ruff-format", name = "ruff format", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff format src/ ../tests/'", pass_filenames = false, types = ["python"] },
   { id = "ty", name = "ty check", language = "system", entry = "bash -c 'cd mtg-utils && uvx ty check src/'", pass_filenames = false, types = ["python"] },
   { id = "prettier", name = "prettier (svelte/js/css)", language = "system", entry = "bash -c 'cd deck-forge/frontend && npx prettier --write src/'", pass_filenames = false, files = "^deck-forge/frontend/src/" },
   { id = "eslint", name = "eslint (svelte/js)", language = "system", entry = "bash -c 'cd deck-forge/frontend && npx eslint --fix src/'", pass_filenames = false, files = "^deck-forge/frontend/src/" },

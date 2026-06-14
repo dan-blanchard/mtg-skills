@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from pypdf import PdfReader
 
-from mtg_utils.deck import discover_tokens, hydrate
+from mtg_utils.deck import hydrate
 from mtg_utils.proxy_print import build_pdf
 
 

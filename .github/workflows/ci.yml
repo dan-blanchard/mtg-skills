@@ -7,8 +7,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: cd mtg-utils && uv sync
-      - run: cd mtg-utils && uv run ruff check src/ ../tests/mtg-utils/
-      - run: cd mtg-utils && uv run ruff format --check src/ ../tests/mtg-utils/
+      # Lint + format ALL python in the repo (src + every skill's tests), not just
+      # mtg-utils tests. Run from mtg-utils so the shared ruff config + the
+      # `../tests/*` per-file-ignores in its pyproject.toml resolve.
+      - run: cd mtg-utils && uv run ruff check src/ ../tests/
+      - run: cd mtg-utils && uv run ruff format --check src/ ../tests/
       # ty is intentionally unpinned (uvx fetches latest): deck-forge ships a
       # Python backend API now, and new ty releases add checks worth catching.
       - run: cd mtg-utils && uvx ty check src/

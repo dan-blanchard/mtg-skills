@@ -2268,7 +2268,8 @@ class TestMediumBatch8:
             "oracle_text": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
         }
         sigs = [s for s in extract_signals(felidar) if s.key == "win_lose_game"]
-        assert sigs and all(s.scope != "opponents" for s in sigs)
+        assert sigs
+        assert all(s.scope != "opponents" for s in sigs)
 
 
 class TestMediumBatch9:
@@ -3076,7 +3077,13 @@ def test_board_wipe_lane_serves_reanimation_and_resilient_bombs():
     zetalpa = {
         "name": "Zetalpa, Primal Dawn",
         "type_line": "Legendary Creature — Elder Dinosaur",
-        "keywords": ["Flying", "Double strike", "Vigilance", "Trample", "Indestructible"],
+        "keywords": [
+            "Flying",
+            "Double strike",
+            "Vigilance",
+            "Trample",
+            "Indestructible",
+        ],
         "oracle_text": "Flying, double strike, vigilance, trample, indestructible",
     }
     assert _lane_covers(breath, sig)
@@ -3194,7 +3201,11 @@ def test_outlaw_lane_serves_outlaws_and_anthems():
         "type_line": "Creature — Human Pirate",
         "oracle_text": "Menace",
     }
-    rogue = {"name": "A Rogue", "type_line": "Creature — Merfolk Rogue", "oracle_text": ""}
+    rogue = {
+        "name": "A Rogue",
+        "type_line": "Creature — Merfolk Rogue",
+        "oracle_text": "",
+    }
     anthem = {
         "name": "Hellspur Posse Boss",
         "type_line": "Creature — Orc Warrior",
@@ -3307,7 +3318,7 @@ def test_flicker_extra_serves_death_return():
     feign = {
         "name": "Feign Death",
         "type_line": "Instant",
-        "oracle_text": "Until end of turn, target creature gains \"When this creature "
+        "oracle_text": 'Until end of turn, target creature gains "When this creature '
         "dies, return it to the battlefield tapped under its owner's control.\"",
     }
     assert _lane_covers(feign, _sig("blink_flicker"))
@@ -3346,12 +3357,19 @@ def test_activated_ability_lane_serves_costly_activated_creatures():
     for name, oracle in [
         ("Bhaal's Invoker", "{8}: This creature deals 4 damage to each opponent."),
         ("Wildheart Invoker", "{8}: Target creature gets +5/+5 and gains trample."),
-        ("Captivating Crew", "{3}{R}: Gain control of target creature you don't control."),
+        (
+            "Captivating Crew",
+            "{3}{R}: Gain control of target creature you don't control.",
+        ),
     ]:
         card = {"name": name, "type_line": "Creature", "oracle_text": oracle}
         assert _lane_covers(card, sig) is True, name
     # control: a {T}-only ability (no mana cost) isn't a mana-discount target
-    tapper = {"name": "Llanowar Elves", "type_line": "Creature", "oracle_text": "{T}: Add {G}."}
+    tapper = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature",
+        "oracle_text": "{T}: Add {G}.",
+    }
     assert _lane_covers(tapper, sig) is False
 
 
@@ -3366,10 +3384,20 @@ def test_graveyard_lane_serves_recursion_keyword_cards():
         ("Lingering Souls?", ["Flashback"]),
         ("Scrounging Bandar?", ["Scavenge"]),
     ]:
-        card = {"name": name, "type_line": "Creature", "keywords": kws, "oracle_text": ""}
+        card = {
+            "name": name,
+            "type_line": "Creature",
+            "keywords": kws,
+            "oracle_text": "",
+        }
         assert _lane_covers(card, sig) is True, name
     # control: a plain Flying creature is not graveyard-relevant
-    flyer = {"name": "Bird", "type_line": "Creature", "keywords": ["Flying"], "oracle_text": ""}
+    flyer = {
+        "name": "Bird",
+        "type_line": "Creature",
+        "keywords": ["Flying"],
+        "oracle_text": "",
+    }
     assert _lane_covers(flyer, sig) is False
 
 
@@ -3386,7 +3414,12 @@ def test_counters_lane_serves_counter_keyword_creatures():
     ]
     results = {}
     for name, kws in cases:
-        card = {"name": name, "type_line": "Creature", "keywords": kws, "oracle_text": ""}
+        card = {
+            "name": name,
+            "type_line": "Creature",
+            "keywords": kws,
+            "oracle_text": "",
+        }
         results[name] = _lane_covers(card, sig)
     assert results["Young Wolf"] is True
     assert results["Cytoplast Root-Kin"] is True
@@ -3402,23 +3435,44 @@ def test_pillowfort_served_to_high_synergy_archetypes_only():
     spellslinger (at floor by synergy), Initiative (0%, aggressive), counterspell-control
     (0%), and go-wide/tokens — does NOT get it."""
     fort = [
-        ("Ghostly Prison", "Creatures can't attack you unless their controller pays {2} "
-         "for each creature they control that's attacking you."),
-        ("Sphere of Safety", "Creatures can't attack you or a planeswalker you control "
-         "unless their controller pays {X} for each of those creatures."),
+        (
+            "Ghostly Prison",
+            "Creatures can't attack you unless their controller pays {2} "
+            "for each creature they control that's attacking you.",
+        ),
+        (
+            "Sphere of Safety",
+            "Creatures can't attack you or a planeswalker you control "
+            "unless their controller pays {X} for each of those creatures.",
+        ),
         ("Crawlspace", "No more than two creatures can attack you each combat."),
     ]
-    served = [("monarch_matters", "you"), ("goad_matters", "opponents"),
-              ("superfriends_matters", "you"), ("damage_prevention", "you")]
+    served = [
+        ("monarch_matters", "you"),
+        ("goad_matters", "opponents"),
+        ("superfriends_matters", "you"),
+        ("damage_prevention", "you"),
+    ]
     for key, scope in served:
         sig = _sig(key, scope)
         for name, oracle in fort:
-            assert _lane_covers({"name": name, "type_line": "Enchantment", "oracle_text": oracle}, sig), f"{key}/{name}"
-    gp = {"name": "Ghostly Prison", "type_line": "Enchantment", "oracle_text": "Creatures can't attack you unless their controller pays {2}."}
-    for key, scope in [("token_maker", "you"), ("activated_ability", "you"),
-                       ("card_draw_engine", "you"), ("voltron_matters", "you"),
-                       ("spellcast_matters", "you"), ("counter_control", "you"),
-                       ("initiative_matters", "you")]:
+            assert _lane_covers(
+                {"name": name, "type_line": "Enchantment", "oracle_text": oracle}, sig
+            ), f"{key}/{name}"
+    gp = {
+        "name": "Ghostly Prison",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures can't attack you unless their controller pays {2}.",
+    }
+    for key, scope in [
+        ("token_maker", "you"),
+        ("activated_ability", "you"),
+        ("card_draw_engine", "you"),
+        ("voltron_matters", "you"),
+        ("spellcast_matters", "you"),
+        ("counter_control", "you"),
+        ("initiative_matters", "you"),
+    ]:
         assert _lane_covers(gp, _sig(key, scope)) is False, key
 
 
@@ -3428,14 +3482,30 @@ def test_token_lanes_serve_creature_anthems():
     just token-specific ones. token_maker (incl. subject specs) and tokens_matter served
     only token anthems. These are SYMMETRIC ("creatures you control"), not "target
     creature" single pumps."""
-    glorious = {"name": "Glorious Anthem", "type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1."}
-    virtue = {"name": "Intangible Virtue", "type_line": "Enchantment", "oracle_text": "Creature tokens you control get +1/+1 and have vigilance."}
-    for sig in [_sig("tokens_matter", "you"), _sig("token_maker", "you"), _sig_sub("token_maker", "Spirit")]:
+    glorious = {
+        "name": "Glorious Anthem",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures you control get +1/+1.",
+    }
+    virtue = {
+        "name": "Intangible Virtue",
+        "type_line": "Enchantment",
+        "oracle_text": "Creature tokens you control get +1/+1 and have vigilance.",
+    }
+    for sig in [
+        _sig("tokens_matter", "you"),
+        _sig("token_maker", "you"),
+        _sig_sub("token_maker", "Spirit"),
+    ]:
         label = f"{sig.key}/{sig.subject or '-'}"
         assert _lane_covers(glorious, sig), f"{label}/glorious"
         assert _lane_covers(virtue, sig), f"{label}/virtue"
     # precision: a single-TARGET pump is not a go-wide anthem.
-    brute = {"name": "Brute Force", "type_line": "Instant", "oracle_text": "Target creature gets +3/+3 until end of turn."}
+    brute = {
+        "name": "Brute Force",
+        "type_line": "Instant",
+        "oracle_text": "Target creature gets +3/+3 until end of turn.",
+    }
     assert _lane_covers(brute, _sig("token_maker", "you")) is False
 
 
@@ -3446,17 +3516,30 @@ def test_targeting_heroic_serves_single_target_buffs():
     NOT count; targeted REMOVAL ("destroy target creature") isn't a buff."""
     sig = _sig("targeting_matters", "any")
     for name, oracle in [
-        ("Gods Willing", "Target creature you control gains protection from the color "
-         "of your choice until end of turn."),
+        (
+            "Gods Willing",
+            "Target creature you control gains protection from the color "
+            "of your choice until end of turn.",
+        ),
         ("Brute Force", "Target creature gets +3/+3 until end of turn."),
         ("Temur Battle Rage", "Target creature gains double strike until end of turn."),
     ]:
-        assert _lane_covers({"name": name, "type_line": "Instant", "oracle_text": oracle}, sig), name
+        assert _lane_covers(
+            {"name": name, "type_line": "Instant", "oracle_text": oracle}, sig
+        ), name
     # "each creature" anthem doesn't TARGET — must not count as a heroic enabler.
-    anthem = {"name": "Glorious Anthem", "type_line": "Enchantment", "oracle_text": "Creatures you control get +1/+1."}
+    anthem = {
+        "name": "Glorious Anthem",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures you control get +1/+1.",
+    }
     assert _lane_covers(anthem, sig) is False
     # targeted removal is not a buff for your own creature.
-    rm = {"name": "Murder", "type_line": "Instant", "oracle_text": "Destroy target creature."}
+    rm = {
+        "name": "Murder",
+        "type_line": "Instant",
+        "oracle_text": "Destroy target creature.",
+    }
     assert _lane_covers(rm, sig) is False
 
 
@@ -3476,9 +3559,21 @@ def test_opponent_draw_punish_serves_group_draw_enablers():
         "greatest number of cards a player discarded this way.",
     }
     for name, oracle in cards.items():
-        assert _lane_covers({"name": name, "type_line": "Artifact", "oracle_text": oracle}, sig), name
+        assert _lane_covers(
+            {"name": name, "type_line": "Artifact", "oracle_text": oracle}, sig
+        ), name
     # Precision: your OWN cantrip ("You draw a card.") is not a force-opponents-draw enabler.
-    assert _lane_covers({"name": "Cantrip", "type_line": "Instant", "oracle_text": "You draw a card."}, sig) is False
+    assert (
+        _lane_covers(
+            {
+                "name": "Cantrip",
+                "type_line": "Instant",
+                "oracle_text": "You draw a card.",
+            },
+            sig,
+        )
+        is False
+    )
 
 
 def test_lands_matter_serves_land_ramp():
@@ -3487,10 +3582,16 @@ def test_lands_matter_serves_land_ramp():
     "number of lands" payoffs, not the ramp/fetch that grows the count."""
     sig = _sig("lands_matter", "you")
     for name, oracle in [
-        ("Skyshroud Claim", "Search your library for up to two Forest cards, put them "
-         "onto the battlefield tapped, then shuffle."),
-        ("Cultivate", "Search your library for up to two basic land cards, reveal them, "
-         "put one onto the battlefield tapped and the other into your hand."),
+        (
+            "Skyshroud Claim",
+            "Search your library for up to two Forest cards, put them "
+            "onto the battlefield tapped, then shuffle.",
+        ),
+        (
+            "Cultivate",
+            "Search your library for up to two basic land cards, reveal them, "
+            "put one onto the battlefield tapped and the other into your hand.",
+        ),
         ("Crucible of Worlds", "You may play lands from your graveyard."),
     ]:
         card = {"name": name, "type_line": "Sorcery", "oracle_text": oracle}
@@ -3503,12 +3604,21 @@ def test_ramp_serves_basic_land_type_fetches():
     contain the word "land", so the bare "search … for … land" missed them."""
     sig = _sig("ramp_matters", "you")
     for name, oracle in [
-        ("Skyshroud Claim", "Search your library for up to two Forest cards, put them "
-         "onto the battlefield tapped, then shuffle."),
-        ("Nature's Lore", "Search your library for a Forest card, put that card onto "
-         "the battlefield, then shuffle."),
-        ("Farseek", "Search your library for a Plains, Island, Swamp, or Mountain card, "
-         "put it onto the battlefield tapped, then shuffle."),
+        (
+            "Skyshroud Claim",
+            "Search your library for up to two Forest cards, put them "
+            "onto the battlefield tapped, then shuffle.",
+        ),
+        (
+            "Nature's Lore",
+            "Search your library for a Forest card, put that card onto "
+            "the battlefield, then shuffle.",
+        ),
+        (
+            "Farseek",
+            "Search your library for a Plains, Island, Swamp, or Mountain card, "
+            "put it onto the battlefield tapped, then shuffle.",
+        ),
     ]:
         card = {"name": name, "type_line": "Sorcery", "oracle_text": oracle}
         assert _lane_covers(card, sig) is True, name
@@ -3522,16 +3632,31 @@ def test_sacrifice_serves_death_value_fodder():
     the cross-archetype audit: Sacrifice lane, 9.2x lift.)"""
     sig = _sig("sacrifice_matters", "you")
     for name, oracle in [
-        ("Ichor Wellspring", "When this artifact enters or is put into a graveyard from "
-         "the battlefield, draw a card."),
-        ("Filigree Familiar", "When this creature enters, you gain 2 life.\nWhen this "
-         "creature dies, draw a card."),
-        ("Mycosynth Wellspring", "When this artifact enters or is put into a graveyard "
-         "from the battlefield, you may search your library for a basic land card."),
+        (
+            "Ichor Wellspring",
+            "When this artifact enters or is put into a graveyard from "
+            "the battlefield, draw a card.",
+        ),
+        (
+            "Filigree Familiar",
+            "When this creature enters, you gain 2 life.\nWhen this "
+            "creature dies, draw a card.",
+        ),
+        (
+            "Mycosynth Wellspring",
+            "When this artifact enters or is put into a graveyard "
+            "from the battlefield, you may search your library for a basic land card.",
+        ),
     ]:
-        assert _lane_covers({"name": name, "type_line": "Artifact", "oracle_text": oracle}, sig), name
+        assert _lane_covers(
+            {"name": name, "type_line": "Artifact", "oracle_text": oracle}, sig
+        ), name
     # Precision: a plain cantrip with no death/graveyard trigger is not sac fodder.
-    cantrip = {"name": "Opt", "type_line": "Instant", "oracle_text": "Scry 1. Draw a card."}
+    cantrip = {
+        "name": "Opt",
+        "type_line": "Instant",
+        "oracle_text": "Scry 1. Draw a card.",
+    }
     assert _lane_covers(cantrip, sig) is False
 
 

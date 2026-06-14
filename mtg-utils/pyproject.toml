@@ -112,6 +112,9 @@ ignore = [
     "E501",    # line length — test data and assertions can be long
     "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
     "ANN",     # flake8-annotations — test functions don't need annotations
+    "RUF001",  # ambiguous unicode — test data embeds real oracle text (the "−"
+    #            in planeswalker abilities is Scryfall's U+2212, not a typo)
+    "RUF012",  # mutable class attribute — test fixture classes don't need ClassVar
 ]
 "../tests/*" = [
     "SLF001",  # private member access — tests need to test internals
@@ -119,4 +122,7 @@ ignore = [
     "PERF401", # list-append-in-loop — clarity over micro-optimization in tests
     "N999",    # invalid module name — directory uses hyphen convention
     "ANN",     # flake8-annotations — test functions don't need annotations
+    "RUF001",  # ambiguous unicode — test data embeds real oracle text (the "−"
+    #            in planeswalker abilities is Scryfall's U+2212, not a typo)
+    "RUF012",  # mutable class attribute — test fixture classes don't need ClassVar
 ]
