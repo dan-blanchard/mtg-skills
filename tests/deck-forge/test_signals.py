@@ -1018,3 +1018,16 @@ def test_banding_commander_opens_banding_lane():
         "oracle_text": "Banding\n{U}, {T}: Counter target activated ability of an artifact.",
     }
     assert ("banding_matters", "you") in _keys(ayesha)
+
+
+def test_counter_on_another_opens_counters():
+    # Anafenza, the Foremost: "Whenever Anafenza attacks, put a +1/+1 counter on another
+    # target tapped creature" — a recurring counter engine (placement on ANOTHER
+    # creature), distinct from bare self-growth ('on it').
+    anafenza = {
+        "name": "Anafenza, the Foremost",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": "Whenever Anafenza, the Foremost attacks, put a +1/+1 counter on "
+        "another target tapped creature.",
+    }
+    assert any(k == "counters_matter" for k, _ in _keys(anafenza))

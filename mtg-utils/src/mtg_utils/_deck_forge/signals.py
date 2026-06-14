@@ -306,6 +306,9 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
                 # is a counter engine; bare single self-growth ("put a +1/+1 counter on
                 # it") stays out (Minsc & Boo, Hardened Scales decks).
                 or "+1/+1 counters on" in c
+                # Recurring placement on ANOTHER creature (Anafenza: "+1/+1 counter on
+                # another target …") is an engine, not self-growth.
+                or "+1/+1 counter on another" in c
             )
         ),
         None,
