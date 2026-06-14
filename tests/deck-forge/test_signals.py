@@ -668,3 +668,27 @@ def test_vanilla_matters_opens_for_no_abilities_commander():
         "with no abilities from your graveyard to your hand.",
     }
     assert ("vanilla_matters", "you") in _keys(ruxa)
+
+
+# ── Toughness payoffs beyond "assigns combat damage equal to toughness" (Geralf) ──
+def test_toughness_value_payoff_opens_toughness_lane():
+    geralf = {
+        "name": "Geralf, Visionary Stitcher",
+        "type_line": "Legendary Creature — Zombie Wizard",
+        "oracle_text": "Zombies you control have flying.\n{U}, {T}, Sacrifice another "
+        "nontoken creature: Create an X/X blue Zombie creature token, where X is the "
+        "sacrificed creature's toughness.",
+    }
+    assert ("toughness_combat", "you") in _keys(geralf)
+
+
+def test_set_base_pt_does_not_open_toughness_lane():
+    # Precision: "power and toughness are each equal to the number of X" is set-base-P/T,
+    # not a toughness-as-value payoff.
+    card = {
+        "name": "Abominable Treefolk",
+        "type_line": "Snow Creature — Treefolk",
+        "oracle_text": "Trample\nAbominable Treefolk's power and toughness are each "
+        "equal to the number of snow permanents you control.",
+    }
+    assert ("toughness_combat", "you") not in _keys(card)

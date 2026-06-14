@@ -147,6 +147,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Vanilla matters (Ruxa, Muraganda Petroglyphs): a commander rewarding "creatures
     # with no abilities" wants vanilla beaters.
     ("vanilla_matters", _re(r"creatures? (?:card )?with no abilities"), "you"),
+    # Toughness-as-value payoffs beyond Doran's "assigns combat damage equal to
+    # toughness" (already mined): a token/damage/value keyed on a creature's TOUGHNESS
+    # (Geralf: "X is the sacrificed creature's toughness"). The "(?! are each)" guard
+    # keeps set-base-P/T ("power and toughness are each equal to …") off the lane.
+    (
+        "toughness_combat",
+        _re(
+            r"\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
+            r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
+        ),
+        "you",
+    ),
     # Snow matters (Isu the Abominable, Yeti tribal): a commander referencing snow
     # permanents / lands / spells / mana opens the snow archetype.
     (
