@@ -865,3 +865,28 @@ def test_hexproof_beater_opens_voltron_despite_other_signals():
         "can't cause you to sacrifice permanents.",
     }
     assert ("voltron_matters", "you") in _keys(sigarda)
+
+
+def test_offering_keyword_opens_tribe():
+    # Patron of the Nezumi: "Rat offering" — the Offering mechanic sacrifices a tribe
+    # member to cast, so it's that tribe. Real text (the reminder is stripped, keyword
+    # survives).
+    patron = {
+        "name": "Patron of the Nezumi",
+        "type_line": "Legendary Creature — Demon Spirit",
+        "oracle_text": "Rat offering (You may cast this spell any time you could cast "
+        "an instant by sacrificing a Rat and paying the difference in mana costs.)\n"
+        "Whenever a permanent is put into an opponent's graveyard, that player loses 1 life.",
+    }
+    assert any(s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters")
+
+
+def test_your_team_controls_opens_tribe():
+    # Sylvia Brightspear: "Dragons your team controls have double strike" — multiplayer
+    # "your team controls", which the "you control" patterns missed.
+    sylvia = {
+        "name": "Sylvia Brightspear",
+        "type_line": "Legendary Creature — Human Knight",
+        "oracle_text": "Double strike\nDragons your team controls have double strike.",
+    }
+    assert any(s.subject == "Dragon" for s in extract_signals(sylvia) if s.key == "type_matters")

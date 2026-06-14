@@ -444,6 +444,18 @@ _TYPE_MATTERS_PATTERNS = (
     # (Soraya). The subtype-vocab gate drops "all"/"other"/"creature" so only a real
     # tribe is captured.
     re.compile(r"\b([A-Za-z]+?) creatures? get [+\-](?:\d|x)", re.IGNORECASE),
+    # Multiplayer "your team controls" (Sylvia: "Dragons your team controls have …").
+    re.compile(
+        r"\b([A-Za-z]+?)s? your team controls? (?:have|has|get|gain)\b", re.IGNORECASE
+    ),
+    # Offering mechanic (Patron cycle): "Rat offering" / "Dragon offering" sacrifices a
+    # tribe member to cast — so the commander is that tribe.
+    re.compile(r"\b([A-Za-z]+) offering\b", re.IGNORECASE),
+    # "for each Rat on the battlefield" — a tribal count payoff with no "you control"
+    # (Patron's discard channel counts Rats). Vocab gate keeps it to real tribes.
+    re.compile(
+        r"\bfor each ([A-Za-z]+?)s? (?:on the battlefield|you control)\b", re.IGNORECASE
+    ),
 )
 # typed_spellcast: subject-bearing extension of spellcast_matters — catches tribal
 # spell payoffs ("Sliver spells you cast") the literal spellcast_matters misses.
