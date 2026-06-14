@@ -25,6 +25,7 @@ expected color identity and per-format legality during authoring.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 
 # Ordered so a grouped render reads ramp → fixing → advantage → removal → interaction →
 # protection → lands. Used both to validate categories and to order the offered pool.
@@ -137,9 +138,32 @@ _MULTICOLOR_ONLY: frozenset[str] = frozenset(
 )
 
 
+# Color-specific format staples, generated (data/format-staples.txt): cards played in
+# >=20% of the commander decks whose color identity can include them (color-NORMALIZED
+# broad play, not a flat popularity count), with basics and the curated function staples
+# above removed. This is a deliberately popularity-INFORMED tier — distinct from the
+# hand-curated function list above — so each color's genuinely-played best cards (Toxic
+# Deluge, Mana Drain, Beast Within, …) are surfaced and counted as covered, not just the
+# colorless good-stuff. Color-filtered + multicolor-gated at offer time like the rest.
+# staples.py lives in mtg_utils/_deck_forge/, so the data dir is one level up.
+_FORMAT_STAPLES_FILE = Path(__file__).parent.parent / "data" / "format-staples.txt"
+
+
+def _load_format_staples() -> frozenset[str]:
+    try:
+        text = _FORMAT_STAPLES_FILE.read_text(encoding="utf-8")
+    except OSError:
+        return frozenset()
+    return frozenset(ln.strip() for ln in text.splitlines() if ln.strip())
+
+
+_FORMAT_STAPLES: frozenset[str] = _load_format_staples()
+
+
 def staple_names() -> frozenset[str]:
-    """The full curated staple name set (color-/format-agnostic)."""
-    return frozenset(STAPLES)
+    """The full staple name set: hand-curated function staples + the color-normalized
+    format-staples tier (color-/format-agnostic; callers filter by identity)."""
+    return frozenset(STAPLES) | _FORMAT_STAPLES
 
 
 def staples_for(
@@ -156,7 +180,8 @@ def staples_for(
     deck_ci = set(color_identity)
     multicolor = len(deck_ci) >= 2
     out: list[dict] = []
-    for name in STAPLES:
+    # Curated function staples first, then the color-normalized format-staples tier.
+    for name in (*STAPLES, *sorted(_FORMAT_STAPLES)):
         rec = by_name.get(name)
         if rec is None:
             continue
@@ -167,6 +192,11 @@ def staples_for(
         if (rec.get("legalities") or {}).get(legality_key) not in _LEGAL:
             continue
         out.append(rec)
-    order = {cat: i for i, cat in enumerate(CATEGORY_ORDER)}
-    out.sort(key=lambda r: (order.get(STAPLES[r["name"]], 99), r["name"]))
+    order = {cat: i for i, cat in enumerate((*CATEGORY_ORDER, "Format staple"))}
+    out.sort(key=lambda r: (order.get(_category_of(r["name"]), 99), r["name"]))
     return out
+
+
+def _category_of(name: str) -> str:
+    """The curated category, or the generic 'Format staple' tier for derived staples."""
+    return STAPLES.get(name, "Format staple")

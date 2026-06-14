@@ -27,6 +27,8 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 # rules-lawyer's bundled digital-mechanics supplement ships as package data
 # (downloaded comprehensive-rules*.txt stay ignored by the *.txt rule above).
 !mtg-utils/src/mtg_utils/data/digital-rules.txt
+# deck-forge's generated color-normalized format-staples list ships as package data.
+!mtg-utils/src/mtg_utils/data/format-staples.txt
 
 # deck-forge ships its built SPA so end-users run `uv run` with no Node
 # toolchain (D11), plus the frontend manifest so devs can rebuild the UI.

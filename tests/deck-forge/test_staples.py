@@ -73,9 +73,18 @@ class TestStaplesData:
         for n in ("Sol Ring", "Arcane Signet", "Command Tower", "Bojuka Bog"):
             assert n in names, n
 
-    def test_every_staple_has_a_category(self):
-        for name in staples.staple_names():
+    def test_every_curated_staple_has_a_category(self):
+        # The hand-curated function staples each carry a category; the derived
+        # format-staples tier is intentionally category-less ("Format staple").
+        for name in staples.STAPLES:
             assert staples.STAPLES[name] in staples.CATEGORY_ORDER, name
+
+    def test_format_staples_tier_loaded_and_categorized(self):
+        # The generated color-normalized tier loads and resolves to its bucket.
+        assert len(staples._FORMAT_STAPLES) > 100
+        sample = next(iter(staples._FORMAT_STAPLES))
+        assert staples._category_of(sample) == "Format staple"
+        assert staples._category_of("Sol Ring") == "Ramp"
 
 
 class TestColorIdentityFilter:
