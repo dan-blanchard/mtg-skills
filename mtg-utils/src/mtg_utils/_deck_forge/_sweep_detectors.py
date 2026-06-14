@@ -552,7 +552,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "stickers_matter",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "\\{tk\\}|put a sticker|stickers? on",
+        "regex": "\\{tk\\}|\\bstickers?\\b",
     },
     {
         "key": "starting_life_matters",

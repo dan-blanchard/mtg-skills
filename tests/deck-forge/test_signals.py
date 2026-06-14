@@ -1841,3 +1841,21 @@ def test_type_you_control_entering_gerund_opens_tribe():
         ),
     }
     assert "Wizard" in _subjects(card, "type_matters")
+
+
+def test_art_sticker_opens_stickers():
+    # Roxi cares about art stickers (power = permanents/cards with an art sticker;
+    # ETB distributes art stickers) — the detector keyed on "put a sticker"/"stickers
+    # on" and missed "art sticker"/"distribute … stickers". Sticker is a dedicated
+    # mechanic, so any mention is on-theme.
+    card = {
+        "name": "Roxi, Publicist to the Stars",
+        "type_line": "Legendary Creature — Human Employee",
+        "oracle_text": (
+            "Flying\nRoxi's power is equal to the number of permanents you control "
+            "with an art sticker plus the number of cards in your graveyard with "
+            "an art sticker.\nWhen Roxi enters, distribute up to two art stickers "
+            "among one or two nonland permanents you own."
+        ),
+    }
+    assert ("stickers_matter", "you") in _keys(card)
