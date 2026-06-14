@@ -140,6 +140,8 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         _re(
             r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
             r"|you gained[^.]*life|life you gained"
+            # Variable lifegain: "gain X life" (Atalya), "gain life equal to …" (Ayli).
+            r"|gains? x life|gains? life equal to"
         ),
         "you",
     ),

@@ -1031,3 +1031,22 @@ def test_counter_on_another_opens_counters():
         "another target tapped creature.",
     }
     assert any(k == "counters_matter" for k, _ in _keys(anafenza))
+
+
+def test_variable_lifegain_opens_lifegain():
+    # Atalya gains X life; Ayli gains life equal to toughness — variable lifegain the
+    # detector (keyed on 'gain N life') missed.
+    atalya = {
+        "name": "Atalya, Samite Master",
+        "type_line": "Legendary Creature — Human Cleric",
+        "oracle_text": "{X}, {T}: Atalya, Samite Master gains X life. Spend only white "
+        "mana on X.",
+    }
+    ayli = {
+        "name": "Ayli, Eternal Pilgrim",
+        "type_line": "Legendary Creature — Kor Cleric",
+        "oracle_text": "{1}, Sacrifice another creature: You gain life equal to the "
+        "sacrificed creature's toughness.",
+    }
+    assert ("lifegain_matters", "you") in _keys(atalya)
+    assert ("lifegain_matters", "you") in _keys(ayli)
