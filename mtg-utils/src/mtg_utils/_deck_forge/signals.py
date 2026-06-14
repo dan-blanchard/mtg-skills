@@ -1653,6 +1653,37 @@ def _self_etb_value(text: str, name: str) -> str | None:
     return None
 
 
+# Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
+# Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
+# verbs (gain control, opponents lose life, skip a step).
+_SELF_DIES_PAYOFF = (
+    r"\b(?:gains? control|loses? \d+ life|lose life|each opponent|each player"
+    r"|draws?|returns?|create|creates|destroys?|exiles?|deals? \d+ damage"
+    r"|put[^.]*counter|skips?)\b"
+)
+
+
+def _self_dies_value(text: str, name: str) -> str | None:
+    """Grounding clause if the card has a self DIES VALUE trigger — a clone/token copy
+    re-fires it when the copy dies (Keiga, Kokusho). Name-aware (short name like
+    Scryfall prints) so 'When Keiga dies' matches."""
+    first = ""
+    for w in re.split(r"\W+", name):
+        if len(w) > 2 and w.lower() not in _ARTICLES:
+            first = w
+            break
+    alts = r"this creature|this permanent|~" + (
+        ("|" + re.escape(first)) if first else ""
+    )
+    pat = re.compile(
+        rf"\bwhen (?:{alts}) dies\b[^.]*?{_SELF_DIES_PAYOFF}", re.IGNORECASE
+    )
+    for clause in _clauses(text):
+        if pat.search(clause):
+            return clause.strip()
+    return None
+
+
 # ── Narrow Tinybones structural scope rule ────────────────────────────────────
 _COMBAT_DAMAGE_TO_PLAYER = re.compile(r"deals combat damage to a player", re.IGNORECASE)
 _THAT_PLAYERS_ZONE = re.compile(
@@ -1858,18 +1889,15 @@ def extract_signals(
         etb_clause = _self_etb_value(text, name)
         if etb_clause is not None:
             add("blink_flicker", "you", "", etb_clause, "low")
-    # A HIGH-CMC commander with a strong ETB is worth COPYING — a clone/token copy
-    # re-fires the expensive ETB on a cheap body (Gyruda). Gate on mana value >= 5
-    # (copying a cheap ETB isn't worth a clone). Full-name self-ETB so "When Gyruda,
-    # Doom of Depths enters" matches (the first-word-only helper misses it).
-    if include_membership and (card.get("cmc") or 0) >= 5:
-        self_etb = re.compile(
-            rf"when (?:{re.escape(name)}|this creature|this permanent) enters\b"
-            rf"[^.]*?{_SELF_ETB_PAYOFF}",
-            re.IGNORECASE,
-        )
-        if self_etb.search(text):
-            add("clone_matters", "you", "", text[:160], "low")
+        # A HIGH-CMC commander with a strong ETB or DEATH trigger is worth COPYING — a
+        # clone/token copy re-fires the expensive ETB on a cheap body (Gyruda) or the
+        # death trigger when the copy dies (Keiga, Kokusho — sac-loop staple). Gate on
+        # mana value >= 5 (copying a cheap trigger isn't worth a clone). Reuse the
+        # self-ETB/dies clauses so the SHORT name Scryfall prints matches.
+        if (card.get("cmc") or 0) >= 5:
+            clone_clause = etb_clause or _self_dies_value(text, name)
+            if clone_clause is not None:
+                add("clone_matters", "you", "", clone_clause, "low")
 
     # Voltron fallback (membership; commander damage, CR 903.10a): only when nothing
     # else gave a strong direction and the creature is a real commander-damage threat

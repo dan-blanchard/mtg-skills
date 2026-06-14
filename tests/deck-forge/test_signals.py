@@ -895,13 +895,16 @@ def test_your_team_controls_opens_tribe():
 # ── Clone synergy: a HIGH-CMC commander with a strong ETB is worth copying (Dan's
 # insight) — copying it re-fires the expensive ETB on a token for cheap (Gyruda). ──
 def test_high_cmc_etb_commander_opens_clone():
+    # Real Scryfall oracle uses the SHORT name ("When Gyruda enters"), not the full
+    # "Gyruda, Doom of Depths" — the clone gate must match the short name like
+    # _self_etb_value does, or it misses the very commander it was built for.
     gyruda = {
         "name": "Gyruda, Doom of Depths",
         "type_line": "Legendary Creature — Kraken Horror",
         "cmc": 6.0,
-        "oracle_text": "When Gyruda, Doom of Depths enters, each player mills four "
-        "cards, then you put a creature card with an even mana value from among them "
-        "onto the battlefield.",
+        "oracle_text": "When Gyruda enters, each player mills four cards. Put a "
+        "creature card with an even mana value from among the milled cards onto the "
+        "battlefield under your control.",
     }
     assert ("clone_matters", "you") in _keys(gyruda)
 
@@ -923,6 +926,39 @@ def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
     }
     assert ("clone_matters", "you") not in _keys(cheap)
     assert ("clone_matters", "you") not in _keys(vanilla)
+
+
+def test_high_cmc_dies_trigger_commander_opens_clone():
+    # A high-CMC commander with a strong DEATH trigger (Keiga, Kokusho) is also worth
+    # copying — a clone/token-copy re-fires the death trigger when the copy dies
+    # (sac-loop staple). Short name, like Scryfall prints it.
+    keiga = {
+        "name": "Keiga, the Tide Star",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "cmc": 6.0,
+        "oracle_text": "Flying\nWhen Keiga dies, gain control of target creature.",
+    }
+    kokusho = {
+        "name": "Kokusho, the Evening Star",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "cmc": 6.0,
+        "oracle_text": "Flying\nWhen Kokusho dies, each opponent loses 5 life. You "
+        "gain life equal to the life lost this way.",
+    }
+    assert ("clone_matters", "you") in _keys(keiga)
+    assert ("clone_matters", "you") in _keys(kokusho)
+
+
+def test_cheap_dies_trigger_does_not_open_clone():
+    # Precision: a CHEAP death-trigger creature isn't worth a clone.
+    cheap = {
+        "name": "Doomed Dissenter",
+        "type_line": "Creature — Human",
+        "cmc": 2.0,
+        "oracle_text": "When Doomed Dissenter dies, create a 2/2 black Zombie creature "
+        "token.",
+    }
+    assert ("clone_matters", "you") not in _keys(cheap)
 
 
 def test_land_enter_punisher_opens_burn_lane():
