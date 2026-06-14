@@ -358,6 +358,24 @@ _SLINGER_SEARCH_ORACLE = (
 # cast). Defined once and bound to BOTH the spellcast_matters and magecraft_matters
 # keys, so a commander that fires both detectors renders a single "Spellslinger" avenue
 # (the render layer dedupes by label) instead of two near-identical lanes (Phase C).
+# Pillowfort: make attacking YOU costly/limited (Ghostly Prison, Propaganda, Sphere of
+# Safety, Crawlspace). Wanted by NON-GO-WIDE decks that can't afford to chump-block.
+# Attached to the lanes the EDHREC-uncovered pillowfort commanders actually open (Dan's
+# evidence check): activated-ability engines (9 commanders), damage-prevention/fog (4),
+# card-advantage engines (3), voltron (3, single threat), goad/politics (3), and
+# monarch/initiative (defend the crown). NOT go-wide/aggro (Combat, tribal — they have
+# blockers to spare) and NOT spellslinger (interacts with control/burn constantly, no
+# evidence) or superfriends/counterspell-control (zero pillowfort evidence in the data).
+_PILLOWFORT_ORACLE = (
+    r"can't attack you\b|no more than (?:one|two|\w+) creatures? can attack you"
+)
+_PILLOWFORT_EXTRA = SubAvenue(
+    "Pillowfort",
+    "taxes and limits that make attacking you costly (Ghostly Prison, Propaganda, "
+    "Sphere of Safety, Crawlspace)",
+    {"oracle": _PILLOWFORT_ORACLE},
+    serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
+)
 _SPELLSLINGER_SPEC = _spec(
     "Spellslinger",
     "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
@@ -430,19 +448,6 @@ _GOWIDE_ANTHEM_EXTRA = SubAvenue(
     "of Heliod, Intangible Virtue)",
     {"oracle": _GOWIDE_ANTHEM_ORACLE},
     serve=Serve(oracle=re.compile(_GOWIDE_ANTHEM_ORACLE, _IC)),
-)
-# Pillowfort: make attacking YOU costly/limited (Ghostly Prison, Propaganda, Sphere of
-# Safety, Crawlspace). The monarch/initiative is stolen by dealing you combat damage, so
-# those decks want it to keep the crown.
-_PILLOWFORT_ORACLE = (
-    r"can't attack you\b|no more than (?:one|two|\w+) creatures? can attack you"
-)
-_PILLOWFORT_EXTRA = SubAvenue(
-    "Pillowfort",
-    "taxes and limits that make attacking you costly (Ghostly Prison, Propaganda, "
-    "Sphere of Safety, Crawlspace)",
-    {"oracle": _PILLOWFORT_ORACLE},
-    serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
 )
 # Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
 # she'd create into a copy of a chosen creature, so the more tokens she'd have made,
@@ -1412,6 +1417,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "goad and forced-attack effects that point creatures at your opponents",
         {"preset_names": ("goad",)},
         r"\bgoad",
+        extras=(_PILLOWFORT_EXTRA,),  # politics: make yourself a bad target too
+    ),
+    # Fog / damage-prevention commanders durdle defensively — pillowfort is a top
+    # EDHREC pick for them (4 commanders in the evidence). Keep the mined fog regex.
+    ("damage_prevention", "you"): _sweep_spec_with_extras(
+        "damage_prevention", (_PILLOWFORT_EXTRA,)
     ),
     ("proliferate_matters", "you"): _spec(
         "Proliferate",
@@ -1697,6 +1708,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:a|an|two|three|four|five|six|seven|eight|nine|ten|x|\d+)[^.]*\bcard"
         r"|draws? (?:two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?"
         r"|draw cards equal to|draws? an additional card",
+        extras=(_PILLOWFORT_EXTRA,),  # value engine — protect the durdle
     ),
     # Drop the self-only `draws? an additional card` (it belongs to the YOU engine); the
     # EACH avenue is symmetric/group draw only.
@@ -1758,7 +1770,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("reconfigure",),
         serve_not=r"can't attack|can't block|doesn't untap during"
         r"|enchant creature you don't control|defending player controls",
-        extras=(_VOLTRON_PROTECT_EXTRA,),
+        extras=(_VOLTRON_PROTECT_EXTRA, _PILLOWFORT_EXTRA),
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
@@ -2138,6 +2150,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # ("{8}:", "{3}{R}:", "{X}, {T}:") the cost-reducer/untapper exploits. Requires
         # a mana symbol in the cost (a {T}-only dork gains nothing from a discount).
         r"|\{(?:\d+|x)\}[^.:\n]{0,25}:",
+        extras=(_PILLOWFORT_EXTRA,),  # engine durdles — protect it (top evidence: 9)
     ),
     # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
     # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
