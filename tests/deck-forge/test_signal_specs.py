@@ -3377,6 +3377,22 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_lands_matter_serves_land_ramp():
+    """lands_matter (Molimo, Lord Windgrace — P/T or payoff scales with land count) is
+    the same archetype as landfall and wants land ramp, but its serve only credited
+    "number of lands" payoffs, not the ramp/fetch that grows the count."""
+    sig = _sig("lands_matter", "you")
+    for name, oracle in [
+        ("Skyshroud Claim", "Search your library for up to two Forest cards, put them "
+         "onto the battlefield tapped, then shuffle."),
+        ("Cultivate", "Search your library for up to two basic land cards, reveal them, "
+         "put one onto the battlefield tapped and the other into your hand."),
+        ("Crucible of Worlds", "You may play lands from your graveyard."),
+    ]:
+        card = {"name": name, "type_line": "Sorcery", "oracle_text": oracle}
+        assert _lane_covers(card, sig) is True, name
+
+
 def test_ramp_serves_basic_land_type_fetches():
     """Ramp serve must credit the basic-land-TYPE fetches (Skyshroud Claim, Nature's
     Lore, Three Visits, Farseek) — they search for "Forest/Plains/… cards", which don't

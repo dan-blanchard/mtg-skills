@@ -1625,8 +1625,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 r"|put .*land card.*onto the battlefield"
             )
         },
-        r"the number of lands you control|for each land you control"
-        r"|play an additional land",
+        # The "number of lands" PAYOFF (Molimo's P/T) PLUS the land ramp / fetch /
+        # recursion that grows the count — lands_matter is the same archetype as
+        # landfall, so it wants the same enablers (reuse _LANDFALL_ORACLE).
+        r"the number of lands you control|for each land you control|"
+        + _LANDFALL_ORACLE,
+        extras=(_LANDS_FROM_GRAVE_EXTRA,),
     ),
     # An ENGINE is recurring or bulk draw — NOT a one-shot cantrip. The serve's
     # `draw \w+ cards?` let \w+ eat the article in "draw a card", mislabeling ~753
