@@ -625,6 +625,22 @@ _EXTRA_COMBAT_EXTRA = SubAvenue(
     {"oracle": r"additional combat|extra combat"},
     serve=Serve(oracle=re.compile(r"additional combat|extra combat", _IC)),
 )
+# Drawback creatures whose downside PUNISHES their controller — the donate target
+# (Abyssal Persecutor "you can't win", Flesh Reaver "deals damage to you", Demonic
+# Taskmaster "upkeep: sacrifice a creature"): hand them to an opponent for the downside.
+_DRAWBACK_ORACLE = (
+    r"you can't win|you lose the game"
+    r"|deals (?:that much )?damage to you\b"
+    r"|at the beginning of (?:your )?upkeep, (?:sacrifice|you lose|discard)"
+    r"|at the beginning of your (?:upkeep|end step)[^.]*(?:lose the game|lose \d+ life)"
+)
+_DRAWBACK_EXTRA = SubAvenue(
+    "Drawback creatures to donate",
+    "creatures whose downside hurts their controller — give them to an opponent "
+    "(Abyssal Persecutor / Flesh Reaver / Demonic Taskmaster)",
+    {"oracle": _DRAWBACK_ORACLE, "card_type": "Creature"},
+    serve=Serve(oracle=re.compile(_DRAWBACK_ORACLE, _IC)),
+)
 # Untap effects to reuse tap abilities / retrigger a tap-untap commander — covers the
 # "enchanted/this/that creature" forms (Freed from the Real) the bare target/all form
 # missed, plus the untap symbol {Q}.
@@ -1278,6 +1294,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Force-attack / goad commander (Kratos) wants extra combats to swing again.
     ("forced_attack", "you"): _sweep_spec_with_extras(
         "forced_attack", (_EXTRA_COMBAT_EXTRA, _COMBAT_SUPPORT_EXTRA)
+    ),
+    # Donate commander (Jon Irenicus, Harmless Offering) wants drawback creatures to
+    # hand to opponents for the downside.
+    ("donate_matters", "you"): _sweep_spec_with_extras(
+        "donate_matters", (_DRAWBACK_EXTRA,)
     ),
     # A self-blinking commander (Norin) re-enters constantly, firing "whenever a
     # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).

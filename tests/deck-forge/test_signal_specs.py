@@ -3188,3 +3188,30 @@ def test_outlaw_lane_serves_outlaws_and_anthems():
     assert _lane_covers(rogue, sig)
     assert _lane_covers(anthem, sig)
     assert not _lane_covers(non, sig)
+
+
+def test_donate_lane_serves_drawback_creatures():
+    """Jon Irenicus donates creatures to opponents — he wants creatures whose DOWNSIDE
+    punishes their controller (Abyssal Persecutor 'you can't win', Flesh Reaver 'deals
+    damage to you', Demonic Taskmaster 'upkeep: sacrifice a creature')."""
+    sig = _sig("donate_matters")
+    persecutor = {
+        "name": "Abyssal Persecutor",
+        "type_line": "Creature — Demon",
+        "oracle_text": "Flying, trample\nYou can't win the game and your opponents "
+        "can't lose the game.",
+    }
+    reaver = {
+        "name": "Flesh Reaver",
+        "type_line": "Creature — Phyrexian Horror",
+        "oracle_text": "Whenever this creature deals damage to a creature or opponent, "
+        "this creature deals that much damage to you.",
+    }
+    taskmaster = {
+        "name": "Demonic Taskmaster",
+        "type_line": "Creature — Demon",
+        "oracle_text": "Flying\nAt the beginning of your upkeep, sacrifice a creature "
+        "other than this creature.",
+    }
+    for c in (persecutor, reaver, taskmaster):
+        assert _lane_covers(c, sig), c["name"]
