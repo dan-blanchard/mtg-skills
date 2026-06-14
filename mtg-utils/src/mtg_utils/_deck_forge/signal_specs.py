@@ -431,6 +431,19 @@ _GOWIDE_ANTHEM_EXTRA = SubAvenue(
     {"oracle": _GOWIDE_ANTHEM_ORACLE},
     serve=Serve(oracle=re.compile(_GOWIDE_ANTHEM_ORACLE, _IC)),
 )
+# Pillowfort: make attacking YOU costly/limited (Ghostly Prison, Propaganda, Sphere of
+# Safety, Crawlspace). The monarch/initiative is stolen by dealing you combat damage, so
+# those decks want it to keep the crown.
+_PILLOWFORT_ORACLE = (
+    r"can't attack you\b|no more than (?:one|two|\w+) creatures? can attack you"
+)
+_PILLOWFORT_EXTRA = SubAvenue(
+    "Pillowfort",
+    "taxes and limits that make attacking you costly (Ghostly Prison, Propaganda, "
+    "Sphere of Safety, Crawlspace)",
+    {"oracle": _PILLOWFORT_ORACLE},
+    serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
+)
 # Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
 # she'd create into a copy of a chosen creature, so the more tokens she'd have made,
 # the more copies). Matches "create … creature token(s)" (Hornet Queen / Avenger of
@@ -1769,12 +1782,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "become and defend the monarch — evasion and combat-damage triggers",
         {"oracle": r"\bthe monarch\b|becomes? the monarch"},
         r"\bthe monarch\b",
+        extras=(_PILLOWFORT_EXTRA,),
     ),
     ("initiative_matters", "you"): _spec(
         "Initiative",
         "take and hold the initiative; venture through the Undercity",
         {"oracle": r"\bthe initiative\b|undercity"},
         r"\bthe initiative\b",
+        extras=(_PILLOWFORT_EXTRA,),
     ),
     ("ring_matters", "you"): _spec(
         "The Ring",

@@ -3394,6 +3394,23 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_monarch_initiative_serve_pillowfort():
+    """The monarch/initiative is stolen by dealing you combat damage, so a monarch or
+    initiative commander (Queen Marchesa) wants pillowfort to keep the crown — Ghostly
+    Prison, Propaganda, Sphere of Safety make attacking you costly."""
+    fort = [
+        ("Ghostly Prison", "Creatures can't attack you unless their controller pays {2} "
+         "for each creature they control that's attacking you."),
+        ("Sphere of Safety", "Creatures can't attack you or a planeswalker you control "
+         "unless their controller pays {X} for each of those creatures."),
+        ("Crawlspace", "No more than two creatures can attack you each combat."),
+    ]
+    for key in ("monarch_matters", "initiative_matters"):
+        sig = _sig(key, "you")
+        for name, oracle in fort:
+            assert _lane_covers({"name": name, "type_line": "Enchantment", "oracle_text": oracle}, sig), f"{key}/{name}"
+
+
 def test_token_lanes_serve_creature_anthems():
     """A token go-wide deck's tokens ARE creatures, so symmetric creature anthems pump
     them — "creatures you control get +1/+1" (Glorious Anthem, Dictate of Heliod), not
