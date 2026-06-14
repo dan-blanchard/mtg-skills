@@ -2937,3 +2937,27 @@ def test_tribal_serve_matches_members_by_type_not_just_oracle():
     # Precision: a Goblin does NOT serve Elf tribal.
     goblin = {"name": "Goblin", "type_line": "Creature — Goblin", "oracle_text": ""}
     assert not _lane_covers(goblin, _sig_sub("type_matters", "Elf"))
+
+
+def test_vanilla_lane_serves_vanilla_creatures_and_payoffs():
+    sig = _sig("vanilla_matters")
+    gigantosaurus = {
+        "name": "Gigantosaurus",
+        "type_line": "Creature — Dinosaur",
+        "power": "10",
+        "toughness": "10",
+        "oracle_text": "",
+    }
+    muraganda = {
+        "name": "Muraganda Petroglyphs",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures with no abilities get +2/+2.",
+    }
+    bear_with_text = {
+        "name": "Ability Bear",
+        "type_line": "Creature — Bear",
+        "oracle_text": "When this creature enters, draw a card.",
+    }
+    assert _lane_covers(gigantosaurus, sig)  # vanilla member
+    assert _lane_covers(muraganda, sig)  # the payoff
+    assert not _lane_covers(bear_with_text, sig)  # has an ability → not vanilla

@@ -73,6 +73,7 @@ class Serve:
     produces_mana: bool = False  # serve if the card has a non-empty produced_mana
     power_min: int | None = None  # serve a creature whose power >= this (big-creature)
     toughness_min: int | None = None  # serve a creature whose toughness >= this (Doran)
+    vanilla: bool = False  # serve a creature with NO rules text (Muraganda / Ruxa)
     self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     not_oracle: re.Pattern[str] | None = None
@@ -114,6 +115,12 @@ class Serve:
             and _toughness(card) >= self.toughness_min
         ):
             return True
+        if (
+            self.vanilla
+            and "creature" in type_line
+            and not re.sub(r"\([^)]*\)", "", oracle_text).strip()
+        ):
+            return True
         if self.self_recur and _self_recurs(card, oracle_text):
             return True
         return (
@@ -143,6 +150,8 @@ class Serve:
             out["power_min"] = self.power_min
         if self.toughness_min is not None:
             out["toughness_min"] = self.toughness_min
+        if self.vanilla:
+            out["vanilla"] = True
         if self.self_recur:
             out["self_recur"] = True
         if self.names:
@@ -162,6 +171,7 @@ class Serve:
             or self.produces_mana
             or self.power_min is not None
             or self.toughness_min is not None
+            or self.vanilla
             or self.self_recur
             or self.names
             or self.not_oracle is not None
@@ -238,6 +248,7 @@ def serve_from_dict(data: dict) -> Serve:
         produces_mana=bool(data.get("produces_mana")),
         power_min=data.get("power_min"),
         toughness_min=data.get("toughness_min"),
+        vanilla=bool(data.get("vanilla")),
         self_recur=bool(data.get("self_recur")),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
         not_oracle=_compile(data.get("not_oracle")),
@@ -284,6 +295,7 @@ def _spec(
     serve_produces_mana: bool = False,
     serve_power_min: int | None = None,
     serve_toughness_min: int | None = None,
+    serve_vanilla: bool = False,
     serve_self_recur: bool = False,
     serve_not: str | None = None,
 ) -> SignalSpec:
@@ -300,6 +312,7 @@ def _spec(
             produces_mana=serve_produces_mana,
             power_min=serve_power_min,
             toughness_min=serve_toughness_min,
+            vanilla=serve_vanilla,
             self_recur=serve_self_recur,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
@@ -986,6 +999,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Treasure makers for ramp, fixing, and artifact synergy",
         {"oracle": r"create [^.]*treasure token|treasures? you control"},
         r"\btreasure\b",
+    ),
+    # Vanilla (Ruxa, Muraganda Petroglyphs): creatures with NO rules text (the tribe)
+    # plus the "creatures with no abilities" payoffs.
+    ("vanilla_matters", "you"): _spec(
+        "Vanilla beaters",
+        "efficient creatures with no abilities plus the payoffs that reward them",
+        {"card_type": "Creature"},
+        r"creatures? with no abilities",
+        serve_vanilla=True,
     ),
     # Snow (Isu the Abominable): snow permanents (Snow type), snow payoffs ("number of
     # snow permanents"), and snow mana. "snow" is essentially only the MTG supertype.

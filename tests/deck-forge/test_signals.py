@@ -657,3 +657,14 @@ def test_class_type_commander_does_not_open_class_tribe():
     }
     subs = {s.subject for s in extract_signals(c) if s.key == "type_matters"}
     assert "Human" not in subs and "Wizard" not in subs
+
+
+def test_vanilla_matters_opens_for_no_abilities_commander():
+    # Ruxa: "return target creature card with no abilities" — a vanilla-matters payoff.
+    ruxa = {
+        "name": "Ruxa, Patient Professor",
+        "type_line": "Legendary Creature — Bear Druid",
+        "oracle_text": "Whenever Ruxa enters or attacks, return target creature card "
+        "with no abilities from your graveyard to your hand.",
+    }
+    assert ("vanilla_matters", "you") in _keys(ruxa)

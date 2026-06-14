@@ -144,6 +144,9 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "you",
     ),
     ("graveyard_matters", _has("graveyard"), None),
+    # Vanilla matters (Ruxa, Muraganda Petroglyphs): a commander rewarding "creatures
+    # with no abilities" wants vanilla beaters.
+    ("vanilla_matters", _re(r"creatures? (?:card )?with no abilities"), "you"),
     # Snow matters (Isu the Abominable, Yeti tribal): a commander referencing snow
     # permanents / lands / spells / mana opens the snow archetype.
     (
