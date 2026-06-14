@@ -1149,6 +1149,36 @@ def test_plural_death_trigger_opens_death_matters():
         assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
 
 
+def test_boast_keyword_opens_attack_matters():
+    # Boast (CR 702.135) can only be activated "if this creature attacked this turn", so
+    # a Boast commander is an attack-matters deck. The condition lives in reminder text
+    # (stripped before detection), so match the KEYWORD (Dan's point).
+    card = {
+        "name": "Varragoth, Bloodsky Sire",
+        "type_line": "Legendary Creature — Demon",
+        "keywords": ["Boast", "Deathtouch"],
+        "oracle_text": "Deathtouch\nBoast — {1}{B}: Target player searches their "
+        "library for a card, then shuffles and puts that card on top.",
+    }
+    assert ("attack_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
+
+
+def test_attack_conditional_keywords_open_attack_matters():
+    # Same class as Boast: keywords whose "as it attacks" / "attacked this turn"
+    # condition lives in stripped reminder text — Exert (CR 702.107) and Myriad
+    # (CR 702.116, attacking copies). Match the keyword.
+    for kw in ["Exert", "Myriad"]:
+        card = {
+            "name": f"{kw} Boss",
+            "type_line": "Legendary Creature — Test",
+            "keywords": [kw],
+            "oracle_text": "Some ability.",
+        }
+        assert ("attack_matters", "you") in {
+            (s.key, s.scope) for s in extract_signals(card)
+        }, kw
+
+
 def test_past_tense_count_payoffs_open_their_lane():
     # Tense audit (Dan): past-tense "this turn" COUNT payoffs are a class, like
     # "died this turn". Each rewards an accumulated count and should open the present-

@@ -1448,6 +1448,13 @@ _DIRECT_KEYWORD_SIGNALS = {
     # Banding (CR 702.21): a commander with banding wants other banding creatures to
     # form attacking/blocking bands (Ayesha Tanaka, General Jarkeld's pile).
     "banding": ("banding_matters", "you"),
+    # Boast (CR 702.135) activates "only if this creature attacked this turn"; Exert
+    # (702.107) is "as it attacks"; Myriad (702.116) makes attacking copies — all three
+    # carry their attack condition in reminder text (stripped before detection), so a
+    # commander with the keyword reads as attack-matters via the keyword, not oracle.
+    "boast": ("attack_matters", "you"),
+    "exert": ("attack_matters", "you"),
+    "myriad": ("attack_matters", "you"),
 }
 
 
