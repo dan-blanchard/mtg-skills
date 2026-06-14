@@ -2122,11 +2122,35 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bcoven\b|different powers"},
         r"\bcoven\b",
     ),
-    ("doubling_matters", "you"): _spec(
-        "Doubling",
-        "token/counter doublers and the payoffs that exploit doubled output",
-        {"oracle": r"twice that many|double the (?:number|amount)"},
-        r"twice that many|double the (?:number|amount)",
+    # Token doubling: a token doubler wants the token MAKERS it multiplies (Hornet
+    # Queen), other token doublers to stack (Parallel Lives), and the go-wide / ETB
+    # payoffs every doubled token feeds. Distinct from counter doubling.
+    ("token_doubling", "you"): _spec(
+        "Token doubling",
+        "token makers to multiply, plus other token doublers and go-wide payoffs",
+        {"oracle": r"create [^.]*creature token|twice that many[^.]*tokens?"},
+        r"create [^.]*creature token"
+        r"|(?:twice that many|double the number of) [^.]*tokens?",
+        extras=(
+            _TOKEN_MAKER_EXTRA,
+            _TOKEN_DOUBLER_EXTRA,
+            _GOWIDE_ANTHEM_EXTRA,
+            _ETB_PAYOFF_EXTRA,
+        ),
+    ),
+    # Counter doubling: a +1/+1-counter doubler wants the counter SOURCES it multiplies
+    # — things that PUT counters (Hardened Scales fuel), creatures that ENTER WITH them
+    # (Master Biomancer, Hangarback), proliferate, and other counter doublers to stack.
+    ("counter_doubling", "you"): _spec(
+        "Counter doubling",
+        "+1/+1 counter sources to multiply, plus other counter doublers",
+        {"oracle": r"\+1/\+1 counters?|double the number of [^.]*counters?"},
+        r"(?:twice that many|double the number of) [^.]*counters?"
+        # Creatures that ENTER WITH +1/+1 counters are counter sources — including the
+        # variable "a number of" / "X" forms a digit-keyed regex misses (Master
+        # Biomancer, Hangarback Walker).
+        r"|enters with (?:a|an|one|two|three|x|\d+|a number of)[^.]*?\+1/\+1 counters?",
+        extras=_COUNTERS_PACKAGE,
     ),
     # Serve is precise (the second-spell payoff). The SEARCH carried the same bare
     # "draw a card" FP; narrow it to the payoffs (second/third spell, multi-spell,

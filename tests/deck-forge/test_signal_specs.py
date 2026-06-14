@@ -2129,26 +2129,44 @@ class TestMediumServeFixes2:
         )
 
     def test_doubling_splits_token_and_counter_doublers(self):
-        self._ck(
-            "doubling_matters",
-            "you",
-            [
-                {
-                    "name": "Parallel Lives",
-                    "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
-                },
-                {
-                    "name": "Doubling Season",
-                    "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead.",
-                },
-            ],
-            [
-                {
-                    "name": "Hangarback Walker",
-                    "oracle_text": "This creature enters with X +1/+1 counters on it.\nWhen this creature dies, create a 1/1 colorless Thopter artifact creature token with flying for each +1/+1 counter on this creature.\n{1}, {T}: Put a +1/+1 counter on this creature.",
-                }
-            ],
-        )
+        # token_doubling and counter_doubling are SEPARATE lanes (inherently different
+        # properties): a token doubler wants token MAKERS; a counter doubler wants
+        # counter SOURCES. Doubling Season feeds both; Parallel Lives only tokens;
+        # Hardened Scales only counters. Real cards, full oracle text.
+        parallel_lives = {
+            "name": "Parallel Lives",
+            "type_line": "Enchantment",
+            "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
+        }
+        doubling_season = {
+            "name": "Doubling Season",
+            "type_line": "Enchantment",
+            "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead.",
+        }
+        hardened_scales = {
+            "name": "Hardened Scales",
+            "type_line": "Enchantment",
+            "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.",
+        }
+        hangarback = {
+            "name": "Hangarback Walker",
+            "type_line": "Artifact Creature — Construct",
+            "oracle_text": "This creature enters with X +1/+1 counters on it.\nWhen this creature dies, create a 1/1 colorless Thopter artifact creature token with flying for each +1/+1 counter on this creature.\n{1}, {T}: Put a +1/+1 counter on this creature.",
+        }
+        tok = _sig("token_doubling", "you")
+        cnt = _sig("counter_doubling", "you")
+        # Token lane (main + extras): token doublers + token makers; a pure counter
+        # doubler (Hardened Scales) is off-theme.
+        assert _lane_covers(parallel_lives, tok) is True
+        assert _lane_covers(doubling_season, tok) is True
+        assert _lane_covers(hangarback, tok) is True
+        assert _lane_covers(hardened_scales, tok) is False
+        # Counter lane: counter doublers + counter sources; a pure token doubler
+        # (Parallel Lives) is off-theme.
+        assert _lane_covers(doubling_season, cnt) is True
+        assert _lane_covers(hardened_scales, cnt) is True
+        assert _lane_covers(hangarback, cnt) is True
+        assert _lane_covers(parallel_lives, cnt) is False
 
 
 class TestSweepHandSpecs:

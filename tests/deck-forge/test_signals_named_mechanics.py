@@ -78,9 +78,14 @@ CASES = [
     ("voting_matters", "each", "Each player votes for an option."),
     ("coven_matters", "you", "Coven — At the beginning of combat, scry 2."),
     (
-        "doubling_matters",
+        "token_doubling",
         "you",
         "If an effect would create tokens, instead it creates twice that many.",
+    ),
+    (
+        "counter_doubling",
+        "you",
+        "Double the number of each kind of counter on target creature.",
     ),
     (
         "second_spell_matters",

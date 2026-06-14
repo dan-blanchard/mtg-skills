@@ -225,7 +225,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "counter_replace_bonus",
         "scope": "you",
-        "is_widen_of": "doubling_matters",
+        "is_widen_of": "counter_doubling",
         "regex": "that many plus (?:one|two|\\d+) [^.]*counters? are put|put that many plus|if (?:one or more )?\\+1/\\+1 counters? would be put on|one or more counters? would be (?:put|placed)[^.]*(?:that many plus|twice that many)",
     },
     {
@@ -903,10 +903,19 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "regex": "\\b(?:each opponent|each player|target opponent|target player|that player|an opponent|each of your opponents) loses? life\\b",
     },
     {
-        "key": "doubling_matters",
+        # Token-doubling and counter-doubling are inherently DIFFERENT properties — a
+        # token doubler wants token MAKERS, a counter doubler wants counter SOURCES — so
+        # they are separate lanes, not one coarse "doubling" bucket.
+        "key": "token_doubling",
         "scope": "you",
-        "is_widen_of": "doubling_matters",
-        "regex": "twice that many[^.]*tokens?|that many plus one[^.]*counters?|one or more counters? would be put on|(?:put|placed?) (?:twice that many|that many plus (?:one|\\d+))[^.]*counters?",
+        "is_widen_of": "token_doubling",
+        "regex": "twice that many[^.]*tokens?|double the number of [^.]*tokens?",
+    },
+    {
+        "key": "counter_doubling",
+        "scope": "you",
+        "is_widen_of": "counter_doubling",
+        "regex": "that many plus one[^.]*counters?|one or more counters? would be put on|(?:put|placed?) (?:twice that many|that many plus (?:one|\\d+))[^.]*counters?|double the number of [^.]*counters?",
     },
     {
         "key": "dice_matters",
@@ -1060,6 +1069,14 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "counter_replace_bonus": (
         "Counter doubling",
         "counter-placement sources to double up",
+    ),
+    "token_doubling": (
+        "Token doubling",
+        "token MAKERS to multiply plus other token doublers and go-wide payoffs",
+    ),
+    "counter_doubling": (
+        "Counter doubling",
+        "+1/+1 counter SOURCES to multiply plus other counter doublers",
     ),
     "creature_cast_trigger": (
         "Creature-cast triggers",

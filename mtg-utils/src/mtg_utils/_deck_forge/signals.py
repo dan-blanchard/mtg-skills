@@ -1072,11 +1072,25 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "each",
     ),
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
+    # Doubling is split by WHAT is doubled — token-doubling and counter-doubling are
+    # inherently different deck archetypes (a token doubler wants token makers; a
+    # counter doubler wants counter sources). There is deliberately NO generic
+    # "doubling" lane: mana / life / card-draw / damage doublers are not a distinct
+    # commander archetype (zero openers) and fold into ramp / burn / direct_damage.
     (
-        "doubling_matters",
+        "token_doubling",
         re.compile(
-            r"double the (?:number|amount)|create twice that many"
-            r"|would (?:create|put|draw|gain|deal)[^.]*\binstead\b"
+            r"create twice that many|double the number of [^.]*tokens?"
+            r"|would create[^.]*\binstead\b[^.]*(?:twice|double)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "counter_doubling",
+        re.compile(
+            r"double the number of [^.]*counters?"
+            r"|would put[^.]*counters?[^.]*\binstead\b"
             r"[^.]*(?:twice|double|that many plus)",
             re.IGNORECASE,
         ),
