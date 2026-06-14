@@ -1923,7 +1923,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # A token-copy commander (Esix) turns each token it would create into a copy —
         # so it also wants raw token MAKERS (more tokens → more copies) and token
         # DOUBLERS (double the copies).
-        extras=(_TOKEN_MAKER_EXTRA, _TOKEN_DOUBLER_EXTRA),
+        # A token-copy deck floods the board with creatures that ENTER — so it's an ETB
+        # deck too: ETB payoffs (Impact Tremors) and doublers (Panharmonicon) fire on
+        # every copy.
+        extras=(
+            _TOKEN_MAKER_EXTRA,
+            _TOKEN_DOUBLER_EXTRA,
+            _ETB_PAYOFF_EXTRA,
+            _ETB_DOUBLER_EXTRA,
+        ),
     ),
     ("specialize_matters", "you"): _spec(
         "Specialize",
@@ -2110,8 +2118,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_power_min=6,
         # The token-copy GEAR is the same archetype: Helm of the Host ("a token that's
         # a copy of equipped creature"), Blade of Selves (myriad), Rite of Replication —
-        # forms the bare "copy of target/that" serve missed (equipped/it/myriad).
-        extras=(_COPY_EXTRA,),
+        # forms the bare "copy of target/that" serve missed (equipped/it/myriad). A copy
+        # also ENTERS, so ETB payoffs (Impact Tremors) and doublers (Panharmonicon) hit.
+        extras=(_COPY_EXTRA, _ETB_PAYOFF_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",

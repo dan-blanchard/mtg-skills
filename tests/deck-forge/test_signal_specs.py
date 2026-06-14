@@ -3377,6 +3377,27 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_copy_lanes_serve_etb_doublers_and_payoffs():
+    """Token-copy / clone decks flood the board with creatures that ENTER, so they want
+    ETB payoffs (Impact Tremors) and doublers (Panharmonicon) — every copy fires them."""
+    pan = {
+        "name": "Panharmonicon",
+        "type_line": "Artifact",
+        "oracle_text": "If an artifact or creature entering the battlefield causes a "
+        "triggered ability of a permanent you control to trigger, that ability triggers "
+        "an additional time.",
+    }
+    tremors = {
+        "name": "Impact Tremors",
+        "type_line": "Enchantment",
+        "oracle_text": "Whenever a creature you control enters, Impact Tremors deals 1 "
+        "damage to each opponent.",
+    }
+    for key in ("token_copy_matters", "clone_matters"):
+        assert _lane_covers(pan, _sig(key, "you")) is True, f"{key}/Panharmonicon"
+        assert _lane_covers(tremors, _sig(key, "you")) is True, f"{key}/Impact Tremors"
+
+
 def test_clone_lane_serves_token_copy_effects():
     """A clone/copy commander (Stangg, Yosei) wants the token-copy gear too — Helm of
     the Host ("a token that's a copy of equipped creature"), Blade of Selves (myriad),
