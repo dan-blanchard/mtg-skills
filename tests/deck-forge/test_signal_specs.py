@@ -3226,3 +3226,18 @@ def test_banding_lane_serves_banding_creatures():
         "oracle_text": "Banding",
     }
     assert _lane_covers(hero, sig)
+
+
+def test_flicker_extra_handles_two_sentence():
+    """_FLICKER_EXTRA (used by ltb/creature_etb/self_blink) must also catch two-sentence
+    flicker (Charming Prince / Flickerwisp 'Exile … . Return it …') — it was still
+    period-blocked, so ltb commanders missed those cards."""
+    sig = _sig("ltb_matters")
+    charming = {
+        "name": "Charming Prince",
+        "type_line": "Creature — Human Noble",
+        "oracle_text": "When this creature enters, choose one —\n• Scry 2.\n• You gain "
+        "3 life.\n• Exile another target creature you own. Return it to the battlefield "
+        "under your control at the beginning of the next end step.",
+    }
+    assert _lane_covers(charming, sig)

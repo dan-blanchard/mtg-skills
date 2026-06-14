@@ -422,6 +422,9 @@ _TOKEN_DOUBLER_EXTRA = SubAvenue(
 _FLICKER_ORACLE = (
     r"exile[^.]*(?:creature|permanent)s?(?: you control)?[^.]*return "
     r"(?:it|them|that card|those cards|that permanent)[^.]*battlefield"
+    # Two-sentence form: "exile … . Return it/that … battlefield" (Charming Prince,
+    # Flickerwisp) — crosses one sentence boundary, anchored to a return-pronoun.
+    r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield"
 )
 _FLICKER_EXTRA = SubAvenue(
     "Blink / flicker",
