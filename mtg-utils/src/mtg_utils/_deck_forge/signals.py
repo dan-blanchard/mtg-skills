@@ -1517,6 +1517,25 @@ _SELF_ETB_PAYOFF = (
 )
 
 
+def _detect_self_damage_prevention(text: str, name: str) -> bool:
+    """True if the commander prevents/redirects ALL damage dealt to ITSELF (Cho-Manno,
+    Anti-Venom) — the unkillable Pariah redirect target. Name-aware so a generic fog
+    ('prevent all combat damage this turn') doesn't qualify."""
+    first = ""
+    for w in re.split(r"\W+", name):
+        if len(w) > 2 and w.lower() not in _ARTICLES:
+            first = w
+            break
+    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    pat = re.compile(
+        r"(?:prevent all damage that would be dealt to"
+        r"|if damage would be dealt to) "
+        rf"(?:{alts})\b",
+        re.IGNORECASE,
+    )
+    return pat.search(text) is not None
+
+
 def _self_etb_value(text: str, name: str) -> str | None:
     """Grounding clause if the card has a self enters-the-battlefield VALUE trigger."""
     first = ""
@@ -1714,6 +1733,8 @@ def extract_signals(
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
         add("discard_matters", "you", "", text[:160])
+    if _detect_self_damage_prevention(text, name):
+        add("damage_redirect", "you", "", text[:160])
 
     # Self-ETB value commander → open the (existing, precise) blink/flicker avenue so
     # Ephemerate/Cloudshift/Conjurer's Closet get surfaced to re-use the commander's

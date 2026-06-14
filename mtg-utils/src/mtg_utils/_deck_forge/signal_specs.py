@@ -1025,6 +1025,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*treasure token|treasures? you control"},
         r"\btreasure\b",
     ),
+    # Pariah combo (Cho-Manno, Anti-Venom): an unkillable commander that prevents damage
+    # to itself wants the redirect effects (Pariah / Pariah's Shield: "damage dealt to
+    # you is dealt to enchanted/equipped creature instead") plus the indestructible /
+    # protection grants that keep the redirect target alive.
+    ("damage_redirect", "you"): _spec(
+        "Damage redirection",
+        "redirect-all-damage effects (Pariah) onto your unkillable creature, plus the "
+        "indestructible/protection that keeps it alive",
+        {"oracle": r"damage that would be dealt to you is dealt to"},
+        r"damage that would be dealt to you is dealt to [^.]*creature instead"
+        r"|all damage[^.]*dealt to you[^.]*dealt to [^.]*instead",
+        extras=(_VOLTRON_PROTECT_EXTRA,),
+    ),
     # Vanilla (Ruxa, Muraganda Petroglyphs): creatures with NO rules text (the tribe)
     # plus the "creatures with no abilities" payoffs.
     ("vanilla_matters", "you"): _spec(

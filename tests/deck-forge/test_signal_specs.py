@@ -3011,3 +3011,20 @@ def test_toughness_lane_credits_butts_by_statline():
     assert _lane_covers(one_five, sig)
     assert _lane_covers(zero_three, sig)
     assert not _lane_covers(balanced, sig)
+
+
+def test_redirect_lane_serves_pariah_and_indestructible():
+    sig = _sig("damage_redirect")
+    pariah = {
+        "name": "Pariah",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\nAll damage that would be dealt to you is "
+        "dealt to enchanted creature instead.",
+    }
+    shielded = {
+        "name": "Shielded by Faith",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\nEnchanted creature has indestructible.",
+    }
+    assert _lane_covers(pariah, sig)
+    assert _lane_covers(shielded, sig)

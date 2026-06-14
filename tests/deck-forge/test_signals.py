@@ -692,3 +692,31 @@ def test_set_base_pt_does_not_open_toughness_lane():
         "equal to the number of snow permanents you control.",
     }
     assert ("toughness_combat", "you") not in _keys(card)
+
+
+# ── Pariah combo: a commander that prevents/redirects damage to ITSELF (Cho-Manno,
+# Anti-Venom) is the unkillable redirect target — it wants Pariah-style redirect + the
+# indestructible grants that keep the target alive.
+def test_self_damage_prevention_opens_redirect_lane():
+    cho = {
+        "name": "Cho-Manno, Revolutionary",
+        "type_line": "Legendary Creature — Human Rebel",
+        "oracle_text": "Prevent all damage that would be dealt to Cho-Manno.",
+    }
+    anti = {
+        "name": "Anti-Venom, Horrifying Healer",
+        "type_line": "Legendary Creature — Symbiote",
+        "oracle_text": "If damage would be dealt to Anti-Venom, prevent that damage.",
+    }
+    assert ("damage_redirect", "you") in _keys(cho)
+    assert ("damage_redirect", "you") in _keys(anti)
+
+
+def test_fog_does_not_open_redirect_lane():
+    # Precision: a fog ("prevent all combat damage this turn") is not self-redirect.
+    card = {
+        "name": "Fog",
+        "type_line": "Instant",
+        "oracle_text": "Prevent all combat damage that would be dealt this turn.",
+    }
+    assert ("damage_redirect", "you") not in _keys(card)
