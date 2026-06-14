@@ -3157,3 +3157,14 @@ def test_redirect_lane_serves_damage_prevention():
     }
     assert _lane_covers(medic, sig)
     assert _lane_covers(worship, sig)
+
+
+def test_forced_attack_serves_extra_combat():
+    sig = _sig("forced_attack")
+    waw = {
+        "name": "World at War",
+        "type_line": "Sorcery",
+        "oracle_text": "After this main phase, there is an additional combat phase "
+        "followed by an additional main phase.",
+    }
+    assert _lane_covers(waw, sig)

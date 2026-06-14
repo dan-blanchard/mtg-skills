@@ -618,6 +618,13 @@ _REANIMATION_EXTRA = SubAvenue(
     {"oracle": _REANIMATE_ORACLE},
     serve=Serve(oracle=re.compile(_REANIMATE_ORACLE, _IC)),
 )
+_EXTRA_COMBAT_EXTRA = SubAvenue(
+    "Extra combats",
+    "additional combat phases so your forced/incentivized attackers swing again "
+    "(World at War / Aggravated Assault)",
+    {"oracle": r"additional combat|extra combat"},
+    serve=Serve(oracle=re.compile(r"additional combat|extra combat", _IC)),
+)
 # Untap effects to reuse tap abilities / retrigger a tap-untap commander — covers the
 # "enchanted/this/that creature" forms (Freed from the Real) the bare target/all form
 # missed, plus the untap symbol {Q}.
@@ -1258,6 +1265,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Firebreathing / variable-P/T decks pump power, then fling it for damage.
     ("self_pump", "you"): _sweep_spec_with_extras("self_pump", (_POWER_FLING_EXTRA,)),
+    # Force-attack / goad commander (Kratos) wants extra combats to swing again.
+    ("forced_attack", "you"): _sweep_spec_with_extras(
+        "forced_attack", (_EXTRA_COMBAT_EXTRA, _COMBAT_SUPPORT_EXTRA)
+    ),
     # A self-blinking commander (Norin) re-enters constantly, firing "whenever a
     # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).
     ("self_blink", "you"): _sweep_spec_with_extras(

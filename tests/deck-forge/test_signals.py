@@ -969,3 +969,16 @@ def test_fling_target_power_does_not_open_self_counters():
         "oracle_text": "Fling deals damage equal to the sacrificed creature's power to any target.",
     }
     assert not any(k == "self_counter_grow" for k, _ in _keys(card))
+
+
+def test_punish_non_attackers_opens_forced_attack():
+    # Kratos: "deals damage = creatures that didn't attack this turn" — a force-attack
+    # incentive (attack or take damage), a goad/aggro commander.
+    kratos = {
+        "name": "Kratos, God of War",
+        "type_line": "Legendary Creature — God",
+        "oracle_text": "Double strike\nAll creatures have haste.\nAt the beginning of "
+        "each player's end step, Kratos deals damage to that player equal to the number "
+        "of creatures that player controls that didn't attack this turn.",
+    }
+    assert any(k == "forced_attack" for k, _ in _keys(kratos))
