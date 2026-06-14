@@ -522,7 +522,7 @@ _TYPE_MATTERS_PATTERNS = (
     # ("a Rat you control deals") / Sylvia ("a Dragon you control attack").
     re.compile(
         r"\b(?:a|an) ([A-Za-z]+?) you control "
-        r"(?:enters|attacks?|dies|deals|blocks?|becomes?|leaves)\b",
+        r"(?:enters|entering|attacks?|dies|deals|blocks?|becomes?|leaves)\b",
         re.IGNORECASE,
     ),
     # "each attacking Samurai" / "attacking Goblins" — tribal combat trigger (Nagao).

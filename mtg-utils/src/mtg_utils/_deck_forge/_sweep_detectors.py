@@ -249,8 +249,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "facedown_matters",
         "scope": "you",
+        # Also: turning a TARGET face-down creature face up (Kaust, Jalum Grifter) and
+        # a "turned face up this turn" payoff — the lane keyed only on the self/pronoun
+        # "turn it face up" form.
         "is_widen_of": "",
-        "regex": "\\bmorph\\b|\\bmegamorph\\b|\\bmanifest\\b|\\bdisguise\\b|\\bcloak\\b|face-?down creatures?|as a 2/2 face-?down|turn (?:it|that creature|this creature|them|a permanent you control) face up",
+        "regex": "\\bmorph\\b|\\bmegamorph\\b|\\bmanifest\\b|\\bdisguise\\b|\\bcloak\\b|face-?down creatures?|as a 2/2 face-?down|turn (?:it|that creature|this creature|them|a permanent you control) face up|turn target [^.]*?face up|turned face up this turn",
     },
     {
         "key": "targeting_matters",

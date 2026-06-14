@@ -1811,3 +1811,33 @@ def test_opponent_lost_life_this_turn_opens_drain():
         ),
     }
     assert ("lifeloss_matters", "opponents") in _keys(card)
+
+
+def test_turn_target_face_up_opens_facedown():
+    # Kaust turns a TARGET face-down creature face up + rewards "turned face up
+    # this turn" — a morph/face-down payoff the detector missed (self-only form).
+    card = {
+        "name": "Kaust, Eyes of the Glade",
+        "type_line": "Legendary Creature — Dryad Druid",
+        "oracle_text": (
+            "Whenever a creature you control that was turned face up this turn "
+            "deals combat damage to a player, draw a card.\n{T}: Turn target "
+            "face-down attacking creature you control face up."
+        ),
+    }
+    assert ("facedown_matters", "you") in _keys(card)
+
+
+def test_type_you_control_entering_gerund_opens_tribe():
+    # Naban: "a Wizard you control entering causes …" — the gerund "entering"
+    # the "(enters|attacks|…)" verb list missed; opens Wizard tribal.
+    card = {
+        "name": "Naban, Dean of Iteration",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "If a Wizard you control entering causes a triggered ability of a "
+            "permanent you control to trigger, that ability triggers an "
+            "additional time."
+        ),
+    }
+    assert "Wizard" in _subjects(card, "type_matters")
