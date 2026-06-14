@@ -3168,3 +3168,23 @@ def test_forced_attack_serves_extra_combat():
         "followed by an additional main phase.",
     }
     assert _lane_covers(waw, sig)
+
+
+def test_outlaw_lane_serves_outlaws_and_anthems():
+    sig = _sig("outlaw_matters")
+    pirate = {
+        "name": "Some Pirate",
+        "type_line": "Creature — Human Pirate",
+        "oracle_text": "Menace",
+    }
+    rogue = {"name": "A Rogue", "type_line": "Creature — Merfolk Rogue", "oracle_text": ""}
+    anthem = {
+        "name": "Hellspur Posse Boss",
+        "type_line": "Creature — Orc Warrior",
+        "oracle_text": "Other outlaws you control have haste.",
+    }
+    non = {"name": "Bear", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert _lane_covers(pirate, sig)
+    assert _lane_covers(rogue, sig)
+    assert _lane_covers(anthem, sig)
+    assert not _lane_covers(non, sig)

@@ -982,3 +982,15 @@ def test_punish_non_attackers_opens_forced_attack():
         "of creatures that player controls that didn't attack this turn.",
     }
     assert any(k == "forced_attack" for k, _ in _keys(kratos))
+
+
+# ── Outlaw tribal (Outlaws of Thunder Junction): Assassin/Mercenary/Pirate/Rogue/
+# Warlock are collectively "outlaws" (Vial Smasher). ──
+def test_outlaw_commander_opens_outlaw_lane():
+    vial = {
+        "name": "Vial Smasher, Gleeful Grenadier",
+        "type_line": "Legendary Creature — Goblin Pirate",
+        "oracle_text": "Whenever another outlaw you control enters, Vial Smasher deals "
+        "1 damage to target opponent.",
+    }
+    assert ("outlaw_matters", "you") in _keys(vial)

@@ -1082,6 +1082,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"creatures? with no abilities",
         serve_vanilla=True,
     ),
+    # Outlaw tribal (Vial Smasher): the 5 outlaw creature types plus "outlaws you
+    # control" anthems/payoffs. (CR: outlaw = Assassin/Mercenary/Pirate/Rogue/Warlock.)
+    ("outlaw_matters", "you"): _spec(
+        "Outlaws",
+        "outlaws (Assassins / Mercenaries / Pirates / Rogues / Warlocks) plus the "
+        "anthems and payoffs that reward a board of them",
+        {"oracle": r"\boutlaws?\b"},
+        r"\boutlaws? you control\b|another outlaw",
+        serve_types=("assassin", "mercenary", "pirate", "rogue", "warlock"),
+    ),
     # Snow (Isu the Abominable): snow permanents (Snow type), snow payoffs ("number of
     # snow permanents"), and snow mana. "snow" is essentially only the MTG supertype.
     ("snow_matters", "you"): _spec(

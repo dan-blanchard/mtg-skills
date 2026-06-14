@@ -162,6 +162,13 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Force-attack incentive (Kratos): "creatures that didn't attack this turn" punishes
     # not attacking — a goad/aggro commander that wants everyone swinging.
     ("forced_attack", _re(r"didn't attack this turn|that attacked this turn"), "you"),
+    # Outlaw tribal (Outlaws of Thunder Junction): Assassins/Mercenaries/Pirates/Rogues/
+    # Warlocks are collectively "outlaws" (Vial Smasher, Kellan).
+    (
+        "outlaw_matters",
+        _re(r"\boutlaws?\b you control|another outlaw|outlaws? enter"),
+        "you",
+    ),
     # Toughness-as-value payoffs beyond Doran's "assigns combat damage equal to
     # toughness" (already mined): a token/damage/value keyed on a creature's TOUGHNESS
     # (Geralf: "X is the sacrificed creature's toughness"). The "(?! are each)" guard
