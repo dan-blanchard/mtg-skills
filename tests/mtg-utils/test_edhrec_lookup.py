@@ -36,6 +36,22 @@ class TestSlugify:
         )
         assert slugify(name) == "ratonhnhaketon"
 
+    def test_double_faced_uses_front_face(self):
+        # EDHREC slugs a DFC/meld commander by its FRONT face only — the " // back"
+        # face must be dropped or the slug 404/403s.
+        assert (
+            slugify("Shaile, Dean of Radiance // Embrose, Dean of Shadow")
+            == "shaile-dean-of-radiance"
+        )
+        assert (
+            slugify("Jace, Vryn's Prodigy // Jace, Telepath Unbound")
+            == "jace-vryns-prodigy"
+        )
+
+    def test_rebalanced_prefix_stripped(self):
+        # Arena-rebalanced "A-" cards share the original card's EDHREC page.
+        assert slugify("A-Teferi, Time Raveler") == "teferi-time-raveler"
+
 
 class TestEdhrecLookup:
     def test_fetches_commander_data(self, sample_edhrec_response):

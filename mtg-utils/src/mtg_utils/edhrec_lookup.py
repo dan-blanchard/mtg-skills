@@ -29,9 +29,13 @@ CARDLIST_TAGS = {
 def slugify(*names: str) -> str:
     parts: list[str] = []
     for name in names:
+        # EDHREC pages a DFC/meld card under its FRONT face only, and an Arena-
+        # rebalanced "A-" card under the original (non-rebalanced) name. Slugging the
+        # whole "Front // Back" string or keeping the "A-" prefix 403s/404s.
+        base = name.split("//")[0].strip().removeprefix("A-")
         # Hyphens in card names (e.g., "Fae-Cursed") must become word separators
         # in the slug, so convert to spaces before stripping non-alphanumeric chars.
-        hyphen_to_space = name.replace("-", " ")
+        hyphen_to_space = base.replace("-", " ")
         # ASCII-fold accented letters to their base (Márton -> marton, Nazgûl ->
         # nazgul), matching EDHREC's slugs. Deleting them outright (the old
         # re.sub([^a-zA-Z0-9 ])) gave "mrton-stromgald" and a 403. normalize_card_name
