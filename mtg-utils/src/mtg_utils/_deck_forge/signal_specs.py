@@ -359,14 +359,15 @@ _SLINGER_SEARCH_ORACLE = (
 # keys, so a commander that fires both detectors renders a single "Spellslinger" avenue
 # (the render layer dedupes by label) instead of two near-identical lanes (Phase C).
 # Pillowfort: make attacking YOU costly/limited (Ghostly Prison, Propaganda, Sphere of
-# Safety, Crawlspace). Wanted by NON-GO-WIDE control/engine decks that can't afford to
-# chump-block. Attached to the lanes pillowfort commanders open, tallied over the full
-# EDHREC cache: activated-ability engines (17), goad/politics (6),
-# voltron (5), damage-prevention/fog (4), card-advantage (3), spellslinger (3),
-# superfriends (3, planeswalker decks), monarch/initiative (defend the crown), and
-# counterspell-control (a control shell; pillowfort is combat control — "high synergy"
-# excludes it as a staple but the prior is sound). NOT go-wide/aggro/tribal/tokens
-# (blockers to spare). NB: EDHREC cache holds only top-10 synergy; top-20 = re-fetch.
+# Safety, Crawlspace). Attached ONLY to the archetypes whose pillowfort SYNERGY (top-20
+# pooled, as % of archetype) clears the ~4% background floor (Dan: gate on synergy, not
+# raw inclusion): Monarch (86%), Goad/politics (44%), Superfriends (24%), Damage-
+# prevention/fog (23%). Dropped after the synergy check: card-advantage / activated /
+# voltron / spellslinger (all ~2-6%, at the floor — their big raw counts were SIZE),
+# Initiative (0% — it's an aggressive race-the-dungeon mechanic), and counterspell-
+# control (0% on both synergy and inclusion). Tallying high-pillowfort activated/combat
+# commanders found NO coherent sub-archetype to rescue them (they mostly co-open
+# goad/fog), so no combination predicate is needed here.
 _PILLOWFORT_ORACLE = (
     r"can't attack you\b|no more than (?:one|two|\w+) creatures? can attack you"
 )
@@ -397,7 +398,6 @@ _SPELLSLINGER_SPEC = _spec(
             {"card_type": "Sorcery", "cmc_max": 3},
             serve=Serve(types=frozenset({"sorcery"})),
         ),
-        _PILLOWFORT_EXTRA,  # low-creature control/durdle shell (EDHREC: 3 commanders)
     ),
 )
 
@@ -1710,7 +1710,6 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:a|an|two|three|four|five|six|seven|eight|nine|ten|x|\d+)[^.]*\bcard"
         r"|draws? (?:two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?"
         r"|draw cards equal to|draws? an additional card",
-        extras=(_PILLOWFORT_EXTRA,),  # value engine — protect the durdle
     ),
     # Drop the self-only `draws? an additional card` (it belongs to the YOU engine); the
     # EACH avenue is symmetric/group draw only.
@@ -1772,7 +1771,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("reconfigure",),
         serve_not=r"can't attack|can't block|doesn't untap during"
         r"|enchant creature you don't control|defending player controls",
-        extras=(_VOLTRON_PROTECT_EXTRA, _PILLOWFORT_EXTRA),
+        extras=(_VOLTRON_PROTECT_EXTRA,),
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
@@ -1803,7 +1802,6 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "take and hold the initiative; venture through the Undercity",
         {"oracle": r"\bthe initiative\b|undercity"},
         r"\bthe initiative\b",
-        extras=(_PILLOWFORT_EXTRA,),
     ),
     ("ring_matters", "you"): _spec(
         "The Ring",
@@ -2105,7 +2103,6 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "counterspells and stack interaction",
         {"oracle": r"counter target"},
         r"counter target",
-        extras=(_PILLOWFORT_EXTRA,),  # a control shell; pillowfort is combat control
     ),
     # The bare `… (gain|have)` tail matched any "creatures you control gain/have X". Tie
     # it to the actual keyword-grant list or a static (+N/+N, not "until end of turn")
@@ -2154,7 +2151,6 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # ("{8}:", "{3}{R}:", "{X}, {T}:") the cost-reducer/untapper exploits. Requires
         # a mana symbol in the cost (a {T}-only dork gains nothing from a discount).
         r"|\{(?:\d+|x)\}[^.:\n]{0,25}:",
-        extras=(_PILLOWFORT_EXTRA,),  # engine durdles — protect it (top evidence: 9)
     ),
     # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
     # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.

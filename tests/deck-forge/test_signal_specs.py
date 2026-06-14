@@ -3394,13 +3394,13 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
-def test_pillowfort_served_to_control_engine_archetypes():
+def test_pillowfort_served_to_high_synergy_archetypes_only():
     """Pillowfort (Ghostly Prison, Propaganda, Sphere of Safety, Crawlspace) is attached
-    to the non-go-wide control/engine lanes the pillowfort commanders open, tallied over
-    the FULL EDHREC cache (Dan's evidence check): activated-ability engine (17),
-    goad/politics (6), voltron (5), damage-prevention/fog (4), card-advantage (3),
-    spellslinger (3), superfriends (3), monarch/initiative, and counterspell-control
-    (sound prior — pillowfort is combat control). NOT go-wide/aggro/tribal/tokens."""
+    ONLY to the archetypes whose pillowfort SYNERGY clears the ~4% background floor (Dan:
+    gate on synergy, not raw inclusion): Monarch (86%), Goad/politics (44%), Superfriends
+    (24%), Damage-prevention/fog (23%). Everything else — card-advantage/activated/voltron/
+    spellslinger (at floor by synergy), Initiative (0%, aggressive), counterspell-control
+    (0%), and go-wide/tokens — does NOT get it."""
     fort = [
         ("Ghostly Prison", "Creatures can't attack you unless their controller pays {2} "
          "for each creature they control that's attacking you."),
@@ -3408,18 +3408,18 @@ def test_pillowfort_served_to_control_engine_archetypes():
          "unless their controller pays {X} for each of those creatures."),
         ("Crawlspace", "No more than two creatures can attack you each combat."),
     ]
-    served = [("monarch_matters", "you"), ("initiative_matters", "you"),
-              ("activated_ability", "you"), ("damage_prevention", "you"),
-              ("card_draw_engine", "you"), ("voltron_matters", "you"),
-              ("goad_matters", "opponents"), ("spellcast_matters", "you"),
-              ("superfriends_matters", "you"), ("counter_control", "you")]
+    served = [("monarch_matters", "you"), ("goad_matters", "opponents"),
+              ("superfriends_matters", "you"), ("damage_prevention", "you")]
     for key, scope in served:
         sig = _sig(key, scope)
         for name, oracle in fort:
             assert _lane_covers({"name": name, "type_line": "Enchantment", "oracle_text": oracle}, sig), f"{key}/{name}"
-    # NOT served: a GO-WIDE token deck has blockers to spare.
     gp = {"name": "Ghostly Prison", "type_line": "Enchantment", "oracle_text": "Creatures can't attack you unless their controller pays {2}."}
-    assert _lane_covers(gp, _sig("token_maker", "you")) is False
+    for key, scope in [("token_maker", "you"), ("activated_ability", "you"),
+                       ("card_draw_engine", "you"), ("voltron_matters", "you"),
+                       ("spellcast_matters", "you"), ("counter_control", "you"),
+                       ("initiative_matters", "you")]:
+        assert _lane_covers(gp, _sig(key, scope)) is False, key
 
 
 def test_token_lanes_serve_creature_anthems():
