@@ -599,10 +599,48 @@ _KEYWORD_COUNTER_EXTRA = SubAvenue(
 # many lanes (placement-triggers / keyword / doubling / movement / distribution); this
 # package unifies what they all surface so a counters commander sees the whole package
 # no matter which lane opened.
+# +1/+1-counter KEYWORD creatures: the counter mechanic is in reminder text (stripped),
+# so the oracle-based serves miss them — but a counters deck wants every Undying / Graft
+# / Riot / Bloodthirst / Fabricate body (CR 702.x keyword abilities). Credit by the
+# keyword itself (the keyword word also prints in the oracle, so search can find it).
+_COUNTER_KEYWORDS = frozenset(
+    {
+        "undying",
+        "persist",
+        "graft",
+        "riot",
+        "bloodthirst",
+        "fabricate",
+        "sunburst",
+        "tribute",
+        "unleash",
+        "ravenous",
+        "reinforce",
+        "scavenge",
+        "mentor",
+        "training",
+        "modular",
+        "evolve",
+        "outlast",
+        "adapt",
+        "bolster",
+        "renown",
+        "dethrone",
+        "devour",
+    }
+)
+_COUNTER_KEYWORD_EXTRA = SubAvenue(
+    "Counter-keyword creatures",
+    "creatures whose +1/+1-counter mechanic is a keyword (Undying / Graft / Riot / "
+    "Bloodthirst / Fabricate) — staples a counters deck wants",
+    {"oracle": r"\b(?:" + "|".join(sorted(_COUNTER_KEYWORDS)) + r")\b"},
+    serve=Serve(keywords=_COUNTER_KEYWORDS),
+)
 _COUNTERS_PACKAGE = (
     _COUNTER_PLACE_EXTRA,
     _COUNTER_DOUBLER_EXTRA,
     _KEYWORD_COUNTER_EXTRA,
+    _COUNTER_KEYWORD_EXTRA,
     _PROLIFERATE_EXTRA,
 )
 # Discard-PUNISH payoffs (CR 701.8 discard): reward forcing opponents to discard.
@@ -928,6 +966,27 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # A graveyard/reanimator deck recurs creatures with strong ETBs (Fleshbag
         # Marauder, Eternal Witness) and self-recurring fodder (Gravecrawler).
         extras=(_ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA),
+        # Cards whose graveyard mechanic is a KEYWORD (reminder text, stripped) — every
+        # one uses your graveyard, so a graveyard deck wants them (CR 702.x).
+        serve_keywords=(
+            "dredge",
+            "flashback",
+            "jump-start",
+            "retrace",
+            "aftermath",
+            "encore",
+            "escape",
+            "disturb",
+            "unearth",
+            "embalm",
+            "eternalize",
+            "scavenge",
+            "recover",
+            "soulshift",
+            "delve",
+            "gravestorm",
+            "haunt",
+        ),
     ),
     # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
     # creatures, because Celes-style commanders reward a creature re-entering play from
@@ -967,7 +1026,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Credit generic-counter doublers (Doubling Season) the bare "+1/+1 counter"
         # serve missed.
         r"\+1/\+1 counter|proliferate|" + _COUNTER_DOUBLER_ORACLE,
-        extras=(_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA, _PROLIFERATE_EXTRA),
+        extras=(
+            _COUNTER_DOUBLER_EXTRA,
+            _KEYWORD_COUNTER_EXTRA,
+            _COUNTER_KEYWORD_EXTRA,
+            _PROLIFERATE_EXTRA,
+        ),
     ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
     # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic

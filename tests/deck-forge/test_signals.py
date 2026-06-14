@@ -1163,6 +1163,26 @@ def test_boast_keyword_opens_attack_matters():
     assert ("attack_matters", "you") in {(s.key, s.scope) for s in extract_signals(card)}
 
 
+def test_archetype_keywords_open_their_lane():
+    # CR-keyword audit (Dan): an archetype-defining keyword ability on the COMMANDER
+    # opens that lane via the keyword (the mechanic is reminder text, stripped).
+    cases = [
+        ("Prowess", ("spellcast_matters", "you")),
+        ("Bushido", ("attack_matters", "you")),
+        ("Annihilator", ("attack_matters", "you")),
+        ("Exploit", ("sacrifice_matters", "you")),
+        ("Afflict", ("lifeloss_matters", "opponents")),
+    ]
+    for kw, expect in cases:
+        card = {
+            "name": f"{kw} Lord",
+            "type_line": "Legendary Creature — Test",
+            "keywords": [kw],
+            "oracle_text": "Some ability.",
+        }
+        assert expect in {(s.key, s.scope) for s in extract_signals(card)}, kw
+
+
 def test_attack_conditional_keywords_open_attack_matters():
     # Same class as Boast: keywords whose "as it attacks" / "attacked this turn"
     # condition lives in stripped reminder text — Exert (CR 702.107) and Myriad

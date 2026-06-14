@@ -3321,6 +3321,45 @@ def test_tribal_lane_serves_type_agnostic_anthems():
     assert _lane_covers(bolt, sig) is False
 
 
+def test_graveyard_lane_serves_recursion_keyword_cards():
+    """A self-graveyard deck wants the graveyard-recursion KEYWORD cards (Dredge,
+    Flashback, Unearth, Escape, Disturb, Scavenge) whose graveyard mechanic is reminder
+    text the oracle serve missed. Credit by keyword (CR 702.x)."""
+    sig = _sig("graveyard_matters", "you")
+    for name, kws in [
+        ("Stinkweed Imp", ["Dredge"]),
+        ("Gravedigger?", ["Unearth"]),
+        ("Lingering Souls?", ["Flashback"]),
+        ("Scrounging Bandar?", ["Scavenge"]),
+    ]:
+        card = {"name": name, "type_line": "Creature", "keywords": kws, "oracle_text": ""}
+        assert _lane_covers(card, sig) is True, name
+    # control: a plain Flying creature is not graveyard-relevant
+    flyer = {"name": "Bird", "type_line": "Creature", "keywords": ["Flying"], "oracle_text": ""}
+    assert _lane_covers(flyer, sig) is False
+
+
+def test_counters_lane_serves_counter_keyword_creatures():
+    """A +1/+1-counter deck wants the counter-KEYWORD creatures (Undying, Graft, Riot,
+    Bloodthirst, Fabricate) whose mechanic is reminder text the oracle serves miss.
+    Credit them by the keyword (CR 702.x)."""
+    sig = _sig("counters_matter", "you")
+    cases = [
+        ("Young Wolf", ["Undying"]),
+        ("Cytoplast Root-Kin", ["Graft"]),
+        ("Zhur-Taa Swine", ["Bloodthirst"]),
+        ("Ardent Plea", ["Cascade"]),  # control: NOT a counter keyword
+    ]
+    results = {}
+    for name, kws in cases:
+        card = {"name": name, "type_line": "Creature", "keywords": kws, "oracle_text": ""}
+        results[name] = _lane_covers(card, sig)
+    assert results["Young Wolf"] is True
+    assert results["Cytoplast Root-Kin"] is True
+    assert results["Zhur-Taa Swine"] is True
+    assert results["Ardent Plea"] is False  # cascade is not a counter keyword
+
+
 def test_clone_lane_serves_token_copy_effects():
     """A clone/copy commander (Stangg, Yosei) wants the token-copy gear too — Helm of
     the Host ("a token that's a copy of equipped creature"), Blade of Selves (myriad),

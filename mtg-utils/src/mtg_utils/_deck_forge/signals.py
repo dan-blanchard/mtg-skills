@@ -1455,6 +1455,18 @@ _DIRECT_KEYWORD_SIGNALS = {
     "boast": ("attack_matters", "you"),
     "exert": ("attack_matters", "you"),
     "myriad": ("attack_matters", "you"),
+    # Archetype-defining keyword abilities (CR §702): the mechanic is reminder text
+    # (stripped), so a commander WITH the keyword reads as that archetype via keyword.
+    "prowess": ("spellcast_matters", "you"),  # cast a noncreature spell → +1/+1
+    "bushido": ("attack_matters", "you"),  # combat pump on block/blocked
+    "annihilator": ("attack_matters", "you"),  # attacks → defending player sacrifices
+    "flanking": ("attack_matters", "you"),  # combat (blockers get -1/-1)
+    "frenzy": ("attack_matters", "you"),  # attacks unblocked → +N/+0
+    "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
+    "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
+    "afflict": ("lifeloss_matters", "opponents"),  # becomes blocked → player loses life
+    "spectacle": ("lifeloss_matters", "opponents"),  # alt cost if opponent lost life
+    "dethrone": ("counters_matter", "any"),  # attacks the top life total → +1/+1
 }
 
 
