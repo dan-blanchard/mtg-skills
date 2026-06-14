@@ -1889,9 +1889,17 @@ class TestMediumServeFixes:
                     "type_line": "Creature — Demon",
                     "oracle_text": "Flying\nAt the beginning of your end step, each opponent draws a card.",
                 },
+                {
+                    # "target player draws" is DUAL-USE — point it at an opponent to
+                    # punish (or at yourself to draw), so it belongs to the punish lane.
+                    "name": "Prosperity-like",
+                    "type_line": "Sorcery",
+                    "oracle_text": "Target player draws two cards.",
+                },
             ],
             [
                 {
+                    # A pure self-cantrip has no target choice — it can only help you.
                     "name": "Cantrip",
                     "type_line": "Instant",
                     "oracle_text": "You draw a card.",
