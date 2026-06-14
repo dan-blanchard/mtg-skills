@@ -1351,8 +1351,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("noncombat_damage_payoff", "you"): _sweep_spec_with_extras(
         "noncombat_damage_payoff", (_DEATHTOUCH_GEAR_EXTRA,)
     ),
+    # Power-as-damage / fling commander (Brion Stoutarm) wants big bodies as fling
+    # fodder (power_min) plus the power-fling payoffs and deathtouch gear.
     ("damage_equal_power", "you"): _sweep_spec_with_extras(
-        "damage_equal_power", (_DEATHTOUCH_GEAR_EXTRA,)
+        "damage_equal_power",
+        (_DEATHTOUCH_GEAR_EXTRA, _POWER_FLING_EXTRA),
+        serve_power_min=6,
     ),
     # Same archetype as spellcast_matters (a magecraft commander triggers off the same
     # instants/sorceries as a prowess one), so it shares the one _SPELLSLINGER_SPEC — a
