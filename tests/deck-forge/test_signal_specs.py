@@ -3377,6 +3377,27 @@ def test_counters_lane_serves_counter_keyword_creatures():
     assert results["Ardent Plea"] is False  # cascade is not a counter keyword
 
 
+def test_symmetric_edict_serves_recurring_fodder():
+    """A forced/symmetric-sacrifice commander (Braids — "each player sacrifices") loses
+    its OWN board too, so it wants recurring fodder to survive: recurring token makers
+    (Bitterblossom) and self-recurring creatures (Reassembling Skeleton)."""
+    sig = _sig("edict_matters", "each")
+    bb = {
+        "name": "Bitterblossom",
+        "type_line": "Enchantment",
+        "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a "
+        "1/1 black Faerie Rogue creature token with flying.",
+    }
+    skel = {
+        "name": "Reassembling Skeleton",
+        "type_line": "Creature — Skeleton",
+        "oracle_text": "{1}{B}: Return this card from your graveyard to the battlefield "
+        "tapped.",
+    }
+    assert _lane_covers(bb, sig) is True
+    assert _lane_covers(skel, sig) is True
+
+
 def test_copy_lanes_serve_etb_doublers_and_payoffs():
     """Token-copy / clone decks flood the board with creatures that ENTER, so they want
     ETB payoffs (Impact Tremors) and doublers (Panharmonicon) — every copy fires them."""

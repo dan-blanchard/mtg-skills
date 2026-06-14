@@ -791,6 +791,9 @@ _COMBAT_SUPPORT_EXTRA = SubAvenue(
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
 # survive blocks — reuses the mined pump_matters regex so it never drifts.
 _PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
+_EDICT_SWEEP_REGEX = next(
+    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "edict_matters"
+)
 _PUMP_EXTRA = SubAvenue(
     "Combat tricks / pump",
     "instant-speed pump to push extra combat damage through and survive blocks",
@@ -1106,6 +1109,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|whenever [^.]*\bdies\b"
         r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
+    ),
+    # A forced/symmetric-sacrifice commander (Braids, Endrek Sahr — "each player
+    # sacrifices") loses its OWN board too, so it wants recurring fodder to survive:
+    # recurring token makers ("create … creature token") and self-recurring creatures
+    # (Reassembling Skeleton). The opponent-only-edict half is rare among commanders.
+    ("edict_matters", "each"): _spec(
+        *SWEEP_LABELS["edict_matters"],
+        {"oracle": _EDICT_SWEEP_REGEX},
+        _EDICT_SWEEP_REGEX + r"|create [^.]*creature token",
+        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
     ),
     ("death_matters", "any"): _spec(
         "Aristocrats",
