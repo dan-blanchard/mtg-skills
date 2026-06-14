@@ -4162,20 +4162,18 @@ def test_landfall_serves_return_lands_from_graveyard():
     assert _lane_covers(raise_dead, sig) is False
 
 
-def test_gain_control_serves_steal_and_cast_engines():
-    # A steal commander (Dragonlord Silumgar, Nihiloor) wants the borrow-and-cast
-    # engines too — Gonti/Hostage Taker seize an opponent's card and let you cast it.
-    # gain_control only matched the literal "gain control of" / Bribery library steal.
-    sig = _sig("gain_control", "you")
-    assert _lane_covers(GONTI, sig) is True
-    assert _lane_covers(HOSTAGE_TAKER, sig) is True
-    # Over-fire guard: self-reanimation (your own graveyard) is not theft/control.
-    reanimate = {
-        "name": "Reanimate",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Put target creature card from a graveyard onto the battlefield under "
-            "your control. You lose life equal to its mana value."
-        ),
-    }
-    assert _lane_covers(reanimate, sig) is False
+def test_gain_control_vs_theft_borrow_and_cast_are_distinct():
+    # PRECISION boundary: gain_control is a BATTLEFIELD control change. Borrow-and-cast
+    # engines (Gonti/Hostage Taker) exile a card and let you CAST it — playing what you
+    # don't own — which is theft_matters, NOT gain_control. Bribery is the genuine
+    # gain-control case: it seats a permanent onto the battlefield UNDER YOUR CONTROL.
+    gc = _sig("gain_control", "you")
+    theft = _sig("theft_matters", "opponents")
+    assert (
+        _lane_covers(BRIBERY, gc) is True
+    )  # library -> battlefield under your control
+    assert _lane_covers(GONTI, gc) is False  # exile + cast is not a control change
+    assert _lane_covers(HOSTAGE_TAKER, gc) is False
+    # Their real home is theft_matters (play-what-you-don't-own).
+    assert _lane_covers(GONTI, theft) is True
+    assert _lane_covers(HOSTAGE_TAKER, theft) is True

@@ -2334,13 +2334,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|you control enchanted (?:creature|permanent)"
         r"|you may (?:play|cast)[^.]*from (?:that|target) (?:player|opponent)"
         # Bribery / Acquire: seize a card out of an OPPONENT's library and seat it
-        # under your control — theft, not self-reanimation. Anchored to "opponent's
-        # library" so a graveyard reanimator ("under your control" from a graveyard)
-        # is excluded.
-        r"|opponent's library for [^.]*onto the battlefield under your control"
-        # Borrow-and-cast engines (Gonti, Hostage Taker): exile a card and cast it for
-        # as long as it remains exiled — taking control of what you don't own.
-        r"|" + _STEAL_CAST_ORACLE,
+        # onto the battlefield UNDER YOUR CONTROL — you now control a permanent you
+        # don't own (genuine gain-control), just sourced from a library. Anchored to
+        # "opponent's library" so a graveyard reanimator is excluded. NOT the same as
+        # the borrow-and-cast engines (Gonti / Hostage Taker / Thief): those exile a
+        # card and let you CAST it — playing what you don't own (theft_matters), never
+        # a battlefield control change — so they stay out of this lane.
+        r"|opponent's library for [^.]*onto the battlefield under your control",
         serve_not=r"(?:opponent|another player|target player|that player) "
         r"gains control of",
     ),
