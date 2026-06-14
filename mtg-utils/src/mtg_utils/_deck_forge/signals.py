@@ -536,6 +536,13 @@ _TYPE_MATTERS_PATTERNS = (
     # (Soraya) or the singular "Each Fungus creature gets +1/+1" (Thelon). The
     # subtype-vocab gate drops "all"/"other"/"creature" so only a real tribe sticks.
     re.compile(r"\b([A-Za-z]+?) creatures? gets? [+\-](?:\d|x)", re.IGNORECASE),
+    # The canonical tribal lord "Goblin creatures you control get +1/+1" — "you control"
+    # sits between the tribe and the verb, so the adjacency patterns above and the "Xs
+    # you control get" pattern (which captures "creatures") both miss it. 351 cards.
+    re.compile(
+        r"\b([A-Za-z]+?) creatures? you control (?:gets?|have|has|gains?)\b",
+        re.IGNORECASE,
+    ),
     # Multiplayer "your team controls" (Sylvia: "Dragons your team controls have …").
     re.compile(
         r"\b([A-Za-z]+?)s? your team controls? (?:have|has|get|gain)\b", re.IGNORECASE

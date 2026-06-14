@@ -1447,6 +1447,21 @@ def test_singular_lord_has_opens_type_matters():
     assert "Ally" in subs
 
 
+def test_tribe_creatures_you_control_lord_opens_type_matters():
+    # Canonical tribal-lord wording "Goblin creatures you control get +1/+1" — "you
+    # control" sits between the tribe and the verb, which the lord patterns missed (the
+    # "Xs you control get" form captures "creatures", the "X creatures get" form needs
+    # adjacency). Use a NON-Goblin commander so this tests the oracle path, not the
+    # type-line membership rule.
+    card = {
+        "name": "Goblin Buffer",
+        "type_line": "Legendary Creature — Human Advisor",
+        "oracle_text": "Goblin creatures you control get +1/+1.",
+    }
+    subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    assert "Goblin" in subs
+
+
 def test_singular_tribal_lord_gets_opens_type_matters():
     # "Each Fungus creature GETS +1/+1" — a singular-subject lord (Thelon of Havenwood).
     # The global-lord pattern matched only plural "get" ("Goblins … get"), missing the
