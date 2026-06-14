@@ -740,6 +740,20 @@ _EXTRA_COMBAT_EXTRA = SubAvenue(
     {"oracle": r"additional combat|extra combat"},
     serve=Serve(oracle=re.compile(r"additional combat|extra combat", _IC)),
 )
+# Board protection: GRANT the whole team indestructible (Selfless Spirit, Heroic
+# Intervention, Akroma's Will, Flawless Maneuver). Distinct from an indestructible
+# CREATURE that merely survives a wipe (the lane's serve_keywords already credits
+# those) — a granter lets you wrath one-sided and keep your board.
+_BOARD_PROTECTION_ORACLE = (
+    r"(?:creatures|permanents) you control (?:gain|have)[^.]*indestructible"
+)
+_BOARD_PROTECTION_EXTRA = SubAvenue(
+    "Board protection",
+    "give your whole board indestructible so you can wrath one-sided "
+    "(Selfless Spirit / Heroic Intervention / Flawless Maneuver)",
+    {"oracle": _BOARD_PROTECTION_ORACLE},
+    serve=Serve(oracle=re.compile(_BOARD_PROTECTION_ORACLE, _IC)),
+)
 # Self-copy effects for a legend-rule-off / copy commander (Brothers Yamazaki): make
 # token copies of your own creature (Helm of the Host / Blade of Selves / Mirror Box).
 _COPY_ORACLE = (
@@ -1003,7 +1017,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|(?:creature )?tokens? you control (?:get|have|gain)"
         # Board-scaling lord: a creature that "gets +X/+Y for each other creature
         # you control" (Leonardo, Big Brother) — a go-wide payoff that grows wide.
-        r"|gets \+[0-9x]+/\+[0-9x]+ for each other creature you control",
+        r"|gets \+[0-9x]+/\+[0-9x]+ for each other creature you control"
+        # Creature-spell cost reducers (Goreclaw, Herald's Horn, the Monuments) let a
+        # creatures deck deploy more bodies; board-scaled finishers (Ghalta) are what it
+        # casts off a wide board. Both are creatures-deck enablers/payoffs.
+        r"|creature spells? (?:you cast )?[^.]*cost \{?\d+\}?(?:\{[wubrgc]\})* less"
+        r"|costs? \{x\} less to cast, where x is the (?:total |greatest )?power",
         # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon).
         extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
     ),
@@ -1591,7 +1610,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # A repeatable-wrath commander (Mageta) wants to rebuild after the sweep:
     # reanimation (Breath of Life) plus indestructible bombs (Zetalpa) that survive it.
     ("mass_removal", "you"): _sweep_spec_with_extras(
-        "mass_removal", (_REANIMATION_EXTRA,), serve_keywords=("indestructible",)
+        "mass_removal",
+        (_REANIMATION_EXTRA, _BOARD_PROTECTION_EXTRA),
+        serve_keywords=("indestructible",),
     ),
     ("variable_pt", "you"): _sweep_spec_with_extras(
         "variable_pt", (_POWER_FLING_EXTRA,)

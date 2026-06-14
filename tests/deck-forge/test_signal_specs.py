@@ -4050,3 +4050,72 @@ def test_theft_matters_serves_opponent_library_theft_not_self_impulse():
     assert _lane_covers(GONTI, sig) is True
     assert _lane_covers(THIEF_OF_SANITY, sig) is True
     assert _lane_covers(VALAKUT_EXPLORATION, sig) is False
+
+
+# ── creatures_matter serves creature cost-reducers + board-scaled payoffs ────────
+GORECLAW = {
+    "name": "Goreclaw, Terror of Qal Sisma",
+    "type_line": "Legendary Creature — Bear",
+    "oracle_text": (
+        "Creature spells you cast with power 4 or greater cost {2} less to cast.\n"
+        "Whenever Goreclaw attacks, each creature you control with power 4 or "
+        "greater gets +1/+1 and gains trample until end of turn."
+    ),
+}
+GHALTA = {
+    "name": "Ghalta, Primal Hunger",
+    "type_line": "Legendary Creature — Elder Dinosaur",
+    "oracle_text": (
+        "This spell costs {X} less to cast, where X is the total power of "
+        "creatures you control.\n"
+        "Trample (This creature can deal excess combat damage to the player or "
+        "planeswalker it's attacking.)"
+    ),
+}
+
+
+def test_creatures_matter_serves_creature_cost_reducer_and_board_payoff():
+    # A creatures deck wants the creature-spell cost reducers that let it deploy more
+    # bodies (Goreclaw) and the board-scaled finishers it casts off a wide board
+    # (Ghalta). The flip-commanders (Surrak, Maelstrom, Zilortha) open creatures_matter,
+    # not power_matters, so these read as off-theme before.
+    sig = _sig("creatures_matter", "you")
+    assert _lane_covers(GORECLAW, sig) is True
+    assert _lane_covers(GHALTA, sig) is True
+    # Over-fire guard: a pure counterspell is not a creatures payoff.
+    counterspell = {
+        "name": "Counterspell",
+        "type_line": "Instant",
+        "oracle_text": "Counter target spell.",
+    }
+    assert _lane_covers(counterspell, sig) is False
+
+
+# ── mass_removal serves board-protection (asymmetric wrath) ──────────────────────
+SELFLESS_SPIRIT = {
+    "name": "Selfless Spirit",
+    "type_line": "Creature — Spirit Cleric",
+    "oracle_text": (
+        "Flying\n"
+        "Sacrifice this creature: Creatures you control gain indestructible until "
+        "end of turn."
+    ),
+}
+
+
+def test_mass_removal_serves_board_indestructible_granters():
+    # A repeatable-wrath commander (Mageta) wants to wrath one-sided — keep its own
+    # board through the sweep. The lane already credits indestructible CREATURES via
+    # keyword, but not the GRANTERS (Selfless Spirit) that protect the whole team.
+    sig = _sig("mass_removal", "you")
+    assert _lane_covers(SELFLESS_SPIRIT, sig) is True
+    # Over-fire guard: a single-target protection spell is not board protection.
+    gods_willing = {
+        "name": "Gods Willing",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Target creature you control gains protection from the color of your "
+            "choice until end of turn. Scry 1."
+        ),
+    }
+    assert _lane_covers(gods_willing, sig) is False

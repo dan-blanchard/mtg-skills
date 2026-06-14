@@ -155,6 +155,48 @@ def test_blink_flicker_via_preset_regex():
     assert ("blink_flicker", "you") in _ks(c)
 
 
+def test_blink_flicker_exile_other_target_then_return():
+    # "exile up to one OTHER target [permanent] ... return it/that card to the
+    # battlefield" is a blink engine (CR — leaves then re-enters); the cross-sentence
+    # detector's optional group only had "another/one", so "one other" slipped past
+    # and these read as plain exile_removal. Real cards, full oracle text.
+    ennis = {
+        "name": "Ennis, Debate Moderator",
+        "type_line": "Legendary Creature — Human Cleric",
+        "oracle_text": (
+            "When Ennis enters, exile up to one other target creature you control. "
+            "Return that card to the battlefield under its owner's control at the "
+            "beginning of the next end step.\n"
+            "At the beginning of your end step, if one or more cards were put into "
+            "exile this turn, put a +1/+1 counter on Ennis."
+        ),
+    }
+    koya = {
+        "name": "Koya, Death from Above",
+        "type_line": "Legendary Creature — Mutant Ninja Bird",
+        "oracle_text": (
+            "Flying\n"
+            "When Koya enters, exile up to one other target creature. At the "
+            "beginning of the next end step, you may pay {3}{B}. If you don't, "
+            "return that card to the battlefield under its owner's control."
+        ),
+    }
+    phelia = {
+        "name": "Phelia, Exuberant Shepherd",
+        "type_line": "Legendary Creature — Dog",
+        "oracle_text": (
+            "Flash\n"
+            "Whenever Phelia attacks, exile up to one other target nonland "
+            "permanent. At the beginning of the next end step, return that card to "
+            "the battlefield under its owner's control. If it entered under your "
+            "control, put a +1/+1 counter on Phelia."
+        ),
+    }
+    assert "blink_flicker" in _keys(ennis)
+    assert "blink_flicker" in _keys(koya)
+    assert "blink_flicker" in _keys(phelia)
+
+
 def test_goad_via_keyword_array_scoped_opponents():
     c = {
         "name": "Marisi-like",

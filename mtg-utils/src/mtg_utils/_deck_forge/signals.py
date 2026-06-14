@@ -1704,7 +1704,7 @@ def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
 # card ("return target creature card … to the battlefield"), not the exiled object.
 _BLINK_EXILE_RE = re.compile(
     # Targeted flicker (exile target creature/permanent … return),
-    r"\bexile (?:up to \w+ |any number of )?(?:another |one )?"
+    r"\bexile (?:up to \w+ |any number of )?(?:another |one |other )?"
     r"target (?:creature|permanent|nonland permanent|artifact)"
     # OR untargeted MASS self-flicker of YOUR OWN permanents (Yorion: "exile any number
     # of other nonland permanents you own and control"). The "you control" anchor keeps
