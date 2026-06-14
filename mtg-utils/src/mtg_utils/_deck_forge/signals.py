@@ -1559,8 +1559,17 @@ _KEYWORD_TRIBE_PATTERNS = (
     # "Flying creatures you control …" / "other Flying creatures …"
     (_KW_TRIBE_RE, "you"),
     (re.compile(r"\bother ([A-Za-z]+) creatures\b", re.IGNORECASE), "you"),
-    # "creatures you control with deathtouch …"
-    (re.compile(r"\bcreatures you control with ([A-Za-z]+)\b", re.IGNORECASE), "you"),
+    # "creatures you control with deathtouch …" PLUS the SINGULAR forms a fliers-matter
+    # (or any keyword-tribe) commander uses: "creature you control with flying" /
+    # "creature spell with flying" (Momo). The "you control"/"spell" qualifier is
+    # REQUIRED so anti-tribe removal ("destroy all creatures with flying") stays out;
+    # the _ABILITY_KEYWORDS gate validates the captured word.
+    (
+        re.compile(
+            r"\bcreatures? (?:you control |spell )with ([A-Za-z]+)\b", re.IGNORECASE
+        ),
+        "you",
+    ),
     # "all creatures with deathtouch …" (symmetric)
     (
         re.compile(

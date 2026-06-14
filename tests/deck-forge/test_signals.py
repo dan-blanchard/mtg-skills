@@ -1277,6 +1277,31 @@ def test_triggered_counter_placement_opens_counters():
     assert "counters_matter" not in {s.key for s in extract_signals(selfgrow)}
 
 
+def test_fliers_matter_commander_opens_flying_keyword_tribe():
+    # Momo: "creature spell with flying you cast costs {1} less … whenever another
+    # creature you control with flying enters" — a fliers-matter commander. The keyword-
+    # tribe detector matched only PLURAL "creatures … with flying"; add the singular
+    # "creature you control with flying" / "creature spell with flying" forms.
+    momo = {
+        "name": "Momo, Friendly Flier",
+        "type_line": "Legendary Creature — Lemur",
+        "oracle_text": "Flying\nThe first non-Lemur creature spell with flying you cast "
+        "during each of your turns costs {1} less to cast.\nWhenever another creature "
+        "you control with flying enters, scry 1.",
+    }
+    subs = {s.subject for s in extract_signals(momo) if s.key == "keyword_tribe"}
+    assert "Flying" in subs
+    # Precision: a commander that merely HAS flying (no "creature with flying" payoff)
+    # is NOT a fliers-matter deck.
+    isperia = {
+        "name": "Isperia, Supreme Judge",
+        "type_line": "Legendary Creature — Sphinx",
+        "keywords": ["Flying"],
+        "oracle_text": "Flying\nWhenever a creature attacks you, you may draw a card.",
+    }
+    assert "keyword_tribe" not in {s.key for s in extract_signals(isperia)}
+
+
 def test_lifelink_commander_opens_lifegain():
     # A lifelink commander (Liesa, Elenda) gains life in combat → it's a lifegain deck
     # (lifelink + Sanguine Bond / Archangel of Thune is the payoff). The keyword carries
