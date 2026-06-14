@@ -790,3 +790,41 @@ def test_self_library_exile_does_not_open_opponents_mill():
         "oracle_text": "Exile the top two cards of your library. You may play them.",
     }
     assert ("graveyard_matters", "opponents") not in _keys(card)
+
+
+# ── "a <Type> you control <verb>" and "attacking <Type>" tribal triggers ─────────
+def test_a_type_you_control_verb_opens_tribe():
+    patron = {
+        "name": "Patron of the Nezumi",
+        "type_line": "Legendary Creature — Demon Spirit",
+        "oracle_text": "Whenever a Rat you control deals combat damage to a player, "
+        "that player discards a card.",
+    }
+    sylvia = {
+        "name": "Sylvia Brightspear",
+        "type_line": "Legendary Creature — Human Knight",
+        "oracle_text": "Whenever Sylvia Brightspear and a Dragon you control attack, "
+        "Sylvia gets +1/+1 until end of turn for each of those Dragons.",
+    }
+    assert ("type_matters", "you") in {(k, s) for k, s in _keys(patron)}
+    assert any(s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters")
+    assert any(s.subject == "Dragon" for s in extract_signals(sylvia) if s.key == "type_matters")
+
+
+def test_attacking_type_opens_tribe():
+    nagao = {
+        "name": "Nagao, Bound by Honor",
+        "type_line": "Legendary Creature — Human Samurai",
+        "oracle_text": "Whenever Nagao attacks, you may pay {1}. If you do, put a "
+        "+1/+1 counter on each attacking Samurai.",
+    }
+    assert any(s.subject == "Samurai" for s in extract_signals(nagao) if s.key == "type_matters")
+
+
+def test_a_creature_you_control_does_not_capture_creature():
+    card = {
+        "name": "Generic",
+        "oracle_text": "Whenever a creature you control dies, draw a card.",
+    }
+    subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    assert "creature" not in {x.lower() for x in subs} and "Creature" not in subs

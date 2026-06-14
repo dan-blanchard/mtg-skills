@@ -415,9 +415,17 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\bother ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
     # "another Elf you control" (singular) — tribal triggers the "other Xs" form misses.
     re.compile(r"\banother ([A-Za-z]+?) you control\b", re.IGNORECASE),
-    # "a Spider you control enters" — tribal ETB trigger (anchored on "enters" so a
-    # bare "a Goblin you control" elsewhere can't over-capture). Mary Jane Watson.
-    re.compile(r"\b(?:a|an) ([A-Za-z]+?) you control enters\b", re.IGNORECASE),
+    # "a Spider you control enters/attacks/dies/deals …" — tribal trigger. A common
+    # trigger verb follows (so a bare "a Goblin you control" can't over-capture); the
+    # vocab gate drops "creature"/"permanent". Mary Jane Watson / Patron of the Nezumi
+    # ("a Rat you control deals") / Sylvia ("a Dragon you control attack").
+    re.compile(
+        r"\b(?:a|an) ([A-Za-z]+?) you control "
+        r"(?:enters|attacks?|dies|deals|blocks?|becomes?|leaves)\b",
+        re.IGNORECASE,
+    ),
+    # "each attacking Samurai" / "attacking Goblins" — tribal combat trigger (Nagao).
+    re.compile(r"\b(?:each )?attacking ([A-Za-z]+?)s?\b", re.IGNORECASE),
     # "you control an Army" — reverse word order the "X you control" anchors miss; the
     # subtype-vocab gate keeps it precise (creature/artifact/Mountain drop out). Grond.
     re.compile(r"\byou control (?:a|an) ([A-Za-z]+?)\b", re.IGNORECASE),
