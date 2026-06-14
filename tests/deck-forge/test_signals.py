@@ -923,3 +923,16 @@ def test_cheap_etb_or_expensive_vanilla_does_not_open_clone():
     }
     assert ("clone_matters", "you") not in _keys(cheap)
     assert ("clone_matters", "you") not in _keys(vanilla)
+
+
+def test_land_enter_punisher_opens_burn_lane():
+    # Zo-Zu the Punisher: opponents-landfall PUNISH — "whenever a land enters, deal 2 to
+    # that land's controller". The landfall lane is the YOU payoff; this is the missing
+    # opponents-scoped punish side.
+    zozu = {
+        "name": "Zo-Zu the Punisher",
+        "type_line": "Legendary Creature — Goblin",
+        "oracle_text": "Whenever a land enters, Zo-Zu the Punisher deals 2 damage to "
+        "that land's controller.",
+    }
+    assert ("direct_damage", "you") in _keys(zozu)

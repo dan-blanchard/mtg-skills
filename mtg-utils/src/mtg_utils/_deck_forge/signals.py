@@ -721,7 +721,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"deals? (?:\d+|x) damage to any target"
             r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
             r"|would deal damage[^.]*?(?:it deals double|it deals twice"
-            r"|deals that much damage plus)",
+            r"|deals that much damage plus)"
+            # Land/mana PUNISHER (Zo-Zu): "whenever a land enters / a player taps a land
+            # … deals N damage" — the opponents-landfall-punish side (Ankh, Manabarbs).
+            r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
+            r"[^.]*?deals? (?:\d+|x) damage",
             re.IGNORECASE,
         ),
         "you",

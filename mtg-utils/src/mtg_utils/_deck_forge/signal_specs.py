@@ -1463,7 +1463,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Symmetric "punisher" burn enchantments (Manabarbs, Roiling Vortex,
         # Spellshock): recurring damage to each/that player.
         r"|deals \d+ damage to (?:each|that|target) (?:player|opponent|creature)"
-        r"|whenever (?:a|an|each) (?:player|opponent)[^.]*deals \d+ damage",
+        r"|whenever (?:a|an|each) (?:player|opponent)[^.]*deals \d+ damage"
+        # Land-enter / tap-a-land punishers (Ankh of Mishra, Zo-Zu, War's Toll).
+        r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
+        r"[^.]*deals \d+ damage",
         extras=(_DEATHTOUCH_GEAR_EXTRA,),
     ),
     # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.

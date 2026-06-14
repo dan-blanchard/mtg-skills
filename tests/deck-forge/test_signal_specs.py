@@ -3126,3 +3126,14 @@ def test_self_lifeloss_serves_life_total_manipulation():
     }
     for c in (axis, children, repay):
         assert _lane_covers(c, sig), c["name"]
+
+
+def test_burn_serves_land_enter_punishers():
+    sig = _sig("direct_damage")
+    ankh = {
+        "name": "Ankh of Mishra",
+        "type_line": "Artifact",
+        "oracle_text": "Whenever a land enters, this artifact deals 2 damage to that "
+        "land's controller.",
+    }
+    assert _lane_covers(ankh, sig)
