@@ -573,12 +573,18 @@ _LANDFALL_ORACLE = (
     r"|play lands? from your graveyard"
     r"|put [^.]*\bland card[^.]*onto the battlefield"
 )
+_LANDS_FROM_GRAVE_ORACLE = (
+    r"play lands? from your graveyard"
+    # Mass land-return puts lands straight onto the battlefield — a huge landfall
+    # payoff (Splendid Reclamation, Titania, World Shaper, Lord Windgrace).
+    r"|return [^.]*\bland cards?\b[^.]*from your graveyard to the battlefield"
+)
 _LANDS_FROM_GRAVE_EXTRA = SubAvenue(
     "Lands from your graveyard",
-    "recursion that replays fetched/sacrificed lands for repeat landfall "
-    "(Crucible of Worlds / Ramunap Excavator)",
-    {"oracle": r"play lands? from your graveyard"},
-    serve=Serve(oracle=re.compile(r"play lands? from your graveyard", _IC)),
+    "recursion that replays sacrificed/milled lands for repeat landfall "
+    "(Crucible of Worlds / Ramunap Excavator / Splendid Reclamation)",
+    {"oracle": _LANDS_FROM_GRAVE_ORACLE},
+    serve=Serve(oracle=re.compile(_LANDS_FROM_GRAVE_ORACLE, _IC)),
 )
 # Deathtouch-granting gear (CR 702.2b): with a repeatable pinger, deathtouch + 1 damage
 # kills anything. "(equipped|enchanted) creature … deathtouch" is Equipment/Aura-only.

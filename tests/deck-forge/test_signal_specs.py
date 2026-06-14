@@ -4137,3 +4137,26 @@ def test_mass_removal_serves_board_indestructible_granters():
         ),
     }
     assert _lane_covers(gods_willing, sig) is False
+
+
+# ── landfall serves land-recursion-from-graveyard (puts lands onto battlefield) ──
+def test_landfall_serves_return_lands_from_graveyard():
+    # "Return all land cards from your graveyard to the battlefield" floods lands in =
+    # a huge landfall payoff. The lands-from-grave extra only matched "play lands from
+    # your graveyard", missing the direct mass-return forms (Splendid Reclamation,
+    # Titania, World Shaper).
+    sig = _sig("landfall", "you")
+    splendid = {
+        "name": "Splendid Reclamation",
+        "type_line": "Sorcery",
+        "oracle_text": "Return all land cards from your graveyard to the battlefield tapped.",
+    }
+    assert _lane_covers(splendid, sig) is True
+    # Over-fire guard: returning a CREATURE from the graveyard is reanimation, not
+    # land recursion — not a landfall enabler.
+    raise_dead = {
+        "name": "Raise Dead",
+        "type_line": "Sorcery",
+        "oracle_text": "Return target creature card from your graveyard to your hand.",
+    }
+    assert _lane_covers(raise_dead, sig) is False
