@@ -2109,7 +2109,9 @@ _SELF_DEATH_PAYOFF_RE = re.compile(
     r"(?:each opponent|target opponent|each player|target player|that player"
     r"|an opponent)[^.]*(?:loses?|discards?|sacrifices?)"
     r"|you (?:may )?(?:draw|create|return|put|search)"
-    r"|deals? \d+ damage",
+    # Numeric AND variable damage (Orca: "deals damage equal to its power") — a value
+    # death trigger worth re-firing, like the self-ETB damage payoff.
+    r"|deals? (?:\d+|x) damage|deals? damage equal to",
     re.IGNORECASE,
 )
 
@@ -2310,7 +2312,9 @@ _ACTIVE_REANIMATION_RE = re.compile(
 # verbs (gain control, opponents lose life, skip a step).
 _SELF_DIES_PAYOFF = (
     r"\b(?:gains? control|loses? \d+ life|lose life|each opponent|each player"
-    r"|draws?|returns?|create|creates|destroys?|exiles?|deals? \d+ damage"
+    r"|draws?|returns?|create|creates|destroys?|exiles?"
+    # Numeric AND variable damage (Orca: "deals damage equal to its power").
+    r"|deals? (?:\d+|x) damage|deals? damage equal to"
     r"|put[^.]*counter|skips?)\b"
 )
 

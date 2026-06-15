@@ -232,6 +232,43 @@ def test_self_etb_variable_damage_opens_flicker_and_clone():
     }
 
 
+def test_self_death_variable_damage_opens_payoff_and_clone():
+    # Symmetric with the ETB case: a commander whose own DEATH trigger deals VARIABLE
+    # damage ("deals damage equal to its power") is a value death trigger worth
+    # re-firing — a clone re-fires it when the copy dies (CMC >= 5), and it's a
+    # self_death_payoff. Both death regexes matched numeric "deals N damage" but not
+    # the variable form, so Orca opened neither. Real oracle.
+    orca = {
+        "name": "Orca, Siege Demon",
+        "type_line": "Legendary Creature — Demon",
+        "cmc": 7.0,
+        "oracle_text": (
+            "Trample\n"
+            "Whenever another creature dies, put a +1/+1 counter on Orca.\n"
+            "When Orca dies, it deals damage equal to its power divided as you choose "
+            "among any number of targets."
+        ),
+    }
+    keys = {s.key for s in extract_signals(orca, include_membership=True)}
+    assert "self_death_payoff" in keys
+    assert "clone_matters" in keys  # cmc 7 >= 5
+    # Over-fire guard: a "deals damage equal to" clause NOT on a death trigger (a combat
+    # trigger) must not open the death payoff. Real oracle (Inferno Titan-style is
+    # numeric, so use a variable-combat case).
+    combat = {
+        "name": "Variable Combat Burner",
+        "type_line": "Legendary Creature — Beast",
+        "cmc": 6.0,
+        "oracle_text": (
+            "Whenever this creature attacks, it deals damage equal to its power to "
+            "any target."
+        ),
+    }
+    assert "self_death_payoff" not in {
+        s.key for s in extract_signals(combat, include_membership=True)
+    }
+
+
 def test_goad_via_keyword_array_scoped_opponents():
     c = {
         "name": "Marisi-like",
