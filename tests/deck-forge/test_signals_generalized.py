@@ -1746,3 +1746,38 @@ def test_opponent_reveal_mill_served_by_graveyard_opponents():
         ),
     }
     assert lane_covers(avenging, "graveyard_matters", "opponents") is False
+
+
+def test_missing_race_tribes_open_membership_but_classes_do_not():
+    # The membership gate (TRIBAL_SUBTYPES) missed real RACE tribes that have lords and
+    # commanders — Changelings, Myr, Saprolings, Moogles — so a vanilla member of those
+    # tribes read as zero-signal instead of surfacing its tribe. Add them; keep class
+    # types (Warrior) out, since a class is near-ubiquitous and needs explicit support.
+    moogle = {
+        "name": "Mog, Moogle Warrior",
+        "type_line": "Legendary Creature — Moogle Warrior",
+        "oracle_text": "Lifelink",  # no tribal oracle — membership must carry it
+    }
+    assert ("type_matters", "you", "Moogle") in _ksub(moogle)
+    myr = {
+        "name": "Generic Myr Lord",
+        "type_line": "Legendary Creature — Myr",
+        "oracle_text": "",
+    }
+    assert ("type_matters", "you", "Myr") in _ksub(myr)
+    saproling = {
+        "name": "Generic Saproling",
+        "type_line": "Legendary Creature — Plant Saproling",
+        "oracle_text": "",
+    }
+    assert ("type_matters", "you", "Saproling") in _ksub(saproling)
+    # Over-fire guard: a class type (Warrior) is NOT a membership tribe — a vanilla
+    # Human Warrior must not mint a Warrior-tribal avenue from membership alone.
+    warrior = {
+        "name": "Generic Warrior",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": "",
+    }
+    subs = {subj for (key, scope, subj) in _ksub(warrior) if key == "type_matters"}
+    assert "Warrior" not in subs
+    assert "Human" not in subs

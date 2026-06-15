@@ -575,5 +575,23 @@ TRIBAL_SUBTYPES: frozenset[str] = frozenset(
         "rhino",
         "boar",
         "ape",
+        # Real RACE tribes (with tribal lords/payoffs and a legendary commander) that
+        # the original >=8-support harvest missed — Changelings (every type), the
+        # artifact-creature tribes, the Bloomburrow animal-folk, and the recent
+        # Universes Beyond races. Still strictly races, never class types.
+        "shapeshifter",
+        "saproling",
+        "myr",
+        "kor",
+        "kavu",
+        "kobold",
+        "thopter",
+        "aetherborn",
+        "rabbit",
+        "raccoon",
+        "moogle",
+        "dalek",
+        "tiefling",
+        "wraith",
     }
 )
