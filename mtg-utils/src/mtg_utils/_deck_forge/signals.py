@@ -603,6 +603,16 @@ _TWO_TRIBE_TRIGGER_RE = re.compile(
     r"(?:enters|attacks?|dies|deals|blocks?)\b",
     re.IGNORECASE,
 )
+# Type GRANT: a commander that CONVERTS its creatures to a tribe — "it's a Zombie in
+# addition to its other creature types" (Lim-Dûl reanimates as Zombies), Chainer
+# (Nightmare), Xu-Ifit (Skeleton), Shilgengar (Vampire). Its board becomes that tribe,
+# so it wants that tribe's lords. The vocab gate (in _resolve_subject) keeps it to real
+# subtypes.
+_TYPE_GRANT_RE = re.compile(
+    r"(?:is|are|becomes?|it's) (?:a |an )?([A-Za-z]+?)s? "
+    r"in addition to (?:its|their) other(?: creature)? types",
+    re.IGNORECASE,
+)
 # typed_spellcast: subject-bearing extension of spellcast_matters — catches tribal
 # spell payoffs ("Sliver spells you cast") the literal spellcast_matters misses.
 _TYPED_SPELLCAST_PATTERN = re.compile(
@@ -628,6 +638,12 @@ def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, 
             subject = _resolve_subject(raw, vocab)
             if subject:
                 out.append((signal_keys.TYPE_MATTERS, subject))
+    # Type GRANT ("it's a Zombie in addition to its other creature types"): the
+    # commander converts its board to that tribe → wants that tribe's lords.
+    for m in _TYPE_GRANT_RE.finditer(clause):
+        subject = _resolve_subject(m.group(1), vocab)
+        if subject:
+            out.append((signal_keys.TYPE_MATTERS, subject))
     return out
 
 

@@ -336,6 +336,31 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_type_grant_opens_tribal():
+    # A commander that CONVERTS its creatures to a tribe — "it's a Zombie in addition to
+    # its other creature types" (Lim-Dûl reanimates as Zombies), Chainer (Nightmare) —
+    # makes its board that tribe, so it wants that tribe's lords (Death Baron, Undead
+    # Warchief). The tribal detector keyed on "Xs you control", not the type-GRANT form.
+    lim_dul = {
+        "name": "Lim-Dûl the Necromancer",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "Whenever a creature an opponent controls dies, you may pay {1}{B}. If you "
+            "do, return that card to the battlefield under your control. If it's a "
+            "creature, it's a Zombie in addition to its other creature types.\n"
+            "{1}{B}: Regenerate target Zombie."
+        ),
+    }
+    assert ("type_matters", "you", "Zombie") in {
+        (s.key, s.scope, s.subject) for s in extract_signals(lim_dul)
+    }
+    # Over-fire guard: a vanilla creature grants no type.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert not any(
+        s.key == "type_matters" and s.subject == "Zombie" for s in extract_signals(bear)
+    )
+
+
 def test_play_from_top_cross_opens_topdeck_selection():
     # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
     # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It
