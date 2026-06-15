@@ -1486,7 +1486,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "opponent_cast_matters",
         re.compile(
             r"whenever an opponent casts|whenever (?:a|another) player casts a spell"
-            r"|whenever an opponent cast",
+            r"|whenever an opponent cast"
+            # Symmetric cast-PUNISHER with an adjective the "casts a spell" branch
+            # misses: "whenever a player casts a NONCREATURE spell, they lose 2 life"
+            # (Mai) / "… deals 6 damage to that player" (Ruric Thar). Gated on a PUNISH
+            # effect (they/that player loses/discards/sacrifices, or damage to that
+            # player) so benefit-on-cast commanders (Niv-Mizzet draws, April makes a
+            # token) stay out of the punish lane.
+            r"|whenever (?:a|another) player casts[^.]*(?:(?:they|that player) "
+            r"(?:loses?|discards?|sacrifices?)|deals? \d+ damage to that player)",
             re.IGNORECASE,
         ),
         "opponents",

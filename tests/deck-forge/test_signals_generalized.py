@@ -2323,6 +2323,66 @@ def test_ox_tribe_resolves_despite_two_letters_and_irregular_plural():
     assert ("type_matters", "you", "Ox") in _ksub(bruse)
 
 
+def test_symmetric_cast_punisher_opens_opponent_cast_matters():
+    # A symmetric cast-PUNISHER with an adjective ("whenever a player casts a NONCREATURE
+    # spell, they lose 2 life" — Mai; "… deals 6 damage to that player" — Ruric Thar)
+    # slipped past the "casts a spell" branch, so it missed the punish-opponents'-spells
+    # lane and its payoffs (Soot Imp, Painful Quandary). Gated on the punish effect so
+    # benefit-on-cast commanders stay out. Real oracle, full text.
+    mai = {
+        "name": "Mai, Scornful Striker",
+        "type_line": "Legendary Creature — Human Noble Ally",
+        "oracle_text": (
+            "First strike\n"
+            "Whenever a player casts a noncreature spell, they lose 2 life."
+        ),
+    }
+    ruric = {
+        "name": "Ruric Thar, the Unbowed",
+        "type_line": "Legendary Creature — Ogre Warrior",
+        "oracle_text": (
+            "Vigilance, reach\n"
+            "Whenever a player casts a noncreature spell, Ruric Thar deals 6 damage to "
+            "that player."
+        ),
+    }
+    assert "opponent_cast_matters" in _keys(mai)
+    assert "opponent_cast_matters" in _keys(ruric)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    painful = {
+        "name": "Painful Quandary",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever an opponent casts a spell, that player loses 5 life unless they "
+            "discard a card."
+        ),
+    }
+    assert lane_covers(painful, "opponent_cast_matters", "opponents") is True
+    # Over-fire guard: a BENEFIT-on-cast commander (Niv-Mizzet draws) is a spellslinger
+    # engine, not a punisher — it must NOT open the punish lane via this branch.
+    niv = {
+        "name": "Niv-Mizzet, Parun",
+        "type_line": "Legendary Creature — Dragon Wizard",
+        "oracle_text": (
+            "Flying\n"
+            "Whenever you draw a card, Niv-Mizzet, Parun deals 1 damage to any target.\n"
+            "Whenever a player casts an instant or sorcery spell, you draw a card."
+        ),
+    }
+    assert "opponent_cast_matters" not in _keys(niv)
+
+
 def test_opponent_reveal_mill_served_by_graveyard_opponents():
     # Old Dimir mill ("reveals cards from the top of their library until N lands, then
     # puts them into their graveyard" — Mind Funeral, Mind Grind) never uses the word
