@@ -2090,8 +2090,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         },
         # The "number of lands" PAYOFF (Molimo's P/T) PLUS the land ramp / fetch /
         # recursion that grows the count — lands_matter is the same archetype as
-        # landfall, so it wants the same enablers (reuse _LANDFALL_ORACLE).
-        r"the number of lands you control|for each land you control|"
+        # landfall, so it wants the same enablers (reuse _LANDFALL_ORACLE). Also the
+        # creature pump that scales with a basic-land subtype "you control" (Blanchwood
+        # Armor, Primal Bellow) — the mono-color go-tall payoff scales the same way as
+        # Molimo's own P/T. Anchored to "you control" so opponent-basic pumps
+        # (Crusading Knight) stay out.
+        r"the number of lands you control|for each land you control"
+        r"|(?:gets?|get) \+[\dx]+/\+[\dx]+[^.]{0,40}?(?:for each|number of) "
+        r"(?:plains|islands?|swamps?|mountains?|forests?) you control|"
         + _LANDFALL_ORACLE,
         extras=(_LANDS_FROM_GRAVE_EXTRA,),
     ),

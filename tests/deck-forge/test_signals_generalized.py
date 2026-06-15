@@ -1496,3 +1496,50 @@ def test_celebration_archetype_opens_and_serves():
     }
     assert "celebration_matters" not in _keys(impact)
     assert lane_covers(impact, "celebration_matters") is False
+
+
+def test_lands_matter_serves_creature_pump_by_basic():
+    # A lands-matter commander whose own P/T scales with land count (Molimo) wants the
+    # creature pump that scales the SAME way — "+N/+N for each Forest you control"
+    # (Blanchwood Armor, Primal Bellow). The serve already takes "for each LAND you
+    # control"; the per-basic-subtype form (the mono-color go-tall payoff) was the gap.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    molimo = {
+        "name": "Molimo, Maro-Sorcerer",
+        "type_line": "Legendary Creature — Elemental Sorcerer",
+        "oracle_text": (
+            "Trample\n"
+            "Molimo's power and toughness are each equal to the number of lands "
+            "you control."
+        ),
+    }
+    assert "lands_matter" in _keys(molimo)
+    primal_bellow = {
+        "name": "Primal Bellow",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Target creature gets +1/+1 until end of turn for each Forest you control."
+        ),
+    }
+    assert lane_covers(primal_bellow, "lands_matter") is True
+    # Over-fire guard: pump that scales off your OPPONENTS' basics is not your
+    # lands-matter payoff.
+    crusading_knight = {
+        "name": "Crusading Knight",
+        "type_line": "Creature — Human Knight",
+        "oracle_text": (
+            "Protection from black\n"
+            "Crusading Knight gets +1/+1 for each Swamp your opponents control."
+        ),
+    }
+    assert lane_covers(crusading_knight, "lands_matter") is False
