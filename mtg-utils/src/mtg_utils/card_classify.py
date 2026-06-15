@@ -125,7 +125,14 @@ def is_creature(card: dict) -> bool:
 # — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
 # though it produces no mana for you.
 _REMINDER_RE = re.compile(r"\([^)]*\)")
-_ADD_MANA_RE = re.compile(r"add\s+(?:\{|one mana|mana of|an amount of mana)")
+_ADD_MANA_RE = re.compile(r"add\s+(?:\{|one mana|mana of|an amount of (?:mana|\{))")
+# Land-acceleration ramp that adds no mana directly: extra land drops (Azusa,
+# Exploration, Dryad of the Ilysian Grove) and putting a land from hand into play
+# (Arboreal Grazer, Burgeoning) — both accelerate your mana via lands.
+_EXTRA_LAND_RE = re.compile(r"play [^.]{0,18}additional lands?", re.IGNORECASE)
+_LAND_FROM_HAND_RE = re.compile(
+    r"put a land card from your hand onto the battlefield", re.IGNORECASE
+)
 # Phrases that hand a created token to someone other than you (An Offer You Can't
 # Refuse: "Its controller creates two Treasure tokens").
 _OPPONENT_DIRECTED = (
@@ -159,7 +166,13 @@ def is_ramp(card: dict) -> bool:
         return not any(p in oracle_lower for p in _OPPONENT_DIRECTED)
 
     # Cards that search library for lands
-    return "search your library for" in oracle_lower and "land" in oracle_lower
+    if "search your library for" in oracle_lower and "land" in oracle_lower:
+        return True
+    # Land-acceleration that adds no mana: extra land drops (Azusa) and put-a-land-from-
+    # hand (Arboreal Grazer, Burgeoning) — both ramp your lands ahead of the curve.
+    return bool(
+        _EXTRA_LAND_RE.search(oracle_lower) or _LAND_FROM_HAND_RE.search(oracle_lower)
+    )
 
 
 # Pattern to find explicit mana symbols in "Add {X}" patterns

@@ -216,6 +216,40 @@ class TestIsRamp:
         }
         assert is_ramp(card) is True
 
+    def test_variable_amount_mana_dork_is_ramp(self):
+        """A dork that adds "an amount of {G}" (devotion/counter-scaled — Karametra's
+        Acolyte, Marwyn) is ramp even though the mana symbol isn't adjacent to "Add"."""
+        karametra = {
+            "type_line": "Creature — Human Druid",
+            "oracle_text": (
+                "{T}: Add an amount of {G} equal to your devotion to green."
+            ),
+        }
+        assert is_ramp(karametra) is True
+
+    def test_extra_land_and_land_from_hand_are_ramp(self):
+        """Land-acceleration that adds no mana directly: extra land drops (Azusa) and
+        putting a land from hand into play (Arboreal Grazer) both ramp via lands."""
+        azusa = {
+            "type_line": "Legendary Creature — Human Monk",
+            "oracle_text": "You may play two additional lands on each of your turns.",
+        }
+        grazer = {
+            "type_line": "Creature — Plant Beast",
+            "oracle_text": (
+                "Defender\nWhen this creature enters, you may put a land card from "
+                "your hand onto the battlefield."
+            ),
+        }
+        assert is_ramp(azusa) is True
+        assert is_ramp(grazer) is True
+        # Over-fire guard: a plain beater that merely mentions "land" is not ramp.
+        beater = {
+            "type_line": "Creature — Beast",
+            "oracle_text": "When this creature dies, destroy target nonbasic land.",
+        }
+        assert is_ramp(beater) is False
+
 
 class TestColorSources:
     def test_overgrown_tomb(self):
