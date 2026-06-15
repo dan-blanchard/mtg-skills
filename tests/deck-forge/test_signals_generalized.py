@@ -2821,6 +2821,18 @@ def test_combat_damage_serves_double_strike_granters():
         "keywords": ["Double strike"],
     }
     assert lane_covers(vanilla_ds, "combat_damage_to_opp", "opponents") is False
+    # Whole-table amplifier (Kediss): "deals that much damage to each other opponent"
+    # copies your combat damage onto every opponent — also an amplifier. Real oracle.
+    kediss = {
+        "name": "Kediss, Emberclaw Familiar",
+        "type_line": "Legendary Creature — Elemental Lizard",
+        "oracle_text": (
+            "Whenever a commander you control deals combat damage to an opponent, it "
+            "deals that much damage to each other opponent.\n"
+            "Partner (You can have two commanders if both have partner.)"
+        ),
+    }
+    assert lane_covers(kediss, "combat_damage_to_opp", "opponents") is True
 
 
 def test_acererak_folds_ventured_tomb_of_annihilation():

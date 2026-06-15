@@ -1113,6 +1113,10 @@ _DAMAGE_AMPLIFIER_ORACLE = (
     r"|deals? double that (?:much )?damage"
     r"|deals? (?:that much|twice that much) damage to that "
     r"(?:player|creature'?s controller)"
+    # Pinged-to-the-whole-table amplifiers (Kediss, Hydra Omnivore, Kosei, Imodane):
+    # "deals that much damage to each (other) opponent" copies your combat damage onto
+    # every opponent — the same push-through amplifier role for a multiplayer board.
+    r"|deals? that much damage to each (?:other )?opponent"
     # Granting DOUBLE STRIKE doubles the combat damage (and the combat-damage triggers)
     # you push through — the same amplifier role (Duelist's Heritage, Berserkers'
     # Onslaught). Keyed on the GRANT ("gains/have double strike"), so a bare vanilla
