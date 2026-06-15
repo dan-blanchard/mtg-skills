@@ -473,3 +473,27 @@ def test_creature_etb_opens_on_delayed_had_enter_payoff():
         ),
     }
     assert "creature_etb" in _keys(ephara)
+
+
+def test_artifacts_matter_opens_for_artifact_tutor():
+    # Arcum Dagsson tutors artifacts ("search ... for a noncreature artifact card, put
+    # it onto the battlefield") and sacs artifact creatures — an artifact commander —
+    # but the detector wanted the "artifacts you control" possessive, so it missed him.
+    # artifacts_matter already serves artifacts by type, so opening it covers his fodder.
+    arcum = {
+        "name": "Arcum Dagsson",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": (
+            "{T}: Target artifact creature's controller sacrifices it. That player "
+            "may search their library for a noncreature artifact card, put it onto "
+            "the battlefield, then shuffle."
+        ),
+    }
+    assert "artifacts_matter" in _keys(arcum)
+    # Over-fire guard: a generic creature-tutor is not an artifact commander.
+    diabolic_tutor = {
+        "name": "Tutor Test",
+        "type_line": "Legendary Creature — Wizard",
+        "oracle_text": "When this creature enters, search your library for a creature card, reveal it, put it into your hand, then shuffle.",
+    }
+    assert "artifacts_matter" not in _keys(diabolic_tutor)

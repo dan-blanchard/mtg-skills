@@ -750,6 +750,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # decks (Sai, Emry); affinity's reminder is stripped, so key on the keyword.
             r"|whenever you cast an artifact|\baffinity\b"
             r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard"
+            # Artifact TUTORS/theft (Arcum, Thada Adel): "search … for a(n)
+            # [noncreature] artifact card …" — fetch/steal artifacts to play.
+            r"|search [^.]*\bfor [^.]*artifact[^.]*card|noncreature artifact card"
             # Sac outlets (Bosh), artifact-ability payoffs (Kurkesh), and type-granters
             # (Memnarch: "becomes an artifact") are artifact commanders too. The sac
             # lookahead drops the generic any-permanent list ("sacrifice an artifact,
