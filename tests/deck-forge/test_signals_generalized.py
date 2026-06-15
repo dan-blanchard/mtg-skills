@@ -295,6 +295,47 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_instant_sorcery_recaster_opens_spellcast():
+    # A commander that casts or copies instants/sorceries (Mavinda recasts from the yard,
+    # Velomachus casts off the top, Naru Meha copies) is a spellslinger — it wants
+    # prowess/magecraft payoffs (Monastery Mentor, Leonin Lightscribe). The spellcast
+    # detector keyed on the "whenever you cast an instant/sorcery" PAYOFF form, missing
+    # these enabler/copier forms. Real oracle.
+    mavinda = {
+        "name": "Mavinda, Students' Advocate",
+        "type_line": "Legendary Creature — Bird Advisor",
+        "oracle_text": (
+            "Flying\n{0}: You may cast target instant or sorcery card from your "
+            "graveyard this turn. If that spell doesn't target a creature you control, "
+            "it costs {8} more to cast this way."
+        ),
+    }
+    velomachus = {
+        "name": "Velomachus Lorehold",
+        "type_line": "Legendary Creature — Dragon Cleric",
+        "oracle_text": (
+            "Flying, vigilance, haste\nWhenever Velomachus Lorehold attacks, look at "
+            "the top seven cards of your library. You may cast an instant or sorcery "
+            "spell with mana value less than or equal to Velomachus Lorehold's power "
+            "from among them without paying its mana cost."
+        ),
+    }
+    naru_meha = {
+        "name": "Naru Meha, Master Wizard",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "Flash\nWhen Naru Meha, Master Wizard enters, copy target instant or "
+            "sorcery spell you control. You may choose new targets for the copy.\n"
+            "Other Wizards you control get +1/+1."
+        ),
+    }
+    for cmd in (mavinda, velomachus, naru_meha):
+        assert ("spellcast_matters", "you") in _ks(cmd), cmd["name"]
+    # Over-fire guard: a vanilla creature is not a spellslinger.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("spellcast_matters", "you") not in _ks(bear)
+
+
 def test_opponent_shrink_opens_debuff():
     # Maha shrinks opponents' creatures ("Creatures your opponents control have base
     # toughness 1") — it combos with -1/-1 effects (toughness 1 + any -1/-1 = dead), so

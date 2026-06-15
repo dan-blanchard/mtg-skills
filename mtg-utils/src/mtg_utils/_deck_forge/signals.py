@@ -771,6 +771,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
+    # Spellslinger recaster/copier (Mavinda recasts from the yard, Velomachus casts off
+    # the top, Naru Meha copies) — a commander that casts or copies instants/sorceries
+    # wants prowess/magecraft payoffs. The base spellcast detector keys on the "whenever
+    # you cast an instant/sorcery" PAYOFF form; these are enabler/copier forms.
+    (
+        "spellcast_matters",
+        re.compile(
+            r"(?:you may cast|cast target|copy target)[^.]*"
+            r"(?:instant or sorcery|instant and sorcery)"
+            r"|instant and sorcery (?:spells? )?you (?:may )?cast",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Opponent-SHRINK (Maha: "Creatures your opponents control have base toughness 1") —
     # shrinking opponents' creatures combos with -1/-1 effects (toughness 1 + any -1/-1
     # = dead), so it's a debuff commander wanting -1/-1 anthems and wipes.
