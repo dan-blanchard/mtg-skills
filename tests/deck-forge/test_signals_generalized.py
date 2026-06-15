@@ -1624,3 +1624,33 @@ def test_your_graveyard_scope_not_stolen_by_incidental_opponent_mention():
     }
     assert ("graveyard_matters", "opponents") in _ks(leyline)
     assert ("graveyard_matters", "you") not in _ks(leyline)
+
+
+def test_multi_tribe_list_anthem_captures_every_named_type():
+    # A menagerie anthem ("Other Spiders, Boars, ..., and Wolves you control get +1/+1")
+    # lists many subtypes in one comma run — the multi-tribe head form ("creatures
+    # that's a X, a Y") doesn't match it, and the single-tribe pattern grabbed only the
+    # last type. Capture EVERY named subtype so each tribe's payoffs surface. Real card.
+    spider_ham = {
+        "name": "Spider-Ham, Peter Porker",
+        "type_line": "Legendary Creature — Spider Boar Hero",
+        "oracle_text": (
+            "When Spider-Ham enters, create a Food token.\n"
+            "Animal May-Ham — Other Spiders, Boars, Bats, Bears, Birds, Cats, Dogs, "
+            "Frogs, Jackals, Lizards, Mice, Otters, Rabbits, Raccoons, Rats, "
+            "Squirrels, Turtles, and Wolves you control get +1/+1."
+        ),
+    }
+    subs = {subj for (key, scope, subj) in _ksub(spider_ham) if key == "type_matters"}
+    for t in ("Frog", "Squirrel", "Rabbit", "Raccoon", "Cat", "Bird"):
+        assert t in subs, t
+    # Over-fire guard: a plain anthem names no subtype, so no spurious tribe.
+    glorious = {
+        "name": "Glorious Anthem",
+        "type_line": "Enchantment",
+        "oracle_text": "Creatures you control get +1/+1.",
+    }
+    glory_subs = {
+        subj for (key, scope, subj) in _ksub(glorious) if key == "type_matters"
+    }
+    assert glory_subs == set()

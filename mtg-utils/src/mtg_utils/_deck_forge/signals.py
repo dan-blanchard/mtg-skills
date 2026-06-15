@@ -665,17 +665,29 @@ _MULTI_TRIBE_HEAD_RE = re.compile(
     r"\b(?:gets?|have|has|gains?)\b",
     re.IGNORECASE,
 )
+# Menagerie-anthem LIST form: "Other Spiders, Boars, …, and Wolves you control get
+# +1/+1" (Spider-Ham) names many subtypes in one comma run before "you control
+# get/have/gain". The head form above has no "that's a X" and the single-tribe pattern
+# grabs only the last type. Require a comma (≥2 types) so single-tribe anthems don't
+# double-fire here, and let the vocab gate drop connectives ("and"/"or") and the
+# generic "creatures" head ("Other creatures you control get" → no subtype).
+_MULTI_TRIBE_LIST_RE = re.compile(
+    r"\bother ([A-Za-z]+(?:, (?:and |or )?[A-Za-z]+)+) you control "
+    r"(?:gets?|have|has|gains?)\b",
+    re.IGNORECASE,
+)
 
 
 def _detect_multi_tribe_anthem(
     clause: str, vocab: frozenset[str]
 ) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
-    for m in _MULTI_TRIBE_HEAD_RE.finditer(clause):
-        for word in re.findall(r"[A-Za-z]+", m.group(1)):
-            subject = _resolve_subject(word, vocab)
-            if subject:
-                out.append((signal_keys.TYPE_MATTERS, subject))
+    for pattern in (_MULTI_TRIBE_HEAD_RE, _MULTI_TRIBE_LIST_RE):
+        for m in pattern.finditer(clause):
+            for word in re.findall(r"[A-Za-z]+", m.group(1)):
+                subject = _resolve_subject(word, vocab)
+                if subject:
+                    out.append((signal_keys.TYPE_MATTERS, subject))
     return out
 
 
