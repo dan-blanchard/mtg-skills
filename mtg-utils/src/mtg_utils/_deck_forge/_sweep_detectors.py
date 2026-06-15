@@ -677,10 +677,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "regex": "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard",
     },
     {
+        # dies_recursion is the BROAD "creatures recur when they die" category — with
+        # OR without counters. It is the SUPERSET of undying_persist_matters: undying
+        # (CR 702.93a, +1/+1) and persist (CR 702.79a, -1/-1) ARE dies-recursion that
+        # also place a counter, so the keywords are members here too; bare dies-return
+        # grants (Feign Death / Supernatural Stamina) are dies_recursion only. The
+        # keyword word survives reminder-text stripping (same as undying_persist_matters).
         "key": "dies_recursion",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield",
+        "regex": "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield|\\b(?:undying|persist)\\b",
     },
     {
         "key": "devour_matters",
@@ -1105,8 +1111,9 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "destroy_legendary": ("Legend removal", "targeted destruction of legends"),
     "devour_matters": ("Devour", "token fodder to devour"),
     "dies_recursion": (
-        "Dies-replacement recursion",
-        "recur or protect creatures that would die",
+        "Dies-recursion",
+        "anything that makes creatures recur when they die — with or without counters "
+        "(undying/persist plus bare dies-return like Feign Death)",
     ),
     "dig_until": ("Dig-until", "deep top-of-library digging effects"),
     "discard_outlet": (

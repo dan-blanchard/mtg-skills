@@ -1345,7 +1345,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     # Foretell (CR 702.143): the foretold-card payoff/engine axis (Alrund, Ranar).
     ("foretell_matters", re.compile(r"\bforetell\b|foretold", re.IGNORECASE), "you"),
-    # Undying (702.93) / Persist (702.79): death-triggered self-return + their granters.
+    # Undying (CR 702.93a, +1/+1) / Persist (CR 702.79a, -1/-1): the counter-bearing
+    # SUBSET of dies_recursion. Distinct lane because the COUNTER is the point for a
+    # counters deck — undying feeds +1/+1 synergies, persist feeds -1/-1/aristocrats —
+    # whereas the broad dies_recursion lane cares about the recursion itself. These
+    # cards open BOTH lanes (dies_recursion includes the undying/persist keywords).
     (
         "undying_persist_matters",
         re.compile(r"\b(?:undying|persist)\b", re.IGNORECASE),

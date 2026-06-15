@@ -4251,3 +4251,54 @@ def test_mass_bounce_serves_creature_mass_bounce():
         "oracle_text": "Return target permanent to its owner's hand.",
     }
     assert _lane_covers(boomerang, sig) is False
+
+
+def test_dies_recursion_is_superset_of_undying_persist():
+    # dies_recursion is the BROAD "creatures recur when they die" category (with or
+    # without counters); undying_persist_matters is the counter-bearing SUBSET (undying
+    # = +1/+1 per CR 702.93a, persist = -1/-1 per CR 702.79a). So undying/persist cards
+    # belong to BOTH; bare dies-return (Supernatural Stamina) only to dies_recursion.
+    geralfs = {
+        "name": "Geralf's Messenger",
+        "type_line": "Creature — Zombie",
+        "oracle_text": (
+            "This creature enters tapped.\n"
+            "When this creature enters, target opponent loses 2 life.\n"
+            "Undying (When this creature dies, if it had no +1/+1 counters on it, "
+            "return it to the battlefield under its owner's control with a +1/+1 "
+            "counter on it.)"
+        ),
+    }
+    kitchen_finks = {
+        "name": "Kitchen Finks",
+        "type_line": "Creature — Ouphe",
+        "oracle_text": (
+            "When this creature enters, you gain 2 life.\n"
+            "Persist (When this creature dies, if it had no -1/-1 counters on it, "
+            "return it to the battlefield under its owner's control with a -1/-1 "
+            "counter on it.)"
+        ),
+    }
+    supernatural_stamina = {
+        "name": "Supernatural Stamina",
+        "type_line": "Instant",
+        "oracle_text": (
+            'Until end of turn, target creature gets +2/+0 and gains "When this '
+            "creature dies, return it to the battlefield tapped under its owner's "
+            'control."'
+        ),
+    }
+    dr = _sig("dies_recursion", "you")
+    up = _sig("undying_persist_matters", "you")
+    # Superset: undying/persist AND bare dies-return are all dies_recursion.
+    assert _lane_covers(geralfs, dr) is True
+    assert _lane_covers(kitchen_finks, dr) is True
+    assert _lane_covers(supernatural_stamina, dr) is True
+    # Subset: undying/persist are counter-bearing; bare dies-return is NOT.
+    assert _lane_covers(geralfs, up) is True
+    assert _lane_covers(kitchen_finks, up) is True
+    assert _lane_covers(supernatural_stamina, up) is False
+    # And undying/persist cards OPEN both lanes (they are members of the superset).
+    gk = {s.key for s in extract_signals(geralfs)}
+    assert "dies_recursion" in gk
+    assert "undying_persist_matters" in gk
