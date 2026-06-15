@@ -1795,12 +1795,7 @@ _SELF_BLINK_RETURN_RE = re.compile(
 
 
 def _detect_self_blink_fulltext(text: str, name: str) -> str | None:
-    first = ""
-    for w in re.split(r"\W+", name):
-        if len(w) > 2 and w.lower() not in _ARTICLES:
-            first = w
-            break
-    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    alts = "|".join(["this creature", "~", *_self_name_alts(name)])
     exile_self = re.compile(rf"\bexile (?:{alts})\b", re.IGNORECASE)
     if not (exile_self.search(text) and _SELF_BLINK_RETURN_RE.search(text)):
         return None
@@ -1827,12 +1822,7 @@ _SELF_DEATH_PAYOFF_RE = re.compile(
 
 
 def _detect_self_death_payoff(text: str, name: str) -> str | None:
-    first = ""
-    for w in re.split(r"\W+", name):
-        if len(w) > 2 and w.lower() not in _ARTICLES:
-            first = w
-            break
-    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    alts = "|".join(["this creature", "~", *_self_name_alts(name)])
     death = re.compile(rf"when (?:{alts})\b[^.]* dies", re.IGNORECASE)
     if not (death.search(text) and _SELF_DEATH_PAYOFF_RE.search(text)):
         return None
@@ -1885,12 +1875,7 @@ def _detect_self_damage_prevention(text: str, name: str) -> bool:
     """True if the commander prevents/redirects ALL damage dealt to ITSELF (Cho-Manno,
     Anti-Venom) — the unkillable Pariah redirect target. Name-aware so a generic fog
     ('prevent all combat damage this turn') doesn't qualify."""
-    first = ""
-    for w in re.split(r"\W+", name):
-        if len(w) > 2 and w.lower() not in _ARTICLES:
-            first = w
-            break
-    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    alts = "|".join(["this creature", "~", *_self_name_alts(name)])
     pat = re.compile(
         r"(?:prevent all damage that would be dealt to"
         r"|if damage would be dealt to) "
@@ -1938,12 +1923,7 @@ def _detect_self_counter_payoff(text: str, name: str) -> bool:
     count (Sab-Sunen, Qala, Kyler) — a +1/+1-counters commander. The two-condition gate
     (accumulate AND count-care) excludes incidental self-counter creatures that just get
     a counter on attack/sacrifice without caring about the total (Thraximundar)."""
-    first = ""
-    for w in re.split(r"\W+", name):
-        if len(w) > 2 and w.lower() not in _ARTICLES:
-            first = w
-            break
-    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    alts = "|".join(["this creature", "~", *_self_name_alts(name)])
     accumulate = re.compile(rf"put a \+1/\+1 counter on (?:{alts})\b", re.IGNORECASE)
     count_care = re.compile(
         rf"(?:number of|for each) (?:\+1/\+1 )?counters? on (?:it|itself|{alts})",
@@ -1966,14 +1946,7 @@ def _self_dies_value(text: str, name: str) -> str | None:
     """Grounding clause if the card has a self DIES VALUE trigger — a clone/token copy
     re-fires it when the copy dies (Keiga, Kokusho). Name-aware (short name like
     Scryfall prints) so 'When Keiga dies' matches."""
-    first = ""
-    for w in re.split(r"\W+", name):
-        if len(w) > 2 and w.lower() not in _ARTICLES:
-            first = w
-            break
-    alts = r"this creature|this permanent|~" + (
-        ("|" + re.escape(first)) if first else ""
-    )
+    alts = "|".join(["this creature", "this permanent", "~", *_self_name_alts(name)])
     pat = re.compile(
         rf"\bwhen (?:{alts}) dies\b[^.]*?{_SELF_DIES_PAYOFF}", re.IGNORECASE
     )
@@ -2184,14 +2157,7 @@ def extract_signals(
     # Self-power-scaling commander (Mona Lisa: "X is Mona Lisa's power") wants to pump
     # its OWN power with +1/+1 counters — open the self-counter-growth lane. Name-aware
     # (name + "this creature", not "its") so a fling's "target creature's power" is out.
-    _first = ""
-    for _w in re.split(r"\W+", name):
-        if len(_w) > 2 and _w.lower() not in _ARTICLES:
-            _first = _w
-            break
-    _self = r"this creature|this permanent"
-    if _first:
-        _self += "|" + re.escape(_first)
+    _self = "|".join(["this creature", "this permanent", *_self_name_alts(name)])
     if re.search(
         rf"(?:equal to|x is|x equals?|where x is) [^.]*?(?:{_self})[^.]*?\bpower\b",
         text,

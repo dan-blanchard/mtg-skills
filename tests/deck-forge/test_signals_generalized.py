@@ -593,6 +593,40 @@ def test_self_etb_value_resolves_short_name_not_just_first_token():
     assert "blink_flicker" in _keys(black_cat)
 
 
+def test_self_dies_value_resolves_short_name_for_clone():
+    # A high-CMC commander with a self DIES trigger is worth cloning — a token copy
+    # re-fires the trigger when the copy dies. The clone detector keyed on the first
+    # name token before "dies", so "When The Scarab God dies" missed ("The" is an
+    # article, "Scarab" is followed by " God", not " dies"). Real cards, cmc>=5, no ETB
+    # (so the clone signal comes from the DIES path, not the ETB path).
+    scarab = {
+        "name": "The Scarab God",
+        "type_line": "Legendary Creature — God",
+        "cmc": 5.0,
+        "oracle_text": (
+            "At the beginning of your upkeep, each opponent loses X life and you scry "
+            "X, where X is the number of Zombies you control.\n"
+            "{2}{U}{B}: Exile target creature card from a graveyard. Create a token "
+            "that's a copy of it, except it's a 4/4 black Zombie.\n"
+            "When The Scarab God dies, return it to its owner's hand at the beginning "
+            "of the next end step."
+        ),
+    }
+    locust = {
+        "name": "The Locust God",
+        "type_line": "Legendary Creature — God",
+        "cmc": 6.0,
+        "oracle_text": (
+            "Flying\nWhenever you draw a card, create a 1/1 blue and red Insect "
+            "creature token with flying and haste.\n{2}{U}{R}: Draw a card, then "
+            "discard a card.\nWhen The Locust God dies, return it to its owner's hand "
+            "at the beginning of the next end step."
+        ),
+    }
+    assert "clone_matters" in _keys(scarab)
+    assert "clone_matters" in _keys(locust)
+
+
 def test_self_counter_accumulator_opens_counters_matter():
     # A commander that puts +1/+1 counters on ITSELF and cares about its COUNT
     # (Sab-Sunen — "number of counters on it") is a +1/+1-counters commander; it should
