@@ -1933,6 +1933,59 @@ def test_mutagen_token_maker_opens_artifacts_matter():
     assert "artifacts_matter" not in _keys(servo)
 
 
+def test_token_maker_serves_token_aristocrats_drain():
+    # A token-flood commander (Endrek Sahr makes Thrulls) wants token-aristocrats drain
+    # that fires on token CREATION (Mirkwood Bats) — it triggers just by going wide, no
+    # sac outlet needed. Token-specific, so the generic "whenever a creature dies" Blood
+    # Artist (served by the death lanes) does NOT match this sub-avenue. Real oracle.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+
+    endrek = {
+        "name": "Endrek Sahr, Master Breeder",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "Whenever you cast a creature spell, create X 1/1 black Thrull creature "
+            "tokens, where X is that spell's mana value.\n"
+            "When you control seven or more Thrulls, sacrifice Endrek Sahr, Master "
+            "Breeder."
+        ),
+    }
+    tm_sig = next(
+        s
+        for s in extract_signals(endrek, include_membership=True)
+        if s.key == "token_maker"
+    )
+    sp = spec_for(tm_sig)
+
+    def covers(card):
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    mirkwood = {
+        "name": "Mirkwood Bats",
+        "type_line": "Creature — Bat",
+        "oracle_text": (
+            "Flying\n"
+            "Whenever you create or sacrifice a token, each opponent loses 1 life."
+        ),
+    }
+    assert covers(mirkwood) is True
+    # Over-fire guard: generic "whenever a creature dies" drain is NOT token-specific —
+    # it belongs to the death/aristocrats lanes, not this token sub-avenue.
+    blood_artist = {
+        "name": "Blood Artist",
+        "type_line": "Creature — Vampire",
+        "oracle_text": (
+            "Whenever this creature or another creature dies, target player loses 1 "
+            "life and you gain 1 life."
+        ),
+    }
+    assert covers(blood_artist) is False
+
+
 def test_role_token_makers_open_enchantments_matter():
     # Role tokens are Aura ENCHANTMENTS (CR), so a commander that makes them (Gylwain,
     # Ellivere) is an enchantment commander — it wants enchantment-count payoffs

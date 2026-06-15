@@ -518,6 +518,23 @@ _GOWIDE_ANTHEM_EXTRA = SubAvenue(
     {"oracle": _GOWIDE_ANTHEM_ORACLE},
     serve=Serve(oracle=re.compile(_GOWIDE_ANTHEM_ORACLE, _IC)),
 )
+# Token-aristocrats drain: payoffs that fire on TOKEN creation / a token leaving and
+# bleed the table (Mirkwood Bats, Nadier's Nightblade, Rotwidow Pack). A token-flood
+# commander triggers these just by making tokens, so it wants them even without a sac
+# outlet. Token-SPECIFIC trigger (not the generic "whenever a creature dies" Blood
+# Artist, which needs deaths and is already served by the death/aristocrats lanes).
+_TOKEN_ARISTOCRAT_ORACLE = (
+    r"(?:create|sacrifice)s?[^.]*tokens?[^.]*each (?:opponent|player) loses"
+    r"|tokens? you control (?:leaves|dies)[^.]*"
+    r"(?:each (?:opponent|player)|that player) loses"
+)
+_TOKEN_ARISTOCRAT_EXTRA = SubAvenue(
+    "Token-aristocrats drain",
+    "payoffs that bleed the table whenever you make or lose a token (Mirkwood Bats, "
+    "Nadier's Nightblade)",
+    {"oracle": _TOKEN_ARISTOCRAT_ORACLE},
+    serve=Serve(oracle=re.compile(_TOKEN_ARISTOCRAT_ORACLE, _IC)),
+)
 # Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
 # she'd create into a copy of a chosen creature, so the more tokens she'd have made,
 # the more copies). Matches "create … creature token(s)" (Hornet Queen / Avenger of
@@ -3234,6 +3251,7 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 _TOKEN_DOUBLER_EXTRA,
                 _ETB_PAYOFF_EXTRA,
                 _GOWIDE_ANTHEM_EXTRA,
+                _TOKEN_ARISTOCRAT_EXTRA,
             ),
         )
     # tribal (type_matters) / typed spellcast: the cards themselves (type-line match),
