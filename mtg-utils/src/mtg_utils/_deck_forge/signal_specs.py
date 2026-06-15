@@ -904,6 +904,9 @@ _IMPULSE_SWEEP_REGEX = next(
 _THEFT_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "theft_matters"
 )
+_DISCARD_OUTLET_SWEEP_REGEX = next(
+    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "discard_outlet"
+)
 # Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
 # the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
 # (CR 115.1a) and BUFF it (gets +/gains) — an "each creature" anthem doesn't target (so
@@ -1750,12 +1753,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Impulse (top-of-YOUR-library exile-and-play): hand-written so the serve also
     # credits the "exile then cast it for as long as it remains exiled" engines
     # (Gonti, Hostage Taker, Thief of Sanity) the bare "play those cards this turn"
-    # sweep regex missed. Detector regex (commander side) is unchanged — same key,
-    # so the auto-register loop skips it.
+    # sweep regex missed, plus the cast-from-exile PAYOFFS an impulse deck triggers by
+    # casting its exiled cards (Wild-Magic Sorcerer: "the first spell you cast from
+    # exile … has cascade"). Detector regex (commander side) is unchanged.
     ("impulse_top_play", "you"): _spec(
         *SWEEP_LABELS["impulse_top_play"],
         {"oracle": _IMPULSE_SWEEP_REGEX},
-        _IMPULSE_SWEEP_REGEX + r"|" + _STEAL_CAST_ORACLE,
+        _IMPULSE_SWEEP_REGEX
+        + r"|"
+        + _STEAL_CAST_ORACLE
+        + r"|spells? you cast from exile|first spell you cast from exile",
     ),
     # Theft (steal an OPPONENT's cards and cast them): serve credits the opponent-
     # library dig (Gonti, Black Cat, Thief of Sanity) and the steal-and-cast engines
@@ -1788,6 +1795,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
         r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
         r"|draw [^.]*then discard",
+    ),
+    # Discard OUTLET commander (a loot/rummage engine): hand-written so the serve adds
+    # the discard PAYOFFS it powers ("whenever you discard …" — Containment Construct,
+    # Rielle, Glint-Horn Buccaneer) alongside the outlets the sweep regex already
+    # credits. Detector regex unchanged (same key → auto-register skips it).
+    ("discard_outlet", "you"): _spec(
+        *SWEEP_LABELS["discard_outlet"],
+        {"oracle": _DISCARD_OUTLET_SWEEP_REGEX},
+        _DISCARD_OUTLET_SWEEP_REGEX + r"|whenever you discard",
     ),
     # Drain. The serve required "opponent" adjacent to "loses", so it MISSED the
     # keystone aristocrats drains worded "target/that player loses N life" (Blood

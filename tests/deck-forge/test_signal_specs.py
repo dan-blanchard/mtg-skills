@@ -4177,3 +4177,53 @@ def test_gain_control_vs_theft_borrow_and_cast_are_distinct():
     # Their real home is theft_matters (play-what-you-don't-own).
     assert _lane_covers(GONTI, theft) is True
     assert _lane_covers(HOSTAGE_TAKER, theft) is True
+
+
+def test_impulse_top_play_serves_cast_from_exile_payoffs():
+    # An impulse commander exiles cards and casts them — so it wants the payoffs that
+    # reward casting from exile (Wild-Magic Sorcerer: "the first spell you cast from
+    # exile each turn has cascade"). Already served by cast_from_exile; impulse decks
+    # do the same thing and open impulse_top_play.
+    sig = _sig("impulse_top_play", "you")
+    wild_magic = {
+        "name": "Wild-Magic Sorcerer",
+        "type_line": "Creature — Human Wizard",
+        "oracle_text": (
+            "The first spell you cast from exile each turn has cascade. (When you "
+            "cast your first spell from exile, exile cards from the top of your "
+            "library until you exile a nonland card that costs less. You may cast it "
+            "without paying its mana cost. Put the exiled cards on the bottom in a "
+            "random order.)"
+        ),
+    }
+    assert _lane_covers(wild_magic, sig) is True
+    # Over-fire guard: a vanilla creature is not a cast-from-exile payoff.
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
+def test_discard_outlet_serves_discard_payoffs():
+    # A loot/rummage commander (Jaya Ballard, Alexi) discards a lot, so it wants the
+    # payoffs that reward discarding — Containment Construct turns each discard into a
+    # castable card. The auto-serve only credited other discard OUTLETS.
+    sig = _sig("discard_outlet", "you")
+    containment_construct = {
+        "name": "Containment Construct",
+        "type_line": "Artifact",
+        "oracle_text": (
+            "Whenever you discard a card, you may exile that card from your "
+            "graveyard. If you do, you may play that card this turn."
+        ),
+    }
+    assert _lane_covers(containment_construct, sig) is True
+    # Over-fire guard: a vanilla creature is not a discard payoff.
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
