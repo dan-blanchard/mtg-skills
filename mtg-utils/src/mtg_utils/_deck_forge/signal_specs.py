@@ -471,9 +471,6 @@ _FLICKER_ORACLE = (
     # Two-sentence form: "exile … . Return it/that … battlefield" (Charming Prince,
     # Flickerwisp) — crosses one sentence boundary, anchored to a return-pronoun.
     r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield"
-    # Death-return (Feign Death, undying): "when … dies, return it … battlefield"
-    # re-fires the ETB via death — an ETB-reuse payoff for blink/etb/ltb decks.
-    r"|dies, return (?:it|that card|them)[^.]*battlefield"
 )
 _FLICKER_EXTRA = SubAvenue(
     "Blink / flicker",
@@ -481,6 +478,21 @@ _FLICKER_EXTRA = SubAvenue(
     "(Ephemerate / Cloudshift / Conjurer's Closet)",
     {"preset_names": ("blink",)},
     serve=Serve(oracle=re.compile(_FLICKER_ORACLE, _IC)),
+)
+# Dies-recursion is a DISTINCT mechanic from flicker (CR: blink exiles to the exile
+# zone, 400.1; dies puts to the graveyard, 700.4 — different zones, 603.6c). Both
+# re-fire an ETB by making the creature leave and return, so an ETB-reuse / LTB
+# commander wants BOTH — but as SEPARATE avenues, never lumped into the flicker serve.
+# Mirrors the dies_recursion lane (bare dies-return grants + undying/persist).
+_DIES_RECURSION_ORACLE = next(
+    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "dies_recursion"
+)
+_DIES_RECURSION_EXTRA = SubAvenue(
+    "Dies-recursion",
+    "creatures that come back when they die — re-fire enter triggers via death "
+    "(Feign Death / Supernatural Stamina / undying / persist)",
+    {"oracle": _DIES_RECURSION_ORACLE},
+    serve=Serve(oracle=re.compile(_DIES_RECURSION_ORACLE, _IC)),
 )
 # Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
 # 603.6 zone-change triggers) and the ETB-trigger DOUBLERS that multiply every enter
@@ -1002,6 +1014,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _ETB_DOUBLER_EXTRA,
             _TRIGGER_COPY_EXTRA,
             _FLICKER_EXTRA,
+            _DIES_RECURSION_EXTRA,
         ),
     ),
     # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
@@ -1498,10 +1511,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # (Flickerwisp, Charming Prince). The pronoun anchor + single-period limit keep
         # an unrelated exile-removal-then-return-a-land off the lane.
         r"exile[^.]*?return[^.]*?battlefield"
-        r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield"
-        # Death-return (Feign Death, undying) re-fires the ETB via death.
-        r"|dies, return (?:it|that card|them)[^.]*battlefield",
-        extras=(_ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
+        r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield",
+        # Death-return is a distinct mechanic (dies_recursion), offered as its own
+        # avenue here — a blink deck re-uses ETBs via death too, but it isn't flicker.
+        extras=(_ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA, _DIES_RECURSION_EXTRA),
     ),
     ("mill_matters", "any"): _spec(
         "Mill",
@@ -2502,7 +2515,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|when (?:this|[A-Z][\w']+)[^.]*enters"
         r"|(?:a|an|another|one or more)[^.]*permanents? you control enters"
         r"|(?:artifact or creature|creature or artifact)[^.]*enter",
-        extras=(_FLICKER_EXTRA,),
+        extras=(_FLICKER_EXTRA, _DIES_RECURSION_EXTRA),
     ),
     # Serve was `…|\bequipment\b|whenever[^.]*attacks`, which matched any creature
     # that merely mentions equipment or attacks (~1104). The avenue is Equipment-for-a-
@@ -2567,8 +2580,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_not=r"exile [^.]*until [^.]*leaves the battlefield",
         # Flicker your own permanents to FIRE the LTB trigger (and a fresh ETB) on
         # demand — the "blink fodder" the blurb promises (Ghostly Flicker / Eerie
-        # Interlude). Reuses the precise flicker classifier.
-        extras=(_FLICKER_EXTRA,),
+        # Interlude). Reuses the precise flicker classifier. Death (dies) is also an LTB
+        # event (CR 603.6c), so dies-recursion is offered as its own avenue too.
+        extras=(_FLICKER_EXTRA, _DIES_RECURSION_EXTRA),
     ),
     # ── Keyword-coverage audit (CR 702/701) keyword[]-anchored avenues ──────────
     # Serve the keyword[] bearers via serve_keywords (Scryfall's authoritative field —

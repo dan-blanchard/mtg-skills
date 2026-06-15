@@ -4,6 +4,7 @@ Headline guard: a card that feeds an *opponents'-graveyard* signal must mill
 opponents, not yourself. Self-mill must NOT register as serving it.
 """
 
+from mtg_utils._deck_forge import signal_specs
 from mtg_utils._deck_forge.signal_specs import (
     search_filters,
     serve_from_dict,
@@ -3299,17 +3300,33 @@ def test_graveyard_lane_serves_etb_value_recursion_targets():
     assert _lane_covers(witness, sig)
 
 
-def test_flicker_extra_serves_death_return():
-    """'When this dies, return it to the battlefield' (Feign Death, undying) re-fires the
-    ETB via death — an ETB/blink/ltb commander (Gonti, Junji) wants it, so _FLICKER_EXTRA
-    (shared by those lanes) should serve it."""
-    feign = {
+def test_dies_recursion_and_flicker_are_separate_avenues_on_etb_lanes():
+    """Dies-recursion (death→return) and flicker (exile→return) are DISTINCT mechanics
+    (CR: graveyard 700.4 vs exile 400.1, both LTB per 603.6c). An ETB-reuse / LTB
+    commander wants BOTH — so the ETB/blink/ltb lanes carry them as SEPARATE avenues,
+    not one combined flicker serve."""
+    feign = {  # dies-recursion (death-return), NOT flicker
         "name": "Feign Death",
         "type_line": "Instant",
         "oracle_text": 'Until end of turn, target creature gains "When this creature dies, return it to the battlefield tapped under its owner\'s control with a +1/+1 counter on it."',
     }
-    assert _lane_covers(feign, _sig("blink_flicker"))
-    assert _lane_covers(feign, _sig("ltb_matters"))
+    ephemerate = {  # flicker (exile-return), NOT dies-recursion
+        "name": "Ephemerate",
+        "type_line": "Instant",
+        "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound",
+    }
+    # ETB-reuse / LTB lanes are served by BOTH mechanics.
+    for key in ("blink_flicker", "ltb_matters", "creature_etb", "permanent_etb"):
+        assert _lane_covers(feign, _sig(key)), f"{key} should serve dies-recursion"
+        assert _lane_covers(ephemerate, _sig(key)), f"{key} should serve flicker"
+    # But the mechanics are categorized SEPARATELY: the flicker sub-avenue serves
+    # exile-return, not death-return, and vice versa.
+    flicker_serve = serve_from_dict({"oracle": signal_specs._FLICKER_ORACLE})
+    dies_serve = serve_from_dict({"oracle": signal_specs._DIES_RECURSION_ORACLE})
+    assert flicker_serve.matches(ephemerate) is True
+    assert flicker_serve.matches(feign) is False  # death-return is not flicker
+    assert dies_serve.matches(feign) is True
+    assert dies_serve.matches(ephemerate) is False  # flicker is not death-return
 
 
 def test_tribal_lane_serves_type_agnostic_anthems():
