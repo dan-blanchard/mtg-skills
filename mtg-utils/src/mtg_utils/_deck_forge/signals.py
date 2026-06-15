@@ -2414,6 +2414,12 @@ def _fold_referenced_objects(
         name = part.get("name") or ""
         if name and name.lower() in low:
             extra.append(_object_oracle(resolve_object(name)))
+    # Meld result: the commander's plan is to meld into it (conditional on assembling
+    # both halves, but it IS the deck's payoff). One result per meld card, named
+    # structurally in all_parts, so no oracle disambiguation — fold it directly.
+    for part in card.get("all_parts") or []:
+        if part.get("component") == "meld_result":
+            extra.append(_object_oracle(resolve_object(part.get("name") or "")))
     # Rules-fixed objects: a trigger phrase maps to ONE global object (no need to
     # disambiguate; there is only one Ring, one Initiative dungeon). Read via
     # get_oracle_text — these DFCs keep their text on card_faces, not oracle_text.

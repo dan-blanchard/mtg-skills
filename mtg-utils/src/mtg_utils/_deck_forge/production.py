@@ -39,15 +39,25 @@ def build_object_resolver(cards: list[dict]) -> Callable[[str], dict | None]:
     `build_by_name` (you can't add one to a deck), so signal-extraction folding needs
     this separate raw-bulk lookup. Keyed by full name AND DFC front-face name, so a
     rules-fixed fold can resolve "The Ring" / "Undercity". Tiny (~dozen objects)."""
+    # Meld results are addable legendary creatures (also in `by_name`), but the folder
+    # only gets THIS resolver, so index them here too — identified by appearing as a
+    # `meld_result` component in some card's all_parts (Bruna → Brisela).
+    meld_results = {
+        p.get("name")
+        for c in cards
+        if isinstance(c, dict)
+        for p in (c.get("all_parts") or [])
+        if p.get("component") == "meld_result" and p.get("name")
+    }
     objects: dict[str, dict] = {}
     for c in cards:
         if not isinstance(c, dict):
             continue
         tl = (c.get("type_line") or "").lower()
-        if "dungeon" not in tl and "emblem" not in tl:
-            continue
         name = c.get("name") or ""
-        if not name:
+        if not name or (
+            "dungeon" not in tl and "emblem" not in tl and name not in meld_results
+        ):
             continue
         objects.setdefault(name, c)
         objects.setdefault(name.split(" // ")[0], c)  # front-face: The Ring, Undercity

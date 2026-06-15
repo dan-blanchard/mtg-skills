@@ -2277,3 +2277,59 @@ def test_ring_bearer_commander_folds_the_ring():
     assert "combat_damage_to_opp" not in {
         s.key for s in extract_signals(plain, resolve_object=resolver)
     }
+
+
+def test_meld_commander_folds_its_meld_result():
+    # ADR-0025: a meld commander's plan is to meld into its result, so fold the result's
+    # oracle (discovered via the meld_result all_parts component — one per card, no
+    # disambiguation). Bruna melds into Brisela, whose "opponents can't cast spells with
+    # mana value 3 or less" is a stax lock invisible from Bruna's own text. Real cards.
+    brisela_oracle = (
+        "Flying, first strike, vigilance, lifelink\n"
+        "Your opponents can't cast spells with mana value 3 or less."
+    )
+
+    def resolver(name):
+        if name == "Brisela, Voice of Nightmares":
+            return {
+                "name": "Brisela, Voice of Nightmares",
+                "type_line": "Legendary Creature — Eldrazi Angel",
+                "oracle_text": brisela_oracle,
+            }
+        return None
+
+    bruna = {
+        "name": "Bruna, the Fading Light",
+        "type_line": "Legendary Creature — Angel Horror",
+        "oracle_text": (
+            "When you cast this spell, you may return target Angel or Human creature "
+            "card from your graveyard to the battlefield.\n"
+            "Flying, vigilance\n"
+            "(Melds with Gisela, the Broken Blade.)"
+        ),
+        "all_parts": [
+            {
+                "component": "meld_part",
+                "type_line": "Legendary Creature — Angel Horror",
+                "name": "Gisela, the Broken Blade",
+            },
+            {
+                "component": "meld_result",
+                "type_line": "Legendary Creature — Eldrazi Angel",
+                "name": "Brisela, Voice of Nightmares",
+            },
+        ],
+    }
+    without = _keys(bruna)
+    withfold = {s.key for s in extract_signals(bruna, resolve_object=resolver)}
+    assert "stax_taxes" in withfold  # Brisela's "can't cast MV<=3" lock
+    assert "stax_taxes" not in without
+    # Over-fire guard: a non-meld commander folds nothing.
+    plain = {
+        "name": "Generic Bear",
+        "type_line": "Legendary Creature — Bear",
+        "oracle_text": "Vigilance",
+    }
+    assert "stax_taxes" not in {
+        s.key for s in extract_signals(plain, resolve_object=resolver)
+    }
