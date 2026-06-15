@@ -100,7 +100,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "debuff_matters",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "(?:other [a-z]+ creatures|nonblack creatures|all creatures|creatures) get -\\d/-\\d|gets? -\\d/-\\d until end of turn|gets -0/-x|gets -x/-x|creatures? (?:[^.]{0,40})?get -[0-9x]/-[0-9x]|put a -1/-1 counter on target|put (?:a|one|two|x|\\d+) -1/-1 counters? on",
+        "regex": "(?:other [a-z]+ creatures|nonblack creatures|all creatures|creatures) get -\\d/-\\d|gets? -\\d/-\\d until end of turn|gets -0/-x|gets -x/-x|creatures? (?:[^.]{0,40})?get -[0-9x]/-[0-9x]|put a -1/-1 counter on target|put (?:a|one|two|x|\\d+) -1/-1 counters? on|creatures? (?:target player|an opponent|your opponents|each opponent)[^.]*controls?[^.]*base power and toughness [0-2]/[0-2]",
     },
     {
         "key": "coin_flip",

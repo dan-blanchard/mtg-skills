@@ -1891,3 +1891,43 @@ def test_lifegain_payoff_matches_your_team_and_contraction():
         "oracle_text": "Trample",
     }
     assert "lifegain_matters" not in _keys(plain)
+
+
+def test_debuff_serves_opponent_mass_shrink():
+    # A -1/-1 debuff commander (Silumgar, the Drifting Death — "creatures defending
+    # player controls get -1/-1") wants mass-shrink effects that set OPPONENTS'
+    # creatures to a tiny base P/T (Mass Diminish, Flatline, Polymorphist's Jest).
+    # Those classify as base_pt_set, not the -N/-N debuff form, so the serve missed
+    # them. Real cards, full oracle.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    mass_diminish = {
+        "name": "Mass Diminish",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Until your next turn, creatures target player controls have base power "
+            "and toughness 1/1."
+        ),
+    }
+    assert lane_covers(mass_diminish, "debuff_matters", "any") is True
+    # Over-fire guard: setting YOUR creatures' base P/T (Mirror Entity pump) is NOT a
+    # debuff — the opponent-controls anchor must keep it out.
+    mirror = {
+        "name": "Mirror Entity",
+        "type_line": "Creature — Shapeshifter",
+        "oracle_text": (
+            "Changeling\n"
+            "{X}: Until end of turn, creatures you control have base power and "
+            "toughness X/X and gain all creature types."
+        ),
+    }
+    assert lane_covers(mirror, "debuff_matters", "any") is False
