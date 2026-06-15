@@ -1097,6 +1097,11 @@ _DAMAGE_AMPLIFIER_ORACLE = (
     r"|deals? double that (?:much )?damage"
     r"|deals? (?:that much|twice that much) damage to that "
     r"(?:player|creature'?s controller)"
+    # Granting DOUBLE STRIKE doubles the combat damage (and the combat-damage triggers)
+    # you push through — the same amplifier role (Duelist's Heritage, Berserkers'
+    # Onslaught). Keyed on the GRANT ("gains/have double strike"), so a bare vanilla
+    # double-striker's keyword line ("Double strike") isn't mistaken for an amplifier.
+    r"|(?:gains?|have) double strike"
 )
 _DAMAGE_AMPLIFIER_EXTRA = SubAvenue(
     "Damage / life-loss amplifiers",

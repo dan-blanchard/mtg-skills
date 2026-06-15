@@ -2105,3 +2105,39 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
         "keywords": ["Flying"],
     }
     assert lane_covers(sprite, "keyword_soup_matters") is False
+
+
+def test_combat_damage_serves_double_strike_granters():
+    # A combat-damage-to-player commander wants double-strike GRANTERS — granting double
+    # strike doubles the combat damage (and the combat-damage triggers) pushed through,
+    # the same amplifier role as Gratuitous Violence. Duelist's Heritage grants it each
+    # combat. Real cards, full oracle.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    duelist = {
+        "name": "Duelist's Heritage",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "At the beginning of combat on your turn, choose target attacking "
+            "creature. It gains double strike until end of turn."
+        ),
+    }
+    assert lane_covers(duelist, "combat_damage_to_opp", "opponents") is True
+    # Over-fire guard: a bare vanilla double-striker (the keyword on its own body, no
+    # grant) is just a body, not an amplifier — it must NOT match the amplifier extra.
+    vanilla_ds = {
+        "name": "Vanilla Double Striker",
+        "type_line": "Creature — Human Warrior",
+        "oracle_text": "Double strike",
+        "keywords": ["Double strike"],
+    }
+    assert lane_covers(vanilla_ds, "combat_damage_to_opp", "opponents") is False
