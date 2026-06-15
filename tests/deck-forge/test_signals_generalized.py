@@ -197,6 +197,41 @@ def test_blink_flicker_exile_other_target_then_return():
     assert "blink_flicker" in _keys(phelia)
 
 
+def test_self_etb_variable_damage_opens_flicker_and_clone():
+    # A commander whose own ETB deals VARIABLE damage ("deals damage equal to its
+    # power", "deals X damage") is a Flametongue-Kavu-style value ETB: flicker re-fires
+    # it, and (CMC >= 5) a clone re-fires it on a cheap body. The self-ETB payoff list
+    # matched numeric "deals N damage" but not the variable forms, so Dong Zhou opened
+    # no ETB-reuse avenue and missed Panharmonicon/Splinter Twin/Strionic Resonator.
+    # Membership-gated (commander-only); real oracle.
+    dong_zhou = {
+        "name": "Dong Zhou, the Tyrant",
+        "type_line": "Legendary Creature — Human Soldier",
+        "cmc": 5.0,
+        "oracle_text": (
+            "When Dong Zhou enters, target creature an opponent controls deals "
+            "damage equal to its power to that player."
+        ),
+    }
+    keys = {s.key for s in extract_signals(dong_zhou, include_membership=True)}
+    assert "blink_flicker" in keys
+    assert "clone_matters" in keys  # cmc 5 >= 5 -> worth copying
+    # Over-fire guard: an exile-removal ETB (Banisher Priest) is NOT a flicker payoff —
+    # damage/value verbs qualify, "exile target" does not (O-Ring rule). Real oracle.
+    banisher = {
+        "name": "Banisher Priest",
+        "type_line": "Creature — Human Cleric",
+        "cmc": 3.0,
+        "oracle_text": (
+            "When this creature enters, exile target creature an opponent controls "
+            "until this creature leaves the battlefield."
+        ),
+    }
+    assert "blink_flicker" not in {
+        s.key for s in extract_signals(banisher, include_membership=True)
+    }
+
+
 def test_goad_via_keyword_array_scoped_opponents():
     c = {
         "name": "Marisi-like",

@@ -2166,7 +2166,11 @@ _LOOT_FULLTEXT_RE = re.compile(
 _SELF_ETB_PAYOFF = (
     r"\b(?:draws?|create|creates|search|searches|look at|reveal|returns?"
     r"|gains? control|put[^.]*counter|mills?|investigate|scry|draft|copy"
-    r"|deals? \d+ damage)\b"
+    # Damage ETBs are value (Flametongue Kavu — flicker re-fires the burn): numeric
+    # "deals N damage" AND the variable forms "deals X damage" / "deals damage equal
+    # to …" (Dong Zhou, Ureni, Themberchaud, Jet). Distinct from exile/destroy removal
+    # (the O-Ring exclusion), which carries no "deals … damage".
+    r"|deals? (?:\d+|x) damage|deals? damage equal to)\b"
     # Modal ETBs ("When ~ enters, choose one —") are value triggers; the value verbs
     # sit in the bullet modes (separate clauses), so credit the modal template itself
     # (CR 700.2). "choose one/two/three/up to" is the modal marker — narrower than bare
