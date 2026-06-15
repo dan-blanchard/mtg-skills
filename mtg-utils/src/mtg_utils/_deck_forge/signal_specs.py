@@ -1660,6 +1660,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\btokens? you control\b"
         r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
         r"|\bpopulate\b",
+        # NB: token MAKERS are deliberately NOT in the serve — they're found by the
+        # search dict (build-time) but a maker is generically good (every deck runs
+        # some), not archetype-UNIQUE like a Goblin is to Goblins; serving all 2315
+        # would flood the lane (and broke the token-enters anchor guard + ranking sort).
         extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
     ),
     # The bare `your opponents` alternative matched any card that merely names opponents
