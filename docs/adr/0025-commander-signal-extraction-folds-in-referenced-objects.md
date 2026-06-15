@@ -56,7 +56,12 @@ may not be put there without that trace. Don't prose-scrape the dungeon name (us
 `all_parts` dungeons — that over-fires; it lists the rules-legal set, not the deterministic
 one. Don't "fix" generic venturers by folding a popular dungeon — generic venture having no
 specific folded dungeon is deliberate, not a gap. Don't rebuild folding for emblems — their
-text is already in-oracle and read. If a new object class appears (the Ring's levels are
-the obvious next instance; it is neither a card nor in `all_parts`, so it needs a small
-hardcoded definition), add it against the three gates rather than widening to "fold any
-card a commander references."
+text is already in-oracle and read. **Implemented instances:** ventured dungeon (oracle-
+named), the Ring and Initiative→Undercity (rules-fixed: a trigger phrase maps to one global
+object — the Ring turned out to BE in `all_parts` as an "Emblem // Card", not a hardcoded
+definition as first assumed), and the meld result (the `meld_result` `all_parts` component,
+one per card). The audit of every other `all_parts` type found the rest either already
+modeled (Experience/Monarch/Poison are counter/keyword signals, not foldable oracle) or
+diminishing (Speed has its own signal; signature cards are one-offs). If a genuinely new
+object class appears, add it against the three gates rather than widening to "fold any card
+a commander references."

@@ -181,8 +181,9 @@ _Avoid_: "rule", "requirement" (Templates never block).
 **Folded object**:
 A persistent game-object a commander's *own* abilities deterministically bring into its
 core strategy — the dungeon it ventures into (a *Ventured dungeon*), the emblem from its
-ultimate, the Ring it bears — whose rules-text effects are part of the commander's Signals
-even though they aren't (always) printed on the commander itself. The unifying idea: a
+ultimate, the Ring it bears, the creature it melds into (a meld *result*) — whose
+rules-text effects are part of the commander's Signals even though they aren't (always)
+printed on the commander itself. The unifying idea: a
 commander's effective oracle extends to the objects it reliably creates or enters. Where
 the object's text is *quoted in the commander's oracle* (an emblem) it is already read;
 where it lives on a *separate object* (a dungeon, the Ring) it must be joined in. The
