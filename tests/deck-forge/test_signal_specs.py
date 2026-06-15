@@ -90,6 +90,39 @@ def test_your_graveyard_signal_served_by_self_mill():
     assert serves(SELF_MILL, sig) is True
 
 
+def test_combat_damage_to_opp_serves_damage_amplifiers():
+    # A commander that deals combat damage to opponents (Shredder, Virtus) wants
+    # damage / life-loss AMPLIFIERS — Wound Reflection doubles opponents' life loss,
+    # Gratuitous Violence doubles creature damage. They sit in lifeloss_matters, a
+    # sibling lane the combat-damage commander never opened. Real oracle.
+    sig = _sig("combat_damage_to_opp", "opponents")
+    wound_reflection = {
+        "name": "Wound Reflection",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "At the beginning of each end step, each opponent loses life equal to the "
+            "life they lost this turn. (Damage causes loss of life.)"
+        ),
+    }
+    gratuitous = {
+        "name": "Gratuitous Violence",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "If a creature you control would deal damage to a permanent or player, it "
+            "deals double that damage to that permanent or player instead."
+        ),
+    }
+    assert _lane_covers(wound_reflection, sig) is True
+    assert _lane_covers(gratuitous, sig) is True
+    # Over-fire guard: a plain lifegain spell is not a damage amplifier.
+    lifegain = {
+        "name": "Healing Salve",
+        "type_line": "Instant",
+        "oracle_text": "You gain 3 life.",
+    }
+    assert _lane_covers(lifegain, sig) is False
+
+
 def test_blink_serves_self_bounce_recast_engines():
     # A blink/flicker deck wants self-bounce recast engines (Whitemane Lion, Kor
     # Skyfisher) — bouncing your own ETB creature and recasting re-fires the ETB, the

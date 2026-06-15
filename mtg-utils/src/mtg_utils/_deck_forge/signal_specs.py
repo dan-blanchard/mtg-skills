@@ -1005,6 +1005,25 @@ _PUMP_EXTRA = SubAvenue(
     {"oracle": _PUMP_ORACLE},
     serve=Serve(oracle=re.compile(_PUMP_ORACLE, _IC)),
 )
+# Damage / life-loss AMPLIFIERS — a commander that deals combat damage to opponents
+# wants its damage doubled (Gratuitous Violence, Furnace of Rath, Angrath's Marauders,
+# Gisela) or the resulting life loss reflected back (Wound Reflection, Fiendish Duo).
+# Combat damage IS life loss, so these are the payoff a combat-damage-to-opponents deck
+# is built to exploit.
+_DAMAGE_AMPLIFIER_ORACLE = (
+    r"loses? life equal to the life [^.]*lost this turn"
+    r"|would deal damage[^.]*(?:deals?|that source deals?) (?:double|twice)"
+    r"|deals? double that (?:much )?damage"
+    r"|deals? (?:that much|twice that much) damage to that "
+    r"(?:player|creature'?s controller)"
+)
+_DAMAGE_AMPLIFIER_EXTRA = SubAvenue(
+    "Damage / life-loss amplifiers",
+    "doublers that magnify the damage and life loss you push through (Gratuitous "
+    "Violence, Furnace of Rath, Wound Reflection, Fiendish Duo)",
+    {"oracle": _DAMAGE_AMPLIFIER_ORACLE},
+    serve=Serve(oracle=re.compile(_DAMAGE_AMPLIFIER_ORACLE, _IC)),
+)
 # Protecting the single suited-up threat IS the voltron support package (Mother of
 # Runes, Bastion Protector, Avacyn, Vexilus Praetor are top-synergy on EDHREC for
 # voltron commanders). Gate on GRANTING a shield keyword — hexproof / shroud /
@@ -1839,7 +1858,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA),
     ),
     ("combat_damage_to_opp", "opponents"): _sweep_spec_with_extras(
-        "combat_damage_to_opp", (_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA)
+        "combat_damage_to_opp",
+        (_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA, _DAMAGE_AMPLIFIER_EXTRA),
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,
