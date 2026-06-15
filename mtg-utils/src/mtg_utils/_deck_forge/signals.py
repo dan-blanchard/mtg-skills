@@ -785,6 +785,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # "Creature DIED this turn" payoff (Faramir draws, Sméagol tempts, Tobias makes
+    # Zombies, Ebondeath recasts) — an aristocrats payoff wanting sac fodder + outlets.
+    # death-specific ("died ... this turn"), so the broader "put into a graveyard from
+    # anywhere this turn" (mill/discard, → graveyard) stays out.
+    (
+        "death_matters",
+        re.compile(
+            r"creature[^.]*\bdied\b[^.]*this turn|creatures? that died this turn",
+            re.IGNORECASE,
+        ),
+        "any",
+    ),
     # Opponent-SHRINK (Maha: "Creatures your opponents control have base toughness 1") —
     # shrinking opponents' creatures combos with -1/-1 effects (toughness 1 + any -1/-1
     # = dead), so it's a debuff commander wanting -1/-1 anthems and wipes.

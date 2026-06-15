@@ -336,6 +336,34 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_creature_died_this_turn_payoff_opens_death():
+    # A commander that rewards "a creature died ... this turn" (Faramir draws, Sméagol
+    # tempts, Tobias makes Zombies, Ebondeath recasts) is an aristocrats payoff — it
+    # wants sac fodder and sac outlets, which death_matters serves. The "died under your
+    # control this turn" word order slipped past the existing died-this-turn detector.
+    faramir = {
+        "name": "Faramir, Field Commander",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "At the beginning of your end step, if a creature died under your control "
+            "this turn, draw a card."
+        ),
+    }
+    tobias = {
+        "name": "Tobias, Doomed Conqueror",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "Flash\nWhen Tobias dies, for each nontoken creature you controlled that "
+            "died this turn, create a 2/2 black Zombie creature token."
+        ),
+    }
+    assert ("death_matters", "any") in _ks(faramir)
+    assert ("death_matters", "any") in _ks(tobias)
+    # Over-fire guard: a vanilla creature has no death payoff.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("death_matters", "any") not in _ks(bear)
+
+
 def test_self_dies_recursion_opens_self_death_payoff():
     # A commander whose OWN death trigger RETURNS/recurs itself (Lucius exiles-and-
     # returns, The Scorpion God returns to hand) wants sac outlets to loop it +
