@@ -1780,6 +1780,38 @@ def _detect_self_blink_fulltext(text: str, name: str) -> str | None:
     return text[:160]
 
 
+# Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
+# "when ~ dies, <value>" trigger is the engine, so the deck wants to re-trigger that
+# death — dies-recursion to bring it back after the trigger, sac outlets to kill it on
+# demand, reanimation to recast. Distinct from aristocrats death_matters ("whenever A
+# creature you control dies" — CR 700.4, any creature) because it keys on the
+# commander ITSELF dying (its name or "this creature"). Value verbs only, so a bare
+# "when this dies, return it" (pure dies_recursion / a vanilla death) doesn't register.
+_SELF_DEATH_PAYOFF_RE = re.compile(
+    r"(?:each opponent|target opponent|each player|target player|that player"
+    r"|an opponent)[^.]*(?:loses?|discards?|sacrifices?)"
+    r"|you (?:may )?(?:draw|create|return|put|search)"
+    r"|deals? \d+ damage",
+    re.IGNORECASE,
+)
+
+
+def _detect_self_death_payoff(text: str, name: str) -> str | None:
+    first = ""
+    for w in re.split(r"\W+", name):
+        if len(w) > 2 and w.lower() not in _ARTICLES:
+            first = w
+            break
+    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    death = re.compile(rf"when (?:{alts})\b[^.]* dies", re.IGNORECASE)
+    if not (death.search(text) and _SELF_DEATH_PAYOFF_RE.search(text)):
+        return None
+    for clause in _clauses(text):
+        if death.search(clause):
+            return clause.strip()
+    return text[:160]
+
+
 # Beginning-of-combat single-target pump engine (Aurelia): the combat trigger and the
 # "gets +" payoff sit in different sentences, so the per-clause combat_buff_engine
 # sweep can't span them. Two-condition full-text check, anchored to your own creatures.
@@ -2065,6 +2097,9 @@ def extract_signals(
     self_blink_clause = _detect_self_blink_fulltext(text, name)
     if self_blink_clause is not None:
         add("self_blink", "you", "", self_blink_clause)
+    self_death_clause = _detect_self_death_payoff(text, name)
+    if self_death_clause is not None:
+        add("self_death_payoff", "you", "", self_death_clause)
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):

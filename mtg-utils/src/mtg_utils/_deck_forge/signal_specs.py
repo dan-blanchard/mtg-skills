@@ -494,6 +494,19 @@ _DIES_RECURSION_EXTRA = SubAvenue(
     {"oracle": _DIES_RECURSION_ORACLE},
     serve=Serve(oracle=re.compile(_DIES_RECURSION_ORACLE, _IC)),
 )
+# Activated sacrifice OUTLETS (Viscera Seer / Ashnod's Altar / Carrion Feeder): a cost
+# that sacs a creature/permanent, to kill a self-death-payoff commander on demand.
+_SAC_OUTLET_ORACLE = (
+    r"sacrifice (?:a|an|another|two|three|x|\d+) "
+    r"(?:creature|permanent|artifact|nonland)[^:.]{0,40}?:"
+)
+_SAC_OUTLET_EXTRA = SubAvenue(
+    "Sacrifice outlets",
+    "free/cheap activated sac outlets to kill your commander on demand and re-fire "
+    "its death trigger (Viscera Seer / Ashnod's Altar / Carrion Feeder)",
+    {"oracle": _SAC_OUTLET_ORACLE},
+    serve=Serve(oracle=re.compile(_SAC_OUTLET_ORACLE, _IC)),
+)
 # Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
 # 603.6 zone-change triggers) and the ETB-trigger DOUBLERS that multiply every enter
 # (Panharmonicon / Yarok). The value regex requires an enter trigger PLUS a value verb,
@@ -1265,6 +1278,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:draws? (?:a|an|\d+|x)|creates?|investigate|search your library"
         r"|gains? \d+ life)",
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
+    ),
+    # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
+    # "when ~ dies, <value>" trigger is the engine, so it wants to re-fire that death.
+    # Serves dies-recursion (return it after the trigger → repeat), sac outlets (kill it
+    # on demand), and reanimation (recast). Distinct from death_matters (aristocrats,
+    # OTHER creatures dying). Verified: Kokusho/Junji's top EDHREC synergy cards are
+    # exactly these dies-return grants.
+    ("self_death_payoff", "you"): _spec(
+        "Self-death payoff",
+        "ways to re-fire your commander's own death trigger — return it after death, "
+        "sacrifice it on demand, reanimate it",
+        {"oracle": _DIES_RECURSION_ORACLE},
+        _DIES_RECURSION_ORACLE,
+        extras=(_DIES_RECURSION_EXTRA, _SAC_OUTLET_EXTRA, _REANIMATION_EXTRA),
     ),
     # A forced/symmetric-sacrifice commander (Braids, Endrek Sahr — "each player
     # sacrifices") loses its OWN board too, so it wants recurring fodder to survive:

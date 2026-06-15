@@ -416,3 +416,41 @@ def test_populate_opens_token_copy_matters():
     }
     assert "token_copy_matters" in _keys(ghired)
     assert "token_copy_matters" in _keys(trostani)
+
+
+def test_self_death_payoff_opens_for_own_death_trigger():
+    # A commander whose OWN "when ~ dies, <value>" is the engine opens self_death_payoff
+    # (distinct from aristocrats death_matters — that keys on ANY creature dying). Real
+    # cards, full oracle text.
+    kokusho = {
+        "name": "Kokusho, the Evening Star",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "oracle_text": (
+            "Flying\n"
+            "When Kokusho dies, each opponent loses 5 life. You gain life equal to "
+            "the life lost this way."
+        ),
+    }
+    junji = {
+        "name": "Junji, the Midnight Sky",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "oracle_text": (
+            "Flying, menace\n"
+            "When Junji dies, choose one —\n"
+            "• Each opponent discards two cards and loses 2 life.\n"
+            "• Put target non-Dragon creature card from a graveyard onto the "
+            "battlefield under your control. You lose 2 life."
+        ),
+    }
+    assert "self_death_payoff" in _keys(kokusho)
+    assert "self_death_payoff" in _keys(junji)
+    # Over-fire guard: aristocrats (OTHER creatures dying) is NOT a self-death payoff.
+    blood_artist = {
+        "name": "Blood Artist",
+        "type_line": "Creature — Vampire",
+        "oracle_text": (
+            "Whenever Blood Artist or another creature dies, target player loses 1 "
+            "life and you gain 1 life."
+        ),
+    }
+    assert "self_death_payoff" not in _keys(blood_artist)
