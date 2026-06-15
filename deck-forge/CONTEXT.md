@@ -178,6 +178,38 @@ _Avoid_: "rule", "requirement" (Templates never block).
 
 ### Signal plumbing
 
+**Folded object**:
+A persistent game-object a commander's *own* abilities deterministically bring into its
+core strategy — the dungeon it ventures into (a *Ventured dungeon*), the emblem from its
+ultimate, the Ring it bears — whose rules-text effects are part of the commander's Signals
+even though they aren't (always) printed on the commander itself. The unifying idea: a
+commander's effective oracle extends to the objects it reliably creates or enters. Where
+the object's text is *quoted in the commander's oracle* (an emblem) it is already read;
+where it lives on a *separate object* (a dungeon, the Ring) it must be joined in. The
+card-backed separate objects are discovered through Scryfall's `all_parts` (the same link
+that finds a card's tokens), so the join is structured rather than prose-scraped. Gated to
+objects the commander's text brings in as its plan (not one-off references) that carry
+their own rules text.
+_Avoid_: treating these as flavor or as out-of-scope "deck context" — they are mechanically
+the commander's plan (Acererak's *Tomb of Annihilation* bleed is why its decks run lifegain).
+
+**Ventured dungeon** (a *Folded object*):
+The specific dungeon a commander deterministically enters, whose room oracle is read as
+an additional source of that commander's Signals — because the dungeon's effects are
+mechanically part of the commander's strategy even though they print on a separate card.
+*Tomb of Annihilation*'s rooms ("Each player loses 1 life", "…loses 2 life unless they
+sacrifice…") make *Acererak the Archlich* a self-bleed + sacrifice commander, which is
+why its decks run lifegain sustain (Demon's Horn) — a synergy invisible from Acererak's
+own text. The candidate dungeons are found in `all_parts` (which lists *all three* D&D
+dungeons for any venture card, so it can't disambiguate alone); the *specific* dungeon to
+fold is the one the commander's oracle names (Acererak → Tomb of Annihilation, whose ETB
+only stops bouncing him once ToA is completed) or that a rule fixes (the Initiative →
+Undercity). A generic "venture into the dungeon" names nothing — the player chooses — so no
+specific dungeon is folded; broad venture support covers it (picking one would need
+popularity, which the gate forbids).
+_Avoid_: "dungeon matters" (the contentless, generic version this replaces — the point is
+the *specific* dungeon's rooms, not dungeons in the abstract).
+
 **Signal key**:
 The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between
 the detector (`signals.py`, which emits it) and the exploitation map (`signal_specs.py`,
