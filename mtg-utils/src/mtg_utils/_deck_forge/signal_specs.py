@@ -1195,8 +1195,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"into your graveyard|from your graveyard|in your graveyard"
         r"|surveil\b|self-mill",
         # A graveyard/reanimator deck recurs creatures with strong ETBs (Fleshbag
-        # Marauder, Eternal Witness) and self-recurring fodder (Gravecrawler).
-        extras=(_ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA),
+        # Marauder, Eternal Witness), self-recurring fodder (Gravecrawler), and
+        # self-sacrificing creatures it loops for repeated value (Spore Frog).
+        extras=(_ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA, _SELF_SAC_CREATURE_EXTRA),
         # Cards whose graveyard mechanic is a KEYWORD (reminder text, stripped) — every
         # one uses your graveyard, so a graveyard deck wants them (CR 702.x).
         serve_keywords=(
@@ -1344,7 +1345,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|(?:dies|put into a graveyard)[^.]{0,45}?"
         r"(?:draws? (?:a|an|\d+|x)|creates?|investigate|search your library"
         r"|gains? \d+ life)",
-        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
+        extras=(
+            _SELF_RECUR_EXTRA,
+            _DEATH_DRAIN_EXTRA,
+            _BOARD_WIPE_EXTRA,
+            _SELF_SAC_CREATURE_EXTRA,
+        ),
     ),
     # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
     # "when ~ dies, <value>" trigger is the engine, so it wants to re-fire that death.
@@ -1377,7 +1383,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
         r"|whenever .* dies"
         r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
-        extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA, _BOARD_WIPE_EXTRA),
+        extras=(
+            _SELF_RECUR_EXTRA,
+            _DEATH_DRAIN_EXTRA,
+            _BOARD_WIPE_EXTRA,
+            _SELF_SAC_CREATURE_EXTRA,
+        ),
     ),
     # The bare word `haste` matched its reminder text and incidental mentions ("loses
     # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor

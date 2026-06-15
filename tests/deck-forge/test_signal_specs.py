@@ -4468,3 +4468,22 @@ def test_ninjutsu_serves_evasive_unblockable_enablers():
         "keywords": [],
     }
     assert _lane_covers(bear, sig) is False
+
+
+def test_aristocrats_graveyard_lanes_serve_self_sac_creatures():
+    # Self-sacrificing creatures (Selfless Spirit, Kami of False Hope, Spore Frog) die on
+    # demand and protect the board — sac-fodder a death/sacrifice/graveyard deck wants.
+    selfless_spirit = {
+        "name": "Selfless Spirit",
+        "type_line": "Creature — Spirit Cleric",
+        "oracle_text": (
+            "Flying\nSacrifice this creature: Creatures you control gain "
+            "indestructible until end of turn."
+        ),
+    }
+    for key in ("death_matters", "sacrifice_matters", "graveyard_matters"):
+        scope = "any" if key == "death_matters" else "you"
+        assert _lane_covers(selfless_spirit, _sig(key, scope)), key
+    # Over-fire guard: a vanilla creature is not sac-fodder via this extra.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert _lane_covers(bear, _sig("death_matters", "any")) is False
