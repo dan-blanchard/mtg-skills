@@ -645,6 +645,21 @@ _TYPE_MATTERS_PATTERNS = (
     # Rhino Mutant buffing Boars, so type-line membership can't supply the tribe).
     # The vocab gate drops the generic "Creatures you control can't be blocked".
     re.compile(r"\b([A-Za-z]+?)s? you control can't be blocked\b", re.IGNORECASE),
+    # Tribal SUPPORT that never says "Xs you control": a commander that BUFFS a TARGET
+    # of a type (Owen Grady: "put a … counter on target Dinosaur"; Otepec: "target
+    # Dinosaur gains haste"), TUTORS the tribe ("search … for a Dragon card" — Sivitri),
+    # WRATHS around it ("destroy all non-Dragon creatures" — Sivitri, Liliana Death's
+    # Majesty), or COST-REDUCES its spells ("Dragon spells you cast cost {1} less" —
+    # Nogi) is that tribe's commander. The subtype-vocab gate (_resolve_subject) keeps
+    # each precise; "destroy ALL non-X" excludes the non-X drawback/reward forms (Yukora
+    # "sacrifice all non-Ogre", Anim Pakal "attack with non-Gnome").
+    re.compile(r"counter on target ([A-Za-z]+?)\b", re.IGNORECASE),
+    re.compile(r"\btarget ([A-Za-z]+?) (?:gains?|gets [+\-])", re.IGNORECASE),
+    re.compile(
+        r"\bsearch (?:your library )?for (?:a|an) ([A-Za-z]+?) card", re.IGNORECASE
+    ),
+    re.compile(r"\bdestroy all non-([A-Za-z]+?) creatures?\b", re.IGNORECASE),
+    re.compile(r"\b([A-Za-z]+?) spells you cast cost\b", re.IGNORECASE),
 )
 # Two-tribe trigger: "a Goblin or Orc you control deals …" (Gorbag — an Orc, so
 # membership supplies Orc but never Goblin). Emit BOTH captured subtypes; the

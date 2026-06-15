@@ -1850,6 +1850,63 @@ def test_low_power_matters_opens_and_serves():
     assert lane_covers(bears, "low_power_matters") is False
 
 
+def test_tribal_support_without_you_control_opens_type_matters():
+    # A tribal-SUPPORT commander whose tribe reference isn't "Xs you control" — it buffs
+    # "target <Type>", tutors "a <Type> card", wraths "destroy all non-<Type>", or
+    # cost-reduces "<Type> spells" — is still that tribe's commander. Real oracle.
+    def subs(card):
+        return {
+            s.subject
+            for s in extract_signals(card, include_membership=True)
+            if s.key == "type_matters"
+        }
+
+    owen = {
+        "name": "Owen Grady, Raptor Trainer",
+        "type_line": "Legendary Creature — Human Soldier Scientist",
+        "oracle_text": (
+            "Partner with Blue, Loyal Raptor\n"
+            "{T}: Put your choice of a menace, trample, reach, or haste counter on "
+            "target Dinosaur. Activate only as a sorcery."
+        ),
+    }
+    sivitri = {
+        "name": "Sivitri, Dragon Master",
+        "type_line": "Legendary Planeswalker — Sivitri",
+        "oracle_text": (
+            "−3: Search your library for a Dragon card, reveal it, put it into your "
+            "hand, then shuffle.\n"
+            "−7: Destroy all non-Dragon creatures.\n"
+            "Sivitri, Dragon Master can be your commander."
+        ),
+    }
+    nogi = {
+        "name": "Nogi, Draco-Zealot",
+        "type_line": "Legendary Creature — Kobold Shaman",
+        "oracle_text": (
+            "Dragon spells you cast cost {1} less to cast.\n"
+            "Whenever Nogi attacks, if you control three or more Dragons, until end of "
+            "turn, Nogi becomes a Dragon with base power and toughness 5/5 and gains "
+            "flying."
+        ),
+    }
+    assert "Dinosaur" in subs(owen)
+    assert "Dragon" in subs(sivitri)  # tutor + wrath
+    assert "Dragon" in subs(nogi)  # cost reducer
+    # Over-fire guard: "non-<Type>" in a DRAWBACK ("sacrifice all non-Ogre creatures",
+    # Yukora) is NOT tribal support — only "destroy ALL non-<Type>" wraths around your
+    # own tribe.
+    yukora = {
+        "name": "Yukora, the Prisoner",
+        "type_line": "Legendary Creature — Demon Spirit",
+        "oracle_text": (
+            "When Yukora leaves the battlefield, sacrifice all non-Ogre creatures you "
+            "control."
+        ),
+    }
+    assert "Ogre" not in subs(yukora)  # "sacrifice all non-Ogre" drawback != tribal
+
+
 def test_mutagen_token_maker_opens_artifacts_matter():
     # Mutagen (TMNT) is a resource ARTIFACT token (sac for a +1/+1 counter, like
     # Food/Clue), so a Mutagen maker is an artifact deck — but "mutagen" was missing
