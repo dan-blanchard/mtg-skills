@@ -1147,6 +1147,21 @@ _DAMAGE_AMPLIFIER_EXTRA = SubAvenue(
     {"oracle": _DAMAGE_AMPLIFIER_ORACLE},
     serve=Serve(oracle=re.compile(_DAMAGE_AMPLIFIER_ORACLE, _IC)),
 )
+# Stacking cost reducers: a commander whose own text makes spells cost less (Stenn,
+# Thryx, Danitha, Umori) wants to STACK more category reducers (Cloud Key, Etherium
+# Sculptor, Helm of Awakening, Semblance Anvil) to go off — the cost_reduction lane
+# otherwise serves only the expensive bombs that EXPLOIT the discount, not the reducers
+# that compound it. Matches "<your/type> spells … cost {N} less"; the plural "spells"
+# excludes the self-only "this spell costs {X} less" (Ghalta), and "less" (not "more")
+# excludes the cost-increase taxes.
+_COST_REDUCER_ORACLE = r"\bspells\b[^.]{0,50}?\bcost \{?\d+\}? less"
+_COST_REDUCER_EXTRA = SubAvenue(
+    "Stack more cost reducers",
+    "category cost reducers that compound your discount to go off (Cloud Key, Etherium "
+    "Sculptor, Helm of Awakening, Baral)",
+    {"oracle": _COST_REDUCER_ORACLE},
+    serve=Serve(oracle=re.compile(_COST_REDUCER_ORACLE, _IC)),
+)
 # Protecting the single suited-up threat IS the voltron support package (Mother of
 # Runes, Bastion Protector, Avacyn, Vexilus Praetor are top-synergy on EDHREC for
 # voltron commanders). Gate on GRANTING a shield keyword — hexproof / shroud /
@@ -2015,10 +2030,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Abrupt Decay). Drop that branch; gate on cmc (expensive bombs) + {x} + storm.
     ("cost_reduction", "you"): _spec(
         "Cost reduction",
-        "expensive bombs and X-spells that exploit the discount",
+        "expensive bombs and X-spells that exploit the discount, plus more cost "
+        "reducers to stack the discount",
         {"oracle": r"\{x\}|with mana value"},
         r"\{x\}|\bstorm\b",
         serve_cmc_min=7,
+        extras=(_COST_REDUCER_EXTRA,),
     ),
     # Cast-from-exile MATTERS: payoffs + explicit "cast/play from exile" enablers (plot,
     # suspend, "whenever you cast a spell from exile", paradox). NOT impulse draw (its

@@ -1933,6 +1933,52 @@ def test_mutagen_token_maker_opens_artifacts_matter():
     assert "artifacts_matter" not in _keys(servo)
 
 
+def test_cost_reduction_serves_stacking_reducers():
+    # A cost-reduction commander (Stenn makes its chosen type cost {1} less) wants to
+    # STACK more category reducers to go off; the lane otherwise served only the bombs
+    # that exploit the discount. The reducer sub-avenue serves "<your/type> spells cost
+    # {N} less" (Cloud Key, Etherium Sculptor), excluding the self-only "this spell costs
+    # {X} less" (Ghalta) and the cost-increase taxes. Real oracle.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    stenn = {
+        "name": "Stenn, Paranoid Partisan",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "As Stenn enters, choose a card type other than creature or land.\n"
+            "Spells you cast of the chosen type cost {1} less to cast.\n"
+            "{1}{W}{U}: Exile Stenn. Return it to the battlefield under its owner's "
+            "control at the beginning of the next end step."
+        ),
+    }
+    assert "cost_reduction" in _keys(stenn)
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    etherium = {
+        "name": "Etherium Sculptor",
+        "type_line": "Artifact Creature — Vedalken Artificer",
+        "oracle_text": "Artifact spells you cast cost {1} less to cast.",
+    }
+    assert lane_covers(etherium, "cost_reduction", "you") is True
+    # Over-fire guard (isolates the reducer extra): a SELF-only "this spell costs {2}
+    # less" is not a stacking reducer — the plural "spells" anchor keeps it out. Use a
+    # fixed cost so the main {X}/storm serve doesn't catch it for unrelated reasons.
+    self_only = {
+        "name": "Self Discounter",
+        "type_line": "Creature — Beast",
+        "oracle_text": "This spell costs {2} less to cast.",
+    }
+    assert lane_covers(self_only, "cost_reduction", "you") is False
+
+
 def test_token_maker_serves_token_aristocrats_drain():
     # A token-flood commander (Endrek Sahr makes Thrulls) wants token-aristocrats drain
     # that fires on token CREATION (Mirkwood Bats) — it triggers just by going wide, no
