@@ -295,6 +295,29 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_opponent_shrink_opens_debuff():
+    # Maha shrinks opponents' creatures ("Creatures your opponents control have base
+    # toughness 1") — it combos with -1/-1 effects (toughness 1 + any -1/-1 = dead), so
+    # it's a debuff commander wanting -1/-1 anthems/wipes (Kaervek the Spiteful, Black
+    # Sun's Zenith). It opened base_pt_set/stax but not debuff_matters. Real oracle.
+    maha = {
+        "name": "Maha, Its Feathers Night",
+        "type_line": "Legendary Creature — Elemental Bird",
+        "oracle_text": (
+            "Flying, trample\nWard—Discard a card.\n"
+            "Creatures your opponents control have base toughness 1."
+        ),
+    }
+    assert ("debuff_matters", "you") in _ks(maha)
+    # Over-fire guard: a commander that buffs YOUR creatures is not a debuff commander.
+    buffer_cmd = {
+        "name": "Team Buffer",
+        "type_line": "Legendary Creature — Soldier",
+        "oracle_text": "Creatures you control get +1/+1.",
+    }
+    assert ("debuff_matters", "you") not in _ks(buffer_cmd)
+
+
 def test_treasure_care_opens_treasure_matters():
     # A commander that cares about Treasure without making it — "if the sacrificed
     # permanent was a Treasure" (Evereth), "sacrifice a Treasure" (Kain) — is a Treasure

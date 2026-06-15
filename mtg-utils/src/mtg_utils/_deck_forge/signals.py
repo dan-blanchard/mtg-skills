@@ -771,6 +771,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
+    # Opponent-SHRINK (Maha: "Creatures your opponents control have base toughness 1") —
+    # shrinking opponents' creatures combos with -1/-1 effects (toughness 1 + any -1/-1
+    # = dead), so it's a debuff commander wanting -1/-1 anthems and wipes.
+    (
+        "debuff_matters",
+        re.compile(
+            r"creatures your opponents control (?:have base (?:power|toughness)|get -)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Player-BURN source (Syr Konrad, Mogis, Go-Shintai, Nekusar) — a commander that
     # deals N/X damage to a player/opponent is a burn deck wanting burn payoffs and
     # damage doublers (direct_damage serves them). Distinct from damage_to_opp_matters,
