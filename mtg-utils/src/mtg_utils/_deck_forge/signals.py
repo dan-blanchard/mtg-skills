@@ -771,6 +771,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
+    # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
+    # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
+    # creatures (ramp_matters) and dork support (mana_amplifier).
+    (
+        "ramp_matters",
+        re.compile(r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "mana_amplifier",
+        re.compile(r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE),
+        "you",
+    ),
     # Beneficial RESOURCE counters — charge (Immard) and experience (Ezuri, Mizzix,
     # Meren) — accumulate for upside, so the commander wants PROLIFERATE (more charge to
     # spend, more experience). Gated to charge/experience only: a PENALTY counter

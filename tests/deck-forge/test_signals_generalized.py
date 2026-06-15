@@ -295,6 +295,28 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_mana_ability_payoff_opens_ramp():
+    # A commander that rewards "creatures you control with a mana ability" (Raggadragga
+    # buffs/untaps them) is a mana-dork deck — it wants mana-dork creatures (served by
+    # ramp_matters) and dork support (mana_amplifier). Niche (one commander) but precise.
+    raggadragga = {
+        "name": "Raggadragga, Goreguts Boss",
+        "type_line": "Legendary Creature — Frog Warrior",
+        "oracle_text": (
+            "Each creature you control with a mana ability gets +2/+2.\n"
+            "Whenever a creature you control with a mana ability attacks, untap it.\n"
+            "Whenever you cast a spell, if at least seven mana was spent to cast it, "
+            "untap target creature. It gets +7/+7 and gains trample until end of turn."
+        ),
+    }
+    ks = _ks(raggadragga)
+    assert ("ramp_matters", "you") in ks
+    assert ("mana_amplifier", "you") in ks
+    # Over-fire guard: a vanilla beater is not a mana-dork payoff.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("ramp_matters", "you") not in _ks(bear)
+
+
 def test_charge_and_experience_counters_open_proliferate():
     # A commander that accumulates a BENEFICIAL resource counter — charge (Immard) or
     # experience (Ezuri, Mizzix) — wants proliferate (pure upside: more charge to spend,
