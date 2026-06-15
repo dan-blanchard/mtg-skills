@@ -552,3 +552,33 @@ def test_self_etb_value_matches_whenever_and_plural_enter():
         ),
     }
     assert "blink_flicker" in _keys(roxanne)
+
+
+def test_self_counter_accumulator_opens_counters_matter():
+    # A commander that puts +1/+1 counters on ITSELF and cares about its COUNT
+    # (Sab-Sunen — "number of counters on it") is a +1/+1-counters commander; it should
+    # open counters_matter (counter sources/proliferate). The 2-condition check
+    # (accumulates AND cares about count) excludes incidental self-counter creatures
+    # (Thraximundar gets a counter but doesn't care about the count).
+    sab_sunen = {
+        "name": "Sab-Sunen, Luxa Embodied",
+        "type_line": "Legendary Creature — God",
+        "oracle_text": (
+            "Reach, trample, indestructible\n"
+            "Sab-Sunen can't attack or block unless it has an even number of counters "
+            "on it. (Zero is even.)\n"
+            "At the beginning of your first main phase, put a +1/+1 counter on "
+            "Sab-Sunen. Then if it has an odd number of counters on it, draw two cards."
+        ),
+    }
+    assert "counters_matter" in _keys(sab_sunen)
+    # Over-fire guard (generic fixture): accumulates a counter but no count-caring.
+    incidental = {
+        "name": "Incidental Counter Attacker",
+        "type_line": "Legendary Creature — Zombie",
+        "oracle_text": (
+            "Whenever a player sacrifices a creature, you may put a +1/+1 counter on "
+            "this creature."
+        ),
+    }
+    assert "counters_matter" not in _keys(incidental)

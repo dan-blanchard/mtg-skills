@@ -1912,6 +1912,25 @@ def _self_etb_value(text: str, name: str) -> str | None:
     return None
 
 
+def _detect_self_counter_payoff(text: str, name: str) -> bool:
+    """True if the commander puts +1/+1 counters on ITSELF and CARES about its counter
+    count (Sab-Sunen, Qala, Kyler) — a +1/+1-counters commander. The two-condition gate
+    (accumulate AND count-care) excludes incidental self-counter creatures that just get
+    a counter on attack/sacrifice without caring about the total (Thraximundar)."""
+    first = ""
+    for w in re.split(r"\W+", name):
+        if len(w) > 2 and w.lower() not in _ARTICLES:
+            first = w
+            break
+    alts = r"this creature|~" + (("|" + re.escape(first)) if first else "")
+    accumulate = re.compile(rf"put a \+1/\+1 counter on (?:{alts})\b", re.IGNORECASE)
+    count_care = re.compile(
+        rf"(?:number of|for each) (?:\+1/\+1 )?counters? on (?:it|itself|{alts})",
+        re.IGNORECASE,
+    )
+    return accumulate.search(text) is not None and count_care.search(text) is not None
+
+
 # Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
 # Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
 # verbs (gain control, opponents lose life, skip a step).
@@ -2128,6 +2147,8 @@ def extract_signals(
     self_death_clause = _detect_self_death_payoff(text, name)
     if self_death_clause is not None:
         add("self_death_payoff", "you", "", self_death_clause)
+    if _detect_self_counter_payoff(text, name):
+        add("counters_matter", "you", "", text[:160])
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
