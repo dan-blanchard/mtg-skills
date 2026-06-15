@@ -2485,14 +2485,18 @@ def extract_signals(
         if "lure_matters" in keys_now and "blocked_matters" not in keys_now:
             add("blocked_matters", "you", "", text[:160], "low")
         # SIGNIFICANT, repeated, unavoidable self-life-loss bleeds you out without
-        # sustain, so the engine wants lifegain to stay alive (Deadpool loses 3 each
-        # upkeep; cumulative-upkeep payers Gallowbraid/Morinfen; "you lose life equal
-        # to" sac engines like Greven). Gated to MEANINGFUL bleed (>=2 / cumulative /
-        # scaling) — a negligible "lose 1 life" rider on an attack/sac/value trigger
-        # won't deck you, so it stays out (the 79-commander over-broad lifeloss trap).
+        # sustain, so the engine wants lifegain to stay alive: (1) MEANINGFUL fixed/
+        # scaling bleed — upkeep lose >=2 (Deadpool), cumulative upkeep (Gallowbraid/
+        # Morinfen), "you lose life equal to" sac engines (Greven); (2) a PASSIVE death/
+        # LTB-triggered draw-AND-bleed engine (Kothophed loses 1 per opponent permanent
+        # dying — fast with wipes; Nikara, Tegwyll) — frequent and unavoidable, so the
+        # per-event 1 life still decks you. The negligible "lose 1 life" rider on a
+        # CONTROLLED attack/sac/value trigger stays out (the over-broad lifeloss trap).
         if re.search(
             r"at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
-            r"life|cumulative upkeep[^.]*life|you lose life equal to",
+            r"life|cumulative upkeep[^.]*life|you lose life equal to"
+            r"|whenever[^.]*(?:put into (?:a|their|your) graveyard|dies"
+            r"|leaves the battlefield)[^.]*you draw[^.]*you lose \d+ life",
             text,
             re.IGNORECASE,
         ):

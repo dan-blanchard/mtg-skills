@@ -1970,6 +1970,19 @@ def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
         ),
     }
     assert "lifegain_matters" in _keys(deadpool)
+    # A passive, frequent, unavoidable death-triggered draw-and-bleed engine (Kothophed
+    # loses 1 life per opponent permanent dying — fast with board wipes) also bleeds you
+    # out, so it wants lifegain even though each event is only 1 life.
+    kothophed = {
+        "name": "Kothophed, Soul Hoarder",
+        "type_line": "Legendary Creature — Demon",
+        "oracle_text": (
+            "Flying\n"
+            "Whenever a permanent owned by another player is put into a graveyard "
+            "from the battlefield, you draw a card and you lose 1 life."
+        ),
+    }
+    assert "lifegain_matters" in _keys(kothophed)
     # Over-fire guard: losing 1 life per attack is a negligible rider, not a bleed engine.
     azula = {
         "name": "Azula, On the Hunt",
