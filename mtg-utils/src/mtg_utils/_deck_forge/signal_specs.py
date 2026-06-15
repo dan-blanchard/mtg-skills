@@ -1374,12 +1374,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Sacrifice lane, 9.2x lift.)
         r"|(?:dies|put into a graveyard)[^.]{0,45}?"
         r"(?:draws? (?:a|an|\d+|x)|creates?|investigate|search your library"
-        r"|gains? \d+ life)",
+        r"|gains? \d+ life)"
+        # Death-trigger DOUBLER (Teysa Karlov, Drivnod) — the deaths-Panharmonicon, the
+        # aristocrats payoff multiplier. "creature dying" anchors it (ETB doublers say
+        # "entering"; the wipe-replacement "if a creature would die" lacks "causes a
+        # triggered ability").
+        r"|creature dying causes a triggered abilit",
         extras=(
             _SELF_RECUR_EXTRA,
             _DEATH_DRAIN_EXTRA,
             _BOARD_WIPE_EXTRA,
             _SELF_SAC_CREATURE_EXTRA,
+            # Dies-return GRANTERS (Feign Death, Supernatural Stamina, Undying Evil):
+            # loop a key creature with a sac outlet — core aristocrats fuel.
+            _DIES_RECURSION_EXTRA,
         ),
     ),
     # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
@@ -1412,12 +1420,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
         r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
         r"|whenever .* dies"
-        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b",
+        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b"
+        # Death-trigger DOUBLER (Teysa Karlov, Drivnod) — see sacrifice_matters.
+        r"|creature dying causes a triggered abilit",
         extras=(
             _SELF_RECUR_EXTRA,
             _DEATH_DRAIN_EXTRA,
             _BOARD_WIPE_EXTRA,
             _SELF_SAC_CREATURE_EXTRA,
+            # Dies-return granters (Feign Death, Undying Evil) — aristocrats loop fuel.
+            _DIES_RECURSION_EXTRA,
         ),
     ),
     # The bare word `haste` matched its reminder text and incidental mentions ("loses

@@ -123,6 +123,45 @@ def test_combat_damage_to_opp_serves_damage_amplifiers():
     assert _lane_covers(lifegain, sig) is False
 
 
+def test_aristocrats_lanes_serve_death_doublers_and_dies_return_grants():
+    # An aristocrats/death commander (Orca) wants death-trigger DOUBLERS (Teysa, Drivnod
+    # — the deaths-Panharmonicon) and dies-return GRANTERS (Feign Death, Supernatural
+    # Stamina — loop a key creature with a sac outlet). death/sacrifice served neither.
+    # Real oracle.
+    drivnod = {
+        "name": "Drivnod, Carnage Dominus",
+        "type_line": "Legendary Creature — Phyrexian Horror",
+        "oracle_text": (
+            "If a creature dying causes a triggered ability of a permanent you control "
+            "to trigger, that ability triggers an additional time."
+        ),
+    }
+    feign_death = {
+        "name": "Feign Death",
+        "type_line": "Instant",
+        "oracle_text": (
+            'Until end of turn, target creature gains "When this creature dies, '
+            "return it to the battlefield tapped under its owner's control with a "
+            '+1/+1 counter on it."'
+        ),
+    }
+    for key, scope in (("death_matters", "any"), ("sacrifice_matters", "you")):
+        sig = _sig(key, scope)
+        assert _lane_covers(drivnod, sig) is True, key
+        assert _lane_covers(feign_death, sig) is True, key
+    # Over-fire guard: an ETB-trigger doubler (Panharmonicon) is NOT a DEATH-trigger
+    # doubler — the death-doubler branch must require "creature dying", not "entering".
+    panharmonicon = {
+        "name": "Panharmonicon",
+        "type_line": "Artifact",
+        "oracle_text": (
+            "If an artifact or creature entering causes a triggered ability of a "
+            "permanent you control to trigger, that ability triggers an additional time."
+        ),
+    }
+    assert _lane_covers(panharmonicon, _sig("death_matters", "any")) is False
+
+
 def test_blink_serves_self_bounce_recast_engines():
     # A blink/flicker deck wants self-bounce recast engines (Whitemane Lion, Kor
     # Skyfisher) — bouncing your own ETB creature and recasting re-fires the ETB, the
