@@ -809,12 +809,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"create [^.]*\benchantment token", re.IGNORECASE),
         "you",
     ),
-    # Legendary-permanent trigger (Yomiji "whenever a legendary permanent ... is put
-    # into a graveyard", Cleopatra) — a legends-matter deck wanting legendary payoffs.
+    # Legends-matter: a commander that TUTORS legends (Captain Sisay "search your
+    # library for a legendary card"), BUFFS them (Dihada "target legendary creature
+    # gains"), counts/cost-reduces them, or triggers off them (Yomiji "whenever a
+    # legendary permanent ... is put into a graveyard"). All want legendary bombs.
     (
         "legends_matter",
         re.compile(
-            r"whenever (?:a|another|one or more) legendary (?:permanents?|creatures?)"
+            r"search your library for a legendary"
+            r"|target legendary (?:creature|permanent)"
+            r"|legendary (?:creatures?|permanents?|spells?) you (?:control|cast)"
+            r"|(?:number of|other) legendary"
+            r"|whenever (?:a|another|one or more) legendary (?:permanents?|creatures?)"
             r"[^.]*(?:enters|dies|put into a graveyard|leaves the battlefield"
             r"|you control)",
             re.IGNORECASE,

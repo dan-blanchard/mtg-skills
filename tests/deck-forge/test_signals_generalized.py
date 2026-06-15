@@ -368,6 +368,16 @@ def test_legendary_permanent_trigger_opens_legends():
         ),
     }
     assert ("legends_matter", "you") in _ks(yomiji)
+    # Also the TUTOR form (Captain Sisay) and BUFF form.
+    sisay = {
+        "name": "Captain Sisay",
+        "type_line": "Legendary Creature — Legend",
+        "oracle_text": (
+            "{T}: Search your library for a legendary card, reveal that card, put it "
+            "into your hand, then shuffle."
+        ),
+    }
+    assert ("legends_matter", "you") in _ks(sisay)
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert ("legends_matter", "you") not in _ks(bear)
 
