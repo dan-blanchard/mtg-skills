@@ -1610,6 +1610,58 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
     )
 
 
+def test_voltron_orthogonal_signals_do_not_suppress_fallback():
+    # A Background ("Choose a Background") is archetype-agnostic and conditional
+    # self-protection is a resilient-beater tell — neither is a non-voltron PLAN, so a
+    # commander whose ONLY signal is one of these reads as the vanilla voltron body it is
+    # (Wilson is a trampling bear to suit up; Thrun is an indestructible beater). A REAL
+    # engine still suppresses the fallback. Real oracle, full text.
+    wilson = {
+        "name": "Wilson, Refined Grizzly",
+        "type_line": "Legendary Creature — Bear Warrior",
+        "power": "4",
+        "oracle_text": (
+            "This spell can't be countered.\n"
+            "Vigilance, reach, trample\n"
+            "Ward {2} (Whenever this creature becomes the target of a spell or ability "
+            "an opponent controls, counter it unless that player pays {2}.)\n"
+            "Choose a Background (You can have a Background as a second commander.)"
+        ),
+    }
+    thrun = {
+        "name": "Thrun, Breaker of Silence",
+        "type_line": "Legendary Creature — Troll Shaman",
+        "power": "5",
+        "oracle_text": (
+            "This spell can't be countered.\n"
+            "Trample\n"
+            "Thrun can't be the target of nongreen spells your opponents control or "
+            "abilities from nongreen sources your opponents control.\n"
+            "During your turn, Thrun has indestructible."
+        ),
+    }
+    assert "voltron_matters" in {
+        s.key for s in extract_signals(wilson, include_membership=True)
+    }
+    assert "voltron_matters" in {
+        s.key for s in extract_signals(thrun, include_membership=True)
+    }
+    # Over-fire guard: a real ENGINE (here a spellslinger draw engine) IS a non-voltron
+    # plan — it suppresses the fallback even on an evasive power-2 body with no voltron
+    # override match.
+    spellslinger = {
+        "name": "Generic Spellslinger",
+        "type_line": "Legendary Creature — Human Wizard",
+        "power": "2",
+        "oracle_text": (
+            "Flying\nWhenever you cast an instant or sorcery spell, draw a card."
+        ),
+    }
+    assert "voltron_matters" not in {
+        s.key for s in extract_signals(spellslinger, include_membership=True)
+    }
+
+
 def test_sea_monster_tribal_group_covers_all_four_types():
     # The sea-monster types (Kraken/Leviathan/Octopus/Serpent) share one tribal identity
     # — no card rewards any member alone (Quest for Ula's Temple / Whelming Wave / Slinn

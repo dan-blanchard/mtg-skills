@@ -2070,6 +2070,11 @@ _VOLTRON_KEYWORDS = frozenset(
         "haste",
     }
 )
+# Signals that do NOT indicate a non-voltron PLAN, so they must not suppress the
+# voltron fallback: a Background is archetype-agnostic (Wilson is a vanilla bear to
+# suit up), and conditional self-protection is a resilient-beater tell (Thrun). A real
+# engine (attack/graveyard/tokens/spellcast) still suppresses; voltron isn't its plan.
+_VOLTRON_COMPAT_KEYS = frozenset({"partner_background", "conditional_self_protection"})
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -2818,7 +2823,19 @@ def extract_signals(
     # a generic plan, not a detected synergy. Commander-only at the deck level (see
     # include_membership); a 0/1 themeless wall is excluded by the power floor.
     type_line = card.get("type_line") or ""
-    has_strong = any(s.confidence == "high" and s.key not in _GENERIC_KEYS for s in out)
+    # A Background ("Choose a Background") is archetype-agnostic, and conditional self-
+    # protection (Thrun, Palladia-Mors: indestructible-on-your-turn / situational
+    # hexproof) is itself a voltron tell (a resilient beater; 60% want the equipment
+    # package vs 21.6% base). Neither indicates a NON-voltron plan, so neither silences
+    # the voltron fallback below; only a real engine does. Backgrounds-only commanders
+    # (Wilson) and self-protecting beaters (Thrun) then read as the vanilla voltron
+    # bodies they are, instead of being silenced by an orthogonal signal.
+    has_other_plan = any(
+        s.confidence == "high"
+        and s.key not in _GENERIC_KEYS
+        and s.key not in _VOLTRON_COMPAT_KEYS
+        for s in out
+    )
     try:
         power = int(str(card.get("power", "0")))
     except ValueError:
@@ -2855,7 +2872,7 @@ def extract_signals(
         add("voltron_matters", "you", "", "likely voltron commander", "low")
     if (
         include_membership
-        and not has_strong
+        and not has_other_plan
         and "creature" in type_line.lower()
         and (kws & _VOLTRON_KEYWORDS or power >= 2)
     ):
