@@ -1142,7 +1142,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "token_copy_matters",
         re.compile(
             r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of"
-            r"|create a token that's a copy",
+            r"|create a token that's a copy"
+            # Populate (CR 702.95) IS "create a token that's a copy of a creature token
+            # you control" — a token-copy commander (Ghired, Trostani). The serve
+            # already credits \bpopulate\b; the detector missed the keyword.
+            r"|\bpopulate\b",
             re.IGNORECASE,
         ),
         "you",

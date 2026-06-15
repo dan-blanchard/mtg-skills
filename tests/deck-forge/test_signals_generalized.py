@@ -388,3 +388,31 @@ def test_coverage_gate_flags_low_confidence_only():
     needs, reason = coverage_gate(c, sigs)
     assert needs is True
     assert reason == "low_confidence"
+
+
+def test_populate_opens_token_copy_matters():
+    # Populate (CR 702.95) IS "create a token that's a copy of a creature token you
+    # control" — a token-copy mechanic — so a populate commander opens token_copy_matters
+    # (the serve already credited populate; the detector missed the keyword).
+    ghired = {
+        "name": "Ghired, Conclave Exile",
+        "type_line": "Legendary Creature — Human Shaman",
+        "oracle_text": (
+            "When Ghired enters, create a 4/4 green Rhino creature token with "
+            "trample.\nWhenever Ghired attacks, populate. The token enters tapped "
+            "and attacking. (To populate, create a token that's a copy of a creature "
+            "token you control.)"
+        ),
+    }
+    trostani = {
+        "name": "Trostani, Selesnya's Voice",
+        "type_line": "Legendary Creature — Dryad",
+        "oracle_text": (
+            "Whenever another creature you control enters, you gain life equal to "
+            "that creature's toughness.\n"
+            "{1}{G}{W}, {T}: Populate. (Create a token that's a copy of a creature "
+            "token you control.)"
+        ),
+    }
+    assert "token_copy_matters" in _keys(ghired)
+    assert "token_copy_matters" in _keys(trostani)
