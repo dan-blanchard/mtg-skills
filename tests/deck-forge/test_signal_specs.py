@@ -4,8 +4,11 @@ Headline guard: a card that feeds an *opponents'-graveyard* signal must mill
 opponents, not yourself. Self-mill must NOT register as serving it.
 """
 
+import re
+
 from mtg_utils._deck_forge import signal_specs
 from mtg_utils._deck_forge.signal_specs import (
+    Serve,
     search_filters,
     serve_from_dict,
     serves,
@@ -16,6 +19,50 @@ from mtg_utils._deck_forge.signals import Signal, extract_signals
 
 def _sig(key, scope="you"):
     return Signal(key=key, scope=scope, subject="", text="", source="cmd")
+
+
+def test_serve_all_of_requires_every_subserve():
+    # AND-composition: a Serve with `all_of` matches only when EVERY sub-serve matches
+    # (each sub-serve is itself an OR-of-dimensions). Lets us express "dies-value AND
+    # cmc>=5" — a high-value clone target — which the flat OR-Serve could not.
+    big_dies = Serve(
+        all_of=(
+            Serve(oracle=re.compile(r"when .* dies", re.IGNORECASE)),
+            Serve(cmc_min=5),
+        )
+    )
+    kokusho = {
+        "name": "Kokusho",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "cmc": 6.0,
+        "oracle_text": "When Kokusho dies, each opponent loses 5 life.",
+    }
+    young_wolf = {  # has a dies trigger but cmc 1 — not a clone bomb
+        "name": "Young Wolf",
+        "type_line": "Creature — Wolf",
+        "cmc": 1.0,
+        "oracle_text": "Undying\nWhen Young Wolf dies, return it...",
+    }
+    big_vanilla = {  # cmc>=5 but no dies trigger
+        "name": "Big Dumb",
+        "type_line": "Creature — Beast",
+        "cmc": 7.0,
+        "oracle_text": "",
+    }
+    assert big_dies.matches(kokusho) is True
+    assert big_dies.matches(young_wolf) is False
+    assert big_dies.matches(big_vanilla) is False
+    # not_oracle still vetoes at the top level
+    veto = Serve(
+        all_of=(Serve(oracle=re.compile("when .* dies", re.IGNORECASE)),),
+        not_oracle=re.compile("each opponent", re.IGNORECASE),
+    )
+    assert veto.matches(kokusho) is False
+    # round-trips through as_dict / serve_from_dict
+    rebuilt = serve_from_dict(big_dies.as_dict())
+    assert rebuilt.matches(kokusho) is True
+    assert rebuilt.matches(young_wolf) is False
+    assert rebuilt.matches(big_vanilla) is False
 
 
 def _lane_covers(card, sig):
@@ -121,6 +168,53 @@ def test_combat_damage_to_opp_serves_damage_amplifiers():
         "oracle_text": "You gain 3 life.",
     }
     assert _lane_covers(lifegain, sig) is False
+
+
+def test_clone_serves_high_value_dies_trigger_creatures():
+    # A clone deck (The Ever-Changing 'Dane) copies high-mana-value creatures with a
+    # strong DEATH trigger — the copy re-fires the trigger when it dies (Kokusho drains,
+    # Keiga steals, Junji). clone served big bodies (power>=6) but not these (power 4-5,
+    # cmc 5-6). The serve needs "self-dies VALUE trigger AND mana value >= 5" — an AND
+    # the flat OR-Serve couldn't express. Real oracle.
+    sig = _sig("clone_matters", "you")
+    kokusho = {
+        "name": "Kokusho, the Evening Star",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "cmc": 6.0,
+        "power": "5",
+        "oracle_text": (
+            "Flying\nWhen Kokusho, the Evening Star dies, each opponent loses 5 life "
+            "and you gain life equal to the life lost this way."
+        ),
+    }
+    junji = {
+        "name": "Junji, the Midnight Sky",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "cmc": 5.0,
+        "power": "4",
+        "oracle_text": (
+            "Flying, menace\nWhen Junji, the Midnight Sky dies, choose one —\n"
+            "• Each opponent discards a card and loses 2 life.\n"
+            "• Put target non-Dragon creature card from a graveyard onto the "
+            "battlefield under your control. It's a Zombie in addition to its other "
+            "types."
+        ),
+    }
+    assert _lane_covers(kokusho, sig) is True
+    assert _lane_covers(junji, sig) is True
+    # Over-fire guard: a cmc-1 undying body has a dies trigger but is NOT a clone bomb.
+    young_wolf = {
+        "name": "Young Wolf",
+        "type_line": "Creature — Wolf",
+        "cmc": 1.0,
+        "power": "1",
+        "oracle_text": (
+            "Undying (When this creature dies, if it had no +1/+1 counters on it, "
+            "return it to the battlefield under its owner's control with a +1/+1 "
+            "counter on it.)"
+        ),
+    }
+    assert _lane_covers(young_wolf, sig) is False
 
 
 def test_ninjutsu_lane_serves_ninja_creatures():

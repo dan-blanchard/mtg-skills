@@ -78,17 +78,26 @@ class Serve:
     self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     not_oracle: re.Pattern[str] | None = None
+    # AND-composition: when non-empty, the card serves iff EVERY sub-serve matches
+    # (each sub-serve is its own OR-of-dimensions). Lets a serve require a conjunction
+    # the flat OR can't express — e.g. "self-dies VALUE trigger AND mana value >= 5" (a
+    # high-value clone target like Kokusho, excluding a cmc-1 undying body).
+    # ``not_oracle`` still vetoes at the top. When set, the OR dimensions on THIS serve
+    # are not consulted — put every condition into the sub-serves.
+    all_of: tuple[Serve, ...] = ()
 
     def search(self, text: str) -> re.Match[str] | None:
         """Back-compat: raw oracle-regex search over a string (legacy call sites)."""
         return self.oracle.search(text) if self.oracle is not None else None
 
     def matches(self, card: dict) -> bool:
-        """True if the card feeds this signal on ANY structured/oracle dimension and is
-        not vetoed by ``not_oracle``."""
+        """True if the card feeds this signal on ANY structured/oracle dimension (or,
+        when ``all_of`` is set, EVERY sub-serve) and isn't vetoed by ``not_oracle``."""
         oracle_text = get_oracle_text(card) or ""
         if self.not_oracle is not None and self.not_oracle.search(oracle_text):
             return False
+        if self.all_of:
+            return all(sub.matches(card) for sub in self.all_of)
         if self.names and (card.get("name") or "").lower() in self.names:
             return True
         if self.oracle is not None and self.oracle.search(oracle_text):
@@ -168,6 +177,8 @@ class Serve:
             out["names"] = sorted(self.names)
         if self.not_oracle is not None:
             out["not_oracle"] = self.not_oracle.pattern
+        if self.all_of:
+            out["all_of"] = [sub.as_dict() for sub in self.all_of]
         return out
 
     def is_structured(self) -> bool:
@@ -186,6 +197,7 @@ class Serve:
             or self.self_recur
             or self.names
             or self.not_oracle is not None
+            or bool(self.all_of)
         )
 
 
@@ -264,6 +276,7 @@ def serve_from_dict(data: dict) -> Serve:
         self_recur=bool(data.get("self_recur")),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
         not_oracle=_compile(data.get("not_oracle")),
+        all_of=tuple(serve_from_dict(d) for d in (data.get("all_of") or ())),
     )
 
 
@@ -851,6 +864,30 @@ _COPY_EXTRA = SubAvenue(
     "Mirror Box / Spark Double)",
     {"oracle": _COPY_ORACLE},
     serve=Serve(oracle=re.compile(_COPY_ORACLE, _IC)),
+)
+# High-value clone TARGETS: a creature with a strong self-DEATH trigger is worth
+# copying — the (nonlegendary) token re-fires the death payoff when it dies (Kokusho
+# drains, Keiga steals, Junji, The Scarab God). "When <Name> dies, <value>" is the
+# self-death form (capital after "when" = the card's own name; aristocrats use lowercase
+# "whenever a creature dies"). AND mana value >= 5 so a cmc-1 undying body (Young Wolf)
+# — which has a dies trigger but is no clone bomb — stays out. The AND is why Serve
+# grew all_of: power-6 (existing) catches big bodies; this catches the smaller
+# high-VALUE death dragons (power 4-5).
+_DIES_VALUE_ORACLE = (
+    r"when [A-Z][\w\-, ']*? dies,[^.]*(?:each opponent|gain control|loses? \d+ life"
+    r"|draws?|create|destroy|deals? \d+ damage|returns?)"
+)
+_CLONE_DIES_VALUE_EXTRA = SubAvenue(
+    "High-value death triggers to copy",
+    "high-mana-value creatures with a strong death trigger — clone them so the copy "
+    "re-fires it on death (Kokusho, Keiga, Junji, The Scarab God)",
+    {"oracle": _DIES_VALUE_ORACLE, "card_type": "Creature"},
+    serve=Serve(
+        all_of=(
+            Serve(oracle=re.compile(_DIES_VALUE_ORACLE, _IC)),
+            Serve(cmc_min=5),
+        )
+    ),
 )
 # Drawback creatures whose downside PUNISHES their controller — the donate target
 # (Abyssal Persecutor "you can't win", Flesh Reaver "deals damage to you", Demonic
@@ -2613,7 +2650,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # a copy of equipped creature"), Blade of Selves (myriad), Rite of Replication —
         # forms the bare "copy of target/that" serve missed (equipped/it/myriad). A copy
         # also ENTERS, so ETB payoffs (Impact Tremors) and doublers (Panharmonicon) hit.
-        extras=(_COPY_EXTRA, _ETB_PAYOFF_EXTRA, _ETB_DOUBLER_EXTRA),
+        # The dies-value extra adds the smaller high-VALUE death dragons (cmc>=5, power
+        # 4-5 — Kokusho/Keiga/Junji) the power-6 body floor missed.
+        extras=(
+            _COPY_EXTRA,
+            _ETB_PAYOFF_EXTRA,
+            _ETB_DOUBLER_EXTRA,
+            _CLONE_DIES_VALUE_EXTRA,
+        ),
     ),
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",
