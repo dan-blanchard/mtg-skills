@@ -1526,6 +1526,304 @@ def test_board_wide_counter_placement_opens_counters_matter():
     assert "counters_matter" not in _keys(self_grower)
 
 
+def test_voltron_override_opens_for_likely_voltron_commanders():
+    # Voltron is surfaced (the equipment/aura + protection package) even when another
+    # signal already fired, via three calibrated OVERRIDE criteria. Real oracle.
+    from mtg_utils._deck_forge.signals import (
+        _VOLTRON_EQUIP_RE,
+        _voltron_self_pump,
+        _voltron_self_unblockable,
+    )
+
+    # (D) Mirri grows herself on combat damage — opens voltron despite also opening
+    # combat_damage_to_creature (the named bug: the old fallback was suppressed).
+    mirri = {
+        "name": "Mirri the Cursed",
+        "type_line": "Legendary Creature — Vampire Cat",
+        "power": "3",
+        "oracle_text": (
+            "Flying, first strike, haste\n"
+            "Whenever Mirri deals combat damage to a creature, put a +1/+1 counter on "
+            "Mirri."
+        ),
+    }
+    mk = {s.key for s in extract_signals(mirri, include_membership=True)}
+    assert "voltron_matters" in mk
+    assert "combat_damage_to_creature" in mk  # both — the override no longer suppresses
+    # (C) Sram rewards casting Auras & Equipment (comma-list phrasing).
+    sram = {
+        "name": "Sram, Senior Edificer",
+        "type_line": "Legendary Creature — Dwarf Advisor",
+        "power": "2",
+        "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
+    }
+    assert "voltron_matters" in {
+        s.key for s in extract_signals(sram, include_membership=True)
+    }
+    # (F) Tromokratis (Kraken, 8/8) is self-unblockable — a fat evasive body.
+    tromokratis = {
+        "name": "Tromokratis",
+        "type_line": "Legendary Creature — Kraken",
+        "power": "8",
+        "oracle_text": (
+            "Tromokratis has hexproof unless it's attacking or blocking.\n"
+            "Tromokratis can't be blocked unless all creatures defending player "
+            "controls block it."
+        ),
+    }
+    assert "voltron_matters" in {
+        s.key for s in extract_signals(tromokratis, include_membership=True)
+    }
+    # Self-scope unit guards (isolate the override from the power>=2 path-B fallback):
+    # a counter on a NON-self target, and unblockable GRANTED to others, do not qualify.
+    assert (
+        _voltron_self_pump(
+            "Whenever this attacks, put a +1/+1 counter on each creature you control.",
+            "X",
+        )
+        is False
+    )
+    assert (
+        _voltron_self_unblockable(
+            "Whenever you cast a noncreature spell, target creature you control can't be "
+            "blocked this turn.",
+            "Bria, Riptide Rogue",
+        )
+        is False
+    )
+    # ...but the commander's OWN unblockability (real text, not stripped keyword
+    # reminders) does — this is what isolates (F) from the power>=2 path-B fallback.
+    assert (
+        _voltron_self_unblockable(
+            "Tromokratis can't be blocked unless all creatures defending player controls "
+            "block it.",
+            "Tromokratis",
+        )
+        is True
+    )
+    # (C) does not fire on a non-equipment commander (a pure token engine).
+    assert (
+        _VOLTRON_EQUIP_RE.search(
+            "Whenever you cast a creature spell, create a 4/4 black Zombie Warrior token."
+        )
+        is None
+    )
+
+
+def test_sea_monster_tribal_group_covers_all_four_types():
+    # The sea-monster types (Kraken/Leviathan/Octopus/Serpent) share one tribal identity
+    # — no card rewards any member alone (Quest for Ula's Temple / Whelming Wave / Slinn
+    # Voda always name all four). So a commander of one type (Lorthos = Octopus) must
+    # cover the whole group + the group-naming payoffs. Real oracle.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+
+    lorthos = {
+        "name": "Lorthos, the Tidemaker",
+        "type_line": "Legendary Creature — Octopus",
+        "oracle_text": (
+            "Whenever Lorthos attacks, you may pay {8}. If you do, tap up to eight "
+            "target permanents. Those permanents don't untap during their controllers' "
+            "next untap steps."
+        ),
+    }
+    octo_sig = next(
+        s
+        for s in extract_signals(lorthos, include_membership=True)
+        if s.key == "type_matters" and s.subject.lower() == "octopus"
+    )
+    sp = spec_for(octo_sig)
+
+    def covers(card):
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    # other group members by type-line (no oracle tribal text)
+    tromokratis = {
+        "name": "Tromokratis",
+        "type_line": "Legendary Creature — Kraken",
+        "oracle_text": (
+            "Tromokratis has hexproof unless it's attacking or blocking.\n"
+            "Tromokratis can't be blocked unless all creatures defending player "
+            "controls block it."
+        ),
+    }
+    stormtide = {
+        "name": "Stormtide Leviathan",
+        "type_line": "Creature — Leviathan",
+        "oracle_text": (
+            "Islandwalk\nAll lands are Islands in addition to their other types.\n"
+            "Creatures without flying or islandwalk can't attack."
+        ),
+    }
+    whelming = {
+        "name": "Whelming Wave",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Return all creatures to their owners' hands except for Krakens, "
+            "Leviathans, Octopuses, and Serpents."
+        ),
+    }
+    assert covers(tromokratis)  # Kraken body, no oracle tribal text
+    assert covers(stormtide)  # Leviathan body
+    assert covers(whelming)  # group-naming payoff (Sorcery, no creature type)
+    # Over-fire guard: a STANDALONE tribe (Goblin) must NOT pick up a sea monster — the
+    # group only applies to the four no-solo-identity types.
+    from mtg_utils._deck_forge.signals import Signal
+
+    gob = spec_for(
+        Signal(key="type_matters", scope="you", subject="Goblin", text="", source="")
+    )
+    assert gob.serve.matches(tromokratis) is False
+    assert not any(
+        (ex.serve or serve_from_dict(ex.search)).matches(tromokratis)
+        for ex in gob.extras
+    )
+
+
+def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
+    # Kazuul rewards opponents attacking YOU ("whenever a creature an opponent controls
+    # attacks ... you're the defending player, create an Ogre"), so it wants force-attack
+    # / goad to feed the trigger — but its phrasing matched no goad detector. Open
+    # goad_matters, and the lane's force-attack sub-avenue covers the force-ALL-attack
+    # cards (which carry no "goad" keyword). Real oracle, full text.
+    kazuul = {
+        "name": "Kazuul, Tyrant of the Cliffs",
+        "type_line": "Legendary Creature — Ogre Warrior",
+        "oracle_text": (
+            "Whenever a creature an opponent controls attacks, if you're the defending "
+            "player, create a 3/3 red Ogre creature token unless that creature's "
+            "controller pays {3}."
+        ),
+    }
+    assert "goad_matters" in _keys(kazuul)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    diplomats = {
+        "name": "Goblin Diplomats",
+        "type_line": "Creature — Goblin",
+        "oracle_text": "{T}: Each creature attacks this turn if able.",
+    }
+    warstoll = {
+        "name": "War's Toll",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever an opponent taps a land for mana, tap all lands that player "
+            "controls.\n"
+            "If a creature an opponent controls attacks, all creatures that opponent "
+            "controls attack if able."
+        ),
+    }
+    assert lane_covers(diplomats, "goad_matters", "opponents") is True
+    assert lane_covers(warstoll, "goad_matters", "opponents") is True
+    # Over-fire guard: a SELF forced-attack drawback (Juggernaut) is an aggressive beater,
+    # not a force-the-table effect — the plural/symmetric anchors must keep it out.
+    juggernaut = {
+        "name": "Juggernaut",
+        "type_line": "Artifact Creature — Juggernaut",
+        "oracle_text": (
+            "This creature attacks each combat if able.\n"
+            "This creature can't be blocked by Walls."
+        ),
+    }
+    assert lane_covers(juggernaut, "goad_matters", "opponents") is False
+
+
+def test_low_power_matters_opens_and_serves():
+    # Subira rewards "creature you control with power 2 or less"; the lane surfaces the
+    # small-creature payoffs (Raid Bombardment, Delney, Arabella). Anchored on "you
+    # control with power N or less" so removal and the vanilla power<=2 pool stay out.
+    # Real oracle, full text.
+    subira = {
+        "name": "Subira, Tulzidi Caravanner",
+        "type_line": "Legendary Creature — Human Shaman",
+        "oracle_text": (
+            "Haste\n"
+            "{1}: Another target creature with power 2 or less can't be blocked this "
+            "turn.\n"
+            "{1}{R}, {T}, Discard your hand: Until end of turn, whenever a creature you "
+            "control with power 2 or less deals combat damage to a player, draw a card."
+        ),
+    }
+    assert "low_power_matters" in _keys(subira)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    raid = {
+        "name": "Raid Bombardment",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever a creature you control with power 2 or less attacks, this "
+            "enchantment deals 1 damage to the player or planeswalker that creature "
+            "is attacking."
+        ),
+    }
+    assert lane_covers(raid, "low_power_matters") is True
+    # Over-fire guard 1: removal targeting a small creature is not a payoff for YOUR
+    # small creatures ("target", not "you control").
+    removal = {
+        "name": "Disfigure-like",
+        "type_line": "Instant",
+        "oracle_text": "Destroy target creature with power 2 or less.",
+    }
+    assert "low_power_matters" not in _keys(removal)
+    assert lane_covers(removal, "low_power_matters") is False
+    # Over-fire guard 2: a vanilla small body is not on-theme fodder (no power_max serve).
+    bears = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert lane_covers(bears, "low_power_matters") is False
+
+
+def test_mutagen_token_maker_opens_artifacts_matter():
+    # Mutagen (TMNT) is a resource ARTIFACT token (sac for a +1/+1 counter, like
+    # Food/Clue), so a Mutagen maker is an artifact deck — but "mutagen" was missing
+    # from the artifact-token-maker vocabulary, so April O'Neil (makes a Mutagen every
+    # spell) and the Mutant commanders opened no artifact lane. Real oracle.
+    april = {
+        "name": "April O'Neil, Human Element",
+        "type_line": "Legendary Creature — Human Detective",
+        "oracle_text": (
+            "Whenever a player casts an artifact, instant, or sorcery spell, you create "
+            "a Mutagen token. (It's an artifact with \"{1}, {T}, Sacrifice this token: "
+            'Put a +1/+1 counter on target creature. Activate only as a sorcery.")'
+        ),
+    }
+    assert "artifacts_matter" in _keys(april)
+    # Over-fire guard: a "create a <subtype> artifact CREATURE token" go-wide maker is a
+    # tokens deck, not an artifacts deck — the addition is resource-token-subtype-only,
+    # never the bare parent word "artifact", so a Servo maker stays out.
+    servo = {
+        "name": "Generic Servo Maker",
+        "type_line": "Creature — Artificer",
+        "oracle_text": "{T}: Create a 1/1 colorless Servo artifact creature token.",
+    }
+    assert "artifacts_matter" not in _keys(servo)
+
+
 def test_role_token_makers_open_enchantments_matter():
     # Role tokens are Aura ENCHANTMENTS (CR), so a commander that makes them (Gylwain,
     # Ellivere) is an enchantment commander — it wants enchantment-count payoffs

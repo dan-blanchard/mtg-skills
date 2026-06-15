@@ -429,6 +429,22 @@ _PILLOWFORT_EXTRA = SubAvenue(
     {"oracle": _PILLOWFORT_ORACLE},
     serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
 )
+# Force-the-attack: effects that make ALL / your opponents' creatures attack each combat
+# (Goblin Diplomats, War's Toll, Warmonger Hellkite, Disrupt Decorum) — they feed a
+# "rewards being attacked / any-player attack" payoff (Kazuul). Plural/symmetric anchors
+# ("all creatures", "each creature", "creatures <opp> controls") exclude the self
+# forced-attack drawback ("this creature attacks each combat if able" — Juggernaut).
+_FORCE_ATTACK_ORACLE = (
+    r"all creatures attack[^.]*if able|each creature attacks[^.]*if able"
+    r"|creatures (?:that|an) (?:opponent|player)s? controls? attack[^.]*if able"
+)
+_FORCE_ATTACK_EXTRA = SubAvenue(
+    "Force the attack",
+    "effects that make all (or your opponents') creatures attack, feeding goad / "
+    "rewards-for-being-attacked payoffs (Goblin Diplomats, War's Toll, goad)",
+    {"oracle": _FORCE_ATTACK_ORACLE},
+    serve=Serve(oracle=re.compile(_FORCE_ATTACK_ORACLE, _IC)),
+)
 _SPELLSLINGER_SPEC = _spec(
     "Spellslinger",
     "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
@@ -1776,7 +1792,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "goad and forced-attack effects that point creatures at your opponents",
         {"preset_names": ("goad",)},
         r"\bgoad",
-        extras=(_PILLOWFORT_EXTRA,),  # politics: make yourself a bad target too
+        # politics: make yourself a bad target too; force-attack: feed the payoff by
+        # making opponents swing (Kazuul rewards being attacked).
+        extras=(_PILLOWFORT_EXTRA, _FORCE_ATTACK_EXTRA),
     ),
     # Fog / damage-prevention commanders durdle defensively — pillowfort is a top
     # EDHREC pick for them (4 commanders in the evidence). Keep the mined fog regex.
@@ -2290,6 +2308,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # for Vehicle spells (Oviya, Intrepid Stablemaster), not just core text.
         r"\bvehicles? you control\b|\bcrew\b|create [^.]*vehicle artifact"
         r"|\bvehicles? (?:card|spell)s?\b",
+    ),
+    ("low_power_matters", "you"): _spec(
+        "Small creatures matter",
+        "payoffs and anthems that reward your low-power creatures attacking and going "
+        "wide (Raid Bombardment, Reconnaissance Mission)",
+        {"oracle": r"creatures? you control with power \d+ or (?:less|fewer)"},
+        # Oracle-only: the "you control with power N or less" anchor is what the payoffs
+        # share; NO power_max serve (it would flood the lane with vanilla small bodies).
+        r"creatures? you control with power \d+ or (?:less|fewer)",
     ),
     ("scry_surveil_matters", "you"): _spec(
         "Scry / surveil matters",
@@ -3153,6 +3180,27 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
     )
 
 
+# Tribal SYNONYM-GROUPS: creature types that share one tribal identity because no card
+# rewards any member ALONE — they are always named together. The "sea monster" group is
+# the canonical case (Quest for Ula's Temple, Slinn Voda, Whelming Wave, Kenessos all
+# enumerate "Kraken, Leviathan, Octopus, and Serpent"), so a commander of any one type
+# (Lorthos = Octopus, Tromokratis = Kraken, Koma = Serpent) wants the whole group. ONLY
+# groups whose members have NO standalone tribe belong here: Angel/Demon/Dragon and
+# Vampire/Werewolf/Zombie are deliberately EXCLUDED — each is a real solo tribe (Lyra
+# Angels, Edgar vampires), so grouping them would over-fire a mono-tribe commander.
+_TRIBAL_GROUPS: tuple[frozenset[str], ...] = (
+    frozenset({"kraken", "leviathan", "octopus", "serpent"}),
+)
+
+
+def _tribal_group(subj: str) -> frozenset[str] | None:
+    sl = subj.lower()
+    for grp in _TRIBAL_GROUPS:
+        if sl in grp:
+            return grp
+    return None
+
+
 def _subject_spec(signal: Signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
@@ -3195,11 +3243,30 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # Type-agnostic tribal enablers grant the chosen type to your board (Xenograft,
     # Arcane Adaptation), so they count for EVERY tribe — credit the "every creature
     # type" / "the chosen type" grant phrasings, not just changelings.
-    serve_oracle = rf"\b{esc}s?\b" + (
+    # Synonym-GROUP tribes (sea monsters): a member type's serve covers the WHOLE group,
+    # by type-line AND by the group-naming payoff oracle (Whelming Wave). card_search's
+    # card_type is substring-only (no OR), so each OTHER member gets its own search
+    # sub-avenue to pull its bodies; the widened serve credits them all.
+    group = _tribal_group(subj) if is_type_tribal else None
+    members = sorted(group) if group else [subj.lower()]
+    type_alt = "|".join(re.escape(m) for m in members)
+    serve_oracle = rf"\b(?:{type_alt})s?\b" + (
         r"|(?:is|are) every creature type|(?:is|are) the chosen type"
         if is_type_tribal
         else ""
     )
+    group_extras: tuple[SubAvenue, ...] = ()
+    if group:
+        group_extras = tuple(
+            SubAvenue(
+                f"{m.capitalize()}s",
+                f"{m.capitalize()} bodies in the {subj} group",
+                {"card_type": m},
+                serve=Serve(types=frozenset({m})),
+            )
+            for m in members
+            if m != subj.lower()
+        )
     return SignalSpec(
         label=label_t.format(s=subj),
         avenue=avenue_t.format(s=subj),
@@ -3210,10 +3277,10 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # not only the oracle "Xs you control" payoff phrasing. Without this,
             # vanilla / oracle-silent members (Dread Shade, Llanowar Elves) were
             # dropped — fatal for lord-less tribes (Shade/Kraken/Yeti read 0/10).
-            types=frozenset({subj.lower()}) if is_type_tribal else frozenset(),
+            types=frozenset(members) if is_type_tribal else frozenset(),
             keywords=frozenset({"changeling"}) if is_type_tribal else frozenset(),
         ),
-        extras=(_payoff_extra(subj, esc),),
+        extras=(_payoff_extra(subj, esc), *group_extras),
     )
 
 

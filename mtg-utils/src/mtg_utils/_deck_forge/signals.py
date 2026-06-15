@@ -835,7 +835,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(
             r"(?:target creature|another target creature|each other creature)"
             r"[^.]*attacks?[^.]*\bif able\b"
-            r"|whenever (?:a|another) player attacks",
+            r"|whenever (?:a|another) player attacks"
+            # (3) DEFENDING-player payoff (Kazuul): "whenever a creature an opponent
+            # controls attacks ... you're the defending player, <reward>" rewards
+            # opponents swinging at YOU, so it wants force-attack / goad to feed it.
+            r"|creature an opponent controls attacks[^.]*"
+            r"(?:you're|you are) the defending player",
             re.IGNORECASE,
         ),
         "opponents",
@@ -848,6 +853,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "counters_matter",
         re.compile(r"power greater than its base power", re.IGNORECASE),
+        "you",
+    ),
+    # Small-creatures-matter (Subira, Delney, Arabella, Ezuri): a commander that rewards
+    # or buffs "creature(s) YOU CONTROL with power N or less" runs a go-wide weenie deck
+    # and wants the small-creature payoffs (Raid Bombardment, Reconnaissance Mission).
+    # Anchored on "you control with power N or less" so removal ("destroy a target
+    # with power N or less") and evasion-bypass ("can't be blocked by creatures with
+    # power N or greater") — never "you control" — stay out. Oracle-only serve (no
+    # power_max: that would credit every power<=2 vanilla as on-theme fodder).
+    (
+        "low_power_matters",
+        re.compile(
+            r"creatures? you control with power \d+ or (?:less|fewer)", re.IGNORECASE
+        ),
         "you",
     ),
     # Spellslinger recaster/copier (Mavinda recasts from the yard, Velomachus casts off
@@ -1085,7 +1104,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Blood / Gold / etc. are artifact tokens (CR 205.3g), so a maker feeds
             # affinity / metalcraft / Academy Manufactor (Goldspan, Gyome, Korvold).
             r"|create[^.]*\b(?:treasure|food|clue|blood|gold|map|powerstone"
-            r"|junk|incubator|lander)\b[^.]*token"
+            # Mutagen (TMNT) is a resource artifact token — sac for a +1/+1 counter,
+            # like Food/Clue — so its makers (April O'Neil, Donatello, the Mutant
+            # commanders) are artifact decks. NOT the bare parent word "artifact": a
+            # "create a Servo/Thopter artifact CREATURE token" go-wide maker is a tokens
+            # deck, not an artifacts deck, so only the resource-token subtypes belong.
+            r"|junk|incubator|lander|mutagen)\b[^.]*token"
             # Metalcraft (CR 207.2c ability word: "control three or more artifacts") is
             # an artifacts deck; the italic word prints in the oracle, so match it.
             r"|\bmetalcraft\b"
@@ -2046,6 +2070,42 @@ _VOLTRON_KEYWORDS = frozenset(
         "haste",
     }
 )
+# LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
+# signal already fired — the single-big-threat plan co-exists with combat/counter
+# engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
+# (C) Equip/aura PAYOFF in the commander's own oracle — 90% precision / 4.2x lift. The
+# strongest, ungated signal: a commander that rewards equipped/enchanted creatures or
+# casting Auras & Equipment IS the voltron payoff. The "aura … equipment" co-mention
+# catches list forms ("cast an Aura, Equipment, or Vehicle spell" — Sram).
+_VOLTRON_EQUIP_RE = re.compile(
+    r"equipped creature|enchanted creature|\breconfigure\b|\bequip \{"
+    r"|attach[^.]*(?:equipment|aura)|aura[^.]{0,30}equipment|equipment[^.]{0,30}aura"
+    r"|cast an? (?:aura|equipment)|(?:equipment|aura)s? you control"
+    r"|for each (?:equipment|aura)",
+    re.IGNORECASE,
+)
+
+
+def _voltron_self_pump(text: str, name: str) -> bool:
+    """True if the commander GROWS ITSELF on combat damage (Mirri: 'whenever Mirri deals
+    combat damage …, put a +1/+1 counter on Mirri') — the canonical voltron growth loop.
+    Self-scoped (this creature / itself / its name) so a counter placed on 'target' /
+    'another' / 'each' creature (a go-wide counters payoff) does NOT qualify."""
+    alts = "|".join(["this creature", "itself", *_self_name_alts(name)])
+    pat = re.compile(
+        rf"deals combat damage[^.]*put a \+1/\+1 counter on (?:{alts})\b", re.IGNORECASE
+    )
+    return pat.search(text) is not None
+
+
+def _voltron_self_unblockable(text: str, name: str) -> bool:
+    """True if the COMMANDER ITSELF can't be blocked (Tromokratis) — an unblockable fat
+    body is a prime voltron threat. Self-scoped so a grant to 'target creature you
+    control' / 'creatures you control' (go-wide evasion — Bria) does NOT qualify;
+    parenthetical landwalk reminders are already stripped before this runs."""
+    alts = "|".join(["this creature", "this permanent", *_self_name_alts(name)])
+    pat = re.compile(rf"(?:{alts}) can'?t be blocked", re.IGNORECASE)
+    return pat.search(text) is not None
 
 
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
@@ -2775,6 +2835,24 @@ def extract_signals(
         and kws & {"hexproof", "indestructible", "shroud"}
     ):
         add("voltron_matters", "you", "", "hexproof/indestructible beater", "low")
+    # Likely-voltron OVERRIDES: open the equipment/aura avenue even when a strong signal
+    # already fired (voltron co-exists with combat/counter engines: Mirri is both). Each
+    # criterion is the single-big-threat plan, calibrated to clear the mechanical bar
+    # (see _VOLTRON_EQUIP_RE / _voltron_self_pump / _voltron_self_unblockable). Double
+    # strike alone is NOT here: it over-fires on token go-wide engines (Oketra), so it
+    # stays in the path-B fallback below.
+    if (
+        include_membership
+        and "creature" in type_line.lower()
+        and (
+            _VOLTRON_EQUIP_RE.search(text)  # (C) equip/aura payoff: 90% precision
+            or (power >= 2 and _voltron_self_pump(text, name))  # (D) Mirri self-growth
+            or (
+                power >= 4 and _voltron_self_unblockable(text, name)
+            )  # (F) self-unblock
+        )
+    ):
+        add("voltron_matters", "you", "", "likely voltron commander", "low")
     if (
         include_membership
         and not has_strong
