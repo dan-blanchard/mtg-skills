@@ -295,6 +295,34 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_gain_control_commander_also_opens_theft_matters():
+    # A battlefield-steal commander (Dragonlord Silumgar "gain control of target
+    # creature") and a borrow-and-cast theft commander are facets of the SAME stealing
+    # archetype — a steal deck runs the borrow-and-cast package (Gonti, Hostage Taker,
+    # Thief of Sanity), which lives in theft_matters. The card classification stays
+    # split (battlefield control change vs play-what-you-don't-own); only the COMMANDER
+    # cross-opens both sibling lanes. Real oracle.
+    silumgar = {
+        "name": "Dragonlord Silumgar",
+        "type_line": "Legendary Creature — Elder Dragon",
+        "oracle_text": (
+            "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of "
+            "target creature or planeswalker for as long as you control Dragonlord "
+            "Silumgar."
+        ),
+    }
+    ks = _ks(silumgar)
+    assert ("gain_control", "you") in ks
+    assert ("theft_matters", "opponents") in ks
+    # Over-fire guard: a commander with no steal/theft text opens neither.
+    plain = {
+        "name": "Plain Beater",
+        "type_line": "Legendary Creature — Bear",
+        "oracle_text": "Trample\nWhenever this creature attacks, it gets +1/+1.",
+    }
+    assert ("theft_matters", "opponents") not in _ks(plain)
+
+
 def test_baseline_creature_etb_unchanged():
     c = {
         "name": "ETB",

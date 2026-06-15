@@ -2109,6 +2109,16 @@ def extract_signals(
     for key, scope in _detect_direct_keywords(card):
         add(key, scope, "", text[:120])
 
+    # Theft-archetype siblings (membership). Stealing battlefield permanents
+    # (gain_control — Silumgar / Garland / Nihiloor) and borrowing-and-casting what you
+    # don't own (theft_matters — Gonti, Hostage Taker, Thief of Sanity) are facets of
+    # ONE stealing archetype; a steal commander runs the whole theft package. The card
+    # classification stays split (battlefield control change vs play-what-you-don't-own
+    # — these are distinct mechanics), so only the COMMANDER cross-opens the sibling
+    # lane, at LOW confidence (an archetype suggestion, not a detected payoff).
+    if include_membership and any(s.key == "gain_control" for s in out):
+        add("theft_matters", "opponents", "", text[:160], "low")
+
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a
     # Dragon is a viable Dragons build with no tribal oracle text. LOW confidence
