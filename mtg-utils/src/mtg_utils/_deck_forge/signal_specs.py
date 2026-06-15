@@ -2102,6 +2102,25 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"number of tapped creatures you control"
         r"|\btapped creatures you control (?:have|get|gain|are|can|with)",
     ),
+    # Land sacrifice (Gitrog, Titania, Slogurk): lands hitting the graveyard is the
+    # payoff, so repeatable "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb)
+    # are the engine. Distinct from sacrifice_matters (which excludes "sacrifice a land"
+    # — the fetchland guard) and from landfall (lands ENTERING).
+    ("land_sacrifice_matters", "you"): _spec(
+        "Land sacrifice",
+        "repeatable sac-a-land outlets and the payoffs for lands hitting the graveyard",
+        {
+            "oracle": (
+                r"sacrifice a land(?: card)?:"
+                r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
+                r"put into[^.]*graveyard"
+            )
+        },
+        r"sacrifice a land(?: card)?:"
+        r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
+        r"put into[^.]*graveyard"
+        r"|whenever you sacrifice (?:a|one or more|another) lands?",
+    ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
         "ramp, extra land drops, and recursion to maximize your land count",

@@ -844,6 +844,24 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Land-sacrifice matters (Gitrog, Titania, Slogurk): a commander that draws/grows
+    # when lands hit the graveyard ("whenever … land … put into … graveyard") or pays an
+    # ongoing land-sac cost wants repeatable "Sacrifice a land:" OUTLETS (Sylvan
+    # Safekeeper, Zuran Orb). A distinct archetype from sacrifice_matters, which
+    # deliberately EXCLUDES "sacrifice a land" (the fetchland guard) — so it's its own
+    # lane. Same regex opens (commander payoff/cost) and serves (the outlets).
+    (
+        "land_sacrifice_matters",
+        re.compile(
+            r"sacrifice a land(?: card)?:"
+            r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
+            r"put into[^.]*graveyard"
+            r"|whenever you sacrifice (?:a|one or more|another) lands?"
+            r"|unless you sacrifice a land",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Divinity / indestructible counter → proliferate (Myojin cycle, Arwen). These
     # permanents enter with exactly ONE beneficial counter that gates indestructibility
     # or fuels a "Remove a counter: [big effect]" ability — proliferate multiplies it

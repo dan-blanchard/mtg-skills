@@ -1787,3 +1787,49 @@ def test_missing_race_tribes_open_membership_but_classes_do_not():
     subs = {subj for (key, scope, subj) in _ksub(warrior) if key == "type_matters"}
     assert "Warrior" not in subs
     assert "Human" not in subs
+
+
+def test_land_sacrifice_matters_opens_and_serves():
+    # Gitrog/Titania/Slogurk draw/grow when lands hit the graveyard, so repeatable
+    # "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb) are their core engine.
+    # sacrifice_matters deliberately EXCLUDES "sacrifice a land" (fetchland guard), so
+    # this land-sac archetype is its own lane. Real cards, full oracle.
+    gitrog = {
+        "name": "The Gitrog Monster",
+        "type_line": "Legendary Creature — Frog Horror",
+        "oracle_text": (
+            "Deathtouch\n"
+            "At the beginning of your upkeep, sacrifice The Gitrog Monster unless you "
+            "sacrifice a land.\n"
+            "You may play an additional land on each of your turns.\n"
+            "Whenever one or more land cards are put into your graveyard from "
+            "anywhere, draw a card."
+        ),
+    }
+    assert "land_sacrifice_matters" in _keys(gitrog)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    zuran_orb = {
+        "name": "Zuran Orb",
+        "type_line": "Artifact",
+        "oracle_text": "Sacrifice a land: You gain 2 life.",
+    }
+    assert lane_covers(zuran_orb, "land_sacrifice_matters") is True
+    # Over-fire guard: a CREATURE-sacrifice outlet is aristocrats, not land sacrifice.
+    viscera = {
+        "name": "Viscera Seer",
+        "type_line": "Creature — Vampire Wizard",
+        "oracle_text": "Sacrifice a creature: Scry 1.",
+    }
+    assert "land_sacrifice_matters" not in _keys(viscera)
+    assert lane_covers(viscera, "land_sacrifice_matters") is False
