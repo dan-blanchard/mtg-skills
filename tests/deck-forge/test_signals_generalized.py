@@ -534,3 +534,21 @@ def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
     # Over-fire guard: a vanilla creature is not loop fuel.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert lane_covers(bear, "creature_recursion") is False
+
+
+def test_self_etb_value_matches_whenever_and_plural_enter():
+    # A self-ETB-value commander wants blink + ETB-trigger doublers (Panharmonicon).
+    # The detector used "\bwhen " (missing "WHENEVER ~ enters" — Roxanne) and "enters"
+    # (missing plural "enter"). Real card, full oracle.
+    roxanne = {
+        "name": "Roxanne, Starfall Savant",
+        "type_line": "Legendary Creature — Cat Druid",
+        "oracle_text": (
+            "Whenever Roxanne enters or attacks, create a tapped colorless artifact "
+            'token named Meteorite with "When this token enters, it deals 2 damage '
+            'to any target" and "{T}: Add one mana of any color."\n'
+            "Whenever you tap an artifact token for mana, add one mana of any type "
+            "that artifact token produced."
+        ),
+    }
+    assert "blink_flicker" in _keys(roxanne)

@@ -1901,8 +1901,10 @@ def _self_etb_value(text: str, name: str) -> str | None:
     alts = r"this creature|this permanent|~" + (
         ("|" + re.escape(first)) if first else ""
     )
+    # when(?:ever)? + enters? — catch "WHENEVER ~ enters" (Roxanne) and the plural
+    # "enter" of two-name commanders ("When Donnie & April enter").
     pat = re.compile(
-        rf"\bwhen (?:{alts}) enters\b[^.]*?{_SELF_ETB_PAYOFF}", re.IGNORECASE
+        rf"\bwhen(?:ever)? (?:{alts}) enters?\b[^.]*?{_SELF_ETB_PAYOFF}", re.IGNORECASE
     )
     for clause in _clauses(text):
         if pat.search(clause):
