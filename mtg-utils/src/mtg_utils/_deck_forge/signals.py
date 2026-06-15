@@ -1926,7 +1926,18 @@ _SELF_DEATH_PAYOFF_RE = re.compile(
 def _detect_self_death_payoff(text: str, name: str) -> str | None:
     alts = "|".join(["this creature", "~", *_self_name_alts(name)])
     death = re.compile(rf"when (?:{alts})\b[^.]* dies", re.IGNORECASE)
-    if not (death.search(text) and _SELF_DEATH_PAYOFF_RE.search(text)):
+    if not death.search(text):
+        return None
+    # A VALUE death trigger (Kokusho), OR a self-RECURSION death trigger that returns/
+    # exiles-and-returns the commander ITSELF (Lucius, The Scorpion God, The Balrog) —
+    # both want the same package (sac outlets to re-fire/loop the death, reanimation).
+    # The recursion form is anchored to the dies clause + a self-reference so it isn't a
+    # graveyard reanimation of ANOTHER creature.
+    recursion = re.compile(
+        rf"when (?:{alts})[^.]*? dies,[^.]*(?:return (?:it|this card)|exile it)",
+        re.IGNORECASE,
+    )
+    if not (_SELF_DEATH_PAYOFF_RE.search(text) or recursion.search(text)):
         return None
     for clause in _clauses(text):
         if death.search(clause):

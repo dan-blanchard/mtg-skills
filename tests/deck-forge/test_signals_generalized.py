@@ -336,6 +336,38 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_self_dies_recursion_opens_self_death_payoff():
+    # A commander whose OWN death trigger RETURNS/recurs itself (Lucius exiles-and-
+    # returns, The Scorpion God returns to hand) wants sac outlets to loop it +
+    # reanimation — the same package as a self-dies-VALUE commander. self_death_payoff
+    # required a VALUE verb and missed the pure-recursion form. Real oracle.
+    lucius = {
+        "name": "Lucius the Eternal",
+        "type_line": "Legendary Creature — Phyrexian Noble",
+        "oracle_text": (
+            "Haste\nArmour of Shrieking Souls — When Lucius the Eternal dies, exile it "
+            "and choose target creature an opponent controls. When that creature "
+            "leaves the battlefield, return this card from exile to the battlefield "
+            "under its owner's control."
+        ),
+    }
+    scorpion = {
+        "name": "The Scorpion God",
+        "type_line": "Legendary Creature — God",
+        "oracle_text": (
+            "The Scorpion God can't be blocked by creatures with power 2 or less.\n"
+            "Whenever a creature with a -1/-1 counter on it dies, draw a card.\n"
+            "When The Scorpion God dies, return it to its owner's hand at the "
+            "beginning of the next end step."
+        ),
+    }
+    assert "self_death_payoff" in _keys(lucius)
+    assert "self_death_payoff" in _keys(scorpion)
+    # Over-fire guard: a vanilla creature has no self-death trigger.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert "self_death_payoff" not in _keys(bear)
+
+
 def test_opponent_shrink_opens_debuff():
     # Maha shrinks opponents' creatures ("Creatures your opponents control have base
     # toughness 1") — it combos with -1/-1 effects (toughness 1 + any -1/-1 = dead), so
