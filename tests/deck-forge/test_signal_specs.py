@@ -4487,3 +4487,26 @@ def test_aristocrats_graveyard_lanes_serve_self_sac_creatures():
     # Over-fire guard: a vanilla creature is not sac-fodder via this extra.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert _lane_covers(bear, _sig("death_matters", "any")) is False
+
+
+def test_direct_damage_serves_burn_redirect():
+    # Repercussion converts creature-damage into player damage — a burn payoff a
+    # pinger/wipe/damage deck wants (ping or wipe + Repercussion = burn the table).
+    # direct_damage served numeric burn + "double that damage" but not "that much
+    # damage to that creature's controller".
+    repercussion = {
+        "name": "Repercussion",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever a creature is dealt damage, this enchantment deals that much "
+            "damage to that creature's controller."
+        ),
+    }
+    assert _lane_covers(repercussion, _sig("direct_damage", "you")) is True
+    # Over-fire guard: a vanilla lifegain spell is not burn.
+    healer = {
+        "name": "Healer",
+        "type_line": "Sorcery",
+        "oracle_text": "You gain 5 life.",
+    }
+    assert _lane_covers(healer, _sig("direct_damage", "you")) is False

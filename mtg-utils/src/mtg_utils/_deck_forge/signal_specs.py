@@ -2010,6 +2010,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage"
         r"|deals (?:double|twice) that (?:much )?damage|deals that much damage plus"
         r"|if a source[^.]*would deal damage[^.]*instead"
+        # Burn-redirect: convert creature damage into player damage (Repercussion) —
+        # a ping/wipe deck turns it into reach (ping/wipe + this = burn the table).
+        r"|creature is dealt damage[^.]*deals? that (?:much )?damage to"
         # Symmetric "punisher" burn enchantments (Manabarbs, Roiling Vortex,
         # Spellshock): recurring damage to each/that player.
         r"|deals \d+ damage to (?:each|that|target) (?:player|opponent|creature)"
