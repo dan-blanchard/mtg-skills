@@ -824,6 +824,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Tapped-creatures-matter (Masako lets tapped creatures block; Saryth grants them
+    # deathtouch; Throne of the God-Pharaoh / Dragonscale General scale with the
+    # "number of tapped creatures you control"). The deck taps its team freely and
+    # cashes in the count. Distinct from tap_untap_matters (becomes-tapped triggers)
+    # and from convoke, which taps UNtapped creatures as a cost — the \btapped word
+    # boundary keeps "untapped creatures you control" out (no boundary inside the word).
+    (
+        "tapped_matters",
+        re.compile(
+            r"number of tapped creatures you control"
+            r"|\btapped creatures you control (?:have|get|gain|are|can|with)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Legends-matter: a commander that TUTORS legends (Captain Sisay "search your
     # library for a legendary card"), BUFFS them (Dihada "target legendary creature
     # gains"), counts/cost-reduces them, or triggers off them (Yomiji "whenever a

@@ -2078,6 +2078,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"two or more nonland permanents entered the battlefield "
         r"under your control this turn",
     ),
+    # Tapped-creatures-matter: tap your team freely, then cash in the count (Throne of
+    # the God-Pharaoh, Dragonscale General, Harvest Season) — backed by the grants that
+    # make tapping safe (Masako: block while tapped; Saryth: deathtouch; Oak Street
+    # Innkeeper: hexproof). \btapped excludes convoke's "untapped creatures".
+    ("tapped_matters", "you"): _spec(
+        "Tapped creatures matter",
+        "payoffs that scale with tapped creatures, plus grants that make tapping safe",
+        {
+            "oracle": (
+                r"number of tapped creatures you control"
+                r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
+            )
+        },
+        r"number of tapped creatures you control"
+        r"|\btapped creatures you control (?:have|get|gain|are|can|with)",
+    ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
         "ramp, extra land drops, and recursion to maximize your land count",

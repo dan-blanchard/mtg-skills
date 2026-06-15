@@ -1543,3 +1543,53 @@ def test_lands_matter_serves_creature_pump_by_basic():
         ),
     }
     assert lane_covers(crusading_knight, "lands_matter") is False
+
+
+def test_tapped_creatures_matter_opens_and_serves():
+    # A "tapped creatures you control" commander (Masako lets them block as though
+    # untapped; Saryth grants them deathtouch) is the tapped-matters archetype — it
+    # taps its team freely and runs the count payoffs (Throne of the God-Pharaoh,
+    # Dragonscale General). Distinct from tap_untap_matters (becomes-tapped triggers)
+    # and from convoke (which taps UNtapped creatures as a cost). Real cards.
+    masako = {
+        "name": "Masako the Humorless",
+        "type_line": "Legendary Creature — Human Advisor",
+        "oracle_text": (
+            "Flash\n"
+            "Tapped creatures you control can block as though they were untapped."
+        ),
+    }
+    assert "tapped_matters" in _keys(masako)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    throne = {
+        "name": "Throne of the God-Pharaoh",
+        "type_line": "Legendary Artifact",
+        "oracle_text": (
+            "At the beginning of your end step, each opponent loses life equal to "
+            "the number of tapped creatures you control."
+        ),
+    }
+    assert lane_covers(throne, "tapped_matters") is True
+    # Over-fire guard: a convoke / tap-as-cost card taps UNtapped creatures — the
+    # word boundary on \btapped must keep it out of the lane.
+    devout = {
+        "name": "Devout Invocation",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Tap any number of untapped creatures you control. Create a 4/4 white "
+            "Angel creature token for each creature tapped this way."
+        ),
+    }
+    assert "tapped_matters" not in _keys(devout)
+    assert lane_covers(devout, "tapped_matters") is False
