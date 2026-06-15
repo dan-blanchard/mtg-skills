@@ -612,7 +612,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "mass_bounce",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "return each (?:other )?(?:nonland )?permanent[^.]*to (?:its|their) owner's hand|return all[^.]*to (?:its|their) owners' hands",
+        "regex": "return each (?:other )?(?:nonland )?permanent[^.]*to (?:its|their) owner's hand|return each (?:other )?[^.]*?creatures?[^.]*?to (?:its|their) owner's hand|return all[^.]*to (?:its|their) owners' hands",
     },
     {
         "key": "activated_draw",

@@ -4227,3 +4227,27 @@ def test_discard_outlet_serves_discard_payoffs():
         "oracle_text": "",
     }
     assert _lane_covers(grizzly, sig) is False
+
+
+def test_mass_bounce_serves_creature_mass_bounce():
+    # mass_bounce matched only "return each PERMANENT", missing "return each CREATURE
+    # … to its owner's hand" (Scourge of Fleets). A mass-bounce commander (Slinn Voda)
+    # wants creature mass-bounce too.
+    sig = _sig("mass_bounce", "any")
+    scourge = {
+        "name": "Scourge of Fleets",
+        "type_line": "Creature — Kraken",
+        "oracle_text": (
+            "When this creature enters, return each creature your opponents control "
+            "with toughness X or less to its owner's hand, where X is the number of "
+            "Islands you control."
+        ),
+    }
+    assert _lane_covers(scourge, sig) is True
+    # Over-fire guard: single-target bounce is tempo, not mass bounce.
+    boomerang = {
+        "name": "Boomerang",
+        "type_line": "Instant",
+        "oracle_text": "Return target permanent to its owner's hand.",
+    }
+    assert _lane_covers(boomerang, sig) is False
