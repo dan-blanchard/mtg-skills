@@ -2214,9 +2214,18 @@ def extract_signals(
     # ONE stealing archetype; a steal commander runs the whole theft package. The card
     # classification stays split (battlefield control change vs play-what-you-don't-own
     # — these are distinct mechanics), so only the COMMANDER cross-opens the sibling
-    # lane, at LOW confidence (an archetype suggestion, not a detected payoff).
-    if include_membership and any(s.key == "gain_control" for s in out):
-        add("theft_matters", "opponents", "", text[:160], "low")
+    # lane, at LOW confidence (an archetype suggestion, not a detected payoff). A theft
+    # PAYOFF commander — one that rewards permanents "you control but DON'T OWN" (Don
+    # Andres, Arvinox, Vaan) — is the same archetype and opens BOTH sibling lanes.
+    if include_membership:
+        keys_now = {s.key for s in out}
+        dont_own = re.search(
+            r"you (?:control[^.]*)?(?:but )?(?:do not|don't) own", text, re.IGNORECASE
+        )
+        if "gain_control" in keys_now or dont_own:
+            add("theft_matters", "opponents", "", text[:160], "low")
+        if dont_own and "gain_control" not in keys_now:
+            add("gain_control", "you", "", text[:160], "low")
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a

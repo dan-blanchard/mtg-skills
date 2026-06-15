@@ -582,6 +582,41 @@ def test_gain_control_commander_also_opens_theft_matters():
     assert ("theft_matters", "opponents") not in _ks(plain)
 
 
+def test_dont_own_payoff_opens_theft_and_gain_control():
+    # A theft-PAYOFF commander that rewards permanents "you control but DON'T OWN"
+    # (Don Andres, Arvinox) is built on stealing — it wants the whole theft package
+    # (battlefield steals AND borrow-and-cast). Open both sibling lanes. Real oracle.
+    don_andres = {
+        "name": "Don Andres, the Renegade",
+        "type_line": "Legendary Creature — Vampire Pirate",
+        "oracle_text": (
+            "Each creature you control but don't own gets +2/+2, has menace and "
+            "deathtouch, and is a Pirate in addition to its other types.\nWhenever you "
+            "gain control of one or more permanents you don't own, draw a card."
+        ),
+    }
+    arvinox = {
+        "name": "Arvinox, the Mind Flail",
+        "type_line": "Legendary Artifact Creature — Phyrexian Horror",
+        "oracle_text": (
+            "Arvinox isn't a creature unless you control three or more permanents you "
+            "don't own.\nAt the beginning of your end step, exile the bottom card of "
+            "each opponent's library face down."
+        ),
+    }
+    for cmd in (don_andres, arvinox):
+        ks = _ks(cmd)
+        assert ("theft_matters", "opponents") in ks, cmd["name"]
+        assert ("gain_control", "you") in ks, cmd["name"]
+    # Over-fire guard: a plain commander opens neither.
+    plain = {
+        "name": "Plain Beater",
+        "type_line": "Legendary Creature — Bear",
+        "oracle_text": "Trample",
+    }
+    assert ("theft_matters", "opponents") not in _ks(plain)
+
+
 def test_baseline_creature_etb_unchanged():
     c = {
         "name": "ETB",
