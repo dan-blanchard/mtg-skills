@@ -454,3 +454,22 @@ def test_self_death_payoff_opens_for_own_death_trigger():
         ),
     }
     assert "self_death_payoff" not in _keys(blood_artist)
+
+
+def test_creature_etb_opens_on_delayed_had_enter_payoff():
+    # Ephara rewards creatures entering via a DELAYED check ("at the beginning of
+    # upkeep, if you had a creature enter ... last turn, draw") — no "when/whenever"
+    # trigger word, so the ETB detector's trigger-word gate missed it. It's an
+    # ETB-payoff commander (wants ETB creatures / blink / token makers).
+    ephara = {
+        "name": "Ephara, God of the Polis",
+        "type_line": "Legendary Enchantment Creature — God",
+        "oracle_text": (
+            "Indestructible\n"
+            "As long as your devotion to white and blue is less than seven, Ephara "
+            "isn't a creature.\n"
+            "At the beginning of each upkeep, if you had another creature enter the "
+            "battlefield under your control last turn, draw a card."
+        ),
+    }
+    assert "creature_etb" in _keys(ephara)

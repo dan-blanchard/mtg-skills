@@ -95,6 +95,15 @@ _ETB_ANY_RE = re.compile(
 # ETB-trigger doublers (Panharmonicon / Yarok) are ETB-value commanders: they want
 # ETB creatures, flicker, and more doublers, so route them to the creature_etb lane.
 _ETB_DOUBLER_RE = re.compile(r"entering[^.]*triggers an additional time", re.IGNORECASE)
+# Delayed ETB-payoff (Ephara): "at the beginning of upkeep, if you HAD a creature enter
+# the battlefield under your control last turn, …" — rewards creatures entering, but the
+# trigger word is the upkeep, not "when a creature enters", so the trigger-word gate
+# below misses it. It's an ETB-payoff commander all the same.
+_ETB_HAD_RE = re.compile(
+    r"you had (?:a|an|another|one or more|\d+)[^.]*creatures? "
+    r"enter the battlefield under your control",
+    re.IGNORECASE,
+)
 
 
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
@@ -107,6 +116,7 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
                     and ("whenever" in c or "when " in c)
                 )
                 or _ETB_DOUBLER_RE.search(c) is not None
+                or _ETB_HAD_RE.search(c) is not None
             )
             and _ETB_OPP_RE.search(c) is None
         ),
