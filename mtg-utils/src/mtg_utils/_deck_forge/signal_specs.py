@@ -2062,6 +2062,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|if you have [^.]*life[^.]*win the game",
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
+    # Celebration (WOE): all 11 cards carry the exact phrase, so serve == open. A
+    # Celebration commander floods nonland permanents each turn to switch the payoffs
+    # on; the lane surfaces the other Celebration cards (Grand Ball Guest, Raging
+    # Battle Mouse). Niche by design — the phrase appears nowhere else.
+    ("celebration_matters", "you"): _spec(
+        "Celebration",
+        "ways to deploy two or more nonland permanents a turn, plus the payoffs",
+        {
+            "oracle": (
+                r"two or more nonland permanents entered the battlefield "
+                r"under your control this turn"
+            )
+        },
+        r"two or more nonland permanents entered the battlefield "
+        r"under your control this turn",
+    ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
         "ramp, extra land drops, and recursion to maximize your land count",

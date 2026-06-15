@@ -809,6 +809,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"create [^.]*\benchantment token", re.IGNORECASE),
         "you",
     ),
+    # Celebration (WOE ability word, CR 702.x reminder): every Celebration card carries
+    # the exact phrase "two or more nonland permanents entered the battlefield under
+    # your control this turn". Only 11 cards share it, so the phrase is its own precise
+    # archetype lane — a Celebration commander (Ash) wants the other Celebration
+    # payoffs (Grand Ball Guest, Raging Battle Mouse), which the bare attack trigger
+    # never surfaced. Same phrase opens (commander) and serves (card).
+    (
+        "celebration_matters",
+        re.compile(
+            r"two or more nonland permanents entered the battlefield "
+            r"under your control this turn",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Legends-matter: a commander that TUTORS legends (Captain Sisay "search your
     # library for a legendary card"), BUFFS them (Dihada "target legendary creature
     # gains"), counts/cost-reduces them, or triggers off them (Yomiji "whenever a

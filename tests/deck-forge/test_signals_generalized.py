@@ -1443,3 +1443,56 @@ def test_role_token_makers_open_enchantments_matter():
         "oracle_text": "{T}: Create a 1/1 red Goblin creature token.",
     }
     assert "enchantments_matter" not in _keys(krenko)
+
+
+def test_celebration_archetype_opens_and_serves():
+    # Celebration (WOE ability word) keys on the exact phrase "two or more nonland
+    # permanents entered the battlefield under your control this turn" — 11 cards share
+    # it. A Celebration commander (Ash) wants the other Celebration payoffs; the
+    # archetype is its own lane (the baseline saw only the bare attack trigger). Real
+    # cards, full oracle.
+    ash = {
+        "name": "Ash, Party Crasher",
+        "type_line": "Legendary Creature — Human Peasant",
+        "oracle_text": (
+            "Haste\n"
+            "Celebration — Whenever Ash attacks, if two or more nonland permanents "
+            "entered the battlefield under your control this turn, put a +1/+1 "
+            "counter on Ash."
+        ),
+    }
+    assert "celebration_matters" in _keys(ash)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    grand_ball_guest = {
+        "name": "Grand Ball Guest",
+        "type_line": "Creature — Human Peasant",
+        "oracle_text": (
+            "Celebration — This creature gets +1/+1 and has trample as long as two "
+            "or more nonland permanents entered the battlefield under your control "
+            "this turn."
+        ),
+    }
+    assert lane_covers(grand_ball_guest, "celebration_matters") is True
+    # Over-fire guard: a generic go-wide payoff that doesn't carry the Celebration
+    # phrase is not a Celebration card.
+    impact = {
+        "name": "Impact Tremors",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever a creature you control enters, Impact Tremors deals 1 damage "
+            "to each opponent."
+        ),
+    }
+    assert "celebration_matters" not in _keys(impact)
+    assert lane_covers(impact, "celebration_matters") is False
