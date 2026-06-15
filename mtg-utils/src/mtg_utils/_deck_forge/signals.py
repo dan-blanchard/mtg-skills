@@ -2329,6 +2329,13 @@ def extract_signals(
             add("theft_matters", "opponents", "", text[:160], "low")
         if dont_own and "gain_control" not in keys_now:
             add("gain_control", "you", "", text[:160], "low")
+        # Play-from-top engine (Gwenom, Glarb, Reality Chip) curates its top — it wants
+        # surveil/scry and top-stacking to set up what it plays. Cross-open the sibling
+        # top-of-library lanes (topdeck_selection serves surveil/scry; topdeck_stack the
+        # rearrange/put-on-top effects).
+        if "play_from_top" in keys_now:
+            add("topdeck_selection", "you", "", text[:160], "low")
+            add("topdeck_stack", "you", "", text[:160], "low")
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a

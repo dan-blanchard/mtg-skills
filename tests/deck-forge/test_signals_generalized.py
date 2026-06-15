@@ -336,6 +336,31 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_play_from_top_cross_opens_topdeck_selection():
+    # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
+    # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It
+    # opened play_from_top but not the sibling topdeck_selection/stack lanes. Real oracle.
+    gwenom = {
+        "name": "Gwenom, Remorseless",
+        "type_line": "Legendary Creature — Symbiote Villain",
+        "oracle_text": (
+            "Deathtouch, lifelink\nWhenever Gwenom attacks, until end of turn, you may "
+            "look at the top card of your library any time and you may play cards from "
+            "the top of your library."
+        ),
+    }
+    ks = _ks(gwenom)
+    assert ("play_from_top", "you") in ks
+    assert ("topdeck_selection", "you") in ks
+    # Over-fire guard: a commander that doesn't play from the top opens neither.
+    plain = {
+        "name": "Plain Beater",
+        "type_line": "Legendary Creature — Bear",
+        "oracle_text": "Trample",
+    }
+    assert ("topdeck_selection", "you") not in _ks(plain)
+
+
 def test_sac_and_return_this_turn_opens_sacrifice():
     # A commander that RETURNS creatures that hit the graveyard this turn (Garna,
     # Gerrard) is a sac-and-return engine — it wants sac outlets (Carrion Feeder, Altar
