@@ -569,6 +569,12 @@ _STAX_SERVE_ORACLE = (
     r"|can't attack you|unless [^.]*\bpays?\b|may pay \{"
     r"|if (?:a player|an opponent|that player|they) would search[^.]*library"
     r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
+    # Land-DENIAL stax (Blood Moon archetype): "nonbasic lands are Mountains" (Magus),
+    # "taps a nonbasic land" → punish (Burning Earth), "number of nonbasic lands" (Price
+    # of Progress) — restricts opponents' mana, so a stax commander (Zhao, Thalia) wants
+    # it. (The basic-land RAMP form has no "nonbasic", so it stays out.)
+    r"|nonbasic lands? (?:are|become)\b|taps? a nonbasic land"
+    r"|number of nonbasic lands"
     # Symmetric hatebears (the gap):
     r"|activated abilities of [^.]*can't be activated"
     r"|would enter[^.]*(?:exile it instead|isn't cast|wasn't cast)"

@@ -78,6 +78,39 @@ def _lane_covers(card, sig):
     )
 
 
+def test_stax_serves_nonbasic_land_hate():
+    # Land-denial IS stax — a stax/land-hate commander (Zhao "nonbasic lands enter
+    # tapped", Thalia) wants Blood Moon-style nonbasic hate (Magus of the Moon, Burning
+    # Earth, Price of Progress). The serve had "nonbasic ... enters tapped" / "don't
+    # untap" but missed "are Mountains" / "taps a nonbasic land" / "number of nonbasic".
+    sig = _sig("stax_taxes", "opponents")
+    magus = {
+        "name": "Magus of the Moon",
+        "type_line": "Creature — Human Wizard",
+        "oracle_text": "Nonbasic lands are Mountains.",
+    }
+    burning = {
+        "name": "Burning Earth",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever a player taps a nonbasic land for mana, Burning Earth deals 1 "
+            "damage to that player."
+        ),
+    }
+    assert _lane_covers(magus, sig) is True
+    assert _lane_covers(burning, sig) is True
+    # Over-fire guard: a basic-land ramp spell is not land-denial stax.
+    ramp = {
+        "name": "Rampant Growth",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Search your library for a basic land card, put it onto the battlefield "
+            "tapped, then shuffle."
+        ),
+    }
+    assert _lane_covers(ramp, sig) is False
+
+
 def test_discard_matters_serves_self_discard_outlets():
     # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
     # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"
