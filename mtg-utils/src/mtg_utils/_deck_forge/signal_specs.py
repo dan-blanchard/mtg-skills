@@ -2468,6 +2468,26 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         ),
         extras=(_COMBAT_SUPPORT_EXTRA,),
     ),
+    # Ninjutsu (CR 702.49) returns an UNBLOCKED attacker to hand and puts the ninja in,
+    # so a ninjutsu commander (Satoru Umezawa, Yuriko) wants cheap unblockable/evasive
+    # creatures to reliably connect (Slither Blade, Mist-Cloaked Herald, Tormented Soul,
+    # Ornithopter). Reuses the evasion_self classifier — unconditional unblockable +
+    # hard-evasion keywords; flying is excluded (soft/blockable).
+    ("ninjutsu_matters", "you"): _spec(
+        "Ninjutsu",
+        "cheap unblockable/evasive creatures to carry the ninja in",
+        {"oracle": r"can't be blocked|\bunblockable\b"},
+        r"can't be blocked(?! except)|\bunblockable\b"
+        r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+        serve_keywords=(
+            "horsemanship",
+            "menace",
+            "fear",
+            "intimidate",
+            "shadow",
+            "skulk",
+        ),
+    ),
     ("clone_matters", "you"): _spec(
         "Clones / copies",
         "clone effects plus strong creatures worth copying",

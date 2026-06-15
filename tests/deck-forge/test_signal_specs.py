@@ -4433,3 +4433,38 @@ def test_stax_lanes_serve_symmetric_hatebears():
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert _lane_covers(bear, stax) is False
     assert _lane_covers(bear, sym) is False
+
+
+def test_ninjutsu_serves_evasive_unblockable_enablers():
+    # Ninjutsu (CR 702.49) returns an UNBLOCKED attacker and drops the ninja in, so a
+    # ninjutsu commander (Satoru Umezawa) wants cheap unblockable/evasive creatures to
+    # reliably connect — Slither Blade, Mist-Cloaked Herald, Tormented Soul. Reuses the
+    # evasion classifier (no flying — that's soft/blockable).
+    sig = _sig("ninjutsu_matters", "you")
+    slither = {
+        "name": "Slither Blade",
+        "type_line": "Creature — Snake Rogue",
+        "oracle_text": "This creature can't be blocked.",
+    }
+    tormented = {
+        "name": "Tormented Soul",
+        "type_line": "Creature — Spirit",
+        "oracle_text": "This creature can't block and can't be blocked.",
+    }
+    shadowmage = {  # keyword evasion (fear) is also an enabler
+        "name": "Skulk Test",
+        "type_line": "Creature — Rat",
+        "oracle_text": "Fear",
+        "keywords": ["Fear"],
+    }
+    assert _lane_covers(slither, sig) is True
+    assert _lane_covers(tormented, sig) is True
+    assert _lane_covers(shadowmage, sig) is True
+    # Over-fire guard: a plain ground creature is not an enabler.
+    bear = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+        "keywords": [],
+    }
+    assert _lane_covers(bear, sig) is False
