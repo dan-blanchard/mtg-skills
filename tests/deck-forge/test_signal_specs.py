@@ -53,6 +53,38 @@ def test_opponents_graveyard_signal_served_by_opponent_mill_not_self_mill():
     assert serves(SELF_MILL, sig) is False
 
 
+def test_opponents_graveyard_serves_symmetric_mill_and_their_graveyard_reanimation():
+    # An opponent-graveyard reanimator (Tariel, Valgavoth) wants two things the lane
+    # missed: SYMMETRIC mill ("each player mills" fills opponents' graveyards too) and
+    # reanimation that pulls from ANOTHER player's graveyard ("creature card in that
+    # player's graveyard. Put those onto the battlefield"). Breach the Multiverse does
+    # both. Real oracle.
+    sig = _sig("graveyard_matters", "opponents")
+    breach = {
+        "name": "Breach the Multiverse",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Each player mills ten cards. For each player, choose a creature or "
+            "planeswalker card in that player's graveyard. Put those cards onto the "
+            "battlefield under your control. Then each creature you control becomes a "
+            "Phyrexian in addition to its other types."
+        ),
+    }
+    sepulchral = {
+        "name": "Sepulchral Primordial",
+        "type_line": "Creature — Avatar",
+        "oracle_text": (
+            "Intimidate\nWhen this creature enters, for each opponent, you may put up "
+            "to one target creature card from that player's graveyard onto the "
+            "battlefield under your control."
+        ),
+    }
+    assert serves(breach, sig) is True
+    assert serves(sepulchral, sig) is True
+    # Over-fire guard: pure self-mill (fills only YOUR graveyard) is not this lane.
+    assert serves(SELF_MILL, sig) is False
+
+
 def test_your_graveyard_signal_served_by_self_mill():
     sig = _sig("graveyard_matters", "you")
     assert serves(SELF_MILL, sig) is True

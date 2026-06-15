@@ -1175,11 +1175,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Opponents' graveyards",
         "mill opponents and punish their graveyards (NOT self-mill)",
         {"oracle": r"each opponent mills|target opponent mills|opponent.*mills"},
-        r"(?:each opponent|target opponent|an opponent|that player|target player) mills"
+        r"(?:each opponent|target opponent|an opponent|that player|target player"
+        # "each player mills" is SYMMETRIC mill — it fills opponents' graveyards too
+        # (Breach the Multiverse, Dread Summons, Syr Konrad fuel).
+        r"|each player) mills"
         r"|opponent[^.]*\bmill|mill[^.]*opponent"
         r"|exile (?:target player'?s?|each opponent'?s?|a) graveyard"
         r"|(?:cards?|creature cards?)[^.]*in [^.]*opponents'? graveyards?"
         r"|each opponent'?s graveyard"
+        # Reanimation/cast that pulls from ANOTHER player's graveyard — "[creature card]
+        # in/from a/each/target/that player's (or opponent's) graveyard" (Sepulchral /
+        # Diluvian Primordial, Ink-Eyes, Breach the Multiverse). The opponent-graveyard
+        # reanimator (Tariel, Valgavoth) wants these; anchored to a player/opponent
+        # graveyard so a self-graveyard reanimator ("from your graveyard") stays out.
+        r"|(?:creature|planeswalker|permanent|those|that)[^.]*"
+        r"\b(?:in|from) (?:a|each|target|that) (?:player|opponent)(?:'?s)? graveyard"
         # Exile-mill artifacts (Pyxis, Mesmeric Orb-style): a player-subject exiling the
         # top of a LIBRARY is an exile-mill enabler (Circu).
         r"|(?:each player|target player|an opponent|each opponent|that player)"
