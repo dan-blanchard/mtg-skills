@@ -2591,6 +2591,13 @@ def extract_signals(
         if re.search(
             r"at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
             r"life|cumulative upkeep[^.]*life|you lose life equal to"
+            # Variable siblings of "you lose life equal to": the Necropotence-style
+            # "draw X / lose X" engines (Be'lakor, Imskir, Corpse Augur, Graveborn Muse)
+            # and "you lose that much life" (Asmodeus draws its library). Forced, X-/
+            # damage-scaled self-bleed — always significant, never a 1-life rider — so
+            # it wants lifegain sustain. Optional "you may PAY X life" is NOT "lose" and
+            # stays out (the controlled-payment half of the over-broad lifeloss trap).
+            r"|you lose x life|you lose that much life"
             r"|whenever[^.]*(?:put into (?:a|their|your) graveyard|dies"
             r"|leaves the battlefield)[^.]*you draw[^.]*you lose \d+ life"
             # Symmetric significant drain — "each player loses [2-9] life" hits YOU too,

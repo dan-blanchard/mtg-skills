@@ -2094,6 +2094,51 @@ def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
     assert "lifegain_matters" not in _keys(azula)
 
 
+def test_variable_self_bleed_opens_lifegain_sustain():
+    # The significant-bleed -> lifegain cross-open fired on the fixed "you lose life
+    # equal to" sac engines but missed the equivalent VARIABLE phrasings. Asmodeus
+    # draws its whole library and "you lose that much life"; Be'lakor is the classic
+    # "draw X / lose X" engine. Both are deck-defining scaling self-bleed that wants
+    # lifegain sustain to not deck the controller. Real oracle, full text.
+    asmodeus = {
+        "name": "Asmodeus the Archfiend",
+        "type_line": "Legendary Creature — Devil God",
+        "oracle_text": (
+            "Binding Contract — If you would draw a card, exile the top card of your "
+            "library face down instead.\n"
+            "{B}{B}{B}: Draw seven cards.\n"
+            "{B}: Return all cards exiled with Asmodeus to their owner's hand and you "
+            "lose that much life."
+        ),
+    }
+    belakor = {
+        "name": "Be'lakor, the Dark Master",
+        "type_line": "Legendary Creature — Demon Noble",
+        "oracle_text": (
+            "Flying\n"
+            "Prince of Chaos — When Be'lakor enters, you draw X cards and you lose X "
+            "life, where X is the number of Demons you control.\n"
+            "Lord of Torment — Whenever another Demon you control enters, it deals "
+            "damage equal to its power to any target."
+        ),
+    }
+    assert "lifegain_matters" in _keys(asmodeus)
+    assert "lifegain_matters" in _keys(belakor)
+    # Boundary guard: OPTIONAL "you may pay life equal to" (Madame Null) is controlled,
+    # affordable life payment, not an unavoidable bleed — it stays out (the over-broad
+    # lifeloss trap). Forced "you lose …" opens; optional "you may pay …" does not.
+    madame_null = {
+        "name": "Madame Null, Power Broker",
+        "type_line": "Legendary Creature — Demon Advisor",
+        "oracle_text": (
+            "Deathtouch\n"
+            "Whenever another creature you control enters, you may pay life equal to "
+            "its power. If you do, put that many +1/+1 counters on it."
+        ),
+    }
+    assert "lifegain_matters" not in _keys(madame_null)
+
+
 def test_attacking_team_double_strike_opens_combat_damage():
     # A commander that grants double strike to your ATTACKING team (Raphael) makes them
     # deal combat damage to players twice — it wants the "whenever creatures you control
