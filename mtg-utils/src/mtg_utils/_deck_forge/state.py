@@ -191,3 +191,8 @@ class ForgeState:
     # commander pool (fmt -> (freq, total)). Cached because the sweep over every
     # commander-eligible bulk card is the one expensive part of Commander discovery.
     commander_signal_freq: dict = field(default_factory=dict)
+    # Resolves a folded object's name → its card (ADR-0025): a commander's ventured
+    # dungeon, whose oracle is appended to the commander's before signal extraction.
+    # Dungeons are excluded from `by_name` (unaddable), so this is a separate raw-bulk
+    # lookup, built once at launch. None when no bulk → no folding (graceful).
+    object_resolver: Callable[[str], dict | None] | None = None

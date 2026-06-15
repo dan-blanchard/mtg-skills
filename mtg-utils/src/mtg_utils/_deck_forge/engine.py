@@ -582,7 +582,9 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     Thin ForgeState wrapper over the shared ``signals.rank_deck_signals`` core that the
     deterministic tuner also calls (ADR-0023)."""
     commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
-    return rank_deck_signals(hydrated, commander_names)
+    return rank_deck_signals(
+        hydrated, commander_names, resolve_object=state.object_resolver
+    )
 
 
 def signal_dict(signal: Signal) -> dict:

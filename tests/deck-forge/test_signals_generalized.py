@@ -2141,3 +2141,88 @@ def test_combat_damage_serves_double_strike_granters():
         "keywords": ["Double strike"],
     }
     assert lane_covers(vanilla_ds, "combat_damage_to_opp", "opponents") is False
+
+
+def test_acererak_folds_ventured_tomb_of_annihilation():
+    # ADR-0025: a commander folds in the SPECIFIC dungeon its oracle names. Acererak
+    # ventures into Tomb of Annihilation (named in its ETB), whose rooms repeatedly
+    # drain "each player loses N life" — making Acererak a self-bleed + sacrifice
+    # commander that wants lifegain (Demon's Horn). Resolver returns the dungeon's real
+    # oracle. Real cards, full oracle.
+    toa_oracle = (
+        "Trapped Entry — Each player loses 1 life. (Leads to: Veils of Fear, "
+        "Oubliette)\n"
+        "Veils of Fear — Each player loses 2 life unless they discard a card. "
+        "(Leads to: Sandfall Cell)\n"
+        "Sandfall Cell — Each player loses 2 life unless they sacrifice a creature, "
+        "artifact, or land of their choice. (Leads to: Cradle of the Death God)\n"
+        "Oubliette — Discard a card and sacrifice a creature, an artifact, and a "
+        "land. (Leads to: Cradle of the Death God)\n"
+        "Cradle of the Death God — Create The Atropal, a legendary 4/4 black God "
+        "Horror creature token with deathtouch."
+    )
+
+    def resolver(name):
+        if name == "Tomb of Annihilation":
+            return {
+                "name": "Tomb of Annihilation",
+                "type_line": "Dungeon",
+                "oracle_text": toa_oracle,
+            }
+        return None
+
+    acererak = {
+        "name": "Acererak the Archlich",
+        "type_line": "Legendary Creature — Zombie Wizard",
+        "oracle_text": (
+            "When Acererak enters, if you haven't completed Tomb of Annihilation, "
+            "return Acererak to its owner's hand and venture into the dungeon.\n"
+            "Whenever Acererak attacks, for each opponent, you create a 2/2 black "
+            "Zombie creature token unless that player sacrifices a creature of their "
+            "choice."
+        ),
+        "all_parts": [
+            {
+                "component": "combo_piece",
+                "type_line": "Dungeon",
+                "name": "Tomb of Annihilation",
+            },
+            {
+                "component": "combo_piece",
+                "type_line": "Dungeon",
+                "name": "Lost Mine of Phandelver",
+            },
+        ],
+    }
+    without = _keys(acererak)
+    withfold = {s.key for s in extract_signals(acererak, resolve_object=resolver)}
+    # The folded ToA bleed opens lifegain (sustain for Demon's Horn).
+    assert "lifegain_matters" in withfold
+    assert "lifegain_matters" not in without
+
+    # Over-fire guards: only the dungeon NAMED in Acererak's oracle (ToA) is folded —
+    # Lost Mine of Phandelver is in all_parts but unnamed, so it's never resolved...
+    def strict_resolver(name):
+        if name == "Lost Mine of Phandelver":
+            raise AssertionError("must not resolve an unnamed all_parts dungeon")
+        return resolver(name)
+
+    extract_signals(acererak, resolve_object=strict_resolver)
+    # ...and a generic venturer that names no dungeon folds nothing.
+    nadaar = {
+        "name": "Nadaar, Selfless Paladin",
+        "type_line": "Legendary Creature — Dragon Knight",
+        "oracle_text": (
+            "Vigilance\nWhenever Nadaar enters or attacks, venture into the dungeon."
+        ),
+        "all_parts": [
+            {
+                "component": "combo_piece",
+                "type_line": "Dungeon",
+                "name": "Tomb of Annihilation",
+            },
+        ],
+    }
+    assert "lifegain_matters" not in {
+        s.key for s in extract_signals(nadaar, resolve_object=resolver)
+    }

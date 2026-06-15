@@ -10,7 +10,7 @@ from __future__ import annotations
 import functools
 import os
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from mtg_utils import card_search, combo_search, mark_owned
@@ -30,6 +30,21 @@ def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:
     # (e.g. "a Persist Creature") against the deck — without records, near-miss
     # detection falls back to counting named cards only and over-reports near-misses.
     return combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name))
+
+
+def build_object_resolver(cards: list[dict]) -> Callable[[str], dict | None]:
+    """A name → card lookup for *folded objects* (ADR-0025) — currently the Dungeon
+    cards a commander ventures into. Dungeons are deliberately excluded from
+    `build_by_name` (you can't add one to a deck), so signal-extraction folding needs
+    this separate raw-bulk lookup. Tiny (~10 dungeons)."""
+    objects = {
+        c["name"]: c
+        for c in cards
+        if isinstance(c, dict)
+        and c.get("name")
+        and "dungeon" in (c.get("type_line") or "").lower()
+    }
+    return objects.get
 
 
 def build_by_name(cards: list[dict]) -> NameIndex:
@@ -106,11 +121,14 @@ def default_state(fmt: str = "commander") -> ForgeState:
     by_name: Mapping[str, dict] = {}
     search = _no_search
     available = False
+    object_resolver: Callable[[str], dict | None] | None = None
     # Built from bulk so the Collection's ownership matching honors Arena printed_name /
     # flavor_name aliases (ADR-0018). Empty without bulk → DFC-only matching (fine).
     name_aliases: dict[str, str] = {}
     if bulk_path is not None and bulk_path.exists():
-        by_name = build_by_name(load_bulk_cards(bulk_path))
+        cards = load_bulk_cards(bulk_path)
+        by_name = build_by_name(cards)
+        object_resolver = build_object_resolver(cards)
 
         # partial keeps search_cards's typed keyword signature (a `**kwargs:
         # object` wrapper would widen every arg to `object` and fail the checker).
@@ -135,4 +153,5 @@ def default_state(fmt: str = "commander") -> ForgeState:
         collection_index=collection_index,
         name_aliases=name_aliases,
         bulk_path=bulk_path if available else None,
+        object_resolver=object_resolver,
     )

@@ -2383,11 +2383,44 @@ def _resolve_scope(
 # ── The extractor ─────────────────────────────────────────────────────────────
 
 
+def _fold_referenced_objects(
+    card: dict, resolve_object: Callable[[str], dict | None]
+) -> dict:
+    """Append the oracle of a commander's *folded objects* to its text (ADR-0025).
+
+    A commander's plan can deterministically bring in a separate game-object whose
+    effects are part of its strategy. The card-backed case is a **ventured dungeon**:
+    the dungeon cards sit in Scryfall ``all_parts`` (which lists ALL of a venturer's
+    rules-legal dungeons), so the specific one to fold is disambiguated by the
+    commander's own oracle naming it (Acererak → Tomb of Annihilation). A generic
+    venturer names no dungeon, so nothing is folded. ``resolve_object`` maps a dungeon
+    name to its card (dungeons are excluded from the addable name-index, so this is a
+    separate raw-bulk lookup). Returns ``card`` unchanged when nothing folds."""
+    text = get_oracle_text(card) or ""
+    low = text.lower()
+    extra: list[str] = []
+    for part in card.get("all_parts") or []:
+        if "dungeon" not in (part.get("type_line") or "").lower():
+            continue
+        name = part.get("name") or ""
+        if not name or name.lower() not in low:  # only the oracle-NAMED dungeon
+            continue
+        obj = resolve_object(name)
+        if obj and obj.get("oracle_text"):
+            extra.append(obj["oracle_text"])
+    if not extra:
+        return card
+    folded = dict(card)
+    folded["oracle_text"] = text + "\n" + "\n".join(extra)
+    return folded
+
+
 def extract_signals(
     card: dict,
     *,
     vocab: frozenset[str] = CREATURE_SUBTYPES,
     include_membership: bool = True,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> list[Signal]:
     """Extract scoped, subject-bearing signals from a card (deterministic baseline).
 
@@ -2396,6 +2429,11 @@ def extract_signals(
     voltron fallback. These are a commander-level suggestion; when aggregating over a
     whole deck, pass ``include_membership=False`` for the 99 so every creature's race
     and stat-line don't flood the deck's avenues (only the commander's do)."""
+    # Fold in the commander's referenced objects (its ventured dungeon, etc. — ADR-0025)
+    # before extraction, so the dungeon's effects flow through the normal detectors and
+    # cross-opens (append-and-re-extract). No-op when no resolver or nothing to fold.
+    if resolve_object is not None:
+        card = _fold_referenced_objects(card, resolve_object)
     # Strip parenthetical reminder text first: it restates a keyword and is rules-
     # redundant, so it must never generate a signal (e.g. an Earthbend reminder's
     # "is exiled, return it to the battlefield" is not a blink engine).
@@ -2520,7 +2558,11 @@ def extract_signals(
             r"at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
             r"life|cumulative upkeep[^.]*life|you lose life equal to"
             r"|whenever[^.]*(?:put into (?:a|their|your) graveyard|dies"
-            r"|leaves the battlefield)[^.]*you draw[^.]*you lose \d+ life",
+            r"|leaves the battlefield)[^.]*you draw[^.]*you lose \d+ life"
+            # Symmetric significant drain — "each player loses [2-9] life" hits YOU too,
+            # so a repeated source (a folded Tomb of Annihilation's rooms; a symmetric
+            # bleed engine) decks the controller and wants lifegain sustain.
+            r"|each player loses (?:[2-9]|\d\d) life",
             text,
             re.IGNORECASE,
         ):
@@ -2698,7 +2740,10 @@ def aggregate_signals(records: list[dict | None]) -> list[Signal]:
 
 
 def rank_deck_signals(
-    records: Sequence[dict | None], commander_names: set[str]
+    records: Sequence[dict | None],
+    commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> list[Signal]:
     """Deck signals deduped by (key, scope, subject) and ranked by relevance.
 
@@ -2714,7 +2759,13 @@ def rank_deck_signals(
         if not card:
             continue
         is_cmd = card.get("name") in commander_names
-        for sig in extract_signals(card, include_membership=is_cmd):
+        # Folded objects (a ventured dungeon — ADR-0025) belong to the COMMANDER's plan,
+        # so only fold for the commander, never the 99.
+        for sig in extract_signals(
+            card,
+            include_membership=is_cmd,
+            resolve_object=resolve_object if is_cmd else None,
+        ):
             ident = (sig.key, sig.scope, sig.subject)
             support[ident] = support.get(ident, 0) + 1
             if is_cmd:
