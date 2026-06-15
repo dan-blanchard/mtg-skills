@@ -1654,3 +1654,38 @@ def test_multi_tribe_list_anthem_captures_every_named_type():
         subj for (key, scope, subj) in _ksub(glorious) if key == "type_matters"
     }
     assert glory_subs == set()
+
+
+def test_divinity_indestructible_counter_wants_proliferate():
+    # A permanent that "enters with a divinity/indestructible counter" (the Myojin
+    # cycle, Arwen) has exactly ONE beneficial counter that gates indestructibility or
+    # fuels a remove-a-counter ability — proliferate multiplies it. Unlike COUNTDOWN
+    # counters (slumber, egg) you want to REMOVE, divinity/indestructible are always
+    # good to multiply, so the lane is precise. Real card, full oracle.
+    myojin = {
+        "name": "Myojin of Cleansing Fire",
+        "type_line": "Legendary Creature — Spirit",
+        "oracle_text": (
+            "Myojin of Cleansing Fire enters with a divinity counter on it if you "
+            "cast it from your hand.\n"
+            "Myojin of Cleansing Fire has indestructible as long as it has a divinity "
+            "counter on it.\n"
+            "Remove a divinity counter from Myojin of Cleansing Fire: Destroy all "
+            "other creatures."
+        ),
+    }
+    assert "proliferate_matters" in _keys(myojin)
+    # Over-fire guard: a COUNTDOWN counter you remove to wake a creature (slumber) is
+    # anti-proliferate — you want fewer, not more.
+    arixmethes = {
+        "name": "Arixmethes, Slumbering Isle",
+        "type_line": "Legendary Creature — Kraken",
+        "oracle_text": (
+            "Arixmethes, Slumbering Isle enters tapped with five slumber counters on "
+            "it.\n"
+            "As long as Arixmethes has a slumber counter on it, it's a land.\n"
+            "Whenever you cast a spell, you may remove a slumber counter from "
+            "Arixmethes."
+        ),
+    }
+    assert "proliferate_matters" not in _keys(arixmethes)

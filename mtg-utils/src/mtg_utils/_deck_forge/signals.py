@@ -844,6 +844,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Divinity / indestructible counter → proliferate (Myojin cycle, Arwen). These
+    # permanents enter with exactly ONE beneficial counter that gates indestructibility
+    # or fuels a "Remove a counter: [big effect]" ability — proliferate multiplies it
+    # into more activations / longer protection. Keyed on the counter TYPE because that
+    # is the discriminator: divinity/indestructible are always good to multiply, unlike
+    # COUNTDOWN counters (slumber, egg) you race to remove, where proliferate is anti-
+    # synergy. 11 cards carry the phrase (all Myojins + Arwen); zero false positives.
+    (
+        "proliferate_matters",
+        re.compile(
+            r"enters with a(?:n)? (?:divinity|indestructible) counter", re.IGNORECASE
+        ),
+        "you",
+    ),
     # Tapped-creatures-matter (Masako lets tapped creatures block; Saryth grants them
     # deathtouch; Throne of the God-Pharaoh / Dragonscale General scale with the
     # "number of tapped creatures you control"). The deck taps its team freely and
