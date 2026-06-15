@@ -1928,6 +1928,35 @@ def test_lifegain_payoff_matches_your_team_and_contraction():
     assert "lifegain_matters" not in _keys(plain)
 
 
+def test_lifegain_matches_variable_that_much_life():
+    # Variable self-lifegain phrased "you gain that much life" (Varina attacks with
+    # Zombies -> draw/discard/gain life equal to the count) is a real, repeatable
+    # lifegain SOURCE — it wants lifegain payoffs. The detector had "gain X life" and
+    # "gain life equal to" but not the equally-common "that much" form. Real oracle.
+    varina = {
+        "name": "Varina, Lich Queen",
+        "type_line": "Legendary Creature — Zombie Wizard",
+        "oracle_text": (
+            "Whenever you attack with one or more Zombies, draw that many cards, then "
+            "discard that many cards. You gain that much life.\n"
+            "{2}, Exile two cards from your graveyard: Create a tapped 2/2 black "
+            "Zombie creature token."
+        ),
+    }
+    assert "lifegain_matters" in _keys(varina)
+    # Over-fire guard: the new clause is self-scoped. A third-person "<opponent>
+    # gains that much life" (no "whenever … gain … life" trigger sentence) must not
+    # open the lane — only "you gain that much life" does.
+    opp = {
+        "name": "Generous Foe",
+        "type_line": "Legendary Creature — Spirit",
+        "oracle_text": (
+            "At the beginning of your end step, target opponent gains that much life."
+        ),
+    }
+    assert "lifegain_matters" not in _keys(opp)
+
+
 def test_debuff_serves_opponent_mass_shrink():
     # A -1/-1 debuff commander (Silumgar, the Drifting Death — "creatures defending
     # player controls get -1/-1") wants mass-shrink effects that set OPPONENTS'

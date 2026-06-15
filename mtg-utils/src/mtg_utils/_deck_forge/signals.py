@@ -191,8 +191,11 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             # "you gained" plus the contraction ("you've") and the partner "your team
             # gained life this turn" form (Regna / Krav).
             r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
-            # Variable lifegain: "gain X life" (Atalya), "gain life equal to …" (Ayli).
-            r"|gains? x life|gains? life equal to"
+            # Variable lifegain: "gain X life" (Atalya), "gain life equal to …" (Ayli),
+            # "you gain that much life" (Varina, Black Panther) — count-scaled self
+            # lifegain. Self-scoped form only; "<opponent> gains that much life" stays
+            # out (lifelink reminder text on granted auras already opens via lifelink).
+            r"|gains? x life|gains? life equal to|you gain that much life"
             # Lifegain amplifiers: "if you would gain life, you gain … instead"
             # (Bilbo, Boon Reflection, Rhox Faithmender, Alhammarret's Archive).
             r"|if you would gain life"
