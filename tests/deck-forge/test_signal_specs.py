@@ -4319,3 +4319,37 @@ def test_dies_recursion_is_superset_of_undying_persist():
     gk = {s.key for s in extract_signals(geralfs)}
     assert "dies_recursion" in gk
     assert "undying_persist_matters" in gk
+
+
+def test_creature_cast_and_etb_serve_self_bounce_recast_engines():
+    # Self-bounce ETB creatures (Whitemane Lion, Kor Skyfisher) return your own
+    # permanent on enter — recast them to re-fire creature-cast / enter triggers. A
+    # creature-cast (Oketra) or ETB commander wants them.
+    whitemane = {
+        "name": "Whitemane Lion",
+        "type_line": "Creature — Cat",
+        "oracle_text": (
+            "Flash\n"
+            "When this creature enters, return a creature you control to its owner's "
+            "hand."
+        ),
+    }
+    kor = {
+        "name": "Kor Skyfisher",
+        "type_line": "Creature — Kor Soldier",
+        "oracle_text": (
+            "Flying\n"
+            "When this creature enters, return a permanent you control to its owner's "
+            "hand."
+        ),
+    }
+    for key in ("creature_cast_trigger", "creature_etb", "permanent_etb"):
+        assert _lane_covers(whitemane, _sig(key)), key
+        assert _lane_covers(kor, _sig(key)), key
+    # Over-fire guard: bouncing an OPPONENT's permanent is tempo, not a recast engine.
+    boomerang = {
+        "name": "Man-o'-War-ish",
+        "type_line": "Creature — Jellyfish",
+        "oracle_text": "When this creature enters, return target creature to its owner's hand.",
+    }
+    assert _lane_covers(boomerang, _sig("creature_cast_trigger")) is False

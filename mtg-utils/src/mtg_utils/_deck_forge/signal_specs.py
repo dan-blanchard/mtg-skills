@@ -507,6 +507,22 @@ _SAC_OUTLET_EXTRA = SubAvenue(
     {"oracle": _SAC_OUTLET_ORACLE},
     serve=Serve(oracle=re.compile(_SAC_OUTLET_ORACLE, _IC)),
 )
+# Self-bounce ETB creatures (Whitemane Lion / Kor Skyfisher / Stonecloaker): "when this
+# creature enters, return a/another permanent you control to its owner's hand" — a
+# RECAST engine. Recasting re-fires both the creature-cast trigger and the enter
+# trigger, so a creature-cast / ETB commander wants them. Anchored to "you control" so
+# a tempo bounce of an OPPONENT's permanent never registers.
+_SELF_BOUNCE_ORACLE = (
+    r"when this creature enters, return (?:a|an|another) "
+    r"(?:creature|permanent|nonland permanent) you control to its owner"
+)
+_SELF_BOUNCE_EXTRA = SubAvenue(
+    "Self-bounce recast engines",
+    "creatures that return your own permanent on enter — recast to re-fire enter and "
+    "cast triggers (Whitemane Lion / Kor Skyfisher / Stonecloaker)",
+    {"oracle": _SELF_BOUNCE_ORACLE},
+    serve=Serve(oracle=re.compile(_SELF_BOUNCE_ORACLE, _IC)),
+)
 # Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
 # 603.6 zone-change triggers) and the ETB-trigger DOUBLERS that multiply every enter
 # (Panharmonicon / Yarok). The value regex requires an enter trigger PLUS a value verb,
@@ -1028,6 +1044,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _TRIGGER_COPY_EXTRA,
             _FLICKER_EXTRA,
             _DIES_RECURSION_EXTRA,
+            _SELF_BOUNCE_EXTRA,
         ),
     ),
     # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
@@ -1613,7 +1630,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # creature cost reducers (Goreclaw) and genuine bombs (Ghalta — power_min=6 keeps it
     # to true fatties, not every 5/5 the trigger would also accept).
     ("creature_cast_trigger", "you"): _sweep_spec_with_extras(
-        "creature_cast_trigger", (_CREATURE_COST_EXTRA,), serve_power_min=6
+        "creature_cast_trigger",
+        (_CREATURE_COST_EXTRA, _SELF_BOUNCE_EXTRA),
+        serve_power_min=6,
     ),
     # Toughness-as-power (Doran, Arcades) and damage-reflection (Boros Reckoner) decks
     # want big-TOUGHNESS bodies and Walls — credit them by toughness>=4 and Defender.
@@ -2542,7 +2561,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|when (?:this|[A-Z][\w']+)[^.]*enters"
         r"|(?:a|an|another|one or more)[^.]*permanents? you control enters"
         r"|(?:artifact or creature|creature or artifact)[^.]*enter",
-        extras=(_FLICKER_EXTRA, _DIES_RECURSION_EXTRA),
+        extras=(_FLICKER_EXTRA, _DIES_RECURSION_EXTRA, _SELF_BOUNCE_EXTRA),
     ),
     # Serve was `…|\bequipment\b|whenever[^.]*attacks`, which matched any creature
     # that merely mentions equipment or attacks (~1104). The avenue is Equipment-for-a-
