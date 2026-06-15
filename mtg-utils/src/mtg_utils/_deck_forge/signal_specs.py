@@ -1998,7 +1998,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "loot/connive discard outlets and discard payoffs",
         {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
         r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
-        r"|draw [^.]*then discard",
+        r"|draw [^.]*then discard"
+        # Self-discard OUTLETS the loot/connive forms missed: wheels ("discard all the
+        # cards in your hand") and "discard X/N cards" as a cost (Turbulent Dreams,
+        # Firestorm). Imperative "discard " (no trailing s) keeps forced-OPPONENT
+        # discard ("target player discardS") out — the opponent_discard lane.
+        r"|\bdiscard (?:x|\d+|two|three|four|all)\b",
     ),
     # Discard OUTLET commander (a loot/rummage engine): hand-written so the serve adds
     # the discard PAYOFFS it powers ("whenever you discard …" — Containment Construct,

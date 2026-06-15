@@ -78,6 +78,36 @@ def _lane_covers(card, sig):
     )
 
 
+def test_discard_matters_serves_self_discard_outlets():
+    # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
+    # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"
+    # as a cost (Turbulent Dreams, Firestorm). The serve only had loot ("discard a/two:")
+    # and "draw then discard". Real oracle.
+    sig = _sig("discard_matters", "you")
+    tolarian = {
+        "name": "Tolarian Winds",
+        "type_line": "Sorcery",
+        "oracle_text": "Discard all the cards in your hand, then draw that many cards.",
+    }
+    firestorm = {
+        "name": "Firestorm",
+        "type_line": "Instant",
+        "oracle_text": (
+            "As an additional cost to cast this spell, discard X cards.\n"
+            "Firestorm deals X damage to each of X target creatures and/or players."
+        ),
+    }
+    assert _lane_covers(tolarian, sig) is True
+    assert _lane_covers(firestorm, sig) is True
+    # Over-fire guard: forcing an OPPONENT to discard is hand-attack, not a self-outlet.
+    opp_discard = {
+        "name": "Mind Rot",
+        "type_line": "Sorcery",
+        "oracle_text": "Target player discards two cards.",
+    }
+    assert _lane_covers(opp_discard, sig) is False
+
+
 SELF_MILL = {
     "name": "Self Mill",
     "oracle_text": "Put the top four cards of your library into your graveyard.",
