@@ -771,6 +771,23 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
+    # Player-BURN source (Syr Konrad, Mogis, Go-Shintai, Nekusar) — a commander that
+    # deals N/X damage to a player/opponent is a burn deck wanting burn payoffs and
+    # damage doublers (direct_damage serves them). Distinct from damage_to_opp_matters,
+    # which keys on a "whenever ~ deals COMBAT damage" connect-TRIGGER. Anchored to a
+    # PLAYER/opponent target, so creature-only pings (removal) stay out.
+    (
+        "direct_damage",
+        re.compile(
+            r"deals (?:\d+|x|that much) damage to "
+            r"(?:target player|target opponent|each opponent|that player|any target"
+            r"|target player or planeswalker)"
+            r"|deals damage equal to [^.]*to "
+            r"(?:each opponent|target player|that player|any target)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

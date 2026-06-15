@@ -582,6 +582,52 @@ def test_gain_control_commander_also_opens_theft_matters():
     assert ("theft_matters", "opponents") not in _ks(plain)
 
 
+def test_player_burn_source_opens_direct_damage():
+    # A commander that deals N/X damage to a PLAYER/opponent as a source (Syr Konrad,
+    # Mogis, Go-Shintai) is a burn deck — it wants burn payoffs and damage doublers
+    # (served by direct_damage). The damage_to_opp lane keys on a "whenever ~ deals
+    # combat damage" TRIGGER, so these source-burners opened no damage lane. Real oracle.
+    syr_konrad = {
+        "name": "Syr Konrad, the Grim",
+        "type_line": "Legendary Creature — Human Knight",
+        "oracle_text": (
+            "Whenever another creature dies, or a creature card is put into a graveyard "
+            "from anywhere other than the battlefield, or a creature card leaves your "
+            "graveyard, Syr Konrad, the Grim deals 1 damage to each opponent.\n"
+            "{1}{B}: Each player mills a card."
+        ),
+    }
+    mogis = {
+        "name": "Mogis, God of Slaughter",
+        "type_line": "Legendary Enchantment Creature — God",
+        "oracle_text": (
+            "Indestructible\nAs long as your devotion to black and red is less than "
+            "seven, Mogis isn't a creature.\nAt the beginning of each opponent's "
+            "upkeep, Mogis deals 2 damage to that player unless they sacrifice a "
+            "creature of their choice."
+        ),
+    }
+    go_shintai = {
+        "name": "Go-Shintai of Ancient Wars",
+        "type_line": "Legendary Enchantment Creature — Shrine",
+        "oracle_text": (
+            "First strike\nAt the beginning of your end step, you may pay {1}. When you "
+            "do, Go-Shintai of Ancient Wars deals X damage to target player or "
+            "planeswalker, where X is the number of Shrines you control."
+        ),
+    }
+    assert ("direct_damage", "you") in _ks(syr_konrad)
+    assert ("direct_damage", "you") in _ks(mogis)
+    assert ("direct_damage", "you") in _ks(go_shintai)
+    # Over-fire guard: a commander that deals no damage at all does not open the lane.
+    healer = {
+        "name": "Healer Commander",
+        "type_line": "Legendary Creature — Cleric",
+        "oracle_text": "Whenever you gain life, draw a card.",
+    }
+    assert ("direct_damage", "you") not in _ks(healer)
+
+
 def test_donate_via_that_player_opens_donate():
     # Blim gives his own permanents to opponents ("that player gains control of target
     # permanent you control") — a donate commander wanting donate enablers (Harmless
