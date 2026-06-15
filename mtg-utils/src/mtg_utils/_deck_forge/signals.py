@@ -794,6 +794,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Artifact TUTORS/theft (Arcum, Thada Adel): "search … for a(n)
             # [noncreature] artifact card …" — fetch/steal artifacts to play.
             r"|search [^.]*\bfor [^.]*artifact[^.]*card|noncreature artifact card"
+            # Artifact DIG/cheat (Fifteenth Doctor, Jhoira, Muzzio): "put an artifact
+            # card … into your hand / onto the battlefield" — and IMPROVISE, an
+            # artifact-tap cost mechanic like affinity (reminder stripped → key it).
+            r"|put (?:an?|that|up to \w+) artifact cards?[^.]*"
+            r"(?:into your hand|onto the battlefield)"
+            r"|\bimprovise\b"
             # Sac outlets (Bosh), artifact-ability payoffs (Kurkesh), and type-granters
             # (Memnarch: "becomes an artifact") are artifact commanders too. The sac
             # lookahead drops the generic any-permanent list ("sacrifice an artifact,

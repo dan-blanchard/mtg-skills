@@ -295,6 +295,40 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_artifact_dig_and_improvise_open_artifacts():
+    # Commanders that DIG for artifact cards ("put an artifact card ... into your hand /
+    # onto the battlefield" — Fifteenth Doctor, Jhoira) or grant IMPROVISE (an
+    # artifact-tap mechanic like affinity) are artifact decks; artifacts_matter matched
+    # "search for an artifact card" but not these forms. Real oracle.
+    doctor = {
+        "name": "The Fifteenth Doctor",
+        "type_line": "Legendary Creature — Time Lord Doctor",
+        "oracle_text": (
+            "Whenever The Fifteenth Doctor enters or attacks, mill three cards. You "
+            "may put an artifact card with mana value 2 or 3 from among them into your "
+            "hand.\nThe first nonartifact spell you cast each turn has improvise."
+        ),
+    }
+    jhoira = {
+        "name": "Jhoira, Ageless Innovator",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": (
+            "{T}: Put two ingenuity counters on Jhoira, then you may put an artifact "
+            "card with mana value X or less from your hand onto the battlefield, where "
+            "X is the number of ingenuity counters on Jhoira."
+        ),
+    }
+    assert "artifacts_matter" in _keys(doctor)
+    assert "artifacts_matter" in _keys(jhoira)
+    # Over-fire guard: a vanilla creature is not an artifact commander.
+    bear = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert "artifacts_matter" not in _keys(bear)
+
+
 def test_power_greater_than_base_power_opens_counters():
     # A commander that rewards creatures whose "power [is] greater than its base power"
     # (Kutzil, Baird) is a pump / +1/+1-counters payoff — those creatures got there via
