@@ -123,6 +123,37 @@ def test_combat_damage_to_opp_serves_damage_amplifiers():
     assert _lane_covers(lifegain, sig) is False
 
 
+def test_ninjutsu_lane_serves_ninja_creatures():
+    # A ninjutsu deck (Yuriko, Satoru, Higure) wants the NINJA creatures themselves —
+    # the ninjutsu payoff swapped in via an unblocked attacker — not just the evasion
+    # carriers. The lane served evasion keywords but not the ninjutsu keyword. Real card.
+    sig = _sig("ninjutsu_matters", "you")
+    satoru = {
+        "name": "Satoru Umezawa",
+        "type_line": "Legendary Creature — Human Ninja",
+        "keywords": ["Ninjutsu"],
+        "oracle_text": (
+            "Whenever you activate a ninjutsu ability, look at the top three cards of "
+            "your library. Put one of them into your hand.\nEach creature card in your "
+            "hand has ninjutsu {1}{U}{B}."
+        ),
+    }
+    silver_fur = {
+        "name": "Silver-Fur Master",
+        "type_line": "Creature — Rat Ninja",
+        "keywords": ["Ninjutsu"],
+        "oracle_text": (
+            "Ninjutsu {U}{B}\nThe first ninjutsu ability you activate each turn costs "
+            '{1} less to activate.\nNinja creatures you control have "Ninjutsu {U}{B}."'
+        ),
+    }
+    assert _lane_covers(satoru, sig) is True
+    assert _lane_covers(silver_fur, sig) is True
+    # Over-fire guard: a vanilla creature is not a ninjutsu card.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert _lane_covers(bear, sig) is False
+
+
 def test_aristocrats_lanes_serve_death_doublers_and_dies_return_grants():
     # An aristocrats/death commander (Orca) wants death-trigger DOUBLERS (Teysa, Drivnod
     # — the deaths-Panharmonicon) and dies-return GRANTERS (Feign Death, Supernatural

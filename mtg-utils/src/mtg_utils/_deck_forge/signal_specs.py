@@ -2582,11 +2582,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # hard-evasion keywords; flying is excluded (soft/blockable).
     ("ninjutsu_matters", "you"): _spec(
         "Ninjutsu",
-        "cheap unblockable/evasive creatures to carry the ninja in",
-        {"oracle": r"can't be blocked|\bunblockable\b"},
+        "ninja creatures plus the cheap unblockable/evasive creatures to carry them in",
+        {"oracle": r"can't be blocked|\bunblockable\b|\bninjutsu\b"},
         r"can't be blocked(?! except)|\bunblockable\b"
         r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+        # The NINJA creatures themselves are the payoff (swapped in via ninjutsu off an
+        # unblocked attacker), not just the evasion carriers.
         serve_keywords=(
+            "ninjutsu",
             "horsemanship",
             "menace",
             "fear",
