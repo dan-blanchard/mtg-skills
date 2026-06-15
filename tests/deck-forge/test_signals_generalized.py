@@ -372,6 +372,34 @@ def test_legendary_permanent_trigger_opens_legends():
     assert ("legends_matter", "you") not in _ks(bear)
 
 
+def test_double_damage_of_counter_creatures_opens_counters():
+    # "Double all damage that creatures you control WITH COUNTERS ON THEM would deal"
+    # (Raphael, Tidus) is a +1/+1-counters DAMAGE payoff — the damage-doubling context
+    # implies POSITIVE counters (you wouldn't double the damage of -1/-1 creatures), so
+    # no literal "+1/+1" is needed. Real oracle.
+    raphael = {
+        "name": "Raphael, the Muscle",
+        "type_line": "Legendary Creature — Mutant Turtle Warrior",
+        "oracle_text": (
+            "Double all damage that creatures you control with counters on them would "
+            "deal.\nWhen Raphael, the Muscle enters, create a Mutagen token."
+        ),
+    }
+    assert ("counters_matter", "you") in _ks(raphael)
+    # Over-fire guard: a -1/-1 clone commander ("copy of a creature with a counter") is
+    # not a +1/+1 deck.
+    volrath = {
+        "name": "Volrath, the Shapestealer",
+        "type_line": "Legendary Creature — Phyrexian Shapeshifter",
+        "oracle_text": (
+            "At the beginning of combat on your turn, put a -1/-1 counter on up to one "
+            "target creature.\n{1}: Until your next turn, Volrath becomes a copy of "
+            "target creature with a counter on it, except it has this ability."
+        ),
+    }
+    assert ("counters_matter", "you") not in _ks(volrath)
+
+
 def test_type_grant_opens_tribal():
     # A commander that CONVERTS its creatures to a tribe — "it's a Zombie in addition to
     # its other creature types" (Lim-Dûl reanimates as Zombies), Chainer (Nightmare) —

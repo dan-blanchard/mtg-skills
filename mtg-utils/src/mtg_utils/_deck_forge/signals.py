@@ -2128,12 +2128,22 @@ _COUNTER_HAVE_PAYOFF = re.compile(
     re.IGNORECASE,
 )
 _PLUS_ONE_COUNTER = re.compile(r"\+1/\+1 counter", re.IGNORECASE)
+# "Double the damage of creatures you control WITH COUNTERS on them" (Raphael, Tidus) is
+# a +1/+1-counters DAMAGE payoff — the damage-doubling context implies POSITIVE counters
+# (you'd never double the damage of -1/-1 creatures), so no literal "+1/+1" is required;
+# this avoids the gate that otherwise needs "+1/+1" and would miss Raphael ("counters").
+_COUNTER_DAMAGE_PAYOFF = re.compile(
+    r"double [^.]*damage [^.]*creatures? you control with counters?", re.IGNORECASE
+)
 
 
 def _detect_counter_have_payoff(text: str) -> bool:
     """True if a +1/+1-counters commander's payoff rewards creatures that HAVE counters
-    (Rishkar, Baxter, Pipsqueak) — see _COUNTER_HAVE_PAYOFF."""
-    return bool(_PLUS_ONE_COUNTER.search(text) and _COUNTER_HAVE_PAYOFF.search(text))
+    (Rishkar, Baxter, Pipsqueak), or doubles counter-creatures' damage (Raphael)."""
+    return bool(
+        (_PLUS_ONE_COUNTER.search(text) and _COUNTER_HAVE_PAYOFF.search(text))
+        or _COUNTER_DAMAGE_PAYOFF.search(text)
+    )
 
 
 # Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE BATTLEFIELD
