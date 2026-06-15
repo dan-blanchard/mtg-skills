@@ -582,6 +582,34 @@ def test_gain_control_commander_also_opens_theft_matters():
     assert ("theft_matters", "opponents") not in _ks(plain)
 
 
+def test_donate_via_that_player_opens_donate():
+    # Blim gives his own permanents to opponents ("that player gains control of target
+    # permanent you control") — a donate commander wanting donate enablers (Harmless
+    # Offering, Bazaar Trader). The donate detector matched "target opponent/player" but
+    # not the "that player" form. Real oracle.
+    blim = {
+        "name": "Blim, Comedic Genius",
+        "type_line": "Legendary Creature — Zombie Spirit",
+        "oracle_text": (
+            "Flying\nWhenever Blim deals combat damage to a player, that player gains "
+            "control of target permanent you control. Then each player loses life and "
+            "discards cards equal to the number of permanents they control."
+        ),
+    }
+    assert ("donate_matters", "you") in _ks(blim)
+    # Over-fire guard: a commander where YOU gain control (the opposite of donate) does
+    # not open the donate lane.
+    silumgar = {
+        "name": "Dragonlord Silumgar",
+        "type_line": "Legendary Creature — Elder Dragon",
+        "oracle_text": (
+            "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of "
+            "target creature or planeswalker for as long as you control Silumgar."
+        ),
+    }
+    assert ("donate_matters", "you") not in _ks(silumgar)
+
+
 def test_dont_own_payoff_opens_theft_and_gain_control():
     # A theft-PAYOFF commander that rewards permanents "you control but DON'T OWN"
     # (Don Andres, Arvinox) is built on stealing — it wants the whole theft package

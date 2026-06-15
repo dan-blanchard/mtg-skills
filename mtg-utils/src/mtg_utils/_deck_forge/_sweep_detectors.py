@@ -372,7 +372,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "donate_matters",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "(?:target opponent|another player|target player) gains control of[^.]*you control|target opponent (?:creates|draws|gains|puts)|(?:target opponent|another player|target player) gains control of",
+        "regex": "(?:target opponent|another player|target player|that player|each opponent|each other player) gains control of[^.]*you control|target opponent (?:creates|draws|gains|puts)|(?:target opponent|another player|target player|that player) gains control of",
     },
     {
         "key": "attractions_matter",
