@@ -1873,6 +1873,11 @@ _SELF_ETB_PAYOFF = (
     r"\b(?:draws?|create|creates|search|searches|look at|reveal|returns?"
     r"|gains? control|put[^.]*counter|mills?|investigate|scry|draft|copy"
     r"|deals? \d+ damage)\b"
+    # Modal ETBs ("When ~ enters, choose one —") are value triggers; the value verbs
+    # sit in the bullet modes (separate clauses), so credit the modal template itself
+    # (CR 700.2). "choose one/two/three/up to" is the modal marker — narrower than bare
+    # "choose". Catches Donnie & April, Charming Prince, Aether Channeler.
+    r"|choose (?:one|two|three|up to)"
 )
 
 
@@ -1895,16 +1900,28 @@ def _detect_self_damage_prevention(text: str, name: str) -> bool:
     return pat.search(text) is not None
 
 
-def _self_etb_value(text: str, name: str) -> str | None:
-    """Grounding clause if the card has a self enters-the-battlefield VALUE trigger."""
-    first = ""
+def _self_name_alts(name: str) -> list[str]:
+    """Regex-escaped ways a card's oracle refers to itself BY NAME: the short name
+    (everything before the first comma — 'Spider-Byte', 'Donnie & April', 'Black Cat')
+    and the first meaningful token (legacy nickname forms). Oracle self-references use
+    the short name, which may be hyphenated / two-named / multi-word, so keying on the
+    first token alone misses them ('Spider' is followed by '-Byte', not ' enters')."""
+    alts: list[str] = []
+    short = name.split(",", maxsplit=1)[0].strip()
+    if short:
+        alts.append(re.escape(short))
     for w in re.split(r"\W+", name):
         if len(w) > 2 and w.lower() not in _ARTICLES:
-            first = w
+            tok = re.escape(w)
+            if tok not in alts:
+                alts.append(tok)
             break
-    alts = r"this creature|this permanent|~" + (
-        ("|" + re.escape(first)) if first else ""
-    )
+    return alts
+
+
+def _self_etb_value(text: str, name: str) -> str | None:
+    """Grounding clause if the card has a self enters-the-battlefield VALUE trigger."""
+    alts = "|".join(["this creature", "this permanent", "~", *_self_name_alts(name)])
     # when(?:ever)? + enters? — catch "WHENEVER ~ enters" (Roxanne) and the plural
     # "enter" of two-name commanders ("When Donnie & April enter").
     pat = re.compile(

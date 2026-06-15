@@ -554,6 +554,45 @@ def test_self_etb_value_matches_whenever_and_plural_enter():
     assert "blink_flicker" in _keys(roxanne)
 
 
+def test_self_etb_value_resolves_short_name_not_just_first_token():
+    # The self-reference in oracle is the name BEFORE the comma (the short name), which
+    # may be hyphenated, two-named, or multi-word — not the bare first token. The
+    # detector keyed only on the first token immediately before "enters", so
+    # "When Spider-Byte enters" / "When Donnie & April enter" / "When Black Cat enters"
+    # all missed (the first token is followed by more name, not " enters"). A self-ETB
+    # commander wants blink + ETB-trigger doublers (Panharmonicon). Real cards.
+    spider_byte = {
+        "name": "Spider-Byte, Web Warden",
+        "type_line": "Legendary Creature — Spider",
+        "oracle_text": (
+            "When Spider-Byte enters, return up to one target nonland permanent to "
+            "its owner's hand."
+        ),
+    }
+    donnie_april = {
+        "name": "Donnie & April, Adorkable Duo",
+        "type_line": "Legendary Creature — Mutant Turtle",
+        "oracle_text": (
+            "When Donnie & April enter, choose one or both. Each mode must target a "
+            "different player.\n• Target player draws two cards.\n• Target player "
+            "returns an artifact, instant, or sorcery card from their graveyard to "
+            "their hand."
+        ),
+    }
+    black_cat = {
+        "name": "Black Cat, Cunning Thief",
+        "type_line": "Legendary Creature — Cat",
+        "oracle_text": (
+            "When Black Cat enters, look at the top nine cards of target opponent's "
+            "library, exile two of them face down, then put the rest on the bottom of "
+            "their library in a random order."
+        ),
+    }
+    assert "blink_flicker" in _keys(spider_byte)
+    assert "blink_flicker" in _keys(donnie_april)
+    assert "blink_flicker" in _keys(black_cat)
+
+
 def test_self_counter_accumulator_opens_counters_matter():
     # A commander that puts +1/+1 counters on ITSELF and cares about its COUNT
     # (Sab-Sunen — "number of counters on it") is a +1/+1-counters commander; it should
