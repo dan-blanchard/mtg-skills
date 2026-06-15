@@ -593,5 +593,9 @@ TRIBAL_SUBTYPES: frozenset[str] = frozenset(
         "dalek",
         "tiefling",
         "wraith",
+        "fox",
+        "gorgon",
+        "homunculus",
+        "symbiote",
     }
 )

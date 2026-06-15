@@ -1771,6 +1771,12 @@ def test_missing_race_tribes_open_membership_but_classes_do_not():
         "oracle_text": "",
     }
     assert ("type_matters", "you", "Saproling") in _ksub(saproling)
+    gorgon = {
+        "name": "Generic Gorgon",
+        "type_line": "Legendary Creature — Gorgon",
+        "oracle_text": "",
+    }
+    assert ("type_matters", "you", "Gorgon") in _ksub(gorgon)
     # Over-fire guard: a class type (Warrior) is NOT a membership tribe — a vanilla
     # Human Warrior must not mint a Warrior-tribal avenue from membership alone.
     warrior = {
