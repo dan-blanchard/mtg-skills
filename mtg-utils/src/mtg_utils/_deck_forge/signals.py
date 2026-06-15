@@ -410,7 +410,11 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
             and (
                 "for each" in c
                 or "number of" in c
-                or "on each creature you control" in c
+                # Board-wide placement: "put a +1/+1 counter on each <group>" — on
+                # each attacking / other / legendary / artifact creature, on each
+                # <tribe> you control, on each of up to N target creatures. All are
+                # counter ENGINES (Drana, Edgar Markov, Steel Overseer, Iron Spider).
+                or "+1/+1 counter on each" in c
                 or "creatures you control with +1/+1 counter" in c
                 # A VARIABLE count ("put X +1/+1 counters …") is a scaling counter
                 # engine, not bare self-growth (Halana and Alena, Champion of Lambholt).

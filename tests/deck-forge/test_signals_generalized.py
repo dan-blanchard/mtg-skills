@@ -1419,6 +1419,41 @@ def test_self_counter_accumulator_opens_counters_matter():
     assert "counters_matter" not in _keys(incidental)
 
 
+def test_board_wide_counter_placement_opens_counters_matter():
+    # Board-wide "+1/+1 counter on each <group>" placement is a counters ENGINE —
+    # the commander repeatedly spreads counters across a board, so it wants counter
+    # payoffs (proliferate, doublers, counter-matters creatures). The detector keyed
+    # only on the exact phrase "on each creature you control", missing every other
+    # group: "on each attacking creature", "on each <tribe> you control", "on each
+    # of up to N target creatures", "on each other/legendary/artifact creature".
+    # Generalize to the placement clause itself: "+1/+1 counter on each".
+    drana = {
+        "name": "Drana, Liberator of Malakir",
+        "type_line": "Legendary Creature — Vampire Ally",
+        "oracle_text": (
+            "Flying, first strike\n"
+            "Whenever Drana deals combat damage to a player, put a +1/+1 counter on "
+            "each attacking creature you control."
+        ),
+    }
+    assert "counters_matter" in _keys(drana)
+    # Activated board-wide placer (Steel Overseer-style) — same lane.
+    overseer = {
+        "name": "Steel Overseer",
+        "type_line": "Artifact Creature — Construct",
+        "oracle_text": "{T}: Put a +1/+1 counter on each artifact creature you control.",
+    }
+    assert "counters_matter" in _keys(overseer)
+    # Over-fire guard: bare single self-growth ("a +1/+1 counter on it") is NOT a
+    # counters engine — it must stay out of the lane.
+    self_grower = {
+        "name": "Bare Self-Grower",
+        "type_line": "Creature — Beast",
+        "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
+    }
+    assert "counters_matter" not in _keys(self_grower)
+
+
 def test_role_token_makers_open_enchantments_matter():
     # Role tokens are Aura ENCHANTMENTS (CR), so a commander that makes them (Gylwain,
     # Ellivere) is an enchantment commander — it wants enchantment-count payoffs
