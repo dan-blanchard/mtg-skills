@@ -2226,3 +2226,54 @@ def test_acererak_folds_ventured_tomb_of_annihilation():
     assert "lifegain_matters" not in {
         s.key for s in extract_signals(nadaar, resolve_object=resolver)
     }
+
+
+def test_ring_bearer_commander_folds_the_ring():
+    # ADR-0025 rules-fixed fold: "the Ring tempts you" maps to the ONE Ring (no
+    # disambiguation). The Ring-bearer's levels — "deals combat damage to a player, each
+    # opponent loses 3 life" / "draw a card, then discard" — make a Ring commander a
+    # combat-damage + loot deck. The Ring's text lives on card_faces (oracle_text is
+    # empty), so the fold must read it via get_oracle_text. Real cards, full oracle.
+    ring_text = (
+        "Your Ring-bearer is legendary and can't be blocked by creatures with "
+        "greater power.\n"
+        "Whenever your Ring-bearer attacks, draw a card, then discard a card.\n"
+        "Whenever your Ring-bearer becomes blocked by a creature, that creature's "
+        "controller sacrifices it at end of combat.\n"
+        "Whenever your Ring-bearer deals combat damage to a player, each opponent "
+        "loses 3 life."
+    )
+
+    def resolver(name):
+        if name == "The Ring":
+            return {"name": "The Ring", "oracle_text": ring_text}
+        return None
+
+    aragorn = {
+        "name": "Aragorn, Company Leader",
+        "type_line": "Legendary Creature — Human Ranger",
+        "oracle_text": (
+            "Whenever the Ring tempts you, if you chose a creature other than "
+            "Aragorn as your Ring-bearer, put your choice of a counter from among "
+            "first strike, vigilance, deathtouch, and lifelink on Aragorn.\n"
+            "Whenever you put one or more counters on Aragorn, put one of each of "
+            "those kinds of counters on up to one other target creature."
+        ),
+    }
+    without = _keys(aragorn)
+    withfold = {s.key for s in extract_signals(aragorn, resolve_object=resolver)}
+    # The folded Ring's combat-damage drain opens combat_damage_to_opp.
+    assert ("combat_damage_to_opp", "opponents") in {
+        (s.key, s.scope) for s in extract_signals(aragorn, resolve_object=resolver)
+    }
+    assert "combat_damage_to_opp" in withfold
+    assert "combat_damage_to_opp" not in without
+    # Over-fire guard: a commander that never tempts with the Ring folds nothing.
+    plain = {
+        "name": "Generic Bear",
+        "type_line": "Legendary Creature — Bear",
+        "oracle_text": "Vigilance",
+    }
+    assert "combat_damage_to_opp" not in {
+        s.key for s in extract_signals(plain, resolve_object=resolver)
+    }

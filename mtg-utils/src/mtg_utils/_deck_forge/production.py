@@ -33,17 +33,24 @@ def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:
 
 
 def build_object_resolver(cards: list[dict]) -> Callable[[str], dict | None]:
-    """A name → card lookup for *folded objects* (ADR-0025) — currently the Dungeon
-    cards a commander ventures into. Dungeons are deliberately excluded from
+    """A name → card lookup for *folded objects* (ADR-0025): the Dungeon cards a
+    commander ventures into and the Emblem-typed objects it brings in (the Ring,
+    "The Ring // The Ring Tempts You"). These are deliberately excluded from
     `build_by_name` (you can't add one to a deck), so signal-extraction folding needs
-    this separate raw-bulk lookup. Tiny (~10 dungeons)."""
-    objects = {
-        c["name"]: c
-        for c in cards
-        if isinstance(c, dict)
-        and c.get("name")
-        and "dungeon" in (c.get("type_line") or "").lower()
-    }
+    this separate raw-bulk lookup. Keyed by full name AND DFC front-face name, so a
+    rules-fixed fold can resolve "The Ring" / "Undercity". Tiny (~dozen objects)."""
+    objects: dict[str, dict] = {}
+    for c in cards:
+        if not isinstance(c, dict):
+            continue
+        tl = (c.get("type_line") or "").lower()
+        if "dungeon" not in tl and "emblem" not in tl:
+            continue
+        name = c.get("name") or ""
+        if not name:
+            continue
+        objects.setdefault(name, c)
+        objects.setdefault(name.split(" // ")[0], c)  # front-face: The Ring, Undercity
     return objects.get
 
 

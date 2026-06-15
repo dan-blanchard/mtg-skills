@@ -2383,6 +2383,12 @@ def _resolve_scope(
 # ── The extractor ─────────────────────────────────────────────────────────────
 
 
+def _object_oracle(obj: dict | None) -> str:
+    """A folded object's full oracle, joining DFC faces. A dungeon's rooms are one face,
+    but the Ring / Undercity are "// Card" DFCs with an empty oracle_text field."""
+    return (get_oracle_text(obj) or "") if obj else ""
+
+
 def _fold_referenced_objects(
     card: dict, resolve_object: Callable[[str], dict | None]
 ) -> dict:
@@ -2399,18 +2405,29 @@ def _fold_referenced_objects(
     text = get_oracle_text(card) or ""
     low = text.lower()
     extra: list[str] = []
+    # Chooseable dungeon: all_parts lists every rules-legal dungeon, so fold only the
+    # one the commander's oracle NAMES (Acererak → Tomb of Annihilation) — the
+    # deterministic one. A generic venturer names none, so nothing folds.
     for part in card.get("all_parts") or []:
         if "dungeon" not in (part.get("type_line") or "").lower():
             continue
         name = part.get("name") or ""
-        if not name or name.lower() not in low:  # only the oracle-NAMED dungeon
-            continue
-        obj = resolve_object(name)
-        if obj and obj.get("oracle_text"):
-            extra.append(obj["oracle_text"])
+        if name and name.lower() in low:
+            extra.append(_object_oracle(resolve_object(name)))
+    # Rules-fixed objects: a trigger phrase maps to ONE global object (no need to
+    # disambiguate; there is only one Ring, one Initiative dungeon). Read via
+    # get_oracle_text — these DFCs keep their text on card_faces, not oracle_text.
+    for trigger, obj_name in (
+        ("the ring tempts you", "The Ring"),
+        ("take the initiative", "Undercity"),
+    ):
+        if trigger in low:
+            extra.append(_object_oracle(resolve_object(obj_name)))
+    extra = [e for e in extra if e]
     if not extra:
         return card
     folded = dict(card)
+    folded.pop("card_faces", None)  # oracle_text below is now authoritative
     folded["oracle_text"] = text + "\n" + "\n".join(extra)
     return folded
 
