@@ -1702,6 +1702,54 @@ def test_tapped_creatures_matter_opens_and_serves():
     assert lane_covers(devout, "tapped_matters") is False
 
 
+def test_tapped_threshold_and_count_open_and_serve():
+    # The "if you control two or more tapped creatures, <payoff>" THRESHOLD (Sami and
+    # the Edge of Eternities tap cluster) and the "for each tapped creature you control"
+    # COUNT form are tapped-matters engines, but the detector/serve only keyed on
+    # "number of tapped creatures" and the anthem form. Both detector and serve must
+    # learn the threshold + count so Sami covers its cluster. Real cards, full oracle.
+    sami = {
+        "name": "Sami, Ship's Engineer",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": (
+            "At the beginning of your end step, if you control two or more tapped "
+            "creatures, create a tapped 2/2 colorless Robot artifact creature token."
+        ),
+    }
+    assert "tapped_matters" in _keys(sami)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    dawnstrike = {
+        "name": "Dawnstrike Vanguard",
+        "type_line": "Creature — Human Knight",
+        "oracle_text": (
+            "Lifelink\n"
+            "At the beginning of your end step, if you control two or more tapped "
+            "creatures, put a +1/+1 counter on each creature you control other than "
+            "this creature."
+        ),
+    }
+    assert lane_covers(dawnstrike, "tapped_matters") is True
+    # Over-fire guard: tapping UNtapped creatures as a cost stays out (the un- prefix
+    # means "or more tapped" never matches "or more untapped").
+    convoke = {
+        "name": "Generic Convoker",
+        "type_line": "Creature — Elf Druid",
+        "oracle_text": "{2}, Tap four untapped creatures you control: Draw two cards.",
+    }
+    assert "tapped_matters" not in _keys(convoke)
+
+
 def test_your_graveyard_scope_not_stolen_by_incidental_opponent_mention():
     # A self-graveyard engine that merely MENTIONS opponents elsewhere (Araumi's encore
     # tokens "attack that opponent"; the cost counts "the number of opponents you have")

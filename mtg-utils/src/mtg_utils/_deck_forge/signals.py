@@ -929,7 +929,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "tapped_matters",
         re.compile(
             r"number of tapped creatures you control"
-            r"|\btapped creatures you control (?:have|get|gain|are|can|with)",
+            r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
+            # Threshold gate ("if you control two or more tapped creatures, <payoff>" —
+            # Sami and the EOE tap cluster) and the "for each tapped creature you
+            # control" count form. "or more tapped" never matches "or more untapped".
+            r"|or more tapped creatures|for each tapped creature you control",
             re.IGNORECASE,
         ),
         "you",

@@ -2140,10 +2140,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             "oracle": (
                 r"number of tapped creatures you control"
                 r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
+                r"|or more tapped creatures|for each tapped creature you control"
             )
         },
         r"number of tapped creatures you control"
-        r"|\btapped creatures you control (?:have|get|gain|are|can|with)",
+        r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
+        r"|or more tapped creatures|for each tapped creature you control",
     ),
     # Land sacrifice (Gitrog, Titania, Slogurk): lands hitting the graveyard is the
     # payoff, so repeatable "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb)
