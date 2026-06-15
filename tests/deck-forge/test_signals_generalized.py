@@ -1931,3 +1931,23 @@ def test_debuff_serves_opponent_mass_shrink():
         ),
     }
     assert lane_covers(mirror, "debuff_matters", "any") is False
+
+
+def test_lure_commander_cross_opens_blocked_matters():
+    # Lure (force blocks) and blocked_matters (punish the blocker) are one archetype:
+    # a commander that MUST be blocked / lures (Madame Vastra) wants the punish-when-
+    # blocked payoffs (Engulfing Slagwurm, Tolarian Entrancer). Cross-open lure ->
+    # blocked (one-directional — a bare "when blocked" trigger isn't a lure deck). Real
+    # card, full oracle.
+    vastra = {
+        "name": "Madame Vastra",
+        "type_line": "Legendary Creature — Lizard Detective",
+        "oracle_text": (
+            "Madame Vastra must be blocked if able.\n"
+            "Whenever a creature dealt damage by Madame Vastra this turn dies, create "
+            "a Clue token and a Food token."
+        ),
+    }
+    keys = _keys(vastra)
+    assert "lure_matters" in keys
+    assert "blocked_matters" in keys

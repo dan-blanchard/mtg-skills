@@ -2477,6 +2477,13 @@ def extract_signals(
         if "play_from_top" in keys_now:
             add("topdeck_selection", "you", "", text[:160], "low")
             add("topdeck_stack", "you", "", text[:160], "low")
+        # Lure (force blocks) and blocked_matters (punish the blocker) are one
+        # archetype: a commander that lures / must-be-blocked (Madame Vastra, Gorm)
+        # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian
+        # Entrancer). One-directional — a bare "when blocked" trigger creature isn't a
+        # lure deck, so blocked_matters does NOT cross-open lure.
+        if "lure_matters" in keys_now and "blocked_matters" not in keys_now:
+            add("blocked_matters", "you", "", text[:160], "low")
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a
