@@ -295,6 +295,46 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_charge_and_experience_counters_open_proliferate():
+    # A commander that accumulates a BENEFICIAL resource counter — charge (Immard) or
+    # experience (Ezuri, Mizzix) — wants proliferate (pure upside: more charge to spend,
+    # more experience). Distinct from a PENALTY counter (Arixmethes' slumber), where
+    # proliferate is anti-synergy, so the lane is gated to charge/experience only.
+    immard = {
+        "name": "Immard, the Stormcleaver",
+        "type_line": "Legendary Creature — Giant Berserker",
+        "oracle_text": (
+            "Whenever Immard, the Stormcleaver enters or attacks, put a charge counter "
+            "on it or remove one from it. When you remove a counter this way, choose "
+            "one —\n• Immard deals 4 damage to any target.\n• Immard gains lifelink."
+        ),
+    }
+    ezuri = {
+        "name": "Ezuri, Claw of Progress",
+        "type_line": "Legendary Creature — Phyrexian Elf",
+        "oracle_text": (
+            "Whenever a creature you control with power 2 or less enters, you get an "
+            "experience counter.\nAt the beginning of combat on your turn, put X +1/+1 "
+            "counters on another target creature you control, where X is the number of "
+            "experience counters you have."
+        ),
+    }
+    assert ("proliferate_matters", "you") in _ks(immard)
+    assert ("proliferate_matters", "you") in _ks(ezuri)
+    # Over-fire guard: a PENALTY-counter commander (slumber) must NOT open proliferate —
+    # proliferate would keep Arixmethes asleep (anti-synergy).
+    arixmethes = {
+        "name": "Arixmethes, Slumbering Isle",
+        "type_line": "Legendary Creature — Kraken",
+        "oracle_text": (
+            "Arixmethes, Slumbering Isle enters tapped with five slumber counters on "
+            "it.\nAs long as Arixmethes has a slumber counter on it, it's a land.\n"
+            "Whenever you cast a spell, you may remove a slumber counter from Arixmethes."
+        ),
+    }
+    assert ("proliferate_matters", "you") not in _ks(arixmethes)
+
+
 def test_polymorph_cheat_opens_cheat_into_play():
     # Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE
     # BATTLEFIELD (Jalira, Atla Palani, Eladamri) — they want big fatties to cheat in.

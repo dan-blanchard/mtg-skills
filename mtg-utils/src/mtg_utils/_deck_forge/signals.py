@@ -771,6 +771,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
+    # Beneficial RESOURCE counters — charge (Immard) and experience (Ezuri, Mizzix,
+    # Meren) — accumulate for upside, so the commander wants PROLIFERATE (more charge to
+    # spend, more experience). Gated to charge/experience only: a PENALTY counter
+    # (Arixmethes' slumber, stun, -1/-1 on your own) makes proliferate anti-synergy, so
+    # those never open this lane.
+    (
+        "proliferate_matters",
+        re.compile(r"\bcharge counter|\bexperience counter", re.IGNORECASE),
+        "you",
+    ),
     (
         "treasure_matters",
         re.compile(
