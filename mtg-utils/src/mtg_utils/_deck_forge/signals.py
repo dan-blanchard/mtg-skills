@@ -815,7 +815,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "treasure_matters",
         re.compile(
             r"create (?:a|an|one|two|three|four|five|\d+|x)[^.]*?\btreasure token"
-            r"|\btreasures? you control\b",
+            r"|\btreasures? you control\b"
+            # Treasure-CARE without making it: "if the sacrificed permanent was a
+            # Treasure" (Evereth), "sacrifice a Treasure" (Kain) — a Treasure deck.
+            r"|sacrifice a treasure|(?:was|were) (?:a |an )?treasures?\b",
             re.IGNORECASE,
         ),
         "you",

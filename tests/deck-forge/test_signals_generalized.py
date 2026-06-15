@@ -295,6 +295,26 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_treasure_care_opens_treasure_matters():
+    # A commander that cares about Treasure without making it — "if the sacrificed
+    # permanent was a Treasure" (Evereth), "sacrifice a Treasure" (Kain) — is a Treasure
+    # deck wanting Treasure makers/doublers (Academy Manufactor, Xorn). The detector
+    # keyed on "create ... Treasure" / "Treasures you control" and missed these.
+    evereth = {
+        "name": "Evereth, Viceroy of Plunder",
+        "type_line": "Legendary Creature — Human Pirate",
+        "oracle_text": (
+            "Flying\nSacrifice another creature or artifact: Put a +1/+1 counter on "
+            "Evereth. If the sacrificed permanent was a Treasure, Evereth gains "
+            "lifelink until end of turn. Activate only as a sorcery."
+        ),
+    }
+    assert ("treasure_matters", "you") in _ks(evereth)
+    # Over-fire guard: a vanilla creature is not a Treasure commander.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("treasure_matters", "you") not in _ks(bear)
+
+
 def test_mana_ability_payoff_opens_ramp():
     # A commander that rewards "creatures you control with a mana ability" (Raggadragga
     # buffs/untaps them) is a mana-dork deck — it wants mana-dork creatures (served by
