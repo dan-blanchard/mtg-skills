@@ -1593,3 +1593,34 @@ def test_tapped_creatures_matter_opens_and_serves():
     }
     assert "tapped_matters" not in _keys(devout)
     assert lane_covers(devout, "tapped_matters") is False
+
+
+def test_your_graveyard_scope_not_stolen_by_incidental_opponent_mention():
+    # A self-graveyard engine that merely MENTIONS opponents elsewhere (Araumi's encore
+    # tokens "attack that opponent"; the cost counts "the number of opponents you have")
+    # cares about YOUR graveyard — it must open graveyard_matters/you so self-mill
+    # enablers (scoped you) serve, not be mis-scoped opponents by the "opponent"-
+    # anywhere rule. Real card, full oracle.
+    araumi = {
+        "name": "Araumi of the Dead Tide",
+        "type_line": "Legendary Creature — Merfolk Wizard",
+        "oracle_text": (
+            "{T}, Exile cards from your graveyard equal to the number of opponents "
+            "you have: Target creature card in your graveyard gains encore until end "
+            "of turn. The encore cost is equal to its mana cost."
+        ),
+    }
+    assert ("graveyard_matters", "you") in _ks(araumi)
+    # Over-fire guard: a pure opponents'-graveyard-hate card (no "your graveyard", no
+    # self-reference) stays opponents-scoped and does NOT acquire a "you" avenue — the
+    # residual auto-scope is untouched by the fix.
+    leyline = {
+        "name": "Leyline of the Void",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "If a card would be put into an opponent's graveyard from anywhere, "
+            "exile it instead."
+        ),
+    }
+    assert ("graveyard_matters", "opponents") in _ks(leyline)
+    assert ("graveyard_matters", "you") not in _ks(leyline)

@@ -69,10 +69,6 @@ class Signal:
 # ── Tier 1: baseline detectors ────────────────────────────────────────────────
 # Each detector: (key, clause-matcher, forced_scope|None). When forced_scope is
 # None the clause's own scope is used (critical for creature_etb / graveyard_matters).
-def _has(*needles: str) -> Callable[[str], bool]:
-    return lambda c: all(n in c for n in needles)
-
-
 def _re(pattern: str) -> Callable[[str], bool]:
     rx = re.compile(pattern)
     return lambda c: rx.search(c) is not None
@@ -177,7 +173,19 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "you",
     ),
-    ("graveyard_matters", _has("graveyard"), None),
+    # Whose graveyard a card cares about decides the scope. A self-graveyard engine
+    # that merely MENTIONS opponents elsewhere (Araumi's encore tokens "attack that
+    # opponent"; Tasigur, Toshiro, Syr Konrad, Glissa) was mis-scoped opponents by the
+    # generic "opponent"-anywhere rule, so self-mill enablers (scoped you) never
+    # served. Force "you" on any "your graveyard" reference; let the residual graveyard
+    # mentions ("a graveyard", an opponent's) auto-scope, but exclude the self cards so
+    # they don't ALSO raise a spurious opponents'-graveyard avenue.
+    ("graveyard_matters", _re(r"your graveyard"), "you"),
+    (
+        "graveyard_matters",
+        lambda c: "graveyard" in c and "your graveyard" not in c,
+        None,
+    ),
     # Exile-mill of OPPONENTS (Circu): "exile the top card of target player's library"
     # is a mill variant the graveyard ("graveyard"-keyed) detector misses. Scoped
     # opponents — exiling YOUR OWN library (impulse draw) never matches.
