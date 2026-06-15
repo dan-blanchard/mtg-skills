@@ -2099,6 +2099,19 @@ def _detect_polymorph_cheat(text: str) -> bool:
     return _POLYMORPH_CHEAT_RE.search(text) is not None
 
 
+# ACTIVE reanimation in a COMMANDER's own oracle — "return/put a creature card from a
+# graveyard onto/to the battlefield" (Alesha, Olivia, Sauron, Sheoldred, Reya). A
+# commander that reanimates IS a reanimator deck. Creature-gated by the caller, so the
+# reanimation SPELLS / Auras the avenue merely FINDS (Reanimate, Animate Dead —
+# instants/sorceries/enchantments) stay enablers, not the archetype label itself.
+_ACTIVE_REANIMATION_RE = re.compile(
+    r"(?:return|put) (?:target |a |that |all |each )?creature cards?"
+    r"[^.]*from (?:a|your|their|target player'?s?|an opponent'?s?|each"
+    r"|that player'?s?) graveyard[^.]*(?:to|onto) the battlefield",
+    re.IGNORECASE,
+)
+
+
 # Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
 # Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
 # verbs (gain control, opponents lose life, skip a step).
@@ -2333,6 +2346,11 @@ def extract_signals(
         add("counters_matter", "you", "", text[:160])
     if _detect_polymorph_cheat(text):
         add("cheat_into_play", "you", "", text[:160])
+    # Active reanimation is the reanimator archetype only on a CREATURE (a commander);
+    # reanimation spells/Auras stay enablers the avenue finds (_ACTIVE_REANIMATION_RE).
+    _is_creature = "creature" in (card.get("type_line") or "").lower()
+    if _is_creature and _ACTIVE_REANIMATION_RE.search(text):
+        add("reanimator", "you", "", text[:160])
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):

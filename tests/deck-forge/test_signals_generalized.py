@@ -336,6 +336,41 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_active_reanimation_opens_reanimator():
+    # A commander whose OWN ability actively reanimates — "return/put target creature
+    # card from a graveyard onto/to the battlefield" (Alesha, Olivia Crimson Bride,
+    # Sauron) — is a reanimator deck wanting reanimation spells + fat targets. The
+    # reanimator detector keyed only on the self-recur "enters/cast FROM a graveyard"
+    # form and missed the active-reanimation ability. Real oracle.
+    alesha = {
+        "name": "Alesha, Who Smiles at Death",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": (
+            "First strike\nWhenever Alesha, Who Smiles at Death attacks, you may pay "
+            "{W/B}{W/B}. If you do, return target creature card with power 2 or less "
+            "from your graveyard to the battlefield tapped and attacking."
+        ),
+    }
+    olivia = {
+        "name": "Olivia, Crimson Bride",
+        "type_line": "Legendary Creature — Vampire Noble",
+        "oracle_text": (
+            "Flying, haste\nWhenever Olivia, Crimson Bride attacks, return target "
+            "creature card from your graveyard to the battlefield tapped and attacking."
+        ),
+    }
+    assert "reanimator" in _keys(alesha)
+    assert "reanimator" in _keys(olivia)
+    # Over-fire guard: a self-mill spell (fills the yard, doesn't reanimate) is not a
+    # reanimator commander.
+    selfmill = {
+        "name": "Mill Self",
+        "type_line": "Legendary Creature — Wizard",
+        "oracle_text": "Put the top four cards of your library into your graveyard.",
+    }
+    assert "reanimator" not in _keys(selfmill)
+
+
 def test_creature_died_this_turn_payoff_opens_death():
     # A commander that rewards "a creature died ... this turn" (Faramir draws, Sméagol
     # tempts, Tobias makes Zombies, Ebondeath recasts) is an aristocrats payoff — it
