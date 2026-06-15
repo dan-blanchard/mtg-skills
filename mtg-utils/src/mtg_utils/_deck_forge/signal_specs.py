@@ -2768,7 +2768,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "suspend, vanishing, and impending cards plus the time-counter manipulators "
         "and payoffs (As Foretold, Jhoira, Dust of Moments) that exploit them",
         {"oracle": r"\bsuspend\b|time counter"},
-        r"\bsuspend\b|\bvanishing\b|\bimpending\b|time counter|time travel",
+        r"\bsuspend\b|\bvanishing\b|\bimpending\b|time counter|time travel"
+        # Suspend removes a TIME counter each upkeep (CR 702.62), so extra upkeeps /
+        # beginning phases (Paradox Haze, Sphinx of the Second Sun) accelerate it.
+        r"|additional upkeep step|additional beginning phase"
+        # Counter-manipulation that references suspended cards (Clockspinning, Dust of
+        # Moments, Timebender) — direct suspend support, generic "counter" not "time".
+        r"|suspended cards?",
         serve_keywords=("suspend", "vanishing", "impending"),
     ),
     ("saddle_matters", "you"): _spec(

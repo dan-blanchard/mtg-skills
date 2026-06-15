@@ -4353,3 +4353,37 @@ def test_creature_cast_and_etb_serve_self_bounce_recast_engines():
         "oracle_text": "When this creature enters, return target creature to its owner's hand.",
     }
     assert _lane_covers(boomerang, _sig("creature_cast_trigger")) is False
+
+
+def test_suspend_serves_extra_upkeep_and_suspended_card_support():
+    # Suspend removes a TIME counter each upkeep (CR 702.62), so a suspend commander
+    # (Jhoira, Taigam) wants extra upkeeps (Paradox Haze) and counter-manipulation on
+    # suspended cards (Clockspinning) — neither says "suspend"/"time counter" itself.
+    sig = _sig("suspend_matters", "you")
+    paradox_haze = {
+        "name": "Paradox Haze",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": (
+            "Enchant player\n"
+            "At the beginning of enchanted player's first upkeep each turn, that "
+            "player gets an additional upkeep step after this step."
+        ),
+    }
+    clockspinning = {
+        "name": "Clockspinning",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Buyback {3}\nChoose a counter on target permanent or suspended card. "
+            "Remove that counter or put another of those counters on that permanent "
+            "or card."
+        ),
+    }
+    assert _lane_covers(paradox_haze, sig) is True
+    assert _lane_covers(clockspinning, sig) is True
+    # Over-fire guard: a generic extra-turn spell with no upkeep/suspend hook stays out.
+    explore = {
+        "name": "Explore",
+        "type_line": "Sorcery",
+        "oracle_text": "You may play an additional land this turn.\nDraw a card.",
+    }
+    assert _lane_covers(explore, sig) is False
