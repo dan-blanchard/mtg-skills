@@ -4510,3 +4510,52 @@ def test_direct_damage_serves_burn_redirect():
         "oracle_text": "You gain 5 life.",
     }
     assert _lane_covers(healer, _sig("direct_damage", "you")) is False
+
+
+def test_activated_ability_serves_haste_granters_and_untap_enablers():
+    # A {T}: commander (Visara "{T}: Destroy target creature") can't tap the turn it
+    # enters (CR 302.6 summoning sickness) and taps only once per turn. Haste-granters
+    # (CR 702.10 / 302.6) lift the sickness so it activates immediately; untap-enablers
+    # re-tap it for extra activations. Both are its support package.
+    sig = _sig("activated_ability", "you")
+    # Haste-granter on an equipped creature (lifts summoning sickness for the {T}:).
+    sting = {
+        "name": "Sting, the Glinting Dagger",
+        "type_line": "Legendary Artifact — Equipment",
+        "oracle_text": (
+            "Equipped creature gets +1/+1 and has haste.\n"
+            "At the beginning of each combat, untap equipped creature.\n"
+            "Equipped creature has first strike as long as it's blocking or blocked "
+            "by a Goblin or Orc.\nEquip {2}"
+        ),
+    }
+    # Repeatable untap of an enchanted creature — re-tap the {T}: commander each turn.
+    freed = {
+        "name": "Freed from the Real",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": (
+            "Enchant creature\n{U}: Tap enchanted creature.\n"
+            "{U}: Untap enchanted creature."
+        ),
+    }
+    # One-shot "Untap it" (plus protection) to reactivate the commander in response.
+    shore_up = {
+        "name": "Shore Up",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Target creature you control gets +1/+1 and gains hexproof until end of "
+            "turn. Untap it. (It can't be the target of spells or abilities your "
+            "opponents control.)"
+        ),
+    }
+    assert _lane_covers(sting, sig) is True
+    assert _lane_covers(freed, sig) is True
+    assert _lane_covers(shore_up, sig) is True
+    # Over-fire guard: a vanilla creature with innate haste is NOT a granter — it grants
+    # nothing to the commander.
+    goblin = {
+        "name": "Raging Goblin",
+        "type_line": "Creature — Goblin Berserker",
+        "oracle_text": "Haste",
+    }
+    assert _lane_covers(goblin, sig) is False

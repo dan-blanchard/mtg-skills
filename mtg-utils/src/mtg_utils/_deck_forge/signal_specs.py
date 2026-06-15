@@ -2451,8 +2451,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"activated abilit|untap (?:target|another)"},
         r"activated abilities[^.]*\bcost\b"
         r"|untap (?:target|all|another|each)"
+        # Untap-enablers re-tap a {T}: commander for extra activations (CR 302.6). The
+        # bare clause above misses the aura/equipment forms that untap a single creature
+        # — Freed from the Real / Pemmin's Aura "untap enchanted creature", Sting "untap
+        # equipped creature" — and the "buff your creature, untap it" tricks (Shore Up).
+        # Both are anchored to a CREATURE so land-untap ramp (Rude Awakening, "untap two
+        # lands") stays out.
+        r"|untap (?:enchanted|equipped) creature"
+        r"|target creature you control[\s\S]{0,120}?untap it"
         r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
         r"|as though (?:those creatures|it|they) (?:had|have) haste"
+        # Haste-GRANTERS lift summoning sickness (CR 302.6 / 702.10) so a {T}: commander
+        # activates the turn it enters or re-enters (blink/reanimate). Anchored to a
+        # grant clause ("<your/equipped/enchanted/target creature> ... gains/has haste")
+        # so a vanilla creature with innate haste (just "Haste") does NOT match.
+        r"|(?:creatures? you control|equipped creature|enchanted creature"
+        r"|target creature)[^.]*(?:gains?|have|has) haste"
         r"|isn't a mana ability"
         # The PAYOFF targets: creatures with an expensive mana-cost activated ability
         # ("{8}:", "{3}{R}:", "{X}, {T}:") the cost-reducer/untapper exploits. Requires
