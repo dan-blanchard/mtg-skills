@@ -1706,3 +1706,43 @@ def test_ox_tribe_resolves_despite_two_letters_and_irregular_plural():
         ),
     }
     assert ("type_matters", "you", "Ox") in _ksub(bruse)
+
+
+def test_opponent_reveal_mill_served_by_graveyard_opponents():
+    # Old Dimir mill ("reveals cards from the top of their library until N lands, then
+    # puts them into their graveyard" — Mind Funeral, Mind Grind) never uses the word
+    # "mills", so the opponents'-graveyard serve (keyed on "mills") missed it though a
+    # mill commander (Mirko Vosk, who mills the same way) opens the lane. Real cards.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    mind_funeral = {
+        "name": "Mind Funeral",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Target opponent reveals cards from the top of their library until four "
+            "land cards are revealed. That player puts all cards revealed this way "
+            "into their graveyard."
+        ),
+    }
+    assert lane_covers(mind_funeral, "graveyard_matters", "opponents") is True
+    # Over-fire guard: a SELF-mill card reveals from YOUR library into YOUR graveyard —
+    # the "their/that player's library" anchor must keep it out of the opponents lane.
+    avenging = {
+        "name": "Avenging Druid",
+        "type_line": "Creature — Human Druid",
+        "oracle_text": (
+            "Whenever this creature deals damage to an opponent, you may reveal cards "
+            "from the top of your library until you reveal a land card, put that card "
+            "onto the battlefield, then put the rest into your graveyard."
+        ),
+    }
+    assert lane_covers(avenging, "graveyard_matters", "opponents") is False

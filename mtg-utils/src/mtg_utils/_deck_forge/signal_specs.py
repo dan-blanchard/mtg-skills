@@ -1256,7 +1256,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Exile-mill artifacts (Pyxis, Mesmeric Orb-style): a player-subject exiling the
         # top of a LIBRARY is an exile-mill enabler (Circu).
         r"|(?:each player|target player|an opponent|each opponent|that player)"
-        r"[^.]*exiles?[^.]*\blibrar",
+        r"[^.]*exiles?[^.]*\blibrar"
+        # Old reveal-mill (Mind Funeral, Mind Grind, Telemin Performance, Mirko's own
+        # ability): "reveals cards from the top of THEIR library until … then puts them
+        # into their graveyard" — pre-keyword mill that never says "mills". Anchored on
+        # an opponent-owned library ("their/that player's/each opponent's") so a self-
+        # mill ("from YOUR library", Avenging Druid) stays out of the opponents lane.
+        r"|reveals? cards? from the top of "
+        r"(?:their|that player'?s?|each opponent'?s?) library until"
+        r"[\s\S]{0,140}?\bput[\s\S]{0,70}?graveyard",
     ),
     ("graveyard_matters", "you"): _spec(
         "Your graveyard",
