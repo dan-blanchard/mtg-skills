@@ -1689,3 +1689,20 @@ def test_divinity_indestructible_counter_wants_proliferate():
         ),
     }
     assert "proliferate_matters" not in _keys(arixmethes)
+
+
+def test_ox_tribe_resolves_despite_two_letters_and_irregular_plural():
+    # "Ox" is the only real two-letter creature subtype, so the len>=3 vocab-harvest
+    # filter dropped it and "Oxen" (irregular plural) didn't singularize to it. An Ox
+    # tribal lord (Bruse Tarl: "Oxen you control have double strike") must open
+    # type_matters:Ox so its Oxen (Holy Cow, Makindi Ox) surface. Real card.
+    bruse = {
+        "name": "Bruse Tarl, Roving Rancher",
+        "type_line": "Legendary Creature — Human Nomad",
+        "oracle_text": (
+            "Oxen you control have double strike.\n"
+            "Whenever Bruse Tarl enters or attacks, exile the top card of your "
+            "library. If it's a land card, create a 2/2 white Ox creature token."
+        ),
+    }
+    assert ("type_matters", "you", "Ox") in _ksub(bruse)

@@ -7,7 +7,8 @@ clause, a flavor noun) resolve to nothing rather than a false-positive kindred s
 
 Regenerate after large set releases (the one-off: load bulk -> for creature faces,
 split_type_line -> subtypes, lowercased, len>=3, alpha, minus NON_SUBJECT_WORDS).
-New creature types are rare, so drift is slow.
+New creature types are rare, so drift is slow. NOTE: the len>=3 filter drops the only
+real two-letter creature subtype, "ox" — re-add it by hand after any regen.
 """
 
 from __future__ import annotations
@@ -107,6 +108,7 @@ IRREGULAR_SINGULAR: dict[str, str] = {
     "sphinx": "sphinx",
     "homunculi": "homunculus",
     "octopi": "octopus",
+    "oxen": "ox",
 }
 
 CREATURE_SUBTYPES: frozenset[str] = frozenset(
@@ -346,6 +348,9 @@ CREATURE_SUBTYPES: frozenset[str] = frozenset(
         "orgg",
         "otter",
         "ouphe",
+        # "ox" is the only real TWO-letter creature subtype, so the len>=3 harvest
+        # filter drops it — keep it by hand (Holy Cow, Makindi Ox; Bruse Tarl tribal).
+        "ox",
         "oyster",
         "pangolin",
         "paratrooper",
