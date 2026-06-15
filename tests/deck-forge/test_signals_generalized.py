@@ -295,6 +295,44 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_forced_combat_and_any_player_attack_open_goad():
+    # Goad cards (Disrupt Decorum) are top-synergy for two archetypes that never opened
+    # goad_matters: commanders that FORCE OTHER creatures to attack (Basandra "Target
+    # creature attacks this turn if able" — the goad mechanic itself, CR 701.39) and
+    # commanders that reward ANY player attacking (Aurelia "Whenever a player attacks
+    # with three or more creatures" — goad makes opponents attack into the payoff). Real
+    # oracle.
+    basandra = {
+        "name": "Basandra, Battle Seraph",
+        "type_line": "Legendary Creature — Angel",
+        "oracle_text": (
+            "Flying\nPlayers can't cast spells during combat.\n"
+            "{R}: Target creature attacks this turn if able."
+        ),
+    }
+    aurelia = {
+        "name": "Aurelia, the Law Above",
+        "type_line": "Legendary Creature — Angel",
+        "oracle_text": (
+            "Flying, vigilance, haste\nWhenever a player attacks with three or more "
+            "creatures, you draw a card. This ability triggers only once each turn."
+        ),
+    }
+    assert ("goad_matters", "opponents") in _ks(basandra)
+    assert ("goad_matters", "opponents") in _ks(aurelia)
+    # Over-fire guard: a SELF forced-attacker (Zurgo) is an aggressive beater, not a
+    # goad commander — it forces only ITSELF to attack.
+    zurgo = {
+        "name": "Zurgo Helmsmasher",
+        "type_line": "Legendary Creature — Orc Warrior",
+        "oracle_text": (
+            "Haste\nZurgo Helmsmasher attacks each combat if able.\nZurgo Helmsmasher "
+            "gets +3/+3 as long as it's your turn."
+        ),
+    }
+    assert ("goad_matters", "opponents") not in _ks(zurgo)
+
+
 def test_gain_control_commander_also_opens_theft_matters():
     # A battlefield-steal commander (Dragonlord Silumgar "gain control of target
     # creature") and a borrow-and-cast theft commander are facets of the SAME stealing

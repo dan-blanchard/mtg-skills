@@ -743,6 +743,24 @@ class Detector:
 # don't misfire. Hand-written source stays as (key, compiled-pattern, scope) tuples;
 # the assembly below adapts both these and the mined sweep into Detector records.
 _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    # Goad archetype (CR 701.39): two commander shapes that want goad cards (Disrupt
+    # Decorum) but carry no goad KEYWORD, so the keyword preset misses them. (1) FORCING
+    # OTHER creatures to attack — "target/another target/each other creature ... attacks
+    # ... if able" (Basandra, Thantis) is the goad mechanic itself. (2) Rewarding ANY
+    # player's attack — "whenever a(nother) player attacks" (Aurelia, Breena, Jolene) —
+    # goad sends opponents' creatures into the payoff. EXCLUDES self forced-attack
+    # ("Zurgo attacks each combat if able" — an aggressive beater, not goad) by
+    # anchoring on target/other/each-other creatures, never "this creature" / the name.
+    (
+        "goad_matters",
+        re.compile(
+            r"(?:target creature|another target creature|each other creature)"
+            r"[^.]*attacks?[^.]*\bif able\b"
+            r"|whenever (?:a|another) player attacks",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     (
         "treasure_matters",
         re.compile(
