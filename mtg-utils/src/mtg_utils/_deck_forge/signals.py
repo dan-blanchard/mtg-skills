@@ -801,6 +801,26 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Enchantment-TOKEN maker (Scriv "create a white Aura enchantment token", The Rani,
+    # Preston Garvey) — makes enchantments, so it's an enchantment deck wanting
+    # enchantment payoffs (Eriette, Sphere of Safety).
+    (
+        "enchantments_matter",
+        re.compile(r"create [^.]*\benchantment token", re.IGNORECASE),
+        "you",
+    ),
+    # Legendary-permanent trigger (Yomiji "whenever a legendary permanent ... is put
+    # into a graveyard", Cleopatra) — a legends-matter deck wanting legendary payoffs.
+    (
+        "legends_matter",
+        re.compile(
+            r"whenever (?:a|another|one or more) legendary (?:permanents?|creatures?)"
+            r"[^.]*(?:enters|dies|put into a graveyard|leaves the battlefield"
+            r"|you control)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Sac-and-return-this-turn engine (Garna, Gerrard, Moira): "return ... creature/
     # permanent cards ... that (died | were put into your graveyard) ... this turn." It
     # wants sac outlets to put creatures in the yard on demand, then brings them back —

@@ -336,6 +336,42 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_enchantment_token_maker_opens_enchantments():
+    # A commander that creates enchantment/Aura tokens (Scriv "create a white Aura
+    # enchantment token", The Rani, Preston Garvey) is an enchantment deck — it wants
+    # enchantment payoffs (Eriette, Sphere of Safety). Real oracle.
+    scriv = {
+        "name": "Scriv, the Obligator",
+        "type_line": "Legendary Creature — Phyrexian Praetor",
+        "oracle_text": (
+            "Flying, deathtouch\nWhenever Scriv enters or attacks, create a white Aura "
+            "enchantment token named Contract attached to target creature an opponent "
+            "controls."
+        ),
+    }
+    assert ("enchantments_matter", "you") in _ks(scriv)
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("enchantments_matter", "you") not in _ks(bear)
+
+
+def test_legendary_permanent_trigger_opens_legends():
+    # A commander with a legendary-permanent trigger (Yomiji "whenever a legendary
+    # permanent ... is put into a graveyard, return it", Cleopatra) is a legends-matter
+    # deck — it wants legendary payoffs (Yoshimaru, Search for Glory). Real oracle.
+    yomiji = {
+        "name": "Yomiji, Who Bars the Way",
+        "type_line": "Legendary Creature — Spirit",
+        "oracle_text": (
+            "Whenever a legendary permanent other than Yomiji, Who Bars the Way is put "
+            "into a graveyard from the battlefield, return that card to its owner's "
+            "hand."
+        ),
+    }
+    assert ("legends_matter", "you") in _ks(yomiji)
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("legends_matter", "you") not in _ks(bear)
+
+
 def test_type_grant_opens_tribal():
     # A commander that CONVERTS its creatures to a tribe — "it's a Zombie in addition to
     # its other creature types" (Lim-Dûl reanimates as Zombies), Chainer (Nightmare) —
