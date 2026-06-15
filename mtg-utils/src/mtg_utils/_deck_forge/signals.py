@@ -785,6 +785,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Warp-GRANTING (Tannuk: "cards in your hand have warp") — warp casts a card from
+    # hand for its warp cost and exiles it at end of turn, a temporary cheat-into-play.
+    # A commander handing out warp is a cheat deck wanting fat creatures + cheat
+    # enablers (Ilharg, Maelstrom Colossus), which cheat_into_play serves.
+    (
+        "cheat_into_play",
+        re.compile(r"\bhave warp\b|gains? warp\b", re.IGNORECASE),
+        "you",
+    ),
     # "Creature DIED this turn" payoff (Faramir draws, Sméagol tempts, Tobias makes
     # Zombies, Ebondeath recasts) — an aristocrats payoff wanting sac fodder + outlets.
     # death-specific ("died ... this turn"), so the broader "put into a graveyard from

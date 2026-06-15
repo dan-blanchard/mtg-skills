@@ -336,6 +336,28 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_warp_granting_opens_cheat_into_play():
+    # Tannuk grants WARP ("cards in your hand have warp" — cast from hand for the warp
+    # cost, a temporary cheat-into-play). It's a cheat deck: it wants fat creatures and
+    # cheat enablers (Ilharg, Maelstrom Colossus), served by cheat_into_play. It opened
+    # void_warp/team_buff but not cheat. Real oracle.
+    tannuk = {
+        "name": "Tannuk, Steadfast Second",
+        "type_line": "Legendary Creature — Phyrexian Warrior",
+        "oracle_text": (
+            "Other creatures you control have haste.\n"
+            "Artifact cards and red creature cards in your hand have warp {2}{R}. (You "
+            "may cast a card from your hand for its warp cost. Exile that permanent at "
+            "the beginning of the next end step, then you may cast it from exile on a "
+            "later turn.)"
+        ),
+    }
+    assert "cheat_into_play" in _keys(tannuk)
+    # Over-fire guard: a vanilla creature is not a cheat deck.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert "cheat_into_play" not in _keys(bear)
+
+
 def test_active_reanimation_opens_reanimator():
     # A commander whose OWN ability actively reanimates — "return/put target creature
     # card from a graveyard onto/to the battlefield" (Alesha, Olivia Crimson Bride,
