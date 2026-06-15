@@ -295,6 +295,33 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_power_greater_than_base_power_opens_counters():
+    # A commander that rewards creatures whose "power [is] greater than its base power"
+    # (Kutzil, Baird) is a pump / +1/+1-counters payoff — those creatures got there via
+    # counters or pumps. It should open counters_matter so +1/+1 counter sources
+    # (Forgotten Ancient, Hardened Scales) surface. Niche but precise — only two
+    # commander-legal cards carry the phrase. Real oracle.
+    kutzil = {
+        "name": "Kutzil, Malamet Exemplar",
+        "type_line": "Legendary Creature — Cat Warrior",
+        "oracle_text": (
+            "Your opponents can't cast spells during your turn.\nWhenever one or more "
+            "creatures you control each with power greater than its base power deals "
+            "combat damage to a player, draw a card."
+        ),
+    }
+    baird = {
+        "name": "Baird, Argivian Recruiter",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "At the beginning of your end step, if you control a creature with power "
+            "greater than its base power, create a 1/1 white Soldier creature token."
+        ),
+    }
+    assert ("counters_matter", "you") in _ks(kutzil)
+    assert ("counters_matter", "you") in _ks(baird)
+
+
 def test_forced_combat_and_any_player_attack_open_goad():
     # Goad cards (Disrupt Decorum) are top-synergy for two archetypes that never opened
     # goad_matters: commanders that FORCE OTHER creatures to attack (Basandra "Target

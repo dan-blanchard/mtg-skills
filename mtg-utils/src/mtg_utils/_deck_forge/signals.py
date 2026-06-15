@@ -761,6 +761,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    # A commander that rewards a creature whose "power [is] greater than its base power"
+    # (Kutzil, Baird) is a pump / +1/+1-counters payoff — the only way a creature's
+    # power exceeds its BASE power is a counter or a pump. Open counters_matter so +1/+1
+    # counter sources (Forgotten Ancient, Hardened Scales) surface. Niche: only two
+    # commander-legal cards carry the phrase, so precision is near-total.
+    (
+        "counters_matter",
+        re.compile(r"power greater than its base power", re.IGNORECASE),
+        "you",
+    ),
     (
         "treasure_matters",
         re.compile(
