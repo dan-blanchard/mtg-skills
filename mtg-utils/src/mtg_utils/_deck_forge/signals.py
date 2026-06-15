@@ -164,7 +164,9 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         "lifegain_matters",
         _re(
             r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
-            r"|you gained[^.]*life|life you gained"
+            # "you gained" plus the contraction ("you've") and the partner "your team
+            # gained life this turn" form (Regna / Krav).
+            r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
             # Variable lifegain: "gain X life" (Atalya), "gain life equal to …" (Ayli).
             r"|gains? x life|gains? life equal to"
             # Lifegain amplifiers: "if you would gain life, you gain … instead"

@@ -1868,3 +1868,26 @@ def test_gain_control_serve_catches_that_them_those():
         "oracle_text": "Target opponent gains control of that creature.",
     }
     assert lane_covers(donate, "gain_control") is False
+
+
+def test_lifegain_payoff_matches_your_team_and_contraction():
+    # A lifegain-count payoff phrased "if your TEAM gained life this turn" (Regna, a
+    # partner commander) or "if you've gained" (the contraction) slipped past the
+    # detector's bare "you gained". Real cards, full oracle.
+    regna = {
+        "name": "Regna, the Redeemer",
+        "type_line": "Legendary Creature — Angel Cleric",
+        "oracle_text": (
+            "Flying\n"
+            "At the beginning of each end step, if your team gained life this turn, "
+            "create two 1/1 white Warrior creature tokens."
+        ),
+    }
+    assert "lifegain_matters" in _keys(regna)
+    # Over-fire guard: a non-lifegain payoff doesn't open the lane.
+    plain = {
+        "name": "Generic Beater",
+        "type_line": "Creature — Bear",
+        "oracle_text": "Trample",
+    }
+    assert "lifegain_matters" not in _keys(plain)
