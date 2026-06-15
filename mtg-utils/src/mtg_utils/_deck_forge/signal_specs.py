@@ -2647,7 +2647,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Theft",
         "steal effects and ways to keep or sacrifice what you take",
         {"oracle": r"gain control of"},
-        r"you (?:gain|may gain) control of|gain control of (?:target|all|each|another)"
+        r"you (?:gain|may gain) control of"
+        r"|gain control of (?:target|all|each|another|that|them|those)"
         r"|you control enchanted (?:creature|permanent)"
         r"|you may (?:play|cast)[^.]*from (?:that|target) (?:player|opponent)"
         # Bribery / Acquire: seize a card out of an OPPONENT's library and seat it

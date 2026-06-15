@@ -1833,3 +1833,38 @@ def test_land_sacrifice_matters_opens_and_serves():
     }
     assert "land_sacrifice_matters" not in _keys(viscera)
     assert lane_covers(viscera, "land_sacrifice_matters") is False
+
+
+def test_gain_control_serve_catches_that_them_those():
+    # A theft commander (Zidane, Sauron the Lidless Eye) wants every steal payoff, but
+    # the serve's pronoun list missed "gain control of that/them/those" — Treasure
+    # Nabber ("that artifact"), Insurrection ("them") classify as gain_control yet
+    # weren't served. Real cards, full oracle.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    treasure_nabber = {
+        "name": "Treasure Nabber",
+        "type_line": "Creature — Goblin Rogue",
+        "oracle_text": (
+            "Whenever an opponent taps an artifact for mana, gain control of that "
+            "artifact until the end of your next turn."
+        ),
+    }
+    assert lane_covers(treasure_nabber, "gain_control") is True
+    # Over-fire guard: DONATING control to an opponent is the opposite of theft and is
+    # vetoed by serve_not.
+    donate = {
+        "name": "Generic Donate",
+        "type_line": "Sorcery",
+        "oracle_text": "Target opponent gains control of that creature.",
+    }
+    assert lane_covers(donate, "gain_control") is False
