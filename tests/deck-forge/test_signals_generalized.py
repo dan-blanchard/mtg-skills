@@ -2018,3 +2018,37 @@ def test_attacking_team_double_strike_opens_combat_damage():
         ),
     }
     assert ("combat_damage_to_opp", "opponents") not in _ks(kwende)
+
+
+def test_remove_counter_to_activate_opens_proliferate():
+    # A commander that SPENDS a counter as an activation cost (remove a counter from a
+    # permanent: <effect>) wants more counters — i.e. proliferate. Keyed on the MECHANIC
+    # (colon = activation cost), not a counter-name list, so it future-proofs for new
+    # counter types. COUNTDOWN counters (slumber/egg) use "may remove"/upkeep-remove with
+    # NO colon-activation, so they're excluded by construction. Real cards, full oracle.
+    tayam = {
+        "name": "Tayam, Luminous Enigma",
+        "type_line": "Legendary Creature — Hound Spirit",
+        "oracle_text": (
+            "Each other creature you control enters with an additional vigilance "
+            "counter on it.\n"
+            "{3}, Remove three counters from among creatures you control: Mill three "
+            "cards, then return a permanent card with mana value 3 or less from your "
+            "graveyard to the battlefield."
+        ),
+    }
+    assert "proliferate_matters" in _keys(tayam)
+    # Over-fire guard: a COUNTDOWN counter removed in upkeep (no colon-activation) — you
+    # want FEWER, so it must NOT open proliferate.
+    arixmethes = {
+        "name": "Arixmethes, Slumbering Isle",
+        "type_line": "Legendary Creature — Kraken",
+        "oracle_text": (
+            "Arixmethes, Slumbering Isle enters tapped with five slumber counters on "
+            "it.\n"
+            "As long as Arixmethes has a slumber counter on it, it's a land.\n"
+            "Whenever you cast a spell, you may remove a slumber counter from "
+            "Arixmethes."
+        ),
+    }
+    assert "proliferate_matters" not in _keys(arixmethes)

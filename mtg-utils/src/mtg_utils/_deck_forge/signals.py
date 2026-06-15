@@ -2512,6 +2512,21 @@ def extract_signals(
             re.IGNORECASE,
         ):
             add("combat_damage_to_opp", "opponents", "", text[:160], "low")
+        # SPENDING a counter as an activation cost ("remove a counter from <permanent>:
+        # <effect>") means the deck wants MORE counters — i.e. proliferate (Migloz/oil,
+        # Rasputin/dream, Tayam/Fain/O'aka/Duchess/The Duke counter-spend engines, plus
+        # Myojin/Arwen already opened by the enters-with rule). Keyed on the MECHANIC
+        # (the colon = activation cost), not a counter-name list, so it future-proofs
+        # for new counter types. COUNTDOWN counters you race to remove (slumber, egg)
+        # use "may remove" / upkeep-remove with NO colon-activation, so the colon anchor
+        # (bounded by [^:.] so it can't cross a period into a later clause) drops them.
+        if re.search(
+            r"remove (?:a|an|one|two|three|x|\d+) (?:\w+ )?counters? from "
+            r"[^:.\n]{0,40}:",
+            text,
+            re.IGNORECASE,
+        ):
+            add("proliferate_matters", "you", "", text[:160], "low")
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a
