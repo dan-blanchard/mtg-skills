@@ -1966,6 +1966,27 @@ def _detect_self_counter_payoff(text: str, name: str) -> bool:
     return accumulate.search(text) is not None and count_care.search(text) is not None
 
 
+# +1/+1-counters PAYOFF that rewards creatures which HAVE counters ("each creature you
+# control WITH A COUNTER ON IT …", "unless he HAS A +1/+1 COUNTER ON HIM"). Full-text,
+# because the payoff clause and the +1/+1 reference are usually in separate sentences
+# (Baxter: "with a counter on it" / "put a +1/+1 counter on Baxter") — the per-clause
+# counters_matter detector sees neither clause as complete. Gated on the card mentioning
+# "+1/+1 counter" SOMEWHERE, so -1/-1 / charge / named-counter commanders (Volrath,
+# Immard) — which never say "+1/+1" — stay out.
+_COUNTER_HAVE_PAYOFF = re.compile(
+    r"with (?:a |an |one or more )?(?:\+1/\+1 )?counters? on (?:it|them|him|her)"
+    r"|has (?:a |an )?\+1/\+1 counter on (?:it|him|her)",
+    re.IGNORECASE,
+)
+_PLUS_ONE_COUNTER = re.compile(r"\+1/\+1 counter", re.IGNORECASE)
+
+
+def _detect_counter_have_payoff(text: str) -> bool:
+    """True if a +1/+1-counters commander's payoff rewards creatures that HAVE counters
+    (Rishkar, Baxter, Pipsqueak) — see _COUNTER_HAVE_PAYOFF."""
+    return bool(_PLUS_ONE_COUNTER.search(text) and _COUNTER_HAVE_PAYOFF.search(text))
+
+
 # Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
 # Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
 # verbs (gain control, opponents lose life, skip a step).
@@ -2186,6 +2207,8 @@ def extract_signals(
     if self_death_clause is not None:
         add("self_death_payoff", "you", "", self_death_clause)
     if _detect_self_counter_payoff(text, name):
+        add("counters_matter", "you", "", text[:160])
+    if _detect_counter_have_payoff(text):
         add("counters_matter", "you", "", text[:160])
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])

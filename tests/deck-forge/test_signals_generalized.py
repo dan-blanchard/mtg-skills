@@ -295,6 +295,53 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_counter_payoff_with_a_counter_on_it_opens_counters():
+    # A +1/+1-counters commander whose payoff REWARDS creatures that HAVE counters
+    # ("each creature you control WITH A COUNTER ON IT ...", "unless he has a +1/+1
+    # counter on him") is a counters deck. The per-clause counters detector missed it:
+    # the payoff clause ("with a counter on it") and the +1/+1 reference ("put a +1/+1
+    # counter on Baxter") sit in SEPARATE sentences, so neither clause alone has both.
+    # Needs full-text. Real oracle.
+    rishkar = {
+        "name": "Rishkar, Peema Renegade",
+        "type_line": "Legendary Creature — Elf Druid",
+        "oracle_text": (
+            "When Rishkar, Peema Renegade enters, put a +1/+1 counter on each of up to "
+            "two target creatures.\nEach creature you control with a counter on it has "
+            '"{T}: Add {G}."'
+        ),
+    }
+    baxter = {
+        "name": "Baxter, Fly in the Ointment",
+        "type_line": "Legendary Creature — Insect",
+        "oracle_text": (
+            "Whenever Baxter enters or attacks, each creature you control with a "
+            "counter on it gains flying until end of turn.\nWhenever you draw a card, "
+            "put a +1/+1 counter on Baxter."
+        ),
+    }
+    pipsqueak = {
+        "name": "Pipsqueak, Rebel Strongarm",
+        "type_line": "Legendary Creature — Rabbit Soldier",
+        "oracle_text": "Pipsqueak can't attack alone unless he has a +1/+1 counter on him.",
+    }
+    assert ("counters_matter", "you") in _ks(rishkar)
+    assert ("counters_matter", "you") in _ks(baxter)
+    assert ("counters_matter", "you") in _ks(pipsqueak)
+    # Over-fire guard: a -1/-1 counter commander (no +1/+1 anywhere) that copies a
+    # creature "with a counter on it" is NOT a +1/+1 deck.
+    volrath = {
+        "name": "Volrath, the Shapestealer",
+        "type_line": "Legendary Creature — Phyrexian Shapeshifter",
+        "oracle_text": (
+            "At the beginning of combat on your turn, put a -1/-1 counter on up to one "
+            "target creature.\n{1}: Until your next turn, Volrath becomes a copy of "
+            "target creature with a counter on it, except it has this ability."
+        ),
+    }
+    assert ("counters_matter", "you") not in _ks(volrath)
+
+
 def test_artifact_dig_and_improvise_open_artifacts():
     # Commanders that DIG for artifact cards ("put an artifact card ... into your hand /
     # onto the battlefield" — Fifteenth Doctor, Jhoira) or grant IMPROVISE (an
