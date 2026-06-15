@@ -813,7 +813,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|search (?:your library )?for an?[^.]*enchantment card"
             r"|return [^.]*enchantment cards?[^.]*(?:graveyard|hand)"
             r"|enchantment cards? in your hand"
-            r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards",
+            r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards"
+            # Role tokens are Aura ENCHANTMENTS (CR), so a Role-token maker (Gylwain,
+            # Ellivere, Syr Armont) is an enchantment commander — floods Auras and wants
+            # enchantment-count payoffs (Sanctum Weaver) and Aura support.
+            r"|create [^.]*\bRole token",
             re.IGNORECASE,
         ),
         "you",

@@ -582,3 +582,29 @@ def test_self_counter_accumulator_opens_counters_matter():
         ),
     }
     assert "counters_matter" not in _keys(incidental)
+
+
+def test_role_token_makers_open_enchantments_matter():
+    # Role tokens are Aura ENCHANTMENTS (CR), so a commander that makes them (Gylwain,
+    # Ellivere) is an enchantment commander — it wants enchantment-count payoffs
+    # (Sanctum Weaver) and Aura payoffs. The detector keyed on "enchantment"/"aura"
+    # and missed the word "Role".
+    gylwain = {
+        "name": "Gylwain, Casting Director",
+        "type_line": "Legendary Creature — Elf Druid",
+        "oracle_text": (
+            "Whenever Gylwain or another nontoken creature you control enters, "
+            "choose one —\n"
+            "• Create a Royal Role token attached to that creature.\n"
+            "• Create a Sorcerer Role token attached to that creature.\n"
+            "• Create a Monster Role token attached to that creature."
+        ),
+    }
+    assert "enchantments_matter" in _keys(gylwain)
+    # Over-fire guard: a plain creature-token maker is not an enchantment deck.
+    krenko = {
+        "name": "Token Maker",
+        "type_line": "Legendary Creature — Goblin",
+        "oracle_text": "{T}: Create a 1/1 red Goblin creature token.",
+    }
+    assert "enchantments_matter" not in _keys(krenko)
