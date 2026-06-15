@@ -523,6 +523,21 @@ _SELF_BOUNCE_EXTRA = SubAvenue(
     {"oracle": _SELF_BOUNCE_ORACLE},
     serve=Serve(oracle=re.compile(_SELF_BOUNCE_ORACLE, _IC)),
 )
+# Self-SACRIFICING creatures (Spore Frog / Caustic Caterpillar / Selfless Spirit): the
+# sac is the activation cost, so one use both yields a repeatable effect AND drops the
+# creature into the graveyard — ideal fuel for a creature-recursion engine (loop: recur
+# it, recast, sac again; no separate sac outlet). "this creature" is the Oracle self-
+# reference, so this matches only creatures.
+_SELF_SAC_CREATURE_ORACLE = (
+    r"sacrifice (?:this creature|~|this permanent)\b[^:.]{0,20}?:"
+)
+_SELF_SAC_CREATURE_EXTRA = SubAvenue(
+    "Self-sacrificing creatures",
+    "creatures that sacrifice themselves for value — recur and re-sac them every turn "
+    "(Spore Frog / Caustic Caterpillar / Sakura-Tribe Elder)",
+    {"oracle": _SELF_SAC_CREATURE_ORACLE},
+    serve=Serve(oracle=re.compile(_SELF_SAC_CREATURE_ORACLE, _IC)),
+)
 # Shared STAX-PIECES serve: a stax commander wants stax pieces regardless of whether its
 # OWN stax is opponent-targeted (Gaddock) or symmetric (Hokori), so stax_taxes and
 # symmetric_stax serve the same pool — opponent taxes + symmetric restrictions + the
@@ -1099,6 +1114,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|costs? \{x\} less to cast, where x is the (?:total |greatest )?power",
         # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon).
         extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
+    ),
+    # Creature-recursion engine (Hua Tuo, Adun, Othelm): repeatably return/put a
+    # creature card from your graveyard. Wants loop fuel — SELF-SACRIFICING creatures
+    # (the sac is value AND refuels the graveyard, Spore Frog), ETB-value bodies, and
+    # self-recur fodder. The full self-sac pool is on-theme (like a tribe), not
+    # over-broad: the LANE is narrow (~21 recursion commanders).
+    ("creature_recursion", "you"): _spec(
+        "Creature recursion",
+        "loop fuel for a graveyard creature-recursion engine — self-sacrificing "
+        "creatures, ETB-value bodies, and self-recurring fodder",
+        {"oracle": _SELF_SAC_CREATURE_ORACLE},
+        _SELF_SAC_CREATURE_ORACLE,
+        extras=(_SELF_SAC_CREATURE_EXTRA, _ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA),
     ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta) or a power-N-or-greater threshold

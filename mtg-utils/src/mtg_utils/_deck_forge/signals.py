@@ -136,6 +136,19 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         lambda c: "creatures you control" in c or "for each creature you control" in c,
         "you",
     ),
+    # Creature RECURSION engine (Hua Tuo, Adun, Othelm): a repeatable "return/put/choose
+    # a creature card (in|from) your graveyard" ability. Distinct from broad
+    # graveyard_matters — it loops a single creature, so it wants SELF-SACRIFICING
+    # creatures (the sac is the value AND refuels the graveyard — Spore Frog) plus
+    # ETB-value bodies. Served accordingly.
+    (
+        "creature_recursion",
+        _re(
+            r"(?:return|put|choose) (?:target |a |another )?creature card"
+            r"[^.]*?\b(?:in|from) your graveyard"
+        ),
+        "you",
+    ),
     # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland
     # creature" / "Plant creature" / "island creature" do NOT register — only a
     # genuine land-creature reference (the Jyoti / Sylvan Advocate theme).

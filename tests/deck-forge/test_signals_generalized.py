@@ -497,3 +497,40 @@ def test_artifacts_matter_opens_for_artifact_tutor():
         "oracle_text": "When this creature enters, search your library for a creature card, reveal it, put it into your hand, then shuffle.",
     }
     assert "artifacts_matter" not in _keys(diabolic_tutor)
+
+
+def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
+    # Creature-recursion commanders (return/put a creature card from your graveyard:
+    # Hua Tuo, Adun, Othelm) loop SELF-SACRIFICING creatures — the sac is the
+    # activation (repeatable value) AND fuels the graveyard for re-recursion, no
+    # separate outlet needed (Spore Frog). Real cards, full oracle.
+    hua_tuo = {
+        "name": "Hua Tuo, Honored Physician",
+        "type_line": "Legendary Creature — Human Advisor",
+        "oracle_text": (
+            "{T}: Put target creature card from your graveyard on top of your "
+            "library. Activate only during your turn, before attackers are declared."
+        ),
+    }
+    assert "creature_recursion" in _keys(hua_tuo)
+    # Serve: self-sacrificing creatures are the loop fuel.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    spore_frog = {
+        "name": "Spore Frog",
+        "type_line": "Creature — Frog",
+        "oracle_text": "Sacrifice this creature: Prevent all combat damage that would be dealt this turn.",
+    }
+    assert lane_covers(spore_frog, "creature_recursion") is True
+    # Over-fire guard: a vanilla creature is not loop fuel.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert lane_covers(bear, "creature_recursion") is False
