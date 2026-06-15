@@ -2484,6 +2484,30 @@ def extract_signals(
         # lure deck, so blocked_matters does NOT cross-open lure.
         if "lure_matters" in keys_now and "blocked_matters" not in keys_now:
             add("blocked_matters", "you", "", text[:160], "low")
+        # SIGNIFICANT, repeated, unavoidable self-life-loss bleeds you out without
+        # sustain, so the engine wants lifegain to stay alive (Deadpool loses 3 each
+        # upkeep; cumulative-upkeep payers Gallowbraid/Morinfen; "you lose life equal
+        # to" sac engines like Greven). Gated to MEANINGFUL bleed (>=2 / cumulative /
+        # scaling) — a negligible "lose 1 life" rider on an attack/sac/value trigger
+        # won't deck you, so it stays out (the 79-commander over-broad lifeloss trap).
+        if re.search(
+            r"at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
+            r"life|cumulative upkeep[^.]*life|you lose life equal to",
+            text,
+            re.IGNORECASE,
+        ):
+            add("lifegain_matters", "you", "", text[:160], "low")
+        # Double strike granted to your ATTACKING team (Raphael) makes attackers deal
+        # combat damage to players TWICE — it wants the "whenever creatures you control
+        # deal combat damage to a player" payoffs. Tight to "attacking creatures you
+        # control have double strike" so go-wide/tribal/conditional double-strike
+        # granters (Kwende, Jetmir, Raksha) — not combat-damage-payoff decks — stay out.
+        if re.search(
+            r"attacking creatures you control have[^.]*double strike",
+            text,
+            re.IGNORECASE,
+        ):
+            add("combat_damage_to_opp", "opponents", "", text[:160], "low")
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a

@@ -1951,3 +1951,57 @@ def test_lure_commander_cross_opens_blocked_matters():
     keys = _keys(vastra)
     assert "lure_matters" in keys
     assert "blocked_matters" in keys
+
+
+def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
+    # A commander with SIGNIFICANT repeated self-life-loss (Deadpool loses 3 each upkeep;
+    # cumulative-upkeep payers; "you lose life equal to" sac engines) bleeds out without
+    # sustain, so it wants lifegain. Gated to meaningful bleed — a negligible "lose 1
+    # life" rider on an attack/sac/value trigger won't deck you and must NOT open it
+    # (that was the 79-commander over-broad lifeloss->lifegain trap). Real cards.
+    deadpool = {
+        "name": "Deadpool, Trading Card",
+        "type_line": "Legendary Creature — Mutant Mercenary",
+        "oracle_text": (
+            "As Deadpool enters, you may exchange his text box and another "
+            "creature's.\n"
+            "At the beginning of your upkeep, you lose 3 life.\n"
+            "{3}, Sacrifice this creature: Each other player draws a card."
+        ),
+    }
+    assert "lifegain_matters" in _keys(deadpool)
+    # Over-fire guard: losing 1 life per attack is a negligible rider, not a bleed engine.
+    azula = {
+        "name": "Azula, On the Hunt",
+        "type_line": "Legendary Creature — Human Noble",
+        "oracle_text": (
+            "Firebending 2\n"
+            "Whenever Azula attacks, you lose 1 life and create a Clue token."
+        ),
+    }
+    assert "lifegain_matters" not in _keys(azula)
+
+
+def test_attacking_team_double_strike_opens_combat_damage():
+    # A commander that grants double strike to your ATTACKING team (Raphael) makes them
+    # deal combat damage to players twice — it wants the "whenever creatures you control
+    # deal combat damage to a player" payoffs. Tight to "attacking creatures you control
+    # have double strike" so go-wide/tribal/conditional double-strike granters (Kwende,
+    # Jetmir) — which aren't combat-damage-payoff decks — stay out. Real cards.
+    raphael = {
+        "name": "Raphael, the Nightwatcher",
+        "type_line": "Legendary Creature — Mutant Ninja Turtle",
+        "oracle_text": (
+            "Sneak {1}{R}{R}\nAttacking creatures you control have double strike."
+        ),
+    }
+    assert ("combat_damage_to_opp", "opponents") in _ks(raphael)
+    # Over-fire guard: a conditional/non-attacking double-strike grant is not this lane.
+    kwende = {
+        "name": "Kwende, Pride of Femeref",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "Double strike\nCreatures you control with first strike have double strike."
+        ),
+    }
+    assert ("combat_damage_to_opp", "opponents") not in _ks(kwende)
