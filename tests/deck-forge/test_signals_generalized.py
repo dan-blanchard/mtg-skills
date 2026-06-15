@@ -295,6 +295,57 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys(c)
 
 
+def test_polymorph_cheat_opens_cheat_into_play():
+    # Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE
+    # BATTLEFIELD (Jalira, Atla Palani, Eladamri) — they want big fatties to cheat in.
+    # The per-clause cheat detector missed them: "reveal … a creature card." and "Put
+    # that card onto the battlefield" split across a period, and "that card" isn't
+    # "creature card". Full-text. Real oracle.
+    jalira = {
+        "name": "Jalira, Master Polymorphist",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "{2}{U}, {T}, Sacrifice another creature: Reveal cards from the top of "
+            "your library until you reveal a nonlegendary creature card. Put that card "
+            "onto the battlefield and the rest on the bottom of your library in a "
+            "random order."
+        ),
+    }
+    atla = {
+        "name": "Atla Palani, Nest Tender",
+        "type_line": "Legendary Creature — Bird Shaman",
+        "oracle_text": (
+            "{2}, {T}: Create a 0/1 green Egg creature token with defender.\n"
+            "Whenever an Egg you control dies, reveal cards from the top of your "
+            "library until you reveal a creature card. Put that card onto the "
+            "battlefield and the rest on the bottom of your library in a random order."
+        ),
+    }
+    eladamri = {
+        "name": "Eladamri, Korvecdal",
+        "type_line": "Legendary Creature — Elf",
+        "oracle_text": (
+            "You may look at the top card of your library any time.\n"
+            "You may cast creature spells from the top of your library.\n"
+            "{G}, {T}, Tap two untapped creatures you control: Reveal a card from your "
+            "hand or the top card of your library. If you reveal a creature card this "
+            "way, put it onto the battlefield. Activate only during your turn."
+        ),
+    }
+    assert "cheat_into_play" in _keys(jalira)
+    assert "cheat_into_play" in _keys(atla)
+    assert "cheat_into_play" in _keys(eladamri)
+    # Over-fire guard: a graveyard reanimator is not a library/hand cheat.
+    reanimator = {
+        "name": "Reanimator",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Return target creature card from your graveyard to the battlefield."
+        ),
+    }
+    assert "cheat_into_play" not in _keys(reanimator)
+
+
 def test_counter_payoff_with_a_counter_on_it_opens_counters():
     # A +1/+1-counters commander whose payoff REWARDS creatures that HAVE counters
     # ("each creature you control WITH A COUNTER ON IT ...", "unless he has a +1/+1

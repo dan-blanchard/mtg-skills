@@ -1987,6 +1987,27 @@ def _detect_counter_have_payoff(text: str) -> bool:
     return bool(_PLUS_ONE_COUNTER.search(text) and _COUNTER_HAVE_PAYOFF.search(text))
 
 
+# Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE BATTLEFIELD
+# from library/hand (Jalira, Atla Palani, Eladamri) — a library/hand cheat (they want
+# big fatties), not graveyard reanimation. Full-text (DOTALL) because the "reveal … a
+# creature card." and "Put that card onto the battlefield" halves split across a period,
+# and the put-clause says "that card" / "it", not "creature card".
+_POLYMORPH_CHEAT_RE = re.compile(
+    r"(?:reveal|look at)[\s\S]*?\bcreature card[\s\S]{0,80}?"
+    r"put (?:that card|it|that creature card)[\s\S]{0,40}?onto the battlefield",
+    re.IGNORECASE,
+)
+
+
+def _detect_polymorph_cheat(text: str) -> bool:
+    """True for library/hand polymorph-cheat commanders (see _POLYMORPH_CHEAT_RE).
+    Excludes graveyard reanimation (a distinct lane) by the graveyard guard."""
+    low = text.lower()
+    if "from your graveyard" in low or "from a graveyard" in low:
+        return False
+    return _POLYMORPH_CHEAT_RE.search(text) is not None
+
+
 # Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
 # Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
 # verbs (gain control, opponents lose life, skip a step).
@@ -2210,6 +2231,8 @@ def extract_signals(
         add("counters_matter", "you", "", text[:160])
     if _detect_counter_have_payoff(text):
         add("counters_matter", "you", "", text[:160])
+    if _detect_polymorph_cheat(text):
+        add("cheat_into_play", "you", "", text[:160])
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
