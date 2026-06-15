@@ -785,6 +785,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Sac-and-return-this-turn engine (Garna, Gerrard, Moira): "return ... creature/
+    # permanent cards ... that (died | were put into your graveyard) ... this turn." It
+    # wants sac outlets to put creatures in the yard on demand, then brings them back —
+    # an aristocrats/sacrifice deck.
+    (
+        "sacrifice_matters",
+        re.compile(
+            r"return[^.]*(?:creature|permanent) cards?[^.]*"
+            r"(?:died|put there|put into (?:a|your|their) graveyard)[^.]*this turn",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Warp-GRANTING (Tannuk: "cards in your hand have warp") — warp casts a card from
     # hand for its warp cost and exiles it at end of turn, a temporary cheat-into-play.
     # A commander handing out warp is a cheat deck wanting fat creatures + cheat

@@ -336,6 +336,36 @@ def test_instant_sorcery_recaster_opens_spellcast():
     assert ("spellcast_matters", "you") not in _ks(bear)
 
 
+def test_sac_and_return_this_turn_opens_sacrifice():
+    # A commander that RETURNS creatures that hit the graveyard this turn (Garna,
+    # Gerrard) is a sac-and-return engine — it wants sac outlets (Carrion Feeder, Altar
+    # of Dementia) to put creatures in the yard on demand, then brings them back. It
+    # opened graveyard/clone but not sacrifice_matters. Real oracle.
+    garna = {
+        "name": "Garna, the Bloodflame",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": (
+            "Flash\nWhen Garna, the Bloodflame enters, return to your hand all creature "
+            "cards in your graveyard that were put there from anywhere this turn.\n"
+            "Other creatures you control have haste."
+        ),
+    }
+    gerrard = {
+        "name": "Gerrard, Weatherlight Hero",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "When Gerrard, Weatherlight Hero dies, return to the battlefield all "
+            "permanent cards in your graveyard that were put there from the "
+            "battlefield this turn."
+        ),
+    }
+    assert ("sacrifice_matters", "you") in _ks(garna)
+    assert ("sacrifice_matters", "you") in _ks(gerrard)
+    # Over-fire guard: a vanilla creature is not a sac-and-return engine.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert ("sacrifice_matters", "you") not in _ks(bear)
+
+
 def test_warp_granting_opens_cheat_into_play():
     # Tannuk grants WARP ("cards in your hand have warp" — cast from hand for the warp
     # cost, a temporary cheat-into-play). It's a cheat deck: it wants fat creatures and
