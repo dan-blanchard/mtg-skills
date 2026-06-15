@@ -90,6 +90,33 @@ def test_your_graveyard_signal_served_by_self_mill():
     assert serves(SELF_MILL, sig) is True
 
 
+def test_blink_serves_self_bounce_recast_engines():
+    # A blink/flicker deck wants self-bounce recast engines (Whitemane Lion, Kor
+    # Skyfisher) — bouncing your own ETB creature and recasting re-fires the ETB, the
+    # same value blink gives. The serve missed the "you may return ANOTHER TARGET
+    # creature you control" wording (Jeskai Barricade), and blink_flicker lacked the
+    # self-bounce extra. Real oracle.
+    sig = _sig("blink_flicker", "you")
+    jeskai = {
+        "name": "Jeskai Barricade",
+        "type_line": "Creature — Wall",
+        "oracle_text": (
+            "Flash\nDefender\nWhen this creature enters, you may return another target "
+            "creature you control to its owner's hand."
+        ),
+    }
+    whitemane = {
+        "name": "Whitemane Lion",
+        "type_line": "Creature — Cat",
+        "oracle_text": (
+            "Flash\nWhen this creature enters, return a creature you control to its "
+            "owner's hand."
+        ),
+    }
+    assert _lane_covers(jeskai, sig) is True
+    assert _lane_covers(whitemane, sig) is True
+
+
 def test_creature_etb_served_by_token_maker_not_burn():
     sig = _sig("creature_etb", "you")
     assert serves(TOKEN_MAKER, sig) is True

@@ -513,8 +513,9 @@ _SAC_OUTLET_EXTRA = SubAvenue(
 # trigger, so a creature-cast / ETB commander wants them. Anchored to "you control" so
 # a tempo bounce of an OPPONENT's permanent never registers.
 _SELF_BOUNCE_ORACLE = (
-    r"when this creature enters, return (?:a|an|another) "
-    r"(?:creature|permanent|nonland permanent) you control to its owner"
+    r"when this creature enters,(?: you may)? return "
+    r"(?:a|an|another|target|up to one|up to two)(?: target| other)? "
+    r"(?:creature|permanent|nonland permanent)s? you control to its owner"
 )
 _SELF_BOUNCE_EXTRA = SubAvenue(
     "Self-bounce recast engines",
@@ -1625,7 +1626,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield",
         # Death-return is a distinct mechanic (dies_recursion), offered as its own
         # avenue here — a blink deck re-uses ETBs via death too, but it isn't flicker.
-        extras=(_ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA, _DIES_RECURSION_EXTRA),
+        # Self-bounce recast engines (Whitemane Lion, Kor Skyfisher, Jeskai Barricade)
+        # re-fire an ETB by returning your own creature and recasting — staple
+        # blink-deck value, so they belong here too.
+        extras=(
+            _ETB_VALUE_EXTRA,
+            _ETB_DOUBLER_EXTRA,
+            _DIES_RECURSION_EXTRA,
+            _SELF_BOUNCE_EXTRA,
+        ),
     ),
     ("mill_matters", "any"): _spec(
         "Mill",
