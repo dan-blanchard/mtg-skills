@@ -1033,7 +1033,18 @@ def test_dont_own_payoff_opens_theft_and_gain_control():
             "each opponent's library face down."
         ),
     }
-    for cmd in (don_andres, arvinox):
+    # Gonti, Canny Acquisitor: "Spells you cast but don't own ..." — the intervening
+    # verb ("cast") must not slip past the don't-own detector.
+    gonti_canny = {
+        "name": "Gonti, Canny Acquisitor",
+        "type_line": "Legendary Creature — Aetherborn Rogue",
+        "oracle_text": (
+            "Spells you cast but don't own cost {1} less to cast.\nWhenever one or more "
+            "creatures you control deal combat damage to a player, exile the top card "
+            "of that player's library face down. You may look at and play that card."
+        ),
+    }
+    for cmd in (don_andres, arvinox, gonti_canny):
         ks = _ks(cmd)
         assert ("theft_matters", "opponents") in ks, cmd["name"]
         assert ("gain_control", "you") in ks, cmd["name"]

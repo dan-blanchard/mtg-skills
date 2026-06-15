@@ -2374,8 +2374,13 @@ def extract_signals(
     # Andres, Arvinox, Vaan) — is the same archetype and opens BOTH sibling lanes.
     if include_membership:
         keys_now = {s.key for s in out}
+        # "you control/cast/own ... (but) don't own" — covers Don Andres ("creatures you
+        # control but don't own"), Arvinox, and Gonti Canny ("spells you cast but don't
+        # own"). The bounded gap allows the intervening verb ("cast"/"control").
         dont_own = re.search(
-            r"you (?:control[^.]*)?(?:but )?(?:do not|don't) own", text, re.IGNORECASE
+            r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own",
+            text,
+            re.IGNORECASE,
         )
         if "gain_control" in keys_now or dont_own:
             add("theft_matters", "opponents", "", text[:160], "low")
