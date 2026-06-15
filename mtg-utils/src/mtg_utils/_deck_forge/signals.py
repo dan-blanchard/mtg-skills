@@ -74,6 +74,30 @@ def _re(pattern: str) -> Callable[[str], bool]:
     return lambda c: rx.search(c) is not None
 
 
+# Evergreen keywords a keyword-soup commander (Odric Lunarch Marshal, Akroma Vision)
+# shares across the team — counting >=5 of them in a team-grant context isolates the
+# soup-sharers from single-keyword anthems.
+_EVERGREEN_KW_WORDS = (
+    "flying",
+    "first strike",
+    "double strike",
+    "deathtouch",
+    "haste",
+    "hexproof",
+    "indestructible",
+    "lifelink",
+    "menace",
+    "reach",
+    "trample",
+    "vigilance",
+    "ward",
+    "protection",
+)
+_EVERGREEN_KW_RE = tuple(
+    re.compile(r"\b" + kw + r"\b", re.IGNORECASE) for kw in _EVERGREEN_KW_WORDS
+)
+
+
 # creature_etb scope tracks who controls the ENTERING creature, never the payoff
 # target: "another creature you control enters … deal 2 to each opponent" is YOUR
 # go-wide engine (Purphoros), not an opponents-scoped punisher. Only an
@@ -2527,6 +2551,23 @@ def extract_signals(
             re.IGNORECASE,
         ):
             add("proliferate_matters", "you", "", text[:160], "low")
+        # Keyword-soup commander (Odric Lunarch Marshal, Akroma Vision): grants/shares
+        # MANY evergreen keywords across the team ("creatures you control gain … if it
+        # has …"; Akroma's "+1/+1 if it has <keyword>" enumeration), so it wants
+        # creatures STACKED with keywords. >=5 distinct evergreen keywords in a team-
+        # grant/"if it has" context isolates the soup-sharer from a single-keyword
+        # anthem (Aang's lone vigilance). Reminder text is already stripped from `text`,
+        # so a keyword's reminder can't inflate the count.
+        if (
+            re.search(
+                r"creatures you control (?:gain|have)|each other creature you control"
+                r"|if it has",
+                text,
+                re.IGNORECASE,
+            )
+            and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(text)) >= 5
+        ):
+            add("keyword_soup_matters", "you", "", text[:160], "low")
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a

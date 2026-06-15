@@ -2052,3 +2052,56 @@ def test_remove_counter_to_activate_opens_proliferate():
         ),
     }
     assert "proliferate_matters" not in _keys(arixmethes)
+
+
+def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
+    # A keyword-soup commander (Odric, Lunarch Marshal) SHARES many evergreen keywords
+    # across the team, so it wants creatures stacked with keywords. Open on >=5 distinct
+    # evergreen keywords in a team-grant context (distinguishes the soup-sharer from a
+    # single-keyword anthem); serve creatures with >=3 evergreen keywords. Real cards.
+    odric = {
+        "name": "Odric, Lunarch Marshal",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "At the beginning of each combat, creatures you control gain first strike "
+            "until end of turn if a creature you control has first strike. The same is "
+            "true for flying, deathtouch, double strike, haste, hexproof, "
+            "indestructible, lifelink, menace, reach, skulk, trample, and vigilance."
+        ),
+    }
+    assert "keyword_soup_matters" in _keys(odric)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key):
+        sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    aerial = {
+        "name": "Aerial Responder",
+        "type_line": "Creature — Dwarf Soldier",
+        "oracle_text": "Flying, vigilance, lifelink",
+        "keywords": ["Flying", "Lifelink", "Vigilance"],
+    }
+    assert lane_covers(aerial, "keyword_soup_matters") is True
+    # Over-fire guard: a single-keyword anthem commander (grants only vigilance) is not
+    # a keyword-soup deck.
+    aang = {
+        "name": "Aang, Air Nomad",
+        "type_line": "Legendary Creature — Human Avatar",
+        "oracle_text": "Flying\nVigilance\nOther creatures you control have vigilance.",
+    }
+    assert "keyword_soup_matters" not in _keys(aang)
+    # Over-fire guard: a one-keyword creature is not a multi-keyword body.
+    sprite = {
+        "name": "Scryb Sprite",
+        "type_line": "Creature — Faerie",
+        "oracle_text": "Flying",
+        "keywords": ["Flying"],
+    }
+    assert lane_covers(sprite, "keyword_soup_matters") is False

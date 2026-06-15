@@ -25,6 +25,30 @@ if TYPE_CHECKING:
 
 _IC = re.IGNORECASE
 
+# Evergreen keyword abilities (CR 702) that a keyword-soup commander (Odric, Akroma)
+# shares across the team — counted from the authoritative Scryfall keywords[] field, so
+# a "serve N+ keywords" dimension credits the multi-keyword bodies those decks want.
+_EVERGREEN_KW = frozenset(
+    {
+        "flying",
+        "first strike",
+        "double strike",
+        "deathtouch",
+        "haste",
+        "hexproof",
+        "indestructible",
+        "lifelink",
+        "menace",
+        "reach",
+        "trample",
+        "vigilance",
+        "ward",
+        "defender",
+        "flash",
+        "protection",
+    }
+)
+
 # "Is-a" subtype hierarchies (CR 205.3g / 205.3h): every one of these subtypes IS an
 # artifact / enchantment, so a card that makes or cares about one is an
 # artifact-count / enchantment-count enabler. Used to widen the parent-type serves so a
@@ -74,6 +98,7 @@ class Serve:
     power_min: int | None = None  # serve a creature whose power >= this (big-creature)
     toughness_min: int | None = None  # serve a creature whose toughness >= this (Doran)
     toughness_over_power: bool = False  # serve a "butt": toughness > power (>=3 floor)
+    keyword_count_min: int | None = None  # serve a creature with >=N EVERGREEN keywords
     vanilla: bool = False  # serve a creature with NO rules text (Muraganda / Ruxa)
     self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
@@ -133,6 +158,13 @@ class Serve:
         ):
             return True
         if (
+            self.keyword_count_min is not None
+            and "creature" in type_line
+            and len(_EVERGREEN_KW & {k.lower() for k in (card.get("keywords") or [])})
+            >= self.keyword_count_min
+        ):
+            return True
+        if (
             self.vanilla
             and "creature" in type_line
             and not re.sub(r"\([^)]*\)", "", oracle_text).strip()
@@ -169,6 +201,8 @@ class Serve:
             out["toughness_min"] = self.toughness_min
         if self.toughness_over_power:
             out["toughness_over_power"] = True
+        if self.keyword_count_min is not None:
+            out["keyword_count_min"] = self.keyword_count_min
         if self.vanilla:
             out["vanilla"] = True
         if self.self_recur:
@@ -193,6 +227,7 @@ class Serve:
             or self.power_min is not None
             or self.toughness_min is not None
             or self.toughness_over_power
+            or self.keyword_count_min is not None
             or self.vanilla
             or self.self_recur
             or self.names
@@ -272,6 +307,7 @@ def serve_from_dict(data: dict) -> Serve:
         power_min=data.get("power_min"),
         toughness_min=data.get("toughness_min"),
         toughness_over_power=bool(data.get("toughness_over_power")),
+        keyword_count_min=data.get("keyword_count_min"),
         vanilla=bool(data.get("vanilla")),
         self_recur=bool(data.get("self_recur")),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
@@ -321,6 +357,7 @@ def _spec(
     serve_power_min: int | None = None,
     serve_toughness_min: int | None = None,
     serve_toughness_over_power: bool = False,
+    serve_keyword_count_min: int | None = None,
     serve_vanilla: bool = False,
     serve_self_recur: bool = False,
     serve_not: str | None = None,
@@ -339,6 +376,7 @@ def _spec(
             power_min=serve_power_min,
             toughness_min=serve_toughness_min,
             toughness_over_power=serve_toughness_over_power,
+            keyword_count_min=serve_keyword_count_min,
             vanilla=serve_vanilla,
             self_recur=serve_self_recur,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
@@ -2120,6 +2158,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
         r"put into[^.]*graveyard"
         r"|whenever you sacrifice (?:a|one or more|another) lands?",
+    ),
+    # Keyword soup (Odric Lunarch Marshal, Akroma Vision): shares many evergreen
+    # keywords across the team, so it wants creatures stacked with keywords. Serve any
+    # creature with >=3 evergreen keywords (Aerial Responder, Zetalpa, Danitha) — the
+    # structural keyword_count_min dimension, since "has 3+ keywords" is in keywords[],
+    # not prose. Only the >=5-keyword soup-sharers open it, so the broad serve is on-
+    # theme breadth, not over-fire.
+    ("keyword_soup_matters", "you"): _spec(
+        "Keyword soup",
+        "creatures stacked with evergreen keywords to share across your team",
+        {"oracle": r"\b(?:flying|first strike|double strike|trample|vigilance)\b"},
+        None,
+        serve_keyword_count_min=3,
     ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
