@@ -523,6 +523,28 @@ _SELF_BOUNCE_EXTRA = SubAvenue(
     {"oracle": _SELF_BOUNCE_ORACLE},
     serve=Serve(oracle=re.compile(_SELF_BOUNCE_ORACLE, _IC)),
 )
+# Shared STAX-PIECES serve: a stax commander wants stax pieces regardless of whether its
+# OWN stax is opponent-targeted (Gaddock) or symmetric (Hokori), so stax_taxes and
+# symmetric_stax serve the same pool — opponent taxes + symmetric restrictions + the
+# hatebears the opponent-only serve missed: global ability-shutoff (Collector Ouphe /
+# Cursed Totem / Stony Silence), anti-cheat ETB replacement (Containment Priest /
+# Hallowed Moonlight), and ETB/death trigger-hate (Hushbringer / Torpor Orb).
+_STAX_SERVE_ORACLE = (
+    r"opponents? can't"
+    r"|(?:players?|that player|each player) can't (?:cast|activate|attack|block"
+    r"|untap|search|draw|play|gain)"
+    r"|spells?[^.]*cost \{?\d+\}? more|noncreature spells?[^.]*cost \{?\d"
+    r"|creatures your opponents control"
+    r"|(?:your opponents control|nonbasic lands?|other permanents) enters?"
+    r"(?: the battlefield)? tapped"
+    r"|can't attack you|unless [^.]*\bpays?\b|may pay \{"
+    r"|if (?:a player|an opponent|that player|they) would search[^.]*library"
+    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
+    # Symmetric hatebears (the gap):
+    r"|activated abilities of [^.]*can't be activated"
+    r"|would enter[^.]*(?:exile it instead|isn't cast|wasn't cast)"
+    r"|(?:entering|enters?|dying|die)[^.]*don't cause[^.]*abilities to trigger"
+)
 # Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
 # 603.6 zone-change triggers) and the ETB-trigger DOUBLERS that multiply every enter
 # (Panharmonicon / Yarok). The value regex requires an enter trigger PLUS a value verb,
@@ -1522,7 +1544,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # symmetric taxes the old regex missed (Thalia: "Noncreature spells cost {1} more").
     ("stax_taxes", "opponents"): _spec(
         "Stax & taxes",
-        "tax and restriction effects aimed at your opponents",
+        "tax and restriction effects — opponent taxes, symmetric locks, and hatebears",
         {
             "oracle": (
                 r"opponents? can't"
@@ -1530,20 +1552,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 r"|creatures your opponents control"
             )
         },
-        r"opponents? can't"
-        r"|(?:players?|that player|each player) can't (?:cast|activate|attack|block|"
-        r"untap|search|draw|play)"
-        r"|spells?[^.]*cost \{?\d+\}? more|noncreature spells?[^.]*cost \{?\d"
-        r"|creatures your opponents control"
-        r"|(?:your opponents control|nonbasic lands?) enters?"
-        r"(?: the battlefield)? tapped"
-        # Pillowfort + rhystic taxes (Ghostly Prison / Propaganda / Smothering Tithe /
-        # Rhystic Study): "can't attack you unless …" and "unless that player pays / may
-        # pay {N}".
-        r"|can't attack you|unless [^.]*\bpays?\b|may pay \{"
-        # Search-hate as a REPLACEMENT (Aven Mindcensor / Opposition Agent / Ashiok):
-        # "if an opponent would search a library, … top four … instead".
-        r"|if (?:a player|an opponent|that player|they) would search[^.]*library",
+        _STAX_SERVE_ORACLE,
+    ),
+    # Symmetric-stax commander (Hokori, Winter Orb-style locks): wants the SAME stax
+    # piece pool — it runs opponent-taxes + symmetric locks + hatebears alike. Shares
+    # the stax serve; hand-written so the auto-register doesn't bind a narrower one.
+    ("symmetric_stax", "each"): _spec(
+        "Symmetric stax",
+        "stax pieces a symmetric-lock deck runs — taxes, locks, and hatebears",
+        {"oracle": r"players? can't|enters?(?: the battlefield)? tapped|can't be"},
+        _STAX_SERVE_ORACLE,
     ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",

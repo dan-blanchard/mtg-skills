@@ -4387,3 +4387,49 @@ def test_suspend_serves_extra_upkeep_and_suspended_card_support():
         "oracle_text": "You may play an additional land this turn.\nDraw a card.",
     }
     assert _lane_covers(explore, sig) is False
+
+
+def test_stax_lanes_serve_symmetric_hatebears():
+    # A stax commander wants stax PIECES regardless of its own scope. The opponent-tax
+    # serve missed SYMMETRIC hatebears: global ability-shutoff (Collector Ouphe),
+    # anti-cheat ETB replacement (Containment Priest), trigger-hate (Hushbringer). And a
+    # symmetric-stax commander (Hokori) also wants the opponent-tax pieces (Kismet).
+    collector_ouphe = {
+        "name": "Collector Ouphe",
+        "type_line": "Creature — Ouphe",
+        "oracle_text": "Activated abilities of artifacts can't be activated.",
+    }
+    containment_priest = {
+        "name": "Containment Priest",
+        "type_line": "Creature — Cleric",
+        "oracle_text": (
+            "Flash\n"
+            "If a nontoken creature would enter the battlefield and it wasn't cast, "
+            "exile it instead."
+        ),
+    }
+    hushbringer = {
+        "name": "Hushbringer",
+        "type_line": "Creature — Faerie",
+        "oracle_text": (
+            "Flying, lifelink\n"
+            "Creatures entering the battlefield and dying don't cause triggered "
+            "abilities to trigger."
+        ),
+    }
+    kismet = {
+        "name": "Kismet",
+        "type_line": "Enchantment",
+        "oracle_text": "Artifacts, creatures, and lands your opponents control enter tapped.",
+    }
+    stax = _sig("stax_taxes", "opponents")
+    sym = _sig("symmetric_stax", "each")
+    for piece in (collector_ouphe, containment_priest, hushbringer):
+        assert _lane_covers(piece, stax), piece["name"]
+        assert _lane_covers(piece, sym), piece["name"]
+    # The symmetric-stax commander also wants opponent-tax pieces.
+    assert _lane_covers(kismet, sym) is True
+    # Over-fire guard: a vanilla beater is not a stax piece.
+    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert _lane_covers(bear, stax) is False
+    assert _lane_covers(bear, sym) is False
