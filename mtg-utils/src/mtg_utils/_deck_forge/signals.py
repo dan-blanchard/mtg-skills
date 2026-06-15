@@ -487,8 +487,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         None,
     ),
-    # Pay-life / self life-loss as a resource (forced you — it's your life).
-    ("lifeloss_matters", _re(r"pay \d+ life|you lose \d+ life"), "you"),
+    # Pay-life / self life-loss as a resource (forced you — it's your life). Numeric
+    # AND the variable self-anchored forms: "you lose X life" draw engines, "you lose
+    # that much life", "you lose life equal to", "you may pay X life". Anchored on
+    # "you" so a "Ward, pay life equal to" cost (the opponent pays, Raubahn) stays out.
+    (
+        "lifeloss_matters",
+        _re(
+            r"pay \d+ life|you lose \d+ life|you lose (?:x|that much) life"
+            r"|you lose life equal to|you may pay (?:\d+|x) life"
+        ),
+        "you",
+    ),
 )
 
 

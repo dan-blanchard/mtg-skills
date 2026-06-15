@@ -2176,6 +2176,50 @@ def test_variable_self_bleed_opens_lifegain_sustain():
     assert "lifegain_matters" not in _keys(madame_null)
 
 
+def test_variable_self_lifeloss_opens_life_as_resource_lane():
+    # The lifeloss_matters "you" lane (life-as-resource: pay/lose life on demand, plus
+    # life-total swap/reset/recovery payoffs like Repay in Kind / Children of Korlis /
+    # Near-Death Experience). Its SERVE already matched variable "you lose X life", but
+    # the DETECTOR that decides whether a COMMANDER opens it was numeric-only, so the
+    # variable-bleed commanders missed this second avenue. Real oracle.
+    asmodeus = {
+        "name": "Asmodeus the Archfiend",
+        "type_line": "Legendary Creature — Devil God",
+        "oracle_text": (
+            "Binding Contract — If you would draw a card, exile the top card of your "
+            "library face down instead.\n"
+            "{B}{B}{B}: Draw seven cards.\n"
+            "{B}: Return all cards exiled with Asmodeus to their owner's hand and you "
+            "lose that much life."
+        ),
+    }
+    belakor = {
+        "name": "Be'lakor, the Dark Master",
+        "type_line": "Legendary Creature — Demon Noble",
+        "oracle_text": (
+            "Flying\n"
+            "Prince of Chaos — When Be'lakor enters, you draw X cards and you lose X "
+            "life, where X is the number of Demons you control.\n"
+            "Lord of Torment — Whenever another Demon you control enters, it deals "
+            "damage equal to its power to any target."
+        ),
+    }
+    assert ("lifeloss_matters", "you") in _ks(asmodeus)
+    assert ("lifeloss_matters", "you") in _ks(belakor)
+    # Over-fire guard: a "Ward—Pay life equal to" cost (Raubahn) is the OPPONENT paying,
+    # not self life-loss — it has no "you", so the self-anchored detector stays out.
+    raubahn = {
+        "name": "Raubahn, Bull of Ala Mhigo",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": (
+            "Ward—Pay life equal to Raubahn's power.\n"
+            "Whenever Raubahn attacks, attach up to one target Equipment you control "
+            "to target attacking creature."
+        ),
+    }
+    assert "lifeloss_matters" not in _keys(raubahn)
+
+
 def test_attacking_team_double_strike_opens_combat_damage():
     # A commander that grants double strike to your ATTACKING team (Raphael) makes them
     # deal combat damage to players twice — it wants the "whenever creatures you control
