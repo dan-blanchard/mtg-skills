@@ -700,6 +700,15 @@ _TYPE_MATTERS_PATTERNS = (
     ),
     re.compile(r"\bdestroy all non-([A-Za-z]+?) creatures?\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?) spells you cast cost\b", re.IGNORECASE),
+    # Tribal-spell payoff phrased as "<Tribe> creature spell": a commander that casts /
+    # cost-reduces / copies "Dragon creature spells" (Rivaz), "Zombie creature spells"
+    # (Gisa and Geralf), or "Beast creature spells" (Tawnos) is that tribe. The bare
+    # "X spells you cast cost" pattern captures "creature", not the tribe.
+    re.compile(r"\b([A-Za-z]+?) creature spells?\b", re.IGNORECASE),
+    # Tribal evasion-grant on a single target with no "you control" anchor: "target
+    # Ninja can't be blocked" (Splinter, a Ninja-tribal payoff). The vocab gate drops
+    # the bare "target creature can't be blocked".
+    re.compile(r"\btarget ([A-Za-z]+?) can't be blocked", re.IGNORECASE),
 )
 # Two-tribe trigger: "a Goblin or Orc you control deals …" (Gorbag — an Orc, so
 # membership supplies Orc but never Goblin). Emit BOTH captured subtypes; the

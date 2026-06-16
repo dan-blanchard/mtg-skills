@@ -482,6 +482,51 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert ("counters_matter", "you") not in _ks(volrath)
 
 
+def test_tribal_creature_spell_and_target_tribe():
+    # Tribal references the standard patterns miss: "<Tribe> creature spell" (Gisa casts
+    # Zombie creature spells, Rivaz casts Dragon creature spells) and "target <Tribe>
+    # can't be blocked" (Splinter is Ninja-tribal).
+    gisa = {
+        "name": "Gisa and Geralf",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "When Gisa and Geralf enters, mill four cards.\nOnce during each of your "
+            "turns, you may cast a Zombie creature spell from your graveyard."
+        ),
+    }
+    assert ("type_matters", "you", "Zombie") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(gisa, include_membership=True)
+    }
+    splinter = {
+        "name": "Splinter, Radical Rat",
+        "type_line": "Legendary Creature — Mutant Ninja Rat",
+        "oracle_text": (
+            "If a triggered ability of a Ninja creature you control triggers, that "
+            "ability triggers an additional time.\n{1}{U}: Target Ninja can't be blocked "
+            "this turn."
+        ),
+    }
+    assert ("type_matters", "you", "Ninja") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(splinter, include_membership=True)
+    }
+    # Over-fire guard: a generic "creature spell" / "target creature can't be blocked"
+    # captures no tribe (vocab gate drops the card-type word).
+    generic = {
+        "name": "Generic",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Whenever you cast a creature spell, draw a card. Target creature can't be "
+            "blocked this turn."
+        ),
+    }
+    assert not any(
+        s.key == "type_matters" and s.subject == "Creature"
+        for s in extract_signals(generic, include_membership=True)
+    )
+
+
 def test_tribal_tutor_with_intervening_type_word():
     # The tribal-tutor pattern must capture the tribe when a card-type word sits between
     # the tribe and "card": Zirilan tutors "a Dragon PERMANENT card", so it's a Dragon
