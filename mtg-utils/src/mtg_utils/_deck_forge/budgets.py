@@ -40,7 +40,16 @@ _SHAPE_BANDS: dict[str, dict[str, tuple[int, int]]] = {
 }
 
 # Targeted removal + counterspells fold together into one `interaction` role (ADR-0024).
-_INTERACTION_PRESETS = ("removal", "creature-removal", "counterspell", "bounce")
+# creature-edict (forced sacrifice — Diabolic Edict, Fleshbag) is removal that bypasses
+# hexproof/indestructible, so it counts too; the `removal` preset also carries pacify
+# auras ("Enchanted creature can't attack or block" — Pacifism, Arrest).
+_INTERACTION_PRESETS = (
+    "removal",
+    "creature-removal",
+    "counterspell",
+    "bounce",
+    "creature-edict",
+)
 
 # Protection (Tier-2, advisory) must GRANT a protective quality to another permanent — a
 # card that merely HAS indestructible/hexproof itself (Darksteel Reactor) protects only

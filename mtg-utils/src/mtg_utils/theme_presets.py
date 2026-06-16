@@ -1012,6 +1012,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             # around `-X/-X` is intentionally dropped — `-` isn't a word
             # character, so `\b-` can never match. Use a looser anchor.
             r"(?<!\w)-X/-X\b",
+            # Pacification auras (Pacifism, Arrest, Prison Term, Faith's Fetters): an
+            # "Enchanted creature/permanent can't attack" neutralizes the threat —
+            # functional removal. Anchored on "enchanted" so a creature whose OWN "can't
+            # attack or block" is a drawback (Lupine Prototype) never matches.
+            r"enchanted (?:creature|permanent)[^.]*can'?t attack",
         ),
         should_match=(
             "Swords to Plowshares",
@@ -1024,8 +1029,10 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Disfigure",  # -N/-N branch
             "Boomerang",  # universal bounce branch
             "Farewell",  # exile-all branch
+            "Pacifism",  # pacify-aura branch
+            "Arrest",  # pacify-aura branch
         ),
-        should_not_match=("Llanowar Elves", "Command Tower"),
+        should_not_match=("Llanowar Elves", "Command Tower", "Lupine Prototype"),
     ),
     # Board wipe — subset of removal that hits all/many creatures.
     Preset(

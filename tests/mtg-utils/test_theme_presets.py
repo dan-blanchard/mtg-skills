@@ -822,6 +822,23 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": [],
         "oracle_text": "Target player sacrifices a creature of their choice.",
     },
+    "Pacifism": {
+        "keywords": ["Enchant"],
+        "oracle_text": "Enchant creature\nEnchanted creature can't attack or block.",
+    },
+    "Arrest": {
+        "keywords": ["Enchant"],
+        "oracle_text": (
+            "Enchant creature\nEnchanted creature can't attack or block, and its "
+            "activated abilities can't be activated."
+        ),
+    },
+    "Lupine Prototype": {
+        "keywords": [],
+        "oracle_text": (
+            "This creature can't attack or block unless a player has no cards in hand."
+        ),
+    },
     "Sheoldred's Edict": {
         "keywords": [],
         "oracle_text": (

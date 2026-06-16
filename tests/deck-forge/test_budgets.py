@@ -34,6 +34,31 @@ WRATH = {
     "type_line": "Sorcery",
     "oracle_text": "Destroy all creatures. They can't be regenerated.",
 }
+FLESHBAG = {
+    "name": "Fleshbag Marauder",
+    "type_line": "Creature — Zombie Warrior",
+    "oracle_text": (
+        "When this creature enters, each player sacrifices a creature of their choice."
+    ),
+}
+PACIFISM = {
+    "name": "Pacifism",
+    "type_line": "Enchantment — Aura",
+    "oracle_text": "Enchant creature\nEnchanted creature can't attack or block.",
+}
+# Over-fire guard: a creature whose OWN "can't attack or block" is a drawback (keyed on
+# "This creature", not "Enchanted creature") is not removal.
+LUPINE = {
+    "name": "Lupine Prototype",
+    "type_line": "Artifact Creature — Wolf Construct",
+    "oracle_text": "This creature can't attack or block unless a player has no cards in hand.",
+}
+# Over-fire guard: sacrifice as an activated COST (you choose to pay) is not an edict.
+VISCERA = {
+    "name": "Viscera Seer",
+    "type_line": "Creature — Vampire Wizard",
+    "oracle_text": "Sacrifice a creature: Scry 1.",
+}
 
 
 def test_empty_deck_bands_scale_to_deck_size():
@@ -54,6 +79,18 @@ def test_role_classification_folds_counterspells_into_interaction():
     assert "interaction" in role_of(COUNTERSPELL)  # counterspell folds into interaction
     assert "card_draw" in role_of(DIVINATION)
     assert "board_wipe" in role_of(WRATH)
+
+
+def test_edicts_and_pacify_auras_count_as_interaction():
+    # role_of is the universal coverage fallback, so forced-sacrifice (edicts) and
+    # pacification auras — both REMOVAL regardless of commander — must register as
+    # interaction. Fleshbag (creature-edict) and Pacifism (neutralize aura) were missed.
+    assert "interaction" in role_of(FLESHBAG)
+    assert "interaction" in role_of(PACIFISM)
+    # Over-fire guards: a sacrifice COST (Viscera Seer) and a creature with a "can't
+    # attack" DRAWBACK on itself (Lupine Prototype) are not removal.
+    assert "interaction" not in role_of(VISCERA)
+    assert "interaction" not in role_of(LUPINE)
 
 
 def test_protection_is_advisory_not_a_counted_role():
