@@ -194,6 +194,23 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_timing_control_serves_cast_and_activate_lock():
+    # Dosan ("Players can cast spells only during their own turns") is a timing-lock
+    # commander; City of Solitude is a near-copy ("cast spells AND ACTIVATE ABILITIES
+    # only during their own turns") — the timing_control regex required "spells only"
+    # contiguously and missed the "and activate abilities" variant. Real oracle.
+    sig = _sig("timing_control", "opponents")
+    city_of_solitude = {
+        "name": "City of Solitude",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{G}",
+        "oracle_text": (
+            "Players can cast spells and activate abilities only during their own turns."
+        ),
+    }
+    assert serves(city_of_solitude, sig) is True
+
+
 def test_damage_prevention_serves_block_any_number_and_redirect_soak():
     # A damage-PREVENTION commander (Oriss "{T}: prevent all damage to target creature")
     # turns a "block any number of creatures" wall (Palace Guard) or a redirect-to-one

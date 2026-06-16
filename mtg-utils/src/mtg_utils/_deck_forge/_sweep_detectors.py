@@ -752,7 +752,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "timing_control",
         "scope": "opponents",
         "is_widen_of": "",
-        "regex": "may end the turn|cast spells only during their own|spells? only any time they could cast a sorcery|can cast spells only",
+        "regex": "may end the turn|cast spells (?:and activate abilities )?only during their own|spells? only any time they could cast a sorcery|can cast spells only",
     },
     {
         "key": "sacrifice_protection",
