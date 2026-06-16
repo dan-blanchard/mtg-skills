@@ -2730,7 +2730,8 @@ def extract_signals(
         # creatures_matter: it wants anthems, per-creature-ETB payoffs (Soul Warden,
         # Impact Tremors), and Cathars' Crusade, none of which the bare token_maker lane
         # serves. Low confidence. Non-creature token makers (Treasure / Clue) never set
-        # a token_maker subject, so they stay out.
+        # a token_maker subject, so they stay out. Scoped to token MAKERS (not the
+        # broader tokens_matter payoff) so discovery's lane-weighted sort stays clean.
         if "creatures_matter" not in keys_now and any(
             s.key == "token_maker" and s.subject for s in out
         ):
