@@ -126,6 +126,13 @@ def is_creature(card: dict) -> bool:
 # though it produces no mana for you.
 _REMINDER_RE = re.compile(r"\([^)]*\)")
 _ADD_MANA_RE = re.compile(r"add\s+(?:\{|one mana|mana of|an amount of (?:mana|\{))")
+# Mana AMPLIFIERS: "add(s) an additional {X}/mana" when you tap a land (Nirkana
+# Revenant, Crypt Ghast, Caged Sun, Gauntlet of Power, High Tide, Bubbling Muck). The
+# mana symbol isn't adjacent to "add", so _ADD_MANA_RE misses it — but they ramp you
+# (extra mana per land); symmetric ones (Mana Flare) still ramp the controller.
+_AMPLIFY_MANA_RE = re.compile(
+    r"adds? an additional (?:\{|mana|one mana)", re.IGNORECASE
+)
 # Land-acceleration ramp that adds no mana directly: extra land drops (Azusa,
 # Exploration, Dryad of the Ilysian Grove) and putting a land from hand into play
 # (Arboreal Grazer, Burgeoning) — both accelerate your mana via lands.
@@ -165,6 +172,9 @@ def is_ramp(card: dict) -> bool:
     if _ADD_MANA_RE.search(oracle_lower):
         return not any(p in oracle_lower for p in _OPPONENT_DIRECTED)
 
+    # Mana amplifiers ("add an additional {X}" per land tapped) ramp you too.
+    if _AMPLIFY_MANA_RE.search(oracle_lower):
+        return True
     # Cards that search library for lands
     if "search your library for" in oracle_lower and "land" in oracle_lower:
         return True

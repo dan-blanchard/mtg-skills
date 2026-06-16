@@ -227,6 +227,25 @@ class TestIsRamp:
         }
         assert is_ramp(karametra) is True
 
+    def test_mana_amplifier_is_ramp(self):
+        """A mana AMPLIFIER ("add an additional {X}" per land tapped — Nirkana Revenant,
+        Crypt Ghast, Caged Sun) ramps you even though the mana symbol isn't adjacent to
+        "Add"; symmetric amplifiers still ramp the controller."""
+        nirkana = {
+            "type_line": "Creature — Vampire Shaman",
+            "oracle_text": (
+                "Deathtouch\nWhenever you tap a Swamp for mana, add an additional {B}."
+            ),
+        }
+        crypt_ghast = {
+            "type_line": "Creature — Spirit",
+            "oracle_text": (
+                "Extort\nWhenever you tap a Swamp for mana, add an additional {B}."
+            ),
+        }
+        assert is_ramp(nirkana) is True
+        assert is_ramp(crypt_ghast) is True
+
     def test_extra_land_and_land_from_hand_are_ramp(self):
         """Land-acceleration that adds no mana directly: extra land drops (Azusa) and
         putting a land from hand into play (Arboreal Grazer) both ramp via lands."""
