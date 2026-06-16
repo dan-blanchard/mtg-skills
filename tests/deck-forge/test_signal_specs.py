@@ -143,6 +143,78 @@ def test_free_creature_payoff_serves_only_zero_cost_creatures():
     assert serves(grizzly_bears, sig) is False  # creature, but not 0-cost
 
 
+def test_outlaw_matters_serves_token_makers_and_recursion():
+    # Vial Smasher's outlaw payoff wants cards that MAKE outlaw tokens (Mercenary /
+    # Pirate / Rogue / Assassin / Warlock) and outlaw RECURSION — not just creatures
+    # that ARE outlaws. The serve had only the type-line gate + "outlaws you control".
+    # Real oracle.
+    sig = _sig("outlaw_matters", "you")
+    brimstone_roundup = {
+        "name": "Brimstone Roundup",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever you cast your second spell each turn, create a 1/1 red Mercenary "
+            'creature token with "{T}: Target creature you control gets +1/+0 until '
+            'end of turn. Activate only as a sorcery."\nPlot {2}{R} (You may pay {2}{R} '
+            "and exile this card from your hand. Cast it as a sorcery on a later turn "
+            "without paying its mana cost. Plot only as a sorcery.)"
+        ),
+    }
+    back_in_town = {
+        "name": "Back in Town",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Return X target outlaw creature cards from your graveyard to the "
+            "battlefield. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are "
+            "outlaws.)"
+        ),
+    }
+    raise_the_alarm = {
+        "name": "Raise the Alarm",
+        "type_line": "Instant",
+        "oracle_text": "Create two 1/1 white Soldier creature tokens.",
+    }
+    assert serves(brimstone_roundup, sig) is True  # makes Mercenary tokens
+    assert serves(back_in_town, sig) is True  # returns outlaw creature cards
+    assert serves(raise_the_alarm, sig) is False  # non-outlaw (Soldier) tokens
+
+
+def test_opponent_exile_serves_the_exile_enablers():
+    # Umbris grows per "card your opponents own in exile", so it wants the ENABLERS that
+    # exile opponents' cards (Leyline of the Void, Ashiok, Bojuka Bog) — not just other
+    # "opponents own in exile" counters. Real oracle.
+    sig = _sig("opponent_exile_matters", "opponents")
+    leyline_of_the_void = {
+        "name": "Leyline of the Void",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "If this card is in your opening hand, you may begin the game with it on "
+            "the battlefield.\nIf a card would be put into an opponent's graveyard from "
+            "anywhere, exile it instead."
+        ),
+    }
+    ashiok_dream_render = {
+        "name": "Ashiok, Dream Render",
+        "type_line": "Legendary Planeswalker — Ashiok",
+        "oracle_text": (
+            "Spells and abilities your opponents control can't cause their controller "
+            "to search their library.\n−1: Target player mills four cards. Then exile "
+            "each opponent's graveyard."
+        ),
+    }
+    deep_analysis = {  # flashback exiles ITSELF from YOUR graveyard — not opponents'
+        "name": "Deep Analysis",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Target player draws two cards.\nFlashback—{1}{U}, Pay 3 life. (You may "
+            "cast this card from your graveyard for its flashback cost. Then exile it.)"
+        ),
+    }
+    assert serves(leyline_of_the_void, sig) is True  # exile-instead-of-GY enabler
+    assert serves(ashiok_dream_render, sig) is True  # exile each opponent's graveyard
+    assert serves(deep_analysis, sig) is False  # exiles your own card, not opponents'
+
+
 def test_discard_matters_serves_self_discard_outlets():
     # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
     # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"

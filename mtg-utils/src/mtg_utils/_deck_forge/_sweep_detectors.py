@@ -196,7 +196,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "opponent_exile_matters",
         "scope": "opponents",
         "is_widen_of": "exile_matters",
-        "regex": "cards? (?:your opponents own|an opponent owns)[^.]*in exile|for each card your opponents own in exile|opponents own in exile",
+        "regex": "cards? (?:your opponents own|an opponent owns)[^.]*in exile|for each card your opponents own in exile|opponents own in exile|exile (?:target player's|target opponent's|each opponent's|that player's) graveyard|if a card would be put into an opponent's graveyard",
     },
     {
         "key": "opponent_counter_grant",

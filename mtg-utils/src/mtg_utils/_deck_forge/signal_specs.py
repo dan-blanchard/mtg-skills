@@ -1814,8 +1814,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Outlaws",
         "outlaws (Assassins / Mercenaries / Pirates / Rogues / Warlocks) plus the "
         "anthems and payoffs that reward a board of them",
-        {"oracle": r"\boutlaws?\b"},
-        r"\boutlaws? you control\b|another outlaw",
+        {
+            "oracle": (
+                r"\boutlaws?\b"
+                r"|create[s]?[^.]*\b(?:mercenary|pirate|rogue|assassin|warlock)\b"
+                r"[^.]*\btoken"
+            )
+        },
+        # ALSO serve outlaw-TOKEN makers ("create a 1/1 red Mercenary token" — those
+        # tokens are outlaws) and outlaw RECURSION ("return … outlaw creature cards"),
+        # not just cards whose own type line is an outlaw subtype.
+        r"\boutlaws? you control\b|another outlaw"
+        r"|create[s]?[^.]*\b(?:mercenary|pirate|rogue|assassin|warlock)\b[^.]*\btoken"
+        r"|\boutlaw creature cards?\b"
+        r"|\b(?:mercenary|pirate|rogue|assassin|warlock) creature cards?\b",
         serve_types=("assassin", "mercenary", "pirate", "rogue", "warlock"),
     ),
     # Snow (Isu the Abominable): snow permanents (Snow type), snow payoffs ("number of
