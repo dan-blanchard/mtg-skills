@@ -1925,6 +1925,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "any",
     ),
+    # Creatures-are-lands (Ashaya): "nontoken creatures you control are Forest lands" —
+    # its creatures ARE lands, so untap-lands effects (Quirion Ranger, Argothian Elder,
+    # Seedborn Muse) untap its creature-lands for mana and re-use -> the untap engine.
+    (
+        "untap_engine",
+        re.compile(
+            r"(?:nontoken )?creatures you control are[^.]*\blands\b", re.IGNORECASE
+        ),
+        "you",
+    ),
     # Cycling (CR 702.29): payoffs use "cycle or discard"; discard_matters serves 0/32.
     (
         "cycling_matters",

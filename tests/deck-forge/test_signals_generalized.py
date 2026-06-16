@@ -406,6 +406,22 @@ def test_self_recurring_commander_opens_voltron():
     )
 
 
+def test_creatures_are_lands_opens_untap_engine():
+    # Ashaya's nontoken creatures ARE Forest lands, so untap-lands effects (Quirion
+    # Ranger, Argothian Elder, Ley Weaver) untap its creature-lands for mana and re-use.
+    # Opens untap_engine. Real oracle.
+    ashaya = {
+        "name": "Ashaya, Soul of the Wild",
+        "type_line": "Legendary Creature — Elemental",
+        "oracle_text": (
+            "Ashaya's power and toughness are each equal to the number of lands you "
+            "control.\nNontoken creatures you control are Forest lands in addition to "
+            "their other types. (They're still affected by summoning sickness.)"
+        ),
+    }
+    assert "untap_engine" in _keys(ashaya)
+
+
 def test_rampage_keyword_opens_blocked_matters():
     # Rampage's "whenever this creature becomes blocked" trigger lives in stripped
     # reminder text, so blocked_matters (which keys on "becomes blocked") missed it. A
