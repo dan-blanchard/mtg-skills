@@ -439,6 +439,21 @@ _PILLOWFORT_EXTRA = SubAvenue(
     {"oracle": _PILLOWFORT_ORACLE},
     serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
 )
+# Damage-soak payoffs for a damage-PREVENTION commander (Oriss "{T}: prevent all damage
+# to target creature"): a wall that blocks any number of attackers (block the whole
+# team, then prevent its damage) or a redirect-to-one-body soak (Palisade Giant /
+# Pariah, then prevent that body's damage) converts prevention into a hard lock.
+_DAMAGE_SOAK_ORACLE = (
+    r"can block any number of creatures"
+    r"|all damage[^.]*dealt to[^.]*instead"
+    r"|damage that would be dealt to you is dealt to [^.]*instead"
+)
+_DAMAGE_SOAK_EXTRA = SubAvenue(
+    "Soak blockers",
+    "creatures that block any number of attackers or soak all damage onto one body",
+    {"oracle": _DAMAGE_SOAK_ORACLE},
+    serve=Serve(oracle=re.compile(_DAMAGE_SOAK_ORACLE, _IC)),
+)
 # Force-the-attack: effects that make ALL / your opponents' creatures attack each combat
 # (Goblin Diplomats, War's Toll, Warmonger Hellkite, Disrupt Decorum) — they feed a
 # "rewards being attacked / any-player attack" payoff (Kazuul). Plural/symmetric anchors
@@ -2088,7 +2103,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Fog / damage-prevention commanders durdle defensively — pillowfort is a top
     # EDHREC pick for them (4 commanders in the evidence). Keep the mined fog regex.
     ("damage_prevention", "you"): _sweep_spec_with_extras(
-        "damage_prevention", (_PILLOWFORT_EXTRA,)
+        "damage_prevention", (_PILLOWFORT_EXTRA, _DAMAGE_SOAK_EXTRA)
     ),
     ("proliferate_matters", "you"): _spec(
         "Proliferate",

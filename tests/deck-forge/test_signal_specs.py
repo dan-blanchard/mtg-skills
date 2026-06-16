@@ -194,6 +194,42 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_damage_prevention_serves_block_any_number_and_redirect_soak():
+    # A damage-PREVENTION commander (Oriss "{T}: prevent all damage to target creature")
+    # turns a "block any number of creatures" wall (Palace Guard) or a redirect-to-one
+    # soak (Pariah) into a hard lock — block/soak everything, then prevent it. These ride
+    # a sub-avenue, so check _lane_covers. Real oracle.
+    sig = _sig("damage_prevention", "you")
+    palace_guard = {
+        "name": "Palace Guard",
+        "type_line": "Creature — Human Soldier",
+        "mana_cost": "{2}{W}",
+        "power": "1",
+        "toughness": "4",
+        "oracle_text": "This creature can block any number of creatures.",
+    }
+    pariah = {
+        "name": "Pariah",
+        "type_line": "Enchantment — Aura",
+        "mana_cost": "{2}{W}",
+        "oracle_text": (
+            "Enchant creature\nAll damage that would be dealt to you is dealt to "
+            "enchanted creature instead."
+        ),
+    }
+    assert _lane_covers(palace_guard, sig) is True
+    assert _lane_covers(pariah, sig) is True
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
 def test_island_matters_serves_island_makers():
     # Zhou Yu wants opponents to control Islands. Quicksilver Fountain (flood counters →
     # Islands) and Stormtide Leviathan ("All lands are Islands") feed it; a mana dork
