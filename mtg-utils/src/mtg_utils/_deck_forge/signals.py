@@ -1909,6 +1909,22 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # -1/-1 counters (CR 122 / 702.80 Wither / 702.90 Infect): the symmetric counter
     # axis counters_matter (hard-pinned to +1/+1) leaves homeless — Hapatra aristocrats.
     ("minus_counters_matter", re.compile(r"-1/-1 counter", re.IGNORECASE), "you"),
+    # Cares about its permanents HAVING counters (any kind) — Xolatoyac untaps "each
+    # permanent you control with a counter on it", so it wants counter producers. The
+    # +1/+1-specific counters_matter detector misses the any-counter form; the "you
+    # control with a counter" anchor keeps a bare self-counter body ("enters with a
+    # +1/+1 counter on it") out.
+    (
+        "counters_matter",
+        re.compile(
+            r"(?:permanents?|creatures?) you control with (?:a |one or more )?"
+            r"counters? on (?:it|them)"
+            r"|for each (?:permanent|creature) you control with "
+            r"(?:a |one or more )?counter",
+            re.IGNORECASE,
+        ),
+        "any",
+    ),
     # Cycling (CR 702.29): payoffs use "cycle or discard"; discard_matters serves 0/32.
     (
         "cycling_matters",

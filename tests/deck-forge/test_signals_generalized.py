@@ -406,6 +406,38 @@ def test_self_recurring_commander_opens_voltron():
     )
 
 
+def test_permanents_with_counters_opens_counters():
+    # Xolatoyac untaps "each permanent you control with a counter on it" — a counters-
+    # matters commander (it wants counters on its permanents to untap them), but the
+    # +1/+1-specific detector missed it (flood counters; "with a counter on it"). So it
+    # missed counter producers (Forgotten Ancient, Master Biomancer, Vorel). Real oracle.
+    xolatoyac = {
+        "name": "Xolatoyac, the Smiling Flood",
+        "type_line": "Legendary Creature — Salamander Turtle",
+        "oracle_text": (
+            "Whenever Xolatoyac enters or attacks, put a flood counter on target land. "
+            "That land is an Island in addition to its other types for as long as it "
+            "has a flood counter on it.\nAt the beginning of your end step, untap each "
+            "permanent you control with a counter on it."
+        ),
+    }
+    assert "counters_matter" in _keys(xolatoyac)
+    # The "you control with a counter" anchor is load-bearing: removal that targets an
+    # opponent's counter-creature ("target creature with a counter on it") must not open
+    # the lane via this branch.
+    from mtg_utils._deck_forge.signals import _FLOOR_DETECTORS
+
+    branch = next(
+        d
+        for d in _FLOOR_DETECTORS
+        if d.key == "counters_matter" and "you control with" in d.pattern.pattern
+    )
+    assert (
+        branch.pattern.search("Destroy target creature with a counter on it.") is None
+    )
+    assert branch.pattern.search(xolatoyac["oracle_text"]) is not None
+
+
 def test_planeswalker_type_opens_superfriends():
     # Leori cares about planeswalkers as a GROUP ("choose a planeswalker type ... activate
     # an ability of a planeswalker of that type, copy it") — a superfriends commander, but
