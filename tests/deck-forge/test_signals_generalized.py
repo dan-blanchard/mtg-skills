@@ -482,6 +482,24 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert ("counters_matter", "you") not in _ks(volrath)
 
 
+def test_two_tribe_tutor():
+    # "search ... for a <X> or <Y> card": Lo and Li tutors "a Lesson or Noble card" and
+    # anthems Nobles, so it's Noble-tribal (its top-synergy cards are legendary Nobles).
+    lo_and_li = {
+        "name": "Lo and Li, Twin Tutors",
+        "type_line": "Legendary Creature — Human Advisor",
+        "oracle_text": (
+            "When Lo and Li enter, search your library for a Lesson or Noble card, "
+            "reveal it, put it into your hand, then shuffle.\nNoble creatures you control "
+            "and Lesson spells you control have lifelink."
+        ),
+    }
+    assert ("type_matters", "you", "Noble") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(lo_and_li, include_membership=True)
+    }
+
+
 def test_two_tribe_creature_spell():
     # "(a) <X> or <Y> creature spell": Tawnos copies "a Beast or Bird creature spell", so
     # it's a Beast AND Bird commander. Scoped to "creature spell" (not bare card/spell) so

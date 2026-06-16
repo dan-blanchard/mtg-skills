@@ -755,6 +755,12 @@ _TRIBE_LIST_RE = re.compile(
 _TWO_TRIBE_SPELL_RE = re.compile(
     r"\b(?:a|an) ([A-Za-z]+) or ([A-Za-z]+) creature spells?\b", re.IGNORECASE
 )
+# Two-tribe tutor: "search ... for a Lesson or Noble card" (Lo and Li, a Noble-tribal
+# tutor). Scoped to "search ... for" (your tutor), so opponent-cast hosers don't match.
+_TWO_TRIBE_TUTOR_RE = re.compile(
+    r"\bsearch (?:your library )?for (?:a|an) ([A-Za-z]+) or ([A-Za-z]+) card",
+    re.IGNORECASE,
+)
 # token_maker: capture the LAST creature subtype before "creature token(s)",
 # preferring a real subtype over the card-type word "artifact"
 # ("Thopter artifact creature token" → Thopter).
@@ -784,6 +790,12 @@ def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, 
                 out.append((signal_keys.TYPE_MATTERS, subject))
     # Two-tribe creature spell ("a Beast or Bird creature spell"): emit for BOTH.
     for m in _TWO_TRIBE_SPELL_RE.finditer(clause):
+        for raw in (m.group(1), m.group(2)):
+            subject = _resolve_subject(raw, vocab)
+            if subject:
+                out.append((signal_keys.TYPE_MATTERS, subject))
+    # Two-tribe tutor ("search for a Lesson or Noble card"): emit for BOTH.
+    for m in _TWO_TRIBE_TUTOR_RE.finditer(clause):
         for raw in (m.group(1), m.group(2)):
             subject = _resolve_subject(raw, vocab)
             if subject:
