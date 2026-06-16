@@ -603,6 +603,25 @@ def test_land_protection_opens_on_land_animation():
     assert ("land_protection", "you") in _ks(noyan_dar)
 
 
+def test_lose_unless_hand_opens_on_cast_from_hand_drawback():
+    # Phage loses you the game if not cast from hand, so she wants to negate that. Real
+    # oracle.
+    phage = {
+        "name": "Phage the Untouchable",
+        "type_line": "Legendary Creature — Avatar Minion",
+        "mana_cost": "{3}{B}{B}{B}{B}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "When Phage enters, if you didn't cast it from your hand, you lose the "
+            "game.\nWhenever Phage deals combat damage to a creature, destroy that "
+            "creature. It can't be regenerated.\nWhenever Phage deals combat damage to "
+            "a player, that player loses the game."
+        ),
+    }
+    assert ("lose_unless_hand", "you") in _ks(phage)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

@@ -1353,6 +1353,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Cast-from-hand-or-lose drawback (Phage): a commander that makes you LOSE unless
+    # cast from hand wants to negate it — command-zone-to-hand tutors (Netherborn Altar,
+    # Command Beacon) so it's cast normally, "you can't lose the game" backstops, and
+    # Torpor Orb-style "ETBs don't trigger" to silence the lose-trigger when cheated.
+    (
+        "lose_unless_hand",
+        re.compile(
+            r"didn'?t cast (?:it|this) from your hand, you lose the game", re.IGNORECASE
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

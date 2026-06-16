@@ -3493,6 +3493,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Cast-from-hand-or-lose (Phage): negate the drawback — command-zone-to-hand so it's
+    # cast normally, "can't lose the game" backstops, and "ETBs don't trigger" silences
+    # the lose-trigger when the commander is cheated into play.
+    ("lose_unless_hand", "you"): _spec(
+        "Drawback negation",
+        "command-zone-to-hand, can't-lose, and ETB-silencers for a cast-from-hand-or-"
+        "lose commander",
+        {
+            "oracle": r"can'?t lose the game|into your hand from the command zone"
+            r"|creatures entering[^.]*don'?t (?:cause|trigger)"
+        },
+        r"can'?t lose the game|into your hand from the command zone"
+        r"|from the command zone[^.]*your hand"
+        r"|creatures entering[^.]*don'?t (?:cause|trigger)"
+        r"|abilities (?:don'?t|do not) trigger",
+    ),
     # Land protection (Noyan Dar, Kamahl, the Tophs): a land-animation commander's
     # creature-lands die to creature removal / wraths / land destruction, so it wants
     # indestructible-lands, untargetable-lands, and land recursion to keep them.

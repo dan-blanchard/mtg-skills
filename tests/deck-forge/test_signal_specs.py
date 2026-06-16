@@ -271,6 +271,49 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_lose_unless_hand_serves_drawback_negation():
+    # Phage wants to negate "you lose unless cast from hand": Netherborn Altar (commander
+    # to hand), Platinum Angel ("can't lose the game"), Torpor Orb (ETBs don't trigger,
+    # silencing the lose-trigger). A burn spell does not. Real oracle.
+    sig = _sig("lose_unless_hand", "you")
+    netherborn_altar = {
+        "name": "Netherborn Altar",
+        "type_line": "Artifact",
+        "mana_cost": "{1}{B}",
+        "oracle_text": (
+            "{T}, Put a soul counter on this artifact: Put your commander into your hand "
+            "from the command zone. Then you lose 3 life for each soul counter on this "
+            "artifact."
+        ),
+    }
+    platinum_angel = {
+        "name": "Platinum Angel",
+        "type_line": "Artifact Creature — Angel",
+        "mana_cost": "{7}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "Flying\nYou can't lose the game and your opponents can't win the game."
+        ),
+    }
+    torpor_orb = {
+        "name": "Torpor Orb",
+        "type_line": "Artifact",
+        "mana_cost": "{2}",
+        "oracle_text": "Creatures entering don't cause abilities to trigger.",
+    }
+    assert serves(netherborn_altar, sig) is True
+    assert serves(platinum_angel, sig) is True
+    assert serves(torpor_orb, sig) is True
+    lightning_bolt = {
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "mana_cost": "{R}",
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    assert serves(lightning_bolt, sig) is False
+
+
 def test_speed_matters_serves_cheap_unblockable_only():
     # Vnwxt's speed ramps when an opponent loses life, so it wants CHEAP unblockable
     # creatures that connect early (Slither Blade, {U}). The cmc_max gate excludes an
