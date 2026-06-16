@@ -1026,12 +1026,28 @@ _COUNTER_KEYWORD_EXTRA = SubAvenue(
     {"oracle": r"\b(?:" + "|".join(sorted(_COUNTER_KEYWORDS)) + r")\b"},
     serve=Serve(keywords=_COUNTER_KEYWORDS),
 )
+# Counter RESILIENCE: save or relocate YOUR counters when a creature leaves, so a wrath
+# (or the creature's own death) doesn't waste the investment (The Ozolith, Resourceful
+# Defense, Fate Transfer). Pro-counter only — "if it had counters ... put those" / "move
+# ... counters from ... onto"; NOT counter-removal (Aether Snap, Vampire Hexmage), the
+# opposite. A self-growing-counters commander (Wolverine) wants to protect its counters.
+_COUNTER_RESILIENCE_ORACLE = (
+    r"if it had counters on it[^.]*put those counters"
+    r"|move (?:all|those|the) counters? from [^.]*onto"
+)
+_COUNTER_RESILIENCE_EXTRA = SubAvenue(
+    "Counter resilience",
+    "save or relocate your counters when a creature leaves (The Ozolith)",
+    {"oracle": _COUNTER_RESILIENCE_ORACLE},
+    serve=Serve(oracle=re.compile(_COUNTER_RESILIENCE_ORACLE, _IC)),
+)
 _COUNTERS_PACKAGE = (
     _COUNTER_PLACE_EXTRA,
     _COUNTER_DOUBLER_EXTRA,
     _KEYWORD_COUNTER_EXTRA,
     _COUNTER_KEYWORD_EXTRA,
     _PROLIFERATE_EXTRA,
+    _COUNTER_RESILIENCE_EXTRA,
 )
 # Discard-PUNISH payoffs (CR 701.8 discard): reward forcing opponents to discard.
 _DISCARD_PUNISH_ORACLE = (
@@ -1696,6 +1712,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _KEYWORD_COUNTER_EXTRA,
             _COUNTER_KEYWORD_EXTRA,
             _PROLIFERATE_EXTRA,
+            _COUNTER_RESILIENCE_EXTRA,
         ),
     ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a

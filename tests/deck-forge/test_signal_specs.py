@@ -2480,6 +2480,34 @@ MURDER = {
     "keywords": [],
     "oracle_text": "Destroy target creature.",
 }
+THE_OZOLITH = {
+    "name": "The Ozolith",
+    "type_line": "Legendary Artifact",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever a creature you control leaves the battlefield, if it had counters "
+        "on it, put those counters on The Ozolith.\nAt the beginning of combat on "
+        "your turn, if The Ozolith has counters on it, you may move all counters "
+        "from The Ozolith onto target creature."
+    ),
+}
+RESOURCEFUL_DEFENSE = {
+    "name": "Resourceful Defense",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever a permanent you control leaves the battlefield, if it had counters "
+        "on it, put those counters on target permanent you control.\n{4}{W}: Move "
+        "any number of counters from target permanent you control onto a second "
+        "target permanent you control."
+    ),
+}
+AETHER_SNAP = {
+    "name": "Aether Snap",
+    "type_line": "Sorcery",
+    "keywords": [],
+    "oracle_text": "Remove all counters from all permanents and exile all tokens.",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2683,6 +2711,22 @@ def test_kill_engine_serves_death_payoffs():
     assert serves(VICIOUS_SHADOWS, sig) is True  # whenever a creature dies -> damage
     assert serves(BLOOD_ARTIST, sig) is True  # whenever a creature dies -> drain
     assert serves(MURDER, sig) is False  # removal, not a death payoff
+
+
+def test_counter_resilience_served_not_counter_hate():
+    """A +1/+1-counter commander (Wolverine) wants COUNTER RESILIENCE — save/relocate
+    its counters when a creature leaves (The Ozolith, Resourceful Defense), protecting
+    the investment. Counter REMOVAL (Aether Snap) is the opposite and stays out."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("self_counter_grow", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(THE_OZOLITH)
+    assert served(RESOURCEFUL_DEFENSE)
+    assert not served(AETHER_SNAP)  # removes counters — anti-synergy
 
 
 def _subj_sig(key, subject):
