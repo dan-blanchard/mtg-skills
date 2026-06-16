@@ -1765,6 +1765,9 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # misses the "creature TOKENS" phrasing.
         r"create [^.]*creature token"
         r"|(?:creature )?tokens? you control (?:get|have|gain)",
+        # Offspring (CR keyword) makes a 1/1 token copy of the creature — token-making
+        # in stripped reminder text, so credit it via the Scryfall keyword.
+        serve_keywords=("offspring",),
         extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
     ),
     ("treasure_matters", "you"): _spec(

@@ -304,6 +304,38 @@ def test_lifeloss_drain_serves_damage_to_opponents():
     assert serves(flame_slash, sig) is False  # creature-only, no opponent life loss
 
 
+def test_token_maker_serves_offspring_keyword():
+    # Offspring (CR keyword) makes a 1/1 token copy of the creature — token-making that
+    # lives in the reminder text deck-forge strips, so it needs the authoritative Scryfall
+    # keyword. A go-wide / token deck wants the extra body. (phase_crosscheck-surfaced.)
+    sig = _sig("token_maker", "you")
+    prosperous_bandit = {
+        "name": "Prosperous Bandit",
+        "type_line": "Creature — Raccoon Rogue",
+        "mana_cost": "{2}{R}",
+        "power": "2",
+        "toughness": "2",
+        "keywords": ["Offspring", "First strike", "Treasure"],
+        "oracle_text": (
+            "Offspring {1} (You may pay an additional {1} as you cast this spell. If you "
+            "do, when this creature enters, create a 1/1 token copy of it.)\nFirst "
+            "strike\nWhenever this creature deals combat damage to a player, create that "
+            "many tapped Treasure tokens."
+        ),
+    }
+    grizzly_bears = {  # plain creature, no Offspring / token-making
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "keywords": [],
+        "oracle_text": "",
+    }
+    assert serves(prosperous_bandit, sig) is True  # Offspring = makes a token copy
+    assert serves(grizzly_bears, sig) is False
+
+
 def test_discard_matters_serves_self_discard_outlets():
     # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
     # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"
