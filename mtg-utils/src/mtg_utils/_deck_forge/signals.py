@@ -2751,6 +2751,11 @@ def extract_signals(
             s.key == "token_maker" and s.subject for s in out
         ):
             add("creatures_matter", "you", "", text[:160], "low")
+        # A spell-copy commander (Veyran, Zevlor, Rassilon) copies the instants/
+        # sorceries you cast, so it's a spellslinger wanting a dense spell base: cross-
+        # open spellcast_matters (its serve covers every I/S). Low confidence.
+        if "spell_copy_matters" in keys_now and "spellcast_matters" not in keys_now:
+            add("spellcast_matters", "you", "", text[:160], "low")
         # Lure (force blocks) and blocked_matters (punish the blocker) are one
         # archetype: a commander that lures / must-be-blocked (Madame Vastra, Gorm)
         # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian

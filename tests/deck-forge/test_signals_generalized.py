@@ -742,6 +742,25 @@ def test_extra_combat_served_by_combat_signals():
         assert not covers(bolt), key
 
 
+def test_spell_copy_cross_opens_spellcast():
+    # A spell-copy commander copies the instants/sorceries you cast (Zevlor, Rassilon,
+    # Veyran), so it is a spellslinger wanting a dense spell base — cross-open
+    # spellcast_matters so its instant/sorcery package is served.
+    zevlor = {
+        "name": "Zevlor, Elturel Exile",
+        "type_line": "Legendary Creature — Tiefling Warrior",
+        "oracle_text": (
+            "Haste\n{2}, {T}: When you next cast an instant or sorcery spell that targets "
+            "only a single opponent or a single permanent an opponent controls this turn, "
+            "for each other opponent, choose that player or a permanent they control, copy "
+            "that spell, and the copy targets the chosen player or permanent."
+        ),
+    }
+    keys = {s.key for s in extract_signals(zevlor, include_membership=True)}
+    assert "spell_copy_matters" in keys  # precondition
+    assert "spellcast_matters" in keys  # cross-opened
+
+
 def test_amass_cards_served_by_tokens_matter():
     # Amass creates or grows an Army CREATURE token (CR 701.47), so an amass card is a
     # token maker the tokens_matter serve must credit — Mouth of Sauron / Grishnákh want
