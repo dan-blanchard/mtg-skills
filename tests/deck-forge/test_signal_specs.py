@@ -143,6 +143,57 @@ def test_free_creature_payoff_serves_only_zero_cost_creatures():
     assert serves(grizzly_bears, sig) is False  # creature, but not 0-cost
 
 
+def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
+    # A "for each creature that died this turn" payoff (Tobias / Mahadi / Nevinyrral)
+    # maximizes deaths-per-turn, then converts: board wipes (Wrath of God; Blasphemous
+    # Act's "deals 13 damage to each creature") force the big turn, and MASS-reanimation
+    # ("return ... all ... cards ... graveyard ... to the battlefield" — Storm of Souls,
+    # Faith's Reward) refills the board after. Real oracle.
+    sig = _sig("mass_death_payoff", "you")
+    wipes_and_reanim = [
+        (
+            "Wrath of God",
+            "Sorcery",
+            "{2}{W}{W}",
+            "Destroy all creatures. They can't be regenerated.",
+        ),
+        (
+            "Blasphemous Act",
+            "Sorcery",
+            "{8}{R}",
+            "This spell costs {1} less to cast for each creature on the battlefield.\n"
+            "Blasphemous Act deals 13 damage to each creature.",
+        ),
+        (
+            "Storm of Souls",
+            "Sorcery",
+            "{4}{W}{W}",
+            "Return all creature cards from your graveyard to the battlefield. Each of "
+            "them is a 1/1 Spirit with flying in addition to its other types. Exile "
+            "Storm of Souls.",
+        ),
+        (
+            "Faith's Reward",
+            "Instant",
+            "{3}{W}",
+            "Return to the battlefield all permanent cards in your graveyard that were "
+            "put there from the battlefield this turn.",
+        ),
+    ]
+    for name, tl, mc, otext in wipes_and_reanim:
+        card = {"name": name, "type_line": tl, "mana_cost": mc, "oracle_text": otext}
+        assert serves(card, sig) is True, name
+    # NOT single-target reanimation — Raise Dead returns ONE creature to hand; that's
+    # the reanimator lane, not refilling a wiped board. Real oracle.
+    raise_dead = {
+        "name": "Raise Dead",
+        "type_line": "Sorcery",
+        "mana_cost": "{B}",
+        "oracle_text": "Return target creature card from your graveyard to your hand.",
+    }
+    assert serves(raise_dead, sig) is False
+
+
 def test_outlaw_matters_serves_token_makers_and_recursion():
     # Vial Smasher's outlaw payoff wants cards that MAKE outlaw tokens (Mercenary /
     # Pirate / Rogue / Assassin / Warlock) and outlaw RECURSION — not just creatures

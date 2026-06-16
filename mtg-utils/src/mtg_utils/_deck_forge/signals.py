@@ -1215,6 +1215,24 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"no mana (?:was|is) spent to cast", re.IGNORECASE),
         "you",
     ),
+    # Mass-death payoff (Tobias, Nevinyrral, Gadrak, Mahadi): a commander whose reward
+    # SCALES with the count of creatures that died this turn ("for each ... creature ...
+    # died this turn" / "the number of creatures ... died this turn") wants to force a
+    # big death turn and convert it — so it wants board wipes (the maximal death engine)
+    # plus MASS-reanimation to refill the wiped board. Keyed on the AGGREGATE/count
+    # shape ("for each" / "number of"), NOT a single-death conditional: "if a creature
+    # died this turn, <reward>" (Old Flitterfang's one Food, Scorpion, Shessra) earns
+    # the same payoff whether 1 or 10 died, so a wipe buys it nothing — that's plain
+    # death_matters, not this. Excluding it keeps the lane precise (4 commanders).
+    (
+        "mass_death_payoff",
+        re.compile(
+            r"(?:for each|number of) (?:nontoken )?(?:creature|permanent)s?"
+            r"[^.]*died this turn",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

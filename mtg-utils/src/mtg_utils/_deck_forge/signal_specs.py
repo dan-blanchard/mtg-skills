@@ -498,6 +498,19 @@ _ETB_PAYOFF_EXTRA = SubAvenue(
     {"oracle": _ETB_PAYOFF_ORACLE},
     serve=Serve(oracle=re.compile(_ETB_PAYOFF_ORACLE, _IC)),
 )
+# Mass-death payoff serve (Tobias / Nevinyrral / Gadrak / Mahadi): board wipes — the
+# maximal "creatures die this turn" engine — plus MASS-reanimation to refill the wiped
+# board. Wipes: "destroy/exile all creatures", a damage-to-each-creature sweep
+# (Blasphemous Act), or a mass -X/-X. Reanimation: "return ... all ... cards ...
+# graveyard ... to the battlefield" (Storm of Souls / Faith's Reward) — the "all"
+# anchor excludes single-target reanimation (Raise Dead / Reanimate), the reanimator
+# lane, not a board refill.
+_MASS_DEATH_PAYOFF_ORACLE = (
+    r"destroy all creatures|exile all creatures"
+    r"|deals \d+ damage to each creature|(?:all|each) creatures? gets? -\d"
+    r"|returns? (?:to the battlefield )?all [^.]*cards?[^.]*"
+    r"(?:from|in)[^.]*graveyard"
+)
 # Token DOUBLERS (CR 616 replacement effect): a token-flood commander doubles output
 # with Doubling Season / Parallel Lives / Mondrak. Phrasings: "create twice that many",
 # "twice that many … are created", "one or more tokens would be created … twice".
@@ -3288,6 +3301,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 Serve(mana_cost=re.compile(r"^\{0\}$")),
             )
         ),
+    ),
+    # Mass-death payoff (Tobias, Nevinyrral, Gadrak, Mahadi): a reward that SCALES with
+    # creatures dying this turn wants board wipes (force the big turn) + mass-reanim
+    # (refill after). The "for each ... died this turn" floor detector opens it; the
+    # serve is wipes + whole-graveyard reanimation (single-target Reanimate excluded —
+    # that's the reanimator lane, not a board refill).
+    ("mass_death_payoff", "you"): _spec(
+        "Mass-death payoff",
+        "board wipes that force a mass-death turn, plus mass-reanimation to refill the "
+        "board after",
+        {"oracle": _MASS_DEATH_PAYOFF_ORACLE},
+        _MASS_DEATH_PAYOFF_ORACLE,
     ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.

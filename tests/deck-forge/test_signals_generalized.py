@@ -210,6 +210,44 @@ def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
     assert "free_creature_payoff" not in _keys(preston)
 
 
+def test_mass_death_payoff_opens_on_aggregate_death_count():
+    # Tobias rewards creatures dying EN MASSE: "for each nontoken creature you controlled
+    # that died this turn, create a 2/2 Zombie." A payoff that SCALES with the number of
+    # deaths this turn wants board wipes (to force the big turn) + mass-reanimation (to
+    # refill after). Nevinyrral / Gadrak / Mahadi share the "for each ... died this turn"
+    # shape. Real oracle.
+    tobias = {
+        "name": "Tobias, Doomed Conqueror",
+        "type_line": "Legendary Creature — Human Soldier",
+        "mana_cost": "{2}{W}{U}",
+        "power": "3",
+        "toughness": "2",
+        "oracle_text": (
+            "Flash\nWhen Tobias dies, for each nontoken creature you controlled that "
+            "died this turn, create a 2/2 black Zombie creature token."
+        ),
+    }
+    assert ("mass_death_payoff", "you") in _ks(tobias)
+    # Precision guard: a SINGLE-death conditional with a FIXED reward ("if a creature
+    # died this turn, create a Food token") does NOT scale with mass death — Old
+    # Flitterfang makes one Food whether 1 or 10 died, so a board wipe buys it nothing.
+    # It must NOT open this lane (it's plain death_matters, not a wipe payoff). Real oracle.
+    old_flitterfang = {
+        "name": "Old Flitterfang",
+        "type_line": "Legendary Creature — Rat Faerie",
+        "mana_cost": "{4}{B}",
+        "power": "3",
+        "toughness": "4",
+        "oracle_text": (
+            "Flying\nAt the beginning of each end step, if a creature died this turn, "
+            "create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this "
+            'token: You gain 3 life.")\n{2}{B}, Sacrifice another creature or artifact: '
+            "Old Flitterfang gets +2/+2 until end of turn."
+        ),
+    }
+    assert "mass_death_payoff" not in _keys(old_flitterfang)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
