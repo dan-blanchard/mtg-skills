@@ -1630,7 +1630,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "opponent_discard",
         re.compile(
             r"(?:each opponent|target opponent|an opponent|that opponent"
-            r"|target player|that player|each player) discards",
+            r"|target player|that player|each player) discards"
+            # Discard-MATTERS payoffs (not just forcers): a commander that triggers on
+            # an opponent HAVING discarded — Tinybones "if an opponent discarded a card
+            # this turn", or "whenever an opponent discards" — runs the forced-discard
+            # package (Bottomless Pit, Oppression, Megrim, Liliana's Caress).
+            r"|(?:opponent|player)[^.]{0,20}discarded a card this turn"
+            r"|whenever (?:an opponent|a player|another player) discards",
             re.IGNORECASE,
         ),
         "opponents",

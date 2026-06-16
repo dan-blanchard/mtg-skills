@@ -2369,6 +2369,59 @@ def test_ox_tribe_resolves_despite_two_letters_and_irregular_plural():
     assert ("type_matters", "you", "Ox") in _ksub(bruse)
 
 
+def test_discard_matters_payoff_opens_opponent_discard():
+    # A discard-MATTERS payoff (Tinybones triggers on an opponent HAVING discarded)
+    # wants the whole forced-discard package, but the detector only matched present-tense
+    # FORCERS ("opponent discards"), not the payoff condition ("discarded a card this
+    # turn"). Open the lane so the forcers + payoffs surface. Real oracle.
+    tinybones = {
+        "name": "Tinybones, Trinket Thief",
+        "type_line": "Legendary Creature — Skeleton Rogue",
+        "oracle_text": (
+            "At the beginning of each end step, if an opponent discarded a card this "
+            "turn, you draw a card and you lose 1 life.\n"
+            "{4}{B}{B}: Each opponent with no cards in hand loses 10 life."
+        ),
+    }
+    assert "opponent_discard" in _keys(tinybones)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    megrim = {
+        "name": "Megrim",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever an opponent discards a card, Megrim deals 2 damage to that player."
+        ),
+    }
+    bottomless = {
+        "name": "Bottomless Pit",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "At the beginning of each player's upkeep, that player discards a card at "
+            "random."
+        ),
+    }
+    assert lane_covers(megrim, "opponent_discard", "opponents") is True
+    assert lane_covers(bottomless, "opponent_discard", "opponents") is True
+    # Over-fire guard: a SELF-discard loot ("you discard a card") is not opponent-discard.
+    loot = {
+        "name": "Generic Looter",
+        "type_line": "Creature — Wizard",
+        "oracle_text": "{T}: Draw a card, then you discard a card.",
+    }
+    assert "opponent_discard" not in _keys(loot)
+
+
 def test_symmetric_cast_punisher_opens_opponent_cast_matters():
     # A symmetric cast-PUNISHER with an adjective ("whenever a player casts a NONCREATURE
     # spell, they lose 2 life" — Mai; "… deals 6 damage to that player" — Ruric Thar)
