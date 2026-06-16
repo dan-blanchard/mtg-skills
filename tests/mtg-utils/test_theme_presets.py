@@ -36,6 +36,29 @@ from mtg_utils.theme_presets import (
 
 FIXTURE_CARDS: dict[str, dict] = {
     # ── Generic reference cards ──
+    "Rielle, the Everwise": {
+        "keywords": [],
+        "oracle_text": (
+            "Rielle gets +1/+0 for each instant and sorcery card in your graveyard.\n"
+            "Whenever you discard one or more cards for the first time each turn, draw "
+            "that many cards."
+        ),
+    },
+    "Drown in Sorrow": {
+        "keywords": ["Scry"],
+        "oracle_text": (
+            "All creatures get -2/-2 until end of turn. Scry 1. (Look at the top card "
+            "of your library. You may put that card on the bottom.)"
+        ),
+    },
+    "Tragic Arrogance": {
+        "keywords": [],
+        "oracle_text": (
+            "For each player, you choose from among the permanents that player controls "
+            "an artifact, a creature, an enchantment, and a planeswalker. Then each "
+            "player sacrifices all other nonland permanents they control."
+        ),
+    },
     "Lightning Bolt": {
         "keywords": [],
         "oracle_text": "Lightning Bolt deals 3 damage to any target.",

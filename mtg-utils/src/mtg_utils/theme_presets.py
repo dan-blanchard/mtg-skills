@@ -1035,8 +1035,20 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             r"\bdestroy all (?:creatures|nonland)",
             r"\bexile all (?:creatures|nonland)",
             r"\bdeals? " + _COUNT + r" damage to each creature",
+            # Mass -X/-X shrink that kills the board (Drown in Sorrow, Yahenni's
+            # Expertise, Mutilate). Require a toughness reduction (-N/-[1-9]) so a
+            # power-only debuff ("all creatures get -2/-0", Ivory Charm) stays out.
+            r"\ball creatures get -\d+/-[1-9]",
+            # Symmetric mass sacrifice = a wipe (Tragic Arrogance, Winnowing, Bringer
+            # of the Last Gift).
+            r"\beach player sacrifices all\b",
         ),
-        should_match=("Wrath of God", "Farewell"),
+        should_match=(
+            "Wrath of God",
+            "Farewell",
+            "Drown in Sorrow",
+            "Tragic Arrogance",
+        ),
         should_not_match=("Lightning Bolt", "Swords to Plowshares"),
     ),
     # ── Type-specific removal ──
@@ -1354,8 +1366,17 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         patterns=_rx(
             r"\bdraws? " + _COUNT + r" cards?\b",
             r"\bdraw cards equal to\b",
+            # Variable multi-draw: "draw THAT MANY cards" (count set by an earlier
+            # clause — Rielle, Jaya Ballard, Mindmoil, attack/discard triggers). The
+            # sibling of "draw cards equal to"; the preset's numeric form missed it.
+            r"\bdraws? that many cards?\b",
         ),
-        should_match=("Mulldrifter", "Deep Analysis", "Brainstorm"),
+        should_match=(
+            "Mulldrifter",
+            "Deep Analysis",
+            "Brainstorm",
+            "Rielle, the Everwise",
+        ),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
     # Lifegain — gains life AS an effect, OR cares about gaining life as a
