@@ -194,6 +194,41 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_tap_down_blockers_serves_opponent_tappers():
+    # Tromokratis wants to tap opponents' creatures so they can't all block. Sleep ("Tap
+    # all creatures target player controls") and Blustersquall ("Tap target creature you
+    # don't control") feed it; a burn spell does not. Real oracle.
+    sig = _sig("tap_down_blockers", "you")
+    sleep = {
+        "name": "Sleep",
+        "type_line": "Sorcery",
+        "mana_cost": "{2}{U}{U}",
+        "oracle_text": (
+            "Tap all creatures target player controls. Those creatures don't untap "
+            "during that player's next untap step."
+        ),
+    }
+    blustersquall = {
+        "name": "Blustersquall",
+        "type_line": "Instant",
+        "mana_cost": "{U}",
+        "oracle_text": (
+            "Tap target creature you don't control.\nOverload {3}{U} (You may cast this "
+            'spell for its overload cost. If you do, change "target" in its text to '
+            '"each.")'
+        ),
+    }
+    assert serves(sleep, sig) is True
+    assert serves(blustersquall, sig) is True
+    lightning_bolt = {
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "mana_cost": "{R}",
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    assert serves(lightning_bolt, sig) is False
+
+
 def test_per_target_payoff_serves_variable_target_spells():
     # Hinata (spells cost {1} less per target) wants spells whose target COUNT scales —
     # X-target and "any number of targets" — so the discount compounds. Aurelia's Fury

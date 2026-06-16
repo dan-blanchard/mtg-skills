@@ -3455,6 +3455,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Tap down blockers (Tromokratis): effects that tap OPPONENTS' creatures (Sleep,
+    # Blustersquall) so the defender can't field enough blockers, letting the
+    # "unblockable unless all block" commander through.
+    ("tap_down_blockers", "you"): _spec(
+        "Tap down blockers",
+        "effects that tap opponents' creatures so they can't all block",
+        {
+            "oracle": r"tap all creatures (?:target|that|defending) player"
+            r"[^.]*control|tap target creature you don'?t control"
+        },
+        r"tap all creatures (?:target|that|defending) player[^.]*control"
+        r"|tap all creatures target opponent[^.]*control"
+        r"|tap target creature you don'?t control"
+        r"|tap all creatures you don'?t control",
+    ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.
     ("ltb_matters", "you"): _spec(

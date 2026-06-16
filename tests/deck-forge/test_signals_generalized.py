@@ -535,6 +535,25 @@ def test_exert_matters_opens_on_pseudo_vigilance():
     assert "exert_matters" not in _keys(krenko)
 
 
+def test_tap_down_blockers_opens_on_unblockable_unless_all():
+    # Tromokratis connects only if the defender can't field enough blockers, so it wants
+    # to tap their creatures down. Real oracle.
+    tromokratis = {
+        "name": "Tromokratis",
+        "type_line": "Legendary Creature — Kraken",
+        "mana_cost": "{5}{U}{U}",
+        "power": "8",
+        "toughness": "8",
+        "oracle_text": (
+            "Tromokratis has hexproof unless it's attacking or blocking.\nTromokratis "
+            "can't be blocked unless all creatures defending player controls block it. "
+            "(If any creature that player controls doesn't block this creature, it can't "
+            "be blocked.)"
+        ),
+    }
+    assert ("tap_down_blockers", "you") in _ks(tromokratis)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

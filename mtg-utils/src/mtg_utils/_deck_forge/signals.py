@@ -1305,6 +1305,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # "Can't be blocked unless ALL block" (Tromokratis): the commander connects only if
+    # the defender CAN'T field enough blockers, so it wants to TAP DOWN opponents'
+    # creatures (Sleep, Blustersquall) before combat — fewer untapped blockers means
+    # it's unblockable.
+    (
+        "tap_down_blockers",
+        re.compile(r"can'?t be blocked unless all", re.IGNORECASE),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).
