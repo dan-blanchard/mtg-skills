@@ -3413,6 +3413,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"untap (?:another )?target (?:creature|permanent)|\buntap it\b"
         r"|untap all [^.]*you control",
     ),
+    # Recastable ETB aggressors (Oroku Saki + the TMNT Sneak legends): cheap creatures
+    # whose ENTER trigger bleeds opponents (each opponent discards / loses life), so
+    # bouncing and recasting them repeats the bleed. The aggressive-ETB subset is the
+    # precise recast payoff (color identity filters it per commander) — NOT every ETB
+    # creature, which would be goodstuff.
+    ("recast_etb", "you"): _spec(
+        "Recastable ETB aggressors",
+        "cheap creatures whose enter-trigger bleeds opponents, to bounce and recast",
+        {"oracle": r"when[^.]*enters[^.]*each opponent (?:discards|loses|sacrifices)"},
+        r"when[^.]*enters[^.]*each opponent (?:discards|loses|sacrifices)",
+    ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.
     ("ltb_matters", "you"): _spec(

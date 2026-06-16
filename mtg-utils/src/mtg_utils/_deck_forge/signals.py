@@ -1263,6 +1263,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Bounce-replay / Sneak (Oroku Saki + the TMNT Sneak legends): "Sneak" / "return an
+    # unblocked attacker" recasts a cheap creature, re-firing its ETB. So the commander
+    # wants cheap creatures with an AGGRESSIVE enter-trigger ("each opponent discards /
+    # loses life") — recast = repeat the bleed. Serving the aggressive ETBs (not every
+    # ETB creature) keeps it the precise, color-filtered recast payoff, not goodstuff.
+    (
+        "recast_etb",
+        re.compile(r"\bsneak\b|return an unblocked attacker", re.IGNORECASE),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

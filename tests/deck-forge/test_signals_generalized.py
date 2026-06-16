@@ -438,6 +438,38 @@ def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
     assert "power_tap_engine" not in _keys(krenko)
 
 
+def test_recast_etb_opens_on_sneak():
+    # Oroku Saki's Sneak (return an unblocked attacker, recast cheaply) replays a
+    # creature's ETB, so he wants cheap aggressive-ETB creatures (recast = repeat the
+    # bleed). The "Sneak" keyword survives reminder-stripping. Real oracle.
+    oroku_saki = {
+        "name": "Oroku Saki, Shredder Rising",
+        "type_line": "Legendary Creature — Human Ninja",
+        "mana_cost": "{2}{B}",
+        "power": "3",
+        "toughness": "1",
+        "oracle_text": (
+            "Sneak {1}{B} (You may cast this spell for {1}{B} if you also return an "
+            "unblocked attacker you control to hand during the declare blockers step. He "
+            "enters tapped and attacking.)\nWhenever Oroku Saki deals combat damage to a "
+            "player, you draw a card and lose 1 life."
+        ),
+    }
+    assert ("recast_etb", "you") in _ks(oroku_saki)
+    krenko = {
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of "
+            "Goblins you control."
+        ),
+    }
+    assert "recast_etb" not in _keys(krenko)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

@@ -393,6 +393,33 @@ def test_power_tap_engine_serves_untap_effects():
     assert serves(lightning_bolt, sig) is False
 
 
+def test_recast_etb_serves_aggressive_etb_not_activated_drain():
+    # A Sneak/bounce-replay commander (Oroku Saki) recasts cheap aggressive-ETB creatures
+    # to repeat the bleed. Virus Beetle ("When this creature enters, each opponent
+    # discards a card") feeds it; Engine Rat's drain is an ACTIVATED ability ("{5}{B}:
+    # Each opponent loses 2 life"), not an enter-trigger, so recasting it does nothing.
+    # Real oracle.
+    sig = _sig("recast_etb", "you")
+    virus_beetle = {
+        "name": "Virus Beetle",
+        "type_line": "Artifact Creature — Insect",
+        "mana_cost": "{1}{B}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "When this creature enters, each opponent discards a card.",
+    }
+    engine_rat = {
+        "name": "Engine Rat",
+        "type_line": "Creature — Zombie Rat",
+        "mana_cost": "{B}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "Deathtouch\n{5}{B}: Each opponent loses 2 life.",
+    }
+    assert serves(virus_beetle, sig) is True
+    assert serves(engine_rat, sig) is False
+
+
 def test_damage_redirect_serves_creature_dealt_damage_payoffs():
     # A redirect-to-self commander (Daughter of Autumn: "next 1 damage to target white
     # creature is dealt to Daughter instead" — CR 614.9 redirection replacement) soaks
