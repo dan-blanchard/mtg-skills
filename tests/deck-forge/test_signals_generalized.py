@@ -568,6 +568,23 @@ def test_island_matters_opens_on_island_attack_restriction():
     assert ("island_matters", "you") in _ks(zhou_yu)
 
 
+def test_entered_attacker_opens_on_entered_this_turn_combat():
+    # Samut rewards a creature that ENTERED this turn dealing combat damage, so she wants
+    # haste + ETB-pump to let fresh creatures swing at once. Real oracle.
+    samut = {
+        "name": "Samut, Vizier of Naktamun",
+        "type_line": "Legendary Creature — Human Warrior Cleric",
+        "mana_cost": "{1}{R}{G}",
+        "power": "2",
+        "toughness": "3",
+        "oracle_text": (
+            "First strike, vigilance, haste\nWhenever a creature you control deals "
+            "combat damage to a player, if that creature entered this turn, draw a card."
+        ),
+    }
+    assert ("entered_attacker", "you") in _ks(samut)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

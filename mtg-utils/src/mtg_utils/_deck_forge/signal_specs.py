@@ -3470,6 +3470,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Newly-entered attacker payoff (Samut): wants HASTE + ETB-pump anthems so a
+    # creature that entered this turn can attack at once for value. Ogre Battledriver /
+    # Primal Forcemage pump entering creatures; mass-haste lets them swing.
+    ("entered_attacker", "you"): _spec(
+        "Haste + ETB pump",
+        "haste and enter-trigger pump so freshly-entered creatures attack at once",
+        {
+            "oracle": r"creature you control enters[^.]*(?:gets? \+|gains? haste|and "
+            r"haste)|creatures you control (?:get|have|gain)[^.]*haste"
+        },
+        r"(?:another |a )?creature you control enters[^.]*(?:gets? \+|gains? haste|and "
+        r"haste)|creatures you control (?:get|have|gain)[^.]*haste",
+    ),
     # Island matters (Zhou Yu, islandwalk commanders): effects that turn opponents'
     # lands into Islands (so the attack restriction is met / islandwalk connects), plus
     # more islandwalk and island-count payoffs.

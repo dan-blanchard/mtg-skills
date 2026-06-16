@@ -1326,6 +1326,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Newly-entered attacker payoff (Samut: rewards a creature that entered this turn
+    # dealing combat damage). It wants HASTE + ETB-pump anthems (Ogre Battledriver,
+    # Primal Forcemage) that let a freshly-entered creature swing for value at once.
+    (
+        "entered_attacker",
+        re.compile(
+            r"(?:deals combat damage|attacks)[^.]*"
+            r"entered (?:the battlefield )?this turn"
+            r"|entered (?:the battlefield )?this turn"
+            r"[^.]*(?:attacks|deals combat damage)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

@@ -194,6 +194,47 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_entered_attacker_serves_etb_pump_and_haste():
+    # Samut wants enter-trigger pump + haste so a freshly-entered creature swings at
+    # once. Primal Forcemage (+3/+3 on enter) and Ogre Battledriver (+2/+0 and haste on
+    # enter) feed it; Impact Tremors (ETB-ping, no pump/haste) does not. Real oracle.
+    sig = _sig("entered_attacker", "you")
+    primal_forcemage = {
+        "name": "Primal Forcemage",
+        "type_line": "Creature — Elf Shaman",
+        "mana_cost": "{2}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "Whenever another creature you control enters, that creature gets +3/+3 "
+            "until end of turn."
+        ),
+    }
+    ogre_battledriver = {
+        "name": "Ogre Battledriver",
+        "type_line": "Creature — Ogre Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "Whenever another creature you control enters, that creature gets +2/+0 and "
+            "gains haste until end of turn. (It can attack and {T} this turn.)"
+        ),
+    }
+    assert serves(primal_forcemage, sig) is True
+    assert serves(ogre_battledriver, sig) is True
+    impact_tremors = {
+        "name": "Impact Tremors",
+        "type_line": "Enchantment",
+        "mana_cost": "{1}{R}",
+        "oracle_text": (
+            "Whenever a creature you control enters, this enchantment deals 1 damage to "
+            "each opponent."
+        ),
+    }
+    assert serves(impact_tremors, sig) is False
+
+
 def test_timing_control_serves_cast_and_activate_lock():
     # Dosan ("Players can cast spells only during their own turns") is a timing-lock
     # commander; City of Solitude is a near-copy ("cast spells AND ACTIVATE ABILITIES
