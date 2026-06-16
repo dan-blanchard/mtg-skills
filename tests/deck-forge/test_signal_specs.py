@@ -4607,6 +4607,41 @@ def test_xspell_matters_serves_x_spells_and_doublers():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_unspent_mana_serves_mana_amplification():
+    # An unspent-mana commander (Omnath, Locus of Mana; Kruphix) keeps mana between steps,
+    # so it wants mana AMPLIFICATION — untap-all-lands (Bear Umbra) and mana-doublers
+    # (Mana Reflection) — to generate more mana to keep. The sweep's bare "unspent mana"
+    # serve credited none of these. Real oracle.
+    sig = _sig("unspent_mana", "you")
+    bear_umbra = {
+        "name": "Bear Umbra",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": (
+            'Enchant creature\nEnchanted creature gets +2/+2 and has "Whenever this '
+            'creature attacks, untap all lands you control."\nUmbra armor (If enchanted '
+            "creature would be destroyed, instead remove all damage from it and destroy "
+            "this Aura.)"
+        ),
+    }
+    assert _lane_covers(bear_umbra, sig) is True
+    mana_reflection = {
+        "name": "Mana Reflection",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "If you tap a permanent for mana, it produces twice as much of that mana "
+            "instead."
+        ),
+    }
+    assert _lane_covers(mana_reflection, sig) is True
+    # Over-fire guard: a plain mana dork is not amplification.
+    llanowar = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert _lane_covers(llanowar, sig) is False
+
+
 def test_curse_matters_is_a_named_archetype_lane():
     # Lynde recurs/attaches Curses ("Whenever a Curse is put into your graveyard ...
     # attach a Curse ...") — it wants the Curse subtype. A named-archetype lane served

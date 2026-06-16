@@ -1151,6 +1151,24 @@ _SYM_MANA_EXTRA = SubAvenue(
     {"oracle": _SYM_MANA_ORACLE},
     serve=Serve(oracle=re.compile(_SYM_MANA_ORACLE, _IC)),
 )
+# Mana AMPLIFICATION for an unspent-mana commander (Omnath Locus of Mana, Kruphix): it
+# keeps mana between steps, so it wants untap-all-lands (Bear Umbra, Wilderness
+# Reclamation, Nature's Will) and mana-doublers (Mana Reflection, Mana Flare) to make
+# more mana to bank. Tight (untap-ALL-lands / produce-twice / tap-a-land-for-mana adds),
+# so a one-sided dork ("{T}: Add {G}") never qualifies.
+_MANA_AMP_ORACLE = (
+    r"untap all lands you control"
+    r"|produces twice as much(?: of (?:that|the) mana)?"
+    r"|if you (?:tap|would tap) a (?:permanent|land) for mana, it produces twice"
+    r"|whenever a player taps a land for mana"
+)
+_MANA_AMP_EXTRA = SubAvenue(
+    "Mana amplification (untap-lands & doublers)",
+    "untap-all-lands and mana-doublers that grow the mana you keep "
+    "(Bear Umbra, Wilderness Reclamation, Mana Reflection)",
+    {"oracle": _MANA_AMP_ORACLE},
+    serve=Serve(oracle=re.compile(_MANA_AMP_ORACLE, _IC)),
+)
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
 # survive blocks — reuses the mined pump_matters regex so it never drifts.
 _PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
@@ -2177,6 +2195,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Group-mana commanders (Shizuko, Yurlok) want symmetric mana-doublers / punishers +
     # join-forces ramp beyond the bare "each player adds {" the sweep regex credits.
+    # Unspent-mana commander (Omnath, Kruphix) keeps mana between steps -> wants mana
+    # amplification (untap-all-lands + doublers) to bank more. The sweep's bare "unspent
+    # mana" serve credited none; promote it to a hand-spec with the amp extra.
+    ("unspent_mana", "you"): _sweep_spec_with_extras(
+        "unspent_mana",
+        (_MANA_AMP_EXTRA,),
+    ),
     ("group_mana", "each"): _sweep_spec_with_extras(
         "group_mana",
         (_SYM_MANA_EXTRA,),
