@@ -4533,6 +4533,32 @@ def test_impulse_top_play_serves_cast_from_exile_payoffs():
         ),
     }
     assert _lane_covers(wild_magic, sig) is True
+    # The bare "Whenever you cast a spell from exile" trigger payoff (Passionate
+    # Archaeologist, Nalfeshnee) — distinct from "spell(s) you cast from exile". An
+    # impulse deck casts its exiled cards, firing these. cast_from_exile already
+    # serves them; impulse_top_play must too.
+    passionate_archaeologist = {
+        "name": "Passionate Archaeologist",
+        "type_line": "Legendary Enchantment — Background",
+        "oracle_text": (
+            'Commander creatures you own have "Whenever you cast a spell from '
+            "exile, this creature deals damage equal to that spell's mana value "
+            'to target opponent."'
+        ),
+    }
+    assert _lane_covers(passionate_archaeologist, sig) is True
+    # The paradox "from anywhere other than your hand" payoff (Keeper of Secrets) —
+    # casting from exile IS from-anywhere-other-than-hand, so an impulse deck fires it.
+    keeper_of_secrets = {
+        "name": "Keeper of Secrets",
+        "type_line": "Creature — Demon",
+        "oracle_text": (
+            "First strike, haste\nSymphony of Pain — Whenever you cast a spell "
+            "from anywhere other than your hand, this creature deals damage equal "
+            "to that spell's mana value to target opponent."
+        ),
+    }
+    assert _lane_covers(keeper_of_secrets, sig) is True
     # Over-fire guard: a vanilla creature is not a cast-from-exile payoff.
     grizzly = {
         "name": "Grizzly Bears",

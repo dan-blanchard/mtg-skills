@@ -1163,6 +1163,20 @@ _THEFT_SWEEP_REGEX = next(
 _DISCARD_OUTLET_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "discard_outlet"
 )
+# Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than your hand"
+# payoffs (Vega, Iraxxa, Keeper of Secrets). Shared by cast_from_exile AND
+# impulse_top_play: an impulse deck casts its exiled cards, which IS "from anywhere
+# other than your hand", so it fires these payoffs too.
+_PARADOX_PAYOFF_ORACLE = (
+    r"(?:cast a spell|play a land|play a card)[^.]*?from anywhere other than your hand"
+)
+_PARADOX_PAYOFF_EXTRA = SubAvenue(
+    "Paradox payoffs",
+    "zone-agnostic payoffs that reward casting/playing from anywhere other "
+    "than your hand",
+    {"oracle": r"from anywhere other than your hand"},
+    serve=Serve(oracle=re.compile(_PARADOX_PAYOFF_ORACLE, _IC)),
+)
 # Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
 # the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
 # (CR 115.1a) and BUFF it (gets +/gains) — an "each creature" anthem doesn't target (so
@@ -2167,23 +2181,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|you may (?:play|cast) (?:it|that card|those cards?|them|the exiled)"
         r"[^.]*?from exile"
         r"|" + _STEAL_CAST_ORACLE + r"|\bplot\b",
-        extras=(
-            # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than
-            # your hand" payoffs (Vega, Iraxxa) the literal-"from exile" serve misses.
-            SubAvenue(
-                "Paradox payoffs",
-                "zone-agnostic payoffs that reward casting/playing from anywhere other "
-                "than your hand",
-                {"oracle": r"from anywhere other than your hand"},
-                serve=Serve(
-                    oracle=re.compile(
-                        r"(?:cast a spell|play a land|play a card)[^.]*?"
-                        r"from anywhere other than your hand",
-                        _IC,
-                    )
-                ),
-            ),
-        ),
+        extras=(_PARADOX_PAYOFF_EXTRA,),
     ),
     # Impulse (top-of-YOUR-library exile-and-play): hand-written so the serve also
     # credits the "exile then cast it for as long as it remains exiled" engines
@@ -2197,7 +2195,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         _IMPULSE_SWEEP_REGEX
         + r"|"
         + _STEAL_CAST_ORACLE
-        + r"|spells? you cast from exile|first spell you cast from exile",
+        + r"|spells? you cast from exile|first spell you cast from exile"
+        # The bare "Whenever you cast a spell from exile" trigger payoff (Passionate
+        # Archaeologist, Nalfeshnee) the impulse deck fires by casting its exiled cards.
+        + r"|whenever you cast a spell from exile",
+        # Paradox payoffs (Keeper of Secrets) — casting from exile IS from-anywhere-
+        # other-than-hand, so an impulse deck triggers them too.
+        extras=(_PARADOX_PAYOFF_EXTRA,),
     ),
     # Theft (steal an OPPONENT's cards and cast them): serve credits the opponent-
     # library dig (Gonti, Black Cat, Thief of Sanity) and the steal-and-cast engines
