@@ -3493,6 +3493,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Land control / exchange (Sharkey): a land-control commander wants land-EXCHANGE
+    # effects to swap a weak land for an opponent's best while it taxes the rest.
+    ("land_exchange", "you"): _spec(
+        "Land exchange",
+        "swap control of lands to steal opponents' best while you tax the rest",
+        {"oracle": r"exchange control of[^.]*\bland\b"},
+        r"exchange control of[^.]*\bland\b",
+    ),
     # Self-life-payment insurance (Selenia, Beledros, Vilis): a commander that pays its
     # own life repeatedly wants life-loss insurance so the payments don't kill it
     # (Phyrexian Unlife, Angel's Grace, Platinum Angel).

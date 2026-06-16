@@ -1403,6 +1403,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"pay \d+ life:", re.IGNORECASE),
         "you",
     ),
+    # Land control / exchange (Sharkey taxes + copies opponents' land abilities): a
+    # land-control commander wants land-EXCHANGE effects (Political Trickery, Vedalken
+    # Plotter) to swap a weak land for an opponent's best while taxing the rest.
+    (
+        "land_exchange",
+        re.compile(
+            r"activated abilities of lands[^.]*opponents control"
+            r"|exchange control of[^.]*\bland\b",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

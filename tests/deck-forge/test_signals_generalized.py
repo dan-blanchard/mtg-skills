@@ -692,6 +692,25 @@ def test_life_payment_insurance_opens_on_repeatable_pay_life():
     assert ("life_payment_insurance", "you") in _ks(selenia)
 
 
+def test_land_exchange_opens_on_land_control():
+    # Sharkey taxes and copies opponents' land abilities, so he wants land-exchange to
+    # swap a weak land for their best. Real oracle.
+    sharkey = {
+        "name": "Sharkey, Tyrant of the Shire",
+        "type_line": "Legendary Creature — Avatar Rogue",
+        "mana_cost": "{2}{U}{B}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "Activated abilities of lands your opponents control can't be activated "
+            "unless they're mana abilities.\nSharkey has all activated abilities of "
+            "lands your opponents control except mana abilities.\nMana of any type can "
+            "be spent to activate Sharkey's abilities."
+        ),
+    }
+    assert ("land_exchange", "you") in _ks(sharkey)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

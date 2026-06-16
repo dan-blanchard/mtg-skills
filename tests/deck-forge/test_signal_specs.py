@@ -271,6 +271,45 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_land_exchange_serves_land_swap():
+    # Sharkey wants land-exchange: Political Trickery and Vedalken Plotter ("exchange
+    # control of target land you control and target land an opponent controls"). A plain
+    # ramp spell is not. Real oracle.
+    sig = _sig("land_exchange", "you")
+    political_trickery = {
+        "name": "Political Trickery",
+        "type_line": "Sorcery",
+        "mana_cost": "{2}{U}",
+        "oracle_text": (
+            "Exchange control of target land you control and target land an opponent "
+            "controls. (This effect lasts indefinitely.)"
+        ),
+    }
+    vedalken_plotter = {
+        "name": "Vedalken Plotter",
+        "type_line": "Creature — Vedalken Wizard",
+        "mana_cost": "{2}{U}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "When this creature enters, exchange control of target land you control and "
+            "target land an opponent controls."
+        ),
+    }
+    assert serves(political_trickery, sig) is True
+    assert serves(vedalken_plotter, sig) is True
+    rampant_growth = {
+        "name": "Rampant Growth",
+        "type_line": "Sorcery",
+        "mana_cost": "{1}{G}",
+        "oracle_text": (
+            "Search your library for a basic land card, put that card onto the "
+            "battlefield tapped, then shuffle."
+        ),
+    }
+    assert serves(rampant_growth, sig) is False
+
+
 def test_life_payment_insurance_serves_dont_lose_at_zero():
     # Selenia wants life-loss insurance: Phyrexian Unlife ("don't lose the game for
     # having 0 or less life") and Angel's Grace ("you can't lose the game this turn"). A
