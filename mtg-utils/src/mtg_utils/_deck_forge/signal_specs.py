@@ -1749,8 +1749,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Extra combats (Combat Celebrant, Moraug, Aggravated Assault): every added
         # combat phase is another round of attack triggers — a top attack payoff. The
         # narrow extra_combats lane already served these, but attack-trigger commanders
-        # (Winota, Johan, Umaro) open attack_matters, not extra_combats.
-        r"|additional combat phase",
+        # (Winota, Johan, Umaro) open attack_matters, not extra_combats. An extra TURN
+        # (Time Warp) is the strict superset — a whole turn, combat included, so the
+        # attack replays; Narset (free-casts on attack) snowballs hardest off it.
+        r"|additional combat phase"
+        r"|takes? (?:an?|two|another|that many)?\s*extra turns?",
         serve_keywords=("haste",),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and

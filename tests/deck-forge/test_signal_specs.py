@@ -4692,6 +4692,42 @@ def test_attack_matters_serves_extra_combat_enablers():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_attack_matters_serves_extra_turn_spells():
+    # attack_matters already credits "additional combat phase" — another round of attack
+    # triggers. An extra TURN (Time Warp) is the strict superset: a full turn, combat
+    # included, so the attack happens again. Narset, Enlightened Master (free-casts
+    # noncreature spells on attack) snowballs hardest off extra turns, but every
+    # attack-trigger commander wants the replay. Real oracle.
+    sig = _sig("attack_matters", "you")
+    time_warp = {
+        "name": "Time Warp",
+        "type_line": "Sorcery",
+        "mana_cost": "{3}{U}{U}",
+        "oracle_text": "Target player takes an extra turn after this one.",
+    }
+    temporal_mastery = {
+        "name": "Temporal Mastery",
+        "type_line": "Sorcery",
+        "mana_cost": "{5}{U}{U}",
+        "oracle_text": (
+            "Take an extra turn after this one. Exile Temporal Mastery.\n"
+            "Miracle {1}{U} (You may cast this card for its miracle cost when you draw "
+            "it if it's the first card you drew this turn.)"
+        ),
+    }
+    assert serves(time_warp, sig) is True
+    assert serves(temporal_mastery, sig) is True
+    # Over-fire guard: an "additional LAND this turn" ramp cantrip (Explore) is not an
+    # extra TURN — the extra-turn clause must not leak to "additional land". Real oracle.
+    explore = {
+        "name": "Explore",
+        "type_line": "Sorcery",
+        "mana_cost": "{1}{G}",
+        "oracle_text": "You may play an additional land this turn.\nDraw a card.",
+    }
+    assert serves(explore, sig) is False
+
+
 BRIBERY = {
     "name": "Bribery",
     "type_line": "Sorcery",
