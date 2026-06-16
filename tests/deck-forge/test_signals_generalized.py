@@ -642,6 +642,36 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
     assert not sp.serve.matches(bad_moon)
 
 
+def test_creature_token_maker_cross_opens_creatures_matter():
+    # A token_maker that makes CREATURE tokens (Darien -> Soldiers) is a go-wide creatures
+    # deck: it wants anthems + per-creature-ETB payoffs (Soul Warden, Impact Tremors) +
+    # Cathars' Crusade, all served by creatures_matter. The bare token_maker lane doesn't
+    # serve those, so cross-open creatures_matter (low confidence).
+    darien = {
+        "name": "Darien, King of Kjeldor",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "Whenever you're dealt damage, you may create that many 1/1 white Soldier "
+            "creature tokens."
+        ),
+    }
+    keys = {s.key for s in extract_signals(darien, include_membership=True)}
+    assert "creatures_matter" in keys
+    # Over-fire guard: a NON-creature (Treasure) token maker is not a go-wide creatures
+    # deck — token_maker never captures a creature subject, so creatures_matter stays shut.
+    tithe = {
+        "name": "Smothering Tithe",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever an opponent draws a card, that player may pay {2}. If the player "
+            "doesn't, you create a Treasure token."
+        ),
+    }
+    assert "creatures_matter" not in {
+        s.key for s in extract_signals(tithe, include_membership=True)
+    }
+
+
 def test_play_from_top_cross_opens_topdeck_selection():
     # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
     # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It

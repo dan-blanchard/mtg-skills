@@ -2725,6 +2725,16 @@ def extract_signals(
         if "play_from_top" in keys_now:
             add("topdeck_selection", "you", "", text[:160], "low")
             add("topdeck_stack", "you", "", text[:160], "low")
+        # A token_maker that makes CREATURE tokens (a captured subject: Darien makes
+        # Soldiers, Jinnie Fay Cats/Dogs) is a go-wide creatures deck, so cross-open
+        # creatures_matter: it wants anthems, per-creature-ETB payoffs (Soul Warden,
+        # Impact Tremors), and Cathars' Crusade, none of which the bare token_maker lane
+        # serves. Low confidence. Non-creature token makers (Treasure / Clue) never set
+        # a token_maker subject, so they stay out.
+        if "creatures_matter" not in keys_now and any(
+            s.key == "token_maker" and s.subject for s in out
+        ):
+            add("creatures_matter", "you", "", text[:160], "low")
         # Lure (force blocks) and blocked_matters (punish the blocker) are one
         # archetype: a commander that lures / must-be-blocked (Madame Vastra, Gorm)
         # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian
