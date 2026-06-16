@@ -3455,6 +3455,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Island matters (Zhou Yu, islandwalk commanders): effects that turn opponents'
+    # lands into Islands (so the attack restriction is met / islandwalk connects), plus
+    # more islandwalk and island-count payoffs.
+    ("island_matters", "you"): _spec(
+        "Island matters",
+        "make opponents' lands Islands, plus islandwalk and island-count payoffs",
+        {
+            "oracle": r"lands?[^.]*are islands|becomes? an island|flood counter"
+            r"|\bislandwalk\b"
+        },
+        r"(?:nonbasic |all )?lands?[^.]*are islands|becomes? an island|flood counter"
+        r"|\bislandwalk\b|number of islands",
+    ),
     # Tap down blockers (Tromokratis): effects that tap OPPONENTS' creatures (Sleep,
     # Blustersquall) so the defender can't field enough blockers, letting the
     # "unblockable unless all block" commander through.

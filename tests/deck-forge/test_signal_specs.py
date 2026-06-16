@@ -194,6 +194,49 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_island_matters_serves_island_makers():
+    # Zhou Yu wants opponents to control Islands. Quicksilver Fountain (flood counters →
+    # Islands) and Stormtide Leviathan ("All lands are Islands") feed it; a mana dork
+    # does not. Real oracle.
+    sig = _sig("island_matters", "you")
+    quicksilver_fountain = {
+        "name": "Quicksilver Fountain",
+        "type_line": "Artifact",
+        "mana_cost": "{3}",
+        "oracle_text": (
+            "At the beginning of each player's upkeep, that player puts a flood counter "
+            "on target non-Island land they control of their choice. That land is an "
+            "Island for as long as it has a flood counter on it.\nAt the beginning of "
+            "each end step, if all lands on the battlefield are Islands, remove all "
+            "flood counters from them."
+        ),
+    }
+    stormtide_leviathan = {
+        "name": "Stormtide Leviathan",
+        "type_line": "Creature — Leviathan",
+        "mana_cost": "{5}{U}{U}{U}",
+        "power": "8",
+        "toughness": "8",
+        "keywords": ["Landwalk", "Islandwalk"],
+        "oracle_text": (
+            "Islandwalk (This creature can't be blocked as long as defending player "
+            "controls an Island.)\nAll lands are Islands in addition to their other "
+            "types.\nCreatures without flying or islandwalk can't attack."
+        ),
+    }
+    assert serves(quicksilver_fountain, sig) is True
+    assert serves(stormtide_leviathan, sig) is True
+    llanowar_elves = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert serves(llanowar_elves, sig) is False
+
+
 def test_tap_down_blockers_serves_opponent_tappers():
     # Tromokratis wants to tap opponents' creatures so they can't all block. Sleep ("Tap
     # all creatures target player controls") and Blustersquall ("Tap target creature you

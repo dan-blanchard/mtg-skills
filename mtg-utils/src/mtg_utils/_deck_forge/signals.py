@@ -1314,6 +1314,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"can'?t be blocked unless all", re.IGNORECASE),
         "you",
     ),
+    # Island matters (Zhou Yu "can't attack unless defending player controls an Island";
+    # islandwalk commanders Thada Adel, Wrexial): wants effects that turn opponents'
+    # lands into Islands (Quicksilver Fountain, Stormtide Leviathan) so the attack
+    # restriction is met / islandwalk connects, plus more islandwalk and island-count.
+    (
+        "island_matters",
+        re.compile(
+            r"\bislandwalk\b|can'?t attack unless defending player controls an island",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

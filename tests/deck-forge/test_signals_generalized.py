@@ -554,6 +554,20 @@ def test_tap_down_blockers_opens_on_unblockable_unless_all():
     assert ("tap_down_blockers", "you") in _ks(tromokratis)
 
 
+def test_island_matters_opens_on_island_attack_restriction():
+    # Zhou Yu can only attack if the defender controls an Island, so he wants to turn
+    # opponents' lands into Islands. Real oracle.
+    zhou_yu = {
+        "name": "Zhou Yu, Chief Commander",
+        "type_line": "Legendary Creature — Human Soldier",
+        "mana_cost": "{5}{U}{U}",
+        "power": "8",
+        "toughness": "8",
+        "oracle_text": "Zhou Yu can't attack unless defending player controls an Island.",
+    }
+    assert ("island_matters", "you") in _ks(zhou_yu)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
