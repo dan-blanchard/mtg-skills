@@ -660,6 +660,24 @@ def test_multicolor_matters_opens_on_color_pair_payoff():
     assert ("multicolor_matters", "you") in _ks(niv)
 
 
+def test_target_own_payoff_opens_on_targeted_your_creature():
+    # Monk Gyatso airbends a creature you control whenever it becomes the target, so he
+    # wants free ways to target your own creatures. Real oracle.
+    gyatso = {
+        "name": "Monk Gyatso",
+        "type_line": "Legendary Creature — Human Monk",
+        "mana_cost": "{3}{W}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "Whenever another creature you control becomes the target of a spell or "
+            "ability, you may airbend that creature. (Exile it. While it's exiled, its "
+            "owner may cast it for {2} rather than its mana cost.)"
+        ),
+    }
+    assert ("target_own_payoff", "you") in _ks(gyatso)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

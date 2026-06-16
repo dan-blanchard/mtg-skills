@@ -271,6 +271,46 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_target_own_payoff_serves_free_self_targeting():
+    # Monk Gyatso wants free ways to target his own creatures: the en-Kor cycle ("{0}: …
+    # dealt to target creature you control") triggers airbend on demand. A vanilla bear
+    # is not a self-targeter. Real oracle.
+    sig = _sig("target_own_payoff", "you")
+    nomads_en_kor = {
+        "name": "Nomads en-Kor",
+        "type_line": "Creature — Kor Nomad Soldier",
+        "mana_cost": "{W}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": (
+            "{0}: The next 1 damage that would be dealt to this creature this turn is "
+            "dealt to target creature you control instead."
+        ),
+    }
+    warrior_en_kor = {
+        "name": "Warrior en-Kor",
+        "type_line": "Creature — Kor Warrior Knight",
+        "mana_cost": "{W}{W}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "{0}: The next 1 damage that would be dealt to this creature this turn is "
+            "dealt to target creature you control instead."
+        ),
+    }
+    assert serves(nomads_en_kor, sig) is True
+    assert serves(warrior_en_kor, sig) is True
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert serves(grizzly, sig) is False
+
+
 def test_multicolor_matters_serves_payoffs_not_every_gold_card():
     # Niv wants multicolored PAYOFFS: General Ferrous Rokiric ("whenever you cast a
     # multicolored spell …") and Bring to Light (converge). A plain gold creature with no

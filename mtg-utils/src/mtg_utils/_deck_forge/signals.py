@@ -1385,6 +1385,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Target-your-own payoff (Monk Gyatso): airbends a creature you control when it's
+    # targeted, so it wants FREE ways to target your own creatures (the en-Kor "{0}:
+    # target a creature you control" cycle, {0}-equip like Shuko).
+    (
+        "target_own_payoff",
+        re.compile(
+            r"creature you control becomes the target[^.]*you may", re.IGNORECASE
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

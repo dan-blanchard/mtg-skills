@@ -3493,6 +3493,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Target-your-own payoff (Monk Gyatso): free ways to target your own creatures so a
+    # "when targeted" payoff fires on demand (en-Kor cycle, {0}-equip like Shuko).
+    ("target_own_payoff", "you"): _spec(
+        "Target-your-own enablers",
+        "free/cheap ways to target your own creatures (en-Kor, {0}-equip)",
+        {
+            "oracle": r"\{0\}:[^.]*target (?:a |another )?creature you control"
+            r"|equip \{0\}"
+        },
+        r"\{0\}:[^.]*target (?:a |another )?(?:creature|permanent) you control"
+        r"|equip \{0\}",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn + the gold-cards commanders): the multicolor
     # PAYOFFS — "whenever you cast a multicolored spell", converge, "multicolored
     # creatures you control" — not every gold card (which would be the whole deck).
