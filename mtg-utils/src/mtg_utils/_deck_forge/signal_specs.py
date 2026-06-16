@@ -102,6 +102,7 @@ class Serve:
     vanilla: bool = False  # serve a creature with NO rules text (Muraganda / Ruxa)
     self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
+    mana_cost: re.Pattern[str] | None = None  # regex on printed mana_cost (X-spells)
     not_oracle: re.Pattern[str] | None = None
     # AND-composition: when non-empty, the card serves iff EVERY sub-serve matches
     # (each sub-serve is its own OR-of-dimensions). Lets a serve require a conjunction
@@ -134,6 +135,10 @@ class Serve:
             card_kw = {k.lower() for k in (card.get("keywords") or [])}
             if card_kw & self.keywords:
                 return True
+        if self.mana_cost is not None and self.mana_cost.search(
+            card.get("mana_cost") or ""
+        ):
+            return True
         if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
             return True
         if self.produces_mana and card.get("produced_mana"):
@@ -209,6 +214,8 @@ class Serve:
             out["self_recur"] = True
         if self.names:
             out["names"] = sorted(self.names)
+        if self.mana_cost is not None:
+            out["mana_cost"] = self.mana_cost.pattern
         if self.not_oracle is not None:
             out["not_oracle"] = self.not_oracle.pattern
         if self.all_of:
@@ -311,6 +318,7 @@ def serve_from_dict(data: dict) -> Serve:
         vanilla=bool(data.get("vanilla")),
         self_recur=bool(data.get("self_recur")),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
+        mana_cost=_compile(data.get("mana_cost")),
         not_oracle=_compile(data.get("not_oracle")),
         all_of=tuple(serve_from_dict(d) for d in (data.get("all_of") or ())),
     )
@@ -360,6 +368,7 @@ def _spec(
     serve_keyword_count_min: int | None = None,
     serve_vanilla: bool = False,
     serve_self_recur: bool = False,
+    serve_mana_cost: str | None = None,
     serve_not: str | None = None,
 ) -> SignalSpec:
     return SignalSpec(
@@ -379,6 +388,7 @@ def _spec(
             keyword_count_min=serve_keyword_count_min,
             vanilla=serve_vanilla,
             self_recur=serve_self_recur,
+            mana_cost=re.compile(serve_mana_cost, _IC) if serve_mana_cost else None,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
         extras=tuple(extras),
@@ -2202,6 +2212,25 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Paradox payoffs (Keeper of Secrets) — casting from exile IS from-anywhere-
         # other-than-hand, so an impulse deck triggers them too.
         extras=(_PARADOX_PAYOFF_EXTRA,),
+    ),
+    # X-spells matter (CR 107.3 / 202.1): an X-matters commander (Zaxara, Rosheen,
+    # Zimone) is built from spells whose printed mana cost contains {X} and wants the
+    # X-doublers / copy-the-X-spell payoffs (Unbound Flourishing). The serve credits
+    # {X}-cost cards via the structured mana_cost dimension (the X-spells themselves)
+    # PLUS oracle X-payoffs. A broad but genuinely on-theme pool — an X deck wants the
+    # universe of X-spells, so breadth here is coverage, not noise.
+    ("xspell_matters", "you"): _spec(
+        "X spells",
+        "X-spells (cards with {X} in their cost) plus the X-doublers and "
+        "copy-the-X-spell payoffs an X-matters deck is built around",
+        {
+            "oracle": r"\{X\} in (?:its|their) (?:mana )?cost"
+            r"|cost (?:that )?contains \{X\}"
+        },
+        r"\{x\} in (?:its|their) (?:mana )?cost"
+        r"|cost (?:that )?contains? \{x\}"
+        r"|spells? you cast with \{x\}",
+        serve_mana_cost=r"\{X\}",
     ),
     # Theft (steal an OPPONENT's cards and cast them): serve credits the opponent-
     # library dig (Gonti, Black Cat, Thief of Sanity) and the steal-and-cast engines

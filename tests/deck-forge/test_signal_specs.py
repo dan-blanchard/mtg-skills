@@ -4568,6 +4568,45 @@ def test_impulse_top_play_serves_cast_from_exile_payoffs():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_xspell_matters_serves_x_spells_and_doublers():
+    # An X-matters commander (Zaxara, Rosheen) is built from X-spells and wants the
+    # X-doublers. Serve credits cards whose PRINTED mana cost contains {X} (CR 107.3 —
+    # a fixed characteristic, cf. CR 702.156a "cards with {X} in their mana cost") plus
+    # oracle X-payoffs. Real oracle/cost.
+    sig = _sig("xspell_matters", "you")
+    stonecoil = {
+        "name": "Stonecoil Serpent",
+        "type_line": "Artifact Creature — Snake",
+        "mana_cost": "{X}",
+        "oracle_text": (
+            "Reach, trample, protection from multicolored\nThis creature enters with "
+            "X +1/+1 counters on it."
+        ),
+    }
+    assert _lane_covers(stonecoil, sig) is True  # {X} in mana cost
+    unbound = {
+        "name": "Unbound Flourishing",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{G}",
+        "oracle_text": (
+            "Whenever you cast a permanent spell with a mana cost that contains {X}, "
+            "double the value of X.\nWhenever you cast an instant or sorcery spell or "
+            "activate an ability, if that spell's mana cost or that ability's "
+            "activation cost contains {X}, copy that spell or ability. You may choose "
+            "new targets for the copy."
+        ),
+    }
+    assert _lane_covers(unbound, sig) is True  # oracle X-doubler payoff
+    # Over-fire guard: a fixed-cost vanilla creature is not an X-spell.
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
 def test_discard_outlet_serves_discard_payoffs():
     # A loot/rummage commander (Jaya Ballard, Alexi) discards a lot, so it wants the
     # payoffs that reward discarding — Containment Construct turns each discard into a

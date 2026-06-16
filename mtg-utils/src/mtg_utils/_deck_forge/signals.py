@@ -161,10 +161,31 @@ _IS_BUILDAROUND_RE = re.compile(
     re.IGNORECASE,
 )
 
+# xspell_matters: a commander that REWARDS or ENABLES casting spells whose printed mana
+# cost contains {X} (Zaxara makes a Hydra per X-spell, Rosheen ramps for {X} costs, Nev
+# grows on your first {X} spell). "{X} in its/their mana cost" / "costs that contain
+# {X}" / "spells you cast with {X}" is the tight hook; CR 107.3 (X is a placeholder) and
+# 702.156a ("creature cards with {X} in their mana cost") confirm "{X} in the mana cost"
+# is a fixed printed characteristic (CR 202.1). The clause-scoped VETO drops an X-spell
+# HOSER (Gaddock Teeg "spells with {X} in their mana costs can't be cast") — it bans
+# X-spells, it doesn't want them. Matched per-clause so the veto is local to the clause.
+_XSPELL_HOOK_RE = re.compile(
+    r"\{x\} in (?:its|their) (?:mana )?cost"
+    r"|costs? that contains? \{x\}"
+    r"|spells? you cast with \{x\}",
+    re.IGNORECASE,
+)
+_XSPELL_VETO_RE = re.compile(r"can'?t be cast|can'?t cast", re.IGNORECASE)
+
 
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ("color_hoser", lambda c: _COLOR_HOSER_RE.search(c) is not None, "you"),
     ("spellcast_matters", lambda c: _IS_BUILDAROUND_RE.search(c) is not None, "you"),
+    (
+        "xspell_matters",
+        lambda c: bool(_XSPELL_HOOK_RE.search(c)) and not _XSPELL_VETO_RE.search(c),
+        "you",
+    ),
     (
         "creature_etb",
         lambda c: (

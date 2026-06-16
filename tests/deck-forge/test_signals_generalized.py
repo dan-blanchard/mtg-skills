@@ -263,6 +263,42 @@ def test_self_etb_modal_choose_requires_enters_not_dies():
     assert "blink_flicker" in _keys(charming_prince)
 
 
+def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
+    # A commander that rewards/enables casting spells whose PRINTED mana cost contains
+    # {X} (CR 107.3 / 202.1) opens xspell_matters — it wants the universe of X-spells +
+    # X-doublers. Clause-scoped with a "can't be cast" veto so an X-spell HOSER never
+    # reads as wanting them. Real oracle.
+    zaxara = {
+        "name": "Zaxara, the Exemplary",
+        "type_line": "Legendary Creature — Nightmare Hydra",
+        "oracle_text": (
+            "Deathtouch\n{T}: Add two mana of any one color.\nWhenever you cast a "
+            "spell with {X} in its mana cost, create a 0/0 green Hydra creature "
+            "token, then put X +1/+1 counters on it."
+        ),
+    }
+    assert "xspell_matters" in _keys(zaxara)
+    rosheen = {
+        "name": "Rosheen Meanderer",
+        "type_line": "Legendary Creature — Giant Shaman",
+        "oracle_text": (
+            "{T}: Add {C}{C}{C}{C}. Spend this mana only on costs that contain {X}."
+        ),
+    }
+    assert "xspell_matters" in _keys(rosheen)
+    # Hoser: Gaddock Teeg BANS X-spells ("can't be cast") — it does NOT want them, so
+    # the clause-scoped veto must keep the avenue closed.
+    gaddock = {
+        "name": "Gaddock Teeg",
+        "type_line": "Legendary Creature — Kithkin Advisor",
+        "oracle_text": (
+            "Noncreature spells with mana value 4 or greater can't be cast.\n"
+            "Noncreature spells with {X} in their mana costs can't be cast."
+        ),
+    }
+    assert "xspell_matters" not in _keys(gaddock)
+
+
 def test_self_death_variable_damage_opens_payoff_and_clone():
     # Symmetric with the ETB case: a commander whose own DEATH trigger deals VARIABLE
     # damage ("deals damage equal to its power") is a value death trigger worth
