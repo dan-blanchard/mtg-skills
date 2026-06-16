@@ -884,6 +884,23 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Creature-count-scaling = a GO-WIDE commander: its own power scales with "for each
+    # (other) creature you control" / "equal to the number of creatures you control"
+    # (Leonardo, Adeline, Suki). It wants to flood the board, so open tokens_matter —
+    # whose creature-scoped go-wide package (mass creature-token makers + protection)
+    # is exactly what a count-scaler runs. Kind-agnostic on purpose: it counts ANY
+    # creature, so any creature-token maker pumps it (the serve already excludes
+    # non-creature Treasure/Clue makers).
+    (
+        "tokens_matter",
+        re.compile(
+            r"(?:gets? \+\d+/\+\d+|power (?:and toughness )?(?:is|are) equal to)"
+            r"[^.]*(?:for each (?:other )?creature you control"
+            r"|number of creatures you control)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Spellslinger recaster/copier (Mavinda recasts from the yard, Velomachus casts off
     # the top, Naru Meha copies) — a commander that casts or copies instants/sorceries
     # wants prowess/magecraft payoffs. The base spellcast detector keys on the "whenever

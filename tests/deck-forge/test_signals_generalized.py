@@ -1933,6 +1933,60 @@ def test_mutagen_token_maker_opens_artifacts_matter():
     assert "artifacts_matter" not in _keys(servo)
 
 
+def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
+    # A creature-count-scaling commander (Leonardo "+1/+0 for each other creature you
+    # control") is go-wide, so it opens tokens_matter; the lane's go-wide package serves
+    # MASS creature-token makers (create 2+/X) and team protection. CREATURE-scoped: a
+    # Treasure/Clue maker (non-creature tokens) does NOT widen the board and stays out.
+    leonardo = {
+        "name": "Leonardo, Big Brother",
+        "type_line": "Legendary Creature — Mutant Ninja Turtle",
+        "oracle_text": (
+            "Sneak {W}\nLeonardo gets +1/+0 for each other creature you control."
+        ),
+    }
+    assert "tokens_matter" in _keys(leonardo)
+
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card):
+        sp = spec_for(
+            Signal(key="tokens_matter", scope="you", subject="", text="", source="")
+        )
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    battle_screech = {
+        "name": "Battle Screech",
+        "type_line": "Sorcery",
+        "oracle_text": "Create two 1/1 white Bird creature tokens with flying.",
+    }
+    rootborn = {
+        "name": "Rootborn Defenses",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Populate. Creatures you control gain indestructible until end of turn."
+        ),
+    }
+    assert lane_covers(battle_screech) is True  # mass creature-token maker
+    assert lane_covers(rootborn) is True  # team protection
+    # Creature-scoping guard: a Treasure maker makes NON-creature tokens — it doesn't go
+    # wide and must NOT be in the go-wide package.
+    tithe = {
+        "name": "Smothering Tithe",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever an opponent draws a card, that player may pay {2}. If they don't, "
+            "you create a Treasure token."
+        ),
+    }
+    assert lane_covers(tithe) is False
+
+
 def test_tokens_matter_serves_mobilize_swarm():
     # A Mobilize commander (Zurgo) opens tokens_matter, but the other Mobilize cards make
     # their Warrior tokens in stripped reminder text, so the serve missed them. Credit the

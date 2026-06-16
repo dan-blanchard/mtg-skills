@@ -535,6 +535,37 @@ _TOKEN_ARISTOCRAT_EXTRA = SubAvenue(
     {"oracle": _TOKEN_ARISTOCRAT_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_ARISTOCRAT_ORACLE, _IC)),
 )
+# MASS token makers — "create TWO/X creature tokens at once" (Battle Screech, Grand
+# Crescendo, Secure the Wastes, Champions from Beyond). The go-wide BUILD-AROUND subset
+# (~558), distinct from the ~2315 generic single-token makers the tokens_matter serve
+# deliberately excludes: a single-maker is generically good (every deck runs a few), but
+# "create X tokens in one card" is archetype-unique to go-wide. Within-avenue clean for
+# flood commander; far narrower than the generic-maker flood.
+_GOWIDE_MAKER_ORACLE = (
+    r"create (?:two|three|four|five|six|seven|eight|nine|ten|x|\d{2,}) "
+    r"[^.]*creature tokens?"
+)
+_GOWIDE_MAKER_EXTRA = SubAvenue(
+    "Mass token makers",
+    "cards that create two or more creature tokens at once to flood the board "
+    "(Battle Screech, Secure the Wastes, Grand Crescendo)",
+    {"oracle": _GOWIDE_MAKER_ORACLE},
+    serve=Serve(oracle=re.compile(_GOWIDE_MAKER_ORACLE, _IC)),
+)
+# Protect the wide board: "creatures you control gain indestructible / hexproof /
+# protection until end of turn" (Heroic Intervention, Rootborn Defenses, Boros Charm,
+# Flawless Maneuver): a go-wide deck's answer to a board wipe. Distinct from the voltron
+# SINGLE-threat protect ("target creature gains hexproof").
+_TEAM_PROTECT_ORACLE = (
+    r"creatures you control gain (?:indestructible|hexproof|protection|shroud)"
+)
+_TEAM_PROTECT_EXTRA = SubAvenue(
+    "Protect the wide board",
+    "team-wide indestructible / protection to survive a wrath (Heroic Intervention, "
+    "Rootborn Defenses, Flawless Maneuver)",
+    {"oracle": _TEAM_PROTECT_ORACLE},
+    serve=Serve(oracle=re.compile(_TEAM_PROTECT_ORACLE, _IC)),
+)
 # Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
 # she'd create into a copy of a chosen creature, so the more tokens she'd have made,
 # the more copies). Matches "create … creature token(s)" (Hornet Queen / Avenger of
@@ -1763,15 +1794,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"\btokens? you control\b"
         r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
         r"|\bpopulate\b",
-        # NB: token MAKERS are deliberately NOT in the serve — they're found by the
-        # search dict (build-time) but a maker is generically good (every deck runs
-        # some), not archetype-UNIQUE like a Goblin is to Goblins; serving all 2315
-        # would flood the lane (and broke the token-enters anchor guard + ranking sort).
+        # NB: GENERIC single-token makers are deliberately NOT in the serve — a single
+        # maker is generically good (every deck runs some), not archetype-UNIQUE, so
+        # serving all 2315 floods the lane. But MASS makers ("create 2+/X tokens at
+        # once" — _GOWIDE_MAKER_EXTRA) ARE the go-wide build-around and kind-agnostic
+        # here (this lane has no subject; Leonardo/Adeline count ANY creature), so they
+        # belong. They stay OFF the per-subject token_maker lane, where kind matters
+        # (Krenko wants Goblin makers, not Saprolings).
         # EXCEPTION: Mobilize is a bounded (~28-card) Warrior-token SWARM keyword whose
         # token-making lives in stripped reminder text — credit the keyword so a
         # Mobilize/go-wide commander (Zurgo) covers the rest of its swarm package.
         serve_keywords=("mobilize",),
-        extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
+        extras=(
+            _TOKEN_DOUBLER_EXTRA,
+            _ETB_PAYOFF_EXTRA,
+            _GOWIDE_ANTHEM_EXTRA,
+            _GOWIDE_MAKER_EXTRA,
+            _TEAM_PROTECT_EXTRA,
+        ),
     ),
     # The bare `your opponents` alternative matched any card that merely names opponents
     # (Edric's draw trigger, Telepathy's hand reveal). Serve the actual restriction/tax
