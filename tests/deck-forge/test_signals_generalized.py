@@ -504,6 +504,37 @@ def test_type_change_opens_on_creature_type_hoser():
     assert "type_change" not in _keys(krenko)
 
 
+def test_exert_matters_opens_on_pseudo_vigilance():
+    # Johan grants "attacking doesn't cause creatures you control to tap", which makes an
+    # exert creature's "won't untap next turn" cost free — so he wants exert creatures.
+    # Real oracle.
+    johan = {
+        "name": "Johan",
+        "type_line": "Legendary Creature — Human Wizard",
+        "mana_cost": "{3}{R}{G}{W}",
+        "power": "5",
+        "toughness": "4",
+        "oracle_text": (
+            'At the beginning of combat on your turn, you may have Johan gain "Johan '
+            "can't attack\" until end of combat. If you do, attacking doesn't cause "
+            "creatures you control to tap this combat if Johan is untapped."
+        ),
+    }
+    assert ("exert_matters", "you") in _ks(johan)
+    krenko = {
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of "
+            "Goblins you control."
+        ),
+    }
+    assert "exert_matters" not in _keys(krenko)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

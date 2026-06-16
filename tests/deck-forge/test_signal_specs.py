@@ -393,6 +393,35 @@ def test_power_tap_engine_serves_untap_effects():
     assert serves(lightning_bolt, sig) is False
 
 
+def test_exert_matters_serves_exert_creatures():
+    # A pseudo-vigilance commander (Johan) wants exert creatures — Champion of Rhonas
+    # (Exert keyword). A vanilla creature is not served. Real oracle.
+    sig = _sig("exert_matters", "you")
+    champion = {
+        "name": "Champion of Rhonas",
+        "type_line": "Creature — Jackal Warrior",
+        "mana_cost": "{3}{G}",
+        "power": "3",
+        "toughness": "3",
+        "keywords": ["Exert"],
+        "oracle_text": (
+            "You may exert this creature as it attacks. When you do, you may put a "
+            "creature card from your hand onto the battlefield. (An exerted creature "
+            "won't untap during your next untap step.)"
+        ),
+    }
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert serves(champion, sig) is True
+    assert serves(grizzly, sig) is False
+
+
 def test_type_change_serves_type_changers_not_tribal_anthems():
     # A type-hoser (Gor Muldrak) wants genuine creature-type CHANGERS — Standardize
     # ("Each creature becomes that type"), Unnatural Selection ("Target creature becomes

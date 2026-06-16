@@ -1291,6 +1291,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bsneak\b|return an unblocked attacker", re.IGNORECASE),
         "you",
     ),
+    # Exert payoff (Johan, Heliod God of the Sun): a commander that grants pseudo-
+    # vigilance ("attacking doesn't cause creatures you control to tap" / "creatures you
+    # control have vigilance") turns EXERT into a no-downside ability: exert's only cost
+    # ("won't untap next turn") is moot when attacking never taps them. So it wants
+    # exert creatures.
+    (
+        "exert_matters",
+        re.compile(
+            r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap"
+            r"|(?:other )?creatures you control have vigilance",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

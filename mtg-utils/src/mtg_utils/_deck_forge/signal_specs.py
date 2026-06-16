@@ -3445,6 +3445,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"when[^.]*enters[^.]*each opponent (?:discards|loses|sacrifices)"},
         r"when[^.]*enters[^.]*each opponent (?:discards|loses|sacrifices)",
     ),
+    # Exert (Johan, Heliod God of the Sun): when your team has vigilance / never taps to
+    # attack, an exert creature's only downside (won't untap) vanishes, so serve the
+    # exert creatures (the Scryfall keyword is the precise gate).
+    ("exert_matters", "you"): _spec(
+        "Exert",
+        "exert creatures — their 'won't untap' cost is free when your team doesn't tap",
+        {"oracle": r"\bexert\b"},
+        r"you may exert this creature",
+        serve_keywords=("exert",),
+    ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.
     ("ltb_matters", "you"): _spec(
