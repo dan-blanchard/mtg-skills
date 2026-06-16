@@ -229,6 +229,105 @@ def test_per_target_payoff_serves_variable_target_spells():
     assert serves(doom_blade, sig) is False
 
 
+def test_ability_strip_payoff_serves_big_drawback_creatures():
+    # Abigale strips a target's abilities + buffs it, so she wants BIG creatures whose
+    # crippling drawback she removes (Rotting Regisaur 7/6 upkeep-discard; Nyxathid 7/7
+    # that shrinks). The serve ANDs a crippling-drawback clause with power >= 5: a big
+    # vanilla beater (Colossal Dreadmaw — no drawback) and a small drawback creature
+    # (Scarred Puma — power 2) are both excluded. Real oracle.
+    sig = _sig("ability_strip_payoff", "you")
+    rotting_regisaur = {
+        "name": "Rotting Regisaur",
+        "type_line": "Creature — Zombie Dinosaur",
+        "mana_cost": "{2}{B}",
+        "power": "7",
+        "toughness": "6",
+        "oracle_text": "At the beginning of your upkeep, discard a card.",
+    }
+    nyxathid = {
+        "name": "Nyxathid",
+        "type_line": "Creature — Elemental",
+        "mana_cost": "{1}{B}{B}",
+        "power": "7",
+        "toughness": "7",
+        "oracle_text": (
+            "As this creature enters, choose an opponent.\nThis creature gets -1/-1 for "
+            "each card in the chosen player's hand."
+        ),
+    }
+    assert serves(rotting_regisaur, sig) is True
+    assert serves(nyxathid, sig) is True
+    # Big body, no drawback to strip → not the payoff.
+    colossal_dreadmaw = {
+        "name": "Colossal Dreadmaw",
+        "type_line": "Creature — Dinosaur",
+        "mana_cost": "{4}{G}{G}",
+        "power": "6",
+        "toughness": "6",
+        "oracle_text": (
+            "Trample (This creature can deal excess combat damage to the player or "
+            "planeswalker it's attacking.)"
+        ),
+    }
+    assert serves(colossal_dreadmaw, sig) is False
+    # Crippling drawback but too small to be worth stripping + buffing.
+    scarred_puma = {
+        "name": "Scarred Puma",
+        "type_line": "Creature — Cat",
+        "mana_cost": "{B}",
+        "power": "2",
+        "toughness": "1",
+        "oracle_text": (
+            "This creature can't attack unless a black or green creature is attacking."
+        ),
+    }
+    assert serves(scarred_puma, sig) is False
+
+
+def test_damage_redirect_serves_creature_dealt_damage_payoffs():
+    # A redirect-to-self commander (Daughter of Autumn: "next 1 damage to target white
+    # creature is dealt to Daughter instead" — CR 614.9 redirection replacement) soaks
+    # the damage on HERSELF, so it wants payoffs watching a CREATURE YOU CONTROL being
+    # dealt damage (Rite of Passage) or an Aura on the soak creature (Druid's Call).
+    # NOT generic enrage ("whenever THIS creature is dealt damage" — Siegehorn): the
+    # original creature is never dealt the redirected damage, so its trigger can't fire.
+    # Real oracle.
+    sig = _sig("damage_redirect", "you")
+    rite_of_passage = {
+        "name": "Rite of Passage",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{G}",
+        "oracle_text": (
+            "Whenever a creature you control is dealt damage, put a +1/+1 counter on "
+            "it. (It must survive the damage to get the counter.)"
+        ),
+    }
+    druids_call = {
+        "name": "Druid's Call",
+        "type_line": "Enchantment — Aura",
+        "mana_cost": "{1}{G}",
+        "oracle_text": (
+            "Enchant creature\nWhenever enchanted creature is dealt damage, its "
+            "controller creates that many 1/1 green Squirrel creature tokens."
+        ),
+    }
+    assert serves(rite_of_passage, sig) is True
+    assert serves(druids_call, sig) is True
+    # Generic enrage targets ITSELF, which never receives the redirected damage.
+    siegehorn = {
+        "name": "Siegehorn Ceratops",
+        "type_line": "Creature — Dinosaur",
+        "mana_cost": "{G}{W}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "Enrage — Whenever this creature is dealt damage, put two +1/+1 counters on "
+            "it. (It must survive the damage to get the counters.)"
+        ),
+    }
+    assert serves(siegehorn, sig) is False
+
+
 def test_outlaw_matters_serves_token_makers_and_recursion():
     # Vial Smasher's outlaw payoff wants cards that MAKE outlaw tokens (Mercenary /
     # Pirate / Rogue / Assassin / Warlock) and outlaw RECURSION — not just creatures

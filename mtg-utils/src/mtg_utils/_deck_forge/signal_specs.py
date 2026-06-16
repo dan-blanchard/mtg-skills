@@ -520,6 +520,15 @@ _MULTI_TARGET_ORACLE = (
     r"|divided[^.]*among[^.]*(?:any number|targets?)"
     r"|\bx target"
 )
+# Crippling-drawback oracle (Abigale ability-strip targets): self-negative clauses that
+# make a big creature cheap/unplayable — the inefficiency a "loses all abilities" strip
+# removes. ANDed with a power floor so it serves BIG bodies, not small drawback ones.
+_CRIPPLING_DRAWBACK_ORACLE = (
+    r"can't attack or block unless|can't attack unless|cumulative upkeep"
+    r"|at the beginning of (?:your|each) upkeep, "
+    r"(?:you )?(?:sacrifice|discard|lose \d|mill)"
+    r"|gets? -\d/-\d for each|when this creature enters, sacrifice"
+)
 # Token DOUBLERS (CR 616 replacement effect): a token-flood commander doubles output
 # with Doubling Season / Parallel Lives / Mondrak. Phrasings: "create twice that many",
 # "twice that many … are created", "one or more tokens would be created … twice".
@@ -1815,7 +1824,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Damage PREVENTION (Battlefield Medic, Worship) blanks the soaked damage — a
         # redirect-to-self commander (Hazduhr, Cho-Manno) wants it.
         r"|prevent (?:the next |all )?[^.]*damage"
-        r"|damage that would (?:reduce|be dealt)[^.]*(?:instead|prevented)",
+        r"|damage that would (?:reduce|be dealt)[^.]*(?:instead|prevented)"
+        # PROFIT from the soaked damage: a redirect-to-self commander (Daughter of
+        # Autumn) takes the redirected hit HERSELF (CR 614.9 — redirection replacement),
+        # so payoffs watching "a creature you control is dealt damage" (Rite of Passage)
+        # or an Aura on the soak creature (Druid's Call) fire. NOT generic enrage
+        # ("whenever THIS creature is dealt damage") — the original creature is never
+        # dealt the redirected damage, so its own trigger can't fire.
+        r"|whenever a creature you control is dealt damage"
+        r"|whenever enchanted creature is dealt damage",
         extras=(_VOLTRON_PROTECT_EXTRA,),
     ),
     # Vanilla (Ruxa, Muraganda Petroglyphs): creatures with NO rules text (the tribe)
@@ -3336,6 +3353,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "targets, X target permanents)",
         {"oracle": _MULTI_TARGET_ORACLE},
         _MULTI_TARGET_ORACLE,
+    ),
+    # Ability-strip targets (Abigale): big creatures with a crippling drawback she
+    # strips then buffs. ANDs the drawback clause with power >= 5 (Serve.all_of), so a
+    # big vanilla beater (no drawback) and a small drawback creature are both excluded.
+    ("ability_strip_payoff", "you"): SignalSpec(
+        label="Ability-strip targets",
+        avenue="big creatures whose crippling drawback gets stripped, then buffed into "
+        "a beater",
+        search={"oracle": _CRIPPLING_DRAWBACK_ORACLE},
+        serve=Serve(
+            all_of=(
+                Serve(oracle=re.compile(_CRIPPLING_DRAWBACK_ORACLE, _IC)),
+                Serve(power_min=5),
+            )
+        ),
     ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.

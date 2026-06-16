@@ -319,6 +319,43 @@ def test_per_target_payoff_opens_on_cost_less_per_target():
     assert "per_target_payoff" not in _keys(electromancer)
 
 
+def test_ability_strip_payoff_opens_on_strip_and_buff():
+    # Abigale strips a creature's abilities and KEEPS it as a beater (adds keyword
+    # counters), so she wants big cheap creatures whose DRAWBACK she neutralizes — strip
+    # Rotting Regisaur's upkeep-discard, keep the 7/6. CR 613.1f (ability-removing +
+    # keyword counters share layer 6); CR 122.1b (the counters grant flying/first
+    # strike/lifelink). Gated on strip+counter so it's Abigale-specific. Real oracle.
+    abigale = {
+        "name": "Abigale, Eloquent First-Year",
+        "type_line": "Legendary Creature — Bird Bard",
+        "mana_cost": "{W/B}{W/B}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": (
+            "Flying, first strike, lifelink\nWhen Abigale enters, up to one other target "
+            "creature loses all abilities. Put a flying counter, a first strike counter, "
+            "and a lifelink counter on that creature."
+        ),
+    }
+    assert ("ability_strip_payoff", "you") in _ks(abigale)
+    # Lizard ALSO says "loses all abilities" but SETS base power/toughness to 4/4 (CR
+    # 613 layer 7b) — it shrinks the target rather than keeping a big body, so it is NOT
+    # a drawback-beater payoff and must not open this lane. Real oracle.
+    lizard = {
+        "name": "Lizard, Connors's Curse",
+        "type_line": "Legendary Creature — Lizard Villain",
+        "mana_cost": "{2}{G}{G}",
+        "power": "5",
+        "toughness": "5",
+        "oracle_text": (
+            "Trample\nLizard Formula — When Lizard, Connors's Curse enters, up to one "
+            "other target creature loses all abilities and becomes a green Lizard "
+            "creature with base power and toughness 4/4."
+        ),
+    }
+    assert "ability_strip_payoff" not in _keys(lizard)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

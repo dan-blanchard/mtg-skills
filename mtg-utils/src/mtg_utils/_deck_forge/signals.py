@@ -2615,6 +2615,11 @@ _LOOT_FULLTEXT_RE = re.compile(
     r"(?:then )?(?:you )?(?:may )?discard",
     re.IGNORECASE,
 )
+# Ability-strip-and-buff (Abigale): the strip ("loses all abilities") and the buff
+# ("counter on that creature") are different clauses, so this is a full-text check.
+_ABILITY_STRIP_RE = re.compile(r"loses all abilities", re.IGNORECASE)
+_STRIP_COUNTER_RE = re.compile(r"counter on (?:that creature|it)\b", re.IGNORECASE)
+_BASE_PT_SET_RE = re.compile(r"base power and toughness", re.IGNORECASE)
 
 
 # Self-ETB VALUE trigger (commander-only): a commander whose own "When ~ enters,
@@ -3235,6 +3240,19 @@ def extract_signals(
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
         add("discard_matters", "you", "", text[:160])
+    # Ability-strip payoff (Abigale): a commander that STRIPS a creature's abilities and
+    # KEEPS it as a beater (keyword counters buff it) wants big cheap creatures whose
+    # crippling DRAWBACK it neutralizes (Rotting Regisaur's upkeep-discard → keep the
+    # 7/6). Gated on the counter BUFF + NOT a base-P/T set, which excludes the SHRINKERS
+    # that turn the target into a small vanilla body (Lizard "becomes a 4/4", Chromium)
+    # and pure removal that strips without a buff. CR 613.1f / 122.1b: ability-removal
+    # and keyword counters both resolve in layer 6.
+    if (
+        _ABILITY_STRIP_RE.search(text)
+        and _STRIP_COUNTER_RE.search(text)
+        and not _BASE_PT_SET_RE.search(text)
+    ):
+        add("ability_strip_payoff", "you", "", text[:160])
     if _detect_self_damage_prevention(text, name):
         add("damage_redirect", "you", "", text[:160])
         # An unkillable body (prevents all damage to itself: Cho-Manno) is the ideal
@@ -3441,7 +3459,13 @@ def coverage_gate(card: dict, signals: list[Signal]) -> tuple[bool, str]:
 # (Subject-bearing keys live in signal_keys.SUBJECT_KEYS and are excluded below; they
 # resolve dynamically via signal_specs._subject_spec, not a static spec.)
 _LITERAL_ADD_KEYS = frozenset(
-    {"self_blink", "combat_buff_engine", "discard_matters", "card_draw_engine"}
+    {
+        "self_blink",
+        "combat_buff_engine",
+        "discard_matters",
+        "card_draw_engine",
+        "ability_strip_payoff",
+    }
 )
 
 
