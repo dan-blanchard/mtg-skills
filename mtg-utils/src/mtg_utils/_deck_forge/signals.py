@@ -741,6 +741,14 @@ _TYPE_GRANT_RE = re.compile(
 _TYPED_SPELLCAST_PATTERN = re.compile(
     r"\b([A-Za-z]+?)s? spells? you cast\b", re.IGNORECASE
 )
+# Multi-tribe comma list before card/spell: "a Kraken, Leviathan, Octopus, or Serpent
+# spell" (Kiora), "a Construct, Robot, or Vehicle card" (Dr. Eggman). The single-subject
+# "(a) X card/spell" pattern stops at the first comma; this captures the whole list so
+# every member is emitted. Vocab gate drops "or" and non-subtypes.
+_TRIBE_LIST_RE = re.compile(
+    r"\b(?:a|an) ((?:[A-Za-z]+, )+(?:or )?[A-Za-z]+)(?: creature)? (?:card|spell)s?\b",
+    re.IGNORECASE,
+)
 # token_maker: capture the LAST creature subtype before "creature token(s)",
 # preferring a real subtype over the card-type word "artifact"
 # ("Thopter artifact creature token" → Thopter).
@@ -758,6 +766,13 @@ def _detect_type_matters(clause: str, vocab: frozenset[str]) -> list[tuple[str, 
     # Two-tribe head ("a Goblin or Orc you control deals …"): emit for BOTH sides.
     for m in _TWO_TRIBE_TRIGGER_RE.finditer(clause):
         for raw in (m.group(1), m.group(2)):
+            subject = _resolve_subject(raw, vocab)
+            if subject:
+                out.append((signal_keys.TYPE_MATTERS, subject))
+    # Multi-tribe comma list ("a Kraken, Leviathan, Octopus, or Serpent spell"): emit
+    # for EVERY listed type.
+    for m in _TRIBE_LIST_RE.finditer(clause):
+        for raw in re.findall(r"[A-Za-z]+", m.group(1)):
             subject = _resolve_subject(raw, vocab)
             if subject:
                 out.append((signal_keys.TYPE_MATTERS, subject))

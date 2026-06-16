@@ -482,6 +482,26 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert ("counters_matter", "you") not in _ks(volrath)
 
 
+def test_tribe_comma_list_refs():
+    # "(a) <X>, <Y>, or <Z> spell/card": Kiora casts "a Kraken, Leviathan, Octopus, or
+    # Serpent spell" (sea-monster group), Dr. Eggman puts "a Construct, Robot, or Vehicle
+    # card". Every listed tribe is captured.
+    kiora = {
+        "name": "Kiora, Sovereign of the Deep",
+        "type_line": "Legendary Creature — Merfolk Noble",
+        "oracle_text": (
+            "Vigilance, ward {3}\nWhenever you cast a Kraken, Leviathan, Octopus, or "
+            "Serpent spell from your hand, look at the top X cards of your library, where "
+            "X is that spell's mana value."
+        ),
+    }
+    trips = {
+        (s.key, s.subject) for s in extract_signals(kiora, include_membership=True)
+    }
+    for t in ("Kraken", "Leviathan", "Serpent"):
+        assert ("type_matters", t) in trips, t
+
+
 def test_tribal_card_spell_list_refs():
     # Multi-tribe "(a/an) <Tribe> card/spell" lists the single-capture patterns miss:
     # Kaalia reveals "an Angel card, a Demon card, and/or a Dragon card" (all three),
