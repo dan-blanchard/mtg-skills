@@ -1697,7 +1697,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # Populate (CR 702.95) IS "create a token that's a copy of a creature token
             # you control" — a token-copy commander (Ghired, Trostani). The serve
             # already credits \bpopulate\b; the detector missed the keyword.
-            r"|\bpopulate\b",
+            r"|\bpopulate\b"
+            # A token DOUBLER (Adrix and Nev, Mondrak: "twice that many … tokens are
+            # created") is a token-copy commander — it doubles token-copy spells (Rite
+            # of Replication, Esix), so route it the copy effects it wants to fork.
+            r"|twice that many[^.]*tokens?",
             re.IGNORECASE,
         ),
         "you",

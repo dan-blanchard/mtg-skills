@@ -188,6 +188,54 @@ def test_artifacts_matter_opens_on_investigate():
     assert "clue_matters" in keys  # still a Clue commander too
 
 
+def test_token_copy_matters_opens_on_token_doubling():
+    # A token DOUBLER ("twice that many tokens are created" — Adrix and Nev, Mondrak)
+    # wants token-COPY effects: Rite of Replication / Esix make token copies, which the
+    # doubler then doubles. So it IS a token-copy commander. The detector only knew
+    # "token that's a copy" / populate, so token-doublers never opened the lane and lost
+    # their copy spells. Real oracle.
+    adrix = {
+        "name": "Adrix and Nev, Twincasters",
+        "type_line": "Legendary Creature — Merfolk Wizard",
+        "mana_cost": "{2}{G}{U}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "Ward {2} (Whenever this creature becomes the target of a spell or ability "
+            "an opponent controls, counter it unless that player pays {2}.)\nIf one or "
+            "more tokens would be created under your control, twice that many of those "
+            "tokens are created instead."
+        ),
+    }
+    mondrak = {
+        "name": "Mondrak, Glory Dominus",
+        "type_line": "Legendary Creature — Phyrexian Horror",
+        "mana_cost": "{2}{W}{W}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "If one or more tokens would be created under your control, twice that many "
+            "of those tokens are created instead.\n{1}{W/P}{W/P}, Sacrifice two other "
+            "artifacts and/or creatures: Put an indestructible counter on Mondrak. "
+            "({W/P} can be paid with either {W} or 2 life.)"
+        ),
+    }
+    krenko = {  # a plain token MAKER (not a copier/doubler) must NOT open the lane
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of "
+            "Goblins you control."
+        ),
+    }
+    assert "token_copy_matters" in _keys(adrix)
+    assert "token_copy_matters" in _keys(mondrak)
+    assert "token_copy_matters" not in _keys(krenko)
+
+
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
     c = {
         "name": "Urza, Lord High Artificer",
