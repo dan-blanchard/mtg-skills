@@ -129,6 +129,52 @@ def test_direct_damage_opens_on_damage_to_a_creatures_controller():
     assert "direct_damage" not in _keys(flame_slash)
 
 
+def test_direct_damage_opens_on_target_first_variable_damage():
+    # "deals damage to target player equal to N" (target-first) — the variable-damage
+    # branch was amount-first ("deals damage equal to N to <target>"), missing this word
+    # order. 84 burn cards (Anathemancer, Fanatic of Mogis, Corrupt). phase_crosscheck-
+    # surfaced. Real oracle.
+    anathemancer = {
+        "name": "Anathemancer",
+        "type_line": "Creature — Zombie Wizard",
+        "mana_cost": "{1}{B}{R}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "When this creature enters, it deals damage to target player equal to the "
+            "number of nonbasic lands that player controls.\nUnearth {5}{B}{R} "
+            "({5}{B}{R}: Return this card from your graveyard to the battlefield. It "
+            "gains haste. Exile it at the beginning of the next end step or if it would "
+            "leave the battlefield. Unearth only as a sorcery.)"
+        ),
+    }
+    fanatic_of_mogis = {
+        "name": "Fanatic of Mogis",
+        "type_line": "Creature — Minotaur Shaman",
+        "mana_cost": "{3}{R}",
+        "power": "4",
+        "toughness": "2",
+        "oracle_text": (
+            "When this creature enters, it deals damage to each opponent equal to your "
+            "devotion to red. (Each {R} in the mana costs of permanents you control "
+            "counts toward your devotion to red.)"
+        ),
+    }
+    assert "direct_damage" in _keys(anathemancer)  # to target player equal to N
+    assert "direct_damage" in _keys(fanatic_of_mogis)  # to each opponent equal to N
+    # creature-only variable damage (to target CREATURE) must stay out — not player burn.
+    rockslide_ambush = {
+        "name": "Rockslide Ambush",
+        "type_line": "Sorcery",
+        "mana_cost": "{1}{R}",
+        "oracle_text": (
+            "Rockslide Ambush deals damage to target creature equal to the number of "
+            "Mountains you control."
+        ),
+    }
+    assert "direct_damage" not in _keys(rockslide_ambush)
+
+
 def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
     # Satoru draws when creatures enter with "no mana was spent to cast them" — the
     # 0-cost creatures (Ornithopter / Memnite / Phyrexian Walker). No lane opened for

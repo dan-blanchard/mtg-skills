@@ -1192,6 +1192,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"|target player or planeswalker)"
             r"|deals damage equal to [^.]*to "
             r"(?:each opponent|target player|that player|any target)"
+            # Target-FIRST variable burn: "deals damage to <player> equal to N"
+            # (Anathemancer, Fanatic of Mogis, Corrupt) — the amount-first branch above
+            # missed this word order. Player-scoped, so creature bite stays out.
+            r"|deals damage to (?:target player|target opponent|each opponent"
+            r"|that player|any target|target player or planeswalker) equal to"
             # "<N> damage to that creature's controller" (Shocker, Gimli) — burns the
             # PLAYER even when the "deals" sits a clause away ("deals N to a creature
             # AND N to that creature's controller"). The controller is a player.
