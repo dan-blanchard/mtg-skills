@@ -271,6 +271,41 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_land_denial_serves_symmetric_land_punishers():
+    # Taniwha wants symmetric land-bounce/sac stax: Mana Breach and Overburden ("that
+    # player returns a land they control"). A mana dork is not land denial. Real oracle.
+    sig = _sig("land_denial", "you")
+    mana_breach = {
+        "name": "Mana Breach",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{U}",
+        "oracle_text": (
+            "Whenever a player casts a spell, that player returns a land they control "
+            "to its owner's hand."
+        ),
+    }
+    overburden = {
+        "name": "Overburden",
+        "type_line": "Enchantment",
+        "mana_cost": "{1}{U}",
+        "oracle_text": (
+            "Whenever a player puts a nontoken creature onto the battlefield, that "
+            "player returns a land they control to its owner's hand."
+        ),
+    }
+    assert serves(mana_breach, sig) is True
+    assert serves(overburden, sig) is True
+    llanowar_elves = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert serves(llanowar_elves, sig) is False
+
+
 def test_lose_unless_hand_serves_drawback_negation():
     # Phage wants to negate "you lose unless cast from hand": Netherborn Altar (commander
     # to hand), Platinum Angel ("can't lose the game"), Torpor Orb (ETBs don't trigger,

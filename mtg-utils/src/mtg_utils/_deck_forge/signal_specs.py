@@ -3493,6 +3493,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Phasing-lands (Taniwha): your lands phase back each turn, so symmetric land-denial
+    # stax (Mana Breach / Overburden — every player bounces/sacs a land) hits opponents
+    # permanently while you recover. Asymmetric land denial.
+    ("land_denial", "you"): _spec(
+        "Land denial",
+        "symmetric land-bounce/sac stax that hits opponents while your lands phase",
+        {
+            "oracle": r"whenever a player[^.]*(?:returns? a land|sacrifices? a land)"
+            r"|that player (?:returns?|sacrifices?) a land"
+        },
+        r"whenever a player[^.]*(?:returns? a land|sacrifices? a land)"
+        r"|that player (?:returns?|sacrifices?) a land"
+        r"|each player sacrifices a land",
+    ),
     # Cast-from-hand-or-lose (Phage): negate the drawback — command-zone-to-hand so it's
     # cast normally, "can't lose the game" backstops, and "ETBs don't trigger" silences
     # the lose-trigger when the commander is cheated into play.

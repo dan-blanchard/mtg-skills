@@ -622,6 +622,25 @@ def test_lose_unless_hand_opens_on_cast_from_hand_drawback():
     assert ("lose_unless_hand", "you") in _ks(phage)
 
 
+def test_land_denial_opens_on_phasing_lands():
+    # Taniwha's lands phase back each turn, so symmetric land-denial stax hits opponents
+    # permanently while it recovers. Real oracle.
+    taniwha = {
+        "name": "Taniwha",
+        "type_line": "Legendary Creature — Serpent",
+        "mana_cost": "{3}{U}{U}",
+        "power": "7",
+        "toughness": "7",
+        "oracle_text": (
+            "Trample\nPhasing (This phases in or out before you untap during each of "
+            "your untap steps. While it's phased out, it's treated as though it doesn't "
+            "exist.)\nAt the beginning of your upkeep, all lands you control phase out. "
+            "(They phase in before you untap during your next untap step.)"
+        ),
+    }
+    assert ("land_denial", "you") in _ks(taniwha)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
