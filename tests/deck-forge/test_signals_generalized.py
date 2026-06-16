@@ -750,6 +750,24 @@ def test_free_spell_storm_opens_on_cost_less_per_spell():
     assert ("free_spell_storm", "you") in _ks(thrasta)
 
 
+def test_target_redirect_opens_on_draw_when_targeted():
+    # Rayne draws when an opponent targets your stuff, so it wants target-redirect to
+    # shunt the spell onto a cheap permanent. Real oracle.
+    rayne = {
+        "name": "Rayne, Academy Chancellor",
+        "type_line": "Legendary Creature — Human Wizard",
+        "mana_cost": "{2}{U}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": (
+            "Whenever you or a permanent you control becomes the target of a spell or "
+            "ability an opponent controls, you may draw a card. You may draw an "
+            "additional card if Rayne is enchanted."
+        ),
+    }
+    assert ("target_redirect", "you") in _ks(rayne)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

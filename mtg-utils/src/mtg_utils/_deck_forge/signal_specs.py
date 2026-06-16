@@ -3497,6 +3497,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Target redirect (Rayne draws when an opponent targets your stuff): shunt the
+    # opponent's spell onto a cheap permanent so you still draw but the real target is
+    # safe (Spellskite, Misdirection, Bolt Bend).
+    ("target_redirect", "you"): _spec(
+        "Target redirection",
+        "redirect an opponent's spell onto a cheap permanent (still triggers, stays "
+        "safe)",
+        {
+            "oracle": r"change (?:a|the) target of target spell"
+            r"|change (?:that|the) spell'?s target to"
+        },
+        r"change (?:a|the) target of target spell or ability"
+        r"|change (?:the|a) target of target spell"
+        r"|change (?:that|the) spell'?s target to"
+        r"|new target.{0,30}this (?:creature|permanent)",
+    ),
     # Free-spell storm (Thrasta): cost drops per spell cast this turn, so it wants FREE
     # (0-cost) NONLAND spells to chain. all_of(cmc<=0, spell-type) excludes 0-mv basics
     # (a land is not a spell cast).

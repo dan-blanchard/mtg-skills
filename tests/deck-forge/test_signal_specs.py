@@ -271,6 +271,42 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_target_redirect_serves_spell_redirect():
+    # Rayne wants target-redirect: Spellskite ("change a target of target spell or
+    # ability to this creature") and Misdirection ("change the target of target spell").
+    # A burn spell is not. Real oracle.
+    sig = _sig("target_redirect", "you")
+    spellskite = {
+        "name": "Spellskite",
+        "type_line": "Artifact Creature — Phyrexian Horror",
+        "mana_cost": "{2}",
+        "power": "0",
+        "toughness": "4",
+        "oracle_text": (
+            "{U/P}: Change a target of target spell or ability to this creature. ({U/P} "
+            "can be paid with either {U} or 2 life.)"
+        ),
+    }
+    misdirection = {
+        "name": "Misdirection",
+        "type_line": "Instant",
+        "mana_cost": "{3}{U}{U}",
+        "oracle_text": (
+            "You may exile a blue card from your hand rather than pay this spell's mana "
+            "cost.\nChange the target of target spell with a single target."
+        ),
+    }
+    assert serves(spellskite, sig) is True
+    assert serves(misdirection, sig) is True
+    lightning_bolt = {
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "mana_cost": "{R}",
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    assert serves(lightning_bolt, sig) is False
+
+
 def test_free_spell_storm_serves_zero_cost_nonland_spells():
     # Thrasta wants free spells to chain: Lotus Petal and Memnite (both {0} nonland). A
     # 1-cmc creature isn't free; a 0-mv basic land isn't a spell cast. Real oracle.

@@ -1434,6 +1434,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Draw-when-targeted (Rayne: "whenever you or a permanent you control becomes the
+    # target of a spell or ability an opponent controls, draw"): wants target-REDIRECT
+    # (Spellskite, Misdirection) to shunt an opponent's spell onto a cheap permanent,
+    # still triggering the draw while protecting the real target.
+    (
+        "target_redirect",
+        re.compile(
+            r"becomes? the target of a spell or ability an opponent controls[^.]*draw",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).
