@@ -393,6 +393,48 @@ def test_power_tap_engine_serves_untap_effects():
     assert serves(lightning_bolt, sig) is False
 
 
+def test_type_change_serves_type_changers_not_tribal_anthems():
+    # A type-hoser (Gor Muldrak) wants genuine creature-type CHANGERS — Standardize
+    # ("Each creature becomes that type"), Unnatural Selection ("Target creature becomes
+    # that type") — so it can force opponents into the punished type. A tribal anthem
+    # that merely "choose a creature type" then buffs your own board (Icon of Ancestry)
+    # is NOT a changer. Real oracle.
+    sig = _sig("type_change", "you")
+    standardize = {
+        "name": "Standardize",
+        "type_line": "Instant",
+        "mana_cost": "{U}{U}",
+        "oracle_text": (
+            "Choose a creature type other than Wall. Each creature becomes that type "
+            "until end of turn."
+        ),
+    }
+    unnatural_selection = {
+        "name": "Unnatural Selection",
+        "type_line": "Enchantment",
+        "mana_cost": "{1}{U}",
+        "oracle_text": (
+            "{1}: Choose a creature type other than Wall. Target creature becomes that "
+            "type until end of turn."
+        ),
+    }
+    assert serves(standardize, sig) is True
+    assert serves(unnatural_selection, sig) is True
+    icon_of_ancestry = {
+        "name": "Icon of Ancestry",
+        "type_line": "Artifact",
+        "mana_cost": "{3}",
+        "oracle_text": (
+            "As this artifact enters, choose a creature type.\nCreatures you control of "
+            "the chosen type get +1/+1.\n{3}, {T}: Look at the top three cards of your "
+            "library. You may reveal a creature card of the chosen type from among them "
+            "and put it into your hand. Put the rest on the bottom of your library in a "
+            "random order."
+        ),
+    }
+    assert serves(icon_of_ancestry, sig) is False
+
+
 def test_recast_etb_serves_aggressive_etb_not_activated_drain():
     # A Sneak/bounce-replay commander (Oroku Saki) recasts cheap aggressive-ETB creatures
     # to repeat the bleed. Virus Beetle ("When this creature enters, each opponent

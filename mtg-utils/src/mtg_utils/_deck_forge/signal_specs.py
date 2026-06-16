@@ -529,6 +529,16 @@ _CRIPPLING_DRAWBACK_ORACLE = (
     r"(?:you )?(?:sacrifice|discard|lose \d|mill)"
     r"|gets? -\d/-\d for each|when this creature enters, sacrifice"
 )
+# Type-changer oracle (Gor Muldrak type_change): genuine creature-type CHANGERS — turn a
+# creature INTO a chosen type — not the tribal anthems that merely "choose a creature
+# type" then buff your own board.
+_TYPE_CHANGER_ORACLE = (
+    r"(?:target|each|all|that) creatures?[^.]{0,25}"
+    r"becomes? (?:a creature type|that (?:creature )?type|the creature type)"
+    r"|becomes a creature type of your choice"
+    r"|replac\w+[^.]*one creature type with another"
+    r"|creatures? (?:you control )?(?:are|become) the (?:chosen|creature) type"
+)
 # Enlist fodder (Aradesh): a big creature that stays back (a crippling drawback keeps it
 # from attacking) is ideal to TAP for enlist — its full power is added with no downside.
 # Reuses the crippling-drawback oracle ANDed with a power floor (Serve.all_of).
@@ -2801,6 +2811,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # "<color> in addition to its colors" (Indigo Faerie) — not just "becomes the color
     # of your choice / all colors". Kept precise (no bare "becomes blue") to avoid
     # mana-color false positives.
+    # Type change (the TYPE analog of color_change): a creature-type hoser (Gor Muldrak
+    # "protection from Salamanders") wants the type-CHANGING toolbox — turn opponents'
+    # creatures into the punished type so the hoser blanks them. Genuine changers only
+    # ("target/each creature becomes <type>"), NOT the tribal anthems that merely
+    # "choose a creature type" then buff your own.
+    ("type_change", "you"): _spec(
+        "Type change",
+        "creature-type changers to force opponents into the punished type",
+        {"oracle": _TYPE_CHANGER_ORACLE},
+        _TYPE_CHANGER_ORACLE,
+    ),
     ("color_change", "you"): _spec(
         "Color change",
         "effects that add or change colors — fixing plus color-matters enablers",

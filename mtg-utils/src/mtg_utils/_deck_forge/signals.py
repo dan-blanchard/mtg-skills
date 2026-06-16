@@ -148,6 +148,23 @@ _COLOR_HOSER_RE = re.compile(
 )
 
 
+# type_change: the TYPE analog of color_hoser/color_change. A commander whose payoff is
+# keyed on a creature SUBTYPE it punishes — "protection from Salamanders" (Gor Muldrak),
+# "protection from <subtype>" — wants the creature-TYPE-CHANGING toolbox (Unnatural
+# Selection, Standardize) to force every opponent's creature into that type, so the
+# hoser blanks them (creature type is a continuously-checked characteristic, CR 205.3 /
+# 702.16 protection). The captured word is validated against the subtype vocab, so
+# "protection from white" (a color) and "protection from everything" never match.
+_TYPE_HOSER_RE = re.compile(r"protection from (\w+)")
+
+
+def _type_hoser_clause(cl: str) -> bool:
+    return any(
+        w in CREATURE_SUBTYPES or w.rstrip("s") in CREATURE_SUBTYPES
+        for w in _TYPE_HOSER_RE.findall(cl)
+    )
+
+
 # Instant/sorcery BUILD-AROUND with no "whenever you cast" trigger: a commander that
 # grants flashback to / recasts from the graveyard / reduces the cost of instants and
 # sorceries (Lier "each instant and sorcery card in your graveyard has flashback", Kess,
@@ -180,6 +197,7 @@ _XSPELL_VETO_RE = re.compile(r"can'?t be cast|can'?t cast", re.IGNORECASE)
 
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ("color_hoser", lambda c: _COLOR_HOSER_RE.search(c) is not None, "you"),
+    ("type_change", _type_hoser_clause, "you"),
     ("spellcast_matters", lambda c: _IS_BUILDAROUND_RE.search(c) is not None, "you"),
     (
         "xspell_matters",

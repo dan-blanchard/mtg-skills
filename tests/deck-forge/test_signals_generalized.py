@@ -470,6 +470,40 @@ def test_recast_etb_opens_on_sneak():
     assert "recast_etb" not in _keys(krenko)
 
 
+def test_type_change_opens_on_creature_type_hoser():
+    # Gor Muldrak has "protection from Salamanders" and seeds opponents with Salamander
+    # tokens — so he wants creature-type CHANGERS to turn the rest of their board into
+    # Salamanders, which his protection then blanks (creature type is continuously
+    # checked, CR 205.3 / 702.16). Real oracle.
+    gor_muldrak = {
+        "name": "Gor Muldrak, Amphinologist",
+        "type_line": "Legendary Creature — Human Scout",
+        "mana_cost": "{1}{G}{U}",
+        "power": "3",
+        "toughness": "2",
+        "oracle_text": (
+            "You and permanents you control have protection from Salamanders.\nAt the "
+            "beginning of your end step, each player who controls the fewest creatures "
+            "creates a 4/3 blue Salamander Warrior creature token."
+        ),
+    }
+    assert ("type_change", "you") in _ks(gor_muldrak)
+    # The captured word is validated against the subtype vocab, so a plain
+    # "protection from black" (a color, not a creature type) is not a type hoser.
+    krenko = {
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of "
+            "Goblins you control."
+        ),
+    }
+    assert "type_change" not in _keys(krenko)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
