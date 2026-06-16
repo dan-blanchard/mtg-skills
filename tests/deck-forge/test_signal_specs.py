@@ -111,6 +111,38 @@ def test_stax_serves_nonbasic_land_hate():
     assert _lane_covers(ramp, sig) is False
 
 
+def test_free_creature_payoff_serves_only_zero_cost_creatures():
+    # Satoru's "no mana was spent to cast" payoff wants 0-cost CREATURES (Ornithopter),
+    # not 0-cost mana rocks (Lotus Petal is {0} but not a creature) and not normal-cost
+    # creatures. The serve ANDs mana_cost {0} with a creature type. Real oracle.
+    sig = _sig("free_creature_payoff", "you")
+    ornithopter = {
+        "name": "Ornithopter",
+        "type_line": "Artifact Creature — Thopter",
+        "mana_cost": "{0}",
+        "power": "0",
+        "toughness": "2",
+        "oracle_text": "Flying",
+    }
+    lotus_petal = {
+        "name": "Lotus Petal",
+        "type_line": "Artifact",
+        "mana_cost": "{0}",
+        "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
+    }
+    grizzly_bears = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert serves(ornithopter, sig) is True  # 0-cost creature
+    assert serves(lotus_petal, sig) is False  # 0-cost, but not a creature
+    assert serves(grizzly_bears, sig) is False  # creature, but not 0-cost
+
+
 def test_discard_matters_serves_self_discard_outlets():
     # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
     # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"
@@ -2530,10 +2562,12 @@ class TestSweepHandSpecs:
         # one-shot color pump stays vetoed by serve_not. Real oracle.
         sig = _sig("anthem_static", "you")
         bad_moon = {
+            "name": "Bad Moon",
             "type_line": "Enchantment",
             "oracle_text": "Black creatures get +1/+1.",
         }
         hall = {
+            "name": "Hall of Triumph",
             "type_line": "Legendary Artifact",
             "oracle_text": (
                 "As Hall of Triumph enters, choose a color.\n"
@@ -2541,6 +2575,7 @@ class TestSweepHandSpecs:
             ),
         }
         nocturnal_raid = {
+            "name": "Nocturnal Raid",
             "type_line": "Instant",
             "oracle_text": "Black creatures get +2/+0 until end of turn.",
         }

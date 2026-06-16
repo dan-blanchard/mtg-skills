@@ -1191,9 +1191,23 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             r"(?:target player|target opponent|each opponent|that player|any target"
             r"|target player or planeswalker)"
             r"|deals damage equal to [^.]*to "
-            r"(?:each opponent|target player|that player|any target)",
+            r"(?:each opponent|target player|that player|any target)"
+            # "<N> damage to that creature's controller" (Shocker, Gimli) — burns the
+            # PLAYER even when the "deals" sits a clause away ("deals N to a creature
+            # AND N to that creature's controller"). The controller is a player.
+            r"|(?:\d+|x|that much) damage to (?:that creature's|that permanent's) "
+            r"controller",
             re.IGNORECASE,
         ),
+        "you",
+    ),
+    # Free-creature payoff (Satoru): a commander that rewards creatures entering with
+    # "no mana was spent to cast them" wants 0-cost creatures (Ornithopter, Memnite,
+    # Phyrexian Walker). "wasn't cast" alone (Preston) is blink/reanimate — NOT this: a
+    # 0-cost creature IS cast, just for no mana, so we key on "no mana spent" only.
+    (
+        "free_creature_payoff",
+        re.compile(r"no mana (?:was|is) spent to cast", re.IGNORECASE),
         "you",
     ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets

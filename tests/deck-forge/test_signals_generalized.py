@@ -74,6 +74,9 @@ def test_type_matters_count_clause_tolerates_state_adjective():
     lydia = {
         "name": "Lydia Frye",
         "type_line": "Legendary Creature — Human Assassin",
+        "mana_cost": "{2}{U/B}",
+        "power": "3",
+        "toughness": "2",
         "oracle_text": (
             "Lydia Frye can't be blocked by creatures with power 3 or greater.\n"
             "At the beginning of your end step, surveil X, where X is the number of "
@@ -83,12 +86,82 @@ def test_type_matters_count_clause_tolerates_state_adjective():
         ),
     }
     assert ("type_matters", "you", "Assassin") in _ksub(lydia)
-    # The vocab gate still drops the generic card-type word in the same adjective form.
-    generic = {
-        "name": "X",
-        "oracle_text": "Draw a card for each tapped creature you control.",
+    # The vocab gate still drops the generic card-type word in the same adjective form:
+    # Foul-Tongue Shriek's "for each attacking creature you control" captures "creature"
+    # (dropped). A noncreature, so no own-subtype membership tribal confounds the guard.
+    foul_tongue_shriek = {
+        "name": "Foul-Tongue Shriek",
+        "type_line": "Instant",
+        "mana_cost": "{B}",
+        "oracle_text": (
+            "Target opponent loses 1 life for each attacking creature you control. "
+            "You gain that much life."
+        ),
     }
-    assert "type_matters" not in _keys(generic)
+    assert "type_matters" not in _keys(foul_tongue_shriek)
+
+
+def test_direct_damage_opens_on_damage_to_a_creatures_controller():
+    # Shocker deals "2 damage to target creature and 2 damage to that creature's
+    # controller" — the second clause burns a PLAYER, but the direct_damage player-anchor
+    # list lacked "that creature's controller", so a burn pinger never opened the lane and
+    # lost its damage doublers (Furnace of Rath / Dictate / Repercussion). Real oracle.
+    shocker = {
+        "name": "Shocker, Unshakable",
+        "type_line": "Legendary Creature — Human Rogue Villain",
+        "mana_cost": "{4}{R}{R}",
+        "power": "5",
+        "toughness": "5",
+        "oracle_text": (
+            "During your turn, Shocker has first strike.\n"
+            "Vibro-Shock Gauntlets — When Shocker enters, he deals 2 damage to target "
+            "creature and 2 damage to that creature's controller."
+        ),
+    }
+    assert "direct_damage" in _keys(shocker)
+    # A pure creature-only removal ping (no player/controller damage) stays out.
+    flame_slash = {
+        "name": "Flame Slash",
+        "type_line": "Sorcery",
+        "mana_cost": "{R}",
+        "oracle_text": "Flame Slash deals 4 damage to target creature.",
+    }
+    assert "direct_damage" not in _keys(flame_slash)
+
+
+def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
+    # Satoru draws when creatures enter with "no mana was spent to cast them" — the
+    # 0-cost creatures (Ornithopter / Memnite / Phyrexian Walker). No lane opened for
+    # those, so they stayed uncovered. Only this "no mana spent" clause makes 0-cost
+    # creatures relevant ("weren't cast" alone wants blink/reanimate). Real oracle.
+    satoru = {
+        "name": "Satoru, the Infiltrator",
+        "type_line": "Legendary Creature — Human Ninja Rogue",
+        "mana_cost": "{U}{B}",
+        "power": "2",
+        "toughness": "3",
+        "oracle_text": (
+            "Menace\nWhenever Satoru and/or one or more other nontoken creatures you "
+            "control enter, if none of them were cast or no mana was spent to cast "
+            "them, draw a card."
+        ),
+    }
+    assert ("free_creature_payoff", "you") in _ks(satoru)
+    # "wasn't cast" alone (Preston's blink/token payoff) is NOT the 0-cost "no mana
+    # spent" hook — it wants reanimate/blink, not free creatures.
+    preston = {
+        "name": "Preston, the Vanisher",
+        "type_line": "Legendary Creature — Rabbit Wizard",
+        "mana_cost": "{3}{W}",
+        "power": "2",
+        "toughness": "5",
+        "oracle_text": (
+            "Whenever another nontoken creature you control enters, if it wasn't cast, "
+            "create a token that's a copy of that creature, except it's a 0/1 white "
+            "Illusion.\n{1}{W}, Sacrifice five Illusions: Exile target nonland permanent."
+        ),
+    }
+    assert "free_creature_payoff" not in _keys(preston)
 
 
 def test_token_maker_prefers_creature_subtype_over_artifact_word():

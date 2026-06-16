@@ -93,6 +93,9 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
     roku = {
         "name": "Avatar Roku, Firebender",
         "type_line": "Legendary Creature — Human Avatar",
+        "mana_cost": "{3}{R}{R}{R}",
+        "power": "6",
+        "toughness": "6",
         "oracle_text": (
             "Whenever a player attacks, add six {R}. Until end of combat, you don't "
             "lose this mana as steps end.\n{R}{R}{R}: Target creature gets +3/+0 "
@@ -102,6 +105,9 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
     ventmaw = {
         "name": "Savage Ventmaw",
         "type_line": "Creature — Dragon",
+        "mana_cost": "{4}{R}{G}",
+        "power": "4",
+        "toughness": "4",
         "oracle_text": (
             "Flying\nWhenever this creature attacks, add {R}{R}{R}{G}{G}{G}. Until "
             "end of turn, you don't lose this mana as steps and phases end."
@@ -109,6 +115,13 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
     }
     assert "unspent_mana" in {s.key for s in extract_signals(roku)}
     assert "unspent_mana" in {s.key for s in extract_signals(ventmaw)}
-    # A vanilla dork whose mana empties normally must NOT open the lane.
-    dork = {"name": "Llanowar Elves", "oracle_text": "{T}: Add {G}."}
-    assert "unspent_mana" not in {s.key for s in extract_signals(dork)}
+    # A plain dork whose mana empties normally must NOT open the lane.
+    llanowar_elves = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert "unspent_mana" not in {s.key for s in extract_signals(llanowar_elves)}

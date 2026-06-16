@@ -3220,6 +3220,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r" get \+\d/\+\d",
         serve_not=r"get \+\d/\+\d[^.]*until end of turn",
     ),
+    # free_creature_payoff (Satoru): the "no mana was spent to cast" payoff wants 0-cost
+    # CREATURES (Ornithopter / Memnite / Phyrexian Walker / Kobolds / Shield Sphere) —
+    # not 0-cost mana rocks (Lotus Petal). AND mana_cost {0} with a creature type: each
+    # alone is imprecise (mana_cost {0} alone serves Mishra's Bauble; the type alone
+    # serves every creature).
+    ("free_creature_payoff", "you"): SignalSpec(
+        label="Free creatures",
+        avenue="0-cost creatures (cast for no mana) to trigger the payoff",
+        search={"card_type": "Creature", "cmc_max": 0},
+        serve=Serve(
+            all_of=(
+                Serve(types=frozenset({"creature"})),
+                Serve(mana_cost=re.compile(r"^\{0\}$")),
+            )
+        ),
+    ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.
     ("ltb_matters", "you"): _spec(
