@@ -1009,6 +1009,42 @@ def test_yedora_forest_land_maker_opens_land_creatures():
     assert any(k == "land_creatures_matter" for k, _, _ in _ksub(c))
 
 
+def test_repeatable_aoe_ping_opens_for_deathtouch_combo():
+    # Tibor's recurring "deals 1 damage to each creature" is a REPEATABLE board
+    # ping (whenever you cast a red spell) — with deathtouch on the source it's a
+    # recurring board wipe (CR 702.2b). Pestilence is the same via an activated
+    # ability. A one-shot ETB sweep (Chaos Maw) must NOT open it: deathtouch gear
+    # can't be attached when the ETB resolves, so it's not the combo.
+    tibor = {
+        "name": "Tibor and Lumia",
+        "type_line": "Legendary Creature — Human Wizard",
+        "mana_cost": "{2}{U}{R}",
+        "power": "2",
+        "toughness": "2",
+        "keywords": [],
+        "oracle_text": "Whenever you cast a blue spell, target creature gains flying until end of turn.\nWhenever you cast a red spell, Tibor and Lumia deals 1 damage to each creature without flying.",
+    }
+    pestilence = {
+        "name": "Pestilence",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{B}{B}",
+        "keywords": [],
+        "oracle_text": "At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment.\n{B}: This enchantment deals 1 damage to each creature and each player.",
+    }
+    chaos_maw = {
+        "name": "Chaos Maw",
+        "type_line": "Creature — Hellion",
+        "mana_cost": "{5}{R}{R}",
+        "power": "6",
+        "toughness": "6",
+        "keywords": [],
+        "oracle_text": "When this creature enters, it deals 3 damage to each other creature.",
+    }
+    assert any(k == "aoe_ping" for k, _, _ in _ksub(tibor))
+    assert any(k == "aoe_ping" for k, _, _ in _ksub(pestilence))
+    assert not any(k == "aoe_ping" for k, _, _ in _ksub(chaos_maw))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

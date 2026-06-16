@@ -1375,6 +1375,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"lands? you control phase", re.IGNORECASE),
         "you",
     ),
+    # Repeatable "damage to each creature" board ping (Tibor, Pestilence, Pyrohemia,
+    # Plague Spitter): with deathtouch on the source every ping is lethal (CR 702.2b),
+    # so it's a recurring one-sided board wipe. The repeatable frame (activated cost,
+    # upkeep/end-step trigger, or cast-trigger) is the precision gate -- a one-shot ETB
+    # sweep (Chaos Maw) can't be suited up before it resolves, so it stays out.
+    (
+        "aoe_ping",
+        re.compile(
+            r"\{[^}]*\}[^.]*:[^.]*deals? \d+ damage to each (?:other )?creature"
+            r"|at the beginning of[^.]*deals? \d+ damage to each (?:other )?creature"
+            r"|whenever you cast[^.]*deals? \d+ damage to each (?:other )?creature",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
     # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
     # you cast a multicolored spell", converge, "multicolored creatures you control"),

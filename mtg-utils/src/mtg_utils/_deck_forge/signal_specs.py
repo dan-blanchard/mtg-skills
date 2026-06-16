@@ -2303,6 +2303,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         (_DEATHTOUCH_GEAR_EXTRA, _POWER_FLING_EXTRA),
         serve_power_min=6,
     ),
+    # Repeatable "deals N damage to each creature" board pinger (Tibor, Pestilence,
+    # Pyrohemia): deathtouch on the source makes each ping lethal (CR 702.2b) -- a
+    # recurring one-sided board wipe. The lane's whole point IS that enabler, so it
+    # serves the same gear the Burn/fling lanes do, via the shared constant.
+    ("aoe_ping", "you"): _spec(
+        "Deathtouch board sweep",
+        "your recurring damage to each creature + deathtouch on the source = a "
+        "repeatable one-sided wipe (CR 702.2b)",
+        {"oracle": _DEATHTOUCH_GEAR_ORACLE},
+        _DEATHTOUCH_GEAR_ORACLE,
+    ),
     # Same archetype as spellcast_matters (a magecraft commander triggers off the same
     # instants/sorceries as a prowess one), so it shares the one _SPELLSLINGER_SPEC — a
     # commander firing both detectors now renders a single "Spellslinger" avenue, not

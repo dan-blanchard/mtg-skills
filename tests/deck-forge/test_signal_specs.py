@@ -2358,6 +2358,23 @@ SEEKER_OF_SKYBREAK = {
     "keywords": [],
     "oracle_text": "{T}: Untap target creature.",
 }
+BASILISK_COLLAR = {
+    "name": "Basilisk Collar",
+    "type_line": "Artifact — Equipment",
+    "keywords": ["Equip"],
+    "oracle_text": (
+        "Equipped creature has deathtouch and lifelink. (Any amount of damage it "
+        "deals to a creature is enough to destroy it. Damage dealt by this creature "
+        "also causes you to gain that much life.)\nEquip {2} ({2}: Attach to target "
+        "creature you control. Equip only as a sorcery.)"
+    ),
+}
+BONESPLITTER = {
+    "name": "Bonesplitter",
+    "type_line": "Artifact — Equipment",
+    "keywords": ["Equip"],
+    "oracle_text": "Equipped creature gets +2/+0.\nEquip {1}",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2487,6 +2504,22 @@ def test_land_bounce_untap_engines_served():
     assert served(SCRYB_RANGER)
     assert served(OBORO_BREEZECALLER)  # untap target LAND — the mana-source case
     assert not served(SEEKER_OF_SKYBREAK)  # plain untapper, no land bounce
+
+
+def test_aoe_ping_serves_deathtouch_gear():
+    """A repeatable 'damage to each creature' commander (Tibor, Pestilence) wants
+    deathtouch on the source so each ping kills (CR 702.2b). The aoe_ping lane
+    serves deathtouch-granting gear (Basilisk Collar) and not a plain stat-only
+    Equipment (Bonesplitter)."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("aoe_ping", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(BASILISK_COLLAR)
+    assert not served(BONESPLITTER)  # +2/+0 only — not a deathtouch enabler
 
 
 def _subj_sig(key, subject):
