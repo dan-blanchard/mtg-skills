@@ -2588,6 +2588,51 @@ LLANOWAR_ELVES = {
     "keywords": [],
     "oracle_text": "{T}: Add {G}.",
 }
+PUCAS_MISCHIEF = {
+    "name": "Puca's Mischief",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": (
+        "At the beginning of your upkeep, you may exchange control of target nonland "
+        "permanent you control and target nonland permanent an opponent controls with "
+        "equal or lesser mana value."
+    ),
+}
+PERPLEXING_CHIMERA = {
+    "name": "Perplexing Chimera",
+    "type_line": "Enchantment Creature — Chimera",
+    "power": "3",
+    "toughness": "3",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever an opponent casts a spell, you may exchange control of this creature "
+        "and that spell. If you do, you may choose new targets for the spell. (If the "
+        "spell becomes a permanent, you control that permanent.)"
+    ),
+}
+SPAWNBROKER = {
+    "name": "Spawnbroker",
+    "type_line": "Creature — Human Wizard",
+    "power": "1",
+    "toughness": "1",
+    "keywords": [],
+    "oracle_text": (
+        "When this creature enters, you may exchange control of target creature you "
+        "control and target creature with power less than or equal to that creature's "
+        "power an opponent controls."
+    ),
+}
+SOWER_OF_TEMPTATION = {
+    "name": "Sower of Temptation",
+    "type_line": "Creature — Faerie Wizard",
+    "power": "2",
+    "toughness": "2",
+    "keywords": ["Flying"],
+    "oracle_text": (
+        "Flying\nWhen this creature enters, gain control of target creature for as "
+        "long as this creature remains on the battlefield."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2832,6 +2877,18 @@ def test_evasive_attackers_serves_fliers_for_nonhuman_engine():
     assert serves(AVEN_MINDCENSOR, sig) is True
     assert serves(ARCHON_OF_EMERIA, sig) is True
     assert serves(LLANOWAR_ELVES, sig) is False  # no evasion
+
+
+def test_control_exchange_serves_swaps_not_theft():
+    """A reclaim-owned commander (Meneldor) wants control-EXCHANGE — donate a dud, take
+    their bomb, then reclaim your own dud (Puca's Mischief, Perplexing Chimera,
+    Spawnbroker). Pure one-way theft (Sower of Temptation) is NOT it: you don't OWN a
+    stolen creature, so the commander can't reclaim it."""
+    sig = _sig("control_exchange", "you")
+    assert serves(PUCAS_MISCHIEF, sig) is True
+    assert serves(PERPLEXING_CHIMERA, sig) is True
+    assert serves(SPAWNBROKER, sig) is True
+    assert serves(SOWER_OF_TEMPTATION, sig) is False  # one-way theft, not an exchange
 
 
 def _subj_sig(key, subject):

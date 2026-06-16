@@ -1221,6 +1221,43 @@ def test_nonhuman_attack_engine_opens_evasive_attackers():
     assert not any(k == "nonhuman_attackers" for k, _, _ in _ksub(elf))
 
 
+def test_reclaim_owned_commander_opens_control_exchange():
+    # Meneldor / The Neutrinos exile a creature YOU OWN and return it under your control,
+    # so you can donate a dud via control-EXCHANGE (Puca's Mischief), keep their bomb,
+    # then reclaim your own dud. A standard blink that exiles a creature you CONTROL
+    # (Restoration Angel) can't reclaim a donated creature, so it stays out.
+    meneldor = {
+        "name": "Meneldor, Swift Savior",
+        "type_line": "Legendary Creature — Bird Soldier",
+        "mana_cost": "{3}{U}",
+        "power": "3",
+        "toughness": "3",
+        "keywords": ["Flying"],
+        "oracle_text": "Flying\nWhenever Meneldor deals combat damage to a player, exile up to one target creature you own, then return it to the battlefield under your control.",
+    }
+    neutrinos = {
+        "name": "The Neutrinos",
+        "type_line": "Legendary Creature — Elf Rebel",
+        "mana_cost": "{2}{R}{W}",
+        "power": "2",
+        "toughness": "4",
+        "keywords": ["Flying"],
+        "oracle_text": "Flying\nAlliance — Whenever another creature you control enters, The Neutrinos get +1/+0 until end of turn.\nWhenever The Neutrinos attack, exile up to one target creature you own, then return it to the battlefield under your control tapped and attacking.",
+    }
+    resto = {
+        "name": "Restoration Angel",
+        "type_line": "Creature — Angel",
+        "mana_cost": "{3}{W}",
+        "power": "3",
+        "toughness": "4",
+        "keywords": ["Flying", "Flash"],
+        "oracle_text": "Flash\nFlying\nWhen this creature enters, you may exile target non-Angel creature you control, then return that card to the battlefield under your control.",
+    }
+    assert any(k == "control_exchange" for k, _, _ in _ksub(meneldor))
+    assert any(k == "control_exchange" for k, _, _ in _ksub(neutrinos))
+    assert not any(k == "control_exchange" for k, _, _ in _ksub(resto))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

@@ -2781,6 +2781,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:gains?|have|has) flying|creatures you control[^.]*flying",
         serve_keywords=("flying",),
     ),
+    # A reclaim-OWNED commander (Meneldor, The Neutrinos) profits from control-EXCHANGE:
+    # donate a dud you own, take their bomb, then reclaim your dud (you still own it).
+    # Serve the swaps ("exchange control of …" — Puca's Mischief, Switcheroo, Gilded
+    # Drake), NOT one-way theft ("gain control") — you don't OWN a stolen creature, so
+    # the commander can't reclaim it.
+    ("control_exchange", "you"): _spec(
+        "Control swaps",
+        "exchange-control effects — donate a dud you own, take their bomb, then "
+        "reclaim your dud (Puca's Mischief, Perplexing Chimera, Spawnbroker)",
+        {"oracle": r"exchange control of"},
+        r"exchange control of"
+        r"|exchange (?:control of )?(?:that|those) (?:creature|permanent)",
+    ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",

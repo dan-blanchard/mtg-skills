@@ -1398,6 +1398,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"non-?human creatures? you control attacks?", re.IGNORECASE),
         "you",
     ),
+    # A commander that exiles a creature YOU OWN and returns it under your control
+    # (Meneldor, The Neutrinos -- note "you own", not the usual blink "you control")
+    # can reclaim a creature you own but don't control. So it wants control-EXCHANGE
+    # (donate a dud via Puca's Mischief, keep their bomb, then reclaim your dud). The
+    # "you own" + exile-return is the precision gate (a normal blink says "control").
+    (
+        "control_exchange",
+        re.compile(r"exile [^.]*creature you own[^.]*return", re.IGNORECASE),
+        "you",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
     # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
     # you cast a multicolored spell", converge, "multicolored creatures you control"),
