@@ -4607,6 +4607,33 @@ def test_xspell_matters_serves_x_spells_and_doublers():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_villainous_choice_is_a_named_mechanic_lane():
+    # The Valeyard doubles every villainous choice opponents face — its whole synergy is
+    # villainous-choice cards (This Is How It Ends, Ensnared by the Mara, Hunted by The
+    # Family). A named mechanic, like venture / initiative, with its own lane. Real oracle.
+    valeyard = {
+        "name": "The Valeyard",
+        "type_line": "Legendary Creature — Time Lord Noble",
+        "oracle_text": (
+            "If an opponent would face a villainous choice, they face that choice an "
+            "additional time. (They can make the same or different choices.)\nWhile "
+            "voting, you may vote an additional time."
+        ),
+    }
+    assert "villainous_choice" in {s.key for s in extract_signals(valeyard)}
+    sig = _sig("villainous_choice", "you")
+    this_is_how_it_ends = {
+        "name": "This Is How It Ends",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Target creature's owner shuffles it into their library, then faces a "
+            "villainous choice — They lose 5 life, or they shuffle another creature "
+            "they own into their library."
+        ),
+    }
+    assert _lane_covers(this_is_how_it_ends, sig) is True
+
+
 def test_low_power_matters_serves_cast_low_power_enabler():
     # low_power_matters served "creatures you control with power N or less" payoffs but
     # missed the casting-ENABLER phrasing "cast a creature spell with power N or less"

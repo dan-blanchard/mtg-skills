@@ -2781,6 +2781,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bspecialize\b"},
         r"\bspecialize\b",
     ),
+    ("villainous_choice", "you"): _spec(
+        "Villainous choice",
+        "villainous-choice cards (the punisher pool a villainous-choice commander — "
+        "The Valeyard, Davros, Missy — is built to present and double)",
+        {"oracle": r"villainous choice"},
+        r"villainous choice",
+    ),
     ("dice_matters", "you"): _spec(
         "Dice rolling",
         "dice-rolling enablers and roll-result payoffs",

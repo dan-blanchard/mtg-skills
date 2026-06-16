@@ -1670,6 +1670,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "you",
     ),
     ("specialize_matters", re.compile(r"\bspecialize\b", re.IGNORECASE), "you"),
+    # Villainous choice (AFR/WHO/Marvel): a commander built around making opponents face
+    # villainous choices (The Valeyard doubles them; Davros/Missy/Dr. Eggman present
+    # them) wants the villainous-choice card pool. A named mechanic, so a self-contained
+    # open==serve lane like venture / specialize.
+    ("villainous_choice", re.compile(r"villainous choice", re.IGNORECASE), "you"),
     (
         "dice_matters",
         re.compile(
