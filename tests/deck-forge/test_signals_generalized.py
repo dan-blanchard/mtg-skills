@@ -406,6 +406,32 @@ def test_self_recurring_commander_opens_voltron():
     )
 
 
+def test_planeswalker_type_opens_superfriends():
+    # Leori cares about planeswalkers as a GROUP ("choose a planeswalker type ... activate
+    # an ability of a planeswalker of that type, copy it") — a superfriends commander, but
+    # the detector keyed only on "planeswalkers you control" / "loyalty counter" / "activate
+    # a loyalty", missing the "planeswalker type" / "ability of a planeswalker" phrasing,
+    # so it missed The Chain Veil / Ichormoon Gauntlet / Onakke Oathkeeper. Real oracle.
+    leori = {
+        "name": "Leori, Sparktouched Hunter",
+        "type_line": "Legendary Creature — Elemental Cat",
+        "oracle_text": (
+            "Flying, vigilance\nWhenever Leori deals combat damage to a player, choose "
+            "a planeswalker type. Until end of turn, whenever you activate an ability "
+            "of a planeswalker of that type, copy that ability. You may choose new "
+            "targets for the copies."
+        ),
+    }
+    assert "superfriends_matters" in _keys(leori)
+    # Over-fire guard: activating a CREATURE's ability is not a superfriends tell.
+    assert "superfriends_matters" not in _keys(
+        {
+            "name": "X",
+            "oracle_text": "Whenever you activate an ability of a creature, draw a card.",
+        }
+    )
+
+
 def test_three_zone_opponent_search_opens_theft():
     # Kotose rifles all THREE of an opponent's zones ("Search that player's graveyard,
     # hand, and library ... and exile them ... you may play one of the exiled cards") —

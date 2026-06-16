@@ -1496,7 +1496,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "superfriends_matters",
         re.compile(
             r"planeswalkers? you control|loyalty counters?"
-            r"|activate (?:a |one )?loyalty|one or more loyalty",
+            r"|activate (?:a |one )?loyalty|one or more loyalty"
+            # Cares about planeswalkers as a GROUP (Leori: "planeswalker type", copy
+            # abilities "of a planeswalker"). The "of a planeswalker" anchor keeps a
+            # lone planeswalker-commander's own-loyalty text out.
+            r"|planeswalker type"
+            r"|abilit(?:y|ies) of (?:a |target |another |each )?planeswalker",
             re.IGNORECASE,
         ),
         "you",
