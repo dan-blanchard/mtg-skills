@@ -482,6 +482,36 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert ("counters_matter", "you") not in _ks(volrath)
 
 
+def test_tribal_tutor_with_intervening_type_word():
+    # The tribal-tutor pattern must capture the tribe when a card-type word sits between
+    # the tribe and "card": Zirilan tutors "a Dragon PERMANENT card", so it's a Dragon
+    # commander (wants Utvara Hellkite, Balefire Dragon). The bare "for a X card" regex
+    # broke on "Dragon permanent card".
+    zirilan = {
+        "name": "Zirilan of the Claw",
+        "type_line": "Legendary Creature — Lizard Shaman",
+        "oracle_text": (
+            "{1}{R}{R}, {T}: Search your library for a Dragon permanent card, put that "
+            "card onto the battlefield, then shuffle. That Dragon gains haste until end "
+            "of turn. Sacrifice it at the beginning of the next end step."
+        ),
+    }
+    assert ("type_matters", "you", "Dragon") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(zirilan, include_membership=True)
+    }
+    # Over-fire guard: "search for a basic land card" captures no tribe (vocab gate).
+    fetch = {
+        "name": "Generic Fetch",
+        "type_line": "Sorcery",
+        "oracle_text": "Search your library for a basic land card, put it onto the battlefield tapped.",
+    }
+    assert not any(
+        s.key == "type_matters" and s.subject in ("Basic", "Land")
+        for s in extract_signals(fetch, include_membership=True)
+    )
+
+
 def test_type_grant_opens_tribal():
     # A commander that CONVERTS its creatures to a tribe — "it's a Zombie in addition to
     # its other creature types" (Lim-Dûl reanimates as Zombies), Chainer (Nightmare) —

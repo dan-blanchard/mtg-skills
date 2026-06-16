@@ -694,7 +694,9 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"counter on target ([A-Za-z]+?)\b", re.IGNORECASE),
     re.compile(r"\btarget ([A-Za-z]+?) (?:gains?|gets [+\-])", re.IGNORECASE),
     re.compile(
-        r"\bsearch (?:your library )?for (?:a|an) ([A-Za-z]+?) card", re.IGNORECASE
+        r"\bsearch (?:your library )?for (?:a|an) ([A-Za-z]+?)"
+        r"(?: (?:permanent|creature|nonland|artifact|enchantment))? card",
+        re.IGNORECASE,
     ),
     re.compile(r"\bdestroy all non-([A-Za-z]+?) creatures?\b", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?) spells you cast cost\b", re.IGNORECASE),
