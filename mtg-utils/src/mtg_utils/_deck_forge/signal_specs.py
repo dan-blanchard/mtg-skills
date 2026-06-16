@@ -529,6 +529,21 @@ _CRIPPLING_DRAWBACK_ORACLE = (
     r"(?:you )?(?:sacrifice|discard|lose \d|mill)"
     r"|gets? -\d/-\d for each|when this creature enters, sacrifice"
 )
+# Enlist fodder (Aradesh): a big creature that stays back (a crippling drawback keeps it
+# from attacking) is ideal to TAP for enlist — its full power is added with no downside.
+# Reuses the crippling-drawback oracle ANDed with a power floor (Serve.all_of).
+_ENLIST_FODDER_EXTRA = SubAvenue(
+    "Enlist fodder",
+    "big stay-back creatures to tap for their power (their drawback stops them "
+    "attacking anyway)",
+    {"oracle": _CRIPPLING_DRAWBACK_ORACLE},
+    serve=Serve(
+        all_of=(
+            Serve(oracle=re.compile(_CRIPPLING_DRAWBACK_ORACLE, _IC)),
+            Serve(power_min=5),
+        )
+    ),
+)
 # Token DOUBLERS (CR 616 replacement effect): a token-flood commander doubles output
 # with Doubling Season / Parallel Lives / Mondrak. Phrasings: "create twice that many",
 # "twice that many … are created", "one or more tokens would be created … twice".
@@ -3368,6 +3383,35 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                 Serve(power_min=5),
             )
         ),
+    ),
+    # Arcane tribal (The Unspeakable + the Kamigawa Kirins / Spiritcraft legends): the
+    # Arcane-subtype instants & sorceries (CR 205.3k) the commander recurs / pays off,
+    # plus the splice-onto-Arcane cards that ride them.
+    ("arcane_matters", "you"): _spec(
+        "Arcane spells",
+        "Arcane-subtype instants and sorceries (Kamigawa) plus splice-onto-Arcane",
+        {"card_type": "Arcane"},
+        r"splice onto arcane",
+        serve_types=("arcane",),
+    ),
+    # Enlist (Aradesh): other enlist creatures (the keyword bearers) plus the big
+    # stay-back fodder to tap for their power.
+    ("enlist_matters", "you"): _spec(
+        "Enlist",
+        "enlist creatures plus big stay-back fodder to tap for their power",
+        {"oracle": r"\benlist\b"},
+        r"\benlisted? (?:a|another) creature",
+        serve_keywords=("enlist",),
+        extras=(_ENLIST_FODDER_EXTRA,),
+    ),
+    # Power-scaling tap engine (Mona Lisa, Marwyn, Selvala, Alena): UNTAP effects re-tap
+    # the engine for another payoff; ranking surfaces the repeatable untappers first.
+    ("power_tap_engine", "you"): _spec(
+        "Untap effects",
+        "untap effects that re-tap the power-scaling ability for another activation",
+        {"oracle": r"untap (?:another )?target (?:creature|permanent)|\buntap it\b"},
+        r"untap (?:another )?target (?:creature|permanent)|\buntap it\b"
+        r"|untap all [^.]*you control",
     ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.

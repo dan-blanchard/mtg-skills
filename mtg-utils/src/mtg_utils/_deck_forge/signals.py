@@ -1245,6 +1245,24 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE),
         "you",
     ),
+    # Arcane tribal (The Unspeakable, the Kirins, Kodama — Kamigawa Spiritcraft): a
+    # commander that cares about ARCANE spells ("cast a Spirit or Arcane spell", "return
+    # target Arcane card") wants Arcane-subtype spells (CR 205.3k) + splice-onto-Arcane.
+    ("arcane_matters", re.compile(r"\barcane\b", re.IGNORECASE), "you"),
+    # Enlist payoff (Aradesh): an enlist commander wants OTHER enlist creatures plus
+    # high-power stay-back fodder to tap — enlist adds the tapped creature's POWER (CR
+    # 702.150). Reminder text is stripped, so "Enlist" / "enlisted" survives outside it.
+    ("enlist_matters", re.compile(r"\benlist(?:ed)?\b", re.IGNORECASE), "you"),
+    # Power-scaling TAP engine (Mona Lisa "{T}: Add X = power"; Marwyn, Selvala, Alena):
+    # a {T} ability whose output scales with a creature's power wants UNTAP effects (tap
+    # the engine again for more) and power pumps (a bigger payoff each tap).
+    (
+        "power_tap_engine",
+        re.compile(
+            r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

@@ -356,6 +356,88 @@ def test_ability_strip_payoff_opens_on_strip_and_buff():
     assert "ability_strip_payoff" not in _keys(lizard)
 
 
+def test_arcane_matters_opens_on_arcane_payoff():
+    # The Unspeakable returns Arcane cards; the Kamigawa Kirins reward casting Arcane
+    # spells. Either way the commander wants Arcane-subtype spells (CR 205.3k). Real
+    # oracle.
+    unspeakable = {
+        "name": "The Unspeakable",
+        "type_line": "Legendary Creature — Spirit",
+        "mana_cost": "{6}{U}{U}{U}",
+        "power": "6",
+        "toughness": "7",
+        "oracle_text": (
+            "Flying, trample\nWhenever The Unspeakable deals combat damage to a player, "
+            "you may return target Arcane card from your graveyard to your hand."
+        ),
+    }
+    assert ("arcane_matters", "you") in _ks(unspeakable)
+    # A commander with no Arcane care does not open it.
+    krenko = {
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of "
+            "Goblins you control."
+        ),
+    }
+    assert "arcane_matters" not in _keys(krenko)
+
+
+def test_enlist_matters_opens_on_enlist():
+    # Aradesh has enlist and rewards enlisting, so he wants other enlist creatures plus
+    # high-power tap fodder. Reminder text is stripped, so the "Enlist" keyword word
+    # survives. Real oracle.
+    aradesh = {
+        "name": "Aradesh, the Founder",
+        "type_line": "Legendary Creature — Human Soldier",
+        "mana_cost": "{2}{W}",
+        "power": "1",
+        "toughness": "4",
+        "oracle_text": (
+            "Enlist (As this creature attacks, you may tap a nonattacking creature you "
+            "control without summoning sickness. When you do, add its power to this "
+            "creature's until end of turn.)\nWhenever a creature you control attacks, if "
+            "it enlisted a creature this combat, the creature that attacked gains double "
+            "strike until end of turn. If that creature's power is 4 or greater, draw a "
+            "card."
+        ),
+    }
+    assert ("enlist_matters", "you") in _ks(aradesh)
+
+
+def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
+    # Mona Lisa's "{T}: Add X mana, where X is Mona Lisa's power" wants UNTAP effects
+    # (re-tap for more mana) and power pumps. A {T} ability that scales with a creature's
+    # power is the tell; Krenko's {T} scales with Goblin count, not power. Real oracle.
+    mona_lisa = {
+        "name": "Mona Lisa, Science Geek",
+        "type_line": "Legendary Creature — Lizard Mutant",
+        "mana_cost": "{2}{G}",
+        "power": "1",
+        "toughness": "3",
+        "oracle_text": (
+            "Reach\n{T}: Add X mana of any one color, where X is Mona Lisa's power."
+        ),
+    }
+    assert ("power_tap_engine", "you") in _ks(mona_lisa)
+    krenko = {
+        "name": "Krenko, Mob Boss",
+        "type_line": "Legendary Creature — Goblin Warrior",
+        "mana_cost": "{2}{R}{R}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of "
+            "Goblins you control."
+        ),
+    }
+    assert "power_tap_engine" not in _keys(krenko)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

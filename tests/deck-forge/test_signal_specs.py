@@ -284,6 +284,115 @@ def test_ability_strip_payoff_serves_big_drawback_creatures():
     assert serves(scarred_puma, sig) is False
 
 
+def test_arcane_matters_serves_arcane_subtype_spells():
+    # An Arcane-tribal commander wants Arcane-subtype spells (CR 205.3k). Eerie
+    # Procession (Sorcery — Arcane) and Psychic Puppetry (Instant — Arcane) feed it; a
+    # plain non-Arcane instant (Lightning Bolt) does not. Real oracle.
+    sig = _sig("arcane_matters", "you")
+    eerie = {
+        "name": "Eerie Procession",
+        "type_line": "Sorcery — Arcane",
+        "mana_cost": "{2}{U}",
+        "oracle_text": (
+            "Search your library for an Arcane card, reveal that card, put it into your "
+            "hand, then shuffle."
+        ),
+    }
+    psychic_puppetry = {
+        "name": "Psychic Puppetry",
+        "type_line": "Instant — Arcane",
+        "mana_cost": "{1}{U}",
+        "oracle_text": (
+            "You may tap or untap target permanent.\nSplice onto Arcane {U} (As you cast "
+            "an Arcane spell, you may reveal this card from your hand and pay its splice "
+            "cost. If you do, add this card's effects to that spell.)"
+        ),
+    }
+    assert serves(eerie, sig) is True
+    assert serves(psychic_puppetry, sig) is True
+    lightning_bolt = {
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "mana_cost": "{R}",
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    assert serves(lightning_bolt, sig) is False
+
+
+def test_enlist_matters_serves_enlisters_and_stayback_fodder():
+    # Aradesh wants the enlist creatures themselves (keyword bearers) on the main serve,
+    # and big stay-back fodder to tap (the sub-avenue): Relic Golem (6/6, can't attack
+    # unless an opponent has 8+ graveyard cards) is ideal — tap it for 6 power. A vanilla
+    # bear is neither. Real oracle.
+    sig = _sig("enlist_matters", "you")
+    benalish = {
+        "name": "Benalish Faithbonder",
+        "type_line": "Creature — Human Cleric",
+        "mana_cost": "{1}{W}",
+        "power": "1",
+        "toughness": "3",
+        "keywords": ["Vigilance", "Enlist"],
+        "oracle_text": (
+            "Vigilance\nEnlist (As this creature attacks, you may tap a nonattacking "
+            "creature you control without summoning sickness. When you do, add its power "
+            "to this creature's until end of turn.)"
+        ),
+    }
+    relic_golem = {
+        "name": "Relic Golem",
+        "type_line": "Artifact Creature — Golem",
+        "mana_cost": "{3}",
+        "power": "6",
+        "toughness": "6",
+        "oracle_text": (
+            "This creature can't attack or block unless an opponent has eight or more "
+            "cards in their graveyard.\n{2}, {T}: Target player mills two cards. (They "
+            "put the top two cards of their library into their graveyard.)"
+        ),
+    }
+    assert serves(benalish, sig) is True  # enlist creature (keyword)
+    assert _lane_covers(relic_golem, sig) is True  # stay-back fodder (sub-avenue)
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
+def test_power_tap_engine_serves_untap_effects():
+    # A power-scaling tap engine (Mona Lisa) wants UNTAP effects to re-tap. Witch's Web
+    # ("Untap it.") and Kiora's Follower ("Untap another target permanent.") feed it; a
+    # burn spell (Lightning Bolt) does not. Real oracle.
+    sig = _sig("power_tap_engine", "you")
+    witchs_web = {
+        "name": "Witch's Web",
+        "type_line": "Instant",
+        "mana_cost": "{1}{G}",
+        "oracle_text": "Target creature gets +3/+3 and gains reach until end of turn. Untap it.",
+    }
+    kioras_follower = {
+        "name": "Kiora's Follower",
+        "type_line": "Creature — Merfolk",
+        "mana_cost": "{G}{U}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "{T}: Untap another target permanent.",
+    }
+    assert serves(witchs_web, sig) is True
+    assert serves(kioras_follower, sig) is True
+    lightning_bolt = {
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "mana_cost": "{R}",
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    assert serves(lightning_bolt, sig) is False
+
+
 def test_damage_redirect_serves_creature_dealt_damage_payoffs():
     # A redirect-to-self commander (Daughter of Autumn: "next 1 damage to target white
     # creature is dealt to Daughter instead" — CR 614.9 redirection replacement) soaks
