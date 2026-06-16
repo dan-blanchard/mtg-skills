@@ -3493,6 +3493,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Scavenge fuel (Varolz): scavenge turns a graveyard creature's POWER into +1/+1
+    # counters, so it wants the highest-power creatures as the biggest payloads.
+    ("scavenge_fuel", "you"): _spec(
+        "High-power scavenge fuel",
+        "high-power creatures to scavenge for big +1/+1-counter payloads",
+        {"card_type": "Creature"},
+        None,
+        serve_power_min=7,
+    ),
     # Land control / exchange (Sharkey): a land-control commander wants land-EXCHANGE
     # effects to swap a weak land for an opponent's best while it taxes the rest.
     ("land_exchange", "you"): _spec(

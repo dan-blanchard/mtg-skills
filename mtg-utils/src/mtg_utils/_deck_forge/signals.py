@@ -1415,6 +1415,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Scavenge fuel (Varolz: "each creature card in your graveyard has scavenge … +1/+1
+    # counters equal to that card's power"): scavenge converts a creature's POWER into
+    # counters, so a scavenge commander wants high-power creatures (Force of Savagery
+    # 8/0, Yargle 18/6, Rotting Regisaur) as the biggest scavenge payloads.
+    (
+        "scavenge_fuel",
+        re.compile(r"\bscavenge\b", re.IGNORECASE),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

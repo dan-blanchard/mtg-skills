@@ -271,6 +271,30 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_scavenge_fuel_serves_high_power_creatures():
+    # Varolz wants high-power creatures (scavenge = +1/+1 counters equal to power). Force
+    # of Savagery (8/0) feeds it; a 2/2 bear does not. Real oracle.
+    sig = _sig("scavenge_fuel", "you")
+    force_of_savagery = {
+        "name": "Force of Savagery",
+        "type_line": "Creature — Elemental",
+        "mana_cost": "{G}{G}{G}",
+        "power": "8",
+        "toughness": "0",
+        "oracle_text": "Trample",
+    }
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert serves(force_of_savagery, sig) is True
+    assert serves(grizzly, sig) is False
+
+
 def test_land_exchange_serves_land_swap():
     # Sharkey wants land-exchange: Political Trickery and Vedalken Plotter ("exchange
     # control of target land you control and target land an opponent controls"). A plain

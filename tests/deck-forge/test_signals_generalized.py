@@ -711,6 +711,26 @@ def test_land_exchange_opens_on_land_control():
     assert ("land_exchange", "you") in _ks(sharkey)
 
 
+def test_scavenge_fuel_opens_on_scavenge():
+    # Varolz gives graveyard creatures scavenge (counters = the card's power), so he
+    # wants high-power creatures as the biggest payloads. Real oracle.
+    varolz = {
+        "name": "Varolz, the Scar-Striped",
+        "type_line": "Legendary Creature — Troll Warrior",
+        "mana_cost": "{1}{B}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "Each creature card in your graveyard has scavenge. The scavenge cost is "
+            "equal to its mana cost. (Exile a creature card from your graveyard and pay "
+            "its mana cost: Put a number of +1/+1 counters equal to that card's power "
+            "on target creature. Scavenge only as a sorcery.)\nSacrifice another "
+            "creature: Regenerate Varolz."
+        ),
+    }
+    assert ("scavenge_fuel", "you") in _ks(varolz)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
