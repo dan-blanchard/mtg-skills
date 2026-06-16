@@ -930,6 +930,24 @@ _DISCARD_PUNISH_EXTRA = SubAvenue(
     {"oracle": _DISCARD_PUNISH_ORACLE},
     serve=Serve(oracle=re.compile(_DISCARD_PUNISH_ORACLE, _IC)),
 )
+# Empty-hand (hellbent) OPPONENT punishers: the 8-Rack package a hand-attack deck wants
+# once it strips opponents' hands (The Rack, Wheel of Torture, Shrieking Affliction,
+# Rackling, Guul Draz Specter). Opponent-anchored (that player / each opponent / their)
+# so a SELF-hellbent madness payoff ("YOU have no cards in hand") and a plain draw spell
+# never qualify.
+_HELLBENT_PUNISH_ORACLE = (
+    r"(?:that player|each opponent|target opponent|defending player|an opponent) "
+    r"(?:has |have )?(?:one or fewer|no|zero) cards? in (?:their )?hand"
+    r"|minus the number of cards in (?:that player's|their|an opponent's"
+    r"|defending player's) hand"
+)
+_HELLBENT_PUNISH_EXTRA = SubAvenue(
+    "Empty-hand punishers",
+    "8-Rack payoffs that punish an opponent's empty hand (The Rack, Wheel of Torture, "
+    "Shrieking Affliction)",
+    {"oracle": _HELLBENT_PUNISH_ORACLE},
+    serve=Serve(oracle=re.compile(_HELLBENT_PUNISH_ORACLE, _IC)),
+)
 
 
 # Reanimator PAYOFF (Celes, Rune Knight): a creature ENTERING from a graveyard
@@ -2954,7 +2972,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"opponent discards|each player discards|target player discards"},
         r"(?:each opponent|target opponent|an opponent|that opponent|each player"
         r"|target player|that player) discards|opponent[^.]*discards",
-        extras=(_DISCARD_PUNISH_EXTRA,),
+        extras=(_DISCARD_PUNISH_EXTRA, _HELLBENT_PUNISH_EXTRA),
     ),
     # Bare `can't be blocked` matched the menace/flying REMINDER "can't be blocked
     # except by …" on vanilla evasive creatures (~673). Exclude the "except" form (a

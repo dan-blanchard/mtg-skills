@@ -4607,6 +4607,40 @@ def test_xspell_matters_serves_x_spells_and_doublers():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_opponent_discard_serves_hellbent_punishers():
+    # A hand-attack commander empties opponents' hands (Myojin of Night's Reach: "Each
+    # opponent discards their hand"), so it wants the empty-hand (8-Rack) punishers that
+    # cash the empty hand in. Opponent-anchored so a self-hellbent / draw card stays out.
+    sig = _sig("opponent_discard", "opponents")
+    the_rack = {
+        "name": "The Rack",
+        "type_line": "Artifact",
+        "oracle_text": (
+            "As this artifact enters, choose an opponent.\nAt the beginning of the "
+            "chosen player's upkeep, this artifact deals X damage to that player, "
+            "where X is 3 minus the number of cards in their hand."
+        ),
+    }
+    assert _lane_covers(the_rack, sig) is True
+    shrieking_affliction = {
+        "name": "Shrieking Affliction",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "At the beginning of each opponent's upkeep, if that player has one or "
+            "fewer cards in hand, they lose 3 life."
+        ),
+    }
+    assert _lane_covers(shrieking_affliction, sig) is True
+    # Over-fire guard: a plain draw spell ("cards in hand" in a draw context) is not a
+    # hellbent punisher.
+    divination = {
+        "name": "Divination",
+        "type_line": "Sorcery",
+        "oracle_text": "Draw two cards.",
+    }
+    assert _lane_covers(divination, sig) is False
+
+
 def test_villainous_choice_is_a_named_mechanic_lane():
     # The Valeyard doubles every villainous choice opponents face — its whole synergy is
     # villainous-choice cards (This Is How It Ends, Ensnared by the Mara, Hunted by The
