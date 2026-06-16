@@ -2508,6 +2508,44 @@ AETHER_SNAP = {
     "keywords": [],
     "oracle_text": "Remove all counters from all permanents and exile all tokens.",
 }
+TAINTED_STRIKE = {
+    "name": "Tainted Strike",
+    "type_line": "Instant",
+    "keywords": [],
+    "oracle_text": (
+        "Target creature gets +1/+0 and gains infect until end of turn. (It deals "
+        "damage to creatures in the form of -1/-1 counters and to players in the "
+        "form of poison counters.)"
+    ),
+}
+TEMUR_BATTLE_RAGE = {
+    "name": "Temur Battle Rage",
+    "type_line": "Instant",
+    "keywords": ["Ferocious"],
+    "oracle_text": (
+        "Target creature gains double strike until end of turn.\nFerocious — That "
+        "creature also gains trample until end of turn if you control a creature "
+        "with power 4 or greater."
+    ),
+}
+GRAFTED_EXOSKELETON = {
+    "name": "Grafted Exoskeleton",
+    "type_line": "Artifact — Equipment",
+    "keywords": ["Equip"],
+    "oracle_text": (
+        "Equipped creature gets +2/+2 and has infect. (It deals damage to creatures "
+        "in the form of -1/-1 counters and to players in the form of poison "
+        "counters.)\nEquip {2}"
+    ),
+}
+BOROS_SWIFTBLADE = {
+    "name": "Boros Swiftblade",
+    "type_line": "Creature — Human Soldier",
+    "power": "1",
+    "toughness": "2",
+    "keywords": ["Double strike"],
+    "oracle_text": "Double strike",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2727,6 +2765,19 @@ def test_counter_resilience_served_not_counter_hate():
     assert served(THE_OZOLITH)
     assert served(RESOURCEFUL_DEFENSE)
     assert not served(AETHER_SNAP)  # removes counters — anti-synergy
+
+
+def test_one_punch_serves_damage_amplifiers():
+    """An extreme power-for-cost beater (Lord, Yargle) wins by connecting once for
+    lethal, so the one_punch lane serves damage amplifiers — grant infect (Tainted
+    Strike, Grafted Exoskeleton) and grant double strike (Temur Battle Rage). A
+    vanilla creature that merely HAS double strike (Boros Swiftblade) is not an
+    amplifier for your commander and stays out."""
+    sig = _sig("one_punch", "you")
+    assert serves(TAINTED_STRIKE, sig) is True  # grant infect (power -> poison kill)
+    assert serves(TEMUR_BATTLE_RAGE, sig) is True  # grant double strike (2x damage)
+    assert serves(GRAFTED_EXOSKELETON, sig) is True  # equipped creature has infect
+    assert serves(BOROS_SWIFTBLADE, sig) is False  # vanilla double-striker, not a grant
 
 
 def _subj_sig(key, subject):

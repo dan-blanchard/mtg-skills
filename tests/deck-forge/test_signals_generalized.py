@@ -1141,6 +1141,57 @@ def test_repeatable_creature_kill_opens_kill_engine():
     assert not any(k == "kill_engine" for k, _, _ in _ksub(murder))
 
 
+def test_one_punch_efficient_beater_opens_lane():
+    # An extreme power-for-cost beater (Lord 10/4, Yargle 18/6) wins by connecting once
+    # for lethal, so it wants damage amplification (grant infect / double strike). Gated
+    # power >= 8 AND power >= 2*cmc: an EXPENSIVE fatty (Emrakul 15/15 for 15) wins by
+    # being huge rather than by amplification, and a small creature never qualifies.
+    lord = {
+        "name": "Lord of Tresserhorn",
+        "type_line": "Legendary Creature — Zombie",
+        "mana_cost": "{2}{B}{B}",
+        "power": "10",
+        "toughness": "4",
+        "cmc": 4.0,
+        "keywords": [],
+        "oracle_text": "When Lord of Tresserhorn enters, you lose 2 life, you sacrifice two creatures, and target opponent draws two cards.\n{B}: Regenerate Lord of Tresserhorn.",
+    }
+    yargle = {
+        "name": "Yargle and Multani",
+        "type_line": "Legendary Creature — Frog Spirit Elemental",
+        "mana_cost": "{3}{B}{B}{G}",
+        "power": "18",
+        "toughness": "6",
+        "cmc": 6.0,
+        "keywords": [],
+        "oracle_text": "",
+    }
+    emrakul = {
+        "name": "Emrakul, the Aeons Torn",
+        "type_line": "Legendary Creature — Eldrazi",
+        "mana_cost": "{15}",
+        "power": "15",
+        "toughness": "15",
+        "cmc": 15.0,
+        "keywords": ["Flying", "Annihilator", "Protection"],
+        "oracle_text": "This spell can't be countered.\nWhen you cast this spell, take an extra turn after this one.\nFlying, protection from spells that are one or more colors, annihilator 6\nWhen Emrakul is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.",
+    }
+    llanowar = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "cmc": 1.0,
+        "keywords": [],
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert any(k == "one_punch" for k, _, _ in _ksub(lord))
+    assert any(k == "one_punch" for k, _, _ in _ksub(yargle))
+    assert not any(k == "one_punch" for k, _, _ in _ksub(emrakul))  # expensive fatty
+    assert not any(k == "one_punch" for k, _, _ in _ksub(llanowar))  # low power
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

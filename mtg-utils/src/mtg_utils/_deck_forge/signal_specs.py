@@ -867,6 +867,16 @@ _KILL_DRAIN_ORACLE = (
     r"|create (?:a|one|two|x) [^.]*(?:treasure|blood|clue)"
     r"|deals? [^.]*damage to (?:target |each )?(?:player|opponent))"
 )
+# One-punch finishers for an extreme power-for-cost beater (Lord, Yargle): convert raw
+# power into a kill by GRANTING infect (power -> poison) or double strike (2x damage).
+# Granters only — "<target/equipped/enchanted/your> creature gains/has infect|double
+# strike"; a vanilla double-striker (Boros Swiftblade) is not an amplifier for the
+# commander, so the bare keyword line stays out.
+_ONE_PUNCH_ORACLE = (
+    r"(?:target creature|target attacking creature|equipped creature"
+    r"|enchanted creature|creatures? you control|it) "
+    r"(?:gains?|gets [^.]*and (?:gains?|has)|have|has) (?:infect|double strike)"
+)
 # Board wipes are an aristocrats payoff: a mass-death event fires every dies-trigger and
 # drain at once (Wrath of God + Blood Artist). A death/sacrifice commander wants them.
 _BOARD_WIPE_EXTRA = SubAvenue(
@@ -2746,6 +2756,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|enchant creature you don't control|defending player controls",
         # Extra combats let the suited-up threat swing again — a top voltron payoff.
         extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
+    ),
+    # An extreme power-for-cost beater (Lord of Tresserhorn 10/4, Yargle 18/6) wins by
+    # connecting ONCE for lethal — serve the damage amplifiers that convert raw power
+    # into a kill: grant infect (power -> poison) and grant double strike (2x). Distinct
+    # from voltron (equipment/auras): these are the combat tricks/auras that close.
+    ("one_punch", "you"): _spec(
+        "One-punch finishers",
+        "amplify your huge body into a one-shot kill — grant infect or double strike "
+        "(Tainted Strike, Temur Battle Rage, Grafted Exoskeleton)",
+        {"oracle": _ONE_PUNCH_ORACLE},
+        _ONE_PUNCH_ORACLE,
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",

@@ -3622,6 +3622,20 @@ def extract_signals(
         and (kws & _VOLTRON_KEYWORDS or power >= 2)
     ):
         add("voltron_matters", "you", "", "commander damage (CR 903.10a)", "low")
+    # An extreme power-for-cost beater (power >= 8 AND power >= 2x its mana value: Lord
+    # of Tresserhorn 10/4, Yargle 18/6, The Ancient One 8/8 for 2) wins by connecting
+    # ONCE for lethal, so it wants damage amplification — grant infect (power -> poison)
+    # or double strike (2x). The ratio gate excludes expensive fatties (Emrakul 15/15
+    # for 15) that win by size, not amplification. Fires alongside any other plan: the
+    # huge body is the threat regardless of incidental text (Lord's drawback ETB).
+    cmc = card.get("cmc") or 0
+    if (
+        include_membership
+        and "creature" in type_line.lower()
+        and power >= 8
+        and power >= 2 * cmc
+    ):
+        add("one_punch", "you", "", "extreme power-for-cost beater", "low")
 
     return out
 
@@ -3738,6 +3752,7 @@ _LITERAL_ADD_KEYS = frozenset(
         "land_destruction",
         "cheat_from_top",
         "kill_engine",
+        "one_punch",
     }
 )
 
