@@ -2354,7 +2354,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
         r"|(?:target player|that player|a player) loses? [^.]*\blife\b"
         r"|(?:an? opponent|each opponent|opponents?|a player|each player)"
-        r"(?: who)? lost life this turn",
+        r"(?: who)? lost life this turn"
+        # Damage to a player IS life loss (CR 120.3a), so pingers / group-slug that deal
+        # damage to opponents (Kessig Flamebreather, Mogis) are drain payoffs too.
+        r"|deals (?:\d+|x|that much) damage to "
+        r"(?:each opponent|target opponent|each of your opponents)",
     ),
     # The bare `pay \d+ life` matched 39 painlands/fetchlands (Blood Crypt, Sacred
     # Foundry) that are mana fixing, not a life-as-resource engine. VETO lands; keep the

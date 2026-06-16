@@ -906,7 +906,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "lifeloss_matters",
         "scope": "opponents",
         "is_widen_of": "lifeloss_matters",
-        "regex": "\\b(?:each opponent|each player|target opponent|target player|that player|an opponent|each of your opponents) loses? life\\b",
+        "regex": "\\b(?:each opponent|each player|target opponent|target player|that player|an opponent|opponents|each of your opponents)(?: each)? loses? (?:exactly )?(?:\\d+ |x |that much )?life\\b",
     },
     {
         # Token-doubling and counter-doubling are inherently DIFFERENT properties — a

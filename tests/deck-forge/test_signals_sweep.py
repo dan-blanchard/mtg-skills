@@ -125,3 +125,32 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
         "oracle_text": "{T}: Add {G}.",
     }
     assert "unspent_mana" not in {s.key for s in extract_signals(llanowar_elves)}
+
+
+def test_lifeloss_matters_opens_on_opponents_lose_n_life():
+    # Ob Nixilis triggers on "opponents each lose exactly 1 life", but the detector
+    # required "[opponent] loses life" with no amount or word-order variance, so it missed
+    # "opponents each lose exactly N life" (and "loses N life"). Real oracle.
+    ob_nixilis = {
+        "name": "Ob Nixilis, Captive Kingpin",
+        "type_line": "Legendary Creature — Demon",
+        "mana_cost": "{2}{B}{R}",
+        "power": "4",
+        "toughness": "3",
+        "oracle_text": (
+            "Flying, trample\nWhenever one or more opponents each lose exactly 1 life, "
+            "put a +1/+1 counter on Ob Nixilis. Exile the top card of your library. "
+            "Until your next end step, you may play that card."
+        ),
+    }
+    assert "lifeloss_matters" in {s.key for s in extract_signals(ob_nixilis)}
+    # A card with no life-loss reference must not open the lane.
+    grizzly_bears = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert "lifeloss_matters" not in {s.key for s in extract_signals(grizzly_bears)}

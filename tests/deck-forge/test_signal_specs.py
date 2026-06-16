@@ -266,6 +266,33 @@ def test_cast_from_exile_serves_suspend_foretell_rebound():
     assert serves(lightning_bolt, sig) is False  # no cast-from-exile
 
 
+def test_lifeloss_drain_serves_damage_to_opponents():
+    # Damage to a player IS life loss (CR 120.3a), so pingers / group-slug that deal
+    # damage to opponents (Kessig Flamebreather) are drain payoffs — a drain commander
+    # (Ob Nixilis, Rakdos, Valgavoth) wants them. The serve had only direct "loses life"
+    # prose. A creature-only ping (removal) stays out. Real oracle.
+    sig = _sig("lifeloss_matters", "opponents")
+    kessig_flamebreather = {
+        "name": "Kessig Flamebreather",
+        "type_line": "Creature — Human Shaman",
+        "mana_cost": "{1}{R}",
+        "power": "1",
+        "toughness": "3",
+        "oracle_text": (
+            "Whenever you cast a noncreature spell, this creature deals 1 damage to "
+            "each opponent."
+        ),
+    }
+    flame_slash = {  # creature-only removal — not opponent life loss
+        "name": "Flame Slash",
+        "type_line": "Sorcery",
+        "mana_cost": "{R}",
+        "oracle_text": "Flame Slash deals 4 damage to target creature.",
+    }
+    assert serves(kessig_flamebreather, sig) is True  # damage to each opponent = drain
+    assert serves(flame_slash, sig) is False  # creature-only, no opponent life loss
+
+
 def test_discard_matters_serves_self_discard_outlets():
     # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
     # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"
