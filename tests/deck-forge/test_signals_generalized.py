@@ -236,6 +236,55 @@ def test_token_copy_matters_opens_on_token_doubling():
     assert "token_copy_matters" not in _keys(krenko)
 
 
+def test_clone_matters_opens_for_recurring_value_legendary():
+    # "Clone your engine" is legitimate for a recurring-value LEGENDARY: copying it forks
+    # the per-turn engine and the copy dodges the legend rule. Obeka ("{T}: end the turn")
+    # and Koma (per-upkeep token engine) are clone targets; a vanilla legendary (Isamaru)
+    # is not. Commander-level (membership), so it must NOT fire for the 99. Real oracle.
+    obeka = {
+        "name": "Obeka, Brute Chronologist",
+        "type_line": "Legendary Creature — Ogre Wizard",
+        "mana_cost": "{1}{U}{B}{R}",
+        "power": "3",
+        "toughness": "4",
+        "oracle_text": (
+            "{T}: The player whose turn it is may end the turn. (Exile all spells and "
+            "abilities from the stack. The player whose turn it is discards down to "
+            'their maximum hand size. Damage wears off, and "this turn" and "until end '
+            'of turn" effects end.)'
+        ),
+    }
+    koma = {
+        "name": "Koma, Cosmos Serpent",
+        "type_line": "Legendary Creature — Serpent",
+        "mana_cost": "{3}{G}{G}{U}{U}",
+        "power": "6",
+        "toughness": "6",
+        "oracle_text": (
+            "This spell can't be countered.\nAt the beginning of each upkeep, create a "
+            "3/3 blue Serpent creature token named Koma's Coil.\nSacrifice another "
+            "Serpent: Choose one —\n• Tap target permanent. Its activated abilities "
+            "can't be activated this turn.\n• Koma gains indestructible until end of "
+            "turn."
+        ),
+    }
+    isamaru = {  # vanilla legendary — no repeatable engine
+        "name": "Isamaru, Hound of Konda",
+        "type_line": "Legendary Creature — Dog",
+        "mana_cost": "{W}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "",
+    }
+    assert "clone_matters" in _keys(obeka)  # {T} engine
+    assert "clone_matters" in _keys(koma)  # per-upkeep engine
+    assert "clone_matters" not in _keys(isamaru)  # vanilla legendary
+    # Commander-level: must NOT fire when aggregating the 99 (include_membership=False).
+    assert "clone_matters" not in {
+        s.key for s in extract_signals(obeka, include_membership=False)
+    }
+
+
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
     c = {
         "name": "Urza, Lord High Artificer",

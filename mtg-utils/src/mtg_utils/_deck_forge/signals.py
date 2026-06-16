@@ -2116,6 +2116,20 @@ _PRESET_REGEX_SIGNALS = {
     "extra-turns": ("extra_turns", "you"),
 }
 
+# A recurring-value ENGINE on a legendary: a per-turn triggered ability (upkeep / end
+# step / combat) or a repeatable "each turn" effect — the value you'd fork by cloning
+# the commander. Reminder text is stripped before this runs.
+_PER_TURN_ENGINE_RE = re.compile(
+    r"at the beginning of (?:your|each)[^.]*"
+    r"(?:upkeep|end step|draw step|combat|main phase)"
+    r"|(?:once )?(?:each|every) turn",
+    re.IGNORECASE,
+)
+# A tap-activated ability ("{T}: …") is repeatable engine value too — but a pure mana
+# dork ("{T}: Add …" as its only ability) is not a clone-worthy VALUE engine.
+_TAP_ABILITY_RE = re.compile(r"\{t\}[^:]*:", re.IGNORECASE)
+_MANA_TAP_RE = re.compile(r"\{t\}: add\b", re.IGNORECASE)
+
 
 def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
     card_kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -3122,6 +3136,20 @@ def extract_signals(
         add("artifacts_matter", "you", "", type_line, "low")
     if include_membership and "enchantment" in type_line.lower():
         add("enchantments_matter", "you", "", type_line, "low")
+    # A LEGENDARY creature whose value is a REPEATABLE engine (a per-turn triggered
+    # ability, or a non-mana tap-activated ability) is itself a clone target: copying it
+    # forks the engine and the copy dodges the legend rule. "Clone your engine" is
+    # standard for recurring-value legendaries (Obeka, Koma, Linessa) — Dan's call.
+    # Membership-only, low confidence: a commander-level suggestion, never a property of
+    # every creature in the 99 (so the deck-aggregate path with include_membership=False
+    # doesn't flood every engine creature's clone avenue).
+    if include_membership and "legendary creature" in type_line.lower():
+        is_engine = bool(_PER_TURN_ENGINE_RE.search(text)) or (
+            bool(_TAP_ABILITY_RE.search(text))
+            and not (_MANA_TAP_RE.search(text) and text.count("{T}") == 1)
+        )
+        if is_engine:
+            add("clone_matters", "you", "", text[:160], "low")
 
     # Full-text detectors: trigger→payoff patterns that span a sentence boundary, so
     # the per-clause loop above can't see both halves (Roon, Norin, Aurelia, Alpharael).
