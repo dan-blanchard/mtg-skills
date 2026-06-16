@@ -1045,6 +1045,31 @@ def test_repeatable_aoe_ping_opens_for_deathtouch_combo():
     assert not any(k == "aoe_ping" for k, _, _ in _ksub(chaos_maw))
 
 
+def test_numot_repeatable_land_destruction_opens_lane():
+    # Numot destroys lands every time she connects — a repeatable land-destruction
+    # ENGINE (the commander herself), so she wants the LD support package (land
+    # recursion to survive symmetric LD, land-loss punishers). Membership + creature
+    # gated: a one-shot LD SPELL (Stone Rain) is not an LD commander, so it stays out.
+    numot = {
+        "name": "Numot, the Devastator",
+        "type_line": "Legendary Creature — Dragon",
+        "mana_cost": "{3}{U}{R}{W}",
+        "power": "6",
+        "toughness": "6",
+        "keywords": ["Flying"],
+        "oracle_text": "Flying\nWhenever Numot deals combat damage to a player, you may pay {2}{R}. If you do, destroy up to two target lands.",
+    }
+    stone_rain = {
+        "name": "Stone Rain",
+        "type_line": "Sorcery",
+        "mana_cost": "{2}{R}",
+        "keywords": [],
+        "oracle_text": "Destroy target land.",
+    }
+    assert any(k == "land_destruction" for k, _, _ in _ksub(numot))
+    assert not any(k == "land_destruction" for k, _, _ in _ksub(stone_rain))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

@@ -2388,6 +2388,13 @@ _PER_TURN_ENGINE_RE = re.compile(
 # dork ("{T}: Add …" as its only ability) is not a clone-worthy VALUE engine.
 _TAP_ABILITY_RE = re.compile(r"\{t\}[^:]*:", re.IGNORECASE)
 _MANA_TAP_RE = re.compile(r"\{t\}: add\b", re.IGNORECASE)
+# A commander whose OWN ability destroys lands (Numot) is a land-destruction engine:
+# it wants the LD support package (own-land recursion to survive symmetric LD, plus
+# land-loss punishers). "[up to N] target land(s)" is the destroy-lands tell; gated to
+# the commander (membership) so a one-shot LD spell in the 99 isn't read as the plan.
+_LAND_DESTRUCTION_RE = re.compile(
+    r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b", re.IGNORECASE
+)
 
 
 def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
@@ -3414,6 +3421,15 @@ def extract_signals(
         add("artifacts_matter", "you", "", type_line, "low")
     if include_membership and "enchantment" in type_line.lower():
         add("enchantments_matter", "you", "", type_line, "low")
+    # A creature commander whose own ability destroys lands (Numot) is a land-
+    # destruction engine — open the LD support lane. Membership + creature gated so a
+    # one-shot LD spell among the 99 (Stone Rain) isn't mistaken for the deck's plan.
+    if (
+        include_membership
+        and "creature" in type_line.lower()
+        and _LAND_DESTRUCTION_RE.search(text)
+    ):
+        add("land_destruction", "you", "", "repeatable land destruction", "low")
     # A LEGENDARY creature whose value is a REPEATABLE engine (a per-turn triggered
     # ability, or a non-mana tap-activated ability) is itself a clone target: copying it
     # forks the engine and the copy dodges the legend rule. "Clone your engine" is
@@ -3684,6 +3700,7 @@ _LITERAL_ADD_KEYS = frozenset(
         "discard_matters",
         "card_draw_engine",
         "ability_strip_payoff",
+        "land_destruction",
     }
 )
 

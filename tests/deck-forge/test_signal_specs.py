@@ -2375,6 +2375,30 @@ BONESPLITTER = {
     "keywords": ["Equip"],
     "oracle_text": "Equipped creature gets +2/+0.\nEquip {1}",
 }
+CRUCIBLE_OF_WORLDS = {
+    "name": "Crucible of Worlds",
+    "type_line": "Artifact",
+    "keywords": [],
+    "oracle_text": "You may play lands from your graveyard.",
+}
+DINGUS_EGG = {
+    "name": "Dingus Egg",
+    "type_line": "Artifact",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever a land is put into a graveyard from the battlefield, this "
+        "artifact deals 2 damage to that land's controller."
+    ),
+}
+PRICE_OF_GLORY = {
+    "name": "Price of Glory",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever a player taps a land for mana, if it's not that player's turn, "
+        "destroy that land."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2520,6 +2544,24 @@ def test_aoe_ping_serves_deathtouch_gear():
 
     assert served(BASILISK_COLLAR)
     assert not served(BONESPLITTER)  # +2/+0 only — not a deathtouch enabler
+
+
+def test_land_destruction_serves_ld_support_package():
+    """Numot repeatedly destroys lands, so her lane serves the land-destruction
+    support package: own-land recursion to survive symmetric LD (Crucible of
+    Worlds) and land-loss punishers (Dingus Egg, Price of Glory). A plain stat
+    Equipment (Bonesplitter) is surfaced by none."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("land_destruction", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(CRUCIBLE_OF_WORLDS)  # recursion — survive your own LD
+    assert served(DINGUS_EGG)  # land-to-graveyard punisher
+    assert served(PRICE_OF_GLORY)  # off-turn land-tap stax
+    assert not served(BONESPLITTER)  # unrelated equipment
 
 
 def _subj_sig(key, subject):

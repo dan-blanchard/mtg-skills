@@ -3624,6 +3624,30 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|multicolored (?:creature|permanent|spell)s? you (?:control|cast)"
         r"|\bconverge\b|cast (?:a|your) multicolored",
     ),
+    # A repeatable land-destruction commander (Numot) wants the LD support package:
+    # more land destruction (main), own-land recursion to survive symmetric LD (reuse
+    # the lands-from-graveyard extra), and land-loss PUNISHERS that turn each destroyed
+    # land into damage/value (Dingus Egg, Price of Glory).
+    ("land_destruction", "you"): _spec(
+        "Land destruction",
+        "blow up lands repeatedly — the Armageddon/Numot stax-LD plan",
+        {"oracle": r"destroy (?:up to (?:one|two|three) )?target lands?"},
+        r"destroy (?:up to (?:one|two|three) )?target lands?"
+        r"|destroy all lands|destroy target nonbasic land"
+        r"|each (?:player|opponent)[^.]*sacrifices? a land",
+        extras=(
+            SubAvenue(
+                "Punish land loss",
+                "turn every destroyed land into damage or value (Dingus Egg, "
+                "Price of Glory)",
+                {
+                    "oracle": r"whenever a land(?: card)? is put into a graveyard"
+                    r"|whenever a player taps a land[^.]*destroy"
+                },
+            ),
+            _LANDS_FROM_GRAVE_EXTRA,
+        ),
+    ),
     # Phasing-lands (Taniwha): your lands phase back each turn, so symmetric land-denial
     # stax (Mana Breach / Overburden — every player bounces/sacs a land) hits opponents
     # permanently while you recover. Asymmetric land denial.
