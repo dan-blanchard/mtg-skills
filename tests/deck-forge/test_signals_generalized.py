@@ -814,6 +814,29 @@ def test_spell_copy_cross_opens_spellcast():
     assert "spellcast_matters" in keys  # cross-opened
 
 
+def test_token_maker_cross_opens_its_tribe_kindred():
+    # A commander that MAKES tribe-X creature tokens wants tribe-X lords/support — its
+    # token board IS that kindred. Grist makes Insect tokens but is a Planeswalker, so
+    # membership (which needs a creature type-line) misses it; cross-open type_matters
+    # from the token's captured subtype.
+    grist = {
+        "name": "Grist, the Hunger Tide",
+        "type_line": "Legendary Planeswalker — Grist",
+        "oracle_text": (
+            "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in "
+            "addition to its other types.\n+1: Create a 1/1 black and green Insect "
+            "creature token, then mill a card. If an Insect card was milled this way, put "
+            "a loyalty counter on Grist and repeat this process.\n−2: You may sacrifice a "
+            "creature. When you do, destroy target creature or planeswalker.\n−5: Each "
+            "opponent loses life equal to the number of creature cards in your graveyard."
+        ),
+    }
+    trips = {
+        (s.key, s.subject) for s in extract_signals(grist, include_membership=True)
+    }
+    assert ("type_matters", "Insect") in trips
+
+
 def test_amass_cards_served_by_tokens_matter():
     # Amass creates or grows an Army CREATURE token (CR 701.47), so an amass card is a
     # token maker the tokens_matter serve must credit — Mouth of Sauron / Grishnákh want

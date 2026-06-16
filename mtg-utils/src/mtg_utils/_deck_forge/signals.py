@@ -2762,6 +2762,12 @@ def extract_signals(
         # Mishra recurs artifacts, Malfegor recurs the discarded hand). Low confidence.
         if "discard_outlet" in keys_now and "graveyard_matters" not in keys_now:
             add("graveyard_matters", "you", "", text[:160], "low")
+        # A commander that MAKES tribe-X creature tokens (token_maker captured subtype)
+        # wants tribe-X lords/support: its token board IS that kindred. Cross-open
+        # type_matters=X. Most tribe-MEMBER token-makers already open it via membership;
+        # this catches non-members (Grist, a Planeswalker that makes Insects). Low conf.
+        for _sub in {s.subject for s in out if s.key == "token_maker" and s.subject}:
+            add(signal_keys.TYPE_MATTERS, "you", _sub, text[:160], "low")
         # Lure (force blocks) and blocked_matters (punish the blocker) are one
         # archetype: a commander that lures / must-be-blocked (Madame Vastra, Gorm)
         # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian
