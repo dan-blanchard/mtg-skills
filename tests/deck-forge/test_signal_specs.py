@@ -2709,6 +2709,30 @@ MANA_FLARE = {
         "that land produced."
     ),
 }
+FIELD_OF_DREAMS = {
+    "name": "Field of Dreams",
+    "type_line": "World Enchantment",
+    "keywords": [],
+    "oracle_text": "Players play with the top card of their libraries revealed.",
+}
+WIZENED_SNITCHES = {
+    "name": "Wizened Snitches",
+    "type_line": "Creature — Faerie Rogue",
+    "power": "1",
+    "toughness": "3",
+    "keywords": ["Flying"],
+    "oracle_text": "Flying\nPlayers play with the top card of their libraries revealed.",
+}
+PSYCHIC_SURGERY = {
+    "name": "Psychic Surgery",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever an opponent shuffles their library, you may look at the top two cards "
+        "of that library. You may exile one of those cards. Then put the rest on top of "
+        "that library in any order."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2990,6 +3014,17 @@ def test_big_mana_serves_x_spell_sinks():
     assert serves(JAYAS_INFERNO, sig) is True
     assert serves(LIGHTNING_BOLT, sig) is False  # fixed 3 damage, not a mana sink
     assert serves(MANA_FLARE, sig) is False  # generates mana, isn't a sink
+
+
+def test_opp_top_exile_serves_top_reveal():
+    """A commander that exiles/takes opponents' library tops (Circu) wants to SEE those
+    tops — play-with-top-revealed (Field of Dreams, Wizened Snitches) shows what it will
+    exile/steal. A shuffle-triggered graveyard peek (Psychic Surgery) isn't a top-reveal
+    and stays out."""
+    sig = _sig("opp_top_exile", "you")
+    assert serves(FIELD_OF_DREAMS, sig) is True
+    assert serves(WIZENED_SNITCHES, sig) is True
+    assert serves(PSYCHIC_SURGERY, sig) is False  # shuffle peek, not a top-reveal
 
 
 def _subj_sig(key, subject):

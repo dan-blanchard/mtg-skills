@@ -1323,6 +1323,33 @@ def test_big_mana_generator_opens_x_spell_sink():
     assert not any(k == "big_mana" for k, _, _ in _ksub(elf))  # single mana, not big
 
 
+def test_opp_top_exile_opens_for_library_predators():
+    # Circu (and Ragavan, Grenzo) exile/take the top card of a TARGET player's library,
+    # so seeing opponents' tops (Field of Dreams) lets them exile/steal the BEST card and
+    # target the right player. A commander with no opponent-library-top interaction
+    # (Llanowar Elves) never opens it.
+    circu = {
+        "name": "Circu, Dimir Lobotomist",
+        "type_line": "Legendary Creature — Human Wizard",
+        "mana_cost": "{2}{U}{B}",
+        "power": "2",
+        "toughness": "3",
+        "keywords": [],
+        "oracle_text": "Whenever you cast a blue spell, exile the top card of target player's library.\nWhenever you cast a black spell, exile the top card of target player's library.\nYour opponents can't cast spells with the same name as a card exiled with Circu.",
+    }
+    elf = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "keywords": [],
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert any(k == "opp_top_exile" for k, _, _ in _ksub(circu))
+    assert not any(k == "opp_top_exile" for k, _, _ in _ksub(elf))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

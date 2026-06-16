@@ -2819,6 +2819,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"deals x damage|x damage to|deals [^.]*times x damage"
         r"|of up to x target|to each of up to x",
     ),
+    # A commander that exiles/takes opponents' library TOPS (Circu, Ragavan, Grenzo)
+    # wants to SEE those tops — play-with-top-revealed shows what it will exile/steal.
+    # A shuffle-peek (Psychic Surgery) isn't a continuous top-reveal and stays out.
+    ("opp_top_exile", "you"): _spec(
+        "See opponents' tops",
+        "reveal opponents' library tops so you exile/steal the best card — Field of "
+        "Dreams, Wizened Snitches, Lantern of Insight",
+        {"oracle": r"top card of their (?:library|libraries) revealed"},
+        r"plays? with the top card of their (?:libraries|library) revealed"
+        r"|look at the top card of (?:each|target|that) (?:opponent|player)",
+    ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",

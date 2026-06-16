@@ -1418,6 +1418,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"for the first time each turn, counter", re.IGNORECASE),
         "you",
     ),
+    # A commander that exiles/takes the top card of a TARGET player's library (Circu's
+    # name-lock; Ragavan/Grenzo/Vaan impulse-cast) wants to SEE opponents' tops so it
+    # exiles/steals the best card and targets the right player. Tell: "exile the top
+    # card of (target player/an opponent/...)".
+    (
+        "opp_top_exile",
+        re.compile(
+            r"exile the top card of (?:target player|each opponent|that player"
+            r"|an opponent|target opponent)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
     # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
     # you cast a multicolored spell", converge, "multicolored creatures you control"),
