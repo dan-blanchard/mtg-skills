@@ -2794,6 +2794,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"exchange control of"
         r"|exchange (?:control of )?(?:that|those) (?:creature|permanent)",
     ),
+    # Kira shields your creatures from removal, so PERMANENT theft sticks: a contingent
+    # steal (Sower, Roil — lost if the thief dies) can't be undone, and a theft engine
+    # (Empress Galina) survives. Serve the non-temporary theft; the `until end of turn`
+    # veto drops Threaten-style steals, which gain nothing from protection.
+    ("theft_protection", "you"): _spec(
+        "Protected theft",
+        "theft creatures whose steal sticks because you shield them from removal — "
+        "Sower of Temptation, Roil Elemental, Empress Galina",
+        {"oracle": r"gain control of [^.]*target (?:creature|permanent)"},
+        r"gain control of (?:up to one )?target "
+        r"(?:creature|permanent|nonland permanent|legendary permanent)",
+        serve_not=r"until end of turn",
+    ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",

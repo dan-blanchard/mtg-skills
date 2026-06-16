@@ -2633,6 +2633,37 @@ SOWER_OF_TEMPTATION = {
         "long as this creature remains on the battlefield."
     ),
 }
+ROIL_ELEMENTAL = {
+    "name": "Roil Elemental",
+    "type_line": "Creature — Elemental",
+    "power": "3",
+    "toughness": "2",
+    "keywords": ["Landfall", "Flying"],
+    "oracle_text": (
+        "Flying\nLandfall — Whenever a land you control enters, you may gain control "
+        "of target creature for as long as you control this creature."
+    ),
+}
+EMPRESS_GALINA = {
+    "name": "Empress Galina",
+    "type_line": "Legendary Creature — Merfolk Noble",
+    "power": "1",
+    "toughness": "3",
+    "keywords": [],
+    "oracle_text": (
+        "{U}{U}, {T}: Gain control of target legendary permanent. (This effect lasts "
+        "indefinitely.)"
+    ),
+}
+ACT_OF_TREASON = {
+    "name": "Act of Treason",
+    "type_line": "Sorcery",
+    "keywords": [],
+    "oracle_text": (
+        "Gain control of target creature until end of turn. Untap that creature. It "
+        "gains haste until end of turn. (It can attack and {T} this turn.)"
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2889,6 +2920,18 @@ def test_control_exchange_serves_swaps_not_theft():
     assert serves(PERPLEXING_CHIMERA, sig) is True
     assert serves(SPAWNBROKER, sig) is True
     assert serves(SOWER_OF_TEMPTATION, sig) is False  # one-way theft, not an exchange
+
+
+def test_theft_protection_serves_permanent_theft_not_temporary():
+    """Kira shields your creatures from removal, so theft creatures whose steal is
+    contingent (Sower, Roil — lost if the thief dies) or a repeatable engine (Empress
+    Galina) keep their loot. A temporary steal (Act of Treason: 'until end of turn')
+    gains nothing from protection and stays out."""
+    sig = _sig("theft_protection", "you")
+    assert serves(SOWER_OF_TEMPTATION, sig) is True  # contingent steal made sticky
+    assert serves(ROIL_ELEMENTAL, sig) is True  # contingent steal made sticky
+    assert serves(EMPRESS_GALINA, sig) is True  # repeatable theft engine, protected
+    assert serves(ACT_OF_TREASON, sig) is False  # temporary — protection irrelevant
 
 
 def _subj_sig(key, subject):

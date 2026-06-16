@@ -1258,6 +1258,34 @@ def test_reclaim_owned_commander_opens_control_exchange():
     assert not any(k == "control_exchange" for k, _, _ in _ksub(resto))
 
 
+def test_kira_targeting_shield_opens_protected_theft():
+    # Kira grants your creatures "counter the FIRST spell/ability targeting them each
+    # turn" — so a contingent steal (Sower: lost if the thief dies) can't be undone, and
+    # a theft engine (Empress Galina) survives. That's the sticky-theft lock. WARD
+    # ("counter it unless that player pays") is a different, single-creature shield and
+    # must NOT open it (Spider-Rex).
+    kira = {
+        "name": "Kira, Great Glass-Spinner",
+        "type_line": "Legendary Creature — Spirit",
+        "mana_cost": "{1}{U}{U}",
+        "power": "2",
+        "toughness": "2",
+        "keywords": ["Flying"],
+        "oracle_text": 'Flying\nCreatures you control have "Whenever this creature becomes the target of a spell or ability for the first time each turn, counter that spell or ability."',
+    }
+    spider_rex = {
+        "name": "Spider-Rex, Daring Dino",
+        "type_line": "Legendary Creature — Spider Dinosaur Hero",
+        "mana_cost": "{4}{G}{G}",
+        "power": "6",
+        "toughness": "6",
+        "keywords": ["Reach", "Trample", "Ward"],
+        "oracle_text": "Reach, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)",
+    }
+    assert any(k == "theft_protection" for k, _, _ in _ksub(kira))
+    assert not any(k == "theft_protection" for k, _, _ in _ksub(spider_rex))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

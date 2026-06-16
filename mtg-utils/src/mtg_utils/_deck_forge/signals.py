@@ -1408,6 +1408,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"exile [^.]*creature you own[^.]*return", re.IGNORECASE),
         "you",
     ),
+    # Kira-style targeting shield: your creatures COUNTER the first spell/ability that
+    # targets them ("for the first time each turn, counter"). That makes a CONTINGENT
+    # steal (Sower: lost if the thief dies) un-removable and keeps a theft ENGINE alive,
+    # the sticky-theft lock. The exact "first time each turn, counter" phrasing is the
+    # gate: plain Ward ("counter unless ... pays") is a different per-creature shield.
+    (
+        "theft_protection",
+        re.compile(r"for the first time each turn, counter", re.IGNORECASE),
+        "you",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
     # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
     # you cast a multicolored spell", converge, "multicolored creatures you control"),
