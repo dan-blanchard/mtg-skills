@@ -1767,6 +1767,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # search dict (build-time) but a maker is generically good (every deck runs
         # some), not archetype-UNIQUE like a Goblin is to Goblins; serving all 2315
         # would flood the lane (and broke the token-enters anchor guard + ranking sort).
+        # EXCEPTION: Mobilize is a bounded (~28-card) Warrior-token SWARM keyword whose
+        # token-making lives in stripped reminder text — credit the keyword so a
+        # Mobilize/go-wide commander (Zurgo) covers the rest of its swarm package.
+        serve_keywords=("mobilize",),
         extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
     ),
     # The bare `your opponents` alternative matched any card that merely names opponents

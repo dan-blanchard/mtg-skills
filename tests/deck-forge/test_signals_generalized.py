@@ -1933,6 +1933,44 @@ def test_mutagen_token_maker_opens_artifacts_matter():
     assert "artifacts_matter" not in _keys(servo)
 
 
+def test_tokens_matter_serves_mobilize_swarm():
+    # A Mobilize commander (Zurgo) opens tokens_matter, but the other Mobilize cards make
+    # their Warrior tokens in stripped reminder text, so the serve missed them. Credit the
+    # mobilize keyword (a bounded Warrior-swarm archetype) — Zurgo covers its package.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    def lane_covers(card, key, scope):
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+        if sp.serve.matches(card):
+            return True
+        return any(
+            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
+        )
+
+    packbeasts = {
+        "name": "Dalkovan Packbeasts",
+        "type_line": "Creature — Ox",
+        "keywords": ["Mobilize", "Vigilance"],
+        "oracle_text": (
+            "Vigilance\n"
+            "Mobilize 3 (Whenever this creature attacks, create three tapped and "
+            "attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning "
+            "of the next end step.)"
+        ),
+    }
+    assert lane_covers(packbeasts, "tokens_matter", "you") is True
+    # Over-fire guard: a plain creature with no token-making and no mobilize keyword is
+    # not credited.
+    bear = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "keywords": [],
+        "oracle_text": "",
+    }
+    assert lane_covers(bear, "tokens_matter", "you") is False
+
+
 def test_cost_reduction_serves_stacking_reducers():
     # A cost-reduction commander (Stenn makes its chosen type cost {1} less) wants to
     # STACK more category reducers to go off; the lane otherwise served only the bombs
