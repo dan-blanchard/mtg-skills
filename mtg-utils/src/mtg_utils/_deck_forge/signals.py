@@ -2403,6 +2403,15 @@ _CHEAT_TOP_REVEAL_RE = re.compile(r"reveals? the top card", re.IGNORECASE)
 _CHEAT_TOP_ONTO_RE = re.compile(
     r"puts? (?:it|that card|them) onto the battlefield", re.IGNORECASE
 )
+# A commander that repeatedly DESTROYS creatures (an activated {T}/cost ability or a
+# recurring trigger) is a reliable death-engine: every kill fires on-death payoffs
+# (Blood Artist, Vicious Shadows). The repeatable frame is the precision gate -- a
+# one-shot removal spell (Murder: "Destroy target creature.") never registers.
+_REPEATABLE_KILL_RE = re.compile(
+    r"\{[^}]*\}[^.]*:[^.]*destroy target creature"
+    r"|(?:whenever|at the beginning of)[^.]*destroy target creature",
+    re.IGNORECASE,
+)
 
 
 def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
@@ -3447,6 +3456,15 @@ def extract_signals(
         and _CHEAT_TOP_ONTO_RE.search(text)
     ):
         add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
+    # A creature commander that repeatedly destroys creatures (Diaochan, Visara) is a
+    # death-engine WITHOUT a sac outlet: each kill fires on-death payoffs. Membership +
+    # creature gated so a one-shot removal spell in the 99 isn't read as the plan.
+    if (
+        include_membership
+        and "creature" in type_line.lower()
+        and _REPEATABLE_KILL_RE.search(text)
+    ):
+        add("kill_engine", "you", "", "repeatable creature destruction", "low")
     # A LEGENDARY creature whose value is a REPEATABLE engine (a per-turn triggered
     # ability, or a non-mana tap-activated ability) is itself a clone target: copying it
     # forks the engine and the copy dodges the legend rule. "Clone your engine" is
@@ -3719,6 +3737,7 @@ _LITERAL_ADD_KEYS = frozenset(
         "ability_strip_payoff",
         "land_destruction",
         "cheat_from_top",
+        "kill_engine",
     }
 )
 

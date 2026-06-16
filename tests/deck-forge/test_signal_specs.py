@@ -2454,6 +2454,32 @@ BLOOD_MOON = {
     "keywords": [],
     "oracle_text": "Nonbasic lands are Mountains.",
 }
+VICIOUS_SHADOWS = {
+    "name": "Vicious Shadows",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever a creature dies, you may have this enchantment deal damage to "
+        "target player equal to the number of cards in that player's hand."
+    ),
+}
+BLOOD_ARTIST = {
+    "name": "Blood Artist",
+    "type_line": "Creature — Vampire",
+    "power": "0",
+    "toughness": "1",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever this creature or another creature dies, target player loses 1 "
+        "life and you gain 1 life."
+    ),
+}
+MURDER = {
+    "name": "Murder",
+    "type_line": "Instant",
+    "keywords": [],
+    "oracle_text": "Destroy target creature.",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2647,6 +2673,16 @@ def test_domain_serve_credits_additive_land_type_granters():
     assert serves(PRISMATIC_OMEN, sig) is True  # regression: "every basic land type"
     assert serves(REEF_SHAMAN, sig) is False  # replacement fixer, not additive
     assert serves(BLOOD_MOON, sig) is False  # anti-domain hoser
+
+
+def test_kill_engine_serves_death_payoffs():
+    """A repeatable creature-killer (Diaochan, Visara) wants on-death payoffs that
+    fire every time it kills — drain (Blood Artist) and damage (Vicious Shadows). A
+    plain removal spell (Murder) is not a death payoff and stays out."""
+    sig = _sig("kill_engine", "you")
+    assert serves(VICIOUS_SHADOWS, sig) is True  # whenever a creature dies -> damage
+    assert serves(BLOOD_ARTIST, sig) is True  # whenever a creature dies -> drain
+    assert serves(MURDER, sig) is False  # removal, not a death payoff
 
 
 def _subj_sig(key, subject):

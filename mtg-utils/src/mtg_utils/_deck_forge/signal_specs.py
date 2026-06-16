@@ -857,6 +857,16 @@ _DEATH_DRAIN_EXTRA = SubAvenue(
     {"oracle": _DEATH_DRAIN_ORACLE},
     serve=Serve(oracle=re.compile(_DEATH_DRAIN_ORACLE, _IC)),
 )
+# On-death payoffs for a commander that repeatedly KILLS creatures (no sac outlet of
+# its own): the drain set above PLUS the "deal damage to a player" variant (Vicious
+# Shadows) the loses-life/gain-life drain regex misses. Narrow on-death-payoff serve,
+# NOT the full aristocrats kit (no fodder / sac outlets a control commander won't want).
+_KILL_DRAIN_ORACLE = (
+    r"whenever [^.]*\bcreatures?\b[^.]*dies[^.]*"
+    r"(?:each opponent loses|target player loses|loses? \d+ life|you (?:may )?gain"
+    r"|create (?:a|one|two|x) [^.]*(?:treasure|blood|clue)"
+    r"|deals? [^.]*damage to (?:target |each )?(?:player|opponent))"
+)
 # Board wipes are an aristocrats payoff: a mass-death event fires every dies-trigger and
 # drain at once (Wrath of God + Blood Artist). A death/sacrifice commander wants them.
 _BOARD_WIPE_EXTRA = SubAvenue(
@@ -3669,6 +3679,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         _GY_TO_TOP_ORACLE
         + r"|put (?:a|two|three|\w+) cards? from your hand on top of your library"
         + r"|on top of your library in any order",
+    ),
+    # A repeatable creature-KILLER (Diaochan {T}-destroy, Visara, Kalitas) is an
+    # aristocrats-style death engine with no sac outlet of its own: every kill it makes
+    # fires on-death payoffs. Serve the drain/damage payoffs (Blood Artist, Zulaport,
+    # Vicious Shadows) only — NOT the full aristocrats kit (fodder/sac outlets), which a
+    # control-removal commander doesn't want.
+    ("kill_engine", "you"): _spec(
+        "Death payoffs",
+        "your repeatable creature kills fire on-death drain/damage every turn — "
+        "Blood Artist, Zulaport Cutthroat, Vicious Shadows",
+        {"oracle": _KILL_DRAIN_ORACLE},
+        _KILL_DRAIN_ORACLE,
     ),
     # Phasing-lands (Taniwha): your lands phase back each turn, so symmetric land-denial
     # stax (Mana Breach / Overburden — every player bounces/sacs a land) hits opponents

@@ -1106,6 +1106,41 @@ def test_cheat_from_top_commander_opens_lane():
     assert not any(k == "cheat_from_top" for k, _, _ in _ksub(reanimate))
 
 
+def test_repeatable_creature_kill_opens_kill_engine():
+    # A commander that destroys creatures EVERY turn (Diaochan's {T}, Visara's {T})
+    # is a reliable death-engine: each kill triggers death payoffs (Blood Artist,
+    # Vicious Shadows). Requires a REPEATABLE frame (activated/triggered): a one-shot
+    # removal spell (Murder) is not an engine and stays out.
+    diaochan = {
+        "name": "Diaochan, Artful Beauty",
+        "type_line": "Legendary Creature — Human Advisor",
+        "mana_cost": "{2}{B}",
+        "power": "1",
+        "toughness": "1",
+        "keywords": [],
+        "oracle_text": "{T}: Destroy target creature of your choice, then destroy target creature of an opponent's choice. Activate only during your turn, before attackers are declared.",
+    }
+    visara = {
+        "name": "Visara the Dreadful",
+        "type_line": "Legendary Creature — Gorgon",
+        "mana_cost": "{3}{B}{B}{B}",
+        "power": "5",
+        "toughness": "5",
+        "keywords": ["Flying"],
+        "oracle_text": "Flying\n{T}: Destroy target creature. It can't be regenerated.",
+    }
+    murder = {
+        "name": "Murder",
+        "type_line": "Instant",
+        "mana_cost": "{1}{B}{B}",
+        "keywords": [],
+        "oracle_text": "Destroy target creature.",
+    }
+    assert any(k == "kill_engine" for k, _, _ in _ksub(diaochan))
+    assert any(k == "kill_engine" for k, _, _ in _ksub(visara))
+    assert not any(k == "kill_engine" for k, _, _ in _ksub(murder))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 
