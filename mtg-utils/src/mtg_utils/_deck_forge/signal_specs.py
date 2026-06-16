@@ -2923,13 +2923,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Hand-spec overriding the mined sweep detector so the serve also credits the Domain
     # ENABLERS — "lands you control are every basic land type" (Prismatic Omen, Dryad of
-    # the Ilysian Grove) — not just the "domain" / "basic land types among" payoffs.
+    # the Ilysian Grove) — not just the "domain" / "basic land types among" payoffs. The
+    # `... in addition to` tail also credits the additive type-of-choice granter
+    # (Navigator's Compass) WITHOUT the replacement color-fixers ("becomes X until
+    # end of turn", no "in addition to") or anti-domain hosers (Blood Moon).
     ("domain_matters", "you"): _spec(
         "Domain",
         "basic land types and fixing to grow domain",
         {"oracle": r"\bdomain\b|basic land types?"},
         r"\bdomain\b|number of basic land types?|basic land types? among"
-        r"|every basic land type",
+        r"|every basic land type|basic land types?[^.]*in addition to",
     ),
     ("clue_matters", "you"): _spec(
         "Clues / investigate",

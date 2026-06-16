@@ -2422,6 +2422,38 @@ REANIMATE = {
         "control. You lose life equal to that card's mana value."
     ),
 }
+NAVIGATORS_COMPASS = {
+    "name": "Navigator's Compass",
+    "type_line": "Artifact",
+    "keywords": [],
+    "oracle_text": (
+        "When this artifact enters, you gain 3 life.\n{T}: Until end of turn, "
+        "target land you control becomes the basic land type of your choice in "
+        "addition to its other types."
+    ),
+}
+PRISMATIC_OMEN = {
+    "name": "Prismatic Omen",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": (
+        "Lands you control are every basic land type in addition to their other types."
+    ),
+}
+REEF_SHAMAN = {
+    "name": "Reef Shaman",
+    "type_line": "Creature — Merfolk Shaman",
+    "power": "0",
+    "toughness": "2",
+    "keywords": [],
+    "oracle_text": "{T}: Target land becomes the basic land type of your choice until end of turn.",
+}
+BLOOD_MOON = {
+    "name": "Blood Moon",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": "Nonbasic lands are Mountains.",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2602,6 +2634,19 @@ def test_cheat_from_top_serves_graveyard_to_top():
     assert served(HAUNTED_CROSSROADS)
     assert served(HUA_TUO)
     assert not served(REANIMATE)  # graveyard -> battlefield, not graveyard -> top
+
+
+def test_domain_serve_credits_additive_land_type_granters():
+    """A domain commander (Radha) grows X with ADDITIVE basic-land-type granters
+    (Navigator's Compass: 'becomes the basic land type of your choice in addition to
+    its other types'; Prismatic Omen). A replacement color-fixer (Reef Shaman:
+    'becomes ... until end of turn', no 'in addition to') doesn't grow domain, and an
+    anti-domain hoser (Blood Moon) actively shrinks it — both stay out."""
+    sig = _sig("domain_matters", "you")
+    assert serves(NAVIGATORS_COMPASS, sig) is True  # additive type-of-choice granter
+    assert serves(PRISMATIC_OMEN, sig) is True  # regression: "every basic land type"
+    assert serves(REEF_SHAMAN, sig) is False  # replacement fixer, not additive
+    assert serves(BLOOD_MOON, sig) is False  # anti-domain hoser
 
 
 def _subj_sig(key, subject):
