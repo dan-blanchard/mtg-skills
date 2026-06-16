@@ -1784,6 +1784,28 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # Companion), even with no "enchantment" in the oracle.
         serve_types=("enchantment",),
     ),
+    # A color-hoser commander (color_hoser) wants the color-changing "Painter" toolbox
+    # so its color payoff (bounce/restrict/punish a named color) applies to EVERY
+    # permanent: making opponents' creatures blue makes Llawan's "blue creatures"
+    # clauses catch them (color is a layer-5 characteristic the hoser checks: CR 105.2).
+    # Serve is the change-a-color toolbox: Painter's Servant ("are the chosen color"),
+    # the -lace / -Wisps cycles + Distorting Lens ("becomes the color of your choice"),
+    # and the text-changers (Mind Bend / Sleight of Mind / Glamerdye / Alter Reality:
+    # "replacing all instances of one color"). Anchored on a CHANGE verb so a
+    # protection-from-color trick (Gods Willing) or mana fixer never matches.
+    ("color_hoser", "you"): _spec(
+        "Color-bending",
+        "color-changing 'Painter' cards that force your color payoff onto everything",
+        {
+            "oracle": r"becomes the color of your choice|are the chosen color"
+            r"|replacing all instances of one color"
+        },
+        r"becomes the color of your choice"
+        r"|(?:spell or permanent|permanent or spell|target permanent|target creature) "
+        r"becomes (?:white|blue|black|red|green)\b"
+        r"|are the chosen color"
+        r"|replacing all instances of one color",
+    ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
     # object to a token in the SAME clause.

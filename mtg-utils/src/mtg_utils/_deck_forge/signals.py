@@ -127,7 +127,29 @@ _ETB_HAD_RE = re.compile(
 )
 
 
+# color_hoser: a commander whose payoff is keyed on a specific COLOR it punishes,
+# restricts, or bounces (Llawan "opponents can't cast blue creature spells" / "return
+# all blue creatures", Dromar "choose a color, then return all of it", Jaya "destroy
+# target blue permanent", Ascendant Evincar "nonblack creatures get -1/-1"). Such a
+# commander wants the color-changing "Painter" toolbox to force its color payoff onto
+# every permanent (color is a layer-5 characteristic the hoser then checks: CR 105.2 /
+# 613.1e). Deliberately omits bare "protection from <color>" (ubiquitous keyword) and
+# the plain "<color> creatures get +" mono-color anthem (Bad Moon), neither of which is
+# a hoser. Scopes to removal/restriction/bounce on a NAMED color.
+_COLOR = r"(?:white|blue|black|red|green)"
+_COLOR_HOSER_RE = re.compile(
+    rf"(?:destroy|exile|return|counter) (?:target |all )?(?:\w+ )?{_COLOR} "
+    rf"(?:creature|permanent|spell)"
+    rf"|can'?t (?:cast|be cast|block|attack)[^.]{{0,30}}{_COLOR}"
+    rf"|non{_COLOR} creatures? [^.]*get -"
+    rf"|{_COLOR} creatures? (?:your |that your )?opponents control"
+    rf"|choose a color, then (?:return|destroy|exile)",
+    re.IGNORECASE,
+)
+
+
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
+    ("color_hoser", lambda c: _COLOR_HOSER_RE.search(c) is not None, "you"),
     (
         "creature_etb",
         lambda c: (

@@ -581,6 +581,67 @@ def test_class_tribe_membership_gated_off_without_creature_signal():
     )
 
 
+def test_color_hoser_opens_and_serves_color_change_toolbox():
+    # A color-HOSER commander (punishes/restricts/bounces a named COLOR) wants the
+    # color-changing "Painter" toolbox to force its color payoff onto every permanent:
+    # Llawan (opponents' blue creatures bounce + can't be cast), Dromar (choose a color,
+    # bounce all of it). They open color_hoser; the serve is the color-change toolbox.
+    from mtg_utils._deck_forge.signal_specs import spec_for
+
+    llawan = {
+        "name": "Llawan, Cephalid Empress",
+        "type_line": "Legendary Creature — Octopus Noble",
+        "oracle_text": (
+            "When Llawan enters, return all blue creatures your opponents control to "
+            "their owners' hands.\nYour opponents can't cast blue creature spells."
+        ),
+    }
+    dromar = {
+        "name": "Dromar, the Banisher",
+        "type_line": "Legendary Creature — Dragon",
+        "oracle_text": (
+            "Flying\nWhenever Dromar deals combat damage to a player, you may pay "
+            "{2}{U}. If you do, choose a color, then return all creatures of that color "
+            "to their owners' hands."
+        ),
+    }
+    assert any(s.key == "color_hoser" for s in extract_signals(llawan))
+    assert any(s.key == "color_hoser" for s in extract_signals(dromar))
+    # Over-fire guard: a plain color anthem (Bad Moon, "Black creatures get +1/+1") is
+    # NOT a hoser — it doesn't punish/restrict/bounce a color.
+    bad_moon = {
+        "name": "Bad Moon",
+        "type_line": "Enchantment",
+        "oracle_text": "Black creatures get +1/+1.",
+    }
+    assert not any(s.key == "color_hoser" for s in extract_signals(bad_moon))
+
+    # Serve = the color-change toolbox (Painter's Servant, Sleight of Mind), not a
+    # protection-from-color trick or a mana fixer.
+    sig = next(s for s in extract_signals(llawan) if s.key == "color_hoser")
+    sp = spec_for(sig)
+    painters = {
+        "name": "Painter's Servant",
+        "type_line": "Artifact Creature — Scarecrow",
+        "oracle_text": (
+            "As this creature enters, choose a color.\nAll cards that aren't on the "
+            "battlefield, spells, and permanents are the chosen color in addition to "
+            "their other colors."
+        ),
+    }
+    sleight = {
+        "name": "Sleight of Mind",
+        "type_line": "Instant",
+        "oracle_text": (
+            "Change the text of target spell or permanent by replacing all instances "
+            "of one color word with another."
+        ),
+    }
+    assert sp.serve.matches(painters)
+    assert sp.serve.matches(sleight)
+    assert not sp.serve.matches(bad_moon)
+
+
 def test_play_from_top_cross_opens_topdeck_selection():
     # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
     # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It
