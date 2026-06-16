@@ -2499,10 +2499,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Small creatures matter",
         "payoffs and anthems that reward your low-power creatures attacking and going "
         "wide (Raid Bombardment, Reconnaissance Mission)",
-        {"oracle": r"creatures? you control with power \d+ or (?:less|fewer)"},
+        {
+            "oracle": r"creatures? you control with power \d+ or (?:less|fewer)"
+            r"|creature spells?[^.]*with power \d+ or (?:less|fewer)"
+        },
         # Oracle-only: the "you control with power N or less" anchor is what the payoffs
         # share; NO power_max serve (it would flood the lane with vanilla small bodies).
-        r"creatures? you control with power \d+ or (?:less|fewer)",
+        # Also the casting-ENABLER form "cast a creature spell with power N or less"
+        # (Assemble the Players) — a low-power build-around, still not a vanilla body.
+        r"creatures? you control with power \d+ or (?:less|fewer)"
+        r"|creature spells?[^.]*with power \d+ or (?:less|fewer)",
     ),
     ("scry_surveil_matters", "you"): _spec(
         "Scry / surveil matters",

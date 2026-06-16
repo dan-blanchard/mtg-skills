@@ -4607,6 +4607,31 @@ def test_xspell_matters_serves_x_spells_and_doublers():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_low_power_matters_serves_cast_low_power_enabler():
+    # low_power_matters served "creatures you control with power N or less" payoffs but
+    # missed the casting-ENABLER phrasing "cast a creature spell with power N or less"
+    # (Assemble the Players) that a small-creatures commander (Delney) is built around.
+    # Still an enabler, not a flood of vanilla small bodies, so precise. Real oracle.
+    sig = _sig("low_power_matters", "you")
+    assemble = {
+        "name": "Assemble the Players",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "You may look at the top card of your library any time.\nOnce each turn, "
+            "you may cast a creature spell with power 2 or less from the top of your "
+            "library."
+        ),
+    }
+    assert _lane_covers(assemble, sig) is True
+    # Over-fire guard: a vanilla small creature is not a low-power payoff/enabler.
+    grizzly = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+    }
+    assert _lane_covers(grizzly, sig) is False
+
+
 def test_discard_outlet_serves_discard_payoffs():
     # A loot/rummage commander (Jaya Ballard, Alexi) discards a lot, so it wants the
     # payoffs that reward discarding — Containment Construct turns each discard into a
