@@ -60,3 +60,25 @@ def test_hand_disruption_matches_plural_hands_revealed():
     )
     assert spec is not None
     assert spec.serve.matches(telepathy)
+
+
+def test_hand_disruption_matches_forced_reveal_from_hand():
+    # Nebuchadnezzar forces an opponent to reveal cards FROM THEIR HAND ("Target opponent
+    # reveals X cards at random from their hand. Then ... discards ...") — a peek+strip
+    # the regex missed (it needed "reveals their hand" / "look at ... hand"), so the
+    # hand-attack commander never opened the lane and thus missed Telepathy / Glasses of
+    # Urza / Spy Network, which it MUST see hands to use. Real oracle.
+    nebuchadnezzar = {
+        "name": "Nebuchadnezzar",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "{X}, {T}: Choose a card name. Target opponent reveals X cards at random "
+            "from their hand. Then that player discards all cards with that name "
+            "revealed this way. Activate only during your turn."
+        ),
+    }
+    assert "hand_disruption" in {s.key for s in extract_signals(nebuchadnezzar)}
+    # Self-scoped: revealing from YOUR OWN hand ("from your hand") is not opponent
+    # disruption — the "their/that player's hand" anchor keeps it out.
+    self_reveal = {"name": "X", "oracle_text": "Reveal two cards from your hand."}
+    assert "hand_disruption" not in {s.key for s in extract_signals(self_reveal)}

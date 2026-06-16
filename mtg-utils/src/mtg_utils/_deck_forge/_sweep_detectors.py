@@ -130,7 +130,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "hand_disruption",
         "scope": "opponents",
         "is_widen_of": "",
-        "regex": "look at (?:target player|that player|an opponent|each opponent|target opponent)'?s?'? hands?|plays? with (?:their|his or her) hands? revealed|reveals? (?:their|his or her) hands?|reveals?[^.]*until you say stop",
+        "regex": "look at (?:target player|that player|an opponent|each opponent|target opponent)'?s?'? hands?|plays? with (?:their|his or her) hands? revealed|reveals? (?:their|his or her) hands?|reveals? (?:\\w+ )?cards? (?:at random )?from (?:their|his or her|that player's) hand|reveals?[^.]*until you say stop",
     },
     {
         "key": "group_mana",
