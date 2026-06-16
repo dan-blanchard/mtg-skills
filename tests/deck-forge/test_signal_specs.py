@@ -283,6 +283,16 @@ def test_lifeloss_drain_serves_damage_to_opponents():
             "each opponent."
         ),
     }
+    sulfuric_vortex = {  # symmetric group-slug — "deals 2 damage to that player"
+        "name": "Sulfuric Vortex",
+        "type_line": "Enchantment",
+        "mana_cost": "{1}{R}{R}",
+        "oracle_text": (
+            "At the beginning of each player's upkeep, this enchantment deals 2 damage "
+            "to that player.\nIf a player would gain life, that player gains no life "
+            "instead."
+        ),
+    }
     flame_slash = {  # creature-only removal — not opponent life loss
         "name": "Flame Slash",
         "type_line": "Sorcery",
@@ -290,6 +300,7 @@ def test_lifeloss_drain_serves_damage_to_opponents():
         "oracle_text": "Flame Slash deals 4 damage to target creature.",
     }
     assert serves(kessig_flamebreather, sig) is True  # damage to each opponent = drain
+    assert serves(sulfuric_vortex, sig) is True  # group-slug "that player" = drain
     assert serves(flame_slash, sig) is False  # creature-only, no opponent life loss
 
 
