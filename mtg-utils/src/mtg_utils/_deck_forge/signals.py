@@ -3185,7 +3185,11 @@ def extract_signals(
     # Membership-only, low confidence: a commander-level suggestion, never a property of
     # every creature in the 99 (so the deck-aggregate path with include_membership=False
     # doesn't flood every engine creature's clone avenue).
-    if include_membership and "legendary creature" in type_line.lower():
+    # "legendary" + "creature" (not the contiguous "legendary creature") so a Legendary
+    # ENCHANTMENT/ARTIFACT/SNOW Creature (Go-Shintai, Thassa, the gods) — still a
+    # legendary creature, just with an intervening card type — is eligible too.
+    _tl = type_line.lower()
+    if include_membership and "legendary" in _tl and "creature" in _tl:
         is_engine = bool(_PER_TURN_ENGINE_RE.search(text)) or (
             bool(_TAP_ABILITY_RE.search(text))
             and not (_MANA_TAP_RE.search(text) and text.count("{T}") == 1)

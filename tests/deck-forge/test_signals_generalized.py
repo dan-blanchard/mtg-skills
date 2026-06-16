@@ -424,6 +424,46 @@ def test_clone_matters_opens_for_recurring_value_legendary():
     }
 
 
+def test_clone_engine_fires_for_legendary_with_intervening_card_type():
+    # The engine-clone suggestion gated on the contiguous substring "legendary creature",
+    # so a "Legendary ENCHANTMENT Creature" (Go-Shintai) or "Legendary ARTIFACT Creature"
+    # was wrongly excluded — yet a Shrine whose mill SCALES per-Shrine is a textbook
+    # clone-your-engine target: fork the end-step engine, dodge the legend rule. Real
+    # oracle.
+    go_shintai = {
+        "name": "Go-Shintai of Lost Wisdom",
+        "type_line": "Legendary Enchantment Creature — Shrine",
+        "mana_cost": "{1}{U}",
+        "power": "0",
+        "toughness": "4",
+        "oracle_text": (
+            "Flying\nAt the beginning of your end step, you may pay {1}. When you do, "
+            "target player mills X cards, where X is the number of Shrines you control. "
+            "(To mill a card, a player puts the top card of their library into their "
+            "graveyard.)"
+        ),
+    }
+    assert ("clone_matters", "you", "") in _ksub(go_shintai)
+    # Precision: broadening the type gate must not bypass the ENGINE gate. A legendary
+    # enchantment creature with only static abilities and a non-tap activated ability
+    # (Heliod, Sun-Crowned — no per-turn trigger, no {T} ability) is not a clone-your-
+    # engine target. Real oracle.
+    heliod = {
+        "name": "Heliod, Sun-Crowned",
+        "type_line": "Legendary Enchantment Creature — God",
+        "mana_cost": "{2}{W}",
+        "power": "5",
+        "toughness": "5",
+        "oracle_text": (
+            "Indestructible\nAs long as your devotion to white is less than five, Heliod "
+            "isn't a creature.\nWhenever you gain life, put a +1/+1 counter on target "
+            "creature or enchantment you control.\n{1}{W}: Another target creature gains "
+            "lifelink until end of turn."
+        ),
+    }
+    assert ("clone_matters", "you", "") not in _ksub(heliod)
+
+
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
     c = {
         "name": "Urza, Lord High Artificer",
