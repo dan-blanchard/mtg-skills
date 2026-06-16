@@ -1283,6 +1283,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
             # "create a Servo/Thopter artifact CREATURE token" go-wide maker is a tokens
             # deck, not an artifacts deck, so only the resource-token subtypes belong.
             r"|junk|incubator|lander|mutagen)\b[^.]*token"
+            # "Investigate" IS "create a Clue token" (a colorless artifact, the keyword
+            # action) — so an investigate commander (Sophina, Lonis) is an artifact deck
+            # whose Clues feed artifact-ETB / affinity payoffs.
+            r"|\binvestigate\b"
             # Metalcraft (CR 207.2c ability word: "control three or more artifacts") is
             # an artifacts deck; the italic word prints in the oracle, so match it.
             r"|\bmetalcraft\b"

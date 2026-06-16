@@ -164,6 +164,30 @@ def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
     assert "free_creature_payoff" not in _keys(preston)
 
 
+def test_artifacts_matter_opens_on_investigate():
+    # "Investigate" creates a Clue token — an artifact (keyword action) — so an
+    # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
+    # payoffs (Reckless Fireweaver / Ingenious Artillerist). "create a Clue token"
+    # already opened the lane; the keyword action "investigate" must too. Real oracle.
+    sophina = {
+        "name": "Sophina, Spearsage Deserter",
+        "type_line": "Legendary Creature — Human Soldier",
+        "mana_cost": "{2}{R}{W}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "Menace\nWhenever Sophina, Spearsage Deserter attacks, investigate once for "
+            "each nontoken attacking creature. (To investigate, create a Clue token. "
+            'It\'s an artifact with "{2}, Sacrifice this artifact: Draw a card.")\n'
+            "Partner—Friends forever (You can have two commanders if both have this "
+            "ability.)"
+        ),
+    }
+    keys = _keys(sophina)
+    assert "artifacts_matter" in keys  # Clue tokens are artifacts
+    assert "clue_matters" in keys  # still a Clue commander too
+
+
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
     c = {
         "name": "Urza, Lord High Artificer",
