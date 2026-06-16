@@ -511,6 +511,15 @@ _MASS_DEATH_PAYOFF_ORACLE = (
     r"|returns? (?:to the battlefield )?all [^.]*cards?[^.]*"
     r"(?:from|in)[^.]*graveyard"
 )
+# Per-target payoff serve (Hinata): spells whose target COUNT is variable, so the
+# per-target discount compounds — "any number of targets", "divided among ... targets",
+# and "X target" spells. Single fixed-target spells (Doom Blade) give only one discount
+# and are excluded.
+_MULTI_TARGET_ORACLE = (
+    r"any number of targets?"
+    r"|divided[^.]*among[^.]*(?:any number|targets?)"
+    r"|\bx target"
+)
 # Token DOUBLERS (CR 616 replacement effect): a token-flood commander doubles output
 # with Doubling Season / Parallel Lives / Mondrak. Phrasings: "create twice that many",
 # "twice that many … are created", "one or more tokens would be created … twice".
@@ -3316,6 +3325,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "board after",
         {"oracle": _MASS_DEATH_PAYOFF_ORACLE},
         _MASS_DEATH_PAYOFF_ORACLE,
+    ),
+    # Per-target payoff (Hinata): the discount scales with target count, so serve spells
+    # whose target count is VARIABLE — "any number of targets" (Aurelia's Fury) and
+    # "X target" spells (Distorting Wake). A single fixed-target removal (Doom Blade) is
+    # only a {1} discount, not the payoff, so it isn't credited.
+    ("per_target_payoff", "you"): _spec(
+        "Multi-target spells",
+        "variable / X-target spells whose per-target discount compounds (any number of "
+        "targets, X target permanents)",
+        {"oracle": _MULTI_TARGET_ORACLE},
+        _MULTI_TARGET_ORACLE,
     ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.

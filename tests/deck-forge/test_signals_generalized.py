@@ -288,6 +288,37 @@ def test_mass_death_payoff_opens_on_aggregate_death_count():
     assert "mass_death_payoff" not in _keys(old_flitterfang)
 
 
+def test_per_target_payoff_opens_on_cost_less_per_target():
+    # Hinata's "Spells you cast cost {1} less to cast for each target" makes MULTI-target
+    # spells (Aurelia's Fury, Distorting Wake) wildly cheap — the more targets, the bigger
+    # the discount. A unique mechanic; it opens a payoff lane that wants variable-target
+    # spells. Real oracle.
+    hinata = {
+        "name": "Hinata, Dawn-Crowned",
+        "type_line": "Legendary Creature — Kirin Spirit",
+        "mana_cost": "{1}{U}{R}{W}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "Flying, trample\nSpells you cast cost {1} less to cast for each target.\n"
+            "Spells your opponents cast cost {1} more to cast for each target."
+        ),
+    }
+    assert ("per_target_payoff", "you") in _ks(hinata)
+    # Flat cost reduction (Goblin Electromancer: "cost {1} less to cast", no per-target
+    # scaling) is NOT this — it doesn't reward casting one spell at many targets. Real
+    # oracle.
+    electromancer = {
+        "name": "Goblin Electromancer",
+        "type_line": "Creature — Goblin Wizard",
+        "mana_cost": "{U}{R}",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.",
+    }
+    assert "per_target_payoff" not in _keys(electromancer)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

@@ -1233,6 +1233,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Per-target payoff (Hinata: "Spells you cast cost {1} less to cast for each
+    # target"): a commander whose spells get CHEAPER per target wants spells whose
+    # target COUNT scales — X-target / "any number of targets" — so the discount
+    # compounds. A unique mechanic (only Hinata in the commander pool), so the lane is
+    # exact. Keyed on "less ... for each target": flat cost reduction ("cost {1} less to
+    # cast", Goblin Electromancer) is excluded, as is the opponent-tax "more ... per
+    # target" half (we want the discount, scoped to YOU).
+    (
+        "per_target_payoff",
+        re.compile(r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

@@ -194,6 +194,41 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_per_target_payoff_serves_variable_target_spells():
+    # Hinata (spells cost {1} less per target) wants spells whose target COUNT scales —
+    # X-target and "any number of targets" — so the discount compounds. Aurelia's Fury
+    # (divided among any number of targets) and Distorting Wake (X target permanents) are
+    # premium; a single-target removal (Doom Blade) gives only {1} off and isn't the
+    # payoff. Real oracle.
+    sig = _sig("per_target_payoff", "you")
+    aurelias_fury = {
+        "name": "Aurelia's Fury",
+        "type_line": "Instant",
+        "mana_cost": "{X}{R}{W}",
+        "oracle_text": (
+            "Aurelia's Fury deals X damage divided as you choose among any number of "
+            "targets. Tap each creature dealt damage this way. Players dealt damage this "
+            "way can't cast noncreature spells this turn."
+        ),
+    }
+    distorting_wake = {
+        "name": "Distorting Wake",
+        "type_line": "Sorcery",
+        "mana_cost": "{X}{U}{U}{U}",
+        "oracle_text": "Return X target nonland permanents to their owners' hands.",
+    }
+    assert serves(aurelias_fury, sig) is True
+    assert serves(distorting_wake, sig) is True
+    # Single-target removal is only a {1} discount — not the multi-target payoff.
+    doom_blade = {
+        "name": "Doom Blade",
+        "type_line": "Instant",
+        "mana_cost": "{1}{B}",
+        "oracle_text": "Destroy target nonblack creature.",
+    }
+    assert serves(doom_blade, sig) is False
+
+
 def test_outlaw_matters_serves_token_makers_and_recursion():
     # Vial Smasher's outlaw payoff wants cards that MAKE outlaw tokens (Mercenary /
     # Pirate / Rogue / Assassin / Warlock) and outlaw RECURSION — not just creatures
