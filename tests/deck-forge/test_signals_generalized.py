@@ -406,6 +406,30 @@ def test_self_recurring_commander_opens_voltron():
     )
 
 
+def test_three_zone_opponent_search_opens_theft():
+    # Kotose rifles all THREE of an opponent's zones ("Search that player's graveyard,
+    # hand, and library ... and exile them ... you may play one of the exiled cards") —
+    # unambiguous steal-and-cast theft, but the detector keyed only on top-of-library
+    # forms, so Kotose missed the theft payoffs (Gonti, Praetor's Grasp). Real oracle.
+    kotose = {
+        "name": "Kotose, the Silent Spider",
+        "type_line": "Legendary Creature — Human Ninja",
+        "oracle_text": (
+            "When Kotose enters, exile target card other than a basic land card from "
+            "an opponent's graveyard. Search that player's graveyard, hand, and "
+            "library for any number of cards with the same name as that card and "
+            "exile them. Then that player shuffles. For as long as you control "
+            "Kotose, you may play one of the exiled cards, and you may spend mana as "
+            "though it were mana of any color to cast it."
+        ),
+    }
+    assert "theft_matters" in _keys(kotose)
+    # Over-fire guard: searching YOUR OWN library is not theft.
+    assert "theft_matters" not in _keys(
+        {"name": "X", "oracle_text": "Search your library for a card."}
+    )
+
+
 def test_self_double_strike_beater_opens_voltron():
     # A commander that ITSELF has double strike and a real body (power >= 4) is a single
     # beater that doubles every equipment/aura bonus -> voltron. Sabin's only signal is a
