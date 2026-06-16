@@ -4607,6 +4607,43 @@ def test_xspell_matters_serves_x_spells_and_doublers():
     assert _lane_covers(grizzly, sig) is False
 
 
+def test_curse_matters_is_a_named_archetype_lane():
+    # Lynde recurs/attaches Curses ("Whenever a Curse is put into your graveyard ...
+    # attach a Curse ...") — it wants the Curse subtype. A named-archetype lane served
+    # by the Curse TYPE (not oracle prose). Real oracle.
+    lynde = {
+        "name": "Lynde, Cheerful Tormentor",
+        "type_line": "Legendary Creature — Human Warlock",
+        "oracle_text": (
+            "Deathtouch\nWhenever a Curse is put into your graveyard from the "
+            "battlefield, return it to the battlefield attached to you at the "
+            "beginning of the next end step.\nAt the beginning of your upkeep, you may "
+            "attach a Curse attached to you to one of your opponents. If you do, draw "
+            "two cards."
+        ),
+    }
+    assert "curse_matters" in {s.key for s in extract_signals(lynde)}
+    sig = _sig("curse_matters", "you")
+    curse_of_misfortunes = {
+        "name": "Curse of Misfortunes",
+        "type_line": "Enchantment — Aura Curse",
+        "oracle_text": (
+            "Enchant player\nAt the beginning of your upkeep, you may search your "
+            "library for a Curse card that doesn't have the same name as a Curse "
+            "attached to enchanted player, put it onto the battlefield attached to "
+            "that player, then shuffle."
+        ),
+    }
+    assert _lane_covers(curse_of_misfortunes, sig) is True
+    # Over-fire guard: a non-Curse Aura is not a Curse.
+    pacifism = {
+        "name": "Pacifism",
+        "type_line": "Enchantment — Aura",
+        "oracle_text": "Enchant creature\nEnchanted creature can't attack or block.",
+    }
+    assert _lane_covers(pacifism, sig) is False
+
+
 def test_opponent_discard_serves_hellbent_punishers():
     # A hand-attack commander empties opponents' hands (Myojin of Night's Reach: "Each
     # opponent discards their hand"), so it wants the empty-hand (8-Rack) punishers that

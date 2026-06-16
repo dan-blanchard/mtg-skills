@@ -1675,6 +1675,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # them) wants the villainous-choice card pool. A named mechanic, so a self-contained
     # open==serve lane like venture / specialize.
     ("villainous_choice", re.compile(r"villainous choice", re.IGNORECASE), "you"),
+    # Curses (Aura — Curse, enchant player): a commander built around recurring /
+    # attaching / casting Curses (Lynde, Cheerful Tormentor) wants the Curse subtype.
+    # Anchored on Curse-as-a-card mechanic ("a/target/your Curse", "Curse spells",
+    # "Curse card") so the bare card NAME ("Connors's Curse") doesn't qualify.
+    (
+        "curse_matters",
+        re.compile(
+            r"curse spells?|curses? you (?:cast|control|own)"
+            r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     (
         "dice_matters",
         re.compile(

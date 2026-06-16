@@ -2806,6 +2806,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"villainous choice"},
         r"villainous choice",
     ),
+    ("curse_matters", "you"): _spec(
+        "Curses",
+        "Curse cards to recur, attach, and pile onto opponents (Lynde, Cheerful "
+        "Tormentor) — served by the Curse subtype, not oracle prose",
+        {"card_type": "Curse"},
+        None,
+        serve_types=("curse",),
+    ),
     ("dice_matters", "you"): _spec(
         "Dice rolling",
         "dice-rolling enablers and roll-result payoffs",
