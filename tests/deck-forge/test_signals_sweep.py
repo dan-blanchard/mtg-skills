@@ -39,3 +39,24 @@ def test_representative_sweep_keys_fire_from_oracle():
     for key, oracle in cases:
         keys = {s.key for s in extract_signals({"name": "X", "oracle_text": oracle})}
         assert key in keys, f"{key} did not fire on: {oracle}"
+
+
+def test_hand_disruption_matches_plural_hands_revealed():
+    # Telepathy uses PLURAL "their hands revealed"; the sweep regex matched only the
+    # singular "hand revealed", so it neither opened the lane nor (hand_disruption is a
+    # sweep, so regex == auto-serve) served the card to a hand-attack commander
+    # (Isperia, Alhammarret, Sen Triplets). Singular/plural conjugation bug class. Real
+    # oracle.
+    telepathy = {
+        "name": "Telepathy",
+        "type_line": "Enchantment",
+        "oracle_text": "Your opponents play with their hands revealed.",
+    }
+    # DETECT: a commander with this text opens the hand-disruption lane.
+    assert "hand_disruption" in {s.key for s in extract_signals(telepathy)}
+    # SERVE: a hand_disruption commander's Telepathy is now credited.
+    spec = spec_for(
+        Signal(key="hand_disruption", scope="opponents", subject="", text="", source="")
+    )
+    assert spec is not None
+    assert spec.serve.matches(telepathy)
