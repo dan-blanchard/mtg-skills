@@ -1372,6 +1372,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"lands? you control phase", re.IGNORECASE),
         "you",
     ),
+    # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
+    # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
+    # you cast a multicolored spell", converge, "multicolored creatures you control"),
+    # not just any gold card (that's the whole deck).
+    (
+        "multicolor_matters",
+        re.compile(
+            r"for each color pair|exactly those colors|cast a multicolored"
+            r"|multicolored (?:creature|permanent|spell)s? you",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

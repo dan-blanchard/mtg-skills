@@ -271,6 +271,52 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_multicolor_matters_serves_payoffs_not_every_gold_card():
+    # Niv wants multicolored PAYOFFS: General Ferrous Rokiric ("whenever you cast a
+    # multicolored spell …") and Bring to Light (converge). A plain gold creature with no
+    # multicolor payoff (Soulherder) is not credited — that would be the whole deck. Real
+    # oracle.
+    sig = _sig("multicolor_matters", "you")
+    rokiric = {
+        "name": "General Ferrous Rokiric",
+        "type_line": "Legendary Creature — Human Soldier",
+        "mana_cost": "{1}{R}{W}",
+        "power": "3",
+        "toughness": "1",
+        "oracle_text": (
+            "Hexproof from monocolored\nWhenever you cast a multicolored spell, create a "
+            "4/4 red and white Golem artifact creature token."
+        ),
+    }
+    bring_to_light = {
+        "name": "Bring to Light",
+        "type_line": "Sorcery",
+        "mana_cost": "{3}{G}{U}",
+        "oracle_text": (
+            "Converge — Search your library for a creature, instant, or sorcery card "
+            "with mana value less than or equal to the number of colors of mana spent "
+            "to cast this spell, exile that card, then shuffle. You may cast that card "
+            "without paying its mana cost."
+        ),
+    }
+    assert serves(rokiric, sig) is True
+    assert serves(bring_to_light, sig) is True
+    soulherder = {
+        "name": "Soulherder",
+        "type_line": "Creature — Spirit",
+        "mana_cost": "{1}{W}{U}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": (
+            "Whenever a creature is exiled from the battlefield, put a +1/+1 counter on "
+            "this creature.\nAt the beginning of your end step, you may exile another "
+            "target creature you control, then return it to the battlefield under its "
+            "owner's control."
+        ),
+    }
+    assert serves(soulherder, sig) is False
+
+
 def test_land_denial_serves_symmetric_land_punishers():
     # Taniwha wants symmetric land-bounce/sac stax: Mana Breach and Overburden ("that
     # player returns a land they control"). A mana dork is not land denial. Real oracle.

@@ -641,6 +641,25 @@ def test_land_denial_opens_on_phasing_lands():
     assert ("land_denial", "you") in _ks(taniwha)
 
 
+def test_multicolor_matters_opens_on_color_pair_payoff():
+    # Niv-Mizzet Reborn draws cards by exact color pair, so it's a gold-cards deck that
+    # wants the multicolored payoffs. Real oracle.
+    niv = {
+        "name": "Niv-Mizzet Reborn",
+        "type_line": "Legendary Creature — Dragon Avatar",
+        "mana_cost": "{W}{U}{B}{R}{G}",
+        "power": "6",
+        "toughness": "6",
+        "oracle_text": (
+            "Flying\nWhen Niv-Mizzet enters, reveal the top ten cards of your library. "
+            "For each color pair, choose a card that's exactly those colors from among "
+            "them. Put the chosen cards into your hand and the rest on the bottom of "
+            "your library in a random order."
+        ),
+    }
+    assert ("multicolor_matters", "you") in _ks(niv)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

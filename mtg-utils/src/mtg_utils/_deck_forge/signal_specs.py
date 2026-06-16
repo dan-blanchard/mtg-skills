@@ -3493,6 +3493,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Multicolor matters (Niv-Mizzet Reborn + the gold-cards commanders): the multicolor
+    # PAYOFFS — "whenever you cast a multicolored spell", converge, "multicolored
+    # creatures you control" — not every gold card (which would be the whole deck).
+    ("multicolor_matters", "you"): _spec(
+        "Multicolor payoffs",
+        "cards that reward casting multicolored spells, plus converge",
+        {
+            "oracle": r"whenever you cast a multicolored|\bconverge\b"
+            r"|multicolored (?:creature|permanent|spell)s? you"
+        },
+        r"whenever you cast a multicolored"
+        r"|multicolored (?:creature|permanent|spell)s? you (?:control|cast)"
+        r"|\bconverge\b|cast (?:a|your) multicolored",
+    ),
     # Phasing-lands (Taniwha): your lands phase back each turn, so symmetric land-denial
     # stax (Mana Breach / Overburden — every player bounces/sacs a land) hits opponents
     # permanently while you recover. Asymmetric land denial.
