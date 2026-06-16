@@ -563,6 +563,40 @@ def test_class_tribe_membership_opens_when_go_wide():
     }
 
 
+def test_universes_beyond_faction_tribes_open_by_membership():
+    # UB faction-tribes with their own commanders + tribal support (the samurai flavor-
+    # tribe precedent): a Villain legend (Rhino) wants Villains, a Doctor legend (The
+    # Fourteenth Doctor) wants Doctors — opened by membership though the oracle names no
+    # tribe. Strong build-around identity, so ungated like a race/flavor tribe.
+    rhino = {
+        "name": "Rhino, Barreling Brute",
+        "type_line": "Legendary Creature — Human Villain",
+        "oracle_text": (
+            "Vigilance, trample, haste\nWhenever Rhino attacks, if you've cast a spell "
+            "with mana value 4 or greater this turn, draw a card."
+        ),
+    }
+    assert ("type_matters", "you", "Villain") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(rhino, include_membership=True)
+    }
+    doctor = {
+        "name": "The Fourteenth Doctor",
+        "type_line": "Legendary Creature — Time Lord Doctor",
+        "oracle_text": (
+            "When you cast this spell, reveal the top fourteen cards of your library. "
+            "Put all Doctor cards revealed this way into your graveyard and the rest on "
+            "the bottom of your library in a random order.\nYou may have The Fourteenth "
+            "Doctor enter as a copy of a Doctor card in your graveyard that was put there "
+            "from your library this turn. If you do, it gains haste until end of turn."
+        ),
+    }
+    assert ("type_matters", "you", "Doctor") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(doctor, include_membership=True)
+    }
+
+
 def test_class_tribe_membership_gated_off_without_creature_signal():
     # Over-fire guard: a class-typed legend that DOESN'T reward a board (a pure control
     # Wizard) must NOT open its class tribe. Hisoka is a Human Wizard whose only ability

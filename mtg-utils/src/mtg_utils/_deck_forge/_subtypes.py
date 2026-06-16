@@ -597,6 +597,12 @@ TRIBAL_SUBTYPES: frozenset[str] = frozenset(
         "gorgon",
         "homunculus",
         "symbiote",
+        # Universes Beyond faction-tribes with their own legendary commanders and tribal
+        # support: Doctor Who Doctors (Doctor's-companion pairing, "Doctor cards") and
+        # Marvel Villains (villainous-choice / team-up). Strong build-around identity
+        # like the Samurai flavor-tribe, not a generic class, so they open by self-type.
+        "doctor",
+        "villain",
     }
 )
 
