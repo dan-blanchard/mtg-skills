@@ -482,6 +482,25 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert ("counters_matter", "you") not in _ks(volrath)
 
 
+def test_two_tribe_creature_spell():
+    # "(a) <X> or <Y> creature spell": Tawnos copies "a Beast or Bird creature spell", so
+    # it's a Beast AND Bird commander. Scoped to "creature spell" (not bare card/spell) so
+    # an opponent-cast hoser ("an opponent casts a Spirit or Arcane spell") is excluded.
+    tawnos = {
+        "name": "Tawnos, the Toymaker",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": (
+            "Whenever you cast a Beast or Bird creature spell, you may copy it, except "
+            "the copy is an artifact in addition to its other types."
+        ),
+    }
+    trips = {
+        (s.key, s.subject) for s in extract_signals(tawnos, include_membership=True)
+    }
+    assert ("type_matters", "Beast") in trips
+    assert ("type_matters", "Bird") in trips
+
+
 def test_tribe_comma_list_refs():
     # "(a) <X>, <Y>, or <Z> spell/card": Kiora casts "a Kraken, Leviathan, Octopus, or
     # Serpent spell" (sea-monster group), Dr. Eggman puts "a Construct, Robot, or Vehicle
