@@ -42,6 +42,7 @@ from dataclasses import dataclass
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import (
     CARD_TYPE_SUBJECTS,
+    CLASS_TRIBES,
     CREATURE_SUBTYPES,
     IRREGULAR_SINGULAR,
     NON_SUBJECT_WORDS,
@@ -2789,9 +2790,15 @@ def extract_signals(
     # Commander-only at the deck level — see include_membership.
     type_line = card.get("type_line") or ""
     if include_membership and "creature" in type_line.lower() and "—" in type_line:
+        # A class type (Soldier/Cleric/Ninja/…) becomes a build-around only when the
+        # commander ALSO rewards a board of creatures, so its own class is gated on a
+        # go-wide signal; race tribes (Dragon/Kraken) open unconditionally. (CR 205.3.)
+        keys_now = {s.key for s in out}
+        _gate = {"creatures_matter", "attack_matters", "anthem_static"}
+        go_wide = bool(keys_now & _gate)
         for tok in type_line.split("—", 1)[1].split():
             sub = tok.strip().lower()
-            if sub in TRIBAL_SUBTYPES:
+            if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
                 add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), type_line, "low")
     # A commander that IS an artifact / enchantment (the card type is in its type line)
     # is an artifact / enchantment deck — it wants that type's support (affinity & cost

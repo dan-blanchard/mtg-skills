@@ -507,6 +507,80 @@ def test_type_grant_opens_tribal():
     )
 
 
+def test_class_tribe_membership_opens_when_go_wide():
+    # A class-typed legend (Soldier/Cleric/Ninja/…) is its OWN tribe only when it also
+    # rewards a board of creatures (go-wide / anthem / attack). Odric is a Human SOLDIER
+    # whose ability rewards attacking with many creatures, so it wants Soldier lords
+    # (Field Marshal, Daru Warchief) though the oracle never says "Soldier". Class types
+    # stay gated (unlike race tribes) because they're near-ubiquitous.
+    odric = {
+        "name": "Odric, Master Tactician",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "First strike (This creature deals combat damage before creatures without "
+            "first strike.)\nWhenever Odric and at least three other creatures attack, "
+            "you choose which creatures block this combat and how those creatures block."
+        ),
+    }
+    trips = {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(odric, include_membership=True)
+    }
+    assert ("type_matters", "you", "Soldier") in trips
+    # Human is excluded even gated — too ubiquitous to be a build-around.
+    assert ("type_matters", "you", "Human") not in trips
+
+    # Anthem path: Ravos is a Human CLERIC with "Other creatures you control get +1/+1".
+    ravos = {
+        "name": "Ravos, Soultender",
+        "type_line": "Legendary Creature — Human Cleric",
+        "oracle_text": (
+            "Flying\nOther creatures you control get +1/+1.\nAt the beginning of your "
+            "upkeep, you may return target creature card from your graveyard to your "
+            "hand.\nPartner (You can have two commanders if both have partner.)"
+        ),
+    }
+    assert ("type_matters", "you", "Cleric") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(ravos, include_membership=True)
+    }
+
+    # Ninja: Taeko (Turtle Ninja) opens Turtle (race membership) AND attacks; the class-
+    # tribe rule adds Ninja so its ninjutsu pile (Silver-Fur Master, Satoru) is served.
+    taeko = {
+        "name": "Taeko, the Patient Avalanche",
+        "type_line": "Legendary Creature — Turtle Ninja",
+        "oracle_text": (
+            "Taeko enters tapped.\nWhenever another creature you control leaves the "
+            "battlefield, if it didn't die, scry 1 and put a +1/+1 counter on Taeko.\n"
+            "Whenever Taeko attacks, you may pay {U/B}. When you do, target attacking "
+            "creature can't be blocked this turn."
+        ),
+    }
+    assert ("type_matters", "you", "Ninja") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(taeko, include_membership=True)
+    }
+
+
+def test_class_tribe_membership_gated_off_without_creature_signal():
+    # Over-fire guard: a class-typed legend that DOESN'T reward a board (a pure control
+    # Wizard) must NOT open its class tribe. Hisoka is a Human Wizard whose only ability
+    # is a counterspell — no go-wide/anthem/attack signal — so "Wizard" stays closed.
+    hisoka = {
+        "name": "Hisoka, Minamo Sensei",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "{2}{U}, Discard a card: Counter target spell if it has the same mana value "
+            "as the discarded card."
+        ),
+    }
+    assert not any(
+        s.key == "type_matters" and s.subject == "Wizard"
+        for s in extract_signals(hisoka, include_membership=True)
+    )
+
+
 def test_play_from_top_cross_opens_topdeck_selection():
     # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
     # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It

@@ -599,3 +599,31 @@ TRIBAL_SUBTYPES: frozenset[str] = frozenset(
         "symbiote",
     }
 )
+
+# CLASS creature types (CR 205.3b) — Soldier, Cleric, Wizard, … — deliberately excluded
+# from TRIBAL_SUBTYPES because they are near-ubiquitous (a control "Human Wizard" is not
+# a Wizard-tribal deck). But a class-typed legend that ALSO rewards a board of creatures
+# (go-wide / anthem / attack) IS its own class tribe — Odric (Soldier) wants Soldier
+# lords, Ravos (Cleric) wants Clerics, Taeko (Ninja) wants its ninjutsu pile — even with
+# no tribal oracle text. So these open a LOW-confidence own-subtype kindred ONLY behind
+# that go-wide gate (see signals.extract_signals). Restricted to class types with real
+# EDH/constructed tribal pools; thin pseudo-tribes (Noble/Advisor/Scout/Archer) are
+# omitted. "Human" is never here — a race, but too ubiquitous to build around.
+CLASS_TRIBES: frozenset[str] = frozenset(
+    {
+        "soldier",
+        "cleric",
+        "wizard",
+        "warrior",
+        "rogue",
+        "ninja",
+        "assassin",
+        "berserker",
+        "monk",
+        "shaman",
+        "druid",
+        "artificer",
+        "barbarian",
+        "warlock",
+    }
+)
