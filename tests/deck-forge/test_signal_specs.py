@@ -2318,6 +2318,46 @@ EMBODIMENT_OF_INSIGHT = {
         "It's still a land."
     ),
 }
+QUIRION_RANGER = {
+    "name": "Quirion Ranger",
+    "type_line": "Creature — Elf Ranger",
+    "power": "1",
+    "toughness": "1",
+    "keywords": [],
+    "oracle_text": (
+        "Return a Forest you control to its owner's hand: Untap target creature. "
+        "Activate only once each turn."
+    ),
+}
+SCRYB_RANGER = {
+    "name": "Scryb Ranger",
+    "type_line": "Creature — Faerie Ranger",
+    "power": "1",
+    "toughness": "1",
+    "keywords": ["Flying", "Protection", "Flash"],
+    "oracle_text": (
+        "Flash\nFlying, protection from blue\nReturn a Forest you control to its "
+        "owner's hand: Untap target creature. Activate only once each turn."
+    ),
+}
+OBORO_BREEZECALLER = {
+    "name": "Oboro Breezecaller",
+    "type_line": "Creature — Moonfolk Wizard",
+    "power": "1",
+    "toughness": "1",
+    "keywords": ["Flying"],
+    "oracle_text": (
+        "Flying\n{2}, Return a land you control to its owner's hand: Untap target land."
+    ),
+}
+SEEKER_OF_SKYBREAK = {
+    "name": "Seeker of Skybreak",
+    "type_line": "Creature — Elf",
+    "power": "2",
+    "toughness": "1",
+    "keywords": [],
+    "oracle_text": "{T}: Untap target creature.",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2429,6 +2469,24 @@ def test_animate_lands_serve_covers_mass_forest_animators():
 
     assert served(LIFE_AND_LIMB)  # mass Forest animator — the Yedora payoff
     assert served(EMBODIMENT_OF_INSIGHT)  # "Land creatures you control" — covered
+
+
+def test_land_bounce_untap_engines_served():
+    """A Forest/land-animation deck (Yedora) wants the Forest-bounce untap engines
+    (Quirion / Scryb Ranger) and land-untappers (Oboro Breezecaller) — the untap
+    can re-tap an animated land for mana. Narrow lane: the cost must BOUNCE a
+    forest/land you control, not just any untap (Seeker of Skybreak stays out)."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("land_creatures_matter", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(QUIRION_RANGER)
+    assert served(SCRYB_RANGER)
+    assert served(OBORO_BREEZECALLER)  # untap target LAND — the mana-source case
+    assert not served(SEEKER_OF_SKYBREAK)  # plain untapper, no land bounce
 
 
 def _subj_sig(key, subject):

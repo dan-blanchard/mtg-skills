@@ -1551,6 +1551,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
                     r"|all (?:lands?|forests?)[^.]*(?:are|become)[^.]*creature"
                 },
             ),
+            SubAvenue(
+                "Forest-bounce untap engines",
+                # Quirion/Scryb Ranger family: bounce a Forest/land you control
+                # to untap a creature -- or, with Oboro Breezecaller, an animated
+                # land, re-tapping it for mana. Narrow but real in forest-animation
+                # decks; the bounce cost is the precision gate (a plain {T}: untap
+                # is not this).
+                "bounce a Forest/land you control to untap a creature or land",
+                {
+                    "oracle": r"return a (?:forest|land) you control to its "
+                    r"owner's hand[^.]*untap"
+                },
+            ),
         ),
     ),
     # Widen to recover graveyard-HATE payoffs (exile an opponent's graveyard, count
