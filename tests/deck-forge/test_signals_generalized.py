@@ -406,6 +406,23 @@ def test_self_recurring_commander_opens_voltron():
     )
 
 
+def test_rampage_keyword_opens_blocked_matters():
+    # Rampage's "whenever this creature becomes blocked" trigger lives in stripped
+    # reminder text, so blocked_matters (which keys on "becomes blocked") missed it. A
+    # Rampage commander (Marhault) wants the blocked-matters payoffs (Varchild's
+    # War-Riders, Craw Giant, Retaliation). Map the keyword. Real oracle.
+    marhault = {
+        "name": "Marhault Elsdragon",
+        "type_line": "Legendary Creature — Elf Warrior",
+        "keywords": ["Rampage"],
+        "oracle_text": (
+            "Rampage 1 (Whenever this creature becomes blocked, it gets +1/+1 until "
+            "end of turn for each creature blocking it beyond the first.)"
+        ),
+    }
+    assert "blocked_matters" in _keys(marhault)
+
+
 def test_permanents_with_counters_opens_counters():
     # Xolatoyac untaps "each permanent you control with a counter on it" — a counters-
     # matters commander (it wants counters on its permanents to untap them), but the

@@ -2131,6 +2131,10 @@ _DIRECT_KEYWORD_SIGNALS = {
     "annihilator": ("attack_matters", "you"),  # attacks → defending player sacrifices
     "flanking": ("attack_matters", "you"),  # combat (blockers get -1/-1)
     "frenzy": ("attack_matters", "you"),  # attacks unblocked → +N/+0
+    # Rampage (702.23): "whenever this becomes BLOCKED, +X/+X per extra blocker" — the
+    # block trigger is reminder text, so a Rampage commander (Marhault) reads as
+    # blocked-matters via the keyword (wants rampage payoffs / lure to force blocks).
+    "rampage": ("blocked_matters", "you"),
     "lifelink": ("lifegain_matters", "you"),  # gains life in combat → lifegain payoffs
     "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
     "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
