@@ -65,6 +65,32 @@ def test_type_matters_irregular_plural_resolves():
     assert ("type_matters", "you", "Dwarf") in _ksub(c)
 
 
+def test_type_matters_count_clause_tolerates_state_adjective():
+    # "the number of tapped Assassins you control" (Lydia Frye) — a state adjective
+    # ("tapped") sits between "number of" and the tribe, so the bare
+    # "number of <tribe> you control" anchor captured "tapped" (vocab-dropped) and lost
+    # the Assassin tribe. Lydia thus never opened Assassin kindred and missed her whole
+    # tribal package (Assassin Initiate / Rooftop Bypass). Real oracle.
+    lydia = {
+        "name": "Lydia Frye",
+        "type_line": "Legendary Creature — Human Assassin",
+        "oracle_text": (
+            "Lydia Frye can't be blocked by creatures with power 3 or greater.\n"
+            "At the beginning of your end step, surveil X, where X is the number of "
+            "tapped Assassins you control. (Look at the top X cards of your library, "
+            "then put any number of them into your graveyard and the rest on top of "
+            "your library in any order.)"
+        ),
+    }
+    assert ("type_matters", "you", "Assassin") in _ksub(lydia)
+    # The vocab gate still drops the generic card-type word in the same adjective form.
+    generic = {
+        "name": "X",
+        "oracle_text": "Draw a card for each tapped creature you control.",
+    }
+    assert "type_matters" not in _keys(generic)
+
+
 def test_token_maker_prefers_creature_subtype_over_artifact_word():
     c = {
         "name": "Urza, Lord High Artificer",

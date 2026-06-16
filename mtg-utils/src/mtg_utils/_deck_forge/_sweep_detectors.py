@@ -486,7 +486,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "unspent_mana",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "\\bunspent mana\\b|don't lose unspent|lose unspent mana|\\bmana burn\\b|loses? (?:one or more )?unspent mana",
+        "regex": "\\bunspent mana\\b|don't lose unspent|lose unspent mana|\\bmana burn\\b|loses? (?:one or more )?unspent mana|don't lose (?:this |unspent )?(?:\\w+ )?mana as (?:steps|phases|those steps)",
     },
     {
         "key": "keyword_soup",

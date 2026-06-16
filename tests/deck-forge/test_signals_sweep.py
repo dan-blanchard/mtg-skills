@@ -82,3 +82,33 @@ def test_hand_disruption_matches_forced_reveal_from_hand():
     # disruption — the "their/that player's hand" anchor keeps it out.
     self_reveal = {"name": "X", "oracle_text": "Reveal two cards from your hand."}
     assert "hand_disruption" not in {s.key for s in extract_signals(self_reveal)}
+
+
+def test_unspent_mana_opens_on_mana_retained_across_steps():
+    # Avatar Roku makes a mana burst that "doesn't empty" — "you don't lose this mana
+    # as steps end" — the same retention tell as Leyline Tyrant ("don't lose unspent red
+    # mana as steps and phases end"). The regex matched only the literal "unspent mana" /
+    # "don't lose unspent", so a commander that GENERATES persistent mana never opened
+    # the lane and thus saw no mana sinks (Leyline Tyrant, big X-spells). Real oracle.
+    roku = {
+        "name": "Avatar Roku, Firebender",
+        "type_line": "Legendary Creature — Human Avatar",
+        "oracle_text": (
+            "Whenever a player attacks, add six {R}. Until end of combat, you don't "
+            "lose this mana as steps end.\n{R}{R}{R}: Target creature gets +3/+0 "
+            "until end of turn."
+        ),
+    }
+    ventmaw = {
+        "name": "Savage Ventmaw",
+        "type_line": "Creature — Dragon",
+        "oracle_text": (
+            "Flying\nWhenever this creature attacks, add {R}{R}{R}{G}{G}{G}. Until "
+            "end of turn, you don't lose this mana as steps and phases end."
+        ),
+    }
+    assert "unspent_mana" in {s.key for s in extract_signals(roku)}
+    assert "unspent_mana" in {s.key for s in extract_signals(ventmaw)}
+    # A vanilla dork whose mana empties normally must NOT open the lane.
+    dork = {"name": "Llanowar Elves", "oracle_text": "{T}: Add {G}."}
+    assert "unspent_mana" not in {s.key for s in extract_signals(dork)}

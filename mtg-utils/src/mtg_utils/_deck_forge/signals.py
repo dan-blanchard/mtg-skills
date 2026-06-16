@@ -673,6 +673,16 @@ _TYPE_MATTERS_PATTERNS = (
     re.compile(r"\b([A-Za-z]+?) you control\s*:", re.IGNORECASE),
     re.compile(r"\b([A-Za-z]+?)s? you control gets? [+\-](?:\d|x)", re.IGNORECASE),
     re.compile(r"\b(?:number of|for each) ([A-Za-z]+?)s? you control\b", re.IGNORECASE),
+    # "the number of tapped Assassins you control" — a state adjective sits between the
+    # count anchor and the tribe, so the bare anchor above captures the adjective (which
+    # the vocab gate drops) and the tribe is lost. The fixed adjective set + subtype
+    # vocab gate keep it precise (a "tapped creature" count still drops). Lydia Frye.
+    re.compile(
+        r"\b(?:number of|for each) "
+        r"(?:tapped|untapped|attacking|blocking|nontoken|enchanted) "
+        r"([A-Za-z]+?)s? you control\b",
+        re.IGNORECASE,
+    ),
     # Keyword-grant lord: "have"/"has" (static) and "gain"/"gains" (granted) — "Spirits
     # you control gain flying", "Knights you control gain double strike". The subtype
     # vocab gate keeps the generic "Creatures you control gain …" out.

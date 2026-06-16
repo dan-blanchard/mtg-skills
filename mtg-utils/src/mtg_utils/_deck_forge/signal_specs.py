@@ -3207,12 +3207,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {
             "oracle": (
                 r"(?:other [a-z]+ creatures|creatures you control"
-                r"|[a-z]+ creatures you control|nonblack creatures|other creatures)"
+                r"|[a-z]+ creatures you control|nonblack creatures|other creatures"
+                r"|(?:white|blue|black|red|green) creatures"
+                r"|creatures you control of the chosen colou?r)"
                 r" get \+\d/\+\d"
             )
         },
         r"(?:other [a-z]+ creatures|creatures you control"
-        r"|[a-z]+ creatures you control|nonblack creatures|other creatures)"
+        r"|[a-z]+ creatures you control|nonblack creatures|other creatures"
+        r"|(?:white|blue|black|red|green) creatures"
+        r"|creatures you control of the chosen colou?r)"
         r" get \+\d/\+\d",
         serve_not=r"get \+\d/\+\d[^.]*until end of turn",
     ),

@@ -2522,6 +2522,32 @@ class TestSweepHandSpecs:
         assert serves(glorious, sig) is True  # static anthem
         assert serves(overcome, sig) is False  # one-shot pump (until end of turn)
 
+    def test_anthem_static_serves_color_conditional_anthems(self):
+        # Bad Moon ("Black creatures get +1/+1") is THE iconic black anthem, but the
+        # serve required "you control" / "nonblack" / "other", so a color-conditional
+        # anthem was missed — and Hall of Triumph's "creatures you control of the chosen
+        # color get +1/+1" too (the color phrase splits "control" from "get"). The
+        # one-shot color pump stays vetoed by serve_not. Real oracle.
+        sig = _sig("anthem_static", "you")
+        bad_moon = {
+            "type_line": "Enchantment",
+            "oracle_text": "Black creatures get +1/+1.",
+        }
+        hall = {
+            "type_line": "Legendary Artifact",
+            "oracle_text": (
+                "As Hall of Triumph enters, choose a color.\n"
+                "Creatures you control of the chosen color get +1/+1."
+            ),
+        }
+        nocturnal_raid = {
+            "type_line": "Instant",
+            "oracle_text": "Black creatures get +2/+0 until end of turn.",
+        }
+        assert serves(bad_moon, sig) is True  # static color anthem
+        assert serves(hall, sig) is True  # chosen-color anthem
+        assert serves(nocturnal_raid, sig) is False  # one-shot pump still vetoed
+
     def test_ltb_matters_excludes_o_ring_removal(self):
         sig = _sig("ltb_matters", "you")
         nikara = {
