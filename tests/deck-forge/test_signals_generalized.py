@@ -742,6 +742,24 @@ def test_extra_combat_served_by_combat_signals():
         assert not covers(bolt), key
 
 
+def test_discard_outlet_cross_opens_graveyard():
+    # A discard-outlet commander fills the graveyard, so it wants GY payoffs (reanimate /
+    # flashback / recur the discarded cards): cross-open graveyard_matters. Mishra loots
+    # and discards artifacts; its GY misses (Trash for Treasure, Goblin Welder) were
+    # unserved.
+    mishra = {
+        "name": "Mishra, Excavation Prodigy",
+        "type_line": "Legendary Creature — Human Artificer",
+        "oracle_text": (
+            "Haste\n{1}, {T}, Discard a card: Draw a card.\nWhenever you discard one or "
+            "more artifact cards, add {R}{R}. This ability triggers only once each turn."
+        ),
+    }
+    keys = {s.key for s in extract_signals(mishra, include_membership=True)}
+    assert "discard_outlet" in keys  # precondition
+    assert "graveyard_matters" in keys  # cross-opened
+
+
 def test_spell_copy_cross_opens_spellcast():
     # A spell-copy commander copies the instants/sorceries you cast (Zevlor, Rassilon,
     # Veyran), so it is a spellslinger wanting a dense spell base — cross-open

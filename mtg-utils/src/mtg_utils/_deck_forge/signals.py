@@ -2756,6 +2756,12 @@ def extract_signals(
         # open spellcast_matters (its serve covers every I/S). Low confidence.
         if "spell_copy_matters" in keys_now and "spellcast_matters" not in keys_now:
             add("spellcast_matters", "you", "", text[:160], "low")
+        # A discard-OUTLET commander (loot / rummage / discard-to-pay) fills the
+        # graveyard, so the discarded cards become GY fuel: it wants reanimation /
+        # flashback / GY recursion. Cross-open graveyard_matters (Niambi reanimates,
+        # Mishra recurs artifacts, Malfegor recurs the discarded hand). Low confidence.
+        if "discard_outlet" in keys_now and "graveyard_matters" not in keys_now:
+            add("graveyard_matters", "you", "", text[:160], "low")
         # Lure (force blocks) and blocked_matters (punish the blocker) are one
         # archetype: a commander that lures / must-be-blocked (Madame Vastra, Gorm)
         # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian
