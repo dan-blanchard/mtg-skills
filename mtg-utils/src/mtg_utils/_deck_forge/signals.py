@@ -2311,6 +2311,20 @@ def _voltron_land_scaler(text: str, name: str) -> bool:
     return pat.search(text) is not None
 
 
+def _voltron_self_recurs(text: str, name: str) -> bool:
+    """True if the COMMANDER returns ITSELF from the graveyard to the battlefield —
+    "return Akuta from your graveyard to the battlefield" (Akuta, Calim): a resilient,
+    hard-to-keep-dead threat, hence a prime equipment carrier (voltron, like the
+    hexproof tell). Self-scoped (its name / this creature) so a reanimation effect
+    returning ANOTHER creature doesn't qualify."""
+    alts = "|".join(["this creature", "itself", *_self_name_alts(name)])
+    pat = re.compile(
+        rf"return (?:{alts}) from (?:your|its owner's) graveyard to the battlefield",
+        re.IGNORECASE,
+    )
+    return pat.search(text) is not None
+
+
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for preset_name, (key, scope) in _PRESET_REGEX_SIGNALS.items():
@@ -3123,6 +3137,7 @@ def extract_signals(
             )  # (F) self-unblock
             or _voltron_self_heroic(text, name)  # (G) self-heroic suit-up (Brigone)
             or _voltron_land_scaler(text, name)  # (H) land-scaling threat (Sima Yi)
+            or _voltron_self_recurs(text, name)  # (I) self-recurring threat (Akuta)
         )
     ):
         add("voltron_matters", "you", "", "likely voltron commander", "low")

@@ -12,6 +12,7 @@ leakage, stax self-restrictions) must stay clean.
 from mtg_utils._deck_forge.signals import (
     _voltron_land_scaler,
     _voltron_self_heroic,
+    _voltron_self_recurs,
     coverage_gate,
     extract_signals,
 )
@@ -371,6 +372,34 @@ def test_land_scaling_power_opens_voltron():
             "Creatures you control have base power equal to the number of Forests "
             "you control.",
             "Test Anthem",
+        )
+        is False
+    )
+
+
+def test_self_recurring_commander_opens_voltron():
+    # A commander that returns ITSELF from the graveyard (Akuta: "return Akuta from your
+    # graveyard to the battlefield") is a resilient, hard-to-keep-dead threat — a prime
+    # equipment carrier (its top synergy is Swamp-scaling equipment). Opens voltron.
+    # Real oracle.
+    akuta = {
+        "name": "Akuta, Born of Ash",
+        "type_line": "Legendary Creature — Spirit",
+        "power": "3",
+        "toughness": "2",
+        "oracle_text": (
+            "Haste\nAt the beginning of your upkeep, if you have more cards in hand "
+            "than each opponent, you may sacrifice a Swamp. If you do, return Akuta "
+            "from your graveyard to the battlefield."
+        ),
+    }
+    assert "voltron_matters" in _keys(akuta)
+    # Self-scoped: a reanimation spell returning ANOTHER creature is not the resilience
+    # tell — the helper must not match it.
+    assert (
+        _voltron_self_recurs(
+            "Return target creature card from your graveyard to the battlefield.",
+            "Reanimator",
         )
         is False
     )
