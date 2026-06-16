@@ -2395,6 +2395,14 @@ _MANA_TAP_RE = re.compile(r"\{t\}: add\b", re.IGNORECASE)
 _LAND_DESTRUCTION_RE = re.compile(
     r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b", re.IGNORECASE
 )
+# A commander that reveals the top card of a library and CHEATS a permanent onto the
+# battlefield (Vaevictis, Hans Eriksson, Thrasios) curates its top: it wants to stack a
+# bomb there (graveyard-to-top). BOTH tells are required so a plain reanimation spell
+# ("put ... onto the battlefield" with no reveal) isn't mistaken for a top-cheater.
+_CHEAT_TOP_REVEAL_RE = re.compile(r"reveals? the top card", re.IGNORECASE)
+_CHEAT_TOP_ONTO_RE = re.compile(
+    r"puts? (?:it|that card|them) onto the battlefield", re.IGNORECASE
+)
 
 
 def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
@@ -3430,6 +3438,15 @@ def extract_signals(
         and _LAND_DESTRUCTION_RE.search(text)
     ):
         add("land_destruction", "you", "", "repeatable land destruction", "low")
+    # A commander that reveals its top card and cheats a permanent into play (Vaevictis,
+    # Hans Eriksson) wants to STACK its top with a bomb. Membership-only: the lane opens
+    # because the COMMANDER is the top-cheater, not because the 99 hold one.
+    if (
+        include_membership
+        and _CHEAT_TOP_REVEAL_RE.search(text)
+        and _CHEAT_TOP_ONTO_RE.search(text)
+    ):
+        add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
     # A LEGENDARY creature whose value is a REPEATABLE engine (a per-turn triggered
     # ability, or a non-mana tap-activated ability) is itself a clone target: copying it
     # forks the engine and the copy dodges the legend rule. "Clone your engine" is
@@ -3701,6 +3718,7 @@ _LITERAL_ADD_KEYS = frozenset(
         "card_draw_engine",
         "ability_strip_payoff",
         "land_destruction",
+        "cheat_from_top",
     }
 )
 

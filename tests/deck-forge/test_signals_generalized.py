@@ -1070,6 +1070,42 @@ def test_numot_repeatable_land_destruction_opens_lane():
     assert not any(k == "land_destruction" for k, _, _ in _ksub(stone_rain))
 
 
+def test_cheat_from_top_commander_opens_lane():
+    # Vaevictis / Hans reveal the top card and cheat a permanent onto the battlefield,
+    # so they want to STACK their top with a bomb (graveyard-to-top). Requires BOTH the
+    # reveal-top tell AND the puts-onto-battlefield tell: a plain reanimation spell
+    # (Reanimate) puts a creature onto the battlefield but never reveals the top, so it
+    # is not a top-cheater and stays out.
+    vaevictis = {
+        "name": "Vaevictis Asmadi, the Dire",
+        "type_line": "Legendary Creature — Elder Dragon",
+        "mana_cost": "{3}{B}{R}{G}",
+        "power": "6",
+        "toughness": "6",
+        "keywords": ["Flying"],
+        "oracle_text": "Flying\nWhenever Vaevictis Asmadi attacks, for each player, choose target permanent that player controls. Those players sacrifice those permanents. Each player who sacrificed a permanent this way reveals the top card of their library, then puts it onto the battlefield if it's a permanent card.",
+    }
+    hans = {
+        "name": "Hans Eriksson",
+        "type_line": "Legendary Creature — Human Scout",
+        "mana_cost": "{2}{R}{G}",
+        "power": "1",
+        "toughness": "4",
+        "keywords": ["Fight"],
+        "oracle_text": "Whenever Hans Eriksson attacks, reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand. When you put a creature card onto the battlefield this way, it fights Hans Eriksson.",
+    }
+    reanimate = {
+        "name": "Reanimate",
+        "type_line": "Sorcery",
+        "mana_cost": "{B}",
+        "keywords": [],
+        "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+    }
+    assert any(k == "cheat_from_top" for k, _, _ in _ksub(vaevictis))
+    assert any(k == "cheat_from_top" for k, _, _ in _ksub(hans))
+    assert not any(k == "cheat_from_top" for k, _, _ in _ksub(reanimate))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

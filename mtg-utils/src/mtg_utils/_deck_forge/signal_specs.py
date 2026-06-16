@@ -881,6 +881,13 @@ _LANDFALL_ORACLE = (
     r"|play lands? from your graveyard"
     r"|put [^.]*\bland card[^.]*onto the battlefield"
 )
+# Graveyard-to-top recursion (Volrath's Stronghold, Haunted Crossroads, Hua Tuo): the
+# top-stacking enabler a cheat-from-top / play-from-top deck wants -- it puts a chosen
+# card on TOP of the library (not onto the battlefield, which is plain reanimation).
+_GY_TO_TOP_ORACLE = (
+    r"(?:put|return) (?:target |a )?(?:\w+ )?cards? from (?:your|a) graveyard "
+    r"on top of (?:your|their)(?: owner.s)? library"
+)
 _LANDS_FROM_GRAVE_ORACLE = (
     r"play lands? from your graveyard"
     # Mass land-return puts lands straight onto the battlefield — a huge landfall
@@ -3647,6 +3654,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             ),
             _LANDS_FROM_GRAVE_EXTRA,
         ),
+    ),
+    # A cheat-from-top commander (Vaevictis, Hans Eriksson) reveals its top card and
+    # puts a permanent into play, so it wants to STACK its top with a bomb: graveyard-
+    # to-top recursion and deliberate put-on-top effects choose what gets cheated in.
+    ("cheat_from_top", "you"): _spec(
+        "Stack your top",
+        "put a bomb on top of your library to be cheated in — graveyard-to-top "
+        "recursion and put-on-top effects",
+        {"oracle": _GY_TO_TOP_ORACLE},
+        _GY_TO_TOP_ORACLE
+        + r"|put (?:a|two|three|\w+) cards? from your hand on top of your library"
+        + r"|on top of your library in any order",
     ),
     # Phasing-lands (Taniwha): your lands phase back each turn, so symmetric land-denial
     # stax (Mana Breach / Overburden — every player bounces/sacs a land) hits opponents

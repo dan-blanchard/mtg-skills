@@ -2399,6 +2399,29 @@ PRICE_OF_GLORY = {
         "destroy that land."
     ),
 }
+HAUNTED_CROSSROADS = {
+    "name": "Haunted Crossroads",
+    "type_line": "Enchantment",
+    "keywords": [],
+    "oracle_text": "{B}: Put target creature card from your graveyard on top of your library.",
+}
+HUA_TUO = {
+    "name": "Hua Tuo, Honored Physician",
+    "type_line": "Legendary Creature — Human",
+    "power": "1",
+    "toughness": "2",
+    "keywords": [],
+    "oracle_text": "{T}: Put target creature card from your graveyard on top of your library. Activate only during your turn, before attackers are declared.",
+}
+REANIMATE = {
+    "name": "Reanimate",
+    "type_line": "Sorcery",
+    "keywords": [],
+    "oracle_text": (
+        "Put target creature card from a graveyard onto the battlefield under your "
+        "control. You lose life equal to that card's mana value."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2562,6 +2585,23 @@ def test_land_destruction_serves_ld_support_package():
     assert served(DINGUS_EGG)  # land-to-graveyard punisher
     assert served(PRICE_OF_GLORY)  # off-turn land-tap stax
     assert not served(BONESPLITTER)  # unrelated equipment
+
+
+def test_cheat_from_top_serves_graveyard_to_top():
+    """A cheat-from-top commander (Vaevictis) wants to STACK its top with a bomb, so
+    the lane serves graveyard-to-top (Haunted Crossroads, Hua Tuo). A reanimation
+    spell that puts a creature straight onto the battlefield (Reanimate) is NOT a
+    top-stacker and stays out."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("cheat_from_top", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(HAUNTED_CROSSROADS)
+    assert served(HUA_TUO)
+    assert not served(REANIMATE)  # graveyard -> battlefield, not graveyard -> top
 
 
 def _subj_sig(key, subject):
