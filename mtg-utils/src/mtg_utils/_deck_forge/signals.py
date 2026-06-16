@@ -2440,6 +2440,13 @@ _REPEATABLE_KILL_RE = re.compile(
     r"|(?:whenever|at the beginning of)[^.]*destroy target creature",
     re.IGNORECASE,
 )
+# A commander that GENERATES big mana (Neheb "add {R} for each 1 life lost"; Sunastian
+# "{T}: Add {C}{C}"; mana doublers) wants X-spell sinks to dump it into (Dan: big-mana-
+# GENERATING cards -> X-spells, NOT "high-cmc cards -> X"). The tells: add 2+ symbols at
+# once, add-for-each (scales), or "add an additional" (a doubler).
+_BIG_MANA_RE = re.compile(
+    r"add \{[^}]*\}\{[^}]*\}|add [^.]*for each|add an additional", re.IGNORECASE
+)
 
 
 def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
@@ -3493,6 +3500,11 @@ def extract_signals(
         and _REPEATABLE_KILL_RE.search(text)
     ):
         add("kill_engine", "you", "", "repeatable creature destruction", "low")
+    # A commander that generates big mana wants X-spell sinks (Neheb, Sunastian).
+    # Membership-only: a mana rock in the 99 (Sol Ring) opening this would over-suggest
+    # X-spells to every deck — the COMMANDER being the big-mana engine is the signal.
+    if include_membership and _BIG_MANA_RE.search(text):
+        add("big_mana", "you", "", "big-mana generator", "low")
     # A LEGENDARY creature whose value is a REPEATABLE engine (a per-turn triggered
     # ability, or a non-mana tap-activated ability) is itself a clone target: copying it
     # forks the engine and the copy dodges the legend rule. "Clone your engine" is
@@ -3781,6 +3793,7 @@ _LITERAL_ADD_KEYS = frozenset(
         "cheat_from_top",
         "kill_engine",
         "one_punch",
+        "big_mana",
     }
 )
 

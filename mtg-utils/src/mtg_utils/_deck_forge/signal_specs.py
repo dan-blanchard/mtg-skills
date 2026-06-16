@@ -2807,6 +2807,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:creature|permanent|nonland permanent|legendary permanent)",
         serve_not=r"until end of turn",
     ),
+    # A big-mana commander (Neheb, Sunastian) wants X-spell mana SINKS to dump its mana
+    # into. Serve X-damage spells that scale with the mana paid (Fireball, Crackle with
+    # Power, Jaya's Immolating Inferno); a fixed-cost burn (Lightning Bolt) and a mana
+    # GENERATOR (Mana Flare) are not sinks. (Dan: big-mana-generators -> X-spells.)
+    ("big_mana", "you"): _spec(
+        "X-spell sinks",
+        "X-spells to pour your big mana into — Fireball, Comet Storm, Crackle with "
+        "Power, Jaya's Immolating Inferno",
+        {"oracle": r"deals x damage|x damage to|times x damage"},
+        r"deals x damage|x damage to|deals [^.]*times x damage"
+        r"|of up to x target|to each of up to x",
+    ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",

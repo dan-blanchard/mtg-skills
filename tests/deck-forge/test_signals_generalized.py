@@ -1286,6 +1286,43 @@ def test_kira_targeting_shield_opens_protected_theft():
     assert not any(k == "theft_protection" for k, _, _ in _ksub(spider_rex))
 
 
+def test_big_mana_generator_opens_x_spell_sink():
+    # A commander that GENERATES big mana (Neheb: "add {R} for each life lost"; Sunastian:
+    # "{T}: Add {C}{C}") wants X-spell mana sinks to dump it into. (Dan's clarification:
+    # big-mana-GENERATING cards -> X-spells, not "high-cmc cards -> X".) A single-mana dork
+    # (Llanowar Elves) is not a big-mana generator and stays out.
+    neheb = {
+        "name": "Neheb, the Eternal",
+        "type_line": "Legendary Creature — Zombie Minotaur Warrior",
+        "mana_cost": "{3}{R}{R}",
+        "power": "4",
+        "toughness": "6",
+        "keywords": ["Afflict"],
+        "oracle_text": "Afflict 3 (Whenever this creature becomes blocked, defending player loses 3 life.)\nAt the beginning of each of your postcombat main phases, add {R} for each 1 life your opponents have lost this turn.",
+    }
+    sunastian = {
+        "name": "Sunastian Falconer",
+        "type_line": "Legendary Creature — Human Shaman",
+        "mana_cost": "{3}{R}{G}",
+        "power": "4",
+        "toughness": "4",
+        "keywords": [],
+        "oracle_text": "{T}: Add {C}{C}.",
+    }
+    elf = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "keywords": [],
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert any(k == "big_mana" for k, _, _ in _ksub(neheb))
+    assert any(k == "big_mana" for k, _, _ in _ksub(sunastian))
+    assert not any(k == "big_mana" for k, _, _ in _ksub(elf))  # single mana, not big
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

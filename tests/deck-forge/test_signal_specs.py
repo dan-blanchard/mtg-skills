@@ -2664,6 +2664,51 @@ ACT_OF_TREASON = {
         "gains haste until end of turn. (It can attack and {T} this turn.)"
     ),
 }
+FIREBALL = {
+    "name": "Fireball",
+    "type_line": "Sorcery",
+    "mana_cost": "{X}{R}",
+    "keywords": [],
+    "oracle_text": (
+        "This spell costs {1} more to cast for each target beyond the first.\nFireball "
+        "deals X damage divided evenly, rounded down, among any number of targets."
+    ),
+}
+CRACKLE_WITH_POWER = {
+    "name": "Crackle with Power",
+    "type_line": "Sorcery",
+    "mana_cost": "{X}{X}{X}{R}{R}",
+    "keywords": [],
+    "oracle_text": "Crackle with Power deals five times X damage to each of up to X targets.",
+}
+JAYAS_INFERNO = {
+    "name": "Jaya's Immolating Inferno",
+    "type_line": "Legendary Sorcery",
+    "mana_cost": "{X}{R}{R}",
+    "keywords": [],
+    "oracle_text": (
+        "(You may cast a legendary sorcery only if you control a legendary creature or "
+        "planeswalker.)\nJaya's Immolating Inferno deals X damage to each of up to "
+        "three targets."
+    ),
+}
+LIGHTNING_BOLT = {
+    "name": "Lightning Bolt",
+    "type_line": "Instant",
+    "mana_cost": "{R}",
+    "keywords": [],
+    "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+}
+MANA_FLARE = {
+    "name": "Mana Flare",
+    "type_line": "Enchantment",
+    "mana_cost": "{2}{R}",
+    "keywords": [],
+    "oracle_text": (
+        "Whenever a player taps a land for mana, that player adds one mana of any type "
+        "that land produced."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2932,6 +2977,19 @@ def test_theft_protection_serves_permanent_theft_not_temporary():
     assert serves(ROIL_ELEMENTAL, sig) is True  # contingent steal made sticky
     assert serves(EMPRESS_GALINA, sig) is True  # repeatable theft engine, protected
     assert serves(ACT_OF_TREASON, sig) is False  # temporary — protection irrelevant
+
+
+def test_big_mana_serves_x_spell_sinks():
+    """A big-mana commander (Neheb, Sunastian) wants X-spell mana sinks — Fireball,
+    Crackle with Power, Jaya's Immolating Inferno (deal X damage scaling with the mana
+    paid). A fixed-cost burn (Lightning Bolt) and a mana GENERATOR (Mana Flare, not a
+    sink) stay out."""
+    sig = _sig("big_mana", "you")
+    assert serves(FIREBALL, sig) is True
+    assert serves(CRACKLE_WITH_POWER, sig) is True
+    assert serves(JAYAS_INFERNO, sig) is True
+    assert serves(LIGHTNING_BOLT, sig) is False  # fixed 3 damage, not a mana sink
+    assert serves(MANA_FLARE, sig) is False  # generates mana, isn't a sink
 
 
 def _subj_sig(key, subject):
