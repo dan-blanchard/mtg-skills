@@ -2296,6 +2296,28 @@ MANLAND = {
         "{T}: Add {C}.\n{1}: This land becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a land.\n{T}: Target Assembly-Worker creature gets +1/+1 until end of turn."
     ),
 }
+LIFE_AND_LIMB = {
+    "name": "Life and Limb",
+    "type_line": "Enchantment",
+    "oracle_text": (
+        "All Forests and all Saprolings are 1/1 green Saproling creatures and "
+        "Forest lands in addition to their other types. (They're affected by "
+        "summoning sickness.)"
+    ),
+}
+EMBODIMENT_OF_INSIGHT = {
+    "name": "Embodiment of Insight",
+    "type_line": "Creature — Elemental",
+    "power": "4",
+    "toughness": "4",
+    "keywords": ["Vigilance", "Landfall"],
+    "oracle_text": (
+        "Vigilance\nLand creatures you control have vigilance.\nLandfall — "
+        "Whenever a land you control enters, you may have target land you "
+        "control become a 3/3 Elemental creature with haste until end of turn. "
+        "It's still a land."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2391,6 +2413,22 @@ def test_land_creature_avenue_searches_exclude_false_positives():
     assert served(MANLAND)  # a real creature-land is surfaced by some avenue
     assert not served(PLANT_MAKER)  # Avenger's Plant tokens — surfaced by none
     assert not served(CLONE)  # Silent Hallcreeper clone — surfaced by none
+
+
+def test_animate_lands_serve_covers_mass_forest_animators():
+    """Yedora's payoff: she makes Forest lands, then 'animate your lands' effects
+    turn them into a creature army. Life and Limb animates ALL Forests at once
+    ('All Forests ... are 1/1 ... creatures'), so the Animate-your-lands
+    sub-avenue must reach it, not only the 'lands you control become' phrasing."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("land_creatures_matter", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(LIFE_AND_LIMB)  # mass Forest animator — the Yedora payoff
+    assert served(EMBODIMENT_OF_INSIGHT)  # "Land creatures you control" — covered
 
 
 def _subj_sig(key, subject):

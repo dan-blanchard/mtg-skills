@@ -992,6 +992,23 @@ def test_plant_token_maker_keeps_subject_but_not_land_creatures():
     assert not any(k == "land_creatures_matter" for k, _, _ in s)
 
 
+def test_yedora_forest_land_maker_opens_land_creatures():
+    # Yedora returns dead creatures as face-down Forest LANDS ("It's a Forest
+    # land."). Those lands are exactly what animate-your-lands payoffs (Life and
+    # Limb, Living Plane) turn into a creature army, so she belongs in the
+    # existing land-creatures lane, reached via her "It's a Forest land" tell.
+    c = {
+        "name": "Yedora, Grave Gardener",
+        "type_line": "Legendary Creature — Treefolk Druid",
+        "mana_cost": "{4}{G}",
+        "power": "5",
+        "toughness": "5",
+        "keywords": [],
+        "oracle_text": "Whenever another nontoken creature you control dies, you may return it to the battlefield face down under its owner's control. It's a Forest land. (It has no other types or abilities.)",
+    }
+    assert any(k == "land_creatures_matter" for k, _, _ in _ksub(c))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

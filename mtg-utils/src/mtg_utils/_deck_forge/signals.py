@@ -248,13 +248,16 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ),
     # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland
     # creature" / "Plant creature" / "island creature" do NOT register — only a
-    # genuine land-creature reference (the Jyoti / Sylvan Advocate theme).
+    # genuine land-creature reference (the Jyoti / Sylvan Advocate theme). The
+    # "it's/becomes a forest land" tail catches the maker side (Yedora turns dead
+    # creatures into Forest lands that animate-your-lands payoffs then re-animate).
     (
         "land_creatures_matter",
         _re(
             r"\bland creatures?\b|lands? you control (?:are|become)\b"
             r"|all lands[^.]*become[^.]*creature"
             r"|target land[^.]*becomes? a[^.]*creature"
+            r"|(?:it's|becomes?) a forest land"
         ),
         None,
     ),

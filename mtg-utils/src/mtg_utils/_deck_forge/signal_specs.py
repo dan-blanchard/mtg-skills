@@ -1543,7 +1543,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             SubAvenue(
                 "Animate your lands",
                 "effects that turn lands you control into creatures",
-                {"oracle": r"lands? you control[^.]*become[^.]*creature"},
+                # second alt catches mass animators that name the land type
+                # directly ("All Forests ... are 1/1 ... creatures" - Life and
+                # Limb, Living Plane), the Yedora-Forest-lands payoff.
+                {
+                    "oracle": r"(?:lands?|forests?) you control[^.]*become[^.]*creature"
+                    r"|all (?:lands?|forests?)[^.]*(?:are|become)[^.]*creature"
+                },
             ),
         ),
     ),
