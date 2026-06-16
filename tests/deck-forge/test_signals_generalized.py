@@ -678,6 +678,20 @@ def test_target_own_payoff_opens_on_targeted_your_creature():
     assert ("target_own_payoff", "you") in _ks(gyatso)
 
 
+def test_life_payment_insurance_opens_on_repeatable_pay_life():
+    # Selenia's "Pay 2 life:" ability drives her own life low, so she wants life-loss
+    # insurance. Real oracle.
+    selenia = {
+        "name": "Selenia, Dark Angel",
+        "type_line": "Legendary Creature — Phyrexian Angel",
+        "mana_cost": "{3}{W}{B}",
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": "Flying\nPay 2 life: Return Selenia to its owner's hand.",
+    }
+    assert ("life_payment_insurance", "you") in _ks(selenia)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

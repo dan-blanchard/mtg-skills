@@ -1395,6 +1395,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Self-life-payment (Selenia "Pay 2 life:"; Beledros, Vilis, Chainer): a commander
+    # with a repeatable "pay N life:" ability drives its own life low, so it wants
+    # life-loss insurance (Phyrexian Unlife "don't lose at 0 life", Angel's Grace).
+    (
+        "life_payment_insurance",
+        re.compile(r"pay \d+ life:", re.IGNORECASE),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

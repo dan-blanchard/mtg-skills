@@ -3493,6 +3493,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Self-life-payment insurance (Selenia, Beledros, Vilis): a commander that pays its
+    # own life repeatedly wants life-loss insurance so the payments don't kill it
+    # (Phyrexian Unlife, Angel's Grace, Platinum Angel).
+    ("life_payment_insurance", "you"): _spec(
+        "Life-loss insurance",
+        "cards that stop you losing the game from heavy self-life-payment",
+        {
+            "oracle": r"don'?t lose the game for having|can'?t lose the game"
+            r"|your life total can'?t change"
+        },
+        r"don'?t lose the game for having|can'?t lose the game"
+        r"|your life total can'?t change|you don'?t lose the game",
+    ),
     # Target-your-own payoff (Monk Gyatso): free ways to target your own creatures so a
     # "when targeted" payoff fires on demand (en-Kor cycle, {0}-equip like Shuko).
     ("target_own_payoff", "you"): _spec(

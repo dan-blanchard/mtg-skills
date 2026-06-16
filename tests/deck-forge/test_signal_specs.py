@@ -271,6 +271,46 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_life_payment_insurance_serves_dont_lose_at_zero():
+    # Selenia wants life-loss insurance: Phyrexian Unlife ("don't lose the game for
+    # having 0 or less life") and Angel's Grace ("you can't lose the game this turn"). A
+    # mana dork is not insurance. Real oracle.
+    sig = _sig("life_payment_insurance", "you")
+    phyrexian_unlife = {
+        "name": "Phyrexian Unlife",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{W}",
+        "oracle_text": (
+            "You don't lose the game for having 0 or less life.\nAs long as you have 0 "
+            "or less life, all damage is dealt to you as though its source had infect. "
+            "(Damage is dealt to you in the form of poison counters.)"
+        ),
+    }
+    angels_grace = {
+        "name": "Angel's Grace",
+        "type_line": "Instant",
+        "mana_cost": "{W}",
+        "oracle_text": (
+            "Split second (As long as this spell is on the stack, players can't cast "
+            "spells or activate abilities that aren't mana abilities.)\nYou can't lose "
+            "the game this turn and your opponents can't win the game this turn. Until "
+            "end of turn, damage that would reduce your life total to less than 1 "
+            "reduces it to 1 instead."
+        ),
+    }
+    assert serves(phyrexian_unlife, sig) is True
+    assert serves(angels_grace, sig) is True
+    llanowar_elves = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert serves(llanowar_elves, sig) is False
+
+
 def test_target_own_payoff_serves_free_self_targeting():
     # Monk Gyatso wants free ways to target his own creatures: the en-Kor cycle ("{0}: …
     # dealt to target creature you control") triggers airbend on demand. A vanilla bear
