@@ -2338,6 +2338,25 @@ def _voltron_self_recurs(text: str, name: str) -> bool:
     return pat.search(text) is not None
 
 
+_VOLTRON_TOKEN_MAKE_RE = re.compile(r"create[^.]*token", re.IGNORECASE)
+
+
+def _voltron_double_strike_beater(card: dict, text: str) -> bool:
+    """True if the commander ITSELF has double strike (Scryfall keyword) and a real body
+    (power >= 4) and is NOT a token go-wide engine — a single beater that doubles every
+    equipment/aura bonus, so a prime voltron threat (Sabin, Leonardo). The power>=4 +
+    no-"create token" gate excludes the double-strike go-wide token-makers (Oketra) that
+    are the documented over-fire class for an ungated double-strike rule."""
+    kws = {k.lower() for k in (card.get("keywords") or [])}
+    if "double strike" not in kws:
+        return False
+    try:
+        power = int(str(card.get("power", "0")))
+    except ValueError:
+        return False
+    return power >= 4 and not _VOLTRON_TOKEN_MAKE_RE.search(text)
+
+
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for preset_name, (key, scope) in _PRESET_REGEX_SIGNALS.items():
@@ -3151,6 +3170,7 @@ def extract_signals(
             or _voltron_self_heroic(text, name)  # (G) self-heroic suit-up (Brigone)
             or _voltron_land_scaler(text, name)  # (H) land-scaling threat (Sima Yi)
             or _voltron_self_recurs(text, name)  # (I) self-recurring threat (Akuta)
+            or _voltron_double_strike_beater(card, text)  # (J) DS beater (Sabin)
         )
     ):
         add("voltron_matters", "you", "", "likely voltron commander", "low")

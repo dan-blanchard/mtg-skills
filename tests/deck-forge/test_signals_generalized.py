@@ -10,6 +10,7 @@ leakage, stax self-restrictions) must stay clean.
 """
 
 from mtg_utils._deck_forge.signals import (
+    _voltron_double_strike_beater,
     _voltron_land_scaler,
     _voltron_self_heroic,
     _voltron_self_recurs,
@@ -403,6 +404,38 @@ def test_self_recurring_commander_opens_voltron():
         )
         is False
     )
+
+
+def test_self_double_strike_beater_opens_voltron():
+    # A commander that ITSELF has double strike and a real body (power >= 4) is a single
+    # beater that doubles every equipment/aura bonus -> voltron. Sabin's only signal is a
+    # spurious graveyard_matters (from its blitz discard cost), which suppressed the
+    # voltron fallback; the override surfaces its equipment package. Real oracle.
+    sabin = {
+        "name": "Sabin, Master Monk",
+        "type_line": "Legendary Creature — Human Noble Monk",
+        "power": "4",
+        "toughness": "3",
+        "keywords": ["Blitz", "Double strike"],
+        "oracle_text": (
+            "Double strike\nBlitz—{2}{R}{R}, Discard a card. (If you cast this spell "
+            'for its blitz cost, it gains haste and "When this creature dies, draw a '
+            'card." Sacrifice it at the beginning of the next end step.)\nYou may '
+            "cast this card from your graveyard using its blitz ability."
+        ),
+    }
+    assert "voltron_matters" in _keys(sabin)
+    # Gate (helper-level, no other voltron path interfering): a double-strike TOKEN
+    # go-wide engine (Oketra: makes Warriors, power 3) is excluded by BOTH the power>=4
+    # and no-token gates — the documented over-fire class stays out.
+    oketra = {
+        "name": "Oketra the True",
+        "power": "3",
+        "keywords": ["Indestructible", "Double strike"],
+        "oracle_text": "{3}{W}: Create a 1/1 white Warrior creature token with vigilance.",
+    }
+    assert _voltron_double_strike_beater(oketra, oketra["oracle_text"]) is False
+    assert _voltron_double_strike_beater(sabin, sabin["oracle_text"]) is True
 
 
 def test_self_death_variable_damage_opens_payoff_and_clone():
