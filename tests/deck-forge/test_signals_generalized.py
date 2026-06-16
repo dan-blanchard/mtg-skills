@@ -482,6 +482,37 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert ("counters_matter", "you") not in _ks(volrath)
 
 
+def test_tribal_card_spell_list_refs():
+    # Multi-tribe "(a/an) <Tribe> card/spell" lists the single-capture patterns miss:
+    # Kaalia reveals "an Angel card, a Demon card, and/or a Dragon card" (all three),
+    # Disa returns "a Lhurgoyf permanent card", Eivor puts "a Saga card".
+    kaalia = {
+        "name": "Kaalia, Zenith Seeker",
+        "type_line": "Legendary Creature — Human Cleric",
+        "oracle_text": (
+            "Flying, vigilance\nWhen Kaalia enters, look at the top six cards of your "
+            "library. You may reveal an Angel card, a Demon card, and/or a Dragon card "
+            "from among them and put them into your hand. Put the rest on the bottom."
+        ),
+    }
+    trips = {
+        (s.key, s.subject) for s in extract_signals(kaalia, include_membership=True)
+    }
+    for tribe in ("Angel", "Demon", "Dragon"):
+        assert ("type_matters", tribe) in trips, tribe
+    disa = {
+        "name": "Disa the Restless",
+        "type_line": "Legendary Creature — Human Scout",
+        "oracle_text": (
+            "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere "
+            "other than the battlefield, put it onto the battlefield."
+        ),
+    }
+    assert ("type_matters", "Lhurgoyf") in {
+        (s.key, s.subject) for s in extract_signals(disa, include_membership=True)
+    }
+
+
 def test_tribal_creature_spell_and_target_tribe():
     # Tribal references the standard patterns miss: "<Tribe> creature spell" (Gisa casts
     # Zombie creature spells, Rivaz casts Dragon creature spells) and "target <Tribe>

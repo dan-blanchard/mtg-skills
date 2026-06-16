@@ -709,6 +709,14 @@ _TYPE_MATTERS_PATTERNS = (
     # Ninja can't be blocked" (Splinter, a Ninja-tribal payoff). The vocab gate drops
     # the bare "target creature can't be blocked".
     re.compile(r"\btarget ([A-Za-z]+?) can't be blocked", re.IGNORECASE),
+    # "(a|an) <Tribe> [permanent/creature] card/spell": finditer captures EVERY tribe in
+    # a multi-tribe reveal/cast/return list the single-capture patterns miss. Kaalia
+    # ("an Angel card, a Demon card, and/or a Dragon card"), Disa ("a Lhurgoyf permanent
+    # card"), Eivor ("a Saga card"). Vocab-gated: "a creature card" / "a land" drop out.
+    re.compile(
+        r"\b(?:a|an) ([A-Za-z]+?)(?: (?:permanent|creature|nonland))? (?:card|spell)\b",
+        re.IGNORECASE,
+    ),
 )
 # Two-tribe trigger: "a Goblin or Orc you control deals …" (Gorbag — an Orc, so
 # membership supplies Orc but never Goblin). Emit BOTH captured subtypes; the
