@@ -977,6 +977,37 @@ def test_spell_copy_cross_opens_spellcast():
     assert "spellcast_matters" in keys  # cross-opened
 
 
+def test_named_token_maker_opens_tribe_via_all_parts():
+    # A creature token the commander makes (all_parts token component) reveals its tribe
+    # even when the oracle uses the token's NAME: Enkira makes "Walker tokens" (Token
+    # Creature — Zombie), so it's Zombie-tribal (Death Baron, Gravecrawler) though the
+    # oracle never says "Zombie" outside reminder text.
+    enkira = {
+        "name": "Enkira, Hostile Scavenger",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": (
+            "When Enkira, Hostile Scavenger enters, create two Walker tokens. (They're "
+            "2/2 black Zombie creatures.)"
+        ),
+        "all_parts": [
+            {
+                "component": "combo_piece",
+                "name": "Enkira, Hostile Scavenger",
+                "type_line": "Legendary Creature — Human Warrior",
+            },
+            {
+                "component": "token",
+                "name": "Walker",
+                "type_line": "Token Creature — Zombie",
+            },
+        ],
+    }
+    assert ("type_matters", "you", "Zombie") in {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(enkira, include_membership=True)
+    }
+
+
 def test_token_maker_cross_opens_its_tribe_kindred():
     # A commander that MAKES tribe-X creature tokens wants tribe-X lords/support — its
     # token board IS that kindred. Grist makes Insect tokens but is a Planeswalker, so

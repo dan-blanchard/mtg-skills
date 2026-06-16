@@ -2923,6 +2923,22 @@ def extract_signals(
             sub = tok.strip().lower()
             if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
                 add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), type_line, "low")
+    # Named-token tribal (membership): a CREATURE token the commander creates carries
+    # its tribe in all_parts even when the oracle uses the token's NAME ("Walker token"
+    # = Token Creature Zombie, Enkira). The commander makes that tribe of bodies, so it
+    # wants the tribe's kindred: the named-token form of the oracle token_maker -> tribe
+    # cross-open. Low confidence; vocab-gated (human / non-subtypes drop out).
+    if include_membership:
+        for part in card.get("all_parts") or []:
+            if part.get("component") != "token":
+                continue
+            tl = part.get("type_line") or ""
+            if "creature" not in tl.lower() or "—" not in tl:
+                continue
+            for tok in tl.split("—", 1)[1].split():
+                sub = tok.strip().lower()
+                if sub in CREATURE_SUBTYPES and sub != "human":
+                    add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), tl, "low")
     # A commander that IS an artifact / enchantment (the card type is in its type line)
     # is an artifact / enchantment deck — it wants that type's support (affinity & cost
     # reducers; constellation & cheap enchantments), just as a creature is a member of
