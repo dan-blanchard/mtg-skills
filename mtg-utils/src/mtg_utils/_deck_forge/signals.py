@@ -2276,6 +2276,21 @@ def _voltron_self_unblockable(text: str, name: str) -> bool:
     return pat.search(text) is not None
 
 
+def _voltron_self_heroic(text: str, name: str) -> bool:
+    """True if the COMMANDER has a SELF-targeting heroic trigger ("whenever you cast a
+    spell that targets [itself]", CR 702.86-style: Brigone, Feather, Anax and Cymede).
+    Casting an Aura/pump spell on it fires heroic AND suits it up, so it's a single-big-
+    threat voltron deck. Self-scoped (this creature / its name) so a trigger targeting
+    'another' / 'target creature you control' (a go-wide granter) doesn't qualify."""
+    alts = "|".join(["this creature", "this permanent", *_self_name_alts(name)])
+    pat = re.compile(
+        rf"whenever you cast (?:a |an |your )?(?:noncreature )?spell that targets "
+        rf"(?:only )?(?:{alts})\b",
+        re.IGNORECASE,
+    )
+    return pat.search(text) is not None
+
+
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for preset_name, (key, scope) in _PRESET_REGEX_SIGNALS.items():
@@ -3086,6 +3101,7 @@ def extract_signals(
             or (
                 power >= 4 and _voltron_self_unblockable(text, name)
             )  # (F) self-unblock
+            or _voltron_self_heroic(text, name)  # (G) self-heroic suit-up (Brigone)
         )
     ):
         add("voltron_matters", "you", "", "likely voltron commander", "low")

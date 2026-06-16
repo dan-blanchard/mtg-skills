@@ -9,7 +9,11 @@ design review flagged (clones, "Plant"/"nonland creature", instant/sorcery spell
 leakage, stax self-restrictions) must stay clean.
 """
 
-from mtg_utils._deck_forge.signals import coverage_gate, extract_signals
+from mtg_utils._deck_forge.signals import (
+    _voltron_self_heroic,
+    coverage_gate,
+    extract_signals,
+)
 
 
 def _ksub(card):
@@ -297,6 +301,52 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
         ),
     }
     assert "xspell_matters" not in _keys(gaddock)
+
+
+def test_self_heroic_commander_opens_voltron():
+    # A commander with a SELF-targeting heroic trigger ("whenever you cast a spell that
+    # targets [itself]", CR 702.86) is a suit-up-one-creature voltron deck: casting an
+    # Aura/pump spell on it both fires heroic AND buffs it, so it wants the equipment /
+    # pump-aura / protection package voltron_matters serves. Opens even with another
+    # engine present (Brigone also has a counter sub-theme). Real oracle.
+    brigone = {
+        "name": "Brigone, Soldier of Meletis",
+        "type_line": "Legendary Creature — Human Soldier",
+        "power": "2",
+        "toughness": "2",
+        "oracle_text": (
+            "Vigilance\nHeroic — Whenever you cast a spell that targets Brigone, put "
+            "a +1/+1 counter on Brigone.\n{T}, Remove a +1/+1 counter from Brigone: "
+            "Draw a card."
+        ),
+    }
+    assert "voltron_matters" in _keys(brigone)
+    # The "targets only <name>" form (Feather).
+    feather = {
+        "name": "Feather, Radiant Arbiter",
+        "type_line": "Legendary Creature — Angel",
+        "power": "4",
+        "toughness": "3",
+        "oracle_text": (
+            "Flying, lifelink\nWhenever you cast a noncreature spell that targets only "
+            "Feather, you may choose any number of other creatures that spell could "
+            "target and pay {2} for each of those creatures. If you do, for each of "
+            "those creatures, copy that spell. The copy targets that creature. (Copies "
+            "of permanent spells become tokens.)"
+        ),
+    }
+    assert "voltron_matters" in _keys(feather)
+    # Self-scoped: a trigger that targets ANOTHER creature (not itself) is NOT the
+    # suit-up tell — the helper must not match it (isolates the rule from the power>=2
+    # commander-damage fallback).
+    assert (
+        _voltron_self_heroic(
+            "Whenever you cast a spell that targets another target creature you "
+            "control, scry 1.",
+            "Test Granter",
+        )
+        is False
+    )
 
 
 def test_self_death_variable_damage_opens_payoff_and_clone():
