@@ -10,6 +10,7 @@ leakage, stax self-restrictions) must stay clean.
 """
 
 from mtg_utils._deck_forge.signals import (
+    _voltron_land_scaler,
     _voltron_self_heroic,
     coverage_gate,
     extract_signals,
@@ -344,6 +345,32 @@ def test_self_heroic_commander_opens_voltron():
             "Whenever you cast a spell that targets another target creature you "
             "control, scry 1.",
             "Test Granter",
+        )
+        is False
+    )
+
+
+def test_land_scaling_power_opens_voltron():
+    # A commander whose OWN power equals a basic-land-type count (Sima Yi: "power is
+    # equal to the number of Swamps") is a single mono-color scaling threat you suit up —
+    # its top synergy is the Swamp-scaling equipment (Nightmare Lash, Lashwrithe). Opens
+    # voltron. Self-scoped so a team anthem ("creatures you control have power equal to
+    # the number of Forests") doesn't qualify. Real oracle.
+    sima_yi = {
+        "name": "Sima Yi, Wei Field Marshal",
+        "type_line": "Legendary Creature — Human Soldier",
+        "power": "*",
+        "toughness": "3",
+        "oracle_text": "Sima Yi's power is equal to the number of Swamps you control.",
+    }
+    assert "voltron_matters" in _keys(sima_yi)
+    # Self-scoped: a team anthem that sets OTHERS' power by a land count is not a single
+    # suit-up threat — the helper must not match it.
+    assert (
+        _voltron_land_scaler(
+            "Creatures you control have base power equal to the number of Forests "
+            "you control.",
+            "Test Anthem",
         )
         is False
     )

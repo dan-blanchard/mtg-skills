@@ -2291,6 +2291,21 @@ def _voltron_self_heroic(text: str, name: str) -> bool:
     return pat.search(text) is not None
 
 
+def _voltron_land_scaler(text: str, name: str) -> bool:
+    """True if the COMMANDER's OWN power equals a basic-land-type count (Sima Yi: "Sima
+    Yi's power is equal to the number of Swamps you control") — a single mono-color
+    scaling threat whose top synergy is the land-scaling equipment that suits it up
+    (Nightmare Lash, Lashwrithe). Self-scoped (its name / this creature) so a team
+    anthem setting OTHERS' power by a land count isn't read as a suit-up threat."""
+    alts = "|".join(["this creature", *_self_name_alts(name)])
+    pat = re.compile(
+        rf"(?:{alts})'?s power (?:is )?equal to the number of "
+        r"(?:plains|islands?|swamps?|mountains?|forests?) you control",
+        re.IGNORECASE,
+    )
+    return pat.search(text) is not None
+
+
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for preset_name, (key, scope) in _PRESET_REGEX_SIGNALS.items():
@@ -3102,6 +3117,7 @@ def extract_signals(
                 power >= 4 and _voltron_self_unblockable(text, name)
             )  # (F) self-unblock
             or _voltron_self_heroic(text, name)  # (G) self-heroic suit-up (Brigone)
+            or _voltron_land_scaler(text, name)  # (H) land-scaling threat (Sima Yi)
         )
     ):
         add("voltron_matters", "you", "", "likely voltron commander", "low")
