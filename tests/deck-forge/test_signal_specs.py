@@ -215,6 +215,57 @@ def test_opponent_exile_serves_the_exile_enablers():
     assert serves(deep_analysis, sig) is False  # exiles your own card, not opponents'
 
 
+def test_cast_from_exile_serves_suspend_foretell_rebound():
+    # Suspend (CR 702.62a: when the last time counter is removed, you may play it FROM
+    # EXILE), Foretell (702.143), and Rebound (702.88a: "cast this card from exile") all
+    # cast the card from exile — a cast-from-exile commander wants them. The serve only had
+    # "plot" + cast-from-exile prose, so the other keywords were missed. Authoritative
+    # Scryfall keywords array (not regex-guessed from prose). Real oracle.
+    sig = _sig("cast_from_exile", "you")
+    profane_tutor = {
+        "name": "Profane Tutor",
+        "type_line": "Sorcery",
+        "keywords": ["Suspend"],
+        "oracle_text": (
+            "Suspend 2—{1}{B} (Rather than cast this card from your hand, pay {1}{B} and "
+            "exile it with two time counters on it. At the beginning of your upkeep, "
+            "remove a time counter. When the last is removed, you may cast it without "
+            "paying its mana cost.)\nSearch your library for a card, put that card into "
+            "your hand, then shuffle."
+        ),
+    }
+    behold_the_multiverse = {
+        "name": "Behold the Multiverse",
+        "type_line": "Instant",
+        "keywords": ["Foretell", "Scry"],
+        "oracle_text": (
+            "Scry 2, then draw two cards.\nForetell {1}{U} (During your turn, you may "
+            "pay {2} and exile this card from your hand face down. Cast it on a later "
+            "turn for its foretell cost.)"
+        ),
+    }
+    staggershock = {
+        "name": "Staggershock",
+        "type_line": "Instant",
+        "keywords": ["Rebound"],
+        "oracle_text": (
+            "Staggershock deals 2 damage to any target.\nRebound (If you cast this spell "
+            "from your hand, exile it as it resolves. At the beginning of your next "
+            "upkeep, you may cast this card from exile without paying its mana cost.)"
+        ),
+    }
+    lightning_bolt = {  # plain burn, no cast-from-exile keyword
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "keywords": [],
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    assert serves(profane_tutor, sig) is True  # Suspend
+    assert serves(behold_the_multiverse, sig) is True  # Foretell
+    assert serves(staggershock, sig) is True  # Rebound
+    assert serves(lightning_bolt, sig) is False  # no cast-from-exile
+
+
 def test_discard_matters_serves_self_discard_outlets():
     # A discard-payoff commander (Rielle "whenever you discard ... draw") wants self-
     # discard OUTLETS: wheels ("discard all the cards in your hand"), "discard X cards"

@@ -2240,12 +2240,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Cast-from-exile",
         "payoffs and enablers that cast or play cards from exile (plot, suspend, "
         '"whenever you cast a spell from exile")',
-        {"oracle": r"from exile"},
+        {"oracle": r"from exile|\b(?:plot|suspend|foretell|rebound)\b"},
         r"spells? you cast from exile"
         r"|whenever you cast a spell from exile"
         r"|you may (?:play|cast) (?:it|that card|those cards?|them|the exiled)"
         r"[^.]*?from exile"
         r"|" + _STEAL_CAST_ORACLE + r"|\bplot\b",
+        # Suspend (CR 702.62a), Foretell (702.143), Rebound (702.88a), and Plot all CAST
+        # the card from exile — authoritative Scryfall keywords, not regex-from-prose.
+        serve_keywords=("plot", "suspend", "foretell", "rebound"),
         extras=(_PARADOX_PAYOFF_EXTRA,),
     ),
     # Impulse (top-of-YOUR-library exile-and-play): hand-written so the serve also
