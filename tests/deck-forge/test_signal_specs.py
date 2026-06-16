@@ -266,6 +266,50 @@ def test_cast_from_exile_serves_suspend_foretell_rebound():
     assert serves(lightning_bolt, sig) is False  # no cast-from-exile
 
 
+def test_color_change_serves_color_conditional_payoffs():
+    # A color-CHANGER (Blind Seer: "target spell or permanent becomes the color of your
+    # choice") enables color-conditional mass effects — make everything one color, then
+    # "return/destroy all [color]" is a board wipe. Color is a continuously-checked
+    # characteristic (CR 105 / 613 layer 5, confirmed via rules-lawyer), so this is a real
+    # mechanical synergy. The serve only credited other color-CHANGERS. Real oracle.
+    sig = _sig("color_change", "you")
+    hibernation = {
+        "name": "Hibernation",
+        "type_line": "Instant",
+        "mana_cost": "{2}{U}",
+        "oracle_text": "Return all green permanents to their owners' hands.",
+    }
+    wash_out = {
+        "name": "Wash Out",
+        "type_line": "Sorcery",
+        "mana_cost": "{3}{U}",
+        "oracle_text": (
+            "Return all permanents of the color of your choice to their owners' hands."
+        ),
+    }
+    llawan = {
+        "name": "Llawan, Cephalid Empress",
+        "type_line": "Legendary Creature — Octopus Noble",
+        "mana_cost": "{3}{U}",
+        "power": "2",
+        "toughness": "3",
+        "oracle_text": (
+            "When Llawan enters, return all blue creatures your opponents control to "
+            "their owners' hands.\nYour opponents can't cast blue creature spells."
+        ),
+    }
+    wrath_of_god = {  # colorless mass removal — not a color-conditional payoff
+        "name": "Wrath of God",
+        "type_line": "Sorcery",
+        "mana_cost": "{2}{W}{W}",
+        "oracle_text": "Destroy all creatures. They can't be regenerated.",
+    }
+    assert serves(hibernation, sig) is True  # return all GREEN permanents
+    assert serves(wash_out, sig) is True  # return all permanents of the color
+    assert serves(llawan, sig) is True  # return all BLUE creatures
+    assert serves(wrath_of_god, sig) is False  # "all creatures" (no color) stays out
+
+
 def test_lifeloss_drain_serves_damage_to_opponents():
     # Damage to a player IS life loss (CR 120.3a), so pingers / group-slug that deal
     # damage to opponents (Kessig Flamebreather) are drain payoffs — a drain commander

@@ -2734,7 +2734,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"becomes the color of your choice|becomes? (?:the color|all colors)"
         r"|(?:are|is) the chosen color"
         r"|(?:is|are|becomes?) [^.]*(?:white|blue|black|red|green) "
-        r"in addition to (?:its|their)",
+        r"in addition to (?:its|their)"
+        # Color-conditional PAYOFFS a color-CHANGER enables (make everything one color,
+        # then "destroy/return all [color]" is a board wipe — CR 105/613, color is
+        # continuously checked). Only the 2 color-change commanders see this serve, so
+        # the narrow color-hosers stay scoped to the decks that turn them on.
+        r"|(?:return|destroy|exile) all (?:white|blue|black|red|green) "
+        r"(?:creature|permanent)s?"
+        r"|return all permanents of the (?:chosen )?colou?r"
+        r"|(?:white|blue|black|red|green) creatures? (?:can't|get [+\-])",
     ),
     # Hand-spec overriding the mined sweep detector so the serve also credits the Domain
     # ENABLERS — "lands you control are every basic land type" (Prismatic Omen, Dryad of
