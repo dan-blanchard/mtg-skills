@@ -271,6 +271,40 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_speed_matters_serves_cheap_unblockable_only():
+    # Vnwxt's speed ramps when an opponent loses life, so it wants CHEAP unblockable
+    # creatures that connect early (Slither Blade, {U}). The cmc_max gate excludes an
+    # expensive unblockable (Bubbling Beebles, mv 5) — that's not the early-pressure
+    # package. Rides a sub-avenue, so check _lane_covers. Real oracle.
+    sig = _sig("speed_matters", "you")
+    slither_blade = {
+        "name": "Slither Blade",
+        "type_line": "Creature — Snake Rogue",
+        "mana_cost": "{U}",
+        "cmc": 1.0,
+        "power": "2",
+        "toughness": "1",
+        "oracle_text": "This creature can't be blocked.",
+    }
+    bubbling_beebles = {
+        "name": "Bubbling Beebles",
+        "type_line": "Creature — Beeble",
+        "mana_cost": "{4}{U}",
+        "cmc": 5.0,
+        "power": "3",
+        "toughness": "3",
+        "oracle_text": (
+            "Bubbling Beebles can't be blocked as long as your opponents control an "
+            "artifact or enchantment."
+        ),
+    }
+    assert _lane_covers(slither_blade, sig) is True
+    # Expensive unblockable is not the cheap early-pressure package (cmc gate).
+    big_unblockable = dict(bubbling_beebles)
+    big_unblockable["oracle_text"] = "This creature can't be blocked."
+    assert _lane_covers(big_unblockable, sig) is False
+
+
 def test_timing_control_serves_cast_and_activate_lock():
     # Dosan ("Players can cast spells only during their own turns") is a timing-lock
     # commander; City of Solitude is a near-copy ("cast spells AND ACTIVATE ABILITIES

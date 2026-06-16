@@ -93,6 +93,7 @@ class Serve:
     types: frozenset[str] = frozenset()
     keywords: frozenset[str] = frozenset()
     cmc_min: float | None = None
+    cmc_max: float | None = None  # serve a CHEAP card (mv <= this); inverse of cmc_min
     min_devotion: int | None = None
     produces_mana: bool = False  # serve if the card has a non-empty produced_mana
     power_min: int | None = None  # serve a creature whose power >= this (big-creature)
@@ -140,6 +141,8 @@ class Serve:
         ):
             return True
         if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
+            return True
+        if self.cmc_max is not None and (card.get("cmc") or 0) <= self.cmc_max:
             return True
         if self.produces_mana and card.get("produced_mana"):
             return True
@@ -196,6 +199,8 @@ class Serve:
             out["keywords"] = sorted(self.keywords)
         if self.cmc_min is not None:
             out["cmc_min"] = self.cmc_min
+        if self.cmc_max is not None:
+            out["cmc_max"] = self.cmc_max
         if self.min_devotion is not None:
             out["min_devotion"] = self.min_devotion
         if self.produces_mana:
@@ -229,6 +234,7 @@ class Serve:
             self.types
             or self.keywords
             or self.cmc_min is not None
+            or self.cmc_max is not None
             or self.min_devotion is not None
             or self.produces_mana
             or self.power_min is not None
@@ -309,6 +315,7 @@ def serve_from_dict(data: dict) -> Serve:
         types=frozenset(t.lower() for t in (types or ())),
         keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
         cmc_min=data.get("cmc_min"),
+        cmc_max=data.get("cmc_max"),
         min_devotion=data.get("min_devotion"),
         produces_mana=bool(data.get("produces_mana")),
         power_min=data.get("power_min"),
@@ -360,6 +367,7 @@ def _spec(
     serve_types: tuple[str, ...] = (),
     serve_keywords: tuple[str, ...] = (),
     serve_cmc_min: float | None = None,
+    serve_cmc_max: float | None = None,
     serve_min_devotion: int | None = None,
     serve_produces_mana: bool = False,
     serve_power_min: int | None = None,
@@ -380,6 +388,7 @@ def _spec(
             types=frozenset(t.lower() for t in serve_types),
             keywords=frozenset(k.lower() for k in serve_keywords),
             cmc_min=serve_cmc_min,
+            cmc_max=serve_cmc_max,
             min_devotion=serve_min_devotion,
             produces_mana=serve_produces_mana,
             power_min=serve_power_min,
@@ -453,6 +462,20 @@ _DAMAGE_SOAK_EXTRA = SubAvenue(
     "creatures that block any number of attackers or soak all damage onto one body",
     {"oracle": _DAMAGE_SOAK_ORACLE},
     serve=Serve(oracle=re.compile(_DAMAGE_SOAK_ORACLE, _IC)),
+)
+# Cheap unblockable creatures (Vnwxt speed deck): CHEAP "can't be blocked" bodies
+# connect early and reliably, so an opponent loses life every turn (advancing speed).
+# cmc_max ANDs with the unblockable oracle so it's the cheap evasion package, not every.
+_CHEAP_UNBLOCKABLE_RE = re.compile(
+    r"can'?t be blocked(?!\s+(?:by|except|as long as a)\b)", _IC
+)
+_CHEAP_EVASION_EXTRA = SubAvenue(
+    "Cheap unblockable",
+    "cheap unblockable creatures that connect every turn to advance speed",
+    {"oracle": r"can'?t be blocked", "cmc_max": 2},
+    serve=Serve(
+        all_of=(Serve(oracle=_CHEAP_UNBLOCKABLE_RE), Serve(cmc_max=2)),
+    ),
 )
 # Force-the-attack: effects that make ALL / your opponents' creatures attack each combat
 # (Goblin Diplomats, War's Toll, Warmonger Hellkite, Disrupt Decorum) — they feed a
@@ -3565,6 +3588,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"max speed|start your engines"},
         r"max speed|start your engines|your speed",
         serve_keywords=("start your engines!", "max speed"),
+        extras=(_CHEAP_EVASION_EXTRA,),
     ),
     ("discover_matters", "you"): _spec(
         "Discover",
