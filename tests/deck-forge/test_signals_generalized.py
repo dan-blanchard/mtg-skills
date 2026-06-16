@@ -1192,6 +1192,35 @@ def test_one_punch_efficient_beater_opens_lane():
     assert not any(k == "one_punch" for k, _, _ in _ksub(llanowar))  # low power
 
 
+def test_nonhuman_attack_engine_opens_evasive_attackers():
+    # Winota triggers when a non-Human creature attacks, so she wants evasive (flying)
+    # attackers that reliably connect to fire her engine — fliers are a useful narrowing
+    # (~a quarter of the pool), unlike "all non-Humans" (96%). A creature with no such
+    # attack trigger never opens it.
+    winota = {
+        "name": "Winota, Joiner of Forces",
+        "type_line": "Legendary Creature — Human Warrior",
+        "mana_cost": "{2}{R}{W}",
+        "power": "4",
+        "toughness": "4",
+        "cmc": 4.0,
+        "keywords": [],
+        "oracle_text": "Whenever a non-Human creature you control attacks, look at the top six cards of your library. You may put a Human creature card from among them onto the battlefield tapped and attacking. It gains indestructible until end of turn. Put the rest of the cards on the bottom of your library in a random order.",
+    }
+    elf = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "cmc": 1.0,
+        "keywords": [],
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert any(k == "nonhuman_attackers" for k, _, _ in _ksub(winota))
+    assert not any(k == "nonhuman_attackers" for k, _, _ in _ksub(elf))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

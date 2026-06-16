@@ -2768,6 +2768,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": _ONE_PUNCH_ORACLE},
         _ONE_PUNCH_ORACLE,
     ),
+    # A non-Human-attack-trigger engine (Winota) wants evasive attackers that reliably
+    # connect — fliers, a useful ~25% narrowing (Dan's own line: "non-Humans" at 96% is
+    # not a useful avenue, "fliers at 25%" is). Serve the Flying keyword (the bodies:
+    # Ornithopter, Aven Mindcensor, Archon of Emeria) plus flying-granting anthems; the
+    # flying Humans it surfaces are premium cheat-into-play targets, also wanted.
+    ("nonhuman_attackers", "you"): _spec(
+        "Evasive attackers",
+        "fliers that connect to trigger your non-Human attack payoff (and flying "
+        "Humans to cheat into play)",
+        {"card_type": "Creature", "keyword": "flying"},
+        r"(?:gains?|have|has) flying|creatures you control[^.]*flying",
+        serve_keywords=("flying",),
+    ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",

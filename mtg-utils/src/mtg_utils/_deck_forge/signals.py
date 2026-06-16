@@ -1390,6 +1390,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # A non-Human-attack-trigger engine (Winota, A-Winota) wants evasive attackers that
+    # reliably connect to FIRE it: fliers (a useful ~25%-of-pool narrowing, NOT "all
+    # non-Humans" at 96%). Flying Humans served here are premium cheat-in targets.
+    (
+        "nonhuman_attackers",
+        re.compile(r"non-?human creatures? you control attacks?", re.IGNORECASE),
+        "you",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
     # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
     # you cast a multicolored spell", converge, "multicolored creatures you control"),

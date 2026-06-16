@@ -2546,6 +2546,48 @@ BOROS_SWIFTBLADE = {
     "keywords": ["Double strike"],
     "oracle_text": "Double strike",
 }
+ORNITHOPTER = {
+    "name": "Ornithopter",
+    "type_line": "Artifact Creature — Thopter",
+    "power": "0",
+    "toughness": "2",
+    "cmc": 0.0,
+    "keywords": ["Flying"],
+    "oracle_text": "Flying",
+}
+AVEN_MINDCENSOR = {
+    "name": "Aven Mindcensor",
+    "type_line": "Creature — Bird Wizard",
+    "power": "2",
+    "toughness": "1",
+    "cmc": 3.0,
+    "keywords": ["Flying", "Flash"],
+    "oracle_text": (
+        "Flash\nFlying\nIf an opponent would search a library, that player searches "
+        "the top four cards of that library instead."
+    ),
+}
+ARCHON_OF_EMERIA = {
+    "name": "Archon of Emeria",
+    "type_line": "Creature — Archon",
+    "power": "2",
+    "toughness": "3",
+    "cmc": 3.0,
+    "keywords": ["Flying"],
+    "oracle_text": (
+        "Flying\nEach player can't cast more than one spell each turn.\nNonbasic "
+        "lands your opponents control enter tapped."
+    ),
+}
+LLANOWAR_ELVES = {
+    "name": "Llanowar Elves",
+    "type_line": "Creature — Elf Druid",
+    "power": "1",
+    "toughness": "1",
+    "cmc": 1.0,
+    "keywords": [],
+    "oracle_text": "{T}: Add {G}.",
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2778,6 +2820,18 @@ def test_one_punch_serves_damage_amplifiers():
     assert serves(TEMUR_BATTLE_RAGE, sig) is True  # grant double strike (2x damage)
     assert serves(GRAFTED_EXOSKELETON, sig) is True  # equipped creature has infect
     assert serves(BOROS_SWIFTBLADE, sig) is False  # vanilla double-striker, not a grant
+
+
+def test_evasive_attackers_serves_fliers_for_nonhuman_engine():
+    """Winota's non-Human-attack engine wants evasive attackers — fliers reliably
+    connect to fire her trigger (Ornithopter, Aven Mindcensor, Archon of Emeria), and
+    flying Humans are premium cheat-into-play targets. A grounded non-flier (Llanowar
+    Elves) is not an evasive attacker and stays out."""
+    sig = _sig("nonhuman_attackers", "you")
+    assert serves(ORNITHOPTER, sig) is True
+    assert serves(AVEN_MINDCENSOR, sig) is True
+    assert serves(ARCHON_OF_EMERIA, sig) is True
+    assert serves(LLANOWAR_ELVES, sig) is False  # no evasion
 
 
 def _subj_sig(key, subject):
