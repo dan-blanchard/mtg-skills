@@ -2322,6 +2322,20 @@ _KEYWORD_TRIBE_PATTERNS = (
         ),
         "you",
     ),
+    # Keyword-tribe TUTOR (Isperia: "search your library for a creature card with
+    # flying"): fetching a keyworded creature card IS a keyword-tribe payoff — the
+    # "card" form the "you control"/"spell" patterns above didn't cover. Anchored on a
+    # FETCH verb (search / reveal) so a self-gain card that buffs off any graveyard ("as
+    # long as a creature card with flying is in a graveyard" — Cairn Wanderer) stays
+    # out. The _ABILITY_KEYWORDS gate still validates the captured word.
+    (
+        re.compile(
+            r"(?:search(?:es)? (?:their|your) library for|reveal)"
+            r"[^.]{0,40}creature cards? with ([A-Za-z]+)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
 )
 
 

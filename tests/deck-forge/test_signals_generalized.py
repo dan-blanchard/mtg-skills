@@ -101,6 +101,46 @@ def test_type_matters_count_clause_tolerates_state_adjective():
     assert "type_matters" not in _keys(foul_tongue_shriek)
 
 
+def test_keyword_tribe_opens_on_flier_tutor():
+    # Isperia tutors "a creature card with flying" — a fliers-matter (keyword-tribe)
+    # payoff (CR 109.3 groups by the keyword characteristic). The keyword-tribe patterns
+    # matched "creatures you control with flying" / "creature spell with flying" but not
+    # the tutor's "creature CARD with flying", so a flying-tribal commander whose only
+    # hook is the fetch stayed blind. Real oracle.
+    isperia = {
+        "name": "Isperia the Inscrutable",
+        "type_line": "Legendary Creature — Sphinx",
+        "mana_cost": "{1}{W}{W}{U}{U}",
+        "power": "3",
+        "toughness": "6",
+        "oracle_text": (
+            "Flying\nWhenever Isperia deals combat damage to a player, choose a card "
+            "name. That player reveals their hand. If a card with the chosen name is "
+            "revealed this way, search your library for a creature card with flying, "
+            "reveal it, put it into your hand, then shuffle."
+        ),
+    }
+    assert ("keyword_tribe", "you", "Flying") in _ksub(isperia)
+    # The fetch verb is REQUIRED: a card that merely GAINS flying while "a creature card
+    # with flying is in a graveyard" (Cairn Wanderer) is not a fliers-matter payoff — it
+    # buffs itself off any graveyard, yours or not — so it must NOT open the tribe. Real
+    # oracle.
+    cairn = {
+        "name": "Cairn Wanderer",
+        "type_line": "Creature — Shapeshifter",
+        "mana_cost": "{4}{B}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "Changeling (This card is every creature type.)\nAs long as a creature card "
+            "with flying is in a graveyard, this creature has flying. The same is true "
+            "for fear, first strike, double strike, deathtouch, haste, landwalk, "
+            "lifelink, protection, reach, trample, shroud, and vigilance."
+        ),
+    }
+    assert ("keyword_tribe", "you", "Flying") not in _ksub(cairn)
+
+
 def test_direct_damage_opens_on_damage_to_a_creatures_controller():
     # Shocker deals "2 damage to target creature and 2 damage to that creature's
     # controller" — the second clause burns a PLAYER, but the direct_damage player-anchor
