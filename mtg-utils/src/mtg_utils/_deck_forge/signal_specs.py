@@ -1104,6 +1104,25 @@ _EXTRA_COMBAT_EXTRA = SubAvenue(
     {"oracle": _EXTRA_COMBAT_ORACLE},
     serve=Serve(oracle=re.compile(_EXTRA_COMBAT_ORACLE, _IC)),
 )
+# Symmetric group mana: a group-mana commander (Shizuko group-ramp, Yurlok mana-burn)
+# wants the shared mana-doublers and mana-punishers keyed on "whenever a player taps a
+# land for mana" (Mana Flare, Heartbeat of Spring, Manabarbs, Overabundance) plus join-
+# forces group ramp (Collective Voyage). The sweep serve only credited "each player adds
+# {", so these went unserved. One-sided dorks ("{T}: Add {G}") never match.
+_SYM_MANA_ORACLE = (
+    r"(?:whenever|if) a player taps a land for mana"
+    r"|whenever a land is tapped for mana"
+    r"|\bjoin forces\b|each player may (?:pay|search)"
+    r"|for each untapped land[^.]*deals"
+    r"|each player (?:creates|may draw)"
+)
+_SYM_MANA_EXTRA = SubAvenue(
+    "Symmetric mana (group ramp & mana-punishers)",
+    "shared mana-doublers and mana-punishers that exploit the symmetry "
+    "(Mana Flare, Heartbeat of Spring, Manabarbs, Collective Voyage)",
+    {"oracle": _SYM_MANA_ORACLE},
+    serve=Serve(oracle=re.compile(_SYM_MANA_ORACLE, _IC)),
+)
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
 # survive blocks — reuses the mined pump_matters regex so it never drifts.
 _PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
@@ -2113,6 +2132,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _DAMAGE_AMPLIFIER_EXTRA,
             _EXTRA_COMBAT_EXTRA,
         ),
+    ),
+    # Group-mana commanders (Shizuko, Yurlok) want symmetric mana-doublers / punishers +
+    # join-forces ramp beyond the bare "each player adds {" the sweep regex credits.
+    ("group_mana", "each"): _sweep_spec_with_extras(
+        "group_mana",
+        (_SYM_MANA_EXTRA,),
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,

@@ -742,6 +742,41 @@ def test_extra_combat_served_by_combat_signals():
         assert not covers(bolt), key
 
 
+def test_group_mana_serves_symmetric_mana():
+    # A group-mana commander (Yurlok mana-burn, Shizuko group-ramp) wants symmetric
+    # mana-makers/punishers — Mana Flare, Heartbeat of Spring, Manabarbs ("whenever a
+    # player taps a land for mana"), Collective Voyage ("join forces"). The sweep serve
+    # only credited "each player adds {".
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    mana_flare = {
+        "name": "Mana Flare",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever a player taps a land for mana, that player adds an additional one "
+            "mana of any type that land produced."
+        ),
+    }
+    sp = spec_for(
+        Signal(key="group_mana", scope="each", subject="", text="", source="")
+    )
+
+    def cov(c):
+        return sp.serve.matches(c) or any(
+            (ex.serve or serve_from_dict(ex.search)).matches(c) for ex in sp.extras
+        )
+
+    assert cov(mana_flare)
+    # Over-fire guard: a one-sided mana dork is not symmetric group mana.
+    llan = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert not cov(llan)
+
+
 def test_discard_outlet_cross_opens_graveyard():
     # A discard-outlet commander fills the graveyard, so it wants GY payoffs (reanimate /
     # flashback / recur the discarded cards): cross-open graveyard_matters. Mishra loots
