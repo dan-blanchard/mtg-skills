@@ -615,6 +615,35 @@ def test_class_tribe_membership_gated_off_without_creature_signal():
     )
 
 
+def test_instant_sorcery_buildaround_opens_spellcast():
+    # A commander that builds around instants/sorceries WITHOUT a "whenever you cast"
+    # trigger — Lier grants every instant/sorcery in the graveyard flashback — is a
+    # spellslinger deck; the cast-trigger-only detector misses it, so its instant/sorcery
+    # density goes unserved. Open spellcast_matters off the flashback-grant / recursion /
+    # cost-reduction build-around.
+    lier = {
+        "name": "Lier, Disciple of the Drowned",
+        "type_line": "Legendary Creature — Human Wizard",
+        "oracle_text": (
+            "Spells can't be countered.\nEach instant and sorcery card in your graveyard "
+            "has flashback. The flashback cost is equal to that card's mana cost."
+        ),
+    }
+    assert "spellcast_matters" in {
+        s.key for s in extract_signals(lier, include_membership=True)
+    }
+    # Over-fire guard: a bare counterspell mentions an instant but isn't an instant/
+    # sorcery build-around — it must NOT read as spellslinger.
+    dispel = {
+        "name": "Dispel",
+        "type_line": "Instant",
+        "oracle_text": "Counter target instant spell.",
+    }
+    assert "spellcast_matters" not in {
+        s.key for s in extract_signals(dispel, include_membership=True)
+    }
+
+
 def test_color_hoser_opens_and_serves_color_change_toolbox():
     # A color-HOSER commander (punishes/restricts/bounces a named COLOR) wants the
     # color-changing "Painter" toolbox to force its color payoff onto every permanent:

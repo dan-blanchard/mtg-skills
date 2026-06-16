@@ -148,8 +148,23 @@ _COLOR_HOSER_RE = re.compile(
 )
 
 
+# Instant/sorcery BUILD-AROUND with no "whenever you cast" trigger: a commander that
+# grants flashback to / recasts from the graveyard / reduces the cost of instants and
+# sorceries (Lier "each instant and sorcery card in your graveyard has flashback", Kess,
+# Dralnu) is a spellslinger deck and wants a high instant/sorcery density. The cast-
+# trigger spellcast_matters detector keys on "whenever you cast", so it misses these.
+# Requires a build-around verb after the type pair, so a bare counterspell ("counter
+# target instant or sorcery spell") never matches.
+_IS_BUILDAROUND_RE = re.compile(
+    r"instants? (?:and|or) sorcer(?:y|ies)[^.]{0,50}"
+    r"(?:flashback|from (?:your |a )?graveyard|cost (?:\{|\d|less)|you may cast)",
+    re.IGNORECASE,
+)
+
+
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ("color_hoser", lambda c: _COLOR_HOSER_RE.search(c) is not None, "you"),
+    ("spellcast_matters", lambda c: _IS_BUILDAROUND_RE.search(c) is not None, "you"),
     (
         "creature_etb",
         lambda c: (
