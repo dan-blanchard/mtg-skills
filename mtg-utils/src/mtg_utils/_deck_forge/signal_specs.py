@@ -3497,6 +3497,31 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Free-spell storm (Thrasta): cost drops per spell cast this turn, so it wants FREE
+    # (0-cost) NONLAND spells to chain. all_of(cmc<=0, spell-type) excludes 0-mv basics
+    # (a land is not a spell cast).
+    ("free_spell_storm", "you"): SignalSpec(
+        label="Free spells",
+        avenue="0-cost spells to chain so the commander's cost keeps dropping",
+        search={"cmc_max": 0},
+        serve=Serve(
+            all_of=(
+                Serve(cmc_max=0),
+                Serve(
+                    types=frozenset(
+                        {
+                            "instant",
+                            "sorcery",
+                            "artifact",
+                            "creature",
+                            "enchantment",
+                            "planeswalker",
+                        }
+                    )
+                ),
+            )
+        ),
+    ),
     # Scavenge fuel (Varolz): scavenge turns a graveyard creature's POWER into +1/+1
     # counters, so it wants the highest-power creatures as the biggest payloads.
     ("scavenge_fuel", "you"): _spec(

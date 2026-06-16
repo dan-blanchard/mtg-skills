@@ -731,6 +731,25 @@ def test_scavenge_fuel_opens_on_scavenge():
     assert ("scavenge_fuel", "you") in _ks(varolz)
 
 
+def test_free_spell_storm_opens_on_cost_less_per_spell():
+    # Thrasta's cost drops {3} per other spell cast this turn, so it wants free spells to
+    # chain. Real oracle.
+    thrasta = {
+        "name": "Thrasta, Tempest's Roar",
+        "type_line": "Legendary Creature — Dinosaur",
+        "mana_cost": "{10}{G}{G}",
+        "power": "7",
+        "toughness": "7",
+        "oracle_text": (
+            "This spell costs {3} less to cast for each other spell cast this turn.\n"
+            "Trample, haste\nTrample over planeswalkers (This creature can deal excess "
+            "combat damage to the controller of the planeswalker it's attacking.)\n"
+            "Thrasta has hexproof as long as it entered this turn."
+        ),
+    }
+    assert ("free_spell_storm", "you") in _ks(thrasta)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

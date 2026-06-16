@@ -1424,6 +1424,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bscavenge\b", re.IGNORECASE),
         "you",
     ),
+    # Free-spell storm (Thrasta: "costs {3} less for each other spell cast this turn"):
+    # a commander whose cost drops per spell cast wants FREE (0-cost) spells to chain,
+    # each cutting its cost (Ornithopter, Memnite, Lotus Petal, Mishra's Bauble).
+    (
+        "free_spell_storm",
+        re.compile(
+            r"less to cast for each (?:other )?spell[^.]*cast this turn", re.IGNORECASE
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).

@@ -271,6 +271,48 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     assert serves(impact_tremors, sig) is False
 
 
+def test_free_spell_storm_serves_zero_cost_nonland_spells():
+    # Thrasta wants free spells to chain: Lotus Petal and Memnite (both {0} nonland). A
+    # 1-cmc creature isn't free; a 0-mv basic land isn't a spell cast. Real oracle.
+    sig = _sig("free_spell_storm", "you")
+    lotus_petal = {
+        "name": "Lotus Petal",
+        "type_line": "Artifact",
+        "mana_cost": "{0}",
+        "cmc": 0.0,
+        "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
+    }
+    memnite = {
+        "name": "Memnite",
+        "type_line": "Artifact Creature — Construct",
+        "mana_cost": "{0}",
+        "cmc": 0.0,
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "",
+    }
+    assert serves(lotus_petal, sig) is True
+    assert serves(memnite, sig) is True
+    llanowar_elves = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "cmc": 1.0,
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    forest = {
+        "name": "Forest",
+        "type_line": "Basic Land — Forest",
+        "mana_cost": "",
+        "cmc": 0.0,
+        "oracle_text": "({T}: Add {G}.)",
+    }
+    assert serves(llanowar_elves, sig) is False  # not free
+    assert serves(forest, sig) is False  # 0-mv but a land, not a spell
+
+
 def test_scavenge_fuel_serves_high_power_creatures():
     # Varolz wants high-power creatures (scavenge = +1/+1 counters equal to power). Force
     # of Savagery (8/0) feeds it; a 2/2 bear does not. Real oracle.
