@@ -266,6 +266,47 @@ def test_cast_from_exile_serves_suspend_foretell_rebound():
     assert serves(lightning_bolt, sig) is False  # no cast-from-exile
 
 
+def test_keyword_soup_serves_keyword_dense_creatures():
+    # The sweep 'keyword_soup' signal (Rayami absorbs keywords from dead creatures; Akroma
+    # Vision / Indominus Rex share them) was stuck on the narrow sweep regex, not the
+    # keyword-count serve that 'keyword_soup_matters' (Odric) already had — so keyword-
+    # dense creatures weren't served. Real oracle.
+    sig = _sig("keyword_soup", "you")
+    venomthrope = {
+        "name": "Venomthrope",
+        "type_line": "Creature — Tyranid",
+        "mana_cost": "{1}{G}{U}",
+        "power": "2",
+        "toughness": "2",
+        "keywords": ["Deathtouch", "Flying", "Hexproof"],
+        "oracle_text": "Flying, deathtouch, hexproof",
+    }
+    stonecoil_serpent = {
+        "name": "Stonecoil Serpent",
+        "type_line": "Artifact Creature — Snake",
+        "mana_cost": "{X}",
+        "power": "0",
+        "toughness": "0",
+        "keywords": ["Reach", "Protection", "Trample"],
+        "oracle_text": (
+            "Reach, trample, protection from multicolored\nThis creature enters with X "
+            "+1/+1 counters on it."
+        ),
+    }
+    grizzly_bears = {
+        "name": "Grizzly Bears",
+        "type_line": "Creature — Bear",
+        "mana_cost": "{1}{G}",
+        "power": "2",
+        "toughness": "2",
+        "keywords": [],
+        "oracle_text": "",
+    }
+    assert serves(venomthrope, sig) is True  # 3 evergreen keywords
+    assert serves(stonecoil_serpent, sig) is True  # 3 evergreen keywords
+    assert serves(grizzly_bears, sig) is False  # no keywords
+
+
 def test_color_hoser_serves_anti_color_hate():
     # color_hoser is opened by anti-color commanders (Major Teroh "exile all black",
     # Ascendant Evincar, Crovax, Dromar, Llawan, Jaya) but its serve matched only Painter

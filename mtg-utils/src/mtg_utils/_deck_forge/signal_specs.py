@@ -2459,6 +2459,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_keyword_count_min=3,
     ),
+    # The SWEEP also fires a separate `keyword_soup` signal (Rayami absorbs keywords
+    # from dead creatures; Akroma Vision / Indominus Rex share them) — same payoff, so
+    # give it the same keyword-dense-creature serve, not the narrow sweep regex it'd
+    # otherwise auto-register. Hand-speccing the key makes the sweep loop skip it.
+    ("keyword_soup", "you"): _spec(
+        "Keyword soup",
+        "creatures stacked with evergreen keywords to share or absorb",
+        {"oracle": r"\b(?:flying|first strike|double strike|trample|vigilance)\b"},
+        None,
+        serve_keyword_count_min=3,
+    ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
         "ramp, extra land drops, and recursion to maximize your land count",
