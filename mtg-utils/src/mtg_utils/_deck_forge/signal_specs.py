@@ -732,9 +732,13 @@ _SAC_OUTLET_EXTRA = SubAvenue(
 # trigger, so a creature-cast / ETB commander wants them. Anchored to "you control" so
 # a tempo bounce of an OPPONENT's permanent never registers.
 _SELF_BOUNCE_ORACLE = (
-    r"when this creature enters,(?: you may)? return "
-    r"(?:a|an|another|target|up to one|up to two)(?: target| other)? "
-    r"(?:creature|permanent|nonland permanent)s? you control to its owner"
+    # ETB self-bounce (Whitemane Lion, Kor Skyfisher) AND the upkeep/end-step engines
+    # (Mistbreath Elder, First Responder) that return your own creature each turn to
+    # re-fire its enter trigger on recast. Loose middle catches "up to one other".
+    r"(?:when this creature enters,?(?: you may)?"
+    r"|at the beginning of (?:your|each) (?:upkeep|end step),?(?: you may)?) "
+    r"return (?:a|an|another|target|up to one|up to two)[^.]{0,30}?"
+    r"(?:creature|permanent|nonland permanent)s? you control to (?:its|their) owner"
 )
 _SELF_BOUNCE_EXTRA = SubAvenue(
     "Self-bounce recast engines",
