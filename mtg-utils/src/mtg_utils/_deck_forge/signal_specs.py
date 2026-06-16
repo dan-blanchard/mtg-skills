@@ -1091,6 +1091,19 @@ _COMBAT_SUPPORT_EXTRA = SubAvenue(
     {"oracle": _COMBAT_SUPPORT_ORACLE},
     serve=Serve(oracle=re.compile(_COMBAT_SUPPORT_ORACLE, _IC)),
 )
+# Extra combats (Aggravated Assault, Relentless Assault, Seize the Day, Moraug): each
+# added combat phase is another round of attack + combat-damage triggers, so a commander
+# that rewards attacking / combat damage / a suited-up voltron threat wants them.
+# attack_matters serves "additional combat phase" inline; this shared extra gives the
+# same to combat_damage_matters / combat_damage_to_opp / voltron_matters. "additional
+# combat phase" is unambiguous (zero false positives: burn/pump never match).
+_EXTRA_COMBAT_ORACLE = r"additional combat phase|extra combat phase"
+_EXTRA_COMBAT_EXTRA = SubAvenue(
+    "Extra combats",
+    "additional-combat-phase enablers — another round of attack/combat-damage triggers",
+    {"oracle": _EXTRA_COMBAT_ORACLE},
+    serve=Serve(oracle=re.compile(_EXTRA_COMBAT_ORACLE, _IC)),
+)
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
 # survive blocks — reuses the mined pump_matters regex so it never drifts.
 _PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
@@ -2084,12 +2097,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"deals combat damage to (?:a player|an opponent|one of your opponents"
         r"|each opponent)|can't be blocked(?! except)|\bunblockable\b",
         # A combat-damage-trigger commander needs to CONNECT and survive: gear to suit
-        # up (Ojutai) and instant pump to push through / survive blocks (Benton).
-        extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA),
+        # up (Ojutai), instant pump to push through / survive blocks (Benton), and extra
+        # combats to multiply the trigger (Neheb -> Relentless Assault, Seize the Day).
+        extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
     ("combat_damage_to_opp", "opponents"): _sweep_spec_with_extras(
         "combat_damage_to_opp",
-        (_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA, _DAMAGE_AMPLIFIER_EXTRA),
+        (
+            _COMBAT_SUPPORT_EXTRA,
+            _PUMP_EXTRA,
+            _DAMAGE_AMPLIFIER_EXTRA,
+            _EXTRA_COMBAT_EXTRA,
+        ),
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,
@@ -2402,7 +2421,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("reconfigure",),
         serve_not=r"can't attack|can't block|doesn't untap during"
         r"|enchant creature you don't control|defending player controls",
-        extras=(_VOLTRON_PROTECT_EXTRA,),
+        # Extra combats let the suited-up threat swing again — a top voltron payoff.
+        extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",

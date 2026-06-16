@@ -642,6 +642,43 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
     assert not sp.serve.matches(bad_moon)
 
 
+def test_extra_combat_served_by_combat_signals():
+    # A combat-damage / voltron commander wants EXTRA COMBATS: each added combat phase is
+    # another round of attack + combat-damage triggers (Neheb -> Relentless Assault, Seize
+    # the Day). attack_matters already served these; combat_damage / voltron did not.
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    relentless = {
+        "name": "Relentless Assault",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Untap all creatures that attacked this turn. After this main phase, there "
+            "is an additional combat phase followed by an additional main phase."
+        ),
+    }
+    # Over-fire guard: burn is not an extra-combat enabler.
+    bolt = {
+        "name": "Lightning Bolt",
+        "type_line": "Instant",
+        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+    }
+    for key, scope in [
+        ("combat_damage_matters", "opponents"),
+        ("combat_damage_to_opp", "opponents"),
+        ("voltron_matters", "you"),
+    ]:
+        sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
+
+        def covers(c, sp=sp):
+            return sp.serve.matches(c) or any(
+                (ex.serve or serve_from_dict(ex.search)).matches(c) for ex in sp.extras
+            )
+
+        assert covers(relentless), key
+        assert not covers(bolt), key
+
+
 def test_creature_token_maker_cross_opens_creatures_matter():
     # A token_maker that makes CREATURE tokens (Darien -> Soldiers) is a go-wide creatures
     # deck: it wants anthems + per-creature-ETB payoffs (Soul Warden, Impact Tremors) +
