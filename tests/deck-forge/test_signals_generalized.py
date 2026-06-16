@@ -742,6 +742,38 @@ def test_extra_combat_served_by_combat_signals():
         assert not covers(bolt), key
 
 
+def test_amass_cards_served_by_tokens_matter():
+    # Amass creates or grows an Army CREATURE token (CR 701.47), so an amass card is a
+    # token maker the tokens_matter serve must credit — Mouth of Sauron / Grishnákh want
+    # their amass package. The serve keyed on "token enters" / "populate" and missed the
+    # amass keyword (its token-making lives in stripped reminder text, like Mobilize).
+    from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._deck_forge.signals import Signal
+
+    crebain = {
+        "name": "Dunland Crebain",
+        "type_line": "Creature — Bird Horror",
+        "oracle_text": (
+            "Flying\nWhen this creature enters, amass Orcs 2. (Put two +1/+1 counters on "
+            "an Army you control. It's also an Orc. If you don't control an Army, create "
+            "a 0/0 black Orc Army creature token first.)"
+        ),
+    }
+    sp = spec_for(
+        Signal(key="tokens_matter", scope="you", subject="", text="", source="")
+    )
+
+    def cov(c):
+        return sp.serve.matches(c) or any(
+            (ex.serve or serve_from_dict(ex.search)).matches(c) for ex in sp.extras
+        )
+
+    assert cov(crebain)
+    # Over-fire guard: a vanilla creature is not a token maker.
+    bears = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    assert not cov(bears)
+
+
 def test_creature_token_maker_cross_opens_creatures_matter():
     # A token_maker that makes CREATURE tokens (Darien -> Soldiers) is a go-wide creatures
     # deck: it wants anthems + per-creature-ETB payoffs (Soul Warden, Impact Tremors) +

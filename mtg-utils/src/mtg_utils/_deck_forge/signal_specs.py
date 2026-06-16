@@ -1828,7 +1828,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"create [^.]*token"},
         r"\btokens? you control\b"
         r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
-        r"|\bpopulate\b",
+        r"|\bpopulate\b"
+        # Amass creates or grows an Army CREATURE token (CR 701.47), so an amass card is
+        # a token maker (Mouth of Sauron / Grishnákh want the amass package). Like
+        # Mobilize, its token-making lives in stripped reminder text, so credit it.
+        r"|\bamass\b",
         # NB: GENERIC single-token makers are deliberately NOT in the serve — a single
         # maker is generically good (every deck runs some), not archetype-UNIQUE, so
         # serving all 2315 floods the lane. But MASS makers ("create 2+/X tokens at
