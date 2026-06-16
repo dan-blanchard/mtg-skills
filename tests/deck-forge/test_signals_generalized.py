@@ -232,6 +232,37 @@ def test_self_etb_variable_damage_opens_flicker_and_clone():
     }
 
 
+def test_self_etb_modal_choose_requires_enters_not_dies():
+    # The self-ETB payoff list includes the modal marker "choose one/two/three" — but it
+    # MUST stay anchored to "when ~ enters". A DEATH-modal trigger ("When ~ dies, choose
+    # one —") is re-used by sacrifice/reanimation, NOT by blink, so it must not open the
+    # Blink avenue. Regression guard: the modal alternative was ungrouped, so it floated
+    # to the top of the pattern and matched ANY "choose one" (Atsushi's death modal).
+    # Real oracle.
+    atsushi = {
+        "name": "Atsushi, the Blazing Sky",
+        "type_line": "Legendary Creature — Dragon Spirit",
+        "oracle_text": (
+            "Flying, trample\nWhen Atsushi dies, choose one —\n• Exile the top two "
+            "cards of your library. Until the end of your next turn, you may play "
+            "those cards.\n• Create three Treasure tokens."
+        ),
+    }
+    assert "blink_flicker" not in _keys(atsushi)
+    # A genuine ETB modal ("When ~ enters, choose one —") still opens Blink: flicker
+    # re-fires the enter trigger (CR 603.6). Real oracle.
+    charming_prince = {
+        "name": "Charming Prince",
+        "type_line": "Creature — Human Noble",
+        "oracle_text": (
+            "When this creature enters, choose one —\n• Scry 2.\n• You gain 3 life.\n"
+            "• Exile another target creature you own. Return it to the battlefield "
+            "under your control at the beginning of the next end step."
+        ),
+    }
+    assert "blink_flicker" in _keys(charming_prince)
+
+
 def test_self_death_variable_damage_opens_payoff_and_clone():
     # Symmetric with the ETB case: a commander whose own DEATH trigger deals VARIABLE
     # damage ("deals damage equal to its power") is a value death trigger worth

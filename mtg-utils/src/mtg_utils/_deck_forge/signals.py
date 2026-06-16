@@ -2387,7 +2387,12 @@ _LOOT_FULLTEXT_RE = re.compile(
 # existing test_oring_removal_is_not_flicker guards this). Excludes mana-ritual/keyword
 # ETBs too, so a bare beater doesn't open a Blink avenue.
 _SELF_ETB_PAYOFF = (
-    r"\b(?:draws?|create|creates|search|searches|look at|reveal|returns?"
+    # The whole alternation is wrapped in ONE (?:...) group. Without it, the trailing
+    # "|choose …" alternative floats to the TOP of the interpolated _self_etb_value
+    # pattern and matches a bare "choose one" ANYWHERE — e.g. a DEATH modal ("When ~
+    # dies, choose one") — instead of staying anchored under "when ~ enters". (Guarded
+    # by test_self_etb_modal_choose_requires_enters_not_dies.)
+    r"(?:\b(?:draws?|create|creates|search|searches|look at|reveal|returns?"
     r"|gains? control|put[^.]*counter|mills?|investigate|scry|draft|copy"
     # Damage ETBs are value (Flametongue Kavu — flicker re-fires the burn): numeric
     # "deals N damage" AND the variable forms "deals X damage" / "deals damage equal
@@ -2399,6 +2404,7 @@ _SELF_ETB_PAYOFF = (
     # (CR 700.2). "choose one/two/three/up to" is the modal marker — narrower than bare
     # "choose". Catches Donnie & April, Charming Prince, Aether Channeler.
     r"|choose (?:one|two|three|up to)"
+    r")"
 )
 
 
