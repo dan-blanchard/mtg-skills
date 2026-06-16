@@ -585,6 +585,24 @@ def test_entered_attacker_opens_on_entered_this_turn_combat():
     assert ("entered_attacker", "you") in _ks(samut)
 
 
+def test_land_protection_opens_on_land_animation():
+    # Noyan Dar turns lands into creatures, which die to removal and wraths, so he wants
+    # land protection. Real oracle.
+    noyan_dar = {
+        "name": "Noyan Dar, Roil Shaper",
+        "type_line": "Legendary Creature — Merfolk Ally",
+        "mana_cost": "{3}{W}{U}",
+        "power": "4",
+        "toughness": "4",
+        "oracle_text": (
+            "Whenever you cast an instant or sorcery spell, you may put three +1/+1 "
+            "counters on target land you control. If you do, that land becomes a 0/0 "
+            "Elemental creature with haste that's still a land."
+        ),
+    }
+    assert ("land_protection", "you") in _ks(noyan_dar)
+
+
 def test_artifacts_matter_opens_on_investigate():
     # "Investigate" creates a Clue token — an artifact (keyword action) — so an
     # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact

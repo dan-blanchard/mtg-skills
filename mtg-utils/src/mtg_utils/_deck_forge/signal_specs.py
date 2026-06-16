@@ -3470,6 +3470,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"you may exert this creature",
         serve_keywords=("exert",),
     ),
+    # Land protection (Noyan Dar, Kamahl, the Tophs): a land-animation commander's
+    # creature-lands die to creature removal / wraths / land destruction, so it wants
+    # indestructible-lands, untargetable-lands, and land recursion to keep them.
+    ("land_protection", "you"): _spec(
+        "Land protection",
+        "keep your animated lands alive: indestructible, untargetable, land recursion",
+        {
+            "oracle": r"all lands[^.]*indestructible|lands?[^.]*can'?t be[^.]*target"
+            r"|lands?[^.]*hexproof"
+        },
+        r"lands?[^.]*(?:have|gain|with)[^.]*indestructible|all lands[^.]*indestructible"
+        r"|lands?[^.]*can'?t be[^.]*target|lands?[^.]*hexproof"
+        r"|whenever[^.]*causes? a land[^.]*graveyard",
+    ),
     # Newly-entered attacker payoff (Samut): wants HASTE + ETB-pump anthems so a
     # creature that entered this turn can attack at once for value. Ogre Battledriver /
     # Primal Forcemage pump entering creatures; mass-haste lets them swing.

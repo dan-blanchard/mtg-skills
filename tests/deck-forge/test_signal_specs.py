@@ -194,6 +194,42 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     assert serves(raise_dead, sig) is False
 
 
+def test_land_protection_serves_indestructible_and_untargetable_lands():
+    # A land-animation commander (Noyan Dar) wants its creature-lands kept alive: Terra
+    # Eternal ("All lands have indestructible") and Tomik ("Lands … can't be the targets
+    # of … your opponents"). A mana dork is not land protection. Real oracle.
+    sig = _sig("land_protection", "you")
+    terra_eternal = {
+        "name": "Terra Eternal",
+        "type_line": "Enchantment",
+        "mana_cost": "{2}{W}",
+        "oracle_text": "All lands have indestructible.",
+    }
+    tomik = {
+        "name": "Tomik, Distinguished Advokist",
+        "type_line": "Legendary Creature — Human Advisor",
+        "mana_cost": "{W}{W}",
+        "power": "2",
+        "toughness": "3",
+        "oracle_text": (
+            "Flying\nLands on the battlefield and land cards in graveyards can't be the "
+            "targets of spells or abilities your opponents control.\nYour opponents "
+            "can't play land cards from graveyards."
+        ),
+    }
+    assert serves(terra_eternal, sig) is True
+    assert serves(tomik, sig) is True
+    llanowar_elves = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert serves(llanowar_elves, sig) is False
+
+
 def test_entered_attacker_serves_etb_pump_and_haste():
     # Samut wants enter-trigger pump + haste so a freshly-entered creature swings at
     # once. Primal Forcemage (+3/+3 on enter) and Ogre Battledriver (+2/+0 and haste on

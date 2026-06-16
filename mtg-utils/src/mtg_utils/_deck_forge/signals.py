@@ -1340,6 +1340,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Land-animation (Noyan Dar, Kamahl, the Tophs): a commander that turns your lands
+    # into creatures makes them vulnerable to creature removal AND land destruction, so
+    # it wants land PROTECTION (Terra Eternal indestructible-lands, Tomik untargetable-
+    # lands, Sacred Ground recursion) to keep the animated lands alive.
+    (
+        "land_protection",
+        re.compile(
+            r"land[^.]*becomes? a[^.]*creature|lands? you control are[^.]*creatures"
+            r"|that land becomes",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).
