@@ -266,6 +266,42 @@ def test_cast_from_exile_serves_suspend_foretell_rebound():
     assert serves(lightning_bolt, sig) is False  # no cast-from-exile
 
 
+def test_color_hoser_serves_anti_color_hate():
+    # color_hoser is opened by anti-color commanders (Major Teroh "exile all black",
+    # Ascendant Evincar, Crovax, Dromar, Llawan, Jaya) but its serve matched only Painter
+    # changers. Those decks want anti-color HATE — "[color] creatures can't attack",
+    # "protection from [color]", "destroy all [color] creatures". Real oracle.
+    sig = _sig("color_hoser", "you")
+    light_of_day = {
+        "name": "Light of Day",
+        "type_line": "Enchantment",
+        "mana_cost": "{3}{W}",
+        "oracle_text": "Black creatures can't attack or block.",
+    }
+    absolute_grace = {
+        "name": "Absolute Grace",
+        "type_line": "Enchantment",
+        "mana_cost": "{1}{W}",
+        "oracle_text": "All creatures have protection from black.",
+    }
+    perish = {
+        "name": "Perish",
+        "type_line": "Sorcery",
+        "mana_cost": "{2}{B}",
+        "oracle_text": "Destroy all green creatures. They can't be regenerated.",
+    }
+    wrath_of_god = {  # colorless mass removal — not anti-color hate
+        "name": "Wrath of God",
+        "type_line": "Sorcery",
+        "mana_cost": "{2}{W}{W}",
+        "oracle_text": "Destroy all creatures. They can't be regenerated.",
+    }
+    assert serves(light_of_day, sig) is True  # [color] creatures can't attack/block
+    assert serves(absolute_grace, sig) is True  # protection from [color]
+    assert serves(perish, sig) is True  # destroy all [color] creatures
+    assert serves(wrath_of_god, sig) is False  # "all creatures" (no color) stays out
+
+
 def test_color_change_serves_color_conditional_payoffs():
     # A color-CHANGER (Blind Seer: "target spell or permanent becomes the color of your
     # choice") enables color-conditional mass effects — make everything one color, then

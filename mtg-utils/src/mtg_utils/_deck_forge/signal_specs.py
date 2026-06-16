@@ -1911,7 +1911,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|(?:spell or permanent|permanent or spell|target permanent|target creature) "
         r"becomes (?:white|blue|black|red|green)\b"
         r"|are the chosen color"
-        r"|replacing all instances of one color",
+        r"|replacing all instances of one color"
+        # Anti-color HATE is what these commanders (Major Teroh, Ascendant Evincar,
+        # Crovax, Dromar, Llawan) actually want — make/keep everything a color, then
+        # hose it. Only the 6 color_hoser commanders open the lane, so the narrow
+        # color-hate stays scoped to the decks that exploit it.
+        r"|(?:destroy|exile|return) all (?:non)?(?:white|blue|black|red|green) "
+        r"(?:creature|permanent)s?"
+        r"|protection from (?:white|blue|black|red|green)"
+        r"|(?:white|blue|black|red|green) creatures? can't (?:attack|block|be)"
+        r"|can't cast (?:white|blue|black|red|green)",
     ),
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
