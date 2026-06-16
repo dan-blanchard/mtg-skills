@@ -2122,7 +2122,12 @@ _PRESET_REGEX_SIGNALS = {
 _PER_TURN_ENGINE_RE = re.compile(
     r"at the beginning of (?:your|each)[^.]*"
     r"(?:upkeep|end step|draw step|combat|main phase)"
-    r"|(?:once )?(?:each|every) turn",
+    r"|(?:once )?(?:each|every) turn"
+    # Extra-turn / extra-phase generators (Obeka Splitter of Seconds: "additional upkeep
+    # steps"; Najeela / Aurelia / Moraug: "additional combat phase"; "take an extra
+    # turn") are PREMIUM recurring-value engines — cloning multiplies the extra phases.
+    r"|(?:additional|extra|another) (?:upkeep|combat|main)[^.]{0,8}(?:step|phase)"
+    r"|take (?:an? )?(?:extra|additional) turn|an additional turn",
     re.IGNORECASE,
 )
 # A tap-activated ability ("{T}: …") is repeatable engine value too — but a pure mana

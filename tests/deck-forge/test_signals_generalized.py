@@ -276,8 +276,23 @@ def test_clone_matters_opens_for_recurring_value_legendary():
         "toughness": "2",
         "oracle_text": "",
     }
+    # Obeka, Splitter of Seconds — the extra-PHASE engine (combat damage -> additional
+    # upkeep steps). Dan clones THIS Obeka; extra-turn/phase generators are premium
+    # clone targets (cloning multiplies the extra phases). Real oracle.
+    obeka_splitter = {
+        "name": "Obeka, Splitter of Seconds",
+        "type_line": "Legendary Creature — Ogre Warlock",
+        "mana_cost": "{1}{U}{B}{R}",
+        "power": "2",
+        "toughness": "5",
+        "oracle_text": (
+            "Menace\nWhenever Obeka deals combat damage to a player, you get that many "
+            "additional upkeep steps after this phase."
+        ),
+    }
     assert "clone_matters" in _keys(obeka)  # {T} engine
     assert "clone_matters" in _keys(koma)  # per-upkeep engine
+    assert "clone_matters" in _keys(obeka_splitter)  # extra-upkeep engine
     assert "clone_matters" not in _keys(isamaru)  # vanilla legendary
     # Commander-level: must NOT fire when aggregating the 99 (include_membership=False).
     assert "clone_matters" not in {
