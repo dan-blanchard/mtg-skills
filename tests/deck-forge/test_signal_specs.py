@@ -2733,6 +2733,37 @@ PSYCHIC_SURGERY = {
         "that library in any order."
     ),
 }
+CAVERN_HARPY = {
+    "name": "Cavern Harpy",
+    "type_line": "Creature — Harpy Beast",
+    "power": "2",
+    "toughness": "1",
+    "keywords": ["Flying"],
+    "oracle_text": (
+        "Flying\nWhen this creature enters, return a blue or black creature you control "
+        "to its owner's hand.\nPay 1 life: Return this creature to its owner's hand."
+    ),
+}
+WHITEMANE_LION = {
+    "name": "Whitemane Lion",
+    "type_line": "Creature — Cat",
+    "power": "2",
+    "toughness": "2",
+    "keywords": ["Flash"],
+    "oracle_text": (
+        "Flash\nWhen this creature enters, return a creature you control to its owner's "
+        "hand."
+    ),
+}
+RUN_AWAY_TOGETHER = {
+    "name": "Run Away Together",
+    "type_line": "Instant",
+    "keywords": [],
+    "oracle_text": (
+        "Choose two target creatures controlled by different players. Return those "
+        "creatures to their owners' hands."
+    ),
+}
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -3025,6 +3056,25 @@ def test_opp_top_exile_serves_top_reveal():
     assert serves(FIELD_OF_DREAMS, sig) is True
     assert serves(WIZENED_SNITCHES, sig) is True
     assert serves(PSYCHIC_SURGERY, sig) is False  # shuffle peek, not a top-reveal
+
+
+def test_clone_self_bounce_serves_recast_enablers():
+    """A clone/recast commander (The Master, Body Thief) wants SELF-BOUNCE to return its
+    own body and recast it — copying a different/better creature again. Cavern Harpy is
+    the canonical enabler (Whitemane Lion too). A symmetric bounce of creatures
+    controlled by DIFFERENT players (Run Away Together) isn't a clean self-bounce."""
+    from mtg_utils._deck_forge.ranking import score_candidate
+
+    avenues = _avenue_dicts(spec_for(_sig("clone_matters", "you")))
+
+    def served(card):
+        return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
+
+    assert served(CAVERN_HARPY)
+    assert served(WHITEMANE_LION)
+    assert not served(
+        RUN_AWAY_TOGETHER
+    )  # different players' creatures, not self-bounce
 
 
 def _subj_sig(key, subject):

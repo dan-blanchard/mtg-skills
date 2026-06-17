@@ -1166,6 +1166,21 @@ _CLONE_DIES_VALUE_EXTRA = SubAvenue(
         )
     ),
 )
+# Self-bounce (Cavern Harpy, Whitemane Lion): return YOUR creature to hand to RECAST it.
+# For a recast-clone commander (The Master's Body Thief) that means copying a different/
+# better creature again; for any clone deck it re-uses the copy ETB. Confirmed core for
+# The Master. "creature you control to (its) owner's hand" — one-sided, not a symmetric
+# both-players bounce (Run Away Together).
+_SELF_BOUNCE_RECAST_ORACLE = (
+    r"return [^.]*creatures? you control to (?:its|their) owner'?s? hand"
+)
+_SELF_BOUNCE_RECAST_EXTRA = SubAvenue(
+    "Self-bounce (recast your clones)",
+    "return your own creatures to hand to recast the clone and copy again "
+    "(Cavern Harpy, Whitemane Lion)",
+    {"oracle": _SELF_BOUNCE_RECAST_ORACLE},
+    serve=Serve(oracle=re.compile(_SELF_BOUNCE_RECAST_ORACLE, _IC)),
+)
 # Drawback creatures whose downside PUNISHES their controller — the donate target
 # (Abyssal Persecutor "you can't win", Flesh Reaver "deals damage to you", Demonic
 # Taskmaster "upkeep: sacrifice a creature"): hand them to an opponent for the downside.
@@ -3396,6 +3411,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _ETB_PAYOFF_EXTRA,
             _ETB_DOUBLER_EXTRA,
             _CLONE_DIES_VALUE_EXTRA,
+            _SELF_BOUNCE_RECAST_EXTRA,
         ),
     ),
     ("cheat_into_play", "you"): _spec(
