@@ -288,6 +288,11 @@
                     class="prow"
                     class:on={!c.printing_id}
                     on:click={() => choosePrinting(c, g.key, null)}
+                    use:hoverPreview={{
+                      name: c.name,
+                      images: c.images,
+                      layout: c.layout,
+                    }}
                   >
                     <span class="pset">Default (cheapest)</span>
                   </button>
@@ -296,6 +301,11 @@
                       class="prow"
                       class:on={c.printing_id === p.id}
                       on:click={() => choosePrinting(c, g.key, p.id)}
+                      use:hoverPreview={{
+                        name: c.name,
+                        images: p.images,
+                        layout: c.layout,
+                      }}
                     >
                       <span class="pset"
                         >{p.set?.toUpperCase()} · #{p.collector_number}</span
