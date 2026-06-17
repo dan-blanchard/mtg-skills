@@ -84,40 +84,30 @@
                 <div class="mana">Mana: {c.mana_needed}</div>
               {/if}
 
-              {#if haveOf(c).length || missingOf(c).length || c.missing_template}
-                <!-- Have / need side-by-side: a combo is almost always two pieces,
-                     and stacking full art tiles meant you couldn't see both at once.
-                     Columns wrap to stacked only when the panel is too narrow. -->
-                <div class="pieces">
-                  {#if haveOf(c).length}
-                    <div class="piece">
-                      <div class="sub">In your deck</div>
-                      <div class="grid">
-                        {#each haveOf(c) as cv (cv.name)}
-                          <CardTile card={cv} onadd={add} />
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-                  {#if haveOf(c).length && (missingOf(c).length || c.missing_template)}
-                    <div class="plus" aria-hidden="true">+</div>
-                  {/if}
-                  {#if missingOf(c).length || c.missing_template}
-                    <div class="piece">
-                      <div class="sub need">You need</div>
-                      {#if missingOf(c).length}
-                        <div class="grid">
-                          {#each missingOf(c) as cv (cv.name)}
-                            <CardTile card={cv} onadd={add} />
-                          {/each}
-                        </div>
-                      {/if}
-                      {#if c.missing_template}
-                        <div class="need-template">a {c.missing_template}</div>
-                      {/if}
-                    </div>
-                  {/if}
+              <!-- Have / need as Find's dense list rows: a combo's full art tiles
+                   were tall (couldn't see both pieces) and stretched huge buttons in
+                   wide columns. Dense rows are ~60px, so stacking shows both at once,
+                   matches Find, and gives long card text the full width. -->
+              {#if haveOf(c).length}
+                <div class="sub">In your deck</div>
+                <div class="rows">
+                  {#each haveOf(c) as cv (cv.name)}
+                    <CardTile card={cv} onadd={add} dense />
+                  {/each}
                 </div>
+              {/if}
+              {#if missingOf(c).length || c.missing_template}
+                <div class="sub need">You need</div>
+                {#if missingOf(c).length}
+                  <div class="rows">
+                    {#each missingOf(c) as cv (cv.name)}
+                      <CardTile card={cv} onadd={add} dense />
+                    {/each}
+                  </div>
+                {/if}
+                {#if c.missing_template}
+                  <div class="need-template">a {c.missing_template}</div>
+                {/if}
               {/if}
               {#if !c.card_views?.length && !c.missing_template}
                 <div class="cards">{c.cards.join(" + ")}</div>
@@ -213,27 +203,11 @@
     color: var(--brass);
     margin-bottom: 0.5rem;
   }
-  /* have / need columns sit side-by-side so both combo pieces are visible at
-     once; they wrap to stacked when the panel can't fit two card columns */
-  .pieces {
+  /* dense combo-piece rows, mirroring Find's list view */
+  .rows {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 0.7rem;
-    margin-top: 0.1rem;
-  }
-  .piece {
-    flex: 1 1 190px;
-    min-width: 0;
-  }
-  /* the literal "A + B" of the combo, centered between the two columns */
-  .plus {
-    flex: 0 0 auto;
-    align-self: center;
-    font-family: var(--display);
-    font-size: 1.5rem;
-    color: var(--brass);
-    opacity: 0.65;
+    flex-direction: column;
+    gap: 0.35rem;
   }
   .sub {
     font-size: 0.68rem;
@@ -254,11 +228,6 @@
     border-left: 3px solid var(--warn);
     border-radius: var(--radius);
     padding: 0.35rem 0.6rem;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.5rem;
   }
   .notice {
     color: var(--parchment-dim);
