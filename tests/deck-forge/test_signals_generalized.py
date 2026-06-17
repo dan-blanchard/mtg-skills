@@ -1350,6 +1350,33 @@ def test_opp_top_exile_opens_for_library_predators():
     assert not any(k == "opp_top_exile" for k, _, _ in _ksub(elf))
 
 
+def test_fblthp_free_plot_opens_for_zero_cost():
+    # Fblthp makes the top card's plot cost EQUAL its mana cost, so 0-cost cards are FREE
+    # to plot — the artifact-combo / storm engine (Hullbreaker + two 0-cost permanents =
+    # infinite; Sai / Displacer chains). So he wants 0-cost cards. A commander without the
+    # free-plot ability never opens it.
+    fblthp = {
+        "name": "Fblthp, Lost on the Range",
+        "type_line": "Legendary Creature — Homunculus",
+        "mana_cost": "{1}{U}{U}",
+        "power": "1",
+        "toughness": "1",
+        "keywords": ["Plot", "Ward"],
+        "oracle_text": "Ward {2}\nYou may look at the top card of your library any time.\nThe top card of your library has plot. The plot cost is equal to its mana cost.\nYou may plot nonland cards from the top of your library.",
+    }
+    elf = {
+        "name": "Llanowar Elves",
+        "type_line": "Creature — Elf Druid",
+        "mana_cost": "{G}",
+        "power": "1",
+        "toughness": "1",
+        "keywords": [],
+        "oracle_text": "{T}: Add {G}.",
+    }
+    assert any(k == "free_plot" for k, _, _ in _ksub(fblthp))
+    assert not any(k == "free_plot" for k, _, _ in _ksub(elf))
+
+
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
 
 

@@ -2549,11 +2549,28 @@ BOROS_SWIFTBLADE = {
 ORNITHOPTER = {
     "name": "Ornithopter",
     "type_line": "Artifact Creature — Thopter",
+    "mana_cost": "{0}",
     "power": "0",
     "toughness": "2",
     "cmc": 0.0,
     "keywords": ["Flying"],
     "oracle_text": "Flying",
+}
+WELDING_JAR = {
+    "name": "Welding Jar",
+    "type_line": "Artifact",
+    "mana_cost": "{0}",
+    "cmc": 0.0,
+    "keywords": [],
+    "oracle_text": "Sacrifice this artifact: Regenerate target artifact.",
+}
+SOL_RING = {
+    "name": "Sol Ring",
+    "type_line": "Artifact",
+    "mana_cost": "{1}",
+    "cmc": 1.0,
+    "keywords": [],
+    "oracle_text": "{T}: Add {C}{C}.",
 }
 AVEN_MINDCENSOR = {
     "name": "Aven Mindcensor",
@@ -3075,6 +3092,17 @@ def test_clone_self_bounce_serves_recast_enablers():
     assert not served(
         RUN_AWAY_TOGETHER
     )  # different players' creatures, not self-bounce
+
+
+def test_free_plot_serves_zero_cost_spells():
+    """Fblthp makes 0-cost cards free to plot, so the lane serves cards whose mana cost
+    is {0} (Ornithopter, Welding Jar — the artifact-combo / storm fuel). A 1-cost
+    artifact (Sol Ring) isn't free to plot, and lands (no mana cost) aren't plottable
+    nonland spells — both stay out."""
+    sig = _sig("free_plot", "you")
+    assert serves(ORNITHOPTER, sig) is True  # {0} artifact creature
+    assert serves(WELDING_JAR, sig) is True  # {0} artifact
+    assert serves(SOL_RING, sig) is False  # {1} — not a free plot
 
 
 def _subj_sig(key, subject):

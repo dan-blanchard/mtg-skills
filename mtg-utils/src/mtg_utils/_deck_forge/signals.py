@@ -1431,6 +1431,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # Fblthp makes the top card's plot cost = its mana cost, so 0-cost cards are free to
+    # plot off the top -- the cEDH artifact-combo / storm engine (Hullbreaker + two
+    # 0-cost permanents, Sai/Displacer chains). So he wants 0-cost cards. The "plot cost
+    # is equal to its mana cost" phrasing is unique to him.
+    (
+        "free_plot",
+        re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE),
+        "you",
+    ),
     # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
     # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
     # you cast a multicolored spell", converge, "multicolored creatures you control"),

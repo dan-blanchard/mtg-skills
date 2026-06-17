@@ -2845,6 +2845,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"plays? with the top card of their (?:libraries|library) revealed"
         r"|look at the top card of (?:each|target|that) (?:opponent|player)",
     ),
+    # Fblthp makes 0-cost cards free to plot off the top, fueling the artifact-combo /
+    # storm engine. Serve cards whose mana cost is exactly {0} (Ornithopter, Memnite,
+    # Welding Jar) — matching on mana_cost excludes lands (no mana cost) for free, and a
+    # 1-cost card (Sol Ring) is not a free plot. NOT a raw-stat vanilla-body serve: his
+    # ability specifically makes mana-value-0 the relevant property.
+    ("free_plot", "you"): _spec(
+        "Free plots (0-cost)",
+        "0-cost cards — free to plot off the top, the artifact-combo / storm fuel "
+        "(Ornithopter, Memnite, Welding Jar)",
+        {"card_type": "Artifact", "cmc_max": 0},
+        None,
+        serve_mana_cost=r"^\{0\}$",
+    ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",
