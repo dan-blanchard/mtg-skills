@@ -348,12 +348,13 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
     Preset(
         name="infect",
         description=(
-            "Creature has infect (damage to players = poison counters; "
-            "damage to creatures = -1/-1 counters). Includes Poisonous, "
-            "the classic 'deals combat damage to a player = N poison' "
-            "keyword that Infect generalizes."
+            "Creature has infect — a STATIC ability (CR 702.90a) that modifies how "
+            "its damage is dealt: damage to players becomes poison counters instead "
+            "of life loss (702.90b) and damage to creatures is dealt as -1/-1 "
+            "counters (702.90c). Distinct from Poisonous/Toxic, which add poison "
+            "ON TOP of normal damage and never touch creatures."
         ),
-        keywords=("Infect", "Poisonous"),
+        keywords=("Infect",),
         should_match=(),
         should_not_match=("Lightning Bolt",),
     ),
@@ -361,6 +362,18 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         name="toxic",
         description="Creature has toxic.",
         keywords=("Toxic",),
+        should_match=(),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="poison",
+        description=(
+            "Creature has poisonous — a TRIGGERED ability (CR 702.70a) that gives a "
+            "player N poison counters when it deals combat damage, IN ADDITION to "
+            "the normal damage. Unlike Infect it does not modify the damage and does "
+            "nothing to creatures (no -1/-1 counters)."
+        ),
+        keywords=("Poisonous",),
         should_match=(),
         should_not_match=("Lightning Bolt",),
     ),

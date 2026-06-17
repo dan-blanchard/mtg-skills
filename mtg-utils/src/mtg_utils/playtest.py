@@ -622,6 +622,11 @@ def match_main(
             f"Phase coverage {cov['supported_pct']:.1%} — "
             f"{len(cov['missing'])} cards substituted: {sample}{more}",
         )
+    if result.get("status") == "timeout":
+        warnings.append(
+            f"Phase match timed out after {timeout_s}s with no games completed - "
+            f"the 0-0 result is 'did not finish', not a real tie.",
+        )
 
     out = envelope(
         mode="match",
@@ -773,6 +778,7 @@ def gauntlet_main(
                 )
                 raise SystemExit(2)
 
+        timed_out_pairs: list[str] = []
         for i in range(len(deck_paths)):
             for j in range(i + 1, len(deck_paths)):
                 a_name, a_path = deck_paths[i]
@@ -791,6 +797,11 @@ def gauntlet_main(
                     raise click.ClickException(
                         f"{exc}\nEngine stderr:\n{exc.stderr}",
                     ) from exc
+                if result.get("status") == "timeout":
+                    # A timed-out pair has games=0, which renders as "—" — the same
+                    # glyph as an unplayed diagonal. Record it so it's reported, not
+                    # silently read as "no games / not run".
+                    timed_out_pairs.append(f"{a_name} vs {b_name}")
                 pairs.append(
                     {
                         "a": a_name,
@@ -818,6 +829,15 @@ def gauntlet_main(
         + (
             [f"Phase coverage {cov['supported_pct']:.1%}"]
             if cov["status"] == "warn"
+            else []
+        )
+        + (
+            [
+                f"{len(timed_out_pairs)} pair(s) timed out after {timeout_s}s "
+                f"(shown as 0-0, not a real result): {', '.join(timed_out_pairs[:5])}"
+                + ("…" if len(timed_out_pairs) > 5 else "")
+            ]
+            if timed_out_pairs
             else []
         ),
         duration_s=elapsed,

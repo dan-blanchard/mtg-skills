@@ -29,6 +29,22 @@ def test_complete_then_wait_result_returns_result():
     assert asyncio.run(scenario()) == {"text": "Add ramp."}
 
 
+def test_delivered_result_is_evicted():
+    # A long-lived hub must not retain a Future per request forever: once the
+    # browser collects a result, its entry is dropped.
+    async def scenario():
+        bridge = AgentBridge()
+        rid = bridge.submit("explain", {})
+        bridge.complete(rid, {"text": "ok"})
+        result = await bridge.wait_result(rid, timeout=1.0)
+        return result, dict(bridge._results), dict(bridge._created)
+
+    result, results, created = asyncio.run(scenario())
+    assert result == {"text": "ok"}
+    assert results == {}
+    assert created == {}
+
+
 def test_next_request_times_out_when_idle():
     async def scenario():
         return await AgentBridge().next_request(timeout=0.05)

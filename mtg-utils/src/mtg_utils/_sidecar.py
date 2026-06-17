@@ -83,14 +83,21 @@ def atomic_write_json(path: Path, data: object) -> None:
     ``indent=2`` for human readability.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
+    tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 — closed by the with below
         mode="w",
         encoding="utf-8",
         dir=str(path.parent),
         prefix=f".{path.name}.",
         suffix=".tmp",
         delete=False,
-    ) as tmp:
-        json.dump(data, tmp, indent=2)
-        tmp_path = Path(tmp.name)
-    tmp_path.replace(path)
+    )
+    tmp_path = Path(tmp.name)
+    try:
+        with tmp:
+            json.dump(data, tmp, indent=2)
+        tmp_path.replace(path)
+    except Exception:
+        # json.dump on non-serializable data (or a failed rename) would otherwise
+        # orphan the .tmp file, since delete=False. Remove it and re-raise.
+        tmp_path.unlink(missing_ok=True)
+        raise

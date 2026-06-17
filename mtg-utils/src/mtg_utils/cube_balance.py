@@ -16,6 +16,7 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
@@ -105,8 +106,7 @@ def _check_curve(stats: dict, targets: dict) -> dict:  # noqa: ARG001
     }
 
 
-def _check_removal(cube: dict, hydrated: list[dict], targets: dict) -> dict:
-    lookup = build_card_lookup(hydrated)
+def _check_removal(cube: dict, lookup: NameIndex, targets: dict) -> dict:
     cards = cube.get("cards", [])
     nonland = 0
     removal = 0
@@ -144,8 +144,7 @@ def _check_removal(cube: dict, hydrated: list[dict], targets: dict) -> dict:
     }
 
 
-def _check_fixing(cube: dict, hydrated: list[dict], targets: dict) -> dict:
-    lookup = build_card_lookup(hydrated)
+def _check_fixing(cube: dict, lookup: NameIndex, targets: dict) -> dict:
     cards = cube.get("cards", [])
     total = 0
     fixing = 0
@@ -212,7 +211,7 @@ def _check_fixing(cube: dict, hydrated: list[dict], targets: dict) -> dict:
 
 def _check_commander_pool(
     cube: dict,
-    hydrated: list[dict],
+    lookup: NameIndex,
     targets: dict,  # noqa: ARG001
 ) -> dict:
     commander_pool = cube.get("commander_pool", []) or []
@@ -222,7 +221,6 @@ def _check_commander_pool(
             "notes": ["no commander pool on cube"],
         }
 
-    lookup = build_card_lookup(hydrated)
     total = 0
     by_identity_size: dict[int, int] = {}
     by_identity_label: dict[str, int] = {}
@@ -275,16 +273,22 @@ def cube_balance(
     wanted = checks or list(ALL_CHECKS)
     result: dict = {"checks_run": wanted}
 
+    # Built once and shared: the name→card lookup NFKD-folds and indexes every
+    # hydrated card, and the removal/fixing/commander-pool checks all consume it.
+    # Skip the indexing work when no consuming check is selected (empty index).
+    needs_lookup = any(c in wanted for c in ("removal", "fixing", "commander_pool"))
+    lookup = build_card_lookup(hydrated if needs_lookup else [])
+
     if "colors" in wanted:
         result["colors"] = _check_colors(stats, targets)
     if "curve" in wanted:
         result["curve"] = _check_curve(stats, targets)
     if "removal" in wanted:
-        result["removal"] = _check_removal(cube, hydrated, targets)
+        result["removal"] = _check_removal(cube, lookup, targets)
     if "fixing" in wanted:
-        result["fixing"] = _check_fixing(cube, hydrated, targets)
+        result["fixing"] = _check_fixing(cube, lookup, targets)
     if "commander_pool" in wanted:
-        result["commander_pool"] = _check_commander_pool(cube, hydrated, targets)
+        result["commander_pool"] = _check_commander_pool(cube, lookup, targets)
 
     # Roll up all notes for quick scanning.
     all_notes: list[str] = []

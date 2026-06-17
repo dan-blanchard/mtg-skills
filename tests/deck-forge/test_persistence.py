@@ -29,6 +29,14 @@ def test_build_store_save_list_load_delete(tmp_path):
     assert store.list() == []
 
 
+def test_load_returns_none_on_corrupt_file(tmp_path):
+    # A corrupt build file must degrade to "not found", not crash hub startup
+    # (resume_or_new loads the newest build) — matching list()'s defensive skip.
+    store = BuildStore(tmp_path)
+    (tmp_path / "broken.json").write_text("{ not valid json", encoding="utf-8")
+    assert store.load("broken") is None
+
+
 def test_session_round_trips_through_deck_dict():
     session = DeckSession.from_deck_dict(DECK)
     assert session.to_deck_dict() == DECK

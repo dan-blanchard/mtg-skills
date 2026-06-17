@@ -479,17 +479,28 @@ CROSSWALK: dict[str, frozenset[str]] = {
             "effect:discardcard",
         }
     ),
+    # phase has no "Dies" trigger mode — a "when ~ dies" trigger surfaces as a
+    # ChangesZone (battlefield→graveyard) and death routes as Destroyed /
+    # Sacrificed / LeavesBattlefield. Mapping to the literal `trigger:dies` (which
+    # no projection ever emits) silently matched nothing.
     "graveyard_matters": frozenset(
         {
             "trigger:milled",
             "trigger:milledall",
-            "trigger:dies",
+            "trigger:changeszone",
+            "trigger:leavesbattlefield",
+            "trigger:destroyed",
             "trigger:sacrificed",
             "effect:mill",
         }
     ),
     "self_death_payoff": frozenset(
-        {"trigger:dies", "trigger:destroyed", "trigger:sacrificed"}
+        {
+            "trigger:changeszone",
+            "trigger:leavesbattlefield",
+            "trigger:destroyed",
+            "trigger:sacrificed",
+        }
     ),
     "combat_damage_to_opp": frozenset({"trigger:damagedone"}),
     "blocked_matters": frozenset(

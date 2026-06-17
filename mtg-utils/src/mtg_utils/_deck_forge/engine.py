@@ -259,12 +259,9 @@ _SUPPORT_FLOOR = 5  # owned in-identity cards a lane needs to count as supported
 
 
 def _resolve_record(state: ForgeState, name: str) -> dict | None:
-    """A collection card name → its bulk record (exact, then case-insensitive)."""
-    rec = state.by_name.get(name)
-    if rec is not None:
-        return rec
-    low = name.lower()
-    return next((r for n, r in state.by_name.items() if n.lower() == low), None)
+    """A collection card name → its bulk record via the case- and diacritic-folding
+    name index (``NameIndex.get``; an empty dict in the no-bulk path)."""
+    return state.by_name.get(name)
 
 
 def _resolved_collection(state: ForgeState) -> list[dict]:

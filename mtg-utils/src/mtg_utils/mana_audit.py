@@ -88,12 +88,27 @@ def land_count_status(
     return "PASS"
 
 
+def _mana_cost_for_pips(card: dict) -> str:
+    """The mana-cost string to scan for colored pips.
+
+    Modal DFCs (e.g. Malakir Rebirth // Malakir Mire) carry no top-level
+    ``mana_cost`` — Scryfall puts the costs on ``card_faces`` — so reading only the
+    top-level field silently drops their colored pips. Fall back to the faces in that
+    case. Normal/split/transform/adventure cards keep a truthy top-level cost and are
+    unaffected (split's combined "{1}{R} // {1}{U}" already carries both halves' pips).
+    """
+    mana_cost = card.get("mana_cost")
+    if mana_cost:
+        return mana_cost
+    faces = card.get("card_faces") or []
+    return " ".join(f.get("mana_cost") or "" for f in faces)
+
+
 def pip_demand(cards: list[dict]) -> dict[str, int]:
     """Count colored pips (W, U, B, R, G) across all card mana costs."""
     counts: dict[str, int] = {}
     for card in cards:
-        mana_cost = card.get("mana_cost") or ""
-        for match in _PIP_PATTERN.finditer(mana_cost):
+        for match in _PIP_PATTERN.finditer(_mana_cost_for_pips(card)):
             color = match.group(1)
             counts[color] = counts.get(color, 0) + 1
     return dict(sorted(counts.items()))

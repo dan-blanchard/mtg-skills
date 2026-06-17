@@ -4,7 +4,29 @@ import json
 
 from click.testing import CliRunner
 
-from mtg_utils.parse_deck import main, parse_deck
+from mtg_utils.parse_deck import main, parse_deck, parse_deck_text
+
+
+class TestSuffixAndDedup:
+    def test_strips_foil_marker_after_collector_number(self):
+        # Moxfield/Archidekt append a foil/etched marker after the collector number.
+        text = "// Deck\n1 Sol Ring (C21) 263 *F*\n1 Island (UNF) 234 *E*\n"
+        names = {c["name"] for c in parse_deck_text(text)["cards"]}
+        assert names == {"Sol Ring", "Island"}
+
+    def test_commander_in_header_and_body_is_deduped(self):
+        text = (
+            "// Commander\n"
+            "1 Korvold, Fae-Cursed King\n"
+            "// Deck\n"
+            "1 Korvold, Fae-Cursed King\n"
+            "1 Sol Ring\n"
+        )
+        result = parse_deck_text(text)
+        assert [c["name"] for c in result["commanders"]] == ["Korvold, Fae-Cursed King"]
+        body = [c["name"] for c in result["cards"]]
+        assert "Korvold, Fae-Cursed King" not in body  # command zone wins (singleton)
+        assert "Sol Ring" in body
 
 
 class TestParseMoxfield:

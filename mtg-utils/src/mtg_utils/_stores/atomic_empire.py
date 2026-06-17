@@ -28,6 +28,7 @@ from mtg_utils._stores._common import (
     SearchPrefs,
     StoreSelectorError,
     attr_str,
+    name_matches,
 )
 
 if TYPE_CHECKING:
@@ -142,7 +143,7 @@ class _AtomicEmpireAdapter:
             return None
         full_title = title_el.get_text(strip=True)
         name, foil, _etched = _parse_title(full_title)
-        if requested_name.lower() not in name.lower():
+        if not name_matches(requested_name, name):
             return None
         # Set link example: <a href="/Card/List?set=Mystery Booster 2">...</a>
         set_el = row.select_one('a[href*="/Card/List?set="]')

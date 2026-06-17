@@ -25,9 +25,16 @@ CUBECOBRA_JSON_URL = "https://cubecobra.com/cube/api/cubeJSON/{cube_id}"
 CUBECOBRA_LIST_URL = "https://cubecobra.com/cube/api/cubelist/{cube_id}"
 CUBECOBRA_CSV_URL = "https://cubecobra.com/cube/download/csv/{cube_id}"
 
+# cubecobra cube id is the segment right after the route keyword (/overview/<id>,
+# /list/<id>, …); a trailing sub-page (/analysis/<id>/typal) is ignored by .search.
+# The one exception is the download route, which inserts a format segment first
+# (/download/csv/<id>), so skip a known format token before the id. The previous
+# non-greedy `(?:/[^/?]+)*?` matched the FEWEST segments and so bound the id to the
+# format token ("csv") for download URLs.
 _CUBE_ID_FROM_URL = re.compile(
     r"cubecobra\.com/cube/(?:list|overview|playtest|blog|download|api|analysis)"
-    r"(?:/[^/?]+)*?/(?P<cube_id>[a-zA-Z0-9_-]+)",
+    r"(?:/(?:csv|xml|forge|plaintext|mtgo|cubecobra|json))?"
+    r"/(?P<cube_id>[a-zA-Z0-9_-]+)",
     re.IGNORECASE,
 )
 

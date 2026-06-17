@@ -160,6 +160,18 @@ def _autosave(state: ForgeState) -> None:
         state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
 
 
+def _reset_runtime_lanes(state: ForgeState) -> None:
+    """Clear per-build runtime lane state on a build switch.
+
+    ``agent_avenues`` (lanes the session-agent posted) and ``focused_avenue_ids``
+    (the human's focus pins) are scoped to one deck. Carrying them across a
+    new/import/load would surface the prior commander's lanes and scope candidate
+    scoring (``engine.scoring_basis``) to focus pins from another build.
+    """
+    state.agent_avenues.clear()
+    state.focused_avenue_ids.clear()
+
+
 def _find_params(payload: SearchPayload) -> engine.FindParams:
     """Adapt the transport ``SearchPayload`` to the engine's ``FindParams`` struct. The
     field mapping is the transport adapter's job, kept here so the engine's Find
@@ -390,14 +402,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def card_by_name(name: str) -> dict | JSONResponse:
         """Resolve one card by exact name to a hydrated view (images / mana_cost /
         oracle / layout) so the UI can render a forge-friend card reference inline
-        with art + the standard hover preview. Exact match first, then a
-        case-insensitive fallback. Returns {"card": None} on a miss."""
+        with art + the standard hover preview. Looked up through the
+        case- and diacritic-folding name index. Returns {"card": None} on a miss."""
         if not state.bulk_available:
             return _no_bulk()
         rec = state.by_name.get(name)
-        if rec is None:
-            low = name.lower()
-            rec = next((r for n, r in state.by_name.items() if n.lower() == low), None)
         if rec is None:
             return {"card": None}
         return {"card": views.result_view(rec, state.session.format)}
@@ -446,6 +455,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.session = DeckSession(payload.format)
         state.build_id = uuid.uuid4().hex[:8]
         state.build_name = payload.name or "Untitled"
+        _reset_runtime_lanes(state)
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
@@ -476,6 +486,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.session = session
         state.build_id = uuid.uuid4().hex[:8]
         state.build_name = payload.name or "Imported deck"
+        _reset_runtime_lanes(state)
         _autosave(state)
         # Names the bulk index can't hydrate (typos, un-owned tokens, Arena-only cards
         # when no bulk) surface as `unknown` cards; report them so the UI can warn.
@@ -506,6 +517,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.session = DeckSession.from_deck_dict(record.get("deck") or {})
         state.build_id = payload.id
         state.build_name = record.get("name", "Untitled")
+        _reset_runtime_lanes(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return {"build_id": state.build_id, **snap}
@@ -615,8 +627,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.post("/api/avenues")
     async def add_avenue(payload: AvenuePayload) -> dict:
         state.bridge.touch()
+        state.agent_avenue_seq += 1
         avenue = {
-            "id": f"agent:{len(state.agent_avenues) + 1}",
+            "id": f"agent:{state.agent_avenue_seq}",
             "label": payload.label,
             "description": payload.description,
             "scope": "",

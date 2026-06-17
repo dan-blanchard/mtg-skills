@@ -89,6 +89,8 @@ def score_candidate(
     active_signals: list,
     avenues: Sequence[dict] = (),
     widening_base: str | None = None,
+    _avenue_preds: list[tuple[str, Callable[[dict], bool]]] | None = None,
+    _signal_labels: list[str] | None = None,
 ) -> dict:
     """Return the multi-axis readout for one candidate (signals + avenues served).
 
@@ -96,13 +98,23 @@ def score_candidate(
     avenue: it adds the ``color_widening`` axis — how many new colors this candidate
     second commander unlocks — which becomes the primary partner sort key (ADR-0019).
     It is ``0`` everywhere else, so non-partner rankings are unchanged.
+
+    ``_avenue_preds`` / ``_signal_labels`` are an internal fast path: avenue
+    predicates and per-signal labels are identical across every card in a ranking,
+    so ``rank_candidates`` builds them once and threads them in, avoiding a per-card
+    regex recompile of every avenue and a redundant ``spec_for`` per signal. When
+    omitted (direct callers, tests) they are derived here, so behavior is unchanged.
     """
     served: list[str] = []
-    for signal in active_signals:
+    for i, signal in enumerate(active_signals):
         if serves(card, signal):
-            spec = spec_for(signal)
-            served.append(spec.label if spec else signal.key)
-    for label, predicate in _avenue_predicates(avenues):
+            if _signal_labels is not None:
+                served.append(_signal_labels[i])
+            else:
+                spec = spec_for(signal)
+                served.append(spec.label if spec else signal.key)
+    preds = _avenue_preds if _avenue_preds is not None else _avenue_predicates(avenues)
+    for label, predicate in preds:
         if predicate(card):
             served.append(label)
     seen: set[str] = set()
@@ -132,6 +144,13 @@ def rank_candidates(
     ``color_widening`` is 0, so the leading key is constant and the order is identical
     to the legacy (synergy → price → cmc) sort.
     """
+    # Avenue predicates and per-signal labels are constant across every candidate,
+    # so build them once here instead of per card inside score_candidate.
+    avenue_preds = _avenue_predicates(avenues)
+    signal_labels: list[str] = []
+    for signal in active_signals:
+        spec = spec_for(signal)
+        signal_labels.append(spec.label if spec else signal.key)
     scored = [
         {
             "card": c,
@@ -140,6 +159,8 @@ def rank_candidates(
                 active_signals=active_signals,
                 avenues=avenues,
                 widening_base=widening_base,
+                _avenue_preds=avenue_preds,
+                _signal_labels=signal_labels,
             ),
         }
         for c in cards

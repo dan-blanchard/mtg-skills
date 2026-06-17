@@ -18,6 +18,26 @@ def attr_str(value: str | list[str] | None) -> str:
     return value if isinstance(value, str) else " ".join(value)
 
 
+def name_matches(requested: str, listing: str) -> bool:
+    """Whether a store listing's (set/foil-stripped) name is the requested card.
+
+    Exact match on the canonical-folded names — NOT substring containment, which
+    wrongly admits any listing the query is a substring of (searching "Island"
+    would otherwise match "Island Sanctuary", "Reliquary Tower", etc.). Split /
+    modal-DFC / adventure cards are tolerated by matching on any shared ``//`` face,
+    so a deck's "Fire // Ice" still matches a store that lists just "Fire".
+    """
+    from mtg_utils.names import normalize_card_name
+
+    r = normalize_card_name(requested)
+    n = normalize_card_name(listing)
+    if r == n:
+        return True
+    r_faces = {normalize_card_name(p) for p in requested.split("//") if p.strip()}
+    n_faces = {normalize_card_name(p) for p in listing.split("//") if p.strip()}
+    return bool(r_faces & n_faces)
+
+
 CONDITION_ORDER = ["NM", "LP", "MP", "HP"]
 
 

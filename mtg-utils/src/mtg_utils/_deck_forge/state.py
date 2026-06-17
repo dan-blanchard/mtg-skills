@@ -165,6 +165,11 @@ class ForgeState:
     build_id: str = "default"
     build_name: str = "Untitled"
     agent_avenues: list[dict] = field(default_factory=list)
+    # Monotonic id counter for agent avenues. Never reset, never derived from
+    # len(agent_avenues): a length-based id reuses a live id after a delete
+    # (add 1,2,3 -> delete 2 -> add yields 3 again), which silently makes
+    # remove/focus hit the wrong lane.
+    agent_avenue_seq: int = 0
     # Avenue ids the human has pinned as lanes they're actually building toward (#2).
     # When non-empty, the candidate synergy score counts only these focused lanes
     # (see engine.scoring_basis). Runtime state, like agent_avenues — not persisted yet.

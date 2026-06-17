@@ -46,7 +46,13 @@ class BuildStore:
         path = self._path(build_id)
         if not path.exists():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            # A corrupt build file degrades to "not found" rather than a 500 /
+            # a crash at launch (resume_or_new loads the newest build), matching
+            # the defensive skip in list().
+            return None
 
     def delete(self, build_id: str) -> bool:
         path = self._path(build_id)

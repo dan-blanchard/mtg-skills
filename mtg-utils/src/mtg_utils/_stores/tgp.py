@@ -24,6 +24,7 @@ from mtg_utils._stores._common import (
     SearchPrefs,
     StoreSelectorError,
     attr_str,
+    name_matches,
 )
 
 if TYPE_CHECKING:
@@ -127,7 +128,7 @@ class _TGPAdapter:
         if not data_name:
             return None
         name, set_code, foil = _parse_data_name(data_name)
-        if requested_name.lower() not in name.lower():
+        if not name_matches(requested_name, name):
             return None
         text = el.get_text(" ", strip=True)
         if "out of stock" in text.lower():
@@ -259,6 +260,7 @@ class _TGPAdapter:
             before_count = ""
         add_btn = page.locator("button#bulkAddBtn")
         add_btn.click()
+        confirmed = False
         try:
             page.wait_for_function(
                 "(prev) => "
@@ -267,13 +269,25 @@ class _TGPAdapter:
                 arg=before_count,
                 timeout=10000,
             )
+            confirmed = True
         except Exception:  # noqa: BLE001
-            # Fallback: cart-quantity element not present or selector renamed.
-            # The XHR has almost certainly fired by now; brief settle.
+            # The confirmation wait timed out (XHR slow, or .cart-quantity renamed).
+            # Settle briefly, then best-effort re-read: only claim success if the
+            # cart count actually changed. Reporting success=True unconditionally
+            # would mask a genuine add failure as a silent no-op.
             page.wait_for_timeout(1500)
+            try:
+                after = (
+                    page.locator(".cart-quantity")
+                    .first.inner_text(timeout=2000)
+                    .strip()
+                )
+                confirmed = bool(after) and after != before_count
+            except Exception:  # noqa: BLE001
+                confirmed = False
         return AddToCartResult(
-            success=True,
-            qty_added=qty,
+            success=confirmed,
+            qty_added=qty if confirmed else 0,
             cart_url=f"{self.base_url}/cart.php",
         )
 

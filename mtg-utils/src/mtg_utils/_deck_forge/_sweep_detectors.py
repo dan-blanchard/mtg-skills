@@ -83,12 +83,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "noncombat_damage_payoff",
         "scope": "you",
-        # Also: damage DOUBLERS/triplers ("deals double/triple that damage" — Gisela,
-        # Obosh, Jeska) and MV/card-value-SCALING burn engines ("deals damage equal to
-        # that spell's / the exiled card's / that card's mana value" — Kaervek, Vial
-        # Smasher, Hidetsugu) — both are noncombat-damage-matters commanders.
+        # MV/card-value-SCALING burn engines ("deals damage equal to that spell's /
+        # the exiled card's / that card's mana value" — Kaervek, Vial Smasher,
+        # Hidetsugu) are the genuine noncombat payoffs here. The "deals double/triple
+        # that damage" branch was removed: those are ALL-damage replacement effects
+        # (Furnace of Rath, Fiery Emancipation) — combat damage too (CR 510 vs the
+        # noncombat damage of 702.19a) — so they belong on damage_doubling, not a
+        # "burn outside combat" lane.
         "is_widen_of": "",
-        "regex": "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals (?:double|triple) that damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value",
+        "regex": "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value",
     },
     {
         "key": "mass_removal",
@@ -218,9 +221,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     },
     {
         "key": "keyword_counter",
+        # CR 122.1b is a CLOSED list of keyword counters that grant an ability via
+        # layer 6 (613.1f). "stun" (122.1d) and "shield" (122.1c) counters create
+        # replacement effects and grant NO keyword; "aegis" is not a CR counter at
+        # all — so they don't belong on a keyword-grant lane. They were removed.
         "scope": "any",
         "is_widen_of": "",
-        "regex": "(?:put|with|of an?)[^.]{0,60}?(?:stun|aegis|flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance|shield) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:stun|aegis|flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter",
+        "regex": "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter",
     },
     {
         "key": "counter_replace_bonus",
@@ -414,7 +421,9 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "damage_doubling",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "deals? double that damage|deals? twice that (?:much|damage)|prevent half that damage|double the (?:next )?damage|deals that much damage plus",
+        # Covers double AND triple (Fiery Emancipation) all-damage replacement
+        # effects, which were previously only caught by noncombat_damage_payoff.
+        "regex": "deals? (?:double|triple) that damage|deals? twice that (?:much|damage)|prevent half that damage|double the (?:next )?damage|deals that much damage plus",
     },
     {
         "key": "symmetric_damage_each",
@@ -1038,7 +1047,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "combat_buff_engine": ("Beginning-of-combat buff", "attackers to grow each combat"),
     "combat_damage_to_creature": (
         "Combat damage to creatures",
-        "fight-style and deathtouch combat payoffs",
+        "evasive/first-strike/deathtouch attackers that connect with creatures",
     ),
     "combat_damage_to_opp": (
         "Combat damage to opponents",
@@ -1132,7 +1141,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "Edicts / forced sacrifice",
         "edicts to make opponents sacrifice",
     ),
-    "evasion_denial": ("Evasion denial", "make your attackers effectively unblockable"),
+    "evasion_denial": (
+        "Anti-landwalk defense",
+        "strip an opponent's landwalk so you can block (CR 702.14)",
+    ),
     "excess_damage": ("Excess damage", "trample and big hits to exploit excess damage"),
     "exhaust_matters": ("Exhaust", "exhaust abilities (once per game)"),
     "exile_until_leaves": ("O-Ring removal", "exile-until-leaves removal effects"),
@@ -1160,7 +1172,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "impulse_top_play": ("Impulse draw (top)", "top-of-library exile-and-play engines"),
     "keyword_counter": (
         "Keyword counters",
-        "stun/aegis/keyword-counter sources and payoffs",
+        "keyword-ability counter sources and payoffs (CR 122.1b)",
     ),
     "keyword_grant_target": (
         "Targeted keyword grant",
@@ -1195,7 +1207,7 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "noncombat_damage_payoff": (
         "Noncombat damage",
-        "burn and damage doublers outside combat",
+        "burn and mana-value-scaling damage outside combat",
     ),
     "noncreature_cast_punish": (
         "Punish noncreature spells",

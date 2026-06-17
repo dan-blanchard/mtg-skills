@@ -174,8 +174,10 @@ def _parse_plain(content: str) -> dict:
     return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
 
 
-# Matches Moxfield set code + collector number suffix: " (SET) 123" or " (SET) 123a"
-_SET_CODE_PATTERN = re.compile(r"\s+\([A-Z0-9]+\)\s+\S+$")
+# Matches Moxfield/Archidekt set code + collector number suffix: " (SET) 123" or
+# " (SET) 123a", plus any trailing foil/etched markers ("*F*", "*E*") those exporters
+# append after the collector number, e.g. "Sol Ring (C21) 263 *F*".
+_SET_CODE_PATTERN = re.compile(r"\s+\([A-Z0-9]+\)\s+\S+(?:\s+\*\w+\*)*$")
 
 
 def _strip_set_code(name: str) -> str:
@@ -240,6 +242,16 @@ def parse_deck_text(
         result[section] = [
             {"name": name, "quantity": qty} for name, qty in merged.items()
         ]
+
+    # A card promoted to the command zone shouldn't also count in the 99: some
+    # exporters list the commander in both the "// Commander" header and the deck
+    # body. The command zone wins (singleton), so drop any maindeck/sideboard copy.
+    commander_names = {e["name"] for e in result.get("commanders", [])}
+    if commander_names:
+        for section in ("cards", "sideboard"):
+            result[section] = [
+                e for e in result.get(section, []) if e["name"] not in commander_names
+            ]
 
     result["total_cards"] = sum(
         c.get("quantity", 1) for c in result["commanders"]

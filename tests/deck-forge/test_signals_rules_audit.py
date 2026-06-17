@@ -103,3 +103,83 @@ def test_food_token_fires():
     assert "food_matters" in _keys(
         {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
     )
+
+
+# #13 stun (CR 122.1d) and shield (122.1c) counters are replacement-effect counters
+# that grant NO keyword ability; "aegis" is not a CR counter at all. None belong on
+# keyword_counter, whose premise is the CR 122.1b closed keyword-counter list.
+def test_stun_counter_is_not_keyword_counter():
+    c = {
+        "name": "Sleep-Cursed Faerie",
+        "type_line": "Creature — Faerie Wizard",
+        "oracle_text": (
+            "Flying, ward {2}\n"
+            "This creature enters tapped with three stun counters on it. "
+            "(If it would become untapped, remove a stun counter from it instead.)\n"
+            "{1}{U}: Untap this creature."
+        ),
+    }
+    assert "keyword_counter" not in _keys(c)
+
+
+def test_shield_counter_is_not_keyword_counter():
+    c = {
+        "name": "Diamond City",
+        "type_line": "Land",
+        "oracle_text": (
+            "This land enters with a shield counter on it. (If it would be dealt "
+            "damage or destroyed, remove a shield counter from it instead.)\n"
+            "{T}: Add {C}.\n{T}: Move a shield counter from this land onto target "
+            "creature. Activate only if two or more creatures entered the "
+            "battlefield under your control this turn."
+        ),
+    }
+    assert "keyword_counter" not in _keys(c)
+
+
+def test_keyword_counter_still_fires_on_real_keyword():
+    # The CR 122.1b members (flying/deathtouch/…) still register.
+    c = {"name": "X", "oracle_text": "Put a deathtouch counter on target creature."}
+    assert "keyword_counter" in _keys(c)
+
+
+# #14 all-damage doublers/triplers (Furnace of Rath, Fiery Emancipation) are
+# replacement effects that fire on COMBAT damage too — they belong on damage_doubling,
+# not the "noncombat damage" lane (CR 510 combat vs 702.19a noncombat).
+def test_all_damage_doubler_is_damage_doubling_not_noncombat():
+    c = {
+        "name": "Furnace of Rath",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "If a source would deal damage to a permanent or player, it deals "
+            "double that damage to that permanent or player instead."
+        ),
+    }
+    k = _keys(c)
+    assert "damage_doubling" in k
+    assert "noncombat_damage_payoff" not in k
+
+
+def test_triple_damage_is_damage_doubling():
+    c = {
+        "name": "Fiery Emancipation",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "If a source you control would deal damage to a permanent or player, "
+            "it deals triple that damage to that permanent or player instead."
+        ),
+    }
+    assert "damage_doubling" in _keys(c)
+
+
+# MV-scaling burn (Kaervek) is the genuine noncombat payoff and must still open it.
+def test_mv_scaling_burn_still_opens_noncombat():
+    c = {
+        "name": "Kaervek the Merciless",
+        "type_line": "Legendary Creature — Human Shaman",
+        "oracle_text": (
+            "Whenever an opponent casts a spell, Kaervek deals damage equal to "
+            "that spell's mana value to any target."
+        ),
+    }
+    assert "noncombat_damage_payoff" in _keys(c)

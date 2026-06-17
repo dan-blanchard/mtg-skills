@@ -25,6 +25,22 @@ def _hd(deck, hydrated):
     return HydratedDeck.from_parsed(deck, records=hydrated)
 
 
+class TestPipDemandFaces:
+    def test_counts_mdfc_face_pips(self):
+        # Modal DFCs carry no top-level mana_cost; pips live on card_faces and must
+        # not be silently dropped.
+        mdfc = {
+            "name": "Malakir Rebirth // Malakir Mire",
+            "mana_cost": None,
+            "card_faces": [{"mana_cost": "{2}{B}"}, {"mana_cost": ""}],
+        }
+        assert pip_demand([mdfc]) == {"B": 1}
+
+    def test_normal_card_still_uses_top_level_cost(self):
+        card = {"name": "Lightning Helix", "mana_cost": "{R}{W}"}
+        assert pip_demand([card]) == {"R": 1, "W": 1}
+
+
 class TestAllocateBasicLands:
     """Pure allocator: distribute the land shortfall across basics by color demand,
     water-filling toward balance against what existing lands already produce."""
