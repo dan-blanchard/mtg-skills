@@ -32,6 +32,9 @@ export const agentThinking = writable(false);
 export const agentReply = writable(null);
 export const buildId = writable(null);
 export const buildName = writable("Untitled");
+// True when a second commander could still join (CR 702.124 partner / Background): the
+// Find color pips stay unlocked so an off-identity partner is findable (A5).
+export const partnerOpen = writable(false);
 
 // Which left tab is active. Search + Synergies are merged into the unified "find"
 // surface (ADR-0015); focusing avenues drives it via server-side focus state.
@@ -72,4 +75,5 @@ export function applySnapshot(snap) {
   if ("wildcards" in snap) wildcards.set(snap.wildcards);
   if (snap.build_id !== undefined) buildId.set(snap.build_id);
   if (snap.build_name !== undefined) buildName.set(snap.build_name);
+  if ("partner_open" in snap) partnerOpen.set(snap.partner_open);
 }

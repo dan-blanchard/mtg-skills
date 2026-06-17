@@ -71,6 +71,12 @@ class DeckSizePayload(BaseModel):
     deck_size: int  # 60 | 100 (paper Historic Brawl)
 
 
+class SetPrintingPayload(BaseModel):
+    name: str
+    printing_id: str | None = None  # None → revert to default (cheapest) printing
+    zone: str = "cards"
+
+
 class AgentRequestPayload(BaseModel):
     kind: str
     payload: dict = {}
@@ -411,6 +417,43 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return {"card": None}
         return {"card": views.result_view(rec, state.session.format)}
 
+    @app.get("/api/printings", response_model=None)
+    async def printings(name: str) -> dict | JSONResponse:
+        """Every legal printing of a card (newest set first) for the picker (C):
+        identity + set/collector + cost + art. Resolved by the card's oracle_id, so all
+        sets/arts of the same card are offered. Empty for an unknown name / no bulk."""
+        if not state.bulk_available:
+            return _no_bulk()
+        record = state.by_name.get(name)
+        oracle_id = record.get("oracle_id") if record else None
+        prints = state.printings_by_oracle.get(oracle_id, []) if oracle_id else []
+        return {"name": name, "printings": [views.printing_view(p) for p in prints]}
+
+    @app.post("/api/deck/printing", response_model=None)
+    async def set_printing(payload: SetPrintingPayload) -> dict | JSONResponse:
+        """Pin (or clear, with a null id) the printing for a card in the deck (C). The
+        chosen printing drives the card's image / price / export set, never its gameplay
+        text. Validated against the card's own printings so a stray id can't pin a wrong
+        card's art."""
+        bad_zone = _zone_error(payload.zone)
+        if bad_zone is not None:
+            return bad_zone
+        if payload.printing_id is not None:
+            record = state.by_name.get(payload.name)
+            oracle_id = record.get("oracle_id") if record else None
+            valid = {
+                p.get("id") for p in state.printings_by_oracle.get(oracle_id or "", [])
+            }
+            if payload.printing_id not in valid:
+                return JSONResponse(
+                    {"error": f"not a printing of {payload.name!r}"}, status_code=400
+                )
+        state.session.set_printing(payload.name, payload.printing_id, zone=payload.zone)
+        _autosave(state)
+        snap = engine.snapshot(state)
+        state.hub.publish(json.dumps(snap))
+        return snap
+
     @app.get("/api/events")
     async def events() -> StreamingResponse:
         async def gen() -> AsyncIterator[str]:
@@ -623,6 +666,14 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.get("/api/export", response_model=None)
     async def export(fmt: str = "json") -> dict | JSONResponse:
         deck = state.session.to_deck_dict()
+        # Resolve each chosen printing to its set/collector so the exporters can add the
+        # "(SET) <collector#>" suffix (printing picker, C). No-op for defaults.
+        for zone in views.VALID_ZONES:
+            for entry in deck.get(zone) or []:
+                record = state.printing_by_id.get(entry.get("printing_id") or "")
+                if record is not None:
+                    entry["set"] = record.get("set")
+                    entry["collector_number"] = record.get("collector_number")
         if fmt == "json":
             return {"format": "json", "deck": deck}
         text = export_as(deck, fmt)

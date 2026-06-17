@@ -23,50 +23,67 @@
   }
 
   $: focusedCount = $avenues.filter((a) => a.focused).length;
+
+  // Collapsible (#6): the avenue list grows with the deck and crowds the column, so the
+  // header toggles it shut. Open by default; when open the chips scroll past a cap rather
+  // than pushing the deck off-screen.
+  let open = true;
 </script>
 
 {#if $avenues.length}
   <div class="panel avenues">
-    <h3 class="panel-title">Avenues · what your deck cares about</h3>
-    <div class="chips">
-      {#each $avenues as a (a.id)}
-        <button
-          class="avenue"
-          class:agent={a.source === "agent"}
-          class:focused={a.focused}
-          title={a.focused
-            ? (a.description || a.label) + " — focused; click to unpin"
-            : (a.description || a.label) +
-              " — click to focus this lane in Find"}
-          on:click={() => toggleFocus(a)}
-        >
-          <span class="pin" class:on={a.focused}>✦</span>
-          <span class="label">{a.label}</span>
-          {#if SCOPE_TAG[a.scope]}<span class="scope">{SCOPE_TAG[a.scope]}</span
-            >{/if}
-          {#if a.source === "agent"}
-            <span
-              class="rm"
-              role="button"
-              tabindex="0"
-              title="Remove this avenue"
-              on:click|stopPropagation={() => remove(a)}
-              on:keydown|stopPropagation={(e) =>
-                e.key === "Enter" ? remove(a) : null}>×</span
-            >
-          {/if}
-        </button>
-      {/each}
-    </div>
-    <p class="hint">
-      {#if focusedCount}
-        <b class="lit">✦ {focusedCount} focused</b> — these lanes drive the ranked
-        Find list. Click a lane to pin / unpin.
-      {:else}
-        Click a lane to pin <span class="lit">✦</span> it — focused lanes drive
-        a ranked, real-card candidate list in <b>Find</b>.
-      {/if}
-    </p>
+    <button
+      class="panel-title toggle"
+      type="button"
+      aria-expanded={open}
+      on:click={() => (open = !open)}
+    >
+      <span class="caret">{open ? "▾" : "▸"}</span>
+      Avenues · what your deck cares about
+      <span class="count">{$avenues.length}</span>
+    </button>
+    {#if open}
+      <div class="chips">
+        {#each $avenues as a (a.id)}
+          <button
+            class="avenue"
+            class:agent={a.source === "agent"}
+            class:focused={a.focused}
+            title={a.focused
+              ? (a.description || a.label) + " — focused; click to unpin"
+              : (a.description || a.label) +
+                " — click to focus this lane in Find"}
+            on:click={() => toggleFocus(a)}
+          >
+            <span class="pin" class:on={a.focused}>✦</span>
+            <span class="label">{a.label}</span>
+            {#if SCOPE_TAG[a.scope]}<span class="scope"
+                >{SCOPE_TAG[a.scope]}</span
+              >{/if}
+            {#if a.source === "agent"}
+              <span
+                class="rm"
+                role="button"
+                tabindex="0"
+                title="Remove this avenue"
+                on:click|stopPropagation={() => remove(a)}
+                on:keydown|stopPropagation={(e) =>
+                  e.key === "Enter" ? remove(a) : null}>×</span
+              >
+            {/if}
+          </button>
+        {/each}
+      </div>
+      <p class="hint">
+        {#if focusedCount}
+          <b class="lit">✦ {focusedCount} focused</b> — these lanes drive the ranked
+          Find list. Click a lane to pin / unpin.
+        {:else}
+          Click a lane to pin <span class="lit">✦</span> it — focused lanes
+          drive a ranked, real-card candidate list in <b>Find</b>.
+        {/if}
+      </p>
+    {/if}
   </div>
 {/if}
 
@@ -77,10 +94,40 @@
        a margin here doubled the Avenues→Curve gap vs Curve→Deck. */
     flex-shrink: 0;
   }
+  /* a clickable header that keeps the panel-title look but collapses the list (#6) */
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .caret {
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+  .count {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+  }
   .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.45rem;
+    /* cap the height so a deck with many avenues scrolls here instead of shoving the
+       deck list below the fold (#6) */
+    margin-top: 0.6rem;
+    max-height: 8.5rem;
+    overflow-y: auto;
   }
   .avenue {
     display: inline-flex;

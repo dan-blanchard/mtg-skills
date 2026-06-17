@@ -286,40 +286,80 @@ def owned_commander_records(state: ForgeState) -> list[dict]:
     return [r for r in _resolved_collection(state) if is_commander(r, fmt)["eligible"]]
 
 
-def _commander_lanes(record: dict) -> list[tuple[str, Serve]]:
-    """The commander's actionable signal-derived lanes as ``(label, serve)`` pairs,
-    deduped by label. The generic Staples lane is NOT a signal spec, so it's naturally
-    excluded — owning good-stuff isn't commander-specific support (Q9)."""
-    out: list[tuple[str, Serve]] = []
+def _commander_lanes(record: dict) -> list[tuple[str, Serve, str]]:
+    """The commander's text-opened lanes as ``(label, serve, key)`` triples, deduped by
+    label. The generic Staples lane is NOT a signal spec, so it's naturally excluded —
+    owning good-stuff isn't commander-specific support (Q9).
+
+    ``include_membership=False`` (Q9 amended): a lane the commander opens only from what
+    it *is* (a vanilla artifact legend → "artifacts matter"; a Goblin that says nothing
+    about Goblins → "Goblin tribal") is NOT stated support — it's the broad "lists every
+    artifact" lane the user flagged. We count only lanes the commander's TEXT opens, so
+    a real artifacts-matter / tribal commander keeps its lane while a coincidental
+    member doesn't inflate its support."""
+    out: list[tuple[str, Serve, str]] = []
     seen: set[str] = set()
-    for sig in extract_signals(record, include_membership=True):
+    for sig in extract_signals(record, include_membership=False):
         spec = spec_for(sig)
         if spec is None or spec.label in seen:
             continue
         seen.add(spec.label)
-        out.append((spec.label, spec.serve))
+        out.append((spec.label, spec.serve, f"{sig.key}:{sig.subject}"))
     return out
 
 
+def _density_pool(state: ForgeState) -> list[dict]:
+    """The deduped bulk-record pool used as the lane-density denominator, cached on the
+    state (``by_name`` folds every face/alias, so dedup by canonical name)."""
+    if not state.density_pool:
+        seen: set[str] = set()
+        pool: list[dict] = []
+        for rec in state.by_name.values():
+            name = rec.get("name", "")
+            if name in seen:
+                continue
+            seen.add(name)
+            pool.append(rec)
+        state.density_pool = pool
+    return state.density_pool
+
+
+def _lane_density(state: ForgeState, key: str, serve: Serve) -> float:
+    """Fraction of the whole legal pool that serves a lane, cached per lane-key. A broad
+    lane (artifacts ~0.1) yields a low ``-log(p)`` weight; a distinctive one (a niche
+    tribe ~0.002) a high one — so collection DEPTH in a rare lane outweighs raw breadth.
+    Floored at one hit so a lane that exists always carries some weight."""
+    cached = state.lane_density.get(key)
+    if cached is not None:
+        return cached
+    pool = _density_pool(state)
+    total = len(pool) or 1
+    hits = sum(1 for c in pool if serve.matches(c))
+    p = max(hits, 1) / total
+    state.lane_density[key] = p
+    return p
+
+
 def _support_depth(
-    record: dict, owned_in_identity: list[dict]
+    state: ForgeState, record: dict, owned_in_identity: list[dict]
 ) -> tuple[float, list, int]:
-    """Breadth-down-weighted owned support (ADR-0018 / Q10): sum over lanes of
-    ``own(L) * log(N / own(L))`` where ``own(L)`` = in-identity owned cards serving lane
-    L and ``N`` = total in-identity owned. A near-universal lane (own close to N)
-    contributes ~0 (IDF), so breadth isn't mistaken for quality. Returns
+    """Format-relative owned support (ADR-0018 / Q9 amended): sum over the commander's
+    text-opened lanes of ``own(L) * -log(p_L)``, where ``own(L)`` = in-identity owned
+    cards serving lane L and ``p_L`` = that lane's serve density in the legal pool. The
+    old within-collection IDF peaked at mid-breadth, so a merely-broad lane (artifacts)
+    always won; the pool-relative weight instead makes a distinctive lane you own deeply
+    outrank a broad one — it reflects the collection, not lane width. Returns
     ``(score, per-lane breakdown, # supported lanes)``."""
-    n = len(owned_in_identity)
-    if n == 0:
+    if not owned_in_identity:
         return 0.0, [], 0
     score = 0.0
     breakdown: list[dict] = []
     supported = 0
-    for label, serve in _commander_lanes(record):
+    for label, serve, key in _commander_lanes(record):
         k = sum(1 for c in owned_in_identity if serve.matches(c))
         if k == 0:
             continue
-        score += k * math.log(n / k) if k < n else 0.0
+        score += k * -math.log(_lane_density(state, key, serve))
         breakdown.append({"label": label, "owned": k})
         if k >= _SUPPORT_FLOOR:
             supported += 1
@@ -406,7 +446,7 @@ def discover_commanders(
             if c["name"] != rec["name"]
             and set(c.get("color_identity") or []) <= identity
         ]
-        depth, lanes, supported = _support_depth(rec, in_identity)
+        depth, lanes, supported = _support_depth(state, rec, in_identity)
         item = {
             "name": rec["name"],
             **views.project(rec, fmt),
@@ -957,4 +997,8 @@ def snapshot(state: ForgeState) -> dict:
         "warnings": legality_warnings(hd, max_cards=state.session.deck_size),
         "collection": collection_summary(state, owned),
         "wildcards": wildcard_cost(state),
+        # True when a second commander could still be added (CR 702.124 partner /
+        # Background): the Find color pips stay unlocked so an off-identity partner is
+        # findable; otherwise they lock to the commander's identity (A5).
+        "partner_open": partner_search(state) is not None,
     }

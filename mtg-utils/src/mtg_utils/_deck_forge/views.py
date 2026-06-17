@@ -10,13 +10,28 @@ the deck / search / candidate / combo serializers had already drifted).
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import is_commander
 
 VALID_ZONES = ("commanders", "cards", "sideboard")
+
+
+def printing_view(record: dict) -> dict:
+    """One selectable printing for the picker: identity + set/collector + cost + art."""
+    return {
+        "id": record.get("id"),
+        "set": record.get("set"),
+        "set_name": record.get("set_name"),
+        "collector_number": record.get("collector_number"),
+        "released_at": record.get("released_at"),
+        "rarity": record.get("rarity", ""),
+        "finishes": record.get("finishes", []),
+        "prices": record.get("prices", {}),
+        "images": image_urls(record),
+    }
 
 
 def project(record: dict, fmt: str) -> dict:
@@ -49,10 +64,17 @@ def card_view(
     by_name: Mapping[str, dict],
     fmt: str,
     owned_qty: int | None = None,
+    *,
+    printing_id: str | None = None,
+    resolve_printing: Callable[[str], dict | None] | None = None,
 ) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
     name resolves against the bulk index). ``owned_qty`` (when set) marks the card as
-    owned in the active Collection slot — DERIVED upstream, never stored (ADR-0018)."""
+    owned in the active Collection slot — DERIVED upstream, never stored (ADR-0018).
+
+    When ``printing_id`` names a chosen printing (and ``resolve_printing`` can find it),
+    the card's image / prices / set are overridden to it — the gameplay fields (type,
+    oracle, cmc) come from the canonical record, which is printing-invariant."""
     base: dict = {"name": name, "quantity": qty}
     if owned_qty is not None:
         base["owned"] = True
@@ -60,7 +82,18 @@ def card_view(
     record = by_name.get(name)
     if record is None:
         return {**base, "unknown": True}
-    return {**base, "unknown": False, **project(record, fmt)}
+    view = {**base, "unknown": False, **project(record, fmt)}
+    chosen = resolve_printing(printing_id) if printing_id and resolve_printing else None
+    if chosen is not None:
+        view["printing_id"] = printing_id
+        view["set"] = chosen.get("set")
+        view["set_name"] = chosen.get("set_name")
+        view["collector_number"] = chosen.get("collector_number")
+        view["prices"] = chosen.get("prices", {})
+        imgs = image_urls(chosen)
+        if imgs:
+            view["images"] = imgs
+    return view
 
 
 def candidate_view(row: dict, fmt: str, *, owned_qty: int | None = None) -> dict:
@@ -101,7 +134,15 @@ def deck_view(state: ForgeState, owned: dict[str, int] | None = None) -> dict:
         "deck_size": state.session.deck_size,
         **{
             zone: [
-                card_view(e["name"], e["quantity"], by_name, fmt, owned.get(e["name"]))
+                card_view(
+                    e["name"],
+                    e["quantity"],
+                    by_name,
+                    fmt,
+                    owned.get(e["name"]),
+                    printing_id=e.get("printing_id"),
+                    resolve_printing=state.printing_by_id.get,
+                )
                 for e in deck[zone]
             ]
             for zone in VALID_ZONES

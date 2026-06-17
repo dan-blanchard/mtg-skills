@@ -64,6 +64,34 @@ def build_object_resolver(cards: list[dict]) -> Callable[[str], dict | None]:
     return objects.get
 
 
+def build_printings_index(
+    cards: list[dict],
+) -> tuple[dict[str, list[dict]], dict[str, dict]]:
+    """Index EVERY legal printing for the printing picker: ``oracle_id → [records]``
+    (newest set first) plus ``printing id → record``. Unlike ``build_by_name`` (which
+    folds to the cheapest printing), this keeps them all so a card's alternate sets/arts
+    are enumerable. Same prefilter as ``build_by_name`` (drop token/memorabilia/skip
+    layouts) so the picker only ever offers addable printings."""
+    by_oracle: dict[str, list[dict]] = {}
+    by_id: dict[str, dict] = {}
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        if card.get("layout") in SKIP_LAYOUTS or card.get("set_type") in (
+            "token",
+            "memorabilia",
+        ):
+            continue
+        oracle_id, printing_id = card.get("oracle_id"), card.get("id")
+        if not oracle_id or not printing_id:
+            continue
+        by_oracle.setdefault(oracle_id, []).append(card)
+        by_id[printing_id] = card
+    for prints in by_oracle.values():
+        prints.sort(key=lambda r: r.get("released_at") or "", reverse=True)
+    return by_oracle, by_id
+
+
 def build_by_name(cards: list[dict]) -> NameIndex:
     """Index real cards by name (NFKD-folded, every DFC face + Arena alias, via the
     shared name-index core), deduped to the cheapest printing — so a searchable card is
@@ -139,6 +167,8 @@ def default_state(fmt: str = "commander") -> ForgeState:
     search = _no_search
     available = False
     object_resolver: Callable[[str], dict | None] | None = None
+    printings_by_oracle: dict[str, list[dict]] = {}
+    printing_by_id: dict[str, dict] = {}
     # Built from bulk so the Collection's ownership matching honors Arena printed_name /
     # flavor_name aliases (ADR-0018). Empty without bulk → DFC-only matching (fine).
     name_aliases: dict[str, str] = {}
@@ -146,6 +176,7 @@ def default_state(fmt: str = "commander") -> ForgeState:
         cards = load_bulk_cards(bulk_path)
         by_name = build_by_name(cards)
         object_resolver = build_object_resolver(cards)
+        printings_by_oracle, printing_by_id = build_printings_index(cards)
 
         # partial keeps search_cards's typed keyword signature (a `**kwargs:
         # object` wrapper would widen every arg to `object` and fail the checker).
@@ -171,4 +202,6 @@ def default_state(fmt: str = "commander") -> ForgeState:
         name_aliases=name_aliases,
         bulk_path=bulk_path if available else None,
         object_resolver=object_resolver,
+        printings_by_oracle=printings_by_oracle,
+        printing_by_id=printing_by_id,
     )

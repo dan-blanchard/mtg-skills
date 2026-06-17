@@ -120,6 +120,73 @@ def test_novelty_hard_gates_out_unsupported_commanders():
     assert all("novelty" in r for r in res["results"])
 
 
+def test_support_is_collection_specific_not_lane_width():
+    """B3 / Q9: a commander you own deeply in a DISTINCTIVE lane (a niche tribe) outranks
+    one whose lane is merely BROAD (artifacts — nearly every artifact 'supports' it). Both
+    are owned to the same depth, so the old within-collection IDF tied them; the new
+    format-relative weight (a rare lane is worth more per card) breaks the tie toward the
+    distinctive collection — what the user actually cares about."""
+
+    def _card(name, ci, type_line, oracle):
+        return {
+            "name": name,
+            "type_line": type_line,
+            "cmc": 3.0,
+            "color_identity": ci,
+            "oracle_text": oracle,
+            "mana_cost": "{2}{W}",
+            "prices": {"usd": "1"},
+            "legalities": {"commander": "legal"},
+            "keywords": [],
+            "power": "3",
+            "toughness": "3",
+        }
+
+    art_cmd = _cmd("Artificer Prime", ["W"], "Artifacts you control get +1/+1.")
+    scare_cmd = _cmd(
+        "Scarecrow Lord",
+        ["U"],
+        "Other Scarecrow creatures you control get +1/+1.",
+        subtype="Scarecrow",
+    )
+    # Equal owned depth: 6 cards feeding each commander's lane.
+    art_owned = [_card(f"Trinket {i}", [], "Artifact", "") for i in range(6)]
+    scare_owned = [
+        _card(f"Husk {i}", ["U"], "Creature — Scarecrow", "") for i in range(6)
+    ]
+    # Filler keeps each commander's owned-in-identity total well above its lane count.
+    w_fill = [_card(f"W Filler {i}", ["W"], "Creature — Human", "") for i in range(20)]
+    u_fill = [
+        _card(f"U Filler {i}", ["U"], "Creature — Merfolk", "") for i in range(20)
+    ]
+    # Pool-only artifacts (NOT owned): they make the artifacts lane BROAD in the format,
+    # so each owned artifact is worth little; Scarecrows stay rare, so each is worth a lot.
+    pad = [_card(f"Relic {i}", [], "Artifact", "") for i in range(20)]
+
+    owned = [art_cmd, scare_cmd, *art_owned, *scare_owned, *w_fill, *u_fill]
+    by_name = {c["name"]: c for c in [*owned, *pad]}
+    state = ForgeState(
+        by_name=by_name,
+        search_fn=lambda **_: [],
+        session=DeckSession("commander"),
+        bulk_available=True,
+    )
+    engine.set_collection(
+        state, "paper", {"cards": [{"name": c["name"], "quantity": 1} for c in owned]}
+    )
+    res = (
+        TestClient(build_app(state))
+        .post("/api/commanders/discover", json={"sort": "support"})
+        .json()
+    )
+    order = [r["name"] for r in res["results"]]
+    by = {r["name"]: r for r in res["results"]}
+    assert order.index("Scarecrow Lord") < order.index("Artificer Prime")
+    assert (
+        by["Scarecrow Lord"]["support_depth"] > by["Artificer Prime"]["support_depth"]
+    )
+
+
 def test_unknown_theme_returns_400_not_500():
     # An unknown preset name is a clean 400 (like the slot/format guards), not an
     # opaque 500 from theme_presets.matches raising KeyError.

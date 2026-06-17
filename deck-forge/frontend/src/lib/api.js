@@ -43,6 +43,10 @@ export const api = {
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
   card: (name) => get(`/api/card?name=${encodeURIComponent(name)}`),
+  // Printing picker (C): list a card's printings; pin (or clear with null) the chosen one.
+  printings: (name) => get(`/api/printings?name=${encodeURIComponent(name)}`),
+  setPrinting: (name, printing_id, zone = "cards") =>
+    post("/api/deck/printing", { name, printing_id, zone }),
   agentStatus: () => get("/api/agent/status"),
   removeAvenue: (id) => del(`/api/avenues/${id}`),
   // Toggle a lane as "focused" (#2): the candidate ✦ score then counts only focused lanes.

@@ -4,9 +4,10 @@
   // (W/U/B/R/G/C), generic ("2", "X"), or other ({T}, etc.) — pass it WITHOUT braces.
   export let sym;
   export let size = "1.1rem";
-  // Scryfall's card-symbol SVGs name hybrid/Phyrexian files with a hyphen
-  // ({W/U} -> W-U.svg, {2/W} -> 2-W.svg), so normalize the slash.
-  $: code = String(sym).replace(/[{}]/g, "").replace(/\//g, "-").toUpperCase();
+  // Scryfall's card-symbol SVGs DROP the slash in hybrid/Phyrexian/split names
+  // ({W/U} -> WU.svg, {2/W} -> 2W.svg, {W/P} -> WP.svg) — strip it, don't hyphenate
+  // (a hyphen 404s, which broke every split/hybrid cost, e.g. Reaper King's {2/W}).
+  $: code = String(sym).replace(/[{}]/g, "").replace(/\//g, "").toUpperCase();
 </script>
 
 <img

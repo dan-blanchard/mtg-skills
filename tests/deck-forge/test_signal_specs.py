@@ -2027,10 +2027,13 @@ def test_become_a_type_cards_match_the_type_lane():
     for n, o in artifact_makers:
         card = {"name": n, "type_line": "Artifact", "oracle_text": o}
         assert serves(card, _sig("artifacts_matter", "you")) is True, n
-    # Type-agnostic tribal enablers credit EVERY tribe (they grant the chosen type).
+    # Type-AGNOSTIC tribal enablers (Xenograft, Arcane Adaptation) GRANT the chosen type
+    # to your board — they grow the tribe, so they're credited to EVERY tribe, but via the
+    # dedicated "enabler" sub-avenue, NOT as a payoff or a tribe member (B1).
     goblin = Signal(
         key="type_matters", scope="you", subject="Goblin", text="", source="c"
     )
+    goblin_payoff = spec_for(goblin).extras[0]  # the "Goblin payoffs" sub-avenue
     tribal_enablers = [
         (
             "Xenograft",
@@ -2043,7 +2046,10 @@ def test_become_a_type_cards_match_the_type_lane():
     ]
     for n, o in tribal_enablers:
         card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
-        assert serves(card, goblin) is True, n
+        assert _lane_covers(card, goblin) is True, n  # surfaced via the enabler lane
+        assert spec_for(goblin).serve.matches(card) is False, n  # not a tribe member
+        payoff_serve = goblin_payoff.serve or serve_from_dict(goblin_payoff.search)
+        assert payoff_serve.matches(card) is False, n  # and NOT a payoff
 
 
 def test_grant_become_credited_for_clone_enchantment_food():
@@ -5739,6 +5745,52 @@ def test_tribal_lane_serves_type_agnostic_anthems():
         "oracle_text": "Lightning Bolt deals 3 damage to any target.",
     }
     assert _lane_covers(bolt, sig) is False
+
+
+def test_tribal_enabler_vs_payoff_and_restricted_list():
+    """B1: a type-CHANGER (Xenograft) is an enabler, not a payoff; a RESTRICTED
+    type-of-choice payoff (Dawn-Blessed Pennant, "choose Elf, Goblin, …") counts only for
+    the tribes it names, never an unlisted one (Scarecrow); an OPEN type-of-choice payoff
+    (Door of Destinies) works for any tribe."""
+    scarecrow = _sig_sub("type_matters", "Scarecrow")
+    goblin = _sig_sub("type_matters", "Goblin")
+
+    def payoff_serves(card, sig):
+        ex = spec_for(sig).extras[0]  # the "{s} payoffs" sub-avenue
+        return (ex.serve or serve_from_dict(ex.search)).matches(card)
+
+    xenograft = {
+        "name": "Xenograft",
+        "type_line": "Enchantment",
+        "oracle_text": "As Xenograft enters, choose a creature type. Each creature you "
+        "control is the chosen type in addition to its other types.",
+    }
+    dawn = {
+        "name": "Dawn-Blessed Pennant",
+        "type_line": "Artifact",
+        "oracle_text": "As this artifact enters, choose Elemental, Elf, Faerie, Giant, "
+        "Goblin, Kithkin, Merfolk, or Treefolk.\nWhenever a permanent you control of the "
+        "chosen type enters, you gain 1 life.\n{2}, {T}, Sacrifice this artifact: Return "
+        "target card of the chosen type from your graveyard to your hand.",
+    }
+    door = {
+        "name": "Door of Destinies",
+        "type_line": "Artifact",
+        "oracle_text": "As Door of Destinies enters, choose a creature type.\nWhenever "
+        "you cast a spell of the chosen type, put a charge counter on Door of Destinies."
+        "\nCreatures you control of the chosen type get +1/+1 for each charge counter on "
+        "Door of Destinies.",
+    }
+    # Enabler: surfaced by the lane (enabler sub-avenue) but NOT as a payoff.
+    assert _lane_covers(xenograft, scarecrow) is True
+    assert payoff_serves(xenograft, scarecrow) is False
+    # Restricted payoff: a named tribe (Goblin) counts; an unlisted one (Scarecrow) does
+    # not — and has no Scarecrow hook at all.
+    assert payoff_serves(dawn, goblin) is True
+    assert payoff_serves(dawn, scarecrow) is False
+    assert _lane_covers(dawn, scarecrow) is False
+    # Open type-of-choice payoff works for ANY tribe, including Scarecrow.
+    assert payoff_serves(door, scarecrow) is True
 
 
 def test_activated_ability_lane_serves_costly_activated_creatures():

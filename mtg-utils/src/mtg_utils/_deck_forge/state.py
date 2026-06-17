@@ -49,6 +49,10 @@ class DeckSession:
         self._medium_override = medium
         self._deck_size_override = deck_size
         self._zones: dict[str, dict[str, int]] = {z: {} for z in _ZONES}
+        # Chosen printing per (zone, card name) → Scryfall printing id. Sparse: a card
+        # with no entry uses the default (cheapest) printing, so existing builds and the
+        # no-bulk path are unaffected. All copies of a card share one printing.
+        self._printings: dict[str, dict[str, str]] = {z: {} for z in _ZONES}
 
     @property
     def medium(self) -> str:
@@ -87,6 +91,8 @@ class DeckSession:
         for zone in _ZONES:
             for entry in deck.get(zone) or []:
                 session.add(entry["name"], int(entry.get("quantity", 1)), zone=zone)
+                if entry.get("printing_id"):
+                    session.set_printing(entry["name"], entry["printing_id"], zone=zone)
         return session
 
     def add(self, name: str, qty: int = 1, *, zone: str = "cards") -> int:
@@ -109,9 +115,24 @@ class DeckSession:
         remaining = bucket[name] - qty
         if remaining <= 0:
             del bucket[name]
+            self._printings[zone].pop(name, None)  # last copy gone → drop its printing
             return 0
         bucket[name] = remaining
         return remaining
+
+    def set_printing(
+        self, name: str, printing_id: str | None, *, zone: str = "cards"
+    ) -> None:
+        """Pin (or clear, with ``None``) the Scryfall printing for a card in a zone.
+        Clearing reverts the card to the default (cheapest) printing."""
+        prints = self._printings.setdefault(zone, {})
+        if printing_id:
+            prints[name] = printing_id
+        else:
+            prints.pop(name, None)
+
+    def printing_of(self, name: str, *, zone: str = "cards") -> str | None:
+        return self._printings.get(zone, {}).get(name)
 
     def to_deck_dict(self) -> dict:
         """Emit the canonical parsed-deck dict consumed across ``mtg_utils``. ``medium``
@@ -122,7 +143,18 @@ class DeckSession:
             "medium": self.medium,
             "deck_size": self.deck_size,
             **{
-                zone: [{"name": n, "quantity": q} for n, q in self._zones[zone].items()]
+                zone: [
+                    {
+                        "name": n,
+                        "quantity": q,
+                        **(
+                            {"printing_id": self._printings[zone][n]}
+                            if n in self._printings.get(zone, {})
+                            else {}
+                        ),
+                    }
+                    for n, q in self._zones[zone].items()
+                ]
                 for zone in _ZONES
             },
         }
@@ -196,6 +228,18 @@ class ForgeState:
     # commander pool (fmt -> (freq, total)). Cached because the sweep over every
     # commander-eligible bulk card is the one expensive part of Commander discovery.
     commander_signal_freq: dict = field(default_factory=dict)
+    # Lazily-built support-ranking caches (ADR-0018 amended / Q9): a deduped record pool
+    # (the density denominator) plus per-lane serve density (lane-key -> pool fraction
+    # serving it). Format-relative density weights a distinctive collection lane above a
+    # merely-broad one (artifacts), so "Most supported" reflects real depth.
+    density_pool: list[dict] = field(default_factory=list)
+    lane_density: dict[str, float] = field(default_factory=dict)
+    # Printing selection (picking a set/art for a card). ``printings_by_oracle`` maps a
+    # card's oracle_id → every legal printing's record (for the picker list);
+    # ``printing_by_id`` maps a Scryfall printing id → its record (to resolve a chosen
+    # printing's image/price/set on the deck view + export). Both empty without bulk.
+    printings_by_oracle: dict[str, list[dict]] = field(default_factory=dict)
+    printing_by_id: dict[str, dict] = field(default_factory=dict)
     # Resolves a folded object's name → its card (ADR-0025): a commander's ventured
     # dungeon, whose oracle is appended to the commander's before signal extraction.
     # Dungeons are excluded from `by_name` (unaddable), so this is a separate raw-bulk

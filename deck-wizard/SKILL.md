@@ -240,6 +240,9 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | Task | Tool |
 |------|------|
 | Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
+| See what the commander/deck cares about (signal lanes) | `deck-signals <deck.json> <hydrated.json>` |
+| Role-density budgets (lands/ramp/draw/interaction/wipes) | `slot-budgets <deck.json> <hydrated.json> --deck-size <60\|100>` |
+| Rank candidate cards by synergy with the deck | `deck-rank <deck.json> <hydrated.json> <candidates.json>` (from `card-search --json`) |
 | Look up a specific card's oracle text | `scryfall-lookup "<Card Name>"` |
 | View card table (mainboard) | `card-summary <hydrated.json> [--nonlands-only] [--lands-only] [--type <T>]` |
 | View card table (sideboard) | `card-summary <hydrated.json> --deck <deck.json> --sideboard` |
@@ -1226,6 +1229,8 @@ Review existing combos and near-misses. Distinguish:
 - Mana base quality: untapped sources on key turns, color fixing
 - Flag: too few/many lands, color deficits, too many tapped lands
 
+**Role-density budgets (deterministic).** Run `slot-budgets <deck.json> <hydrated.json> --deck-size <60|100> [--shape <aggro|midrange|control|combo>]` to get the count of each role (lands / ramp / card_draw / interaction / board_wipe) against the template band. This is the same deterministic budgeter deck-forge uses — no agent guessing. Use it to ground this step (lands, ramp) and 6b (interaction, board wipes) in real counts before per-card judgment; a role showing `(under)`/`(over)` is a falsifiable signal of where to add or cut.
+
 **Commander formats:** Land count is a hard constraint. Calculate the Burgess formula result (`31 + colors_in_identity + commander_cmc`) and treat it as the target. The `mana-audit` script enforces this — if it returns FAIL, you must add lands or cut fewer lands. Proposing a land count below the Burgess formula result requires `mana-audit` to return PASS or WARN (not FAIL). Proposing a land count below 36 is almost always a FAIL.
 
 **60-card constructed:** Uses the constructed land formula. Compare against format-specific expectations.
@@ -1252,6 +1257,8 @@ Count the deck's removal and interaction pieces. Compare against bracket-appropr
 - Flag: insufficient interaction for the metagame, redundant removal, missing threat types
 
 ### 6c: Archetype Coherence
+
+**Commander-signal pass (Commander/Brawl/Historic Brawl — deterministic).** Run `deck-signals <deck.json> <hydrated.json>` first. It extracts what the commander's ORACLE TEXT cares about — the same detector deck-forge uses (tribes, tokens, sacrifice, graveyard, +1/+1 counters, ETB, etc.), each as a labeled avenue with a plain-English description. Unlike `archetype-audit` (which tests cards in isolation against regexes you supply), `deck-signals` reads the commander itself, so it names the deck's actual lanes without you guessing them — a deterministic starting point for the role grouping below, and a partial answer to the commander-shift blind spot noted next. Cross-check its lanes against the `archetype-audit` densities.
 
 **Mechanical archetype pass (applies to all formats).** Before role grouping (commander) or build-around analysis (60-card), run `archetype-audit` with the deck's declared themes. It tests each card's own keywords and oracle text against preset regexes; the output is a falsifiable density baseline before you spend time on per-card judgment. Counts are in card copies, so 4x Lightning Bolt contributes 4 to `burn`, not 1 — non-singleton formats will naturally register larger numbers.
 
@@ -1377,7 +1384,9 @@ Source candidates from:
 - **60-card:** Metagame research (stock list differences), `card-search`, near-miss combos, WebSearch for archetype-specific tech
 - **Commander:** EDHREC high-synergy cards, web research, `card-search` to find synergistic cards EDHREC may not surface
 
-Run: `card-search --bulk-data <path> --format <fmt> [--color-identity <ci>] [--oracle "<keyword>"] [--price-max <budget-per-card>]`
+Run: `card-search --bulk-data <path> --format <fmt> [--color-identity <ci>] [--oracle "<keyword>"] [--price-max <budget-per-card>] --json > candidates.json`
+
+**Rank candidates by synergy (deterministic).** Feed that `card-search --json` output to `deck-rank <deck.json> <hydrated.json> candidates.json`. It scores each candidate by how many of the deck's signal lanes it serves (synergy), then price, then curve — the same transparent multi-axis score deck-forge uses, never EDHREC popularity. Use the ordering to prioritize which candidates to evaluate; you and the user still make the final per-card call (the deck-building workflow has the user drive card choices).
 
 For each proposed addition:
 1. Verify format legality and oracle text
@@ -1900,6 +1909,9 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 - `mana-audit <deck.json> <hydrated.json> [--compare <new-deck.json> <new-hydrated.json>] [--output PATH]` — Mana base audit (Burgess/Karsten for commander, constructed formula for 60-card)
 - `price-check <deck.json> [--format <fmt>] --bulk-data <path> [--budget <N>] [--output PATH]` — Budget check. For Arena formats, reports wildcard costs by rarity.
 - `deck-stats <deck.json> <hydrated.json> [--output PATH]` — Deck statistics
+- `deck-signals <deck.json> <hydrated.json> [--json]` — The deck's signal lanes (what the commander's oracle text cares about), via the deck-forge detector. Deterministic.
+- `slot-budgets <deck.json> <hydrated.json> [--deck-size 60|100] [--shape aggro|midrange|control|combo] [--json]` — Role-density bands (lands/ramp/card_draw/interaction/board_wipe) vs the template. Deterministic.
+- `deck-rank <deck.json> <hydrated.json> <candidates.json> [--limit N] [--json]` — Rank candidate records (from `card-search --json`) by synergy with the deck's lanes, then price, then curve. Never EDHREC popularity.
 - `build-deck <deck.json> <hydrated.json> --cuts <c.json> --adds <a.json> [--sideboard-cuts <sc.json>] [--sideboard-adds <sa.json>] [--bulk-data <path>] [--output-dir <dir>]` — Apply changes. Cuts/adds accept `[{name, quantity}]` dicts or plain name strings.
 - `deck-diff <old.json> <new.json> <old-hyd.json> <new-hyd.json>` — Compare deck versions
 - `export-deck <deck.json>` — Export Moxfield/Arena format with sideboard

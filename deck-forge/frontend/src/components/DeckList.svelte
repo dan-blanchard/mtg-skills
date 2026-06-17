@@ -11,7 +11,18 @@
   import { hoverPreview } from "../lib/hover.js";
   import { displayName } from "../lib/cards.js";
   import { wildcardLabel, wildcardTotals, WC_TIERS } from "../lib/mana.js";
+  import { facetOk, nameOk } from "../lib/filter.js";
   import ManaCost from "./ManaCost.svelte";
+  import FilterWidget from "./FilterWidget.svelte";
+
+  // Live filtering of the current deck (A4) — the SAME widget Find uses, applied
+  // client-side over the loaded deck cards.
+  let fName = "";
+  let fType = "";
+  let fCmc = "";
+  let fPrice = "";
+  let fRarity = "";
+  let fOwned = false;
 
   async function remove(name, zone) {
     const r = await api.remove(name, zone, 1);
@@ -33,6 +44,33 @@
     const r2 = await api.add(name, "commanders", 1);
     applySnapshot((r2.ok ? r2 : r1).data);
   }
+
+  // Printing picker (C): one open dropdown at a time, keyed by zone:name. Opening fetches
+  // the card's printings; choosing one (or "Default") pins it via the backend, which
+  // returns a fresh snapshot (image/price/export then follow the choice).
+  let pickerKey = null;
+  let pickerPrints = [];
+  let pickerLoading = false;
+  const keyOf = (c, zone) => `${zone}:${c.name}`;
+  async function togglePicker(c, zone) {
+    const k = keyOf(c, zone);
+    if (pickerKey === k) {
+      pickerKey = null;
+      return;
+    }
+    pickerKey = k;
+    pickerPrints = [];
+    pickerLoading = true;
+    const r = await api.printings(c.name);
+    pickerLoading = false;
+    if (pickerKey === k) pickerPrints = r.ok ? r.data.printings : [];
+  }
+  async function choosePrinting(c, zone, id) {
+    const r = await api.setPrinting(c.name, id, zone);
+    if (r.ok) applySnapshot(r.data);
+    pickerKey = null;
+  }
+  const printPrice = (p) => (p.prices?.usd != null ? `$${p.prices.usd}` : "—");
 
   // Singleton: only basics and "any number of cards named X" cards (Relentless Rats,
   // Shadowborn Apostle, Dragon's Approach…) may have more than one copy.
@@ -73,6 +111,29 @@
     { key: "commanders", label: "Command Zone", cards: $deck.commanders },
     { key: "cards", label: "Deck", cards: $deck.cards },
   ];
+  // Whether any filter is set (so we only show "N of M" and the clear hint when filtering).
+  $: filtering = !!(fName || fType || fCmc || fPrice || fRarity || fOwned);
+  // Filter each group client-side with the shared predicate. The facet values are read
+  // into the inline object HERE so Svelte tracks them as dependencies of this reactive.
+  $: filteredGroups = groups.map((g) => ({
+    ...g,
+    total: g.cards.length,
+    cards: g.cards.filter(
+      (c) =>
+        nameOk(c, fName) &&
+        facetOk(
+          c,
+          {
+            type: fType,
+            cmc: fCmc,
+            price: fPrice,
+            rarity: fRarity,
+            owned: fOwned,
+          },
+          $isDigital,
+        ),
+    ),
+  }));
   $: empty = !$deck.commanders.length && !$deck.cards.length;
   // The owned readout shows only when a Collection is loaded for the ACTIVE slot
   // (strictly single-slot, ADR-0018) — otherwise there's nothing to compare against.
@@ -112,11 +173,26 @@
       </div>
     </div>
   {:else}
-    {#each groups as g (g.key)}
+    <div class="deck-filter">
+      <FilterWidget
+        showName
+        bind:name={fName}
+        bind:facetType={fType}
+        bind:facetCmc={fCmc}
+        bind:facetPrice={fPrice}
+        bind:facetRarity={fRarity}
+        bind:facetOwned={fOwned}
+        digital={$isDigital}
+      />
+    </div>
+    {#each filteredGroups as g (g.key)}
       {#if g.cards.length}
         <div class="group">
           <div class="group-head">
-            {g.label} <span>· {g.cards.length}</span>
+            {g.label}
+            <span
+              >· {filtering ? `${g.cards.length} of ${g.total}` : g.total}</span
+            >
             {#if $isDigital}
               <span
                 class="subtotal wc-sub"
@@ -171,6 +247,17 @@
                 <span class="cost"
                   ><ManaCost cost={c.mana_cost} size="0.82rem" /></span
                 >
+                {#if !c.unknown}
+                  <button
+                    class="rm setbtn"
+                    class:pinned={c.printing_id}
+                    title={c.set
+                      ? `Printing: ${c.set.toUpperCase()} #${c.collector_number} — change`
+                      : "Choose printing"}
+                    on:click={() => togglePicker(c, g.key)}
+                    >{c.set ? c.set.toUpperCase() : "◆"}</button
+                  >
+                {/if}
                 {#if g.key === "cards" && c.can_be_commander}
                   <button
                     class="rm star"
@@ -192,14 +279,57 @@
                 >
               </div>
             </div>
+            {#if pickerKey === keyOf(c, g.key)}
+              <div class="printings">
+                {#if pickerLoading}
+                  <div class="pload">Loading printings…</div>
+                {:else}
+                  <button
+                    class="prow"
+                    class:on={!c.printing_id}
+                    on:click={() => choosePrinting(c, g.key, null)}
+                  >
+                    <span class="pset">Default (cheapest)</span>
+                  </button>
+                  {#each pickerPrints as p (p.id)}
+                    <button
+                      class="prow"
+                      class:on={c.printing_id === p.id}
+                      on:click={() => choosePrinting(c, g.key, p.id)}
+                    >
+                      <span class="pset"
+                        >{p.set?.toUpperCase()} · #{p.collector_number}</span
+                      >
+                      <span class="pmeta">{p.set_name}</span>
+                      <span class="pprice">{printPrice(p)}</span>
+                    </button>
+                  {/each}
+                  {#if !pickerPrints.length}
+                    <div class="pload">No printings found.</div>
+                  {/if}
+                {/if}
+              </div>
+            {/if}
           {/each}
         </div>
       {/if}
     {/each}
+    {#if filtering && filteredGroups.every((g) => !g.cards.length)}
+      <div class="nomatch">No cards in the deck match this filter.</div>
+    {/if}
   {/if}
 </div>
 
 <style>
+  .deck-filter {
+    margin: 0.25rem 0 0.7rem;
+  }
+  .nomatch {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.2rem;
+  }
   .deck {
     padding: 1rem;
     height: 100%;
@@ -340,6 +470,73 @@
   .rm.star:hover {
     border-color: var(--brass);
     color: var(--brass-bright);
+  }
+  /* printing picker (C): the set-code chip + its dropdown of printings */
+  .rm.setbtn {
+    width: auto;
+    min-width: 1.5rem;
+    padding: 0 0.3rem;
+    font-size: 0.6rem;
+    font-family: var(--display);
+    letter-spacing: 0.04em;
+  }
+  .rm.setbtn.pinned {
+    border-color: var(--brass);
+    color: var(--brass-bright);
+  }
+  .rm.setbtn:hover {
+    border-color: var(--brass);
+    color: var(--brass-bright);
+  }
+  .printings {
+    margin: 0.15rem 0 0.5rem 2.6rem;
+    max-height: 14rem;
+    overflow-y: auto;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, 0.25);
+  }
+  .pload {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .prow {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--hairline-soft);
+    color: var(--parchment-dim);
+    padding: 0.32rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+  }
+  .prow:hover {
+    background: rgba(255, 220, 160, 0.06);
+    color: var(--parchment);
+  }
+  .prow.on {
+    color: var(--brass-bright);
+  }
+  .prow .pset {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .prow .pmeta {
+    flex: 1;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .prow .pprice {
+    color: var(--pass);
+    font-variant-numeric: tabular-nums;
   }
   .cold .or {
     margin-top: 0.4rem;

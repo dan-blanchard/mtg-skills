@@ -5,10 +5,17 @@
   // Type/CMC/Price chips facet the returned list client-side (instant, no round-trip).
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
-  import { applySnapshot, deck, avenues, isDigital } from "../lib/store.js";
-  import { RARITY_RANK } from "../lib/mana.js";
+  import {
+    applySnapshot,
+    deck,
+    avenues,
+    isDigital,
+    partnerOpen,
+  } from "../lib/store.js";
+  import { facetOk } from "../lib/filter.js";
   import CardTile from "./CardTile.svelte";
   import Mana from "./Mana.svelte";
+  import FilterWidget from "./FilterWidget.svelte";
 
   const PIPS = ["W", "U", "B", "R", "G", "C"];
   const PAGE = 60;
@@ -32,38 +39,6 @@
   let facetPrice = ""; // paper: USD ceiling. digital uses facetRarity instead.
   let facetRarity = ""; // digital: max wildcard rarity (a card costs 1 WC of its rarity)
   let facetOwned = false; // "Owned only" — candidates already in your active collection
-  const TYPE_FACETS = [
-    ["", "All"],
-    ["creature", "Creatures"],
-    ["instant|sorcery", "Inst/Sorc"],
-    ["artifact", "Artifacts"],
-    ["enchantment", "Enchant."],
-    ["planeswalker", "PWs"],
-    ["land", "Lands"],
-  ];
-  const CMC_FACETS = [
-    ["", "Any"],
-    ["0-2", "≤2"],
-    ["3", "3"],
-    ["4", "4"],
-    ["5+", "5+"],
-  ];
-  const PRICE_FACETS = [
-    ["", "Any"],
-    ["1", "≤$1"],
-    ["5", "≤$5"],
-    ["20", "≤$20"],
-  ];
-  // Digital builds cost wildcards, not dollars. Wildcards aren't interchangeable and
-  // common/uncommon are plentiful while rare/mythic are scarce — so the cost facet is
-  // "≤U" (the cheap, abundant pool: commons + uncommons) then the two scarce tiers R and
-  // M on their own. ["leU" is a ceiling; "rare"/"mythic" match that exact rarity.]
-  const RARITY_FACETS = [
-    ["", "Any"],
-    ["leU", "≤U"],
-    ["rare", "R"],
-    ["mythic", "M"],
-  ];
 
   let results = [];
   let offset = 0;
@@ -88,7 +63,17 @@
   // Re-run Find whenever the focused-set signature changes. Svelte value-compares the
   // focusSig assignment (safe_not_equal), so this fires only on a real change — not on
   // every unrelated $avenues update (e.g. each card add) — no manual guard needed.
-  $: (focusSig, run());
+  // When a lane is NEWLY pinned, also wipe the user's refining filters first so the
+  // focused lane drives a clean candidate list (not one narrowed by a stale search).
+  let prevFocusIds = new Set();
+  function onFocusChange() {
+    const ids = new Set(focused.map((a) => a.id));
+    const newlyPinned = [...ids].some((id) => !prevFocusIds.has(id));
+    prevFocusIds = ids;
+    if (newlyPinned) clearFilters();
+    run();
+  }
+  $: (focusSig, onFocusChange());
 
   function payload(off) {
     return {
@@ -137,7 +122,27 @@
     if (r.ok) applySnapshot(r.data);
   }
 
+  // A5: with an active commander, lock the pips to its color identity — you can't run an
+  // off-identity card. Colorless ({C}) is always legal (empty identity ⊆ any). The lock
+  // lifts when a partner slot is open (a 2nd commander can widen identity) or when you're
+  // explicitly searching the commander pool (commandersOnly) for that partner.
+  $: identityColors = new Set(
+    ($deck.commanders || []).flatMap((c) => c.color_identity || []),
+  );
+  $: colorLocked =
+    ($deck.commanders || []).length > 0 && !$partnerOpen && !commandersOnly;
+  function colorAllowed(c) {
+    return !colorLocked || c === "C" || identityColors.has(c);
+  }
+  // Prune any selected pip that falls outside a freshly-locked identity, so a stale
+  // off-color selection can't silently keep filtering (and can't be un-clicked once
+  // disabled).
+  $: if (colorLocked) {
+    const kept = new Set([...colors].filter(colorAllowed));
+    if (kept.size !== colors.size) colors = kept;
+  }
   function toggleColor(c) {
+    if (!colorAllowed(c)) return;
     colors.has(c) ? colors.delete(c) : colors.add(c);
     colors = new Set(colors);
   }
@@ -148,6 +153,21 @@
   function clearName() {
     name = "";
     nameInput?.focus();
+  }
+  // Reset every refining control (server filters + client facets) to its default. Called
+  // when a lane is newly focused (A2) so the pinned lane drives an unfiltered list.
+  function clearFilters() {
+    name = "";
+    oracle = "";
+    colors = new Set();
+    exactColors = false;
+    selectedPresets = new Set();
+    commandersOnly = false;
+    facetType = "";
+    facetCmc = "";
+    facetPrice = "";
+    facetRarity = "";
+    facetOwned = false;
   }
   // The 138-preset list, narrowed live by the in-dropdown filter (matches name OR
   // description, so "sacrifice" surfaces edict/exploit presets by their blurb too).
@@ -167,48 +187,22 @@
       (c) => c.name,
     ),
   );
-  // Pure facet test. The facet values are passed in (not closed over) ON PURPOSE: the
-  // `visible` reactive below must REFERENCE them so Svelte tracks them as dependencies.
-  // Svelte's dependency analysis traverses the inline arrow inside the reactive
-  // statement but NOT a separately-declared function's body — so reading the facets only
-  // inside this function (the old shape) left `visible` recomputing solely on Find/add,
-  // and facet toggles silently did nothing until the next Find.
-  function facetOk(c, fType, fCmc, fPrice, fRarity, fOwned, digital) {
-    if (fType && !new RegExp(fType, "i").test(c.type_line || "")) return false;
-    if (fCmc) {
-      const v = c.cmc ?? 0;
-      if (fCmc === "0-2" && v > 2) return false;
-      if (fCmc === "3" && v !== 3) return false;
-      if (fCmc === "4" && v !== 4) return false;
-      if (fCmc === "5+" && v < 5) return false;
-    }
-    if (digital) {
-      // Wildcard cost filter. "leU" is a ceiling (commons + uncommons, the cheap pool);
-      // "rare"/"mythic" match that exact scarce tier. Unknown-rarity cards always pass.
-      if (fRarity && c.rarity) {
-        if (fRarity === "leU") {
-          if (RARITY_RANK[c.rarity] > RARITY_RANK.uncommon) return false;
-        } else if (c.rarity !== fRarity) {
-          return false;
-        }
-      }
-    } else if (fPrice) {
-      const p = c.prices?.usd == null ? Infinity : Number(c.prices.usd);
-      if (p > Number(fPrice)) return false;
-    }
-    if (fOwned && !c.owned) return false;
-    return true;
-  }
+  // Apply the shared client facets (lib/filter.js). The facet values are read into the
+  // inline object HERE (not closed over) ON PURPOSE: Svelte's dependency analysis
+  // traverses the inline arrow in the reactive statement, so referencing the facets here
+  // makes `visible` recompute on every facet toggle (not only on Find/add).
   $: visible = results.filter(
     (c) =>
       !inDeck.has(c.name) &&
       facetOk(
         c,
-        facetType,
-        facetCmc,
-        facetPrice,
-        facetRarity,
-        facetOwned,
+        {
+          type: facetType,
+          cmc: facetCmc,
+          price: facetPrice,
+          rarity: facetRarity,
+          owned: facetOwned,
+        },
         $isDigital,
       ),
   );
@@ -242,7 +236,13 @@
               type="button"
               class="pip"
               class:on={colors.has(c)}
-              title={c === "C" ? "Colorless" : c}
+              class:locked={!colorAllowed(c)}
+              disabled={!colorAllowed(c)}
+              title={!colorAllowed(c)
+                ? `${c} is outside your commander's color identity`
+                : c === "C"
+                  ? "Colorless"
+                  : c}
               on:click={() => toggleColor(c)}
               ><Mana sym={c} size="1.2rem" /></button
             >
@@ -351,51 +351,15 @@
   {/if}
 
   {#if results.length}
-    <div class="facets">
-      <div class="frow">
-        {#each TYPE_FACETS as [v, lbl] (v)}
-          <button
-            class="fc"
-            class:on={facetType === v}
-            on:click={() => (facetType = v)}>{lbl}</button
-          >
-        {/each}
-      </div>
-      <div class="frow">
-        {#each CMC_FACETS as [v, lbl] (v)}
-          <button
-            class="fc"
-            class:on={facetCmc === v}
-            on:click={() => (facetCmc = v)}>{lbl}</button
-          >
-        {/each}
-        <span class="fsep"></span>
-        {#if $isDigital}
-          {#each RARITY_FACETS as [v, lbl] (v)}
-            <button
-              class="fc"
-              class:on={facetRarity === v}
-              title="Max wildcard rarity — a card costs one wildcard of its rarity"
-              on:click={() => (facetRarity = v)}>{lbl}</button
-            >
-          {/each}
-        {:else}
-          {#each PRICE_FACETS as [v, lbl] (v)}
-            <button
-              class="fc"
-              class:on={facetPrice === v}
-              on:click={() => (facetPrice = v)}>{lbl}</button
-            >
-          {/each}
-        {/if}
-        <span class="fsep"></span>
-        <button
-          class="fc"
-          class:on={facetOwned}
-          title="Only cards in your active collection"
-          on:click={() => (facetOwned = !facetOwned)}>✓ Owned</button
-        >
-      </div>
+    <div class="facetbar">
+      <FilterWidget
+        bind:facetType
+        bind:facetCmc
+        bind:facetPrice
+        bind:facetRarity
+        bind:facetOwned
+        digital={$isDigital}
+      />
     </div>
   {/if}
 
@@ -520,6 +484,12 @@
     opacity: 1;
     filter: none;
     box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+  }
+  /* off-identity pip with an active commander (A5): not selectable */
+  .pip.locked {
+    opacity: 0.15;
+    filter: grayscale(1);
+    cursor: not-allowed;
   }
   /* pips + Exact travel together; Exact dims when no colors are chosen (#5) */
   .colorgroup {
@@ -769,41 +739,9 @@
     border-radius: 999px;
     padding: 0.05rem 0.5rem;
   }
-  /* facet chips */
-  .facets {
+  /* facet chips now live in the shared FilterWidget (A4); just space its wrapper */
+  .facetbar {
     margin-top: 0.7rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-  .frow {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.3rem;
-  }
-  .fc {
-    font-size: 0.72rem;
-    color: var(--parchment-dim);
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid var(--hairline-soft);
-    border-radius: 999px;
-    padding: 0.16rem 0.6rem;
-  }
-  .fc:hover {
-    border-color: var(--brass);
-    color: var(--brass-bright);
-  }
-  .fc.on {
-    background: rgba(200, 150, 75, 0.18);
-    border-color: var(--brass);
-    color: var(--brass-bright);
-  }
-  .fsep {
-    width: 1px;
-    height: 1rem;
-    background: var(--hairline-soft);
-    margin: 0 0.25rem;
   }
   .results {
     margin-top: 0.9rem;

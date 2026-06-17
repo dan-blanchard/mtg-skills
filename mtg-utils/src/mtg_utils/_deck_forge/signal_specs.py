@@ -4100,23 +4100,62 @@ _SUBJECT_KEYS = signal_keys.SUBJECT_KEYS
 # them). Keeping them clearly separate — and never folding "payoffs" into the cards
 # avenue's blurb — is what stops "X tribal" / "X payoffs" reading as the same thing.
 _SUBJECT_TEMPLATES = {
-    signal_keys.TYPE_MATTERS: ("{s} tribal", "{s} creatures to grow the tribe"),
-    signal_keys.TYPED_SPELLCAST: ("{s} spells", "{s} spells to cast"),
+    signal_keys.TYPE_MATTERS: (
+        "{s} tribal",
+        "{s} creatures (and changelings) — the bodies that make up the tribe",
+    ),
+    signal_keys.TYPED_SPELLCAST: (
+        "{s} spells",
+        "{s} spells to cast and chain",
+    ),
 }
 
 
+# Type-GRANT phrasing: "creatures you control ARE the chosen type / every creature type"
+# (Xenograft, Arcane Adaptation). These GRANT the tribe — enablers, not payoffs or
+# members — so the bodies/payoff serves veto them and _enabler_extra surfaces them (B1).
+_ENABLER_GRANT = r"(?:is|are) (?:the chosen type|every creature type)"
+
+
 def _payoff_extra(subj: str, esc: str) -> SubAvenue:
+    # Lords/anthems that REWARD a board of {subj}s. Positive shapes:
+    #   - the tribe's own lords ("{subj}s you control"),
+    #   - "shares a creature type" pumps (Shared Animosity, Coat of Arms) — any tribe,
+    #   - OPEN type-of-choice payoffs ("choose a creature type" then reward it:
+    #     Vanquisher's Banner, Door of Destinies) — work for ANY tribe,
+    #   - RESTRICTED type-of-choice payoffs that name an explicit list ("choose Elf,
+    #     Goblin, …") — credited ONLY when THIS subject is named (so Dawn-Blessed
+    #     Pennant counts for Goblin/Elf, never an unlisted tribe like Scarecrow).
+    # not_oracle drops type-GRANTERS ("are the chosen type") — enablers, not payoffs.
+    positive = (
+        rf"{esc}s? you control"
+        r"|shares (?:a|at least one) creature type"
+        r"|choose a (?:creature|kindred) type"
+        rf"|choose\b[^.]*\b{esc}s?\b"
+    )
     return SubAvenue(
         f"{subj} payoffs",
-        f"lords and anthems that reward a board of {subj}s",
-        # The tribe's own lords ("{subj}s you control") PLUS the type-AGNOSTIC tribal
-        # anthems that reward ANY tribe: "choose a creature type … of the chosen type"
-        # (Vanquisher's Banner, Herald's Horn, Door of Destinies) and "shares a creature
-        # type" pumps (Shared Animosity, Coat of Arms).
-        {
-            "oracle": rf"{esc}s? you control"
-            r"|\bthe chosen type\b|shares (?:a|at least one) creature type"
-        },
+        f"lords and anthems that reward a board of {subj}s, plus type-agnostic tribal "
+        "payoffs (Coat of Arms, Door of Destinies) that work for any chosen tribe",
+        {"oracle": positive},
+        serve=Serve(
+            oracle=re.compile(positive, _IC),
+            not_oracle=re.compile(_ENABLER_GRANT, _IC),
+        ),
+    )
+
+
+def _enabler_extra(subj: str) -> SubAvenue:
+    # Type-changers (Xenograft, Arcane Adaptation) turn OTHER creatures into {subj}s, so
+    # the tribe grows and your {subj} payoffs hit more bodies. A distinct lane: an
+    # enabler is NOT a payoff or a tribe member (B1). The open grant ("the chosen
+    # type") is subject-agnostic, so it credits every {subj} lane.
+    return SubAvenue(
+        f"{subj} enablers",
+        f"cards that make your other creatures {subj}s (type-changers like Xenograft), "
+        f"growing the tribe so your {subj} lords and payoffs reach more of the board",
+        {"oracle": _ENABLER_GRANT},
+        serve=Serve(oracle=re.compile(_ENABLER_GRANT, _IC)),
     )
 
 
@@ -4195,9 +4234,6 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # one. Fold them (the keyword bearers + the "is/are every creature type" granters)
     # into the type-tribal serve so a Goblin/Elf/Zombie deck credits its changelings.
     is_type_tribal = signal.key == signal_keys.TYPE_MATTERS
-    # Type-agnostic tribal enablers grant the chosen type to your board (Xenograft,
-    # Arcane Adaptation), so they count for EVERY tribe — credit the "every creature
-    # type" / "the chosen type" grant phrasings, not just changelings.
     # Synonym-GROUP tribes (sea monsters): a member type's serve covers the WHOLE group,
     # by type-line AND by the group-naming payoff oracle (Whelming Wave). card_search's
     # card_type is substring-only (no OR), so each OTHER member gets its own search
@@ -4205,10 +4241,13 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     group = _tribal_group(subj) if is_type_tribal else None
     members = sorted(group) if group else [subj.lower()]
     type_alt = "|".join(re.escape(m) for m in members)
+    # Bodies serve: the tribe's own members (type-line) PLUS changelings ("is/are every
+    # creature type", CR 702.73a — a changeling IS a member of every tribe). NOT the
+    # type-GRANTERS ("is/are the chosen type"): Xenograft & co. don't BECOME a member,
+    # they turn your OTHER creatures into the tribe — surfaced by the separate enabler
+    # sub-avenue (_enabler_extra), never counted as a body or payoff (B1).
     serve_oracle = rf"\b(?:{type_alt})s?\b" + (
-        r"|(?:is|are) every creature type|(?:is|are) the chosen type"
-        if is_type_tribal
-        else ""
+        r"|(?:is|are) every creature type" if is_type_tribal else ""
     )
     group_extras: tuple[SubAvenue, ...] = ()
     if group:
@@ -4235,7 +4274,13 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             types=frozenset(members) if is_type_tribal else frozenset(),
             keywords=frozenset({"changeling"}) if is_type_tribal else frozenset(),
         ),
-        extras=(_payoff_extra(subj, esc), *group_extras),
+        extras=(
+            _payoff_extra(subj, esc),
+            # Type-changers (Xenograft) are enablers, not payoffs/members — a distinct
+            # lane, only for true tribes (type_matters), not typed-spellcast (B1).
+            *((_enabler_extra(subj),) if is_type_tribal else ()),
+            *group_extras,
+        ),
     )
 
 
