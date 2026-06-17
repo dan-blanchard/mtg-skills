@@ -2920,6 +2920,11 @@ _LOOT_FULLTEXT_RE = re.compile(
     r"(?:then )?(?:you )?(?:may )?discard",
     re.IGNORECASE,
 )
+# Meld (CR 701.42): a meld piece either melds the pair into a result ("meld them into",
+# front) or carries the reminder "(Melds with <front>.)" (back). Either side wants its
+# ONE specific partner, so meld_pair is subject-bearing (subject = this card's name);
+# the partner names this card, so signal_specs serves exactly it.
+_MELD_FULLTEXT_RE = re.compile(r"\bmeld them into\b|\bmelds with\b", re.IGNORECASE)
 # Ability-strip-and-buff (Abigale): the strip ("loses all abilities") and the buff
 # ("counter on that creature") are different clauses, so this is a full-text check.
 _ABILITY_STRIP_RE = re.compile(r"loses all abilities", re.IGNORECASE)
@@ -3562,6 +3567,12 @@ def extract_signals(
     self_death_clause = _detect_self_death_payoff(text, name)
     if self_death_clause is not None:
         add("self_death_payoff", "you", "", self_death_clause)
+    # Run against the RAW oracle (not the reminder-stripped `text`): a meld BACK piece
+    # (Bruna) carries its meld info only in the "(Melds with …)" reminder, which the
+    # per-clause path strips. subject = this card's name; the partner names it.
+    _meld_raw = get_oracle_text(card)
+    if name and _MELD_FULLTEXT_RE.search(_meld_raw):
+        add("meld_pair", "you", name, _meld_raw[:160])
     if _detect_self_counter_payoff(text, name):
         add("counters_matter", "you", "", text[:160])
     if _detect_counter_have_payoff(text):

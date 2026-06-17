@@ -24,7 +24,10 @@ TYPE_MATTERS: Final = "type_matters"
 TOKEN_MAKER: Final = "token_maker"
 TYPED_SPELLCAST: Final = "typed_spellcast"
 KEYWORD_TRIBE: Final = "keyword_tribe"
+# Meld (CR 701.42): the subject is THIS card's own name; the one partner that melds
+# with it names this card in its meld text, so the per-subject serve finds exactly it.
+MELD_PAIR: Final = "meld_pair"
 
 SUBJECT_KEYS: Final = frozenset(
-    {TYPE_MATTERS, TOKEN_MAKER, TYPED_SPELLCAST, KEYWORD_TRIBE}
+    {TYPE_MATTERS, TOKEN_MAKER, TYPED_SPELLCAST, KEYWORD_TRIBE, MELD_PAIR}
 )

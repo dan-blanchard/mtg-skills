@@ -1186,6 +1186,16 @@ _DRAWBACK_EXTRA = SubAvenue(
     {"oracle": _DRAWBACK_ORACLE, "card_type": "Creature"},
     serve=Serve(oracle=re.compile(_DRAWBACK_ORACLE, _IC)),
 )
+# Force-feed: give opponents creatures that benefit YOU (the Hunted cycle, Forbidden
+# Orchard) — a control-change/donate deck punishes its own gifts. Anchored to creating
+# a creature for an opponent, so it doesn't pull Treasure/draw "gifts".
+_FORCE_FEED_ORACLE = r"target opponent creates [^.]*creature"
+_FORCE_FEED_EXTRA = SubAvenue(
+    "Force-feed creatures",
+    "give opponents creatures that work for you (Forbidden Orchard, the Hunted cycle)",
+    {"oracle": _FORCE_FEED_ORACLE},
+    serve=Serve(oracle=re.compile(_FORCE_FEED_ORACLE, _IC)),
+)
 # Untap effects to reuse tap abilities / retrigger a tap-untap commander — covers the
 # "enchanted/this/that creature" forms (Freed from the Real) the bare target/all form
 # missed, plus the untap symbol {Q}.
@@ -2284,7 +2294,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Donate commander (Jon Irenicus, Harmless Offering) wants drawback creatures to
     # hand to opponents for the downside.
     ("donate_matters", "you"): _sweep_spec_with_extras(
-        "donate_matters", (_DRAWBACK_EXTRA,)
+        "donate_matters", (_DRAWBACK_EXTRA, _FORCE_FEED_EXTRA)
     ),
     # Legend-rule-off commander (Brothers Yamazaki) wants self-copy effects to run
     # multiple copies of itself.
@@ -4143,6 +4153,20 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
             search={"oracle": rf"\b{esc.lower()}\b"},
             serve=Serve(oracle=re.compile(rf"\b{esc}\b", _IC)),
+        )
+    # meld: the subject is THIS commander's own name. Its single meld partner names it
+    # ("(Melds with <name>.)" on the back piece, "a creature named <name>" on the front
+    # piece, CR 701.42), so serve exactly that one partner — not every meld half.
+    if signal.key == signal_keys.MELD_PAIR:
+        partner_re = rf"(?:melds with|creature named) {esc}"
+        return SignalSpec(
+            label=f"Meld partner of {subj}",
+            avenue=(
+                f"the specific card that melds with {subj} (plus tutors/recursion to "
+                "assemble the pair)"
+            ),
+            search={"oracle": partner_re},
+            serve=Serve(oracle=re.compile(partner_re, _IC)),
         )
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).

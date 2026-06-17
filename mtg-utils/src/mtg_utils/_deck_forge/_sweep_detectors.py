@@ -386,7 +386,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "donate_matters",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "(?:target opponent|another player|target player|that player|each opponent|each other player) gains control of[^.]*you control|target opponent (?:creates|draws|gains|puts)|(?:target opponent|another player|target player|that player) gains control of",
+        # Donate = a CONTROL CHANGE (CR 701.12). The old middle clause
+        # "target opponent (creates|draws|gains|puts)" mis-opened for group-hug/gift
+        # commanders and the same regex served ~25 non-donate cards — dropped.
+        "regex": "(?:target opponent|another player|target player|that player|each opponent|each other player) gains control of[^.]*you control|(?:target opponent|another player|target player|that player) gains control of",
     },
     {
         "key": "attractions_matter",
@@ -607,10 +610,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "regex": "\\bweb-slinging\\b|\\bsneak\\b|\\bmayhem\\b",
     },
     {
-        "key": "flip_meld_matters",
+        # Flip (CR 710) — a single card that self-transforms in place on its own
+        # condition; self-contained, so no cross-card payoff. Split from meld (which is
+        # a two-card pair, now the subject-bearing meld_pair detector in signals.py).
+        "key": "flip_self",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "\\bflip this creature\\b|meld them into",
+        "regex": "\\bflip this creature\\b",
     },
     {
         "key": "legend_rule_off",
@@ -728,11 +734,45 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "void —|warp \\{|warp cost|warp—|for its warp cost|using its warp ability|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp",
     },
+    # Named counters are NOT interchangeable (CR 122.1: only same-name counters are),
+    # so a rad payoff wants nothing from an oil/ki/shield deck. The old single lane
+    # served every branch together — split into the populous, mechanically-distinct
+    # types (each auto-served from its own regex) plus a misc residual for singletons.
+    # "fade" is dropped: fade counters are the Fading keyword's sacrifice clock
+    # (CR 702.32), not a build-around payoff axis. The cross-type axis (proliferate)
+    # already lives in proliferate_matters.
     {
-        "key": "named_counter_mechanic",
+        # rad counters go on PLAYERS (each player gets one), so scope "each".
+        "key": "rad_counter_matters",
+        "scope": "each",
+        "is_widen_of": "",
+        "regex": "\\brad counters?\\b",
+    },
+    {
+        "key": "oil_counter_matters",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "\\b(?:egg|divinity|rad|prey|bounty|bribery|page|study|knowledge|silver|gold|oil|ki|fade|fate|incubation|shield) counters?\\b",
+        "regex": "\\boil counters?\\b",
+    },
+    {
+        "key": "ki_counter_matters",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "\\bki counters?\\b",
+    },
+    {
+        # Shield counters (CR 122.1c) — a real UW/Brokers archetype (Falco Spara,
+        # Perrie, Kros) deliberately excluded from keyword_counter; this is its home.
+        "key": "shield_counter_matters",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "\\bshield counters?\\b",
+    },
+    {
+        "key": "named_counter_misc",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "\\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge|silver|gold|fate|incubation) counters?\\b",
     },
     {
         "key": "seek_matters",
@@ -766,9 +806,21 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     },
     {
         "key": "timing_control",
-        "scope": "opponents",
+        # scope "any": the restriction arms span opponents-only (Teferi), symmetric
+        # (City of Solitude), and self (Fires of Invention) — no single side is right,
+        # so this reads honestly as "restricts WHEN spells can be cast", not a punish.
+        "scope": "any",
         "is_widen_of": "",
-        "regex": "may end the turn|cast spells (?:and activate abilities )?only during their own|spells? only any time they could cast a sorcery|can cast spells only",
+        "regex": "cast spells (?:and activate abilities )?only during their own|spells? only any time they could cast a sorcery|can cast spells only",
+    },
+    {
+        # End-the-turn engine (Obeka, Sundial of the Infinite, Glorious End) — CR 724.
+        # Fired on YOUR OWN turn to lock in value and fizzle end-step downsides, so this
+        # is scope "you", split out of the opponents-scoped timing_control restriction.
+        "key": "end_the_turn",
+        "scope": "you",
+        "is_widen_of": "",
+        "regex": "\\bend the turn\\b",
     },
     {
         "key": "sacrifice_protection",
@@ -1166,7 +1218,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "fight_matters": ("Fight", "big creatures to fight with as removal"),
     "flash_grant": ("Flash", "flash enablers and instant-speed threats"),
-    "flip_meld_matters": ("Flip / meld", "the pieces to flip or meld"),
+    "flip_self": (
+        "Flip creature",
+        "a self-contained flip creature (Kamigawa) — meets its own flip condition",
+    ),
     "forced_attack": ("Forced attacks / politics", "goad-style forced-attack effects"),
     "free_cast": ("Free / alternative cost", "expensive bombs to cast for free"),
     "global_ability_grant": (
@@ -1200,9 +1255,26 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "mass_removal": ("Board wipes", "sweepers plus resilience to rebuild"),
     "miracle_grant": ("Miracle", "miracle support and top-deck setup"),
     "myriad_grant": ("Myriad", "attackers worth copying to each opponent"),
-    "named_counter_mechanic": (
-        "Named counters",
-        "that named-counter mechanic's enablers and payoffs",
+    "rad_counter_matters": (
+        "Rad counters",
+        "rad-counter sources and payoffs (Fallout — each player mills + loses life per rad)",
+    ),
+    "oil_counter_matters": (
+        "Oil counters",
+        "oil-counter sources and payoffs (Phyrexia — charge-style depletion counters)",
+    ),
+    "ki_counter_matters": (
+        "Ki counters",
+        "ki-counter sources and payoffs (Kamigawa Spirit/Arcane triggers)",
+    ),
+    "shield_counter_matters": (
+        "Shield counters",
+        "shield-counter sources and payoffs (Brokers — a counter that absorbs the next "
+        "destroy/damage)",
+    ),
+    "named_counter_misc": (
+        "Other named counters",
+        "enablers and payoffs for a niche named-counter mechanic",
     ),
     "named_permanent": (
         "Named-card synergy",
@@ -1310,7 +1382,16 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "cheap targeted spells to trigger target-matters",
     ),
     "theft_matters": ("Theft", "steal opponents' cards and cast them"),
-    "timing_control": ("Timing control", "end-the-turn and timing-restriction effects"),
+    "timing_control": (
+        "Timing restriction",
+        "effects that restrict WHEN spells can be cast (Teferi, City of Solitude, "
+        "Fires of Invention)",
+    ),
+    "end_the_turn": (
+        "End the turn",
+        "end-the-turn effects to lock in your turn's value and fizzle end-step "
+        "downsides (Sundial of the Infinite, Glorious End, Obeka)",
+    ),
     "topdeck_selection": (
         "Top-deck selection",
         "scry and look-at-top to set up your draws (surveil also fills the graveyard)",
