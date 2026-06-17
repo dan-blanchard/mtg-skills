@@ -42,3 +42,6 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 # Local scratch / session dirs (skill working output + Claude Code session state)
 .deck-wizard-work/
 .claude/
+
+# Playwright MCP scratch (snapshots/screenshots from live UI testing)
+.playwright-mcp/
