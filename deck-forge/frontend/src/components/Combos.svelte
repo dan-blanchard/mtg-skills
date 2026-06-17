@@ -84,26 +84,40 @@
                 <div class="mana">Mana: {c.mana_needed}</div>
               {/if}
 
-              {#if haveOf(c).length}
-                <div class="sub">In your deck</div>
-                <div class="grid">
-                  {#each haveOf(c) as cv (cv.name)}
-                    <CardTile card={cv} onadd={add} />
-                  {/each}
+              {#if haveOf(c).length || missingOf(c).length || c.missing_template}
+                <!-- Have / need side-by-side: a combo is almost always two pieces,
+                     and stacking full art tiles meant you couldn't see both at once.
+                     Columns wrap to stacked only when the panel is too narrow. -->
+                <div class="pieces">
+                  {#if haveOf(c).length}
+                    <div class="piece">
+                      <div class="sub">In your deck</div>
+                      <div class="grid">
+                        {#each haveOf(c) as cv (cv.name)}
+                          <CardTile card={cv} onadd={add} />
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+                  {#if haveOf(c).length && (missingOf(c).length || c.missing_template)}
+                    <div class="plus" aria-hidden="true">+</div>
+                  {/if}
+                  {#if missingOf(c).length || c.missing_template}
+                    <div class="piece">
+                      <div class="sub need">You need</div>
+                      {#if missingOf(c).length}
+                        <div class="grid">
+                          {#each missingOf(c) as cv (cv.name)}
+                            <CardTile card={cv} onadd={add} />
+                          {/each}
+                        </div>
+                      {/if}
+                      {#if c.missing_template}
+                        <div class="need-template">a {c.missing_template}</div>
+                      {/if}
+                    </div>
+                  {/if}
                 </div>
-              {/if}
-              {#if missingOf(c).length || c.missing_template}
-                <div class="sub need">You need</div>
-                {#if missingOf(c).length}
-                  <div class="grid">
-                    {#each missingOf(c) as cv (cv.name)}
-                      <CardTile card={cv} onadd={add} />
-                    {/each}
-                  </div>
-                {/if}
-                {#if c.missing_template}
-                  <div class="need-template">a {c.missing_template}</div>
-                {/if}
               {/if}
               {#if !c.card_views?.length && !c.missing_template}
                 <div class="cards">{c.cards.join(" + ")}</div>
@@ -198,6 +212,28 @@
     font-size: 0.74rem;
     color: var(--brass);
     margin-bottom: 0.5rem;
+  }
+  /* have / need columns sit side-by-side so both combo pieces are visible at
+     once; they wrap to stacked when the panel can't fit two card columns */
+  .pieces {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.7rem;
+    margin-top: 0.1rem;
+  }
+  .piece {
+    flex: 1 1 190px;
+    min-width: 0;
+  }
+  /* the literal "A + B" of the combo, centered between the two columns */
+  .plus {
+    flex: 0 0 auto;
+    align-self: center;
+    font-family: var(--display);
+    font-size: 1.5rem;
+    color: var(--brass);
+    opacity: 0.65;
   }
   .sub {
     font-size: 0.68rem;
