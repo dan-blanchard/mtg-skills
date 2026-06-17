@@ -217,6 +217,37 @@ def test_collection_change_invalidates_the_lane_serve_cache():
     assert any(lane["label"] == "Lifegain" for lane in lifelord["lanes"])
 
 
+def test_lane_density_persists_to_a_bulk_keyed_sidecar(tmp_path):
+    """The format-relative lane densities (the ~55s first-discovery sweep) persist to a
+    sidecar keyed by the bulk file, so a fresh state reuses them instead of recomputing —
+    and a different bulk (a download-bulk refresh) transparently starts fresh."""
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]", encoding="utf-8")
+
+    # First discovery computes some densities and saves the sidecar.
+    s1 = _state()
+    s1.bulk_path = bulk
+    TestClient(build_app(s1)).post("/api/commanders/discover", json={"sort": "support"})
+    assert s1.lane_density  # densities were computed
+    sidecar = engine._density_sidecar_path(s1)
+    assert sidecar is not None
+    assert sidecar.exists()
+
+    # A fresh state on the SAME bulk seeds its densities from the sidecar (no recompute).
+    s2 = _state()
+    s2.bulk_path = bulk
+    engine._load_lane_density(s2)
+    assert s2.lane_density == s1.lane_density
+
+    # A DIFFERENT bulk file → different sidecar key → no stale densities loaded.
+    other = tmp_path / "other.json"
+    other.write_text("[]", encoding="utf-8")
+    s3 = _state()
+    s3.bulk_path = other
+    engine._load_lane_density(s3)
+    assert s3.lane_density == {}
+
+
 def test_unknown_theme_returns_400_not_500():
     # An unknown preset name is a clean 400 (like the slot/format guards), not an
     # opaque 500 from theme_presets.matches raising KeyError.

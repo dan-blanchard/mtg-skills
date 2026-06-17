@@ -234,6 +234,10 @@ class ForgeState:
     # merely-broad one (artifacts), so "Most supported" reflects real depth.
     density_pool: list[dict] = field(default_factory=list)
     lane_density: dict[str, float] = field(default_factory=dict)
+    # Whether ``lane_density`` has been seeded from its on-disk sidecar yet (once per
+    # state) — so the ~55s first-discovery density sweep is paid once per bulk version,
+    # not once per server start. See engine._load_lane_density.
+    density_sidecar_loaded: bool = False
     # Per-Collection-slot: lane-key → frozenset of owned card NAMES serving that lane.
     # Computed once per distinct lane (not per commander-and-lane), so discovery
     # scores via set intersection, not millions of per-card regex matches. Keyed by

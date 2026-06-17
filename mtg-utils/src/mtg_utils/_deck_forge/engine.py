@@ -13,6 +13,7 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,7 @@ from mtg_utils._deck_forge.signals import (
 )
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils._name_index import NameIndex
+from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.format_config import FORMAT_CONFIGS
@@ -342,6 +344,47 @@ def _lane_density(state: ForgeState, key: str, serve: Serve) -> float:
     return p
 
 
+_DENSITY_SIDECAR_PREFIX = "deck-forge-lane-density"
+
+
+def _density_sidecar_path(state: ForgeState) -> Path | None:
+    """On-disk path for the lane-density cache, keyed by the BULK file's fingerprint
+    (mtime+size via ``sha_keyed_path``). A ``download-bulk`` refresh changes the key, so
+    a stale sidecar is transparently ignored, not served. ``None`` without bulk."""
+    if state.bulk_path is None:
+        return None
+    return sha_keyed_path(_DENSITY_SIDECAR_PREFIX, state.bulk_path)
+
+
+def _load_lane_density(state: ForgeState) -> None:
+    """Seed ``lane_density`` from its sidecar, ONCE per state. The ~55s first-discovery
+    density sweep (every lane scanned over the 34k-card pool) is thus paid once per bulk
+    version, not once per server start. A missing/unreadable/changed-bulk sidecar is a
+    silent no-op (the sweep just recomputes and re-saves)."""
+    if state.density_sidecar_loaded:
+        return
+    state.density_sidecar_loaded = True
+    path = _density_sidecar_path(state)
+    if path is None or not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if isinstance(v, (int, float)):
+                state.lane_density.setdefault(k, float(v))
+
+
+def _save_lane_density(state: ForgeState) -> None:
+    """Persist the accumulated lane-density cache to its bulk-keyed sidecar (atomic
+    write, so concurrent discovery threads never see a half-written file)."""
+    path = _density_sidecar_path(state)
+    if path is not None:
+        atomic_write_json(path, dict(state.lane_density))
+
+
 def _slot_lane_serves(
     state: ForgeState, slot: str, key: str, serve: Serve, coll: list[dict]
 ) -> frozenset[str]:
@@ -459,6 +502,10 @@ def discover_commanders(
     slot = active_slot(state)
     fmt = state.session.format
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
+    # Seed lane densities from the sidecar so this doesn't repeat the ~55s pool sweep on
+    # every server start. New lanes still compute lazily and are persisted at the end.
+    _load_lane_density(state)
+    density_before = len(state.lane_density)
 
     results: list[dict] = []
     for rec in records:
@@ -498,6 +545,8 @@ def discover_commanders(
         results.sort(
             key=lambda r: (-r["support_depth"], -r["supported_lanes"], r["name"])
         )
+    if len(state.lane_density) > density_before:
+        _save_lane_density(state)  # new densities computed this call — persist them
     return results[:limit]
 
 
