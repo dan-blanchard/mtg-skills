@@ -2302,6 +2302,43 @@ MANLAND = {
         "{T}: Add {C}.\n{1}: This land becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a land.\n{T}: Target Assembly-Worker creature gets +1/+1 until end of turn."
     ),
 }
+# A transform DFC whose FRONT is a Saga and BACK is a Land. Not a manland: the
+# "becomes a … creature" text animates an OPPONENT's artifact (Saga chapter I),
+# and "Land" appears only via the back face. The card enters as the Saga, so its
+# deckbuilding type is the front face — it must not be served as a creature-land.
+JURASSIC_PARK = {
+    "name": "Welcome to . . . // Jurassic Park",
+    "layout": "transform",
+    "type_line": "Enchantment — Saga // Legendary Land",
+    "card_faces": [
+        {
+            "name": "Welcome to . . .",
+            "type_line": "Enchantment — Saga",
+            "oracle_text": (
+                "(As this Saga enters and after your draw step, add a lore counter.)\n"
+                "I — For each opponent, up to one target noncreature artifact they "
+                "control becomes a 0/4 Wall artifact creature with defender for as long "
+                "as you control this Saga.\n"
+                "II — Create a 3/3 green Dinosaur creature token with trample. It gains "
+                "haste until end of turn.\n"
+                "III — Destroy all Walls. Exile this Saga, then return it to the "
+                "battlefield transformed under your control."
+            ),
+        },
+        {
+            "name": "Jurassic Park",
+            "type_line": "Legendary Land",
+            "oracle_text": (
+                "(Transforms from Welcome to ....)\n"
+                "Each Dinosaur card in your graveyard has escape. The escape cost is "
+                "equal to the card's mana cost plus exile three other cards from your "
+                "graveyard. (You may cast cards from your graveyard for their escape "
+                "cost.)\n"
+                "{T}: Add {G} for each Dinosaur you control."
+            ),
+        },
+    ],
+}
 LIFE_AND_LIMB = {
     "name": "Life and Limb",
     "type_line": "Enchantment",
@@ -2882,6 +2919,10 @@ def test_land_creature_avenue_searches_exclude_false_positives():
     assert served(MANLAND)  # a real creature-land is surfaced by some avenue
     assert not served(PLANT_MAKER)  # Avenger's Plant tokens — surfaced by none
     assert not served(CLONE)  # Silent Hallcreeper clone — surfaced by none
+    # A transform DFC (Saga front // Land back) is NOT a creature-land: "Land"
+    # comes only from the back face and "becomes a … creature" animates an
+    # opponent's artifact. The card's deckbuilding type is its front (the Saga).
+    assert not served(JURASSIC_PARK)
 
 
 def test_animate_lands_serve_covers_mass_forest_animators():

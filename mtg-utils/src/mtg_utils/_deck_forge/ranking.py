@@ -18,7 +18,11 @@ from collections.abc import Callable, Sequence
 
 from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.signal_specs import serve_from_dict, serves, spec_for
-from mtg_utils.card_classify import extract_price, get_oracle_text
+from mtg_utils.card_classify import (
+    classifying_type_line,
+    extract_price,
+    get_oracle_text,
+)
 
 
 def _avenue_predicates(
@@ -66,7 +70,10 @@ def _search_and(
         oracle_ok = (
             regex is None or regex.search(get_oracle_text(card) or "") is not None
         )
-        type_line = (card.get("type_line") or "").lower()
+        # Transform-aware: match card_type against the FRONT face (what you play),
+        # so a transform DFC's back-face type can't credit it — e.g. a Saga-front //
+        # Land-back card must not satisfy a card_type='Land' creature-land search.
+        type_line = classifying_type_line(card).lower()
         type_ok = not card_type or card_type in type_line
         return oracle_ok and type_ok
 

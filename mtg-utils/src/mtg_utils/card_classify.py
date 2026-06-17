@@ -118,11 +118,15 @@ def color_identity_subset(card_identity: list[str], allowed: set[str]) -> bool:
     return set(card_identity).issubset(allowed)
 
 
-def _classifying_type_line(card: dict) -> str:
+def classifying_type_line(card: dict) -> str:
     """The type line to classify a card by. A transform/flip card enters as its FRONT
     face, so use that face's type — the back (e.g. a Saga that transforms into a Land or
     Creature) only appears conditionally and must not count for deckbuilding. Modal DFCs
-    (either face is playable) and single-faced cards use the full type line."""
+    (either face is playable) and single-faced cards use the full type line.
+
+    Use this anywhere a card's type is matched by substring (``card_type`` filters,
+    serve/score classification) so a transform DFC's back-face type can't leak in —
+    e.g. a Saga-front // Land-back card must not read as 'Land' for a manland search."""
     if card.get("layout") in ("transform", "flip"):
         faces = card.get("card_faces")
         if faces:
@@ -132,12 +136,12 @@ def _classifying_type_line(card: dict) -> str:
 
 def is_land(card: dict) -> bool:
     """Check if the card's (front-face) type line contains 'Land'."""
-    return "Land" in _classifying_type_line(card)
+    return "Land" in classifying_type_line(card)
 
 
 def is_creature(card: dict) -> bool:
     """Check if the card's (front-face) type line contains 'Creature'."""
-    return "Creature" in _classifying_type_line(card)
+    return "Creature" in classifying_type_line(card)
 
 
 def is_basic_land(card: dict) -> bool:

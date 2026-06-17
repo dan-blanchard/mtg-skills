@@ -18,7 +18,11 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS, SWEEP_LABELS
-from mtg_utils.card_classify import card_pt_int, get_oracle_text
+from mtg_utils.card_classify import (
+    card_pt_int,
+    classifying_type_line,
+    get_oracle_text,
+)
 
 if TYPE_CHECKING:
     from mtg_utils._deck_forge.signals import Signal
@@ -129,7 +133,10 @@ class Serve:
             return True
         if self.oracle is not None and self.oracle.search(oracle_text):
             return True
-        type_line = (card.get("type_line") or "").lower()
+        # Transform-aware: classify by the FRONT face (what you play), so a transform
+        # DFC's back-face type can't satisfy a ``types`` (card_type) serve — the same
+        # leak that surfaced a Saga-front // Land-back card as a creature-land.
+        type_line = classifying_type_line(card).lower()
         if self.types and any(t in type_line for t in self.types):
             return True
         if self.keywords:
