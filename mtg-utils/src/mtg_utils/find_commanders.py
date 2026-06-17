@@ -17,8 +17,8 @@ from mtg_utils.card_classify import (
     get_oracle_text,
     is_commander,
 )
+from mtg_utils.deck import collect_card_entries
 from mtg_utils.format_config import FORMAT_CONFIGS
-from mtg_utils.names import normalize_card_name
 
 CARD_FIELDS = (
     "name",
@@ -34,9 +34,6 @@ CARD_FIELDS = (
 # Anchor "Partner with" to start-of-string or after newline so flavor text or
 # embedded "partner with" inside other rules text can't match. Capture stops at
 # end-of-line or reminder text in parens.
-# Normalization lives in mtg_utils.names so find_commanders and
-# mark_owned cannot drift on what counts as "the same card".
-_normalize_name = normalize_card_name
 
 
 _PARTNER_WITH_RE = re.compile(r"(?:^|\n)Partner with ([^\n(]+?)\s*(?=\(|\n|$)")
@@ -81,23 +78,13 @@ def _build_owned_index(parsed_deck: dict, min_quantity: int) -> dict[str, int]:
     and parse-deck can emit a card in commanders AND cards if the user
     listed their commander in the mainboard for any reason.
     """
-    owned: dict[str, int] = {}
-    for section in ("commanders", "cards"):
-        for entry in parsed_deck.get(section, []) or []:
-            name = entry.get("name")
-            if name is None:
-                continue
-            # Coerce quantity defensively: parse-deck normalizes to int, but
-            # hand-crafted parsed JSON may have strings or omit the field.
-            try:
-                qty = int(entry.get("quantity", 1))
-            except (TypeError, ValueError):
-                qty = 1
-            if qty < min_quantity:
-                continue
-            key = _normalize_name(name)
-            owned[key] = max(owned.get(key, 0), qty)
-    return owned
+    entries = collect_card_entries(
+        parsed_deck,
+        include_sideboard=False,  # you don't find a commander in a sideboard
+        reconcile="max",
+        min_quantity=min_quantity,
+    )
+    return {key: qty for key, (_name, qty) in entries.items()}
 
 
 def _load_bulk_index(bulk_path: Path) -> NameIndex:

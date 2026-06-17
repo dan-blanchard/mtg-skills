@@ -22,7 +22,8 @@ import click
 
 from mtg_utils._name_index import alias_keys
 from mtg_utils._sidecar import atomic_write_json
-from mtg_utils.names import build_name_alias_map, normalize_card_name
+from mtg_utils.deck import collect_card_entries
+from mtg_utils.names import build_name_alias_map
 
 
 def _collect_entries(
@@ -55,27 +56,11 @@ def _collect_entries(
       would double-count. The sibling ``find_commanders._build_owned_index``
       applies the same reasoning to its owned index.
     """
-    out: dict[str, tuple[str, int]] = {}
-    for section in ("commanders", "cards", "sideboard"):
-        for entry in parsed.get(section, []) or []:
-            if not isinstance(entry, dict):
-                continue
-            name = entry.get("name")
-            if not isinstance(name, str) or not name:
-                continue
-            try:
-                qty = int(entry.get("quantity", 1))
-            except (TypeError, ValueError):
-                qty = 1
-            key = normalize_card_name(name)
-            existing = out.get(key)
-            if existing is None:
-                out[key] = (name, qty)
-            elif sum_duplicates:
-                out[key] = (existing[0], existing[1] + qty)
-            else:
-                out[key] = (existing[0], max(existing[1], qty))
-    return out
+    return collect_card_entries(
+        parsed,
+        include_sideboard=True,
+        reconcile="sum" if sum_duplicates else "max",
+    )
 
 
 def _build_alias_lookup(

@@ -11,11 +11,14 @@ from mtg_utils.find_commanders import (
     _has_background_clause,
     _is_partner,
     _load_bulk_index,
-    _normalize_name,
     _partner_with_target,
     find_commanders,
     main,
 )
+
+# find_commanders delegates name folding to the canonical normalizer; the index it
+# builds is keyed by it, so the tests assert against the same function.
+from mtg_utils.names import normalize_card_name as _normalize_name
 
 
 def _card(

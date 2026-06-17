@@ -1104,13 +1104,6 @@ _REANIMATION_EXTRA = SubAvenue(
     {"oracle": _REANIMATE_ORACLE},
     serve=Serve(oracle=re.compile(_REANIMATE_ORACLE, _IC)),
 )
-_EXTRA_COMBAT_EXTRA = SubAvenue(
-    "Extra combats",
-    "additional combat phases so your forced/incentivized attackers swing again "
-    "(World at War / Aggravated Assault)",
-    {"oracle": r"additional combat|extra combat"},
-    serve=Serve(oracle=re.compile(r"additional combat|extra combat", _IC)),
-)
 # Board protection: GRANT the whole team indestructible (Selfless Spirit, Heroic
 # Intervention, Akroma's Will, Flawless Maneuver). Distinct from an indestructible
 # CREATURE that merely survives a wipe (the lane's serve_keywords already credits

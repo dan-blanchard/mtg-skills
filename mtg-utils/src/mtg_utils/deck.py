@@ -34,6 +34,7 @@ from mtg_utils.card_classify import (
     is_land,
     is_ramp,
 )
+from mtg_utils.names import normalize_card_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -273,3 +274,56 @@ def accumulate_deck_metrics(
         "curve": curve,
         "color_sources": sources,
     }
+
+
+def collect_card_entries(
+    deck: dict,
+    *,
+    include_sideboard: bool = True,
+    reconcile: str = "max",
+    min_quantity: int | None = None,
+) -> dict[str, tuple[str, int]]:
+    """Walk a parsed deck into ``{normalized-name: (original-name, quantity)}``.
+
+    Shared by ``mark_owned`` (ownership index — sums a card's split printings) and
+    ``find_commanders`` (owned index — ``max``-reconciles, filters by min_quantity).
+    Both keyed via the canonical ``normalize_card_name`` so Unicode folding is
+    consistent across the two tools (drift here silently corrupts the ownership
+    intersection). The original-case name is kept for display.
+
+    - ``reconcile`` — ``"sum"`` adds duplicate quantities (a collection export splits
+      one card across printings), ``"max"`` takes the largest (parse-deck can echo a
+      commander in both ``commanders`` and ``cards`` — the same physical copy).
+    - ``min_quantity`` — drop entries below it; ``None`` keeps every entry (including
+      quantity 0, as the ownership index does).
+
+    ``price_check`` deliberately does NOT use this: it keys on a non-folded
+    ``name.lower()``, preserves first-appearance order, returns a list, and accepts a
+    bare name list — a different contract.
+    """
+    sections = ["commanders", "cards"]
+    if include_sideboard:
+        sections.append("sideboard")
+    out: dict[str, tuple[str, int]] = {}
+    for section in sections:
+        for entry in deck.get(section, []) or []:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if not isinstance(name, str) or not name:
+                continue
+            try:
+                raw = entry.get("quantity")
+                qty = 1 if raw is None else int(raw)
+            except (TypeError, ValueError):
+                qty = 1
+            if min_quantity is not None and qty < min_quantity:
+                continue
+            existing = out.get(key := normalize_card_name(name))
+            if existing is None:
+                out[key] = (name, qty)
+            elif reconcile == "sum":
+                out[key] = (existing[0], existing[1] + qty)
+            else:
+                out[key] = (existing[0], max(existing[1], qty))
+    return out
