@@ -6,7 +6,6 @@
   import LeftTabs from "./components/LeftTabs.svelte";
   import Avenues from "./components/Avenues.svelte";
   import DeckList from "./components/DeckList.svelte";
-  import Curve from "./components/Curve.svelte";
   import ForgeFriend from "./components/ForgeFriend.svelte";
   import StatusBar from "./components/StatusBar.svelte";
   import CardPreview from "./components/CardPreview.svelte";
@@ -65,7 +64,6 @@
 
     <section class="col deck-col">
       <Avenues />
-      <Curve />
       <div class="deck-wrap"><DeckList /></div>
     </section>
 

@@ -1,72 +1,65 @@
 <script>
+  // The full mana-curve chart. No longer a standing widget in the deck column — it lives
+  // ONLY inside the status-bar curve sparkline's hover popover now (the sparkline is the
+  // glanceable signal; this is the detail-on-hover, mirroring the slot-budgets popover).
   import { stats } from "../lib/store.js";
   import { bucketCurve, CURVE_BUCKETS } from "../lib/mana.js";
-
-  export let collapsed = false;
 
   $: buckets = bucketCurve($stats?.curve);
   $: max = Math.max(1, ...Object.values(buckets));
   $: avg = $stats?.avg_cmc ?? 0;
 </script>
 
-<div class="panel widget curve" class:collapsed>
-  <button
-    class="panel-title bar-toggle"
-    on:click={() => (collapsed = !collapsed)}
-  >
-    Curve · avg {avg}
-    <span class="caret">{collapsed ? "▸" : "▾"}</span>
-  </button>
-  {#if !collapsed}
-    <div class="chart">
-      {#each CURVE_BUCKETS as b (b)}
-        <div class="col">
-          <div class="bar-track">
-            <div
-              class="bar"
-              style="height: {(buckets[b] / max) * 100}%"
-              class:zero={buckets[b] === 0}
-            >
-              {#if buckets[b] > 0}<span class="n">{buckets[b]}</span>{/if}
-            </div>
+<div class="panel widget curve">
+  <div class="head">
+    <span class="ttl">Mana Curve</span>
+    <span class="avg">avg&nbsp;<b>{avg}</b></span>
+  </div>
+  <div class="chart">
+    {#each CURVE_BUCKETS as b (b)}
+      <div class="col">
+        <div class="bar-track">
+          <div
+            class="bar"
+            style="height: {(buckets[b] / max) * 100}%"
+            class:zero={buckets[b] === 0}
+          >
+            {#if buckets[b] > 0}<span class="n">{buckets[b]}</span>{/if}
           </div>
-          <div class="lbl">{b === 7 ? "7+" : b}</div>
         </div>
-      {/each}
-    </div>
-  {/if}
+        <div class="lbl">{b === 7 ? "7+" : b}</div>
+      </div>
+    {/each}
+  </div>
 </div>
 
 <style>
-  /* collapsed = just the title line: drop the widget padding and the panel-title's
-     bottom margin (which only exists to separate the title from the chart). */
-  .curve.collapsed {
-    padding: 0.45rem 1rem;
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.7rem;
   }
-  .curve.collapsed .bar-toggle {
-    margin-bottom: 0;
+  .ttl {
+    font-family: var(--display);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
   }
-  .bar-toggle {
-    width: 100%;
-    background: transparent;
-    border: none;
-    justify-content: flex-start;
-    cursor: pointer;
-    padding: 0;
-  }
-  .bar-toggle:hover {
-    color: var(--brass-bright);
-  }
-  .caret {
-    margin-left: 0.4rem;
-    color: var(--muted);
+  .avg {
     font-size: 0.7rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .avg b {
+    color: var(--brass-bright);
   }
   .chart {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 0.35rem;
-    height: 96px;
+    gap: 0.3rem;
+    height: 84px;
     align-items: end;
   }
   .col {
@@ -98,12 +91,13 @@
     left: 0;
     right: 0;
     text-align: center;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: var(--parchment-dim);
+    font-variant-numeric: tabular-nums;
   }
   .lbl {
     text-align: center;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: var(--muted);
     margin-top: 0.3rem;
     font-family: var(--display);

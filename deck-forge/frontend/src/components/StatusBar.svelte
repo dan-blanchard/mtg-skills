@@ -24,9 +24,12 @@
     SYMBOL_ORDER,
     COLOR_LABEL,
     WC_TIERS,
+    bucketCurve,
+    CURVE_BUCKETS,
   } from "../lib/mana.js";
   import Mana from "./Mana.svelte";
   import Budgets from "./Budgets.svelte";
+  import Curve from "./Curve.svelte";
   import Warnings from "./Warnings.svelte";
 
   $: ls = landState($mana);
@@ -37,6 +40,11 @@
     ? Object.values($wildcards).reduce((a, b) => a + b, 0)
     : 0;
   $: colorPips = SYMBOL_ORDER.filter((c) => ($stats?.color_sources || {})[c]);
+  // Mana curve as a compact sparkline (full chart lives in the hover popover, like
+  // slot budgets). Heights are % of the tallest bucket; a 1px floor keeps every
+  // column visible so the silhouette reads even for sparse curves.
+  $: curveBuckets = bucketCurve($stats?.curve);
+  $: curveMax = Math.max(1, ...Object.values(curveBuckets));
   $: deckTotal = [...$deck.commanders, ...$deck.cards].reduce(
     (sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1),
     0,
@@ -141,6 +149,29 @@
         <span class="dot bg-{ls.status}"></span>
         <b>{ls.count}</b> lands · {ls.status}
       </button>
+    {/if}
+
+    {#if $stats}
+      <div class="hc">
+        <span
+          class="chip curvechip"
+          title="Mana curve — hover for the full chart"
+        >
+          <span class="spark" aria-hidden="true">
+            {#each CURVE_BUCKETS as b (b)}
+              <span
+                class="sbar"
+                class:zero={curveBuckets[b] === 0}
+                style="height: {curveBuckets[b] === 0
+                  ? 0
+                  : Math.max(24, (curveBuckets[b] / curveMax) * 100)}%"
+              ></span>
+            {/each}
+          </span>
+          <em>curve</em>
+        </span>
+        <div class="pop pop-curve"><Curve /></div>
+      </div>
     {/if}
 
     {#if $budgets}
@@ -346,6 +377,47 @@
   .chip.bad {
     color: var(--fail);
     border-color: rgba(212, 69, 47, 0.4);
+  }
+  /* compact curve sparkline — the glanceable signal; full chart is in the .pop popover */
+  .curvechip {
+    gap: 0.45rem;
+    padding-left: 0.5rem;
+  }
+  .curvechip em {
+    font-style: normal;
+    font-family: var(--display);
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .spark {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 1.5px;
+    height: 15px;
+    width: 42px;
+  }
+  .sbar {
+    flex: 1;
+    min-height: 2px;
+    border-radius: 1px 1px 0 0;
+    background: linear-gradient(180deg, var(--brass-bright), var(--ember-deep));
+    transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* empty buckets read as a faint floor stub, so the silhouette stays legible */
+  .sbar.zero {
+    background: var(--hairline-soft);
+  }
+  .hc:hover .curvechip em {
+    color: var(--brass-bright);
+  }
+  .hc:hover .curvechip .sbar:not(.zero) {
+    box-shadow: 0 0 6px rgba(255, 106, 61, 0.45);
+  }
+  /* the curve popover sits a touch wider so the 8-column chart breathes */
+  .pop-curve {
+    width: 256px;
   }
   .hc:hover .chip {
     border-color: var(--brass);
