@@ -37,7 +37,12 @@ def _apply_cuts(card_list: list[dict], cuts: list[dict]) -> list[str]:
         cut_key = normalize_card_name(name)
         for entry in card_list:
             if normalize_card_name(entry["name"]) == cut_key:
-                entry["quantity"] = entry.get("quantity", 1) - qty
+                had = entry.get("quantity", 1)
+                entry["quantity"] = had - qty
+                if had - qty < 0:
+                    # Cutting more copies than exist: surface it as a warning instead
+                    # of silently clamping to 0 (the entry is dropped below).
+                    unmatched.append(f"{name} (only {had} present, cut {qty})")
                 break
         else:
             unmatched.append(name)

@@ -3,8 +3,19 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, runtime_checkable
+
+# Shared price parsing for every store adapter: a "$1,234.56" pattern and a parser
+# that strips both the currency symbol and thousands separators.
+PRICE_RE = re.compile(r"\$([\d,]+\.\d{2})")
+
+
+def money(text: str) -> float:
+    """Parse a price string like '$1,234.56' (or '1234.56') to a float."""
+    return float(text.replace(",", "").replace("$", ""))
+
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
@@ -258,8 +269,17 @@ def pick_best_listing(
     # else: keep both (allow_foil) or only foils (no non_foil exists) — price wins
 
     if prefer_set := prefs.get("prefer_set"):
-        prefer = prefer_set.upper()
-        in_set = [x for x in pool if x["set_code"].upper() == prefer]
+        # Atomic Empire reports set_code as the full set NAME, not a 3-letter code,
+        # so accept an exact (case-insensitive) match OR the preference appearing as
+        # a substring of the listing's set name ("Neon Dynasty" in "Kamigawa: Neon
+        # Dynasty"). Substring is one-directional to avoid a short code spuriously
+        # matching an unrelated name.
+        prefer = prefer_set.strip().upper()
+        in_set = [
+            x
+            for x in pool
+            if prefer == x["set_code"].upper() or prefer in x["set_code"].upper()
+        ]
         if in_set:
             pool = in_set
 

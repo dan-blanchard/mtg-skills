@@ -29,7 +29,7 @@ from mtg_utils._deck_forge.signals import (
 )
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils._name_index import NameIndex
-from mtg_utils.card_classify import is_commander, valid_partner_search
+from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.format_config import FORMAT_CONFIGS
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -121,7 +121,7 @@ def active_slot(state: ForgeState) -> str:
 
 
 def _is_basic(record: dict | None) -> bool:
-    return bool(record) and "Basic Land" in (record.get("type_line") or "")
+    return record is not None and is_basic_land(record)
 
 
 def owned_quantities(state: ForgeState) -> dict[str, int]:

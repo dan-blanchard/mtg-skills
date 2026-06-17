@@ -24,7 +24,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "commander_matters",
         "scope": "you",
         "is_widen_of": "",
-        "regex": "commanders? you (?:control|own) (?:have|has|get|gets|gain|gains)|commander creatures? you (?:own|control)|whenever your commander\\b|whenever a commander\\b|your commander (?:has|have|deals|enters|attacks|gets|gains)|is your commander|it'?s your commander|while [^.]*your commander|it's a copy of your other commander|copy of any of your commanders|each commander you (?:control|own)|for each commander|commander damage|champions? of",
+        # No trailing "|champions? of": CR 702.72a defines the champion KEYWORD as
+        # "Champion an [object]", never "champion of" — that branch only over-fired on
+        # the name fragment. partner_background already covers the real commander variants.
+        "regex": "commanders? you (?:control|own) (?:have|has|get|gets|gain|gains)|commander creatures? you (?:own|control)|whenever your commander\\b|whenever a commander\\b|your commander (?:has|have|deals|enters|attacks|gets|gains)|is your commander|it'?s your commander|while [^.]*your commander|it's a copy of your other commander|copy of any of your commanders|each commander you (?:control|own)|for each commander|commander damage",
     },
     {
         "key": "variable_pt",
@@ -205,7 +208,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "opponent_counter_grant",
         "scope": "opponents",
         "is_widen_of": "",
-        "regex": "put a (?:bounty|stun|[a-z]+) counter on target (?:creature|permanent) (?:an opponent controls|that opponent controls)|target creature an opponent controls[^.]*it has \\\"|creatures with [^.]*counters on them can't attack|put a [^.]*counter on target creature you don't control",
+        # This lane is for DETRIMENTAL marks-to-punish (bounty/stun). The open `[a-z]+`
+        # and the trailing "put a <any> counter on a creature you don't control" also
+        # caught BENEFICIAL +1/+1 grants to opponents' creatures — the wrong direction —
+        # so they were removed.
+        "regex": "put a (?:bounty|stun) counter on target (?:creature|permanent) (?:an opponent controls|that opponent controls)|target creature an opponent controls[^.]*it has \\\"|creatures with [^.]*counters on them can't attack",
     },
     {
         "key": "counter_place_trigger",
@@ -549,7 +556,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "key": "base_pt_set",
         "scope": "any",
         "is_widen_of": "",
-        "regex": "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]* in addition to its other types|base power and toughness are each equal to|switch (?:each |target )?creature'?s'? power and toughness|switch [^.]{0,40}power and toughness|base power and toughness of each [^.]*become",
+        "regex": "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]* in addition to its other types|switch (?:each |target )?creature'?s'? power and toughness|switch [^.]{0,40}power and toughness|base power and toughness of each [^.]*become",
     },
     {
         "key": "playtest_matters",
@@ -817,7 +824,7 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         # Its own avenue ("Impulse draw (top)") — no longer folded into cast-from-exile,
         # which is now the distinct cast/play-from-exile payoff lane.
         "is_widen_of": "",
-        "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|you may play those cards this turn|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled|you may look at (?:it )?and (?:play|cast)",
+        "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|top [^.]*card[^.]*of your library\\.?[^.]*you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled|you may look at (?:it )?and (?:play|cast)",
     },
     {
         # Extra upkeep STEPS (Obeka, The Ninth Doctor) — each added upkeep step is

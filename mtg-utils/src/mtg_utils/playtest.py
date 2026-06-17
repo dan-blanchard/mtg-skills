@@ -116,9 +116,18 @@ def _resolve_manifest_from_stated(
 
 
 def _card_pips(card: dict) -> dict[str, int]:
-    """Count colored pips per color for a card."""
+    """Count colored pips per color for a card.
+
+    Transform / modal-DFC layouts carry no top-level ``mana_cost`` (Scryfall puts
+    it on ``card_faces`` while top-level ``cmc`` reflects the front face), so fall
+    back to the front face's cost — otherwise those cards register zero pips and
+    color-screw under-reports for MDFC-heavy pools.
+    """
+    mana = card.get("mana_cost") or ""
+    if not mana and card.get("card_faces"):
+        mana = card["card_faces"][0].get("mana_cost") or ""
     pips: dict[str, int] = defaultdict(int)
-    for match in _PIP_PATTERN.finditer(card.get("mana_cost") or ""):
+    for match in _PIP_PATTERN.finditer(mana):
         pips[match.group(1)] += 1
     return dict(pips)
 
@@ -272,6 +281,10 @@ def _simulate_game(
     rough ~1-mana/turn source rather than simulating their creation triggers
     (deaths/attacks/upkeep) and one-shot sacrifice — see _mana_ability_profile.
     Token ramp is thus captured roughly, not precisely.
+
+    Play/draw: the goldfish is always modeled on the draw — it draws a card on
+    every turn including turn 1. (Changing that would shift curve/screw output and
+    is a deliberate decision, not made here.)
     """
     indices = _build_indexed_deck(hydrated)
     rng.shuffle(indices)

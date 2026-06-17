@@ -121,6 +121,26 @@ def is_creature(card: dict) -> bool:
     return "Creature" in _classifying_type_line(card)
 
 
+def is_basic_land(card: dict) -> bool:
+    """A basic land, including Snow basics: a land whose type line says 'Basic'.
+
+    The ``is_land`` guard keeps a non-land card that merely mentions "basic" in
+    its text from matching. Centralizes the basic-land test that had drifted into
+    three incompatible private helpers (legality_audit, tuner swaps, deck-forge).
+    """
+    return is_land(card) and "basic" in (card.get("type_line") or "").lower()
+
+
+def card_pt_int(card: dict, field: str = "power") -> int:
+    """A creature's printed power/toughness as an int, defaulting non-numeric
+    values (``*``, ``X``, missing) to 0. Centralizes the parse that had been
+    reimplemented in the gauntlet builder, tuner metrics, and signal specs."""
+    try:
+        return int(str(card.get(field) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 # Reminder text (always parenthetical) describes a TOKEN's ability, not the card's own
 # — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
 # though it produces no mana for you.
@@ -151,7 +171,14 @@ _OPPONENT_DIRECTED = (
 
 
 def is_ramp(card: dict) -> bool:
-    """Check if a non-land card produces mana or fetches lands."""
+    """Check if a non-land card produces mana or fetches lands.
+
+    Note: mana-token makers (Treasure/Gold/Powerstone) are detected only via the
+    token's "Add … mana" reminder text (the second ``_ADD_MANA_RE`` branch below).
+    A printing that omits that reminder text is not counted as ramp here — counting
+    raw "create a Treasure" would also sweep in one-shot value tokens, so widening
+    it is a deliberate policy choice, not made here.
+    """
     if is_land(card):
         return False
 

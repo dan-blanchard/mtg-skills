@@ -19,12 +19,18 @@ from typing import TYPE_CHECKING, Literal
 from bs4 import BeautifulSoup, Tag
 
 from mtg_utils._stores._common import (
+    PRICE_RE as _SINGLE_PRICE_RE,
+)
+from mtg_utils._stores._common import (
     AddToCartResult,
     Listing,
     SearchPrefs,
     StoreSelectorError,
     attr_str,
     name_matches,
+)
+from mtg_utils._stores._common import (
+    money as _money,
 )
 
 if TYPE_CHECKING:
@@ -34,7 +40,6 @@ if TYPE_CHECKING:
 _BASE_URL = "https://the-gathering-place.mybigcommerce.com"
 
 _PRICE_RANGE_RE = re.compile(r"\$([\d,]+\.\d{2})\s*-\s*\$([\d,]+\.\d{2})")
-_SINGLE_PRICE_RE = re.compile(r"\$([\d,]+\.\d{2})")
 _PARENS_RE = re.compile(r"\s*\(([^()]*)\)")
 _AVAIL_RE = re.compile(r"available\s+(\d+)", re.IGNORECASE)
 
@@ -74,10 +79,6 @@ def _parse_data_name(data_name: str) -> tuple[str, str, bool]:
         if not set_code:
             set_code = cleaned
     return name, set_code, foil
-
-
-def _money(text: str) -> float:
-    return float(text.replace(",", ""))
 
 
 class _TGPAdapter:

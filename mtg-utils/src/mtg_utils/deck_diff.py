@@ -50,7 +50,7 @@ def _compute_stats(
         if is_land(card):
             land_count += qty
         else:
-            cmc = card.get("cmc", 0.0)
+            cmc = float(card.get("cmc") or 0)
             nonland_cmcs.extend([cmc] * qty)
 
         if is_ramp(card):

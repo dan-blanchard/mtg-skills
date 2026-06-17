@@ -66,14 +66,16 @@ def edhrec_lookup(commanders: list[str]) -> dict:
 
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
+    try:
+        resp = session.get(url)
 
-    resp = session.get(url)
+        if resp.status_code == 404:
+            return {v: [] for v in CARDLIST_TAGS.values()}
 
-    if resp.status_code == 404:
-        return {v: [] for v in CARDLIST_TAGS.values()}
-
-    resp.raise_for_status()
-    data = resp.json()
+        resp.raise_for_status()
+        data = resp.json()
+    finally:
+        session.close()
 
     cardlists = data.get("container", {}).get("json_dict", {}).get("cardlists", [])
 

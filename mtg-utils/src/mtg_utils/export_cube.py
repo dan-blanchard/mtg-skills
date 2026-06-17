@@ -45,7 +45,11 @@ def _card_to_csv_row(entry: dict) -> dict:
         "name": entry["name"],
         "CMC": entry.get("cube_cmc", "") or "",
         "Type": "",
-        "Color": entry.get("cube_color", "") or "",
+        # Leave the mana-color "Color" column empty so CubeCobra recomputes it from
+        # Scryfall on import (like Type/Set/Rarity). cube_color is CubeCobra's
+        # colorCategory OVERRIDE and belongs only in "Color Category" — writing it to
+        # both columns corrupted the card's actual colors with the category value.
+        "Color": "",
         "Set": "",
         "Collector Number": "",
         "Rarity": "",

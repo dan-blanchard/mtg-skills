@@ -540,6 +540,14 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.delete("/api/builds/{build_id}")
     async def delete_build(build_id: str) -> dict:
         deleted = state.store.delete(build_id) if state.store is not None else False
+        if deleted and build_id == state.build_id:
+            # The live build's file was just deleted. Reset to a fresh build so the
+            # next mutation's _autosave doesn't silently re-create the deleted id.
+            state.session = DeckSession(state.session.format)
+            state.build_id = uuid.uuid4().hex[:8]
+            state.build_name = "Untitled"
+            _reset_runtime_lanes(state)
+            _autosave(state)
         return {
             "deleted": deleted,
             "current": state.build_id,

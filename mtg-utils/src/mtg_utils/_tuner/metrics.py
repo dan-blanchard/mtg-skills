@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from mtg_utils._deck_forge.budgets import protects
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
+from mtg_utils.card_classify import card_pt_int, is_creature
 from mtg_utils.theme_presets import get_preset
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
@@ -69,17 +70,6 @@ def _matches(card: dict, preset: str) -> bool:
 
 def _scaled(value: int, deck_size: int) -> int:
     return round(value * deck_size / 100)
-
-
-def _is_creature(card: dict) -> bool:
-    return "creature" in (card.get("type_line") or "").lower()
-
-
-def _power(card: dict) -> int:
-    try:
-        return int(card.get("power", 0))
-    except (TypeError, ValueError):
-        return 0
 
 
 # ── Efficiency ────────────────────────────────────────────────────────────────
@@ -300,7 +290,7 @@ def _is_wincon_card(card: dict) -> bool:
     text = card.get("oracle_text") or ""
     if any(p.search(text) for p in _WINCON_PATTERNS):
         return True
-    if _is_creature(card) and _power(card) >= 6:
+    if is_creature(card) and card_pt_int(card) >= 6:
         low = text.lower()
         return any(e in low for e in _EVASION)
     return False

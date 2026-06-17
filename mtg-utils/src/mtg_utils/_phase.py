@@ -17,8 +17,6 @@ from pathlib import Path
 PHASE_TAG = "v0.1.19"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
-KNOWN_BINARIES = ("ai-duel", "ai-commander")
-
 
 class PhaseNotInstalledError(RuntimeError):
     """Raised when the phase binary cannot be located."""

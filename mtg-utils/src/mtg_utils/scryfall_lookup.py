@@ -150,15 +150,18 @@ def _extract_fields(card: dict) -> dict:
 def _api_lookup(name: str) -> dict | None:
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
+    try:
+        time.sleep(RATE_LIMIT_DELAY)
+        resp = session.get(SCRYFALL_NAMED_URL, params={"fuzzy": name})
 
-    time.sleep(RATE_LIMIT_DELAY)
-    resp = session.get(SCRYFALL_NAMED_URL, params={"fuzzy": name})
+        if resp.status_code == 404:
+            return None
 
-    if resp.status_code == 404:
-        return None
-
-    resp.raise_for_status()
-    return _extract_fields(resp.json())
+        resp.raise_for_status()
+        return _extract_fields(resp.json())
+    finally:
+        # Close so a batch lookup (one call per name) doesn't leak pooled sockets.
+        session.close()
 
 
 def lookup_single(

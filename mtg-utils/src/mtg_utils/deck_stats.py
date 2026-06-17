@@ -167,7 +167,7 @@ def deck_stats(hd: HydratedDeck) -> dict:
         if is_land(card):
             land_count += qty
         else:
-            cmc = card.get("cmc", 0.0)
+            cmc = float(card.get("cmc") or 0)
             nonland_cmcs.extend([cmc] * qty)
             curve[int(cmc)] += qty
 
@@ -195,7 +195,7 @@ def deck_stats(hd: HydratedDeck) -> dict:
             alternative_cost_cards.append(
                 {
                     "name": entry["name"],
-                    "cmc": card.get("cmc", 0.0),
+                    "cmc": float(card.get("cmc") or 0),
                     "alt_costs": alt_costs,
                 }
             )
@@ -225,7 +225,7 @@ def _add_sideboard_stats(result: dict, hd: HydratedDeck) -> None:
         qty = entry.get("quantity", 1)
         sb_total += qty
         if card is not None and not is_land(card):
-            cmc = card.get("cmc", 0.0)
+            cmc = float(card.get("cmc") or 0)
             sb_curve[int(cmc)] += qty
     result["sideboard_total"] = sb_total
     result["sideboard_curve"] = dict(sorted(sb_curve.items()))

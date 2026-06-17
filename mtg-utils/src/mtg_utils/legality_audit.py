@@ -30,6 +30,7 @@ from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     build_card_lookup,
     has_any_number_exemption,
+    is_basic_land,
     named_card_cap,
 )
 from mtg_utils.format_config import get_format_config
@@ -74,10 +75,6 @@ _REASON_TO_CR_RULES: dict[str, tuple[str, ...]] = {
 _COLORED_BASIC_SUBTYPES = frozenset({"Plains", "Island", "Swamp", "Mountain", "Forest"})
 
 _LEGAL_STATUSES = frozenset({"legal", "restricted"})
-
-
-def _is_basic_land(card: dict) -> bool:
-    return "Basic" in (card.get("type_line") or "")
 
 
 def _basic_subtype(card: dict) -> str | None:
@@ -306,7 +303,7 @@ def check_copy_limits(
         if card is None:
             continue
 
-        if _is_basic_land(card):
+        if is_basic_land(card):
             continue
 
         if has_any_number_exemption(card):

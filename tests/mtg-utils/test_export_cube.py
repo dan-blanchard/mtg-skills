@@ -38,8 +38,12 @@ class TestExportCSV:
         cube = {"cards": [{"name": "Lightning Bolt", "quantity": 1, "cube_color": "R"}]}
         output = export_csv(cube)
         rows = list(csv.DictReader(io.StringIO(output)))
+        # cube_color is CubeCobra's colorCategory OVERRIDE, so it belongs only in the
+        # "Color Category" column. The mana-color "Color" column is left empty so
+        # CubeCobra recomputes it from Scryfall on import (like Type/Set/Rarity) —
+        # writing the category there would corrupt non-mana categories (Lands, etc.).
         assert rows[0]["Color Category"] == "R"
-        assert rows[0]["Color"] == "R"
+        assert rows[0]["Color"] == ""
 
 
 class TestExportText:

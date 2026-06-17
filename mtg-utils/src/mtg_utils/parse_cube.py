@@ -418,12 +418,17 @@ def main(
     emit_json: bool,
 ) -> None:
     """Parse a cube list file into canonical cube JSON."""
-    result = parse_cube(
-        cube_path,
-        cube_format=cube_format,
-        target_size=target_size,
-        name=cube_name,
-    )
+    try:
+        result = parse_cube(
+            cube_path,
+            cube_format=cube_format,
+            target_size=target_size,
+            name=cube_name,
+        )
+    except json.JSONDecodeError as exc:
+        # A .json file is format-detected as cube_json and parsed unguarded; a
+        # malformed one should surface as a clean CLI error, not a traceback.
+        raise click.ClickException(f"{cube_path} is not valid JSON: {exc}") from exc
 
     payload = json.dumps(result, indent=2)
 

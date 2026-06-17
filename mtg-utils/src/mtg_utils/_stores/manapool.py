@@ -27,11 +27,17 @@ from typing import TYPE_CHECKING, Literal
 from bs4 import BeautifulSoup
 
 from mtg_utils._stores._common import (
+    PRICE_RE as _PRICE_RE,
+)
+from mtg_utils._stores._common import (
     CartNotEmptyError,
     Line,
     Listing,
     OptimizedCart,
     StoreSelectorError,
+)
+from mtg_utils._stores._common import (
+    money as _money,
 )
 
 if TYPE_CHECKING:
@@ -40,12 +46,7 @@ if TYPE_CHECKING:
 
 _BASE_URL = "https://manapool.com"
 
-_PRICE_RE = re.compile(r"\$([\d,]+\.\d{2})")
 _OPTIMIZE_BTN_RE = re.compile(r"Optimize \d+ items?")
-
-
-def _money(text: str) -> float:
-    return float(text.replace(",", "").replace("$", ""))
 
 
 def _parse_optimizer_alternatives(html: str) -> list[dict]:

@@ -124,7 +124,12 @@ def walk_cards(
         for entry in section:
             name = entry.get("name") or ""
             raw_qty = entry.get("quantity")
-            base_qty = 1 if raw_qty is None else int(raw_qty)
+            try:
+                base_qty = 1 if raw_qty is None else int(raw_qty)
+            except (TypeError, ValueError):
+                # One malformed quantity ("2.0", a stray dict) degrades to 1 rather
+                # than aborting the whole walk (mirrors mark_owned._collect_entries).
+                base_qty = 1
             qty = base_qty * copies
             if name and qty > 0:
                 out.append((name, qty))

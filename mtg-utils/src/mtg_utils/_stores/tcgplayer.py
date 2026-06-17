@@ -28,11 +28,17 @@ from typing import TYPE_CHECKING, Literal
 from bs4 import BeautifulSoup
 
 from mtg_utils._stores._common import (
+    PRICE_RE as _PRICE_RE,
+)
+from mtg_utils._stores._common import (
     CartNotEmptyError,
     Line,
     Listing,
     OptimizedCart,
     StoreSelectorError,
+)
+from mtg_utils._stores._common import (
+    money as _money,
 )
 
 if TYPE_CHECKING:
@@ -41,12 +47,7 @@ if TYPE_CHECKING:
 
 _BASE_URL = "https://www.tcgplayer.com"
 
-_PRICE_RE = re.compile(r"\$([\d,]+\.\d{2})")
 _PACKAGES_RE = re.compile(r"Packages\s*\n\s*(\d+)", re.IGNORECASE)
-
-
-def _money(text: str) -> float:
-    return float(text.replace(",", "").replace("$", ""))
 
 
 def _parse_optimizer_alternatives(html: str) -> list[dict]:
@@ -112,15 +113,19 @@ def _extract_after_label(window: list[str], label: str) -> int | None:
 
 def _extract_money_after_label(window: list[str], label: str) -> float | None:
     for i, line in enumerate(window):
-        if label in line:
-            # The money may be on the same line or the next line.
-            same_line = _PRICE_RE.search(line)
-            if same_line:
-                return _money(same_line.group(1))
-            if i + 1 < len(window):
-                m = _PRICE_RE.search(window[i + 1])
-                if m:
-                    return _money(m.group(1))
+        stripped = line.strip()
+        # Match the label as a whole token, not a bare substring: a label of
+        # "Shipping" must not match a "Free Shipping" node. The money may be on
+        # this line or the next.
+        if stripped != label and not stripped.startswith((label + " ", label + ":")):
+            continue
+        same_line = _PRICE_RE.search(line)
+        if same_line:
+            return _money(same_line.group(1))
+        if i + 1 < len(window):
+            m = _PRICE_RE.search(window[i + 1])
+            if m:
+                return _money(m.group(1))
     return None
 
 

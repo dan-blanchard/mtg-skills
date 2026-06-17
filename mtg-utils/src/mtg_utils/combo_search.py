@@ -187,11 +187,17 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
         missing_cards = [c for c in entry["cards"] if c not in all_card_names]
         # Unmet generic requirements — only checkable with hydrated deck data; without
         # it we fall back to the cards-only count (legacy behavior).
+        # A template needs ``quantity`` distinct matching cards (e.g. "two creatures
+        # with power 4+"); counting matches — not a bare boolean — keeps a combo that
+        # has only one of the two required pieces from registering as satisfied.
         unmet_templates = (
             [
                 t
                 for t in entry["templates"]
-                if not _template_satisfied(t["query"], deck_records)
+                if sum(
+                    1 for c in deck_records if c and _card_matches_query(c, t["query"])
+                )
+                < t.get("quantity", 1)
             ]
             if deck_records is not None
             else []

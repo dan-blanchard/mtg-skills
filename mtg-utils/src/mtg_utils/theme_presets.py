@@ -1559,9 +1559,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="goad",
         description=(
-            "Forces a creature to attack each combat — and to attack a "
-            "player other than its controller. Strong multiplayer "
-            "politics mechanic."
+            "Forces a creature to attack each combat if able, and to attack a "
+            "player OTHER THAN the one who goaded it (the goader) — not merely "
+            "other than its own controller. So goading an opponent's creature "
+            "steers it at your other opponents, not you. Multiplayer politics "
+            "mechanic (CR 701.15)."
         ),
         keywords=("Goad",),
         should_match=("Disrupt Decorum",),

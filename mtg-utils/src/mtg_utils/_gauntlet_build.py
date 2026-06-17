@@ -28,7 +28,12 @@ import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from mtg_utils.card_classify import is_land
+from mtg_utils.card_classify import (
+    card_pt_int,
+    color_identity_subset,
+    is_creature,
+    is_land,
+)
 
 _COUNTER_PATTERN = re.compile(r"counter target ", re.IGNORECASE)
 _DESTROY_PATTERN = re.compile(r"destroy target |exile target ", re.IGNORECASE)
@@ -36,24 +41,9 @@ _DRAW_PATTERN = re.compile(r"draw (a card|two cards|three cards)", re.IGNORECASE
 _REACH_PATTERN = re.compile(r"deals \d+ damage", re.IGNORECASE)
 
 
-def _is_creature(card: dict) -> bool:
-    return "creature" in (card.get("type_line") or "").lower()
-
-
-def _power_int(card: dict) -> int:
-    p = card.get("power")
-    if p is None:
-        return 0
-    try:
-        return int(p)
-    except (TypeError, ValueError):
-        return 0
-
-
 def _on_color(card: dict, colors: set[str]) -> bool:
     """A card is on-color iff its color identity is a subset of ``colors``."""
-    ci = set(card.get("color_identity") or [])
-    return ci.issubset(colors)
+    return color_identity_subset(card.get("color_identity") or [], colors)
 
 
 def infer_archetype_colors(
@@ -104,8 +94,8 @@ def infer_curve_target(
     Counts CMC for each on-color card matching any matcher. Buckets CMC
     1..``max_cmc_bucket`` (anything ≥ ``max_cmc_bucket`` lumps into the
     top bucket). Normalizes the resulting distribution to sum to
-    ``nonland_target`` (deck_size minus lands), rounded down with the
-    biggest bucket absorbing rounding remainder.
+    ``nonland_target`` (deck_size minus lands) by largest-remainder
+    apportionment, so it always sums exactly and never collapses to empty.
 
     Falls back to a generic midrange curve (``{2: 5, 3: 7, 4: 6, 5: 4,
     6: 1}``) when no cards match — better to keep building than to fail.
@@ -125,18 +115,22 @@ def infer_curve_target(
     total_raw = sum(raw_counts.values())
     if total_raw == 0:
         return {2: 5, 3: 7, 4: 6, 5: 4, 6: 1}  # generic midrange fallback
-    target: dict[int, int] = {}
-    used = 0
-    for bucket, count in raw_counts.items():
-        slot = round(count / total_raw * nonland_target)
-        if slot > 0:
-            target[bucket] = slot
-            used += slot
-    drift = nonland_target - used
-    if drift != 0 and target:
-        biggest = max(target, key=lambda b: target[b])
-        target[biggest] = max(1, target[biggest] + drift)
-    return target
+    # Largest-remainder (Hamilton) apportionment: floor each share, then hand the
+    # leftover slots to the largest fractional remainders. Unlike per-bucket
+    # round(), this always sums to exactly nonland_target and never collapses to {}
+    # when every share rounds below 1 (e.g. a flat distribution + small target).
+    exact = {b: c / total_raw * nonland_target for b, c in raw_counts.items() if c > 0}
+    target: dict[int, int] = {b: int(v) for b, v in exact.items()}
+    remaining = nonland_target - sum(target.values())
+    order = sorted(
+        exact, key=lambda b: (exact[b] - int(exact[b]), exact[b]), reverse=True
+    )
+    i = 0
+    while remaining > 0 and order:
+        target[order[i % len(order)]] += 1
+        remaining -= 1
+        i += 1
+    return {b: n for b, n in target.items() if n > 0}
 
 
 def score_card(
@@ -182,12 +176,12 @@ def score_card(
 
     cmc = card.get("cmc") or 0
     text = (card.get("oracle_text") or "").lower()
-    power = _power_int(card)
+    power = card_pt_int(card)
 
     if shape == "aggro":
-        if _is_creature(card) and power >= 2 and cmc <= 2:
+        if is_creature(card) and power >= 2 and cmc <= 2:
             score += 5.0
-        if _is_creature(card) and cmc <= 3:
+        if is_creature(card) and cmc <= 3:
             score += 1.5
         if _REACH_PATTERN.search(text):
             score += 2.5
@@ -201,7 +195,7 @@ def score_card(
             score += 3.0
         score -= max(0, 3 - cmc) * 0.5  # de-prioritize one-drops
     elif shape == "midrange":
-        if _is_creature(card) and 2 <= cmc <= 4:
+        if is_creature(card) and 2 <= cmc <= 4:
             score += 3.0 + 0.5 * power
         if _DESTROY_PATTERN.search(text):
             score += 2.0

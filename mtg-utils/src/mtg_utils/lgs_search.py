@@ -59,18 +59,26 @@ def _read_text_list(path: Path) -> list[NeededCard]:
 def _read_deck_json(path: Path) -> list[NeededCard]:
     data = json.loads(path.read_text(encoding="utf-8"))
     cards: dict[str, int] = {}
-    for entry in data.get("commanders") or []:
-        # parse-deck emits [{"name", "quantity"}]; tolerate bare strings too.
+
+    def _add(entry: object) -> None:
+        # parse-deck emits [{"name", "quantity"}]; tolerate bare strings, and skip
+        # entries with no name, so one malformed row doesn't abort the whole read.
         if isinstance(entry, str):
             cards[entry] = cards.get(entry, 0) + 1
-        else:
-            name = entry["name"]
-            qty = int(entry.get("quantity", entry.get("qty", 1)))
-            cards[name] = cards.get(name, 0) + qty
-    for entry in (data.get("cards") or []) + (data.get("sideboard") or []):
-        name = entry["name"]
-        qty = int(entry.get("quantity", entry.get("qty", 1)))
+            return
+        if not isinstance(entry, dict):
+            return
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            return
+        raw_qty = entry.get("quantity", entry.get("qty", 1))
+        qty = int(raw_qty) if isinstance(raw_qty, (int, str)) else 1
         cards[name] = cards.get(name, 0) + qty
+
+    for entry in data.get("commanders") or []:
+        _add(entry)
+    for entry in (data.get("cards") or []) + (data.get("sideboard") or []):
+        _add(entry)
     return [NeededCard(card_name=n, qty=q) for n, q in cards.items()]
 
 

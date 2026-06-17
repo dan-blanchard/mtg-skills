@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS, SWEEP_LABELS
-from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_classify import card_pt_int, get_oracle_text
 
 if TYPE_CHECKING:
     from mtg_utils._deck_forge.signals import Signal
@@ -259,17 +259,13 @@ def _max_color_pips(mana_cost: str) -> int:
 
 
 def _power(card: dict) -> int:
-    try:
-        return int(str(card.get("power", "0")))
-    except ValueError:
-        return 0  # */X or non-numeric power doesn't count toward a power threshold
+    # */X or non-numeric power doesn't count toward a power threshold.
+    return card_pt_int(card, "power")
 
 
 def _toughness(card: dict) -> int:
-    try:
-        return int(str(card.get("toughness", "0")))
-    except ValueError:
-        return 0  # */X or non-numeric toughness doesn't count toward a threshold
+    # */X or non-numeric toughness doesn't count toward a threshold.
+    return card_pt_int(card, "toughness")
 
 
 _ARTICLES_NAME = frozenset({"the", "a", "an", "of", "and"})

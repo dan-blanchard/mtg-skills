@@ -23,6 +23,9 @@ from typing import TYPE_CHECKING, Literal
 from bs4 import BeautifulSoup, Tag
 
 from mtg_utils._stores._common import (
+    PRICE_RE as _PRICE_RE,
+)
+from mtg_utils._stores._common import (
     AddToCartResult,
     Listing,
     SearchPrefs,
@@ -30,14 +33,15 @@ from mtg_utils._stores._common import (
     attr_str,
     name_matches,
 )
+from mtg_utils._stores._common import (
+    money as _money,
+)
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
 
 _BASE_URL = "https://www.atomicempire.com"
-
-_PRICE_RE = re.compile(r"\$([\d,]+\.\d{2})")
 
 # AE labels conditions as compound ranges (e.g. "SP/NM" = Slightly Played to
 # Near Mint). The buyer typically receives the BETTER end of the range.
@@ -79,10 +83,6 @@ def _parse_title(title: str) -> tuple[str, bool, bool]:
     # Strip trailing parenthetical (set or variant marker)
     cleaned = re.sub(r"\s*\([^()]*\)\s*$", "", cleaned).strip()
     return cleaned, foil, etched
-
-
-def _money(text: str) -> float:
-    return float(text.replace(",", ""))
 
 
 class _AtomicEmpireAdapter:

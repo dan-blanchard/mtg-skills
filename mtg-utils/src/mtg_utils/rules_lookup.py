@@ -496,9 +496,10 @@ def grep_rules(
     """Regex-search rule text. Returns up to ``limit`` matches.
 
     Each match is ``{"number": ..., "kind": ..., "snippet": ...}`` where
-    ``snippet`` is the matching line with ~60 chars of surrounding
-    context. Category titles are searched too, so ``--grep "Turn
-    Structure"`` hits the section-5 category list.
+    ``snippet`` is a ~40-char window on each side of the first match within the
+    rule (one snippet per rule; fetch the rule by number for its full text).
+    Category titles are searched too, so ``--grep "Turn Structure"`` hits the
+    section-5 category list.
     """
     try:
         regex = re.compile(pattern, flags)

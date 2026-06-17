@@ -237,8 +237,11 @@ def render_text_report(sim: dict) -> str:
 @click.option("--seed", type=int, default=0, show_default=True)
 @click.option(
     "--pack-size",
-    type=click.Choice(["9", "11", "15"]),
-    default="15",
+    # Any int: a cube's pack_templates can define a custom size via
+    # cube_config.get_pack_templates, and pack_simulate() already raises a
+    # UsageError (listing the available sizes) for an unknown one.
+    type=int,
+    default=15,
     show_default=True,
 )
 @click.option(
@@ -271,7 +274,7 @@ def main(
     cube_path: Path,
     hydrated_path: Path,
     seed: int,
-    pack_size: str,
+    pack_size: int,
     draft_count: int,
     commander_pack_size: int,
     output_path: Path | None,
@@ -287,7 +290,7 @@ def main(
     result = pack_simulate(
         cube,
         hydrated,
-        pack_size=int(pack_size),
+        pack_size=pack_size,
         seed=seed,
         drafts=draft_count,
         commander_pack_size=commander_pack_size,

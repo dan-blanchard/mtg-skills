@@ -122,7 +122,7 @@ def score_candidate(
     return {
         "synergy_fit": len(unique),
         "served": unique,
-        "cmc": card.get("cmc", 0.0),
+        "cmc": card.get("cmc") or 0.0,
         "price": extract_price(card),
         "roles": sorted(role_of(card)),
         "color_widening": _color_widening(card, widening_base),

@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from mtg_utils._tuner.classify import CardClass
+from mtg_utils.card_classify import is_creature
 
 SHAPES = ("aggro", "midrange", "control", "combo")
 
@@ -23,10 +24,6 @@ class ShapeResult:
     scores: dict[str, float]
     evidence: list[dict]  # [{label, cards}] — count text + the cards behind it
     inferred: bool  # False when the user overrode the inference
-
-
-def _is_creature(card: dict) -> bool:
-    return "creature" in (card.get("type_line") or "").lower()
 
 
 def infer_shape(
@@ -43,7 +40,7 @@ def infer_shape(
     """
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
     n = max(1, len(nonland))
-    creature_cards = [c.name for c in nonland if _is_creature(c.record)]
+    creature_cards = [c.name for c in nonland if is_creature(c.record)]
     interaction_cards = [c.name for c in nonland if "interaction" in c.roles]
     draw_cards = [c.name for c in nonland if "card_draw" in c.roles]
     low_drops = sum(1 for c in nonland if c.cmc <= 2.0)

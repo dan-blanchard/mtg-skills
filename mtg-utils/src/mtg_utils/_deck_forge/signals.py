@@ -49,7 +49,7 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
-from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
 from mtg_utils.theme_presets import get_preset
 
 
@@ -315,8 +315,8 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ("forced_attack", _re(r"didn't attack this turn|that attacked this turn"), "you"),
     # Rewards-for-attacking-opponents (Gahiji, Frontier Warmonger): a creature that
     # attacks "one of your opponents" earns a buff. Goad forces opponents' creatures to
-    # attack a player other than their controller — one of your OTHER opponents — which
-    # fires the reward (CR 701.39). So such a commander wants goad effects.
+    # attack a player other than the goader (you) — i.e. one of your OTHER opponents —
+    # which fires the reward (CR 701.15b). So such a commander wants goad effects.
     (
         "goad_matters",
         _re(r"attacks? one of your opponents|attacks? a player other than you"),
@@ -985,7 +985,7 @@ class Detector:
 # don't misfire. Hand-written source stays as (key, compiled-pattern, scope) tuples;
 # the assembly below adapts both these and the mined sweep into Detector records.
 _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
-    # Goad archetype (CR 701.39): two commander shapes that want goad cards (Disrupt
+    # Goad archetype (CR 701.15): two commander shapes that want goad cards (Disrupt
     # Decorum) but carry no goad KEYWORD, so the keyword preset misses them. (1) FORCING
     # OTHER creatures to attack — "target/another target/each other creature ... attacks
     # ... if able" (Basandra, Thantis) is the goad mechanic itself. (2) Rewarding ANY
@@ -1010,11 +1010,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
     # A commander that rewards a creature whose "power [is] greater than its base power"
     # (Kutzil, Baird) is a pump / +1/+1-counters payoff — the only way a creature's
-    # power exceeds its BASE power is a counter or a pump. Open counters_matter so +1/+1
-    # counter sources (Forgotten Ancient, Hardened Scales) surface. Niche: only two
-    # commander-legal cards carry the phrase, so precision is near-total.
+    # power exceeds its BASE power is a counter or a pump (CR 613.4c puts BOTH in
+    # layer 7c). Open counters_matter (so +1/+1 sources like Forgotten Ancient /
+    # Hardened Scales surface) AND modified_matters (so pumps / Auras / Equipment that
+    # also satisfy "power > base" surface). Niche: only two commander-legal cards carry
+    # the phrase, so precision is near-total.
     (
         "counters_matter",
+        re.compile(r"power greater than its base power", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "modified_matters",
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
@@ -2540,7 +2547,9 @@ _DIRECT_KEYWORD_SIGNALS = {
     # +1/+1-counter keyword abilities: a commander with one is a counters deck (Exava=
     # Unleash, Indoraptor=Bloodthirst, Cytoplast=Graft). Mirrors the counters SERVE set.
     "undying": ("counters_matter", "any"),
-    "persist": ("counters_matter", "any"),
+    # Persist returns with a -1/-1 counter (CR 702.79a), so it wants the -1/-1 serve
+    # set, not the +1/+1-centric counters_matter. (Undying/graft are genuinely +1/+1.)
+    "persist": ("minus_counters_matter", "you"),
     "graft": ("counters_matter", "any"),
     "riot": ("counters_matter", "any"),
     "bloodthirst": ("counters_matter", "any"),
@@ -2785,11 +2794,7 @@ def _voltron_double_strike_beater(card: dict, text: str) -> bool:
     kws = {k.lower() for k in (card.get("keywords") or [])}
     if "double strike" not in kws:
         return False
-    try:
-        power = int(str(card.get("power", "0")))
-    except ValueError:
-        return False
-    return power >= 4 and not _VOLTRON_TOKEN_MAKE_RE.search(text)
+    return card_pt_int(card) >= 4 and not _VOLTRON_TOKEN_MAKE_RE.search(text)
 
 
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
@@ -3565,8 +3570,7 @@ def extract_signals(
         add("cheat_into_play", "you", "", text[:160])
     # Active reanimation is the reanimator archetype only on a CREATURE (a commander);
     # reanimation spells/Auras stay enablers the avenue finds (_ACTIVE_REANIMATION_RE).
-    _is_creature = "creature" in (card.get("type_line") or "").lower()
-    if _is_creature and _ACTIVE_REANIMATION_RE.search(text):
+    if is_creature(card) and _ACTIVE_REANIMATION_RE.search(text):
         add("reanimator", "you", "", text[:160])
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
@@ -3639,10 +3643,7 @@ def extract_signals(
         and s.key not in _VOLTRON_COMPAT_KEYS
         for s in out
     )
-    try:
-        power = int(str(card.get("power", "0")))
-    except ValueError:
-        power = 0
+    power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
     # Hexproof / indestructible / shroud creatures are PRIME voltron targets — un-
     # removable beaters you safely suit up (Sigarda, Uril, Geist of Saint Traft) — so

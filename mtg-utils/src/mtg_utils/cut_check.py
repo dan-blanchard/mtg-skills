@@ -96,7 +96,10 @@ def _try_parse_value(sentence: str, opponents: int) -> str | None:
         md = _DAMAGE_N_RE.search(sentence)
         if md:
             return md.group(1)
-        return "equal to damage"
+        # "gain life equal to" with no copyable damage value in the sentence is NOT
+        # a parseable multipliable value — return None so the caller reports
+        # parseable=False, rather than the literal string "equal to damage".
+        return None
 
     # Life N
     m = _LIFE_N_RE.search(sentence)

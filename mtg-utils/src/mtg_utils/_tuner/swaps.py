@@ -16,7 +16,13 @@ from mtg_utils._deck_forge.budgets import role_of
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
-from mtg_utils.card_classify import extract_price, get_oracle_text, is_land, is_ramp
+from mtg_utils.card_classify import (
+    extract_price,
+    get_oracle_text,
+    is_basic_land,
+    is_land,
+    is_ramp,
+)
 
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
 _UNPLAYED = 10**9
@@ -151,10 +157,6 @@ def cut_candidates(
 _WC_TIERS: tuple[str, ...] = ("mythic", "rare", "uncommon", "common")
 
 
-def _is_basic_land(record: dict) -> bool:
-    return "basic" in (record.get("type_line") or "").lower() and is_land(record)
-
-
 class _UsdLedger:
     """Paper acquisition budget: a single USD pool. Owned = free; a no-listing card is
     never free (treated as scarce); ``budget is None`` is the owned-only pass."""
@@ -201,7 +203,7 @@ class _WildcardLedger:
     def acquire_cost(self, record: dict, owned: Mapping[str, int]) -> float | None:
         """0.0 when the card is craftable within the remaining wildcard budget for its
         rarity (or free: owned / basic), else None. Read-only — commit charges."""
-        if owned.get(record.get("name", ""), 0) >= 1 or _is_basic_land(record):
+        if owned.get(record.get("name", ""), 0) >= 1 or is_basic_land(record):
             return 0.0
         rarity = record.get("rarity")
         if rarity not in self.remaining or self.remaining[rarity] <= 0:
@@ -209,7 +211,7 @@ class _WildcardLedger:
         return 0.0
 
     def charge(self, record: dict, owned: Mapping[str, int], cost: float) -> None:
-        if owned.get(record.get("name", ""), 0) >= 1 or _is_basic_land(record):
+        if owned.get(record.get("name", ""), 0) >= 1 or is_basic_land(record):
             return
         rarity = record.get("rarity")
         if rarity in self.remaining:
