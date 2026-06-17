@@ -65,6 +65,25 @@ def get_oracle_text(card: dict) -> str:
     return oracle
 
 
+def get_mana_cost(card: dict) -> str:
+    """Get the displayable mana cost, falling back to ``card_faces`` for DFCs.
+
+    Transform / flip cards (and many MDFCs) carry an empty — or absent, hence
+    ``None`` — top-level ``mana_cost``; the real cost lives on the front face,
+    while the back of a transform card has none. Return the first face with a
+    non-empty cost so a transform Saga shows its front cost and a land-front MDFC
+    still finds the spell side. Single cost only (no " // " join) so the existing
+    symbol renderer needs no separator handling."""
+    cost = card.get("mana_cost") or ""
+    if cost:
+        return cost
+    for face in card.get("card_faces") or []:
+        face_cost = face.get("mana_cost") or ""
+        if face_cost:
+            return face_cost
+    return ""
+
+
 def extract_price(card: dict | None) -> float | None:
     """Extract USD price from a card dict, preferring usd over usd_foil."""
     if card is None:

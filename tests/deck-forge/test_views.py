@@ -21,6 +21,37 @@ FOREST = {
     "oracle_text": "({T}: Add {G}.)",
     "layout": "normal",
 }
+# A transform DFC (Saga -> creature): the top-level mana_cost is absent and
+# oracle_text empty — both live on card_faces, with the back face costless.
+RISE_OF_SOZIN = {
+    "name": "The Rise of Sozin // Fire Lord Sozin",
+    "layout": "transform",
+    "cmc": 6.0,
+    "color_identity": ["B", "R"],
+    "card_faces": [
+        {
+            "name": "The Rise of Sozin",
+            "mana_cost": "{4}{B}{B}",
+            "type_line": "Enchantment — Saga",
+            "oracle_text": "Draw a card.",
+        },
+        {
+            "name": "Fire Lord Sozin",
+            "mana_cost": "",
+            "type_line": "Legendary Creature — Human Noble",
+            "oracle_text": "Haste",
+        },
+    ],
+}
+
+
+def test_project_folds_dfc_mana_cost_and_oracle_from_faces():
+    p = views.project(RISE_OF_SOZIN, "commander")
+    # front-face cost surfaces (back face is costless), not the empty/absent top level
+    assert p["mana_cost"] == "{4}{B}{B}"
+    # both faces' oracle text folds in (was blank for DFCs before)
+    assert "Draw a card." in p["oracle_text"]
+    assert "Haste" in p["oracle_text"]
 
 
 def test_project_is_atomic_with_commander_and_layout():

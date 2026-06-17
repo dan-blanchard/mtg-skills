@@ -14,7 +14,7 @@ from collections.abc import Callable, Mapping
 
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
-from mtg_utils.card_classify import is_commander
+from mtg_utils.card_classify import get_mana_cost, get_oracle_text, is_commander
 
 VALID_ZONES = ("commanders", "cards", "sideboard")
 
@@ -40,10 +40,13 @@ def project(record: dict, fmt: str) -> dict:
     card can be a commander in brawl but not commander, and vice versa)."""
     return {
         "type_line": record.get("type_line", ""),
-        "mana_cost": record.get("mana_cost", ""),
+        # DFCs (transform/flip, many MDFCs) leave the top-level mana_cost/oracle_text
+        # empty (or absent → None) and carry the real values on card_faces; fold them
+        # in so the SPA renders a cost and oracle line instead of blanks.
+        "mana_cost": get_mana_cost(record),
         "cmc": record.get("cmc", 0.0),
         "color_identity": record.get("color_identity", []),
-        "oracle_text": record.get("oracle_text", ""),
+        "oracle_text": get_oracle_text(record),
         "rarity": record.get("rarity", ""),
         "prices": record.get("prices", {}),
         "images": image_urls(record),
