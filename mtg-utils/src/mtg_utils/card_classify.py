@@ -54,13 +54,31 @@ _WORD_TO_INT = {
 }
 
 
+def _terminate_face(text: str) -> str:
+    """Ensure a DFC face's oracle ends with sentence punctuation. A single-face effect
+    must not be 'completed' by text on the OTHER side of the card, but the folded text
+    joins faces, so a sentence-scoped regex (``[^.]*`` and friends) could otherwise
+    bridge the ``// `` boundary — e.g. 'flying' on one face + 'create a token' on the
+    other reading as 'creates flying tokens'. A trailing period is the hard stop
+    ``[^.]*`` respects. Most faces already end in one; keyword-only faces ('Flying',
+    'Daybound') don't, so add it."""
+    stripped = text.rstrip()
+    if stripped and not stripped.endswith((".", "!", '"', ")", "”")):
+        return stripped + "."
+    return text
+
+
 def get_oracle_text(card: dict) -> str:
-    """Get oracle text, falling back to joined card_faces for MDFCs/split cards."""
+    """Get oracle text, falling back to joined card_faces for DFCs/split cards. Each
+    face is sentence-terminated first (see ``_terminate_face``) so a ``[^.]*`` regex
+    can't bridge two faces of the joined text."""
     oracle = card.get("oracle_text") or ""
     if not oracle:
         faces = card.get("card_faces", [])
         oracle = "\n// \n".join(
-            f.get("oracle_text", "") for f in faces if f.get("oracle_text")
+            _terminate_face(f.get("oracle_text", ""))
+            for f in faces
+            if f.get("oracle_text")
         )
     return oracle
 

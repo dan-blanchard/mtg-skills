@@ -60,7 +60,10 @@ def _partner_with_target(oracle: str) -> str | None:
     match = _PARTNER_WITH_RE.search(oracle)
     if not match:
         return None
-    return match.group(1).strip()
+    # A partner name never ends in a period; drop a trailing one (DFC faces are
+    # sentence-terminated when folded, so a face ending "...Partner with X" gains a
+    # period that must not become part of the captured name).
+    return match.group(1).strip().removesuffix(".").strip() or None
 
 
 def _has_background_clause(oracle: str) -> bool:

@@ -6,6 +6,7 @@ from mtg_utils.card_classify import (
     build_card_lookup,
     classify_cube_category,
     color_sources,
+    get_oracle_text,
     is_commander,
     is_creature,
     is_land,
@@ -97,6 +98,49 @@ class TestIsCreature:
             ],
         }
         assert is_creature(card) is True
+
+
+class TestGetOracleTextFaceBoundary:
+    """A sentence-scoped regex must NOT bridge two DFC faces of the folded oracle —
+    a single-face effect can't be 'completed' by the other side of the card."""
+
+    def test_keyword_only_face_is_period_terminated(self):
+        # face0 ("Flying") has no trailing period, so `flying[^.]*token` could otherwise
+        # bridge into face1's "create a token" and read as "makes flying tokens".
+        card = {
+            "layout": "transform",
+            "card_faces": [
+                {"oracle_text": "Flying"},
+                {"oracle_text": "Create a 1/1 white Soldier creature token."},
+            ],
+        }
+        folded = get_oracle_text(card)
+        assert re.search(r"flying[^.]*token", folded, re.IGNORECASE) is None
+
+    def test_face_already_ending_in_period_is_unchanged(self):
+        card = {
+            "layout": "transform",
+            "card_faces": [
+                {"oracle_text": "This creature has flying."},
+                {"oracle_text": "Create a 1/1 token."},
+            ],
+        }
+        # no doubled period, and the bridge is still blocked
+        folded = get_oracle_text(card)
+        assert ".." not in folded
+        assert re.search(r"flying[^.]*token", folded, re.IGNORECASE) is None
+
+    def test_within_face_match_still_works(self):
+        # The fix must NOT break a local match: a back-face land that taps for mana is
+        # still detectable within its own face (Dan: back-face lands should still count).
+        card = {
+            "layout": "transform",
+            "card_faces": [
+                {"oracle_text": "Draw a card"},
+                {"oracle_text": "{T}: Add {G} for each Dinosaur you control."},
+            ],
+        }
+        assert "Add {G}" in get_oracle_text(card)
 
 
 class TestIsRamp:
