@@ -134,6 +134,13 @@
   function colorAllowed(c) {
     return !colorLocked || c === "C" || identityColors.has(c);
   }
+  // The off-identity pips to LOCK, as a reactive value Svelte tracks — the `disabled` /
+  // `locked` template bindings read this so they update when the commander changes. A
+  // bare `colorAllowed(c)` call in the template isn't tracked (Svelte can't trace reactive
+  // deps through a function call), so `disabled` wouldn't react to the deck loading.
+  $: lockedColors = new Set(
+    colorLocked ? PIPS.filter((c) => c !== "C" && !identityColors.has(c)) : [],
+  );
   // Prune any selected pip that falls outside a freshly-locked identity, so a stale
   // off-color selection can't silently keep filtering (and can't be un-clicked once
   // disabled).
@@ -236,9 +243,9 @@
               type="button"
               class="pip"
               class:on={colors.has(c)}
-              class:locked={!colorAllowed(c)}
-              disabled={!colorAllowed(c)}
-              title={!colorAllowed(c)
+              class:locked={lockedColors.has(c)}
+              disabled={lockedColors.has(c)}
+              title={lockedColors.has(c)
                 ? `${c} is outside your commander's color identity`
                 : c === "C"
                   ? "Colorless"
