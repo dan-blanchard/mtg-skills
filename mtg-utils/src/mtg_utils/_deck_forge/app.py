@@ -15,7 +15,7 @@ import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from fastapi import FastAPI, Response
+from fastapi import BackgroundTasks, FastAPI, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -600,6 +600,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.post("/api/collection/import", response_model=None)
     async def collection_import(
         payload: ImportCollectionPayload,
+        background: BackgroundTasks,
     ) -> dict | JSONResponse:
         """Import a Collection into a slot (paper | arena), parsed IN-PROCESS (pure
         compute — `parse_deck_text`, no LLM/API key; ADR-0017). Ownership is then
@@ -617,6 +618,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         engine.set_collection(state, payload.slot, pile)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
+        # Warm the discovery caches for the just-imported slot in the background:
+        # Starlette runs sync background tasks in the threadpool, so the ~65s cold cost
+        # is paid there (off the event loop), not by the user's first discover.
+        if state.bulk_available:
+            background.add_task(engine.warm_discovery_caches, state, payload.slot)
         return {
             "slot": payload.slot,
             "size": collection.slot_sizes(state.collections).get(payload.slot, 0),

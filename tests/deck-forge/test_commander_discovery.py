@@ -248,6 +248,35 @@ def test_lane_density_persists_to_a_bulk_keyed_sidecar(tmp_path):
     assert s3.lane_density == {}
 
 
+def test_warm_discovery_caches_persists_served_sets(tmp_path):
+    """Importing a collection warms BOTH sidecars in the background, so the user never
+    pays the cold discovery cost. ``warm_discovery_caches`` writes them; a fresh state
+    then seeds the served-name cache from the CONTENT-ADDRESSED sidecar (which keys by the
+    collection's exact owned-name set, so multiple collections each stay warm)."""
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]", encoding="utf-8")
+
+    s1 = _state()
+    s1.bulk_path = bulk
+    coll = engine._resolved_collection(s1, "paper")
+    engine.warm_discovery_caches(s1, "paper")
+    assert engine._density_sidecar_path(s1).exists()
+    served_path = engine._served_sidecar_path(s1, coll)
+    assert served_path is not None
+    assert served_path.exists()
+    assert s1.lane_collection_serves["paper"]  # served sets were computed
+
+    # A fresh state on the same bulk + same collection seeds the served cache from disk.
+    s2 = _state()
+    s2.bulk_path = bulk
+    engine._load_collection_serves(s2, "paper", coll)
+    assert s2.lane_collection_serves["paper"] == s1.lane_collection_serves["paper"]
+
+    # A DIFFERENT collection content → a different sidecar key (multi-collection support).
+    other_coll = coll[:1]
+    assert engine._served_sidecar_path(s2, other_coll) != served_path
+
+
 def test_unknown_theme_returns_400_not_500():
     # An unknown preset name is a clean 400 (like the slot/format guards), not an
     # opaque 500 from theme_presets.matches raising KeyError.

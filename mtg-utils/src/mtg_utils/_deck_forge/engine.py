@@ -268,10 +268,11 @@ def _resolve_record(state: ForgeState, name: str) -> dict | None:
     return state.by_name.get(name)
 
 
-def _resolved_collection(state: ForgeState) -> list[dict]:
-    """Every active-slot collection card resolved to a bulk record (un-resolvable names
-    dropped — we can't reason about cards we have no data for)."""
-    pile = state.collections.get(active_slot(state)) or {}
+def _resolved_collection(state: ForgeState, slot: str | None = None) -> list[dict]:
+    """Every collection card in ``slot`` (default: the active slot) resolved to a bulk
+    record (un-resolvable names dropped — no data, no reasoning). The explicit ``slot``
+    lets background warming target a just-imported slot that isn't the active one."""
+    pile = state.collections.get(slot or active_slot(state)) or {}
     out: dict[str, dict] = {}
     for section in ("commanders", "cards", "sideboard"):
         for entry in pile.get(section) or []:
@@ -383,6 +384,77 @@ def _save_lane_density(state: ForgeState) -> None:
     path = _density_sidecar_path(state)
     if path is not None:
         atomic_write_json(path, dict(state.lane_density))
+
+
+_SERVED_SIDECAR_PREFIX = "deck-forge-served"
+
+
+def _served_sidecar_path(state: ForgeState, coll: list[dict]) -> Path | None:
+    """Sidecar path for a collection's per-lane served-name sets, content-addressed by
+    the bulk fingerprint AND the collection's exact owned-name set. Each distinct
+    collection thus gets its own cache (so multiple collections each stay warm), and a
+    changed collection or bulk starts fresh (different key). ``None`` without bulk."""
+    if state.bulk_path is None:
+        return None
+    names = sorted(c.get("name", "") for c in coll)
+    return sha_keyed_path(_SERVED_SIDECAR_PREFIX, state.bulk_path, names)
+
+
+def _load_collection_serves(state: ForgeState, slot: str, coll: list[dict]) -> None:
+    """Seed ``slot``'s per-lane served-name cache from its content-addressed sidecar,
+    ONCE per (process, slot) — saving the ~10s collection scan on restart / switch.
+    In-memory presence is the 'loaded' flag; set/clear_collection clears it so a changed
+    collection re-seeds from ITS sidecar."""
+    if slot in state.lane_collection_serves:
+        return
+    cache: dict[str, frozenset[str]] = {}
+    state.lane_collection_serves[slot] = cache
+    path = _served_sidecar_path(state, coll)
+    if path is None or not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if isinstance(data, dict):
+        for k, names in data.items():
+            if isinstance(names, list):
+                cache[str(k)] = frozenset(str(n) for n in names)
+
+
+def _save_collection_serves(state: ForgeState, slot: str, coll: list[dict]) -> None:
+    """Persist ``slot``'s served-name sets to its content-addressed sidecar."""
+    path = _served_sidecar_path(state, coll)
+    if path is None:
+        return
+    cache = state.lane_collection_serves.get(slot) or {}
+    atomic_write_json(path, {k: sorted(v) for k, v in cache.items()})
+
+
+def warm_discovery_caches(state: ForgeState, slot: str) -> None:
+    """Compute + persist BOTH discovery caches (bulk-keyed lane density, and ``slot``'s
+    content-addressed served-name sets) WITHOUT ranking, so the next discover is fast.
+    Run in the background right after a collection import (see app.py), so the ~65s cold
+    cost is never paid at discover time. Heavy CPU — call off the event loop. A pure
+    read of state besides the caches it fills (idempotent)."""
+    coll = _resolved_collection(state, slot)
+    if not coll:
+        return
+    fmt = state.session.format
+    _load_lane_density(state)
+    _load_collection_serves(state, slot, coll)
+    density_before = len(state.lane_density)
+    served_before = len(state.lane_collection_serves.get(slot) or {})
+    for rec in coll:
+        if not is_commander(rec, fmt)["eligible"]:
+            continue
+        for _label, serve, key in _commander_lanes(rec):
+            _lane_density(state, key, serve)
+            _slot_lane_serves(state, slot, key, serve, coll)
+    if len(state.lane_density) > density_before:
+        _save_lane_density(state)
+    if len(state.lane_collection_serves.get(slot) or {}) > served_before:
+        _save_collection_serves(state, slot, coll)
 
 
 def _slot_lane_serves(
@@ -502,10 +574,13 @@ def discover_commanders(
     slot = active_slot(state)
     fmt = state.session.format
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
-    # Seed lane densities from the sidecar so this doesn't repeat the ~55s pool sweep on
-    # every server start. New lanes still compute lazily and are persisted at the end.
+    # Seed both discovery caches from their sidecars so this skips the ~55s pool sweep
+    # (density) and the ~10s collection scan (served sets). New lanes still compute
+    # lazily and persist at the end. (Imports warm these in the background already.)
     _load_lane_density(state)
+    _load_collection_serves(state, slot, coll)
     density_before = len(state.lane_density)
+    served_before = len(state.lane_collection_serves.get(slot) or {})
 
     results: list[dict] = []
     for rec in records:
@@ -547,6 +622,8 @@ def discover_commanders(
         )
     if len(state.lane_density) > density_before:
         _save_lane_density(state)  # new densities computed this call — persist them
+    if len(state.lane_collection_serves.get(slot) or {}) > served_before:
+        _save_collection_serves(state, slot, coll)  # new served sets — persist them
     return results[:limit]
 
 
