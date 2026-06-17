@@ -187,6 +187,36 @@ def test_support_is_collection_specific_not_lane_width():
     )
 
 
+def test_collection_change_invalidates_the_lane_serve_cache():
+    """Perf fix: discovery caches, per slot, the set of owned names serving each lane
+    (so support is a set intersection, not a per-commander regex scan). That cache MUST
+    be dropped when the slot's collection changes — else newly-owned support is invisible.
+
+    Goes empty→full: a stale (empty) served set would intersect to 0 even after the
+    lifegain cards are added, so a passing assert proves the cache was invalidated."""
+    client = _client()
+    # 1. paper slot = the two commanders only, no support → first discovery caches an
+    #    (empty) served set for the lifegain lane.
+    client.post(
+        "/api/collection/import",
+        json={"slot": "paper", "text": "1 Lifelord\n1 Tokenlord"},
+    )
+    bare = client.post("/api/commanders/discover", json={"sort": "support"}).json()
+    assert (
+        next(r for r in bare["results"] if r["name"] == "Lifelord")["support_depth"]
+        == 0
+    )
+    # 2. add the eight lifegain enablers; discovery must now see them (cache invalidated).
+    full_text = "1 Lifelord\n1 Tokenlord\n" + "\n".join(
+        f"1 Life Gift {i}" for i in range(8)
+    )
+    client.post("/api/collection/import", json={"slot": "paper", "text": full_text})
+    full = client.post("/api/commanders/discover", json={"sort": "support"}).json()
+    lifelord = next(r for r in full["results"] if r["name"] == "Lifelord")
+    assert lifelord["support_depth"] > 0  # stale empty cache would keep this 0
+    assert any(lane["label"] == "Lifegain" for lane in lifelord["lanes"])
+
+
 def test_unknown_theme_returns_400_not_500():
     # An unknown preset name is a clean 400 (like the slot/format guards), not an
     # opaque 500 from theme_presets.matches raising KeyError.

@@ -649,7 +649,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": f"unknown theme preset: {payload.theme!r}"}, status_code=400
             )
         slot = engine.active_slot(state)
-        results = engine.discover_commanders(
+        # discover_commanders is heavy CPU (scores every owned commander).
+        # Offload it to a worker thread so it never blocks the event loop;
+        # a blocking call here froze the whole hub for the run (~30s on a big
+        # collection). Same pattern as tune/goldfish. Pure read, thread-safe.
+        results = await run_in_threadpool(
+            engine.discover_commanders,
             state,
             sort=payload.sort,
             colors=payload.colors,
@@ -733,7 +738,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         ADR-0018)."""
         if not state.bulk_available:
             return _no_bulk()
-        page = engine.find_candidates(state, _find_params(payload))
+        # find_candidates scans/scores the bulk pool: modest (~0.3s) but enough
+        # to stutter the loop under rapid typing, so offload it too (same pattern).
+        page = await run_in_threadpool(
+            engine.find_candidates, state, _find_params(payload)
+        )
         fmt = state.session.format
         results = [
             views.candidate_view(

@@ -184,6 +184,7 @@ def set_collection(state: ForgeState, slot: str, pile: dict) -> None:
     state.collection_index[slot] = mark_owned.owned_lookup(
         pile, name_aliases=state.name_aliases or None
     )
+    state.lane_collection_serves.pop(slot, None)  # stale: the slot's cards changed
     if state.collection_store is not None:
         state.collection_store.save(state.collections)
 
@@ -192,6 +193,7 @@ def clear_collection(state: ForgeState, slot: str) -> None:
     """Drop a Collection slot (and its cached lookup), then persist."""
     state.collections.pop(slot, None)
     state.collection_index.pop(slot, None)
+    state.lane_collection_serves.pop(slot, None)  # stale: the slot's cards are gone
     if state.collection_store is not None:
         state.collection_store.save(state.collections)
 
@@ -340,23 +342,47 @@ def _lane_density(state: ForgeState, key: str, serve: Serve) -> float:
     return p
 
 
+def _slot_lane_serves(
+    state: ForgeState, slot: str, key: str, serve: Serve, coll: list[dict]
+) -> frozenset[str]:
+    """Owned card NAMES (in ``slot``'s collection) that serve a lane, cached per
+    (slot, key). Scanned ONCE per distinct lane, so support is a set intersection,
+    not a per-commander regex scan (the ~30s discovery hot path). Invalidated when
+    the slot's collection changes (``set_collection`` / ``clear_collection``)."""
+    cache = state.lane_collection_serves.setdefault(slot, {})
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    names = frozenset(c["name"] for c in coll if serve.matches(c))
+    cache[key] = names
+    return names
+
+
 def _support_depth(
-    state: ForgeState, record: dict, owned_in_identity: list[dict]
+    state: ForgeState,
+    record: dict,
+    in_names: set[str],
+    slot: str,
+    coll: list[dict],
 ) -> tuple[float, list, int]:
-    """Format-relative owned support (ADR-0018 / Q9 amended): sum over the commander's
-    text-opened lanes of ``own(L) * -log(p_L)``, where ``own(L)`` = in-identity owned
-    cards serving lane L and ``p_L`` = that lane's serve density in the legal pool. The
-    old within-collection IDF peaked at mid-breadth, so a merely-broad lane (artifacts)
-    always won; the pool-relative weight instead makes a distinctive lane you own deeply
-    outrank a broad one — it reflects the collection, not lane width. Returns
-    ``(score, per-lane breakdown, # supported lanes)``."""
-    if not owned_in_identity:
+    """Format-relative owned support (ADR-0018 / Q9 amended): sum over the
+    commander's text-opened lanes of ``own(L) * -log(p_L)``, where ``own(L)`` =
+    in-identity owned cards serving lane L and ``p_L`` = that lane's serve density in
+    the legal pool. The old within-collection IDF peaked at mid-breadth, so a
+    merely-broad lane (artifacts) always won; the pool-relative weight instead makes a
+    distinctive lane you own deeply outrank a broad one (reflects the collection, not
+    lane width).
+
+    ``own(L)`` counts the lane's served-names also in ``in_names`` (a set intersection
+    over the cached served-name set), so no regex runs per commander: the scan is once
+    per distinct lane. Returns ``(score, breakdown, # supported)``."""
+    if not in_names:
         return 0.0, [], 0
     score = 0.0
     breakdown: list[dict] = []
     supported = 0
     for label, serve, key in _commander_lanes(record):
-        k = sum(1 for c in owned_in_identity if serve.matches(c))
+        k = len(_slot_lane_serves(state, slot, key, serve, coll) & in_names)
         if k == 0:
             continue
         score += k * -math.log(_lane_density(state, key, serve))
@@ -430,6 +456,7 @@ def discover_commanders(
         records = [r for r in records if theme_presets.matches(theme, r)]
 
     coll = _resolved_collection(state)
+    slot = active_slot(state)
     fmt = state.session.format
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
 
@@ -439,14 +466,15 @@ def discover_commanders(
         # Support is OTHER owned cards that feed the commander's lanes — the commander
         # itself is the build's centerpiece, not its own support, so exclude it (and it
         # keeps the breadth denominator honest: a lane can't read as 100%-of-pool just
-        # because the commander matches its own lane).
-        in_identity = [
-            c
+        # because the commander matches its own lane). Names (not records): support is a
+        # set intersection against the per-lane served-name cache.
+        in_names = {
+            c["name"]
             for c in coll
             if c["name"] != rec["name"]
             and set(c.get("color_identity") or []) <= identity
-        ]
-        depth, lanes, supported = _support_depth(state, rec, in_identity)
+        }
+        depth, lanes, supported = _support_depth(state, rec, in_names, slot, coll)
         item = {
             "name": rec["name"],
             **views.project(rec, fmt),

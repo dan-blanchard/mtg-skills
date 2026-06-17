@@ -234,6 +234,13 @@ class ForgeState:
     # merely-broad one (artifacts), so "Most supported" reflects real depth.
     density_pool: list[dict] = field(default_factory=list)
     lane_density: dict[str, float] = field(default_factory=dict)
+    # Per-Collection-slot: lane-key → frozenset of owned card NAMES serving that lane.
+    # Computed once per distinct lane (not per commander-and-lane), so discovery
+    # scores via set intersection, not millions of per-card regex matches. Keyed by
+    # slot; invalidated when that slot's collection changes (set/clear_collection).
+    lane_collection_serves: dict[str, dict[str, frozenset[str]]] = field(
+        default_factory=dict
+    )
     # Printing selection (picking a set/art for a card). ``printings_by_oracle`` maps a
     # card's oracle_id → every legal printing's record (for the picker list);
     # ``printing_by_id`` maps a Scryfall printing id → its record (to resolve a chosen
