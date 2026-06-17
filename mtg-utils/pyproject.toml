@@ -71,7 +71,7 @@ testpaths = ["../tests/mtg-utils"]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.2",
+    "pytest>=9.0.3",
     "ruff>=0.9",
     # deck-forge's server deps live in deck-forge/pyproject.toml, but the server
     # module (deck_forge_server / _deck_forge) is in this shared package — so the
