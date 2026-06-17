@@ -124,9 +124,35 @@ class TestCoverageGate:
 
     def test_loads_supported_set(self, phase_card_data):
         names = _phase.load_supported_card_names()
-        assert "Mountain" in names
-        assert "Lightning Bolt" in names
-        assert "Goblin Guide" in names
+        # Supported names are lowercased for case-insensitive matching.
+        assert "mountain" in names
+        assert "lightning bolt" in names
+        assert "goblin guide" in names
+
+    def test_loads_flat_schema(self, monkeypatch, tmp_path):
+        # phase v0.1.19 ships card-data.json as a flat {lowercased-name: record}
+        # dict, NOT {"cards": [...]}. Reading data.get("cards", []) against it
+        # returned an empty set, marking every card unsupported.
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        public = tmp_path / "phase" / "phase.git" / "client" / "public"
+        public.mkdir(parents=True)
+        public.joinpath("card-data.json").write_text(
+            json.dumps(
+                {
+                    "sol ring": {"name": "Sol Ring"},
+                    "lightning bolt": {"name": "Lightning Bolt"},
+                }
+            )
+        )
+        _phase.load_supported_card_names.cache_clear()
+        names = _phase.load_supported_card_names()
+        assert "sol ring" in names
+        assert "lightning bolt" in names
+        # Proper-case deck input still resolves against the lowercased set.
+        report = _phase.coverage_report(["Sol Ring", "Lightning Bolt"])
+        assert report["status"] == "full"
+        assert report["supported_pct"] == 1.0
+        _phase.load_supported_card_names.cache_clear()
 
     def test_coverage_full(self, phase_card_data):
         report = _phase.coverage_report(["Mountain", "Lightning Bolt"])

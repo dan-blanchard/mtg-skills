@@ -141,14 +141,32 @@ def _card_data_path() -> Path:
 
 @lru_cache(maxsize=1)
 def load_supported_card_names() -> frozenset[str]:
-    """Load the set of card names phase implements (cached)."""
+    """Load the set of card names phase implements, lowercased for case-insensitive
+    matching (cached).
+
+    phase v0.1.19 ships ``card-data.json`` as a flat ``{name: record}`` dict (keys
+    are phase-normalized, lowercased); older builds used ``{"cards": [{"name": ...}]}``.
+    Handle both. We key off each record's proper-case ``name`` and lowercase it here
+    (and lowercase the deck side in ``coverage_report``) so both sides use the same
+    ``str.lower()`` — reading ``data.get("cards", [])`` against the flat schema
+    returned an empty set, silently marking every card unsupported.
+    """
     path = _card_data_path()
     if not path.exists():
         raise PhaseNotInstalledError(
             f"phase card-data.json not found at {path}. Run `playtest-install-phase`.",
         )
     data = json.loads(path.read_text())
-    return frozenset(c["name"] for c in data.get("cards", []))
+    if isinstance(data, dict) and isinstance(data.get("cards"), list):
+        raw = [c.get("name", "") for c in data["cards"]]  # legacy {"cards": [...]}
+    elif isinstance(data, dict):
+        raw = [  # flat {name: record} — prefer the record's proper name, else the key
+            rec["name"] if isinstance(rec, dict) and rec.get("name") else key
+            for key, rec in data.items()
+        ]
+    else:
+        raw = [c.get("name", "") for c in data]
+    return frozenset(n.lower() for n in raw if n)
 
 
 def coverage_report(
@@ -164,7 +182,9 @@ def coverage_report(
     """
     supported = load_supported_card_names()
     requested_set = set(card_names)
-    missing = sorted(requested_set - supported)
+    # Compare case-insensitively (supported names are lowercased) but keep the
+    # original casing in ``missing`` for the user-facing warning.
+    missing = sorted(n for n in requested_set if n.lower() not in supported)
     matched = len(requested_set) - len(missing)
     pct = matched / len(requested_set) if requested_set else 1.0
 
