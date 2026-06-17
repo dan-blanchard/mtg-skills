@@ -5759,6 +5759,11 @@ def test_tribal_enabler_vs_payoff_and_restricted_list():
         ex = spec_for(sig).extras[0]  # the "{s} payoffs" sub-avenue
         return (ex.serve or serve_from_dict(ex.search)).matches(card)
 
+    def enabler_serves(card, sig):
+        ex = spec_for(sig).extras[1]  # the "{s} enablers" sub-avenue
+        assert ex.label.endswith("enablers")
+        return (ex.serve or serve_from_dict(ex.search)).matches(card)
+
     xenograft = {
         "name": "Xenograft",
         "type_line": "Enchantment",
@@ -5781,9 +5786,30 @@ def test_tribal_enabler_vs_payoff_and_restricted_list():
         "\nCreatures you control of the chosen type get +1/+1 for each charge counter on "
         "Door of Destinies.",
     }
+    maskwood = {  # board-wide "every creature type" granter — a real enabler
+        "name": "Maskwood Nexus",
+        "type_line": "Artifact",
+        "oracle_text": "Creatures you control are every creature type. The same is true "
+        "for creature spells you control and creature cards you own that aren't on the "
+        "battlefield.\n{3}, {T}: Create a 2/2 colorless Shapeshifter creature token with "
+        "changeling.",
+    }
+    changeling = {  # a lone changeling IS every creature type, but it's a MEMBER body,
+        "name": "Woodland Changeling",  # not an enabler that converts your OTHER creatures
+        "type_line": "Creature — Shapeshifter",
+        "keywords": ["Changeling"],
+        "oracle_text": "Changeling (This card is every creature type.)",
+    }
     # Enabler: surfaced by the lane (enabler sub-avenue) but NOT as a payoff.
     assert _lane_covers(xenograft, scarecrow) is True
+    assert enabler_serves(xenograft, scarecrow) is True
     assert payoff_serves(xenograft, scarecrow) is False
+    # Board-wide "every creature type" granter is an enabler for any tribe.
+    assert enabler_serves(maskwood, scarecrow) is True
+    # A lone changeling is a tribe MEMBER (bodies lane), NOT an enabler — its "this card
+    # is every creature type" reminder must not flood the enabler lane.
+    assert enabler_serves(changeling, scarecrow) is False
+    assert _lane_covers(changeling, scarecrow) is True  # still a Scarecrow body
     # Restricted payoff: a named tribe (Goblin) counts; an unlisted one (Scarecrow) does
     # not — and has no Scarecrow hook at all.
     assert payoff_serves(dawn, goblin) is True

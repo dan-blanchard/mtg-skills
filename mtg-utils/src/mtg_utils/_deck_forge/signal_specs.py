@@ -4111,10 +4111,16 @@ _SUBJECT_TEMPLATES = {
 }
 
 
-# Type-GRANT phrasing: "creatures you control ARE the chosen type / every creature type"
-# (Xenograft, Arcane Adaptation). These GRANT the tribe — enablers, not payoffs or
-# members — so the bodies/payoff serves veto them and _enabler_extra surfaces them (B1).
-_ENABLER_GRANT = r"(?:is|are) (?:the chosen type|every creature type)"
+# Type-GRANT phrasing (B1). _GRANT_VETO (broad) drops any type-grant from the payoff
+# lane. _ENABLER_GRANT (tight) requires a GROUP subject ("creatures you control ... are
+# the chosen type"), so board-wide granters (Xenograft, Arcane Adaptation, Maskwood
+# Nexus, Leyline of Transformation) count as enablers, but a lone CHANGELING ("this card
+# is every creature type") does not — it's a tribe member, surfaced by the bodies lane.
+_GRANT_VETO = r"(?:is|are) (?:the chosen type|every creature type)"
+_ENABLER_GRANT = (
+    r"(?:creature|permanent)s? you control[^.]*?"
+    r"(?:is|are) (?:the chosen type|every creature type)"
+)
 
 
 def _payoff_extra(subj: str, esc: str) -> SubAvenue:
@@ -4140,7 +4146,7 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
         {"oracle": positive},
         serve=Serve(
             oracle=re.compile(positive, _IC),
-            not_oracle=re.compile(_ENABLER_GRANT, _IC),
+            not_oracle=re.compile(_GRANT_VETO, _IC),
         ),
     )
 
