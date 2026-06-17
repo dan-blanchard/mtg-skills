@@ -17,6 +17,7 @@
   import { isDigital } from "../lib/store.js";
   import Mana from "./Mana.svelte";
   import ManaCost from "./ManaCost.svelte";
+  import OracleText from "./OracleText.svelte";
   export let card;
   export let onadd;
   export let score = null;
@@ -77,7 +78,9 @@
           {/if}
           <span class="typetail">{card.type_line}</span>
         </div>
-        {#if oracle}<div class="oracle">{oracle}</div>{/if}
+        {#if oracle}
+          <div class="oracle"><OracleText text={oracle} size="0.82rem" /></div>
+        {/if}
       {:else if hasSynergy}
         <div class="synergy" title={served.join(", ")}>
           <span class="spark">✦ {score.synergy_fit}</span>

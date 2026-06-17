@@ -1,6 +1,7 @@
 <script>
   import { hovered } from "../lib/store.js";
   import { displayName } from "../lib/cards.js";
+  import OracleText from "./OracleText.svelte";
 
   // Single-face popup dimensions, enlarged 50% over the old 244×340 so the rules
   // text in the card image is legible. (FH/FW == the MTG card aspect ratio.)
@@ -73,7 +74,12 @@
         <div class="tl">
           {card.type_line}{card.mana_cost ? " · " + card.mana_cost : ""}
         </div>
-        <div class="ot">{card.oracle_text || "—"}</div>
+        <div class="ot">
+          {#if card.oracle_text}<OracleText
+              text={card.oracle_text}
+              size="0.9rem"
+            />{:else}—{/if}
+        </div>
       </div>
     {/if}
   </div>

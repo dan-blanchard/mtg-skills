@@ -2,6 +2,7 @@
   import { api } from "../lib/api.js";
   import { applySnapshot } from "../lib/store.js";
   import CardTile from "./CardTile.svelte";
+  import OracleText from "./OracleText.svelte";
 
   let combos = [];
   let nearMisses = [];
@@ -78,10 +79,14 @@
               </div>
 
               {#if c.description}
-                <div class="how">{c.description}</div>
+                <div class="how">
+                  <OracleText text={c.description} size="0.82rem" />
+                </div>
               {/if}
               {#if c.mana_needed}
-                <div class="mana">Mana: {c.mana_needed}</div>
+                <div class="mana">
+                  Mana: <OracleText text={c.mana_needed} size="0.85rem" />
+                </div>
               {/if}
 
               <!-- Have / need as Find's dense list rows: a combo's full art tiles
