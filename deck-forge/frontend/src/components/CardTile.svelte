@@ -320,6 +320,11 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0;
+    /* Without this, .body's automatic min-width (auto) lets the nowrap oracle in
+       .main blow it past the tile, pushing .side (mana/price + buttons) off the
+       clipped right edge. min-width:0 lets the row shrink to the tile so .main
+       ellipsizes and .side stays visible. */
+    min-width: 0;
   }
   .dense .main {
     display: flex;
