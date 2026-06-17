@@ -20,6 +20,22 @@
   const PIPS = ["W", "U", "B", "R", "G", "C"];
   const PAGE = 60;
 
+  // Result density: "list" is the compact row (default — fits ~4× the cards on
+  // screen); "grid" is the art-forward CardTile. Persisted so the choice sticks
+  // across sessions.
+  const VIEW_KEY = "forge.findView";
+  let view =
+    (typeof localStorage !== "undefined" && localStorage.getItem(VIEW_KEY)) ||
+    "list";
+  function setView(v) {
+    view = v;
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* private mode — fall back to in-memory only */
+    }
+  }
+
   // server filters
   let name = "";
   let nameInput; // bound <input> so the clear-✕ can refocus it
@@ -359,14 +375,32 @@
 
   {#if results.length}
     <div class="facetbar">
-      <FilterWidget
-        bind:facetType
-        bind:facetCmc
-        bind:facetPrice
-        bind:facetRarity
-        bind:facetOwned
-        digital={$isDigital}
-      />
+      <div class="facetfill">
+        <FilterWidget
+          bind:facetType
+          bind:facetCmc
+          bind:facetPrice
+          bind:facetRarity
+          bind:facetOwned
+          digital={$isDigital}
+        />
+      </div>
+      <div class="viewtoggle" role="group" aria-label="Result density">
+        <button
+          class="vt"
+          class:on={view === "list"}
+          title="Compact list"
+          aria-label="Compact list"
+          on:click={() => setView("list")}>☰</button
+        >
+        <button
+          class="vt"
+          class:on={view === "grid"}
+          title="Art grid"
+          aria-label="Art grid"
+          on:click={() => setView("grid")}>▦</button
+        >
+      </div>
     </div>
   {/if}
 
@@ -376,9 +410,18 @@
     {:else if loading}
       <div class="notice">Stoking the forge…</div>
     {:else if visible.length}
-      <div class="grid">
+      <!-- One keyed each-block for BOTH densities: toggling `view` only flips the
+           `dense` prop, so each card's component instance (and its remote-SVG <img>s)
+           persists — the layout reflows via CSS instead of being torn down and
+           refetched. The container class drives grid vs single-column flow. -->
+      <div class:grid={view === "grid"} class:list={view === "list"}>
         {#each visible as card (card.name)}
-          <CardTile {card} score={card.score} onadd={add} />
+          <CardTile
+            {card}
+            score={card.score}
+            onadd={add}
+            dense={view === "list"}
+          />
         {/each}
       </div>
       {#if hasMore}
@@ -746,9 +789,50 @@
     border-radius: 999px;
     padding: 0.05rem 0.5rem;
   }
-  /* facet chips now live in the shared FilterWidget (A4); just space its wrapper */
+  /* facet chips now live in the shared FilterWidget (A4); the density toggle sits
+     to its right on the same band */
   .facetbar {
     margin-top: 0.7rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+  .facetfill {
+    flex: 1;
+    min-width: 0;
+  }
+  .viewtoggle {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.2rem;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--hairline-soft);
+    border-radius: 999px;
+    padding: 0.12rem;
+  }
+  .vt {
+    width: 1.7rem;
+    height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1;
+    transition:
+      color 0.12s,
+      background 0.12s;
+  }
+  .vt:hover {
+    color: var(--brass-bright);
+  }
+  .vt.on {
+    color: var(--brass-bright);
+    background: rgba(200, 150, 75, 0.18);
   }
   .results {
     margin-top: 0.9rem;
@@ -759,6 +843,11 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 0.6rem;
+  }
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
   }
   .more {
     margin: 0.8rem auto 0;
