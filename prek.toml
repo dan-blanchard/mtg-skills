@@ -23,6 +23,12 @@
 [[repos]]
 repo = "local"
 hooks = [
+  # docformatter wraps/normalizes docstrings to the 88-col limit so ruff's E501 never
+  # trips on a long docstring (the recurring manual-rewrap chore). Local-only (not in CI,
+  # which only runs ruff) and runs on the STAGED src files, before ruff-format gets the
+  # final say — the docformatter↔ruff-format pair is a verified fixpoint. It does NOT touch
+  # `#` comments; those still need a short hand. uvx == unpinned, like ty.
+  { id = "docformatter", name = "docformatter (docstrings)", language = "system", entry = "uvx docformatter --in-place --wrap-summaries 88 --wrap-descriptions 88", types = ["python"], files = "^mtg-utils/src/" },
   { id = "ruff-check", name = "ruff check", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff check --fix src/ ../tests/'", pass_filenames = false, types = ["python"] },
   { id = "ruff-format", name = "ruff format", language = "system", entry = "bash -c 'cd mtg-utils && uv run ruff format src/ ../tests/'", pass_filenames = false, types = ["python"] },
   { id = "ty", name = "ty check", language = "system", entry = "bash -c 'cd mtg-utils && uvx ty check src/'", pass_filenames = false, types = ["python"] },
