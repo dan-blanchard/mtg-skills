@@ -131,12 +131,16 @@ def _api_price_lookup(name: str) -> float | None:
     """Fall back to Scryfall API for price when bulk data has null."""
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
-    time.sleep(RATE_LIMIT_DELAY)
-    resp = session.get(SCRYFALL_NAMED_URL, params={"fuzzy": name})
-    if resp.status_code == 404:
-        return None
-    resp.raise_for_status()
-    return extract_price(resp.json())
+    try:
+        time.sleep(RATE_LIMIT_DELAY)
+        resp = session.get(SCRYFALL_NAMED_URL, params={"fuzzy": name})
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return extract_price(resp.json())
+    finally:
+        # Close so the per-card price fallback doesn't leak pooled sockets.
+        session.close()
 
 
 def _check_arena_wildcards(

@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from types import ModuleType
 
+from mtg_utils.card_classify import count_color_pips
 from mtg_utils.card_classify import is_land as _is_land
 from mtg_utils.theme_presets import PRESETS
 from mtg_utils.theme_presets import matches as _preset_matches
@@ -53,23 +54,16 @@ _PEEK_PATTERN = re.compile(
 )
 _SCRY_PATTERN = re.compile(r"\bscry \d+\b", re.IGNORECASE)
 
-# Mana-cost pip extractor: matches each {W}/{U}/{B}/{R}/{G} symbol in a
-# Scryfall mana_cost string. Hybrid pips (e.g., {U/R}), Phyrexian pips
-# ({U/P}), and generic costs ({2}, {X}) are NOT counted as colored pips.
-_MANA_PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
-
 
 def parse_pip_counts(mana_cost: str) -> dict[str, int]:
     """Count colored pips per WUBRG color in a Scryfall mana_cost string.
 
     ``"{2}{U}{U}"`` → ``{"U": 2}``. ``"{X}{X}{B}{B}{B}{B}"`` → ``{"B": 4}``.
-    Pure-generic costs return an empty dict.
+    Pure-generic costs return an empty dict. Hybrid ({U/R}) and Phyrexian ({U/P})
+    pips are NOT counted as colored. Thin wrapper over the shared
+    ``card_classify.count_color_pips``.
     """
-    counts: dict[str, int] = {}
-    for match in _MANA_PIP_PATTERN.finditer(mana_cost or ""):
-        color = match.group(1)
-        counts[color] = counts.get(color, 0) + 1
-    return counts
+    return count_color_pips(mana_cost)
 
 
 def classify_library_effect(card: dict) -> LibraryEffect:

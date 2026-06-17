@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -13,13 +12,12 @@ import click
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     color_sources,
+    count_color_pips,
     is_land,
     is_ramp,
 )
 from mtg_utils.format_config import get_format_config
 from mtg_utils.hydrated_deck import HydratedDeck
-
-_PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
 # Constructed mana base constants (60-card formats)
 _CONSTRUCTED_BASELINE_LANDS = 24
@@ -108,9 +106,8 @@ def pip_demand(cards: list[dict]) -> dict[str, int]:
     """Count colored pips (W, U, B, R, G) across all card mana costs."""
     counts: dict[str, int] = {}
     for card in cards:
-        for match in _PIP_PATTERN.finditer(_mana_cost_for_pips(card)):
-            color = match.group(1)
-            counts[color] = counts.get(color, 0) + 1
+        for color, n in count_color_pips(_mana_cost_for_pips(card)).items():
+            counts[color] = counts.get(color, 0) + n
     return dict(sorted(counts.items()))
 
 

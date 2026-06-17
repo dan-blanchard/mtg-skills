@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.card_classify import is_land, is_ramp
+from mtg_utils.deck import accumulate_deck_metrics
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -37,27 +37,10 @@ def _compute_stats(
     name_qty: dict[str, int], by_name: Mapping[str, dict]
 ) -> tuple[int, float, int, int]:
     """Compute count, avg_cmc, land_count, ramp_count."""
-    total = sum(name_qty.values())
-    nonland_cmcs: list[float] = []
-    land_count = 0
-    ramp_count = 0
-
-    for name, qty in name_qty.items():
-        card = by_name.get(name)
-        if card is None:
-            continue
-
-        if is_land(card):
-            land_count += qty
-        else:
-            cmc = float(card.get("cmc") or 0)
-            nonland_cmcs.extend([cmc] * qty)
-
-        if is_ramp(card):
-            ramp_count += qty
-
-    avg_cmc = sum(nonland_cmcs) / len(nonland_cmcs) if nonland_cmcs else 0.0
-    return total, round(avg_cmc, 2), land_count, ramp_count
+    m = accumulate_deck_metrics(
+        (qty, by_name.get(name)) for name, qty in name_qty.items()
+    )
+    return m["total"], round(m["avg_cmc"], 2), m["land_count"], m["ramp_count"]
 
 
 def _diff_card_lists(

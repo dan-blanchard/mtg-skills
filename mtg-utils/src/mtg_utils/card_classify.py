@@ -141,6 +141,23 @@ def card_pt_int(card: dict, field: str = "power") -> int:
         return 0
 
 
+_COLOR_PIP_RE = re.compile(r"\{([WUBRG])\}")
+
+
+def count_color_pips(mana_cost: str) -> dict[str, int]:
+    """Count colored mana pips (W/U/B/R/G) in a mana-cost string.
+
+    The shared primitive behind every pip tally (mana_audit pip demand, the
+    goldfish color model, the custom-format classifier), which had reimplemented
+    the same ``{([WUBRG])}`` scan. Callers that need a card's faces (modal DFCs)
+    pick the cost string first, then pass it here.
+    """
+    out: dict[str, int] = {}
+    for m in _COLOR_PIP_RE.finditer(mana_cost or ""):
+        out[m.group(1)] = out.get(m.group(1), 0) + 1
+    return out
+
+
 # Reminder text (always parenthetical) describes a TOKEN's ability, not the card's own
 # — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
 # though it produces no mana for you.

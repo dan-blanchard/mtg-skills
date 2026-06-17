@@ -23,11 +23,9 @@ from mtg_utils._playtest_common import (
     render_goldfish_markdown,
     render_match_markdown,
 )
-from mtg_utils.card_classify import build_card_lookup, is_land
+from mtg_utils.card_classify import build_card_lookup, count_color_pips, is_land
 
 GOLDFISH_VERSION = "goldfish v1"
-
-_PIP_PATTERN = re.compile(r"\{([WUBRG])\}")
 
 
 def _build_indexed_deck(hydrated: list[dict]) -> list[int]:
@@ -126,10 +124,7 @@ def _card_pips(card: dict) -> dict[str, int]:
     mana = card.get("mana_cost") or ""
     if not mana and card.get("card_faces"):
         mana = card["card_faces"][0].get("mana_cost") or ""
-    pips: dict[str, int] = defaultdict(int)
-    for match in _PIP_PATTERN.finditer(mana):
-        pips[match.group(1)] += 1
-    return dict(pips)
+    return count_color_pips(mana)
 
 
 def _land_produces(card: dict) -> list[str]:

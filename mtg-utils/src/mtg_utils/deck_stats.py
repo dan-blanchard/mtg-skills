@@ -12,12 +12,10 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
-    color_sources,
     get_oracle_text,
-    is_creature,
     is_land,
-    is_ramp,
 )
+from mtg_utils.deck import accumulate_deck_metrics
 from mtg_utils.hydrated_deck import HydratedDeck
 
 ALTERNATIVE_COST_KEYWORDS = {
@@ -146,44 +144,20 @@ def detect_bracket(hydrated: Sequence[dict | None], avg_cmc: float) -> dict:
 
 def deck_stats(hd: HydratedDeck) -> dict:
     """Compute deck statistics from a HydratedDeck (deck + joined card records)."""
-    total_cards = 0
-    land_count = 0
-    creature_count = 0
-    ramp_count = 0
-    game_changer_count = 0
-    nonland_cmcs: list[float] = []
-    curve: Counter[int] = Counter()
-    sources: Counter[str] = Counter()
-
     # .entries pairs each deck entry with its record (or None) in one walk, so the
-    # deck-side quantity and the record can't desync.
+    # deck-side quantity and the record can't desync. Reused below for alt-costs.
     main_entries = hd.entries(zones=("commanders", "cards"))
-    for entry, card in main_entries:
-        qty = entry.get("quantity", 1)
-        total_cards += qty
-        if card is None:
-            continue
-
-        if is_land(card):
-            land_count += qty
-        else:
-            cmc = float(card.get("cmc") or 0)
-            nonland_cmcs.extend([cmc] * qty)
-            curve[int(cmc)] += qty
-
-        if is_creature(card):
-            creature_count += qty
-
-        if is_ramp(card):
-            ramp_count += qty
-
-        if card.get("game_changer"):
-            game_changer_count += qty
-
-        for color in color_sources(card):
-            sources[color] += qty
-
-    avg_cmc = sum(nonland_cmcs) / len(nonland_cmcs) if nonland_cmcs else 0.0
+    m = accumulate_deck_metrics(
+        (entry.get("quantity", 1), card) for entry, card in main_entries
+    )
+    total_cards = m["total"]
+    land_count = m["land_count"]
+    creature_count = m["creature_count"]
+    ramp_count = m["ramp_count"]
+    game_changer_count = m["game_changer_count"]
+    avg_cmc = m["avg_cmc"]
+    curve = m["curve"]
+    sources = m["color_sources"]
 
     # Detect alternative costs
     alternative_cost_cards: list[dict] = []

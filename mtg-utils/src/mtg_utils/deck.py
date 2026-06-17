@@ -21,15 +21,22 @@ themselves may be missing.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mtg_utils._name_index import NameIndex, build_name_index
 from mtg_utils.bulk_loader import load_bulk_cards
-from mtg_utils.card_classify import SKIP_LAYOUTS
+from mtg_utils.card_classify import (
+    SKIP_LAYOUTS,
+    color_sources,
+    is_creature,
+    is_land,
+    is_ramp,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
 
 # Card-type words used as fallback art keys after subtypes miss; also
@@ -219,3 +226,50 @@ def load_bulk_indexes(bulk_path: Path) -> tuple[NameIndex, dict[str, dict]]:
         prefilter=lambda card: card.get("layout") not in SKIP_LAYOUTS,
     )
     return by_name, by_id
+
+
+def accumulate_deck_metrics(
+    pairs: Iterable[tuple[int, dict | None]],
+) -> dict:
+    """Single-pass deck metrics over ``(quantity, card-record-or-None)`` pairs.
+
+    The shared accumulation behind ``deck_stats`` and ``deck_diff`` (land /
+    creature / ramp / game-changer counts, CMC curve, color sources, and the
+    nonland-CMC average). Returns raw values — Counters and an unrounded
+    ``avg_cmc`` — so each caller formats as it needs. A ``None`` record (an
+    un-hydratable name) counts toward ``total`` only.
+    """
+    total = 0
+    land_count = creature_count = ramp_count = game_changer_count = 0
+    nonland_cmcs: list[float] = []
+    curve: Counter[int] = Counter()
+    sources: Counter[str] = Counter()
+    for qty, card in pairs:
+        total += qty
+        if card is None:
+            continue
+        if is_land(card):
+            land_count += qty
+        else:
+            cmc = float(card.get("cmc") or 0)
+            nonland_cmcs.extend([cmc] * qty)
+            curve[int(cmc)] += qty
+        if is_creature(card):
+            creature_count += qty
+        if is_ramp(card):
+            ramp_count += qty
+        if card.get("game_changer"):
+            game_changer_count += qty
+        for color in color_sources(card):
+            sources[color] += qty
+    avg_cmc = sum(nonland_cmcs) / len(nonland_cmcs) if nonland_cmcs else 0.0
+    return {
+        "total": total,
+        "land_count": land_count,
+        "creature_count": creature_count,
+        "ramp_count": ramp_count,
+        "game_changer_count": game_changer_count,
+        "avg_cmc": avg_cmc,
+        "curve": curve,
+        "color_sources": sources,
+    }
