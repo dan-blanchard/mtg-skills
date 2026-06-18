@@ -744,12 +744,43 @@ def _filter(node: object) -> Filter | None:
     )
 
 
+def _scalar_value(v: object) -> int | None:
+    """An int from a bare int or a ``{type: Fixed, value: N}`` wrapper; None for a
+    DYNAMIC value (Ref / Offset / Variable — a relative comparison like "power less
+    than this creature's power", not a fixed threshold a theme keys on)."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, dict) and _norm(v.get("type")) == "fixed":
+        inner = v.get("value")
+        return inner if isinstance(inner, int) else None
+    return None
+
+
 def _predicate(p: object) -> str:
     if not isinstance(p, dict):
         return ""
     ptype = p.get("type")
     if not ptype:
         return ""
+    # Keep the load-bearing discriminant for the predicates whose meaning is NOT a
+    # bare `value` field — color / multicolor-count / power-threshold lanes read it
+    # (it was dropped before, collapsing every HasColor to a bare "HasColor"). A
+    # dynamic (non-Fixed) comparison value becomes "*" so a relative fight-style
+    # "power < source's power" never reads as a fixed power threshold.
+    if ptype in ("HasColor", "NotColor"):
+        color = p.get("color")
+        return f"{ptype}:{color}" if color is not None else str(ptype)
+    if ptype == "ColorCount":
+        n = _scalar_value(p.get("count"))
+        return f"ColorCount:{p.get('comparator')}:{n if n is not None else '*'}"
+    if ptype == "PtComparison":
+        n = _scalar_value(p.get("value"))
+        return (
+            f"PtComparison:{p.get('stat')}:{p.get('comparator')}:"
+            f"{n if n is not None else '*'}"
+        )
     val = p.get("value")
     if isinstance(val, dict):
         val = val.get("value")

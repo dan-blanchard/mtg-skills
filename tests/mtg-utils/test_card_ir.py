@@ -16,7 +16,7 @@ the IR exists to solve:
 
 from __future__ import annotations
 
-from mtg_utils._card_ir.project import project_card
+from mtg_utils._card_ir.project import _predicate, project_card
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity
 
 # ── real phase records (focused to the fields project() reads) ────────────────
@@ -352,6 +352,46 @@ def test_devotion_threshold_condition_emits_devotion_operand():
     ]
     assert devotion, f"expected a devotion-operand effect, got {_effects(card)}"
     assert devotion[0].scope == "you"
+
+
+# ── predicate enrichment (color / count / power threshold kept) ───────────────
+
+
+def test_predicate_keeps_color_count_and_power_threshold():
+    assert _predicate({"type": "HasColor", "color": "Red"}) == "HasColor:Red"
+    assert (
+        _predicate({"type": "ColorCount", "comparator": "GE", "count": 2})
+        == "ColorCount:GE:2"
+    )
+    assert (
+        _predicate(
+            {
+                "type": "PtComparison",
+                "stat": "Power",
+                "comparator": "GE",
+                "value": {"type": "Fixed", "value": 4},
+            }
+        )
+        == "PtComparison:Power:GE:4"
+    )
+    # A dynamic (non-Fixed) comparison value collapses to '*' (relative, not a theme).
+    assert (
+        _predicate(
+            {
+                "type": "PtComparison",
+                "stat": "Power",
+                "comparator": "LT",
+                "value": {"type": "Ref", "qty": {}},
+            }
+        )
+        == "PtComparison:Power:LT:*"
+    )
+    # The legends/historic consumers must still see their exact strings.
+    assert (
+        _predicate({"type": "HasSupertype", "value": "Legendary"})
+        == "HasSupertype:Legendary"
+    )
+    assert _predicate({"type": "Historic"}) == "Historic"
 
 
 # ── round-trip ────────────────────────────────────────────────────────────────

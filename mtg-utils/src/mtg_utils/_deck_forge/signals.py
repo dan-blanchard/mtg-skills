@@ -4027,6 +4027,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "discard_outlet",
             # Batch 2 (per-lane) — top-of-library stacking (position-gated):
             "topdeck_stack",
+            # Batch 5 — predicate-enriched color/power build-around lanes:
+            "multicolor_matters",
+            "colorless_matters",
+            "power_matters",
+            "low_power_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4137,6 +4142,48 @@ def _fsubs_lower(f: object) -> frozenset[str]:
         if isinstance(f, Filter)
         else frozenset()
     )
+
+
+def _is_multicolor_pred(p: str) -> bool:
+    """A ColorCount predicate selecting MULTICOLORED objects (CR: 2+ colors) — GE>=2
+    or EQ>=2/3. (ColorCount GE:1 = 'is colored', EQ:0 = colorless, EQ:1 = mono.)"""
+    parts = p.split(":")
+    if len(parts) != 3 or parts[0] != "ColorCount" or not parts[2].isdigit():
+        return False
+    n = int(parts[2])
+    return (parts[1] == "GE" and n >= 2) or (parts[1] == "EQ" and n >= 2)
+
+
+def _predicate_build_around_lanes(f: object) -> list[str]:
+    """Batch 5 — color / power BUILD-AROUND lane keys from a subject filter's enriched
+    predicates. Gated on controller='you' (a removal TARGET — "destroy target creature
+    with power 4 or greater" — is controller 'any', and the regex lanes avoid those
+    the same way via a "you control" anchor), except colorless, which the regex reads
+    unscoped too (Ancient Stirrings reveals a colorless card). A dynamic power
+    comparison (":*", e.g. "power less than this creature's") is a fight-style relative
+    check, not a fixed theme threshold, so it never fires."""
+    if not isinstance(f, Filter):
+        return []
+    you = f.controller == "you"
+    out: list[str] = []
+    for p in f.predicates:
+        if p == "ColorCount:EQ:0" and f.controller in ("you", "any"):
+            out.append("colorless_matters")
+        elif you and _is_multicolor_pred(p):
+            out.append("multicolor_matters")
+        elif (
+            you
+            and not p.endswith(":*")
+            and p.startswith(("PtComparison:Power:GE:", "PtComparison:Power:GT:"))
+        ):
+            out.append("power_matters")
+        elif (
+            you
+            and not p.endswith(":*")
+            and p.startswith(("PtComparison:Power:LE:", "PtComparison:Power:LT:"))
+        ):
+            out.append("low_power_matters")
+    return out
 
 
 def _reanimates_creature(e: object) -> bool:
@@ -4461,6 +4508,9 @@ def extract_signals_ir(
         for f in subs:
             if isinstance(f, Filter):
                 ir_predicates.update(f.predicates)
+                # Batch 5 — color/power build-around lanes (controller-gated).
+                for key in _predicate_build_around_lanes(f):
+                    add(key, "you", "", "")
     if "HasSupertype:Legendary" in ir_predicates:
         add("legends_matter", "you", "", "")
     if "Historic" in ir_predicates:

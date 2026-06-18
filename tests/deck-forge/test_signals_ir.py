@@ -544,6 +544,71 @@ def test_bounce_to_top_removal_is_not_topdeck_stack():
     }
 
 
+# ── predicate-enriched color/power build-around lanes (Batch 5) ───────────────
+
+
+def _subject_pred(*predicates: str, controller: str = "you") -> Card:
+    """A draw effect whose subject filter carries enriched predicates — the shape
+    'draw a card for each creature you control with power 4 or greater' projects to."""
+    return _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="etb",
+                subject=Filter(
+                    card_types=("Creature",),
+                    controller=controller,
+                    predicates=tuple(predicates),
+                ),
+            ),
+        )
+    )
+
+
+def test_multicolor_matters_from_colorcount_ge2():
+    assert ("multicolor_matters", "you", "") in _sigs(_subject_pred("ColorCount:GE:2"))
+
+
+def test_colorcount_ge1_is_not_multicolor():
+    """GE:1 = 'is colored', not multicolored (CR: 2+ colors)."""
+    sigs = _sigs(_subject_pred("ColorCount:GE:1"))
+    assert ("multicolor_matters", "you", "") not in sigs
+
+
+def test_colorless_matters_fires_unscoped():
+    """colorless reads unscoped like its regex (Ancient Stirrings reveals a colorless
+    card) — controller 'any' still counts."""
+    assert ("colorless_matters", "you", "") in _sigs(
+        _subject_pred("ColorCount:EQ:0", controller="any")
+    )
+
+
+def test_power_matters_from_your_big_creature_filter():
+    assert ("power_matters", "you", "") in _sigs(
+        _subject_pred("PtComparison:Power:GE:4")
+    )
+
+
+def test_low_power_matters_from_your_small_creature_filter():
+    assert ("low_power_matters", "you", "") in _sigs(
+        _subject_pred("PtComparison:Power:LE:2")
+    )
+
+
+def test_power_filter_on_removal_target_does_not_fire():
+    """'destroy target creature with power 4+' is controller 'any' — a removal TARGET,
+    not a power build-around, so the you-gated lane stays off."""
+    sigs = _sigs(_subject_pred("PtComparison:Power:GE:4", controller="any"))
+    assert ("power_matters", "you", "") not in sigs
+
+
+def test_dynamic_power_comparison_does_not_fire():
+    """A relative '* (power less than this creature's)' fight-style check is not a
+    fixed power threshold."""
+    sigs = _sigs(_subject_pred("PtComparison:Power:LT:*"))
+    assert ("low_power_matters", "you", "") not in sigs
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 
