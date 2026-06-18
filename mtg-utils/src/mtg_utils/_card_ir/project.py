@@ -465,6 +465,21 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             is_pump = True
             if pump_amount is None:
                 pump_amount = _quantity(m.get("value"))
+        elif mt == "addkeyword":
+            # Batch 6 — a static that GRANTS a keyword (Levitation → Flying). The
+            # granted keyword rides in counter_kind (a free str field); the lane
+            # splits by keyword + whether the affected set is your whole team.
+            kw = m.get("keyword")
+            if isinstance(kw, str):
+                out.append(
+                    Effect(
+                        category="grant_keyword",
+                        scope=_controller_scope(affected),
+                        subject=affected,
+                        raw=desc,
+                        counter_kind=_norm(kw),
+                    )
+                )
     if is_pump:
         out.append(
             Effect(

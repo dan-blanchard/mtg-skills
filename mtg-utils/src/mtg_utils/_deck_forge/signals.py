@@ -4215,6 +4215,14 @@ def extract_signals_ir(
                     add("group_mana", "each", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
+            # DEFERRED: the grant_keyword lanes (team_evasion_grant / protection_grant
+            # / all_creatures_kw_grant / flash_grant). The AddKeyword category is kept
+            # as accurate IR (parse_confidence 60.6%→64.4%), but firing lanes off it
+            # floods (+2197): AddKeyword also covers equipment/aura (EquippedBy),
+            # conditional self-grants (SelfRef), and single targets, and
+            # all_creatures_kw_grant is symmetric "ALL creatures" not your team. The
+            # lanes need a strict team-anthem gate (generic creatures you control, no
+            # predicates) + the symmetric/you scope split.
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
