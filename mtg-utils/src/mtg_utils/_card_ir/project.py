@@ -354,6 +354,18 @@ def _mode_who(mode: object) -> str:
     return ""
 
 
+def _modifycost_raise(mode: object) -> bool:
+    """True for a v0.1.60 ``ModifyCost{mode: Raise}`` static — a cost TAX. v0.1.60
+    merged the old ``raisecost``/``reducecost`` modes into one ``ModifyCost`` whose
+    inner ``mode`` is the direction; only a Raise is a stax-style tax (a Reduce, or
+    a self-only Strive-style Raise, is not)."""
+    if isinstance(mode, dict) and len(mode) == 1:
+        inner = next(iter(mode.values()))
+        if isinstance(inner, dict):
+            return _norm(inner.get("mode")) == "raise"
+    return False
+
+
 def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     """A continuous static's modifications + restriction mode → effects."""
     affected = _filter(st.get("affected"))
@@ -377,6 +389,19 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 raw=desc,
             )
         )
+    # A cost TAX (v0.1.60 ModifyCost{Raise}): scope = whose spells are taxed,
+    # carried on ``affected.controller`` (Opponent → stax on them; unscoped "Card"
+    # → symmetric; You → a self-drawback that hobbles no one, so emit nothing).
+    if _modifycost_raise(st.get("mode")):
+        if affected is not None and affected.controller == "opp":
+            out.append(
+                Effect(category="restriction", scope="opp", subject=affected, raw=desc)
+            )
+        elif affected is not None and affected.controller == "any":
+            out.append(
+                Effect(category="restriction", scope="each", subject=affected, raw=desc)
+            )
+        return out
     # A restriction static (stax/tax): scope = whom it hobbles.
     mode_tok = _mode_token(st.get("mode"))
     if mode_tok in _RESTRICTION_MODES:
@@ -609,6 +634,10 @@ def _trigger_event(tr: dict) -> str:
         "youattack",
         "attackersdeclared",
         "attackersdeclaredonetarget",
+        # v0.1.60 split "attacks and isn't blocked" into its own modes; v0.1.19
+        # folded them into Attacks, so map them back to keep attack_matters parity.
+        "attackerunblocked",
+        "youattackunblocked",
     ):
         return "attacks"
     if mode in ("blocks", "blockersdeclared", "becomesblocked"):

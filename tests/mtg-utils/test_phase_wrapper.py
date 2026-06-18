@@ -15,7 +15,7 @@ from mtg_utils import _phase
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
         assert _phase.PHASE_TAG.startswith("v0.1.")
-        assert _phase.PHASE_TAG == "v0.1.19"
+        assert _phase.PHASE_TAG == "v0.1.60"
 
 
 class TestCacheLayout:

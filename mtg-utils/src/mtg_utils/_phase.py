@@ -14,7 +14,7 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-PHASE_TAG = "v0.1.19"
+PHASE_TAG = "v0.1.60"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 
@@ -144,7 +144,7 @@ def load_supported_card_names() -> frozenset[str]:
     """Load the set of card names phase implements, lowercased for case-insensitive
     matching (cached).
 
-    phase v0.1.19 ships ``card-data.json`` as a flat ``{name: record}`` dict (keys
+    phase v0.1.60 ships ``card-data.json`` as a flat ``{name: record}`` dict (keys
     are phase-normalized, lowercased); older builds used ``{"cards": [{"name": ...}]}``.
     Handle both. We key off each record's proper-case ``name`` and lowercase it here
     (and lowercase the deck side in ``coverage_report``) so both sides use the same
@@ -261,7 +261,7 @@ def run_duel(
     ``timeout``).
 
     NOTE: assumes phase's ``ai-duel`` accepts ``--matchup-files <a> <b>``
-    for inline-deck files. Phase v0.1.19's actual flag may differ (e.g.,
+    for inline-deck files. Phase v0.1.60's actual flag may differ (e.g.,
     ``--matchup`` for built-in pair names). Adjust when wiring the real
     binary; tests mock subprocess so the flag name is irrelevant here.
 
