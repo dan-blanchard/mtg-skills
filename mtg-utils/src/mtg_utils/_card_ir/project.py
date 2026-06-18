@@ -295,6 +295,8 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         return out
     if etype in ("changezone", "changezoneall"):
         return [_changezone_effect(eff, raw)]
+    if etype == "copytokenof":
+        return [_copy_token_effect(eff, raw)]
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
@@ -454,6 +456,21 @@ def _changezone_effect(eff: dict, raw: str) -> Effect:
         amount=_amount(eff),
         scope=_effect_scope(eff),
         subject=target,
+        raw=raw,
+    )
+
+
+def _copy_token_effect(eff: dict, raw: str) -> Effect:
+    """A CopyTokenOf effect (phase structures "create a token that's a copy of X")
+    → a token maker. Scope is the ``owner`` (Controller → you); the made token's
+    type is the copied object's filter (``target``) when it's a Typed filter — a
+    self/parent/tracked copy leaves the subject unbound (its type is the source's,
+    which the effect node doesn't carry)."""
+    return Effect(
+        category="make_token",
+        amount=_amount(eff),
+        scope=_effect_scope(eff),
+        subject=_filter(eff.get("target")),
         raw=raw,
     )
 
