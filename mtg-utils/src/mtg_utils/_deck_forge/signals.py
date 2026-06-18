@@ -3893,6 +3893,9 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
     ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
     ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # snow is a real supertype (CR 205.4), NOT a skip — the analysis workflow
+    # wrongly listed it. A snow-matters payoff cares about snow permanents/mana.
+    ("snow_matters", re.compile(r"\bsnow\b", re.IGNORECASE), "you"),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -4009,6 +4012,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "coven_matters",
             "outlaw_matters",
             "lessons_matter",
+            "snow_matters",  # Batch 18 — real (CR 205.4), not a skip
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
