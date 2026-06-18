@@ -310,10 +310,54 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     ]
 
 
+# Static restriction modes (stax / taxes) — the mode is the restriction.
+_RESTRICTION_MODES = frozenset(
+    {
+        "cantattack",
+        "cantblock",
+        "cantattackorblock",
+        "cantbecast",
+        "cantbeactivated",
+        "cantcast",
+        "cantuntap",
+        "canttap",
+        "cantdraw",
+        "cantgainlife",
+        "cantsearchlibrary",
+        "mustattack",
+        "mustblock",
+        "raisecost",
+        "perturncastlimit",
+        "perturndrawlimit",
+        "addrestriction",
+        "blockrestriction",
+        "maximumhandsize",
+    }
+)
+
+
+def _mode_token(mode: object) -> str:
+    """The restriction-mode discriminant — a bare string or a one-key dict."""
+    if isinstance(mode, str):
+        return _norm(mode)
+    if isinstance(mode, dict) and len(mode) == 1:
+        return _norm(next(iter(mode)))
+    return ""
+
+
+def _mode_who(mode: object) -> str:
+    if isinstance(mode, dict):
+        for v in mode.values():
+            if isinstance(v, dict):
+                return _norm(v.get("who"))
+    return ""
+
+
 def _project_static_mods(st: dict, raw: str) -> list[Effect]:
-    """A continuous static's modifications → effects (pump today; more in A2)."""
+    """A continuous static's modifications + restriction mode → effects."""
     affected = _filter(st.get("affected"))
     desc = st.get("description") or raw
+    out: list[Effect] = []
     pump_amount: Quantity | None = None
     is_pump = False
     for m in st.get("modifications") or []:
@@ -322,7 +366,6 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             is_pump = True
             if pump_amount is None:
                 pump_amount = _quantity(m.get("value"))
-    out: list[Effect] = []
     if is_pump:
         out.append(
             Effect(
@@ -332,6 +375,19 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 subject=affected,
                 raw=desc,
             )
+        )
+    # A restriction static (stax/tax): scope = whom it hobbles.
+    mode_tok = _mode_token(st.get("mode"))
+    if mode_tok in _RESTRICTION_MODES:
+        who = _mode_who(st.get("mode"))
+        if (affected is not None and affected.controller == "opp") or "opponent" in who:
+            scope = "opp"
+        elif "all" in who:
+            scope = "each"
+        else:
+            scope = "any"
+        out.append(
+            Effect(category="restriction", scope=scope, subject=affected, raw=desc)
         )
     return out
 

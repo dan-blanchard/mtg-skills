@@ -3882,6 +3882,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             "venture_matters",
             "connive_matters",
             "damage_prevention",
+            # Batch ST (static restriction → stax):
+            "stax_taxes",
+            "symmetric_stax",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4120,6 +4123,13 @@ def extract_signals_ir(
                 add("creature_recursion", "you", "", e.raw)
             if cat == "animate" and "Artifact" in ftypes:
                 add("animate_artifact", "you", "", e.raw)
+            # Stax: a static restriction hobbling OPPONENTS (stax_taxes) or
+            # everyone symmetrically (symmetric_stax).
+            if cat == "restriction":
+                if e.scope == "opp":
+                    add("stax_taxes", "opponents", "", e.raw)
+                elif e.scope == "each":
+                    add("symmetric_stax", "each", "", e.raw)
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))
