@@ -3956,6 +3956,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "hand_disruption",
             # Batch 1 — scope-gated cycling payoff (not in _PAYOFF_TRIGGER_KEYS):
             "cycling_matters",
+            # Batch 2 — cost-based + Filter-predicate lanes:
+            "life_payment_insurance",
+            "legends_matter",
+            "historic_matters",
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
@@ -4228,6 +4232,13 @@ def extract_signals_ir(
             cost_parts = set(ab.cost.split(","))
             if "sacrifice" in cost_parts:
                 add("sacrifice_matters", "you", "", "")
+            # Batch 2 — a repeatable pay-life COST wants lifegain insurance.
+            if "paylife" in cost_parts:
+                add("life_payment_insurance", "you", "", "")
+            # DEFERRED: discard_outlet — the "discard" cost includes Cycling
+            # ("Discard this card"), a SELF-discard, so firing on every discard cost
+            # floods the lane (+471). Needs a discard-self vs discard-other split in
+            # the cost projection (like sacself vs sacrifice) before the lane fires.
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
@@ -4295,6 +4306,22 @@ def extract_signals_ir(
                     add("creature_cast_trigger", "any", "", "")
                 for sub in _kindred_subjects(trig.subject, vocab):
                     add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
+
+    # Batch 2 — card-level Filter-predicate lanes: an effect/trigger that cares
+    # about a Legendary / Historic object (the predicate is on its subject Filter).
+    ir_predicates: set[str] = set()
+    for ab in ir.all_abilities():
+        subs: list[object] = [e.subject for e in ab.effects]
+        subs += [e.amount.subject for e in ab.effects if e.amount is not None]
+        if ab.trigger is not None:
+            subs.append(ab.trigger.subject)
+        for f in subs:
+            if isinstance(f, Filter):
+                ir_predicates.update(f.predicates)
+    if "HasSupertype:Legendary" in ir_predicates:
+        add("legends_matter", "you", "", "")
+    if "Historic" in ir_predicates:
+        add("historic_matters", "you", "", "")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse
