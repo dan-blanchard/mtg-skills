@@ -3979,6 +3979,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "life_payment_insurance",
             "legends_matter",
             "historic_matters",
+            "commander_matters",  # Batch 15
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
@@ -4351,6 +4352,8 @@ def extract_signals_ir(
         add("legends_matter", "you", "", "")
     if "Historic" in ir_predicates:
         add("historic_matters", "you", "", "")
+    if "IsCommander" in ir_predicates:  # Batch 15 — cares about your commander
+        add("commander_matters", "you", "", "")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse
