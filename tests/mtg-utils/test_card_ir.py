@@ -218,6 +218,44 @@ TINYBONES = {
 }
 
 
+# Heliod, God of the Sun — a devotion THRESHOLD (DevotionGE in a static's condition,
+# wrapped in Not for the "less than five" form). batch 8 captured devotion only as a
+# scaling amount; this pins the conditional path that surfaces the Theros gods.
+HELIOD = {
+    "name": "Heliod, God of the Sun",
+    "scryfall_oracle_id": "4ea488b2-5ba0-4565-b928-570c8e03b926",
+    "card_type": {
+        "supertypes": ["Legendary"],
+        "core_types": ["Enchantment", "Creature"],
+        "subtypes": ["God"],
+    },
+    "oracle_text": (
+        "Indestructible\nAs long as your devotion to white is less than five, "
+        "Heliod isn't a creature.\nOther creatures you control have vigilance."
+    ),
+    "keywords": ["Indestructible"],
+    "static_abilities": [
+        {
+            "mode": "Continuous",
+            "affected": {"type": "SelfRef"},
+            "modifications": [{"type": "RemoveType", "core_type": "Creature"}],
+            "condition": {
+                "type": "Not",
+                "condition": {
+                    "type": "DevotionGE",
+                    "colors": ["White"],
+                    "threshold": 5,
+                },
+            },
+            "description": (
+                "As long as your devotion to white is less than five, ~ isn't a "
+                "creature."
+            ),
+        }
+    ],
+}
+
+
 def _effects(card: Card) -> list[Effect]:
     return [e for a in card.all_abilities() for e in a.effects]
 
@@ -300,6 +338,20 @@ def test_tinybones_graveyard_cast_scoped_to_opponents():
     assert all(e.scope == "opp" for e in gy), gy
     # cast-from-graveyard is reanimation-shaped for synergy purposes
     assert any(e.category in {"reanimate", "other"} for e in gy)
+
+
+# ── Heliod: a devotion THRESHOLD recovered from a static's condition ──────────
+
+
+def test_devotion_threshold_condition_emits_devotion_operand():
+    """A static gated on DevotionGE (even negated) carries a devotion operand so the
+    devotion_matters lane fires — batch 8 only saw devotion as a scaling amount."""
+    card = project_card([HELIOD])
+    devotion = [
+        e for e in _effects(card) if e.amount is not None and e.amount.op == "devotion"
+    ]
+    assert devotion, f"expected a devotion-operand effect, got {_effects(card)}"
+    assert devotion[0].scope == "you"
 
 
 # ── round-trip ────────────────────────────────────────────────────────────────

@@ -462,11 +462,40 @@ def _modifycost_raise(mode: object) -> bool:
     return False
 
 
+def _has_devotion_condition(st: dict) -> bool:
+    """A static GATED on your devotion (a ``DevotionGE``, possibly wrapped in ``Not``
+    for the 'less than N' form) — the Theros gods' "as long as your devotion to X is
+    N or more". batch 8 captured devotion only as a scaling AMOUNT (qty); a devotion
+    THRESHOLD lives in the condition subtree, so the lane missed the gods entirely."""
+
+    def walk(n: object) -> bool:
+        if isinstance(n, dict):
+            if _norm(n.get("type")) == "devotionge":
+                return True
+            return any(walk(v) for v in n.values())
+        if isinstance(n, list):
+            return any(walk(x) for x in n)
+        return False
+
+    return walk(st.get("condition"))
+
+
 def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     """A continuous static's modifications + restriction mode → effects."""
     affected = _filter(st.get("affected"))
     desc = st.get("description") or raw
     out: list[Effect] = []
+    # A devotion-threshold gate (gods) is a devotion payoff regardless of what the
+    # static then does — carry the operand so the existing op="devotion" lane fires.
+    if _has_devotion_condition(st):
+        out.append(
+            Effect(
+                category="other",
+                scope="you",
+                raw=desc,
+                amount=Quantity(op="devotion"),
+            )
+        )
     pump_amount: Quantity | None = None
     is_pump = False
     for m in st.get("modifications") or []:
