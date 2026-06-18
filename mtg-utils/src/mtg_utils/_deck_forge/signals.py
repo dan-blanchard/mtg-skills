@@ -3752,6 +3752,23 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "damage_prevention": ("damage_prevention", "you"),
     "detain": ("tap_down", "opponents"),
     "seek": ("seek_matters", "you"),  # Alchemy Seek (DD3) — phase parses it
+    # Batch 0 — v0.1.60 effect types newly projected (see project.py _EFFECT_CATEGORY).
+    "coin_flip": ("coin_flip", "you"),
+    "end_the_turn": ("end_the_turn", "you"),
+    "extra_turn": ("extra_turns", "you"),
+    "set_life": ("life_total_set", "any"),  # scope-agnostic build-around marker
+    # reveal_hand → hand_disruption is scope-GATED below (only an opponent-reveal is
+    # disruption; "reveal cards in your hand" is a self-reveal, scope "any").
+    "regenerate": ("regenerate_matters", "you"),
+    "ring_tempt": ("ring_matters", "you"),
+    "energy": ("energy_matters", "you"),
+    "phasing": ("phasing_matters", "you"),
+    "roll_die": ("dice_matters", "you"),
+    "dig_until": ("dig_until", "you"),
+    # DEFERRED: topdeck_stack — the PutAtLibraryPosition category is accurate IR but
+    # includes BOTTOM puts (failed tutors, "rest on the bottom"); firing the
+    # top-stacking lane on all 508 floods it (+421). Needs a top-vs-bottom position
+    # gate in the projection before the lane can read it.
     # NB: place_counter -> counters_matter is deferred until the projection
     # captures counter KIND (+1/+1 vs loyalty/charge/oil) — firing on every
     # counter placement floods the lane (planeswalkers, one-off charge counters).
@@ -3927,6 +3944,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch R (v0.1.60 replacement-effect doublers, split by event):
             "token_doubling",
             "counter_doubling",
+            # Batch 0 — scope-gated lane (not in the _DOER table):
+            "hand_disruption",
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
@@ -4190,6 +4209,10 @@ def extract_signals_ir(
                 add("token_doubling", "you", "", e.raw)
             if cat == "counter_doubling":
                 add("counter_doubling", "you", "", e.raw)
+            # hand_disruption only when an OPPONENT reveals (a self-reveal — "reveal
+            # cards in your hand" — is scope "any" and not disruption).
+            if cat == "reveal_hand" and e.scope == "opp":
+                add("hand_disruption", "opponents", "", e.raw)
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))

@@ -106,6 +106,24 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "detain": "detain",
     "animate": "animate",
     "seek": "seek",
+    # Batch 0 — v0.1.60 structured effect types that previously fell to "other".
+    "flipcoin": "coin_flip",
+    "flipcoins": "coin_flip",
+    "endtheturn": "end_the_turn",
+    "extraturn": "extra_turn",
+    "setlifetotal": "set_life",
+    "exchangelifetotals": "set_life",
+    "revealhand": "reveal_hand",
+    "regenerate": "regenerate",
+    "ringtemptsyou": "ring_tempt",
+    "gainenergy": "energy",
+    "phaseout": "phasing",
+    "phasein": "phasing",
+    "rolldie": "roll_die",
+    "putontoporbottom": "topdeck_stack",
+    "putatlibraryposition": "topdeck_stack",
+    "revealuntil": "dig_until",
+    "exilefromtopuntil": "dig_until",
 }
 
 # Effect types that defer to recursion / the supplement rather than a category.
