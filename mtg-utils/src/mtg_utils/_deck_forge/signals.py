@@ -4033,6 +4033,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "power_matters",
             "low_power_matters",
             "color_hoser",
+            # Batch 12 — negation/disjunction composite-filter lanes
+            # (noncreature_cast_punish DEFERRED — phase scope can't split it from
+            # prowess; see the cast_spell arm):
+            "nonhuman_attackers",
+            "typed_anthem_multi",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4143,6 +4148,10 @@ def _fsubs_lower(f: object) -> frozenset[str]:
         if isinstance(f, Filter)
         else frozenset()
     )
+
+
+def _has_predicate(f: object, pred: str) -> bool:
+    return isinstance(f, Filter) and pred in f.predicates
 
 
 def _hoses_a_color(f: object) -> bool:
@@ -4403,6 +4412,16 @@ def extract_signals_ir(
                 and e.amount.op in ("count", "multiply")
             ):
                 add("scaling_pump", "you", "", e.raw)
+            # Batch 12 — typed_anthem_multi: a pump over creatures of MULTIPLE named
+            # types ("each creature that's an Assassin, Mercenary, or Pirate gets ...")
+            # — an AnyOf-of-subtypes on a creature filter (single-type is type_matters).
+            if (
+                cat == "pump"
+                and "Creature" in ftypes
+                and isinstance(e.subject, Filter)
+                and any(p.startswith("AnyOf:") for p in e.subject.predicates)
+            ):
+                add("typed_anthem_multi", "you", "", e.raw)
             if amount_subject is not None and "Land" in _ftypes(amount_subject):
                 add("lands_matter", "you", "", e.raw)
             if cat == "make_token":
@@ -4519,8 +4538,22 @@ def extract_signals_ir(
                     add("opponent_cast_matters", "opponents", "", "")
                 if "Creature" in tsubs:
                     add("creature_cast_trigger", "any", "", "")
+                # DEFERRED: noncreature_cast_punish. The NotType:Creature projection is
+                # accurate, but phase tags BOTH a prowess self-cast ("whenever you cast
+                # a noncreature spell") AND a symmetric/opponent punisher ("whenever a
+                # player casts a noncreature spell") as scope "any", so the lane can't
+                # be separated from spellcast_matters — firing it conflated 103 prowess
+                # cards (Kykar, Esper Sentinel). See deferrals.md.
                 for sub in _kindred_subjects(trig.subject, vocab):
                     add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
+            # Batch 12 — nonhuman_attackers (Winota): an attack trigger whose
+            # attacking subject is a non-Human creature you control.
+            if (
+                ev == "attacks"
+                and _has_predicate(trig.subject, "NotSubtype:Human")
+                and _filter_controller(trig.subject) == "you"
+            ):
+                add("nonhuman_attackers", "you", "", "")
 
     # Batch 2 — card-level Filter-predicate lanes: an effect/trigger that cares
     # about a Legendary / Historic object (the predicate is on its subject Filter).

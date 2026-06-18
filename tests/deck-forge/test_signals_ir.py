@@ -647,6 +647,49 @@ def test_colorless_removal_is_not_color_hoser():
     }
 
 
+# ── composite-filter lanes (Batch 12) ─────────────────────────────────────────
+
+
+def test_nonhuman_attackers_from_attack_trigger():
+    """Winota: 'whenever a non-Human creature you control attacks' — NotSubtype:Human
+    on the attacking subject, controller you."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="attacks",
+                subject=Filter(
+                    card_types=("Creature",),
+                    controller="you",
+                    predicates=("NotSubtype:Human",),
+                ),
+            ),
+        )
+    )
+    assert ("nonhuman_attackers", "you", "") in _sigs(ir)
+
+
+def test_typed_anthem_multi_from_anyof_pump():
+    """'Each creature that's an Assassin, Mercenary, or Pirate gets +1/+1' — a pump
+    over an AnyOf-of-subtypes creature filter."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        controller="you",
+                        predicates=("AnyOf:Assassin|Mercenary|Pirate",),
+                    ),
+                ),
+            ),
+        )
+    )
+    assert ("typed_anthem_multi", "you", "") in _sigs(ir)
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 
