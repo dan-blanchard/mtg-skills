@@ -527,6 +527,11 @@ def _changezone_effect(eff: dict, raw: str) -> Effect:
     target = _filter(eff.get("target"))
     if origin == "graveyard" and dest == "battlefield":
         category = "reanimate"
+    elif dest == "battlefield" and origin in ("library", "hand"):
+        # Batch 9 — put a permanent into play from library/hand WITHOUT casting it
+        # (Sneak Attack / Elvish Piper / Through the Breach). The lane gates on a
+        # creature subject in signals (a land into play is ramp, not a cheat).
+        category = "cheat_play"
     elif dest == "exile" and target is not None and target.controller == "you":
         # exile-and-return of YOUR own permanent = blink (ETB-value flicker).
         category = "blink"

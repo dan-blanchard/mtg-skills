@@ -3972,6 +3972,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "cycling_matters",
             # Batch 14 — landfall (a land-ETB trigger; CR 207.2c ability word):
             "landfall",
+            # Batch 9 — cheat a creature into play (library/hand → battlefield):
+            "cheat_into_play",
             # Batch 2 — cost-based + Filter-predicate lanes:
             "life_payment_insurance",
             "legends_matter",
@@ -4176,6 +4178,9 @@ def extract_signals_ir(
                     add("group_mana", "each", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
+            # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
+            if cat == "cheat_play" and "Creature" in ftypes:
+                add("cheat_into_play", "you", "", e.raw)
             if cat == "draw":
                 if e.amount is not None and e.amount.op in ("count", "multiply"):
                     add("draw_for_each", "you", "", e.raw)
