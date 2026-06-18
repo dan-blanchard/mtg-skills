@@ -67,6 +67,21 @@ FIXTURE_CARDS: dict[str, dict] = {
         "keywords": [],
         "oracle_text": "Counter target spell.",
     },
+    "Chaos Warp": {
+        "keywords": [],
+        "oracle_text": (
+            "The owner of target permanent shuffles it into their library, then "
+            "reveals the top card of their library. If it's a permanent card, "
+            "they put it onto the battlefield."
+        ),
+    },
+    "Condemn": {
+        "keywords": [],
+        "oracle_text": (
+            "Put target attacking creature on the bottom of its owner's library. "
+            "Its controller gains life equal to its toughness."
+        ),
+    },
     "Llanowar Elves": {
         "keywords": [],
         "oracle_text": "{T}: Add {G}.",

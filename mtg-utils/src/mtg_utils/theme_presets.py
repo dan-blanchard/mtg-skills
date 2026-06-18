@@ -1030,6 +1030,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             # functional removal. Anchored on "enchanted" so a creature whose OWN "can't
             # attack or block" is a drawback (Lupine Prototype) never matches.
             r"enchanted (?:creature|permanent)[^.]*can'?t attack",
+            # Library tuck — answers a permanent by shuffling/putting it into its
+            # owner's library (Chaos Warp, Oblation; Condemn / Hinder-style "put on
+            # top/bottom of library"). Anchored on a TARGET permanent/creature so a
+            # tutor ("search your library … shuffle") never matches.
+            r"\btarget\b[^.]*\b(?:permanent|creature|artifact|enchantment|"
+            r"planeswalker)\b[^.]*\bshuffles?\b[^.]*\blibrary\b",
+            r"\bput\s+target\b[^.]*\bon\s+(?:the\s+)?(?:top|bottom)\b[^.]*\blibrary\b",
         ),
         should_match=(
             "Swords to Plowshares",
@@ -1044,6 +1051,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Farewell",  # exile-all branch
             "Pacifism",  # pacify-aura branch
             "Arrest",  # pacify-aura branch
+            "Chaos Warp",  # library-tuck branch
+            "Condemn",  # put-on-bottom-of-library branch
         ),
         should_not_match=("Llanowar Elves", "Command Tower", "Lupine Prototype"),
     ),

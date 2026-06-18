@@ -516,7 +516,7 @@ def propose_swaps(
                 cut_entry = _pull(filler_iter)
                 if cut_entry is None:
                     break
-                picked = find_add(spec, synergy_first=True)
+                picked = find_add(spec, synergy_first=True, nonland_only=True)
                 if picked is None:
                     break
                 reason, cut = cut_entry
@@ -528,11 +528,11 @@ def propose_swaps(
         if spec is None:
             continue  # advisory-only issue (e.g. commander_misfit, efficiency)
         synergy_first = issue["kind"] not in _SPINE_KINDS
-        # Spine roles count nonland producers only, so don't let the ramp oracle pull a
-        # mana-land in as "ramp".
-        picked = find_add(
-            spec, synergy_first=synergy_first, nonland_only=not synergy_first
-        )
+        # Every cut here is a NONLAND (cut_candidates never trims lands), so the add
+        # must be nonland too — else a theme swap silently adds a value land (e.g.
+        # Fountainport on the Aristocrats lane), shifting the land count a swap is
+        # meant to preserve. The mana base is the land tooling's job, not Tune's.
+        picked = find_add(spec, synergy_first=synergy_first, nonland_only=True)
         if picked is None:
             continue
         cut_entry = take_cut(issue)
