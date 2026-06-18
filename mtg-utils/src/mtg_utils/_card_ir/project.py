@@ -60,7 +60,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "multiplycounter": "place_counter",
     "addpendingetbcounters": "place_counter",
     "removecounter": "remove_counter",
-    "movecounters": "place_counter",
+    "movecounters": "counter_move",  # Batch 7 — move counters between objects
     "proliferate": "proliferate",
     "mill": "mill",
     "gainlife": "gain_life",

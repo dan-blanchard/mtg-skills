@@ -3771,6 +3771,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "extra_draw": ("extra_draw_step", "you"),
     "extra_end": ("extra_end_step", "you"),
     "goad_all": ("goad_matters", "opponents"),
+    "counter_move": ("counter_move", "you"),  # Batch 7 — MoveCounters effect
     # DEFERRED: type_change — SetCardTypes is kept as accurate IR but the lane
     # fires 0 in commander-legal (the regex's 25 are mostly static "is also a..."
     # which phase models differently); the lane waits for that shape.
