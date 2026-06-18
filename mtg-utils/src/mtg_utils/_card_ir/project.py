@@ -270,6 +270,13 @@ def _cost_string(cost: object) -> str | None:
                 tgt = node.get("target")
                 self_sac = isinstance(tgt, dict) and _norm(tgt.get("type")) == "selfref"
                 seen.add("sacself" if self_sac else "sacrifice")
+            elif t == "discard":
+                # A discard OUTLET pitches fodder from hand ("Discard a card: ...")
+                # — madness/reanimator fuel. "Discard this card" (Cycling, alt-costs)
+                # is a SELF-discard (phase's ``self_ref``), not a discard-matters
+                # outlet; splitting it out is what unblocks the lane (the +471 flood).
+                self_discard = bool(node.get("self_ref"))
+                seen.add("discardself" if self_discard else "discard")
             elif t in _COST_TYPES:
                 seen.add(t)
             for v in node.values():

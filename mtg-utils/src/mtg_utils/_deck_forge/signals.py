@@ -4023,6 +4023,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "team_evasion_grant",
             "protection_grant",
             "all_creatures_kw_grant",
+            # Batch 2 (per-lane) — discard OUTLET cost (self-discard split out):
+            "discard_outlet",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4355,10 +4357,11 @@ def extract_signals_ir(
             # Batch 2 — a repeatable pay-life COST wants lifegain insurance.
             if "paylife" in cost_parts:
                 add("life_payment_insurance", "you", "", "")
-            # DEFERRED: discard_outlet — the "discard" cost includes Cycling
-            # ("Discard this card"), a SELF-discard, so firing on every discard cost
-            # floods the lane (+471). Needs a discard-self vs discard-other split in
-            # the cost projection (like sacself vs sacrifice) before the lane fires.
+            # A discard OUTLET ("Discard a card: ...") pitches fodder for value —
+            # madness/reanimator fuel. The cost projection splits self-discard
+            # (Cycling's "discardself") out, so this no longer floods on alt-costs.
+            if "discard" in cost_parts:
+                add("discard_outlet", "you", "", "")
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A

@@ -478,6 +478,28 @@ def test_all_creatures_kw_grant_is_symmetric_any_scope():
     assert not any(s[0] in ("team_evasion_grant", "protection_grant") for s in sigs)
 
 
+# ── discard_outlet (cost-based, self-discard split out) ───────────────────────
+
+
+def test_discard_outlet_fires_for_discard_a_card_cost():
+    """'Discard a card: ...' is a discard OUTLET (madness/reanimator fuel)."""
+    ir = _ir(
+        Ability(kind="activated", cost="discard", effects=(Effect(category="draw"),))
+    )
+    assert ("discard_outlet", "you", "") in _sigs(ir)
+
+
+def test_self_discard_cost_is_not_a_discard_outlet():
+    """'Discard this card' (Cycling / alt-costs) projects to 'discardself' and must
+    NOT fire discard_outlet — the split that unblocks the lane without the flood."""
+    ir = _ir(
+        Ability(
+            kind="activated", cost="discardself", effects=(Effect(category="draw"),)
+        )
+    )
+    assert "discard_outlet" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 
