@@ -185,10 +185,48 @@ def _project_face(record: dict) -> Face:
 # ── ability projection ────────────────────────────────────────────────────────
 
 
+# Cost-type discriminants we surface on Ability.cost (the activation cost shape:
+# a sacrifice outlet, a tap ability, a discard/life/counter cost, ...).
+_COST_TYPES = frozenset(
+    {
+        "sacrifice",
+        "tap",
+        "untap",
+        "discard",
+        "paylife",
+        "exile",
+        "removecounter",
+        "mana",
+        "return",
+        "reveal",
+        "mill",
+    }
+)
+
+
+def _cost_string(cost: object) -> str | None:
+    """Normalized, comma-joined activation cost types (e.g. "sacrifice", "tap")."""
+    seen: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            t = _norm(node.get("type"))
+            if t in _COST_TYPES:
+                seen.add(t)
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(cost)
+    return ",".join(sorted(seen)) or None
+
+
 def _project_spell_or_activated(ab: dict) -> Ability:
     kind = "activated" if _norm(ab.get("kind")) == "activated" else "spell"
     effects = _collect_effects(ab, ab.get("description") or "")
-    return Ability(kind=kind, effects=tuple(effects))
+    return Ability(kind=kind, effects=tuple(effects), cost=_cost_string(ab.get("cost")))
 
 
 def _project_trigger(tr: dict) -> Ability:
