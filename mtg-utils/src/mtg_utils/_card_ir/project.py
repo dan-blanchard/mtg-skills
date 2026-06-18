@@ -235,6 +235,8 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         if not out:
             out.append(Effect(category="other", scope=_effect_scope(eff), raw=raw))
         return out
+    if etype in ("changezone", "changezoneall"):
+        return [_changezone_effect(eff, raw)]
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
@@ -285,6 +287,26 @@ def _amount(eff: dict) -> Quantity | None:
             if q is not None:
                 return q
     return None
+
+
+def _changezone_effect(eff: dict, raw: str) -> Effect:
+    """A ChangeZone effect → category by its origin/destination zones.
+
+    Graveyard → Battlefield is reanimation (the ``reanimator`` substrate); other
+    movements stay 'other' for now (blink/tuck/bounce get their own rules later).
+    The ``target`` (a Typed filter of what's moved) is the effect's subject."""
+    origin = _norm(eff.get("origin"))
+    dest = _norm(eff.get("destination"))
+    category = (
+        "reanimate" if (origin == "graveyard" and dest == "battlefield") else "other"
+    )
+    return Effect(
+        category=category,
+        amount=_amount(eff),
+        scope=_effect_scope(eff),
+        subject=_filter(eff.get("target")),
+        raw=raw,
+    )
 
 
 def _effect_subject(eff: dict) -> Filter | None:

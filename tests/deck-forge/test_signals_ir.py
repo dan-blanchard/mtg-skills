@@ -214,11 +214,92 @@ def test_death_matters_from_other_creatures_dying():
     assert _sigs(ir) == [("death_matters", "you", "")]
 
 
-def test_self_death_trigger_is_not_death_matters():
-    """A 'when this dies' self-death trigger (no subject) is self_death_payoff,
-    not aristocrats death_matters."""
+def test_self_death_trigger_with_payoff_is_self_death_payoff():
+    """A 'when this dies, do X' self-death trigger (no subject + an effect) is
+    self_death_payoff (Kokusho, Solemn), not aristocrats death_matters."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="dies", scope="you"),
+            effects=(Effect(category="draw"),),
+        )
+    )
+    assert _sigs(ir) == [("self_death_payoff", "you", "")]
+
+
+def test_bare_self_death_trigger_emits_nothing():
+    """A self-death trigger with no recovered effect fires neither lane."""
     ir = _ir(Ability(kind="triggered", trigger=Trigger(event="dies", scope="you")))
     assert _sigs(ir) == []
+
+
+def test_attached_creature_death_is_not_self_death_payoff():
+    """'Whenever equipped creature dies' (Skullclamp: AttachedTo → scope 'any',
+    no subject filter) is not a SELF-death — fires neither death lane here."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="dies", scope="any"),
+            effects=(Effect(category="draw"),),
+        )
+    )
+    assert _sigs(ir) == []
+
+
+# ── reanimator (creature that returns creature cards from a graveyard) ─────────
+
+_CREATURE = {"name": "Test", "type_line": "Legendary Creature — Praetor"}
+_SORCERY = {"name": "Test", "type_line": "Sorcery"}
+
+
+def _reanimate_ir() -> Card:
+    return _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="upkeep", scope="you"),
+            effects=(
+                Effect(
+                    category="reanimate",
+                    subject=Filter(card_types=("Creature",), controller="you"),
+                ),
+            ),
+        )
+    )
+
+
+def test_reanimator_fires_for_creature_returning_creatures():
+    sigs = {s.key for s in extract_signals_ir(_CREATURE, _reanimate_ir())}
+    assert "reanimator" in sigs
+
+
+def test_reanimator_not_for_noncreature_spell():
+    """A reanimation sorcery is an enabler, not the reanimator archetype."""
+    sigs = {s.key for s in extract_signals_ir(_SORCERY, _reanimate_ir())}
+    assert "reanimator" not in sigs
+
+
+def test_reanimator_not_for_permanent_return():
+    """Returning a Permanent card (Sun Titan) is recursion, not reanimator."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you"),
+            effects=(
+                Effect(
+                    category="reanimate",
+                    subject=Filter(card_types=("Permanent",), controller="you"),
+                ),
+            ),
+        )
+    )
+    assert "reanimator" not in {s.key for s in extract_signals_ir(_CREATURE, ir)}
+
+
+def test_reanimate_target_does_not_fire_creatures_matter():
+    """A single reanimate target that's a 'creature you control' is NOT the
+    go-wide creatures_matter lane (only an anthem/scaling is)."""
+    sigs = {s.key for s in extract_signals_ir(_CREATURE, _reanimate_ir())}
+    assert "creatures_matter" not in sigs
 
 
 # ── contract guards ───────────────────────────────────────────────────────────

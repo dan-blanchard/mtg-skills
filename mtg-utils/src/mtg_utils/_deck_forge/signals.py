@@ -3739,6 +3739,9 @@ IR_SLICE_KEYS: frozenset[str] = frozenset(
         "graveyard_matters",
         signal_keys.TOKEN_MAKER,
         "death_matters",
+        # Batch 1 (aristocrats/recursion):
+        "self_death_payoff",
+        "reanimator",
     }
 )
 
@@ -3759,6 +3762,14 @@ def _is_generic_creature_filter(f: object) -> bool:
         and not f.subtypes
         and f.controller == "you"
     )
+
+
+def _reanimates_creature(e: object) -> bool:
+    """A reanimate effect that returns CREATURE cards (matches the regex detector,
+    which requires 'creature cards' — a Permanent-card return like Sun Titan is a
+    separate recursion engine, not the reanimator archetype)."""
+    f = getattr(e, "subject", None)
+    return isinstance(f, Filter) and "Creature" in f.card_types
 
 
 def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
@@ -3802,9 +3813,13 @@ def extract_signals_ir(
 
     for ab in ir.all_abilities():
         for e in ab.effects:
+            # creatures_matter = a go-wide/scaling lane: a count operand over your
+            # creatures (any effect), OR an anthem buffing them (a pump's affected
+            # set). NOT a single reanimate/destroy TARGET that happens to be a
+            # creature you control — gate the affected-set case on the pump shape.
             amount_subject = e.amount.subject if e.amount is not None else None
-            if _is_generic_creature_filter(e.subject) or _is_generic_creature_filter(
-                amount_subject
+            if _is_generic_creature_filter(amount_subject) or (
+                e.category == "pump" and _is_generic_creature_filter(e.subject)
             ):
                 add("creatures_matter", "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
@@ -3817,6 +3832,15 @@ def extract_signals_ir(
                 subject = _token_kindred_subject(e.subject, vocab)
                 if subject is not None:
                     add(signal_keys.TOKEN_MAKER, "you", subject, e.raw)
+            # reanimator (the ARCHETYPE) is a creature that actively returns
+            # creatures from a graveyard to the battlefield — a commander, not a
+            # one-shot spell (those stay enablers the avenue finds).
+            if (
+                e.category == "reanimate"
+                and is_creature(card)
+                and _reanimates_creature(e)
+            ):
+                add("reanimator", "you", "", e.raw)
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
@@ -3824,6 +3848,17 @@ def extract_signals_ir(
             # self_death_payoff, a different lane, so gate on a real subject.
             if trig.event == "dies" and trig.subject is not None:
                 add("death_matters", _ir_scope(trig.scope), "", "")
+            # The complement: a true SELF-death trigger (SelfRef → scope "you")
+            # that produces a recognized payoff (Kokusho, Solemn, Festering Goblin)
+            # — wants sac outlets + recursion. Gating on SelfRef excludes
+            # "equipped creature dies" (Skullclamp, AttachedTo → scope "any"); the
+            # recognized-effect gate drops unparsed "other"-only death triggers.
+            elif (
+                trig.event == "dies"
+                and trig.scope == "you"
+                and any(e.category != "other" for e in ab.effects)
+            ):
+                add("self_death_payoff", "you", "", "")
             if trig.event == "life_gained":
                 add("lifegain_matters", "you", "", "")
     return out
