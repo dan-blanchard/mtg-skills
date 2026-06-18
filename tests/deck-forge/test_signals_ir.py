@@ -711,6 +711,12 @@ def test_lure_fires_lure_matters():
     assert ("lure_matters", "you", "") in _sigs(_static_effect("lure"))
 
 
+def test_evasion_denial_from_ignore_landwalk():
+    assert ("evasion_denial", "opponents", "") in _sigs(
+        _static_effect("evasion_denial", scope="opp")
+    )
+
+
 def test_combat_force_on_opponents_still_feeds_stax():
     """The split must not regress stax: a force/can't-block static hobbling opponents
     is still a pillowfort tax."""

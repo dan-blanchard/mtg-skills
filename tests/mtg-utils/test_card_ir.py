@@ -461,6 +461,13 @@ def test_self_must_be_blocked_is_lure():
     assert "lure" in cats
 
 
+def test_ignore_landwalk_is_evasion_denial():
+    """Great Wall: IgnoreLandwalkForBlocking → evasion_denial (block through walk)."""
+    rec = _static_card({"IgnoreLandwalkForBlocking": {"qualifier": "Mountain"}}, None)
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "evasion_denial" in cats
+
+
 def test_double_triggers_static_is_trigger_doubling():
     """Yarok / Panharmonicon: a DoubleTriggers static → trigger_doubling (Batch 17)."""
     rec = _static_card({"DoubleTriggers": {"cause": "Any"}}, None)

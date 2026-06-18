@@ -4046,8 +4046,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "trigger_doubling",
             # Batch 6 (unblocked) — flash_grant via CastWithKeyword{Flash}:
             "flash_grant",
-            # Batch 5 (unblocked) — named-permanent count/anthem theme:
+            # Batch 5 (unblocked) — named-permanent via deck_copy_limit:
             "named_permanent",
+            # Deferred-sweep: evasion-denial (IgnoreLandwalk); clone_matters still
+            # deferred (regex 1611 vs IR 70 — needs the 1541 audited first):
+            "evasion_denial",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4347,6 +4350,15 @@ def extract_signals_ir(
                     add("group_mana", "each", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
+            # DEFERRED: clone_matters — the BecomeCopy "clone" category is the precise
+            # 70 creature-clones, but the regex lane fires 1611 (REGEX_ONLY 1541). The
+            # 1541 are mostly token-copy / spell-copy (their own lanes), but claiming
+            # clone_matters for IR would under-cover them at A4 until that set is
+            # audited. Category kept (accurate IR); lane waits. See deferrals.md.
+            # evasion_denial: IgnoreLandwalkForBlocking (Great Wall) — block through
+            # an opponent's landwalk evasion.
+            if cat == "evasion_denial":
+                add("evasion_denial", "opponents", "", e.raw)
             # Batch 6 — grant_keyword lanes (the AddKeyword category, +3.8% parse).
             # Gated to avoid the naive +2197 flood: team lanes fire ONLY on a generic
             # creatures-you-control grant (no subtypes, no predicates — excludes

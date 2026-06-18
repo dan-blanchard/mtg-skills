@@ -597,6 +597,13 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     if mode_tok == "doubletriggers":
         out.append(Effect(category="trigger_doubling", scope="you", raw=desc))
         return out
+    # Batch 13 (evasion_denial) — IgnoreLandwalkForBlocking ("creatures can be
+    # blocked as though they didn't have <landwalk>", Great Wall / Crevasse): denies
+    # an evasion ability so you can block through it. scope "opp" (it strips THEIR
+    # evasion); the lane reads it as opponents.
+    if mode_tok == "ignorelandwalkforblocking":
+        out.append(Effect(category="evasion_denial", scope="opp", raw=desc))
+        return out
     combat_cat = _COMBAT_FORCE_MODES.get(mode_tok)
     if combat_cat is not None:
         scope = _restriction_scope(st, affected)
