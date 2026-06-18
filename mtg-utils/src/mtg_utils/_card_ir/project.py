@@ -572,6 +572,24 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     # a themeable affected (a real creature SET or a targeted creature) — a self
     # "this can't block" / "this must attack" is a vanilla drawback, not a theme.
     mode_tok = _mode_token(st.get("mode"))
+    # Batch 6 (flash_grant, unblocked) — CastWithKeyword{Flash} is "you may cast
+    # [creature] spells as though they had flash" (Teferi, Yeva, Alchemist's Refuge):
+    # the flash ENABLER the AddKeyword path couldn't express (flash is a cast-time
+    # permission, not a battlefield keyword). The granted keyword rides in
+    # counter_kind so other CastWithKeyword grants can extend the lane later.
+    if mode_tok == "castwithkeyword":
+        mode = st.get("mode")
+        inner = mode.get("CastWithKeyword") if isinstance(mode, dict) else None
+        kw = inner.get("keyword") if isinstance(inner, dict) else None
+        out.append(
+            Effect(
+                category="cast_with_keyword",
+                scope="you",
+                raw=desc,
+                counter_kind=_norm(kw) if isinstance(kw, str) else "",
+            )
+        )
+        return out
     # Batch 17 — DoubleTriggers static (Yarok / Panharmonicon / Ancient Greenwarden):
     # "a triggered ability triggers an additional time". One lane regardless of the
     # cause (ETB-only vs Any) — the want is the same trigger-doubling engine.

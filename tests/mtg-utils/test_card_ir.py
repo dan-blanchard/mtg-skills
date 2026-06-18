@@ -468,6 +468,20 @@ def test_double_triggers_static_is_trigger_doubling():
     assert "trigger_doubling" in cats
 
 
+def test_cast_with_flash_is_a_flash_grant():
+    """Teferi / Yeva: CastWithKeyword{Flash} → cast_with_keyword carrying 'flash'."""
+    rec = _static_card(
+        {"CastWithKeyword": {"keyword": "Flash"}},
+        {"type": "Typed", "type_filters": ["Creature"], "controller": "You"},
+    )
+    flash = [
+        e
+        for e in _effects(project_card([rec]))
+        if e.category == "cast_with_keyword" and e.counter_kind == "flash"
+    ]
+    assert flash
+
+
 # ── round-trip ────────────────────────────────────────────────────────────────
 
 

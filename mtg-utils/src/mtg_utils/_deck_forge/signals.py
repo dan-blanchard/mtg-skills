@@ -4044,6 +4044,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "lure_matters",
             # Batch 17 — DoubleTriggers static (Yarok / Panharmonicon):
             "trigger_doubling",
+            # Batch 6 (unblocked) — flash_grant via CastWithKeyword{Flash}:
+            "flash_grant",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4469,6 +4471,10 @@ def extract_signals_ir(
             # trigger-doubling engine ("a triggered ability triggers an extra time").
             if cat == "trigger_doubling":
                 add("trigger_doubling", "you", "", e.raw)
+            # Batch 6 (flash_grant) — CastWithKeyword{Flash}: a flash ENABLER (cast
+            # spells as though they had flash — Teferi, Yeva, Alchemist's Refuge).
+            if cat == "cast_with_keyword" and e.counter_kind == "flash":
+                add("flash_grant", "you", "", e.raw)
             # Doubling replacements (v0.1.60's `replacements`), split by event —
             # a token doubler and a counter doubler are different archetypes.
             if cat == "token_doubling":
