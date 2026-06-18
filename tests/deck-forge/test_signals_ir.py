@@ -690,6 +690,35 @@ def test_typed_anthem_multi_from_anyof_pump():
     assert ("typed_anthem_multi", "you", "") in _sigs(ir)
 
 
+# ── combat-forcing statics (Batch 13) ─────────────────────────────────────────
+
+
+def _static_effect(category: str, scope: str = "any") -> Card:
+    return _ir(
+        Ability(kind="static", effects=(Effect(category=category, scope=scope),))
+    )
+
+
+def test_force_attack_fires_forced_attack():
+    assert ("forced_attack", "any", "") in _sigs(_static_effect("force_attack"))
+
+
+def test_cant_block_fires_cant_block_grant():
+    assert ("cant_block_grant", "you", "") in _sigs(_static_effect("cant_block"))
+
+
+def test_lure_fires_lure_matters():
+    assert ("lure_matters", "you", "") in _sigs(_static_effect("lure"))
+
+
+def test_combat_force_on_opponents_still_feeds_stax():
+    """The split must not regress stax: a force/can't-block static hobbling opponents
+    is still a pillowfort tax."""
+    sigs = _sigs(_static_effect("cant_block", scope="opp"))
+    assert ("cant_block_grant", "you", "") in sigs
+    assert ("stax_taxes", "opponents", "") in sigs
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 

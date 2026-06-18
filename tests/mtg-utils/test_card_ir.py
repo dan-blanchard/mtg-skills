@@ -422,6 +422,45 @@ def test_anyof_filter_becomes_a_disjunction_predicate():
     assert "AnyOf:Instant|Sorcery" in f.predicates
 
 
+# ── combat-forcing statics: split out of stax, self-drawbacks gated ───────────
+
+
+def _static_card(mode, affected):
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "id-combat",
+        "card_type": {"core_types": ["Enchantment"]},
+        "oracle_text": "",
+        "static_abilities": [{"mode": mode, "affected": affected, "modifications": []}],
+    }
+
+
+def test_must_attack_on_a_creature_set_is_force_attack():
+    """'Creatures attack each combat if able' (Typed affected) → force_attack."""
+    rec = _static_card(
+        "MustAttack",
+        {"type": "Typed", "type_filters": ["Creature"], "controller": None},
+    )
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "force_attack" in cats
+    assert "restriction" not in cats  # not stax
+
+
+def test_self_must_attack_is_not_force_attack():
+    """'This creature attacks each combat if able' (SelfRef) is a vanilla drawback,
+    not a force-the-table theme — emits no force_attack."""
+    rec = _static_card("MustAttack", {"type": "SelfRef"})
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "force_attack" not in cats
+
+
+def test_self_must_be_blocked_is_lure():
+    """A lure creature lures blockers to ITSELF — SelfRef IS the enabler."""
+    rec = _static_card("MustBeBlockedByAll", {"type": "SelfRef"})
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "lure" in cats
+
+
 # ── round-trip ────────────────────────────────────────────────────────────────
 
 

@@ -432,6 +432,28 @@ _RESTRICTION_MODES = frozenset(
     }
 )
 
+# Batch 13 — combat-FORCING modes are pulled OUT of the stax-bound _RESTRICTION_MODES
+# into their own categories (a "creatures must attack" is a force-the-table theme, not
+# a tax). mustbeblocked* were not captured at all before. cantattack/cantattackorblock
+# stay in _RESTRICTION_MODES (pillowfort = stax).
+_COMBAT_FORCE_MODES: dict[str, str] = {
+    "mustattack": "force_attack",
+    "cantblock": "cant_block",
+    "mustbeblocked": "lure",
+    "mustbeblockedbyall": "lure",
+}
+
+
+def _restriction_scope(st: dict, affected: Filter | None) -> str:
+    """Whom a restriction/combat-force static hobbles → the Effect scope (opp / each /
+    any). Reads the affected set's controller and the mode's ``who`` qualifier."""
+    who = _mode_who(st.get("mode"))
+    if (affected is not None and affected.controller == "opp") or "opponent" in who:
+        return "opp"
+    if "all" in who:
+        return "each"
+    return "any"
+
 
 def _mode_token(mode: object) -> str:
     """The restriction-mode discriminant — a bare string or a one-key dict."""
@@ -542,18 +564,36 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 Effect(category="restriction", scope="each", subject=affected, raw=desc)
             )
         return out
-    # A restriction static (stax/tax): scope = whom it hobbles.
+    # Batch 13 — a combat-FORCING static (must attack / must be blocked / can't
+    # block): its own category, not stax. The scope tracks whom it hobbles so the lane
+    # can still feed stax (a "creatures opponents control can't block" is BOTH a
+    # path-clearing payoff AND a pillowfort tax). A lure creature lures blockers to
+    # ITSELF (SelfRef is the enabler) so lure keeps it; force_attack / cant_block need
+    # a themeable affected (a real creature SET or a targeted creature) — a self
+    # "this can't block" / "this must attack" is a vanilla drawback, not a theme.
     mode_tok = _mode_token(st.get("mode"))
+    combat_cat = _COMBAT_FORCE_MODES.get(mode_tok)
+    if combat_cat is not None:
+        scope = _restriction_scope(st, affected)
+        affected_raw = st.get("affected")
+        raw_type = (
+            _norm(affected_raw.get("type")) if isinstance(affected_raw, dict) else ""
+        )
+        themeable = raw_type in ("typed", "parenttarget")
+        if combat_cat == "lure" or themeable:
+            out.append(
+                Effect(category=combat_cat, scope=scope, subject=affected, raw=desc)
+            )
+        return out
+    # A restriction static (stax/tax): scope = whom it hobbles.
     if mode_tok in _RESTRICTION_MODES:
-        who = _mode_who(st.get("mode"))
-        if (affected is not None and affected.controller == "opp") or "opponent" in who:
-            scope = "opp"
-        elif "all" in who:
-            scope = "each"
-        else:
-            scope = "any"
         out.append(
-            Effect(category="restriction", scope=scope, subject=affected, raw=desc)
+            Effect(
+                category="restriction",
+                scope=_restriction_scope(st, affected),
+                subject=affected,
+                raw=desc,
+            )
         )
     return out
 

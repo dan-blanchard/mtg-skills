@@ -4038,6 +4038,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             # prowess; see the cast_spell arm):
             "nonhuman_attackers",
             "typed_anthem_multi",
+            # Batch 13 — combat-forcing statics (split out of stax):
+            "forced_attack",
+            "cant_block_grant",
+            "lure_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4436,6 +4440,25 @@ def extract_signals_ir(
             # Stax: a static restriction hobbling OPPONENTS (stax_taxes) or
             # everyone symmetrically (symmetric_stax).
             if cat == "restriction":
+                if e.scope == "opp":
+                    add("stax_taxes", "opponents", "", e.raw)
+                elif e.scope == "each":
+                    add("symmetric_stax", "each", "", e.raw)
+            # Batch 13 — combat-forcing statics (split out of stax): force the table
+            # to attack (Fumiko), force a path by denying blocks, or lure blockers (a
+            # creature that must be blocked). All scope "you" (you wield the engine).
+            # A force/can't-block static that hobbles OPPONENTS is ALSO a pillowfort
+            # tax, so it still feeds stax (the split must not regress stax coverage).
+            # forced_attack is scope "any" to match the sweep detector that catches
+            # the same "attacks each combat if able" compulsion (a symmetric/table
+            # force, not a you-only payoff).
+            if cat == "force_attack":
+                add("forced_attack", "any", "", e.raw)
+            if cat == "cant_block":
+                add("cant_block_grant", "you", "", e.raw)
+            if cat == "lure":
+                add("lure_matters", "you", "", e.raw)
+            if cat in ("force_attack", "cant_block"):
                 if e.scope == "opp":
                     add("stax_taxes", "opponents", "", e.raw)
                 elif e.scope == "each":
