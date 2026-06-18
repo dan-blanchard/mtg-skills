@@ -719,6 +719,19 @@ def test_combat_force_on_opponents_still_feeds_stax():
     assert ("stax_taxes", "opponents", "") in sigs
 
 
+# ── named_permanent (deck_copy_limit field) ───────────────────────────────────
+
+
+def test_many_copies_card_fires_named_permanent():
+    ir = Card(oracle_id="x", name="Relentless Rats", many_copies=True)
+    assert ("named_permanent", "you", "") in _sigs(ir)
+
+
+def test_singleton_card_does_not_fire_named_permanent():
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="draw"),)))
+    assert "named_permanent" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 

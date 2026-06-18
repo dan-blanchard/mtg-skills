@@ -4046,6 +4046,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "trigger_doubling",
             # Batch 6 (unblocked) — flash_grant via CastWithKeyword{Flash}:
             "flash_grant",
+            # Batch 5 (unblocked) — named-permanent count/anthem theme:
+            "named_permanent",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4610,6 +4612,13 @@ def extract_signals_ir(
         add("historic_matters", "you", "", "")
     if "IsCommander" in ir_predicates:  # Batch 15 — cares about your commander
         add("commander_matters", "you", "", "")
+    # named_permanent: the CR 100.2a copy-limit exception (a deck runs many copies of
+    # one name — Relentless Rats, Hare Apparent, Seven Dwarves). The authoritative
+    # signal is the deck_copy_limit field, NOT an oracle regex or a fuzzy named-count
+    # heuristic (which would wrongly catch a 4-of graveyard-spell-count like
+    # Accumulated Knowledge). These cards want every other copy of their name.
+    if ir.many_copies:
+        add("named_permanent", "you", "", "")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse

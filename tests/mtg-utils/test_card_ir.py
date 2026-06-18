@@ -468,6 +468,49 @@ def test_double_triggers_static_is_trigger_doubling():
     assert "trigger_doubling" in cats
 
 
+def test_deck_copy_limit_unlimited_sets_many_copies():
+    """The CR 100.2a copy-limit exception (Relentless Rats / Hare Apparent) → the
+    authoritative named-deck flag, read from the structured deck_copy_limit field."""
+    rec = {
+        "name": "Relentless Rats",
+        "scryfall_oracle_id": "rr",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "A deck can have any number of cards named Relentless Rats.",
+        "deck_copy_limit": {"type": "Unlimited"},
+    }
+    assert project_card([rec]).many_copies is True
+
+
+def test_upto_two_is_many_copies_but_upto_one_is_not():
+    """Seven Dwarves (UpTo 7) is a named-deck card; Vazal's Megalegendary (UpTo 1) is
+    a RESTRICTION to one copy — the opposite — so it is not many_copies."""
+    base = {
+        "name": "X",
+        "scryfall_oracle_id": "x",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "",
+    }
+    assert project_card(
+        [{**base, "deck_copy_limit": {"type": "UpTo", "data": 7}}]
+    ).many_copies
+    assert not project_card(
+        [{**base, "deck_copy_limit": {"type": "UpTo", "data": 1}}]
+    ).many_copies
+    assert not project_card([base]).many_copies  # no field → singleton/4-of
+
+
+def test_many_copies_survives_roundtrip():
+    rec = {
+        "name": "R",
+        "scryfall_oracle_id": "r",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "",
+        "deck_copy_limit": {"type": "Unlimited"},
+    }
+    card = project_card([rec])
+    assert Card.from_dict(card.to_dict()).many_copies is True
+
+
 def test_cast_with_flash_is_a_flash_grant():
     """Teferi / Yeva: CastWithKeyword{Flash} → cast_with_keyword carrying 'flash'."""
     rec = _static_card(

@@ -133,6 +133,10 @@ class Card:
     faces: tuple[Face, ...] = ()
     castable_zones: tuple[str, ...] = ()  # graveyard | exile | ... (cast-from zones)
     parse_confidence: str = "full"  # full | partial | unparsed
+    # CR 100.2a exception: a deck may run many copies of this name (Relentless Rats,
+    # Hare Apparent, Seven Dwarves) — phase's deck_copy_limit Unlimited or UpTo>=2.
+    # The authoritative named-deck signal (a structured field, not an oracle regex).
+    many_copies: bool = False
 
     def all_abilities(self) -> tuple[Ability, ...]:
         """Face-agnostic rollup: every ability across every face, in order."""
@@ -381,6 +385,8 @@ def _card_to_dict(c: Card) -> dict:
         out["cz"] = list(c.castable_zones)
     if c.parse_confidence != "full":
         out["pc"] = c.parse_confidence
+    if c.many_copies:
+        out["mc"] = True
     return out
 
 
@@ -391,4 +397,5 @@ def _card_from_dict(d: dict) -> Card:
         faces=tuple(_face_from_dict(f) for f in d.get("faces", ())),
         castable_zones=tuple(d.get("cz", ())),
         parse_confidence=d.get("pc", "full"),
+        many_copies=d.get("mc", False),
     )

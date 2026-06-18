@@ -195,6 +195,7 @@ def project_card(records: list[dict]) -> Card:
         faces=faces,
         castable_zones=_castable_zones(records),
         parse_confidence="full",  # recomputed after the supplement
+        many_copies=_allows_many_copies(records[0]),
     )
     card = supplement_card(card)
     return replace(card, parse_confidence=_confidence(card))
@@ -1066,6 +1067,20 @@ def _keywords(kws: object) -> tuple[str, ...]:
             if isinstance(k, str):
                 out.append(k)
     return tuple(out)
+
+
+def _allows_many_copies(record: dict) -> bool:
+    """The CR 100.2a copy-limit exception (a deck may run many copies of this name —
+    Relentless Rats, Hare Apparent, Seven Dwarves): phase's ``deck_copy_limit`` is
+    ``Unlimited`` or ``UpTo`` with a bound >= 2. UpTo:1 (Vazal's Megalegendary, Once
+    More With Feeling) RESTRICTS to one copy — the opposite — so it is excluded."""
+    dl = record.get("deck_copy_limit")
+    if not isinstance(dl, dict):
+        return False
+    t = _norm(dl.get("type"))
+    if t == "unlimited":
+        return True
+    return t == "upto" and _int(dl.get("data"), 0) >= 2
 
 
 def _castable_zones(records: list[dict]) -> tuple[str, ...]:
