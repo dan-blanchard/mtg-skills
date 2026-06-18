@@ -3885,6 +3885,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bfirebend(?:ing|s)?\b", re.IGNORECASE),
         "you",
     ),
+    # Batch 16 — recent-set mechanics phase v0.1.60 doesn't structure
+    # (rules-lawyer-verified): celebration + coven (ability words, CR 207.2c),
+    # outlaw (a creature-type group), plot (CR 702.170), miracle (CR 702.94),
+    # lessons (a subtype), kicked (CR 702.33). Narrow word detectors, kept for A4.
+    ("celebration_matters", re.compile(r"\bcelebration\b", re.IGNORECASE), "you"),
+    ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
+    ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
+    ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
+    # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
+    # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
+    # the word). Both need a narrower payoff/keyword source.
 )
 
 # Keys the keyword-array detectors emit (reused verbatim by the IR path, same
@@ -3992,6 +4004,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "earthbend_matters",
             "waterbend_matters",
             "firebending_matters",
+            # Batch 16 — recent-set kept-detectors (rules-lawyer-verified):
+            "celebration_matters",
+            "coven_matters",
+            "outlaw_matters",
+            "lessons_matter",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
