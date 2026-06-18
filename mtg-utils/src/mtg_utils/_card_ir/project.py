@@ -823,6 +823,14 @@ def _trigger_scope(tr: dict) -> str:
         c = _controller(vc.get("controller"))
         if c != "any":
             return c
+    # Batch 11 — a player-EVENT trigger (whenever an opponent draws/searches) carries
+    # the player in valid_target, not valid_card (Nekusar: Drawn + valid_target
+    # controller=Opponent). Fall back to it so the scope isn't lost.
+    vt = tr.get("valid_target")
+    if isinstance(vt, dict):
+        c = _controller(vt.get("controller"))
+        if c != "any":
+            return c
     return "any"
 
 

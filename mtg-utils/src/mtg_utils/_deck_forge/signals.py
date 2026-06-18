@@ -4017,6 +4017,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "devotion_matters",
             "party_matters",
             "domain_matters",
+            # Batch 11 — opponent-draw punisher (player-event scope):
+            "opponent_draw_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4340,6 +4342,9 @@ def extract_signals_ir(
                 add("discard_matters", "you", "", "")
             if ev == "drawn":
                 add("draw_matters", "you", "", "")
+                # Batch 11 — "whenever an OPPONENT draws" (Nekusar / Notion Thief).
+                if trig.scope == "opp":
+                    add("opponent_draw_matters", "opponents", "", "")
             # creature_etb (ETB-VALUE) — cares when OTHER creatures enter (a Typed
             # subject; a self-ETB SelfRef→None is a one-shot, not this lane). Scope
             # tracks WHOSE entering creature triggers it (yours = value, an
