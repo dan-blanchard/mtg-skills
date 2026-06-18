@@ -109,6 +109,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "detain": "detain",
     "animate": "animate",
     "seek": "seek",
+    "becomecopy": "clone",  # Batch 10 — "becomes a copy of" (clone synergy)
     # Batch 0 — v0.1.60 structured effect types that previously fell to "other".
     "flipcoin": "coin_flip",
     "flipcoins": "coin_flip",

@@ -3765,6 +3765,10 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "phasing": ("phasing_matters", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
+    # DEFERRED: clone_matters — the BecomeCopy effect (the "clone" category, kept as
+    # accurate IR) is the precise 70 clones, but the regex lane is broad (~1611
+    # copy-anything: spell copy, token copy); matching it would conflate distinct
+    # copy archetypes, so the lane waits rather than under-cover by 1541.
     # DEFERRED: topdeck_stack — the PutAtLibraryPosition category is accurate IR but
     # includes BOTTOM puts (failed tutors, "rest on the bottom"); firing the
     # top-stacking lane on all 508 floods it (+421). Needs a top-vs-bottom position
@@ -3952,6 +3956,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch R (v0.1.60 replacement-effect doublers, split by event):
             "token_doubling",
             "counter_doubling",
+            "damage_doubling",  # Batch 10
             # Batch 0 — scope-gated lane (not in the _DOER table):
             "hand_disruption",
             # Batch 1 — scope-gated cycling payoff (not in _PAYOFF_TRIGGER_KEYS):
@@ -4223,6 +4228,8 @@ def extract_signals_ir(
                 add("token_doubling", "you", "", e.raw)
             if cat == "counter_doubling":
                 add("counter_doubling", "you", "", e.raw)
+            if cat == "damage_doubling":  # Batch 10 — DamageDone replacement doubler
+                add("damage_doubling", "you", "", e.raw)
             # hand_disruption only when an OPPONENT reveals (a self-reveal — "reveal
             # cards in your hand" — is scope "any" and not disruption).
             if cat == "reveal_hand" and e.scope == "opp":
