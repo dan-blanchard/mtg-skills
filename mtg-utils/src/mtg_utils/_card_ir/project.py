@@ -294,19 +294,27 @@ def _amount(eff: dict) -> Quantity | None:
 def _changezone_effect(eff: dict, raw: str) -> Effect:
     """A ChangeZone effect → category by its origin/destination zones.
 
-    Graveyard → Battlefield is reanimation (the ``reanimator`` substrate); other
-    movements stay 'other' for now (blink/tuck/bounce get their own rules later).
-    The ``target`` (a Typed filter of what's moved) is the effect's subject."""
+    Graveyard → Battlefield is reanimation; → Exile of your own permanent is a
+    blink (ETB-value flicker); → Exile of others' is exile removal; the rest stay
+    'other'. The ``target`` (a Typed filter of what's moved) is the subject."""
     origin = _norm(eff.get("origin"))
     dest = _norm(eff.get("destination"))
-    category = (
-        "reanimate" if (origin == "graveyard" and dest == "battlefield") else "other"
-    )
+    target = _filter(eff.get("target"))
+    if origin == "graveyard" and dest == "battlefield":
+        category = "reanimate"
+    elif dest == "exile" and target is not None and target.controller == "you":
+        # exile-and-return of YOUR own permanent = blink (ETB-value flicker).
+        category = "blink"
+    elif dest == "exile":
+        # exile of others' permanents = exile removal.
+        category = "exile"
+    else:
+        category = "other"
     return Effect(
         category=category,
         amount=_amount(eff),
         scope=_effect_scope(eff),
-        subject=_filter(eff.get("target")),
+        subject=target,
         raw=raw,
     )
 

@@ -167,6 +167,7 @@ CATEGORIES: frozenset[str] = frozenset(
         "place_counter",
         "remove_counter",
         "reanimate",
+        "blink",
         "mill",
         "gain_life",
         "lose_life",
