@@ -28,7 +28,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
-from mtg_utils.card_ir import Card, Effect
+from mtg_utils.card_ir import Card, Effect, Filter, Quantity
 
 # ── scope recovery (phase structures scope on only a sliver of abilities) ──────
 # Narrow Tinybones rule: combat-damage-to-a-player + that-player's-zone → opp.
@@ -86,12 +86,170 @@ class ClauseRule:
         return replace(e, category=self.category, scope=self.scope or e.scope)
 
 
+# ── token-clause parser (mirrors phase's parser/oracle_effect/token.rs grammar) ─
+# "create [count] [tapped] [supertypes] [P/T] [colors] <descriptor> token …".
+# phase drops a token to Unimplemented when the clause has no count it recognizes,
+# a creature with no P/T, or a bare-subtype descriptor not in its catalog; we
+# recover those here into a real make_token Effect with a typed subject.
+_CREATE_TOKEN = re.compile(r"\bcreates?\b.*?\btokens?\b", re.IGNORECASE)
+
+# The 4 card-type words phase's token grammar recognizes; everything else in the
+# descriptor is a subtype (token.rs parse_token_identity's allowlist).
+_TOKEN_CARD_TYPES = {"artifact", "creature", "enchantment", "land"}
+# Predefined artifact subtypes: a bare "Treasure"/"Food"/… token is an Artifact
+# with that subtype (token.rs known_named_token_identity).
+_PREDEF_ARTIFACT_SUB = {
+    "treasure",
+    "food",
+    "clue",
+    "blood",
+    "map",
+    "powerstone",
+    "junk",
+    "shard",
+    "gold",
+    "lander",
+    "mutagen",
+    "incubator",
+}
+_TOKEN_COUNT_WORDS = {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+# The modifier words consumed (in any order) between the count and the
+# type/subtype head: enters-flags, P/T (one whole word), colors, supertypes.
+_TOKEN_FLAGS = {"tapped", "untapped", "attacking"}
+_TOKEN_COLORS = {
+    "white",
+    "blue",
+    "black",
+    "red",
+    "green",
+    "colorless",
+    "monocolored",
+    "multicolored",
+}
+_TOKEN_SUPERTYPES = {"legendary", "snow", "basic"}
+_PT_WORD = re.compile(r"^[\dx*]+/[\dx*]+$", re.IGNORECASE)  # a whole word, e.g. 1/1
+# Words that end the type/subtype run (an abilities/naming/attach clause follows).
+_TOKEN_TAIL = {"with", "named", "that", "attached", "for", "in", "and"}
+
+# Whose token is it (default: the controller's). An each-opponent / target-player
+# giveaway is scope opp/each — a punisher, not your token engine.
+_TOKEN_SCOPE = (
+    (re.compile(r"each opponent\s+creates", re.IGNORECASE), "opp"),
+    (re.compile(r"each player\s+creates", re.IGNORECASE), "each"),
+    (
+        re.compile(
+            r"(?:target (?:opponent|player)|that player)\s+creates", re.IGNORECASE
+        ),
+        "opp",
+    ),
+)
+
+
+def _word(w: str) -> str:
+    return re.sub(r"[^a-z0-9*/]", "", w.lower())
+
+
+def _parse_token_descriptor(descriptor: str) -> tuple[Quantity | None, Filter | None]:
+    """Consume a token descriptor left-to-right (combinator-style, mirroring phase's
+    nom grammar rather than a regex strip): count → modifiers (flags/P-T/colors/
+    supertypes) → the type+subtype head split by phase's 4-word card-type allowlist.
+
+    Word-by-word consumption avoids the regex-alternation ordering traps (e.g. a
+    bare-number count eating the "1" of a "1/1" P/T) that a flat strip is prone to.
+    """
+    words = descriptor.split()
+    n = len(words)
+    i = 0
+
+    # 1. count — an article/number word, a digit, X, or "that many"/"up to N".
+    count: Quantity | None = None
+    if i < n:
+        w = _word(words[i])
+        if w in _TOKEN_COUNT_WORDS:
+            count = Quantity(op="fixed", factor=_TOKEN_COUNT_WORDS[w])
+            i += 1
+        elif w.isdigit():
+            count = Quantity(op="fixed", factor=int(w))
+            i += 1
+        elif w == "x":
+            i += 1  # dynamic — leave count unbound
+        elif w == "that" and i + 1 < n and _word(words[i + 1]) == "many":
+            i += 2
+
+    # 2. modifiers — flags / P-T / colors / supertypes / the "and" color connector.
+    while i < n:
+        w = _word(words[i])
+        if (
+            w in _TOKEN_FLAGS
+            or w in _TOKEN_COLORS
+            or w in _TOKEN_SUPERTYPES
+            or w == "and"
+            or _PT_WORD.match(w)
+        ):
+            i += 1
+        else:
+            break
+
+    # 3. the type+subtype head — card types by phase's allowlist, the rest subtypes
+    # (a predefined artifact subtype like Treasure also supplies the Artifact type).
+    card_types: list[str] = []
+    subtypes: list[str] = []
+    while i < n:
+        w = _word(words[i])
+        i += 1
+        if not w or w in _TOKEN_TAIL:
+            break
+        if w in _TOKEN_CARD_TYPES:
+            card_types.append(w.capitalize())
+        elif w in _PREDEF_ARTIFACT_SUB:
+            if "Artifact" not in card_types:
+                card_types.append("Artifact")
+            subtypes.append(w.capitalize())
+        else:
+            subtypes.append(w.capitalize())
+
+    subject = (
+        Filter(card_types=tuple(card_types), subtypes=tuple(subtypes))
+        if (card_types or subtypes)
+        else None
+    )
+    return count, subject
+
+
+def _build_token_effect(m: re.Match[str], e: Effect) -> Effect:
+    """Parse a "create … token" clause into a structured make_token Effect."""
+    clause = m.group(0)
+    inner = re.search(r"\bcreates?\s+(.*?)\s+tokens?\b", clause, re.IGNORECASE)
+    descriptor = inner.group(1) if inner else ""
+    scope = "you"
+    for pat, sc in _TOKEN_SCOPE:
+        if pat.search(e.raw):
+            scope = sc
+            break
+    count, subject = _parse_token_descriptor(descriptor)
+    return replace(e, category="make_token", scope=scope, subject=subject, amount=count)
+
+
 # The recovery registry. Order matters: the first matching rule wins, so put the
 # most specific clauses first. Grow this as the fan-out owns more of the tail —
 # each rule is a structured node, not a card-level boolean.
 _RECOVERY_RULES: tuple[ClauseRule, ...] = (
     ClauseRule("graveyard_cast", _GRAVEYARD_CAST, category="reanimate"),
     ClauseRule("vote", _VOTE, category="vote", scope="each"),
+    ClauseRule("create_token", _CREATE_TOKEN, build=_build_token_effect),
 )
 
 
