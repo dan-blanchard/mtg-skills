@@ -4013,6 +4013,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "outlaw_matters",
             "lessons_matter",
             "snow_matters",  # Batch 18 — real (CR 205.4), not a skip
+            # Batch 8 — named scaling-operand lanes:
+            "devotion_matters",
+            "party_matters",
+            "domain_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4145,6 +4149,14 @@ def extract_signals_ir(
             # set). NOT a single reanimate/destroy TARGET that happens to be a
             # creature you control — gate the affected-set case on the pump shape.
             amount_subject = e.amount.subject if e.amount is not None else None
+            # Batch 8 — an effect scaling with a named deck-wide count.
+            if e.amount is not None:
+                if e.amount.op == "devotion":
+                    add("devotion_matters", "you", "", e.raw)
+                elif e.amount.op == "party":
+                    add("party_matters", "you", "", e.raw)
+                elif e.amount.op == "domain":
+                    add("domain_matters", "you", "", e.raw)
             if _is_generic_creature_filter(amount_subject) or (
                 e.category == "pump" and _is_generic_creature_filter(e.subject)
             ):

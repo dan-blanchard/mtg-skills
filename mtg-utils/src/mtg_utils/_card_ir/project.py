@@ -596,9 +596,14 @@ def _quantity(node: object) -> Quantity | None:
     if t == "fixed":
         return Quantity(op="fixed", factor=_int(node.get("value"), 1))
     if t == "ref":
-        return Quantity(
-            op="count", factor=1, subject=_objectcount_filter(node.get("qty"))
-        )
+        qty = node.get("qty")
+        # a Ref over a named scaling operand (devotion/party/domain) — Gray Merchant
+        # is Ref→Devotion, so the operand is nested under qty, not a top-level type.
+        if isinstance(qty, dict):
+            op = _SCALING_OPERANDS.get(_norm(qty.get("type")))
+            if op is not None:
+                return Quantity(op=op, factor=1)
+        return Quantity(op="count", factor=1, subject=_objectcount_filter(qty))
     if t == "objectcount":
         return Quantity(op="count", factor=1, subject=_filter(node.get("filter")))
     if t == "multiply":
@@ -608,7 +613,20 @@ def _quantity(node: object) -> Quantity | None:
             factor=_int(node.get("factor"), 1),
             subject=inner.subject if inner else None,
         )
+    # Batch 8 — named scaling operands (a "for each X" where X is a deck-wide count).
+    op = _SCALING_OPERANDS.get(t)
+    if op is not None:
+        return Quantity(op=op, factor=1)
     return None
+
+
+# Batch 8 — phase quantity operand type → the Quantity.op the lane reads.
+_SCALING_OPERANDS: dict[str, str] = {
+    "devotion": "devotion",
+    "devotionge": "devotion",
+    "partysize": "party",
+    "basiclandtypecount": "domain",
+}
 
 
 def _objectcount_filter(qty: object) -> Filter | None:
