@@ -1,0 +1,100 @@
+"""Unit tests for the nom-mirror parser-combinator core."""
+
+import re
+
+from mtg_utils._card_ir._combinators import (
+    alt,
+    keyword,
+    many,
+    opt,
+    preceded,
+    regex_word,
+    satisfy,
+    succeed,
+    tag,
+    take_until,
+    value,
+    word,
+    ws,
+)
+
+
+class TestPrimitives:
+    def test_tag_case_insensitive_by_default(self):
+        assert tag("create ").parse("Create a token") == ("Create ", "a token")
+        assert tag("create ").parse("nope") is None
+
+    def test_tag_case_sensitive(self):
+        assert tag("X", ci=False).parse("X/X") == ("X", "/X")
+        assert tag("x", ci=False).parse("X/X") is None
+
+    def test_take_until(self):
+        assert take_until(" token").parse("a 1/1 Bird token here") == (
+            "a 1/1 Bird",
+            " token here",
+        )
+        assert take_until(" token").parse("no match") is None
+
+    def test_ws_always_succeeds(self):
+        assert ws().parse("   hi") == (None, "hi")
+        assert ws().parse("hi") == (None, "hi")
+
+    def test_word_skips_leading_ws(self):
+        assert word().parse("  Goblin rest") == ("Goblin", " rest")
+        assert word().parse("   ") is None
+
+    def test_keyword_normalizes_and_filters(self):
+        p = keyword({"white", "blue"})
+        assert p.parse("white Soldier") == ("white", " Soldier")
+        # punctuation stripped before matching; normalized form returned
+        assert p.parse("White, ") == ("white", " ")
+        assert p.parse("Goblin") is None
+
+    def test_satisfy(self):
+        digit = satisfy(str.isdigit)
+        assert digit.parse("3 tokens") == ("3", " tokens")
+        assert digit.parse("three") is None
+
+    def test_regex_word(self):
+        pt = regex_word(re.compile(r"[\dx*]+/[\dx*]+", re.IGNORECASE))
+        assert pt.parse("1/1 white") == ("1/1", " white")
+        assert pt.parse("X/X red") == ("X/X", " red")
+        assert pt.parse("white") is None
+
+
+class TestCombinators:
+    def test_alt_first_success(self):
+        p = alt(tag("ab"), tag("cd"))
+        assert p.parse("cdef") == ("cd", "ef")
+        assert p.parse("xy") is None
+
+    def test_or_operator_is_alt(self):
+        p = tag("ab") | tag("cd")
+        assert p.parse("cdef") == ("cd", "ef")
+
+    def test_opt_never_fails(self):
+        assert opt(tag("ab")).parse("xy") == (None, "xy")
+        assert opt(tag("ab")).parse("abxy") == ("ab", "xy")
+
+    def test_many_collects_until_no_progress(self):
+        p = many(keyword({"and", "white", "blue"}))
+        vals, rest = p.parse("white and blue Bird")
+        assert vals == ["white", "and", "blue"]
+        assert rest.strip() == "Bird"
+
+    def test_many_zero(self):
+        assert many(tag("z")).parse("abc") == ([], "abc")
+
+    def test_value_replaces_output(self):
+        assert value(7, tag("x")).parse("xyz") == (7, "yz")
+
+    def test_preceded_discards_prefix(self):
+        p = preceded(tag("create "), word())
+        assert p.parse("create Goblin x") == ("Goblin", " x")
+        assert p.parse("nope") is None
+
+    def test_map(self):
+        assert word().map(str.upper).parse("hi there") == ("HI", " there")
+
+    def test_succeed_consumes_nothing(self):
+        assert succeed(42).parse("abc") == (42, "abc")

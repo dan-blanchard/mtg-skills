@@ -28,6 +28,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
+from mtg_utils._card_ir import _combinators as comb
 from mtg_utils.card_ir import Card, Effect, Filter, Quantity
 
 # ── scope recovery (phase structures scope on only a sliver of abilities) ──────
@@ -140,7 +141,7 @@ _TOKEN_COLORS = {
     "multicolored",
 }
 _TOKEN_SUPERTYPES = {"legendary", "snow", "basic"}
-_PT_WORD = re.compile(r"^[\dx*]+/[\dx*]+$", re.IGNORECASE)  # a whole word, e.g. 1/1
+_PT_WORD = re.compile(r"[\dx*]+/[\dx*]+", re.IGNORECASE)  # a whole word, e.g. 1/1
 # Words that end the type/subtype run (an abilities/naming/attach clause follows).
 _TOKEN_TAIL = {"with", "named", "that", "attached", "for", "in", "and"}
 
@@ -157,61 +158,52 @@ _TOKEN_SCOPE = (
     ),
 )
 
+# ── the token grammar, as combinators (mirrors token.rs's field order) ──────────
+# count token (kept homogeneous Parser[str] — the Quantity conversion happens once
+# in _count_value): an article/number word, a digit, X (dynamic), "that many"
+# (dynamic), or "up to N". Captured as a raw string so the dynamic and numeric
+# forms compose in one ``alt`` without a heterogeneous Parser[Quantity | None].
+_single_count = comb.keyword(_TOKEN_COUNT_WORDS) | comb.satisfy(str.isdigit)
+_count_token = comb.alt(
+    comb.tag("that many"),
+    comb.preceded(comb.tag("up to "), _single_count),
+    _single_count,
+    comb.keyword({"x"}),
+)
+# modifiers between the count and the head: P/T, colors, supertypes, enters-flags,
+# and the "and" colour connector — consumed and discarded.
+_modifier_p = comb.alt(
+    comb.regex_word(_PT_WORD),
+    comb.keyword(_TOKEN_COLORS),
+    comb.keyword(_TOKEN_SUPERTYPES),
+    comb.keyword(_TOKEN_FLAGS),
+    comb.keyword({"and"}),
+)
+# the type+subtype head: words until a tail word (returns raw words to split).
+_head_word = comb.satisfy(lambda w: bool(w) and w not in _TOKEN_TAIL)
+_token_grammar = comb.seq3(
+    comb.opt(_count_token), comb.many(_modifier_p), comb.many(_head_word)
+)
 
-def _word(w: str) -> str:
-    return re.sub(r"[^a-z0-9*/]", "", w.lower())
+
+def _count_value(token: str) -> Quantity | None:
+    """A captured count token → a bound Quantity, or None for a dynamic count
+    ("x" / "that many", which were consumed only so the head isn't misread)."""
+    w = comb.norm_word(token)
+    if w in _TOKEN_COUNT_WORDS:
+        return Quantity(op="fixed", factor=_TOKEN_COUNT_WORDS[w])
+    if w.isdigit():
+        return Quantity(op="fixed", factor=int(w))
+    return None
 
 
-def _parse_token_descriptor(descriptor: str) -> tuple[Quantity | None, Filter | None]:
-    """Consume a token descriptor left-to-right (combinator-style, mirroring phase's
-    nom grammar rather than a regex strip): count → modifiers (flags/P-T/colors/
-    supertypes) → the type+subtype head split by phase's 4-word card-type allowlist.
-
-    Word-by-word consumption avoids the regex-alternation ordering traps (e.g. a
-    bare-number count eating the "1" of a "1/1" P/T) that a flat strip is prone to.
-    """
-    words = descriptor.split()
-    n = len(words)
-    i = 0
-
-    # 1. count — an article/number word, a digit, X, or "that many"/"up to N".
-    count: Quantity | None = None
-    if i < n:
-        w = _word(words[i])
-        if w in _TOKEN_COUNT_WORDS:
-            count = Quantity(op="fixed", factor=_TOKEN_COUNT_WORDS[w])
-            i += 1
-        elif w.isdigit():
-            count = Quantity(op="fixed", factor=int(w))
-            i += 1
-        elif w == "x":
-            i += 1  # dynamic — leave count unbound
-        elif w == "that" and i + 1 < n and _word(words[i + 1]) == "many":
-            i += 2
-
-    # 2. modifiers — flags / P-T / colors / supertypes / the "and" color connector.
-    while i < n:
-        w = _word(words[i])
-        if (
-            w in _TOKEN_FLAGS
-            or w in _TOKEN_COLORS
-            or w in _TOKEN_SUPERTYPES
-            or w == "and"
-            or _PT_WORD.match(w)
-        ):
-            i += 1
-        else:
-            break
-
-    # 3. the type+subtype head — card types by phase's allowlist, the rest subtypes
-    # (a predefined artifact subtype like Treasure also supplies the Artifact type).
+def _split_head(words: list[str]) -> Filter | None:
+    """Split the head words into (card_types, subtypes) by phase's 4-word allowlist;
+    a predefined artifact subtype (Treasure/Food/…) also supplies the Artifact type."""
     card_types: list[str] = []
     subtypes: list[str] = []
-    while i < n:
-        w = _word(words[i])
-        i += 1
-        if not w or w in _TOKEN_TAIL:
-            break
+    for raw in words:
+        w = comb.norm_word(raw)
         if w in _TOKEN_CARD_TYPES:
             card_types.append(w.capitalize())
         elif w in _PREDEF_ARTIFACT_SUB:
@@ -220,13 +212,19 @@ def _parse_token_descriptor(descriptor: str) -> tuple[Quantity | None, Filter | 
             subtypes.append(w.capitalize())
         else:
             subtypes.append(w.capitalize())
+    if not (card_types or subtypes):
+        return None
+    return Filter(card_types=tuple(card_types), subtypes=tuple(subtypes))
 
-    subject = (
-        Filter(card_types=tuple(card_types), subtypes=tuple(subtypes))
-        if (card_types or subtypes)
-        else None
-    )
-    return count, subject
+
+def _parse_token_descriptor(descriptor: str) -> tuple[Quantity | None, Filter | None]:
+    """Run the token grammar over a descriptor → (count, typed subject)."""
+    parsed = _token_grammar.parse(descriptor)
+    if parsed is None:
+        return None, None
+    (count_token, _mods, heads), _rest = parsed
+    count = _count_value(count_token) if count_token else None
+    return count, _split_head(heads)
 
 
 def _build_token_effect(m: re.Match[str], e: Effect) -> Effect:
