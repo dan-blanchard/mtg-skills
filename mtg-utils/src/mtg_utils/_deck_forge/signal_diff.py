@@ -15,6 +15,7 @@ Read-only; never part of the live build path.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from pathlib import Path
 
 from mtg_utils._card_ir.load import load_card_ir
 from mtg_utils._deck_forge.signals import (
@@ -42,6 +43,7 @@ def diff_corpus(
     keys: frozenset[str] = IR_SLICE_KEYS,
     commander_only: bool = True,
     example_cap: int = 15,
+    regex_firings: dict[str, tuple] | None = None,
 ) -> dict:
     """Join ``cards`` to ``ir_index`` by oracle_id; tally IR-vs-regex agreement.
 
@@ -89,7 +91,10 @@ def diff_corpus(
 
         joined += 1
         name = card.get("name", "")
-        regex = _slice(extract_signals(card), keys)
+        if regex_firings is not None:
+            regex = {s for s in regex_firings.get(oid, ()) if s[0] in keys}
+        else:
+            regex = _slice(extract_signals(card), keys)
         ir_sig = _slice(extract_signals_ir(card, ir), keys)
         for ident in regex & ir_sig:
             tally(ident, BOTH, name)
@@ -137,6 +142,39 @@ def render_report(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _regex_firings_cache(cards: Iterable[dict], bulk_path: Path) -> dict[str, tuple]:
+    """Precompute (and pickle) the FULL regex firings per oracle_id.
+
+    The regex path (``extract_signals``) is untouched during the IR fan-out, so
+    this is stable across batches — caching it makes each harness run cheap (only
+    the IR side recomputes). The cache is keyed by the bulk sidecar mtime so a
+    ``download-bulk`` refresh invalidates it."""
+    import pickle
+    import tempfile
+
+    from mtg_utils.bulk_loader import bulk_mtime
+
+    token = bulk_mtime(bulk_path)
+    path = Path(tempfile.gettempdir()) / "signal_diff_regex_firings.pkl"
+    if path.exists():
+        try:
+            blob = pickle.loads(path.read_bytes())
+            if blob.get("token") == token:
+                return blob["firings"]
+        except (pickle.PickleError, EOFError, OSError, KeyError):
+            pass
+
+    firings: dict[str, tuple] = {}
+    for card in cards:
+        oid = card.get("oracle_id")
+        if oid and oid not in firings:
+            firings[oid] = tuple(
+                (s.key, s.scope, s.subject) for s in extract_signals(card)
+            )
+    path.write_bytes(pickle.dumps({"token": token, "firings": firings}))
+    return firings
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI: ``python -m mtg_utils._deck_forge.signal_diff [--all] [--json]``."""
     import argparse
@@ -153,6 +191,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Include non-commander-legal cards (default: commander-legal only).",
     )
     parser.add_argument("--json", action="store_true", help="Emit the raw report JSON.")
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Recompute the regex firings instead of using the pickled cache.",
+    )
     args = parser.parse_args(argv)
 
     bulk = default_bulk_path()
@@ -165,7 +208,11 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc))
         return 1
 
-    report = diff_corpus(load_bulk_cards(bulk), ir_index, commander_only=not args.all)
+    cards = load_bulk_cards(bulk)
+    firings = None if args.no_cache else _regex_firings_cache(cards, bulk)
+    report = diff_corpus(
+        cards, ir_index, commander_only=not args.all, regex_firings=firings
+    )
     print(json.dumps(report, indent=2) if args.json else render_report(report))
     return 0
 
