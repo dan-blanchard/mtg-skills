@@ -3732,17 +3732,57 @@ def extract_signals(
 # hard axes: a scaling lane (creatures_matter), a payoff lane (lifegain_matters), a
 # scoped lane (graveyard_matters), a subject-bearing lane (token_maker), and a
 # trigger lane (death_matters). Fan-out to the full vocabulary follows.
-IR_SLICE_KEYS: frozenset[str] = frozenset(
-    {
-        "creatures_matter",
-        "lifegain_matters",
-        "graveyard_matters",
-        signal_keys.TOKEN_MAKER,
-        "death_matters",
-        # Batch 1 (aristocrats/recursion):
-        "self_death_payoff",
-        "reanimator",
-    }
+# Batch 2b — effect.category → (signal key, fixed scope | None). The CROSSWALK
+# "doer" set: a card that DOES X (makes the resource), keyed off the effect.
+# None scope = derive from the effect's own scope.
+_DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
+    "untap": ("untap_engine", "you"),
+    "proliferate": ("proliferate_matters", "you"),
+    "topdeck_select": ("topdeck_selection", "you"),
+    "gain_control": ("gain_control", "you"),
+    "mill": ("mill_matters", "any"),
+    "tutor": ("tutor_matters", "you"),
+    # NB: place_counter -> counters_matter is deferred until the projection
+    # captures counter KIND (+1/+1 vs loyalty/charge/oil) — firing on every
+    # counter placement floods the lane (planeswalkers, one-off charge counters).
+    # direct_damage is special-cased below (doer scope "you", offensive only).
+}
+
+# Batch 2c — trigger.event → (signal key, fixed scope | None). The CROSSWALK
+# "payoff" set: a card that CARES when X happens, keyed off the trigger.
+_PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
+    "cast_spell": ("spellcast_matters", "you"),
+    "combat_damage": ("combat_damage_to_opp", "opponents"),
+    "attacks": ("attack_matters", "you"),
+    "counter_added": ("counters_matter", "you"),
+}
+
+# Keys the keyword-array detectors emit (reused verbatim by the IR path, same
+# Scryfall source as the regex path → perfect parity).
+_IR_KEYWORD_KEYS: frozenset[str] = frozenset(
+    key for key, _scope in _PRESET_KEYWORD_SIGNALS.values()
+) | frozenset(key for key, _scope in _DIRECT_KEYWORD_SIGNALS.values())
+
+IR_SLICE_KEYS: frozenset[str] = (
+    frozenset(
+        {
+            "creatures_matter",
+            "lifegain_matters",
+            "graveyard_matters",
+            signal_keys.TOKEN_MAKER,
+            "death_matters",
+            # Batch 1 (aristocrats/recursion):
+            "self_death_payoff",
+            "reanimator",
+            # Batch 2b (special-cased doer):
+            "direct_damage",
+        }
+    )
+    # Batch 2a (keyword-array signals — same source as regex, full parity):
+    | _IR_KEYWORD_KEYS
+    # Batch 2b/2c (effect-doer + trigger-payoff lanes):
+    | frozenset(key for key, _scope in _DOER_EFFECT_KEYS.values())
+    | frozenset(key for key, _scope in _PAYOFF_TRIGGER_KEYS.values())
 )
 
 # IR scope vocab ("opp") → Signal scope vocab ("opponents").
@@ -3841,6 +3881,15 @@ def extract_signals_ir(
                 and _reanimates_creature(e)
             ):
                 add("reanimator", "you", "", e.raw)
+            # Batch 2b — effect-category "doer" lanes (the CROSSWALK doer set).
+            doer = _DOER_EFFECT_KEYS.get(e.category)
+            if doer is not None:
+                key, fixed_scope = doer
+                add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
+            # direct_damage is a doer (scope "you" = you control the source);
+            # gate out incidental SELF-damage (painlands, talismans target you).
+            if e.category == "damage" and e.scope != "you":
+                add("direct_damage", "you", "", e.raw)
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
@@ -3861,6 +3910,19 @@ def extract_signals_ir(
                 add("self_death_payoff", "you", "", "")
             if trig.event == "life_gained":
                 add("lifegain_matters", "you", "", "")
+            # Batch 2c — trigger-event "payoff" lanes.
+            payoff = _PAYOFF_TRIGGER_KEYS.get(trig.event)
+            if payoff is not None:
+                key, fixed_scope = payoff
+                add(key, fixed_scope or _ir_scope(trig.scope), "", "")
+
+    # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
+    # NOT oracle regex — they already survive into the IR-native world, so reuse
+    # the existing detectors. Same source as the regex path → perfect parity.
+    for key, scope in _detect_keyword_presets(card):
+        add(key, scope, "", "")
+    for key, scope in _detect_direct_keywords(card):
+        add(key, scope, "", "")
     return out
 
 

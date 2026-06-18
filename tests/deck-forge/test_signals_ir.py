@@ -126,7 +126,8 @@ def test_graveyard_from_reanimate_scoped_opp():
 
 def test_graveyard_from_self_mill():
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
-    assert _sigs(ir) == [("graveyard_matters", "you", "")]
+    # A mill effect feeds a graveyard AND is a mill payoff (mill_matters).
+    assert _sigs(ir) == [("graveyard_matters", "you", ""), ("mill_matters", "any", "")]
 
 
 def test_graveyard_from_castable_zone():
@@ -300,6 +301,53 @@ def test_reanimate_target_does_not_fire_creatures_matter():
     go-wide creatures_matter lane (only an anthem/scaling is)."""
     sigs = {s.key for s in extract_signals_ir(_CREATURE, _reanimate_ir())}
     assert "creatures_matter" not in sigs
+
+
+# ── Batch 2: effect-doer + trigger-payoff lanes ───────────────────────────────
+
+
+def test_direct_damage_fires_for_offensive_damage():
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="damage", scope="opp"),)))
+    assert ("direct_damage", "you", "") in _sigs(ir)
+
+
+def test_direct_damage_not_for_self_damage():
+    """Incidental self-damage (painland, talisman: target you) is not direct_damage."""
+    ir = _ir(
+        Ability(kind="activated", effects=(Effect(category="damage", scope="you"),))
+    )
+    assert "direct_damage" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
+def test_place_counter_effect_does_not_flood_counters_matter():
+    """place_counter -> counters_matter is deferred (needs counter-kind), so a bare
+    counter-placing effect does not fire the lane (avoids loyalty/charge floods)."""
+    ir = _ir(Ability(kind="triggered", effects=(Effect(category="place_counter"),)))
+    assert "counters_matter" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
+def test_mill_effect_fires_mill_matters():
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="opp"),)))
+    assert ("mill_matters", "any", "") in _sigs(ir)
+
+
+def test_cast_spell_trigger_fires_spellcast_matters():
+    ir = _ir(
+        Ability(kind="triggered", trigger=Trigger(event="cast_spell", scope="you"))
+    )
+    assert ("spellcast_matters", "you", "") in _sigs(ir)
+
+
+def test_attacks_trigger_fires_attack_matters():
+    ir = _ir(Ability(kind="triggered", trigger=Trigger(event="attacks", scope="you")))
+    assert ("attack_matters", "you", "") in _sigs(ir)
+
+
+def test_combat_damage_trigger_fires_combat_damage_to_opp():
+    ir = _ir(
+        Ability(kind="triggered", trigger=Trigger(event="combat_damage", scope="opp"))
+    )
+    assert ("combat_damage_to_opp", "opponents", "") in _sigs(ir)
 
 
 # ── contract guards ───────────────────────────────────────────────────────────
