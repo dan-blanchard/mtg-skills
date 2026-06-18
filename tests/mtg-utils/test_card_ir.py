@@ -16,7 +16,7 @@ the IR exists to solve:
 
 from __future__ import annotations
 
-from mtg_utils._card_ir.project import _predicate, project_card
+from mtg_utils._card_ir.project import _filter, _predicate, project_card
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity
 
 # ── real phase records (focused to the fields project() reads) ────────────────
@@ -392,6 +392,34 @@ def test_predicate_keeps_color_count_and_power_threshold():
         == "HasSupertype:Legendary"
     )
     assert _predicate({"type": "Historic"}) == "Historic"
+
+
+# ── composite filters: negation / disjunction become predicates, not types ────
+
+
+def test_non_filter_is_a_negation_predicate_not_a_type():
+    """A {Non: Land} entry must NOT read as a Land filter (the inverted-meaning bug
+    that fed land_destruction off 'destroy target nonland permanent')."""
+    f = _filter({"type": "Typed", "type_filters": ["Permanent", {"Non": "Land"}]})
+    assert f is not None
+    assert "Land" not in f.card_types
+    assert "NotType:Land" in f.predicates
+
+
+def test_non_subtype_filter_is_a_negation_predicate():
+    f = _filter(
+        {"type": "Typed", "type_filters": ["Creature", {"Non": {"Subtype": "Human"}}]}
+    )
+    assert f is not None
+    assert "Human" not in f.subtypes
+    assert "NotSubtype:Human" in f.predicates
+
+
+def test_anyof_filter_becomes_a_disjunction_predicate():
+    """{AnyOf: [...]} was dropped entirely; now a sorted AnyOf predicate."""
+    f = _filter({"type": "Typed", "type_filters": [{"AnyOf": ["Sorcery", "Instant"]}]})
+    assert f is not None
+    assert "AnyOf:Instant|Sorcery" in f.predicates
 
 
 # ── round-trip ────────────────────────────────────────────────────────────────

@@ -713,7 +713,10 @@ def _type_and_subtype_filters(node: dict) -> tuple[tuple[str, ...], tuple[str, .
 
     phase encodes card types as bare strings (``"Creature"``) and subtypes as
     one-key dicts (``{"Subtype": "Goblin"}``) within the same ``type_filters``
-    list, plus an optional separate ``subtype_filters``."""
+    list, plus an optional separate ``subtype_filters``. Composite entries —
+    ``{"Non": X}`` (negation) and ``{"AnyOf": [...]}`` (disjunction) — are NOT a
+    plain type/subtype (a ``{Non: Land}`` must not read as a Land filter); they
+    become predicates via ``_composite_predicates`` and are skipped here."""
     card_types: list[str] = []
     subtypes: list[str] = list(_str_tuple(node.get("subtype_filters")))
     for tf in _as_list(node.get("type_filters")):
@@ -721,9 +724,45 @@ def _type_and_subtype_filters(node: dict) -> tuple[tuple[str, ...], tuple[str, .
             card_types.append(tf)
         elif isinstance(tf, dict):
             for k, v in tf.items():
-                if isinstance(v, str):
-                    (subtypes if _norm(k) == "subtype" else card_types).append(v)
+                if _norm(k) == "subtype" and isinstance(v, str):
+                    subtypes.append(v)
     return tuple(card_types), tuple(subtypes)
+
+
+def _anyof_member(it: object) -> str:
+    """The descriptor of one ``AnyOf`` member — a bare card type or a subtype."""
+    if isinstance(it, str):
+        return it
+    if isinstance(it, dict):
+        sub = it.get("Subtype")
+        if isinstance(sub, str):
+            return sub
+    return ""
+
+
+def _composite_predicates(node: dict) -> list[str]:
+    """Negation / disjunction type_filter entries → predicate strings (the flat
+    Filter has no nested-filter slot). ``{Non: "Land"}`` → ``NotType:Land`` (mirrors
+    NotColor), ``{Non: {Subtype: Human}}`` → ``NotSubtype:Human``, ``{AnyOf: [...]}``
+    → ``AnyOf:<sorted|members>`` (Instant/Sorcery, basic-land types, an Outlaw
+    subtype set, …). Before this, ``{Non: X}`` was silently dropped INTO card_types
+    (inverting the meaning) and ``{AnyOf}`` was dropped entirely."""
+    out: list[str] = []
+    for tf in _as_list(node.get("type_filters")):
+        if not isinstance(tf, dict):
+            continue
+        for k, v in tf.items():
+            kn = _norm(k)
+            if kn == "non":
+                if isinstance(v, str):
+                    out.append(f"NotType:{v}")
+                elif isinstance(v, dict) and isinstance(v.get("Subtype"), str):
+                    out.append(f"NotSubtype:{v['Subtype']}")
+            elif kn == "anyof" and isinstance(v, list):
+                members = sorted(m for m in (_anyof_member(x) for x in v) if m)
+                if members:
+                    out.append("AnyOf:" + "|".join(members))
+    return out
 
 
 def _filter(node: object) -> Filter | None:
@@ -733,7 +772,7 @@ def _filter(node: object) -> Filter | None:
     controller = _controller(node.get("controller"))
     predicates = tuple(
         p for p in (_predicate(x) for x in _as_list(node.get("properties"))) if p
-    )
+    ) + tuple(_composite_predicates(node))
     if not (card_types or subtypes or controller != "any" or predicates):
         return None
     return Filter(
