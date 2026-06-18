@@ -197,6 +197,7 @@ CATEGORIES: frozenset[str] = frozenset(
         "animate",
         "detain",
         "restriction",
+        "seek",
         "other",
     }
 )

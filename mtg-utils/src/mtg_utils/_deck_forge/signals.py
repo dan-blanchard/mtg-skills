@@ -3751,6 +3751,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "connive": ("connive_matters", "you"),
     "damage_prevention": ("damage_prevention", "you"),
     "detain": ("tap_down", "opponents"),
+    "seek": ("seek_matters", "you"),  # Alchemy Seek (DD3) — phase parses it
     # NB: place_counter -> counters_matter is deferred until the projection
     # captures counter KIND (+1/+1 vs loyalty/charge/oil) — firing on every
     # counter placement floods the lane (planeswalkers, one-off charge counters).
@@ -3885,6 +3886,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch ST (static restriction → stax):
             "stax_taxes",
             "symmetric_stax",
+            # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
+            # DD3, now in rules-lawyer's digital supplement).
+            "seek_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):

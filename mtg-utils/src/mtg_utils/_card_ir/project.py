@@ -105,6 +105,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "preventdamage": "damage_prevention",
     "detain": "detain",
     "animate": "animate",
+    "seek": "seek",
 }
 
 # Effect types that defer to recursion / the supplement rather than a category.
