@@ -566,6 +566,12 @@ def _trigger_event(tr: dict) -> str:
         return "taps"
     if mode in ("discarded", "discardedall"):
         return "discarded"
+    if mode == "drawn":
+        return "drawn"
+    if mode in ("milled", "milledonce", "milledall"):
+        return "milled"
+    if mode in ("blocks", "blockersdeclared", "becomesblocked", "attackerblocked"):
+        return "blocks"
     return "other"
 
 

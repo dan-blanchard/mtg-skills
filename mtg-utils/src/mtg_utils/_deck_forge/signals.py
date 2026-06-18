@@ -3859,6 +3859,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             "food_matters",
             "blood_matters",
             "creature_recursion",
+            # Batch T (trigger-event lanes):
+            "tap_untap_matters",
+            "discard_matters",
+            "draw_matters",
+            "creature_etb",
+            "combat_damage_matters",
+            "creature_cast_trigger",
+            signal_keys.TYPED_SPELLCAST,
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3914,6 +3922,10 @@ _TOKEN_SUBTYPE_KEYS: dict[str, tuple[str, str]] = {
 
 def _ftypes(f: object) -> frozenset[str]:
     return frozenset(f.card_types) if isinstance(f, Filter) else frozenset()
+
+
+def _filter_controller(f: object) -> str:
+    return f.controller if isinstance(f, Filter) else "any"
 
 
 def _fsubs_lower(f: object) -> frozenset[str]:
@@ -4124,6 +4136,40 @@ def extract_signals_ir(
             # Batch 3 — tribal trigger ("whenever a Goblin you control enters").
             for sub in _kindred_subjects(trig.subject, vocab):
                 add(signal_keys.TYPE_MATTERS, "you", sub, "")
+            # ── Batch T — trigger-event lanes ──
+            ev = trig.event
+            tsubs = _ftypes(trig.subject)
+            tsub_kinds = _fsubs_lower(trig.subject)
+            if ev == "taps":
+                add("tap_untap_matters", "you", "", "")
+            if ev == "discarded":
+                add("discard_matters", "you", "", "")
+            if ev == "drawn":
+                add("draw_matters", "you", "", "")
+            # creature_etb (ETB-VALUE) — cares when OTHER creatures enter (a Typed
+            # subject; a self-ETB SelfRef→None is a one-shot, not this lane). Scope
+            # tracks WHOSE entering creature triggers it (yours = value, an
+            # opponent's = punisher), as the regex forces.
+            if ev == "etb" and "Creature" in tsubs:
+                add(
+                    "creature_etb",
+                    "opponents" if _filter_controller(trig.subject) == "opp" else "you",
+                    "",
+                    "",
+                )
+            if ev in ("combat_damage", "deals_damage"):
+                add("combat_damage_matters", "opponents", "", "")
+                if trig.scope == "opp":
+                    add("damage_to_opp_matters", "opponents", "", "")
+                if tsub_kinds:
+                    add("tribe_damage_trigger", "you", "", "")
+            if ev == "cast_spell":
+                if trig.scope == "opp":
+                    add("opponent_cast_matters", "opponents", "", "")
+                if "Creature" in tsubs:
+                    add("creature_cast_trigger", "any", "", "")
+                for sub in _kindred_subjects(trig.subject, vocab):
+                    add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse
