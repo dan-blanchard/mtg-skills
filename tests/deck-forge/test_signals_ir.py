@@ -500,6 +500,50 @@ def test_self_discard_cost_is_not_a_discard_outlet():
     assert "discard_outlet" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
+# ── topdeck_stack (position-gated, your-library only) ─────────────────────────
+
+
+def _topdeck(where: str, controller: str = "you") -> Card:
+    """A put-into-library effect (the _library_position_effect shape): position in
+    counter_kind, the moved cards as the subject."""
+    return _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="topdeck_stack",
+                    counter_kind=where,
+                    subject=Filter(controller=controller),
+                ),
+            ),
+        )
+    )
+
+
+def test_topdeck_stack_fires_for_top_put_of_your_cards():
+    """Return a card to the TOP of your library (Mortuary Mire, Academy Ruins)."""
+    assert ("topdeck_stack", "you", "") in _sigs(_topdeck("top"))
+
+
+def test_topdeck_stack_fires_for_nth_from_top():
+    assert ("topdeck_stack", "you", "") in _sigs(_topdeck("nthfromtop"))
+
+
+def test_bottom_put_is_not_topdeck_stack():
+    """A Bottom put ('rest on the bottom', failed-tutor cleanup) is not a top-stack."""
+    assert "topdeck_stack" not in {
+        s.key for s in extract_signals_ir(CARD, _topdeck("bottom"))
+    }
+
+
+def test_bounce_to_top_removal_is_not_topdeck_stack():
+    """'Put target permanent on top of its owner's library' is bounce removal — the
+    moved cards are not yours (controller 'any'), so the self-stacking lane stays off."""
+    assert "topdeck_stack" not in {
+        s.key for s in extract_signals_ir(CARD, _topdeck("top", controller="any"))
+    }
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 

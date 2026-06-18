@@ -124,8 +124,9 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "phaseout": "phasing",
     "phasein": "phasing",
     "rolldie": "roll_die",
-    "putontoporbottom": "topdeck_stack",
-    "putatlibraryposition": "topdeck_stack",
+    # putontoporbottom / putatlibraryposition → topdeck_stack, but the WHERE
+    # (top/bottom/nth) is load-bearing for the lane, so they get a dedicated
+    # position-carrying handler in _single_effect (not this flat category map).
     "revealuntil": "dig_until",
     "exilefromtopuntil": "dig_until",
     "setcardtypes": "type_change",  # Batch 14 — sets/changes an object's types
@@ -388,6 +389,8 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         ph = _norm(eff.get("phase"))
         cat = _EXTRA_PHASE.get(ph, "other")
         return [Effect(category=cat, scope="you", raw=raw)]
+    if etype in ("putatlibraryposition", "putontoporbottom"):
+        return [_library_position_effect(eff, raw)]
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
@@ -536,6 +539,25 @@ def _amount(eff: dict) -> Quantity | None:
             if q is not None:
                 return q
     return None
+
+
+def _library_position_effect(eff: dict, raw: str) -> Effect:
+    """A put-into-library effect → ``topdeck_stack``, tagged with WHERE in
+    ``counter_kind``. The top-stacking archetype (Brainstorm; graveyard-/hand-to-top
+    recursion) reads top/nth/topbottom; a Bottom put ("rest on the bottom", failed-
+    tutor cleanup) is not a top-stack. ``PutOnTopOrBottom`` is a player choice
+    (top-eligible) → 'topbottom'. The subject (moved cards) carries the controller so
+    the lane can keep self-stacking apart from a bounce-to-top removal (controller
+    None)."""
+    pos = eff.get("position")
+    where = _norm(pos.get("type")) if isinstance(pos, dict) else "topbottom"
+    return Effect(
+        category="topdeck_stack",
+        scope=_effect_scope(eff),
+        subject=_effect_subject(eff),
+        raw=raw,
+        counter_kind=where,
+    )
 
 
 def _changezone_effect(eff: dict, raw: str) -> Effect:

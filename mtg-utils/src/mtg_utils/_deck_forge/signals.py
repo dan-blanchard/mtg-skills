@@ -3779,10 +3779,10 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # accurate IR) is the precise 70 clones, but the regex lane is broad (~1611
     # copy-anything: spell copy, token copy); matching it would conflate distinct
     # copy archetypes, so the lane waits rather than under-cover by 1541.
-    # DEFERRED: topdeck_stack — the PutAtLibraryPosition category is accurate IR but
-    # includes BOTTOM puts (failed tutors, "rest on the bottom"); firing the
-    # top-stacking lane on all 508 floods it (+421). Needs a top-vs-bottom position
-    # gate in the projection before the lane can read it.
+    # topdeck_stack is wired in extract_signals_ir (not here): _library_position_
+    # effect now carries the WHERE (top/bottom/nth) in counter_kind, and the lane
+    # fires only on a top-ish position with YOUR moved cards (excludes Bottom puts +
+    # bounce-to-top removal). Resolves the deferred +421 flood.
     # NB: place_counter -> counters_matter is deferred until the projection
     # captures counter KIND (+1/+1 vs loyalty/charge/oil) — firing on every
     # counter placement floods the lane (planeswalkers, one-off charge counters).
@@ -4025,6 +4025,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "all_creatures_kw_grant",
             # Batch 2 (per-lane) — discard OUTLET cost (self-discard split out):
             "discard_outlet",
+            # Batch 2 (per-lane) — top-of-library stacking (position-gated):
+            "topdeck_stack",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4280,6 +4282,16 @@ def extract_signals_ir(
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
+            # Batch 2 (per-lane) — topdeck_stack: stack the TOP of YOUR library to
+            # control draws (Brainstorm; graveyard-/hand-to-top recursion). Gate out
+            # Bottom puts (cleanup) AND bounce-to-top removal (a targeted permanent,
+            # controller "any") by requiring a top-ish position + YOUR moved cards.
+            if (
+                cat == "topdeck_stack"
+                and e.counter_kind != "bottom"
+                and _filter_controller(e.subject) == "you"
+            ):
+                add("topdeck_stack", "you", "", e.raw)
             if cat == "draw":
                 if e.amount is not None and e.amount.op in ("count", "multiply"):
                     add("draw_for_each", "you", "", e.raw)
