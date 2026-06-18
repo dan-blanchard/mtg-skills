@@ -3810,6 +3810,28 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "shadow": (("evasion_self", "you"),),
 }
 
+# Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
+# voting CR 701.38, firebending CR 702.189, …) that phase v0.1.19 doesn't yet
+# STRUCTURE (too recent/niche → Unimplemented). These are narrow keyword-WORD
+# regexes (not the brittle "for each Y" kind the IR replaces), so the IR path
+# KEEPS them — they survive A4 like the keyword-array / type_line lookups. Grow
+# this as more mis-skipped mechanics are rules-lawyer-verified.
+_IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    (
+        "voting_matters",
+        re.compile(
+            r"will of the council|council's dilemma|each player votes?|\bvote\b",
+            re.IGNORECASE,
+        ),
+        "each",
+    ),
+    (
+        "bending_matters",
+        re.compile(r"\b(?:fire|water|earth|air)bend(?:ing)?\b", re.IGNORECASE),
+        "you",
+    ),
+)
+
 # Keys the keyword-array detectors emit (reused verbatim by the IR path, same
 # Scryfall source as the regex path → perfect parity).
 _IR_KEYWORD_KEYS: frozenset[str] = (
@@ -3889,6 +3911,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
+            # Kept narrow detectors — real mechanics phase doesn't structure
+            # (rules-lawyer-verified): voting (CR 701.38), bending (CR 702.189).
+            "voting_matters",
+            "bending_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4209,6 +4235,11 @@ def extract_signals_ir(
         add(key, scope, "", "")
     for key, scope in _detect_direct_keywords(card):
         add(key, scope, "", "")
+    # Kept narrow mechanic-word detectors (real mechanics phase doesn't structure).
+    kept_oracle = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")
+    for key, pat, scope in _IR_KEPT_DETECTORS:
+        if pat.search(kept_oracle):
+            add(key, scope, "", "")
 
     # Batch K — additional keyword-array lanes + type_line membership (clean
     # structured-field lookups; membership is low-confidence, as in the regex path).
