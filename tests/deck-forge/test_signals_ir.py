@@ -413,6 +413,71 @@ def test_opponent_tribe_is_not_type_matters():
     assert not any(s.key == "type_matters" for s in extract_signals_ir(CARD, ir))
 
 
+# ── grant_keyword team-anthem lanes (Batch 6) ─────────────────────────────────
+
+
+def _grant(keyword: str, **filter_kw: object) -> Card:
+    """A static granting ``keyword`` to the filtered set (the AddKeyword shape)."""
+    return _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="grant_keyword",
+                    counter_kind=keyword,
+                    subject=Filter(**filter_kw),  # type: ignore[arg-type]
+                ),
+            ),
+        )
+    )
+
+
+def test_team_evasion_grant_fires_for_flying_on_your_team():
+    ir = _grant("flying", card_types=("Creature",), controller="you")
+    assert ("team_evasion_grant", "you", "") in _sigs(ir)
+
+
+def test_protection_grant_fires_for_team_indestructible():
+    """Team-wide indestructible is the 'protect the wide board' want (Akroma's Will,
+    Unbreakable Formation) — grouped with hexproof/shroud, distinct from evasion."""
+    ir = _grant("indestructible", card_types=("Creature",), controller="you")
+    sigs = _sigs(ir)
+    assert ("protection_grant", "you", "") in sigs
+    assert ("team_evasion_grant", "you", "") not in sigs
+
+
+def test_grant_keyword_excludes_tribal_grant():
+    """A Slivers-have-menace grant is tribal (type_matters), not a team-anthem lane."""
+    ir = _grant(
+        "menace", card_types=("Creature",), subtypes=("Sliver",), controller="you"
+    )
+    assert not any(
+        s.key in ("team_evasion_grant", "protection_grant")
+        for s in extract_signals_ir(CARD, ir)
+    )
+
+
+def test_grant_keyword_excludes_predicate_gated_grant():
+    """A predicate (equipment EquippedBy / conditional SelfRef) means it is not a
+    flat team anthem — the no-predicates gate that stops the +2197 flood."""
+    ir = _grant(
+        "flying",
+        card_types=("Creature",),
+        controller="you",
+        predicates=("EquippedBy",),
+    )
+    assert ("team_evasion_grant", "you", "") not in _sigs(ir)
+
+
+def test_all_creatures_kw_grant_is_symmetric_any_scope():
+    """A controller-agnostic grant (Concordant Crossroads: all creatures have haste)
+    is the symmetric lane at scope 'any', not a your-team anthem."""
+    ir = _grant("haste", card_types=("Creature",), controller="any")
+    sigs = _sigs(ir)
+    assert ("all_creatures_kw_grant", "any", "") in sigs
+    assert not any(s[0] in ("team_evasion_grant", "protection_grant") for s in sigs)
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 

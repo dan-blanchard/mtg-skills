@@ -27,6 +27,8 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 # rules-lawyer's bundled digital-mechanics supplement ships as package data
 # (downloaded comprehensive-rules*.txt stay ignored by the *.txt rule above).
 !mtg-utils/src/mtg_utils/data/digital-rules.txt
+# rules_lookup caches a pickled parse of the CR next to the (ignored) .txt.
+*.parsed.pkl
 # deck-forge's generated color-normalized format-staples list ships as package data.
 !mtg-utils/src/mtg_utils/data/format-staples.txt
 

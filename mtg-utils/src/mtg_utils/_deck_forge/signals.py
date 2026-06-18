@@ -4019,6 +4019,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "domain_matters",
             # Batch 11 — opponent-draw punisher (player-event scope):
             "opponent_draw_matters",
+            # Batch 6 — grant_keyword team-anthem lanes (gated; flash_grant deferred):
+            "team_evasion_grant",
+            "protection_grant",
+            "all_creatures_kw_grant",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4044,6 +4048,49 @@ def _is_generic_creature_filter(f: object) -> bool:
         and "Creature" in f.card_types
         and not f.subtypes
         and f.controller == "you"
+    )
+
+
+# Batch 6 — grant_keyword lanes. The granted keyword rides in Effect.counter_kind.
+# Evasion abilities per CR (702.9a flying / 702.13a intimidate / 702.28a shadow /
+# 702.31a horsemanship / 702.36a fear / 702.111a menace / 702.118a skulk; landwalk
+# is parameterized, not a bare granted keyword). Protective keywords: hexproof
+# (702.11) / shroud (702.18) / indestructible (702.12) / ward (702.21) / protection
+# (702.16). flash_grant is DEFERRED: flash-granting is CastWithKeyword (a cast-time
+# permission), not a battlefield AddKeyword — see deferrals.md.
+_EVASION_GRANT_KW: frozenset[str] = frozenset(
+    {"flying", "intimidate", "shadow", "horsemanship", "fear", "menace", "skulk"}
+)
+_PROTECTION_GRANT_KW: frozenset[str] = frozenset(
+    {"hexproof", "shroud", "indestructible", "ward", "protection"}
+)
+
+
+def _is_team_creature_grant(f: object) -> bool:
+    """The team-anthem grant shape: GENERIC creatures YOU control, no subtypes AND
+    no predicates. The no-predicates gate is what _is_generic_creature_filter lacks
+    (it ignores predicates), and it excludes equipment/aura (EquippedBy), conditional
+    self-grants (SelfRef), and single targets — the source of the naive +2197 flood."""
+    return (
+        isinstance(f, Filter)
+        and "Creature" in f.card_types
+        and f.controller == "you"
+        and not f.subtypes
+        and not f.predicates
+    )
+
+
+def _is_all_creatures_grant(f: object) -> bool:
+    """The SYMMETRIC 'all creatures have X' shape (Concordant Crossroads) — a
+    generic creature filter controlled by ANY player (not just yours), no subtypes,
+    no predicates. Scope 'any' (the lane's convention) — it is an unscoped global
+    grant that buffs opponents' creatures too, not a your-team anthem."""
+    return (
+        isinstance(f, Filter)
+        and "Creature" in f.card_types
+        and f.controller == "any"
+        and not f.subtypes
+        and not f.predicates
     )
 
 
@@ -4215,14 +4262,19 @@ def extract_signals_ir(
                     add("group_mana", "each", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
-            # DEFERRED: the grant_keyword lanes (team_evasion_grant / protection_grant
-            # / all_creatures_kw_grant / flash_grant). The AddKeyword category is kept
-            # as accurate IR (parse_confidence 60.6%→64.4%), but firing lanes off it
-            # floods (+2197): AddKeyword also covers equipment/aura (EquippedBy),
-            # conditional self-grants (SelfRef), and single targets, and
-            # all_creatures_kw_grant is symmetric "ALL creatures" not your team. The
-            # lanes need a strict team-anthem gate (generic creatures you control, no
-            # predicates) + the symmetric/you scope split.
+            # Batch 6 — grant_keyword lanes (the AddKeyword category, +3.8% parse).
+            # Gated to avoid the naive +2197 flood: team lanes fire ONLY on a generic
+            # creatures-you-control grant (no subtypes, no predicates — excludes
+            # equipment/aura/self/single-target); the symmetric "all creatures have X"
+            # grant is its own each-scope lane (it buffs opponents too).
+            if cat == "grant_keyword":
+                if _is_team_creature_grant(e.subject):
+                    if e.counter_kind in _EVASION_GRANT_KW:
+                        add("team_evasion_grant", "you", "", e.raw)
+                    if e.counter_kind in _PROTECTION_GRANT_KW:
+                        add("protection_grant", "you", "", e.raw)
+                elif _is_all_creatures_grant(e.subject):
+                    add("all_creatures_kw_grant", "any", "", e.raw)
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
