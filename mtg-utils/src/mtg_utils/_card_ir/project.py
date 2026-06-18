@@ -572,6 +572,12 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     # a themeable affected (a real creature SET or a targeted creature) — a self
     # "this can't block" / "this must attack" is a vanilla drawback, not a theme.
     mode_tok = _mode_token(st.get("mode"))
+    # Batch 17 — DoubleTriggers static (Yarok / Panharmonicon / Ancient Greenwarden):
+    # "a triggered ability triggers an additional time". One lane regardless of the
+    # cause (ETB-only vs Any) — the want is the same trigger-doubling engine.
+    if mode_tok == "doubletriggers":
+        out.append(Effect(category="trigger_doubling", scope="you", raw=desc))
+        return out
     combat_cat = _COMBAT_FORCE_MODES.get(mode_tok)
     if combat_cat is not None:
         scope = _restriction_scope(st, affected)

@@ -4042,6 +4042,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "forced_attack",
             "cant_block_grant",
             "lure_matters",
+            # Batch 17 — DoubleTriggers static (Yarok / Panharmonicon):
+            "trigger_doubling",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4463,6 +4465,10 @@ def extract_signals_ir(
                     add("stax_taxes", "opponents", "", e.raw)
                 elif e.scope == "each":
                     add("symmetric_stax", "each", "", e.raw)
+            # Batch 17 — DoubleTriggers static (Yarok, Panharmonicon): the
+            # trigger-doubling engine ("a triggered ability triggers an extra time").
+            if cat == "trigger_doubling":
+                add("trigger_doubling", "you", "", e.raw)
             # Doubling replacements (v0.1.60's `replacements`), split by event —
             # a token doubler and a counter doubler are different archetypes.
             if cat == "token_doubling":
