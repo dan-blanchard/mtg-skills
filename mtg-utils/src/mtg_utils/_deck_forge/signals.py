@@ -3757,11 +3757,56 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     "counter_added": ("counters_matter", "you"),
 }
 
+# Batch K — Scryfall keyword (lowercased) → the signal keys it fires. A clean
+# structured-field lookup (card["keywords"]), NOT oracle regex, so it survives
+# into the IR-native world. One keyword may open several lanes; several keywords
+# may open one (poison ← infect/toxic/poisonous; evasion ← menace/fear/…).
+_IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
+    "boast": (("boast_matters", "you"),),
+    "cascade": (("cascade_matters", "you"),),
+    "changeling": (("changeling_matters", "you"),),
+    "companion": (("companion_keyword", "you"),),
+    "convoke": (("convoke_matters", "you"),),
+    "devour": (("devour_matters", "you"),),
+    "discover": (("discover_matters", "you"),),
+    "foretell": (("foretell_matters", "you"),),
+    "madness": (("madness_matters", "you"),),
+    "mutate": (("mutate_matters", "you"),),
+    "myriad": (("myriad_grant", "you"),),
+    "ninjutsu": (("ninjutsu_matters", "you"),),
+    "commander ninjutsu": (("ninjutsu_matters", "you"),),
+    "infect": (("poison_matters", "opponents"),),
+    "toxic": (("poison_matters", "opponents"),),
+    "poisonous": (("poison_matters", "opponents"),),
+    "scavenge": (("scavenge_fuel", "you"),),
+    "soulbond": (("soulbond_matters", "you"),),
+    "specialize": (("specialize_matters", "you"),),
+    "suspend": (("suspend_matters", "you"),),
+    "undying": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
+    "persist": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
+    "affinity": (("affinity_type", "you"),),
+    "islandwalk": (("island_matters", "you"),),
+    "enlist": (("enlist_matters", "you"),),
+    "exalted": (("exalted_lone_attacker", "you"),),
+    "exhaust": (("exhaust_matters", "you"),),
+    # NB: cycling/crew/curse are NOT here — having Cycling ≠ a cycling-MATTERS
+    # payoff, having Crew ≠ a Vehicle-tribal payoff, being a Curse ≠ curses-matter.
+    # Those derive from triggers / Filter subtypes in later batches.
+    "menace": (("evasion_self", "you"),),
+    "fear": (("evasion_self", "you"),),
+    "intimidate": (("evasion_self", "you"),),
+    "skulk": (("evasion_self", "you"),),
+    "horsemanship": (("evasion_self", "you"),),
+    "shadow": (("evasion_self", "you"),),
+}
+
 # Keys the keyword-array detectors emit (reused verbatim by the IR path, same
 # Scryfall source as the regex path → perfect parity).
-_IR_KEYWORD_KEYS: frozenset[str] = frozenset(
-    key for key, _scope in _PRESET_KEYWORD_SIGNALS.values()
-) | frozenset(key for key, _scope in _DIRECT_KEYWORD_SIGNALS.values())
+_IR_KEYWORD_KEYS: frozenset[str] = (
+    frozenset(key for key, _scope in _PRESET_KEYWORD_SIGNALS.values())
+    | frozenset(key for key, _scope in _DIRECT_KEYWORD_SIGNALS.values())
+    | frozenset(k for pairs in _IR_KEYWORD_MAP.values() for k, _s in pairs)
+)
 
 IR_SLICE_KEYS: frozenset[str] = (
     frozenset(
@@ -3779,6 +3824,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch 3 (tribal — oracle-ability subjects; type_line membership is a
             # structured-field lookup reused at A4, so REGEX_ONLY here = membership):
             signal_keys.TYPE_MATTERS,
+            # Batch K (type_line membership):
+            "artifacts_matter",
+            "enchantments_matter",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3851,12 +3899,12 @@ def extract_signals_ir(
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 
-    def add(key: str, scope: str, subject: str, raw: str) -> None:
+    def add(key: str, scope: str, subject: str, raw: str, conf: str = "high") -> None:
         ident = (key, scope, subject)
         if ident in seen:
             return
         seen.add(ident)
-        out.append(Signal(key, scope, subject, raw, name, "high"))
+        out.append(Signal(key, scope, subject, raw, name, conf))
 
     # A self-cast-from-graveyard card (flashback / escape / disturb …) cares about
     # its own graveyard.
@@ -3946,6 +3994,39 @@ def extract_signals_ir(
         add(key, scope, "", "")
     for key, scope in _detect_direct_keywords(card):
         add(key, scope, "", "")
+
+    # Batch K — additional keyword-array lanes + type_line membership (clean
+    # structured-field lookups; membership is low-confidence, as in the regex path).
+    card_kws = {k.lower() for k in (card.get("keywords") or [])}
+    for kw, pairs in _IR_KEYWORD_MAP.items():
+        if kw in card_kws:
+            for key, scope in pairs:
+                add(key, scope, "", "")
+    type_line = (card.get("type_line") or "").lower()
+    if "artifact" in type_line:
+        add("artifacts_matter", "you", "", "", "low")
+    if "enchantment" in type_line:
+        add("enchantments_matter", "you", "", "", "low")
+    # Own-subtype tribal membership (a creature's own race) + named-token tribes —
+    # a clean type_line / all_parts field-lookup. Class tribes (Soldier/Cleric)
+    # open only behind a go-wide signal; race tribes open unconditionally (CR 205.3).
+    keys_now = {s.key for s in out}
+    go_wide = bool(keys_now & {"creatures_matter", "attack_matters", "anthem_static"})
+    if "creature" in type_line and "—" in type_line:
+        for tok in type_line.split("—", 1)[1].split():
+            sub = tok.strip().lower()
+            if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
+                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
+    for part in card.get("all_parts") or []:
+        if part.get("component") != "token":
+            continue
+        tl = (part.get("type_line") or "").lower()
+        if "creature" not in tl or "—" not in tl:
+            continue
+        for tok in tl.split("—", 1)[1].split():
+            sub = tok.strip().lower()
+            if sub in CREATURE_SUBTYPES and sub != "human":
+                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
     return out
 
 
