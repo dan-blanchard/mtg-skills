@@ -609,6 +609,44 @@ def test_dynamic_power_comparison_does_not_fire():
     assert ("low_power_matters", "you", "") not in sigs
 
 
+# ── color_hoser (removal keyed on a specific color) ───────────────────────────
+
+
+def _removal(category: str, *predicates: str) -> Card:
+    return _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category=category,
+                    subject=Filter(
+                        card_types=("Creature",), predicates=tuple(predicates)
+                    ),
+                ),
+            ),
+        )
+    )
+
+
+def test_color_hoser_fires_on_destroy_a_named_color():
+    """'Destroy target blue creature' actively hoses blue (Blue Elemental Blast)."""
+    assert ("color_hoser", "you", "") in _sigs(_removal("destroy", "HasColor:Blue"))
+
+
+def test_restricted_removal_nonblack_is_not_color_hoser():
+    """'Destroy target nonblack creature' (Doom Blade) is restricted removal sparing
+    your color — NotColor, not a hoser. The lane must stay off."""
+    sigs = _sigs(_removal("destroy", "NotColor:Black"))
+    assert ("color_hoser", "you", "") not in sigs
+
+
+def test_colorless_removal_is_not_color_hoser():
+    """A plain removal with no color predicate never fires the hoser lane."""
+    assert "color_hoser" not in {
+        s.key for s in extract_signals_ir(CARD, _removal("destroy"))
+    }
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 

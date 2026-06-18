@@ -4032,6 +4032,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             "colorless_matters",
             "power_matters",
             "low_power_matters",
+            "color_hoser",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4141,6 +4142,20 @@ def _fsubs_lower(f: object) -> frozenset[str]:
         frozenset(s.lower() for s in f.subtypes)
         if isinstance(f, Filter)
         else frozenset()
+    )
+
+
+def _hoses_a_color(f: object) -> bool:
+    """A filter selecting a SPECIFIC color to remove (HasColor:Red) — "destroy target
+    blue creature" / "destroy all black creatures" actively hoses that color (Blue
+    Elemental Blast, Cleanse). NotColor ("destroy NONblack creature") is restricted
+    removal sparing your own color, NOT a hoser — excluded, exactly as the regex omits
+    it (its contiguous "{color} creature" can't match "nonblack creature"). The
+    NotColor-anthem hoser (Evincar's "nonblack creatures get -1/-1") is a separate
+    pump-debuff form the regex still covers; not captured here. NOT 'any color
+    mention' — the lane also requires a removal effect context."""
+    return isinstance(f, Filter) and any(
+        p.startswith("HasColor:") for p in f.predicates
     )
 
 
@@ -4370,6 +4385,16 @@ def extract_signals_ir(
                 add("exile_removal", "you", "", e.raw)
                 if e.scope == "opp":
                     add("opponent_exile_matters", "opponents", "", e.raw)
+            # Batch 5 — color_hoser: destroy/exile/counter keyed on a SPECIFIC color
+            # ("destroy target blue permanent", "counter target red spell") — the
+            # Painter toolbox's payoff. Gate on a removal EFFECT context (not any color
+            # mention), so a color-tribal anthem ("red creatures get +1/+0") stays out.
+            # bounce is excluded: it also covers graveyard→hand recursion of YOUR own
+            # colored cards (Revive, Xiahou Dun), which is not hosing.
+            if cat in ("destroy", "exile", "counter_spell") and _hoses_a_color(
+                e.subject
+            ):
+                add("color_hoser", "you", "", e.raw)
             if cat == "tap" and e.scope == "opp":
                 add("tap_down", "opponents", "", e.raw)
             if (
