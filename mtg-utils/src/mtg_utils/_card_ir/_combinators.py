@@ -193,6 +193,23 @@ def succeed[T](x: T) -> Parser[T]:
     return Parser(lambda s: (x, s))
 
 
+def find_word(words: Iterable[str]) -> Parser[str]:
+    """Scan word-by-word for the first whole word whose normalized form is in
+    ``words`` (word-boundary-safe, unlike a substring test that would match
+    "vote" inside "devoted"). Returns the normalized word + the rest. A single
+    O(n) pass — detection that runs on every clause must stay linear."""
+    bag = frozenset(words)
+
+    def go(s: str) -> tuple[str, str] | None:
+        for m in _WORD.finditer(s):
+            w = norm_word(m.group(0))
+            if w in bag:
+                return (w, s[m.end() :])
+        return None
+
+    return Parser(go)
+
+
 A = TypeVar("A")
 B = TypeVar("B")
 C_ = TypeVar("C_")

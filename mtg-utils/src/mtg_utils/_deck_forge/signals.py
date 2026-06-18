@@ -3924,6 +3924,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch ST (static restriction → stax):
             "stax_taxes",
             "symmetric_stax",
+            # Batch R (v0.1.60 replacement-effect doublers, split by event):
+            "token_doubling",
+            "counter_doubling",
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
@@ -4181,6 +4184,12 @@ def extract_signals_ir(
                     add("stax_taxes", "opponents", "", e.raw)
                 elif e.scope == "each":
                     add("symmetric_stax", "each", "", e.raw)
+            # Doubling replacements (v0.1.60's `replacements`), split by event —
+            # a token doubler and a counter doubler are different archetypes.
+            if cat == "token_doubling":
+                add("token_doubling", "you", "", e.raw)
+            if cat == "counter_doubling":
+                add("counter_doubling", "you", "", e.raw)
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))

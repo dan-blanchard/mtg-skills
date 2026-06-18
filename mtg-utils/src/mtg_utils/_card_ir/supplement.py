@@ -10,13 +10,16 @@ emits real :mod:`mtg_utils.card_ir` nodes (Effect category + scope + subject +
 amount), so the synergy lanes derive from structure rather than a card-level
 oracle regex.
 
-The recovery is a registry of :class:`ClauseRule`s. A *simple* rule re-categorizes
-an ``other`` effect whose English is unambiguous (e.g. "cast … from … graveyard"
-→ a graveyard-cast). A *rich* rule (``build``) parses a real subject/amount out of
-the clause (e.g. a created token's type and count). Two scope holes phase leaves
-(it carries structured scope on only a sliver of abilities) are closed by a final
-pass: the narrow Tinybones rule (combat-damage-to-a-player + that-player's-zone →
-opponents) and the broader third-party-possessive guess.
+The recovery is a registry of :class:`ClauseRule`s, each a function from an
+``other`` effect to a structured Effect (or None). Following phase's own shape
+(``imperative.rs`` dispatches on a cheap ``tag`` check, then hands off to a
+structured parser), detection here is an O(n) keyword DISPATCH — these run on
+every Unimplemented effect, so a search-the-whole-string scan would be too slow —
+while the part with real structure, the created token's descriptor (type / subtype
+/ count), is *parsed* by an anchored combinator grammar mirroring ``token.rs``.
+Two scope holes phase leaves (it carries structured scope on only a sliver of
+abilities) are closed by a final pass: the narrow Tinybones rule (combat-damage-
+to-a-player + that-player's-zone → opponents) and the third-party-possessive guess.
 
 The Tinybones regexes are inlined (not imported from ``_deck_forge.signals``) on
 purpose: ``signals`` imports the IR, so a back-edge would be a cycle.
@@ -49,42 +52,86 @@ _BROAD_THIRD_PARTY = re.compile(
     re.IGNORECASE,
 )
 
-# ── clause patterns for the recovery rules ────────────────────────────────────
-# Cast-from-graveyard (Tinybones / graveyard-cast payoffs): "cast … from …
-# graveyard". The structural parse loses the zone, so recover the reanimation
-# shape from the clause.
-_GRAVEYARD_CAST = re.compile(r"\bcast\b[^.]*\bfrom\b[^.]*\bgraveyard\b", re.IGNORECASE)
+# ── clause detectors. Detection is a cheap keyword DISPATCH (what phase's
+# imperative.rs does: a tag check decides which parser to run); only the token
+# descriptor — the part with real structure (type/subtype/count) — is parsed, by
+# the anchored combinator grammar further down. No search-the-string scan/regex:
+# these run on every Unimplemented effect, so they must be O(n) substring tests. ─
 
-# Voting (CR 701.38) — phase leaves the vote itself Unimplemented even when it
-# structures the consequence ("each player votes …, exile/sacrifice …"). The vote
-# clause carries no operand worth binding, so a simple re-category to "vote"
-# (scope each: every player votes) is the right structured node; signals derives
-# voting_matters from it instead of a card-level oracle regex.
-_VOTE = re.compile(
-    r"will of the council|council's dilemma|each player votes?|\bvotes?\b",
-    re.IGNORECASE,
+# find_word is a single word-boundary-safe pass (vs a substring "vote" that would
+# fire on "devoted"); shared module-level so it's built once, not per call.
+_VOTE_WORD = comb.find_word({"vote", "votes"})
+_DOUBLE_NOUN = comb.find_word({"token", "tokens", "counter", "counters"})
+
+
+def _recover_graveyard_cast(e: Effect) -> Effect | None:
+    """Cast-from-graveyard (Tinybones / graveyard-cast payoffs): "cast … from …
+    graveyard" in order → a reanimation shape (the structural parse lost the zone)."""
+    low = e.raw.lower()
+    c = low.find("cast")
+    if c < 0:
+        return None
+    f = low.find("from", c)
+    if f < 0 or low.find("graveyard", f) < 0:
+        return None
+    return replace(e, category="reanimate")
+
+
+def _recover_vote(e: Effect) -> Effect | None:
+    """Voting (CR 701.38): phase leaves the vote itself Unimplemented even when it
+    structures the consequence, so re-category the clause to a ``vote`` node (scope
+    each — every player votes); signals derives voting_matters from it."""
+    low = e.raw.lower()
+    if "will of the council" in low or "council's dilemma" in low:
+        return replace(e, category="vote", scope="each")
+    if _VOTE_WORD.parse(e.raw) is not None:
+        return replace(e, category="vote", scope="each")
+    return None
+
+
+# The doubling frame requires the MULTIPLIER, not a bare "that many" (which also
+# appears on token-type *replacers* — Divine Visitation's "instead that many Angel
+# tokens" — that keep the count). "times that many" generalizes over N (three/four/
+# ten times…); "twice that many" is the 2x word; "that many plus" the adders;
+# "double the number" the Doubling-Season phrasing phase sometimes leaves unparsed.
+_DOUBLING_FRAMES = (
+    "twice that many",
+    "times that many",
+    "that many plus",
+    "double the number",
 )
+
+
+def _recover_doubling(e: Effect) -> Effect | None:
+    """Doubling/tripling replacements phase leaves Unimplemented (Ojer Taq's token
+    tripling). The multiplier frame + the multiplied NOUN pick the lane — a token
+    doubler and a counter doubler are different archetypes, never one "doubling".
+    The noun is the multiplier's OBJECT (just after the frame: "double the number
+    of counters") — searched after the frame first so an incidental noun elsewhere
+    (a "Sacrifice a token" cost) can't steal it; only "counters would be put …
+    twice that many" puts the noun before, so fall back to the preceding text."""
+    low = e.raw.lower()
+    end = next(
+        (low.find(f) + len(f) for f in _DOUBLING_FRAMES if f in low),
+        -1,
+    )
+    if end < 0:
+        return None
+    noun = _DOUBLE_NOUN.parse(e.raw[end:]) or _DOUBLE_NOUN.parse(e.raw[:end])
+    if noun is None:
+        return None
+    cat = "token_doubling" if noun[0].startswith("token") else "counter_doubling"
+    return replace(e, category=cat, scope="you")
 
 
 @dataclass(frozen=True)
 class ClauseRule:
-    """One recovery: a clause pattern → a structured Effect.
-
-    A *simple* rule sets ``category`` (and optionally overrides ``scope``) on the
-    matched ``other`` effect. A *rich* rule supplies ``build(match, effect)`` to
-    parse a real subject/amount out of the clause and return a new Effect.
-    """
+    """One recovery: a function from an ``other`` effect to a structured Effect (or
+    None if the rule doesn't apply). Detection is combinator-PARSED, not
+    regex-matched, so a rule reads like phase's nom grammar."""
 
     name: str
-    pattern: re.Pattern[str]
-    category: str = ""
-    scope: str | None = None
-    build: Callable[[re.Match[str], Effect], Effect] | None = None
-
-    def apply(self, m: re.Match[str], e: Effect) -> Effect:
-        if self.build is not None:
-            return self.build(m, e)
-        return replace(e, category=self.category, scope=self.scope or e.scope)
+    recover: Callable[[Effect], Effect | None]
 
 
 # ── token-clause parser (mirrors phase's parser/oracle_effect/token.rs grammar) ─
@@ -92,7 +139,6 @@ class ClauseRule:
 # phase drops a token to Unimplemented when the clause has no count it recognizes,
 # a creature with no P/T, or a bare-subtype descriptor not in its catalog; we
 # recover those here into a real make_token Effect with a typed subject.
-_CREATE_TOKEN = re.compile(r"\bcreates?\b.*?\btokens?\b", re.IGNORECASE)
 
 # The 4 card-type words phase's token grammar recognizes; everything else in the
 # descriptor is a subtype (token.rs parse_token_identity's allowlist).
@@ -145,18 +191,22 @@ _PT_WORD = re.compile(r"[\dx*]+/[\dx*]+", re.IGNORECASE)  # a whole word, e.g. 1
 # Words that end the type/subtype run (an abilities/naming/attach clause follows).
 _TOKEN_TAIL = {"with", "named", "that", "attached", "for", "in", "and"}
 
+
 # Whose token is it (default: the controller's). An each-opponent / target-player
 # giveaway is scope opp/each — a punisher, not your token engine.
-_TOKEN_SCOPE = (
-    (re.compile(r"each opponent\s+creates", re.IGNORECASE), "opp"),
-    (re.compile(r"each player\s+creates", re.IGNORECASE), "each"),
-    (
-        re.compile(
-            r"(?:target (?:opponent|player)|that player)\s+creates", re.IGNORECASE
-        ),
-        "opp",
-    ),
-)
+def _token_scope(low: str) -> str:
+    if "each opponent creates" in low:
+        return "opp"
+    if "each player creates" in low:
+        return "each"
+    if (
+        "target opponent creates" in low
+        or "target player creates" in low
+        or "that player creates" in low
+    ):
+        return "opp"
+    return "you"
+
 
 # ── the token grammar, as combinators (mirrors token.rs's field order) ──────────
 # count token (kept homogeneous Parser[str] — the Quantity conversion happens once
@@ -227,27 +277,46 @@ def _parse_token_descriptor(descriptor: str) -> tuple[Quantity | None, Filter | 
     return count, _split_head(heads)
 
 
-def _build_token_effect(m: re.Match[str], e: Effect) -> Effect:
-    """Parse a "create … token" clause into a structured make_token Effect."""
-    clause = m.group(0)
-    inner = re.search(r"\bcreates?\s+(.*?)\s+tokens?\b", clause, re.IGNORECASE)
-    descriptor = inner.group(1) if inner else ""
-    scope = "you"
-    for pat, sc in _TOKEN_SCOPE:
-        if pat.search(e.raw):
-            scope = sc
-            break
-    count, subject = _parse_token_descriptor(descriptor)
-    return replace(e, category="make_token", scope=scope, subject=subject, amount=count)
+# Locate a "create … token" clause: scan to "create"/"creates", take the descriptor
+# up to " token" (nom's take_until). A bare "created"/"creates" without a following
+# " token" yields no descriptor, so the rule doesn't fire. ``_CREATE_DESC`` is the
+# anchored grammar (built once): "create[s] " then the descriptor up to " token".
+_CREATE_DESC = comb.preceded(
+    comb.tag("creates ") | comb.tag("create "), comb.take_until(" token")
+)
+
+
+def _recover_create_token(e: Effect) -> Effect | None:
+    """A "create … token" clause → a structured make_token Effect (typed subject +
+    count + scope), for the tokens phase leaves Unimplemented. Cheap dispatch first
+    (a `.find` for "create" + " token"), then the anchored grammar parses the
+    descriptor — phase's imperative.rs dispatches the same way."""
+    low = e.raw.lower()
+    start = low.find("create")
+    if start < 0 or " token" not in low[start:]:
+        return None
+    parsed = _CREATE_DESC.parse(e.raw[start:])
+    if parsed is None:
+        return None
+    count, subject = _parse_token_descriptor(parsed[0])
+    return replace(
+        e,
+        category="make_token",
+        scope=_token_scope(low),
+        subject=subject,
+        amount=count,
+    )
 
 
 # The recovery registry. Order matters: the first matching rule wins, so put the
-# most specific clauses first. Grow this as the fan-out owns more of the tail —
-# each rule is a structured node, not a card-level boolean.
+# most specific clauses first. Doubling is tried before create_token (a "twice that
+# many … tokens" clause is a doubler, not a plain token maker). Grow this as the
+# fan-out owns more of the tail — each rule is a structured node, not a boolean.
 _RECOVERY_RULES: tuple[ClauseRule, ...] = (
-    ClauseRule("graveyard_cast", _GRAVEYARD_CAST, category="reanimate"),
-    ClauseRule("vote", _VOTE, category="vote", scope="each"),
-    ClauseRule("create_token", _CREATE_TOKEN, build=_build_token_effect),
+    ClauseRule("graveyard_cast", _recover_graveyard_cast),
+    ClauseRule("vote", _recover_vote),
+    ClauseRule("doubling", _recover_doubling),
+    ClauseRule("create_token", _recover_create_token),
 )
 
 
@@ -271,9 +340,9 @@ def _supplement_effect(e: Effect) -> Effect:
     # 1. recover a buried effect from its clause (the first matching rule wins).
     if e.category == "other":
         for rule in _RECOVERY_RULES:
-            m = rule.pattern.search(e.raw)
-            if m:
-                out = rule.apply(m, e)
+            recovered = rule.recover(e)
+            if recovered is not None:
+                out = recovered
                 break
 
     # 2. scope recovery → opp. The narrow Tinybones rule overrides any prior

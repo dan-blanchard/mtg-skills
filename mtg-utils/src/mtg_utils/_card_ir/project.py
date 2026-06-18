@@ -188,6 +188,10 @@ def _project_face(record: dict) -> Face:
         a = _project_top_static(st)
         if a is not None:
             abilities.append(a)
+    for rep in record.get("replacements") or []:
+        a = _project_replacement(rep)
+        if a is not None:
+            abilities.append(a)
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -264,6 +268,46 @@ def _project_top_static(st: dict) -> Ability | None:
     if not effects:
         return None
     return Ability(kind="static", effects=tuple(effects))
+
+
+# Quantity-modification types that INCREASE the amount → the doubler archetype,
+# whatever the exact multiplier: Double (2x), Multiply (triple — only Ojer Taq for
+# tokens / Nyxbloom for mana exist today), Plus (the "+N"/"that many plus" adders,
+# e.g. Hardened Scales, Conclave Mentor). Half / Prevent / Minus are the opposite
+# (decreases) and excluded.
+_INCREASE_MODS = ("double", "multiply", "plus")
+
+
+def _project_replacement(rep: dict) -> Ability | None:
+    """A replacement effect (v0.1.60's top-level ``replacements``) → a static
+    Ability. Doubling is split by the replaced EVENT — a token doubler and a
+    counter doubler are different archetypes (one wants token makers, the other
+    counter sources), so they are distinct categories, never one "doubling"."""
+    event = _norm(rep.get("event"))
+    raw = rep.get("description") or ""
+    qmod = _norm((rep.get("quantity_modification") or {}).get("type"))
+    dmod = _norm((rep.get("damage_modification") or {}).get("type"))
+    if event == "createtoken" and qmod in _INCREASE_MODS:
+        scope = "you" if _norm(rep.get("token_owner_scope")) == "you" else "any"
+        return _static_effect("token_doubling", scope, raw)
+    if event == "addcounter" and qmod in _INCREASE_MODS:
+        cm = rep.get("counter_match") or {}
+        ck = _norm(cm.get("data")) if isinstance(cm.get("data"), str) else ""
+        return _static_effect("counter_doubling", "you", raw, counter_kind=ck)
+    if event == "damagedone" and dmod in _INCREASE_MODS:
+        return _static_effect("damage_doubling", "you", raw)
+    return None
+
+
+def _static_effect(
+    category: str, scope: str, raw: str, *, counter_kind: str = ""
+) -> Ability:
+    return Ability(
+        kind="static",
+        effects=(
+            Effect(category=category, scope=scope, raw=raw, counter_kind=counter_kind),
+        ),
+    )
 
 
 def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
