@@ -3827,6 +3827,38 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch K (type_line membership):
             "artifacts_matter",
             "enchantments_matter",
+            # Batch E (effect-category lanes):
+            "counters_matter",
+            "minus_counters_matter",
+            "oil_counter_matters",
+            "shield_counter_matters",
+            "rad_counter_matters",
+            "ki_counter_matters",
+            "counter_control",
+            "fight_matters",
+            "ramp_matters",
+            "group_mana",
+            "blink_flicker",
+            "draw_for_each",
+            "group_hug_draw",
+            "symmetric_damage_each",
+            "opponent_discard",
+            "sacrifice_matters",
+            "donate_matters",
+            "land_exchange",
+            "land_destruction",
+            "kill_engine",
+            "removal_matters",
+            "exile_removal",
+            "opponent_exile_matters",
+            "tap_down",
+            "scaling_pump",
+            "lands_matter",
+            "treasure_matters",
+            "clue_matters",
+            "food_matters",
+            "blood_matters",
+            "creature_recursion",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3852,6 +3884,43 @@ def _is_generic_creature_filter(f: object) -> bool:
         and "Creature" in f.card_types
         and not f.subtypes
         and f.controller == "you"
+    )
+
+
+# Batch E — counter KIND → (signal key, scope). NB: p1p1 is deliberately ABSENT
+# — +1/+1 counters are ubiquitous, so place_counter→counters_matter floods the
+# lane (1552 IR_ONLY); counters_matter derives from the counter_added trigger +
+# the +1/+1-keyword set instead. The off-+1/+1 kinds are precise.
+_COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
+    "m1m1": ("minus_counters_matter", "you"),
+    "oil": ("oil_counter_matters", "you"),
+    "shield": ("shield_counter_matters", "you"),
+    "rad": ("rad_counter_matters", "opponents"),
+    "ki": ("ki_counter_matters", "you"),
+}
+
+_PERMANENT_TYPES: frozenset[str] = frozenset(
+    {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
+)
+
+# Batch E — made artifact-token subtype → (signal key, scope).
+_TOKEN_SUBTYPE_KEYS: dict[str, tuple[str, str]] = {
+    "treasure": ("treasure_matters", "you"),
+    "clue": ("clue_matters", "you"),
+    "food": ("food_matters", "you"),
+    "blood": ("blood_matters", "you"),
+}
+
+
+def _ftypes(f: object) -> frozenset[str]:
+    return frozenset(f.card_types) if isinstance(f, Filter) else frozenset()
+
+
+def _fsubs_lower(f: object) -> frozenset[str]:
+    return (
+        frozenset(s.lower() for s in f.subtypes)
+        if isinstance(f, Filter)
+        else frozenset()
     )
 
 
@@ -3958,6 +4027,75 @@ def extract_signals_ir(
             if e.category != "make_token":
                 for sub in _kindred_subjects(e.subject, vocab):
                     add(signal_keys.TYPE_MATTERS, "you", sub, e.raw)
+            # ── Batch E — effect-category lanes ──
+            cat = e.category
+            ftypes = _ftypes(e.subject)
+            if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
+                ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
+                add(ck_key, ck_scope, "", e.raw)
+            if cat == "counter_spell":
+                add("counter_control", "you", "", e.raw)
+            if cat == "fight":
+                add("fight_matters", "you", "", e.raw)
+            if cat == "ramp":
+                add("ramp_matters", "you", "", e.raw)
+                if e.scope == "each":
+                    add("group_mana", "each", "", e.raw)
+            if cat == "blink":
+                add("blink_flicker", "you", "", e.raw)
+            if cat == "draw":
+                if e.amount is not None and e.amount.op in ("count", "multiply"):
+                    add("draw_for_each", "you", "", e.raw)
+                if e.scope == "each":
+                    add("group_hug_draw", "each", "", e.raw)
+            if cat == "damage" and e.scope == "each":
+                add("symmetric_damage_each", "each", "", e.raw)
+            if cat == "discard" and e.scope == "opp":
+                add("opponent_discard", "opponents", "", e.raw)
+            # An edict forces OPPONENTS / each player to sacrifice — gate on an
+            # explicit opp/each scope (an unscoped sacrifice effect is ambiguous,
+            # often a self-sac inside a larger effect, so don't call it an edict).
+            # A sac OUTLET is a COST (handled per-ability below).
+            if cat == "sacrifice" and e.scope in ("opp", "each"):
+                add("edict_matters", _ir_scope(e.scope), "", e.raw)
+            if cat == "gain_control":
+                if e.scope == "opp":
+                    add("donate_matters", "you", "", e.raw)
+                if "Land" in ftypes:
+                    add("land_exchange", "you", "", e.raw)
+            if cat == "destroy":
+                if "Land" in ftypes:
+                    add("land_destruction", "you", "", e.raw)
+                if "Creature" in ftypes and ab.kind in ("activated", "triggered"):
+                    add("kill_engine", "you", "", e.raw)
+                if ftypes & _PERMANENT_TYPES:
+                    add("removal_matters", "you", "", e.raw)
+            if cat == "exile" and ftypes & _PERMANENT_TYPES:
+                add("exile_removal", "you", "", e.raw)
+                if e.scope == "opp":
+                    add("opponent_exile_matters", "opponents", "", e.raw)
+            if cat == "tap" and e.scope == "opp":
+                add("tap_down", "opponents", "", e.raw)
+            if (
+                cat == "pump"
+                and e.amount is not None
+                and e.amount.op in ("count", "multiply")
+            ):
+                add("scaling_pump", "you", "", e.raw)
+            if amount_subject is not None and "Land" in _ftypes(amount_subject):
+                add("lands_matter", "you", "", e.raw)
+            if cat == "make_token":
+                for st in _fsubs_lower(e.subject):
+                    if st in _TOKEN_SUBTYPE_KEYS:
+                        tk, ts = _TOKEN_SUBTYPE_KEYS[st]
+                        add(tk, ts, "", e.raw)
+            if cat == "reanimate" and "Creature" in ftypes:
+                add("creature_recursion", "you", "", e.raw)
+        # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
+        if ab.cost:
+            cost_parts = set(ab.cost.split(","))
+            if "sacrifice" in cost_parts:
+                add("sacrifice_matters", "you", "", "")
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A

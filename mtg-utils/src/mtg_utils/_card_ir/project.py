@@ -211,7 +211,13 @@ def _cost_string(cost: object) -> str | None:
     def walk(node: object) -> None:
         if isinstance(node, dict):
             t = _norm(node.get("type"))
-            if t in _COST_TYPES:
+            if t == "sacrifice":
+                # A sac OUTLET sacrifices fodder; "sacrifice this" (SelfRef) is a
+                # self-sac (Fling-style), not a sac-matters outlet.
+                tgt = node.get("target")
+                self_sac = isinstance(tgt, dict) and _norm(tgt.get("type")) == "selfref"
+                seen.add("sacself" if self_sac else "sacrifice")
+            elif t in _COST_TYPES:
                 seen.add(t)
             for v in node.values():
                 walk(v)

@@ -64,7 +64,8 @@ def test_creatures_matter_from_scaling_amount():
             ),
         )
     )
-    assert _sigs(ir) == [("creatures_matter", "you", "")]
+    # A count-draw over your creatures is creatures_matter AND draw_for_each.
+    assert ("creatures_matter", "you", "") in _sigs(ir)
 
 
 def test_tribal_filter_is_not_creatures_matter():
@@ -194,7 +195,8 @@ def test_non_creature_token_is_not_token_maker():
             ),
         )
     )
-    assert _sigs(ir) == []
+    # Not a creature-token maker (it's treasure_matters instead, not token_maker).
+    assert "token_maker" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
 # ── death_matters (scope from the trigger's own subject) ──────────────────────
