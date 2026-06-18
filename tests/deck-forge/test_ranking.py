@@ -3,6 +3,234 @@
 from mtg_utils._deck_forge.ranking import rank_candidates, score_candidate
 from mtg_utils._deck_forge.signals import Signal
 
+
+# ── Depth-over-breadth synergy (synergy_score) ───────────────────────────────
+# The unweighted lane-count rewards generically-splashy cards: a card whose one
+# property (makes a token) is wanted by six lanes outscores the deck's actual
+# payoff. synergy_score clusters served lanes by the oracle clause that matched
+# them (one property = one credit) and weights payoff > enabler > structural, so
+# a real death-payoff beats a token-equipment even when both touch many lanes.
+def _sig(key: str, scope: str = "you") -> Signal:
+    return Signal(key, scope, "", "", "cmd")
+
+
+# An aristocrats deck's active lanes (subset of the real Joel+Ellie signals).
+_ARI_SIGNALS = [
+    _sig("death_matters", "you"),
+    _sig("death_matters", "opponents"),
+    _sig("death_matters", "any"),
+    _sig("sacrifice_matters", "you"),
+    _sig("lifeloss_matters", "opponents"),
+    _sig("lifegain_matters", "you"),
+    _sig("creature_etb", "you"),
+    _sig("creatures_matter", "you"),
+    _sig("voltron_matters", "you"),
+    _sig("artifacts_matter", "you"),
+    _sig("token_doubling", "you"),
+    _sig("edict_matters", "each"),
+    _sig("attack_matters", "you"),
+    _sig("attack_matters", "any"),
+]
+_ARI_FOCUS = {
+    "viable": {"Aristocrats", "Combat", "Artifacts"},
+    "emerging": {"Voltron / equipment & auras"},
+    "stranded": {"Edicts / forced sacrifice", "Token doubling"},
+}
+
+# Real card props (full oracle text — fixtures must embed real cards).
+_BASTION = {
+    "name": "Bastion of Remembrance",
+    "type_line": "Enchantment",
+    "cmc": 3.0,
+    "oracle_text": (
+        "When this enchantment enters, create a 1/1 white Human Soldier "
+        "creature token.\nWhenever a creature you control dies, each opponent "
+        "loses 1 life and you gain 1 life."
+    ),
+    "prices": {"usd": "1.50"},
+}
+_BLOOD_ARTIST = {
+    "name": "Blood Artist",
+    "type_line": "Creature — Vampire",
+    "cmc": 2.0,
+    "oracle_text": (
+        "Whenever this creature or another creature dies, target player loses "
+        "1 life and you gain 1 life."
+    ),
+    "prices": {"usd": "2.00"},
+}
+_MIDNIGHT_REAPER = {
+    "name": "Midnight Reaper",
+    "type_line": "Creature — Zombie Knight",
+    "cmc": 3.0,
+    "oracle_text": (
+        "Whenever a nontoken creature you control dies, this creature deals 1 "
+        "damage to you and you draw a card."
+    ),
+    "prices": {"usd": "2.00"},
+}
+_ELVEN_BOW = {
+    "name": "Elven Bow",
+    "type_line": "Artifact — Equipment",
+    "cmc": 1.0,
+    "oracle_text": (
+        "When this Equipment enters, you may pay {2}. If you do, create a 1/1 "
+        "green Elf Warrior creature token, then attach this Equipment to it.\n"
+        "Equipped creature gets +1/+2 and has reach.\nEquip {3}"
+    ),
+    "prices": {"usd": "0.20"},
+}
+_FLAYER_HUSK = {
+    "name": "Flayer Husk",
+    "type_line": "Artifact — Equipment",
+    "cmc": 1.0,
+    "oracle_text": (
+        "Living weapon (When this Equipment enters, create a 0/0 black "
+        "Phyrexian Germ creature token, then attach this to it.)\nEquipped "
+        "creature gets +1/+1.\nEquip {2}"
+    ),
+    "prices": {"usd": "0.30"},
+}
+
+
+def _score(card: dict) -> float:
+    return score_candidate(card, active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS)[
+        "synergy_score"
+    ]
+
+
+def test_real_payoff_outscores_token_equipment():
+    # The crux: Bastion (count 10) and Elven Bow (count 10) tie on raw count, but
+    # Bastion is a genuine death payoff and Elven Bow is all incidental.
+    assert _score(_BASTION) > _score(_ELVEN_BOW)
+    assert _score(_BLOOD_ARTIST) > _score(_ELVEN_BOW)
+    assert _score(_MIDNIGHT_REAPER) > _score(_FLAYER_HUSK)
+
+
+def test_ranking_puts_payoffs_above_box_tickers():
+    ranked = rank_candidates(
+        [_ELVEN_BOW, _FLAYER_HUSK, _BASTION, _BLOOD_ARTIST, _MIDNIGHT_REAPER],
+        active_signals=_ARI_SIGNALS,
+        focus_sets=_ARI_FOCUS,
+    )
+    names = [r["card"]["name"] for r in ranked]
+    # Every real payoff ranks above both box-tickers.
+    last_payoff = max(
+        names.index(n)
+        for n in ("Bastion of Remembrance", "Blood Artist", "Midnight Reaper")
+    )
+    first_box = min(names.index(n) for n in ("Elven Bow", "Flayer Husk"))
+    assert last_payoff < first_box, names
+
+
+def test_synergy_score_is_deck_relative():
+    # A pure token-maker keeps full weight when Go-wide IS the plan, but is
+    # discounted when tokens are only an incidental/stranded lane — the fix is
+    # deck-relative, not "tokens are always bad".
+    token_maker = {
+        "name": "Goblin Wave",
+        "type_line": "Sorcery",
+        "cmc": 4.0,
+        "oracle_text": "Create three 1/1 red Goblin creature tokens.",
+        "prices": {"usd": "0.25"},
+    }
+    sigs = [_sig("creatures_matter", "you"), _sig("creature_etb", "you")]
+    go_wide = score_candidate(
+        token_maker,
+        active_signals=sigs,
+        focus_sets={"viable": {"Go wide"}, "emerging": set(), "stranded": set()},
+    )["synergy_score"]
+    incidental = score_candidate(
+        token_maker,
+        active_signals=sigs,
+        focus_sets={"viable": set(), "emerging": set(), "stranded": {"Go wide"}},
+    )["synergy_score"]
+    assert go_wide > incidental
+
+
+# ── Quality frontier: activated payoffs + unmet tribal gates ─────────────────
+_WALKING_BALLISTA = {
+    "name": "Walking Ballista",
+    "type_line": "Artifact Creature — Construct",
+    "cmc": 0.0,
+    "oracle_text": (
+        "This creature enters with X +1/+1 counters on it.\n{4}: Put a +1/+1 "
+        "counter on this creature.\nRemove a +1/+1 counter from this creature: "
+        "It deals 1 damage to any target."
+    ),
+    "prices": {"usd": "7.50"},
+}
+_HIRED_CLAW = {
+    "name": "Hired Claw",
+    "type_line": "Creature — Lizard Mercenary",
+    "cmc": 1.0,
+    "oracle_text": (
+        "Whenever you attack with one or more Lizards, this creature deals 1 "
+        "damage to target opponent.\n{1}{R}: Put a +1/+1 counter on this "
+        "creature. Activate only if an opponent lost life this turn and only "
+        "once each turn."
+    ),
+    "prices": {"usd": "0.70"},
+}
+_BURN_SIGNALS = [
+    _sig("direct_damage", "you"),
+    _sig("attack_matters", "you"),
+    _sig("attack_matters", "any"),
+    _sig("counters_matter", "you"),
+]
+_BURN_FOCUS = {
+    "viable": {"Burn / pingers", "Combat"},
+    "emerging": set(),
+    "stranded": set(),
+}
+
+
+def test_activated_ability_payoff_is_recognized():
+    # Walking Ballista's "Remove a +1/+1 counter: deals 1 damage" is a payoff even
+    # though it has no trigger word (an activated cost + a board-impacting reward).
+    sc = score_candidate(
+        _WALKING_BALLISTA, active_signals=_BURN_SIGNALS, focus_sets=_BURN_FOCUS
+    )
+    assert any(c["role"] == "payoff" for c in sc["clusters"]), sc["clusters"]
+
+
+def test_unmet_tribal_gate_downweights_payoff():
+    # Hired Claw's "attack with one or more Lizards" payoff is near-dead in a deck
+    # with no Lizards, but full in a Lizard deck — deck-relative, not a blanket cut.
+    no_liz = score_candidate(
+        _HIRED_CLAW,
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+        deck_tribes=frozenset({"human", "zombie"}),
+    )["synergy_score"]
+    with_liz = score_candidate(
+        _HIRED_CLAW,
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+        deck_tribes=frozenset({"lizard"}),
+    )["synergy_score"]
+    assert no_liz < with_liz
+
+
+def test_real_activated_pinger_beats_dead_tribal_gate():
+    # In a deck with no Lizards, a real activated pinger (Walking Ballista) outscores
+    # the Lizard-gated one (Hired Claw) — the residual the user flagged.
+    tribes = frozenset({"human", "vampire"})
+    wb = score_candidate(
+        _WALKING_BALLISTA,
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+        deck_tribes=tribes,
+    )["synergy_score"]
+    hc = score_candidate(
+        _HIRED_CLAW,
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+        deck_tribes=tribes,
+    )["synergy_score"]
+    assert wb > hc
+
+
 ETB = Signal("creature_etb", "you", "", "", "cmd")
 LIFE = Signal("lifegain_matters", "you", "", "", "cmd")
 

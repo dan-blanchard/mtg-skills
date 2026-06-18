@@ -23,6 +23,7 @@ from mtg_utils.card_classify import (
     is_land,
     is_ramp,
 )
+from mtg_utils.deck import split_type_line
 
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
 _UNPLAYED = 10**9
@@ -86,6 +87,15 @@ def _fills_short_role(card: CardClass, budgets: dict) -> bool:
     )
 
 
+def _is_fixing(card: CardClass) -> bool:
+    """A ramp source that fixes COLORS (produces ≥2 colors of mana) — a premium
+    dork/rock the deck's mana base leans on (Birds of Paradise, Arcane Signet). It
+    reads as ramp, but trimming it for ramp-overflow strands the color base, so the
+    over-band ramp cut sorts these LAST (cut redundant single-purpose ramp first)."""
+    produced = card.record.get("produced_mana") or []
+    return len({c for c in produced if c in "WUBRG"}) >= 2
+
+
 def cut_candidates(
     classes: Sequence[CardClass],
     *,
@@ -132,7 +142,9 @@ def cut_candidates(
             and role in c.roles
             and not _fills_short_role(c, budgets)
         ]
-        members.sort(key=lambda c: (len(c.served), -c.cmc))
+        # Color-fixing ramp sorts LAST (cut redundant single-purpose ramp before a
+        # dork the manabase needs); then fewest avenues served, then highest CMC.
+        members.sort(key=lambda c: (_is_fixing(c), len(c.served), -c.cmc))
         for c in members[: b["deviation"]]:
             push(f"over:{role}", c)
 
@@ -301,6 +313,24 @@ def propose_swaps(
     is only sourced while that tier's budget holds. ``budget`` is ignored when set."""
     in_deck = {c.name for c in classes}
     stranded = set(focus_result["stranded_avenues"])
+    # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
+    # the deck's real themes (a death payoff) over BREADTH across incidental lanes
+    # (a token equipment that grazes ten). Without this the count rewards splashy
+    # box-tickers — the bug that surfaced Elven Bow / Hired Claw over real payoffs.
+    focus_sets = {
+        "viable": {a["label"] for a in focus_result["viable_avenues"]},
+        "emerging": {a["label"] for a in focus_result.get("emerging", [])},
+        "stranded": stranded,
+    }
+    # The creature subtypes the deck actually fields, so the ranker can discount a
+    # payoff gated on a tribe the deck lacks (Hired Claw's "attack with Lizards" in
+    # a Lizard-less deck) without penalizing it in a deck that DOES field them.
+    deck_tribes = frozenset(
+        st.lower()
+        for c in classes
+        if "creature" in (c.record.get("type_line") or "").lower()
+        for st in split_type_line(c.record.get("type_line", ""))[1]
+    )
     cuts = cut_candidates(
         classes,
         budgets=budgets,
@@ -377,16 +407,23 @@ def propose_swaps(
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
             pool = [c for c in pool if spec_filter(c)]
         if synergy_first:
-            # Synergy first (the deck's themes), then play-rate so a real staple beats
-            # the cheapest chaff that nominally serves the same lane, then price. The
-            # play-rate tiebreak is the one EDHREC-popularity lean (user-directed).
-            scored = rank_candidates(pool, active_signals=deck_signals)
+            # Synergy DEPTH first (synergy_score, deck-relative — a real payoff for
+            # the deck's themes beats a box-ticker grazing many incidental lanes),
+            # then play-rate so a staple beats the cheapest chaff that nominally
+            # serves the same lane, then price. The play-rate tiebreak is the one
+            # EDHREC-popularity lean (user-directed).
+            scored = rank_candidates(
+                pool,
+                active_signals=deck_signals,
+                focus_sets=focus_sets,
+                deck_tribes=deck_tribes,
+            )
             ranked = [
                 r["card"]
                 for r in sorted(
                     scored,
                     key=lambda r: (
-                        -r["score"]["synergy_fit"],
+                        -r["score"]["synergy_score"],
                         _popularity(r["card"]),
                         extract_price(r["card"]) or 1e9,
                     ),

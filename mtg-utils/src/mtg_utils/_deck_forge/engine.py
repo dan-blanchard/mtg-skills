@@ -1022,8 +1022,15 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
         # current identity as the widening base when it is among the focused lanes, so
         # the broadest color-openers surface above synergy.
         widening_base = ci if any(a.get("widening") for a in focused) else None
+        # Focused avenues are the user's hand-picked lanes: rank by how MANY of
+        # them a card serves (fit count), not synergy depth — the depth clustering
+        # would collapse two focused lanes the user deliberately chose as distinct.
         ranked = rank_candidates(
-            cands, active_signals=active, avenues=avs, widening_base=widening_base
+            cands,
+            active_signals=active,
+            avenues=avs,
+            widening_base=widening_base,
+            rank_by="fit",
         )
     elif has_user_filters(params):
         records = state.search_fn(

@@ -20,9 +20,38 @@ import click
 
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signals import rank_deck_signals
+from mtg_utils._tuner import metrics
+from mtg_utils._tuner.classify import classify_deck
+from mtg_utils.deck import split_type_line
 from mtg_utils.hydrated_deck import HydratedDeck
 
 _ZONES = ("commanders", "cards", "sideboard")
+
+
+def _focus_sets(hd: HydratedDeck, signals: list, commander_names: set) -> dict:
+    """The deck's avenue prominence (viable/emerging/stranded), so the ranker scores
+    DEPTH in the deck's real themes — the same deck-relative weighting the tuner uses
+    (couples to ``_tuner`` for the focus metric; deck-rank is the deck-wizard CLI that
+    feeds Step 6, so it wants the tuner's notion of theme prominence)."""
+    classes = classify_deck(hd, signals, commander_names)
+    deck_size = int(hd.deck.get("deck_size") or 100)
+    foc = metrics.focus(classes, deck_size=deck_size, deck_signals=signals)
+    return {
+        "viable": {a["label"] for a in foc["viable_avenues"]},
+        "emerging": {a["label"] for a in foc.get("emerging", [])},
+        "stranded": set(foc.get("stranded_avenues") or []),
+    }
+
+
+def _deck_tribes(hd: HydratedDeck) -> frozenset[str]:
+    """The creature subtypes the deck fields, so a payoff gated on a tribe the deck
+    lacks is discounted (deck-relative)."""
+    return frozenset(
+        st.lower()
+        for rec in hd.records
+        if "creature" in (rec.get("type_line") or "").lower()
+        for st in split_type_line(rec.get("type_line", ""))[1]
+    )
 
 
 @click.command()
@@ -52,7 +81,12 @@ def main(
         )
     in_deck = {e["name"] for z in _ZONES for e in (hd.deck.get(z) or [])}
     pool = [c for c in candidates if c.get("name") not in in_deck]
-    ranked = rank_candidates(pool, active_signals=signals)[: max(1, limit)]
+    ranked = rank_candidates(
+        pool,
+        active_signals=signals,
+        focus_sets=_focus_sets(hd, signals, commander_names),
+        deck_tribes=_deck_tribes(hd),
+    )[: max(1, limit)]
     if as_json:
         out = [
             {

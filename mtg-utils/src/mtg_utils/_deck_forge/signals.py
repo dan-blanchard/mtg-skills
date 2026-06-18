@@ -611,6 +611,16 @@ def _clauses(text: str) -> list[str]:
     return [c for c in re.split(r"(?<=[.;\n])\s+", text) if c.strip()]
 
 
+def clauses(text: str) -> list[str]:
+    """Public alias for the sentence-scoped clause splitter the extractor uses.
+
+    Ranking clusters served lanes by which clause matched them (one physical
+    property = one synergy credit), so it must split on the SAME boundaries the
+    detectors do — a shared splitter keeps spans aligned with detector scope.
+    """
+    return _clauses(text)
+
+
 def _scope(clause_lower: str) -> str:
     if "opponent" in clause_lower:
         return "opponents"

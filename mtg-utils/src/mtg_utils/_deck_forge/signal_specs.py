@@ -2773,8 +2773,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|search your library for an? (?:aura|equipment)",
         serve_types=("equipment", "aura"),
         serve_keywords=("reconfigure",),
+        # Voltron buffs YOUR creature (CR 303.4 / 702.5). An Aura that enchants a
+        # PLAYER (a Curse, CR 205.3h) or a LAND (a ramp/utility aura) never attaches
+        # to your creature, so it isn't voltron — veto it so the type gate (which
+        # credits any Aura) can't manufacture a phantom voltron theme from curses
+        # and land-auras.
         serve_not=r"can't attack|can't block|doesn't untap during"
-        r"|enchant creature you don't control|defending player controls",
+        r"|enchant creature you don't control|defending player controls"
+        r"|enchant (?:player|land|forest|island|swamp|mountain|plains)",
         # Extra combats let the suited-up threat swing again — a top voltron payoff.
         extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
