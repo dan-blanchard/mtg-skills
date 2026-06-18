@@ -3776,6 +3776,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             "reanimator",
             # Batch 2b (special-cased doer):
             "direct_damage",
+            # Batch 3 (tribal — oracle-ability subjects; type_line membership is a
+            # structured-field lookup reused at A4, so REGEX_ONLY here = membership):
+            signal_keys.TYPE_MATTERS,
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3810,6 +3813,15 @@ def _reanimates_creature(e: object) -> bool:
     separate recursion engine, not the reanimator archetype)."""
     f = getattr(e, "subject", None)
     return isinstance(f, Filter) and "Creature" in f.card_types
+
+
+def _kindred_subjects(f: object, vocab: frozenset[str]) -> list[str]:
+    """Resolved creature-subtype subjects of a YOUR-controlled (or unscoped) Filter
+    — the tribal payoff axis ("Goblins you control", "for each Goblin you control").
+    An opponent-controlled tribe is not your tribal build-around, so it's dropped."""
+    if not isinstance(f, Filter) or f.controller == "opp":
+        return []
+    return [s for s in (_resolve_subject(x, vocab) for x in f.subtypes) if s]
 
 
 def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
@@ -3890,6 +3902,14 @@ def extract_signals_ir(
             # gate out incidental SELF-damage (painlands, talismans target you).
             if e.category == "damage" and e.scope != "you":
                 add("direct_damage", "you", "", e.raw)
+            # Batch 3 — tribal type_matters: a subtype anthem/count over YOUR
+            # creatures (Goblin lord, "for each Goblin you control"). The token
+            # TYPE a token_maker makes is token_maker, not type_matters.
+            for sub in _kindred_subjects(amount_subject, vocab):
+                add(signal_keys.TYPE_MATTERS, "you", sub, e.raw)
+            if e.category != "make_token":
+                for sub in _kindred_subjects(e.subject, vocab):
+                    add(signal_keys.TYPE_MATTERS, "you", sub, e.raw)
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
@@ -3915,6 +3935,9 @@ def extract_signals_ir(
             if payoff is not None:
                 key, fixed_scope = payoff
                 add(key, fixed_scope or _ir_scope(trig.scope), "", "")
+            # Batch 3 — tribal trigger ("whenever a Goblin you control enters").
+            for sub in _kindred_subjects(trig.subject, vocab):
+                add(signal_keys.TYPE_MATTERS, "you", sub, "")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse

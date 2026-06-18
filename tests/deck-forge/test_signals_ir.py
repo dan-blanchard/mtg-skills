@@ -350,6 +350,67 @@ def test_combat_damage_trigger_fires_combat_damage_to_opp():
     assert ("combat_damage_to_opp", "opponents", "") in _sigs(ir)
 
 
+# ── Batch 3: tribal type_matters from Filter subtypes ─────────────────────────
+
+
+def test_type_matters_from_tribal_anthem():
+    """'Goblins you control get +1/+1' → type_matters/you/Goblin."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        subtypes=("Goblin",),
+                        controller="you",
+                    ),
+                ),
+            ),
+        )
+    )
+    assert ("type_matters", "you", "Goblin") in _sigs(ir)
+
+
+def test_type_matters_from_tribal_count():
+    """'... for each Goblin you control' → type_matters/you/Goblin (the operand);
+    the made Goblin token is token_maker, not a second type_matters."""
+    ir = _ir(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="make_token",
+                    subject=Filter(card_types=("Creature",), subtypes=("Goblin",)),
+                    amount=Quantity(
+                        op="count",
+                        subject=Filter(subtypes=("Goblin",), controller="you"),
+                    ),
+                ),
+            ),
+        )
+    )
+    sigs = _sigs(ir)
+    assert ("type_matters", "you", "Goblin") in sigs
+    assert ("token_maker", "you", "Goblin") in sigs
+
+
+def test_opponent_tribe_is_not_type_matters():
+    """An opponent-controlled subtype filter is not YOUR tribal build-around."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="dies",
+                scope="opp",
+                subject=Filter(subtypes=("Goblin",), controller="opp"),
+            ),
+        )
+    )
+    assert not any(s.key == "type_matters" for s in extract_signals_ir(CARD, ir))
+
+
 # ── contract guards ───────────────────────────────────────────────────────────
 
 
