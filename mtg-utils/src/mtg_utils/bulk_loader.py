@@ -161,14 +161,22 @@ def build_sidecar(bulk_path: Path) -> Path:
 def default_bulk_path() -> Path | None:
     """Resolve the default Scryfall bulk path used by ``download-bulk``.
 
-    Checks ``$MTG_SKILLS_CACHE_DIR/scryfall-bulk/default-cards.json``
-    first, falling back to ``/tmp/scryfall-bulk/default-cards.json``.
-    Returns ``None`` if neither exists.
+    Resolution order, first existing wins:
+      1. ``$MTG_SKILLS_CACHE_DIR/scryfall-bulk/default-cards.json`` (explicit override)
+      2. ``$HOME/.cache/mtg-skills/scryfall-bulk/default-cards.json`` (durable default,
+         mirroring ``_phase`` / ``proxy_print``) — checked even without the env var so
+         a downloaded bulk survives the periodic ``/tmp`` cleanup.
+      3. ``/tmp/scryfall-bulk/default-cards.json`` (legacy fallback; ephemeral).
+    Returns ``None`` if none exists.
     """
     candidates: list[Path] = []
     cache_root = os.environ.get("MTG_SKILLS_CACHE_DIR")
     if cache_root:
         candidates.append(Path(cache_root) / "scryfall-bulk" / "default-cards.json")
+    home = os.environ.get("HOME")
+    if home:
+        durable = Path(home) / ".cache" / "mtg-skills" / "scryfall-bulk"
+        candidates.append(durable / "default-cards.json")
     candidates.append(Path("/tmp/scryfall-bulk/default-cards.json"))
     for p in candidates:
         if p.is_file():

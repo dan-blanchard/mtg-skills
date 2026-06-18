@@ -12,8 +12,40 @@ from mtg_utils.bulk_loader import (
     _sidecar_path,
     build_sidecar,
     clear_memory_cache,
+    default_bulk_path,
     load_bulk_cards,
 )
+
+
+def _make_bulk(root: Path) -> Path:
+    p = root / "scryfall-bulk" / "default-cards.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("[]", encoding="utf-8")
+    return p
+
+
+def test_default_bulk_path_uses_durable_cache_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Without MTG_SKILLS_CACHE_DIR set, bulk in the durable cache dir
+    # (~/.cache/mtg-skills/scryfall-bulk) must be found — even though the legacy
+    # /tmp/scryfall-bulk copy also exists — so it survives the /tmp cleanup.
+    monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    durable = _make_bulk(tmp_path / ".cache" / "mtg-skills")
+    assert default_bulk_path() == durable
+
+
+def test_default_bulk_path_env_overrides_durable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An explicit MTG_SKILLS_CACHE_DIR still wins over the durable default.
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _make_bulk(tmp_path / ".cache" / "mtg-skills")  # durable copy present too
+    env_root = tmp_path / "custom-cache"
+    env_bulk = _make_bulk(env_root)
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(env_root))
+    assert default_bulk_path() == env_bulk
 
 
 @pytest.fixture
