@@ -3817,10 +3817,18 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
 # KEEPS them — they survive A4 like the keyword-array / type_line lookups. Grow
 # this as more mis-skipped mechanics are rules-lawyer-verified.
 _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    # Voting (CR 701.38). The supplement structures the vote clause into an
+    # accurate Effect(category="vote") node where phase emits one, but the LANE
+    # stays a kept oracle-scan detector for full coverage: phase leaves some
+    # voting cards entirely unparsed (Ballot Broker, The Valeyard) or carries the
+    # vote only in a trigger condition (Grudge Keeper), which an IR-only pass
+    # can't reach. `\bvotes?\b` (vs the old `\bvote\b`) also catches the plural —
+    # e.g. "each player secretly votes" (Trap the Trespassers), which the regex
+    # _DETECTORS path still misses.
     (
         "voting_matters",
         re.compile(
-            r"will of the council|council's dilemma|each player votes?|\bvote\b",
+            r"will of the council|council's dilemma|each player[^.]*votes?|\bvotes?\b",
             re.IGNORECASE,
         ),
         "each",
