@@ -461,6 +461,51 @@ def test_self_must_be_blocked_is_lure():
     assert "lure" in cats
 
 
+def _pt_static(affected, mods, *, cda=False):
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "pt",
+        "card_type": {"core_types": ["Enchantment"]},
+        "oracle_text": "",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": affected,
+                "modifications": mods,
+                "characteristic_defining": cda,
+            }
+        ],
+    }
+
+
+def test_set_base_pt_on_others_is_base_pt_set():
+    """Lignify: sets a target creature's base P/T (SetPower + SetToughness)."""
+    rec = _pt_static(
+        {"type": "Typed", "type_filters": ["Creature"], "controller": "Opponent"},
+        [{"type": "SetPower"}, {"type": "SetToughness"}],
+    )
+    assert "base_pt_set" in {e.category for e in _effects(project_card([rec]))}
+
+
+def test_self_defining_star_pt_is_not_base_pt_set():
+    """Tarmogoyf-style */* (characteristic-defining, sets its OWN P/T) is not a
+    base-P/T TOOLBOX."""
+    rec = _pt_static(
+        {"type": "SelfRef"},
+        [{"type": "SetDynamicPower"}, {"type": "SetDynamicToughness"}],
+        cda=True,
+    )
+    assert "base_pt_set" not in {e.category for e in _effects(project_card([rec]))}
+
+
+def test_self_animate_manland_is_not_base_pt_set():
+    """A manland animating ITSELF (SelfRef) sets the source's P/T, not a toolbox."""
+    rec = _pt_static(
+        {"type": "SelfRef"}, [{"type": "SetPower"}, {"type": "SetToughness"}]
+    )
+    assert "base_pt_set" not in {e.category for e in _effects(project_card([rec]))}
+
+
 def test_ignore_landwalk_is_evasion_denial():
     """Great Wall: IgnoreLandwalkForBlocking → evasion_denial (block through walk)."""
     rec = _static_card({"IgnoreLandwalkForBlocking": {"qualifier": "Mountain"}}, None)

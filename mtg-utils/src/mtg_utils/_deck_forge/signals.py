@@ -4051,6 +4051,7 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Deferred-sweep: evasion-denial (IgnoreLandwalk); clone_matters still
             # deferred (regex 1611 vs IR 70 — needs the 1541 audited first):
             "evasion_denial",
+            "base_pt_set",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4359,6 +4360,11 @@ def extract_signals_ir(
             # an opponent's landwalk evasion.
             if cat == "evasion_denial":
                 add("evasion_denial", "opponents", "", e.raw)
+            # base_pt_set: a static that SETS base P/T (Lignify, Ovinize, Kenrith's
+            # Transformation, animate-to-X/X). scope "any" (matches the regex —
+            # spans neutralize-removal, self/land animate, switch).
+            if cat == "base_pt_set":
+                add("base_pt_set", "any", "", e.raw)
             # Batch 6 — grant_keyword lanes (the AddKeyword category, +3.8% parse).
             # Gated to avoid the naive +2197 flood: team lanes fire ONLY on a generic
             # creatures-you-control grant (no subtypes, no predicates — excludes

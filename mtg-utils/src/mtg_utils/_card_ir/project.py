@@ -521,12 +521,17 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
         )
     pump_amount: Quantity | None = None
     is_pump = False
+    set_power = set_toughness = False
     for m in st.get("modifications") or []:
         mt = _norm(m.get("type"))
         if mt in _PUMP_MODS:
             is_pump = True
             if pump_amount is None:
                 pump_amount = _quantity(m.get("value"))
+        elif mt in ("setpower", "setdynamicpower", "setpowerdynamic"):
+            set_power = True
+        elif mt in ("settoughness", "setdynamictoughness", "settoughnessdynamic"):
+            set_toughness = True
         elif mt == "addkeyword":
             # Batch 6 — a static that GRANTS a keyword (Levitation → Flying). The
             # granted keyword rides in counter_kind (a free str field); the lane
@@ -542,6 +547,31 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                         counter_kind=_norm(kw),
                     )
                 )
+    # A static that SETS base power AND toughness on OTHER permanents (Lignify 0/4,
+    # Ovinize 0/1, Kenrith's Transformation, mass-animate like Living Plane) — the
+    # base-P/T TOOLBOX. Distinct from a +X/+X pump. Excludes a characteristic-defining
+    # */* creature (Tarmogoyf defines its OWN P/T) AND a self-animate (a manland like
+    # Treetop Village animates ITSELF — a creature-land, not a toolbox): both set the
+    # SOURCE's P/T, not another permanent's.
+    _affected_raw = st.get("affected")
+    _self_pt = (
+        isinstance(_affected_raw, dict)
+        and _norm(_affected_raw.get("type")) == "selfref"
+    )
+    if (
+        set_power
+        and set_toughness
+        and not st.get("characteristic_defining")
+        and not _self_pt
+    ):
+        out.append(
+            Effect(
+                category="base_pt_set",
+                scope=_controller_scope(affected),
+                subject=affected,
+                raw=desc,
+            )
+        )
     if is_pump:
         out.append(
             Effect(

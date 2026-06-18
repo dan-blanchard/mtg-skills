@@ -717,6 +717,10 @@ def test_evasion_denial_from_ignore_landwalk():
     )
 
 
+def test_base_pt_set_fires():
+    assert ("base_pt_set", "any", "") in _sigs(_static_effect("base_pt_set"))
+
+
 def test_combat_force_on_opponents_still_feeds_stax():
     """The split must not regress stax: a force/can't-block static hobbling opponents
     is still a pillowfort tax."""
