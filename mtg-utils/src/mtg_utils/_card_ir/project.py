@@ -70,9 +70,12 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "exiletop": "exile",
     "bounce": "bounce",
     "counter": "counter_spell",
-    "pump": "pump",
+    # A single-target pump is distinct from a mass pump: only the mass form (and
+    # static anthems, also category "pump") is the go-wide creatures_matter payoff;
+    # a single "pump target creature you control" must not read as go-wide.
+    "pump": "pump_target",
     "pumpall": "pump",
-    "doublept": "pump",
+    "doublept": "pump_target",
     "doubleptall": "pump",
     "searchlibrary": "tutor",
     "mana": "ramp",
@@ -538,8 +541,11 @@ def _copy_token_effect(eff: dict, raw: str) -> Effect:
 
 
 def _effect_subject(eff: dict) -> Filter | None:
-    """What the effect acts ON — the mass/typed filter, or a made token's types."""
-    for key in ("filter", "affected", "target_filter"):
+    """What the effect acts ON — the mass/typed filter, the single ``target``, or a
+    made token's types. ``target`` is read last and only yields a Filter for a Typed
+    object (destroy/bounce/exile target creature); a player target (DefendingPlayer)
+    is not Typed, so `_filter` returns None and the effect stays subjectless."""
+    for key in ("filter", "affected", "target_filter", "target"):
         f = _filter(eff.get(key))
         if f is not None:
             return f
