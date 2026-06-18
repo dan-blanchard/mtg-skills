@@ -3742,6 +3742,15 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "gain_control": ("gain_control", "you"),
     "mill": ("mill_matters", "any"),
     "tutor": ("tutor_matters", "you"),
+    # Batch P — phase-native mechanic effects.
+    "monarch": ("monarch_matters", "you"),
+    "suspect": ("suspect_matters", "you"),
+    "speed": ("speed_matters", "you"),
+    "station": ("station_matters", "you"),
+    "venture": ("venture_matters", "you"),
+    "connive": ("connive_matters", "you"),
+    "damage_prevention": ("damage_prevention", "you"),
+    "detain": ("tap_down", "opponents"),
     # NB: place_counter -> counters_matter is deferred until the projection
     # captures counter KIND (+1/+1 vs loyalty/charge/oil) — firing on every
     # counter placement floods the lane (planeswalkers, one-off charge counters).
@@ -3867,6 +3876,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             "combat_damage_matters",
             "creature_cast_trigger",
             signal_keys.TYPED_SPELLCAST,
+            # Batch P (phase-native mechanic effects):
+            "monarch_matters",
+            "suspect_matters",
+            "venture_matters",
+            "connive_matters",
+            "damage_prevention",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4103,6 +4118,8 @@ def extract_signals_ir(
                         add(tk, ts, "", e.raw)
             if cat == "reanimate" and "Creature" in ftypes:
                 add("creature_recursion", "you", "", e.raw)
+            if cat == "animate" and "Artifact" in ftypes:
+                add("animate_artifact", "you", "", e.raw)
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))

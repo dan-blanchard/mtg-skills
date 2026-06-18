@@ -92,6 +92,19 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "dig": "topdeck_select",
     "explore": "topdeck_select",
     "fight": "fight",
+    # Batch P — phase-native mechanic effects → their own categories.
+    "becomemonarch": "monarch",
+    "suspect": "suspect",
+    "startyourengines": "speed",
+    "increasespeed": "speed",
+    "station": "station",
+    "ventureinto": "venture",
+    "ventureintodungeon": "venture",
+    "takesinitiative": "venture",
+    "connive": "connive",
+    "preventdamage": "damage_prevention",
+    "detain": "detain",
+    "animate": "animate",
 }
 
 # Effect types that defer to recursion / the supplement rather than a category.

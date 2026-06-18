@@ -186,6 +186,16 @@ CATEGORIES: frozenset[str] = frozenset(
         "tap",
         "topdeck_select",
         "fight",
+        # Batch P — phase-native mechanic effects.
+        "monarch",
+        "suspect",
+        "speed",
+        "station",
+        "venture",
+        "connive",
+        "damage_prevention",
+        "animate",
+        "detain",
         "other",
     }
 )
