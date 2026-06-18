@@ -81,6 +81,7 @@ class Effect:
     scope: str = "any"  # you | opp | each | any
     subject: Filter | None = None
     raw: str = ""
+    counter_kind: str = ""  # for place/remove_counter: p1p1 | m1m1 | charge | oil | …
 
 
 @dataclass(frozen=True)
@@ -277,6 +278,8 @@ def _effect_to_dict(e: Effect) -> dict:
         out["sub"] = sub
     if e.raw:
         out["raw"] = e.raw
+    if e.counter_kind:
+        out["ck"] = e.counter_kind
     return out
 
 
@@ -287,6 +290,7 @@ def _effect_from_dict(d: dict) -> Effect:
         scope=d.get("sc", "any"),
         subject=_filter_from_dict(d.get("sub")),
         raw=d.get("raw", ""),
+        counter_kind=d.get("ck", ""),
     )
 
 

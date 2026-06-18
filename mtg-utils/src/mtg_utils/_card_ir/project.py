@@ -240,6 +240,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
+    ck = eff.get("counter_type")
     return [
         Effect(
             category=category,
@@ -247,6 +248,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             scope=_effect_scope(eff),
             subject=_effect_subject(eff),
             raw=raw,
+            counter_kind=_norm(ck) if isinstance(ck, str) else "",
         )
     ]
 
