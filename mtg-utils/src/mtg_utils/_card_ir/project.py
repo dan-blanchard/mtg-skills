@@ -101,6 +101,23 @@ _OTHER = {"unimplemented", "", "runtimehandled"}
 # Pump-shaped static modifications (a +X/+X is one pump, not two).
 _PUMP_MODS = {"adddynamicpower", "adddynamictoughness", "addpower", "addtoughness"}
 
+# Card types, to split a made token's bare-string ``types`` list (which mixes the
+# card type with subtypes) into card_types vs subtypes.
+_CARD_TYPES = frozenset(
+    {
+        "Creature",
+        "Artifact",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+        "Battle",
+        "Instant",
+        "Sorcery",
+        "Tribal",
+        "Kindred",
+    }
+)
+
 # Keyword → cast-from zone, for Card.castable_zones.
 _CASTABLE_ZONE_KEYWORDS: dict[str, str] = {
     "flashback": "graveyard",
@@ -271,11 +288,20 @@ def _amount(eff: dict) -> Quantity | None:
 
 
 def _effect_subject(eff: dict) -> Filter | None:
-    """What the effect acts ON — the filter on a mass/typed effect (DestroyAll …)."""
+    """What the effect acts ON — the mass/typed filter, or a made token's types."""
     for key in ("filter", "affected", "target_filter"):
         f = _filter(eff.get(key))
         if f is not None:
             return f
+    # Token effects carry the made token's types as bare strings (mixing the card
+    # type "Creature" with subtypes "Goblin"/"Soldier") — split by the card-type set.
+    types = eff.get("types")
+    if isinstance(types, list):
+        strs = [t for t in types if isinstance(t, str)]
+        card_types = tuple(t for t in strs if t in _CARD_TYPES)
+        subtypes = tuple(t for t in strs if t not in _CARD_TYPES)
+        if card_types or subtypes:
+            return Filter(card_types=card_types, subtypes=subtypes)
     return None
 
 
@@ -311,11 +337,28 @@ def _objectcount_filter(qty: object) -> Filter | None:
     return None
 
 
+def _type_and_subtype_filters(node: dict) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Split a Typed filter's ``type_filters`` into (card_types, subtypes).
+
+    phase encodes card types as bare strings (``"Creature"``) and subtypes as
+    one-key dicts (``{"Subtype": "Goblin"}``) within the same ``type_filters``
+    list, plus an optional separate ``subtype_filters``."""
+    card_types: list[str] = []
+    subtypes: list[str] = list(_str_tuple(node.get("subtype_filters")))
+    for tf in _as_list(node.get("type_filters")):
+        if isinstance(tf, str):
+            card_types.append(tf)
+        elif isinstance(tf, dict):
+            for k, v in tf.items():
+                if isinstance(v, str):
+                    (subtypes if _norm(k) == "subtype" else card_types).append(v)
+    return tuple(card_types), tuple(subtypes)
+
+
 def _filter(node: object) -> Filter | None:
     if not isinstance(node, dict):
         return None
-    card_types = _str_tuple(node.get("type_filters"))
-    subtypes = _str_tuple(node.get("subtype_filters"))
+    card_types, subtypes = _type_and_subtype_filters(node)
     controller = _controller(node.get("controller"))
     predicates = tuple(
         p for p in (_predicate(x) for x in _as_list(node.get("properties"))) if p
@@ -359,6 +402,16 @@ def _controller_scope(f: Filter | None) -> str:
 
 
 def _effect_scope(eff: dict) -> str:
+    # A Token effect's recipient is its ``owner`` (Controller → you; a target's
+    # controller → opp, so "destroy target creature, its controller makes a Beast"
+    # is removal, not a token engine for you).
+    owner = eff.get("owner")
+    if isinstance(owner, dict):
+        on = _norm(owner.get("type"))
+        if on == "controller":
+            return "you"
+        if "opponent" in on or "target" in on:
+            return "opp"
     tgt = eff.get("target")
     if isinstance(tgt, dict):
         tt = _norm(tgt.get("type"))

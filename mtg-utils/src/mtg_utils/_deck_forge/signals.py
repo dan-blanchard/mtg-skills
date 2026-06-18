@@ -50,6 +50,7 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
+from mtg_utils.card_ir import Card, Filter
 from mtg_utils.theme_presets import get_preset
 
 
@@ -3721,6 +3722,110 @@ def extract_signals(
     ):
         add("one_punch", "you", "", "extreme power-for-cost beater", "low")
 
+    return out
+
+
+# ── IR-backed signal extraction (Milestone A2 — 5-key vertical slice) ──────────
+# extract_signals_ir derives the same Signal(key, scope, subject, …) from the
+# structured Card IR instead of regexes, so the two paths can be diffed and the IR
+# eventually replaces the regex bag (A4). The slice covers five keys spanning the
+# hard axes: a scaling lane (creatures_matter), a payoff lane (lifegain_matters), a
+# scoped lane (graveyard_matters), a subject-bearing lane (token_maker), and a
+# trigger lane (death_matters). Fan-out to the full vocabulary follows.
+IR_SLICE_KEYS: frozenset[str] = frozenset(
+    {
+        "creatures_matter",
+        "lifegain_matters",
+        "graveyard_matters",
+        signal_keys.TOKEN_MAKER,
+        "death_matters",
+    }
+)
+
+# IR scope vocab ("opp") → Signal scope vocab ("opponents").
+_IR_TO_SIGNAL_SCOPE = {"you": "you", "opp": "opponents", "each": "each", "any": "any"}
+
+
+def _ir_scope(scope: str) -> str:
+    return _IR_TO_SIGNAL_SCOPE.get(scope, "any")
+
+
+def _is_generic_creature_filter(f: object) -> bool:
+    """A GENERIC 'creatures you control' filter (no tribe) — the creatures_matter
+    anthem/scaling shape. A tribal filter (subtypes set) is type_matters, not this."""
+    return (
+        isinstance(f, Filter)
+        and "Creature" in f.card_types
+        and not f.subtypes
+        and f.controller == "you"
+    )
+
+
+def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
+    """A creature-token filter → its resolved kindred subject ("" if none); None for
+    a non-creature token (which token_maker does not cover). Matches the regex
+    detector's 'last creature subtype' choice."""
+    if not isinstance(f, Filter) or "Creature" not in f.card_types:
+        return None
+    for raw in reversed(f.subtypes):
+        subject = _resolve_subject(raw, vocab)
+        if subject:
+            return subject
+    return ""
+
+
+def extract_signals_ir(
+    card: dict, ir: Card | None, *, vocab: frozenset[str] = CREATURE_SUBTYPES
+) -> list[Signal]:
+    """Derive the A2 slice of Signals from the structured Card IR (5 keys).
+
+    Same Signal contract as ``extract_signals``, restricted to ``IR_SLICE_KEYS`` so
+    the two paths can be diffed key-for-key. Returns ``[]`` when the card has no IR
+    (not yet projected / brand-new set) so a dispatcher can fall back to regexes."""
+    if ir is None:
+        return []
+    name = card.get("name", "")
+    out: list[Signal] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def add(key: str, scope: str, subject: str, raw: str) -> None:
+        ident = (key, scope, subject)
+        if ident in seen:
+            return
+        seen.add(ident)
+        out.append(Signal(key, scope, subject, raw, name, "high"))
+
+    # A self-cast-from-graveyard card (flashback / escape / disturb …) cares about
+    # its own graveyard.
+    if "graveyard" in ir.castable_zones:
+        add("graveyard_matters", "you", "", "")
+
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            amount_subject = e.amount.subject if e.amount is not None else None
+            if _is_generic_creature_filter(e.subject) or _is_generic_creature_filter(
+                amount_subject
+            ):
+                add("creatures_matter", "you", "", e.raw)
+            if e.category == "gain_life" and e.scope in ("you", "any"):
+                add("lifegain_matters", "you", "", e.raw)
+            if e.category in ("reanimate", "mill"):
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # token_maker only when the token goes to YOU — "destroy target
+            # creature, its controller makes a Beast" (scope opp) is removal.
+            if e.category == "make_token" and e.scope in ("you", "any"):
+                subject = _token_kindred_subject(e.subject, vocab)
+                if subject is not None:
+                    add(signal_keys.TOKEN_MAKER, "you", subject, e.raw)
+        trig = ab.trigger
+        if trig is not None:
+            # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
+            # "when this dies" self-death trigger (SelfRef → no subject filter) is
+            # self_death_payoff, a different lane, so gate on a real subject.
+            if trig.event == "dies" and trig.subject is not None:
+                add("death_matters", _ir_scope(trig.scope), "", "")
+            if trig.event == "life_gained":
+                add("lifegain_matters", "you", "", "")
     return out
 
 
