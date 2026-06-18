@@ -721,6 +721,42 @@ def test_base_pt_set_fires():
     assert ("base_pt_set", "any", "") in _sigs(_static_effect("base_pt_set"))
 
 
+def test_combat_buff_engine_from_begin_combat_pump():
+    """A begin-combat trigger that pumps (Additive Evolution) — a co-occurrence."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="begin_combat", scope="you"),
+            effects=(Effect(category="place_counter", counter_kind="p1p1"),),
+        )
+    )
+    assert ("combat_buff_engine", "you", "") in _sigs(ir)
+
+
+def test_damage_reflect_from_damage_received_plus_damage():
+    """Boros Reckoner: when dealt damage, deals damage back (co-occurrence)."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="damage_received", scope="you"),
+            effects=(Effect(category="damage"),),
+        )
+    )
+    assert ("damage_reflect", "you", "") in _sigs(ir)
+
+
+def test_damage_received_without_damage_is_not_reflect():
+    """'When dealt damage, fight/gain a counter' is NOT a reflector."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="damage_received", scope="you"),
+            effects=(Effect(category="place_counter"),),
+        )
+    )
+    assert "damage_reflect" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
 def test_combat_force_on_opponents_still_feeds_stax():
     """The split must not regress stax: a force/can't-block static hobbling opponents
     is still a pillowfort tax."""

@@ -4052,6 +4052,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # deferred (regex 1611 vs IR 70 — needs the 1541 audited first):
             "evasion_denial",
             "base_pt_set",
+            # Co-occurrence lanes (trigger + effect in one ability):
+            "combat_buff_engine",
+            "damage_reflect",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4557,6 +4560,22 @@ def extract_signals_ir(
             ev = trig.event
             tsubs = _ftypes(trig.subject)
             tsub_kinds = _fsubs_lower(trig.subject)
+            # combat_buff_engine: a begin-combat trigger that PUMPS (Additive
+            # Evolution — "at the beginning of combat on your turn, put a +1/+1
+            # counter ..."). A co-occurrence: the trigger event + a pump/counter
+            # effect in the SAME ability (the flat per-effect pass can't see this).
+            if ev == "begin_combat" and any(
+                e.category in ("pump", "place_counter") for e in ab.effects
+            ):
+                add("combat_buff_engine", "you", "", "")
+            # damage_reflect: a "when this is dealt damage" trigger that DEALS damage
+            # back (Boros Reckoner, Brash Taunter, Coalhauler Swine). Co-occurrence:
+            # DamageReceived event + a damage effect (excludes the fight/lifeloss/
+            # counter "when dealt damage" cards, which aren't reflectors).
+            if ev == "damage_received" and any(
+                e.category == "damage" for e in ab.effects
+            ):
+                add("damage_reflect", "you", "", "")
             if ev == "taps":
                 add("tap_untap_matters", "you", "", "")
             if ev == "discarded":

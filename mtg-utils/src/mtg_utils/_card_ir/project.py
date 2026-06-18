@@ -999,6 +999,8 @@ def _trigger_event(tr: dict) -> str:
             if _norm(tr.get("damage_kind")) == "combatonly"
             else "deals_damage"
         )
+    if mode == "damagereceived":
+        return "damage_received"
     if mode in ("spellcast", "spellcopy", "spellcastorcopy", "spellabilitycast"):
         return "cast_spell"
     if mode in (
@@ -1022,6 +1024,8 @@ def _trigger_event(tr: dict) -> str:
             return "end_step"
         if ph == "draw":
             return "draw_step"
+        if ph in ("begincombat", "combat"):
+            return "begin_combat"
         return "other"
     if mode in ("counteradded", "counteraddedonce", "counteraddedall"):
         return "counter_added"
