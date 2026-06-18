@@ -750,6 +750,19 @@ def _trigger_event(tr: dict) -> str:
         return "milled"
     if mode in ("blocks", "blockersdeclared", "becomesblocked", "attackerblocked"):
         return "blocks"
+    # Batch 1 — payoff trigger modes previously falling to "other". The Scry/Surveil
+    # TRIGGER modes ("whenever you scry/surveil") are distinct from the Scry/Surveil
+    # EFFECT types (the doer → topdeck_select in _EFFECT_CATEGORY).
+    if mode == "commitcrime":
+        return "commit_crime"
+    if mode == "cycled":
+        return "cycled"
+    if mode == "scry":
+        return "scried"
+    if mode == "surveil":
+        return "surveiled"
+    if mode in ("excessdamageall", "excessdamage"):
+        return "excess_damage"
     return "other"
 
 

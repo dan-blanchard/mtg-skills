@@ -3782,6 +3782,14 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     "combat_damage": ("combat_damage_to_opp", "opponents"),
     "attacks": ("attack_matters", "you"),
     "counter_added": ("counters_matter", "you"),
+    # Batch 1 — payoff trigger events newly projected in _trigger_event.
+    "commit_crime": ("crimes_matter", "you"),
+    "scried": ("scry_surveil_matters", "you"),
+    "surveiled": ("scry_surveil_matters", "you"),
+    # cycled → cycling_matters is scope-GATED below (a SelfRef "when you cycle THIS"
+    # bonus is scope "you" and not a cycling-theme payoff). excess_damage DEFERRED:
+    # the ExcessDamageAll trigger covers only 4 cards (the regex lane is ~28, mostly
+    # trample-excess) — the event mapping stays for accurate IR, but no lane yet.
 }
 
 # Batch K — Scryfall keyword (lowercased) → the signal keys it fires. A clean
@@ -3946,6 +3954,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "counter_doubling",
             # Batch 0 — scope-gated lane (not in the _DOER table):
             "hand_disruption",
+            # Batch 1 — scope-gated cycling payoff (not in _PAYOFF_TRIGGER_KEYS):
+            "cycling_matters",
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
@@ -4243,6 +4253,11 @@ def extract_signals_ir(
             if payoff is not None:
                 key, fixed_scope = payoff
                 add(key, fixed_scope or _ir_scope(trig.scope), "", "")
+            # Batch 1 — cycling_matters: a "whenever you cycle a card" payoff (valid
+            # card null → scope "any"), NOT a SelfRef "when you cycle THIS" bonus
+            # (scope "you" — having cycling ≠ a cycling-theme payoff).
+            if trig.event == "cycled" and trig.scope != "you":
+                add("cycling_matters", "you", "", "")
             # Batch 3 — tribal trigger ("whenever a Goblin you control enters").
             for sub in _kindred_subjects(trig.subject, vocab):
                 add(signal_keys.TYPE_MATTERS, "you", sub, "")
