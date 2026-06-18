@@ -128,6 +128,19 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "putatlibraryposition": "topdeck_stack",
     "revealuntil": "dig_until",
     "exilefromtopuntil": "dig_until",
+    "setcardtypes": "type_change",  # Batch 14 — sets/changes an object's types
+    "goadall": "goad_all",  # Batch 14 — mass goad
+}
+
+# Batch 14 — AdditionalPhase.phase → the extra-phase category (distinct lanes).
+_EXTRA_PHASE: dict[str, str] = {
+    "begincombat": "extra_combat",
+    "combat": "extra_combat",
+    "upkeep": "extra_upkeep",
+    "draw": "extra_draw",
+    "drawstep": "extra_draw",
+    "end": "extra_end",
+    "endstep": "extra_end",
 }
 
 # Effect types that defer to recursion / the supplement rather than a category.
@@ -363,6 +376,11 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         return [_changezone_effect(eff, raw)]
     if etype == "copytokenof":
         return [_copy_token_effect(eff, raw)]
+    if etype == "additionalphase":
+        # Batch 14 — an extra phase, split by which phase it grants.
+        ph = _norm(eff.get("phase"))
+        cat = _EXTRA_PHASE.get(ph, "other")
+        return [Effect(category=cat, scope="you", raw=raw)]
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]

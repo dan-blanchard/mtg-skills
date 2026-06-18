@@ -3765,6 +3765,15 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "phasing": ("phasing_matters", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
+    # Batch 14 — extra-phase / type-change / mass-goad effect categories.
+    "extra_combat": ("extra_combats", "you"),
+    "extra_upkeep": ("extra_upkeep", "you"),
+    "extra_draw": ("extra_draw_step", "you"),
+    "extra_end": ("extra_end_step", "you"),
+    "goad_all": ("goad_matters", "opponents"),
+    # DEFERRED: type_change — SetCardTypes is kept as accurate IR but the lane
+    # fires 0 in commander-legal (the regex's 25 are mostly static "is also a..."
+    # which phase models differently); the lane waits for that shape.
     # DEFERRED: clone_matters — the BecomeCopy effect (the "clone" category, kept as
     # accurate IR) is the precise 70 clones, but the regex lane is broad (~1611
     # copy-anything: spell copy, token copy); matching it would conflate distinct
@@ -3961,6 +3970,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "hand_disruption",
             # Batch 1 — scope-gated cycling payoff (not in _PAYOFF_TRIGGER_KEYS):
             "cycling_matters",
+            # Batch 14 — landfall (a land-ETB trigger; CR 207.2c ability word):
+            "landfall",
             # Batch 2 — cost-based + Filter-predicate lanes:
             "life_payment_insurance",
             "legends_matter",
@@ -4300,6 +4311,11 @@ def extract_signals_ir(
                     "",
                     "",
                 )
+            # Batch 14 — landfall: a land ENTERING (etb trigger w/ Land subject) is
+            # the bulk of landfall; the LandPlayed "play a land" trigger (_PAYOFF)
+            # catches the rest.
+            if ev == "etb" and "Land" in tsubs:
+                add("landfall", "you", "", "")
             if ev in ("combat_damage", "deals_damage"):
                 add("combat_damage_matters", "opponents", "", "")
                 if trig.scope == "opp":
