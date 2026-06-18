@@ -3825,9 +3825,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "each",
     ),
+    # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
+    # no unifying "bending ability" rule exists, no card references the set), so
+    # each gets its own lane rather than one conflated bending_matters: airbend
+    # (CR 701.65), earthbend (CR 701.66), waterbend (CR 701.67), firebending
+    # (CR 702.189). These mirror the same-named _sweep_detectors regexes.
+    ("airbend_matters", re.compile(r"\bairbend(?:ing|s)?\b", re.IGNORECASE), "you"),
+    ("earthbend_matters", re.compile(r"\bearthbend(?:ing|s)?\b", re.IGNORECASE), "you"),
+    ("waterbend_matters", re.compile(r"\bwaterbend(?:ing|s)?\b", re.IGNORECASE), "you"),
     (
-        "bending_matters",
-        re.compile(r"\b(?:fire|water|earth|air)bend(?:ing)?\b", re.IGNORECASE),
+        "firebending_matters",
+        re.compile(r"\bfirebend(?:ing|s)?\b", re.IGNORECASE),
         "you",
     ),
 )
@@ -3912,9 +3920,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # DD3, now in rules-lawyer's digital supplement).
             "seek_matters",
             # Kept narrow detectors — real mechanics phase doesn't structure
-            # (rules-lawyer-verified): voting (CR 701.38), bending (CR 702.189).
+            # (rules-lawyer-verified): voting (CR 701.38); the four distinct
+            # bending keywords (airbend CR 701.65, earthbend 701.66, waterbend
+            # 701.67, firebending 702.189) — each its own lane, never conflated.
             "voting_matters",
-            "bending_matters",
+            "airbend_matters",
+            "earthbend_matters",
+            "waterbend_matters",
+            "firebending_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
