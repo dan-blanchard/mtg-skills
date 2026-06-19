@@ -337,6 +337,11 @@ _ABILITY_WORDS = {
     "battalion",
     "bloodrush",
     "boast",
+    # also em-dash-delimited KEYWORD labels (Kicker—Return …, Entwine—Sacrifice …,
+    # Exhaust — {4}: …) — same "<label> — <effect/cost>" shape, strip the label.
+    "kicker",
+    "entwine",
+    "exhaust",
     "celebration",
     "channel",
     "chroma",
@@ -480,6 +485,8 @@ _DURATION_PREFIX = comb.value(
         comb.tag("until end of turn, "),
         comb.tag("this turn, "),
         comb.tag("during your turn, "),
+        comb.tag("once each turn, "),
+        comb.tag("once during each of your turns, "),
         comb.value(
             "", comb.seq3(comb.tag("during "), comb.take_until(", "), comb.tag(", "))
         ),
@@ -612,10 +619,15 @@ _VERB = comb.alt(
     comb.value("tutor", comb.tag("searches that player's")),
     comb.value("redirect", comb.tag("change the target")),  # changetargets -> redirect
     comb.value("pay_cost", comb.tag("pay any amount")),  # "pay any amount of {R}"
-    # ETB-with-counters ("enters with X +1/+1 counters") → a counter placement.
+    # ETB-with-counters ("enters with X +1/+1 counters", plural "enter with …") → a
+    # counter placement.
     comb.value(
         "place_counter",
         comb.seq2(comb.tag("enters with"), comb.take_until("counter")),
+    ),
+    comb.value(
+        "place_counter",
+        comb.seq2(comb.tag("enter with"), comb.take_until("counter")),
     ),
     # "get(s) … counter(s)" — a player/permanent gains counters (poison/energy/+1+1);
     # the take_until("counter") gate keeps a bare "get" out.
@@ -627,8 +639,12 @@ _VERB = comb.alt(
     comb.value("force_attack", comb.tag("attacks each combat")),
     # "play with the top card of your library revealed" — play-from-top engine.
     comb.value("cast_from_zone", comb.tag("play with the top")),
-    # extra land drops ("play an additional land this turn") — its own category.
-    comb.value("extra_land", comb.tag("play an additional land")),
+    # extra land drops ("play an additional land", "play two additional lands") — its
+    # own category; the count word between "play" and "additional land" is consumed.
+    comb.value(
+        "extra_land",
+        comb.seq2(comb.tag("play"), comb.take_until("additional land")),
+    ),
     # "play lands/cards from the top of your library" etc. — playing from a non-hand
     # zone (the "from" gate keeps "play an additional land" out). cast_from_zone.
     comb.value("cast_from_zone", comb.seq2(comb.tag("play"), comb.take_until("from"))),
@@ -649,6 +665,7 @@ _VERB = comb.alt(
     # "enters tapped" / "enters the battlefield tapped" — an ETB-tapped state (a real
     # mechanic; not IR-sliced, so this only completes the parse).
     comb.value("enters_tapped", comb.tag("enters tapped")),
+    comb.value("enters_tapped", comb.tag("enter tapped")),
     comb.value("enters_tapped", comb.tag("enters the battlefield tapped")),
     _ADD_MANA,
     _PUT,
@@ -739,11 +756,16 @@ _DAMAGE_REPLACE = re.compile(  # damage replacement/prevention: "all damage … 
 )
 # An alternative cost ("you may pay {0} rather than pay the mana cost", "rather than
 # its mana cost") — a cost-replacement permission. Non-sliced category.
-_ALT_COST = re.compile(r"\brather than\b[^.]*\bmana cost\b", re.IGNORECASE)
-_TEXT_CHANGE = re.compile(r"\bchange the text\b|\bchange ~'s\b", re.IGNORECASE)
+_ALT_COST = re.compile(
+    r"\brather than\b[^.]*\bmana cost\b|\bwithout paying its mana cost\b",
+    re.IGNORECASE,
+)
+_TEXT_CHANGE = re.compile(
+    r"\bchange the text\b|\bchange ~'s\b|\bchange (?:the )?base power\b", re.IGNORECASE
+)
 _MANA_RESTRICTION = re.compile(r"\bspend only\b", re.IGNORECASE)
 _BID = re.compile(r"\bbid life\b|\bstart the bidding\b", re.IGNORECASE)
-_DRAFT = re.compile(r"\bdraft this\b|\bdraft \d", re.IGNORECASE)
+_DRAFT = re.compile(r"\bdraft (?:this|each|up to|\d|that)", re.IGNORECASE)
 _CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
     r"\bchoose which creatures? (?:attack|block)", re.IGNORECASE
 )
@@ -764,9 +786,10 @@ _TYPE_SET = re.compile(
 # "there is an additional combat phase" / "an additional combat phase after this" —
 # an extra-combat granter (phase's additionalphase category).
 _EXTRA_COMBAT = re.compile(r"\badditional combat phase\b", re.IGNORECASE)
-# "put … on (the) top/bottom of … library/libraries" — a library-position placement.
+# "(on the) top/bottom of … library" — a library-position placement ("on top of their
+# library", "the top or bottom of its owner's library"). The "on" is optional.
 _LIBRARY_POS = re.compile(
-    r"\bon (?:the )?(?:top|bottom)\b[^.]{0,40}\b(?:library|libraries)\b", re.IGNORECASE
+    r"\b(?:top|bottom)\b[^.]{0,40}\b(?:library|libraries)\b", re.IGNORECASE
 )
 # A player keyword grant — "You have hexproof/shroud/protection/…": grant_keyword,
 # gated to real protective keywords so "you have no maximum hand size" stays out.
@@ -794,6 +817,12 @@ _COST_ALTER = re.compile(r"\bcosts?\s+(?:\{[^}]*\}\s+)?(?:less|more)\b", re.IGNO
 # (a keyword grant) does NOT read as life. Control is checked before the bare grant.
 _GAIN_LIFE = re.compile(r"\bgains?\b[^.]*\blife\b", re.IGNORECASE)
 _GAIN_CONTROL = re.compile(r"\bgains?\s+control\b", re.IGNORECASE)
+# A grant whose subject was stripped as a prefix ("It gains deathtouch", "They gain
+# flying", "~ gains islandwalk") — the clause LEADS with a self/back-reference + a
+# gain/has verb, so it's a keyword grant even without a grantable noun left in it.
+_LEAD_GRANT = re.compile(
+    r"^(?:it|they|this \w+|that \w+|~)\s+(?:gains?|has|have)\s", re.IGNORECASE
+)
 # Grantable-set anchors: a keyword grant names what GETS the ability (creatures,
 # slivers, lands, the self ~, a card type, enchanted/equipped). Requiring one keeps
 # the grant fallback off bare conditionals ("if you have …", "has been …").
@@ -864,7 +893,7 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
             return replace(e, category="gain_control")
         if _GAIN_LIFE.search(s):
             return replace(e, category="gain_life")
-        if any(w in low for w in _GRANTABLE_SUBJECT):
+        if _LEAD_GRANT.match(s) or any(w in low for w in _GRANTABLE_SUBJECT):
             return replace(e, category="grant_keyword")  # coarse — no keyword yet
     # "<subject> becomes a copy of …" → clone; "<subject> becomes a 4/4 …" → animate
     # (the subject precedes the verb, so this is a discriminant scan, not a parse).
