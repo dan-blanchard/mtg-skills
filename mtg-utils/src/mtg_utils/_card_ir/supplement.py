@@ -430,6 +430,16 @@ _RETURN = comb.preceded(
     ),
 )
 _ADD_MANA = comb.value("ramp", comb.seq2(comb.tag("add"), comb.take_until("mana")))
+# "lose(s) …": a life loss ("loses 4 life") vs an ABILITY/type loss ("loses all
+# abilities", "loses flying", "loses all creature types"). take_until("life") picks
+# the life sense; otherwise it's an ability_loss (debuff / type-strip).
+_LOSE = comb.preceded(
+    comb.keyword({"lose", "loses"}),
+    comb.alt(
+        comb.value("lose_life", comb.take_until("life")),
+        comb.value("ability_loss", comb.succeed(None)),
+    ),
+)
 # "put …" branches by what's put where: "put a +1/+1 counter" (place_counter), "put X
 # onto the battlefield" (reanimate — recur a card into play from a non-cast zone),
 # "put X into … hand" (bounce). Most specific (counter) first; the zone arms read the
@@ -464,6 +474,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("scry", comb.keyword({"scry", "scries"})),
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
+    comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
     comb.value("topdeck_select", comb.keyword({"look"})),  # "look at the top N …"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
@@ -523,6 +534,7 @@ _VERB = comb.alt(
     _PUT,
     _CREATE,
     _RETURN,
+    _LOSE,
     _SIMPLE_VERB,
 )
 # An effect clause: zero or more leading prefixes, whitespace, then the verb.
@@ -557,6 +569,16 @@ _CAN_COMBAT = re.compile(r"\bcan (?:attack|block)\b", re.IGNORECASE)
 # A tuck ("the owner of … shuffles it into their library") — the shuffle verb is
 # preceded by the owner subject, so a discriminant scan recovers it as a shuffle.
 _TUCK = re.compile(r"\bshuffles?\b.{0,60}\blibrary\b", re.IGNORECASE)
+# A characteristic-defining P/T ("[its] power and toughness are each equal to …",
+# "power is equal to …") — a DYNAMIC characteristic, distinct from base_pt_set's
+# FIXED "base power and toughness N/N" (conflating them floods that lane), so its own
+# category (not IR-sliced — completes the parse only). The P/T characteristic is the
+# subject, so a discriminant scan; the imperative "deals damage equal to its power"
+# is caught by the verb grammar first, so this only sees true CDAs.
+_CDA_PT = re.compile(
+    r"\b(?:power|toughness)\b[^.]{0,40}\b(?:is|are)\b[^.]{0,20}\bequal to\b",
+    re.IGNORECASE,
+)
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
@@ -600,6 +622,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="grant_keyword")  # combat permission grant
     if _TUCK.search(s):
         return replace(e, category="shuffle")
+    if _CDA_PT.search(s):
+        return replace(e, category="characteristic_pt")
     low = s.lower()
     # The gain/have family: a life gain or control gain (any subject), else a
     # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
