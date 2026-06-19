@@ -377,7 +377,8 @@ _SELF_REF = re.compile(
 # A leading ability-word / keyword label before a trigger ("Landfall — Whenever a land
 # …", "Alliance — Whenever another creature …") — stripped so a bare-trigger marker
 # matches the trigger condition that follows the em-dash.
-_LEADING_LABEL = re.compile(r"^[A-Za-z][\w '/]{0,28}—\s*")
+# allow commas so a multi-chapter marker "I, II, III, IV, V, VI —" is stripped too.
+_LEADING_LABEL = re.compile(r"^[A-Za-z][\w ,'/]{0,30}—\s*")
 
 
 def _self_oracle_sentences(record: dict) -> list[str]:
@@ -461,8 +462,9 @@ def _is_sole_empty(ab: Ability) -> bool:
     return all(
         e.category == "other"
         and (
-            not (e.raw or "").strip()
-            or bool(_CHAPTER_LABEL.match((e.raw or "").strip()))
+            not (raw := (e.raw or "").strip())
+            or raw in {"~", "~.", "."}  # phase's self-name placeholder (no real text)
+            or bool(_CHAPTER_LABEL.match(raw))
         )
         for e in ab.effects
     )
@@ -503,15 +505,20 @@ def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Abi
         if i < len(recovered_seq):
             abilities[i] = replace(abilities[i], effects=(recovered_seq[i],))
         return abilities
-    # multiple sole-empties: distribute recovered effects across them in oracle order.
+    # multiple sole-empties (a Saga's chapters): distribute recovered effects across
+    # them in oracle order, CYCLING if there are more empties than effects — Saga
+    # chapters often share one effect ("I, II, III — …"), so every chapter gets one.
+    # No "not in have" filter: a chapter may legitimately repeat a structured category.
     recovered = [
         eff
         for s in sentences
         if (eff := recover_effect_from_text(s)).category != "other"
-        and eff.category not in have
     ]
-    for ab_i, eff in zip(empties, recovered, strict=False):
-        abilities[ab_i] = replace(abilities[ab_i], effects=(eff,))
+    if recovered:
+        for k, ab_i in enumerate(empties):
+            abilities[ab_i] = replace(
+                abilities[ab_i], effects=(recovered[k % len(recovered)],)
+            )
     return abilities
 
 

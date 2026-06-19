@@ -606,6 +606,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("convert", comb.keyword({"convert", "converts"})),  # FF convert
     comb.value("station", comb.keyword({"station", "stations"})),  # spacecraft Station
     comb.value("reanimate", comb.keyword({"soulshift"})),  # "has soulshift X"
+    comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # CR 701.34
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
@@ -988,7 +989,7 @@ _TYPE_SET = re.compile(
     r"|[a-z]+ lands?\b|white|blue|black|red|green|colorless|legendary|all colors"
     r"|(?:plains|islands?|swamps?|mountains?|forests?)\b)"
     r"|\b(?:is|are) all colors\b|\b(?:is|are) (?:snow|basic)\b"
-    r"|\bis every (?:nonbasic )?(?:land|creature) type\b"
+    r"|\b(?:is|are) every (?:nonbasic )?(?:land|creature) type\b"
     r"|\bis a (?:flagbearer|demon spirit)\b|\benters? untapped\b"
     r"|\bis an? (?:plains|island|swamp|mountain|forest)\b"
     # the "in addition to (its/their) other …" frame is the type-ADDING tell
