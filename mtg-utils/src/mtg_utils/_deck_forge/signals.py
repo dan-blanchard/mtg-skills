@@ -4648,9 +4648,29 @@ def extract_signals_ir(
             # be "a creature you control" is NOT an anthem/count → it never reaches
             # these arms (its effect is reanimate/exile/bounce, not pump/grant_keyword,
             # and its subject is the affected object, not a value operand).
-            if _is_generic_creature_filter(amount_subject) or (
-                e.category in ("pump", "grant_keyword")
-                and _is_generic_creature_filter(e.subject)
+            if (
+                _is_generic_creature_filter(amount_subject)
+                or (
+                    # A team ANTHEM over the GENERIC creature set: a +N/+N pump, a
+                    # keyword grant ("creatures you control have/gain <kw>"), or a mass
+                    # base-P/T SET ("creatures you control have base power and toughness
+                    # X/X" — Biomass Mutation: the whole board's stat line is rewritten,
+                    # a go-wide reset/anthem). A single-target base-P/T set ("target
+                    # creature becomes 0/1") has controller 'any', failing the generic
+                    # gate, so it never reaches here.
+                    e.category in ("pump", "grant_keyword", "base_pt_set")
+                    and _is_generic_creature_filter(e.subject)
+                )
+                # MASS UNTAP ("untap ALL creatures you control" — Aggravated Assault,
+                # Reveille Squad): a go-wide untap engine (multiple-attacker / pseudo-
+                # vigilance / extra-combat payoff). counter_kind=="all" gates out a
+                # single-target untap (scope Single) which is a one-off untapper, not
+                # a board-wide care.
+                or (
+                    e.category == "untap"
+                    and e.counter_kind == "all"
+                    and _is_generic_creature_filter(e.subject)
+                )
             ):
                 add("creatures_matter", "you", "", e.raw)
             # artifacts_matter / enchantments_matter go-wide DOER: a COUNT operand

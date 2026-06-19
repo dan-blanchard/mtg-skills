@@ -850,6 +850,248 @@ def test_cast_with_flash_is_a_flash_grant():
     assert flash
 
 
+# ── go-wide count-over-own-board projection (ADR-0027) ────────────────────────
+# These pin the count-operand-over-own-board helper + the mass grant/untap markers
+# that close the creatures_matter go-wide gaps phase's structured projection dropped.
+
+
+def _board_count_effect(card: Card) -> Effect:
+    return _effect_with(card, "board_count")
+
+
+def test_set_dynamic_pt_recovers_creature_board_count():
+    """Crusader of Odric: a characteristic-defining SetDynamicPower over an
+    ObjectCount(creatures you control) — phase keeps the operand but folds the
+    effect to a subjectless P/T; the board_count marker recovers it."""
+    rec = {
+        "name": "Crusader of Odric",
+        "scryfall_oracle_id": "id-crusader",
+        "card_type": {"core_types": ["Creature"], "subtypes": ["Soldier"]},
+        "oracle_text": (
+            "~'s power and toughness are each equal to the number of "
+            "creatures you control."
+        ),
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {"type": "SelfRef"},
+                "characteristic_defining": True,
+                "modifications": [
+                    {
+                        "type": "SetDynamicPower",
+                        "value": {
+                            "type": "Ref",
+                            "qty": {
+                                "type": "ObjectCount",
+                                "filter": {
+                                    "type": "Typed",
+                                    "type_filters": ["Creature"],
+                                    "controller": "You",
+                                    "properties": [],
+                                },
+                            },
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    e = _board_count_effect(project_card([rec]))
+    assert e.amount is not None
+    assert e.amount.op == "count"
+    assert e.amount.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_modifycost_reduce_aggregate_power_recovers_board_count():
+    """Ghalta: ModifyCost{Reduce} whose dynamic_count is an Aggregate(Sum, Power)
+    over creatures you control — a cost reduction by total power."""
+    rec = {
+        "name": "Ghalta, Primal Hunger",
+        "scryfall_oracle_id": "id-ghalta",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "This spell costs {X} less to cast, where X is the total "
+        "power of creatures you control.",
+        "static_abilities": [
+            {
+                "mode": {
+                    "ModifyCost": {
+                        "mode": "Reduce",
+                        "amount": {"type": "Cost", "shards": [], "generic": 1},
+                        "dynamic_count": {
+                            "type": "Aggregate",
+                            "function": "Sum",
+                            "property": "Power",
+                            "filter": {
+                                "type": "Typed",
+                                "type_filters": ["Creature"],
+                                "controller": "You",
+                                "properties": [],
+                            },
+                        },
+                    }
+                },
+                "affected": {"type": "SelfRef"},
+                "modifications": [],
+            }
+        ],
+    }
+    e = _board_count_effect(project_card([rec]))
+    assert e.amount.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_quantity_lifts_aggregate_sum_filter():
+    """A Ref→Aggregate(Sum, Toughness) lifts its filter as a count operand (Orysa's
+    total-toughness gate, Hobbit's Sting's Sum-of-counts amount)."""
+    node = {
+        "type": "Ref",
+        "qty": {
+            "type": "Aggregate",
+            "function": "Sum",
+            "property": "Toughness",
+            "filter": {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": "You",
+                "properties": [],
+            },
+        },
+    }
+    from mtg_utils._card_ir.project import _quantity
+
+    q = _quantity(node)
+    assert q is not None
+    assert q.op == "count"
+    assert q.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_cantbeblockedby_your_creatures_is_mass_evasion_grant():
+    """Champion of Lambholt: a CantBeBlockedBy static over your generic creature set
+    → a grant_keyword (mass evasion) the go-wide arm reads."""
+    rec = _static_card(
+        {
+            "CantBeBlockedBy": {
+                "filter": {"type": "Typed", "type_filters": ["Creature"]}
+            }
+        },
+        {"type": "Typed", "type_filters": ["Creature"], "controller": "You"},
+    )
+    grants = [
+        e
+        for e in _effects(project_card([rec]))
+        if e.category == "grant_keyword" and e.counter_kind == "unblockable"
+    ]
+    assert grants
+    assert grants[0].subject is not None
+    assert "Creature" in grants[0].subject.card_types
+
+
+def test_untap_all_scope_marks_counter_kind_all():
+    """Aggravated Assault: SetTapState{Untap} with scope All over creatures you
+    control → an untap effect tagged counter_kind='all' (a mass untap)."""
+    rec = {
+        "name": "Aggravated Assault",
+        "scryfall_oracle_id": "id-aggro",
+        "card_type": {"core_types": ["Enchantment"]},
+        "oracle_text": "{3}{R}{R}: Untap all creatures you control.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "SetTapState",
+                    "state": {"type": "Untap"},
+                    "scope": {"type": "All"},
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": "You",
+                        "properties": [],
+                    },
+                },
+                "cost": None,
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "untap")
+    assert e.counter_kind == "all"
+    assert e.subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_single_target_untap_is_not_marked_all():
+    """'Untap target creature' (scope Single) is NOT a mass untap."""
+    rec = {
+        "name": "Seeker",
+        "scryfall_oracle_id": "id-seeker",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "{T}: Untap target creature.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "SetTapState",
+                    "state": {"type": "Untap"},
+                    "scope": {"type": "Single"},
+                    "target": {"type": "Typed", "type_filters": ["Creature"]},
+                },
+                "cost": {"type": "Tap"},
+            }
+        ],
+    }
+    untaps = [e for e in _effects(project_card([rec])) if e.category == "untap"]
+    assert untaps
+    assert all(e.counter_kind != "all" for e in untaps)
+
+
+def test_oracle_mass_grant_marker_recovers_chosen_ability_grant():
+    """Linvala: "Creatures you control gain that ability" — phase folds it to a
+    choose; the oracle mass-grant marker recovers a generic creature grant_keyword."""
+    rec = {
+        "name": "Linvala, Shield of Sea Gate",
+        "scryfall_oracle_id": "id-linvala",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": (
+            "Sacrifice ~: Choose hexproof or indestructible. Creatures you control "
+            "gain that ability until end of turn."
+        ),
+    }
+    grants = [
+        e
+        for e in _effects(project_card([rec]))
+        if e.category == "grant_keyword" and e.counter_kind == "mass_grant"
+    ]
+    assert grants
+    assert grants[0].subject == Filter(card_types=("Creature",), controller="you")
+
+
+def test_oracle_mass_grant_marker_excludes_subtype_lord():
+    """A SUBTYPE lord ("Goblin creatures you control get +1/+1") is type_matters, not
+    a generic mass grant — the bare-head anchor must NOT match it."""
+    rec = {
+        "name": "Goblin King",
+        "scryfall_oracle_id": "id-gobking",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Goblin creatures you control get +1/+1 and have mountainwalk.",
+    }
+    grants = [
+        e
+        for e in _effects(project_card([rec]))
+        if e.category == "grant_keyword" and e.counter_kind == "mass_grant"
+    ]
+    assert not grants
+
+
+def test_for_each_creature_oracle_marker_recovers_count():
+    """A "for each creature you control" scaling phase Unrecognized-parsed → a
+    board_count marker (Eidolon / Siege Behemoth)."""
+    rec = {
+        "name": "Eidolon of Countless Battles",
+        "scryfall_oracle_id": "id-eidolon",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "This creature gets +1/+1 for each creature you control.",
+    }
+    e = _board_count_effect(project_card([rec]))
+    assert e.amount.subject == Filter(card_types=("Creature",), controller="you")
+
+
 # ── round-trip ────────────────────────────────────────────────────────────────
 
 

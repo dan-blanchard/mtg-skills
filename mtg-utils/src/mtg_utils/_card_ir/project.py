@@ -958,6 +958,45 @@ def _project_face(record: dict) -> Face:
     # Conferred-keyword re-parse (ADR-0027): append precise markers for keywords/
     # abilities GRANTED to a class of objects, surviving only in a grant carrier raw.
     abilities = [_narrow_conferred_keyword_refs(a) for a in abilities]
+    # Own-board count operand (ADR-0027 go-wide): recover the count-over-your-board
+    # operand phase keeps in its raw parse but the structured projection drops (a
+    # characteristic-defining */* P/T, a ModifyCost reduction, a damage X, a gate
+    # condition). Appended as one static ability of `board_count` markers.
+    board_markers = _board_count_markers(record)
+    if board_markers:
+        abilities.append(Ability(kind="static", effects=tuple(board_markers)))
+    # "for each creature you control" count operand phase folded/Unrecognized — recover
+    # it as a board_count marker only when no structured creature board-count already
+    # exists (the board_markers above are already in `abilities`, so this scan covers
+    # them; the structured path is preferred, this is the raw fallback).
+    has_creature_count = any(
+        e.category == "board_count"
+        and e.amount is not None
+        and e.amount.subject is not None
+        and "Creature" in e.amount.subject.card_types
+        for a in abilities
+        for e in a.effects
+    )
+    if not has_creature_count:
+        fe_marker = _for_each_creature_marker(record)
+        if fe_marker is not None:
+            abilities.append(Ability(kind="static", effects=(fe_marker,)))
+    # Mass keyword/evasion grant (ADR-0027 go-wide): recover a "creatures you control
+    # gain/have <kw>" / "...can't be blocked" mass grant phase swallowed into a chosen
+    # ability (Linvala), a modal mode (Mishra), or a subjectless restriction (Keeper).
+    grant_marker = _mass_creature_grant_marker(record)
+    if grant_marker is not None:
+        abilities.append(Ability(kind="static", effects=(grant_marker,)))
+    # Mass untap (ADR-0027 go-wide): recover "untap all creatures you control" phase
+    # left unstructured (a static, a dropped ability, an extra-combat sub-effect).
+    if not any(
+        e.category == "untap" and e.counter_kind == "all"
+        for a in abilities
+        for e in a.effects
+    ):
+        untap_marker = _mass_untap_marker(record)
+        if untap_marker is not None:
+            abilities.append(Ability(kind="static", effects=(untap_marker,)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -1212,15 +1251,21 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     if etype == "settapstate":
         # The biggest single parse gap (2427): tap/untap a permanent. The `state`
         # field is the direction; reuse the existing tap / untap categories so
-        # untap_engine / tap_down derive from it.
+        # untap_engine / tap_down derive from it. The `scope` (All vs Single) rides
+        # in counter_kind so a MASS untap ("untap ALL creatures you control" —
+        # Aggravated Assault, Reveille Squad) is distinguishable from a single-target
+        # untap ("untap target creature") downstream: a go-wide creatures_matter lane
+        # cares about the mass form, not a one-off untapper.
         state = _norm((eff.get("state") or {}).get("type"))
         cat = "untap" if state == "untap" else "tap"
+        scope_all = _norm((eff.get("scope") or {}).get("type")) == "all"
         return [
             Effect(
                 category=cat,
                 scope=_effect_scope(eff),
                 subject=_effect_subject(eff),
                 raw=raw,
+                counter_kind="all" if scope_all else "",
             )
         ]
     if etype == "giveplayercounter":
@@ -1487,6 +1532,29 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     # evasion); the lane reads it as opponents.
     if mode_tok == "ignorelandwalkforblocking":
         out.append(Effect(category="evasion_denial", scope="opp", raw=desc))
+        return out
+    # CantBeBlockedBy ("Creatures you control [with power N or less] can't be blocked
+    # by …", Delney / Champion of Lambholt): a MASS-EVASION grant to your whole own-
+    # board creature set (optionally a power band). Modeled as a grant_keyword over
+    # the affected set so the go-wide creatures_matter arm reads it (the granted thing
+    # is an evasion-class permission — counter_kind "unblockable"). Gated to YOUR
+    # creatures — a "creatures opponents control can't be blocked" is not a care of
+    # yours, and a single-target unblockable (affected not a your-team Typed set)
+    # isn't a mass grant.
+    if (
+        mode_tok == "cantbeblockedby"
+        and affected is not None
+        and (affected.controller == "you" and "Creature" in affected.card_types)
+    ):
+        out.append(
+            Effect(
+                category="grant_keyword",
+                scope="you",
+                subject=affected,
+                raw=desc,
+                counter_kind="unblockable",
+            )
+        )
         return out
     combat_cat = _COMBAT_FORCE_MODES.get(mode_tok)
     if combat_cat is not None:
@@ -1756,6 +1824,14 @@ def _quantity(node: object) -> Quantity | None:
                 return Quantity(op=op, factor=1)
             if qt == "counterson" and _norm(qty.get("counter_type")) == "p1p1":
                 return Quantity(op="counters", factor=1)
+            # a Ref over an Aggregate (Sum of total power/toughness over a filter —
+            # Ghalta, Orysa's gate): the operand IS that population. Lift the filter
+            # so a count-over-own-board lane reads it (CR 604.3). NB: this is still
+            # op="count" — the lane keys on "scales with that filter's population",
+            # whether the population is summed power or a head count.
+            if qt == "aggregate":
+                f = _filter(qty.get("filter"))
+                return Quantity(op="count", factor=1, subject=f)
         return Quantity(op="count", factor=1, subject=_objectcount_filter(qty))
     if t == "counterson" and _norm(node.get("counter_type")) == "p1p1":
         # "for each +1/+1 counter on ~" — counter-scaling payoff (only +1/+1, not
@@ -1763,6 +1839,21 @@ def _quantity(node: object) -> Quantity | None:
         return Quantity(op="counters", factor=1)
     if t == "objectcount":
         return Quantity(op="count", factor=1, subject=_filter(node.get("filter")))
+    if t == "aggregate":
+        # A top-level Aggregate (total power/toughness/etc. over a filter) — same
+        # population operand as ObjectCount, the count lane keys on the filter.
+        return Quantity(op="count", factor=1, subject=_filter(node.get("filter")))
+    if t == "sum":
+        # A Sum of expressions ("X = number of creatures you control plus the number
+        # of Foods you control" — Hobbit's Sting). Return the FIRST operand that
+        # carries a count-over-a-filter subject so a count-over-own-board lane fires;
+        # a multi-operand sum isn't one clean Quantity, but the dominant population
+        # operand is the build-around the lane cares about.
+        for expr in _as_list(node.get("exprs")):
+            q = _quantity(expr)
+            if q is not None and q.subject is not None:
+                return q
+        return None
     if t == "multiply":
         inner = _quantity(node.get("inner"))
         return Quantity(
@@ -1794,6 +1885,251 @@ def _objectcount_filter(qty: object) -> Filter | None:
     if isinstance(qty, dict) and _norm(qty.get("type")) == "objectcount":
         return _filter(qty.get("filter"))
     return None
+
+
+# ── count-operand-over-own-board (ADR-0027 go-wide projection) ─────────────────
+# A GENERIC own-board count: an ObjectCount / Aggregate whose filter is "creatures
+# (artifacts / enchantments) you control" with NO subtype — the whole own-board set
+# of that type. CR 604.3: a value defined by that set's population is the strongest
+# go-wide care signal (Crusader's P/T IS the creature count; Ghalta's cost reduction
+# IS your total power). phase keeps these operands in its raw parse, but the
+# STRUCTURED projection drops them when the carrying effect folds to a subjectless
+# characteristic_pt / damage / ModifyCost / a gate condition. _board_count_filter
+# recovers the operand from the raw phase node; _mark_board_count_operands appends
+# a `board_count` marker effect carrying it, so the signals count arm fires.
+#
+# Parameterized by card_type so artifacts_matter / enchantments_matter reuse it.
+# A controller of "you" OR null/unspecified counts (phase emits controller=null for
+# "for each creature type among creatures you control" — Valiant Changeling — losing
+# the "you", but the operand still ranges over a generic creature set, not an
+# opponent's; an explicit "opp" is excluded, never a build-around of yours).
+_AGG_FUNCTIONS: frozenset[str] = frozenset({"sum"})
+
+
+def _is_generic_board_filter(node: object, card_type: str) -> bool:
+    """A phase Typed filter selecting your whole own-board set of ``card_type`` (no
+    subtype). controller you/unspecified passes; an explicit opponent set fails."""
+    if not isinstance(node, dict) or _norm(node.get("type")) != "typed":
+        return False
+    card_types, subtypes = _type_and_subtype_filters(node)
+    if card_type not in card_types or subtypes:
+        return False
+    controller = _norm(node.get("controller"))
+    return controller in ("", "you", "none", "null")
+
+
+def _board_count_filter(node: object, card_type: str) -> Filter | None:
+    """The Filter of the FIRST own-board count operand (ObjectCount / Aggregate over a
+    generic ``card_type``-you-control set) anywhere in ``node``, or None. Recursive —
+    the operand can be wrapped in Ref / Sum / Multiply / nested under a condition or a
+    modification value. Returns the PROJECTED Filter (controller forced to "you" so the
+    downstream generic-set gate reads it, even when phase emitted controller=null)."""
+    found: list[Filter] = []
+
+    def walk(n: object) -> None:
+        if found:
+            return
+        if isinstance(n, list):
+            for x in n:
+                walk(x)
+            return
+        if not isinstance(n, dict):
+            return
+        t = _norm(n.get("type"))
+        if t in ("objectcount", "aggregate"):
+            if t == "aggregate" and _norm(n.get("function")) not in _AGG_FUNCTIONS:
+                pass  # only a summing aggregate is a population total (not min/max)
+            elif _is_generic_board_filter(n.get("filter"), card_type):
+                found.append(Filter(card_types=(card_type,), controller="you"))
+                return
+        # Formidable (CR 207.2c): phase's named "creatures you control total power at
+        # least N" activation/trigger gate — a total-power aggregate over your WHOLE
+        # creature board, the same go-wide care as an explicit Aggregate(Sum, Power).
+        # Creature-only by name; the artifact/enchantment scan never matches it.
+        elif t == "creaturesyoucontroltotalpoweratleast" and card_type == "Creature":
+            found.append(Filter(card_types=("Creature",), controller="you"))
+            return
+        for v in n.values():
+            walk(v)
+
+    walk(node)
+    return found[0] if found else None
+
+
+# Permanent card-types the board-count marker scans for. Creature first (its lane is
+# creatures_matter); artifacts/enchantments reuse the same helper (their lanes already
+# fire from a STRUCTURED count operand the structured projection keeps — this marker
+# is the supplement for the operands phase drops, same shape for every type).
+_BOARD_COUNT_TYPES: tuple[str, ...] = ("Creature", "Artifact", "Enchantment")
+
+
+def _board_count_markers(record: dict) -> list[Effect]:
+    """Marker effects for own-board count operands the STRUCTURED projection drops.
+
+    phase keeps the operand (an ObjectCount / summing Aggregate over "creatures /
+    artifacts / enchantments you control") in its raw parse, but the carrying clause
+    folds to a subjectless effect (a characteristic-defining */* P/T, a ModifyCost
+    reduction, a damage/draw amount, or a gate condition) so the structured Effect
+    loses it. This scans the raw record's static abilities (incl. their conditions and
+    modification values), replacements, triggers, and spell/activated abilities for
+    such an operand and appends ONE `board_count` marker per permanent type found —
+    its `amount.subject` is the generic own-board Filter, which the signals count arm
+    (``_is_generic_creature_filter`` / ``_typed_matters_lane``) reads as a go-wide
+    care signal (CR 604.3). Append-only; deduped per type so a card with both a
+    SetDynamicPower and SetDynamicToughness over the same set emits one marker."""
+    nodes = (
+        (record.get("static_abilities") or [])
+        + (record.get("replacements") or [])
+        + (record.get("triggers") or [])
+        + (record.get("abilities") or [])
+    )
+    out: list[Effect] = []
+    for card_type in _BOARD_COUNT_TYPES:
+        for node in nodes:
+            f = _board_count_filter(node, card_type)
+            if f is not None:
+                desc = node.get("description") or node.get("oracle_text") or ""
+                out.append(
+                    Effect(
+                        category="board_count",
+                        scope="you",
+                        subject=f,
+                        amount=Quantity(op="count", factor=1, subject=f),
+                        raw=desc if isinstance(desc, str) else "",
+                    )
+                )
+                break  # one marker per permanent type
+    return out
+
+
+# A MASS keyword/protection/evasion grant to your WHOLE own-board creature set
+# ("Creatures you control gain/have <ability>", "creatures you control can't be
+# blocked") that phase swallows into a subjectless carrier — a chosen-ability grant
+# (Linvala → choose), a modal grant (Mishra), an upkeep restriction whose subject
+# phase drops (Keeper). Mirrors the SWEEP team-evasion anchor: "creatures you
+# control" preceded ONLY by "other"/"attacking" (so a SUBTYPE lord "Goblin creatures
+# you control gain haste" — type_matters, CR 205.3 — never matches) AND a grant verb
+# (gain/have) OR the "can't be blocked" team-unblockable phrasing. Protective +
+# evasion keywords (CR 702): a generic mass grant of one is a go-wide creatures care.
+# The bare-head anchor: "creatures you control" preceded ONLY by other/attacking
+# (no subtype/color/class word), at a clause boundary — so a SUBTYPE/COLOR lord
+# ("Goblin/White creatures you control") never matches (those route to type_matters /
+# a color band, CR 205.3).
+_BARE_CREATURES_YOU_CONTROL = (
+    r"(?<![A-Za-z])(?:other |attacking )?creatures you control"
+)
+_MASS_CREATURE_GRANT = re.compile(
+    _BARE_CREATURES_YOU_CONTROL + r" (?:gain|have)\b"
+    r"(?:"
+    # a QUOTED granted ability ("Creatures you control have '{T}: Add {G}'" —
+    # Citanul Hierophants, Cryptolith Rite, Battery Bearer, Retaliation): the mass
+    # grant of any quoted ability to the whole board is go-wide.
+    r"\s*\""
+    # OR a named evasion / protection / combat keyword within the grant clause.
+    r"|[^.\"]{0,60}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk|flying"
+    r"|trample|vigilance|haste|lifelink|deathtouch|first strike|double strike"
+    r"|hexproof|shroud|indestructible|ward|protection|reach|flash|afterlife"
+    # a chosen-ability grant: "Choose hexproof or indestructible. Creatures you
+    # control gain THAT ABILITY" (Linvala) — the keyword is in the Choose clause,
+    # the grant refers to it. "that ability"/"those abilities" is the anchor.
+    r"|that abilit(?:y|ies)|those abilities"
+    # a mass base-P/T SET grant ("Creatures you control have base power and
+    # toughness 9/9" — The Capitoline Triad's emblem) — rewrites the whole board.
+    r"|base power and toughness"
+    # a formidable-style total-power/toughness GATE ("creatures you control have
+    # total power 8 or greater" — Case of the Trampled Garden's solve condition).
+    r"|total (?:power|toughness))\b"
+    r")"
+    r"|" + _BARE_CREATURES_YOU_CONTROL + r"[^.]*?can't be blocked",
+    re.IGNORECASE,
+)
+
+
+# A MASS UNTAP of your whole creature board ("Untap all creatures you control") that
+# phase leaves unstructured — a static (Drumbellower), a third ability phase dropped
+# (Quest for Renewal), or a sub-effect folded into an extra-combat trigger (Lightning
+# Runner). Mirror of the structured untap+counter_kind="all" path for the cards phase
+# DID parse; this oracle anchor is the narrow recovery for the ones it didn't. Anchored
+# on the literal "untap all creatures you control" (no broad substring).
+_MASS_UNTAP = re.compile(r"untap all creatures you control", re.IGNORECASE)
+
+# A "for each creature you control" COUNT operand phase left in raw (an Unrecognized /
+# folded parse — Eidolon's per-creature self-pump, Siege Behemoth's per-creature
+# trample, a draw/damage X-count). CR 604.3: a value defined by your creature count is
+# a go-wide care. The narrow count-operand phrase (NOT the broad "creatures you
+# control" substring the deleted regex floor used) — it always denotes a per-creature
+# count, so it never over-fires onto a non-go-wide carrier; a trailing "with <pred>"
+# (a restricted count) is still a go-wide count of a creature subset.
+_FOR_EACH_CREATURE = re.compile(
+    r"for each creature you control\b"
+    # the X-defining count form ("X is the number of creatures you control",
+    # "deals damage equal to the number of creatures you control" — Lantern Flare,
+    # Superior Numbers' "in excess of") phase Unimplemented-parsed. Anchored on the
+    # count-DEFINING phrase, NOT the bare "any number of creatures" QUANTIFIER (a
+    # selection, not a count) and NOT a TRIBAL count ("...you control of that type" —
+    # Kindred Summons) nor a PAST-TENSE death count ("...you controlled that died").
+    r"|(?:where x is|x is|equal to) the number of creatures you control"
+    r"(?!\w)(?! of (?:that|a|the chosen))",
+    re.IGNORECASE,
+)
+
+
+def _mass_untap_marker(record: dict) -> Effect | None:
+    """An `untap`+counter_kind="all" marker over the generic creature board when the
+    oracle text says "untap all creatures you control" but phase left it unstructured.
+    The subject is the synthesized generic creature Filter so the go-wide mass-untap
+    arm reads it. None when absent."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    m = _MASS_UNTAP.search(text)
+    if m is None:
+        return None
+    return Effect(
+        category="untap",
+        scope="you",
+        subject=Filter(card_types=("Creature",), controller="you"),
+        raw=m.group(0),
+        counter_kind="all",
+    )
+
+
+def _for_each_creature_marker(record: dict) -> Effect | None:
+    """A `board_count` marker carrying a generic creature count operand when the oracle
+    text scales "for each creature you control" but phase folded/Unrecognized the
+    operand (Eidolon's per-creature pump, Siege Behemoth, a draw/damage X). None when
+    absent. Its amount.subject is the generic creature Filter the count arm reads."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    m = _FOR_EACH_CREATURE.search(text)
+    if m is None:
+        return None
+    f = Filter(card_types=("Creature",), controller="you")
+    return Effect(
+        category="board_count",
+        scope="you",
+        subject=f,
+        amount=Quantity(op="count", factor=1, subject=f),
+        raw=m.group(0),
+    )
+
+
+def _mass_creature_grant_marker(record: dict) -> Effect | None:
+    """A `grant_keyword` marker over the GENERIC own-board creature set when the card's
+    oracle text mass-grants a keyword/evasion to "creatures you control" but phase
+    folded the grant into a subjectless carrier (choose / modal / restriction). The
+    subject is the synthesized generic creature Filter so the go-wide creatures_matter
+    arm reads it. None when the card has no such grant. Narrowly anchored (no broad
+    "creatures you control" substring) so it never mirrors the deleted regex floor —
+    a SUBTYPE-lord grant is excluded by the bare-"creatures" head anchor."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    m = _MASS_CREATURE_GRANT.search(text)
+    if m is None:
+        return None
+    return Effect(
+        category="grant_keyword",
+        scope="you",
+        subject=Filter(card_types=("Creature",), controller="you"),
+        raw=m.group(0).strip(),
+        counter_kind="mass_grant",
+    )
 
 
 def _type_and_subtype_filters(node: dict) -> tuple[tuple[str, ...], tuple[str, ...]]:

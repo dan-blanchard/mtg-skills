@@ -266,6 +266,12 @@ CATEGORIES: frozenset[str] = frozenset(
         "devour",
         "evasion_denial",
         "damage_reflect",
+        # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
+        # artifacts / enchantments you control) the structured projection dropped to a
+        # subjectless characteristic_pt / ModifyCost / damage / gate condition;
+        # project._board_count_markers recovers it. Its amount.subject is the generic
+        # own-board Filter the count lane reads (CR 604.3).
+        "board_count",
         "other",
     }
 )
