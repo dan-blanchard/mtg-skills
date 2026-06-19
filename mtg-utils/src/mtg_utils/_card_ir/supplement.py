@@ -1293,11 +1293,22 @@ def _clean_ability(ab: Ability) -> Ability:
 
 
 def supplement_card(card: Card) -> Card:
-    """Return *card* with each effect's category/scope recovered from its raw, and the
-    non-effect `other`s dropped (chapter labels; redundant textless nodes). See
-    :func:`_clean_ability`."""
+    """Return *card* with each effect's category/scope recovered from its raw, the
+    non-effect `other`s dropped (chapter labels; redundant textless nodes), and any
+    NON-static ability left with no effects after cleaning dropped entirely — such an
+    ability held only a glue continuation ("The same is true …") that phase
+    mis-attributed to its own ability; the real effect lives on a sibling (e.g. the
+    static), so the empty shell is spurious, not a parse gap (genuinely-lost abilities
+    were already oracle-filled upstream by _fill_sole_empty). See _clean_ability."""
     faces = tuple(
-        replace(face, abilities=tuple(_clean_ability(ab) for ab in face.abilities))
+        replace(
+            face,
+            abilities=tuple(
+                ab
+                for raw_ab in face.abilities
+                if (ab := _clean_ability(raw_ab)).effects or ab.kind == "static"
+            ),
+        )
         for face in card.faces
     )
     return replace(card, faces=faces)
