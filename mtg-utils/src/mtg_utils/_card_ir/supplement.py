@@ -632,6 +632,8 @@ _VERB = comb.alt(
     comb.value("attach", comb.tag("attach")),  # "attach it to …"
     # "exchange its power and the power of …" — switch P/T (CR switchpt).
     comb.value("switch_pt", comb.seq2(comb.tag("exchange"), comb.take_until("power"))),
+    # "switch its power and toughness" (CR switchpt).
+    comb.value("switch_pt", comb.seq2(comb.tag("switch"), comb.take_until("power"))),
     comb.value("skip_step", comb.keyword({"skip", "skips"})),  # "skips … combat phase"
     comb.value("counter_spell", comb.tag("counter target")),
     comb.value("counter_spell", comb.tag("counter that")),
@@ -831,6 +833,12 @@ _REDIRECT = re.compile(
 )
 # An attack restriction: "may attack only the nearest opponent", "attack only the".
 _ATTACK_ONLY = re.compile(r"\b(?:may |can )?attack only\b", re.IGNORECASE)
+# A casting-timing restriction: "(Players) can cast spells (and activate abilities)
+# only during their own turns".
+_CAST_RESTRICT = re.compile(
+    r"\bcan cast spells (?:and activate abilities )?only\b|\bcast spells only\b",
+    re.IGNORECASE,
+)
 _CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
     r"\bchoose which creatures? (?:attack|block)", re.IGNORECASE
 )
@@ -971,7 +979,7 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="grant_keyword")
     if _COIN.search(s):
         return replace(e, category="coin_flip")
-    if _ATTACK_ONLY.search(s):
+    if _ATTACK_ONLY.search(s) or _CAST_RESTRICT.search(s):
         return replace(e, category="restriction")
     if _REDIRECT.search(s):
         return replace(e, category="redirect")
