@@ -585,6 +585,8 @@ _SIMPLE_VERB = comb.alt(
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
     comb.value("pay_cost", comb.keyword({"pay"})),  # "Pay 3 life", "pay {2}{R}" (cost)
+    comb.value("fight", comb.keyword({"fight", "fights"})),  # "fights target creature"
+    comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # manifest
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
@@ -779,10 +781,20 @@ _DAMAGE_REPLACE = re.compile(  # damage replacement/prevention: "all damage … 
 # An alternative cost ("you may pay {0} rather than pay the mana cost", "rather than
 # its mana cost") — a cost-replacement permission. Non-sliced category.
 _ALT_COST = re.compile(
-    r"\brather than\b[^.]*\bmana cost\b|\bwithout paying its mana cost\b"
+    r"\brather than\b[^.]*\bmana cost\b|\bwithout paying (?:its|their) mana costs?\b"
     r"|\brather than pay\b",  # "Rather than pay {2} for each previous time …"
     re.IGNORECASE,
 )
+# An ETB/continuous clone ("enters as a copy of …", "is a copy of the chosen creature")
+# distinct from the imperative "create a copy" — a clone synergy. Static discriminant.
+_CLONE_STATIC = re.compile(
+    r"\b(?:is|are|enters?|enter) (?:as )?(?:a )?copy of\b|\bas a copy of\b",
+    re.IGNORECASE,
+)
+# Forced combat: "… attacks … if able", "all creatures … attack if able". And a forced
+# block: "all … able to block ~ do so" (a lure).
+_FORCE_ATTACK = re.compile(r"\battacks?\b[^.]*\bif able\b", re.IGNORECASE)
+_FORCE_BLOCK = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
 _TEXT_CHANGE = re.compile(
     r"\bchange the text\b|\bchange ~'s\b|\bchange (?:the )?base power\b", re.IGNORECASE
 )
@@ -845,7 +857,9 @@ _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
 # The altered SET precedes "cost", so a discriminant scan (like the anthem above).
-_COST_ALTER = re.compile(r"\bcosts?\s+(?:\{[^}]*\}\s+)?(?:less|more)\b", re.IGNORECASE)
+# Allow a multi-symbol reduction ("cost {B}{R} less") — one or more brace groups, or
+# none ("costs less").
+_COST_ALTER = re.compile(r"\bcosts?\s+(?:\{[^}]*\}\s*)*(?:less|more)\b", re.IGNORECASE)
 # Disambiguate the "gain(s)" family: a life gain ("gains 5 life", "gain that much
 # life") vs control ("gains control of") vs an ABILITY/keyword grant (everything
 # else: "gains flashback", "has hexproof"). \blife\b is word-bounded so "lifelink"
@@ -907,6 +921,12 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="cycling")
     if _LANDWALK.search(s):
         return replace(e, category="evasion")
+    if _CLONE_STATIC.search(s):
+        return replace(e, category="clone")
+    if _FORCE_ATTACK.search(s):
+        return replace(e, category="force_attack")
+    if _FORCE_BLOCK.search(s):
+        return replace(e, category="lure")
     if _BID.search(s):
         return replace(e, category="bid")
     if _DRAFT.search(s):
