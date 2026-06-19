@@ -716,6 +716,14 @@ def supplement_card(card: Card) -> Card:
     return replace(card, faces=faces)
 
 
+def recover_effect_from_text(raw: str) -> Effect:
+    """Run the full clause recovery on a bare oracle sentence → a structured Effect
+    (category="other" if nothing matched). The seam projection uses to fill a
+    sole-empty ability from its card's oracle (an effect phase structured but left
+    textless), reusing the exact same grammar the in-IR `other`s go through."""
+    return _supplement_effect(Effect(category="other", scope="any", raw=raw))
+
+
 def _supplement_effect(e: Effect) -> Effect:
     out = e
     # 1. recover a buried effect from its clause (the first matching rule wins).

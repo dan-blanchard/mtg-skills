@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 
-from mtg_utils._card_ir.supplement import supplement_card
+from mtg_utils._card_ir.supplement import recover_effect_from_text, supplement_card
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
 
 
@@ -413,6 +413,38 @@ def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
     return replace(ab, effects=tuple(out)) if changed else ab
 
 
+def _is_sole_empty(ab: Ability) -> bool:
+    """An ability whose ONLY effects are textless ``other`` — phase recognized the
+    ability (cost/kind/trigger) but wholly lost its effect text."""
+    return bool(ab.effects) and all(
+        e.category == "other" and not (e.raw or "").strip() for e in ab.effects
+    )
+
+
+def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Ability]:
+    """Fill a SOLE-empty ability (effect lost, but the effect is in the oracle) by
+    dispatching the card's oracle sentences and giving the empty ability the recovered
+    categories the card's structured abilities don't already carry (deduped). Only when
+    there's exactly ONE sole-empty ability (otherwise the sentence→ability attribution
+    is ambiguous) and at least one sentence recovers — else left honestly empty."""
+    empties = [i for i, a in enumerate(abilities) if _is_sole_empty(a)]
+    if len(empties) != 1:
+        return abilities
+    have = {e.category for a in abilities for e in a.effects if e.category != "other"}
+    fills: list[Effect] = []
+    seen: set[str] = set()
+    for s in sentences:
+        eff = recover_effect_from_text(s)
+        if eff.category != "other" and eff.category not in have | seen:
+            seen.add(eff.category)
+            fills.append(eff)
+    if not fills:
+        return abilities
+    i = empties[0]
+    abilities[i] = replace(abilities[i], effects=tuple(fills))
+    return abilities
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -432,6 +464,7 @@ def _project_face(record: dict) -> Face:
     else:
         sentences = _self_oracle_sentences(record)
         abilities = [_fill_bare_trigger(a, sentences) for a in abilities]
+        abilities = _fill_sole_empty(abilities, sentences)
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
