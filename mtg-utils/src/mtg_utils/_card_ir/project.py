@@ -1247,6 +1247,12 @@ def _zone_tags(eff: dict) -> tuple[str, ...]:
                     z = _norm(prop.get("zone"))
                     if z in _ZONE_NAMES:
                         tags.append(f"in:{z}")
+    # The COUNT operand can count cards in a zone (ZoneCardCount — "draw cards equal
+    # to the number of creature cards in your graveyard", "X = cards in your hand").
+    # Surface that zone as in:<zone> so graveyard_matters / big_hand_matters fire.
+    for key in ("count", "amount", "value", "number"):
+        for z in _condition_zones(eff.get(key)):
+            tags.append(f"in:{z}")
     return tuple(dict.fromkeys(tags))
 
 

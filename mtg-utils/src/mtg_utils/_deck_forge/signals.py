@@ -4500,6 +4500,10 @@ def extract_signals_ir(
                 and _ir_scope(e.scope) == "you"
             ):
                 add("graveyard_matters", "you", "", e.raw)
+            # An effect that scales with YOUR hand size (ZoneCardCount(Hand) — "draw
+            # cards equal to the number of cards in your hand") cares about a big hand.
+            if "in:hand" in e.zones and _ir_scope(e.scope) == "you":
+                add("big_hand_matters", "you", "", e.raw)
             # token_maker only when the token goes to YOU — "destroy target
             # creature, its controller makes a Beast" (scope opp) is removal.
             if e.category == "make_token" and e.scope in ("you", "any"):
