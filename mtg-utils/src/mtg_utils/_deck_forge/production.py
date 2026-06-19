@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import functools
 import os
+import sys
 import uuid
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -157,8 +158,62 @@ def _load_collections(
     return collections, index
 
 
+def ensure_card_ir() -> bool:
+    """Ensure the Card IR sidecar exists at launch, building it if absent/stale.
+
+    ADR-0027 migrated 31 signal keys (``signals.MIGRATED_KEYS``) off their oracle
+    regex and onto the Card IR. ``extract_signals_hybrid`` serves those keys from
+    the IR sidecar; with no sidecar (``ir=None``) it degrades to the regex path —
+    but those keys' detectors are DELETED, so a sidecar-less environment silently
+    LOSES every migrated lane. This is the mirror of the ``download-bulk`` ensure:
+    pay the build cost once at launch so the common case never silently degrades.
+
+    IDEMPOTENT + fast: when the sidecar already loads cleanly (right on-disk
+    version), this is a single ``load_card_ir`` (memoized) and returns ``True``
+    without rebuilding. A missing/stale sidecar is rebuilt from phase's
+    ``card-data.json`` via ``build-card-ir``. When phase isn't installed (no
+    ``card-data.json``), it CANNOT be built — so we surface a loud, actionable
+    warning naming the degraded lanes and proceed NON-BLOCKING (returns ``False``).
+    Returns whether the sidecar is present after the call.
+    """
+    from mtg_utils._card_ir.build import build_sidecar
+    from mtg_utils._card_ir.load import load_card_ir
+    from mtg_utils._deck_forge.signals import MIGRATED_KEYS
+
+    try:
+        load_card_ir()  # present + current version → nothing to do (idempotent)
+    except FileNotFoundError:
+        reason = "missing"  # absent sidecar — first run / never built
+    except ValueError:
+        reason = "stale"  # present but wrong on-disk version — phase/schema bump
+    else:
+        return True
+
+    try:
+        _out, stats = build_sidecar()
+    except FileNotFoundError:
+        # phase's card-data.json is absent → the sidecar can't be built. Do NOT
+        # silently degrade: name the cost (N migrated lanes) and the fix.
+        print(
+            f"deck-forge: WARNING — Card IR sidecar unavailable "
+            f"({len(MIGRATED_KEYS)} migrated signal lanes degraded). "
+            "Run `playtest-install-phase`, then `build-card-ir`. "
+            "Building continues; those lanes stay dark until then.",
+            file=sys.stderr,
+        )
+        return False
+    else:
+        print(
+            f"deck-forge: built Card IR sidecar ({reason}) — "
+            f"{stats['cards']} cards, phase {stats['phase_tag']}.",
+            file=sys.stderr,
+        )
+        return True
+
+
 def default_state(fmt: str = "commander") -> ForgeState:
     """Build the live backend state, loading bulk data when available."""
+    ensure_card_ir()  # build/refresh the Card IR sidecar (ADR-0027); never blocks
     store = BuildStore(_builds_dir())
     session, build_id, build_name = resume_or_new(store, fmt)
     collection_store = CollectionStore(_deck_forge_dir() / "collection.json")
