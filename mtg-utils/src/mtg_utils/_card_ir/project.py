@@ -316,6 +316,19 @@ def _confidence(card: Card) -> str:
     return "full"
 
 
+def _synthesize_from_oracle(record: dict) -> list[Ability]:
+    """phase recovered NO structured abilities AND the card has no keywords (a TOTAL
+    parse failure, not a vanilla/keyword card) — synthesize one ability whose effects
+    are the oracle's sentences as raw 'other' clauses, so the supplement's clause
+    dispatch fills the gap. A vanilla face has no oracle sentences and yields nothing
+    (correctly stays unparsed). Gated on the exact `unparsed` condition (no abilities
+    + no keywords), so a keyword card is never touched."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")  # drop reminder
+    sentences = [s.strip() for s in re.split(r"[.\n]", text) if len(s.strip()) > 4]
+    effects = tuple(Effect(category="other", scope="any", raw=s) for s in sentences)
+    return [Ability(kind="spell", effects=effects)] if effects else []
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -330,6 +343,8 @@ def _project_face(record: dict) -> Face:
         a = _project_replacement(rep)
         if a is not None:
             abilities.append(a)
+    if not abilities and not _keywords(record.get("keywords")):
+        abilities = _synthesize_from_oracle(record)
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),

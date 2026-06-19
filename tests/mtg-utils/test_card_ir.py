@@ -517,6 +517,43 @@ def test_create_delayed_trigger_recurses_into_stored_effect():
     assert any(e.category == "draw" for e in _effects(project_card([rec])))
 
 
+def test_zero_ability_card_synthesizes_from_oracle():
+    """A total phase parse failure (no abilities, no keywords) is synthesized from its
+    oracle so the supplement dispatch fills the gap — 'Draw a card.' -> draw."""
+    rec = {
+        "name": "Phase-Failure",
+        "scryfall_oracle_id": "za",
+        "card_type": {"core_types": ["Enchantment"]},
+        "oracle_text": "Draw a card.",
+    }
+    card = project_card([rec])
+    assert any(e.category == "draw" for a in card.all_abilities() for e in a.effects)
+
+
+def test_vanilla_card_stays_unparsed():
+    """A textless vanilla card has no mechanics — correctly unparsed (not synthesized)."""
+    rec = {
+        "name": "Vanilla Bear",
+        "scryfall_oracle_id": "v",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "",
+    }
+    assert project_card([rec]).parse_confidence == "unparsed"
+
+
+def test_keyword_only_card_not_synthesized():
+    """A keyword-only card is full via the keyword field — not turned partial by a
+    bogus synthesized 'other' clause."""
+    rec = {
+        "name": "Flyer",
+        "scryfall_oracle_id": "kw",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Flying",
+        "keywords": ["Flying"],
+    }
+    assert project_card([rec]).parse_confidence == "full"
+
+
 def test_supplement_verb_dispatch_recovers_unimplemented():
     """The supplement's leading-verb dispatch flips a phase-Unimplemented clause from
     'other' to its real category (deal damage -> damage, conjure -> make_token)."""
