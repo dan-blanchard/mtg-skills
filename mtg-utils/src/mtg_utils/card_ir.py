@@ -104,6 +104,27 @@ class Trigger:
 
 
 @dataclass(frozen=True)
+class Condition:
+    """A gate on an ability — phase's ``condition`` field projected structurally.
+
+    ``kind`` is the normalized phase condition type (``source_in_zone``,
+    ``quantity_comparison``, ``controls_type``, ``has_counters``, …). ``zones`` is
+    every non-stack zone referenced anywhere in the condition tree (recursive —
+    "if a creature card is in your graveyard", a graveyard count, cast-from-zone),
+    the field zone-matters lanes read. ``subject`` is the type/object filter the
+    condition checks (ControlsType → metalcraft, ZoneChangedThisWay), ``nested``
+    holds And/Or/Not children.
+    """
+
+    kind: str
+    zones: tuple[str, ...] = ()
+    subject: Filter | None = None
+    counter_kind: str = ""  # for has_counters
+    comparator: str = ""  # GE | LE | EQ | … for quantity_comparison
+    nested: tuple[Condition, ...] = ()
+
+
+@dataclass(frozen=True)
 class Ability:
     """A single static / triggered / activated / spell ability of one face."""
 
@@ -112,6 +133,7 @@ class Ability:
     trigger: Trigger | None = None  # set iff kind == "triggered"
     cost: str | None = None  # raw activation cost text iff kind == "activated"
     zones: tuple[str, ...] = ()  # zones the ability functions in, when not battlefield
+    condition: Condition | None = None  # the ability's gate, when present
 
 
 @dataclass(frozen=True)
@@ -344,6 +366,41 @@ def _trigger_from_dict(d: dict | None) -> Trigger | None:
     )
 
 
+def _condition_to_dict(c: Condition | None) -> dict | None:
+    if c is None:
+        return None
+    out: dict = {"kind": c.kind}
+    if c.zones:
+        out["zn"] = list(c.zones)
+    sub = _filter_to_dict(c.subject)
+    if sub is not None:
+        out["sub"] = sub
+    if c.counter_kind:
+        out["ck"] = c.counter_kind
+    if c.comparator:
+        out["cmp"] = c.comparator
+    if c.nested:
+        out["nest"] = [_condition_to_dict(n) for n in c.nested]
+    return out
+
+
+def _condition_from_dict(d: dict | None) -> Condition | None:
+    if d is None:
+        return None
+    return Condition(
+        kind=d["kind"],
+        zones=tuple(d.get("zn", ())),
+        subject=_filter_from_dict(d.get("sub")),
+        counter_kind=d.get("ck", ""),
+        comparator=d.get("cmp", ""),
+        nested=tuple(
+            c
+            for c in (_condition_from_dict(n) for n in d.get("nest", ()))
+            if c is not None
+        ),
+    )
+
+
 def _ability_to_dict(a: Ability) -> dict:
     out: dict = {"k": a.kind}
     if a.effects:
@@ -355,6 +412,9 @@ def _ability_to_dict(a: Ability) -> dict:
         out["cost"] = a.cost
     if a.zones:
         out["z"] = list(a.zones)
+    cond = _condition_to_dict(a.condition)
+    if cond is not None:
+        out["cond"] = cond
     return out
 
 
@@ -365,6 +425,7 @@ def _ability_from_dict(d: dict) -> Ability:
         trigger=_trigger_from_dict(d.get("tr")),
         cost=d.get("cost"),
         zones=tuple(d.get("z", ())),
+        condition=_condition_from_dict(d.get("cond")),
     )
 
 

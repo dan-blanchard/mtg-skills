@@ -19,7 +19,16 @@ import re
 from dataclasses import replace
 
 from mtg_utils._card_ir.supplement import recover_effect_from_text, supplement_card
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
+from mtg_utils.card_ir import (
+    Ability,
+    Card,
+    Condition,
+    Effect,
+    Face,
+    Filter,
+    Quantity,
+    Trigger,
+)
 
 
 def _norm(token: object) -> str:
@@ -706,7 +715,12 @@ def _project_spell_or_activated(ab: dict) -> Ability:
     kind = "activated" if _norm(ab.get("kind")) == "activated" else "spell"
     effects = _collect_effects(ab, ab.get("description") or "")
     return _recover_clone_subjects(
-        Ability(kind=kind, effects=tuple(effects), cost=_cost_string(ab.get("cost")))
+        Ability(
+            kind=kind,
+            effects=tuple(effects),
+            cost=_cost_string(ab.get("cost")),
+            condition=_project_condition(ab.get("condition")),
+        )
     )
 
 
@@ -718,7 +732,12 @@ def _project_trigger(tr: dict) -> Ability:
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
     return _recover_clone_subjects(
-        Ability(kind="triggered", trigger=trigger, effects=tuple(effects))
+        Ability(
+            kind="triggered",
+            trigger=trigger,
+            effects=tuple(effects),
+            condition=_project_condition(tr.get("condition")),
+        )
     )
 
 
@@ -726,7 +745,11 @@ def _project_top_static(st: dict) -> Ability | None:
     effects = _project_static_mods(st, st.get("description") or "")
     if not effects:
         return None
-    return Ability(kind="static", effects=tuple(effects))
+    return Ability(
+        kind="static",
+        effects=tuple(effects),
+        condition=_project_condition(st.get("condition")),
+    )
 
 
 # Quantity-modification types that INCREASE the amount → the doubler archetype,
@@ -1224,6 +1247,67 @@ def _zone_tags(eff: dict) -> tuple[str, ...]:
                     if z in _ZONE_NAMES:
                         tags.append(f"in:{z}")
     return tuple(dict.fromkeys(tags))
+
+
+# And/Or nest children under "conditions" (a list); Not/ConditionInstead under
+# "condition" (a dict). Both keys are walked when projecting the nested tree.
+_NESTED_CONDITION_KEYS = ("conditions", "condition")
+
+
+def _condition_zones(node: object) -> tuple[str, ...]:
+    """Every non-stack zone referenced anywhere in a condition subtree — a generic
+    deep walk catching ``zone`` (SourceInZone/CastFromZone/InZone) and ``from`` /
+    ``to`` (ZoneChangeCount), through nested filters and quantities. Zone-matters
+    lanes read this to fire from a gate ("if a creature card is in your graveyard",
+    a graveyard count, cast-from-graveyard)."""
+    found: set[str] = set()
+
+    def walk(n: object) -> None:
+        if isinstance(n, dict):
+            for key in ("zone", "from", "to"):
+                v = n.get(key)
+                if isinstance(v, str) and _norm(v) in _ZONE_NAMES:
+                    found.add(_norm(v))
+            for child in n.values():
+                walk(child)
+        elif isinstance(n, list):
+            for item in n:
+                walk(item)
+
+    walk(node)
+    return tuple(sorted(found))
+
+
+def _project_condition(c: object) -> Condition | None:
+    """Project phase's ``condition`` gate into a structural Condition node. ``kind``
+    is the normalized type; ``zones`` is the recursive zone set (the field
+    graveyard_matters et al. read); ``subject`` is the checked filter (ControlsType
+    → metalcraft, ZoneChangedThisWay); ``nested`` holds And/Or/Not children."""
+    if not isinstance(c, dict):
+        return None
+    kind = _norm(c.get("type"))
+    if not kind:
+        return None
+    counters = c.get("counters")
+    counter_kind = ""
+    if isinstance(counters, dict) and isinstance(counters.get("data"), str):
+        counter_kind = _norm(counters.get("data"))
+    nested: list[Condition] = []
+    for key in _NESTED_CONDITION_KEYS:
+        child = c.get(key)
+        items = child if isinstance(child, list) else [child]
+        for item in items:
+            sub = _project_condition(item)
+            if sub is not None:
+                nested.append(sub)
+    return Condition(
+        kind=kind,
+        zones=_condition_zones(c),
+        subject=_filter(c.get("filter")),
+        counter_kind=counter_kind,
+        comparator=_norm(c.get("comparator")),
+        nested=tuple(nested),
+    )
 
 
 def _copy_token_effect(eff: dict, raw: str) -> Effect:

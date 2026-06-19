@@ -18,7 +18,8 @@ from pathlib import Path
 from mtg_utils.card_ir import Card
 
 # Bump when the sidecar payload shape changes so old sidecars are rebuilt.
-SIDECAR_VERSION = 1
+# v2: Effect.zones (directional zone refs) + Ability.condition (Condition node).
+SIDECAR_VERSION = 2
 
 
 def card_ir_dir() -> Path:

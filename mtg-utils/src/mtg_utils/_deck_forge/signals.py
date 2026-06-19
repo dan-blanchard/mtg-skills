@@ -4725,6 +4725,14 @@ def extract_signals_ir(
             # cards in your hand" — is scope "any" and not disruption).
             if cat == "reveal_hand" and e.scope == "opp":
                 add("hand_disruption", "opponents", "", e.raw)
+        # Condition-gated graveyard_matters (the conditions projection): an ability
+        # GATED on the graveyard — "if a creature card is in your graveyard"
+        # (threshold/delirium), "if ~ is in your graveyard", a graveyard-count
+        # comparison — cares about graveyards. phase carries the gate in `condition`;
+        # we read its recursive zone set. This is where the diffuse bulk of the lane
+        # lives (the gate, not an effect zone-move).
+        if ab.condition is not None and "graveyard" in ab.condition.zones:
+            add("graveyard_matters", "you", "", "")
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))
