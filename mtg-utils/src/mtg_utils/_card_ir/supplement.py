@@ -124,7 +124,9 @@ def _recover_doubling(e: Effect) -> Effect | None:
         return None
     noun = _DOUBLE_NOUN.parse(e.raw[end:]) or _DOUBLE_NOUN.parse(e.raw[:end])
     if noun is None:
-        return None
+        # a multiplier frame with no token/counter object — doubling another resource
+        # (energy/mana/life: "you get twice that many {E}"). Generic `double`.
+        return replace(e, category="double", scope="you")
     cat = "token_doubling" if noun[0].startswith("token") else "counter_doubling"
     return replace(e, category=cat, scope="you")
 
@@ -684,8 +686,9 @@ _VERB = comb.alt(
     comb.value(
         "place_counter", comb.seq2(comb.tag("remove"), comb.take_until("counter"))
     ),
-    # "flip it" — turn the permanent over (flip card / face-down → up): transform.
+    # "flip it" / "flip ~" — turn the permanent over (flip card / face-down): transform.
     comb.value("transform", comb.tag("flip it")),
+    comb.value("transform", comb.tag("flip ~")),
     # "turn target … face down/up" — morph/cloak/manifest flip: transform.
     comb.value("transform", comb.seq2(comb.tag("turn"), comb.take_until("face"))),
     # "enters prepared" (CR keyword) — its own category like becomeprepared->prepared.
@@ -816,7 +819,14 @@ _LANDWALK = re.compile(
 # "Activate only as a sorcery / during your turn" — an activation-timing restriction.
 _ACTIVATE_ONLY = re.compile(r"\bactivate only\b", re.IGNORECASE)
 _BID = re.compile(r"\bbid life\b|\bstart the bidding\b", re.IGNORECASE)
-_DRAFT = re.compile(r"\bdraft (?:this|each|up to|\d|that)", re.IGNORECASE)
+_DRAFT = re.compile(r"\bdraft (?:this|each|up to|an|a |\d|that)", re.IGNORECASE)
+# Redirect / re-target effects: "reselect which … target", "that damage is dealt to
+# … instead", "change the target" (already handled separately).
+_REDIRECT = re.compile(
+    r"\breselect\b|\bthat damage is dealt to\b|\bredirect\b", re.IGNORECASE
+)
+# An attack restriction: "may attack only the nearest opponent", "attack only the".
+_ATTACK_ONLY = re.compile(r"\b(?:may |can )?attack only\b", re.IGNORECASE)
 _CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
     r"\bchoose which creatures? (?:attack|block)", re.IGNORECASE
 )
@@ -957,6 +967,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="grant_keyword")
     if _COIN.search(s):
         return replace(e, category="coin_flip")
+    if _ATTACK_ONLY.search(s):
+        return replace(e, category="restriction")
+    if _REDIRECT.search(s):
+        return replace(e, category="redirect")
     if _CLONE_STATIC.search(s):
         return replace(e, category="clone")
     if _FORCE_ATTACK.search(s):
