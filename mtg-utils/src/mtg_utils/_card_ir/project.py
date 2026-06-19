@@ -122,10 +122,39 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "bounceall": "bounce",
     "gaincontrolall": "gain_control",
     "goad": "goad",
-    "wingame": "win_game",
-    "losegame": "lose_game",
+    "winthegame": "win_game",
+    "losethegame": "lose_game",
     "monstrosity": "place_counter",  # +1/+1 counters up to N (Monstrous)
     "grantcastingpermission": "cast_from_zone",  # "you may cast/play …" permission
+    # Parse-completeness tier 2 — the smaller remaining "other" effect types. Many
+    # map to an EXISTING category because that IS the mechanic (adapt/bolster put
+    # +1/+1 counters; myriad/encore make token copies; madness casts from exile).
+    "revealtop": "reveal",
+    "reveal": "reveal",
+    "chooseoneof": "choose",
+    "choosefromzone": "choose",
+    "giveplayercounter": "place_counter",  # poison / energy / experience / rad
+    "madnesscast": "cast_from_zone",
+    "adapt": "place_counter",  # CR 701.43 — +1/+1 counters if it has none
+    "bolster": "place_counter",  # CR 701.36 — +1/+1 on the weakest creature
+    "myriad": "make_token",  # CR 702.116 — attacking token copies
+    "encore": "make_token",  # CR 702.140 — token copies
+    "createemblem": "emblem",
+    "discover": "discover",
+    "clash": "clash",
+    "switchpt": "switch_pt",
+    "removefromcombat": "remove_from_combat",
+    "taketheinitiative": "venture",  # initiative shares the dungeon/venture lane
+    "openattractions": "attraction",
+    "setclasslevel": "class_level",
+    "pairwith": "soulbond",
+    "draftfromspellbook": "draft",  # Alchemy
+    "becomeprepared": "prepared",
+    "forceblock": "force_block",
+    "addrestriction": "restriction",
+    "changetargets": "redirect",
+    "addtargetreplacement": "redirect",
+    "registerbending": "bending",
     # Batch 0 — v0.1.60 structured effect types that previously fell to "other".
     "flipcoin": "coin_flip",
     "flipcoins": "coin_flip",

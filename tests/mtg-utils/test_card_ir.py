@@ -517,6 +517,22 @@ def test_create_delayed_trigger_recurses_into_stored_effect():
     assert any(e.category == "draw" for e in _effects(project_card([rec])))
 
 
+def test_tier2_effects_map_to_real_categories():
+    """Tier-2 parse-completeness: adapt/bolster put +1/+1 counters; myriad/encore
+    make tokens; madness casts from exile; WinTheGame is a win effect (key fix)."""
+    cases = {
+        "Adapt": "place_counter",
+        "Bolster": "place_counter",
+        "Myriad": "make_token",
+        "Encore": "make_token",
+        "MadnessCast": "cast_from_zone",
+        "WinTheGame": "win_game",
+    }
+    for etype, cat in cases.items():
+        cats = {e.category for e in _effects(project_card([_spell({"type": etype})]))}
+        assert cat in cats, f"{etype} -> {cat}, got {cats}"
+
+
 def test_attach_and_shuffle_are_no_longer_other():
     assert any(
         e.category == "attach"
