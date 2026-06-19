@@ -587,6 +587,31 @@ def test_supplement_strips_prefixes_before_verb_dispatch():
         assert cat in cats, f"{desc!r} -> {cat}, got {cats}"
 
 
+def test_supplement_becomes_and_look_recovery():
+    """'<subject> becomes a 4/4' -> animate; 'becomes a copy of' -> clone; 'Look at
+    the top N' -> topdeck_select."""
+    assert any(
+        e.category == "animate"
+        for e in _effects(
+            project_card(
+                [
+                    _spell(
+                        {"type": "Unimplemented"}, "Target land becomes a 4/4 creature."
+                    )
+                ]
+            )
+        )
+    )
+    assert any(
+        e.category == "topdeck_select"
+        for e in _effects(
+            project_card(
+                [_spell({"type": "Unimplemented"}, "Look at the top five cards.")]
+            )
+        )
+    )
+
+
 def test_supplement_static_dispatch_recovers_failed_line():
     """A line phase's static parser choked on (carried in the diagnostic prefix) is
     re-parsed: an anthem -> pump."""

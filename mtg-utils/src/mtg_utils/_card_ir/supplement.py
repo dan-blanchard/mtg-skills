@@ -351,6 +351,9 @@ _PLAYER_PREFIX = comb.value(
         comb.tag("target player "),
         comb.tag("target opponent "),
         comb.tag("that player "),
+        comb.tag("this creature "),
+        comb.tag("this permanent "),
+        comb.tag("that creature "),
     ),
 )
 _PREFIX = comb.preceded(
@@ -408,6 +411,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("scry", comb.keyword({"scry", "scries"})),
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
+    comb.value("topdeck_select", comb.keyword({"look"})),  # "look at the top N …"
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(
@@ -449,6 +453,7 @@ def _recover_by_verb(e: Effect) -> Effect | None:
 _GETS_PT = re.compile(r"\bgets? [+-]\d+/[+-]\d+", re.IGNORECASE)
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
+_BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 
 
 def _recover_static_pattern(e: Effect) -> Effect | None:
@@ -460,6 +465,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     low = s.lower()
     if _HAVE_GAIN.search(s) and ("creature" in low or "permanent" in low):
         return replace(e, category="grant_keyword")  # coarse — no keyword/subject yet
+    # "<subject> becomes a copy of …" → clone; "<subject> becomes a 4/4 …" → animate
+    # (the subject precedes the verb, so this is a discriminant scan, not a parse).
+    if _BECOMES.search(s):
+        return replace(e, category="clone" if "copy of" in low else "animate")
     return None
 
 
