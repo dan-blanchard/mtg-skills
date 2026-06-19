@@ -538,7 +538,11 @@ _RETURN = comb.preceded(
         comb.value("bounce", comb.take_until("to the top")),
     ),
 )
-_ADD_MANA = comb.value("ramp", comb.seq2(comb.tag("add"), comb.take_until("mana")))
+_ADD_MANA = comb.alt(
+    comb.value("ramp", comb.seq2(comb.tag("add"), comb.take_until("mana"))),
+    # "add {C}{C}", "add {R}" — mana symbols, no literal "mana" word.
+    comb.value("ramp", comb.seq2(comb.tag("add"), comb.take_until("{"))),
+)
 # "lose(s) …": a life loss ("loses 4 life") vs an ABILITY/type loss ("loses all
 # abilities", "loses flying", "loses all creature types"). take_until("life") picks
 # the life sense; otherwise it's an ability_loss (debuff / type-strip).
@@ -587,6 +591,8 @@ _SIMPLE_VERB = comb.alt(
     comb.value("pay_cost", comb.keyword({"pay"})),  # "Pay 3 life", "pay {2}{R}" (cost)
     comb.value("fight", comb.keyword({"fight", "fights"})),  # "fights target creature"
     comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # manifest
+    comb.value("clash", comb.keyword({"clash"})),  # "clash with defending player"
+    comb.value("discover", comb.keyword({"discover", "discovers"})),
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
@@ -814,7 +820,14 @@ _DRAFT = re.compile(r"\bdraft (?:this|each|up to|\d|that)", re.IGNORECASE)
 _CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
     r"\bchoose which creatures? (?:attack|block)", re.IGNORECASE
 )
-_ASSIGN_DAMAGE = re.compile(r"\bassigns? (?:no )?combat damage\b", re.IGNORECASE)
+_ASSIGN_DAMAGE = re.compile(r"\bassigns? (?:no |the )?combat damage\b", re.IGNORECASE)
+# Mana filtering / "any color" spend permission ("spend white mana as though it were
+# any color", "Mana of any type can be spent to …", "spend mana of any type").
+_MANA_FILTER = re.compile(
+    r"\bspend (?:[a-z]+ )?mana as though\b|\bmana of any (?:type|color) can be spent\b"
+    r"|\bspend mana of any (?:type|color)\b|\bspend mana as though\b",
+    re.IGNORECASE,
+)
 # A type-defining static ("Creatures you control are the chosen type", "Lands you
 # control are every basic land type", "Nontoken creatures … are Forest lands") — a
 # continuous type set/grant. Its own non-sliced category.
@@ -823,7 +836,7 @@ _TYPE_SET = re.compile(
     r"[a-z]+ lands?\b|white|blue|black|red|green|colorless|legendary|all colors"
     r"|(?:plains|islands?|swamps?|mountains?|forests?)\b)"
     r"|\b(?:is|are) all colors\b|\b(?:is|are) (?:snow|basic)\b"
-    r"|\bis every (?:nonbasic )?land type\b"
+    r"|\bis every (?:nonbasic )?(?:land|creature) type\b"
     r"|\bis an? (?:plains|island|swamp|mountain|forest)\b"
     # the "in addition to (its/their) other …" frame is the type-ADDING tell
     # ("Each land is a Swamp in addition to its other land types").
@@ -870,7 +883,8 @@ _GAIN_CONTROL = re.compile(r"\bgains?\s+control\b", re.IGNORECASE)
 # flying", "~ gains islandwalk") — the clause LEADS with a self/back-reference + a
 # gain/has verb, so it's a keyword grant even without a grantable noun left in it.
 _LEAD_GRANT = re.compile(
-    r"^(?:it|they|this \w+|that \w+|~)\s+(?:gains?|has|have)\s", re.IGNORECASE
+    r"^(?:it|they|this \w+|that \w+|target \w+|~)\s+(?:gains?|has|have)\s",
+    re.IGNORECASE,
 )
 # Grantable-set anchors: a keyword grant names what GETS the ability (creatures,
 # slivers, lands, the self ~, a card type, enchanted/equipped). Requiring one keeps
@@ -921,6 +935,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="cycling")
     if _LANDWALK.search(s):
         return replace(e, category="evasion")
+    if _MANA_FILTER.search(s):
+        return replace(e, category="mana_filter")
     if _CLONE_STATIC.search(s):
         return replace(e, category="clone")
     if _FORCE_ATTACK.search(s):
