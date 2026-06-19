@@ -1049,10 +1049,22 @@ _RECOVERY_RULES: tuple[ClauseRule, ...] = (
 # ability isn't held `partial` by a label; a chapter whose effect phase genuinely
 # lost keeps an empty ability and stays partial (honest).
 _CHAPTER_LABEL = re.compile(r"^chapter [\divxlc, ]+$", re.IGNORECASE)
+# Continuation / glue fragments that are NOT a standalone effect — they qualify or
+# extend a SIBLING clause: "The same is true for …" (extends a prior set), "X is the
+# number of …" / "where X is …" (defines a prior operand), a bare self-ref "~." (a
+# split artifact). Like a chapter label, these aren't mechanical effects.
+_GLUE_FRAGMENT = re.compile(
+    r"^(?:the same is true\b|x is (?:the|equal)\b|where x is\b|~\.?$"
+    r"|if you do\b|rounded (?:up|down)\b)",
+    re.IGNORECASE,
+)
 
 
 def _is_noneffect_label(e: Effect) -> bool:
-    return e.category == "other" and bool(_CHAPTER_LABEL.match((e.raw or "").strip()))
+    if e.category != "other":
+        return False
+    raw = (e.raw or "").strip()
+    return bool(_CHAPTER_LABEL.match(raw)) or bool(_GLUE_FRAGMENT.match(raw))
 
 
 def _is_empty_other(e: Effect) -> bool:
