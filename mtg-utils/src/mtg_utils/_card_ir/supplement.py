@@ -440,6 +440,9 @@ _PLAYER_PREFIX = comb.value(
     comb.alt(
         comb.tag("each player "),
         comb.tag("each opponent "),
+        comb.tag("they "),
+        comb.tag("players "),
+        comb.tag("each of them "),
         comb.tag("you and that player each "),
         comb.tag("you and target player each "),
         comb.tag("you and target opponent each "),
@@ -477,6 +480,9 @@ _DURATION_PREFIX = comb.value(
         comb.tag("until end of turn, "),
         comb.tag("this turn, "),
         comb.tag("during your turn, "),
+        comb.value(
+            "", comb.seq3(comb.tag("during "), comb.take_until(", "), comb.tag(", "))
+        ),
         # coerced to str so `alt`'s members are homogeneous Parser[str].
         comb.value(
             "", comb.seq3(comb.tag("for each "), comb.take_until(", "), comb.tag(", "))
@@ -610,6 +616,12 @@ _VERB = comb.alt(
     comb.value(
         "place_counter",
         comb.seq2(comb.tag("enters with"), comb.take_until("counter")),
+    ),
+    # "get(s) … counter(s)" — a player/permanent gains counters (poison/energy/+1+1);
+    # the take_until("counter") gate keeps a bare "get" out.
+    comb.value(
+        "place_counter",
+        comb.seq2(comb.keyword({"get", "gets"}), comb.take_until("counter")),
     ),
     # "attacks each combat if able" — a forced-attack restriction (CR 508 must-attack).
     comb.value("force_attack", comb.tag("attacks each combat")),
