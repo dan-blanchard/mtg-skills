@@ -334,7 +334,13 @@ _TRIGGER_PREFIX = comb.value(
     ),
 )
 _CONNECTIVE_PREFIX = comb.value(
-    None, comb.alt(comb.tag("you may "), comb.tag("then "), comb.tag("instead "))
+    None,
+    comb.alt(
+        comb.tag("you may "),
+        comb.tag("may "),  # after a player prefix: "target player may draw"
+        comb.tag("then "),
+        comb.tag("instead "),
+    ),
 )
 # An activation cost "{…}…: " (activated abilities) — consume the leading "{" symbol
 # run up to the cost/effect "': '" so dispatch lands on the effect, not the "{".
@@ -412,6 +418,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("topdeck_select", comb.keyword({"look"})),  # "look at the top N …"
+    comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(
