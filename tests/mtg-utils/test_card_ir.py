@@ -875,6 +875,32 @@ def test_unresolved_effect_marks_partial():
     assert card.parse_confidence in {"partial", "full"}
 
 
+def test_bare_trigger_recovered_from_oracle():
+    """phase kept the trigger CONDITION ("When ~ enters") but lost the effect — the
+    effect survives in the oracle ("When this creature enters, draw a card."), so the
+    bare-marker raw is spliced with the matching sentence and the supplement
+    dispatches the verb. "this creature" folds to ~ just like the card name."""
+    rec = {
+        "name": "Test Trigger",
+        "scryfall_oracle_id": "bt",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "When this creature enters, draw a card.",
+        "triggers": [
+            {
+                "execute": {
+                    "effect": {"type": "GenericEffect", "static_abilities": []}
+                },
+                "description": "When ~ enters",
+            }
+        ],
+    }
+    card = project_card([rec])
+    cats = [e.category for a in card.all_abilities() for e in a.effects]
+    assert "draw" in cats
+    assert "other" not in cats
+    assert card.parse_confidence == "full"
+
+
 def test_imports_dont_drag_in_phase_binary():
     """project_card must work from a record alone — no phase install needed."""
     assert isinstance(project_card([SHAMANIC]), Card)

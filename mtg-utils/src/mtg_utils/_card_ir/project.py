@@ -355,6 +355,64 @@ def _is_glue_sentence(s: str) -> bool:
     return bool(_GLUE_SENTENCE.match(s))
 
 
+# A trigger whose `raw` is only the CONDITION ("When ~ enters") with no effect after
+# it (no comma, no sentence end) — phase parsed the trigger event but lost the effect.
+# The effect survives in the oracle; we splice it back in from the matching sentence.
+_BARE_TRIGGER = re.compile(r"^(?:when|whenever|at|as)\b[^,.]*$", re.IGNORECASE)
+
+
+# Self-reference phrases phase folds to ``~`` ("When this creature enters" ->
+# "When ~ enters"). Newer cards use "this creature"/"this permanent" in oracle text
+# rather than the card name, so the oracle must be folded the same way to match.
+_SELF_REF = re.compile(
+    r"\bthis (?:creature|permanent|artifact|enchantment|land|planeswalker|saga"
+    r"|vehicle|token|card|spell|equipment|aura|battle|god|kindred)\b",
+    re.IGNORECASE,
+)
+
+
+def _self_oracle_sentences(record: dict) -> list[str]:
+    """The card's oracle sentences with self-references folded to phase's self-name
+    ``~`` (so a bare-trigger marker's "When ~ enters" matches the oracle's "When this
+    creature enters" / "When <Name> enters"). Reminder text is dropped; legendaries
+    also fold the pre-comma short name (Aang, … -> ~)."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    name = record.get("name") or ""
+    names = {n for n in (name, name.split(",")[0].strip()) if n}
+    for n in sorted(names, key=len, reverse=True):
+        text = text.replace(n, "~")
+    text = _SELF_REF.sub("~", text)
+    return [s.strip() for s in re.split(r"[.\n]", text) if s.strip()]
+
+
+def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
+    """Replace a triggered ability's bare-condition ``other`` raw with the full
+    matching oracle sentence (condition + effect), so the supplement dispatches the
+    effect phase dropped. No match → unchanged (stays an honest ``other``)."""
+    if ab.kind != "triggered":
+        return ab
+    out: list[Effect] = []
+    changed = False
+    for e in ab.effects:
+        raw = (e.raw or "").strip()
+        if e.category == "other" and _BARE_TRIGGER.match(raw):
+            lead = raw.lower()
+            full = next(
+                (
+                    s
+                    for s in sentences
+                    if s.lower().startswith(lead) and len(s) > len(raw) + 2
+                ),
+                None,
+            )
+            if full is not None:
+                out.append(replace(e, raw=full))
+                changed = True
+                continue
+        out.append(e)
+    return replace(ab, effects=tuple(out)) if changed else ab
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -371,6 +429,9 @@ def _project_face(record: dict) -> Face:
             abilities.append(a)
     if not abilities and not _keywords(record.get("keywords")):
         abilities = _synthesize_from_oracle(record)
+    else:
+        sentences = _self_oracle_sentences(record)
+        abilities = [_fill_bare_trigger(a, sentences) for a in abilities]
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
