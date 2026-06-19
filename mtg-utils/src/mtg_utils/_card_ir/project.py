@@ -324,9 +324,28 @@ def _synthesize_from_oracle(record: dict) -> list[Ability]:
     (correctly stays unparsed). Gated on the exact `unparsed` condition (no abilities
     + no keywords), so a keyword card is never touched."""
     text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")  # drop reminder
-    sentences = [s.strip() for s in re.split(r"[.\n]", text) if len(s.strip()) > 4]
+    sentences = [
+        s
+        for s in (t.strip() for t in re.split(r"[.\n]", text))
+        if len(s) > 4 and not _is_glue_sentence(s)
+    ]
     effects = tuple(Effect(category="other", scope="any", raw=s) for s in sentences)
     return [Ability(kind="spell", effects=effects)] if effects else []
+
+
+# Sentence fragments that are NOT a standalone effect — a sub-clause that qualifies a
+# sibling effect ("where X is …" defines an operand; "if you do …" gates the prior
+# clause), a Saga chapter marker, or a leftover. Dropping these from synthesis is
+# accurate (they aren't effects) and avoids marking the card partial on glue alone.
+_GLUE_SENTENCE = re.compile(
+    r"^(?:where |if you do\b|rounded |then\b|otherwise\b|chapter [ivx0-9, ]+$"
+    r"|and |or )",
+    re.IGNORECASE,
+)
+
+
+def _is_glue_sentence(s: str) -> bool:
+    return bool(_GLUE_SENTENCE.match(s))
 
 
 def _project_face(record: dict) -> Face:
@@ -898,6 +917,12 @@ def _changezone_effect(eff: dict, raw: str) -> Effect:
     target = _filter(eff.get("target"))
     if origin == "graveyard" and dest == "battlefield":
         category = "reanimate"
+    elif origin == "library" and dest == "hand":
+        # A card moving library -> hand is the fetch-to-hand payoff of a search
+        # (CR 701.23): basic/typecycling and tutors-to-hand. phase emits this as the
+        # SearchLibrary's put-step, so `tutor` already fires from the sibling — mapping
+        # it keeps the step from leaving an empty 'other' that marks the card partial.
+        category = "tutor"
     elif dest == "battlefield" and origin in ("library", "hand"):
         # Batch 9 — put a permanent into play from library/hand WITHOUT casting it
         # (Sneak Attack / Elvish Piper / Through the Breach). The lane gates on a
