@@ -13,7 +13,7 @@ serving it. This is the deterministic encoding of the Tinybones guard.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
@@ -4324,6 +4324,110 @@ for _d in SWEEP_DETECTORS:
         _label = _humanize(_d["key"])
         _avenue = f"support and payoffs for the {_label.lower()} axis"
     SPECS[_ident] = _spec(_label, _avenue, {"oracle": _d["regex"]}, _d["regex"])
+
+
+# ── ADR-0026: payoff/source avenue split ──────────────────────────────────────
+# A `<mechanic>_matters` serve fuses an oracle PAYOFF pattern with a type/keyword
+# SOURCE (the cards that ARE the thing). These are the source-role dimensions whose
+# cards form a browsable pool — CR-verified gear/membership, NOT property/payoff
+# keywords. Excluded by design: prowess (CR 702.108, a payoff), exalted (702.83,
+# payoff), proliferate (701.34, an enabler), and modifier keywords
+# (haste/indestructible/trample/the evasion set) that describe a property, not a pool.
+SOURCE_TYPES: frozenset[str] = frozenset(
+    {
+        "equipment",
+        "aura",  # voltron — CR 702.6 (equip) / 702.5 (enchant)
+        "artifact",
+        "enchantment",  # artifacts / enchantments matter
+        "planeswalker",  # superfriends
+        "legendary",
+        "snow",
+        "saga",
+        "arcane",
+        "lesson",
+        "eldrazi",
+        "instant",
+        "sorcery",  # spellslinger fuel (prowess stays on the payoff side)
+        "rogue",
+        "wizard",
+        "warrior",
+        "cleric",  # party members
+        "assassin",
+        "pirate",
+        "warlock",
+        "mercenary",  # outlaws
+    }
+)
+SOURCE_KEYWORDS: frozenset[str] = frozenset({"reconfigure"})  # CR 702.151 — it is gear
+
+_SOURCE_TYPE_LABELS = {
+    "aura": "Auras",
+    "equipment": "Equipment",
+    "artifact": "Artifacts",
+    "enchantment": "Enchantments",
+    "planeswalker": "Planeswalkers",
+    "saga": "Sagas",
+    "instant": "Instants",
+    "sorcery": "Sorceries",
+    "legendary": "Legendaries",
+    "snow": "Snow permanents",
+    "arcane": "Arcane spells",
+    "lesson": "Lessons",
+    "eldrazi": "Eldrazi",
+}
+
+
+def source_split(spec: SignalSpec) -> tuple[Serve, dict] | None:
+    """ADR-0026: if a payoff spec's serve carries a membership-source TYPE, return the
+    (source_serve, source_search) for a derived Source avenue — the cards that ARE the
+    thing the payoff wants. None when there's no source type or no payoff oracle (a
+    pure-membership spec is already a single source-ish lane; don't split it). The
+    caller strips the same dims from the payoff avenue (see ``payoff_serve``)."""
+    srv = spec.serve
+    if srv.oracle is None:
+        return None
+    st = srv.types & SOURCE_TYPES
+    if not st:
+        return None
+    sk = srv.keywords & SOURCE_KEYWORDS  # rides along (reconfigure cards are Equipment)
+    source_serve = Serve(types=st, keywords=sk, not_oracle=srv.not_oracle)
+    return source_serve, {"card_type": tuple(sorted(st))}
+
+
+def payoff_serve(spec: SignalSpec) -> Serve:
+    """The payoff avenue's serve once source dims are split out (ADR-0026): the oracle
+    payoff + any non-source types/keywords (e.g. prowess stays), minus the source
+    type/keyword the Source avenue now owns."""
+    srv = spec.serve
+    return replace(
+        srv,
+        types=srv.types - SOURCE_TYPES,
+        keywords=srv.keywords - SOURCE_KEYWORDS,
+    )
+
+
+def _pluralize(t: str) -> str:
+    # -y → -ies (mercenary → mercenaries), else +s; explicit labels win first.
+    if t in _SOURCE_TYPE_LABELS:
+        return _SOURCE_TYPE_LABELS[t]
+    base = t.title()
+    return base[:-1] + "ies" if base.endswith("y") else base + "s"
+
+
+def source_label(source_types: frozenset[str]) -> str:
+    """A human label for a Source avenue from its types ("Auras & Equipment")."""
+    return " & ".join(_pluralize(t) for t in sorted(source_types))
+
+
+def payoff_search(search: dict, serve: Serve) -> dict:
+    """The payoff avenue's pool fetch (ADR-0026): drop the type/preset fetch (that
+    pulled the source pool) and fall back to the serve's oracle payoff pattern, so the
+    payoff lane surfaces payoffs (Sram, equip-cost reducers) not vanilla gear."""
+    drop = ("card_type", "preset_names", "presets")
+    out = {k: v for k, v in search.items() if k not in drop}
+    if "oracle" not in out and serve.oracle is not None:
+        out["oracle"] = serve.oracle.pattern
+    return out
 
 
 def spec_for(signal: Signal) -> SignalSpec | None:

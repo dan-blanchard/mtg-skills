@@ -40,7 +40,7 @@ def _matches_filters(
     *,
     allowed_colors: set[str] | None,
     oracle_re: re.Pattern | None,
-    type_lower: str | None,
+    type_lower: str | tuple[str, ...] | None,
     name_substr: str | None = None,
     cmc_min: float | None,
     cmc_max: float | None,
@@ -86,11 +86,11 @@ def _matches_filters(
     if oracle_re is not None and not oracle_re.search(_get_oracle_text(card)):
         return False
 
-    if (
-        type_lower is not None
-        and type_lower not in (card.get("type_line") or "").lower()
-    ):
-        return False
+    if type_lower is not None:
+        _tl = (card.get("type_line") or "").lower()
+        _wanted = (type_lower,) if isinstance(type_lower, str) else type_lower
+        if not any(w in _tl for w in _wanted):
+            return False
 
     if name_substr is not None and _norm_name(name_substr) not in _norm_name(
         (card.get("name") or "").lower()
@@ -193,7 +193,7 @@ def search_cards(
     *,
     color_identity: str | None = None,
     oracle: str | None = None,
-    card_type: str | None = None,
+    card_type: str | tuple[str, ...] | None = None,
     name: str | None = None,
     cmc_min: float | None = None,
     cmc_max: float | None = None,
@@ -229,7 +229,12 @@ def search_cards(
     except re.error as e:
         msg = f"Invalid oracle regex: {e}"
         raise click.BadParameter(msg, param_hint="--oracle") from e
-    type_lower = card_type.lower() if card_type else None
+    if not card_type:
+        type_lower: str | tuple[str, ...] | None = None
+    elif isinstance(card_type, str):
+        type_lower = card_type.lower()
+    else:  # an OR of type-line substrings — a card matches if ANY is present
+        type_lower = tuple(t.lower() for t in card_type)
     name_lower = name.lower() if name else None
 
     presets: tuple[Preset, ...] = ()

@@ -22,7 +22,14 @@ from mtg_utils import mark_owned, price_check, theme_presets
 from mtg_utils._deck_forge import collection, staples, views
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signal_specs import Serve, spec_for
+from mtg_utils._deck_forge.signal_specs import (
+    Serve,
+    payoff_search,
+    payoff_serve,
+    source_label,
+    source_split,
+    spec_for,
+)
 from mtg_utils._deck_forge.signals import (
     Signal,
     extract_signals,
@@ -824,6 +831,15 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         # Include subject so distinct tribes (Goblin vs Dwarf) get distinct avenues.
         suffix = f":{sig.subject}" if sig.subject else ""
         avenue_id = f"engine:{sig.key}:{sig.scope}{suffix}"
+        # ADR-0026: split a fused payoff/source serve into a payoff avenue (oracle) +
+        # a Source avenue (the pieces — auras/equipment, artifacts, instants…). Never
+        # split the partner avenue (its search is commander-legality, not a serve).
+        split = None if widening else source_split(spec)
+        main_serve = spec.serve
+        if split is not None:
+            source_serve, source_search = split
+            main_search = payoff_search(main_search, spec.serve)
+            main_serve = payoff_serve(spec)
         out.append(
             avenue_with_serve(
                 {
@@ -835,9 +851,30 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                     "search": main_search,
                     "widening": widening,
                 },
-                spec.serve,
+                main_serve,
             )
         )
+        if split is not None:
+            source_serve, source_search = split
+            src_label = source_label(source_serve.types)
+            if src_label not in seen_labels:
+                seen_labels.add(src_label)
+                out.append(
+                    avenue_with_serve(
+                        {
+                            "id": f"{avenue_id}:src",
+                            "label": src_label,
+                            "description": (
+                                f"the {src_label.lower()} in your colors — the pieces "
+                                f"that feed your {spec.label.lower()} payoffs"
+                            ),
+                            "scope": sig.scope,
+                            "source": "engine",
+                            "search": source_search,
+                        },
+                        source_serve,
+                    )
+                )
         # A signal can fan out into several precise sub-avenues (e.g. the land-creatures
         # theme: creature-lands / payoffs / animators).
         for i, extra in enumerate(spec.extras):
