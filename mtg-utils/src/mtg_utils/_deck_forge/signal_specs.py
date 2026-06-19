@@ -2244,7 +2244,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("counter_replace_bonus", "you"): _sweep_spec_with_extras(
         "counter_replace_bonus", _COUNTERS_PACKAGE
     ),
-    ("counter_move", "you"): _sweep_spec_with_extras("counter_move", _COUNTERS_PACKAGE),
+    # ADR-0027: counter_move's SWEEP_DETECTORS row was deleted (detection moved to
+    # the Card IR — phase's MoveCounters effect). _sweep_spec_with_extras read that
+    # now-gone row, so re-home to a literal spec reusing the deleted regex as the
+    # serve pattern, keeping the counter-doubler fan-out package.
+    ("counter_move", "you"): _spec(
+        *SWEEP_LABELS["counter_move"],
+        {
+            "oracle": (
+                r"\bmove (?:a|one|that|any number of|all|x|\d+|one or more) "
+                r"[^.]{0,30}?counters?\b (?:from|onto|to)"
+            )
+        },
+        r"\bmove (?:a|one|that|any number of|all|x|\d+|one or more) "
+        r"[^.]{0,30}?counters?\b (?:from|onto|to)",
+        extras=_COUNTERS_PACKAGE,
+    ),
     # Beginning-of-combat / attack-buff commanders are combat decks — surface the gear
     # and keyword-anthems that grow their attackers.
     ("combat_buff_engine", "you"): _sweep_spec_with_extras(
@@ -3244,6 +3259,38 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         },
         r"companion —|each (?:creature |permanent )?card in your starting deck"
         r"|your starting deck contains",
+    ),
+    # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
+    # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
+    # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word
+    # mirror). The SERVE pool stays oracle-defined, so hand-register the spec the
+    # sweep auto-register loop used to build, reusing each deleted regex.
+    ("all_creatures_kw_grant", "any"): _spec(
+        *SWEEP_LABELS["all_creatures_kw_grant"],
+        {
+            "oracle": (
+                r"all creatures have (?:haste|flying|trample|vigilance|menace"
+                r"|hexproof|deathtouch|first strike|double strike|reach|lifelink)"
+            )
+        },
+        r"all creatures have (?:haste|flying|trample|vigilance|menace|hexproof"
+        r"|deathtouch|first strike|double strike|reach|lifelink)",
+    ),
+    ("facedown_matters", "you"): _spec(
+        *SWEEP_LABELS["facedown_matters"],
+        {
+            "oracle": (
+                r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
+                r"|face-?down creatures?|as a 2/2 face-?down"
+                r"|turn (?:it|that creature|this creature|them"
+                r"|a permanent you control) face up|turn target [^.]*?face up"
+                r"|turned face up this turn"
+            )
+        },
+        r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
+        r"|face-?down creatures?|as a 2/2 face-?down"
+        r"|turn (?:it|that creature|this creature|them|a permanent you control) "
+        r"face up|turn target [^.]*?face up|turned face up this turn",
     ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",

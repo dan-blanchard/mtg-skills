@@ -6,7 +6,7 @@ stay clean. Each is a real archetype getting its own avenue.
 """
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face
 
 
 def _ks(card):
@@ -87,14 +87,8 @@ CASES = [
         "you",
         "Daybound (If a player casts no spells during their own turn...)",
     ),
-    ("voting_matters", "each", "Each player votes for an option."),
-    # ADR-0027: coven_matters migrated to the Card IR (kept word-detector mirror),
-    # so it is asserted via the hybrid path below, not this regex CASES loop.
-    (
-        "token_doubling",
-        "you",
-        "If an effect would create tokens, instead it creates twice that many.",
-    ),
+    # ADR-0027: coven_matters / voting_matters / token_doubling migrated to the Card
+    # IR, so they are asserted via the hybrid path below, not this regex CASES loop.
     (
         "counter_doubling",
         "you",
@@ -123,6 +117,49 @@ def test_coven_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
     assert ("coven_matters", "you") in _ks_hybrid(c)
     assert ("coven_matters", "you") not in _ks(c)
+
+
+def test_voting_matters_is_ir_served():
+    # ADR-0027: voting_matters is IR-served from the kept word-detector mirror, so
+    # it comes through the hybrid path, not pure regex.
+    c = {"name": "X", "oracle_text": "Each player votes for an option."}
+    assert ("voting_matters", "each") in _ks_hybrid(c)
+    assert ("voting_matters", "each") not in _ks(c)
+
+
+def test_token_doubling_is_ir_served():
+    # ADR-0027: token_doubling is IR-served from the structural token-doubling
+    # replacement effect, so it needs the matching IR (a bare mirror won't fire it).
+    c = {
+        "name": "X",
+        "oracle_text": (
+            "If an effect would create tokens, instead it creates twice that many."
+        ),
+    }
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="token_doubling",
+                                scope="you",
+                                raw="creates twice that many tokens",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("token_doubling", "you") in hybrid
+    assert ("token_doubling", "you") not in _ks(c)
 
 
 def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():

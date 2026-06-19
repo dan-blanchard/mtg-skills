@@ -3,7 +3,8 @@ commander whose ability is ramp / removal / a team buff / a tutor / etc. surface
 that direction instead of reading as a value-pile.
 """
 
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils.card_ir import Ability, Card, Face, Trigger
 
 
 def _ks(card):
@@ -159,8 +160,27 @@ def test_your_scry_is_not_an_opponent_punisher():
 
 
 def test_opponent_draw_punisher():
+    # ADR-0027: opponent_draw_matters is IR-served from a "drawn" trigger scoped to
+    # an opponent, so it needs the matching IR, not pure regex.
     c = {
         "name": "Leela",
         "oracle_text": "Whenever an opponent draws a card except the first one they draw in each draw step, that player loses 1 life.",
     }
-    assert ("opponent_draw_matters", "opponents") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Leela",
+        faces=(
+            Face(
+                name="Leela",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="drawn", scope="opp"),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("opponent_draw_matters", "opponents") in hybrid
+    assert ("opponent_draw_matters", "opponents") not in _ks(c)

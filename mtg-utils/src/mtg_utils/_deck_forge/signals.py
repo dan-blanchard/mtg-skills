@@ -1397,14 +1397,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # A non-Human-attack-trigger engine (Winota, A-Winota) wants evasive attackers that
-    # reliably connect to FIRE it: fliers (a useful ~25%-of-pool narrowing, NOT "all
-    # non-Humans" at 96%). Flying Humans served here are premium cheat-in targets.
-    (
-        "nonhuman_attackers",
-        re.compile(r"non-?human creatures? you control attacks?", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: nonhuman_attackers migrated to the Card IR — detected structurally
+    # from an attacks-trigger whose subject Filter carries NotSubtype:Human and a
+    # "you"-controller (the dedicated branch in extract_signals_ir). This _HAND_FLOOR
+    # producer is deleted; the hand-written serve spec (signal_specs.py, fliers that
+    # connect) is independent of this regex and survives.
     # A commander that exiles a creature YOU OWN and returns it under your control
     # (Meneldor, The Neutrinos -- note "you own", not the usual blink "you control")
     # can reclaim a creature you own but don't control. So it wants control-EXCHANGE
@@ -1917,32 +1914,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "voting_matters",
-        re.compile(
-            r"will of the council|council's dilemma|each player votes?|\bvote\b",
-            re.IGNORECASE,
-        ),
-        "each",
-    ),
-    # ADR-0027: coven_matters migrated to the Card IR — detected from the kept
-    # word-detector mirror (signals._IR_KEPT_DETECTORS: \bcoven\b, the MID ability
-    # word CR 207.2c phase doesn't structure). This _HAND_FLOOR producer is
+    # ADR-0027: voting_matters migrated to the Card IR — detected from the kept
+    # word-detector mirror (signals._IR_KEPT_DETECTORS: a broader vote regex that
+    # also catches the plural + "each player votes"; voting CR 701.38 is a real
+    # mechanic phase only partially structures). This _HAND_FLOOR producer is
     # deleted; the hand-written serve spec (signal_specs.py) survives.
-    # Doubling is split by WHAT is doubled — token-doubling and counter-doubling are
-    # inherently different deck archetypes (a token doubler wants token makers; a
-    # counter doubler wants counter sources). There is deliberately NO generic
-    # "doubling" lane: mana / life / card-draw / damage doublers are not a distinct
-    # commander archetype (zero openers) and fold into ramp / burn / direct_damage.
-    (
-        "token_doubling",
-        re.compile(
-            r"create twice that many|double the number of [^.]*tokens?"
-            r"|would create[^.]*\binstead\b[^.]*(?:twice|double)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: token_doubling migrated to the Card IR — detected structurally from
+    # the token-doubling replacement effect (the `cat == "token_doubling"` branch in
+    # extract_signals_ir). This _HAND_FLOOR producer is deleted; the hand-written
+    # serve spec (signal_specs.py) survives. Token- and counter-doubling stay
+    # separate lanes (a token doubler wants token makers; a counter doubler wants
+    # counter sources) — counter_doubling keeps its own regex below.
     (
         "counter_doubling",
         re.compile(
@@ -1980,15 +1962,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
-    (
-        "opponent_draw_matters",
-        re.compile(
-            r"whenever an opponent draws|whenever each opponent draws"
-            r"|whenever a player draws a card (?:except|other than)",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027: opponent_draw_matters migrated to the Card IR — detected
+    # structurally from a "drawn" trigger event whose subject scope is an opponent
+    # (the `ev == "drawn"` + `trig.scope == "opp"` branch in extract_signals_ir).
+    # This _HAND_FLOOR producer is deleted; the hand-written serve spec
+    # (signal_specs.py) is independent of this regex and survives.
     # Punish opponents' library manipulation (River Song's Spoilers; Aven
     # Mindcensor / Opposition Agent / Leovold space) — distinct from your own
     # scry_surveil payoff, which is scoped "you".
@@ -5033,6 +5011,22 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "lessons_matter",
         "enlist_matters",
         "companion_keyword",
+        # Group "structural" — keys backed by a STRUCTURED IR shape (not a re-run
+        # of the deleted oracle regex). all_creatures_kw_grant ← GrantKeyword effect
+        # on an "all creatures" subject; counter_move ← MoveCounters effect
+        # (_DOER_EFFECT_KEYS); facedown_matters ← manifest/cloak/turn_face_up effect
+        # categories + kept word mirror; nonhuman_attackers ← attacks trigger w/
+        # NotSubtype:Human subject; opponent_draw_matters ← "drawn" trigger scoped
+        # opp; token_doubling ← token-doubling replacement effect; voting_matters ←
+        # kept word mirror. All NON-floor IR sources; A-B==0 (commander-legal, floor
+        # lanes disabled). See ADR-0027.
+        "all_creatures_kw_grant",
+        "counter_move",
+        "facedown_matters",
+        "nonhuman_attackers",
+        "opponent_draw_matters",
+        "token_doubling",
+        "voting_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

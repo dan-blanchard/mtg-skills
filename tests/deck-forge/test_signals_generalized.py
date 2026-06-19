@@ -18,11 +18,15 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Face, Filter, Trigger
 
 
 def _ksub(card):
     return {(s.key, s.scope, s.subject) for s in extract_signals(card)}
+
+
+def _ksub_hybrid(card, ir):
+    return {(s.key, s.scope, s.subject) for s in extract_signals_hybrid(card, ir)}
 
 
 def _ks(card):
@@ -1236,8 +1240,35 @@ def test_nonhuman_attack_engine_opens_evasive_attackers():
         "keywords": [],
         "oracle_text": "{T}: Add {G}.",
     }
-    assert any(k == "nonhuman_attackers" for k, _, _ in _ksub(winota))
-    assert not any(k == "nonhuman_attackers" for k, _, _ in _ksub(elf))
+    # ADR-0027: nonhuman_attackers is IR-served from the structural attacks-trigger
+    # shape (NotSubtype:Human subject, you-controller), so it comes through the
+    # hybrid path with the matching IR, not pure regex.
+    winota_ir = Card(
+        oracle_id="x",
+        name="Winota",
+        faces=(
+            Face(
+                name="Winota",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="attacks",
+                            subject=Filter(
+                                card_types=("Creature",),
+                                controller="you",
+                                predicates=("NotSubtype:Human",),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    elf_ir = Card(oracle_id="y", name="Elf", faces=(Face(name="Elf", abilities=()),))
+    assert any(k == "nonhuman_attackers" for k, _, _ in _ksub_hybrid(winota, winota_ir))
+    assert not any(k == "nonhuman_attackers" for k, _, _ in _ksub(winota))
+    assert not any(k == "nonhuman_attackers" for k, _, _ in _ksub_hybrid(elf, elf_ir))
 
 
 def test_reclaim_owned_commander_opens_control_exchange():

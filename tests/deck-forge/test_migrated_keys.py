@@ -24,7 +24,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _ir(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
@@ -264,6 +264,149 @@ _CASES: dict[str, tuple[dict, Card]] = {
             "keywords": ["Companion", "Flash"],
         },
         # companion is read off the Scryfall keyword array → bare non-None IR.
+        _ir(),
+    ),
+    # Group "structural" — backed by a STRUCTURED IR shape (effect category /
+    # grant subject / trigger event+scope), except facedown + voting which use the
+    # kept word-detector mirror (oracle scan → bare IR).
+    "token_doubling": (
+        {
+            "name": "Parallel Lives",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "If an effect would create one or more tokens under your control, "
+                "it creates twice that many of those tokens instead."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="token_doubling",
+                        scope="you",
+                        raw="creates twice that many tokens",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "counter_move": (
+        {
+            "name": "Scrounging Bandar",
+            "type_line": "Creature — Cat Monkey",
+            "oracle_text": (
+                "This creature enters with two +1/+1 counters on it.\nAt the "
+                "beginning of your upkeep, you may move any number of +1/+1 "
+                "counters from this creature onto another target creature."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="counter_move",
+                        scope="you",
+                        raw="move +1/+1 counters from ~ onto another creature",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "all_creatures_kw_grant": (
+        {
+            "name": "Angel's Trumpet",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "All creatures have vigilance.\nAt the beginning of each player's "
+                "end step, tap all untapped creatures that player controls that "
+                "didn't attack this turn. This artifact deals damage to the player "
+                "equal to the number of creatures tapped this way."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        counter_kind="vigilance",
+                        subject=Filter(card_types=("Creature",), controller="any"),
+                    ),
+                ),
+            )
+        ),
+    ),
+    "nonhuman_attackers": (
+        {
+            "name": "Winota, Joiner of Forces",
+            "type_line": "Legendary Creature — Human Warrior",
+            "oracle_text": (
+                "Whenever a non-Human creature you control attacks, look at the "
+                "top six cards of your library. You may put a Human creature card "
+                "from among them onto the battlefield tapped and attacking. It "
+                "gains indestructible until end of turn. Put the rest of the cards "
+                "on the bottom of your library in a random order."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="attacks",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        controller="you",
+                        predicates=("NotSubtype:Human",),
+                    ),
+                ),
+            )
+        ),
+    ),
+    "opponent_draw_matters": (
+        {
+            "name": "Underworld Dreams",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever an opponent draws a card, this enchantment deals 1 "
+                "damage to that player."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="drawn", scope="opp"),
+            )
+        ),
+    ),
+    # facedown + voting detect from the kept word-detector mirror, which scans the
+    # oracle text directly, so any non-None IR routes the hybrid to the IR path.
+    "facedown_matters": (
+        {
+            "name": "Etrata, Deadly Fugitive",
+            "type_line": "Legendary Creature — Vampire Assassin",
+            "oracle_text": (
+                'Deathtouch\nFace-down creatures you control have "{2}{U}{B}: Turn '
+                "this creature face up. If you can't, exile it, then you may cast "
+                'the exiled card without paying its mana cost."\nWhenever an '
+                "Assassin you control deals combat damage to an opponent, cloak "
+                "the top card of that player's library."
+            ),
+        },
+        _ir(),
+    ),
+    "voting_matters": (
+        {
+            "name": "Capital Punishment",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Council's dilemma — Starting with you, each player votes for "
+                "death or taxes. Each opponent sacrifices a creature of their "
+                "choice for each death vote and discards a card for each taxes "
+                "vote."
+            ),
+        },
         _ir(),
     ),
 }

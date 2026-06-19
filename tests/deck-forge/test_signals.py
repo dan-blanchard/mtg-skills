@@ -1848,7 +1848,11 @@ def test_turn_target_face_up_opens_facedown():
             "face-down attacking creature you control face up."
         ),
     }
-    assert ("facedown_matters", "you") in _keys(card)
+    # ADR-0027: facedown_matters is IR-served from the kept word-detector mirror
+    # (the face-down / turn-face-up payoff text), so it comes through the hybrid
+    # path, not pure regex.
+    assert ("facedown_matters", "you") in _keys_hybrid(card)
+    assert ("facedown_matters", "you") not in _keys(card)
 
 
 def test_type_you_control_entering_gerund_opens_tribe():

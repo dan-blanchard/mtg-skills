@@ -242,12 +242,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "counter_doubling",
         "regex": "that many plus (?:one|two|\\d+) [^.]*counters? are put|put that many plus|if (?:one or more )?\\+1/\\+1 counters? would be put on|one or more counters? would be (?:put|placed)[^.]*(?:that many plus|twice that many)",
     },
-    {
-        "key": "counter_move",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bmove (?:a|one|that|any number of|all|x|\\d+|one or more) [^.]{0,30}?counters?\\b (?:from|onto|to)",
-    },
+    # ADR-0027: counter_move migrated to the Card IR — detected structurally from
+    # the MoveCounters effect (phase's `counter_move` effect category,
+    # _DOER_EFFECT_KEYS). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps
+    # the label, and the serve spec (which fanned out the counter-doubler package
+    # via _sweep_spec_with_extras) is re-homed in signal_specs.py to a literal spec
+    # reusing this regex, since the sweep row it read is gone.
     {
         "key": "counter_manipulation",
         "scope": "you",
@@ -260,15 +260,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "counters_matter",
         "regex": "enters with (?:x|\\d+|a|an|one|two|three) \\+1/\\+1 counters? on (?:him|her|it|itself|this)|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)\\b|put that many \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)",
     },
-    {
-        "key": "facedown_matters",
-        "scope": "you",
-        # Also: turning a TARGET face-down creature face up (Kaust, Jalum Grifter) and
-        # a "turned face up this turn" payoff — the lane keyed only on the self/pronoun
-        # "turn it face up" form.
-        "is_widen_of": "",
-        "regex": "\\bmorph\\b|\\bmegamorph\\b|\\bmanifest\\b|\\bdisguise\\b|\\bcloak\\b|face-?down creatures?|as a 2/2 face-?down|turn (?:it|that creature|this creature|them|a permanent you control) face up|turn target [^.]*?face up|turned face up this turn",
-    },
+    # ADR-0027: facedown_matters migrated to the Card IR — detected from the
+    # manifest/cloak/turn_face_up effect categories (_DOER_EFFECT_KEYS) PLUS the
+    # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the morph/disguise/
+    # face-down-payoff text phase doesn't structure). Its oracle-regex sweep row is
+    # deleted; SWEEP_LABELS keeps the label, and the serve spec is hand-registered
+    # in signal_specs.py.
     {
         "key": "targeting_matters",
         "scope": "any",
@@ -472,12 +469,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "team_buff",
         "regex": "(?:other [a-z]+ creatures|creatures you control|[a-z]+ creatures you control|nonblack creatures|other creatures) get \\+\\d/\\+\\d",
     },
-    {
-        "key": "all_creatures_kw_grant",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "all creatures have (?:haste|flying|trample|vigilance|menace|hexproof|deathtouch|first strike|double strike|reach|lifelink)",
-    },
+    # ADR-0027: all_creatures_kw_grant migrated to the Card IR — detected
+    # structurally from the GrantKeyword effect whose subject is "all creatures"
+    # (extract_signals_ir's grant_keyword branch + _is_all_creatures_grant). Its
+    # oracle-regex sweep row is deleted; SWEEP_LABELS keeps the label, and the serve
+    # spec is hand-registered in signal_specs.py.
     {
         "key": "global_ability_grant",
         "scope": "any",
@@ -973,15 +969,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "lifeloss_matters",
         "regex": "\\b(?:each opponent|each player|target opponent|target player|that player|an opponent|opponents|each of your opponents)(?: each)? loses? (?:exactly )?(?:\\d+ |x |that much )?life\\b",
     },
-    {
-        # Token-doubling and counter-doubling are inherently DIFFERENT properties — a
-        # token doubler wants token MAKERS, a counter doubler wants counter SOURCES — so
-        # they are separate lanes, not one coarse "doubling" bucket.
-        "key": "token_doubling",
-        "scope": "you",
-        "is_widen_of": "token_doubling",
-        "regex": "twice that many[^.]*tokens?|double the number of [^.]*tokens?",
-    },
+    # ADR-0027: token_doubling migrated to the Card IR — detected structurally from
+    # the token-doubling replacement effect (phase v0.1.60 `replacements`, the
+    # `cat == "token_doubling"` branch in extract_signals_ir). Both its oracle-regex
+    # sources (this sweep row + the _HAND_FLOOR row) are deleted; the hand-written
+    # serve spec in signal_specs.py is independent of these regexes and survives.
+    # (Token-doubling and counter-doubling stay separate lanes — a token doubler
+    # wants token MAKERS, a counter doubler wants counter SOURCES.)
     {
         "key": "counter_doubling",
         "scope": "you",
