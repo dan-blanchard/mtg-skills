@@ -938,6 +938,9 @@ _NAMED_MECHANICS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\bcircle (?:one|two|three) of the colors\b", re.IGNORECASE),
         "deckbuild",
     ),
+    (re.compile(r"\byou win the game\b", re.IGNORECASE), "win_game"),  # win-con payoff
+    (re.compile(r"\byou lose the game\b", re.IGNORECASE), "lose_game"),
+    (re.compile(r"\bget [\dx]+ \{e\}", re.IGNORECASE), "place_counter"),  # energy
     (re.compile(r"^companion\b", re.IGNORECASE), "companion"),  # deckbuild constraint
     (re.compile(r"^blitz\b", re.IGNORECASE), "alt_cost"),  # an alternative cost
     (

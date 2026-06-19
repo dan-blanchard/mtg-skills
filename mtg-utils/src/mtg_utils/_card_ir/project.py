@@ -450,6 +450,28 @@ def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
 _CHAPTER_LABEL = re.compile(r"^chapter [\divxlc, ]+$", re.IGNORECASE)
 
 
+# Spells whose NAME is the effect's verb ("Regenerate" -> oracle "Regenerate target
+# creature") — phase folds the name to `~`, dropping the verb ("~ target creature").
+# Un-fold those so the supplement dispatches; only a closed verb-name set, and only
+# when no verb follows the `~` (a real self-ref "~ deals …" keeps its verb).
+_NAME_AS_VERB = frozenset(
+    {"regenerate", "fight", "manifest", "conjure", "investigate", "populate"}
+)
+
+
+def _unfold_name_verb(ab: Ability, name: str) -> Ability:
+    nm = name.split(",", 1)[0].strip().lower()
+    if nm not in _NAME_AS_VERB:
+        return ab
+    out = [
+        replace(e, raw=nm + (e.raw or "")[1:])
+        if e.category == "other" and (e.raw or "").startswith("~ ")
+        else e
+        for e in ab.effects
+    ]
+    return replace(ab, effects=tuple(out))
+
+
 def _is_sole_empty(ab: Ability) -> bool:
     """An ability phase recognized (cost/kind/trigger) but whose effect it wholly lost:
     NO effects (a Saga chapter phase failed -> `triggered: []`), only textless ``other``
@@ -540,6 +562,8 @@ def _project_face(record: dict) -> Face:
         abilities = _synthesize_from_oracle(record)
     else:
         sentences = _self_oracle_sentences(record)
+        name = record.get("name") or ""
+        abilities = [_unfold_name_verb(a, name) for a in abilities]
         abilities = [_fill_bare_trigger(a, sentences) for a in abilities]
         abilities = _fill_sole_empty(abilities, sentences)
     return Face(
