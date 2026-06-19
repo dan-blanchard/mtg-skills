@@ -49,14 +49,20 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "populate": "make_token",
     "investigate": "make_token",
     "incubate": "make_token",
-    "amass": "make_token",
+    # Amass (CR 701.47) primarily GROWS an Army with +1/+1 counters, making an Army
+    # token only if you have none — modal, so it gets its own category and fans to
+    # both tokens_matter and counters_matter rather than masquerading as a pure token.
+    "amass": "amass",
     "conjure": "make_token",
     # Manifest puts a CARD onto the battlefield face down as a 2/2 (CR 701.40 + 708)
     # — it is NOT a token (CR 122.1 distinguishes them) and a token doubler does not
     # double it. Own `manifest` category → facedown_matters, mirroring cloak.
     "manifest": "manifest",
     "manifestdread": "manifest",
-    "fabricate": "make_token",
+    # Fabricate (CR 702.123) is MODAL: create Servo tokens OR put +1/+1 counters.
+    # Own category fans to both tokens_matter and counters_matter (make_token alone
+    # dropped the counter mode).
+    "fabricate": "fabricate",
     "addcounter": "place_counter",
     "putcounter": "place_counter",
     "putcounterall": "place_counter",
@@ -96,7 +102,10 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "scry": "topdeck_select",
     "surveil": "topdeck_select",
     "dig": "topdeck_select",
-    "explore": "topdeck_select",
+    # Explore (CR 701.44): reveal top, land→hand else +1/+1 counter + top/GY choice.
+    # Its own `explore_matters` lane (not topdeck_select — it's not a Brainstorm-style
+    # stacker) captures the card-selection + counter + graveyard facets together.
+    "explore": "explore",
     "fight": "fight",
     # Batch P — phase-native mechanic effects → their own categories.
     "becomemonarch": "monarch",
@@ -182,7 +191,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "returnasaura": "attach",
     "exchangelifewithstat": "set_life",
     "loseallplayercounters": "remove_counter",
-    "exploreall": "topdeck_select",
+    "exploreall": "explore",  # CR 701.44 — mass explore
     "freecastfromzones": "cast_from_zone",
     "copytokenblockingattacker": "clone",
     "exileresolvingspellinsteadofgraveyard": "exile",

@@ -612,7 +612,10 @@ _SIMPLE_VERB = comb.alt(
     comb.value("cheat_play", comb.keyword({"ninjutsu"})),
     # Keyword abilities that survived as leading text — a closed CR vocabulary mapped
     # to the mechanic each one IS (generalizes to any card with the keyword).
-    comb.value("sacrifice", comb.keyword({"devour", "devours"})),  # CR 702.81
+    # Devour (CR 702.82): sacrifice creatures as it enters, ENTER WITH +1/+1
+    # counters. Own category fans to sacrifice_matters (the fodder) AND
+    # counters_matter (the payoff) + the dedicated devour_matters lane.
+    comb.value("devour", comb.keyword({"devour", "devours"})),
     comb.value("vanishing", comb.keyword({"vanishing"})),  # CR 702.62 time counters
     # Soulshift returns a card from GY to HAND (CR 702.46) — graveyard recursion,
     # NOT reanimation (which is GY→battlefield). Mislabeling it "reanimate" wrongly

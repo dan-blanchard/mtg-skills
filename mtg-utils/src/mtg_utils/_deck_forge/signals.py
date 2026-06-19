@@ -3767,6 +3767,9 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "cloak": ("facedown_matters", "you"),
     "turn_face_up": ("facedown_matters", "you"),
     "ring_tempt": ("ring_matters", "you"),
+    # Explore (CR 701.44) → its dedicated lane (was topdeck_select, but explore is a
+    # reveal-top + land/counter mechanic, not a Brainstorm-style stacker).
+    "explore": ("explore_matters", "you"),
     "energy": ("energy_matters", "you"),
     # Player-counter givers (GivePlayerCounter, split by kind in project.py — CR
     # 122.1). poison/rad land on opponents (a kill clock / penalty); experience is
@@ -4524,6 +4527,21 @@ def extract_signals_ir(
                     if st in _TOKEN_SUBTYPE_KEYS:
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
                         add(tk, ts, "", e.raw)
+            # Modal keyword mechanics — own CR-accurate category fanning to EVERY mode
+            # it touches, instead of being flattened into a single facet. The keyword
+            # maps already fire the primary lane (amass→tokens_matter,
+            # fabricate→counters_matter, devour→sacrifice_matters); these add the IR
+            # side (→ BOTH) plus the previously-dropped mode.
+            if cat == "amass":  # CR 701.47 — grow an Army (+1/+1) or make an Army token
+                add("tokens_matter", "you", "", e.raw)
+                add("counters_matter", "any", "", e.raw)
+            if cat == "fabricate":  # CR 702.123 — Servo tokens OR +1/+1 counters
+                add("tokens_matter", "you", "", e.raw)
+                add("counters_matter", "any", "", e.raw)
+            if cat == "devour":  # CR 702.82 — sacrifice creatures, enter with counters
+                add("devour_matters", "you", "", e.raw)
+                add("sacrifice_matters", "you", "", e.raw)
+                add("counters_matter", "any", "", e.raw)
             if cat == "reanimate" and "Creature" in ftypes:
                 add("creature_recursion", "you", "", e.raw)
             if cat == "animate" and "Artifact" in ftypes:
