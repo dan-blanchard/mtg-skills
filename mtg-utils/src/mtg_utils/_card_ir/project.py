@@ -374,8 +374,9 @@ _SELF_REF = re.compile(
 def _self_oracle_sentences(record: dict) -> list[str]:
     """The card's oracle sentences with self-references folded to phase's self-name
     ``~`` (so a bare-trigger marker's "When ~ enters" matches the oracle's "When this
-    creature enters" / "When <Name> enters"). Reminder text is dropped; legendaries
-    also fold the pre-comma short name (Aang, … -> ~)."""
+    creature enters" / "When <Name> enters"). Reminder text is dropped (it is
+    explanatory, not the card's primary effect); legendaries also fold the pre-comma
+    short name (Aang, … -> ~)."""
     text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
     name = record.get("name") or ""
     names = {n for n in (name, name.split(",")[0].strip()) if n}

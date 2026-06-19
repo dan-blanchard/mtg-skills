@@ -595,6 +595,10 @@ _SIMPLE_VERB = comb.alt(
     comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # manifest
     comb.value("clash", comb.keyword({"clash"})),  # "clash with defending player"
     comb.value("discover", comb.keyword({"discover", "discovers"})),
+    # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
+    # battlefield from hand: a put-into-play cheat. The effect is in the reminder
+    # (stripped), so map the keyword name itself.
+    comb.value("cheat_play", comb.keyword({"ninjutsu"})),
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
