@@ -515,6 +515,10 @@ _VERB = comb.alt(
     ),
     # "flip it" — turn the permanent over (flip card / face-down → up): transform.
     comb.value("transform", comb.tag("flip it")),
+    # "enters tapped" / "enters the battlefield tapped" — an ETB-tapped state (a real
+    # mechanic; not IR-sliced, so this only completes the parse).
+    comb.value("enters_tapped", comb.tag("enters tapped")),
+    comb.value("enters_tapped", comb.tag("enters the battlefield tapped")),
     _ADD_MANA,
     _PUT,
     _CREATE,
@@ -550,6 +554,9 @@ _COMBAT_CAP = re.compile(r"\bno more than\b", re.IGNORECASE)
 # A combat PERMISSION grant ("can attack as though it had haste", "can block an
 # additional creature") — an ability grant, distinct from the "can't" restriction.
 _CAN_COMBAT = re.compile(r"\bcan (?:attack|block)\b", re.IGNORECASE)
+# A tuck ("the owner of … shuffles it into their library") — the shuffle verb is
+# preceded by the owner subject, so a discriminant scan recovers it as a shuffle.
+_TUCK = re.compile(r"\bshuffles?\b.{0,60}\blibrary\b", re.IGNORECASE)
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
@@ -591,6 +598,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="restriction")
     if _CAN_COMBAT.search(s):
         return replace(e, category="grant_keyword")  # combat permission grant
+    if _TUCK.search(s):
+        return replace(e, category="shuffle")
     low = s.lower()
     # The gain/have family: a life gain or control gain (any subject), else a
     # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
