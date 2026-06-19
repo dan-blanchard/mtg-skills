@@ -749,7 +749,8 @@ _VERB_PRESENT = re.compile(
     r"\b(?:draws?|creates?|destroys?|exiles?|gains?|deals?|mills?|sacrifices?"
     r"|discards?|taps?|untaps?|puts?|searches?|counter|scry|scries|surveils?"
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
-    r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?)\b",
+    r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
+    r"|fights?|switch|switches)\b",
     re.IGNORECASE,
 )
 
@@ -832,7 +833,11 @@ _TEXT_CHANGE = re.compile(
 )
 # A characteristic/animation set: "~ is a 2/3 Gargoyle", "~ is a 5/5 Golem artifact
 # creature" — a continuous become-a-creature (CR animate), N/N word-bounded.
-_ANIMATE = re.compile(r"\bis an? [\dx*]+/[\dx*]+\b", re.IGNORECASE)
+# "~ is a 2/3 Gargoyle", "is a Bear with base power and toughness 4/2", "is an
+# artifact creature" — the P/T or "creature" head appears within the phrase.
+_ANIMATE = re.compile(
+    r"\bis an? [\w '-]{0,45}?(?:[\dx*]+/[\dx*]+|creature)\b", re.IGNORECASE
+)
 _MANA_RESTRICTION = re.compile(
     r"\bspend (?:only|this mana only)\b|\bspend this mana only\b", re.IGNORECASE
 )
