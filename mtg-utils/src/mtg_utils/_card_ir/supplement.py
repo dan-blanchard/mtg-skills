@@ -845,7 +845,10 @@ _TEXT_CHANGE = re.compile(
 # "~ is a 2/3 Gargoyle", "is a Bear with base power and toughness 4/2", "is an
 # artifact creature" — the P/T or "creature" head appears within the phrase.
 _ANIMATE = re.compile(
-    r"\bis an? [\w '-]{0,45}?(?:[\dx*]+/[\dx*]+|creature)\b", re.IGNORECASE
+    r"\bis an? [\w '-]{0,45}?(?:[\dx*]+/[\dx*]+|creature)\b"
+    # a Job-select bullet mode "• <Name> — {cost} — N/N" (becomes that creature).
+    r"|^•[^.]*—[^.]*[\dx*]+/[\dx*]+",
+    re.IGNORECASE,
 )
 _MANA_RESTRICTION = re.compile(
     r"\bspend (?:only|this mana only)\b|\bspend this mana only\b", re.IGNORECASE
