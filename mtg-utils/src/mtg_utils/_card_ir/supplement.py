@@ -938,6 +938,12 @@ _NAMED_MECHANICS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\bcircle (?:one|two|three) of the colors\b", re.IGNORECASE),
         "deckbuild",
     ),
+    (re.compile(r"^companion\b", re.IGNORECASE), "companion"),  # deckbuild constraint
+    (re.compile(r"^blitz\b", re.IGNORECASE), "alt_cost"),  # an alternative cost
+    (
+        re.compile(r"\blethal damage\b[^.]*\bdetermined by\b", re.IGNORECASE),
+        "damage_assignment",  # Zilortha — power as toughness for lethal damage
+    ),
 )
 # A generic REPLACEMENT effect: "If [a thing] would [happen] …, [instead] …" — the
 # recurring token/counter/mana/draw replacement shape phase leaves Unimplemented.
