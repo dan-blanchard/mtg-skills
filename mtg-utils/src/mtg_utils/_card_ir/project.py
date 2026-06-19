@@ -292,10 +292,69 @@ def _cost_string(cost: object) -> str | None:
     return ",".join(sorted(seen)) or None
 
 
+# Copied-type words, in priority order (Permanent last so a specific type wins).
+_COPY_TYPE_WORDS: tuple[tuple[str, str], ...] = (
+    ("creature", "Creature"),
+    ("artifact", "Artifact"),
+    ("enchantment", "Enchantment"),
+    ("planeswalker", "Planeswalker"),
+    ("land", "Land"),
+    ("permanent", "Permanent"),
+)
+
+
+def _copied_type_from_text(raw: str) -> Filter | None:
+    """The copied permanent type from a clone clause — the word right after "copy of"
+    ("becomes a copy of target CREATURE" → Creature; "of any creature or planeswalker"
+    → both). None when "copy of" is followed by a typeless referent ("copy of that
+    card") — those fall back to the ability's sibling/trigger target."""
+    low = raw.lower()
+    i = low.find("copy of")
+    if i < 0:
+        return None
+    seg = low[i : i + 60]
+    types = tuple(title for word, title in _COPY_TYPE_WORDS if word in seg)
+    return Filter(card_types=types) if types else None
+
+
+def _recover_clone_subjects(ability: Ability) -> Ability:
+    """A BecomeCopy with ``target: ParentTarget`` ("target creature becomes a copy of
+    IT") loses its copied type. Recover it from the clone clause's own "copy of <type>"
+    text, falling back to a sibling effect's / the trigger's target type (the parent
+    the copy refers to). Leaves it None only when neither is present."""
+    if not any(e.category == "clone" and e.subject is None for e in ability.effects):
+        return ability
+    borrowed: Filter | None = next(
+        (
+            e.subject
+            for e in ability.effects
+            if e.category != "clone"
+            and isinstance(e.subject, Filter)
+            and e.subject.card_types
+        ),
+        None,
+    )
+    if (
+        borrowed is None
+        and ability.trigger is not None
+        and isinstance(ability.trigger.subject, Filter)
+    ):
+        borrowed = ability.trigger.subject
+    effects = tuple(
+        replace(e, subject=_copied_type_from_text(e.raw) or borrowed)
+        if e.category == "clone" and e.subject is None
+        else e
+        for e in ability.effects
+    )
+    return replace(ability, effects=effects)
+
+
 def _project_spell_or_activated(ab: dict) -> Ability:
     kind = "activated" if _norm(ab.get("kind")) == "activated" else "spell"
     effects = _collect_effects(ab, ab.get("description") or "")
-    return Ability(kind=kind, effects=tuple(effects), cost=_cost_string(ab.get("cost")))
+    return _recover_clone_subjects(
+        Ability(kind=kind, effects=tuple(effects), cost=_cost_string(ab.get("cost")))
+    )
 
 
 def _project_trigger(tr: dict) -> Ability:
@@ -305,7 +364,9 @@ def _project_trigger(tr: dict) -> Ability:
         scope=_trigger_scope(tr),
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
-    return Ability(kind="triggered", trigger=trigger, effects=tuple(effects))
+    return _recover_clone_subjects(
+        Ability(kind="triggered", trigger=trigger, effects=tuple(effects))
+    )
 
 
 def _project_top_static(st: dict) -> Ability | None:

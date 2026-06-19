@@ -16,7 +16,12 @@ the IR exists to solve:
 
 from __future__ import annotations
 
-from mtg_utils._card_ir.project import _filter, _predicate, project_card
+from mtg_utils._card_ir.project import (
+    _copied_type_from_text,
+    _filter,
+    _predicate,
+    project_card,
+)
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity
 
 # ── real phase records (focused to the fields project() reads) ────────────────
@@ -476,6 +481,77 @@ def _pt_static(affected, mods, *, cda=False):
             }
         ],
     }
+
+
+def test_copied_type_from_text_reads_after_copy_of():
+    assert _copied_type_from_text("~ becomes a copy of target creature").card_types == (
+        "Creature",
+    )
+    assert _copied_type_from_text(
+        "becomes a copy of any creature or planeswalker"
+    ).card_types == ("Creature", "Planeswalker")
+    # A typeless referent ("copy of that card") → None (falls back to the sibling).
+    assert _copied_type_from_text("~ becomes a copy of that card") is None
+
+
+def test_parent_target_clone_recovers_type_from_clause():
+    """A BecomeCopy with target ParentTarget recovers the copied type from its own
+    'copy of <type>' text (the ParentTarget completeness gap)."""
+    rec = {
+        "name": "Cytoshape-like",
+        "scryfall_oracle_id": "pt",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": "",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {"type": "BecomeCopy", "target": {"type": "ParentTarget"}},
+                "description": "Target creature becomes a copy of target creature.",
+            }
+        ],
+    }
+    clone = [e for e in _effects(project_card([rec])) if e.category == "clone"]
+    assert clone
+    assert clone[0].subject is not None
+    assert "Creature" in clone[0].subject.card_types
+
+
+def test_parent_target_clone_recovers_type_from_sibling():
+    """When the clone clause says 'copy of that card' (typeless), recover from the
+    sibling effect's target (Dimir Doppelganger: exile target creature card)."""
+    rec = {
+        "name": "Dimir-like",
+        "scryfall_oracle_id": "dd",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "ChangeZone",
+                    "origin": "Graveyard",
+                    "destination": "Exile",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Creature"],
+                        "controller": None,
+                    },
+                },
+                "sub_ability": {
+                    "effect": {
+                        "type": "BecomeCopy",
+                        "target": {"type": "ParentTarget"},
+                    },
+                    "description": "~ becomes a copy of that card.",
+                },
+                "description": "Exile target creature card from a graveyard.",
+            }
+        ],
+    }
+    clone = [e for e in _effects(project_card([rec])) if e.category == "clone"]
+    assert clone
+    assert clone[0].subject is not None
+    assert "Creature" in clone[0].subject.card_types
 
 
 def test_or_composite_filter_unions_member_types():
