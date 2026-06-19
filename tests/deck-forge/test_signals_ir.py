@@ -13,7 +13,16 @@ from mtg_utils._deck_forge.signals import (
     IR_SLICE_KEYS,
     extract_signals_ir,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity, Trigger
+from mtg_utils.card_ir import (
+    Ability,
+    Card,
+    Condition,
+    Effect,
+    Face,
+    Filter,
+    Quantity,
+    Trigger,
+)
 
 CARD = {"name": "Test"}
 
@@ -844,3 +853,199 @@ def test_only_slice_keys_emitted():
         Ability(kind="spell", effects=(Effect(category="gain_life", scope="you"),)),
     )
     assert {s.key for s in extract_signals_ir(CARD, ir)} <= IR_SLICE_KEYS
+
+
+# ── voltron_matters PAYOFF projection (ADR-0027) ──────────────────────────────
+# The structural Aura/Equipment build-around, read from phase's IR instead of the
+# oracle-regex floor/sweep rows. NOT migrated (the commander-damage MEMBERSHIP
+# fallback stays on regex — it's gated on `not has_other_plan` over the full signal
+# set, unreproducible in the IR slice), so these pin the *payoff* half only.
+
+
+def _voltron(ir: Card) -> bool:
+    return ("voltron_matters", "you", "") in _sigs(ir)
+
+
+def test_voltron_payoff_attach_other_object():
+    # Kor Outfitter — attaches ANOTHER Equipment onto a creature (build-around).
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you"),
+            effects=(
+                Effect(
+                    category="attach",
+                    scope="any",
+                    raw=(
+                        "When ~ enters, you may attach target Equipment you "
+                        "control to target creature you control."
+                    ),
+                ),
+            ),
+        )
+    )
+    assert _voltron(ir)
+
+
+def test_voltron_payoff_cast_aura_equipment_trigger():
+    # Sram / Kor Spiritdancer — a cast-an-Aura/Equipment-spell trigger.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="cast_spell",
+                scope="any",
+                subject=Filter(subtypes=("Aura",), controller="any"),
+            ),
+            effects=(Effect(category="draw", scope="you"),),
+        )
+    )
+    assert _voltron(ir)
+
+
+def test_voltron_payoff_tutor_for_equipment_card():
+    # Godo — search your library for an Equipment card.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you"),
+            effects=(
+                Effect(
+                    category="tutor",
+                    subject=Filter(card_types=("Artifact",), subtypes=("Equipment",)),
+                ),
+            ),
+        )
+    )
+    assert _voltron(ir)
+
+
+def test_voltron_payoff_attachment_state_predicate():
+    # Koll / Reyav — cares about "enchanted or equipped" creatures.
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        controller="you",
+                        predicates=("HasAnyAttachmentOf",),
+                    ),
+                ),
+            ),
+        )
+    )
+    assert _voltron(ir)
+
+
+def test_voltron_payoff_excludes_equip_cost_self_attach():
+    # A plain Equipment's own `Equip {N}` cost is the gear payload, NOT a voltron
+    # build-around — the regex floor stays off it, so the projection must too.
+    ir = _ir(
+        Ability(
+            kind="activated",
+            cost="mana",
+            effects=(Effect(category="attach", scope="any", raw="Equip {2}"),),
+        )
+    )
+    assert not _voltron(ir)
+
+
+def test_voltron_payoff_excludes_etb_self_attach():
+    # "When this Equipment enters, attach it to target creature" (Mithril Coat) is
+    # still self-attach (the gear), not a build-around.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="any"),
+            effects=(
+                Effect(
+                    category="attach",
+                    scope="any",
+                    raw="When ~ enters, attach it to target creature you control.",
+                ),
+            ),
+        )
+    )
+    assert not _voltron(ir)
+
+
+def test_voltron_payoff_excludes_removal_aura():
+    # Pacifism — a static "enchant creature" removal Aura carries no Attach EFFECT,
+    # so it never opens the voltron lane (parity with the regex floor).
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(Effect(category="restriction", scope="opp"),),
+        )
+    )
+    assert not _voltron(ir)
+
+
+def test_voltron_payoff_attachment_predicate_in_condition():
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="dies", scope="you"),
+            condition=Condition(
+                kind="zonechangeobjectmatchesfilter",
+                subject=Filter(
+                    card_types=("Creature",), predicates=("HasAnyAttachmentOf",)
+                ),
+            ),
+            effects=(Effect(category="bounce", scope="any"),),
+        )
+    )
+    assert _voltron(ir)
+
+
+# ── include_membership threading (ADR-0027 membership-reuse pattern) ───────────
+# extract_signals_ir gates the signals derived from what a card IS (own card-type,
+# own-subtype tribal) on include_membership, mirroring extract_signals — so the
+# deck-aggregate path (False for the 99) doesn't flood with every creature's race.
+
+_ARTIFACT_CMD = {"name": "X", "type_line": "Legendary Artifact Creature — Golem"}
+_TRIBAL_CMD = {"name": "X", "type_line": "Legendary Creature — Elf Warrior"}
+
+
+def test_ir_membership_on_by_default():
+    ir = _ir()
+    keys = {(s.key, s.subject) for s in extract_signals_ir(_ARTIFACT_CMD, ir)}
+    assert ("artifacts_matter", "") in keys
+
+
+def test_ir_membership_off_drops_own_type_and_tribe():
+    ir = _ir()
+    art = {
+        (s.key, s.subject)
+        for s in extract_signals_ir(_ARTIFACT_CMD, ir, include_membership=False)
+    }
+    assert ("artifacts_matter", "") not in art
+    trib = {
+        (s.key, s.subject)
+        for s in extract_signals_ir(_TRIBAL_CMD, ir, include_membership=False)
+    }
+    assert ("type_matters", "Elf") not in trib
+
+
+def test_ir_membership_flag_does_not_touch_payoff_signals():
+    # the voltron PAYOFF fires regardless of the flag (it's a text payoff, not
+    # membership) — parity with the regex producer.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="cast_spell",
+                scope="any",
+                subject=Filter(subtypes=("Equipment",), controller="any"),
+            ),
+            effects=(Effect(category="draw", scope="you"),),
+        )
+    )
+    on = {s.key for s in extract_signals_ir(_TRIBAL_CMD, ir)}
+    off = {s.key for s in extract_signals_ir(_TRIBAL_CMD, ir, include_membership=False)}
+    assert "voltron_matters" in on
+    assert "voltron_matters" in off

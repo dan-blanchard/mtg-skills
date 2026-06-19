@@ -50,7 +50,7 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
-from mtg_utils.card_ir import Card, Filter
+from mtg_utils.card_ir import Card, Effect, Filter
 from mtg_utils.theme_presets import get_preset
 
 
@@ -2790,6 +2790,93 @@ def _voltron_double_strike_beater(card: dict, text: str) -> bool:
     return card_pt_int(card) >= 4 and not _VOLTRON_TOKEN_MAKE_RE.search(text)
 
 
+# Aura/Equipment subtypes + the attachment-STATE predicates phase emits ("for each
+# Aura attached to it" → AttachedToRecipient; "enchanted or equipped" creatures →
+# HasAnyAttachmentOf). A subject carrying either is the voltron build-around's
+# structural anchor (CR 301.5 Equipment, 303.4 Aura, 702.6 enchant).
+_EQUIP_AURA_SUBTYPES = frozenset({"aura", "equipment"})
+_ATTACHMENT_PREDICATES = frozenset({"AttachedToRecipient", "HasAnyAttachmentOf"})
+# An attach effect that moves ANOTHER object (a typed Equipment/Aura/Role) onto a
+# creature — the build-around (Kor Outfitter "attach target Equipment", Balan
+# "attach all Equipment", Hammer of Nazahn). Phase emits the same `attach` category
+# for a card SELF-attaching (gear's own Equip cost / ETB "attach it" / living
+# weapon / a removal Aura's enchant), which is NOT a voltron payoff — the regex
+# floor deliberately stays off the singular Equipment/Aura payload, so the
+# projection reads the effect raw to keep only the attach-OTHER form.
+_ATTACH_OTHER_RE = re.compile(
+    r"attach (?:target |all |any number of |up to (?:one|two|\w+) target |an |a )?"
+    r"(?:equipment|aura|role)",
+    re.IGNORECASE,
+)
+_SELF_ATTACH_RE = re.compile(
+    r"^attach (?:it|this|that|~)\b|^equip[\s{]|^reconfigure|^fortify",
+    re.IGNORECASE,
+)
+
+
+def _is_attach_other(e: Effect) -> bool:
+    """True if a beneficial (non-opponent) attach effect moves ANOTHER typed
+    Equipment/Aura/Role onto a creature — the voltron build-around — rather than the
+    card self-attaching (its own Equip cost / "attach it" / living weapon / a removal
+    Aura's enchant), which phase emits identically but the regex floor excludes."""
+    if e.category not in ("attach", "unattach") or e.scope == "opp":
+        return False
+    raw = (e.raw or "").strip()
+    return bool(_ATTACH_OTHER_RE.search(raw)) and not _SELF_ATTACH_RE.match(raw)
+
+
+def _detect_voltron_payoff_ir(ir: Card) -> bool:
+    """True if the Card IR carries a structural Aura/Equipment PAYOFF (the voltron
+    build-around, NOT the gear/aura payload or the commander-damage membership
+    fallback). Four unambiguous structural tells:
+
+    * a cast-an-Aura/Equipment-spell trigger (Sram, Kor Spiritdancer);
+    * a tutor for an Aura/Equipment CARD (Godo, Three Dreams, Stoneforge Mystic);
+    * an attachment-STATE predicate (``AttachedToRecipient`` "for each Aura attached
+      to it"; ``HasAnyAttachmentOf`` "enchanted or equipped creatures" — Koll, Reyav)
+      on any effect/condition subject;
+    * an attach effect moving ANOTHER typed Equipment/Aura onto a creature
+      (``_is_attach_other`` — Kor Outfitter, Balan, Hammer of Nazahn).
+
+    Deliberately NOT projected: the bare Aura/Equipment SUBTYPE on an effect subject
+    (also covers Aura HATE — "destroy target Aura"), the ``EquippedBy`` payload-pump
+    ("equipped creature gets +X/+X"), and self-attach (the gear itself) — all of
+    which the regex floor stays off. Projects the lane from phase's structure
+    instead of the oracle-regex floor/sweep rows (ADR-0027)."""
+    for ab in ir.all_abilities():
+        trg = ab.trigger
+        if (
+            trg is not None
+            and trg.event == "cast_spell"
+            and isinstance(trg.subject, Filter)
+            and {s.lower() for s in trg.subject.subtypes} & _EQUIP_AURA_SUBTYPES
+        ):
+            return True
+        for e in ab.effects:
+            if _is_attach_other(e):
+                return True
+            # tutor for an Aura/Equipment CARD — the subtype on the searched filter.
+            if (
+                e.category == "tutor"
+                and isinstance(e.subject, Filter)
+                and ({s.lower() for s in e.subject.subtypes} & _EQUIP_AURA_SUBTYPES)
+            ):
+                return True
+            for f in (e.subject, e.amount.subject if e.amount is not None else None):
+                if isinstance(f, Filter) and (
+                    set(f.predicates) & _ATTACHMENT_PREDICATES
+                ):
+                    return True
+        cond = ab.condition
+        if (
+            cond is not None
+            and isinstance(cond.subject, Filter)
+            and set(cond.subject.predicates) & _ATTACHMENT_PREDICATES
+        ):
+            return True
+    return False
+
+
 def _detect_regex_presets(clause: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for preset_name, (key, scope) in _PRESET_REGEX_SIGNALS.items():
@@ -4471,13 +4558,24 @@ def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
 
 
 def extract_signals_ir(
-    card: dict, ir: Card | None, *, vocab: frozenset[str] = CREATURE_SUBTYPES
+    card: dict,
+    ir: Card | None,
+    *,
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
+    include_membership: bool = True,
 ) -> list[Signal]:
     """Derive the A2 slice of Signals from the structured Card IR (5 keys).
 
     Same Signal contract as ``extract_signals``, restricted to ``IR_SLICE_KEYS`` so
     the two paths can be diffed key-for-key. Returns ``[]`` when the card has no IR
-    (not yet projected / brand-new set) so a dispatcher can fall back to regexes."""
+    (not yet projected / brand-new set) so a dispatcher can fall back to regexes.
+
+    ``include_membership`` mirrors ``extract_signals``: it gates the signals derived
+    from what the card *is* (own card-type / own subtype tribal membership), so the
+    deck-aggregate path (``include_membership=False`` for the 99) doesn't flood the
+    avenues with every creature's race and type — only the commander's. Threaded so
+    ``extract_signals_hybrid`` can reproduce a membership-bearing key IDENTICALLY to
+    ``extract_signals`` for a given ``include_membership`` (ADR-0027)."""
     if ir is None:
         return []
     name = card.get("name", "")
@@ -4999,6 +5097,16 @@ def extract_signals_ir(
     if ir.many_copies:
         add("named_permanent", "you", "", "")
 
+    # Voltron PAYOFF (ADR-0027) — the structural Aura/Equipment build-around, read
+    # from phase's IR (attach action / cast-an-Aura trigger / Aura-Equipment tutor /
+    # attachment-state subject) instead of the oracle-regex floor+sweep rows. This is
+    # the *payoff* half only — the commander-damage MEMBERSHIP fallback stays on the
+    # regex path (it's gated on `not has_other_plan` over the full signal set, which
+    # the IR slice can't reproduce; see ADR-0027 deferral). Not membership-gated,
+    # matching the regex producer (the payoff fires from a card's text, not its type).
+    if _detect_voltron_payoff_ir(ir):
+        add("voltron_matters", "you", "", "", "low")
+
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse
     # the existing detectors. Same source as the regex path → perfect parity.
@@ -5025,30 +5133,38 @@ def extract_signals_ir(
             for key, scope in pairs:
                 add(key, scope, "", "")
     type_line = (card.get("type_line") or "").lower()
-    if "artifact" in type_line:
-        add("artifacts_matter", "you", "", "", "low")
-    if "enchantment" in type_line:
-        add("enchantments_matter", "you", "", "", "low")
-    # Own-subtype tribal membership (a creature's own race) + named-token tribes —
-    # a clean type_line / all_parts field-lookup. Class tribes (Soldier/Cleric)
-    # open only behind a go-wide signal; race tribes open unconditionally (CR 205.3).
-    keys_now = {s.key for s in out}
-    go_wide = bool(keys_now & {"creatures_matter", "attack_matters", "anthem_static"})
-    if "creature" in type_line and "—" in type_line:
-        for tok in type_line.split("—", 1)[1].split():
-            sub = tok.strip().lower()
-            if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
-                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
-    for part in card.get("all_parts") or []:
-        if part.get("component") != "token":
-            continue
-        tl = (part.get("type_line") or "").lower()
-        if "creature" not in tl or "—" not in tl:
-            continue
-        for tok in tl.split("—", 1)[1].split():
-            sub = tok.strip().lower()
-            if sub in CREATURE_SUBTYPES and sub != "human":
-                add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
+    # Membership signals (what the card IS): own card-type and own-subtype tribal.
+    # Gated on include_membership, mirroring extract_signals — the deck-aggregate
+    # path passes False for the 99 so every creature's race/type doesn't flood the
+    # avenues (only the commander's membership opens a lane).
+    if include_membership:
+        if "artifact" in type_line:
+            add("artifacts_matter", "you", "", "", "low")
+        if "enchantment" in type_line:
+            add("enchantments_matter", "you", "", "", "low")
+        # Own-subtype tribal membership (a creature's own race) + named-token
+        # tribes — a clean type_line / all_parts field-lookup. Class tribes
+        # (Soldier/Cleric) open only behind a go-wide signal; race tribes open
+        # unconditionally (CR 205.3).
+        keys_now = {s.key for s in out}
+        go_wide = bool(
+            keys_now & {"creatures_matter", "attack_matters", "anthem_static"}
+        )
+        if "creature" in type_line and "—" in type_line:
+            for tok in type_line.split("—", 1)[1].split():
+                sub = tok.strip().lower()
+                if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
+                    add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
+        for part in card.get("all_parts") or []:
+            if part.get("component") != "token":
+                continue
+            tl = (part.get("type_line") or "").lower()
+            if "creature" not in tl or "—" not in tl:
+                continue
+            for tok in tl.split("—", 1)[1].split():
+                sub = tok.strip().lower()
+                if sub in CREATURE_SUBTYPES and sub != "human":
+                    add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
     return out
 
 
@@ -5187,7 +5303,9 @@ def extract_signals_hybrid(
         return regex_signals
     out: list[Signal] = [s for s in regex_signals if s.key not in MIGRATED_KEYS]
     seen = {(s.key, s.scope, s.subject) for s in out}
-    for sig in extract_signals_ir(record, ir):
+    for sig in extract_signals_ir(
+        record, ir, vocab=vocab, include_membership=include_membership
+    ):
         if sig.key not in MIGRATED_KEYS:
             continue
         ident = (sig.key, sig.scope, sig.subject)
