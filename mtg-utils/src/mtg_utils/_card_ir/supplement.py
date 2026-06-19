@@ -342,6 +342,7 @@ _ABILITY_WORDS = {
     "kicker",
     "entwine",
     "exhaust",
+    "morph",
     "celebration",
     "channel",
     "chroma",
@@ -639,6 +640,13 @@ _VERB = comb.alt(
     comb.value("force_attack", comb.tag("attacks each combat")),
     # "play with the top card of your library revealed" — play-from-top engine.
     comb.value("cast_from_zone", comb.tag("play with the top")),
+    # "you may play that card / those cards / it (this turn)" — impulse/exile play.
+    comb.value("cast_from_zone", comb.tag("play that card")),
+    comb.value("cast_from_zone", comb.tag("play those cards")),
+    # an Aura's "Enchant <X>" — defines what it attaches to (voltron/attach lane).
+    comb.value("attach", comb.tag("enchant ")),
+    # "Move one or more counters from … onto …" (CR movecounters) -> counter_move.
+    comb.value("counter_move", comb.seq2(comb.tag("move"), comb.take_until("counter"))),
     # extra land drops ("play an additional land", "play two additional lands") — its
     # own category; the count word between "play" and "additional land" is consumed.
     comb.value(
@@ -733,7 +741,9 @@ _GETS_PT = re.compile(r"\bgets? [+-]?[\dxyz*~]+/[+-]?[\dxyz*~]+", re.IGNORECASE)
 # A type/characteristic STATE conditional ("isn't a creature unless …", "isn't
 # legendary if …") — a static layer effect, its own non-sliced category.
 _STATE = re.compile(
-    r"\bisn'?t (?:a |an |legendary)|\bis the chosen (?:color|type)\b", re.IGNORECASE
+    r"\bisn'?t (?:a |an |legendary)|\bis the chosen (?:color|type)\b"
+    r"|\b(?:is|are) no longer\b",  # "is no longer snow", "are no longer suspected"
+    re.IGNORECASE,
 )
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
 # A combat cap ("No more than N creatures can attack/block …") is a RESTRICTION, not
@@ -757,7 +767,8 @@ _DAMAGE_REPLACE = re.compile(  # damage replacement/prevention: "all damage … 
 # An alternative cost ("you may pay {0} rather than pay the mana cost", "rather than
 # its mana cost") — a cost-replacement permission. Non-sliced category.
 _ALT_COST = re.compile(
-    r"\brather than\b[^.]*\bmana cost\b|\bwithout paying its mana cost\b",
+    r"\brather than\b[^.]*\bmana cost\b|\bwithout paying its mana cost\b"
+    r"|\brather than pay\b",  # "Rather than pay {2} for each previous time …"
     re.IGNORECASE,
 )
 _TEXT_CHANGE = re.compile(
