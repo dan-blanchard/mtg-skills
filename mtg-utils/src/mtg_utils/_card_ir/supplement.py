@@ -931,6 +931,11 @@ _LIBRARY_POS = re.compile(
 _PLAYER_KW_GRANT = re.compile(
     r"\byou have (?:hexproof|shroud|protection|indestructible|ward)", re.IGNORECASE
 )
+# An evergreen keyword printed bare on the permanent ("Hexproof from artifacts …",
+# "Protection from red") — a self keyword grant.
+_BARE_KEYWORD = re.compile(
+    r"^(?:hexproof|protection|ward|shroud) (?:from|—|\{)", re.IGNORECASE
+)
 # A characteristic-defining P/T ("[its] power and toughness are each equal to …",
 # "power is equal to …") — a DYNAMIC characteristic, distinct from base_pt_set's
 # FIXED "base power and toughness N/N" (conflating them floods that lane), so its own
@@ -1014,7 +1019,7 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="characteristic_pt")
     if _STATE.search(s):
         return replace(e, category="state")
-    if _FLASH_GRANT.search(s) or _PLAYER_KW_GRANT.search(s):
+    if _FLASH_GRANT.search(s) or _PLAYER_KW_GRANT.search(s) or _BARE_KEYWORD.match(s):
         return replace(e, category="grant_keyword")
     if _TEXT_CHANGE.search(s):
         return replace(e, category="text_change")
