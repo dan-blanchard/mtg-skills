@@ -4349,6 +4349,30 @@ def _is_generic_creature_filter(f: object) -> bool:
     )
 
 
+# Permanent-type "matters" lanes whose go-wide DOER is a COUNT operand over your
+# permanents of that type ("for each artifact you control", affinity per CR 702.41)
+# or a TYPE trigger (cast / enters that type). The count operand is the strongest
+# care signal — CR 604.3: the value is determined by that type's population (Nim
+# Lasher's power IS the artifact count). Creature is handled separately (it has the
+# anthem + token-maker + over-fire boundary the others lack). Scope-gated to YOU —
+# a count over an opponent's permanents is not your build-around.
+_TYPE_MATTERS_LANE: dict[str, str] = {
+    "Artifact": "artifacts_matter",
+    "Enchantment": "enchantments_matter",
+}
+
+
+def _typed_matters_lane(f: object) -> str | None:
+    """The artifacts/enchantments lane for a YOUR-permanents filter of that type, or
+    None. Excludes Creature (its own go-wide rules) and opponent-controlled sets."""
+    if not isinstance(f, Filter) or f.controller == "opp":
+        return None
+    for card_type, lane in _TYPE_MATTERS_LANE.items():
+        if card_type in f.card_types:
+            return lane
+    return None
+
+
 # Batch 6 — grant_keyword lanes. The granted keyword rides in Effect.counter_kind.
 # Evasion abilities per CR (702.9a flying / 702.13a intimidate / 702.28a shadow /
 # 702.31a horsemanship / 702.36a fear / 702.111a menace / 702.118a skulk; landwalk
@@ -4614,10 +4638,28 @@ def extract_signals_ir(
                 # ubiquitous one-off scaling, not a power build-around.)
                 elif e.amount.op == "counters":
                     add("counters_matter", "you", "", e.raw)
+            # creatures_matter go-wide DOERs (over-fire-gated per rules-lawyer /
+            # CR 604.3): a COUNT operand over your creatures (any effect — the value
+            # scales with the population), OR a TEAM ANTHEM buffing them — a pump
+            # (+N/+N) or a keyword grant ("creatures you control have/gain <kw>") over
+            # the GENERIC creature set. A SUBTYPE filter (Sliver/Goblin) is tribal
+            # (type_matters per CR 205.3), excluded by _is_generic_creature_filter's
+            # no-subtype gate. A single reanimate/destroy/bounce TARGET that happens to
+            # be "a creature you control" is NOT an anthem/count → it never reaches
+            # these arms (its effect is reanimate/exile/bounce, not pump/grant_keyword,
+            # and its subject is the affected object, not a value operand).
             if _is_generic_creature_filter(amount_subject) or (
-                e.category == "pump" and _is_generic_creature_filter(e.subject)
+                e.category in ("pump", "grant_keyword")
+                and _is_generic_creature_filter(e.subject)
             ):
                 add("creatures_matter", "you", "", e.raw)
+            # artifacts_matter / enchantments_matter go-wide DOER: a COUNT operand
+            # over YOUR artifacts/enchantments (affinity CR 702.41, "for each artifact
+            # you control" — Nim Lasher, Storm-Kiln, Tuvasa). The value scales with
+            # that permanent type's population (CR 604.3), so the deck cares about it.
+            typed_lane = _typed_matters_lane(amount_subject)
+            if typed_lane is not None:
+                add(typed_lane, "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
                 add("lifegain_matters", "you", "", e.raw)
             # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard
@@ -5041,6 +5083,15 @@ def extract_signals_ir(
             # catches the rest.
             if ev == "etb" and "Land" in tsubs:
                 add("landfall", "you", "", "")
+            # artifacts_matter / enchantments_matter type-ETB DOER: "whenever an
+            # artifact/enchantment you control enters" (constellation, artifact-ETB
+            # engines). Gated to controller YOU — an opponent's artifact entering is
+            # not your build-around. A "Creature" co-type (artifact creature) still
+            # counts (the artifact entering is what triggers it).
+            if ev == "etb" and _filter_controller(trig.subject) == "you":
+                etb_lane = _typed_matters_lane(trig.subject)
+                if etb_lane is not None:
+                    add(etb_lane, "you", "", "")
             if ev in ("combat_damage", "deals_damage"):
                 add("combat_damage_matters", "opponents", "", "")
                 if trig.scope == "opp":
@@ -5060,6 +5111,18 @@ def extract_signals_ir(
                 # cards (Kykar, Esper Sentinel). See deferrals.md.
                 for sub in _kindred_subjects(trig.subject, vocab):
                     add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
+                # artifacts_matter / enchantments_matter cast-trigger DOER:
+                # "whenever you cast an artifact/enchantment spell" (Mishra, Sythis,
+                # Saheeli's "Artificer or artifact spell"). Gated on scope != "opp":
+                # phase reports "you cast"/"a player casts" as scope "any" but an
+                # OPPONENT-cast PUNISHER ("whenever an opponent casts an artifact
+                # spell" — Citanul Druid, Infested Roothold) as scope "opp", which is
+                # NOT a type deck. The subject co-typing with Creature (artifact
+                # creature spell) still counts.
+                if trig.scope != "opp":
+                    cast_lane = _typed_matters_lane(trig.subject)
+                    if cast_lane is not None:
+                        add(cast_lane, "you", "", "")
             # Batch 12 — nonhuman_attackers (Winota): an attack trigger whose
             # attacking subject is a non-Human creature you control.
             if (
@@ -5106,6 +5169,18 @@ def extract_signals_ir(
     # matching the regex producer (the payoff fires from a card's text, not its type).
     if _detect_voltron_payoff_ir(ir):
         add("voltron_matters", "you", "", "", "low")
+
+    # creatures_matter mass-token-maker DOER (cross-open): a token_maker that makes
+    # CREATURE tokens (a captured creature subject — Darien makes Soldiers, Jinnie
+    # Fay Cats) is a go-wide creatures deck; it wants anthems / per-creature-ETB
+    # payoffs / Cathars' Crusade the bare token_maker lane never serves. Mirrors the
+    # regex SWEEP cross-open (`token_maker and s.subject`) — non-creature token
+    # makers (Treasure/Clue) never set a token_maker subject, so they stay out. Low
+    # confidence. (Done here, after the per-effect loop has collected token_maker.)
+    if not any(s.key == "creatures_matter" for s in out) and any(
+        s.key == signal_keys.TOKEN_MAKER and s.subject for s in out
+    ):
+        add("creatures_matter", "you", "", "", "low")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse

@@ -160,7 +160,12 @@ def test_token_maker_with_kindred_subject():
             ),
         )
     )
-    assert _sigs(ir) == [("token_maker", "you", "Goblin")]
+    # A creature-token-maker with a captured subject cross-opens creatures_matter
+    # (the go-wide mass-token DOER), mirroring the regex SWEEP cross-open.
+    assert _sigs(ir) == [
+        ("creatures_matter", "you", ""),
+        ("token_maker", "you", "Goblin"),
+    ]
 
 
 def test_token_maker_picks_last_creature_subtype():
@@ -177,7 +182,11 @@ def test_token_maker_picks_last_creature_subtype():
             ),
         )
     )
-    assert _sigs(ir) == [("token_maker", "you", "Soldier")]
+    # Subject-bearing creature-token-maker → cross-opens creatures_matter (go-wide).
+    assert _sigs(ir) == [
+        ("creatures_matter", "you", ""),
+        ("token_maker", "you", "Soldier"),
+    ]
 
 
 def test_token_maker_creature_token_no_subtype():
