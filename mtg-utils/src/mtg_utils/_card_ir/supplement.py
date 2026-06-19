@@ -607,6 +607,12 @@ _VERB = comb.alt(
     comb.value("lose_life", comb.tag("lose life")),
     comb.value("gain_control", comb.tag("exchange control")),
     comb.value("gain_control", comb.tag("gain control")),
+    comb.value("win_game", comb.tag("win the game")),
+    comb.value("lose_game", comb.tag("lose the game")),
+    comb.value("attach", comb.tag("attach")),  # "attach it to …"
+    # "exchange its power and the power of …" — switch P/T (CR switchpt).
+    comb.value("switch_pt", comb.seq2(comb.tag("exchange"), comb.take_until("power"))),
+    comb.value("skip_step", comb.keyword({"skip", "skips"})),  # "skips … combat phase"
     comb.value("counter_spell", comb.tag("counter target")),
     comb.value("counter_spell", comb.tag("counter that")),
     # "search your library/hand/graveyard …", "search target player's library" — a
@@ -786,8 +792,9 @@ _ASSIGN_DAMAGE = re.compile(r"\bassigns? (?:no )?combat damage\b", re.IGNORECASE
 # continuous type set/grant. Its own non-sliced category.
 _TYPE_SET = re.compile(
     r"\bare (?:the chosen|every basic land type|all basic land types|"
-    r"[a-z]+ lands?\b|white|blue|black|red|green"
+    r"[a-z]+ lands?\b|white|blue|black|red|green|colorless|legendary|all colors"
     r"|(?:plains|islands?|swamps?|mountains?|forests?)\b)"
+    r"|\b(?:is|are) all colors\b"
     r"|\bis an? (?:plains|island|swamp|mountain|forest)\b"
     # the "in addition to (its/their) other …" frame is the type-ADDING tell
     # ("Each land is a Swamp in addition to its other land types").
