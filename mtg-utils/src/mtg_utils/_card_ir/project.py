@@ -444,11 +444,15 @@ def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
 
 
 def _is_sole_empty(ab: Ability) -> bool:
-    """An ability whose ONLY effects are textless ``other`` — phase recognized the
-    ability (cost/kind/trigger) but wholly lost its effect text."""
-    return bool(ab.effects) and all(
-        e.category == "other" and not (e.raw or "").strip() for e in ab.effects
-    )
+    """An ability phase recognized (cost/kind/trigger) but whose effect it wholly lost:
+    either NO effects at all (a Saga chapter phase failed -> `triggered: []`) or only
+    textless ``other`` effects. Static abilities are exempt (a no-effect static is a
+    pure characteristic-grant, not a gap)."""
+    if ab.kind == "static":
+        return False
+    if not ab.effects:
+        return True
+    return all(e.category == "other" and not (e.raw or "").strip() for e in ab.effects)
 
 
 def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Ability]:
