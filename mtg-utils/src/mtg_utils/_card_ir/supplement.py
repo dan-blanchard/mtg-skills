@@ -707,7 +707,7 @@ _VERB_PRESENT = re.compile(
     r"\b(?:draws?|creates?|destroys?|exiles?|gains?|deals?|mills?|sacrifices?"
     r"|discards?|taps?|untaps?|puts?|searches?|counter|scry|scries|surveils?"
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
-    r"|goads?|rolls?|prevents?)\b",
+    r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?)\b",
     re.IGNORECASE,
 )
 
@@ -913,6 +913,32 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     return None
 
 
+# A NAMED ability — a card-specific flavour name before an em-dash ("Venom Blast —
+# Artifacts … enter tapped", "Allure of Slaanesh — Each opponent …"), the generic form
+# of the enumerated _ABILITY_WORDS. Strip the name and dispatch the effect after it.
+# Gated so it can't eat a modal "Choose one — • …" (bullet after) or a Saga "Chapter
+# N —" or a numbered/level head, and the head must be short (a name, not a sentence).
+_EM_DASH = re.compile(r"\s*—\s*")
+
+
+def _recover_named_ability(e: Effect) -> Effect | None:
+    s = _FAILED_PREFIX.sub("", e.raw).strip()
+    m = _EM_DASH.search(s)
+    if m is None:
+        return None
+    head, tail = s[: m.start()].strip(), s[m.end() :].strip()
+    if not head or not tail or len(head) > 40 or "•" in head or tail.startswith("•"):
+        return None
+    if head.lower().startswith(("choose", "chapter")) or head[:1].isdigit():
+        return None
+    # dispatch the effect after the name (verb clause -> static -> scan; no recursion).
+    tail_eff = replace(e, raw=tail)
+    r = _EFFECT_CLAUSE.parse(tail)
+    if r is not None:
+        return replace(e, category=r[0])
+    return _recover_static_pattern(tail_eff) or _recover_verb_scan(tail_eff)
+
+
 # The recovery registry. Order matters: the first matching rule wins, so put the
 # most specific clauses first. Doubling is tried before create_token (a "twice that
 # many … tokens" clause is a doubler, not a plain token maker). The two broad
@@ -923,6 +949,7 @@ _RECOVERY_RULES: tuple[ClauseRule, ...] = (
     ClauseRule("vote", _recover_vote),
     ClauseRule("doubling", _recover_doubling),
     ClauseRule("create_token", _recover_create_token),
+    ClauseRule("named_ability", _recover_named_ability),
     ClauseRule("by_verb", _recover_by_verb),
     ClauseRule("static_pattern", _recover_static_pattern),
     ClauseRule("verb_scan", _recover_verb_scan),
