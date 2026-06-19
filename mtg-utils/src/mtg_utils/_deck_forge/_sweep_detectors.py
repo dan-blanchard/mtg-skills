@@ -778,12 +778,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\boil counters?\\b",
     },
-    {
-        "key": "ki_counter_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bki counters?\\b",
-    },
+    # ADR-0027: ki_counter_matters migrated to the Card IR (served structurally
+    # from phase's counter-kind projection — _COUNTER_KIND_KEYS['ki'] in
+    # signals.py); its oracle-regex detector row is deleted. The SWEEP_LABELS
+    # entry survives to feed the serve spec (signal_specs.py hand-registers it).
     {
         # Shield counters (CR 122.1c) — a real UW/Brokers archetype (Falco Spara,
         # Perrie, Kros) deliberately excluded from keyword_counter; this is its home.
@@ -798,12 +796,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge|silver|gold|fate|incubation) counters?\\b",
     },
-    {
-        "key": "seek_matters",
-        "scope": "you",
-        "is_widen_of": "tutor_matters",
-        "regex": "\\bseek\\b",
-    },
+    # ADR-0027: seek_matters migrated to the Card IR (served structurally from
+    # phase's `seek` effect category — _DOER_EFFECT_KEYS['seek'] in signals.py);
+    # its oracle-regex detector row is deleted. The SWEEP_LABELS entry survives to
+    # feed the serve spec (signal_specs.py hand-registers it).
     {
         "key": "powerup_matters",
         "scope": "you",
@@ -1021,12 +1017,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "dice_matters",
         "regex": "roll (?:a|one or more|two|\\d+) (?:[a-z\\-]+ )?(?:d\\d+|dice|die)|reroll (?:any|a|that) (?:die|dice)|result of (?:the|a|your) (?:roll|die)|whenever you roll",
     },
-    {
-        "key": "specialize_matters",
-        "scope": "you",
-        "is_widen_of": "specialize_matters",
-        "regex": "\\bspecializes?\\b|\\bunspecialize",
-    },
+    # ADR-0027: specialize_matters migrated to the Card IR (served from the
+    # Scryfall `specialize` keyword — _IR_KEYWORD_MAP in signals.py); both its
+    # oracle-regex sources (this row + the _HAND_FLOOR detector) are deleted. Its
+    # serve spec is hand-registered in signal_specs.py.
     {
         "key": "voltron_matters",
         "scope": "you",

@@ -3187,6 +3187,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bspecialize\b"},
         r"\bspecialize\b",
     ),
+    # ADR-0027: ki_counter_matters + seek_matters had their oracle-regex
+    # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — phase's
+    # counter-kind / effect-category projection). The SERVE pool (the cards that
+    # ARE the thing) is still oracle-defined, so hand-register the spec the
+    # sweep auto-register loop used to build — reusing the deleted regex as the
+    # serve pattern. (SWEEP_LABELS still carries the human label.)
+    ("ki_counter_matters", "you"): _spec(
+        *SWEEP_LABELS["ki_counter_matters"],
+        {"oracle": r"\bki counters?\b"},
+        r"\bki counters?\b",
+    ),
+    ("seek_matters", "you"): _spec(
+        *SWEEP_LABELS["seek_matters"],
+        {"oracle": r"\bseek\b"},
+        r"\bseek\b",
+    ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",
         "villainous-choice cards (the punisher pool a villainous-choice commander — "

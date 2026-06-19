@@ -2028,7 +2028,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    ("specialize_matters", re.compile(r"\bspecialize\b", re.IGNORECASE), "you"),
+    # ADR-0027: specialize_matters migrated to the Card IR (served structurally
+    # from the Scryfall `specialize` keyword — _IR_KEYWORD_MAP['specialize']
+    # below); both its oracle-regex sources (this _HAND_FLOOR detector and the
+    # SWEEP_DETECTORS row) are deleted. The keyword survivor is the IR backing.
     # Villainous choice (AFR/WHO/Marvel): a commander built around making opponents face
     # villainous choices (The Valeyard doubles them; Davros/Missy/Dr. Eggman present
     # them) wants the villainous-choice card pool. A named mechanic, so a self-contained
@@ -5003,7 +5006,18 @@ def extract_signals_ir(
 
 
 # ── Hybrid dispatch seam (ADR-0027 strangler) ─────────────────────────────────
-MIGRATED_KEYS: frozenset[str] = frozenset()
+MIGRATED_KEYS: frozenset[str] = frozenset(
+    {
+        # Batch 1 — keys whose IR production is genuinely STRUCTURAL (not a
+        # re-run of the deleted oracle regex), so deleting the regex cannot
+        # regress the IR path. seek (phase `seek` effect category),
+        # specialize (Scryfall `specialize` keyword), ki (phase counter-kind
+        # projection). See ADR-0027.
+        "seek_matters",
+        "specialize_matters",
+        "ki_counter_matters",
+    }
+)
 """Signal keys served from the IR path in production; grows as the ADR-0027
 regex→IR strangler deletes each key's regex detector. Empty = pure regex
 (today)."""
@@ -5185,4 +5199,9 @@ def producible_static_keys() -> set[str]:
     ):
         keys.update(key for key, _scope in table.values())
     keys.update(_LITERAL_ADD_KEYS)
+    # ADR-0027 strangler: a migrated key's regex production is deleted, but it is
+    # still produced (from the IR path) and still needs a resolving spec — so it
+    # stays guarded by the key-agreement gate (signal_specs ADR-0014). The
+    # producer tables above no longer mention it, so union it back in explicitly.
+    keys.update(MIGRATED_KEYS)
     return keys - signal_keys.SUBJECT_KEYS

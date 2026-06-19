@@ -1,12 +1,14 @@
-"""Invariant for the ADR-0027 hybrid dispatch seam (Step 0 — empty manifest).
+"""Invariant for the ADR-0027 hybrid dispatch seam.
 
 ``extract_signals_hybrid`` routes each signal key to the Card IR path
 (``MIGRATED_KEYS``) or the legacy regex path (everything else), then merges +
-dedups. With ``MIGRATED_KEYS`` EMPTY (today), the hybrid must yield the SAME
-signal set as a pure ``extract_signals`` call for every sampled card — for ANY
-``ir`` argument, including ``None``, an unrelated IR, and a fully-populated IR
-that itself fires IR signals. This is the behavior-neutrality guarantee that
-lets the seam ship without changing production output.
+dedups. On the REGEX-SERVED keys (every key not in ``MIGRATED_KEYS``) the hybrid
+must yield the SAME signal set as a pure ``extract_signals`` call for every
+sampled card — for ANY ``ir`` argument, including ``None``, an unrelated IR, and
+a fully-populated IR that itself fires IR signals. This is the behavior-neutrality
+guarantee: the seam only ever re-serves a key once it is migrated, and it never
+perturbs the keys still on the regex path. (Migrated keys' own proof — regex drops
+them, the IR serves them — lives in ``test_migrated_keys.py``.)
 """
 
 from __future__ import annotations
@@ -127,17 +129,26 @@ _EMPTY_IR = Card(
     faces=(Face(name="Other", abilities=()),),
 )
 
-# Each IR variant the hybrid must be invariant to while MIGRATED_KEYS is empty.
+# Each IR variant the hybrid must be invariant to on the REGEX-served keys.
 _IR_VARIANTS = [None, _EMPTY_IR, _POPULATED_IR]
+
+
+def _regex_served(sigs) -> set[tuple[str, str, str]]:
+    """Signal ids whose KEY is still served by the regex path (not migrated).
+
+    The seam's behaviour-neutrality guarantee is scoped to the regex-served keys:
+    a migrated key is intentionally re-served from the IR, so it must be excluded
+    from the regex-vs-hybrid equality (these SAMPLE_CARDS fire none, but filtering
+    keeps the invariant true as ``MIGRATED_KEYS`` grows). See ADR-0027."""
+    return {(s.key, s.scope, s.subject) for s in sigs if s.key not in MIGRATED_KEYS}
 
 
 @pytest.mark.parametrize("card", SAMPLE_CARDS, ids=lambda c: c["name"])
 @pytest.mark.parametrize("ir", _IR_VARIANTS, ids=["none", "empty", "populated"])
-def test_hybrid_matches_regex_with_empty_manifest(card, ir):
-    """Empty MIGRATED_KEYS ⇒ hybrid output == pure regex output, for any IR."""
-    assert not MIGRATED_KEYS, "this invariant assumes an empty manifest"
-    baseline = _ids(extract_signals(card))
-    hybrid = _ids(extract_signals_hybrid(card, ir))
+def test_hybrid_matches_regex_on_regex_served_keys(card, ir):
+    """Hybrid output == pure regex output on every non-migrated key, for any IR."""
+    baseline = _regex_served(extract_signals(card))
+    hybrid = _regex_served(extract_signals_hybrid(card, ir))
     assert hybrid == baseline
 
 
@@ -145,8 +156,8 @@ def test_hybrid_matches_regex_with_empty_manifest(card, ir):
 def test_hybrid_forwards_include_membership_kwarg(card):
     """The hybrid forwards extract_signals kwargs (here include_membership)."""
     for membership in (True, False):
-        baseline = _ids(extract_signals(card, include_membership=membership))
-        hybrid = _ids(
+        baseline = _regex_served(extract_signals(card, include_membership=membership))
+        hybrid = _regex_served(
             extract_signals_hybrid(card, _POPULATED_IR, include_membership=membership)
         )
         assert hybrid == baseline

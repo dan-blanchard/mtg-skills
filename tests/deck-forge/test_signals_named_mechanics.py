@@ -5,11 +5,23 @@ build-arounds the tool should surface, and they're precise named anchors so they
 stay clean. Each is a real archetype getting its own avenue.
 """
 
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils.card_ir import Card, Face
 
 
 def _ks(card):
     return {(s.key, s.scope) for s in extract_signals(card)}
+
+
+# A minimal non-None IR: keyword-array lanes (e.g. specialize) read card["keywords"]
+# directly, not the IR structure, so any non-None Card routes the hybrid to the IR
+# path for the migrated key.
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _ks_hybrid(card):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
 
 
 def _keys(card):
@@ -153,8 +165,16 @@ def test_token_copy_engine():
 
 
 def test_specialize():
-    c = {"name": "Shadowheart-like", "oracle_text": "Specialize {1}{B}"}
-    assert ("specialize_matters", "you") in _ks(c)
+    # ADR-0027: specialize_matters is IR-served (the Scryfall `specialize`
+    # keyword), so it comes through the hybrid path, not pure regex.
+    c = {
+        "name": "Shadowheart-like",
+        "oracle_text": "Specialize {1}{B}",
+        "keywords": ["Specialize"],
+    }
+    assert ("specialize_matters", "you") in _ks_hybrid(c)
+    # And the legacy regex path no longer emits it.
+    assert ("specialize_matters", "you") not in _ks(c)
 
 
 def test_dice_rolling():
