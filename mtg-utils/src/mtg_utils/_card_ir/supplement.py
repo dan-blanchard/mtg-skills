@@ -861,6 +861,34 @@ _REDIRECT = re.compile(
 )
 # An attack restriction: "may attack only the nearest opponent", "attack only the".
 _ATTACK_ONLY = re.compile(r"\b(?:may |can )?attack only\b", re.IGNORECASE)
+# Named one-off mechanics — each names a real mechanic (accurate IR), mapped to its
+# own honest category. `(pattern, category)` pairs, scanned in order, after the broad
+# rules above so a more general match wins first.
+_NAMED_MECHANICS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\breverse the .*turn order\b", re.IGNORECASE), "reverse_turn"),
+    (re.compile(r"\bredistribute\b.*\blife totals?\b", re.IGNORECASE), "set_life"),
+    (re.compile(r"\bno maximum hand size\b", re.IGNORECASE), "no_max_handsize"),
+    (re.compile(r"\bplay with .*hands? revealed\b", re.IGNORECASE), "reveal_hands"),
+    (re.compile(r"\blegend rule\b", re.IGNORECASE), "legend_exempt"),
+    (re.compile(r"\bskips? (?:your|their|his|her) next\b", re.IGNORECASE), "skip_turn"),
+    (re.compile(r"\bunattach\b", re.IGNORECASE), "unattach"),
+    (re.compile(r"\bharness\b", re.IGNORECASE), "harness"),
+    (re.compile(r"\bnote (?:your|their) life total\b", re.IGNORECASE), "note"),
+    (
+        re.compile(r"\b(?:triggers?|trigger) .*\ban additional time\b", re.IGNORECASE),
+        "trigger_doubling",
+    ),
+    (re.compile(r"\ban additional time\b", re.IGNORECASE), "trigger_doubling"),
+    (
+        re.compile(r"\btriggers? only once\b|\bonly you may activate\b", re.IGNORECASE),
+        "restriction",
+    ),
+    (re.compile(r"\bdo all of the above\b", re.IGNORECASE), "modal"),
+    (
+        re.compile(r"\beach player separates\b|\binto two piles\b", re.IGNORECASE),
+        "fact_or_fiction",
+    ),
+)
 # A generic REPLACEMENT effect: "If [a thing] would [happen] …, [instead] …" — the
 # recurring token/counter/mana/draw replacement shape phase leaves Unimplemented.
 # Checked LAST among statics (after the specific damage/doubling replacements), so it
@@ -1051,6 +1079,9 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="haunt")
     if _REDIRECT.search(s):
         return replace(e, category="redirect")
+    for pat, cat in _NAMED_MECHANICS:
+        if pat.search(s):
+            return replace(e, category=cat)
     if _CLONE_STATIC.search(s):
         return replace(e, category="clone")
     if _FORCE_ATTACK.search(s):
