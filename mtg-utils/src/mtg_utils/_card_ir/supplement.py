@@ -781,7 +781,7 @@ def _recover_verb_scan(e: Effect) -> Effect | None:
     if not _VERB_PRESENT.search(body):
         return None
     words = body.split()
-    for i in range(1, min(len(words), 14)):
+    for i in range(1, min(len(words), 22)):
         r = _VERB.parse(" ".join(words[i:]))
         if r is not None:
             return replace(e, category=r[0])
