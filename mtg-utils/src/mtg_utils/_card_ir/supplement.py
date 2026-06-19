@@ -858,8 +858,13 @@ _DRAFT = re.compile(r"\bdraft (?:this|each|up to|an|a |\d|that)", re.IGNORECASE)
 # Redirect / re-target effects: "reselect which … target", "that damage is dealt to
 # … instead", "change the target" (already handled separately).
 _REDIRECT = re.compile(
-    r"\breselect\b|\bthat damage is dealt to\b|\bredirect\b", re.IGNORECASE
+    r"\breselect\b|\bthat damage is dealt to\b|\bredirect\b"
+    r"|\bchange (?:any|the|all|its)\b[^.]{0,20}\btargets?\b",  # "change any targets of"
+    re.IGNORECASE,
 )
+# Misc named one-offs caught as statics: an emblem grant, monarch-control aura.
+_EMBLEM = re.compile(r"\b(?:gets?|with|creates?) an emblem\b", re.IGNORECASE)
+_MONARCH_CONTROL = re.compile(r"\bmonarch controls\b", re.IGNORECASE)
 # An attack restriction: "may attack only the nearest opponent", "attack only the".
 _ATTACK_ONLY = re.compile(r"\b(?:may |can )?attack only\b", re.IGNORECASE)
 # Named one-off mechanics — each names a real mechanic (accurate IR), mapped to its
@@ -1080,6 +1085,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="haunt")
     if _REDIRECT.search(s):
         return replace(e, category="redirect")
+    if _EMBLEM.search(s):
+        return replace(e, category="emblem")
+    if _MONARCH_CONTROL.search(s):
+        return replace(e, category="gain_control")
     for pat, cat in _NAMED_MECHANICS:
         if pat.search(s):
             return replace(e, category=cat)
