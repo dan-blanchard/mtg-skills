@@ -4544,8 +4544,11 @@ def extract_signals_ir(
             # Filter-PREDICATE lanes — an effect restricted to tapped / attacking
             # creatures, or permanents WITH a counter, is a payoff for that state
             # ("tapped creatures you control get…", "attacking creatures get +1/+0",
-            # "creatures you control with a +1/+1 counter have trample"). phase
-            # carries these as filter properties; we only read color/PT today.
+            # "creatures you control with a +1/+1 counter have trample"). _predicate
+            # captures ~all phase filter properties as Filter.predicates; lanes read
+            # color/PT/AnyOf/InZone + (here) Tapped/Attacking/Counters. Still unread:
+            # EnchantedBy/EquippedBy (aura/equipment/voltron), WithKeyword
+            # (keyword-tribal), Cmc (mana-value threshold).
             esub = e.subject
             if esub is not None:
                 # Tapped / Attacking gate to YOUR permanents — "your tapped/attacking
