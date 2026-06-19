@@ -350,6 +350,7 @@ _ABILITY_WORDS = {
     "entwine",
     "exhaust",
     "morph",
+    "blitz",
     "celebration",
     "channel",
     "chroma",
@@ -599,6 +600,13 @@ _SIMPLE_VERB = comb.alt(
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
     comb.value("cheat_play", comb.keyword({"ninjutsu"})),
+    # Keyword abilities that survived as leading text — a closed CR vocabulary mapped
+    # to the mechanic each one IS (generalizes to any card with the keyword).
+    comb.value("sacrifice", comb.keyword({"devour", "devours"})),  # CR 702.81
+    comb.value("vanishing", comb.keyword({"vanishing"})),  # CR 702.62 time counters
+    comb.value("reanimate", comb.keyword({"soulshift"})),  # CR 702.46 return from GY
+    comb.value("cost_reduction", comb.keyword({"multikicker"})),  # CR 702.33
+    comb.value("cast_from_zone", comb.keyword({"foretell", "foretells"})),  # 702.143
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
@@ -673,6 +681,8 @@ _VERB = comb.alt(
     comb.value("cast_from_zone", comb.tag("play those cards")),
     comb.value("cast_from_zone", comb.tag("play cards exiled")),
     comb.value("gain_control", comb.tag("you control target")),  # mind-control
+    comb.value("gain_control", comb.tag("you control enchanted")),  # Control Magic aura
+    comb.value("attach", comb.tag("aura swap")),  # CR 702.65 — swap an Aura in/out
     # an Aura's "Enchant <X>" — defines what it attaches to (voltron/attach lane).
     comb.value("attach", comb.tag("enchant ")),
     # "Move one or more counters from … onto …" (CR movecounters) -> counter_move.
@@ -851,6 +861,24 @@ _CAST_RESTRICT = re.compile(
     r"\bcan cast spells (?:and activate abilities )?only\b|\bcast spells only\b",
     re.IGNORECASE,
 )
+# A mana-production modification ("if you tap … for mana, it produces twice as much",
+# "produces {C} instead of …", "produces three times") — a mana doubler/filter.
+_MANA_PRODUCE = re.compile(
+    r"\bfor mana, it produces\b|\bproduces (?:twice|three times)\b"
+    r"|\bproduces .{0,20}\binstead of\b|\bproduces colorless\b",
+    re.IGNORECASE,
+)
+# An activation-PERMISSION ("you may activate loyalty/equip abilities … any time/twice
+# each turn", "activate the loyalty abilities of …").
+_ACTIVATION_PERM = re.compile(
+    r"\bactivate (?:the )?(?:loyalty|equip) abilities\b"
+    r"|\bactivate .{0,30}\babilities\b[^.]{0,30}\b(?:any time|twice each turn)\b",
+    re.IGNORECASE,
+)
+# Crew (CR 702.122), Phasing (702.26), Haunt (702.55) keyword abilities as text.
+_CREW = re.compile(r"\bcrews? vehicles?\b", re.IGNORECASE)
+_PHASING = re.compile(r"\bphases? (?:in|out)\b|\bphased[- ]out\b", re.IGNORECASE)
+_HAUNT = re.compile(r"\bhaunts?\b", re.IGNORECASE)
 _CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
     r"\bchoose which creatures? (?:attack|block)", re.IGNORECASE
 )
@@ -993,6 +1021,16 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="coin_flip")
     if _ATTACK_ONLY.search(s) or _CAST_RESTRICT.search(s):
         return replace(e, category="restriction")
+    if _MANA_PRODUCE.search(s):
+        return replace(e, category="mana_filter")
+    if _ACTIVATION_PERM.search(s):
+        return replace(e, category="activation_permission")
+    if _CREW.search(s):
+        return replace(e, category="crew")
+    if _PHASING.search(s):
+        return replace(e, category="phasing")
+    if _HAUNT.search(s):
+        return replace(e, category="haunt")
     if _REDIRECT.search(s):
         return replace(e, category="redirect")
     if _CLONE_STATIC.search(s):
