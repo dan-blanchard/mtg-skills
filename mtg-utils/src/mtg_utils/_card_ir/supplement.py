@@ -325,6 +325,68 @@ _FAILED_PREFIX = re.compile(r"^[^:]*\bline failed\b[^:]*:\s*", re.IGNORECASE)
 _CHAPTER_PREFIX = comb.value(
     None, comb.seq3(comb.tag("chapter"), comb.take_until("—"), comb.tag("—"))
 )
+# An ABILITY WORD ("Ferocious — You gain 4 life", "Adamant — …", "Coven — …") is an
+# italic flavour LABEL with no rules meaning (CR 207.2c) — consume it (+ the em-dash)
+# so dispatch lands on the effect. Enumerated (a finite, closed set) so it can't eat a
+# real clause that happens to contain "—". Any-condition word-words like "if"/"as
+# long as" after the dash are peeled by the trigger/duration prefixes in turn.
+_ABILITY_WORDS = {
+    "adamant",
+    "addendum",
+    "alliance",
+    "battalion",
+    "bloodrush",
+    "boast",
+    "celebration",
+    "channel",
+    "chroma",
+    "cohort",
+    "constellation",
+    "converge",
+    "corrupted",
+    "coven",
+    "delirium",
+    "descend",
+    "domain",
+    "eminence",
+    "enrage",
+    "fateful",
+    "ferocious",
+    "flurry",
+    "formidable",
+    "grandeur",
+    "hellbent",
+    "heroic",
+    "imprint",
+    "inspired",
+    "join",
+    "kinship",
+    "landfall",
+    "lieutenant",
+    "magecraft",
+    "metalcraft",
+    "morbid",
+    "pack",
+    "parley",
+    "radiance",
+    "raid",
+    "rally",
+    "revolt",
+    "secret",
+    "spell",
+    "strive",
+    "sweep",
+    "tempting",
+    "threshold",
+    "undergrowth",
+    "valiant",
+    "void",
+    "will",
+}
+_ABILITY_WORD_PREFIX = comb.value(
+    None,
+    comb.seq3(comb.keyword(_ABILITY_WORDS), comb.take_until("—"), comb.tag("—")),
+)
 _TRIGGER_PREFIX = comb.value(
     None,
     comb.seq3(
@@ -420,6 +482,7 @@ _PREFIX = comb.preceded(
     comb.ws(),
     comb.alt(
         _CHAPTER_PREFIX,
+        _ABILITY_WORD_PREFIX,
         _COST_PREFIX,
         _LOYALTY_PREFIX,
         _REPLACEMENT_PREFIX,
@@ -608,6 +671,19 @@ _CAN_COMBAT = re.compile(r"\bcan (?:attack|block)\b", re.IGNORECASE)
 _TUCK = re.compile(r"\bshuffles?\b.{0,60}\blibrary\b", re.IGNORECASE)
 # A timing grant — "cast spells … as though they had flash" -> grant_keyword (flash).
 _FLASH_GRANT = re.compile(r"as though (?:it|they) (?:had|have) flash", re.IGNORECASE)
+# More niche-mechanic discriminants (subject/structure precedes the keyword, so a
+# scan, not a cursor parse). All map to NON-sliced categories — pure parse completion.
+_DAMAGE_REPLACE = re.compile(  # "all damage is dealt as though its source had wither"
+    r"\bdamage\b[^.]*\bas though\b", re.IGNORECASE
+)
+_TEXT_CHANGE = re.compile(r"\bchange the text\b|\bchange ~'s\b", re.IGNORECASE)
+_MANA_RESTRICTION = re.compile(r"\bspend only\b", re.IGNORECASE)
+_BID = re.compile(r"\bbid life\b|\bstart the bidding\b", re.IGNORECASE)
+_DRAFT = re.compile(r"\bdraft this\b|\bdraft \d", re.IGNORECASE)
+_CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
+    r"\bchoose which creatures? (?:attack|block)", re.IGNORECASE
+)
+_ASSIGN_DAMAGE = re.compile(r"\bassigns? combat damage\b", re.IGNORECASE)
 # A player keyword grant — "You have hexproof/shroud/protection/…": grant_keyword,
 # gated to real protective keywords so "you have no maximum hand size" stays out.
 _PLAYER_KW_GRANT = re.compile(
@@ -672,6 +748,20 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="state")
     if _FLASH_GRANT.search(s) or _PLAYER_KW_GRANT.search(s):
         return replace(e, category="grant_keyword")
+    if _TEXT_CHANGE.search(s):
+        return replace(e, category="text_change")
+    if _MANA_RESTRICTION.search(s):
+        return replace(e, category="mana_restriction")
+    if _BID.search(s):
+        return replace(e, category="bid")
+    if _DRAFT.search(s):
+        return replace(e, category="draft")
+    if _CONTROL_COMBAT.search(s):
+        return replace(e, category="control_combat")
+    if _ASSIGN_DAMAGE.search(s):
+        return replace(e, category="combat_damage_mod")
+    if _DAMAGE_REPLACE.search(s):
+        return replace(e, category="damage_replace")
     low = s.lower()
     # The gain/have family: a life gain or control gain (any subject), else a
     # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
