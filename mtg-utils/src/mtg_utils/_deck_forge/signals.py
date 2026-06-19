@@ -4062,6 +4062,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             "copy_land",
             "copy_planeswalker",
             "copy_permanent",
+            # Spell-copy (Twincast/Fork) — separate from clone:
+            "spell_copy_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4402,6 +4404,10 @@ def extract_signals_ir(
             if cat == "clone":
                 for key in _clone_copy_lanes(e.subject, vocab):
                     add(key, "you", "", e.raw)
+            # spell-copy (Twincast, Fork — "copy target spell") is a SEPARATE lane
+            # from clone (which is creatures-on-the-battlefield only), per Dan.
+            if cat == "spell_copy":
+                add("spell_copy_matters", "you", "", e.raw)
             # evasion_denial: IgnoreLandwalkForBlocking (Great Wall) — block through
             # an opponent's landwalk evasion.
             if cat == "evasion_denial":

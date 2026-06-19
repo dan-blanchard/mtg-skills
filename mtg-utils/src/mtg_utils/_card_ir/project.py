@@ -110,6 +110,7 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "animate": "animate",
     "seek": "seek",
     "becomecopy": "clone",  # Batch 10 — "becomes a copy of" (clone synergy)
+    "copyspell": "spell_copy",  # "copy target spell" (Twincast) — distinct from clone
     # Batch 0 — v0.1.60 structured effect types that previously fell to "other".
     "flipcoin": "coin_flip",
     "flipcoins": "coin_flip",

@@ -741,6 +741,14 @@ def test_creature_clone_is_clone_matters_only():
     assert not any(s[0].startswith("copy_") for s in sigs)
 
 
+def test_spell_copy_is_its_own_lane_not_clone():
+    """Twincast ('copy target spell') is spell_copy_matters, NOT a clone."""
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="spell_copy"),)))
+    sigs = _sigs(ir)
+    assert ("spell_copy_matters", "you", "") in sigs
+    assert ("clone_matters", "you", "") not in sigs
+
+
 def test_creature_subtype_clone_is_clone_matters():
     """Sunfrill Imitator copies a Dinosaur (a creature subtype) → clone_matters."""
     assert ("clone_matters", "you", "") in _sigs(_clone(subtypes=("Dinosaur",)))
