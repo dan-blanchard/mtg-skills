@@ -516,6 +516,10 @@ _VERB = comb.alt(
     ),
     # "attacks each combat if able" — a forced-attack restriction (CR 508 must-attack).
     comb.value("force_attack", comb.tag("attacks each combat")),
+    # "play with the top card of your library revealed" — play-from-top engine.
+    comb.value("cast_from_zone", comb.tag("play with the top")),
+    # extra land drops ("play an additional land this turn") — its own category.
+    comb.value("extra_land", comb.tag("play an additional land")),
     # "play lands/cards from the top of your library" etc. — playing from a non-hand
     # zone (the "from" gate keeps "play an additional land" out). cast_from_zone.
     comb.value("cast_from_zone", comb.seq2(comb.tag("play"), comb.take_until("from"))),
@@ -558,7 +562,13 @@ def _recover_by_verb(e: Effect) -> Effect | None:
 # parse — and the anthem's "+N/+N" token is punctuated, which the word-level
 # combinators normalize away (norm_word strips "+"), so a char-level regex is the right
 # tool here (as for the Tinybones scope rules above).
-_GETS_PT = re.compile(r"\bgets? [+-]\d+/[+-]\d+", re.IGNORECASE)
+# An anthem/pump "gets +N/+N" — N may be a digit OR a variable (+X/+Y, dynamic pumps
+# like "gets +X/+X where X is …") OR * (gets */*). The token is punctuated, which the
+# word-combinators normalize away, so a char-level regex is right here.
+_GETS_PT = re.compile(r"\bgets? [+-][\dxyz*]+/[+-][\dxyz*]+", re.IGNORECASE)
+# A type/characteristic STATE conditional ("isn't a creature unless …", "isn't
+# legendary if …") — a static layer effect, its own non-sliced category.
+_STATE = re.compile(r"\bisn'?t (?:a |an |legendary)", re.IGNORECASE)
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
 # A combat cap ("No more than N creatures can attack/block …") is a RESTRICTION, not
 # a permission — checked before the can-attack/block grant below so it wins.
@@ -624,6 +634,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="shuffle")
     if _CDA_PT.search(s):
         return replace(e, category="characteristic_pt")
+    if _STATE.search(s):
+        return replace(e, category="state")
     low = s.lower()
     # The gain/have family: a life gain or control gain (any subject), else a
     # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
