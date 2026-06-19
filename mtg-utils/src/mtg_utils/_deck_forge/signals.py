@@ -3834,6 +3834,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "discover": (("discover_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
+    # Face-down 2/2 keywords (CR 702.36 morph / 702.166 disguise) — phase folds the
+    # ability to stripped reminder text, so the IR emits no manifest/cloak category
+    # for them; fire facedown_matters straight off the Scryfall keyword instead.
+    "morph": (("facedown_matters", "you"),),
+    "megamorph": (("facedown_matters", "you"),),
+    "disguise": (("facedown_matters", "you"),),
     "mutate": (("mutate_matters", "you"),),
     "myriad": (("myriad_grant", "you"),),
     "ninjutsu": (("ninjutsu_matters", "you"),),
