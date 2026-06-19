@@ -833,6 +833,13 @@ _REDIRECT = re.compile(
 )
 # An attack restriction: "may attack only the nearest opponent", "attack only the".
 _ATTACK_ONLY = re.compile(r"\b(?:may |can )?attack only\b", re.IGNORECASE)
+# A generic REPLACEMENT effect: "If [a thing] would [happen] …, [instead] …" — the
+# recurring token/counter/mana/draw replacement shape phase leaves Unimplemented.
+# Checked LAST among statics (after the specific damage/doubling replacements), so it
+# only catches the residual; its own non-sliced `replacement` category.
+_REPLACEMENT = re.compile(
+    r"\bif\b[^.]*\bwould\b[^.]*\binstead\b|\bwould .* instead\b", re.IGNORECASE
+)
 # A casting-timing restriction: "(Players) can cast spells (and activate abilities)
 # only during their own turns".
 _CAST_RESTRICT = re.compile(
@@ -1023,6 +1030,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     # (the subject precedes the verb, so this is a discriminant scan, not a parse).
     if _BECOMES.search(s):
         return replace(e, category="clone" if "copy of" in low else "animate")
+    # LAST: a generic "if … would …, instead …" replacement effect (the residual
+    # token/counter/mana/draw replacements the specific rules above didn't claim).
+    if _REPLACEMENT.search(s):
+        return replace(e, category="replacement")
     return None
 
 
