@@ -1818,11 +1818,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # gate lifted in extract_signals_ir. Its oracle-regex floor detector is deleted;
     # the serve spec stays hand-registered in signal_specs.py.
     ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
-    (
-        "ring_matters",
-        re.compile(r"ring tempts you|your ring-bearer|the ring-bearer", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: ring_matters migrated to the Card IR — served structurally from
+    # phase's `ring_tempt` effect category (_DOER_EFFECT_KEYS). A "Whenever the Ring
+    # tempts you" trigger (CR 701.54) phase flattened to event='other', and a
+    # "Ring-bearer" reference buried in any effect raw (Sauron — no tempt trigger),
+    # are appended as `ring_tempt` marker effects by
+    # project._narrow_trigger_other_refs. Its oracle-regex floor detector is deleted
+    # and it is removed from _IR_FLOOR_LANES; the serve spec stays hand-registered.
     (
         "venture_matters",
         re.compile(
@@ -2217,14 +2219,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"start your engines|max speed|your speed", re.IGNORECASE),
         "you",
     ),
-    # Discover (CR 701.57): cascade-like dig — surface discover sources + low-MV spells.
-    (
-        "discover_matters",
-        re.compile(
-            r"\bdiscover \d|\bdiscover x\b|whenever you discover", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: discover_matters migrated to the Card IR — served structurally from
+    # the Scryfall `discover` keyword (_IR_KEYWORD_MAP, the discover SOURCES) plus a
+    # `discover` effect category for the keyword-less re-trigger payoff (Curator of
+    # Sun's Creation: "Whenever you discover, discover again" — a trigger phase
+    # flattened to event='other', appended by project._narrow_trigger_other_refs and
+    # read via _DOER_EFFECT_KEYS). Its oracle-regex floor detector is deleted; the
+    # serve spec stays hand-registered in signal_specs.py.
     # Foretell (CR 702.143): the foretold-card payoff/engine axis (Alrund, Ranar).
     ("foretell_matters", re.compile(r"\bforetell\b|foretold", re.IGNORECASE), "you"),
     # Undying (CR 702.93a, +1/+1) / Persist (CR 702.79a, -1/-1): the counter-bearing
@@ -3765,6 +3766,20 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # carrier are appended as precise saddle/soulbond marker effects → their lanes.
     "saddle": ("saddle_matters", "you"),
     "soulbond": ("soulbond_matters", "you"),
+    # ADR-0027 trigger-other raw-markers (project._narrow_trigger_other_refs): a
+    # named-mechanic PAYOFF trigger phase flattened to event='other', surviving only
+    # in the effect raw, is appended as a precise marker effect → its lane. coin_flip
+    # / ring_tempt / explore are already mapped above (their effect categories were
+    # already read); these are the remaining payoff anchors. discover/ninjutsu reach
+    # A-B==0 and migrate; boast/exhaust/scry_surveil close their event='other' tail
+    # but a static-grant / delayed-trigger / scry-replacement remainder keeps them on
+    # regex (see ADR-0027). CR 701.57 discover, 702.49 ninjutsu, 702.142 boast,
+    # 702.177 exhaust, 701.22/701.25 scry/surveil.
+    "discover": ("discover_matters", "you"),
+    "ninjutsu": ("ninjutsu_matters", "you"),
+    "boast": ("boast_matters", "you"),
+    "exhaust": ("exhaust_matters", "you"),
+    "scry_surveil": ("scry_surveil_matters", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
@@ -4005,7 +4020,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "venture_matters",
         "foretell_matters",
         "phasing_matters",
-        "ring_matters",
+        # ring_matters removed — ADR-0027 migrated it to the Card IR (structural
+        # ring_tempt effect, including the event='other' tempt trigger + the
+        # Ring-bearer raw-scan), so it no longer needs the regex floor (its
+        # _HAND_FLOOR detector is deleted).
         "convoke_matters",
         "affinity_type",
         "cascade_matters",
@@ -5073,6 +5091,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "monarch_matters",
         "saddle_matters",
         "soulbond_matters",
+        # Group "trigger-other raw-marker" (ADR-0027 projection deepening) — keys
+        # whose tail cards are PAYOFF triggers phase flattened to event='other' (the
+        # consequence is a typed effect; the trigger condition survives only in the
+        # effect raw). project._narrow_trigger_other_refs appends a precise marker
+        # effect (coin_flip / ring_tempt / discover / ninjutsu) read via
+        # _DOER_EFFECT_KEYS, so the lane fires from a NON-floor structural IR source —
+        # A-B==0 (commander-legal, floor lanes disabled). discover/ninjutsu also reuse
+        # the Scryfall keyword; ring also raw-scans "Ring-bearer" (Sauron, no tempt
+        # trigger). Their oracle-regex producers are deleted. boast/exhaust/explore/
+        # scry_surveil got the same markers but a static-grant / delayed-trigger /
+        # replacement-drop remainder keeps them on regex (not migrated). See ADR-0027.
+        "coin_flip",
+        "discover_matters",
+        "ninjutsu_matters",
+        "ring_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

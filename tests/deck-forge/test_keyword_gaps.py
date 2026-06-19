@@ -201,7 +201,11 @@ class TestDiscoverMatters:
             "oracle_text": "When this creature enters, if you cast it, discover 3. (Exile cards from the top of your library until you exile a nonland card with mana value 3 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
             "keywords": ["Discover"],
         }
-        assert "discover_matters" in _keys(appraiser)
+        # ADR-0027: discover_matters migrated to the Card IR — the discover SOURCES
+        # carry the Scryfall `discover` keyword (_IR_KEYWORD_MAP), so it comes
+        # through the hybrid, not the pure regex path.
+        assert "discover_matters" in _keys_hybrid(appraiser)
+        assert "discover_matters" not in _keys(appraiser)
         assert serves(appraiser, _sig("discover_matters", "you"))
 
 

@@ -108,12 +108,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "(?:other [a-z]+ creatures|nonblack creatures|all creatures|creatures) get -\\d/-\\d|gets? -\\d/-\\d until end of turn|gets -0/-x|gets -x/-x|creatures? (?:[^.]{0,40})?get -[0-9x]/-[0-9x]|put a -1/-1 counter on target|put (?:a|one|two|x|\\d+) -1/-1 counters? on|creatures? (?:target player|an opponent|your opponents|each opponent)[^.]*controls?[^.]*base power and toughness [0-2]/[0-2]",
     },
-    {
-        "key": "coin_flip",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "flip a coin|flip (?:two|three|\\d+) coins|wins? (?:the|a) (?:coin )?flip|lose (?:the|a) (?:coin )?flip",
-    },
+    # ADR-0027: coin_flip migrated to the Card IR — the doers land in phase's
+    # coin_flip EFFECT category (_DOER_EFFECT_KEYS), and the "Whenever you win/lose
+    # a coin flip" PAYOFF trigger phase flattened to event='other' is appended as a
+    # coin_flip marker effect (project._narrow_trigger_other_refs). Its oracle-regex
+    # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered in
+    # signal_specs.py (SWEEP_LABELS still carries the human label).
     {
         "key": "topdeck_selection",
         "scope": "you",
@@ -516,12 +516,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "that ability triggers an additional time|triggers? an additional time|trigger an additional time",
     },
-    {
-        "key": "ninjutsu_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bninjutsu\\b",
-    },
+    # ADR-0027: ninjutsu_matters migrated to the Card IR — served structurally from
+    # the Scryfall `ninjutsu`/`commander ninjutsu` keyword (_IR_KEYWORD_MAP) plus a
+    # `ninjutsu` marker effect for the keyword-less payoff commander (Satoru: "Whenever
+    # you activate a ninjutsu ability" — a trigger phase flattened to event='other',
+    # appended by project._narrow_trigger_other_refs). Its oracle-regex SWEEP_DETECTORS
+    # row is deleted; the serve spec stays hand-registered in signal_specs.py.
     {
         "key": "suspend_matters",
         "scope": "you",

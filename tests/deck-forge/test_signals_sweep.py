@@ -33,7 +33,13 @@ def test_representative_sweep_keys_fire_from_oracle():
         ("commander_matters", "Commanders you control have indestructible."),
         ("topdeck_selection", "Look at the top three cards of your library."),
         ("mass_removal", "Destroy all creatures."),
-        ("coin_flip", "Whenever you cast a spell, flip a coin."),
+        # ADR-0027: coin_flip migrated to the Card IR (its SWEEP_DETECTORS row is
+        # deleted), so it no longer fires from the regex path — swapped for another
+        # still-regex sweep key to keep this representativeness check.
+        (
+            "voltron_matters",
+            "Whenever you attach an Equipment to a creature, draw a card.",
+        ),
         ("hand_disruption", "Look at target opponent's hand."),
     ]
     for key, oracle in cases:

@@ -6,7 +6,7 @@ stay clean. Each is a real archetype getting its own avenue.
 """
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
 
 
 def _ks(card):
@@ -51,7 +51,9 @@ CASES = [
         "you",
         "When this creature enters, you take the initiative.",
     ),
-    ("ring_matters", "you", "Whenever this creature attacks, the Ring tempts you."),
+    # ADR-0027: ring_matters migrated to the Card IR (structural ring_tempt effect,
+    # incl. the event='other' tempt trigger + the Ring-bearer raw-scan), so it is
+    # asserted via the hybrid path below, not this regex CASES loop.
     ("venture_matters", "you", "When this creature enters, venture into the dungeon."),
     ("energy_matters", "you", "When this creature enters, you get {E}{E}."),
     (
@@ -306,6 +308,111 @@ def test_soulbond_matters_is_ir_served():
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
     assert ("soulbond_matters", "you") in hybrid
     assert ("soulbond_matters", "you") not in _ks(c)
+
+
+def _triggered_other(category: str, raw: str) -> Card:
+    # The shape project._narrow_trigger_other_refs produces: a triggered ability
+    # phase flattened to event="other", with the precise marker effect appended.
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="other"),
+                        effects=(Effect(category=category, scope="you", raw=raw),),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+def test_coin_flip_is_ir_served():
+    # ADR-0027: coin_flip is IR-served — the "Whenever you win/lose a coin flip"
+    # PAYOFF trigger phase flattened to event="other" is appended as a coin_flip
+    # marker effect (read via _DOER_EFFECT_KEYS), via the hybrid.
+    c = {
+        "name": "Chance Encounter",
+        "type_line": "Enchantment",
+        "oracle_text": (
+            "Whenever you win a coin flip, put a luck counter on this enchantment."
+        ),
+    }
+    ir = _triggered_other(
+        "coin_flip", "Whenever you win a coin flip, put a luck counter on ~."
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("coin_flip", "you") in hybrid
+    assert ("coin_flip", "you") not in _ks(c)
+
+
+def test_discover_matters_is_ir_served():
+    # ADR-0027: discover_matters is IR-served — the keyword-less re-trigger payoff
+    # ("Whenever you discover, discover again" — Curator) is a trigger phase
+    # flattened to event="other", appended as a discover marker effect, via hybrid.
+    c = {
+        "name": "Curator of Sun's Creation",
+        "type_line": "Creature — Human Artificer",
+        "oracle_text": (
+            "Whenever you discover, discover again for the same value. This ability "
+            "triggers only once each turn."
+        ),
+    }
+    ir = _triggered_other(
+        "discover", "Whenever you discover, discover again for the same value."
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("discover_matters", "you") in hybrid
+    assert ("discover_matters", "you") not in _ks(c)
+
+
+def test_ninjutsu_matters_is_ir_served():
+    # ADR-0027: ninjutsu_matters is IR-served — the keyword-less payoff commander
+    # (Satoru: "Whenever you activate a ninjutsu ability") is a trigger phase
+    # flattened to event="other", appended as a ninjutsu marker effect, via hybrid.
+    c = {
+        "name": "Satoru Umezawa",
+        "type_line": "Legendary Creature — Human Ninja",
+        "oracle_text": (
+            "Whenever you activate a ninjutsu ability, look at the top three cards "
+            "of your library."
+        ),
+    }
+    ir = _triggered_other(
+        "ninjutsu",
+        "Whenever you activate a ninjutsu ability, look at the top three cards.",
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("ninjutsu_matters", "you") in hybrid
+    assert ("ninjutsu_matters", "you") not in _ks(c)
+
+
+def test_ring_matters_is_ir_served():
+    # ADR-0027: ring_matters is IR-served — a "Whenever the Ring tempts you" trigger
+    # phase flattened to event="other" AND a "Ring-bearer" reference buried in any
+    # effect raw (Sauron, no tempt trigger) are appended as ring_tempt marker
+    # effects (read via _DOER_EFFECT_KEYS). Both structural shapes, via the hybrid.
+    c = {
+        "name": "Faramir, Field Commander",
+        "type_line": "Legendary Creature — Human Soldier",
+        "oracle_text": (
+            "Whenever the Ring tempts you, if you chose a creature other than "
+            "Faramir, Field Commander as your Ring-bearer, create a 1/1 white Human "
+            "Soldier creature token."
+        ),
+    }
+    ir = _triggered_other(
+        "ring_tempt",
+        "Whenever the Ring tempts you, if you chose a creature other than ~ as your "
+        "Ring-bearer, create a token.",
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("ring_matters", "you") in hybrid
+    assert ("ring_matters", "you") not in _ks(c)
 
 
 def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():

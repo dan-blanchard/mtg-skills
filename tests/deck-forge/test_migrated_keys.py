@@ -486,6 +486,120 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 trigger-other raw-marker batch. Each tail card is a PAYOFF trigger
+    # phase flattened to Trigger(event="other") — the consequence is a typed effect,
+    # the trigger condition survives only in the effect raw, and
+    # project._narrow_trigger_other_refs appends a precise marker effect read via
+    # _DOER_EFFECT_KEYS. coin_flip ← "Whenever you win a coin flip" (Chance
+    # Encounter); discover ← "Whenever you discover, discover again" (Curator);
+    # ninjutsu ← "Whenever you activate a ninjutsu ability" (Satoru); ring ←
+    # "Whenever the Ring tempts you" (Faramir).
+    "coin_flip": (
+        {
+            "name": "Chance Encounter",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever you win a coin flip, put a luck counter on this "
+                "enchantment.\nAt the beginning of your upkeep, if this enchantment "
+                "has ten or more luck counters on it, you win the game."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="coin_flip",
+                        scope="you",
+                        raw="Whenever you win a coin flip, put a luck counter on ~.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "discover_matters": (
+        {
+            "name": "Curator of Sun's Creation",
+            "type_line": "Creature — Human Artificer",
+            "oracle_text": (
+                "Whenever you discover, discover again for the same value. This "
+                "ability triggers only once each turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="discover",
+                        scope="you",
+                        raw="Whenever you discover, discover again for the same value.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "ninjutsu_matters": (
+        {
+            "name": "Satoru Umezawa",
+            "type_line": "Legendary Creature — Human Ninja",
+            "oracle_text": (
+                "Whenever you activate a ninjutsu ability, look at the top three "
+                "cards of your library. Put one of them into your hand and the rest "
+                "on the bottom of your library in any order. This ability triggers "
+                "only once each turn.\nEach creature card in your hand has ninjutsu "
+                "{2}{U}{B}. ({2}{U}{B}, Return an unblocked attacker you control to "
+                "hand: Put this card onto the battlefield from your hand tapped and "
+                "attacking.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="ninjutsu",
+                        scope="you",
+                        raw=(
+                            "Whenever you activate a ninjutsu ability, look at the "
+                            "top three cards of your library."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    "ring_matters": (
+        {
+            "name": "Faramir, Field Commander",
+            "type_line": "Legendary Creature — Human Soldier",
+            "oracle_text": (
+                "At the beginning of your end step, if a creature died under your "
+                "control this turn, draw a card.\nWhenever the Ring tempts you, if "
+                "you chose a creature other than Faramir, Field Commander as your "
+                "Ring-bearer, create a 1/1 white Human Soldier creature token."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="ring_tempt",
+                        scope="you",
+                        raw=(
+                            "Whenever the Ring tempts you, if you chose a creature "
+                            "other than ~ as your Ring-bearer, create a token."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
