@@ -385,6 +385,10 @@ _PLAYER_PREFIX = comb.value(
         comb.tag("target creature "),
         comb.tag("target permanent "),
         comb.tag("another target creature "),
+        comb.tag("each other creature you control "),
+        comb.tag("up to one other target creature "),
+        comb.tag("up to one target creature "),
+        comb.tag("up to one "),
         comb.tag("each creature "),
         comb.tag("all creatures "),
         comb.tag("that player "),
@@ -527,6 +531,7 @@ _VERB = comb.alt(
     # search is a tutor (CR 701.23) regardless of the zone searched.
     comb.value("tutor", comb.tag("search your")),
     comb.value("tutor", comb.tag("search target")),
+    comb.value("pay_cost", comb.tag("pay any amount")),  # "pay any amount of {R}"
     # ETB-with-counters ("enters with X +1/+1 counters") → a counter placement.
     comb.value(
         "place_counter",
@@ -622,7 +627,7 @@ _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
 # The altered SET precedes "cost", so a discriminant scan (like the anthem above).
-_COST_ALTER = re.compile(r"\bcosts?\s+\{[^}]*\}\s+(?:less|more)\b", re.IGNORECASE)
+_COST_ALTER = re.compile(r"\bcosts?\s+(?:\{[^}]*\}\s+)?(?:less|more)\b", re.IGNORECASE)
 # Disambiguate the "gain(s)" family: a life gain ("gains 5 life", "gain that much
 # life") vs control ("gains control of") vs an ABILITY/keyword grant (everything
 # else: "gains flashback", "has hexproof"). \blife\b is word-bounded so "lifelink"
