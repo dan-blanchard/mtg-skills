@@ -671,6 +671,8 @@ _VERB = comb.alt(
     # "you may play that card / those cards / it (this turn)" — impulse/exile play.
     comb.value("cast_from_zone", comb.tag("play that card")),
     comb.value("cast_from_zone", comb.tag("play those cards")),
+    comb.value("cast_from_zone", comb.tag("play cards exiled")),
+    comb.value("gain_control", comb.tag("you control target")),  # mind-control
     # an Aura's "Enchant <X>" — defines what it attaches to (voltron/attach lane).
     comb.value("attach", comb.tag("enchant ")),
     # "Move one or more counters from … onto …" (CR movecounters) -> counter_move.
@@ -766,7 +768,10 @@ def _recover_verb_scan(e: Effect) -> Effect | None:
 # like "gets +X/+X where X is …") OR * (gets */*). The token is punctuated, which the
 # word-combinators normalize away, so a char-level regex is right here.
 # N may be a digit / variable (X,Y,Z) / * / ~ (phase's P/T placeholder, "gets ~/~").
-_GETS_PT = re.compile(r"\bgets? [+-]?[\dxyz*~]+/[+-]?[\dxyz*~]+", re.IGNORECASE)
+# Allow words between "gets" and the P/T token ("gets an additional +2/-2").
+_GETS_PT = re.compile(
+    r"\bgets?\b[^./]{0,18}[+-][\dxyz*~]+/[+-]?[\dxyz*~]+", re.IGNORECASE
+)
 # A type/characteristic STATE conditional ("isn't a creature unless …", "isn't
 # legendary if …") — a static layer effect, its own non-sliced category.
 _STATE = re.compile(
