@@ -596,6 +596,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # manifest
     comb.value("clash", comb.keyword({"clash"})),  # "clash with defending player"
     comb.value("discover", comb.keyword({"discover", "discovers"})),
+    comb.value("make_token", comb.keyword({"investigate", "investigates"})),  # Clue
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
@@ -826,8 +827,12 @@ _CLONE_STATIC = re.compile(
 _FORCE_ATTACK = re.compile(r"\battacks?\b[^.]*\bif able\b", re.IGNORECASE)
 _FORCE_BLOCK = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
 _TEXT_CHANGE = re.compile(
-    r"\bchange the text\b|\bchange ~'s\b|\bchange (?:the )?base power\b", re.IGNORECASE
+    r"\bchange the text\b|\bchange ~'s\b|\bchange\b[^.]{0,15}\bbase power\b",
+    re.IGNORECASE,
 )
+# A characteristic/animation set: "~ is a 2/3 Gargoyle", "~ is a 5/5 Golem artifact
+# creature" — a continuous become-a-creature (CR animate), N/N word-bounded.
+_ANIMATE = re.compile(r"\bis an? [\dx*]+/[\dx*]+\b", re.IGNORECASE)
 _MANA_RESTRICTION = re.compile(
     r"\bspend (?:only|this mana only)\b|\bspend this mana only\b", re.IGNORECASE
 )
@@ -1073,6 +1078,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     # (the subject precedes the verb, so this is a discriminant scan, not a parse).
     if _BECOMES.search(s):
         return replace(e, category="clone" if "copy of" in low else "animate")
+    if _ANIMATE.search(s):
+        return replace(e, category="animate")
     # LAST: a generic "if … would …, instead …" replacement effect (the residual
     # token/counter/mana/draw replacements the specific rules above didn't claim).
     if _REPLACEMENT.search(s):
