@@ -415,6 +415,7 @@ _RETURN = comb.preceded(
     comb.alt(
         comb.value("reanimate", comb.take_until("to the battlefield")),
         comb.value("bounce", comb.take_until("to its owner")),
+        comb.value("bounce", comb.take_until("to their owner")),
         comb.value("bounce", comb.take_until("to their hand")),
         comb.value("bounce", comb.take_until("to your hand")),
         comb.value("bounce", comb.take_until("to the top")),
@@ -457,6 +458,24 @@ _SIMPLE_VERB = comb.alt(
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("topdeck_select", comb.keyword({"look"})),  # "look at the top N …"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
+    # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
+    # one shared `bending` effect category (the per-element synergy lanes are not
+    # IR-sliced, so this only completes the parse).
+    comb.value(
+        "bending",
+        comb.keyword(
+            {
+                "earthbend",
+                "earthbends",
+                "firebend",
+                "firebends",
+                "waterbend",
+                "waterbends",
+                "airbend",
+                "airbends",
+            }
+        ),
+    ),
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(
@@ -478,6 +497,16 @@ _VERB = comb.alt(
     ),
     # "attacks each combat if able" — a forced-attack restriction (CR 508 must-attack).
     comb.value("force_attack", comb.tag("attacks each combat")),
+    # "play lands/cards from the top of your library" etc. — playing from a non-hand
+    # zone (the "from" gate keeps "play an additional land" out). cast_from_zone.
+    comb.value("cast_from_zone", comb.seq2(comb.tag("play"), comb.take_until("from"))),
+    # "remove a/the … counter (from …)" — counter manipulation → place_counter
+    # (counters_matter); the take_until("counter") gate keeps "remove from combat" out.
+    comb.value(
+        "place_counter", comb.seq2(comb.tag("remove"), comb.take_until("counter"))
+    ),
+    # "flip it" — turn the permanent over (flip card / face-down → up): transform.
+    comb.value("transform", comb.tag("flip it")),
     _ADD_MANA,
     _PUT,
     _CREATE,
@@ -509,12 +538,17 @@ _GETS_PT = re.compile(r"\bgets? [+-]\d+/[+-]\d+", re.IGNORECASE)
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
+# A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
+# The altered SET precedes "cost", so a discriminant scan (like the anthem above).
+_COST_ALTER = re.compile(r"\bcosts?\s+\{[^}]*\}\s+(?:less|more)\b", re.IGNORECASE)
 
 
 def _recover_static_pattern(e: Effect) -> Effect | None:
     s = _FAILED_PREFIX.sub("", e.raw).strip()
     if _GETS_PT.search(s):
         return replace(e, category="pump")
+    if _COST_ALTER.search(s):
+        return replace(e, category="cost_reduction")
     if _CANT.search(s):
         return replace(e, category="restriction")
     low = s.lower()
