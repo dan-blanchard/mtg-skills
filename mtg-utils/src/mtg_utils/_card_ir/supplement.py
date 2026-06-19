@@ -605,7 +605,6 @@ _SIMPLE_VERB = comb.alt(
     comb.value("regenerate", comb.keyword({"regenerate", "regenerates"})),  # CR 701.19
     comb.value("convert", comb.keyword({"convert", "converts"})),  # FF convert
     comb.value("station", comb.keyword({"station", "stations"})),  # spacecraft Station
-    comb.value("reanimate", comb.keyword({"soulshift"})),  # "has soulshift X"
     comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # CR 701.34
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
@@ -615,7 +614,10 @@ _SIMPLE_VERB = comb.alt(
     # to the mechanic each one IS (generalizes to any card with the keyword).
     comb.value("sacrifice", comb.keyword({"devour", "devours"})),  # CR 702.81
     comb.value("vanishing", comb.keyword({"vanishing"})),  # CR 702.62 time counters
-    comb.value("reanimate", comb.keyword({"soulshift"})),  # CR 702.46 return from GY
+    # Soulshift returns a card from GY to HAND (CR 702.46) — graveyard recursion,
+    # NOT reanimation (which is GY→battlefield). Mislabeling it "reanimate" wrongly
+    # marked Spirit-tribal commanders as reanimators.
+    comb.value("graveyard_recursion", comb.keyword({"soulshift"})),  # CR 702.46
     comb.value("cost_reduction", comb.keyword({"multikicker"})),  # CR 702.33
     comb.value("cast_from_zone", comb.keyword({"foretell", "foretells"})),  # 702.143
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"

@@ -133,7 +133,9 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "reveal": "reveal",
     "chooseoneof": "choose",
     "choosefromzone": "choose",
-    "giveplayercounter": "place_counter",  # poison / energy / experience / rad
+    # giveplayercounter is NOT here — it routes by counter_kind in _project_effect
+    # (CR 122.1: counter kinds are non-interchangeable; a player poison/energy
+    # counter is not a +1/+1 creature counter).
     "madnesscast": "cast_from_zone",
     "adapt": "place_counter",  # CR 701.43 — +1/+1 counters if it has none
     "bolster": "place_counter",  # CR 701.36 — +1/+1 on the weakest creature
@@ -767,6 +769,18 @@ def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
     return out
 
 
+# GivePlayerCounter.counter_kind → the IR category. Energy reuses the gainenergy
+# category; poison/experience route to their own (the matching *_matters lanes
+# already exist). Rad/ticket and unknown kinds stay distinct from +1/+1 counters.
+_PLAYER_COUNTER_CATEGORY: dict[str, str] = {
+    "poison": "poison",
+    "energy": "energy",
+    "experience": "experience_counter",
+    "rad": "rad_counter",
+    "ticket": "ticket_counter",
+}
+
+
 def _project_effect(eff: dict, raw: str) -> list[Effect]:
     etype = _norm(eff.get("type"))
     if etype in _RECURSE:
@@ -802,6 +816,23 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
                 scope=_effect_scope(eff),
                 subject=_effect_subject(eff),
                 raw=raw,
+            )
+        ]
+    if etype == "giveplayercounter":
+        # CR 122.1 — "a counter is not a token, and a token is not a counter"; counter
+        # KINDS are likewise non-interchangeable. A player poison/energy/experience
+        # counter is NOT a +1/+1 creature counter, so route by `counter_kind` instead
+        # of folding into place_counter (the +1/+1 / counters_matter lane). Energy
+        # reuses the gainenergy category for consistency.
+        kind = _norm(eff.get("counter_kind"))
+        cat = _PLAYER_COUNTER_CATEGORY.get(kind, "player_counter")
+        return [
+            Effect(
+                category=cat,
+                amount=_amount(eff),
+                scope=_effect_scope(eff),
+                raw=raw,
+                counter_kind=kind,
             )
         ]
     if etype == "createdelayedtrigger":

@@ -3762,6 +3762,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "regenerate": ("regenerate_matters", "you"),
     "ring_tempt": ("ring_matters", "you"),
     "energy": ("energy_matters", "you"),
+    # Player-counter givers (GivePlayerCounter, split by kind in project.py — CR
+    # 122.1). poison/rad land on opponents (a kill clock / penalty); experience is
+    # a personal resource. ticket/unknown player counters stay lane-less (niche).
+    "poison": ("poison_matters", "opponents"),
+    "experience_counter": ("experience_matters", "you"),
+    "rad_counter": ("rad_counter_matters", "opponents"),
     "phasing": ("phasing_matters", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
@@ -4347,7 +4353,10 @@ def extract_signals_ir(
                 add("creatures_matter", "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
                 add("lifegain_matters", "you", "", e.raw)
-            if e.category in ("reanimate", "mill"):
+            # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard
+            # payoff but NOT reanimation — it feeds graveyard_matters without the
+            # reanimator / creature_recursion lanes (those are GY→battlefield).
+            if e.category in ("reanimate", "mill", "graveyard_recursion"):
                 add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
             # token_maker only when the token goes to YOU — "destroy target
             # creature, its controller makes a Beast" (scope opp) is removal.
