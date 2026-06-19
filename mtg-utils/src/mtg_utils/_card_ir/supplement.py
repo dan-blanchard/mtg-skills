@@ -702,7 +702,10 @@ _ASSIGN_DAMAGE = re.compile(r"\bassigns? (?:no )?combat damage\b", re.IGNORECASE
 # continuous type set/grant. Its own non-sliced category.
 _TYPE_SET = re.compile(
     r"\bare (?:the chosen|every basic land type|all basic land types|"
-    r"[a-z]+ lands?\b)",
+    r"[a-z]+ lands?\b|white|blue|black|red|green)"
+    # the "in addition to (its/their) other …" frame is the type-ADDING tell
+    # ("Each land is a Swamp in addition to its other land types").
+    r"|\bin addition to (?:its|their|your) other\b",
     re.IGNORECASE,
 )
 # A player keyword grant — "You have hexproof/shroud/protection/…": grant_keyword,
