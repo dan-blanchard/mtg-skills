@@ -32,7 +32,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir import _combinators as comb
-from mtg_utils.card_ir import Card, Effect, Filter, Quantity
+from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity
 
 # ── scope recovery (phase structures scope on only a sliver of abilities) ──────
 # Narrow Tinybones rule: combat-damage-to-a-player + that-player's-zone → opp.
@@ -684,24 +684,33 @@ def _is_noneffect_label(e: Effect) -> bool:
     return e.category == "other" and bool(_CHAPTER_LABEL.match((e.raw or "").strip()))
 
 
+def _is_empty_other(e: Effect) -> bool:
+    return e.category == "other" and not (e.raw or "").strip()
+
+
+def _clean_ability(ab: Ability) -> Ability:
+    """Supplement each effect, then drop two kinds of non-effect `other`: a bare Saga
+    chapter LABEL (timing marker), and a TEXTLESS `other` when the ability also has a
+    structured (recovered) effect — phase emitted a contentless node alongside the real
+    effect (e.g. a tutor's reveal sub-step), so it's a redundant artifact carrying no
+    information. A textless `other` that is an ability's SOLE content is KEPT: that
+    ability was wholly lost, and the card should stay honestly partial."""
+    supplemented = [_supplement_effect(e) for e in ab.effects]
+    has_structured = any(e.category != "other" for e in supplemented)
+    kept = [
+        e
+        for e in supplemented
+        if not _is_noneffect_label(e) and not (has_structured and _is_empty_other(e))
+    ]
+    return replace(ab, effects=tuple(kept))
+
+
 def supplement_card(card: Card) -> Card:
-    """Return *card* with each effect's category/scope recovered from its raw, and
-    bare chapter-label `other` effects dropped (timing markers, not effects)."""
+    """Return *card* with each effect's category/scope recovered from its raw, and the
+    non-effect `other`s dropped (chapter labels; redundant textless nodes). See
+    :func:`_clean_ability`."""
     faces = tuple(
-        replace(
-            face,
-            abilities=tuple(
-                replace(
-                    ab,
-                    effects=tuple(
-                        out
-                        for e in ab.effects
-                        if not _is_noneffect_label(out := _supplement_effect(e))
-                    ),
-                )
-                for ab in face.abilities
-            ),
-        )
+        replace(face, abilities=tuple(_clean_ability(ab) for ab in face.abilities))
         for face in card.faces
     )
     return replace(card, faces=faces)
