@@ -211,6 +211,31 @@ popularity, which the gate forbids).
 _Avoid_: "dungeon matters" (the contentless, generic version this replaces — the point is
 the *specific* dungeon's rooms, not dungeons in the abstract).
 
+**Payoff avenue** vs **Source avenue** (the two halves of a mechanic):
+A `<mechanic>_matters` signal is a *payoff/enabler* fact ("this deck wants to suit up" —
+the commander, the equip-cost reducer, the extra-combat). A **Source avenue** is the
+separate lane of cards that *are or produce* the thing the payoff wants (the Auras &
+Equipment to suit up). Both are real, focusable [[Exploration avenue]]s; the Source
+avenue is a [[SubAvenue]] of the payoff signal's spec, so one signal fans out into a
+payoff lane + a source lane the human can focus and count independently. The split
+exists for *balance visibility* — "I have 6 sources but only 1 payoff" is unreadable
+from one fused list. The canonical *fully-realized* instance is the subject-keyed tribal split: a
+`type_matters:Goblin` signal already fans into "Goblin tribal" (the bodies = source),
+"Goblin payoffs" (lords/anthems), and "Goblin enablers" (type-changers) as three
+[[SubAvenue]]s. The 46 fused *non-subject* specs (voltron, artifacts_matter,
+spellcast_matters, …) are the ones NOT yet brought into line — each fuses an oracle
+payoff pattern with a `serve_types`/`serve_keywords` source into one avenue. The
+generalization: derive the payoff avenue from `serve.oracle` and the Source avenue from
+`serve.types`/`keywords` (+ the `serve_not` veto), the static-membership analogue of
+what `_subject_spec` does for tribes. A small DENYLIST of *modifier* keywords (haste,
+indestructible, trample, the evasion set) keeps a property keyword from spawning a
+junk "pool" lane. Two source FLAVORS exist and stay distinct: a *membership* source
+(you ARE the thing — type/keyword serve, e.g. auras) vs an *effect* source (you MAKE
+the thing — a detector signal, e.g. `token_maker`, which is subject-keyed and correctly
+its own lane).
+_Avoid_: "piece" as a lane name (a Source avenue may *produce* the thing, not just *be*
+it — token_maker makes tokens), "the voltron lane" (there are two: payoff + source).
+
 **Signal key**:
 The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between
 the detector (`signals.py`, which emits it) and the exploitation map (`signal_specs.py`,
