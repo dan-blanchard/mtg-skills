@@ -1259,14 +1259,20 @@ def test_enchantress_first_spell_opens_enchantments():
 
 
 def test_for_each_creature_opens_creatures_matter():
-    # Shanna: "gets +1/+1 for each creature you control" — singular count the plural
-    # "creatures you control" substring missed.
+    # Shanna: "gets +1/+1 for each creature you control" — a singular count operand.
+    # creatures_matter MIGRATED to the Card IR (ADR-0027), so it fires from the
+    # board_count marker the projection recovers, via the hybrid path — NOT the
+    # deleted regex producer.
+    from mtg_utils._card_ir.project import project_card
+
     card = {
         "name": "Shanna, Sisay's Legacy",
         "type_line": "Legendary Creature — Human Warrior",
         "oracle_text": "Shanna can't be the target of abilities your opponents control.\nShanna gets +1/+1 for each creature you control.",
     }
-    assert "creatures_matter" in {s.key for s in extract_signals(card)}
+    ir = project_card([{**card, "scryfall_oracle_id": "shanna"}])
+    assert "creatures_matter" not in {s.key for s in extract_signals(card)}
+    assert "creatures_matter" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 def test_ability_words_open_their_lane():

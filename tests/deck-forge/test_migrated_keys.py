@@ -24,7 +24,16 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Condition, Effect, Face, Filter, Trigger
+from mtg_utils.card_ir import (
+    Ability,
+    Card,
+    Condition,
+    Effect,
+    Face,
+    Filter,
+    Quantity,
+    Trigger,
+)
 
 
 def _ir(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
@@ -690,6 +699,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # The go-wide scaling lane. The IR mirrors a board_count marker — a count operand
+    # over the GENERIC creature board (Crusader's P/T == number of creatures you
+    # control), the headline source the structured projection now recovers.
+    "creatures_matter": (
+        {
+            "name": "Crusader of Odric",
+            "type_line": "Creature — Human Soldier",
+            "oracle_text": (
+                "Crusader of Odric's power and toughness are each equal to the "
+                "number of creatures you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="board_count",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        amount=Quantity(
+                            op="count",
+                            subject=Filter(card_types=("Creature",), controller="you"),
+                        ),
+                        raw="equal to the number of creatures you control",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
@@ -708,3 +747,64 @@ def test_migrated_key_left_regex_and_is_ir_served(key):
     hybrid_keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert key not in regex_keys, f"{key} still emitted by the legacy regex path"
     assert key in hybrid_keys, f"{key} not served by the hybrid IR path"
+
+
+def test_creatures_matter_mass_grant_fires_via_ir():
+    """A MASS keyword grant to the generic creature board (Champion of Lambholt's
+    CantBeBlockedBy) → creatures_matter via the IR grant_keyword arm, not regex."""
+    card = {
+        "name": "Champion of Lambholt",
+        "type_line": "Legendary Creature — Human Warrior",
+        "oracle_text": (
+            "Creatures with power less than this creature's power can't block "
+            "creatures you control.\nWhenever another creature you control enters, "
+            "put a +1/+1 counter on this creature."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="grant_keyword",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",), controller="you"),
+                    counter_kind="unblockable",
+                    raw="creatures you control can't be blocked",
+                ),
+            ),
+        )
+    )
+    assert "creatures_matter" not in {s.key for s in extract_signals(card)}
+    assert "creatures_matter" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_creatures_matter_does_not_fire_on_a_subtype_lord():
+    """The over-fire boundary: a SUBTYPE lord ("Goblin creatures you control get
+    +1/+1") is tribal (type_matters, CR 205.3), NOT the generic go-wide lane — its
+    IR pump subject carries the Goblin subtype, so the generic-set gate rejects it."""
+    card = {
+        "name": "Goblin King",
+        "type_line": "Creature — Goblin",
+        "oracle_text": (
+            "Other Goblin creatures you control get +1/+1 and have mountainwalk."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        subtypes=("Goblin",),
+                        controller="you",
+                    ),
+                    raw="Other Goblin creatures you control get +1/+1",
+                ),
+            ),
+        )
+    )
+    assert "creatures_matter" not in {s.key for s in extract_signals_hybrid(card, ir)}

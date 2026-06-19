@@ -227,13 +227,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "opponents",
     ),
-    # Plural "creatures you control" OR the singular go-wide count "for each creature
-    # you control" (Shanna: P/T scales with your creature count).
-    (
-        "creatures_matter",
-        lambda c: "creatures you control" in c or "for each creature you control" in c,
-        "you",
-    ),
+    # creatures_matter (the go-wide scaling lane) MIGRATED to the Card IR (ADR-0027):
+    # its over-broad "creatures you control"/"for each creature you control" substring
+    # producer is DELETED. The lane now fires from the structural IR — count/aggregate
+    # operands over your generic creature board, team anthems (pump/grant/base-P/T),
+    # mass keyword/evasion grants, mass untaps, and the token-maker cross-open — served
+    # via extract_signals_hybrid (MIGRATED_KEYS). The substring producer over-fired on
+    # subtype/color lords, single targets, attack/combat triggers, and cost taps; the
+    # IR over-fire boundary (generic-set, no subtype) keeps those out. serve spec stays
+    # in signal_specs.
     # Creature RECURSION engine (Hua Tuo, Adun, Othelm): a repeatable "return/put/choose
     # a creature card (in|from) your graveyard" ability. Distinct from broad
     # graveyard_matters — it loops a single creature, so it wants SELF-SACRIFICING
@@ -5401,6 +5403,22 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "affinity_type",
         "damage_reflect",
         "evasion_denial",
+        # Group "go-wide count-over-own-board" (ADR-0027 projection deepening) — the
+        # headline scaling lane. creatures_matter fires from STRUCTURAL IR alone (it is
+        # NOT in _IR_FLOOR_LANES — its broad oracle floor was never floor-mirrored into
+        # the IR path): a COUNT/AGGREGATE operand over your generic creature board (a
+        # SetDynamicPower / ModifyCost-Reduce / Aggregate-Sum / replacement-counter
+        # count, plus phase's named formidable condition and the for-each / X-is-count
+        # oracle markers), a TEAM ANTHEM (pump / keyword grant / base-P/T set over the
+        # generic set), a MASS keyword/evasion grant (CantBeBlockedBy static + the
+        # narrow oracle mass-grant marker), a MASS untap (SetTapState scope=All + the
+        # "untap all creatures you control" marker), and the token-maker cross-open.
+        # All 14 adjudicated gaps fire structurally; the floor-disabled A-B residual is
+        # 100% over-fire (subtype/color lords = type_matters CR 205.3, single-target,
+        # attack/combat triggers, cost taps). Its over-broad oracle-regex _DETECTORS
+        # producer ("creatures you control"/"for each creature you control" substring)
+        # is deleted; the serve spec stays in signal_specs. See ADR-0027.
+        "creatures_matter",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

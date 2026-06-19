@@ -18,7 +18,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Face, Filter, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _ksub(card):
@@ -74,11 +74,37 @@ def test_type_matters_from_count_clause_and_token_maker_together():
 
 
 def test_type_matters_rejects_generic_creatures_word():
-    # "Creatures you control get" must NOT become a junk subject — it stays the
-    # generic creatures_matter signal.
+    # "Creatures you control get" must NOT become a junk type_matters subject — it is
+    # the generic go-wide lane. creatures_matter MIGRATED to the Card IR (ADR-0027), so
+    # it fires from the team-anthem pump arm via the hybrid path, never type_matters.
     c = {"name": "Anthem", "oracle_text": "Creatures you control get +1/+1."}
-    assert ("creatures_matter", "") in {(s.key, s.subject) for s in extract_signals(c)}
-    assert "type_matters" not in _keys(c)
+    ir = Card(
+        oracle_id="x",
+        name="Anthem",
+        faces=(
+            Face(
+                name="Anthem",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="pump",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",), controller="you"
+                                ),
+                                raw="Creatures you control get +1/+1.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.subject) for s in extract_signals_hybrid(c, ir)}
+    assert ("creatures_matter", "") in hybrid
+    assert "type_matters" not in {s.key for s in extract_signals_hybrid(c, ir)}
 
 
 def test_type_matters_irregular_plural_resolves():

@@ -3,7 +3,8 @@ workflow surfaced as clean, measured wins). Each recovers a real archetype the
 12-detector baseline missed, with a structural anchor that keeps it precise.
 """
 
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
 
 
 def _ks(card):
@@ -139,10 +140,39 @@ def test_mana_amplifier():
 
 def test_keyword_granting_team_is_not_a_separate_signal():
     # Deliberately NOT added — team keyword grants are already covered by
-    # creatures_matter (the workflow flagged this family do-not-add).
+    # creatures_matter (the workflow flagged this family do-not-add). creatures_matter
+    # MIGRATED to the Card IR (ADR-0027), so the team grant fires it via the grant_
+    # keyword arm on the hybrid path.
     c = {
         "name": "Team Buff",
         "oracle_text": "Other creatures you control have flying.",
     }
+    ir = Card(
+        oracle_id="x",
+        name="Team Buff",
+        faces=(
+            Face(
+                name="Team Buff",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="grant_keyword",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",), controller="you"
+                                ),
+                                counter_kind="flying",
+                                raw="Other creatures you control have flying.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
     assert "team_keyword_grant" not in _keys(c)
-    assert ("creatures_matter", "you") in _ks(c)
+    assert ("creatures_matter", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
