@@ -729,6 +729,7 @@ def _project_trigger(tr: dict) -> Ability:
         event=_trigger_event(tr),
         subject=_filter(tr.get("valid_card")),
         scope=_trigger_scope(tr),
+        zones=_zone_tags(tr),
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
     return _recover_clone_subjects(

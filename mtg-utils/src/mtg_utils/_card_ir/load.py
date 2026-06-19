@@ -19,7 +19,8 @@ from mtg_utils.card_ir import Card
 
 # Bump when the sidecar payload shape changes so old sidecars are rebuilt.
 # v2: Effect.zones (directional zone refs) + Ability.condition (Condition node).
-SIDECAR_VERSION = 2
+# v3: Trigger.zones (directional zone refs of a ChangeZone trigger).
+SIDECAR_VERSION = 3
 
 
 def card_ir_dir() -> Path:

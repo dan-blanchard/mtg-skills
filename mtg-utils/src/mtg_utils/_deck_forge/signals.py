@@ -4760,6 +4760,18 @@ def extract_signals_ir(
                 elif cond.counter_kind in _COUNTER_KIND_KEYS:
                     ck_key, ck_scope = _COUNTER_KIND_KEYS[cond.counter_kind]
                     add(ck_key, ck_scope, "", "")
+        # Trigger-gated graveyard_matters (the trigger-dimension projection): a
+        # trigger on cards ENTERING the graveyard from a non-battlefield zone
+        # (mill / "put into your graveyard from anywhere" — Syr Konrad) or LEAVING
+        # the graveyard cares about graveyards. The battlefield→graveyard case is
+        # `dies` (death_matters, not graveyard synergy), so it's gated out — exactly
+        # the Effect.zones policy, now on the trigger's zone movement.
+        trg = ab.trigger
+        if trg is not None and (
+            "from:graveyard" in trg.zones
+            or ("to:graveyard" in trg.zones and "from:battlefield" not in trg.zones)
+        ):
+            add("graveyard_matters", "you", "", "")
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))

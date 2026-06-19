@@ -101,6 +101,12 @@ class Trigger:
     event: str  # see EVENTS
     subject: Filter | None = None
     scope: str = "any"  # you | opp | each | any
+    # Directional zone refs of a ChangeZone trigger ("whenever a card is put into
+    # your graveyard" → ("to:graveyard",)), same shape as Effect.zones. The `event`
+    # collapses the zone movement to etb/dies/leaves; zones keeps it for the
+    # zone-matters lanes (a dies trigger is from:battlefield+to:graveyard, so signals
+    # can tell graveyard-FILL from death).
+    zones: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -353,6 +359,8 @@ def _trigger_to_dict(t: Trigger | None) -> dict | None:
         out["sub"] = sub
     if t.scope != "any":
         out["sc"] = t.scope
+    if t.zones:
+        out["z"] = list(t.zones)
     return out
 
 
@@ -363,6 +371,7 @@ def _trigger_from_dict(d: dict | None) -> Trigger | None:
         event=d["ev"],
         subject=_filter_from_dict(d.get("sub")),
         scope=d.get("sc", "any"),
+        zones=tuple(d.get("z", ())),
     )
 
 
