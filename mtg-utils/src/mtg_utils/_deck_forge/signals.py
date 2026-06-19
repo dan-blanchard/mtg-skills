@@ -3834,12 +3834,6 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "discover": (("discover_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
-    # Face-down 2/2 keywords (CR 702.36 morph / 702.166 disguise) — phase folds the
-    # ability to stripped reminder text, so the IR emits no manifest/cloak category
-    # for them; fire facedown_matters straight off the Scryfall keyword instead.
-    "morph": (("facedown_matters", "you"),),
-    "megamorph": (("facedown_matters", "you"),),
-    "disguise": (("facedown_matters", "you"),),
     "mutate": (("mutate_matters", "you"),),
     "myriad": (("myriad_grant", "you"),),
     "ninjutsu": (("ninjutsu_matters", "you"),),
@@ -3916,6 +3910,22 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # snow is a real supertype (CR 205.4), NOT a skip — the analysis workflow
     # wrongly listed it. A snow-matters payoff cares about snow permanents/mana.
     ("snow_matters", re.compile(r"\bsnow\b", re.IGNORECASE), "you"),
+    # facedown_matters is a CARES-ABOUT lane: it must fire for face-down PAYOFFS
+    # (Ixidor "face-down creatures get +1/+1", Secret Plans, Trail of Mystery), not
+    # just the makers (morph/manifest/cloak/disguise). Those payoffs have no
+    # structural IR form, so mirror the full same-named sweep regex here for parity
+    # (the makers' IR categories + keywords also feed the lane; add() dedups).
+    (
+        "facedown_matters",
+        re.compile(
+            r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
+            r"|face-?down creatures?|as a 2/2 face-?down"
+            r"|turn (?:it|that creature|this creature|them|a permanent you control) "
+            r"face up|turn target [^.]*?face up|turned face up this turn",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
