@@ -600,6 +600,7 @@ _SIMPLE_VERB = comb.alt(
     # Craft (CR 702.166) — exile this + materials, return it transformed: a transform.
     comb.value("transform", comb.keyword({"craft"})),
     comb.value("suspect", comb.keyword({"suspect", "suspects"})),  # CR 701.61
+    comb.value("place_counter", comb.keyword({"adapt", "adapts"})),  # CR 701.43
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
@@ -753,7 +754,7 @@ _VERB_PRESENT = re.compile(
     r"|discards?|taps?|untaps?|puts?|searches?|counter|scry|scries|surveils?"
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
-    r"|fights?|switch|switches)\b",
+    r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?)\b",
     re.IGNORECASE,
 )
 
