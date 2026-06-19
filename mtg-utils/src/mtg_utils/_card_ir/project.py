@@ -443,16 +443,29 @@ def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
     return replace(ab, effects=tuple(out)) if changed else ab
 
 
+# A bare Saga "Chapter N" label that the supplement drops LATER — at fill time it
+# still occupies the ability, so treat such an ability as empty (mirrors
+# supplement._CHAPTER_LABEL) so the oracle-fill reaches it.
+_CHAPTER_LABEL = re.compile(r"^chapter [\divxlc, ]+$", re.IGNORECASE)
+
+
 def _is_sole_empty(ab: Ability) -> bool:
     """An ability phase recognized (cost/kind/trigger) but whose effect it wholly lost:
-    either NO effects at all (a Saga chapter phase failed -> `triggered: []`) or only
-    textless ``other`` effects. Static abilities are exempt (a no-effect static is a
-    pure characteristic-grant, not a gap)."""
+    NO effects (a Saga chapter phase failed -> `triggered: []`), only textless ``other``
+    effects, or only a chapter-LABEL ``other`` (the supplement drops it later). A static
+    ability is exempt (a no-effect static is a pure characteristic grant, not a gap)."""
     if ab.kind == "static":
         return False
     if not ab.effects:
         return True
-    return all(e.category == "other" and not (e.raw or "").strip() for e in ab.effects)
+    return all(
+        e.category == "other"
+        and (
+            not (e.raw or "").strip()
+            or bool(_CHAPTER_LABEL.match((e.raw or "").strip()))
+        )
+        for e in ab.effects
+    )
 
 
 def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Ability]:
@@ -477,6 +490,18 @@ def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Abi
                 fills.append(eff)
         if fills:
             abilities[empties[0]] = replace(abilities[empties[0]], effects=tuple(fills))
+            return abilities
+        # POSITION fallback (e.g. a Saga chapter whose effect duplicates another
+        # chapter's, so nothing is "missing"): the empty's effect is the recovered
+        # oracle effect at its index — abilities and oracle sentences are in order.
+        recovered_seq = [
+            eff
+            for s in sentences
+            if (eff := recover_effect_from_text(s)).category != "other"
+        ]
+        i = empties[0]
+        if i < len(recovered_seq):
+            abilities[i] = replace(abilities[i], effects=(recovered_seq[i],))
         return abilities
     # multiple sole-empties: distribute recovered effects across them in oracle order.
     recovered = [
