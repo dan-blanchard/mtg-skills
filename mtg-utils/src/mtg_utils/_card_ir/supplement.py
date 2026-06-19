@@ -594,7 +594,8 @@ _SIMPLE_VERB = comb.alt(
     comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
     comb.value("pay_cost", comb.keyword({"pay"})),  # "Pay 3 life", "pay {2}{R}" (cost)
     comb.value("fight", comb.keyword({"fight", "fights"})),  # "fights target creature"
-    comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # manifest
+    # Manifest = card face down as a 2/2 (CR 701.40), not a token — own category.
+    comb.value("manifest", comb.keyword({"manifest", "manifests"})),
     comb.value("clash", comb.keyword({"clash"})),  # "clash with defending player"
     comb.value("discover", comb.keyword({"discover", "discovers"})),
     comb.value("make_token", comb.keyword({"investigate", "investigates"})),  # Clue
@@ -605,7 +606,6 @@ _SIMPLE_VERB = comb.alt(
     comb.value("regenerate", comb.keyword({"regenerate", "regenerates"})),  # CR 701.19
     comb.value("convert", comb.keyword({"convert", "converts"})),  # FF convert
     comb.value("station", comb.keyword({"station", "stations"})),  # spacecraft Station
-    comb.value("make_token", comb.keyword({"manifest", "manifests"})),  # CR 701.34
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.

@@ -3760,6 +3760,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # reveal_hand → hand_disruption is scope-GATED below (only an opponent-reveal is
     # disruption; "reveal cards in your hand" is a self-reveal, scope "any").
     "regenerate": ("regenerate_matters", "you"),
+    # Face-down 2/2 mechanics (CR 701.40 manifest / 701.58 cloak / 708) and the
+    # turn-face-up payoff all feed the existing facedown_matters lane — manifest is
+    # NOT a token_maker (CR 122.1), so it no longer pollutes that lane.
+    "manifest": ("facedown_matters", "you"),
+    "cloak": ("facedown_matters", "you"),
+    "turn_face_up": ("facedown_matters", "you"),
     "ring_tempt": ("ring_matters", "you"),
     "energy": ("energy_matters", "you"),
     # Player-counter givers (GivePlayerCounter, split by kind in project.py — CR

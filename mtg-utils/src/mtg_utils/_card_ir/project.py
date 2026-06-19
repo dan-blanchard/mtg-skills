@@ -51,8 +51,11 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "incubate": "make_token",
     "amass": "make_token",
     "conjure": "make_token",
-    "manifest": "make_token",
-    "manifestdread": "make_token",
+    # Manifest puts a CARD onto the battlefield face down as a 2/2 (CR 701.40 + 708)
+    # — it is NOT a token (CR 122.1 distinguishes them) and a token doubler does not
+    # double it. Own `manifest` category → facedown_matters, mirroring cloak.
+    "manifest": "manifest",
+    "manifestdread": "manifest",
     "fabricate": "make_token",
     "addcounter": "place_counter",
     "putcounter": "place_counter",
@@ -165,7 +168,10 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "renown": "place_counter",
     "searchoutsidegame": "tutor",
     "vote": "vote",
-    "forceattack": "goad",
+    # A plain "must attack" compulsion is force_attack, NOT goad: goad (CR 701.15a)
+    # also forces the creature to attack a player OTHER than its controller, for one
+    # turn cycle. force_attack feeds the forced_attack lane; goad is reserved for goad.
+    "forceattack": "force_attack",
     "castcopyofcard": "spell_copy",
     "proliferatetarget": "proliferate",
     "counterall": "counter_spell",
