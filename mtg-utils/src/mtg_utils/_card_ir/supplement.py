@@ -548,6 +548,10 @@ _VERB = comb.alt(
     ),
     # "flip it" — turn the permanent over (flip card / face-down → up): transform.
     comb.value("transform", comb.tag("flip it")),
+    # "turn target … face down/up" — morph/cloak/manifest flip: transform.
+    comb.value("transform", comb.seq2(comb.tag("turn"), comb.take_until("face"))),
+    # "enters prepared" (CR keyword) — its own category like becomeprepared->prepared.
+    comb.value("prepared", comb.tag("enters prepared")),
     # "enters tapped" / "enters the battlefield tapped" — an ETB-tapped state (a real
     # mechanic; not IR-sliced, so this only completes the parse).
     comb.value("enters_tapped", comb.tag("enters tapped")),
@@ -597,6 +601,13 @@ _CAN_COMBAT = re.compile(r"\bcan (?:attack|block)\b", re.IGNORECASE)
 # A tuck ("the owner of … shuffles it into their library") — the shuffle verb is
 # preceded by the owner subject, so a discriminant scan recovers it as a shuffle.
 _TUCK = re.compile(r"\bshuffles?\b.{0,60}\blibrary\b", re.IGNORECASE)
+# A timing grant — "cast spells … as though they had flash" -> grant_keyword (flash).
+_FLASH_GRANT = re.compile(r"as though (?:it|they) (?:had|have) flash", re.IGNORECASE)
+# A player keyword grant — "You have hexproof/shroud/protection/…": grant_keyword,
+# gated to real protective keywords so "you have no maximum hand size" stays out.
+_PLAYER_KW_GRANT = re.compile(
+    r"\byou have (?:hexproof|shroud|protection|indestructible|ward)", re.IGNORECASE
+)
 # A characteristic-defining P/T ("[its] power and toughness are each equal to …",
 # "power is equal to …") — a DYNAMIC characteristic, distinct from base_pt_set's
 # FIXED "base power and toughness N/N" (conflating them floods that lane), so its own
@@ -654,6 +665,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="characteristic_pt")
     if _STATE.search(s):
         return replace(e, category="state")
+    if _FLASH_GRANT.search(s) or _PLAYER_KW_GRANT.search(s):
+        return replace(e, category="grant_keyword")
     low = s.lower()
     # The gain/have family: a life gain or control gain (any subject), else a
     # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
