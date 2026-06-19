@@ -364,11 +364,20 @@ _BARE_TRIGGER = re.compile(r"^(?:when|whenever|at|as)\b[^,.]*$", re.IGNORECASE)
 # Self-reference phrases phase folds to ``~`` ("When this creature enters" ->
 # "When ~ enters"). Newer cards use "this creature"/"this permanent" in oracle text
 # rather than the card name, so the oracle must be folded the same way to match.
+# Self-reference phrases phase folds to ``~`` ("When this creature enters" ->
+# "When ~ enters"). Newer cards use "this creature"/"this permanent" in oracle text
+# rather than the card name, so the oracle must be folded the same way to match.
+# NOT "this spell": phase keeps "When you cast this spell" literal (the spell on the
+# stack is not the permanent self), so folding it would break that trigger's match.
 _SELF_REF = re.compile(
     r"\bthis (?:creature|permanent|artifact|enchantment|land|planeswalker|saga"
-    r"|vehicle|token|card|spell|equipment|aura|battle|god|kindred)\b",
+    r"|vehicle|token|card|equipment|aura|battle|god|kindred)\b",
     re.IGNORECASE,
 )
+# A leading ability-word / keyword label before a trigger ("Landfall — Whenever a land
+# …", "Alliance — Whenever another creature …") — stripped so a bare-trigger marker
+# matches the trigger condition that follows the em-dash.
+_LEADING_LABEL = re.compile(r"^[A-Za-z][\w '/]{0,28}—\s*")
 
 
 def _self_oracle_sentences(record: dict) -> list[str]:
@@ -376,14 +385,17 @@ def _self_oracle_sentences(record: dict) -> list[str]:
     ``~`` (so a bare-trigger marker's "When ~ enters" matches the oracle's "When this
     creature enters" / "When <Name> enters"). Reminder text is dropped (it is
     explanatory, not the card's primary effect); legendaries also fold the pre-comma
-    short name (Aang, … -> ~)."""
+    short name (Aang, … -> ~); a leading ability-word label ("Landfall — …") is
+    stripped so the trigger after it matches."""
     text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
     name = record.get("name") or ""
     names = {n for n in (name, name.split(",")[0].strip()) if n}
     for n in sorted(names, key=len, reverse=True):
         text = text.replace(n, "~")
     text = _SELF_REF.sub("~", text)
-    return [s.strip() for s in re.split(r"[.\n]", text) if s.strip()]
+    return [
+        _LEADING_LABEL.sub("", s.strip()) for s in re.split(r"[.\n]", text) if s.strip()
+    ]
 
 
 def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
