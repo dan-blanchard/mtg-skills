@@ -4739,7 +4739,8 @@ def extract_signals_ir(
             csub = cond.subject
             if (
                 csub is not None
-                and cond.kind in ("controlstype", "quantitycomparison", "quantitycheck")
+                and cond.kind
+                in ("controlstype", "quantitycomparison", "quantitycheck", "ispresent")
                 and csub.controller != "opp"
             ):
                 cft = _ftypes(csub)
