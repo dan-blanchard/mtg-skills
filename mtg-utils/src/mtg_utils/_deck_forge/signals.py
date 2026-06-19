@@ -4536,6 +4536,24 @@ def extract_signals_ir(
             if e.category != "make_token":
                 for sub in _kindred_subjects(e.subject, vocab):
                     add(signal_keys.TYPE_MATTERS, "you", sub, e.raw)
+            # Filter-PREDICATE lanes — an effect restricted to tapped / attacking
+            # creatures, or permanents WITH a counter, is a payoff for that state
+            # ("tapped creatures you control get…", "attacking creatures get +1/+0",
+            # "creatures you control with a +1/+1 counter have trample"). phase
+            # carries these as filter properties; we only read color/PT today.
+            esub = e.subject
+            if esub is not None:
+                # Tapped / Attacking gate to YOUR permanents — "your tapped/attacking
+                # creatures get …" is the payoff; "destroy target ATTACKING creature"
+                # (controller any) is removal, not an aggro lane.
+                if esub.controller == "you":
+                    if "Tapped" in esub.predicates:
+                        add("tapped_matters", "you", "", e.raw)
+                    if "Attacking" in esub.predicates:
+                        add("attack_matters", "you", "", e.raw)
+                # "a creature with a +1/+1 counter" payoff isn't controller-bound.
+                if esub.controller != "opp" and "Counters" in esub.predicates:
+                    add("counters_matter", "you", "", e.raw)
             # ── Batch E — effect-category lanes ──
             cat = e.category
             ftypes = _ftypes(e.subject)
