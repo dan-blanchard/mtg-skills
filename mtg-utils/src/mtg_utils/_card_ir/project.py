@@ -398,6 +398,31 @@ def _self_oracle_sentences(record: dict) -> list[str]:
     ]
 
 
+def _match_trigger_sentence(raw: str, sentences: list[str]) -> str | None:
+    """The full oracle sentence for a bare-trigger marker. Prefers an exact prefix
+    match; falls back to a trigger sentence CONTAINING all the marker's words (so a
+    marker "Whenever ~ dies" matches a combined "Whenever ~ attacks or dies, …")."""
+    lead = raw.lower()
+    exact = next(
+        (s for s in sentences if s.lower().startswith(lead) and len(s) > len(raw) + 2),
+        None,
+    )
+    if exact is not None:
+        return exact
+    words = lead.split()
+    trig = words[0] if words else ""
+    return next(
+        (
+            s
+            for s in sentences
+            if s.lower().startswith(trig)
+            and len(s) > len(raw) + 2
+            and all(w in s.lower() for w in words)
+        ),
+        None,
+    )
+
+
 def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
     """Replace a triggered ability's bare-condition ``other`` raw with the full
     matching oracle sentence (condition + effect), so the supplement dispatches the
@@ -409,15 +434,7 @@ def _fill_bare_trigger(ab: Ability, sentences: list[str]) -> Ability:
     for e in ab.effects:
         raw = (e.raw or "").strip()
         if e.category == "other" and _BARE_TRIGGER.match(raw):
-            lead = raw.lower()
-            full = next(
-                (
-                    s
-                    for s in sentences
-                    if s.lower().startswith(lead) and len(s) > len(raw) + 2
-                ),
-                None,
-            )
+            full = _match_trigger_sentence(raw, sentences)
             if full is not None:
                 out.append(replace(e, raw=full))
                 changed = True
