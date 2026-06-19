@@ -254,6 +254,31 @@ to a spec, derived from `signals.producible_static_keys()` (a union of the produ
 tables, so it can't lag). The successor to a hand-typed coverage list.
 _Avoid_: "validation", "check" (too generic).
 
+**Card IR**:
+The per-face structured parse of a card — `Filter` / `Quantity` / `Effect` / `Trigger` /
+`Ability` / `Face` / `Card` (`card_ir.py`) — that deck-forge's detection reasons over
+instead of re-grepping oracle text. Projected once from phase-rs's parser output by a
+deterministic *forge projection* (`_card_ir/project.py`) plus a combinator-parser
+*supplement* (`_card_ir/supplement.py`) that fills phase's gaps, then cached to an
+`oracle_id`-keyed sidecar. Unlike a regex it binds the *operand* a card scales with
+(Craterhoof's "for each creature you control") and the *scope* of an effect (Tinybones
+reanimates only from opponents' graveyards), so a [[Signal key]] becomes a derived query
+over structure rather than a substring match. The substrate of the regex→IR cutover
+(ADR-0027).
+_Avoid_: "phase IR" (phase provides the structural substrate; the Card IR is *our*
+payoff/scope-shaped projection of it), "the parser" (the projection consumes phase's
+parse, it is not itself a card parser).
+
+**parse_confidence**:
+The per-card completeness of its [[Card IR]] — `full` when no clause fell through to a
+generic "other" category, `partial` otherwise — derived from phase warnings + supplement
+coverage. The detection-substrate health metric (~100% `full` over commander-legal cards),
+and the value the signal `coverage_gate` reads after the cutover's A4 step (replacing the
+regex blind-spot heuristics). Not a per-firing accuracy score: a fully-parsed card can
+still feed an over-broad lane, which is a downstream gating concern, not a parse gap.
+_Avoid_: "accuracy" (it measures parse completeness, not whether a lane fires correctly),
+"coverage" alone (collides with `coverage_gate`'s blind-spot sense).
+
 ### Roles & surfaces
 
 **Session-agent** (a.k.a. the reasoning layer):
