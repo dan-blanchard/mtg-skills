@@ -340,6 +340,8 @@ _CONNECTIVE_PREFIX = comb.value(
         comb.tag("may "),  # after a player prefix: "target player may draw"
         comb.tag("then "),
         comb.tag("instead "),
+        comb.tag("secretly "),  # "… each secretly choose" -> choose
+        comb.tag("simultaneously "),
     ),
 )
 # An activation cost "{…}…: " (activated abilities) — consume the leading "{" symbol
