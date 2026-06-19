@@ -576,13 +576,33 @@ _RECOVERY_RULES: tuple[ClauseRule, ...] = (
 )
 
 
+# A bare Saga "Chapter N" (optionally "Chapter N, M") that leaked in as its own
+# `other` effect — a chapter-timing LABEL, not a mechanical effect (the chapter's
+# real effect is a sibling effect/trigger). Dropping it un-masks that sibling so the
+# ability isn't held `partial` by a label; a chapter whose effect phase genuinely
+# lost keeps an empty ability and stays partial (honest).
+_CHAPTER_LABEL = re.compile(r"^chapter [\divxlc, ]+$", re.IGNORECASE)
+
+
+def _is_noneffect_label(e: Effect) -> bool:
+    return e.category == "other" and bool(_CHAPTER_LABEL.match((e.raw or "").strip()))
+
+
 def supplement_card(card: Card) -> Card:
-    """Return *card* with each effect's category/scope recovered from its raw."""
+    """Return *card* with each effect's category/scope recovered from its raw, and
+    bare chapter-label `other` effects dropped (timing markers, not effects)."""
     faces = tuple(
         replace(
             face,
             abilities=tuple(
-                replace(ab, effects=tuple(_supplement_effect(e) for e in ab.effects))
+                replace(
+                    ab,
+                    effects=tuple(
+                        out
+                        for e in ab.effects
+                        if not _is_noneffect_label(out := _supplement_effect(e))
+                    ),
+                )
                 for ab in face.abilities
             ),
         )
