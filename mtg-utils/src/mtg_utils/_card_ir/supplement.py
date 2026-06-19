@@ -620,6 +620,9 @@ _VERB = comb.alt(
     # "play lands/cards from the top of your library" etc. — playing from a non-hand
     # zone (the "from" gate keeps "play an additional land" out). cast_from_zone.
     comb.value("cast_from_zone", comb.seq2(comb.tag("play"), comb.take_until("from"))),
+    # "cast … from the top/graveyard/exile" — casting from a non-hand zone (the "from"
+    # gate keeps "cast a copy" out). cast_from_zone.
+    comb.value("cast_from_zone", comb.seq2(comb.tag("cast"), comb.take_until("from"))),
     # "remove a/the … counter (from …)" — counter manipulation → place_counter
     # (counters_matter); the take_until("counter") gate keeps "remove from combat" out.
     comb.value(
@@ -735,11 +738,20 @@ _ASSIGN_DAMAGE = re.compile(r"\bassigns? (?:no )?combat damage\b", re.IGNORECASE
 # continuous type set/grant. Its own non-sliced category.
 _TYPE_SET = re.compile(
     r"\bare (?:the chosen|every basic land type|all basic land types|"
-    r"[a-z]+ lands?\b|white|blue|black|red|green)"
+    r"[a-z]+ lands?\b|white|blue|black|red|green"
+    r"|(?:plains|islands?|swamps?|mountains?|forests?)\b)"
+    r"|\bis an? (?:plains|island|swamp|mountain|forest)\b"
     # the "in addition to (its/their) other …" frame is the type-ADDING tell
     # ("Each land is a Swamp in addition to its other land types").
     r"|\bin addition to (?:its|their|your) other\b",
     re.IGNORECASE,
+)
+# "there is an additional combat phase" / "an additional combat phase after this" —
+# an extra-combat granter (phase's additionalphase category).
+_EXTRA_COMBAT = re.compile(r"\badditional combat phase\b", re.IGNORECASE)
+# "put … on (the) top/bottom of … library/libraries" — a library-position placement.
+_LIBRARY_POS = re.compile(
+    r"\bon (?:the )?(?:top|bottom)\b[^.]{0,40}\b(?:library|libraries)\b", re.IGNORECASE
 )
 # A player keyword grant — "You have hexproof/shroud/protection/…": grant_keyword,
 # gated to real protective keywords so "you have no maximum hand size" stays out.
@@ -819,6 +831,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="combat_damage_mod")
     if _TYPE_SET.search(s):
         return replace(e, category="type_set")
+    if _EXTRA_COMBAT.search(s):
+        return replace(e, category="extra_combats")
+    if _LIBRARY_POS.search(s):
+        return replace(e, category="topdeck_select")
     if _ALT_COST.search(s):
         return replace(e, category="alt_cost")
     if _DAMAGE_REPLACE.search(s):
