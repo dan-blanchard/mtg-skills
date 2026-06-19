@@ -308,15 +308,97 @@ def _recover_create_token(e: Effect) -> Effect | None:
     )
 
 
+# phase tags a line its OWN parser choked on with a diagnostic prefix
+# ("Static pattern matched but line failed static parser: <LINE>"); strip it so the
+# supplement re-parses the real clause underneath.
+_FAILED_PREFIX = re.compile(r"^[^:]*\bline failed\b[^:]*:\s*", re.IGNORECASE)
+
+# Leading imperative verb → effect category, mirroring phase's imperative.rs `tag`
+# dispatch: anchored at the clause start (a noun later in the clause can't trigger
+# it), most-specific first. This is the broad gap-filler — it flips an unrecovered
+# clause from "other" to its true mechanic category (scope/subject stay coarse).
+_VERB_DISPATCH: tuple[tuple[str, str], ...] = (
+    ("deal damage", "damage"),
+    ("gain life", "gain_life"),
+    ("lose life", "lose_life"),
+    ("draw", "draw"),
+    ("exchange control", "gain_control"),
+    ("gain control", "gain_control"),
+    ("sacrifice", "sacrifice"),
+    ("conjure", "make_token"),
+    ("counter target", "counter_spell"),
+    ("counter that", "counter_spell"),
+    ("search your library", "tutor"),
+    ("scry", "topdeck_select"),
+    ("surveil", "topdeck_select"),
+    ("mill", "mill"),
+    ("discard", "discard"),
+    ("untap", "untap"),
+    ("tap", "tap"),
+    ("shuffle", "shuffle"),
+    ("destroy", "destroy"),
+    ("exile", "exile"),
+    ("proliferate", "proliferate"),
+    ("goad", "goad"),
+)
+
+
+def _recover_by_verb(e: Effect) -> Effect | None:
+    s = _FAILED_PREFIX.sub("", e.raw).strip().lower()
+    # "deal [N / X] damage …" — the amount may sit between the verb and "damage".
+    if s.startswith("deal") and "damage" in s[:40]:
+        return replace(e, category="damage")
+    if s.startswith("create"):  # "create a copy of" is a clone, else a token maker
+        return replace(e, category="clone" if "copy of" in s[:40] else "make_token")
+    if s.startswith("choose"):
+        return replace(e, category="choose")
+    if s.startswith("return"):
+        head = s[:70]
+        if "to the battlefield" in head:
+            return replace(e, category="reanimate")
+        if "hand" in head or "to its owner" in head or "top of" in head:
+            return replace(e, category="bounce")
+    if s.startswith("add ") and "mana" in s[:40]:
+        return replace(e, category="ramp")
+    if s.startswith("put ") and "counter" in s[:50]:
+        return replace(e, category="place_counter")
+    for prefix, cat in _VERB_DISPATCH:
+        if s.startswith(prefix):
+            return replace(e, category=cat)
+    return None
+
+
+# Static-line patterns phase's static parser choked on: an anthem (gets +N/+N), a
+# restriction (can't …), or an ability/keyword grant (creatures … have/gain …).
+_GETS_PT = re.compile(r"\bgets? [+-]\d+/[+-]\d+", re.IGNORECASE)
+_CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
+_HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
+
+
+def _recover_static_pattern(e: Effect) -> Effect | None:
+    s = _FAILED_PREFIX.sub("", e.raw).strip()
+    if _GETS_PT.search(s):
+        return replace(e, category="pump")
+    if _CANT.search(s):
+        return replace(e, category="restriction")
+    low = s.lower()
+    if _HAVE_GAIN.search(s) and ("creature" in low or "permanent" in low):
+        return replace(e, category="grant_keyword")  # coarse — no keyword/subject yet
+    return None
+
+
 # The recovery registry. Order matters: the first matching rule wins, so put the
 # most specific clauses first. Doubling is tried before create_token (a "twice that
-# many … tokens" clause is a doubler, not a plain token maker). Grow this as the
-# fan-out owns more of the tail — each rule is a structured node, not a boolean.
+# many … tokens" clause is a doubler, not a plain token maker). The two broad
+# dispatchers (leading-verb, then static-pattern) run LAST — the catch-all gap-filler
+# after the specific structured recoveries. Grow this as the fan-out owns more tail.
 _RECOVERY_RULES: tuple[ClauseRule, ...] = (
     ClauseRule("graveyard_cast", _recover_graveyard_cast),
     ClauseRule("vote", _recover_vote),
     ClauseRule("doubling", _recover_doubling),
     ClauseRule("create_token", _recover_create_token),
+    ClauseRule("by_verb", _recover_by_verb),
+    ClauseRule("static_pattern", _recover_static_pattern),
 )
 
 

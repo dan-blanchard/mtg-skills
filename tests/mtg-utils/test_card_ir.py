@@ -517,6 +517,39 @@ def test_create_delayed_trigger_recurses_into_stored_effect():
     assert any(e.category == "draw" for e in _effects(project_card([rec])))
 
 
+def test_supplement_verb_dispatch_recovers_unimplemented():
+    """The supplement's leading-verb dispatch flips a phase-Unimplemented clause from
+    'other' to its real category (deal damage -> damage, conjure -> make_token)."""
+    dmg = _effects(
+        project_card(
+            [_spell({"type": "Unimplemented"}, "Deal 3 damage to any target.")]
+        )
+    )
+    assert any(e.category == "damage" for e in dmg)
+    tok = _effects(
+        project_card([_spell({"type": "Unimplemented"}, "Conjure a duplicate card.")])
+    )
+    assert any(e.category == "make_token" for e in tok)
+
+
+def test_supplement_static_dispatch_recovers_failed_line():
+    """A line phase's static parser choked on (carried in the diagnostic prefix) is
+    re-parsed: an anthem -> pump."""
+    rec = _spell(
+        {"type": "Unimplemented"},
+        "Static pattern matched but line failed static parser: "
+        "Equipped creature gets +2/+2.",
+    )
+    assert any(e.category == "pump" for e in _effects(project_card([rec])))
+
+
+def test_supplement_dispatch_leaves_unmatched_as_other():
+    """A clause with no recognizable leading verb / static shape stays 'other' (no
+    false recovery)."""
+    rec = _spell({"type": "Unimplemented"}, "Otherwise")
+    assert all(e.category == "other" for e in _effects(project_card([rec])))
+
+
 def test_tier2_effects_map_to_real_categories():
     """Tier-2 parse-completeness: adapt/bolster put +1/+1 counters; myriad/encore
     make tokens; madness casts from exile; WinTheGame is a win effect (key fix)."""
