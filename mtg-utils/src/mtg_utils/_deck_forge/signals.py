@@ -4725,14 +4725,40 @@ def extract_signals_ir(
             # cards in your hand" — is scope "any" and not disruption).
             if cat == "reveal_hand" and e.scope == "opp":
                 add("hand_disruption", "opponents", "", e.raw)
-        # Condition-gated graveyard_matters (the conditions projection): an ability
-        # GATED on the graveyard — "if a creature card is in your graveyard"
-        # (threshold/delirium), "if ~ is in your graveyard", a graveyard-count
-        # comparison — cares about graveyards. phase carries the gate in `condition`;
-        # we read its recursive zone set. This is where the diffuse bulk of the lane
-        # lives (the gate, not an effect zone-move).
-        if ab.condition is not None and "graveyard" in ab.condition.zones:
-            add("graveyard_matters", "you", "", "")
+        # ── Condition-gated lanes (the conditions projection) ──
+        cond = ab.condition
+        if cond is not None:
+            # Graveyard gate — "if a creature card is in your graveyard"
+            # (threshold/delirium), "if ~ is in your graveyard", a graveyard count.
+            if "graveyard" in cond.zones:
+                add("graveyard_matters", "you", "", "")
+            # Gate on a TYPE you control/count (ControlsType / "control three or more
+            # artifacts" = metalcraft/affinity / a tribal gate) → that type matters.
+            # Skip the generic Creature/Permanent gates (≈ every creature deck) and
+            # any opponent-controlled gate (a removal condition, not your synergy).
+            csub = cond.subject
+            if (
+                csub is not None
+                and cond.kind in ("controlstype", "quantitycomparison", "quantitycheck")
+                and csub.controller != "opp"
+            ):
+                cft = _ftypes(csub)
+                if "Artifact" in cft:
+                    add("artifacts_matter", "you", "", "")
+                if "Enchantment" in cft:
+                    add("enchantments_matter", "you", "", "")
+                if "Planeswalker" in cft:
+                    add("superfriends_matters", "you", "", "")
+                for st in _kindred_subjects(csub, vocab):
+                    add(signal_keys.TYPE_MATTERS, "you", st, "")
+            # Gate on a COUNTER kind ("if ~ has a +1/+1 counter", oil/ki/m1m1/…) →
+            # the counter lane (mirrors the place_counter counter_kind dispatch).
+            if cond.kind == "hascounters":
+                if cond.counter_kind == "p1p1":
+                    add("counters_matter", "you", "", "")
+                elif cond.counter_kind in _COUNTER_KIND_KEYS:
+                    ck_key, ck_scope = _COUNTER_KIND_KEYS[cond.counter_kind]
+                    add(ck_key, ck_scope, "", "")
         # Cost-based lanes (Ability.cost — a sacrifice OUTLET vs a sac effect).
         if ab.cost:
             cost_parts = set(ab.cost.split(","))

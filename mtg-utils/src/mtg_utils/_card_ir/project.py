@@ -1303,11 +1303,27 @@ def _project_condition(c: object) -> Condition | None:
     return Condition(
         kind=kind,
         zones=_condition_zones(c),
-        subject=_filter(c.get("filter")),
+        subject=_condition_subject(c),
         counter_kind=counter_kind,
         comparator=_norm(c.get("comparator")),
         nested=tuple(nested),
     )
+
+
+def _condition_subject(c: dict) -> Filter | None:
+    """The type/object a condition checks: a direct ``filter`` (ControlsType,
+    ZoneChangedThisWay, WhenDiesOrExiled) or, for a QuantityComparison/Check, the
+    counted filter nested in ``lhs.qty.filter`` ("control three or more artifacts"
+    → an Artifact filter). Lets gate-conditions feed the type-matters lanes."""
+    direct = _filter(c.get("filter"))
+    if direct is not None:
+        return direct
+    lhs = c.get("lhs")
+    if isinstance(lhs, dict):
+        qty = lhs.get("qty")
+        if isinstance(qty, dict):
+            return _filter(qty.get("filter"))
+    return None
 
 
 def _copy_token_effect(eff: dict, raw: str) -> Effect:
