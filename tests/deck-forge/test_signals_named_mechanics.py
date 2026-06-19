@@ -43,7 +43,9 @@ CASES = [
         "Whenever you scry, put a +1/+1 counter on this creature.",
     ),
     # named mechanics
-    ("monarch_matters", "you", "When this creature enters, you become the monarch."),
+    # ADR-0027: monarch_matters migrated to the Card IR (structural monarch effect
+    # + ismonarch condition), so it is asserted via the hybrid path below, not this
+    # regex CASES loop.
     (
         "initiative_matters",
         "you",
@@ -160,6 +162,150 @@ def test_token_doubling_is_ir_served():
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
     assert ("token_doubling", "you") in hybrid
     assert ("token_doubling", "you") not in _ks(c)
+
+
+def test_monarch_matters_is_ir_served():
+    # ADR-0027: monarch_matters is IR-served — from phase's `monarch` effect
+    # category (a "you become the monarch" grant narrowed into the `monarch` marker)
+    # AND the Condition(ismonarch) gate. Two structural shapes, both via the hybrid.
+    from mtg_utils.card_ir import Condition
+
+    grant = {"name": "X", "oracle_text": "When this enters, you become the monarch."}
+    grant_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="monarch",
+                                scope="you",
+                                raw="you become the monarch",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(grant, grant_ir)}
+    assert ("monarch_matters", "you") in hybrid
+    assert ("monarch_matters", "you") not in _ks(grant)
+
+    # The condition-gated payoff (Throne Warden: "if you're the monarch, …").
+    gated = {
+        "name": "Throne Warden",
+        "type_line": "Creature — Human Soldier",
+        "oracle_text": (
+            "At the beginning of your end step, if you're the monarch, put a "
+            "+1/+1 counter on this creature."
+        ),
+    }
+    gated_ir = Card(
+        oracle_id="y",
+        name="Throne Warden",
+        faces=(
+            Face(
+                name="Throne Warden",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        condition=Condition(kind="ismonarch"),
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                counter_kind="p1p1",
+                                raw="put a +1/+1 counter on ~",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    gated_hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(gated, gated_ir)}
+    assert ("monarch_matters", "you") in gated_hybrid
+    assert ("monarch_matters", "you") not in _ks(gated)
+
+
+def test_saddle_matters_is_ir_served():
+    # ADR-0027: saddle_matters is IR-served — from phase's `saddle` effect category
+    # (a "becomes saddled" grant narrowed into the `saddle` marker), via the hybrid.
+    c = {
+        "name": "Guidelight Matrix",
+        "type_line": "Artifact",
+        "oracle_text": (
+            "When this artifact enters, draw a card.\n{2}, {T}: Target Mount you "
+            "control becomes saddled until end of turn. Activate only as a sorcery."
+        ),
+    }
+    ir = Card(
+        oracle_id="x",
+        name="Guidelight Matrix",
+        faces=(
+            Face(
+                name="Guidelight Matrix",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="mana,tap",
+                        effects=(
+                            Effect(
+                                category="saddle",
+                                scope="you",
+                                raw="Target Mount you control becomes saddled",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("saddle_matters", "you") in hybrid
+    assert ("saddle_matters", "you") not in _ks(c)
+
+
+def test_soulbond_matters_is_ir_served():
+    # ADR-0027: soulbond_matters is IR-served — from the Scryfall `soulbond` keyword
+    # AND a `soulbond` effect marker for non-keyword references ("paired with a
+    # creature with soulbond" — Flowering Lumberknot), via the hybrid.
+    c = {
+        "name": "Flowering Lumberknot",
+        "type_line": "Creature — Plant",
+        "oracle_text": (
+            "This creature can't attack or block unless it's paired with a "
+            "creature with soulbond."
+        ),
+    }
+    ir = Card(
+        oracle_id="x",
+        name="Flowering Lumberknot",
+        faces=(
+            Face(
+                name="Flowering Lumberknot",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="soulbond",
+                                scope="you",
+                                raw="paired with a creature with soulbond",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("soulbond_matters", "you") in hybrid
+    assert ("soulbond_matters", "you") not in _ks(c)
 
 
 def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():

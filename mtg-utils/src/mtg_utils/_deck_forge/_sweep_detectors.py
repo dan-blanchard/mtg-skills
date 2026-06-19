@@ -534,12 +534,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bboast\\b",
     },
-    {
-        "key": "soulbond_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bsoulbond\\b",
-    },
+    # ADR-0027: soulbond_matters migrated to the Card IR — served structurally from
+    # the Scryfall `soulbond` keyword (_IR_KEYWORD_MAP) plus a `soulbond` effect
+    # marker for non-keyword references ("paired with a creature with soulbond" —
+    # Flowering Lumberknot — narrowed in project._narrow_mechanic_refs into the
+    # `soulbond` effect category, read via _DOER_EFFECT_KEYS). Its oracle-regex
+    # detector row is deleted; the serve spec is hand-registered in signal_specs.py
+    # (SWEEP_LABELS still carries the human label).
     {
         "key": "pump_matters",
         "scope": "you",

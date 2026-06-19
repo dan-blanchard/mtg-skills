@@ -1812,7 +1812,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "you",
     ),
     # ── Named-mechanic long tail (precise named anchors → novel build-arounds) ───
-    ("monarch_matters", re.compile(r"\bthe monarch\b", re.IGNORECASE), "you"),
+    # ADR-0027: monarch_matters migrated to the Card IR — served structurally from
+    # phase's `monarch` effect category (_DOER_EFFECT_KEYS, "you become the monarch"
+    # grants narrowed in project._narrow_mechanic_refs) AND the Condition(ismonarch)
+    # gate lifted in extract_signals_ir. Its oracle-regex floor detector is deleted;
+    # the serve spec stays hand-registered in signal_specs.py.
     ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
     (
         "ring_matters",
@@ -2341,13 +2345,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Casualty (CR 702.153) sacrifices a creature as a cost — a casualty granter
     # (Anhelo, Silverquill) wants the sac-fodder avenue. Route the grant to sacrifice.
     ("sacrifice_matters", re.compile(r"\bcasualty\b", re.IGNORECASE), "you"),
-    # Saddle / Mount (CR 702.171): attacks-while-saddled payoffs (Calamity, Gitrog
-    # Ravenous Ride) the crew-keyed vehicles_matter avenue (1/33) doesn't surface.
-    (
-        "saddle_matters",
-        re.compile(r"\bsaddled\b|whenever you saddle", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: saddle_matters migrated to the Card IR — served structurally from
+    # phase's `saddle` effect category (_DOER_EFFECT_KEYS; a "becomes saddled" /
+    # "you saddle" grant phase folds into an animate/restriction/target_only carrier
+    # is appended as a `saddle` marker in project._narrow_mechanic_refs) and the
+    # Scryfall `saddle` keyword (_DIRECT_KEYWORD_SIGNALS, a structured field that
+    # survives). Its oracle-regex floor detector is deleted; the serve spec stays
+    # hand-registered in signal_specs.py.
     # Suspect (CR 701.60): a designation granting menace + can't-block. Key on the
     # oracle term — the keyword[] field is incomplete here (misses Cases / instants).
     (
@@ -2500,9 +2504,11 @@ _DIRECT_KEYWORD_SIGNALS = {
     "mobilize": ("tokens_matter", "you"),
     # Station (702.184) accrues charge counters → route to the proliferate avenue (which
     # already serves charge-counter cards); station commanders fire no +1/+1 counter
-    # signal otherwise. Saddle (702.171) bodies want the dedicated saddle/Mount avenue.
+    # signal otherwise.
     "station": ("proliferate_matters", "you"),
-    "saddle": ("saddle_matters", "you"),
+    # ADR-0027: the `saddle` keyword (CR 702.171) moved to _IR_KEYWORD_MAP (the
+    # IR-only keyword path) because saddle_matters is migrated — keeping it here
+    # would let the regex `extract_signals` path keep emitting a migrated key.
     # Banding (CR 702.21): a commander with banding wants other banding creatures to
     # form attacking/blocking bands (Ayesha Tanaka, General Jarkeld's pile).
     "banding": ("banding_matters", "you"),
@@ -3753,6 +3759,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "experience_counter": ("experience_matters", "you"),
     "rad_counter": ("rad_counter_matters", "opponents"),
     "phasing": ("phasing_matters", "you"),
+    # ADR-0027 restriction-narrow markers (project._narrow_mechanic_refs): a
+    # "becomes saddled"/"you saddle" grant (CR 702.171) and a "paired with a
+    # creature with soulbond" reference (CR 702.95) phase folds into a generic
+    # carrier are appended as precise saddle/soulbond marker effects → their lanes.
+    "saddle": ("saddle_matters", "you"),
+    "soulbond": ("soulbond_matters", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
@@ -3809,6 +3821,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "discover": (("discover_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
+    # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
+    # and reminder-only phasers (Sandbar Crocodile) whose only "phases out" sits in
+    # the stripped reminder text the regex floor misses. The phasing EFFECT category
+    # (phase-out/in actions, project._narrow_mechanic_refs) opens the lane via
+    # _DOER_EFFECT_KEYS; this opens it from the keyword the card actually carries.
+    "phasing": (("phasing_matters", "you"),),
     # Graveyard-cast + graveyard-payoff keyword family — a card with any of these
     # uses ITS OWN / your graveyard as a resource (cast-from-GY: flashback/escape/
     # disturb/embalm/eternalize/encore/aftermath/retrace/jump-start/recover/unearth;
@@ -3834,6 +3852,12 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "infect": (("poison_matters", "opponents"),),
     "toxic": (("poison_matters", "opponents"),),
     "poisonous": (("poison_matters", "opponents"),),
+    # Saddle (CR 702.171) — moved here from _DIRECT_KEYWORD_SIGNALS for the ADR-0027
+    # migration so the keyword detection lives on the IR-only path (the regex
+    # `extract_signals` must no longer emit a migrated key); the `saddle` effect
+    # marker (project._narrow_mechanic_refs → _DOER_EFFECT_KEYS) covers the
+    # keyword-less "becomes saddled" granters.
+    "saddle": (("saddle_matters", "you"),),
     "scavenge": (("scavenge_fuel", "you"), ("graveyard_matters", "you")),
     "soulbond": (("soulbond_matters", "you"),),
     "specialize": (("specialize_matters", "you"),),
@@ -3988,7 +4012,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "undying_persist_matters",
         "myriad_grant",
         "suspend_matters",
-        "monarch_matters",
+        # monarch_matters removed — ADR-0027 migrated it to the Card IR (structural
+        # monarch effect + ismonarch condition), so it no longer needs the regex
+        # floor (its _HAND_FLOOR detector is deleted).
         "madness_matters",
         "dice_matters",
         "exalted_lone_attacker",
@@ -4765,6 +4791,13 @@ def extract_signals_ir(
                 elif cond.counter_kind in _COUNTER_KIND_KEYS:
                     ck_key, ck_scope = _COUNTER_KIND_KEYS[cond.counter_kind]
                     add(ck_key, ck_scope, "", "")
+            # ADR-0027 — a triggered/static ability GATED on being the monarch
+            # ("if you're the monarch …", CR 725): Throne Warden, Garrulous
+            # Sycophant. The monarch reference lives in the condition, not an
+            # effect category, so the doer projection (_DOER_EFFECT_KEYS['monarch'])
+            # misses it; this lifts the ismonarch gate into the monarch lane.
+            if cond.kind == "ismonarch":
+                add("monarch_matters", "you", "", "")
         # Trigger-gated graveyard_matters (the trigger-dimension projection): a
         # trigger on cards ENTERING the graveyard from a non-battlefield zone
         # (mill / "put into your graveyard from anywhere" — Syr Konrad) or LEAVING
@@ -5027,6 +5060,19 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "opponent_draw_matters",
         "token_doubling",
         "voting_matters",
+        # Group "restriction-narrow" (ADR-0027 projection deepening) — keys whose
+        # tail cards phase folds into a generic carrier (a static restriction, an
+        # Animate, a TargetOnly/Choose wrapper, an ismonarch condition) so the
+        # mechanic survives only in raw. project._narrow_mechanic_refs appends a
+        # precise `monarch`/`saddle`/`soulbond` marker effect (read via
+        # _DOER_EFFECT_KEYS), and the ismonarch condition is lifted in
+        # extract_signals_ir, so the lane fires from a NON-floor structural IR
+        # source — A-B==0 (commander-legal, floor lanes disabled). soulbond also
+        # reuses the Scryfall keyword; saddle also reuses the saddle keyword. Their
+        # oracle-regex producers are deleted. See ADR-0027.
+        "monarch_matters",
+        "saddle_matters",
+        "soulbond_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

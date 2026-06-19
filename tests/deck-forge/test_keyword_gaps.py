@@ -646,7 +646,11 @@ class TestSaddleMatters:
     }
 
     def test_saddle_commander_emits_and_served(self):
-        assert "saddle_matters" in _keys(self.CALAMITY)
+        # ADR-0027: saddle_matters migrated to the Card IR (the `saddle` keyword now
+        # lives on the IR-only path + a `saddle` effect marker), so it comes through
+        # the hybrid, not the pure regex path.
+        assert "saddle_matters" in _keys_hybrid(self.CALAMITY)
+        assert "saddle_matters" not in _keys(self.CALAMITY)
         assert serves(self.CALAMITY, _sig("saddle_matters", "you"))
 
     def test_saddle_mount_body_served(self):

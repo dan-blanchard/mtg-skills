@@ -3260,6 +3260,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"companion —|each (?:creature |permanent )?card in your starting deck"
         r"|your starting deck contains",
     ),
+    # ADR-0027: soulbond_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — the Scryfall `soulbond` keyword + a
+    # `soulbond` effect marker for non-keyword references). The SERVE pool (the
+    # creatures that ARE the thing — they carry the soulbond keyword) stays
+    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
+    # build, reusing the deleted regex as the serve pattern.
+    ("soulbond_matters", "you"): _spec(
+        *SWEEP_LABELS["soulbond_matters"],
+        {"oracle": r"\bsoulbond\b"},
+        r"\bsoulbond\b",
+    ),
     # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word

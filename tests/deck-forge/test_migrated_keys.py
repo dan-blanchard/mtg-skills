@@ -24,7 +24,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+from mtg_utils.card_ir import Ability, Card, Condition, Effect, Face, Filter, Trigger
 
 
 def _ir(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
@@ -408,6 +408,83 @@ _CASES: dict[str, tuple[dict, Card]] = {
             ),
         },
         _ir(),
+    ),
+    # ADR-0027 restriction-narrow batch. monarch ← Condition(ismonarch) on the
+    # ability (the "if you're the monarch" gate phase keeps as a condition, lifted
+    # in extract_signals_ir); saddle ← a `saddle` marker effect (project's
+    # _narrow_mechanic_refs appends it for a "becomes saddled" grant phase folded
+    # into a restriction carrier); soulbond ← a `soulbond` marker effect (appended
+    # for a "paired with a creature with soulbond" reference on a non-keyword card).
+    "monarch_matters": (
+        {
+            "name": "Throne Warden",
+            "type_line": "Creature — Human Soldier",
+            "oracle_text": (
+                "At the beginning of your end step, if you're the monarch, put a "
+                "+1/+1 counter on this creature."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="end_step"),
+                condition=Condition(kind="ismonarch"),
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        counter_kind="p1p1",
+                        raw="put a +1/+1 counter on ~",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "saddle_matters": (
+        {
+            "name": "Guidelight Matrix",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "When this artifact enters, draw a card.\n{2}, {T}: Target Mount "
+                "you control becomes saddled until end of turn. Activate only as a "
+                "sorcery.\n{2}, {T}: Target Vehicle you control becomes an artifact "
+                "creature until end of turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana,tap",
+                effects=(
+                    Effect(
+                        category="saddle",
+                        scope="you",
+                        raw="Target Mount you control becomes saddled",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "soulbond_matters": (
+        {
+            "name": "Flowering Lumberknot",
+            "type_line": "Creature — Plant",
+            "oracle_text": (
+                "This creature can't attack or block unless it's paired with a "
+                "creature with soulbond."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="soulbond",
+                        scope="you",
+                        raw="paired with a creature with soulbond",
+                    ),
+                ),
+            )
+        ),
     ),
 }
 
