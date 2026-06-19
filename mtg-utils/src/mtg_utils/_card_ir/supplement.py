@@ -711,10 +711,13 @@ def _recover_verb_scan(e: Effect) -> Effect | None:
 # An anthem/pump "gets +N/+N" — N may be a digit OR a variable (+X/+Y, dynamic pumps
 # like "gets +X/+X where X is …") OR * (gets */*). The token is punctuated, which the
 # word-combinators normalize away, so a char-level regex is right here.
-_GETS_PT = re.compile(r"\bgets? [+-][\dxyz*]+/[+-][\dxyz*]+", re.IGNORECASE)
+# N may be a digit / variable (X,Y,Z) / * / ~ (phase's P/T placeholder, "gets ~/~").
+_GETS_PT = re.compile(r"\bgets? [+-]?[\dxyz*~]+/[+-]?[\dxyz*~]+", re.IGNORECASE)
 # A type/characteristic STATE conditional ("isn't a creature unless …", "isn't
 # legendary if …") — a static layer effect, its own non-sliced category.
-_STATE = re.compile(r"\bisn'?t (?:a |an |legendary)", re.IGNORECASE)
+_STATE = re.compile(
+    r"\bisn'?t (?:a |an |legendary)|\bis the chosen (?:color|type)\b", re.IGNORECASE
+)
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
 # A combat cap ("No more than N creatures can attack/block …") is a RESTRICTION, not
 # a permission — checked before the can-attack/block grant below so it wins.
