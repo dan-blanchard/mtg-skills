@@ -3780,6 +3780,18 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "boast": ("boast_matters", "you"),
     "exhaust": ("exhaust_matters", "you"),
     "scry_surveil": ("scry_surveil_matters", "you"),
+    # ADR-0027 conferred-keyword re-parse markers (project._narrow_conferred_keyword
+    # _refs): a keyword GRANTED to a class of objects (affinity for X / has madness /
+    # has foretell), surviving only in a grant carrier's raw, is appended as a precise
+    # marker effect → its lane. The card's OWN printed keyword still rides the Scryfall
+    # keyword array (_IR_KEYWORD_MAP); these markers add the keyword-LESS conferred
+    # granters. CR 702.41 affinity, 702.35 madness, 702.143 foretell. (devour / connive
+    # / counter_spell / evasion_denial / damage_reflect markers are read elsewhere —
+    # devour's multi-lane fan-out, connive above, counter_spell/evasion_denial/
+    # damage_reflect their own per-effect reads.)
+    "affinity": ("affinity_type", "you"),
+    "madness": ("madness_matters", "you"),
+    "foretell": ("foretell_matters", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
@@ -4025,7 +4037,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # Ring-bearer raw-scan), so it no longer needs the regex floor (its
         # _HAND_FLOOR detector is deleted).
         "convoke_matters",
-        "affinity_type",
+        # affinity_type removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # affinity keyword + an `affinity` marker effect for the conferred "spells you
+        # cast have affinity for X" granters), so it no longer needs the regex floor
+        # (its SWEEP_DETECTORS row is deleted).
         "cascade_matters",
         "undying_persist_matters",
         "myriad_grant",
@@ -4609,9 +4624,18 @@ def extract_signals_ir(
             if cat == "spell_copy":
                 add("spell_copy_matters", "you", "", e.raw)
             # evasion_denial: IgnoreLandwalkForBlocking (Great Wall) — block through
-            # an opponent's landwalk evasion.
+            # an opponent's landwalk evasion. Also fires off the ADR-0027 conferred
+            # marker for the generic-landwalk umbrella (Staff of the Ages), which phase
+            # routes to grant_keyword (project._narrow_conferred_keyword_refs).
             if cat == "evasion_denial":
                 add("evasion_denial", "opponents", "", e.raw)
+            # damage_reflect: the ADR-0027 conferred marker for a quoted/granted
+            # reflection ability (Spiteful Sliver — 'Slivers you control have "when ~
+            # is dealt damage, ~ deals that much damage to ..."'), which phase swallows
+            # into grant_keyword. The on-card reflectors fire via the trigger-based
+            # co-occurrence below (damage_received event + a damage effect).
+            if cat == "damage_reflect":
+                add("damage_reflect", "you", "", e.raw)
             # base_pt_set: a static that SETS base P/T (Lignify, Ovinize, Kenrith's
             # Transformation, animate-to-X/X). scope "any" (matches the regex —
             # spans neutralize-removal, self/land animate, switch).
@@ -5106,6 +5130,26 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "discover_matters",
         "ninjutsu_matters",
         "ring_matters",
+        # Group "conferred-keyword re-parse" (ADR-0027 projection deepening) — keys
+        # whose tail cards GRANT a keyword/ability to a CLASS of objects, which phase
+        # folds into a grant carrier (cast_with_keyword / grant_spell_ability /
+        # grant_keyword) so the granted keyword survives only in raw.
+        # project._narrow_conferred_keyword_refs appends a precise marker effect, so
+        # the lane fires from a NON-floor structural IR source — A-B==0 (commander-
+        # legal, floor lanes disabled). affinity_type ← the Scryfall affinity keyword
+        # + an `affinity` marker for "spells you cast have affinity for X" (Tezzeret,
+        # …); damage_reflect ← the on-card damage_received+damage co-occurrence + a
+        # `damage_reflect` marker for the quoted reflection grant (Spiteful Sliver);
+        # evasion_denial ← phase's named-walk evasion_denial effect + an
+        # `evasion_denial` marker for the generic-landwalk umbrella (Staff of the
+        # Ages). Their oracle-regex SWEEP_DETECTORS rows are deleted (affinity also
+        # left _IR_FLOOR_LANES). madness/foretell/devour/connive/counter_control got
+        # the same markers (recall improved) but a condition-drop (Anje), a Foretold-
+        # predicate (Niko), a token-profile residual, and modal/Aura-host parse-drops
+        # keep them on regex pending a later capability. See ADR-0027.
+        "affinity_type",
+        "damage_reflect",
+        "evasion_denial",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -600,6 +600,96 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 conferred-keyword re-parse batch. Each tail card GRANTS a keyword/
+    # ability to a CLASS of objects — phase folds the grant into a carrier and the
+    # granted keyword survives only in raw, so project._narrow_conferred_keyword_refs
+    # appends a precise marker effect read by extract_signals_ir. affinity ←
+    # "spells you cast have affinity for artifacts" (Tezzeret); damage_reflect ← the
+    # quoted reflection grant 'Slivers you control have "Whenever ~ is dealt damage,
+    # ~ deals that much damage to ..."' (Spiteful Sliver); evasion_denial ← the
+    # generic-landwalk umbrella (Staff of the Ages).
+    "affinity_type": (
+        {
+            "name": "Tezzeret, Master of the Bridge",
+            "type_line": "Legendary Planeswalker — Tezzeret",
+            "oracle_text": (
+                "Creature and planeswalker spells you cast have affinity for "
+                "artifacts. (They cost {1} less to cast for each artifact you "
+                "control.)\n+2: Tezzeret deals X damage to each opponent, where X "
+                "is the number of artifacts you control. You gain X life.\n−3: "
+                "Return target artifact card from your graveyard to your hand.\n"
+                "−8: Exile the top ten cards of your library. Put all artifact "
+                "cards from among them onto the battlefield."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="affinity",
+                        scope="you",
+                        raw=(
+                            "Creature and planeswalker spells you cast have "
+                            "affinity for artifacts."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    "damage_reflect": (
+        {
+            "name": "Spiteful Sliver",
+            "type_line": "Creature — Sliver",
+            "oracle_text": (
+                'Sliver creatures you control have "Whenever this creature is '
+                "dealt damage, it deals that much damage to target player or "
+                'planeswalker."'
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="damage_reflect",
+                        scope="you",
+                        raw=(
+                            'Sliver creatures you control have "Whenever this '
+                            "creature is dealt damage, it deals that much damage "
+                            "to target player or planeswalker"
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    "evasion_denial": (
+        {
+            "name": "Staff of the Ages",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "Creatures with landwalk abilities can be blocked as though they "
+                "didn't have those abilities."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="evasion_denial",
+                        scope="opp",
+                        raw=(
+                            "Creatures with landwalk abilities can be blocked as "
+                            "though they didn't have those abilities."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

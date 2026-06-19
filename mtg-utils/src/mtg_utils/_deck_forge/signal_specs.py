@@ -2295,8 +2295,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_toughness_over_power=True,
         serve_keywords=("defender",),
     ),
-    ("damage_reflect", "you"): _sweep_spec_with_extras(
-        "damage_reflect",
+    # ADR-0027: damage_reflect's SWEEP_DETECTORS row was deleted (detection moved to
+    # the Card IR — the on-card damage_received+damage co-occurrence + a damage_reflect
+    # marker for the quoted reflection grant). _sweep_spec_with_extras read that
+    # now-gone row, so re-home to a literal spec reusing the deleted regex as the serve
+    # pattern, keeping the high-toughness/defender serve dimensions.
+    ("damage_reflect", "you"): _spec(
+        *SWEEP_LABELS["damage_reflect"],
+        {
+            "oracle": (
+                r"whenever [^.]*is dealt damage, (?:it|this creature) "
+                r"deals that much damage"
+            )
+        },
+        r"whenever [^.]*is dealt damage, (?:it|this creature) deals that much damage",
         serve_toughness_min=4,
         serve_toughness_over_power=True,
         serve_keywords=("defender",),
@@ -3302,6 +3314,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|face-?down creatures?|as a 2/2 face-?down"
         r"|turn (?:it|that creature|this creature|them|a permanent you control) "
         r"face up|turn target [^.]*?face up|turned face up this turn",
+    ),
+    # ADR-0027: affinity_type + evasion_denial had their oracle-regex SWEEP_DETECTORS
+    # rows deleted (detection moved to the Card IR — affinity ← the Scryfall keyword +
+    # an `affinity` conferred-grant marker; evasion_denial ← phase's named-walk
+    # evasion_denial effect + a generic-landwalk-umbrella marker). The auto-register
+    # sweep loop used to build their serve specs from the now-gone rows, so hand-
+    # register them reusing each deleted regex as the serve pattern.
+    ("affinity_type", "you"): _spec(
+        *SWEEP_LABELS["affinity_type"],
+        {"oracle": r"\baffinity\b|spells you cast have affinity"},
+        r"\baffinity\b|spells you cast have affinity",
+    ),
+    ("evasion_denial", "opponents"): _spec(
+        *SWEEP_LABELS["evasion_denial"],
+        {"oracle": r"can be blocked as though (?:it|they) didn't have"},
+        r"can be blocked as though (?:it|they) didn't have",
     ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",

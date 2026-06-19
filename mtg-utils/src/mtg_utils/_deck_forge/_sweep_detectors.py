@@ -71,12 +71,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "copy (?:that|this|the|target) (?:activated |triggered |activated or triggered )?ability|you may copy (?:it|that ability)|has all activated abilities of|has the activated abilities of",
     },
-    {
-        "key": "affinity_type",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\baffinity\\b|spells you cast have affinity",
-    },
+    # ADR-0027: affinity_type migrated to the Card IR — served structurally from the
+    # Scryfall `affinity` keyword (_IR_KEYWORD_MAP) plus an `affinity` marker effect
+    # for the keyword-less CONFERRED granters ("spells you cast have affinity for X" /
+    # "the next spell you cast has affinity for X" — Tezzeret, Saheeli, Sami, Don &
+    # Raph, Pearl-Ear), appended by project._narrow_conferred_keyword_refs. Its
+    # oracle-regex SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered
+    # in signal_specs.py (SWEEP_LABELS still carries the human label).
     {
         "key": "flash_grant",
         "scope": "you",
@@ -445,12 +446,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "whenever a source an opponent controls deals damage to you|whenever (?:a|an) (?:opponent|source[^.]*opponent)[^.]*deals (?:combat )?damage to you",
     },
-    {
-        "key": "damage_reflect",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "whenever [^.]*is dealt damage, (?:it|this creature) deals that much damage",
-    },
+    # ADR-0027: damage_reflect migrated to the Card IR — served structurally from the
+    # on-card co-occurrence (a damage_received trigger + a damage effect, in
+    # extract_signals_ir) plus a `damage_reflect` marker effect for the GRANTED/QUOTED
+    # reflection ability ('Slivers you control have "Whenever ~ is dealt damage, ~
+    # deals that much damage to ..."' — Spiteful Sliver), appended by
+    # project._narrow_conferred_keyword_refs. Its oracle-regex SWEEP_DETECTORS row is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     {
         "key": "excess_damage",
         "scope": "you",
@@ -678,12 +680,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "cast (?:creature )?cards? from your hand as though they were the card",
     },
-    {
-        "key": "evasion_denial",
-        "scope": "opponents",
-        "is_widen_of": "",
-        "regex": "can be blocked as though (?:it|they) didn't have",
-    },
+    # ADR-0027: evasion_denial migrated to the Card IR — served structurally from
+    # phase's `evasion_denial` (IgnoreLandwalkForBlocking) effect category for the
+    # specific named-walk shapes (Great Wall, Crevasse, …) plus an `evasion_denial`
+    # marker effect for the GENERIC umbrella phrasing ("Creatures with landwalk
+    # abilities can be blocked as though they didn't have those abilities" — Staff of
+    # the Ages), appended by project._narrow_conferred_keyword_refs. Its oracle-regex
+    # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered.
     {
         "key": "named_permanent",
         "scope": "you",
