@@ -103,6 +103,68 @@ _CASES: dict[str, tuple[dict, Card]] = {
         # so a bare non-None IR is enough to route the hybrid to the IR path.
         _ir(),
     ),
+    # Group "bending" — detected by the kept word-detector mirror
+    # (_IR_KEPT_DETECTORS), which scans the oracle text directly, so any non-None
+    # IR routes the hybrid to the IR path.
+    "airbend_matters": (
+        {
+            "name": "Airbender Ascension",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "When this enchantment enters, airbend up to one target creature.\n"
+                "Whenever a creature you control enters, put a quest counter on "
+                "this enchantment.\nAt the beginning of your end step, if this "
+                "enchantment has four or more quest counters on it, exile up to one "
+                "target creature you control, then return it to the battlefield "
+                "under its owner's control."
+            ),
+        },
+        _ir(),
+    ),
+    "earthbend_matters": (
+        {
+            "name": "Earthen Ally",
+            "type_line": "Creature — Human Soldier Ally",
+            "oracle_text": (
+                "This creature gets +1/+0 for each color among Allies you "
+                "control.\n{2}{W}{U}{B}{R}{G}: Earthbend 5. (Target land you "
+                "control becomes a 0/0 creature with haste that's still a land. "
+                "Put five +1/+1 counters on it. When it dies or is exiled, return "
+                "it to the battlefield tapped.)"
+            ),
+        },
+        _ir(),
+    ),
+    "waterbend_matters": (
+        {
+            "name": "Spirit Water Revival",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "As an additional cost to cast this spell, you may waterbend {6}. "
+                "(While paying a waterbend cost, you can tap your artifacts and "
+                "creatures to help. Each one pays for {1}.)\nDraw two cards. If "
+                "this spell's additional cost was paid, instead shuffle your "
+                "graveyard into your library, draw seven cards, and you have no "
+                "maximum hand size for the rest of the game.\nExile Spirit Water "
+                "Revival."
+            ),
+        },
+        _ir(),
+    ),
+    "firebending_matters": (
+        {
+            "name": "Fire Lord Azula",
+            "type_line": "Legendary Creature — Human Noble",
+            "oracle_text": (
+                "Firebending 2 (Whenever this creature attacks, add {R}{R}. This "
+                "mana lasts until end of combat.)\nWhenever you cast a spell while "
+                "Fire Lord Azula is attacking, copy that spell. You may choose new "
+                "targets for the copy. (A copy of a permanent spell becomes a "
+                "token.)"
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

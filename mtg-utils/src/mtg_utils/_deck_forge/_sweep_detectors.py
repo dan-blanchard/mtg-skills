@@ -323,36 +323,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "all creatures able to block [^.]*do so|must be blocked if able|all creatures (?:that could|able to) block|must be blocked(?: (?:by|if))?",
     },
-    # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified
-    # against the CR — there is no unifying "bending ability" rule, and no card
-    # references the set as a whole), so each is its own lane: airbend (CR 701.65,
-    # exile + {2} recast), earthbend (CR 701.66, animate a land + N +1/+1
-    # counters), waterbend (CR 701.67, tap artifacts/creatures for generic mana),
-    # firebending (CR 702.189, a triggered ability adding {R} on attack).
-    {
-        "key": "airbend_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bairbend(?:ing|s)?\\b",
-    },
-    {
-        "key": "earthbend_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bearthbend(?:ing|s)?\\b",
-    },
-    {
-        "key": "waterbend_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bwaterbend(?:ing|s)?\\b",
-    },
-    {
-        "key": "firebending_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bfirebend(?:ing|s)?\\b",
-    },
+    # ADR-0027: the four bending lanes (airbend CR 701.65, earthbend CR 701.66,
+    # waterbend CR 701.67, firebending CR 702.189) migrated to the Card IR — they
+    # are detected from the kept word-detector mirror in signals._IR_KEPT_DETECTORS
+    # (phase v0.1.19 doesn't structure these recent named mechanics, so they stay
+    # narrow oracle-word detectors INSIDE the IR path). Their oracle-regex sweep
+    # rows are deleted; SWEEP_LABELS still carries each human label, and the serve
+    # specs are hand-registered in signal_specs.py (the sweep auto-register loop no
+    # longer reaches them).
     {
         "key": "domain_matters",
         "scope": "you",

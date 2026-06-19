@@ -3203,6 +3203,32 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bseek\b"},
         r"\bseek\b",
     ),
+    # ADR-0027: the four bending lanes had their oracle-regex SWEEP_DETECTORS rows
+    # deleted (detection moved to the Card IR — the kept word-detector mirror in
+    # signals._IR_KEPT_DETECTORS). The SERVE pool stays oracle-defined, so
+    # hand-register the spec the sweep auto-register loop used to build, reusing
+    # each deleted regex as the serve pattern. (SWEEP_LABELS still carries the
+    # human label.)
+    ("airbend_matters", "you"): _spec(
+        *SWEEP_LABELS["airbend_matters"],
+        {"oracle": r"\bairbend(?:ing|s)?\b"},
+        r"\bairbend(?:ing|s)?\b",
+    ),
+    ("earthbend_matters", "you"): _spec(
+        *SWEEP_LABELS["earthbend_matters"],
+        {"oracle": r"\bearthbend(?:ing|s)?\b"},
+        r"\bearthbend(?:ing|s)?\b",
+    ),
+    ("waterbend_matters", "you"): _spec(
+        *SWEEP_LABELS["waterbend_matters"],
+        {"oracle": r"\bwaterbend(?:ing|s)?\b"},
+        r"\bwaterbend(?:ing|s)?\b",
+    ),
+    ("firebending_matters", "you"): _spec(
+        *SWEEP_LABELS["firebending_matters"],
+        {"oracle": r"\bfirebend(?:ing|s)?\b"},
+        r"\bfirebend(?:ing|s)?\b",
+    ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",
         "villainous-choice cards (the punisher pool a villainous-choice commander — "

@@ -5016,6 +5016,16 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "seek_matters",
         "specialize_matters",
         "ki_counter_matters",
+        # Group "bending" — the four bending lanes (airbend CR 701.65, earthbend
+        # CR 701.66, waterbend CR 701.67, firebending CR 702.189). phase v0.1.19
+        # doesn't structure these recent named mechanics, so the IR path detects
+        # them from the kept word-detector mirror (_IR_KEPT_DETECTORS), NOT a
+        # re-run of the deleted SWEEP_DETECTORS rows. A-B==0 (commander-legal,
+        # floor lanes disabled). See ADR-0027.
+        "airbend_matters",
+        "earthbend_matters",
+        "waterbend_matters",
+        "firebending_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
