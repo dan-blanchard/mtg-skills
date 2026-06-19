@@ -347,6 +347,11 @@ _CONNECTIVE_PREFIX = comb.value(
 _COST_PREFIX = comb.value(
     None, comb.seq3(comb.tag("{"), comb.take_until(": "), comb.tag(": "))
 )
+# A planeswalker loyalty cost "[+1]: " / "[-3]: " / "[0]: " — consume the bracketed
+# cost so dispatch lands on the loyalty ability's effect.
+_LOYALTY_PREFIX = comb.value(
+    None, comb.seq3(comb.tag("["), comb.take_until("]: "), comb.tag("]: "))
+)
 # A leading player subject ("Target player reveals …", "Each opponent …") — consume
 # it so dispatch sees the verb the player performs. Includes the SELF subject "~"
 # (the IR's self-name placeholder: "~ deals 2 damage …") and "it"/"its" (a back-ref
@@ -395,6 +400,7 @@ _PREFIX = comb.preceded(
     comb.alt(
         _CHAPTER_PREFIX,
         _COST_PREFIX,
+        _LOYALTY_PREFIX,
         _TRIGGER_PREFIX,
         _DURATION_PREFIX,
         _PLAYER_PREFIX,
@@ -538,6 +544,12 @@ def _recover_by_verb(e: Effect) -> Effect | None:
 # tool here (as for the Tinybones scope rules above).
 _GETS_PT = re.compile(r"\bgets? [+-]\d+/[+-]\d+", re.IGNORECASE)
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
+# A combat cap ("No more than N creatures can attack/block …") is a RESTRICTION, not
+# a permission — checked before the can-attack/block grant below so it wins.
+_COMBAT_CAP = re.compile(r"\bno more than\b", re.IGNORECASE)
+# A combat PERMISSION grant ("can attack as though it had haste", "can block an
+# additional creature") — an ability grant, distinct from the "can't" restriction.
+_CAN_COMBAT = re.compile(r"\bcan (?:attack|block)\b", re.IGNORECASE)
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
@@ -575,8 +587,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="pump")
     if _COST_ALTER.search(s):
         return replace(e, category="cost_reduction")
-    if _CANT.search(s):
+    if _CANT.search(s) or _COMBAT_CAP.search(s):
         return replace(e, category="restriction")
+    if _CAN_COMBAT.search(s):
+        return replace(e, category="grant_keyword")  # combat permission grant
     low = s.lower()
     # The gain/have family: a life gain or control gain (any subject), else a
     # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
