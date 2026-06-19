@@ -333,6 +333,21 @@ _TRIGGER_PREFIX = comb.value(
         comb.tag(","),
     ),
 )
+# A replacement-timing wrapper ("The next time … would …, <effect>", "The first time
+# …, <effect>") — consume up to the comma so dispatch lands on the replacing effect
+# (often "prevent …" / "it deals …"). phase strips the same wrapper before the effect.
+_REPLACEMENT_PREFIX = comb.value(
+    None,
+    comb.seq3(
+        comb.alt(
+            comb.tag("the next time"),
+            comb.tag("the first time"),
+            comb.tag("the second time"),
+        ),
+        comb.take_until(","),
+        comb.tag(","),
+    ),
+)
 _CONNECTIVE_PREFIX = comb.value(
     None,
     comb.alt(
@@ -403,6 +418,7 @@ _PREFIX = comb.preceded(
         _CHAPTER_PREFIX,
         _COST_PREFIX,
         _LOYALTY_PREFIX,
+        _REPLACEMENT_PREFIX,
         _TRIGGER_PREFIX,
         _DURATION_PREFIX,
         _PLAYER_PREFIX,
