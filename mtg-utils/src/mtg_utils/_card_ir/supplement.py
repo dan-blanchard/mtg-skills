@@ -430,6 +430,7 @@ _CONNECTIVE_PREFIX = comb.value(
         comb.tag("you may "),
         comb.tag("may "),  # after a player prefix: "target player may draw"
         comb.tag("then "),
+        comb.tag("also "),  # "… , also regenerate ~"
         comb.tag("instead "),
         comb.tag("secretly "),  # "… each secretly choose" -> choose
         comb.tag("simultaneously "),
@@ -766,7 +767,8 @@ _VERB_PRESENT = re.compile(
     r"|discards?|taps?|untaps?|puts?|searches?|counter|scry|scries|surveils?"
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
-    r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?)\b",
+    r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?|stations?|soulshift"
+    r"|regenerates?|converts?)\b",
     re.IGNORECASE,
 )
 
@@ -996,7 +998,16 @@ _TYPE_SET = re.compile(
 )
 # "there is an additional combat phase" / "an additional combat phase after this" —
 # an extra-combat granter (phase's additionalphase category).
-_EXTRA_COMBAT = re.compile(r"\badditional combat phase\b", re.IGNORECASE)
+_EXTRA_COMBAT = re.compile(
+    r"\badditional (?:combat|beginning|main|end|precombat|postcombat) phase\b",
+    re.IGNORECASE,
+)
+# Flagbearer (CR 720-era "while an opponent is choosing targets … must choose this")
+# and flashback-cost / cost-reduction-qualifier statics.
+_FLAGBEARER = re.compile(r"\bwhile an opponent is choosing targets\b", re.IGNORECASE)
+_FLASHBACK = re.compile(r"\bflashback cost is equal\b", re.IGNORECASE)
+_COST_RED_QUAL = re.compile(r"\bthis effect reduces only\b", re.IGNORECASE)
+_DAMAGE_PERSIST = re.compile(r"\bdamage isn'?t removed\b", re.IGNORECASE)
 # "(on the) top/bottom of … library" — a library-position placement ("on top of their
 # library", "the top or bottom of its owner's library"). The "on" is optional.
 _LIBRARY_POS = re.compile(
@@ -1153,6 +1164,14 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="type_set")
     if _EXTRA_COMBAT.search(s):
         return replace(e, category="extra_combats")
+    if _FLAGBEARER.search(s):
+        return replace(e, category="flagbearer")
+    if _FLASHBACK.search(s):
+        return replace(e, category="grant_keyword")
+    if _COST_RED_QUAL.search(s):
+        return replace(e, category="cost_reduction")
+    if _DAMAGE_PERSIST.search(s):
+        return replace(e, category="damage_persist")
     if _LIBRARY_POS.search(s):
         return replace(e, category="topdeck_select")
     if _ALT_COST.search(s):
