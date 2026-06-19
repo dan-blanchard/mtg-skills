@@ -867,12 +867,28 @@ _CDA_PT = re.compile(
     re.IGNORECASE,
 )
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
+# A keyword grant whose subject is a TRIBE/type we don't anchor ("Warriors your team
+# control have haste", "Knights … have flying") — anchored on the GRANTED keyword
+# instead (a closed CR keyword-ability set), so it fires without a noun anchor.
+_KEYWORD_GRANT = re.compile(
+    r"\b(?:have|has|gains?)\b[^.]{0,30}\b(?:flying|trample|haste|vigilance|deathtouch"
+    r"|lifelink|menace|reach|hexproof|indestructible|first strike|double strike|flash"
+    r"|defender|protection|ward|shroud|fear|intimidate|horsemanship|shadow|skulk"
+    r"|infect|wither|persist|undying|forestwalk|islandwalk|swampwalk|mountainwalk"
+    r"|plainswalk|landwalk|unblockable)\b",
+    re.IGNORECASE,
+)
+# "If you would flip a coin, instead flip two coins …", "flip one or more coins".
+_COIN = re.compile(r"\bflips?\b[^.]{0,18}\bcoins?\b", re.IGNORECASE)
 _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
 # The altered SET precedes "cost", so a discriminant scan (like the anthem above).
 # Allow a multi-symbol reduction ("cost {B}{R} less") — one or more brace groups, or
 # none ("costs less").
-_COST_ALTER = re.compile(r"\bcosts?\s+(?:\{[^}]*\}\s*)*(?:less|more)\b", re.IGNORECASE)
+_COST_ALTER = re.compile(
+    r"\bcosts?\s+(?:\{[^}]*\}\s*)*(?:less|more)\b|\bcosts?\s+an additional\b",
+    re.IGNORECASE,
+)
 # Disambiguate the "gain(s)" family: a life gain ("gains 5 life", "gain that much
 # life") vs control ("gains control of") vs an ABILITY/keyword grant (everything
 # else: "gains flashback", "has hexproof"). \blife\b is word-bounded so "lifelink"
@@ -937,6 +953,10 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="evasion")
     if _MANA_FILTER.search(s):
         return replace(e, category="mana_filter")
+    if _KEYWORD_GRANT.search(s):
+        return replace(e, category="grant_keyword")
+    if _COIN.search(s):
+        return replace(e, category="coin_flip")
     if _CLONE_STATIC.search(s):
         return replace(e, category="clone")
     if _FORCE_ATTACK.search(s):
