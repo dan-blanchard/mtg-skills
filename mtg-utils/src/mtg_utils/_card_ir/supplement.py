@@ -348,7 +348,9 @@ _COST_PREFIX = comb.value(
     None, comb.seq3(comb.tag("{"), comb.take_until(": "), comb.tag(": "))
 )
 # A leading player subject ("Target player reveals …", "Each opponent …") — consume
-# it so dispatch sees the verb the player performs.
+# it so dispatch sees the verb the player performs. Includes the SELF subject "~"
+# (the IR's self-name placeholder: "~ deals 2 damage …") and "it"/"its" (a back-ref
+# to the just-named permanent) so the verb that follows dispatches.
 _PLAYER_PREFIX = comb.value(
     None,
     comb.alt(
@@ -356,10 +358,34 @@ _PLAYER_PREFIX = comb.value(
         comb.tag("each opponent "),
         comb.tag("target player "),
         comb.tag("target opponent "),
+        comb.tag("target creature "),
+        comb.tag("target permanent "),
+        comb.tag("another target creature "),
+        comb.tag("each creature "),
+        comb.tag("all creatures "),
         comb.tag("that player "),
         comb.tag("this creature "),
         comb.tag("this permanent "),
         comb.tag("that creature "),
+        comb.tag("~'s "),
+        comb.tag("~ "),
+        comb.tag("its "),
+        comb.tag("it "),
+    ),
+)
+# A leading duration / distribution clause ("Until end of turn, …", "This turn, …",
+# "For each player, …") — consumed so dispatch lands on the effect verb. phase strips
+# the same timing wrapper before parsing the effect.
+_DURATION_PREFIX = comb.value(
+    None,
+    comb.alt(
+        comb.tag("until end of turn, "),
+        comb.tag("this turn, "),
+        comb.tag("during your turn, "),
+        # coerced to str so `alt`'s members are homogeneous Parser[str].
+        comb.value(
+            "", comb.seq3(comb.tag("for each "), comb.take_until(", "), comb.tag(", "))
+        ),
     ),
 )
 _PREFIX = comb.preceded(
@@ -368,6 +394,7 @@ _PREFIX = comb.preceded(
         _CHAPTER_PREFIX,
         _COST_PREFIX,
         _TRIGGER_PREFIX,
+        _DURATION_PREFIX,
         _PLAYER_PREFIX,
         _CONNECTIVE_PREFIX,
     ),
@@ -394,8 +421,19 @@ _RETURN = comb.preceded(
     ),
 )
 _ADD_MANA = comb.value("ramp", comb.seq2(comb.tag("add"), comb.take_until("mana")))
-_PUT_COUNTER = comb.value(
-    "place_counter", comb.seq2(comb.tag("put"), comb.take_until("counter"))
+# "put …" branches by what's put where: "put a +1/+1 counter" (place_counter), "put X
+# onto the battlefield" (reanimate — recur a card into play from a non-cast zone),
+# "put X into … hand" (bounce). Most specific (counter) first; the zone arms read the
+# destination phrase the way _RETURN reads return-destinations.
+_PUT = comb.preceded(
+    comb.tag("put"),
+    comb.alt(
+        comb.value("place_counter", comb.take_until("counter")),
+        comb.value("reanimate", comb.take_until("onto the battlefield")),
+        comb.value("bounce", comb.take_until("into its owner")),
+        comb.value("bounce", comb.take_until("into their owner")),
+        comb.value("bounce", comb.take_until("into your hand")),
+    ),
 )
 
 # Single-word imperative verbs (word-boundary-safe via `keyword`, so "draw" doesn't
@@ -429,9 +467,19 @@ _VERB = comb.alt(
     comb.value("gain_control", comb.tag("gain control")),
     comb.value("counter_spell", comb.tag("counter target")),
     comb.value("counter_spell", comb.tag("counter that")),
-    comb.value("tutor", comb.tag("search your library")),
+    # "search your library/hand/graveyard …", "search target player's library" — a
+    # search is a tutor (CR 701.23) regardless of the zone searched.
+    comb.value("tutor", comb.tag("search your")),
+    comb.value("tutor", comb.tag("search target")),
+    # ETB-with-counters ("enters with X +1/+1 counters") → a counter placement.
+    comb.value(
+        "place_counter",
+        comb.seq2(comb.tag("enters with"), comb.take_until("counter")),
+    ),
+    # "attacks each combat if able" — a forced-attack restriction (CR 508 must-attack).
+    comb.value("force_attack", comb.tag("attacks each combat")),
     _ADD_MANA,
-    _PUT_COUNTER,
+    _PUT,
     _CREATE,
     _RETURN,
     _SIMPLE_VERB,

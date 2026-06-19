@@ -306,7 +306,14 @@ def _confidence(card: Card) -> str:
     abilities = card.all_abilities()
     has_keywords = any(f.keywords for f in card.faces)
     if not abilities and not has_keywords:
-        return "unparsed"
+        # No abilities AND no keywords means a VANILLA / textless face (Grizzly
+        # Bears, a basic land): its complete mechanical content is its types + P/T,
+        # which the IR already carries — there is nothing to parse, so it is fully
+        # parsed. (A card that HAS oracle text but phase whiffed on never lands here:
+        # _synthesize_from_oracle turns its sentences into abilities first. Verified
+        # 0 text-bearing cards reach this branch.) The legacy "unparsed" label
+        # conflated vanilla with failure; vanilla is `full`.
+        return "full"
     effects = [e for a in abilities for e in a.effects]
     # An ability with no recovered effects, or any effect still 'other', is a gap.
     if any(e.category == "other" for e in effects):
@@ -321,8 +328,8 @@ def _synthesize_from_oracle(record: dict) -> list[Ability]:
     parse failure, not a vanilla/keyword card) — synthesize one ability whose effects
     are the oracle's sentences as raw 'other' clauses, so the supplement's clause
     dispatch fills the gap. A vanilla face has no oracle sentences and yields nothing
-    (correctly stays unparsed). Gated on the exact `unparsed` condition (no abilities
-    + no keywords), so a keyword card is never touched."""
+    (correctly `full` — nothing to parse). Gated on the no-abilities-no-keywords
+    condition, so a keyword card is never touched."""
     text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")  # drop reminder
     sentences = [
         s

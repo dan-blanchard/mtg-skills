@@ -122,17 +122,19 @@ class Face:
 class Card:
     """The parsed IR for one card, keyed by Scryfall ``oracle_id``.
 
-    ``parse_confidence``: ``full`` (everything projected cleanly), ``partial``
-    (some clause fell to ``category="other"`` / an unresolved trigger), or
-    ``unparsed`` (no abilities recovered at all). ``coverage_gate`` reads this in
-    place of the old oracle-text blind-spot heuristics.
+    ``parse_confidence``: ``full`` (everything projected cleanly — including a
+    vanilla/textless card, which has nothing to parse) or ``partial`` (some clause
+    fell to ``category="other"`` / an unresolved trigger). The legacy ``unparsed``
+    level is no longer produced: a card with no abilities AND no keywords is vanilla
+    (its full mechanics are its types + P/T), so it is ``full``; any text-bearing
+    card phase whiffs on is synthesized into clauses first, so it is never abilityless.
     """
 
     oracle_id: str
     name: str
     faces: tuple[Face, ...] = ()
     castable_zones: tuple[str, ...] = ()  # graveyard | exile | ... (cast-from zones)
-    parse_confidence: str = "full"  # full | partial | unparsed
+    parse_confidence: str = "full"  # full | partial  (legacy: unparsed, now folded)
     # CR 100.2a exception: a deck may run many copies of this name (Relentless Rats,
     # Hare Apparent, Seven Dwarves) — phase's deck_copy_limit Unlimited or UpTo>=2.
     # The authoritative named-deck signal (a structured field, not an oracle regex).

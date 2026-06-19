@@ -530,15 +530,17 @@ def test_zero_ability_card_synthesizes_from_oracle():
     assert any(e.category == "draw" for a in card.all_abilities() for e in a.effects)
 
 
-def test_vanilla_card_stays_unparsed():
-    """A textless vanilla card has no mechanics — correctly unparsed (not synthesized)."""
+def test_vanilla_card_is_full():
+    """A textless vanilla card has no rules text — its complete mechanics are its
+    types + P/T, which the IR carries, so there is nothing left to parse: `full`
+    (not synthesized into a bogus 'other', and not the legacy `unparsed` mislabel)."""
     rec = {
         "name": "Vanilla Bear",
         "scryfall_oracle_id": "v",
         "card_type": {"core_types": ["Creature"]},
         "oracle_text": "",
     }
-    assert project_card([rec]).parse_confidence == "unparsed"
+    assert project_card([rec]).parse_confidence == "full"
 
 
 def test_keyword_only_card_not_synthesized():
@@ -857,11 +859,13 @@ def test_roundtrip_lossless():
         assert Card.from_dict(card.to_dict()) == card
 
 
-def test_empty_record_is_unparsed():
+def test_empty_record_is_full():
+    """An empty/textless record has no abilities to parse → `full` (nothing to
+    parse), not the legacy `unparsed` mislabel."""
     card = project_card(
         [{"name": "Vanilla Bear", "scryfall_oracle_id": "x", "card_type": {}}]
     )
-    assert card.parse_confidence == "unparsed"
+    assert card.parse_confidence == "full"
     assert card.all_abilities() == ()
 
 
