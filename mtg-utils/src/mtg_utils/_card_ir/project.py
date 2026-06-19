@@ -452,26 +452,37 @@ def _is_sole_empty(ab: Ability) -> bool:
 
 
 def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Ability]:
-    """Fill a SOLE-empty ability (effect lost, but the effect is in the oracle) by
-    dispatching the card's oracle sentences and giving the empty ability the recovered
-    categories the card's structured abilities don't already carry (deduped). Only when
-    there's exactly ONE sole-empty ability (otherwise the sentence→ability attribution
-    is ambiguous) and at least one sentence recovers — else left honestly empty."""
+    """Fill SOLE-empty abilities (effect lost, but the effect is in the oracle) by
+    dispatching the card's oracle sentences. ONE sole-empty ability → gets all recovered
+    categories the structured abilities don't already carry (deduped). MULTIPLE sole-
+    empty abilities (e.g. a Saga's chapters phase wholly failed) → the recovered effects
+    are distributed across them in oracle order (chapter abilities are in oracle order),
+    one per ability — a best-effort attribution accurate at the CARD level (lanes are
+    card-level). An empty with no recovered effect stays honestly empty."""
     empties = [i for i, a in enumerate(abilities) if _is_sole_empty(a)]
-    if len(empties) != 1:
+    if not empties:
         return abilities
     have = {e.category for a in abilities for e in a.effects if e.category != "other"}
-    fills: list[Effect] = []
-    seen: set[str] = set()
-    for s in sentences:
-        eff = recover_effect_from_text(s)
-        if eff.category != "other" and eff.category not in have | seen:
-            seen.add(eff.category)
-            fills.append(eff)
-    if not fills:
+    if len(empties) == 1:
+        fills: list[Effect] = []
+        seen: set[str] = set()
+        for s in sentences:
+            eff = recover_effect_from_text(s)
+            if eff.category != "other" and eff.category not in have | seen:
+                seen.add(eff.category)
+                fills.append(eff)
+        if fills:
+            abilities[empties[0]] = replace(abilities[empties[0]], effects=tuple(fills))
         return abilities
-    i = empties[0]
-    abilities[i] = replace(abilities[i], effects=tuple(fills))
+    # multiple sole-empties: distribute recovered effects across them in oracle order.
+    recovered = [
+        eff
+        for s in sentences
+        if (eff := recover_effect_from_text(s)).category != "other"
+        and eff.category not in have
+    ]
+    for ab_i, eff in zip(empties, recovered, strict=False):
+        abilities[ab_i] = replace(abilities[ab_i], effects=(eff,))
     return abilities
 
 
