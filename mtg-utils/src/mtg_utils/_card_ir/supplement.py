@@ -597,6 +597,8 @@ _SIMPLE_VERB = comb.alt(
     comb.value("clash", comb.keyword({"clash"})),  # "clash with defending player"
     comb.value("discover", comb.keyword({"discover", "discovers"})),
     comb.value("make_token", comb.keyword({"investigate", "investigates"})),  # Clue
+    # Craft (CR 702.166) — exile this + materials, return it transformed: a transform.
+    comb.value("transform", comb.keyword({"craft"})),
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
