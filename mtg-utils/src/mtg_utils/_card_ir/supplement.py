@@ -650,6 +650,11 @@ _VERB = comb.alt(
     comb.value("skip_step", comb.keyword({"skip", "skips"})),  # "skips … combat phase"
     comb.value("counter_spell", comb.tag("counter target")),
     comb.value("counter_spell", comb.tag("counter that")),
+    comb.value("counter_spell", comb.tag("counter it")),  # "…, counter it unless …"
+    # "distribute N +1/+1 counters among …" — a counter placement.
+    comb.value(
+        "place_counter", comb.seq2(comb.tag("distribute"), comb.take_until("counter"))
+    ),
     # "search your library/hand/graveyard …", "search target player's library" — a
     # search is a tutor (CR 701.23) regardless of the zone searched.
     comb.value("tutor", comb.tag("search your")),
@@ -985,7 +990,8 @@ _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
 # control have haste", "Knights … have flying") — anchored on the GRANTED keyword
 # instead (a closed CR keyword-ability set), so it fires without a noun anchor.
 _KEYWORD_GRANT = re.compile(
-    r"\b(?:have|has|gains?)\b[^.]{0,30}\b(?:flying|trample|haste|vigilance|deathtouch"
+    r"\b(?:have|has|gains?)\b[^.]{0,30}\b(?:each of the chosen abilities"
+    r"|all (?:activated|triggered) abilities|flying|trample|haste|vigilance|deathtouch"
     r"|lifelink|menace|reach|hexproof|indestructible|first strike|double strike|flash"
     r"|defender|protection|ward|shroud|fear|intimidate|horsemanship|shadow|skulk"
     r"|infect|wither|persist|undying|forestwalk|islandwalk|swampwalk|mountainwalk"
