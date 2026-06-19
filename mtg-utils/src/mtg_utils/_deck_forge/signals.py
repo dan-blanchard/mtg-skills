@@ -4477,6 +4477,11 @@ def extract_signals_ir(
                     add("party_matters", "you", "", e.raw)
                 elif e.amount.op == "domain":
                     add("domain_matters", "you", "", e.raw)
+                # Batch 3 — "for each +1/+1 counter on ~" → counters payoff. (The
+                # Power operand is intentionally NOT a lane: "equal to its power" is
+                # ubiquitous one-off scaling, not a power build-around.)
+                elif e.amount.op == "counters":
+                    add("counters_matter", "you", "", e.raw)
             if _is_generic_creature_filter(amount_subject) or (
                 e.category == "pump" and _is_generic_creature_filter(e.subject)
             ):

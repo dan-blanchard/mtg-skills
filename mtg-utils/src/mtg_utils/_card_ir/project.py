@@ -1384,10 +1384,17 @@ def _quantity(node: object) -> Quantity | None:
         # a Ref over a named scaling operand (devotion/party/domain) — Gray Merchant
         # is Ref→Devotion, so the operand is nested under qty, not a top-level type.
         if isinstance(qty, dict):
-            op = _SCALING_OPERANDS.get(_norm(qty.get("type")))
+            qt = _norm(qty.get("type"))
+            op = _SCALING_OPERANDS.get(qt)
             if op is not None:
                 return Quantity(op=op, factor=1)
+            if qt == "counterson" and _norm(qty.get("counter_type")) == "p1p1":
+                return Quantity(op="counters", factor=1)
         return Quantity(op="count", factor=1, subject=_objectcount_filter(qty))
+    if t == "counterson" and _norm(node.get("counter_type")) == "p1p1":
+        # "for each +1/+1 counter on ~" — counter-scaling payoff (only +1/+1, not
+        # charge/oil/lore/time, which aren't +1/+1-counters synergy).
+        return Quantity(op="counters", factor=1)
     if t == "objectcount":
         return Quantity(op="count", factor=1, subject=_filter(node.get("filter")))
     if t == "multiply":
@@ -1410,6 +1417,10 @@ _SCALING_OPERANDS: dict[str, str] = {
     "devotionge": "devotion",
     "partysize": "party",
     "basiclandtypecount": "domain",
+    # (Power is NOT here: "equal to its power" is ubiquitous and mostly a one-off
+    # damage/draw scale, not a power build-around — no clean lane. CountersOn is
+    # handled in _quantity, gated to +1/+1 counters; charge/oil/lore/time scaling
+    # is not +1/+1-counters synergy.)
 }
 
 
