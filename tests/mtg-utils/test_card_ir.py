@@ -483,6 +483,51 @@ def _pt_static(affected, mods, *, cda=False):
     }
 
 
+def _spell(effect: dict, description: str = ""):
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "pc",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": "",
+        "abilities": [{"kind": "Spell", "effect": effect, "description": description}],
+    }
+
+
+def test_set_tap_state_projects_to_tap_or_untap():
+    """SetTapState (the single biggest parse gap) → tap / untap by its `state`."""
+    untap = _effects(
+        project_card([_spell({"type": "SetTapState", "state": {"type": "Untap"}})])
+    )
+    assert any(e.category == "untap" for e in untap)
+    tap = _effects(
+        project_card([_spell({"type": "SetTapState", "state": {"type": "Tap"}})])
+    )
+    assert any(e.category == "tap" for e in tap)
+
+
+def test_create_delayed_trigger_recurses_into_stored_effect():
+    """A delayed trigger's stored effect is parsed, not left 'other'."""
+    rec = _spell(
+        {
+            "type": "CreateDelayedTrigger",
+            "condition": {"type": "AtNextPhase", "phase": "End"},
+            "effect": {"kind": "Spell", "effect": {"type": "Draw"}},
+        }
+    )
+    assert any(e.category == "draw" for e in _effects(project_card([rec])))
+
+
+def test_attach_and_shuffle_are_no_longer_other():
+    assert any(
+        e.category == "attach"
+        for e in _effects(project_card([_spell({"type": "Attach"})]))
+    )
+    assert any(
+        e.category == "shuffle"
+        for e in _effects(project_card([_spell({"type": "Shuffle"})]))
+    )
+
+
 def test_copied_type_from_text_reads_after_copy_of():
     assert _copied_type_from_text("~ becomes a copy of target creature").card_types == (
         "Creature",

@@ -111,6 +111,21 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "seek": "seek",
     "becomecopy": "clone",  # Batch 10 — "becomes a copy of" (clone synergy)
     "copyspell": "spell_copy",  # "copy target spell" (Twincast) — distinct from clone
+    # Parse-completeness batch — common effect types that were falling to "other".
+    "shuffle": "shuffle",
+    "transform": "transform",
+    "castfromzone": "cast_from_zone",  # impulse / free-cast / cast-from-exile-or-GY
+    "attach": "attach",  # equip / aura attach — the voltron build-around
+    "paycost": "pay_cost",
+    "choose": "choose",  # a choice setup (color/type/mode); often the ParentTarget src
+    "targetonly": "target_only",  # a pure-target effect (no state change of its own)
+    "bounceall": "bounce",
+    "gaincontrolall": "gain_control",
+    "goad": "goad",
+    "wingame": "win_game",
+    "losegame": "lose_game",
+    "monstrosity": "place_counter",  # +1/+1 counters up to N (Monstrous)
+    "grantcastingpermission": "cast_from_zone",  # "you may cast/play …" permission
     # Batch 0 — v0.1.60 structured effect types that previously fell to "other".
     "flipcoin": "coin_flip",
     "flipcoins": "coin_flip",
@@ -454,6 +469,25 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         return [Effect(category=cat, scope="you", raw=raw)]
     if etype in ("putatlibraryposition", "putontoporbottom"):
         return [_library_position_effect(eff, raw)]
+    if etype == "settapstate":
+        # The biggest single parse gap (2427): tap/untap a permanent. The `state`
+        # field is the direction; reuse the existing tap / untap categories so
+        # untap_engine / tap_down derive from it.
+        state = _norm((eff.get("state") or {}).get("type"))
+        cat = "untap" if state == "untap" else "tap"
+        return [
+            Effect(
+                category=cat,
+                scope=_effect_scope(eff),
+                subject=_effect_subject(eff),
+                raw=raw,
+            )
+        ]
+    if etype == "createdelayedtrigger":
+        # A delayed trigger stores an effect to fire later ("at the beginning of the
+        # next end step, ...") — recurse into the stored effect so its mechanics parse.
+        inner = _collect_effects(eff.get("effect"), raw)
+        return inner or [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
