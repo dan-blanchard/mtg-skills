@@ -565,7 +565,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
-    comb.value("topdeck_select", comb.keyword({"look"})),  # "look at the top N …"
+    comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
     # one shared `bending` effect category (the per-element synergy lanes are not
@@ -600,7 +600,10 @@ _VERB = comb.alt(
     comb.value("tutor", comb.tag("search your")),
     comb.value("tutor", comb.tag("search target")),
     comb.value("tutor", comb.tag("search their")),  # "search their library …"
+    comb.value("tutor", comb.tag("searches their")),  # "<player> searches their …"
+    comb.value("tutor", comb.tag("searches your")),
     comb.value("tutor", comb.tag("search that player's")),
+    comb.value("tutor", comb.tag("searches that player's")),
     comb.value("redirect", comb.tag("change the target")),  # changetargets -> redirect
     comb.value("pay_cost", comb.tag("pay any amount")),  # "pay any amount of {R}"
     # ETB-with-counters ("enters with X +1/+1 counters") → a counter placement.
@@ -651,6 +654,36 @@ def _recover_by_verb(e: Effect) -> Effect | None:
     None when the clause has no recognizable imperative (it stays 'other')."""
     r = _EFFECT_CLAUSE.parse(_FAILED_PREFIX.sub("", e.raw).strip())
     return replace(e, category=r[0]) if r is not None else None
+
+
+# The anchored grammar matches the verb at the cursor (after prefixes); but a clause
+# whose SUBJECT is a noun phrase we don't peel ("Up to two target creatures you control
+# each deal damage", "searches their library …") hides the primary verb a few words in.
+# This LAST-RESORT scan advances word-by-word and takes the FIRST known verb — the
+# clause's primary action. A cheap keyword guard skips the positional scan unless a
+# candidate verb token is even present, so it runs only on the genuine tail.
+_PREFIX_PEEL = comb.opt(comb.many(_PREFIX))
+_VERB_PRESENT = re.compile(
+    r"\b(?:draws?|creates?|destroys?|exiles?|gains?|deals?|mills?|sacrifices?"
+    r"|discards?|taps?|untaps?|puts?|searches?|counter|scry|scries|surveils?"
+    r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
+    r"|goads?|rolls?|prevents?)\b",
+    re.IGNORECASE,
+)
+
+
+def _recover_verb_scan(e: Effect) -> Effect | None:
+    s = _FAILED_PREFIX.sub("", e.raw).strip()
+    peeled = _PREFIX_PEEL.parse(s)
+    body = peeled[1].strip() if peeled is not None else s
+    if not _VERB_PRESENT.search(body):
+        return None
+    words = body.split()
+    for i in range(1, min(len(words), 14)):
+        r = _VERB.parse(" ".join(words[i:]))
+        if r is not None:
+            return replace(e, category=r[0])
+    return None
 
 
 # Static-line discriminants: an anthem ("… gets +N/+N"), a restriction ("… can't …"),
@@ -821,6 +854,7 @@ _RECOVERY_RULES: tuple[ClauseRule, ...] = (
     ClauseRule("create_token", _recover_create_token),
     ClauseRule("by_verb", _recover_by_verb),
     ClauseRule("static_pattern", _recover_static_pattern),
+    ClauseRule("verb_scan", _recover_verb_scan),
 )
 
 
