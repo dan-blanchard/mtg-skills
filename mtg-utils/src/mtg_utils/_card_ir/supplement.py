@@ -601,6 +601,10 @@ _SIMPLE_VERB = comb.alt(
     comb.value("transform", comb.keyword({"craft"})),
     comb.value("suspect", comb.keyword({"suspect", "suspects"})),  # CR 701.61
     comb.value("place_counter", comb.keyword({"adapt", "adapts"})),  # CR 701.43
+    comb.value("regenerate", comb.keyword({"regenerate", "regenerates"})),  # CR 701.19
+    comb.value("convert", comb.keyword({"convert", "converts"})),  # FF convert
+    comb.value("station", comb.keyword({"station", "stations"})),  # spacecraft Station
+    comb.value("reanimate", comb.keyword({"soulshift"})),  # "has soulshift X"
     # Ninjutsu (CR 702.49) — return an unblocked attacker, put this onto the
     # battlefield from hand: a put-into-play cheat. The effect is in the reminder
     # (stripped), so map the keyword name itself.
@@ -651,6 +655,9 @@ _VERB = comb.alt(
     comb.value("counter_spell", comb.tag("counter target")),
     comb.value("counter_spell", comb.tag("counter that")),
     comb.value("counter_spell", comb.tag("counter it")),  # "…, counter it unless …"
+    comb.value("spell_copy", comb.tag("copy that spell")),
+    comb.value("spell_copy", comb.tag("copy target spell")),
+    comb.value("tutor", comb.tag("search the graveyard")),  # Delirium search-the-GY
     # "distribute N +1/+1 counters among …" — a counter placement.
     comb.value(
         "place_counter", comb.seq2(comb.tag("distribute"), comb.take_until("counter"))
@@ -791,7 +798,7 @@ def _recover_verb_scan(e: Effect) -> Effect | None:
 # N may be a digit / variable (X,Y,Z) / * / ~ (phase's P/T placeholder, "gets ~/~").
 # Allow words between "gets" and the P/T token ("gets an additional +2/-2").
 _GETS_PT = re.compile(
-    r"\bgets?\b[^./]{0,18}[+-][\dxyz*~]+/[+-]?[\dxyz*~]+", re.IGNORECASE
+    r"\bgets?\b[^./]{0,18}[+-~][\dxyz*~]*/[+-~][\dxyz*~]*", re.IGNORECASE
 )
 # A type/characteristic STATE conditional ("isn't a creature unless …", "isn't
 # legendary if …") — a static layer effect, its own non-sliced category.
@@ -902,6 +909,32 @@ _NAMED_MECHANICS: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\beach player separates\b|\binto two piles\b", re.IGNORECASE),
         "fact_or_fiction",
     ),
+    (re.compile(r"\bunlock\b[^.]*\bdoor\b", re.IGNORECASE), "unlock"),
+    (re.compile(r"\bactivate exhaust\b|\bexhaust abilit", re.IGNORECASE), "exhaust"),
+    (re.compile(r"\b(?:is|are) sacrificed\b", re.IGNORECASE), "sacrifice"),
+    (re.compile(r"\byou control your opponents\b", re.IGNORECASE), "gain_control"),
+    (re.compile(r"\bexchange life\b", re.IGNORECASE), "set_life"),
+    (re.compile(r"\bdouble the value of\b", re.IGNORECASE), "double"),
+    (re.compile(r"\bdevotion to each color\b", re.IGNORECASE), "devotion"),
+    (re.compile(r"\b(?:may )?end the turn\b", re.IGNORECASE), "end_turn"),
+    (re.compile(r"\bcast this spell only if\b", re.IGNORECASE), "restriction"),
+    (re.compile(r"\beffects from spells named\b", re.IGNORECASE), "name_matters"),
+    (re.compile(r"\bdon'?t cause abilities\b", re.IGNORECASE), "trigger_suppression"),
+    (
+        re.compile(
+            r"\bexchange (?:his|its|their) text\b|\bcolor words\b[^.]*\bchanged\b",
+            re.IGNORECASE,
+        ),
+        "text_change",
+    ),
+    (
+        re.compile(r"\bexchange your hand and graveyard\b", re.IGNORECASE),
+        "exchange_zones",
+    ),
+    (
+        re.compile(r"\bcircle (?:one|two|three) of the colors\b", re.IGNORECASE),
+        "deckbuild",
+    ),
 )
 # A generic REPLACEMENT effect: "If [a thing] would [happen] …, [instead] …" — the
 # recurring token/counter/mana/draw replacement shape phase leaves Unimplemented.
@@ -949,11 +982,12 @@ _MANA_FILTER = re.compile(
 # control are every basic land type", "Nontoken creatures … are Forest lands") — a
 # continuous type set/grant. Its own non-sliced category.
 _TYPE_SET = re.compile(
-    r"\bare (?:the chosen|every basic land type|all basic land types|"
-    r"[a-z]+ lands?\b|white|blue|black|red|green|colorless|legendary|all colors"
+    r"\bare (?:the (?:first |second )?chosen|every basic land type|all basic land types"
+    r"|[a-z]+ lands?\b|white|blue|black|red|green|colorless|legendary|all colors"
     r"|(?:plains|islands?|swamps?|mountains?|forests?)\b)"
     r"|\b(?:is|are) all colors\b|\b(?:is|are) (?:snow|basic)\b"
     r"|\bis every (?:nonbasic )?(?:land|creature) type\b"
+    r"|\bis a (?:flagbearer|demon spirit)\b|\benters? untapped\b"
     r"|\bis an? (?:plains|island|swamp|mountain|forest)\b"
     # the "in addition to (its/their) other …" frame is the type-ADDING tell
     # ("Each land is a Swamp in addition to its other land types").
