@@ -13,6 +13,7 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 from dataclasses import dataclass
@@ -32,7 +33,7 @@ from mtg_utils._deck_forge.signal_specs import (
 )
 from mtg_utils._deck_forge.signals import (
     Signal,
-    extract_signals,
+    extract_signals_hybrid,
     rank_deck_signals,
 )
 from mtg_utils._deck_forge.state import ForgeState
@@ -77,6 +78,30 @@ _EXPLORE_KEYS = (
 # The ranked-candidate pool the Find surface ranks over; the route windows the caller's
 # page size into it, so this bounds how deep "Show more" can page on one request.
 _FIND_POOL = 96
+
+
+@functools.cache
+def _ir_index() -> dict | None:
+    """The Card IR index (oracle_id → Card), loaded once for the process lifetime.
+
+    The ADR-0027 hybrid dispatch (``extract_signals_hybrid``) serves migrated keys
+    from this IR; with ``MIGRATED_KEYS`` empty it's behavior-neutral, so a missing
+    sidecar just degrades every card to the regex path. Returns ``None`` when the
+    sidecar is absent so production degrades instead of crashing — memoized, so no
+    per-card reload attempts."""
+    from mtg_utils._card_ir.load import load_card_ir
+
+    try:
+        return load_card_ir()
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def _signals(record: dict, *, include_membership: bool = True) -> list[Signal]:
+    """Hybrid signal extraction with the card's IR wired by oracle_id (ADR-0027)."""
+    index = _ir_index()
+    ir = index.get(record.get("oracle_id") or "") if index else None
+    return extract_signals_hybrid(record, ir, include_membership=include_membership)
 
 
 def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
@@ -311,7 +336,7 @@ def _commander_lanes(record: dict) -> list[tuple[str, Serve, str]]:
     member doesn't inflate its support."""
     out: list[tuple[str, Serve, str]] = []
     seen: set[str] = set()
-    for sig in extract_signals(record, include_membership=False):
+    for sig in _signals(record, include_membership=False):
         spec = spec_for(sig)
         if spec is None or spec.label in seen:
             continue
@@ -536,7 +561,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
         if not is_commander(rec, fmt)["eligible"]:
             continue
         total += 1
-        for key in {(s.key, s.subject) for s in extract_signals(rec)}:
+        for key in {(s.key, s.subject) for s in _signals(rec)}:
             freq[key] = freq.get(key, 0) + 1
     state.commander_signal_freq[fmt] = (freq, total)
     return freq, total
@@ -547,9 +572,7 @@ def _novelty(record: dict, freq: dict, total: int) -> float:
     so an off-beat hook outranks tokens / counters / ramp. Blind by design to commanders
     whose ability fires no detector (they score 0) — the accepted limit of signal-based
     novelty."""
-    keys = {
-        (s.key, s.subject) for s in extract_signals(record, include_membership=True)
-    }
+    keys = {(s.key, s.subject) for s in _signals(record, include_membership=True)}
     return sum(math.log((total + 1) / freq.get(key, 1)) for key in keys)
 
 

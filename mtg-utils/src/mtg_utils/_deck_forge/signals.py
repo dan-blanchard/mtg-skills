@@ -5002,6 +5002,54 @@ def extract_signals_ir(
     return out
 
 
+# ── Hybrid dispatch seam (ADR-0027 strangler) ─────────────────────────────────
+MIGRATED_KEYS: frozenset[str] = frozenset()
+"""Signal keys served from the IR path in production; grows as the ADR-0027
+regex→IR strangler deletes each key's regex detector. Empty = pure regex
+(today)."""
+
+
+def extract_signals_hybrid(
+    record: dict,
+    ir: Card | None,
+    *,
+    vocab: frozenset[str] = CREATURE_SUBTYPES,
+    include_membership: bool = True,
+    resolve_object: Callable[[str], dict | None] | None = None,
+) -> list[Signal]:
+    """Dispatch each signal key to the IR or the regex path per ``MIGRATED_KEYS``.
+
+    Keys in ``MIGRATED_KEYS`` come from ``extract_signals_ir`` (the Card IR path);
+    every other key comes from ``extract_signals`` (the legacy regex path). The two
+    sets are merged and deduped by ``(key, scope, subject)``. With ``MIGRATED_KEYS``
+    empty (today) the IR contributes nothing, so the result is byte-identical to a
+    pure ``extract_signals`` call regardless of ``ir`` (including ``ir is None``).
+
+    Graceful degradation: when ``ir is None`` (the sidecar is absent / a brand-new
+    set), return the pure regex path — the IR sidecar is a new core dependency but
+    must never hard-crash production if missing. The ``extract_signals`` keyword args
+    (``vocab`` / ``include_membership`` / ``resolve_object``) are forwarded through."""
+    regex_signals = extract_signals(
+        record,
+        vocab=vocab,
+        include_membership=include_membership,
+        resolve_object=resolve_object,
+    )
+    if ir is None or not MIGRATED_KEYS:
+        return regex_signals
+    out: list[Signal] = [s for s in regex_signals if s.key not in MIGRATED_KEYS]
+    seen = {(s.key, s.scope, s.subject) for s in out}
+    for sig in extract_signals_ir(record, ir):
+        if sig.key not in MIGRATED_KEYS:
+            continue
+        ident = (sig.key, sig.scope, sig.subject)
+        if ident in seen:
+            continue
+        seen.add(ident)
+        out.append(sig)
+    return out
+
+
 def aggregate_signals(records: list[dict | None]) -> list[Signal]:
     """Union of signals across many cards, deduped by (key, scope, subject)."""
     seen: dict[tuple[str, str, str], Signal] = {}
