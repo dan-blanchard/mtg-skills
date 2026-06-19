@@ -478,6 +478,27 @@ def _pt_static(affected, mods, *, cda=False):
     }
 
 
+def test_or_composite_filter_unions_member_types():
+    """Spark Double copies a Creature OR a Planeswalker — _filter unions the Or
+    members so the copy hierarchy sees both types."""
+    f = _filter(
+        {
+            "type": "Or",
+            "filters": [
+                {"type": "Typed", "type_filters": ["Creature"], "controller": "You"},
+                {
+                    "type": "Typed",
+                    "type_filters": ["Planeswalker"],
+                    "controller": "You",
+                },
+            ],
+        }
+    )
+    assert f is not None
+    assert set(f.card_types) == {"Creature", "Planeswalker"}
+    assert f.controller == "you"
+
+
 def test_set_base_pt_on_others_is_base_pt_set():
     """Lignify: sets a target creature's base P/T (SetPower + SetToughness)."""
     rec = _pt_static(

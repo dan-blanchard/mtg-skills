@@ -3775,10 +3775,9 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # DEFERRED: type_change — SetCardTypes is kept as accurate IR but the lane
     # fires 0 in commander-legal (the regex's 25 are mostly static "is also a..."
     # which phase models differently); the lane waits for that shape.
-    # DEFERRED: clone_matters — the BecomeCopy effect (the "clone" category, kept as
-    # accurate IR) is the precise 70 clones, but the regex lane is broad (~1611
-    # copy-anything: spell copy, token copy); matching it would conflate distinct
-    # copy archetypes, so the lane waits rather than under-cover by 1541.
+    # clone_matters + per-type copy lanes are wired in extract_signals_ir from the
+    # BecomeCopy "clone" category's COPIED type (creature-only for clone_matters;
+    # the broad regex's token/spell-copy belong to their own lanes).
     # topdeck_stack is wired in extract_signals_ir (not here): _library_position_
     # effect now carries the WHERE (top/bottom/nth) in counter_kind, and the lane
     # fires only on a top-ish position with YOUR moved cards (excludes Bottom puts +
@@ -4055,6 +4054,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Co-occurrence lanes (trigger + effect in one ability):
             "combat_buff_engine",
             "damage_reflect",
+            # Clone hierarchy: creature-copy (clone_matters) + per-permanent-type
+            # copy lanes (a Permanent copy fans out to all of these + copy_permanent):
+            "clone_matters",
+            "copy_artifact",
+            "copy_enchantment",
+            "copy_land",
+            "copy_planeswalker",
+            "copy_permanent",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4183,6 +4190,40 @@ def _hoses_a_color(f: object) -> bool:
     return isinstance(f, Filter) and any(
         p.startswith("HasColor:") for p in f.predicates
     )
+
+
+# Copy/clone lanes by the COPIED permanent type. clone_matters = a CREATURE copy
+# (Clone, Spark Double); the rest are per-permanent-type copy lanes. A copy of a
+# generic "Permanent" (Crystalline Resonance) counts toward EVERY type lane AND the
+# generic copy_permanent — the hierarchy Dan asked for (anything that can target
+# permanents shows up for permanents AND each permanent type). Spell-copy (instant/
+# sorcery) is a SEPARATE concern (spell_copy_matters), not a clone.
+_COPY_TYPE_LANES: dict[str, str] = {
+    "Creature": "clone_matters",
+    "Artifact": "copy_artifact",
+    "Enchantment": "copy_enchantment",
+    "Land": "copy_land",
+    "Planeswalker": "copy_planeswalker",
+}
+
+
+def _clone_copy_lanes(f: object, vocab: frozenset[str]) -> tuple[str, ...]:
+    """The copy lanes a clone effect feeds, from the COPIED filter's types. A generic
+    Permanent copy fans out to copy_permanent + every per-type lane; a creature SUBTYPE
+    (Dinosaur, Ally) with no card type is still a creature copy → clone_matters."""
+    if not isinstance(f, Filter):
+        return ()
+    types = set(f.card_types)
+    lanes: set[str] = set()
+    if "Permanent" in types:
+        lanes.add("copy_permanent")
+        lanes.update(_COPY_TYPE_LANES.values())
+    for t in types:
+        if t in _COPY_TYPE_LANES:
+            lanes.add(_COPY_TYPE_LANES[t])
+    if any(_resolve_subject(s, vocab) for s in f.subtypes):
+        lanes.add("clone_matters")  # a creature subtype (Dinosaur, Ally) → creature
+    return tuple(sorted(lanes))
 
 
 def _is_multicolor_pred(p: str) -> bool:
@@ -4354,11 +4395,13 @@ def extract_signals_ir(
                     add("group_mana", "each", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
-            # DEFERRED: clone_matters — the BecomeCopy "clone" category is the precise
-            # 70 creature-clones, but the regex lane fires 1611 (REGEX_ONLY 1541). The
-            # 1541 are mostly token-copy / spell-copy (their own lanes), but claiming
-            # clone_matters for IR would under-cover them at A4 until that set is
-            # audited. Category kept (accurate IR); lane waits. See deferrals.md.
+            # clone_matters (creatures) + per-permanent-type copy lanes. The copied
+            # type (from BecomeCopy's target, incl. an Or-composite like Spark Double's
+            # Creature-or-Planeswalker) drives the hierarchy: a generic Permanent copy
+            # feeds copy_permanent + every type lane. Spell-copy is a separate lane.
+            if cat == "clone":
+                for key in _clone_copy_lanes(e.subject, vocab):
+                    add(key, "you", "", e.raw)
             # evasion_denial: IgnoreLandwalkForBlocking (Great Wall) — block through
             # an opponent's landwalk evasion.
             if cat == "evasion_denial":

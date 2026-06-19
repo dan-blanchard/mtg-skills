@@ -867,9 +867,30 @@ def _composite_predicates(node: dict) -> list[str]:
     return out
 
 
+def _merge_filters(members: list[Filter]) -> Filter:
+    """Union member filters into one — for an ``Or`` composite (Spark Double copies a
+    Creature OR a Planeswalker; Absorbing Man an Artifact OR an Enchantment). Unions
+    card_types/subtypes so a lane that keys on a type sees every type the effect can
+    apply to; controller is kept only if all members agree (else "any"); predicates
+    are dropped (their union semantics across an Or are ambiguous)."""
+    card_types: tuple[str, ...] = ()
+    subtypes: tuple[str, ...] = ()
+    for m in members:
+        card_types += tuple(t for t in m.card_types if t not in card_types)
+        subtypes += tuple(s for s in m.subtypes if s not in subtypes)
+    controllers = {m.controller for m in members}
+    controller = members[0].controller if len(controllers) == 1 else "any"
+    return Filter(card_types=card_types, subtypes=subtypes, controller=controller)
+
+
 def _filter(node: object) -> Filter | None:
     if not isinstance(node, dict):
         return None
+    # An ``Or`` composite target (a copy/effect that can apply to one of several
+    # filters) — union the members so the type hierarchy sees every type it reaches.
+    if _norm(node.get("type")) == "or":
+        members = [f for f in (_filter(x) for x in _as_list(node.get("filters"))) if f]
+        return _merge_filters(members) if members else None
     card_types, subtypes = _type_and_subtype_filters(node)
     controller = _controller(node.get("controller"))
     predicates = tuple(

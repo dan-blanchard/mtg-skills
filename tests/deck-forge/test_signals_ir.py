@@ -721,6 +721,51 @@ def test_base_pt_set_fires():
     assert ("base_pt_set", "any", "") in _sigs(_static_effect("base_pt_set"))
 
 
+def _clone(*card_types, subtypes=()):
+    return _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="clone",
+                    subject=Filter(card_types=card_types, subtypes=subtypes),
+                ),
+            ),
+        )
+    )
+
+
+def test_creature_clone_is_clone_matters_only():
+    sigs = _sigs(_clone("Creature"))
+    assert ("clone_matters", "you", "") in sigs
+    assert not any(s[0].startswith("copy_") for s in sigs)
+
+
+def test_creature_subtype_clone_is_clone_matters():
+    """Sunfrill Imitator copies a Dinosaur (a creature subtype) → clone_matters."""
+    assert ("clone_matters", "you", "") in _sigs(_clone(subtypes=("Dinosaur",)))
+
+
+def test_artifact_clone_is_copy_artifact_not_clone_matters():
+    sigs = _sigs(_clone("Artifact"))
+    assert ("copy_artifact", "you", "") in sigs
+    assert ("clone_matters", "you", "") not in sigs
+
+
+def test_permanent_clone_fans_out_to_every_type_lane():
+    """A generic Permanent copy (Crystalline Resonance) counts toward copy_permanent
+    AND every per-permanent-type lane — Dan's hierarchy."""
+    sigs = {s[0] for s in _sigs(_clone("Permanent"))}
+    assert {
+        "copy_permanent",
+        "clone_matters",
+        "copy_artifact",
+        "copy_enchantment",
+        "copy_land",
+        "copy_planeswalker",
+    } <= sigs
+
+
 def test_combat_buff_engine_from_begin_combat_pump():
     """A begin-combat trigger that pumps (Additive Evolution) — a co-occurrence."""
     ir = _ir(
