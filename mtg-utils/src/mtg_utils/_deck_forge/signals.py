@@ -3932,6 +3932,90 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the word). Both need a narrower payoff/keyword source.
 )
 
+# Cares-about floor lanes the IR path also runs. A `<mechanic>_matters` lane means
+# "this card cares about / combos with X", so it must fire for PAYOFFS, not just the
+# doers — and those payoffs are textual references with no structural IR form (Ixidor
+# "face-down creatures get +1/+1", a Clue payoff, "creatures you control with a
+# counter"). So reuse the production floor Detector objects for this CURATED subset
+# (the facedown_matters fix, generalized — see feedback memory). DELIBERATELY EXCLUDES
+# the broad foundational / doer lanes (graveyard/counters/removal/pump/ramp/draw/…):
+# their regex-only is genuine IR-STRUCTURING work the signal_diff harness must keep
+# surfacing, not textual cares-about gaps. add() dedups overlap with IR categories.
+_IR_FLOOR_LANES: frozenset[str] = frozenset(
+    {
+        # token-type synergy
+        "clue_matters",
+        "treasure_matters",
+        "food_matters",
+        "blood_matters",
+        # counter-type synergy (distinct from the +1/+1 counters_matter doer lane)
+        "poison_matters",
+        "oil_counter_matters",
+        "shield_counter_matters",
+        "rad_counter_matters",
+        # resource / devotion
+        "energy_matters",
+        "devotion_matters",
+        # type / tribe / permanent-shape synergy
+        "vehicles_matter",
+        "island_matters",
+        "legends_matter",
+        "changeling_matters",
+        "colorless_matters",
+        "multicolor_matters",
+        "lands_matter",
+        "superfriends_matters",
+        "tapped_matters",
+        "modified_matters",
+        "low_power_matters",
+        "power_matters",
+        "historic_matters",
+        "domain_matters",
+        "party_matters",
+        "commander_matters",
+        # mechanic / keyword synergy
+        "arcane_matters",
+        "daynight_matters",
+        "saga_matters",
+        "initiative_matters",
+        "cycling_matters",
+        "station_matters",
+        "void_warp_matters",
+        "speed_matters",
+        "stickers_matter",
+        "attractions_matter",
+        "suspect_matters",
+        "venture_matters",
+        "foretell_matters",
+        "phasing_matters",
+        "ring_matters",
+        "convoke_matters",
+        "affinity_type",
+        "cascade_matters",
+        "undying_persist_matters",
+        "myriad_grant",
+        "suspend_matters",
+        "monarch_matters",
+        "madness_matters",
+        "dice_matters",
+        "exalted_lone_attacker",
+        "crimes_matter",
+        "scry_surveil_matters",
+        "regenerate_matters",
+        # spell-pattern / count payoffs
+        "second_spell_matters",
+        "kicked_spell_matters",
+        "big_hand_matters",
+        "cast_from_exile",
+        "exile_matters",
+        "starting_life_matters",
+        "theft_matters",
+        "mass_death_payoff",
+        "noncombat_damage_payoff",
+        "land_sacrifice_matters",
+    }
+)
+
 # Keys the keyword-array detectors emit (reused verbatim by the IR path, same
 # Scryfall source as the regex path → perfect parity).
 _IR_KEYWORD_KEYS: frozenset[str] = (
@@ -4099,6 +4183,9 @@ IR_SLICE_KEYS: frozenset[str] = (
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
     | _IR_KEYWORD_KEYS
+    # Cares-about floor lanes the IR path now mirrors from production (synergy
+    # payoffs with no structural form) — track their convergence in the harness:
+    | _IR_FLOOR_LANES
     # Batch 2b/2c (effect-doer + trigger-payoff lanes):
     | frozenset(key for key, _scope in _DOER_EFFECT_KEYS.values())
     | frozenset(key for key, _scope in _PAYOFF_TRIGGER_KEYS.values())
@@ -4767,6 +4854,11 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # Cares-about floor lanes (synergy payoffs with no structural IR form) — reuse
+    # the production floor Detector objects for the curated cares-about subset.
+    for det in _FLOOR_DETECTORS:
+        if det.key in _IR_FLOOR_LANES and det.pattern.search(kept_oracle):
+            add(det.key, det.scope, "", "")
 
     # Batch K — additional keyword-array lanes + type_line membership (clean
     # structured-field lookups; membership is low-confidence, as in the regex path).
