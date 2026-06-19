@@ -442,6 +442,8 @@ _PLAYER_PREFIX = comb.value(
         comb.tag("each opponent "),
         comb.tag("you and that player each "),
         comb.tag("you and target player each "),
+        comb.tag("you and target opponent each "),
+        comb.tag("that source's controller "),
         comb.tag("target player "),
         comb.tag("target opponent "),
         comb.tag("target creature "),
@@ -673,9 +675,14 @@ _TUCK = re.compile(r"\bshuffles?\b.{0,60}\blibrary\b", re.IGNORECASE)
 _FLASH_GRANT = re.compile(r"as though (?:it|they) (?:had|have) flash", re.IGNORECASE)
 # More niche-mechanic discriminants (subject/structure precedes the keyword, so a
 # scan, not a cursor parse). All map to NON-sliced categories — pure parse completion.
-_DAMAGE_REPLACE = re.compile(  # "all damage is dealt as though its source had wither"
-    r"\bdamage\b[^.]*\bas though\b", re.IGNORECASE
+_DAMAGE_REPLACE = re.compile(  # damage replacement/prevention: "all damage … as
+    # though …", "the next N damage that would be dealt …", "damage that would reduce …"
+    r"\bdamage\b[^.]*\bas though\b|\bdamage that would\b",
+    re.IGNORECASE,
 )
+# An alternative cost ("you may pay {0} rather than pay the mana cost", "rather than
+# its mana cost") — a cost-replacement permission. Non-sliced category.
+_ALT_COST = re.compile(r"\brather than\b[^.]*\bmana cost\b", re.IGNORECASE)
 _TEXT_CHANGE = re.compile(r"\bchange the text\b|\bchange ~'s\b", re.IGNORECASE)
 _MANA_RESTRICTION = re.compile(r"\bspend only\b", re.IGNORECASE)
 _BID = re.compile(r"\bbid life\b|\bstart the bidding\b", re.IGNORECASE)
@@ -760,6 +767,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="control_combat")
     if _ASSIGN_DAMAGE.search(s):
         return replace(e, category="combat_damage_mod")
+    if _ALT_COST.search(s):
+        return replace(e, category="alt_cost")
     if _DAMAGE_REPLACE.search(s):
         return replace(e, category="damage_replace")
     low = s.lower()
