@@ -356,6 +356,8 @@ _PLAYER_PREFIX = comb.value(
     comb.alt(
         comb.tag("each player "),
         comb.tag("each opponent "),
+        comb.tag("you and that player each "),
+        comb.tag("you and target player each "),
         comb.tag("target player "),
         comb.tag("target opponent "),
         comb.tag("target creature "),
@@ -541,6 +543,30 @@ _BECOMES = re.compile(r"\bbecomes?\b", re.IGNORECASE)
 # A cost alteration (CR 118.9): "… costs {N} less to cast", "… cost {2} more".
 # The altered SET precedes "cost", so a discriminant scan (like the anthem above).
 _COST_ALTER = re.compile(r"\bcosts?\s+\{[^}]*\}\s+(?:less|more)\b", re.IGNORECASE)
+# Disambiguate the "gain(s)" family: a life gain ("gains 5 life", "gain that much
+# life") vs control ("gains control of") vs an ABILITY/keyword grant (everything
+# else: "gains flashback", "has hexproof"). \blife\b is word-bounded so "lifelink"
+# (a keyword grant) does NOT read as life. Control is checked before the bare grant.
+_GAIN_LIFE = re.compile(r"\bgains?\b[^.]*\blife\b", re.IGNORECASE)
+_GAIN_CONTROL = re.compile(r"\bgains?\s+control\b", re.IGNORECASE)
+# Grantable-set anchors: a keyword grant names what GETS the ability (creatures,
+# slivers, lands, the self ~, a card type, enchanted/equipped). Requiring one keeps
+# the grant fallback off bare conditionals ("if you have …", "has been …").
+_GRANTABLE_SUBJECT = (
+    "creature",
+    "permanent",
+    "sliver",
+    "land",
+    "instant",
+    "sorcery",
+    "artifact",
+    "enchantment",
+    "planeswalker",
+    "vehicle",
+    "enchanted ",
+    "equipped ",
+    "~",
+)
 
 
 def _recover_static_pattern(e: Effect) -> Effect | None:
@@ -552,8 +578,17 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     if _CANT.search(s):
         return replace(e, category="restriction")
     low = s.lower()
-    if _HAVE_GAIN.search(s) and ("creature" in low or "permanent" in low):
-        return replace(e, category="grant_keyword")  # coarse — no keyword/subject yet
+    # The gain/have family: a life gain or control gain (any subject), else a
+    # "<grantable set> gains/has <ability>" keyword grant. The grant fallback keeps a
+    # subject anchor (a grantable noun in the clause) so a bare conditional "if you
+    # have no cards" doesn't read as a grant; life/control need no anchor.
+    if _HAVE_GAIN.search(s):
+        if _GAIN_CONTROL.search(s):
+            return replace(e, category="gain_control")
+        if _GAIN_LIFE.search(s):
+            return replace(e, category="gain_life")
+        if any(w in low for w in _GRANTABLE_SUBJECT):
+            return replace(e, category="grant_keyword")  # coarse — no keyword yet
     # "<subject> becomes a copy of …" → clone; "<subject> becomes a 4/4 …" → animate
     # (the subject precedes the verb, so this is a discriminant scan, not a parse).
     if _BECOMES.search(s):
