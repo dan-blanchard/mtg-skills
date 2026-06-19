@@ -4660,6 +4660,36 @@ def extract_signals_ir(
             typed_lane = _typed_matters_lane(amount_subject)
             if typed_lane is not None:
                 add(typed_lane, "you", "", e.raw)
+            # enchantments_matter token / recursion DOER (Aura/Role makers, Replenish-
+            # class GY recursion). A make_token of an Enchantment subject ("create a
+            # Role / Aura enchantment token", Enchantment-creature-token makers) → you
+            # make enchantments. A reanimate / graveyard_recursion / GY-zoned bounce or
+            # tutor of YOUR Enchantment cards → you value enchantment cards. Removal of
+            # an enchantment (destroy / exile / counter / shuffle-to-library) is a
+            # DIFFERENT category and never reaches here, so the over-fire boundary
+            # (enchantment HATE ≠ caring) holds. (Artifact has a much broader resource-
+            # token / sac / theft doer the regex covers; not projected here.)
+            esub = e.subject
+            if (
+                isinstance(esub, Filter)
+                and "Enchantment" in esub.card_types
+                and (
+                    # you MAKE enchantments (Role / Aura / ench-creature tokens)
+                    (e.category == "make_token" and e.scope in ("you", "any"))
+                    # you VALUE your enchantment cards (GY recursion of yours)
+                    or (
+                        esub.controller == "you"
+                        and (
+                            e.category in ("reanimate", "graveyard_recursion")
+                            or (
+                                e.category in ("bounce", "tutor")
+                                and "in:graveyard" in e.zones
+                            )
+                        )
+                    )
+                )
+            ):
+                add("enchantments_matter", "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
                 add("lifegain_matters", "you", "", e.raw)
             # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard
@@ -5092,6 +5122,16 @@ def extract_signals_ir(
                 etb_lane = _typed_matters_lane(trig.subject)
                 if etb_lane is not None:
                     add(etb_lane, "you", "", "")
+            # enchantments_matter "leaves the battlefield" DOER: "whenever an
+            # enchantment you control is put into a graveyard from the battlefield"
+            # (Starfield Mystic, Ashiok's Reaper — the enchantment-sac payoff). phase
+            # parses this as a `dies` trigger over an Enchantment-you-control subject.
+            if (
+                ev == "dies"
+                and _filter_controller(trig.subject) == "you"
+                and "Enchantment" in tsubs
+            ):
+                add("enchantments_matter", "you", "", "")
             if ev in ("combat_damage", "deals_damage"):
                 add("combat_damage_matters", "opponents", "", "")
                 if trig.scope == "opp":
