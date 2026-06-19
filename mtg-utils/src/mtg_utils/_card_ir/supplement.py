@@ -336,9 +336,32 @@ _TRIGGER_PREFIX = comb.value(
 _CONNECTIVE_PREFIX = comb.value(
     None, comb.alt(comb.tag("you may "), comb.tag("then "), comb.tag("instead "))
 )
+# An activation cost "{…}…: " (activated abilities) — consume the leading "{" symbol
+# run up to the cost/effect "': '" so dispatch lands on the effect, not the "{".
+_COST_PREFIX = comb.value(
+    None, comb.seq3(comb.tag("{"), comb.take_until(": "), comb.tag(": "))
+)
+# A leading player subject ("Target player reveals …", "Each opponent …") — consume
+# it so dispatch sees the verb the player performs.
+_PLAYER_PREFIX = comb.value(
+    None,
+    comb.alt(
+        comb.tag("each player "),
+        comb.tag("each opponent "),
+        comb.tag("target player "),
+        comb.tag("target opponent "),
+        comb.tag("that player "),
+    ),
+)
 _PREFIX = comb.preceded(
     comb.ws(),
-    comb.alt(_CHAPTER_PREFIX, _TRIGGER_PREFIX, _CONNECTIVE_PREFIX),
+    comb.alt(
+        _CHAPTER_PREFIX,
+        _COST_PREFIX,
+        _TRIGGER_PREFIX,
+        _PLAYER_PREFIX,
+        _CONNECTIVE_PREFIX,
+    ),
 )
 
 # Verb arms that need a look-ahead discriminant (a sub-parse), built from combinators:
@@ -384,6 +407,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("goad", comb.keyword({"goad", "goads"})),
     comb.value("scry", comb.keyword({"scry", "scries"})),
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
+    comb.value("reveal", comb.keyword({"reveal", "reveals"})),
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(

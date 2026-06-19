@@ -569,6 +569,24 @@ def test_supplement_verb_dispatch_recovers_unimplemented():
     assert any(e.category == "make_token" for e in tok)
 
 
+def test_supplement_strips_prefixes_before_verb_dispatch():
+    """The grammar peels leading trigger / activation-cost / player prefixes so the
+    effect verb dispatches: 'When ~ enters, draw' -> draw; '{2}, {T}: Draw' -> draw;
+    'Target player reveals ...' -> reveal."""
+    for desc, cat in [
+        ("When ~ enters, draw a card.", "draw"),
+        ("{2}, {T}: Draw a card.", "draw"),
+        ("Target player reveals their hand.", "reveal"),
+        ("Chapter 1 — Create a 1/1 Soldier.", "make_token"),
+        ("At the beginning of your upkeep, you may draw a card.", "draw"),
+    ]:
+        cats = {
+            e.category
+            for e in _effects(project_card([_spell({"type": "Unimplemented"}, desc)]))
+        }
+        assert cat in cats, f"{desc!r} -> {cat}, got {cats}"
+
+
 def test_supplement_static_dispatch_recovers_failed_line():
     """A line phase's static parser choked on (carried in the diagnostic prefix) is
     re-parsed: an anthem -> pump."""
