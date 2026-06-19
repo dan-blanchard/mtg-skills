@@ -253,6 +253,19 @@ CATEGORIES: frozenset[str] = frozenset(
         "exhaust",
         "ninjutsu",
         "scry_surveil",
+        # ADR-0027 conferred-keyword re-parse markers — precise categories appended
+        # when a grant carrier's raw encodes a keyword/ability GRANTED to a class of
+        # objects (project._narrow_conferred_keyword_refs). affinity/madness/foretell/
+        # devour are the conferred KEYWORDS; evasion_denial/damage_reflect are the
+        # generic-landwalk umbrella + quoted reflection ability (evasion_denial is
+        # also phase's own named-walk category; connive/counter_spell already exist
+        # above as phase's own effect categories).
+        "affinity",
+        "madness",
+        "foretell",
+        "devour",
+        "evasion_denial",
+        "damage_reflect",
         "other",
     }
 )

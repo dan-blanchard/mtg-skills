@@ -782,6 +782,151 @@ def _narrow_trigger_other_refs(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
+# ── conferred/granted-keyword re-parse (ADR-0027 projection deepening) ─────────
+# When an effect/static GRANTS a keyword (or a keyword-ability) to a CLASS of
+# objects — "spells you cast have affinity for artifacts" (Tezzeret),
+# "Each ... card in your hand has ninjutsu {cost}", a token created "with devour 2"
+# (Dragon Broodmother), an Aura/grant of a quoted ability ('Sliver creatures you
+# control have "Whenever ~ is dealt damage, ~ deals that much damage to ..."') —
+# phase parses it into a GRANT CARRIER (cast_with_keyword / grant_spell_ability /
+# grant_keyword / clone / make_token / a generic carrier) but the SPECIFIC granted
+# keyword the signal lane needs survives only inside the carrier's `raw`. The lane
+# reads a precise keyword/effect (affinity_type ← the affinity keyword;
+# damage_reflect ← a damage_received trigger; evasion_denial ← IgnoreLandwalk;
+# connive ← the connive keyword-action; counter_spell ← a counter effect), so it
+# can't fire off the grant carrier. We NARROW those carriers: when a carrier
+# effect's raw encodes one of these GRANTED mechanics, we APPEND a marker Effect
+# carrying the precise category (append-only — the carrier effect is untouched, so
+# its own grant lanes still fire). FLOOD is the primary risk for a keyword grant,
+# so every anchor is the EXPLICIT grant phrase ("<class> have/has/cast ... <kw>" /
+# a quoted-ability body / "token with <kw>"), never a bare keyword mention. Each
+# mechanic is CR-cited; the append-only shape can never regress parse_confidence
+# (a recognized marker is not an `other`). See ADR-0027 + the projection_worklist's
+# conferred/granted-keyword set.
+
+# Carriers a granted keyword/ability can hide inside. Broader than the
+# restriction-narrow set because grants also ride cast_with_keyword /
+# grant_spell_ability / grant_keyword / clone.
+_GRANT_CARRIERS: frozenset[str] = frozenset(
+    {
+        "cast_with_keyword",
+        "grant_spell_ability",
+        "grant_keyword",
+        "clone",
+        "make_token",
+        "draw",
+        "pump",
+        "pump_target",
+        "cast_from_zone",
+        "other",
+    }
+)
+
+# Affinity (CR 702.41) CONFERRED onto a class of spells: "<spells> you cast have
+# affinity for <type>" / "the next spell you cast this turn has affinity for
+# <type>". Anchored on "affinity for" — the conferring phrase, NOT the bare
+# Affinity keyword (which the card's keyword array already carries). The granted
+# type is captured into counter_kind for any future subject use; the lane itself is
+# type-agnostic.
+_AFFINITY_GRANT = re.compile(r"\bhave affinity for|\bhas affinity for", re.IGNORECASE)
+# Madness (CR 702.35) CONFERRED onto a class of cards: "Each <Vampire> ... card you
+# own ... has madness" (Falkenrath Gorger). Anchored on "has madness" — a grant,
+# not the printed keyword (on the keyword array) nor an "if it has madness"
+# condition (Anje — a condition-drop case this marker deliberately does not reach).
+_MADNESS_GRANT = re.compile(r"\bhas madness\b", re.IGNORECASE)
+# Foretell (CR 702.143) CONFERRED / referenced: "Each ... card in your hand ... has
+# foretell" (Dream Devourer) OR a foretell PAYOFF reference ("the first card you
+# foretell each turn", "whenever you foretell"). Anchored on "has foretell" (the
+# grant) or "you foretell"/"foretold" (the cares-about reference) — NOT the printed
+# Foretell keyword (keyword array).
+_FORETELL_REF = re.compile(
+    r"\bhas foretell\b|\byou foretell\b|\bforetold\b", re.IGNORECASE
+)
+# Devour (CR 702.82) on a CREATED TOKEN: "create a ... token with ... devour N"
+# (Dragon Broodmother). Anchored on "devour" inside a make_token carrier's token
+# profile (the carrier gate restricts this to token-grant rather than any mention).
+_DEVOUR_TOKEN = re.compile(r"\bdevour \d+\b", re.IGNORECASE)
+# Connive (CR 701.50) APPLIED to another creature ("up to one target creature you
+# control connives" — Unstable Experiment) OR GRANTED inside a quoted ability ("it
+# has 'Whenever ~ attacks, it connives'" — Copycrook). Anchored on the connive
+# keyword-action VERB ("connive(s)"). The card's OWN intrinsic connive rides the
+# Scryfall keyword + phase's connive effect; this catches the applied/granted form
+# phase folded into a draw/clone carrier.
+_CONNIVE_REF = re.compile(r"\bconnives?\b", re.IGNORECASE)
+# Generic-landwalk evasion-denial (CR 702.14): the umbrella phrasing "Creatures
+# with landwalk abilities can be blocked as though they didn't have those
+# abilities" (Staff of the Ages) — phase parses the specific named-walk shapes into
+# Effect(category='evasion_denial') but falls through to grant_keyword for the
+# generic umbrella. Anchored on the umbrella "landwalk abilities ... blocked as
+# though".
+_LANDWALK_UMBRELLA = re.compile(
+    r"landwalk abilities[^.]*?blocked as though", re.IGNORECASE
+)
+# Counter-spell (CR 701.5) GRANTED/QUOTED: "<class> you control gain '{T}: Counter
+# target spell.'" (Psychic Trance) / a created token "with '... Counter target
+# noncreature spell ...'" (Mage's Attendant). Anchored on the quoted "counter
+# target ... spell/ability" verb phrase inside a grant/make_token carrier. The
+# card's OWN top-level counter rides phase's counter_spell effect; this catches the
+# counter buried inside a granted/quoted ability.
+_COUNTER_GRANT = re.compile(r"counter target [^\".]*?(?:spell|ability)", re.IGNORECASE)
+# Damage-reflection (CR 120) GRANTED/QUOTED: 'Sliver creatures you control have
+# "Whenever this creature is dealt damage, it deals that much damage to ..."'
+# (Spiteful Sliver). phase swallows the full quoted reflection ability inside a
+# grant_keyword raw. Anchored TIGHTLY on the reflection signature: a "whenever ~ is
+# dealt damage" TRIGGER (not an "if ~ is dealt damage this way" condition clause — a
+# damage-source side effect, e.g. Marauding Raptor / Provoke the Trolls) AND a
+# "deals that much damage" CONSEQUENCE (the reflection mirrors the received amount —
+# not "deals N damage to it", which is a source dealing its own damage). Both anchors
+# are required so a card that merely deals damage and checks "if dealt damage this
+# way" doesn't fire.
+_DAMAGE_REFLECT_TRIG = re.compile(
+    r"\bwhenever\b[^.\"]*?\bis dealt damage\b", re.IGNORECASE
+)
+_DAMAGE_REFLECT_DEALS = re.compile(r"\bdeals that much damage\b", re.IGNORECASE)
+
+
+def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
+    """Append precise marker effects for keywords/abilities GRANTED to a class of
+    objects, which phase leaves only in a grant carrier's raw (conferred-keyword
+    re-parse, ADR-0027). Append-only; the carrier effect is untouched so its own
+    grant lanes still fire. Every anchor is the explicit grant phrase (no flood)."""
+    markers: list[Effect] = []
+    have = {e.category for e in ability.effects}
+
+    def want(cat: str) -> bool:
+        return cat not in have and cat not in {m.category for m in markers}
+
+    for e in ability.effects:
+        if e.category not in _GRANT_CARRIERS:
+            continue
+        raw = e.raw or ""
+        if want("affinity") and _AFFINITY_GRANT.search(raw):
+            markers.append(Effect(category="affinity", scope="you", raw=raw))
+        if want("madness") and _MADNESS_GRANT.search(raw):
+            markers.append(Effect(category="madness", scope="you", raw=raw))
+        if want("foretell") and _FORETELL_REF.search(raw):
+            markers.append(Effect(category="foretell", scope="you", raw=raw))
+        # Devour rides ONLY a make_token carrier's token profile (a "token with
+        # devour N"), never a bare devour mention elsewhere.
+        if e.category == "make_token" and want("devour") and _DEVOUR_TOKEN.search(raw):
+            markers.append(Effect(category="devour", scope="you", raw=raw))
+        if want("connive") and _CONNIVE_REF.search(raw):
+            markers.append(Effect(category="connive", scope="you", raw=raw))
+        if want("evasion_denial") and _LANDWALK_UMBRELLA.search(raw):
+            markers.append(Effect(category="evasion_denial", scope="opp", raw=raw))
+        if want("counter_spell") and _COUNTER_GRANT.search(raw):
+            markers.append(Effect(category="counter_spell", scope="any", raw=raw))
+        if (
+            want("damage_reflect")
+            and _DAMAGE_REFLECT_TRIG.search(raw)
+            and _DAMAGE_REFLECT_DEALS.search(raw)
+        ):
+            markers.append(Effect(category="damage_reflect", scope="you", raw=raw))
+    if not markers:
+        return ability
+    return replace(ability, effects=ability.effects + tuple(markers))
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -810,6 +955,9 @@ def _project_face(record: dict) -> Face:
     # Trigger-other raw-marker (ADR-0027): append precise markers for named-mechanic
     # triggers phase flattened to event='other', surviving only in the effect raw.
     abilities = [_narrow_trigger_other_refs(a) for a in abilities]
+    # Conferred-keyword re-parse (ADR-0027): append precise markers for keywords/
+    # abilities GRANTED to a class of objects, surviving only in a grant carrier raw.
+    abilities = [_narrow_conferred_keyword_refs(a) for a in abilities]
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
