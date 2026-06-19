@@ -313,63 +313,115 @@ def _recover_create_token(e: Effect) -> Effect | None:
 # supplement re-parses the real clause underneath.
 _FAILED_PREFIX = re.compile(r"^[^:]*\bline failed\b[^:]*:\s*", re.IGNORECASE)
 
-# Leading imperative verb → effect category, mirroring phase's imperative.rs `tag`
-# dispatch: anchored at the clause start (a noun later in the clause can't trigger
-# it), most-specific first. This is the broad gap-filler — it flips an unrecovered
-# clause from "other" to its true mechanic category (scope/subject stay coarse).
-_VERB_DISPATCH: tuple[tuple[str, str], ...] = (
-    ("deal damage", "damage"),
-    ("gain life", "gain_life"),
-    ("lose life", "lose_life"),
-    ("draw", "draw"),
-    ("exchange control", "gain_control"),
-    ("gain control", "gain_control"),
-    ("sacrifice", "sacrifice"),
-    ("conjure", "make_token"),
-    ("counter target", "counter_spell"),
-    ("counter that", "counter_spell"),
-    ("search your library", "tutor"),
-    ("scry", "topdeck_select"),
-    ("surveil", "topdeck_select"),
-    ("mill", "mill"),
-    ("discard", "discard"),
-    ("untap", "untap"),
-    ("tap", "tap"),
-    ("shuffle", "shuffle"),
-    ("destroy", "destroy"),
-    ("exile", "exile"),
-    ("proliferate", "proliferate"),
-    ("goad", "goad"),
+# ── effect-clause grammar (a composed combinator parser, mirroring phase's
+# oracle_dispatch → effect-chain → alt(verb-parsers); NOT a startswith chain). The
+# parser consumes any leading trigger/timing/chapter/permission PREFIX, then matches
+# the imperative verb at the cursor and yields its category. Built once at import. ──
+
+# A leading clause that PRECEDES the imperative effect — consumed so dispatch lands on
+# the verb (phase strips the trigger before parsing the effect the same way). A Saga
+# "Chapter N —", a "When/Whenever/At/As … ," trigger/timing clause, "If … ," or a bare
+# "you may"/"then" connective. ``opt(many(...))`` peels stacked prefixes.
+_CHAPTER_PREFIX = comb.value(
+    None, comb.seq3(comb.tag("chapter"), comb.take_until("—"), comb.tag("—"))
+)
+_TRIGGER_PREFIX = comb.value(
+    None,
+    comb.seq3(
+        comb.keyword({"when", "whenever", "at", "as", "if"}),
+        comb.take_until(","),
+        comb.tag(","),
+    ),
+)
+_CONNECTIVE_PREFIX = comb.value(
+    None, comb.alt(comb.tag("you may "), comb.tag("then "), comb.tag("instead "))
+)
+_PREFIX = comb.preceded(
+    comb.ws(),
+    comb.alt(_CHAPTER_PREFIX, _TRIGGER_PREFIX, _CONNECTIVE_PREFIX),
+)
+
+# Verb arms that need a look-ahead discriminant (a sub-parse), built from combinators:
+# "deal [N] damage" (amount between verb and noun); create-a-copy vs token; return-to-
+# battlefield (reanimate) vs to-hand/owner/top (bounce); "add … mana"; "put … counter".
+_DEAL_DAMAGE = comb.value(
+    "damage", comb.seq2(comb.tag("deal"), comb.take_until("damage"))
+)
+_CREATE = comb.alt(
+    comb.value("clone", comb.seq2(comb.tag("create"), comb.take_until("copy of"))),
+    comb.value("make_token", comb.tag("create")),
+)
+_RETURN = comb.preceded(
+    comb.tag("return"),
+    comb.alt(
+        comb.value("reanimate", comb.take_until("to the battlefield")),
+        comb.value("bounce", comb.take_until("to its owner")),
+        comb.value("bounce", comb.take_until("to their hand")),
+        comb.value("bounce", comb.take_until("to your hand")),
+        comb.value("bounce", comb.take_until("to the top")),
+    ),
+)
+_ADD_MANA = comb.value("ramp", comb.seq2(comb.tag("add"), comb.take_until("mana")))
+_PUT_COUNTER = comb.value(
+    "place_counter", comb.seq2(comb.tag("put"), comb.take_until("counter"))
+)
+
+# Single-word imperative verbs (word-boundary-safe via `keyword`, so "draw" doesn't
+# fire on "drawback"); plural/3rd-person forms included for triggered phrasings.
+_SIMPLE_VERB = comb.alt(
+    comb.value("draw", comb.keyword({"draw", "draws"})),
+    comb.value("make_token", comb.keyword({"conjure", "conjures"})),
+    comb.value("choose", comb.keyword({"choose", "chooses"})),
+    comb.value("sacrifice", comb.keyword({"sacrifice", "sacrifices"})),
+    comb.value("mill", comb.keyword({"mill", "mills"})),
+    comb.value("discard", comb.keyword({"discard", "discards"})),
+    comb.value("untap", comb.keyword({"untap", "untaps"})),
+    comb.value("tap", comb.keyword({"tap", "taps"})),
+    comb.value("shuffle", comb.keyword({"shuffle", "shuffles"})),
+    comb.value("destroy", comb.keyword({"destroy", "destroys"})),
+    comb.value("exile", comb.keyword({"exile", "exiles"})),
+    comb.value("proliferate", comb.keyword({"proliferate", "proliferates"})),
+    comb.value("goad", comb.keyword({"goad", "goads"})),
+    comb.value("scry", comb.keyword({"scry", "scries"})),
+    comb.value("surveil", comb.keyword({"surveil", "surveils"})),
+)
+# Multi-word verb phrases (order: most specific first).
+_VERB = comb.alt(
+    _DEAL_DAMAGE,
+    comb.value("gain_life", comb.tag("gain life")),
+    comb.value("lose_life", comb.tag("lose life")),
+    comb.value("gain_control", comb.tag("exchange control")),
+    comb.value("gain_control", comb.tag("gain control")),
+    comb.value("counter_spell", comb.tag("counter target")),
+    comb.value("counter_spell", comb.tag("counter that")),
+    comb.value("tutor", comb.tag("search your library")),
+    _ADD_MANA,
+    _PUT_COUNTER,
+    _CREATE,
+    _RETURN,
+    _SIMPLE_VERB,
+)
+# An effect clause: zero or more leading prefixes, whitespace, then the verb.
+_EFFECT_CLAUSE = comb.preceded(
+    comb.opt(comb.many(_PREFIX)), comb.preceded(comb.ws(), _VERB)
 )
 
 
 def _recover_by_verb(e: Effect) -> Effect | None:
-    s = _FAILED_PREFIX.sub("", e.raw).strip().lower()
-    # "deal [N / X] damage …" — the amount may sit between the verb and "damage".
-    if s.startswith("deal") and "damage" in s[:40]:
-        return replace(e, category="damage")
-    if s.startswith("create"):  # "create a copy of" is a clone, else a token maker
-        return replace(e, category="clone" if "copy of" in s[:40] else "make_token")
-    if s.startswith("choose"):
-        return replace(e, category="choose")
-    if s.startswith("return"):
-        head = s[:70]
-        if "to the battlefield" in head:
-            return replace(e, category="reanimate")
-        if "hand" in head or "to its owner" in head or "top of" in head:
-            return replace(e, category="bounce")
-    if s.startswith("add ") and "mana" in s[:40]:
-        return replace(e, category="ramp")
-    if s.startswith("put ") and "counter" in s[:50]:
-        return replace(e, category="place_counter")
-    for prefix, cat in _VERB_DISPATCH:
-        if s.startswith(prefix):
-            return replace(e, category=cat)
-    return None
+    """Parse an unrecovered clause's imperative effect with the combinator grammar
+    (after stripping phase's diagnostic prefix). Returns the effect re-categorized, or
+    None when the clause has no recognizable imperative (it stays 'other')."""
+    r = _EFFECT_CLAUSE.parse(_FAILED_PREFIX.sub("", e.raw).strip())
+    return replace(e, category=r[0]) if r is not None else None
 
 
-# Static-line patterns phase's static parser choked on: an anthem (gets +N/+N), a
-# restriction (can't …), or an ability/keyword grant (creatures … have/gain …).
+# Static-line discriminants: an anthem ("… gets +N/+N"), a restriction ("… can't …"),
+# or an ability/keyword grant ("creatures … have/gain …"). Unlike the imperative verbs
+# (parsed left-to-right by the combinator grammar above), a static names the AFFECTED
+# set BEFORE its verb, so detection is a discriminant PATTERN, not a cursor-anchored
+# parse — and the anthem's "+N/+N" token is punctuated, which the word-level
+# combinators normalize away (norm_word strips "+"), so a char-level regex is the right
+# tool here (as for the Tinybones scope rules above).
 _GETS_PT = re.compile(r"\bgets? [+-]\d+/[+-]\d+", re.IGNORECASE)
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
 _HAVE_GAIN = re.compile(r"\b(?:have|has|gains?)\b", re.IGNORECASE)
