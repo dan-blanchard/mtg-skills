@@ -111,6 +111,11 @@ def _recover_doubling(e: Effect) -> Effect | None:
     (a "Sacrifice a token" cost) can't steal it; only "counters would be put …
     twice that many" puts the noun before, so fall back to the preceding text."""
     low = e.raw.lower()
+    # "Double all damage …/the next … damage … would deal" → damage doubling.
+    if ("double all damage" in low or "double the damage" in low) or (
+        "double" in low and "damage" in low and "would deal" in low
+    ):
+        return replace(e, category="damage_doubling", scope="you")
     end = next(
         (low.find(f) + len(f) for f in _DOUBLING_FRAMES if f in low),
         -1,
@@ -579,6 +584,7 @@ _SIMPLE_VERB = comb.alt(
     comb.value("surveil", comb.keyword({"surveil", "surveils"})),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
+    comb.value("pay_cost", comb.keyword({"pay"})),  # "Pay 3 life", "pay {2}{R}" (cost)
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
@@ -780,7 +786,17 @@ _ALT_COST = re.compile(
 _TEXT_CHANGE = re.compile(
     r"\bchange the text\b|\bchange ~'s\b|\bchange (?:the )?base power\b", re.IGNORECASE
 )
-_MANA_RESTRICTION = re.compile(r"\bspend only\b", re.IGNORECASE)
+_MANA_RESTRICTION = re.compile(
+    r"\bspend (?:only|this mana only)\b|\bspend this mana only\b", re.IGNORECASE
+)
+# A keyword ability that survived as bare text: any "<type>cycling" (CR 702.29) and
+# any basic-land-type "…walk" landwalk (CR 702.14 evasion).
+_CYCLING = re.compile(r"\b\w*cycling\b", re.IGNORECASE)
+_LANDWALK = re.compile(
+    r"\b(?:desert|forest|island|mountain|swamp|plains)walk\b", re.IGNORECASE
+)
+# "Activate only as a sorcery / during your turn" — an activation-timing restriction.
+_ACTIVATE_ONLY = re.compile(r"\bactivate only\b", re.IGNORECASE)
 _BID = re.compile(r"\bbid life\b|\bstart the bidding\b", re.IGNORECASE)
 _DRAFT = re.compile(r"\bdraft (?:this|each|up to|\d|that)", re.IGNORECASE)
 _CONTROL_COMBAT = re.compile(  # "you choose which creatures attack/block"
@@ -794,7 +810,8 @@ _TYPE_SET = re.compile(
     r"\bare (?:the chosen|every basic land type|all basic land types|"
     r"[a-z]+ lands?\b|white|blue|black|red|green|colorless|legendary|all colors"
     r"|(?:plains|islands?|swamps?|mountains?|forests?)\b)"
-    r"|\b(?:is|are) all colors\b"
+    r"|\b(?:is|are) all colors\b|\b(?:is|are) (?:snow|basic)\b"
+    r"|\bis every (?:nonbasic )?land type\b"
     r"|\bis an? (?:plains|island|swamp|mountain|forest)\b"
     # the "in addition to (its/their) other …" frame is the type-ADDING tell
     # ("Each land is a Swamp in addition to its other land types").
@@ -851,6 +868,7 @@ _GRANTABLE_SUBJECT = (
     "land",
     "instant",
     "sorcery",
+    "spell",
     "artifact",
     "enchantment",
     "planeswalker",
@@ -883,6 +901,12 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="text_change")
     if _MANA_RESTRICTION.search(s):
         return replace(e, category="mana_restriction")
+    if _ACTIVATE_ONLY.search(s):
+        return replace(e, category="restriction")
+    if _CYCLING.search(s):
+        return replace(e, category="cycling")
+    if _LANDWALK.search(s):
+        return replace(e, category="evasion")
     if _BID.search(s):
         return replace(e, category="bid")
     if _DRAFT.search(s):
