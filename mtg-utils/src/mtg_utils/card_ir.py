@@ -82,6 +82,12 @@ class Effect:
     subject: Filter | None = None
     raw: str = ""
     counter_kind: str = ""  # for place/remove_counter: p1p1 | m1m1 | charge | oil | …
+    # Directional non-battlefield zone references this effect structurally touches,
+    # e.g. ("from:graveyard", "to:exile") for "exile target card from a graveyard",
+    # ("in:graveyard",) for a target/count filtered to the graveyard. Lane-agnostic
+    # IR; signals derives zone-matters lanes (graveyard_matters, …) and applies its
+    # own policy (e.g. battlefield→graveyard is death, not graveyard synergy).
+    zones: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -299,6 +305,8 @@ def _effect_to_dict(e: Effect) -> dict:
         out["raw"] = e.raw
     if e.counter_kind:
         out["ck"] = e.counter_kind
+    if e.zones:
+        out["z"] = list(e.zones)
     return out
 
 
@@ -310,6 +318,7 @@ def _effect_from_dict(d: dict) -> Effect:
         subject=_filter_from_dict(d.get("sub")),
         raw=d.get("raw", ""),
         counter_kind=d.get("ck", ""),
+        zones=tuple(d.get("z", ())),
     )
 
 

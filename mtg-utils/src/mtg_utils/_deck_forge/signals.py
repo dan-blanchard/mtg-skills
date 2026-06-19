@@ -3834,6 +3834,24 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "discover": (("discover_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
+    # Graveyard-cast + graveyard-payoff keyword family — a card with any of these
+    # uses ITS OWN / your graveyard as a resource (cast-from-GY: flashback/escape/
+    # disturb/embalm/eternalize/encore/aftermath/retrace/jump-start/recover/unearth;
+    # GY-payoff: dredge/delve/scavenge), so it cares about graveyards (scope you).
+    # NOT graveyard HATE (exile from an opponent's GY) — that's a different lane.
+    "flashback": (("graveyard_matters", "you"),),
+    "escape": (("graveyard_matters", "you"),),
+    "disturb": (("graveyard_matters", "you"),),
+    "embalm": (("graveyard_matters", "you"),),
+    "eternalize": (("graveyard_matters", "you"),),
+    "encore": (("graveyard_matters", "you"),),
+    "aftermath": (("graveyard_matters", "you"),),
+    "retrace": (("graveyard_matters", "you"),),
+    "jump-start": (("graveyard_matters", "you"),),
+    "recover": (("graveyard_matters", "you"),),
+    "unearth": (("graveyard_matters", "you"),),
+    "dredge": (("graveyard_matters", "you"),),
+    "delve": (("graveyard_matters", "you"),),
     "mutate": (("mutate_matters", "you"),),
     "myriad": (("myriad_grant", "you"),),
     "ninjutsu": (("ninjutsu_matters", "you"),),
@@ -3841,7 +3859,7 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "infect": (("poison_matters", "opponents"),),
     "toxic": (("poison_matters", "opponents"),),
     "poisonous": (("poison_matters", "opponents"),),
-    "scavenge": (("scavenge_fuel", "you"),),
+    "scavenge": (("scavenge_fuel", "you"), ("graveyard_matters", "you")),
     "soulbond": (("soulbond_matters", "you"),),
     "specialize": (("specialize_matters", "you"),),
     "suspend": (("suspend_matters", "you"),),
@@ -4470,6 +4488,18 @@ def extract_signals_ir(
             # reanimator / creature_recursion lanes (those are GY→battlefield).
             if e.category in ("reanimate", "mill", "graveyard_recursion"):
                 add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # Zone-aware graveyard_matters (structural projection): an effect that
+            # targets/counts cards IN YOUR graveyard (delve, "creature card in your
+            # graveyard") cares about graveyards. Gated to scope you — an any-scope
+            # in:graveyard is ambiguous (your-GY benefit vs opponent-GY hate), and
+            # recursion/reanimation FROM the graveyard already fires above via
+            # category. bare from:/to: excluded (origin=graveyard→exile is GY HATE).
+            if (
+                "in:graveyard" in e.zones
+                and e.category != "exile"
+                and _ir_scope(e.scope) == "you"
+            ):
+                add("graveyard_matters", "you", "", e.raw)
             # token_maker only when the token goes to YOU — "destroy target
             # creature, its controller makes a Beast" (scope opp) is removal.
             if e.category == "make_token" and e.scope in ("you", "any"):

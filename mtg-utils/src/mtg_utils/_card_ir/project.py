@@ -867,6 +867,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             subject=_effect_subject(eff),
             raw=raw,
             counter_kind=_norm(ck) if isinstance(ck, str) else "",
+            zones=_zone_tags(eff),
         )
     ]
 
@@ -1190,7 +1191,39 @@ def _changezone_effect(eff: dict, raw: str) -> Effect:
         scope=_effect_scope(eff),
         subject=target,
         raw=raw,
+        zones=_zone_tags(eff),
     )
+
+
+# Zones (other than the stack) an effect can structurally reference. Battlefield is
+# included so signals can gate the battlefield→graveyard death case out of
+# graveyard_matters; the stack is omitted (no synergy lane keys off it).
+_ZONE_NAMES = frozenset(
+    {"graveyard", "exile", "library", "hand", "battlefield", "command"}
+)
+
+
+def _zone_tags(eff: dict) -> tuple[str, ...]:
+    """Directional zone references the effect touches: ``from:<zone>`` /
+    ``to:<zone>`` from a ChangeZone's origin/destination, and ``in:<zone>`` for a
+    target/filter restricted to a zone (an ``InZone`` property — "exile target card
+    from a graveyard", delve, count-in-graveyard). Lane-agnostic IR."""
+    tags: list[str] = []
+    origin = _norm(eff.get("origin"))
+    if origin in _ZONE_NAMES:
+        tags.append(f"from:{origin}")
+    dest = _norm(eff.get("destination"))
+    if dest in _ZONE_NAMES:
+        tags.append(f"to:{dest}")
+    for key in ("target", "filter", "affected", "target_filter"):
+        node = eff.get(key)
+        if isinstance(node, dict):
+            for prop in node.get("properties") or []:
+                if isinstance(prop, dict) and _norm(prop.get("type")) == "inzone":
+                    z = _norm(prop.get("zone"))
+                    if z in _ZONE_NAMES:
+                        tags.append(f"in:{z}")
+    return tuple(dict.fromkeys(tags))
 
 
 def _copy_token_effect(eff: dict, raw: str) -> Effect:
