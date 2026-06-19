@@ -16,7 +16,9 @@ from mtg_utils._deck_forge.signals import (
     _voltron_self_recurs,
     coverage_gate,
     extract_signals,
+    extract_signals_hybrid,
 )
+from mtg_utils.card_ir import Card, Face
 
 
 def _ksub(card):
@@ -29,6 +31,21 @@ def _ks(card):
 
 def _keys(card):
     return {s.key for s in extract_signals(card)}
+
+
+# A minimal non-None IR for ADR-0027 migrated keys whose IR source reads a
+# structured field (keyword array) or the kept word-detector mirror — both scan
+# the record directly, so any non-None Card routes the hybrid to the IR path.
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _ks_hybrid(card):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
+
+
+def _keys_hybrid(card):
+    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
 
 
 # --- parametric subject capture (the core generalization) ----------------------
@@ -389,14 +406,15 @@ def test_arcane_matters_opens_on_arcane_payoff():
 
 def test_enlist_matters_opens_on_enlist():
     # Aradesh has enlist and rewards enlisting, so he wants other enlist creatures plus
-    # high-power tap fodder. Reminder text is stripped, so the "Enlist" keyword word
-    # survives. Real oracle.
+    # high-power tap fodder. ADR-0027: enlist_matters is IR-served from the Scryfall
+    # `enlist` keyword array, so it comes through the hybrid path, not pure regex.
     aradesh = {
         "name": "Aradesh, the Founder",
         "type_line": "Legendary Creature — Human Soldier",
         "mana_cost": "{2}{W}",
         "power": "1",
         "toughness": "4",
+        "keywords": ["Enlist"],
         "oracle_text": (
             "Enlist (As this creature attacks, you may tap a nonattacking creature you "
             "control without summoning sickness. When you do, add its power to this "
@@ -406,7 +424,8 @@ def test_enlist_matters_opens_on_enlist():
             "card."
         ),
     }
-    assert ("enlist_matters", "you") in _ks(aradesh)
+    assert ("enlist_matters", "you") in _ks_hybrid(aradesh)
+    assert ("enlist_matters", "you") not in _ks(aradesh)
 
 
 def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
@@ -4337,7 +4356,10 @@ def test_celebration_archetype_opens_and_serves():
             "counter on Ash."
         ),
     }
-    assert "celebration_matters" in _keys(ash)
+    # ADR-0027: celebration_matters is IR-served from the kept word-detector mirror
+    # (\bcelebration\b), so it comes through the hybrid path, not pure regex.
+    assert "celebration_matters" in _keys_hybrid(ash)
+    assert "celebration_matters" not in _keys(ash)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -4370,7 +4392,7 @@ def test_celebration_archetype_opens_and_serves():
             "to each opponent."
         ),
     }
-    assert "celebration_matters" not in _keys(impact)
+    assert "celebration_matters" not in _keys_hybrid(impact)
     assert lane_covers(impact, "celebration_matters") is False
 
 

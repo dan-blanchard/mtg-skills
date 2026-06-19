@@ -88,7 +88,8 @@ CASES = [
         "Daybound (If a player casts no spells during their own turn...)",
     ),
     ("voting_matters", "each", "Each player votes for an option."),
-    ("coven_matters", "you", "Coven — At the beginning of combat, scry 2."),
+    # ADR-0027: coven_matters migrated to the Card IR (kept word-detector mirror),
+    # so it is asserted via the hybrid path below, not this regex CASES loop.
     (
         "token_doubling",
         "you",
@@ -114,6 +115,14 @@ def test_named_mechanic_and_survivor_rules_fire():
             for s in extract_signals({"name": "X", "oracle_text": oracle})
         }
         assert (key, scope) in sigs, f"{key}/{scope} did not fire on: {oracle}"
+
+
+def test_coven_matters_is_ir_served():
+    # ADR-0027: coven_matters is IR-served from the kept word-detector mirror
+    # (\bcoven\b), so it comes through the hybrid path, not pure regex.
+    c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
+    assert ("coven_matters", "you") in _ks_hybrid(c)
+    assert ("coven_matters", "you") not in _ks(c)
 
 
 def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():

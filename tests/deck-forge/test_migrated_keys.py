@@ -165,6 +165,107 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # Group "set-mechanics" — celebration / coven / outlaw / snow / lessons detect
+    # from the kept word-detector mirror (_IR_KEPT_DETECTORS, scans oracle text);
+    # enlist / companion read the Scryfall keyword array. All route on any non-None
+    # IR.
+    "celebration_matters": (
+        {
+            "name": "Tuinvale Guide",
+            "type_line": "Creature — Faerie Scout",
+            "oracle_text": (
+                "Flying\nCelebration — This creature gets +1/+0 and has lifelink "
+                "as long as two or more nonland permanents entered the battlefield "
+                "under your control this turn."
+            ),
+            "keywords": ["Flying", "Celebration"],
+        },
+        _ir(),
+    ),
+    "coven_matters": (
+        {
+            "name": "Leinore, Autumn Sovereign",
+            "type_line": "Legendary Creature — Human Noble",
+            "oracle_text": (
+                "Coven — At the beginning of combat on your turn, put a +1/+1 "
+                "counter on up to one target creature you control. Then if you "
+                "control three or more creatures with different powers, draw a card."
+            ),
+            "keywords": ["Coven"],
+        },
+        _ir(),
+    ),
+    "outlaw_matters": (
+        {
+            "name": "Laughing Jasper Flint",
+            "type_line": "Legendary Creature — Lizard Rogue",
+            "oracle_text": (
+                "Creatures you control but don't own are Mercenaries in addition "
+                "to their other types.\nAt the beginning of your upkeep, exile the "
+                "top X cards of target opponent's library, where X is the number of "
+                "outlaws you control. Until end of turn, you may cast spells from "
+                "among those cards, and mana of any type can be spent to cast those "
+                "spells."
+            ),
+        },
+        _ir(),
+    ),
+    "snow_matters": (
+        {
+            "name": "Diamond Faerie",
+            "type_line": "Snow Creature — Faerie",
+            "oracle_text": (
+                "Flying\n{1}{S}: Snow creatures you control get +1/+1 until end of "
+                "turn. ({S} can be paid with one mana from a snow source.)"
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(),
+    ),
+    "lessons_matter": (
+        {
+            "name": "Sokka, Bold Boomeranger",
+            "type_line": "Legendary Creature — Human Warrior Ally",
+            "oracle_text": (
+                "When Sokka enters, discard up to two cards, then draw that many "
+                "cards.\nWhenever you cast an artifact or Lesson spell, put a "
+                "+1/+1 counter on Sokka."
+            ),
+        },
+        _ir(),
+    ),
+    "enlist_matters": (
+        {
+            "name": "Benalish Faithbonder",
+            "type_line": "Creature — Human Cleric",
+            "oracle_text": (
+                "Vigilance\nEnlist (As this creature attacks, you may tap a "
+                "nonattacking creature you control without summoning sickness. When "
+                "you do, add its power to this creature's until end of turn.)"
+            ),
+            "keywords": ["Vigilance", "Enlist"],
+        },
+        # enlist is read off the Scryfall keyword array, so a bare non-None IR
+        # routes the hybrid to the IR path.
+        _ir(),
+    ),
+    "companion_keyword": (
+        {
+            "name": "Lutri, the Spellchaser",
+            "type_line": "Legendary Creature — Elemental Otter",
+            "oracle_text": (
+                "Companion — Each nonland card in your starting deck has a "
+                "different name. (If this card is your chosen companion, you may "
+                "put it into your hand from outside the game for {3} as a "
+                "sorcery.)\nFlash\nWhen Lutri enters, if you cast it, copy target "
+                "instant or sorcery spell you control. You may choose new targets "
+                "for the copy."
+            ),
+            "keywords": ["Companion", "Flash"],
+        },
+        # companion is read off the Scryfall keyword array → bare non-None IR.
+        _ir(),
+    ),
 }
 
 

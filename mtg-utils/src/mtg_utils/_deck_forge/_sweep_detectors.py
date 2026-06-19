@@ -311,12 +311,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "choose a background|partner with|\\bpartner\\b(?! with)|\\bfriends forever\\b|\\bdoctor's companion\\b",
     },
-    {
-        "key": "companion_keyword",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "companion —|each (?:creature |permanent )?card in your starting deck|your starting deck contains",
-    },
+    # ADR-0027: companion_keyword migrated to the Card IR — detected from the
+    # Scryfall `companion` keyword (signals._IR_KEYWORD_MAP, a structured-field
+    # lookup). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps the human
+    # label, and the serve spec is hand-registered in signal_specs.py (the sweep
+    # auto-register loop no longer reaches it).
     {
         "key": "lure_matters",
         "scope": "you",

@@ -3,11 +3,26 @@ the detectors must respect (so we don't group mechanics the rules treat differen
 """
 
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
 
 
 def _keys(card):
     return {s.key for s in extract_signals(card)}
+
+
+# A minimal non-None IR for ADR-0027 keys whose IR source reads the Scryfall
+# keyword array (any non-None Card routes the hybrid to the IR path).
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _keys_hybrid(card):
+    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
 
 
 def _signals(card):
@@ -16,13 +31,17 @@ def _signals(card):
 
 # #1 Companion (CR 702.139) is a separate deck-construction rule from Partner (702.124).
 def test_companion_is_its_own_key_not_partner():
+    # ADR-0027: companion_keyword is IR-served from the Scryfall `companion`
+    # keyword array, so it comes through the hybrid path, not pure regex.
     c = {
         "name": "Lurrus-like",
         "oracle_text": "Companion — Each permanent card in your starting deck has mana value 2 or less.",
+        "keywords": ["Companion"],
     }
-    k = _keys(c)
+    k = _keys_hybrid(c)
     assert "companion_keyword" in k
     assert "partner_background" not in k
+    assert "companion_keyword" not in _keys(c)
 
 
 def test_partner_still_fires():

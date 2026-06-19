@@ -3229,6 +3229,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bfirebend(?:ing|s)?\b"},
         r"\bfirebend(?:ing|s)?\b",
     ),
+    # ADR-0027: companion_keyword had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Scryfall `companion` keyword). The SERVE pool stays
+    # oracle-defined (a companion's starting-deck restriction text), so
+    # hand-register the spec the sweep auto-register loop used to build, reusing
+    # the deleted regex as the serve pattern.
+    ("companion_keyword", "you"): _spec(
+        *SWEEP_LABELS["companion_keyword"],
+        {
+            "oracle": (
+                r"companion —|each (?:creature |permanent )?card in your "
+                r"starting deck|your starting deck contains"
+            )
+        },
+        r"companion —|each (?:creature |permanent )?card in your starting deck"
+        r"|your starting deck contains",
+    ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",
         "villainous-choice cards (the punisher pool a villainous-choice commander — "

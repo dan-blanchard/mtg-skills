@@ -323,13 +323,11 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         _re(r"attacks? one of your opponents|attacks? a player other than you"),
         "opponents",
     ),
-    # Outlaw tribal (Outlaws of Thunder Junction): Assassins/Mercenaries/Pirates/Rogues/
-    # Warlocks are collectively "outlaws" (Vial Smasher, Kellan).
-    (
-        "outlaw_matters",
-        _re(r"\boutlaws?\b you control|another outlaw|outlaws? enter"),
-        "you",
-    ),
+    # ADR-0027: outlaw_matters migrated to the Card IR — detected from the kept
+    # word-detector mirror (signals._IR_KEPT_DETECTORS: \boutlaws?\b; outlaw is a
+    # creature-type GROUP phase doesn't model as one tag). Its broad _DETECTORS
+    # producer is deleted; the hand-written serve spec (signal_specs.py) is
+    # independent of this regex and survives.
     # Pacify/control commander (Gwafa Hazid): neutralizing OTHER creatures so they
     # "can't attack or block" is a pillowfort/control identity wanting Propaganda.
     # Scoped to others (with/you-don't-control) so a Wall's self-restriction
@@ -354,16 +352,11 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "you",
     ),
-    # Snow matters (Isu the Abominable, Yeti tribal): a commander referencing snow
-    # permanents / lands / spells / mana opens the snow archetype.
-    (
-        "snow_matters",
-        _re(
-            r"\bsnow (?:permanent|land|spell|creature|mana)|for each snow"
-            r"|affinity for snow"
-        ),
-        "you",
-    ),
+    # ADR-0027: snow_matters migrated to the Card IR — detected from the kept
+    # word-detector mirror (signals._IR_KEPT_DETECTORS: \bsnow\b; snow is a
+    # supertype CR 205.4 phase doesn't surface as a payoff tag). Its _DETECTORS
+    # producer is deleted; the hand-written serve spec (signal_specs.py,
+    # serve_types=("snow",)) is independent of this regex and survives.
     # Activated-ability engine: a commander whose engine is a {T}: (or {Q}:) activated
     # ability (Arcum, Captain Sisay, Ertai, Kaho, Sanctum Weaver) wants the support
     # package — cost reducers (Training Grounds), untappers + haste-for-abilities
@@ -1095,15 +1088,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # archetype lane — a Celebration commander (Ash) wants the other Celebration
     # payoffs (Grand Ball Guest, Raging Battle Mouse), which the bare attack trigger
     # never surfaced. Same phrase opens (commander) and serves (card).
-    (
-        "celebration_matters",
-        re.compile(
-            r"two or more nonland permanents entered the battlefield "
-            r"under your control this turn",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: celebration_matters migrated to the Card IR — detected from the
+    # kept word-detector mirror (signals._IR_KEPT_DETECTORS: \bcelebration\b, the
+    # WOE ability word CR 207.2c phase doesn't structure). This _HAND_FLOOR
+    # producer is deleted; the hand-written serve spec (signal_specs.py) is
+    # independent of this regex and survives.
     # Land-sacrifice matters (Gitrog, Titania, Slogurk): a commander that draws/grows
     # when lands hit the graveyard ("whenever … land … put into … graveyard") or pays an
     # ongoing land-sac cost wants repeatable "Sacrifice a land:" OUTLETS (Sylvan
@@ -1288,10 +1277,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # commander that cares about ARCANE spells ("cast a Spirit or Arcane spell", "return
     # target Arcane card") wants Arcane-subtype spells (CR 205.3k) + splice-onto-Arcane.
     ("arcane_matters", re.compile(r"\barcane\b", re.IGNORECASE), "you"),
-    # Enlist payoff (Aradesh): an enlist commander wants OTHER enlist creatures plus
-    # high-power stay-back fodder to tap — enlist adds the tapped creature's POWER (CR
-    # 702.150). Reminder text is stripped, so "Enlist" / "enlisted" survives outside it.
-    ("enlist_matters", re.compile(r"\benlist(?:ed)?\b", re.IGNORECASE), "you"),
+    # ADR-0027: enlist_matters migrated to the Card IR — detected from the Scryfall
+    # `enlist` keyword (signals._IR_KEYWORD_MAP, a structured-field lookup). This
+    # _HAND_FLOOR producer is deleted; the hand-written serve spec (signal_specs.py,
+    # serve_keywords=("enlist",)) is independent of this regex and survives.
     # Power-scaling TAP engine (Mona Lisa "{T}: Add X = power"; Marwyn, Selvala, Alena):
     # a {T} ability whose output scales with a creature's power wants UNTAP effects (tap
     # the engine again for more) and power pumps (a bigger payoff each tap).
@@ -1936,7 +1925,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "each",
     ),
-    ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
+    # ADR-0027: coven_matters migrated to the Card IR — detected from the kept
+    # word-detector mirror (signals._IR_KEPT_DETECTORS: \bcoven\b, the MID ability
+    # word CR 207.2c phase doesn't structure). This _HAND_FLOOR producer is
+    # deleted; the hand-written serve spec (signal_specs.py) survives.
     # Doubling is split by WHAT is doubled — token-doubling and counter-doubling are
     # inherently different deck archetypes (a token doubler wants token makers; a
     # counter doubler wants counter sources). There is deliberately NO generic
@@ -2352,9 +2344,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Lessons (CR 701.48): typed_spellcast drops "Lesson" (its subject vocab is
-    # creature-only), so a Lessons commander (Uncle Iroh, Aang) had no avenue.
-    ("lessons_matter", re.compile(r"\blesson\b", re.IGNORECASE), "you"),
+    # ADR-0027: lessons_matter migrated to the Card IR — detected from the kept
+    # word-detector mirror (signals._IR_KEPT_DETECTORS: \blessons?\b; Lesson is a
+    # subtype CR 702.x phase doesn't surface as a payoff tag). This _HAND_FLOOR
+    # producer is deleted; the hand-written serve spec (signal_specs.py,
+    # serve_types=("lesson",)) is independent of this regex and survives.
     # Widen the existing suspend_matters avenue (sweep fires only on "suspend") to the
     # whole time-counter superstructure: CR 701.56 time travel, 702.63 Vanishing,
     # Impending, and the cross-pool enablers/payoffs (As Foretold, Jhoira, Dust of
@@ -5026,6 +5020,19 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "earthbend_matters",
         "waterbend_matters",
         "firebending_matters",
+        # Group "set-mechanics" — recent-set named mechanics. celebration (WOE
+        # ability word), coven (MID ability word), outlaw (creature-type group),
+        # snow (supertype), lessons (subtype) detect from the kept word-detector
+        # mirror (_IR_KEPT_DETECTORS); enlist + companion detect from the Scryfall
+        # keyword array (_IR_KEYWORD_MAP). All NON-floor IR sources; A-B==0
+        # (commander-legal, floor lanes disabled). See ADR-0027.
+        "celebration_matters",
+        "coven_matters",
+        "outlaw_matters",
+        "snow_matters",
+        "lessons_matter",
+        "enlist_matters",
+        "companion_keyword",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

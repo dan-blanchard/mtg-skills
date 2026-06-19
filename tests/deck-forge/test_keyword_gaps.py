@@ -7,7 +7,12 @@ use synthetic records (no network / bulk), same as the rest of the suite.
 """
 
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
 
 
 def _sig(key, scope="you", subject=""):
@@ -16,6 +21,16 @@ def _sig(key, scope="you", subject=""):
 
 def _keys(card):
     return {s.key for s in extract_signals(card)}
+
+
+# A minimal non-None IR for ADR-0027 keys whose IR source scans the record
+# directly (kept word-detector mirror / keyword array).
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _keys_hybrid(card):
+    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
 
 
 def _subjects(card, key):
@@ -457,7 +472,10 @@ class TestLessonsMatter:
             "type_line": "Legendary Creature — Human Noble Ally",
             "oracle_text": "Firebending 1 (Whenever this creature attacks, add {R}. This mana lasts until end of combat.)\nLesson spells you cast cost {1} less to cast.",
         }
-        assert "lessons_matter" in _keys(iroh)
+        # ADR-0027: lessons_matter is IR-served from the kept word-detector mirror
+        # (\blessons?\b), so it comes through the hybrid path, not pure regex.
+        assert "lessons_matter" in _keys_hybrid(iroh)
+        assert "lessons_matter" not in _keys(iroh)
 
     def test_lesson_search_is_subtype_and_serves(self):
         spec = spec_for(_sig("lessons_matter", "you"))

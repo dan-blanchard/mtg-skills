@@ -5,11 +5,28 @@ The headline guard: a signal that concerns OPPONENTS' graveyards must be scoped
 Tinybones overgeneralization the whole tool exists to prevent).
 """
 
-from mtg_utils._deck_forge.signals import Signal, aggregate_signals, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    aggregate_signals,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
 
 
 def _keys(card):
     return {(s.key, s.scope) for s in extract_signals(card)}
+
+
+# A minimal non-None IR for ADR-0027 keys whose IR source scans the record
+# directly (kept word-detector mirror / keyword array) — any non-None Card routes
+# the hybrid to the IR path.
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _keys_hybrid(card):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
 
 
 def test_creature_etb_scoped_to_you():
@@ -604,12 +621,15 @@ def test_snow_commander_opens_snow_lane():
         "type_line": "Legendary Snow Creature — Yeti",
         "oracle_text": "You may look at the top card of your library any time.\nYou may play snow lands and cast snow spells from the top of your library.\nWhenever another snow permanent you control enters, you may pay {G}, {W}, or {U}. If you do, put a +1/+1 counter on Isu.",
     }
-    assert ("snow_matters", "you") in _keys(isu)
+    # ADR-0027: snow_matters is IR-served from the kept word-detector mirror
+    # (\bsnow\b), so it comes through the hybrid path, not pure regex.
+    assert ("snow_matters", "you") in _keys_hybrid(isu)
+    assert ("snow_matters", "you") not in _keys(isu)
 
 
 def test_non_snow_card_does_not_open_snow_lane():
     card = {"name": "Bear", "type_line": "Creature — Bear", "oracle_text": "Vigilance"}
-    assert ("snow_matters", "you") not in _keys(card)
+    assert ("snow_matters", "you") not in _keys_hybrid(card)
 
 
 # ── Missing race tribes: build-around-able races with deep pools but no lords were
@@ -1031,7 +1051,10 @@ def test_outlaw_commander_opens_outlaw_lane():
         "type_line": "Legendary Creature — Goblin Mercenary",
         "oracle_text": "Whenever another outlaw you control enters, Vial Smasher deals 1 damage to target opponent. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)",
     }
-    assert ("outlaw_matters", "you") in _keys(vial)
+    # ADR-0027: outlaw_matters is IR-served from the kept word-detector mirror
+    # (\boutlaws?\b), so it comes through the hybrid path, not pure regex.
+    assert ("outlaw_matters", "you") in _keys_hybrid(vial)
+    assert ("outlaw_matters", "you") not in _keys(vial)
 
 
 def test_pacify_control_commander_opens_pillowfort():
