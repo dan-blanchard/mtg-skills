@@ -238,6 +238,12 @@ CATEGORIES: frozenset[str] = frozenset(
         "detain",
         "restriction",
         "seek",
+        # ADR-0027 restriction-narrow markers — precise categories appended when a
+        # generic carrier's raw encodes the mechanic (project._narrow_mechanic_refs).
+        "cant_block",
+        "saddle",
+        "soulbond",
+        "phasing",
         "other",
     }
 )

@@ -570,6 +570,106 @@ def _fill_sole_empty(abilities: list[Ability], sentences: list[str]) -> list[Abi
     return abilities
 
 
+# ── restriction-narrow (ADR-0027 projection deepening) ────────────────────────
+# phase often parses a named-mechanic clause into a GENERIC carrier category —
+# a static restriction, an Animate, a TargetOnly/Choose wrapper, a PayCost, a
+# CoinFlip, a Tap, a Pump that grants a quoted ability — keeping the mechanic word
+# only in the effect's `raw`. The signal lane the mechanic feeds reads a SPECIFIC
+# effect category (cant_block / monarch / saddle / soulbond / phasing), so it can't
+# fire off the generic carrier. We NARROW those carriers: when a carrier effect's
+# raw encodes one of these mechanics, we APPEND a marker Effect carrying the precise
+# category (never re-categorize — the original carrier may still feed a stax/animate
+# lane). The append-only shape can never regress parse_confidence (a recognized
+# marker is not an `other`), and mirrors how the supplement re-tags Unimplemented
+# clauses. See ADR-0027 + the projection_worklist's "restriction not narrowed" set.
+
+# Carriers we are willing to read a mechanic reference out of.
+_NARROW_CARRIERS: frozenset[str] = frozenset(
+    {
+        "restriction",
+        "animate",
+        "target_only",
+        "choose",
+        "pump",
+        "pay_cost",
+        "coin_flip",
+        "tap",
+        "redirect",
+        "make_token",
+        "other",
+    }
+)
+# cant_block grant is NARROWER: a created token's own "can't block" drawback
+# (inside a make_token's quoted profile) is not a grant onto an enemy creature, so
+# make_token is excluded for this one mechanic.
+_CANT_BLOCK_CARRIERS: frozenset[str] = _NARROW_CARRIERS - {"make_token"}
+
+# "<determiner> creature […] can't block" — a clause FORCING a targeted/affected
+# creature OTHER THAN THE SOURCE to be unable to block (path-clearing / pillowfort
+# grant, CR 509). The leading determiner excludes the bare self drawback
+# "~ can't block" / "this creature can't block" (a vanilla downside, not a grant).
+_CANT_BLOCK_REF = re.compile(
+    r"\b(?:target|each|that|the chosen|chosen|enchanted|another) "
+    r"(?:[a-z]+ )*?creature[^.]*?can'?t block\b",
+    re.IGNORECASE,
+)
+# …but not the combat TAX "can't block with N" / "can't block more than" (a
+# block-limiting effect, a different lane than an absolute can't-block grant).
+_CANT_BLOCK_TAX = re.compile(r"can'?t block (?:with|more than)\b", re.IGNORECASE)
+# Saddle (CR 702.171) reference: "becomes saddled" / "you saddle" / "whenever you
+# saddle" — NOT a bare "saddles <X>" (a created token that saddles, a token-profile
+# clause, not a saddle-payoff the avenue wants).
+_SADDLE_REF = re.compile(
+    r"\bsaddled\b|\bwhenever you saddle\b|\byou saddle\b", re.IGNORECASE
+)
+# Soulbond (CR 702.95) reference in a non-keyword card ("paired with a creature with
+# soulbond" — Flowering Lumberknot's restriction).
+_SOULBOND_REF = re.compile(r"\bsoulbond\b", re.IGNORECASE)
+# Monarch (CR 725) reference buried in a carrier's raw ("you become the monarch",
+# "unless that player is the monarch"). The Condition(kind=ismonarch) gate is lifted
+# separately in signals.py; this catches the granted/become-monarch clauses phase
+# folds into a tap/pump/restriction effect.
+_MONARCH_REF = re.compile(r"becomes? the monarch|\bthe monarch\b", re.IGNORECASE)
+# Phasing (CR 702.26) reference ("phases out", "phase in", "phased-out") buried in a
+# pay_cost / coin_flip / choose / restriction / make_token carrier. (The Phasing
+# KEYWORD is lifted from the keyword array in signals.py.)
+_PHASING_REF = re.compile(r"\bphases? (?:in|out)\b|\bphased[- ]out\b", re.IGNORECASE)
+
+
+def _narrow_mechanic_refs(ability: Ability) -> Ability:
+    """Append precise marker effects for named mechanics phase left in a carrier's
+    raw (restriction-narrow, ADR-0027). Append-only; the carrier effect is untouched
+    so its own lanes still fire."""
+    markers: list[Effect] = []
+    have = {e.category for e in ability.effects}
+
+    def want(cat: str) -> bool:
+        # Don't duplicate a category phase already projected on this ability.
+        return cat not in have and cat not in {m.category for m in markers}
+
+    for e in ability.effects:
+        raw = e.raw or ""
+        if (
+            e.category in _CANT_BLOCK_CARRIERS
+            and want("cant_block")
+            and _CANT_BLOCK_REF.search(raw)
+            and not _CANT_BLOCK_TAX.search(raw)
+        ):
+            markers.append(Effect(category="cant_block", scope="any", raw=raw))
+        if e.category in _NARROW_CARRIERS:
+            if want("saddle") and _SADDLE_REF.search(raw):
+                markers.append(Effect(category="saddle", scope="you", raw=raw))
+            if want("soulbond") and _SOULBOND_REF.search(raw):
+                markers.append(Effect(category="soulbond", scope="you", raw=raw))
+            if want("monarch") and _MONARCH_REF.search(raw):
+                markers.append(Effect(category="monarch", scope="you", raw=raw))
+            if want("phasing") and _PHASING_REF.search(raw):
+                markers.append(Effect(category="phasing", scope="you", raw=raw))
+    if not markers:
+        return ability
+    return replace(ability, effects=ability.effects + tuple(markers))
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -592,6 +692,9 @@ def _project_face(record: dict) -> Face:
         abilities = [_unfold_name_verb(a, name) for a in abilities]
         abilities = [_fill_bare_trigger(a, sentences) for a in abilities]
         abilities = _fill_sole_empty(abilities, sentences)
+    # Restriction-narrow (ADR-0027): append precise markers for named mechanics
+    # phase left only in a generic carrier's raw.
+    abilities = [_narrow_mechanic_refs(a) for a in abilities]
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
