@@ -670,6 +670,118 @@ def _narrow_mechanic_refs(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
+# ── trigger-other raw-marker (ADR-0027 projection deepening) ──────────────────
+# phase flattens many niche TRIGGERS to Trigger(event='other'): it parses the
+# CONSEQUENCE (the draw / make_token / place_counter / damage / topdeck) as a
+# typed effect, but the trigger CONDITION ("Whenever you win a coin flip",
+# "Whenever you discover", "Whenever the Ring tempts you") survives only inside the
+# effect's `raw` string — never as a typed trigger event. The signal lane the
+# mechanic feeds reads a SPECIFIC effect category (coin_flip / ring_tempt /
+# explore / discover / boast / exhaust / ninjutsu / scry_surveil), so it can't fire
+# off the flattened 'other' trigger. We NARROW those triggers: when an
+# event='other' triggered ability's effect raw encodes one of these trigger
+# clauses, we APPEND a marker Effect carrying the precise category (append-only —
+# the consequence effect is untouched, so its own lanes still fire). Each mechanic
+# is CR-cited; markers are anchored on the SPECIFIC trigger phrase so a card that
+# merely mentions the word in passing doesn't fire (no flood). The append-only
+# shape can never regress parse_confidence (a recognized marker is not an `other`).
+# See ADR-0027 + the projection_worklist's event='other' flattening set.
+
+# Coin flip (CR 705.2) PAYOFF trigger: "Whenever you win/lose a coin flip …"
+# (Chance Encounter, Karplusan Minotaur). Anchored on win/lose so a card that only
+# instructs "flip a coin" as a cost is not double-tagged (that doer is already the
+# coin_flip EFFECT category).
+_COIN_FLIP_TRIG = re.compile(
+    r"\b(?:win|lose)s? (?:a|the) (?:coin )?flip\b", re.IGNORECASE
+)
+# Discover (CR 701.57) PAYOFF trigger: "Whenever you discover, …" (Curator of
+# Sun's Creation, "discover again"). The discover SOURCES carry the Discover
+# keyword; this catches the keyword-less re-trigger payoff.
+_DISCOVER_TRIG = re.compile(r"\bwhenever you discover\b", re.IGNORECASE)
+# Explore (CR 701.44) PAYOFF trigger: "Whenever a creature you control explores, …"
+# (Wildgrowth Walker, Nicanzil, Merfolk Cave-Diver, Lurking Chupacabra, Shadowed
+# Caravel). The explore DOERS land in the explore EFFECT category; this is the
+# keyword-less "cares when my creatures explore" payoff. Anchored on the
+# "explores" verb after a creature subject (not the bare "explore" keyword) so an
+# explore-doer's own reminder text isn't double-tagged.
+_EXPLORE_TRIG = re.compile(r"\bcreature[^.]*?\bexplores\b", re.IGNORECASE)
+# Boast (CR 702.142) PAYOFF trigger: "Whenever you activate a boast ability, …"
+# (Frenzied Raider). Boast SOURCES carry the Boast keyword; this is the payoff.
+_BOAST_TRIG = re.compile(r"\bactivate(?:s|d)? (?:a |an )?boast abilit", re.IGNORECASE)
+# Exhaust (CR 702.177) PAYOFF trigger: "Whenever you activate an exhaust ability,
+# …" (Rangers' Aetherhive, Adrenaline Jockey). Exhaust SOURCES carry an
+# "Exhaust — {cost}:" ability the supplement tags; this is the keyword-less payoff.
+_EXHAUST_TRIG = re.compile(
+    r"\bactivate(?:s|d)? (?:a |an )?exhaust abilit", re.IGNORECASE
+)
+# Ninjutsu (CR 702.49) PAYOFF trigger: "Whenever you activate a ninjutsu ability,
+# …" (Satoru Umezawa). The ninjutsu commander itself lacks the keyword.
+_NINJUTSU_TRIG = re.compile(
+    r"\bactivate(?:s|d)? (?:a |an )?ninjutsu abilit", re.IGNORECASE
+)
+# Scry (CR 701.22) / Surveil (CR 701.25) PAYOFF trigger: "Whenever you scry[ or
+# surveil] …" / "Whenever you surveil …" (Matoya, Planetarium of Wan Shi Tong).
+# The scry/surveil DOERS land in the topdeck_select effect category; this is the
+# keyword-less "cares when I scry/surveil" payoff.
+_SCRY_SURVEIL_TRIG = re.compile(r"\bwhenever you (?:scry|surveil)\b", re.IGNORECASE)
+# Ring-tempt (CR 701.54) reference: a "Whenever the Ring tempts you" trigger
+# (Faramir, Gandalf, Aragorn, Ringwraiths, Galadriel — phase flattens it to
+# event='other') OR a "Ring-bearer" reference buried in any effect raw (Sauron has
+# no tempt trigger — "unless ~ is your Ring-bearer" lives inside a make_token raw).
+# Both are the precise mechanic boundary (CR 701.54 names "Ring-bearer"), so this
+# one fires regardless of the trigger event (the only marker that does).
+_RING_TEMPT_TRIG = re.compile(
+    r"\bthe [Rr]ing tempts you\b|\b[Rr]ing-bearer\b", re.IGNORECASE
+)
+
+
+def _narrow_trigger_other_refs(ability: Ability) -> Ability:
+    """Append precise marker effects for named-mechanic TRIGGERS phase flattened to
+    event='other', leaving the mechanic only in the effect raw (trigger-other
+    raw-marker, ADR-0027). Append-only; the consequence effect is untouched so its
+    own lanes still fire. Gated on event='other' so a typed trigger that phase
+    already structured is never re-tagged — except ring-tempt's Ring-bearer scan,
+    which catches a payoff with no tempt trigger (Sauron)."""
+    is_other_trigger = (
+        ability.kind == "triggered"
+        and ability.trigger is not None
+        and ability.trigger.event == "other"
+    )
+    markers: list[Effect] = []
+    have = {e.category for e in ability.effects}
+
+    def want(cat: str) -> bool:
+        return cat not in have and cat not in {m.category for m in markers}
+
+    for e in ability.effects:
+        raw = e.raw or ""
+        # Ring-tempt fires regardless of trigger event (Sauron's Ring-bearer
+        # reference sits in a non-'other' attacks trigger).
+        if want("ring_tempt") and _RING_TEMPT_TRIG.search(raw):
+            markers.append(Effect(category="ring_tempt", scope="you", raw=raw))
+        # The rest require the event='other' flattening — they ARE the trigger
+        # condition that phase dropped, so a typed trigger means phase kept it.
+        if not is_other_trigger:
+            continue
+        if want("coin_flip") and _COIN_FLIP_TRIG.search(raw):
+            markers.append(Effect(category="coin_flip", scope="you", raw=raw))
+        if want("discover") and _DISCOVER_TRIG.search(raw):
+            markers.append(Effect(category="discover", scope="you", raw=raw))
+        if want("explore") and _EXPLORE_TRIG.search(raw):
+            markers.append(Effect(category="explore", scope="you", raw=raw))
+        if want("boast") and _BOAST_TRIG.search(raw):
+            markers.append(Effect(category="boast", scope="you", raw=raw))
+        if want("exhaust") and _EXHAUST_TRIG.search(raw):
+            markers.append(Effect(category="exhaust", scope="you", raw=raw))
+        if want("ninjutsu") and _NINJUTSU_TRIG.search(raw):
+            markers.append(Effect(category="ninjutsu", scope="you", raw=raw))
+        if want("scry_surveil") and _SCRY_SURVEIL_TRIG.search(raw):
+            markers.append(Effect(category="scry_surveil", scope="you", raw=raw))
+    if not markers:
+        return ability
+    return replace(ability, effects=ability.effects + tuple(markers))
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -695,6 +807,9 @@ def _project_face(record: dict) -> Face:
     # Restriction-narrow (ADR-0027): append precise markers for named mechanics
     # phase left only in a generic carrier's raw.
     abilities = [_narrow_mechanic_refs(a) for a in abilities]
+    # Trigger-other raw-marker (ADR-0027): append precise markers for named-mechanic
+    # triggers phase flattened to event='other', surviving only in the effect raw.
+    abilities = [_narrow_trigger_other_refs(a) for a in abilities]
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),

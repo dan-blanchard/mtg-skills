@@ -244,6 +244,15 @@ CATEGORIES: frozenset[str] = frozenset(
         "saddle",
         "soulbond",
         "phasing",
+        # ADR-0027 trigger-other raw-markers — precise categories appended when an
+        # event='other' triggered ability's effect raw encodes the trigger clause
+        # (project._narrow_trigger_other_refs). coin_flip/explore/discover are also
+        # produced by phase's typed-effect map (_EFFECT_CATEGORY); these are the
+        # keyword-less payoff anchors phase flattened the trigger of.
+        "boast",
+        "exhaust",
+        "ninjutsu",
+        "scry_surveil",
         "other",
     }
 )
