@@ -743,6 +743,15 @@ _SCRY_SURVEIL_TRIG = re.compile(r"\bwhenever you (?:scry|surveil)\b", re.IGNOREC
 _RING_TEMPT_TRIG = re.compile(
     r"\bthe [Rr]ing tempts you\b|\b[Rr]ing-bearer\b", re.IGNORECASE
 )
+# Phasing (CR 702.26) PAYOFF trigger: "Whenever one or more … permanents phase
+# out/in, …" (The War Doctor — phase flattens it to event='other' and keeps only
+# the consequence's place_counter effect, the "phase out" condition surviving in
+# its raw). The phase-out/in DOERS already ride the phasing keyword + the
+# _PHASING_REF restriction-narrow marker (_narrow_mechanic_refs's carrier set,
+# which place_counter is NOT in); this is the keyword-less "cares when permanents
+# phase" payoff. Anchored on a permanent-subject "phase out/in" so a doer's own
+# "~ phases out" reminder isn't double-tagged.
+_PHASING_TRIG = re.compile(r"\bpermanents? phase(?:s)? (?:in|out)\b", re.IGNORECASE)
 
 
 def _narrow_trigger_other_refs(ability: Ability) -> Ability:
@@ -769,6 +778,16 @@ def _narrow_trigger_other_refs(ability: Ability) -> Ability:
         # reference sits in a non-'other' attacks trigger).
         if want("ring_tempt") and _RING_TEMPT_TRIG.search(raw):
             markers.append(Effect(category="ring_tempt", scope="you", raw=raw))
+        # Exhaust fires regardless of trigger event: Pit Automaton's exhaust PAYOFF
+        # is a DELAYED trigger embedded inside an ACTIVATED ability ("{2},{T}: When
+        # you next activate an exhaust ability …, copy it"), kind='activated' with no
+        # 'other' trigger, so the gate below would skip it. The anchor
+        # ("activate(s/d) an exhaust ability") is the precise payoff phrase — a
+        # card merely carrying its own "Exhaust — {cost}:" reminder uses the keyword,
+        # not "activate an exhaust ability", and exhaust SOURCES already ride the
+        # keyword array, so this can't false-fire on a plain exhaust card (CR 702.177).
+        if want("exhaust") and _EXHAUST_TRIG.search(raw):
+            markers.append(Effect(category="exhaust", scope="you", raw=raw))
         # The rest require the event='other' flattening — they ARE the trigger
         # condition that phase dropped, so a typed trigger means phase kept it.
         if not is_other_trigger:
@@ -781,12 +800,15 @@ def _narrow_trigger_other_refs(ability: Ability) -> Ability:
             markers.append(Effect(category="explore", scope="you", raw=raw))
         if want("boast") and _BOAST_TRIG.search(raw):
             markers.append(Effect(category="boast", scope="you", raw=raw))
-        if want("exhaust") and _EXHAUST_TRIG.search(raw):
-            markers.append(Effect(category="exhaust", scope="you", raw=raw))
         if want("ninjutsu") and _NINJUTSU_TRIG.search(raw):
             markers.append(Effect(category="ninjutsu", scope="you", raw=raw))
         if want("scry_surveil") and _SCRY_SURVEIL_TRIG.search(raw):
             markers.append(Effect(category="scry_surveil", scope="you", raw=raw))
+        # Phasing PAYOFF: an event='other' trigger whose consequence (a
+        # place_counter, not in _narrow_mechanic_refs's carrier set) keeps the
+        # "permanents phase out/in" condition only in its raw (The War Doctor).
+        if want("phasing") and _PHASING_TRIG.search(raw):
+            markers.append(Effect(category="phasing", scope="you", raw=raw))
     if not markers:
         return ability
     return replace(ability, effects=ability.effects + tuple(markers))
@@ -937,6 +959,54 @@ def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
+# ── keyword-conditioned payoff refs (ADR-0027 projection deepening) ────────────
+# A card that CARES about a discarded/cast/foretold card HAVING a named keyword —
+# the discriminating "if it has <mechanic>" / "only to <mechanic>" clause that gates
+# the payoff — is flattened by phase into the carrier effect's raw with no
+# structured condition or keyword field. These are PAYOFF/ENABLER references (the
+# "_matters = cares-about" rule), not keyword conferrals, and they ride carriers
+# OUTSIDE _GRANT_CARRIERS (Anje's untap, Karfell's ramp), so the conferred-keyword
+# pass can't reach them. We scan EVERY effect's raw for the precise gating phrase
+# and APPEND a marker carrying the mechanic's payoff category (append-only). Each
+# anchor is the explicit condition/restriction clause, never a bare keyword
+# mention, so a card that merely uses the keyword itself can't false-fire:
+#   madness  ← "if it has madness"  (Anje Falkenrath — a madness-gated untap loop;
+#              distinct from _MADNESS_GRANT's "has madness" keyword conferral, which
+#              this card lacks). CR 702.35.
+#   mutate   ← "if it has mutate"   (Pollywog Symbiote — a keyword-less mutate
+#              cast-payoff; the 34 mutate creatures ride the keyword array). CR 702.139.
+#   foretell ← "to foretell"        (Karfell Harbinger — mana restricted to
+#              foretelling; the foretell ENABLER axis phase keeps only in the ramp
+#              raw). CR 702.143.
+_MADNESS_COND = re.compile(r"\bif it has madness\b", re.IGNORECASE)
+_MUTATE_COND = re.compile(r"\bif it has mutate\b", re.IGNORECASE)
+_FORETELL_SPEND = re.compile(r"\bto foretell\b", re.IGNORECASE)
+
+
+def _narrow_payoff_condition_refs(ability: Ability) -> Ability:
+    """Append precise payoff markers for keyword-conditioned references phase left
+    only in a non-grant carrier's raw (keyword-conditioned payoff refs, ADR-0027).
+    Scans every effect (not carrier-gated — these ride untap/ramp carriers outside
+    _GRANT_CARRIERS). Append-only; anchored on the explicit gating clause."""
+    markers: list[Effect] = []
+    have = {e.category for e in ability.effects}
+
+    def want(cat: str) -> bool:
+        return cat not in have and cat not in {m.category for m in markers}
+
+    for e in ability.effects:
+        raw = e.raw or ""
+        if want("madness") and _MADNESS_COND.search(raw):
+            markers.append(Effect(category="madness", scope="you", raw=raw))
+        if want("mutate") and _MUTATE_COND.search(raw):
+            markers.append(Effect(category="mutate", scope="you", raw=raw))
+        if want("foretell") and _FORETELL_SPEND.search(raw):
+            markers.append(Effect(category="foretell", scope="you", raw=raw))
+    if not markers:
+        return ability
+    return replace(ability, effects=ability.effects + tuple(markers))
+
+
 # ── token-subtype maker recovery (ADR-0027 token-subtype synergy) ──────────────
 # A token MAKER for a named token subtype (Blood/Clue/Food/Treasure) normally rides
 # a make_token Effect whose subject Filter carries the subtype — the signal lane
@@ -1026,6 +1096,10 @@ def _project_face(record: dict) -> Face:
     # Conferred-keyword re-parse (ADR-0027): append precise markers for keywords/
     # abilities GRANTED to a class of objects, surviving only in a grant carrier raw.
     abilities = [_narrow_conferred_keyword_refs(a) for a in abilities]
+    # Keyword-conditioned payoff refs (ADR-0027): append payoff markers for
+    # "if it has <madness/mutate>" / "to foretell" clauses phase left in a non-grant
+    # carrier raw (Anje's untap, Pollywog's draw, Karfell's ramp).
+    abilities = [_narrow_payoff_condition_refs(a) for a in abilities]
     # Token-subtype maker recovery (ADR-0027): append make_token markers for named
     # token subtypes phase left only in a choose-list / granted-ability carrier raw.
     abilities = [_narrow_token_subtype_makers(a) for a in abilities]
@@ -1080,6 +1154,13 @@ def _project_face(record: dict) -> Face:
         untap_marker = _mass_untap_marker(record)
         if untap_marker is not None:
             abilities.append(Ability(kind="static", effects=(untap_marker,)))
+    # Dropped-static face markers (ADR-0027): named-mechanic statics/replacements
+    # phase dropped from the parse entirely (boast amplifier, granted trigger-
+    # doubling, graveyard-wide scavenge grant, scry replacement, extra end step),
+    # surviving only on the face oracle text.
+    dropped_markers = _dropped_static_markers(record, abilities)
+    if dropped_markers:
+        abilities.append(Ability(kind="static", effects=tuple(dropped_markers)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -1955,6 +2036,13 @@ def _quantity(node: object) -> Quantity | None:
                 return Quantity(op=op, factor=1)
             if qt == "counterson" and _norm(qty.get("counter_type")) == "p1p1":
                 return Quantity(op="counters", factor=1)
+            # "for each experience counter you have" — a Ref over a player-counter
+            # operand (Atreus's draw-X, Azula's pump-X). The experience-scaler is a
+            # genuine experience_matters PAYOFF (CR 122.1; parallel to the p1p1
+            # counter-scaler above), so stamp the discriminator op="experience" the
+            # lane reads, rather than collapsing to a bare op="count".
+            if qt == "playercounter" and _norm(qty.get("kind")) == "experience":
+                return Quantity(op="experience", factor=1)
             # a Ref over an Aggregate (Sum of total power/toughness over a filter —
             # Ghalta, Orysa's gate): the operand IS that population. Lift the filter
             # so a count-over-own-board lane reads it (CR 604.3). NB: this is still
@@ -1968,6 +2056,10 @@ def _quantity(node: object) -> Quantity | None:
         # "for each +1/+1 counter on ~" — counter-scaling payoff (only +1/+1, not
         # charge/oil/lore/time, which aren't +1/+1-counters synergy).
         return Quantity(op="counters", factor=1)
+    if t == "playercounter" and _norm(node.get("kind")) == "experience":
+        # A top-level "for each experience counter you have" operand (the same
+        # experience scaler, when phase emits it un-Ref-wrapped).
+        return Quantity(op="experience", factor=1)
     if t == "objectcount":
         return Quantity(op="count", factor=1, subject=_filter(node.get("filter")))
     if t == "aggregate":
@@ -2388,6 +2480,73 @@ def _mass_creature_grant_marker(record: dict) -> Effect | None:
         raw=m.group(0).strip(),
         counter_kind="mass_grant",
     )
+
+
+# ── dropped-static face markers (ADR-0027 projection deepening) ────────────────
+# A handful of named-mechanic STATIC grants / replacement clauses are dropped by
+# phase ENTIRELY — not folded into a carrier raw (so the per-ability marker passes
+# can't see them), but absent from the parse, surviving only on the FACE's oracle
+# text. (Birgi's "Creatures you control can boast twice"; The Masamune's quoted
+# "triggers an additional time" granted ability; Varolz's "Each creature card in
+# your graveyard has scavenge"; Kenessos/Eligeth's "If you would scry a number of
+# cards … instead" replacement; Y'shtola's "there is an additional end step".) We
+# scan the face oracle text for each precise grant/replacement phrase and APPEND a
+# marker effect carrying the mechanic's payoff category, as one synthesized static
+# ability. Append-only; each anchor is the explicit clause (never a bare keyword),
+# CR-cited. trigger_doubling is GATED to faces with no structural trigger_doubling
+# effect (the bare-doubler class — Panharmonicon/Yarok — already binds structurally;
+# only the granted/quoted form, The Masamune, is the residual).
+# Boast (CR 702.142) static AMPLIFIER: "… can boast twice …" (Birgi). The Boast
+# SOURCES carry the keyword; this is the keyword-less amplifier.
+_BOAST_GRANT = re.compile(r"\bcan boast\b", re.IGNORECASE)
+# Trigger-doubling (CR 603.3 — "an additional time") GRANTED/QUOTED: a "… triggers
+# an additional time" clause phase dropped from a granted ability (The Masamune).
+_TRIGGER_DOUBLING_GRANT = re.compile(
+    r"\btriggers? an additional time\b|\btrigger an additional time\b",
+    re.IGNORECASE,
+)
+# Scavenge (CR 702.97) graveyard-wide GRANT: "Each creature card in your graveyard
+# has scavenge" (Varolz, Young Deathclaws, The Cave of Skulls). The intrinsic
+# scavengers carry the keyword; this is the keyword-less granter. Anchored on the
+# grant phrase "has scavenge", not the bare keyword (so a "Scavenge the Dead"
+# ability WORD — Malanthrope, CR 207.2c — can't match).
+_SCAVENGE_GRANT = re.compile(r"\bhas scavenge\b", re.IGNORECASE)
+# Scry (CR 701.22) REPLACEMENT amplifier: "If you would scry a number of cards, …
+# instead" (Kenessos, Eligeth — phase drops the replacement static entirely). The
+# scry/surveil DOERS land in topdeck_select + the scried/surveiled triggers; this is
+# the replacement-amplifier arm with no trigger/effect to bind.
+_SCRY_REPLACEMENT = re.compile(
+    r"\bif you would scry (?:a number of cards|\d+)\b", re.IGNORECASE
+)
+# Extra end step (CR 513) grant: "there is an additional end step" / "an additional
+# ending phase" (Y'shtola Rhul — phase drops the clause; it emits AdditionalPhase
+# only for combat/upkeep). Mirrors the deleted SWEEP regex.
+_EXTRA_END_GRANT = re.compile(
+    r"\badditional end step\b|\badditional ending phase\b", re.IGNORECASE
+)
+
+
+def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
+    """Markers for named-mechanic statics/replacements phase dropped from the parse
+    entirely, surviving only on the face oracle text (dropped-static face markers,
+    ADR-0027). Returned as effects for one synthesized static ability; empty when
+    none match. trigger_doubling is gated to faces lacking a structural one."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    markers: list[Effect] = []
+    if (m := _BOAST_GRANT.search(text)) is not None:
+        markers.append(Effect(category="boast", scope="you", raw=m.group(0)))
+    has_struct_td = any(
+        e.category == "trigger_doubling" for a in abilities for e in a.effects
+    )
+    if not has_struct_td and (m := _TRIGGER_DOUBLING_GRANT.search(text)) is not None:
+        markers.append(Effect(category="trigger_doubling", scope="you", raw=m.group(0)))
+    if (m := _SCAVENGE_GRANT.search(text)) is not None:
+        markers.append(Effect(category="scavenge", scope="you", raw=m.group(0)))
+    if (m := _SCRY_REPLACEMENT.search(text)) is not None:
+        markers.append(Effect(category="scry_surveil", scope="you", raw=m.group(0)))
+    if (m := _EXTRA_END_GRANT.search(text)) is not None:
+        markers.append(Effect(category="extra_end", scope="you", raw=m.group(0)))
+    return markers
 
 
 def _type_and_subtype_filters(node: dict) -> tuple[tuple[str, ...], tuple[str, ...]]:

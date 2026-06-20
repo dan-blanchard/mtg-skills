@@ -266,6 +266,16 @@ CATEGORIES: frozenset[str] = frozenset(
         "devour",
         "evasion_denial",
         "damage_reflect",
+        # ADR-0027 keyword-conditioned payoff + dropped-static face markers — precise
+        # categories appended for a payoff/grant phase left only in a non-grant
+        # carrier raw (project._narrow_payoff_condition_refs: "if it has mutate") or
+        # dropped from the parse entirely, surviving only on the face oracle text
+        # (project._dropped_static_markers: a "has scavenge" graveyard-wide grant).
+        # boast/scry_surveil/madness/foretell already exist above; trigger_doubling /
+        # extra_end are phase's own effect categories the dropped-static pass also
+        # produces for the granted/replacement residual.
+        "mutate",
+        "scavenge",
         # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
         # artifacts / enchantments you control) the structured projection dropped to a
         # subjectless characteristic_pt / ModifyCost / damage / gate condition;

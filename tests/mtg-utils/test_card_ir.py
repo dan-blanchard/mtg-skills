@@ -18,12 +18,16 @@ from __future__ import annotations
 
 from mtg_utils._card_ir.project import (
     _copied_type_from_text,
+    _dropped_static_markers,
     _filter,
+    _narrow_payoff_condition_refs,
     _narrow_token_subtype_makers,
+    _narrow_trigger_other_refs,
     _predicate,
+    _quantity,
     project_card,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity
+from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
 
 # ── real phase records (focused to the fields project() reads) ────────────────
 
@@ -1563,3 +1567,176 @@ def test_token_subtype_maker_recovery_ignores_non_carrier_and_bare_mention():
     )
     out = _narrow_token_subtype_makers(ability)
     assert out is ability  # nothing appended (draw is not a carrier)
+
+
+# ── ADR-0027 tail-supplement markers (boast / connive-grant / scavenge / scry-
+# replacement / extra-end / madness / mutate / foretell / phasing / exhaust /
+# trigger-doubling / experience) ──────────────────────────────────────────────
+def _cats(ability: Ability) -> set[str]:
+    return {e.category for e in ability.effects}
+
+
+def test_payoff_condition_refs_madness_mutate_foretell():
+    """ "if it has madness" (Anje's untap loop), "if it has mutate" (Pollywog's draw
+    payoff), and "to foretell" (Karfell's mana restriction) each append a precise
+    payoff marker — even on a non-grant carrier (untap/draw/ramp)."""
+    madness = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="untap",
+                scope="you",
+                raw="Whenever you discard a card, if it has madness, untap ~.",
+            ),
+        ),
+    )
+    assert "madness" in _cats(_narrow_payoff_condition_refs(madness))
+    mutate = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="draw",
+                scope="you",
+                raw="Whenever you cast a creature spell, if it has mutate, draw "
+                "a card, then discard a card.",
+            ),
+        ),
+    )
+    assert "mutate" in _cats(_narrow_payoff_condition_refs(mutate))
+    foretell = Ability(
+        kind="activated",
+        cost="tap",
+        effects=(
+            Effect(
+                category="ramp",
+                scope="any",
+                raw="{T}: Add {U}. Spend this mana only to foretell a card from "
+                "your hand or cast an instant or sorcery spell.",
+            ),
+        ),
+    )
+    assert "foretell" in _cats(_narrow_payoff_condition_refs(foretell))
+
+
+def test_payoff_condition_refs_no_bare_keyword_fire():
+    """Anchored on the gating clause, not a bare keyword: a card that merely USES
+    madness/mutate/foretell (its own keyword) without the "if it has …" / "to …"
+    condition appends nothing."""
+    ability = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="grant_keyword",
+                scope="you",
+                raw="Madness {1}{R}. You may cast this card for its madness cost.",
+            ),
+        ),
+    )
+    assert _narrow_payoff_condition_refs(ability) is ability
+
+
+def test_dropped_static_markers_boast_scavenge_scry_extra_end():
+    """Statics phase drops entirely (surviving only on the face oracle) recover a
+    marker: Birgi's boast amplifier, Varolz's graveyard-wide scavenge grant,
+    Kenessos's scry replacement, Y'shtola's additional end step."""
+    birgi = {
+        "oracle_text": "Creatures you control can boast twice during each of your "
+        "turns rather than once."
+    }
+    assert {"boast"} == {e.category for e in _dropped_static_markers(birgi, [])}
+    varolz = {
+        "oracle_text": "Each creature card in your graveyard has scavenge. The "
+        "scavenge cost is equal to its mana cost."
+    }
+    assert {"scavenge"} == {e.category for e in _dropped_static_markers(varolz, [])}
+    kenessos = {
+        "oracle_text": "If you would scry a number of cards, scry that many cards "
+        "plus one instead."
+    }
+    cats = {e.category for e in _dropped_static_markers(kenessos, [])}
+    assert "scry_surveil" in cats
+    yshtola = {
+        "oracle_text": "Then if it's the first end step of the turn, there is an "
+        "additional end step after this step."
+    }
+    cats = {e.category for e in _dropped_static_markers(yshtola, [])}
+    assert "extra_end" in cats
+
+
+def test_dropped_static_trigger_doubling_gated_to_no_structural():
+    """The Masamune's granted "triggers an additional time" recovers a marker only
+    when no structural trigger_doubling effect exists; a card that already carries
+    the structural category (Panharmonicon-class) recovers nothing (no double-tag)."""
+    masamune = {
+        "oracle_text": 'Equipped creature has "If a creature dying causes a '
+        "triggered ability of this creature or an emblem you own to trigger, that "
+        'ability triggers an additional time."'
+    }
+    cats = {e.category for e in _dropped_static_markers(masamune, [])}
+    assert "trigger_doubling" in cats
+    structural = [
+        Ability(kind="static", effects=(Effect(category="trigger_doubling"),))
+    ]
+    assert not _dropped_static_markers(masamune, structural)
+
+
+def test_dropped_static_scavenge_not_ability_word():
+    """Anchored on "has scavenge" (the grant), so Malanthrope's "Scavenge the Dead"
+    ability WORD (CR 207.2c — no rules meaning) recovers nothing."""
+    malanthrope = {
+        "oracle_text": "Scavenge the Dead — When this creature enters, exile target "
+        "player's graveyard. Put a +1/+1 counter on this creature for each creature "
+        "card exiled this way."
+    }
+    assert not _dropped_static_markers(malanthrope, [])
+
+
+def test_trigger_other_phasing_payoff_marker():
+    """An event='other' trigger whose place_counter consequence keeps "permanents
+    phase out" only in its raw (The War Doctor) appends a phasing payoff marker."""
+    ability = Ability(
+        kind="triggered",
+        trigger=Trigger(event="other"),
+        effects=(
+            Effect(
+                category="place_counter",
+                scope="you",
+                counter_kind="time",
+                raw="Whenever one or more other permanents phase out, put a time "
+                "counter on ~.",
+            ),
+        ),
+    )
+    assert "phasing" in _cats(_narrow_trigger_other_refs(ability))
+
+
+def test_trigger_other_exhaust_fires_on_delayed_activated_trigger():
+    """Pit Automaton's exhaust payoff is a delayed trigger inside an ACTIVATED
+    ability (no event='other' trigger), so the exhaust marker must fire regardless
+    of trigger kind."""
+    ability = Ability(
+        kind="activated",
+        cost="mana,tap",
+        effects=(
+            Effect(
+                category="state",
+                scope="any",
+                raw="{2}, {T}: When you next activate an exhaust ability that "
+                "isn't a mana ability this turn, copy it.",
+            ),
+        ),
+    )
+    assert "exhaust" in _cats(_narrow_trigger_other_refs(ability))
+
+
+def test_quantity_experience_counter_operand():
+    """ "for each experience counter you have" (Ref → PlayerCounter{Experience})
+    stamps op="experience" — the discriminator the experience_matters scaler lane
+    reads, not a bare op="count"."""
+    node = {"type": "Ref", "qty": {"type": "PlayerCounter", "kind": "Experience"}}
+    q = _quantity(node)
+    assert q is not None
+    assert q.op == "experience"
+    # a generic count operand stays op="count" (no false experience tag)
+    generic = {"type": "ObjectCount", "filter": {"type": "Typed", "type_filters": []}}
+    assert _quantity(generic).op == "count"

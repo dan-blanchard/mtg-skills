@@ -924,7 +924,11 @@ _NAMED_MECHANICS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bexchange life\b", re.IGNORECASE), "set_life"),
     (re.compile(r"\bdouble the value of\b", re.IGNORECASE), "double"),
     (re.compile(r"\bdevotion to each color\b", re.IGNORECASE), "devotion"),
-    (re.compile(r"\b(?:may )?end the turn\b", re.IGNORECASE), "end_turn"),
+    # ADR-0027: emit "end_the_turn" (matching phase's native endtheturn->end_the_turn
+    # map in project._EFFECT_CATEGORY and the _DOER_EFFECT_KEYS key) so the
+    # failed-parse recovery binds the end_the_turn lane (Obeka). The old "end_turn"
+    # string matched no signal binding and was silently dropped.
+    (re.compile(r"\b(?:may )?end the turn\b", re.IGNORECASE), "end_the_turn"),
     (re.compile(r"\bcast this spell only if\b", re.IGNORECASE), "restriction"),
     (re.compile(r"\beffects from spells named\b", re.IGNORECASE), "name_matters"),
     (re.compile(r"\bdon'?t cause abilities\b", re.IGNORECASE), "trigger_suppression"),
