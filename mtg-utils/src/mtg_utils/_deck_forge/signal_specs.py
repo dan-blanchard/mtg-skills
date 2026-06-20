@@ -1243,6 +1243,7 @@ def _sweep_spec_with_extras(
     serve_toughness_min: int | None = None,
     serve_toughness_over_power: bool = False,
     serve_keywords: tuple[str, ...] = (),
+    regex: str | None = None,
 ) -> SignalSpec:
     """Promote a mined sweep detector to a hand-spec that keeps its regex (as both
     search and serve) but fans out extra sub-avenues — used where a sweep-derived lane
@@ -1250,15 +1251,20 @@ def _sweep_spec_with_extras(
     counter doublers). ``serve_power_min`` / ``serve_toughness_min`` additionally credit
     big bodies (power doublers / toughness-as-power lanes want the stat-line they
     exploit); ``serve_keywords`` adds a keyword dimension. Reuses SWEEP_DETECTORS so the
-    regex never drifts from the mine.
+    regex never drifts from the mine — UNLESS ``regex`` is given, for an ADR-0027-
+    migrated key whose SWEEP_DETECTORS row is deleted (the serve keeps the old regex).
     """
-    d = next(x for x in SWEEP_DETECTORS if x["key"] == key)
+    d_regex = (
+        regex
+        if regex is not None
+        else next(x for x in SWEEP_DETECTORS if x["key"] == key)["regex"]
+    )
     label, avenue = SWEEP_LABELS[key]
     return _spec(
         label,
         avenue,
-        {"oracle": d["regex"]},
-        d["regex"],
+        {"oracle": d_regex},
+        d_regex,
         extras=extras,
         serve_power_min=serve_power_min,
         serve_toughness_min=serve_toughness_min,
@@ -2282,10 +2288,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties: surface
     # creature cost reducers (Goreclaw) and genuine bombs (Ghalta — power_min=6 keeps it
     # to true fatties, not every 5/5 the trigger would also accept).
+    # ADR-0027: creature_cast_trigger migrated to the Card IR (a cast_spell trigger with
+    # a Creature subject + an effect-raw / face-oracle "whenever/when [player] casts a …
+    # creature spell" scan). Its SWEEP_DETECTORS row is deleted; the serve keeps the old
+    # regex (passed explicitly so the spec no longer depends on the deleted row).
     ("creature_cast_trigger", "you"): _sweep_spec_with_extras(
         "creature_cast_trigger",
         (_CREATURE_COST_EXTRA, _SELF_BOUNCE_EXTRA),
         serve_power_min=6,
+        regex=(
+            r"whenever (?:you|a player|an opponent|each opponent) casts? a creature "
+            r"spell|whenever (?:a|another) creature spell is cast"
+        ),
     ),
     # Toughness-as-power (Doran, Arcades) and damage-reflection (Boros Reckoner) decks
     # want big-TOUGHNESS bodies and Walls — credit them by toughness>=4 and Defender.
@@ -3382,6 +3396,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["oil_counter_matters"],
         {"oracle": r"\boil counters?\b"},
         r"\boil counters?\b",
+    ),
+    # ADR-0027: changeling_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — the Scryfall changeling keyword + a "changeling"
+    # / "is every creature type" all-tribes marker). Serve hand-registered reusing the
+    # deleted regex (plus the changeling keyword dimension for the bearers).
+    ("changeling_matters", "you"): _spec(
+        *SWEEP_LABELS["changeling_matters"],
+        {"oracle": r"is every creature type|\bchangeling\b"},
+        r"is every creature type|\bchangeling\b",
+        serve_keywords=("changeling",),
     ),
     # ADR-0027: starting_life_matters had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — a "starting life total" compare marker). Serve

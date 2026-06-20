@@ -602,12 +602,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # clause explore cards that emit no explore Effect node) + phase's `explore`
     # effect category (the event='other' explore payoff). The serve spec is hand-
     # registered in signal_specs reusing the deleted regex.
-    {
-        "key": "changeling_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "is every creature type|\\bchangeling\\b",
-    },
+    # ADR-0027: changeling_matters migrated to the Card IR — the Scryfall `changeling`
+    # keyword (_IR_KEYWORD_MAP, the intrinsic changelings) + a `_CHANGELING_REF`
+    # ("changeling" / "is every creature type") dropped-static marker for the keyword-
+    # less makers/anthems (Maskwood Nexus, Mistform Ultimus, Arachnoform). Removed from
+    # _IR_FLOOR_LANES; serve hand-registered reusing the deleted regex.
     {
         "key": "alt_cost_keyword",
         "scope": "you",
@@ -904,12 +903,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "combat_damage_matters",
         "regex": "deals? combat damage to (?:a player|each opponent|an opponent|that player)",
     },
-    {
-        "key": "creature_cast_trigger",
-        "scope": "any",
-        "is_widen_of": "opponent_cast_matters",
-        "regex": "whenever (?:you|a player|an opponent|each opponent) casts? a creature spell|whenever (?:a|another) creature spell is cast",
-    },
+    # ADR-0027: creature_cast_trigger migrated to the Card IR — a cast_spell trigger with
+    # a Creature subject + an effect-raw / face-oracle "whenever/when [player] casts a …
+    # creature spell" scan (recovers the qualified-subject triggers the bare regex
+    # missed). This SWEEP_DETECTORS row is deleted; the serve hand-spec keeps its regex.
     {
         "key": "spell_copy_matters",
         "scope": "you",

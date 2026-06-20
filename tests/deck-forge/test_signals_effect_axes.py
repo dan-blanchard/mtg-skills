@@ -44,8 +44,10 @@ CASES = [
         "Look at the top five cards of your library. Put a creature card from among them onto the battlefield.",
     ),
     ("bounce_tempo", "you", "{1}{U}: Return target creature to its owner's hand."),
-    ("cascade_matters", "you", "Cascade"),
-    ("regenerate_matters", "you", "{R}: Regenerate this creature."),
+    # ADR-0027: cascade_matters (Scryfall cascade keyword + _CASCADE_GRANT marker) and
+    # regenerate_matters (phase's regenerate effect + _REGENERATE_REF marker) migrated to
+    # the Card IR, so they no longer fire on the regex path tested here — their IR paths
+    # are proven in test_migrated_keys.
 ]
 
 

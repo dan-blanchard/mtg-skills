@@ -2157,8 +2157,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    ("cascade_matters", re.compile(r"\bcascade\b", re.IGNORECASE), "you"),
-    ("regenerate_matters", re.compile(r"\bregenerate\b", re.IGNORECASE), "you"),
+    # ADR-0027: cascade_matters migrated to the Card IR — the Scryfall `cascade`
+    # keyword (_IR_KEYWORD_MAP, the intrinsic cascaders) + a `_CASCADE_GRANT` marker for
+    # the keyword-less granters/references ("spells you cast have cascade", "as you
+    # cascade", "spell with cascade"). Removed from _IR_FLOOR_LANES; serve hand-spec'd.
+    # ADR-0027: regenerate_matters migrated to the Card IR — phase's `regenerate` effect
+    # (_DOER_EFFECT_KEYS) + a `_REGENERATE_REF` marker for the granted/quoted/replace
+    # regenerate phase drops (Tribal Golem, Mossbridge Troll). Removed from
+    # _IR_FLOOR_LANES; serve hand-spec'd.
     # ── Keyword-coverage audit (CR 702/701) keyword[]-anchored avenues ──────────
     # Each fires on a commander/card that bears or cares about the keyword; the matching
     # SPECS entry serves the keyword[] bearers (authoritative) plus the payoff phrasing.
@@ -2191,16 +2197,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # marker for the "to foretell" mana ENABLER (Karfell Harbinger,
     # project._narrow_payoff_condition_refs). Removed from _IR_FLOOR_LANES. This
     # _HAND_FLOOR producer is deleted; the serve spec stays in signal_specs.
-    # Undying (CR 702.93a, +1/+1) / Persist (CR 702.79a, -1/-1): the counter-bearing
-    # SUBSET of dies_recursion. Distinct lane because the COUNTER is the point for a
-    # counters deck — undying feeds +1/+1 synergies, persist feeds -1/-1/aristocrats —
-    # whereas the broad dies_recursion lane cares about the recursion itself. These
-    # cards open BOTH lanes (dies_recursion includes the undying/persist keywords).
-    (
-        "undying_persist_matters",
-        re.compile(r"\b(?:undying|persist)\b", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: undying_persist_matters migrated to the Card IR — the Scryfall
+    # `undying`/`persist` keywords (_IR_KEYWORD_MAP, the intrinsic bearers) + a
+    # `_UNDYING_PERSIST_GRANT` marker for the keyword-less GRANTERS ("creatures you
+    # control have undying" — Mikaeus, "gains persist until end of turn" — the persist-
+    # granters). Removed from _IR_FLOOR_LANES; the "\bundying\b" floor over-fired on the
+    # "Undying Flames" card NAME (Epic damage, no undying mechanic), which the
+    # structural IR correctly drops. This _HAND_FLOOR producer is deleted; the serve
+    # hand-spec stays. (dies_recursion still includes the undying/persist keywords.)
     # -1/-1 counters (CR 122 / 702.80 Wither / 702.90 Infect): the symmetric counter
     # axis counters_matter (hard-pinned to +1/+1) leaves homeless — Hapatra aristocrats.
     ("minus_counters_matter", re.compile(r"-1/-1 counter", re.IGNORECASE), "you"),
@@ -4162,7 +4166,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "vehicles_matter",
         "island_matters",
         "legends_matter",
-        "changeling_matters",
+        # changeling_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # changeling keyword + a "changeling" / "is every creature type" marker). Its
+        # SWEEP_DETECTORS row is deleted.
         "colorless_matters",
         "multicolor_matters",
         "lands_matter",
@@ -4217,8 +4223,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # affinity keyword + an `affinity` marker effect for the conferred "spells you
         # cast have affinity for X" granters), so it no longer needs the regex floor
         # (its SWEEP_DETECTORS row is deleted).
-        "cascade_matters",
-        "undying_persist_matters",
+        # cascade_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # cascade keyword + a `_CASCADE_GRANT` conferral/reference marker). Its
+        # _HAND_FLOOR detector is deleted.
+        # undying_persist_matters removed — ADR-0027 migrated it to the Card IR (the
+        # Scryfall undying/persist keywords + a `_UNDYING_PERSIST_GRANT` grant marker);
+        # the "\bundying\b" floor over-fired on the "Undying Flames" card NAME, which
+        # the structural IR correctly drops. Its _HAND_FLOOR detector is deleted.
         # myriad_grant removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # myriad keyword + grant_keyword counter_kind='myriad' granters + a copy-
         # exception conferred marker), so it no longer needs the regex floor (its
@@ -4246,7 +4257,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # marker, plus the "if you would scry a number of cards" replacement marker
         # (Kenessos, Eligeth)), so it no longer needs the regex floor (its _HAND_FLOOR
         # detector is deleted).
-        "regenerate_matters",
+        # regenerate_matters removed — ADR-0027 migrated it to the Card IR (phase's
+        # `regenerate` effect + a `_REGENERATE_REF` granted/quoted/replacement marker).
+        # Its _HAND_FLOOR detector is deleted.
         # spell-pattern / count payoffs
         "second_spell_matters",
         "kicked_spell_matters",
@@ -6461,6 +6474,43 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "starting_life_matters",
         "cycling_matters",
         "dice_matters",
+        # Group "sweep 2" (ADR-0027 small-residual close) — five more low-residual keys
+        # closed by the conferred/dropped-static markers (prior commit). Four left
+        # _IR_FLOOR_LANES; floor-mirror-dep == 0 for cascade/changeling/regenerate
+        # (floor-ON == floor-OFF), and undying_persist's +1 floor-dependency is the
+        # "Undying Flames" NAME over-fire the structural IR correctly drops (parallel to
+        # the madness "Crown of Madness" / devour "Devour Intellect" name/word over-fire
+        # precedents). creature_cast_trigger was never floored. NO-FLOOD held (only the
+        # target keys grew; no non-target key moved). The migrations are broader-and-
+        # correct RECALL, not over-fire: creature_cast_trigger +28 (qualified-subject
+        # triggers — "green/Vampire/Eldrazi creature spell", "nonlegendary creature
+        # spell with flying" — the bare "casts a creature spell" regex missed). Each
+        # key's oracle-regex producer is deleted; serve specs stay hand-spec'd.
+        #   cascade_matters ← Scryfall `cascade` keyword + a `_CASCADE_GRANT` marker for
+        #                the keyword-less granters/references (Maelstrom Nexus, Yidris,
+        #                Averna, The First Doctor's "spell with cascade" payoff).
+        #   changeling_matters ← Scryfall `changeling` keyword + a `_CHANGELING_REF`
+        #                ("changeling" / "is every creature type") marker (Maskwood
+        #                Nexus, Mistform Ultimus, Arachnoform, Omo's everything ctr).
+        #   regenerate_matters ← phase's `regenerate` effect + a `_REGENERATE_REF`
+        #                marker for the granted/quoted/replacement regenerate (Tribal
+        #                Golem, Mossbridge Troll, the Holy Nimbus pair).
+        #   undying_persist_matters ← Scryfall undying/persist keywords + a
+        #                `_UNDYING_PERSIST_GRANT` marker for the keyword-less granters
+        #                (Mikaeus, Cauldron of Souls, the Scarecrows). Drops "Undying
+        #                Flames" (the name over-fire).
+        #   creature_cast_trigger ← a cast_spell trigger with a Creature subject + an
+        #                effect-raw / face-oracle "whenever/when [player] casts a …
+        #                creature spell" scan (Wildgrowth Archaic's enters-with
+        #                replacement, Glimpse of Nature's delayed trigger, Blink's
+        #                token, Garruk's emblem). Anchored past mana-restrictions /
+        #                different-trigger may-cast actions (Cavern of Souls, Dragon-
+        #                Kami's Egg).
+        "cascade_matters",
+        "changeling_matters",
+        "regenerate_matters",
+        "undying_persist_matters",
+        "creature_cast_trigger",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

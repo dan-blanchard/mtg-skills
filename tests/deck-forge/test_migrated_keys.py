@@ -1810,6 +1810,138 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ── ADR-0027 sweep 2 ──
+    # Cascade granter (Maelstrom Nexus) — "the first spell you cast each turn has
+    # cascade" is recovered as a `cascade` conferred-keyword marker.
+    "cascade_matters": (
+        {
+            "name": "Maelstrom Nexus",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "The first spell you cast each turn has cascade. (When you cast "
+                "your first spell, exile cards from the top of your library "
+                "until you exile a nonland card that costs less. You may cast it "
+                "without paying its mana cost. Put the exiled cards on the bottom "
+                "in a random order.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cascade",
+                        scope="you",
+                        raw="the first spell you cast each turn has cascade",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Changeling anthem (Maskwood Nexus) — "creatures you control are every creature
+    # type" is recovered as a `changeling` dropped-static marker.
+    "changeling_matters": (
+        {
+            "name": "Maskwood Nexus",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "Creatures you control are every creature type. The same is true "
+                "for creature spells you control and creature cards you own that "
+                "aren't on the battlefield.\n{3}, {T}: Create a 2/2 blue "
+                "Shapeshifter creature token with changeling. (It is every "
+                "creature type.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="changeling",
+                        scope="you",
+                        raw="are every creature type",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Regenerate grant (Tribal Golem) — the granted "{B}: Regenerate this creature"
+    # is recovered as a `regenerate` dropped-static marker.
+    "regenerate_matters": (
+        {
+            "name": "Tribal Golem",
+            "type_line": "Artifact Creature — Golem",
+            "oracle_text": (
+                "This creature has trample as long as you control a Beast, haste "
+                "as long as you control a Goblin, first strike as long as you "
+                "control a Soldier, flying as long as you control a Wizard, and "
+                '"{B}: Regenerate this creature" as long as you control a Zombie.'
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="regenerate",
+                        scope="you",
+                        raw="{B}: Regenerate this creature",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Undying grant (Mikaeus, the Unhallowed) — "other non-Human creatures you control
+    # … have undying" is recovered as an `undying_persist` conferred-grant marker.
+    "undying_persist_matters": (
+        {
+            "name": "Mikaeus, the Unhallowed",
+            "type_line": "Legendary Creature — Zombie Cleric",
+            "oracle_text": (
+                "Intimidate\nWhenever a Human deals damage to you, destroy it.\n"
+                "Other non-Human creatures you control get +1/+1 and have "
+                "undying. (When a creature with undying dies, if it had no +1/+1 "
+                "counters on it, return it to the battlefield under its owner's "
+                "control with a +1/+1 counter on it.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="undying_persist",
+                        scope="you",
+                        raw="other non-Human creatures you control … have undying",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Creature-cast trigger (Glimpse of Nature) — a "whenever you cast a creature
+    # spell" trigger phase dropped onto the face oracle is recovered as a
+    # `creature_cast` marker (scope "any").
+    "creature_cast_trigger": (
+        {
+            "name": "Glimpse of Nature",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Whenever you cast a creature spell this turn, draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="creature_cast",
+                        scope="any",
+                        raw="Whenever you cast a creature spell this turn",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

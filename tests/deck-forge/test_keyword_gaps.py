@@ -285,22 +285,41 @@ class TestUndyingPersistMatters:
     lives in the keyword, so death_matters/self-recur miss them. Grants surface too."""
 
     def test_persist_card_emits_and_served(self):
+        # ADR-0027: undying_persist_matters migrated to the Card IR — the intrinsic
+        # Persist bearer fires from the Scryfall keyword array (_IR_KEYWORD_MAP), so it
+        # comes through the hybrid path, not the deleted regex.
         finks = {
             "name": "Kitchen Finks",
             "type_line": "Creature — Ouphe",
             "oracle_text": "When this creature enters, you gain 2 life.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
             "keywords": ["Persist"],
         }
-        assert "undying_persist_matters" in _keys(finks)
+        assert "undying_persist_matters" in _keys_hybrid(finks)
+        assert "undying_persist_matters" not in _keys(finks)
         assert serves(finks, _sig("undying_persist_matters", "you"))
 
     def test_grant_card_emits(self):
+        # ADR-0027: the keyword-less GRANTER ("creatures you control … have undying")
+        # is recovered as an `undying_persist` conferred-grant marker → the hybrid path.
         mikaeus = {
             "name": "Mikaeus, the Unhallowed",
             "type_line": "Legendary Creature — Zombie Cleric",
             "oracle_text": "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)\nWhenever a Human deals damage to you, destroy it.\nOther non-Human creatures you control get +1/+1 and have undying. (When a creature with undying dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)",
         }
-        assert "undying_persist_matters" in _keys(mikaeus)
+        mikaeus_ir = _ir_with(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="undying_persist",
+                        scope="you",
+                        raw="other non-Human creatures you control … have undying",
+                    ),
+                ),
+            )
+        )
+        assert "undying_persist_matters" in _keys_hybrid(mikaeus, mikaeus_ir)
+        assert "undying_persist_matters" not in _keys(mikaeus)
 
 
 # ── Batch C: counter / payoff-regex avenues ──────────────────────────────────

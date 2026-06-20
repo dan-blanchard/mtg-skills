@@ -4723,15 +4723,50 @@ class TestMediumBatch8:
         assert serves(price, sig) is False
 
     def test_creature_cast_trigger_recovers_you_cast(self):
-        from mtg_utils._deck_forge.signals import extract_signals
+        # ADR-0027: creature_cast_trigger migrated to the Card IR — a cast_spell trigger
+        # with a Creature subject opens it via the hybrid path, not the deleted regex.
+        from mtg_utils._deck_forge.signals import (
+            extract_signals,
+            extract_signals_hybrid,
+        )
+        from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
         beast_whisperer = {
             "name": "Beast Whisperer",
             "type_line": "Creature — Elf Druid",
             "oracle_text": "Whenever you cast a creature spell, draw a card.",
         }
-        keys = {s.key for s in extract_signals(beast_whisperer)}
+        ir = Card(
+            oracle_id="x",
+            name="Beast Whisperer",
+            faces=(
+                Face(
+                    name="Beast Whisperer",
+                    abilities=(
+                        Ability(
+                            kind="triggered",
+                            trigger=Trigger(
+                                event="cast_spell",
+                                scope="you",
+                                subject=Filter(card_types=("Creature",)),
+                            ),
+                            effects=(
+                                Effect(
+                                    category="draw",
+                                    scope="you",
+                                    raw="draw a card",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        keys = {s.key for s in extract_signals_hybrid(beast_whisperer, ir)}
         assert "creature_cast_trigger" in keys
+        assert "creature_cast_trigger" not in {
+            s.key for s in extract_signals(beast_whisperer)
+        }
 
     def test_win_lose_game_self_win_not_mislabeled_opponents(self):
         from mtg_utils._deck_forge.signals import extract_signals
@@ -7072,6 +7107,7 @@ def test_dies_recursion_is_superset_of_undying_persist():
     geralfs = {
         "name": "Geralf's Messenger",
         "type_line": "Creature — Zombie",
+        "keywords": ["Undying"],
         "oracle_text": (
             "This creature enters tapped.\n"
             "When this creature enters, target opponent loses 2 life.\n"
@@ -7110,9 +7146,23 @@ def test_dies_recursion_is_superset_of_undying_persist():
     assert _lane_covers(kitchen_finks, up) is True
     assert _lane_covers(supernatural_stamina, up) is False
     # And undying/persist cards OPEN both lanes (they are members of the superset).
+    # ADR-0027: dies_recursion stays on regex; undying_persist_matters migrated to the
+    # Card IR (the intrinsic Undying bearer fires from the Scryfall keyword array), so
+    # the regex emits only dies_recursion now and the hybrid adds undying_persist.
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils.card_ir import Card, Face
+
     gk = {s.key for s in extract_signals(geralfs)}
     assert "dies_recursion" in gk
-    assert "undying_persist_matters" in gk
+    assert "undying_persist_matters" not in gk
+    geralfs_ir = Card(
+        oracle_id="x",
+        name="Geralf's Messenger",
+        faces=(Face(name="Geralf's Messenger", keywords=("Undying",)),),
+    )
+    assert "undying_persist_matters" in {
+        s.key for s in extract_signals_hybrid(geralfs, geralfs_ir)
+    }
 
 
 def test_creature_cast_and_etb_serve_self_bounce_recast_engines():
