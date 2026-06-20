@@ -340,10 +340,276 @@ def test_direct_damage_not_for_self_damage():
 
 
 def test_place_counter_effect_does_not_flood_counters_matter():
-    """place_counter -> counters_matter is deferred (needs counter-kind), so a bare
-    counter-placing effect does not fire the lane (avoids loyalty/charge floods)."""
+    """A KINDLESS place_counter with no '+1/+1 counter' raw does not fire
+    counters_matter (ADR-0027): a bare loyalty/charge/named-counter placement phase
+    didn't tag p1p1 stays out of the +1/+1 lane (avoids loyalty/charge floods). The
+    p1p1-kind and the '+1/+1 counter'-raw forms DO fire (tests below)."""
     ir = _ir(Ability(kind="triggered", effects=(Effect(category="place_counter"),)))
     assert "counters_matter" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
+# ── counters_matter shapes (ADR-0027) ─────────────────────────────────────────
+
+
+def test_place_counter_p1p1_fires_counters_matter():
+    """A +1/+1 counter PLACEMENT (the lane's core engine — Forgotten Ancient,
+    Hardened Scales) fires counters_matter; the p1p1 kind discriminates it from
+    loyalty/oil/shield placements."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="place_counter",
+                    counter_kind="p1p1",
+                    raw="put a +1/+1 counter on target creature",
+                ),
+            ),
+        )
+    )
+    assert ("counters_matter", "you", "") in _sigs(ir)
+
+
+def test_place_counter_blank_kind_with_p1p1_raw_fires():
+    """The enters-with / modal-kicker form phase strips the kind from (counter_kind
+    '') but whose raw names '+1/+1 counter' (Endless One, Orzhov Advokist) fires."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="place_counter",
+                    counter_kind="",
+                    raw="this creature enters with X +1/+1 counters on it",
+                ),
+            ),
+        )
+    )
+    assert ("counters_matter", "you", "") in _sigs(ir)
+
+
+def test_place_counter_blank_kind_without_p1p1_raw_excluded():
+    """A blank-kind placement whose raw is NOT a +1/+1 counter (a named-counter card)
+    stays out of the +1/+1 lane."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="place_counter",
+                    counter_kind="",
+                    raw="put a page counter on this artifact",
+                ),
+            ),
+        )
+    )
+    assert "counters_matter" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
+def test_proliferate_fires_counters_matter():
+    """Proliferate is definitionally a counters mechanic (CR 701.27) — a direct
+    category→lane edge."""
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="proliferate"),)))
+    assert ("counters_matter", "you", "") in _sigs(ir)
+
+
+def test_removecounter_cost_with_p1p1_oracle_fires():
+    """An ability whose COST removes +1/+1 counters (Triskelion ping) fires
+    counters_matter when the oracle names '+1/+1 counter'."""
+    card = {
+        "name": "Triskelion",
+        "oracle_text": (
+            "This creature enters with three +1/+1 counters on it.\n"
+            "Remove a +1/+1 counter from this creature: It deals 1 damage to "
+            "any target."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="activated",
+            cost="removecounter",
+            effects=(Effect(category="damage", raw="deals 1 damage to any target"),),
+        )
+    )
+    assert "counters_matter" in {s.key for s in extract_signals_ir(card, ir)}
+
+
+def test_removecounter_cost_without_p1p1_oracle_excluded():
+    """A removecounter cost on a NON-+1/+1 counter card (a ki/depletion/charge sink)
+    stays out of the +1/+1 lane (CR 122.1)."""
+    card = {
+        "name": "Gemstone Mine",
+        "oracle_text": (
+            "This land enters with three mining counters on it.\n"
+            "{T}, Remove a mining counter: Add one mana of any color."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="activated",
+            cost="removecounter,tap",
+            effects=(Effect(category="ramp", raw="add one mana"),),
+        )
+    )
+    assert "counters_matter" not in {s.key for s in extract_signals_ir(card, ir)}
+
+
+def test_counter_have_payoff_on_amount_subject_fires():
+    """A count-form counter-HAVE payoff ('draw a card for each creature you control
+    WITH a +1/+1 counter' — Inspiring Call): the Counters predicate rides
+    amount.subject, not e.subject."""
+    counted = Filter(
+        card_types=("Creature",), controller="you", predicates=("Counters",)
+    )
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="draw",
+                    scope="you",
+                    amount=Quantity(op="count", subject=counted),
+                    raw="draw a card for each creature you control with a "
+                    "+1/+1 counter on it",
+                ),
+            ),
+        )
+    )
+    assert ("counters_matter", "you", "") in _sigs(ir)
+
+
+def test_counter_have_payoff_on_trigger_subject_fires():
+    """A counter-HAVE TRIGGER ('whenever a creature you control WITH a +1/+1 counter
+    dies' — Laid to Rest): the Counters predicate rides the trigger subject."""
+    tsub = Filter(card_types=("Creature",), controller="you", predicates=("Counters",))
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="dies", subject=tsub, scope="you"),
+            effects=(Effect(category="gain_life", raw="you gain 2 life"),),
+        )
+    )
+    assert ("counters_matter", "you", "") in _sigs(ir)
+
+
+def test_counter_move_p1p1_fires_counters_matter():
+    """A +1/+1 counter MOVE (Bioshift) opens counters_matter alongside the dedicated
+    counter_move lane; a non-p1p1 move stays out."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="counter_move",
+                    counter_kind="p1p1",
+                    raw="move any number of +1/+1 counters",
+                ),
+            ),
+        )
+    )
+    keys = {s.key for s in extract_signals_ir(CARD, ir)}
+    assert "counters_matter" in keys
+    assert "counter_move" in keys
+
+
+def test_pump_count_counter_payoff_fires():
+    """A pump scaling with a counter count ('Humans get +1/+1 for each counter on ~'
+    — Kyler) fires counters_matter (the raw confirms the counted thing is counters)."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        subtypes=("Human",),
+                        controller="you",
+                    ),
+                    amount=Quantity(op="count"),
+                    raw="Humans you control get +1/+1 for each counter on ~",
+                ),
+            ),
+        )
+    )
+    assert ("counters_matter", "you", "") in _sigs(ir)
+
+
+# ── removal_matters shapes (ADR-0027) ─────────────────────────────────────────
+
+
+def test_damage_to_creature_fires_removal_matters():
+    """A damage effect to a target creature (Flame Slash) fires removal_matters — the
+    regex routed this only to direct_damage; the lane was never wired to damage."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="damage",
+                    subject=Filter(card_types=("Creature",)),
+                    amount=Quantity(op="fixed", factor=4),
+                    raw="deals 4 damage to target creature",
+                ),
+            ),
+        )
+    )
+    assert ("removal_matters", "you", "") in _sigs(ir)
+
+
+def test_damage_to_any_target_not_removal():
+    """A burn to 'any target' (subject None — Lightning Bolt-style) stays
+    direct_damage, NOT removal."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="damage",
+                    subject=None,
+                    amount=Quantity(op="fixed", factor=3),
+                    raw="deals 3 damage to any target",
+                ),
+            ),
+        )
+    )
+    assert "removal_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
+
+
+def test_destroy_subtype_only_fires_removal_matters():
+    """'Destroy target Wall' (subtype-only subject, no card_types) fires
+    removal_matters — it destroys a creature."""
+    ir = _ir(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="destroy",
+                    subject=Filter(subtypes=("Wall",)),
+                    raw="Destroy target Wall",
+                ),
+            ),
+        )
+    )
+    assert ("removal_matters", "you", "") in _sigs(ir)
+
+
+def test_destroy_land_subtype_only_not_removal():
+    """'Destroy target Island' (land subtype only) routes to land_destruction, NOT
+    removal_matters (CR 305.6)."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="destroy",
+                    subject=Filter(subtypes=("Island",)),
+                    raw="Destroy target Island",
+                ),
+            ),
+        )
+    )
+    assert "removal_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
 def test_mill_effect_fires_mill_matters():

@@ -4626,6 +4626,33 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
 )
 
+# removal_matters subtype-only destroy gate (ADR-0027): "destroy target Wall"
+# destroys a CREATURE; phase parses it as destroy(subject card_types=(),
+# subtypes=('Wall',)) so the _PERMANENT_TYPES card-type gate misses it. Fire on a
+# non-empty SUBTYPE subject UNLESS every subtype is a LAND subtype — "destroy target
+# Island / nonbasic land" is land_destruction, NOT removal (the lane's discriminator,
+# CR 305.6). Basics + the common nonbasic land-type words that appear as subtypes.
+_LAND_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        "wastes",
+        "desert",
+        "gate",
+        "lair",
+        "locus",
+        "urza's",
+        "mine",
+        "power-plant",
+        "tower",
+        "cave",
+        "sphere",
+    }
+)
+
 # land_exchange (ADR-0027): phase parses "exchange control of target X and target Y"
 # as a gain_control effect with subject=None (it never binds the land-typed object
 # onto the effect's Filter), so the "Land" in ftypes gate misses. Fall back to the
@@ -4709,6 +4736,18 @@ _TOKEN_SUBTYPE_KEYS: dict[str, tuple[str, str]] = {
 
 def _ftypes(f: object) -> frozenset[str]:
     return frozenset(f.card_types) if isinstance(f, Filter) else frozenset()
+
+
+def _is_permanent_subtype_destroy(f: object) -> bool:
+    """True when ``f`` is a destroy/damage subject naming a permanent by SUBTYPE only
+    (card_types empty) and that subtype is NOT a land — "destroy target Wall /
+    Equipment / Aura" is removal (ADR-0027 removal_matters shape 2), while "destroy
+    target Island" is land_destruction. Any non-land subtype qualifies (creature
+    subtypes, Equipment/Aura/Vehicle/Room permanent subtypes); a subject that is ALL
+    land subtypes returns False."""
+    if not isinstance(f, Filter) or not f.subtypes:
+        return False
+    return any(s.lower() not in _LAND_SUBTYPES for s in f.subtypes)
 
 
 def _filter_controller(f: object) -> str:
@@ -5144,6 +5183,18 @@ def extract_signals_ir(
                 # "a creature with a +1/+1 counter" payoff isn't controller-bound.
                 if esub.controller != "opp" and "Counters" in esub.predicates:
                     add("counters_matter", "you", "", e.raw)
+            # counters_matter (ADR-0027) — the COUNT-FORM counter-HAVE payoff: an
+            # effect whose VALUE counts "creatures you control WITH a +1/+1 counter"
+            # ("draw a card for each creature you control with a +1/+1 counter on it" —
+            # Inspiring Call, Armorcraft Judge, Hamza's cost reduction). The Counters
+            # predicate rides amount.subject (the counted set), not e.subject, so the
+            # e.subject read above misses it — a counters PAYOFF the lane wants.
+            if (
+                amount_subject is not None
+                and amount_subject.controller != "opp"
+                and "Counters" in amount_subject.predicates
+            ):
+                add("counters_matter", "you", "", e.raw)
             # ADR-0027 — the COUNT-FORM tapped payoff: an effect whose VALUE counts
             # your tapped creatures ("each opponent loses life equal to the number of
             # tapped creatures you control" — Throne of the God-Pharaoh; Crash the
@@ -5170,6 +5221,36 @@ def extract_signals_ir(
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
+            # counters_matter (ADR-0027 shape 1+2a) — a +1/+1 counter PLACEMENT is the
+            # lane's core engine (Forgotten Ancient, Hardened Scales, every etb /
+            # upkeep / combat / activated / spell +1/+1 source). place_counter with
+            # counter_kind=='p1p1' is the discriminator phase already isolates from
+            # loyalty / oil / shield / rad placements (those route to their own lanes
+            # via _COUNTER_KIND_KEYS); the enters-with self-counter rides the projected
+            # Moved→Battlefield replacement (kind p1p1) and the count-scaled placement
+            # (amount.op in count/counters) lands here too. A counter_kind=='' blank
+            # placement whose raw names "+1/+1 counter" is the enters-with / modal-
+            # kicker form phase stripped the kind from (Endless One, Orzhov Advokist) —
+            # gated on the raw so a NON-+1/+1 blank placement (a named-counter card)
+            # stays out. CR 122.1 / 614.12.
+            if cat == "place_counter" and (
+                e.counter_kind == "p1p1"
+                or (not e.counter_kind and "+1/+1 counter" in (e.raw or ""))
+            ):
+                add("counters_matter", "you", "", e.raw)
+            # counters_matter (ADR-0027 shape 4) — proliferate is definitionally a
+            # counters mechanic (CR 701.27: add another counter of each kind already
+            # there). A direct category→lane edge, zero discriminator needed.
+            if cat == "proliferate":
+                add("counters_matter", "you", "", e.raw)
+            # counters_matter (ADR-0027) — a +1/+1 counter MOVE ("move +1/+1 counters
+            # from … onto …" — Bioshift, Aetherborn Marauder, Nesting Grounds): the
+            # counter_move category already opens the dedicated counter_move lane; a
+            # p1p1 move is also a +1/+1 counters payoff (it relocates the engine's
+            # counters), so it opens counters_matter too. The kind gate keeps a
+            # non-+1/+1 move out (CR 122.1; minus_counters stays its own lane).
+            if cat == "counter_move" and e.counter_kind == "p1p1":
+                add("counters_matter", "you", "", e.raw)
             if cat == "counter_spell":
                 add("counter_control", "you", "", e.raw)
             if cat == "fight":
@@ -5337,8 +5418,29 @@ def extract_signals_ir(
                     add("land_destruction", "you", "", e.raw)
                 if "Creature" in ftypes and ab.kind in ("activated", "triggered"):
                     add("kill_engine", "you", "", e.raw)
-                if ftypes & _PERMANENT_TYPES:
+                # removal_matters: a destroy whose subject is a permanent TYPE, or
+                # (ADR-0027) a subtype-ONLY subject that names a permanent — "destroy
+                # target Wall/Equipment/Aura" (card_types=(), subtypes set) is removal
+                # of a creature / artifact / enchantment. Land-subtype-only destroys
+                # ("destroy target Island") route to land_destruction above and are
+                # excluded here (CR 305.6 — the lane's discriminator).
+                if (ftypes & _PERMANENT_TYPES) or _is_permanent_subtype_destroy(
+                    e.subject
+                ):
                     add("removal_matters", "you", "", e.raw)
+            # removal_matters (ADR-0027): a DAMAGE effect to a target creature /
+            # permanent (cat=='damage', subject a creature or other permanent type, or
+            # a permanent subtype) is removal — Flame Slash, Crossbow Infantry, Nin
+            # (op=count), Surgehacker (op=multiply), Hobbit's Sting (X). The regex
+            # routed this only to direct_damage; the lane was never wired to damage.
+            # Discriminator vs over-fire: the damage SUBJECT must be a creature /
+            # permanent (its card_types intersect _PERMANENT_TYPES OR it has a
+            # permanent subtype) — a player/PW-only burn ("deal 3 to any target",
+            # subject=None or {Player}/{Planeswalker}) stays direct_damage, not removal.
+            if cat == "damage" and (
+                (ftypes & _PERMANENT_TYPES) or _is_permanent_subtype_destroy(e.subject)
+            ):
+                add("removal_matters", "you", "", e.raw)
             if cat == "exile" and ftypes & _PERMANENT_TYPES:
                 add("exile_removal", "you", "", e.raw)
                 if e.scope == "opp":
@@ -5361,6 +5463,14 @@ def extract_signals_ir(
                 and e.amount.op in ("count", "multiply")
             ):
                 add("scaling_pump", "you", "", e.raw)
+                # counters_matter (ADR-0027 shape 6) — the counter-COUNT payoff reaches
+                # the IR as a PUMP whose value counts counters on a permanent ("Humans
+                # you control get +1/+1 for each counter on ~" — Kyler; High Sentinels).
+                # The amount.op=='counters' arm above catches the literal-counters
+                # form; the op=='count' form needs the raw to confirm the counted thing
+                # is counters (op=='count' alone is too broad — it counts anything).
+                if "counter" in (e.raw or "").lower():
+                    add("counters_matter", "you", "", e.raw)
             # Batch 12 — typed_anthem_multi: a pump over creatures of MULTIPLE named
             # types ("each creature that's an Assassin, Mercenary, or Pirate gets ...")
             # — an AnyOf-of-subtypes on a creature filter (single-type is type_matters).
@@ -5583,8 +5693,32 @@ def extract_signals_ir(
             # on a non-graveyard exile cost.
             if "exilegrave" in cost_parts:
                 add("graveyard_matters", "you", "", "")
+            # counters_matter (ADR-0027 shape 5) — a recurring ability whose COST
+            # spends counters ("Remove a +1/+1 counter from ~: …" — Triskelion pings,
+            # Crystalline Crawler, Ulasht) is a +1/+1 counter sink/outlet, the engine
+            # the lane wants. The cost field is a generic 'removecounter' with NO kind,
+            # so gate on the card's oracle naming "+1/+1 counter": the 258 non-+1/+1
+            # removecounter cards (ki / depletion / quest / spore / charge / page /
+            # wish / loyalty sinks) route to their own lanes and must stay out (CR
+            # 122.1). minus_counters_matter (m1m1) stays separate via its kind path.
+            if "removecounter" in cost_parts and "+1/+1 counter" in (
+                card.get("oracle_text") or ""
+            ):
+                add("counters_matter", "you", "", "")
         trig = ab.trigger
         if trig is not None:
+            # counters_matter (ADR-0027) — a counter-HAVE TRIGGER: "whenever a creature
+            # you control WITH a +1/+1 counter on it dies / deals combat damage …"
+            # (Laid to Rest, Bred for the Hunt, Meltstrider Eulogist). The Counters
+            # predicate rides the trigger's subject Filter (the effect-subject read
+            # above only sees effect subjects, not the trigger condition's subject).
+            tsub = trig.subject
+            if (
+                isinstance(tsub, Filter)
+                and tsub.controller != "opp"
+                and "Counters" in tsub.predicates
+            ):
+                add("counters_matter", "you", "", "")
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A
             # "when this dies" self-death trigger (SelfRef → no subject filter) is
             # self_death_payoff, a different lane, so gate on a real subject.

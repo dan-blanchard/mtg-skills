@@ -1130,6 +1130,13 @@ def _project_face(record: dict) -> Face:
     # dropped (World Breaker's SelfRef return, Dakkon's hand-or-graveyard cheat,
     # Atris/Marchesa's "the other into your graveyard" self-mill).
     abilities = [_recover_graveyard_zones(a) for a in abilities]
+    # Removal target-subject recovery (ADR-0027 removal_matters shape 3): a damage /
+    # destroy effect whose creature/permanent TARGET phase dropped to subject=None,
+    # but the effect raw still names it ("deals N damage to target creature", "destroy
+    # target Wall"). Rebuild a Creature/Permanent Filter so removal_matters fires —
+    # the predicate-narrowed (Smite "blocked creature") and power-scaled (Crush
+    # Underfoot "damage equal to its power to target creature") removal phase strips.
+    abilities = [_recover_removal_target_subject(a) for a in abilities]
     # Token-subtype maker recovery (ADR-0027): append make_token markers for named
     # token subtypes phase left only in a choose-list / granted-ability carrier raw.
     abilities = [_narrow_token_subtype_makers(a) for a in abilities]
@@ -3056,6 +3063,65 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
         if zones != before:
             changed = True
             new_effects.append(replace(e, zones=tuple(sorted(zones))))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
+# Removal target-subject recovery (ADR-0027 removal_matters shape 3) — a damage /
+# destroy effect whose creature/permanent TARGET phase dropped to subject=None, the
+# target surviving only in the effect raw. Three lossy shapes: a power-scaled fight
+# ("deals damage equal to its power to target creature" — Crush Underfoot), a
+# predicate-narrowed destroy ("destroy target blocked/attacking creature" — Smite,
+# Broken Visage; phase emits Typed with empty type_filters), and a "destroy target
+# <Subtype>" the projection didn't bind. The raw must name a CREATURE/PERMANENT
+# target; a player/PW-only burn, an "any target", a "divided among targets" split,
+# a board wipe ("destroy all/each"), and a land target are all EXCLUDED (they are
+# direct_damage / board_wipe / land_destruction, not single-target removal).
+_REMOVAL_DAMAGE_TARGET = re.compile(
+    r"(?:deals?|dealt|deal) [^.]*?\bto target (?:[a-z]+ )*?"
+    r"(?:creature|permanent)\b",
+    re.IGNORECASE,
+)
+_REMOVAL_DESTROY_TARGET = re.compile(
+    r"\bdestroy (?:up to (?:one|two|three|x) )?target (?:[a-z]+ )*?"
+    r"(?:creature|permanent|artifact|enchantment|planeswalker|wall)\b",
+    re.IGNORECASE,
+)
+# Land target / board-wipe exclusions — these route to land_destruction / board_wipe.
+_REMOVAL_LAND_TARGET = re.compile(r"\btarget (?:non-?\w+ )?land\b", re.IGNORECASE)
+_REMOVAL_MASS = re.compile(r"\bdestroy (?:all|each)\b", re.IGNORECASE)
+
+
+def _recover_removal_target_subject(ability: Ability) -> Ability:
+    """Rebuild a Creature/Permanent Filter on a damage / destroy effect whose target
+    phase dropped to subject=None but whose raw still names a creature/permanent
+    target (ADR-0027 removal_matters shape 3). Append-only on subject: a structured
+    subject is never overwritten; a player/PW/land/any-target/board-wipe raw is left
+    untouched (those are not single-target permanent removal)."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        raw = e.raw or ""
+        if (
+            e.subject is None
+            and e.category in ("damage", "destroy")
+            and not _REMOVAL_LAND_TARGET.search(raw)
+            and not _REMOVAL_MASS.search(raw)
+            and (
+                (e.category == "damage" and _REMOVAL_DAMAGE_TARGET.search(raw))
+                or (e.category == "destroy" and _REMOVAL_DESTROY_TARGET.search(raw))
+            )
+        ):
+            subj = (
+                Filter(card_types=("Creature",))
+                if "creature" in raw.lower()
+                else (Filter(card_types=("Permanent",)))
+            )
+            new_effects.append(replace(e, subject=subj))
+            changed = True
         else:
             new_effects.append(e)
     if not changed:
