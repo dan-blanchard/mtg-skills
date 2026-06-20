@@ -144,11 +144,16 @@ def test_spell_count_storm_widen():
 
 
 def test_legends_matter_for_cast_legendary():
+    # ADR-0027: legends_matter migrated to the Card IR (the HasSupertype:Legendary
+    # subject predicate + a kept word mirror for the cast-legendary / target-legendary
+    # refs phase leaves textual), so it is served via the hybrid path, not pure regex.
     c = {
         "name": "Gandalf",
         "oracle_text": "You may cast legendary spells as though they had flash.",
     }
-    assert any(s.key == "legends_matter" for s in extract_signals(c))
+    bare = Card(oracle_id="x", name="Gandalf", faces=(Face(name="Gandalf"),))
+    assert any(s.key == "legends_matter" for s in extract_signals_hybrid(c, bare))
+    assert not any(s.key == "legends_matter" for s in extract_signals(c))
 
 
 def test_opponent_library_manipulation_punisher():

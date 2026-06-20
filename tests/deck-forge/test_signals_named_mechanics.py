@@ -58,7 +58,9 @@ CASES = [
     # "creatures in your party" _IR_KEPT_DETECTORS word mirrors), so they are asserted
     # via the hybrid path below, not this regex CASES loop.
     ("superfriends_matters", "you", "Planeswalkers you control have hexproof."),
-    ("legends_matter", "you", "Legendary creatures you control get +1/+1."),
+    # ADR-0027: legends_matter migrated to the Card IR (the HasSupertype:Legendary
+    # subject predicate + a kept word mirror), so it is asserted via the hybrid path
+    # below, not this regex CASES loop.
     ("big_hand_matters", "you", "You have no maximum hand size."),
     (
         "exile_matters",
@@ -69,7 +71,9 @@ CASES = [
     # GivePlayerCounter experience gainer + experience scaler operand; the mutate
     # keyword + "if it has mutate" payoff marker), so they are asserted via the
     # hybrid path below, not this regex CASES loop.
-    ("poison_matters", "opponents", "This creature has infect."),
+    # ADR-0027: poison_matters migrated to the Card IR (the infect/toxic/poisonous
+    # Scryfall keywords + a kept word mirror for the granters/references), so it is
+    # asserted via the hybrid path below, not this regex CASES loop.
     ("modified_matters", "you", "Modified creatures you control get +1/+1."),
     # ADR-0027: food_matters / treasure_matters migrated to the Card IR (the token-
     # subtype synergy widening reads make_token / sacrifice subjects), so they are
@@ -143,6 +147,20 @@ def test_devotion_historic_party_are_ir_served():
         ("devotion_matters", "Your devotion to green is increased by this creature."),
         ("historic_matters", "Whenever you cast a historic spell, draw a card."),
         ("party_matters", "Whenever a creature in your party attacks, draw a card."),
+    ):
+        c = {"name": "X", "oracle_text": oracle}
+        assert (key, "you") in _ks_hybrid(c), f"{key} not IR-served"
+        assert (key, "you") not in _ks(c), f"{key} still regex-served"
+
+
+def test_legends_lands_suspend_are_ir_served():
+    # ADR-0027 SWEEP batch: these cares-about lanes moved floor->kept, so they are
+    # IR-served from their kept word-detector mirrors (the cost-reduction / target-
+    # legendary / count-for-each refs phase leaves textual), not pure regex.
+    for key, oracle in (
+        ("legends_matter", "Legendary creatures you control get +1/+1."),
+        ("lands_matter", "This creature gets +1/+0 for each land you control."),
+        ("suspend_matters", "Remove a time counter from target permanent."),
     ):
         c = {"name": "X", "oracle_text": oracle}
         assert (key, "you") in _ks_hybrid(c), f"{key} not IR-served"
@@ -503,11 +521,15 @@ def test_counters_matter_widened_for_distributors():
 
 
 def test_poison_scoped_to_opponents():
+    # ADR-0027: poison_matters is IR-served (the infect Scryfall keyword + a kept word
+    # mirror for the granters/references), so it comes through the hybrid path, scoped
+    # to opponents, not pure regex.
     c = {
         "name": "Skithiryx-like",
         "oracle_text": "Infect\nThis creature can't be blocked.",
     }
-    assert ("poison_matters", "opponents") in _ks(c)
+    assert ("poison_matters", "opponents") in _ks_hybrid(c)
+    assert ("poison_matters", "opponents") not in _ks(c)
 
 
 # --- mechanics recovered from the "rejected" families (still-zero commanders) ---

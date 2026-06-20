@@ -2249,6 +2249,8 @@ def test_legendary_permanent_trigger_opens_legends():
     # A commander with a legendary-permanent trigger (Yomiji "whenever a legendary
     # permanent ... is put into a graveyard, return it", Cleopatra) is a legends-matter
     # deck — it wants legendary payoffs (Yoshimaru, Search for Glory). Real oracle.
+    # ADR-0027: legends_matter migrated to the Card IR, so the textual refs phase
+    # leaves unstructured fire via the kept word mirror in the hybrid path, not regex.
     yomiji = {
         "name": "Yomiji, Who Bars the Way",
         "type_line": "Legendary Creature — Spirit",
@@ -2258,7 +2260,7 @@ def test_legendary_permanent_trigger_opens_legends():
             "hand."
         ),
     }
-    assert ("legends_matter", "you") in _ks(yomiji)
+    assert ("legends_matter", "you") in _ks_hybrid(yomiji)
     # Also the TUTOR form (Captain Sisay) and BUFF form.
     sisay = {
         "name": "Captain Sisay",
@@ -2268,9 +2270,9 @@ def test_legendary_permanent_trigger_opens_legends():
             "into your hand, then shuffle."
         ),
     }
-    assert ("legends_matter", "you") in _ks(sisay)
+    assert ("legends_matter", "you") in _ks_hybrid(sisay)
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert ("legends_matter", "you") not in _ks(bear)
+    assert ("legends_matter", "you") not in _ks_hybrid(bear)
 
 
 def test_double_damage_of_counter_creatures_opens_counters():
@@ -4770,7 +4772,10 @@ def test_lands_matter_serves_creature_pump_by_basic():
             "you control."
         ),
     }
-    assert "lands_matter" in _keys(molimo)
+    # ADR-0027: lands_matter migrated to the Card IR (the amount.subject=Land count
+    # operand + a kept word mirror for the "number of lands you control" P/T phase
+    # drops the operand for), so it is served via the hybrid path, not pure regex.
+    assert "lands_matter" in _keys_hybrid(molimo)
     primal_bellow = {
         "name": "Primal Bellow",
         "type_line": "Instant",

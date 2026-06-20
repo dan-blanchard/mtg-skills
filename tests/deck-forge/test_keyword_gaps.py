@@ -684,7 +684,11 @@ class TestTimeCountersWiden:
     }
 
     def test_time_counter_card_emits_suspend_matters(self):
-        assert "suspend_matters" in _keys(self.AS_FORETOLD)
+        # ADR-0027: suspend_matters migrated to the Card IR (the `suspend` keyword + a
+        # kept word mirror widening to the time-counter superstructure), so the
+        # time-counter card is served via the hybrid path, not pure regex.
+        assert "suspend_matters" in _keys_hybrid(self.AS_FORETOLD)
+        assert "suspend_matters" not in _keys(self.AS_FORETOLD)
 
     def test_vanishing_keyword_served(self):
         assert serves(self.VANISHING, _sig("suspend_matters", "you"))

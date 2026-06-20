@@ -516,12 +516,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # you activate a ninjutsu ability" — a trigger phase flattened to event='other',
     # appended by project._narrow_trigger_other_refs). Its oracle-regex SWEEP_DETECTORS
     # row is deleted; the serve spec stays hand-registered in signal_specs.py.
-    {
-        "key": "suspend_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bsuspend\\b",
-    },
+    # ADR-0027: suspend_matters migrated to the Card IR — served from the Scryfall
+    # `suspend` keyword (_IR_KEYWORD_MAP) + a kept word mirror (signals._IR_KEPT_
+    # DETECTORS) folding this \bsuspend\b in and widening to the time-counter
+    # superstructure (Vanishing / Impending / time travel) phase doesn't structure.
+    # This SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered.
     # ADR-0027: boast_matters migrated to the Card IR — served structurally from the
     # Scryfall `boast` keyword (_IR_KEYWORD_MAP) + phase's `boast` effect category
     # (the event='other' boast-payoff trigger) plus a `boast` dropped-static face

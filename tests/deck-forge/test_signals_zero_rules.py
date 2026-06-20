@@ -127,11 +127,17 @@ def test_lifeloss_self_scoped_you():
 
 
 def test_lands_matter_count_payoff():
+    # ADR-0027: lands_matter migrated to the Card IR (the amount.subject=Land count
+    # operand + a kept word mirror for the "for each land you control" forms phase
+    # flattens to a bare effect), so it is served via the hybrid path, not pure regex.
     c = {
         "name": "Radha-like",
         "oracle_text": "This creature gets +1/+1 for each land you control.",
     }
-    assert ("lands_matter", "you") in _ks(c)
+    bare = Card(oracle_id="x", name="Radha-like", faces=(Face(name="Radha-like"),))
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, bare)}
+    assert ("lands_matter", "you") in hybrid
+    assert ("lands_matter", "you") not in _ks(c)
 
 
 def test_card_draw_engine_bulk_draw():

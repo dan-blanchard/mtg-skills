@@ -1105,20 +1105,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # library for a legendary card"), BUFFS them (Dihada "target legendary creature
     # gains"), counts/cost-reduces them, or triggers off them (Yomiji "whenever a
     # legendary permanent ... is put into a graveyard"). All want legendary bombs.
-    (
-        "legends_matter",
-        re.compile(
-            r"search your library for a legendary"
-            r"|target legendary (?:creature|permanent)"
-            r"|legendary (?:creatures?|permanents?|spells?) you (?:control|cast)"
-            r"|(?:number of|other) legendary"
-            r"|whenever (?:a|another|one or more) legendary (?:permanents?|creatures?)"
-            r"[^.]*(?:enters|dies|put into a graveyard|leaves the battlefield"
-            r"|you control)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: legends_matter migrated to the Card IR — served from the
+    # HasSupertype:Legendary subject-Filter predicate + a kept word mirror
+    # (_IR_KEPT_DETECTORS) merging both _HAND_FLOOR rows for the cost-reduction /
+    # target-legendary / cast-legendary / library-search refs phase leaves textual.
+    # Moved floor->kept (floor-mirror-dep -> 0); both _HAND_FLOOR producers deleted.
     # ADR-0027: the "sac-and-return-this-turn engine" floor (Garna, Gerrard, Moira)
     # is DELETED with the sacrifice_matters migration — it over-fired on reanimation
     # engines that name no sacrifice at all (the IR path correctly drops them).
@@ -1622,13 +1613,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "lands_matter",
-        re.compile(
-            r"(?:the number of|for each) (?:basic )?lands? you control", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: lands_matter migrated to the Card IR — served from the
+    # amount.subject=Land count operand (the structured scalers) + a kept word mirror
+    # (_IR_KEPT_DETECTORS) for the "P/T equal to the number of lands you control" and
+    # "for each land you control" forms phase emits as characteristic_pt/pump_target
+    # but DROPS the count operand. Moved floor->kept (floor-mirror-dep -> 0); this
+    # _HAND_FLOOR producer is deleted.
     (
         "direct_damage",
         re.compile(
@@ -1777,18 +1767,8 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # cost-reduction / "play a historic" / type-group refs phase leaves textual
     # (artifacts, legendaries, and Sagas are historic). This _HAND_FLOOR producer is
     # deleted; the serve spec stays hand-registered in signal_specs.py.
-    (
-        "legends_matter",
-        re.compile(
-            r"legendary creatures? you control"
-            r"|whenever (?:a|another) legendary (?:creature|permanent)[^.]*you control"
-            r"|whenever you cast a legendary|for each legendary (?:creature|permanent)"
-            r"|cast legendary|legendary (?:creature|permanent|spell)s? you cast"
-            r"|legendary spells?",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: legends_matter migrated to the Card IR (see the merged
+    # _IR_KEPT_DETECTORS mirror). This second _HAND_FLOOR producer is deleted too.
     (
         "big_hand_matters",
         re.compile(
@@ -1816,13 +1796,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # operand (op="experience" from a Ref->PlayerCounter{Experience}, project
     # ._quantity) for Atreus/Azula. This _HAND_FLOOR producer is deleted; the
     # hand-written serve spec stays in signal_specs.
-    (
-        "poison_matters",
-        re.compile(
-            r"poison counters?|\bpoisonous\b|\btoxic\b|\binfect\b", re.IGNORECASE
-        ),
-        "opponents",
-    ),
+    # ADR-0027: poison_matters migrated to the Card IR — served from the
+    # infect/toxic/poisonous Scryfall keywords (the bearers, _IR_KEYWORD_MAP) + a kept
+    # word mirror (_IR_KEPT_DETECTORS) for the GRANTERS ("gains infect", "has
+    # poisonous 1") and "poison counter" / "has toxic" references phase folds into a
+    # grant carrier's raw. Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
     ("modified_matters", re.compile(r"\bmodified\b", re.IGNORECASE), "you"),
     # ADR-0027: mutate_matters migrated to the Card IR — the Scryfall `mutate`
     # keyword (_IR_KEYWORD_MAP, the 34 mutate creatures) plus a `mutate` payoff
@@ -2270,17 +2248,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # subtype CR 702.x phase doesn't surface as a payoff tag). This _HAND_FLOOR
     # producer is deleted; the hand-written serve spec (signal_specs.py,
     # serve_types=("lesson",)) is independent of this regex and survives.
-    # Widen the existing suspend_matters avenue (sweep fires only on "suspend") to the
-    # whole time-counter superstructure: CR 701.56 time travel, 702.63 Vanishing,
-    # Impending, and the cross-pool enablers/payoffs (As Foretold, Jhoira, Dust of
-    # Moments) that manipulate time counters without bearing Suspend themselves.
-    (
-        "suspend_matters",
-        re.compile(
-            r"time counter|time travel|\bvanishing\b|\bimpending\b", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: suspend_matters migrated to the Card IR — served from the Scryfall
+    # `suspend` keyword (the bearers, _IR_KEYWORD_MAP) + a kept word mirror
+    # (_IR_KEPT_DETECTORS) folding in the SWEEP \bsuspend\b and widening to the whole
+    # time-counter superstructure (CR 701.56 time travel, 702.63 Vanishing, Impending,
+    # and the cross-pool enablers/payoffs As Foretold, Jhoira, Dust of Moments that
+    # manipulate time counters without bearing Suspend). Moved floor->kept (floor-
+    # mirror-dep -> 0); this _HAND_FLOOR producer + the SWEEP \bsuspend\b row deleted.
     # ADR-0027: the Casualty (CR 702.153) sacrifice_matters regex is DELETED with the
     # migration — the printed Casualty keyword now routes via _IR_KEYWORD_MAP and the
     # keyword-LESS granter (Anhelo "has casualty N") via a project grant marker.
@@ -4254,6 +4228,72 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    # ADR-0027 SWEEP batch — Group B cares-about lanes that phase v0.1.19 leaves
+    # TEXTUAL (rules-lawyer + oracle verified): each had a load-bearing floor mirror
+    # (floor-mirror-dep > 0 in the commander-legal corpus), so it MOVES from
+    # _IR_FLOOR_LANES (a reused production floor Detector) to a dedicated IR-path word
+    # mirror here — the sanctioned home (bending / voting / facedown). Each KEEPS its
+    # existing structural / keyword IR bind too (add() dedups); the mirror reproduces
+    # the deleted _HAND_FLOOR regex exactly (regex-only residual == 0):
+    #   • legends_matter ← the HasSupertype:Legendary subject-Filter predicate (the
+    #     "whenever a legendary … you control" / count subjects); the mirror adds the
+    #     cost-reduction "for each legendary creature you control", "target legendary",
+    #     "cast legendary spells", and library-search refs phase leaves textual (CR
+    #     205.4a). Two _HAND_FLOOR rows merged.
+    #   • lands_matter ← the amount.subject=Land count operand (the structured
+    #     scalers); the mirror adds the "P/T equal to the number of lands you control"
+    #     (Dakkon / Molimo — phase emits characteristic_pt/pump_target but DROPS the
+    #     count operand) and "for each land you control" pumps phase flattens to a bare
+    #     effect (CR 305).
+    #   • poison_matters ← the infect/toxic/poisonous Scryfall keywords (the bearers);
+    #     the mirror adds the GRANTERS ("Enchanted creature has infect", "gains infect",
+    #     "All Sliver creatures have poisonous 1") + "poison counter" / "has toxic"
+    #     references phase folds into a grant carrier's raw (CR 122 / 702.90 Infect).
+    #   • suspend_matters ← the Scryfall `suspend` keyword (the bearers); the mirror
+    #     adds the keyword-LESS suspend grants ("It gains suspend", As Foretold) + the
+    #     whole time-counter superstructure (time travel CR 701.56, Vanishing 702.63,
+    #     Impending) phase doesn't structure as suspend. SWEEP \bsuspend\b folded in.
+    (
+        "legends_matter",
+        re.compile(
+            r"search your library for a legendary"
+            r"|target legendary (?:creature|permanent)"
+            r"|legendary (?:creatures?|permanents?|spells?) you (?:control|cast)"
+            r"|(?:number of|other) legendary"
+            r"|whenever (?:a|another|one or more) legendary "
+            r"(?:permanents?|creatures?)"
+            r"[^.]*(?:enters|dies|put into a graveyard|leaves the battlefield"
+            r"|you control)"
+            r"|whenever you cast a legendary|for each legendary "
+            r"(?:creature|permanent)"
+            r"|cast legendary|legendary spells?",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "lands_matter",
+        re.compile(
+            r"(?:the number of|for each) (?:basic )?lands? you control",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "poison_matters",
+        re.compile(
+            r"poison counters?|\bpoisonous\b|\btoxic\b|\binfect\b", re.IGNORECASE
+        ),
+        "opponents",
+    ),
+    (
+        "suspend_matters",
+        re.compile(
+            r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -4286,7 +4326,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # granted-ability maker recovery), so it fires from the STRUCTURAL IR alone
         # and no longer needs the floor mirror. Its _HAND_FLOOR detector is deleted.
         # counter-type synergy (distinct from the +1/+1 counters_matter doer lane)
-        "poison_matters",
+        # poison_matters removed — ADR-0027 migrated it to the Card IR (the
+        # infect/toxic/poisonous Scryfall keywords + a kept word mirror for the
+        # GRANTERS / "poison counter" / "has toxic" refs phase folds into a grant
+        # carrier's raw). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
         # oil_counter_matters removed — ADR-0027 migrated it to the Card IR (phase's
         # place_counter(counter_kind='oil') placer + an `_OIL_REF` payoff marker for the
         # count-operand/condition phase drops). Its SWEEP_DETECTORS row is deleted.
@@ -4303,7 +4346,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # type / tribe / permanent-shape synergy
         "vehicles_matter",
         "island_matters",
-        "legends_matter",
+        # legends_matter removed — ADR-0027 migrated it to the Card IR (the
+        # HasSupertype:Legendary subject-Filter predicate + a kept word mirror merging
+        # both _HAND_FLOOR rows for the cost-reduction / target-legendary / cast-
+        # legendary / search refs phase leaves textual). Moved floor->kept (floor-
+        # mirror-dep -> 0); both _HAND_FLOOR producers deleted.
         # changeling_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # changeling keyword + a "changeling" / "is every creature type" marker). Its
         # SWEEP_DETECTORS row is deleted.
@@ -4312,7 +4359,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # _IR_KEPT_DETECTORS word mirrors for the "cast a multicolored spell" trigger /
         # "colorless spell/creature" cost-reduction refs that aren't a structured
         # subject). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR rows deleted.
-        "lands_matter",
+        # lands_matter removed — ADR-0027 migrated it to the Card IR (the
+        # amount.subject=Land count operand + a kept word mirror for the "P/T equal to
+        # the number of lands you control" / "for each land you control" forms phase
+        # emits as characteristic_pt/pump_target but DROPS the count operand). Moved
+        # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         "superfriends_matters",
         "modified_matters",
         # low_power_matters removed — ADR-0027 migrated it to the Card IR (the
@@ -4400,7 +4451,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # exception conferred marker), so it no longer needs the regex floor (its
         # SWEEP_DETECTORS row is deleted; the "\bmyriad\b" floor over-fired on the
         # "The Myriad Pools" card NAME, which the IR correctly drops).
-        "suspend_matters",
+        # suspend_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # `suspend` keyword + a kept word mirror folding in the SWEEP \bsuspend\b and
+        # widening to the time-counter superstructure — time travel / Vanishing /
+        # Impending — phase doesn't structure). Moved floor->kept (floor-mirror-dep
+        # -> 0); _HAND_FLOOR row + SWEEP_DETECTORS \bsuspend\b row deleted.
         # monarch_matters removed — ADR-0027 migrated it to the Card IR (structural
         # monarch effect + ismonarch condition), so it no longer needs the regex
         # floor (its _HAND_FLOOR detector is deleted).
@@ -6898,6 +6953,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "speed_matters",
         "tap_untap_matters",
         "reanimator",
+        # Group "SWEEP-floor->kept" (ADR-0027 sweep batch) — cares-about lanes phase
+        # v0.1.19 leaves TEXTUAL, each with a load-bearing floor mirror so it MOVES
+        # from _IR_FLOOR_LANES to a dedicated _IR_KEPT_DETECTORS word mirror while
+        # KEEPING its existing structural / keyword IR bind (add() dedups). The move
+        # zeroes floor-mirror-dep by construction (floor_ON == floor_OFF for all 4).
+        # legends_matter ← HasSupertype:Legendary predicate; lands_matter ←
+        # amount.subject=Land operand; poison_matters ← infect/toxic/poisonous
+        # keywords; suspend_matters ← `suspend` keyword. Each mirror reproduces the
+        # deleted regex exactly (regex_only_resid == 0). NO-FLOOD: floor->kept changed
+        # one voltron tell (-1: The Balrog correctly silenced via legends IR recall).
+        # See ADR-0027.
+        "legends_matter",
+        "lands_matter",
+        "poison_matters",
+        "suspend_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -7059,6 +7129,16 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "opponent_exile_matters",
         "domain_matters",
         "speed_matters",
+        # ADR-0027 SWEEP batch: each fired high-confidence (forced scope) in the regex
+        # path and so counted toward `has_other_plan`, silencing the spurious commander-
+        # damage voltron tell. Their regex producers are now deleted, so the hybrid must
+        # re-silence from the IR re-supply to preserve pre-migration behavior (without
+        # this, an infect/suspend vanilla beater — Skithiryx, Errant Ephemeron — leaks a
+        # spurious voltron membership tell). NO-FLOOD requires these four here.
+        "legends_matter",
+        "lands_matter",
+        "poison_matters",
+        "suspend_matters",
     }
 )
 

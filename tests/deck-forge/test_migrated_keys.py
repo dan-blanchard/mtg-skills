@@ -2297,6 +2297,86 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # SWEEP-floor->kept batch (ADR-0027). legends/lands read STRUCTURED IR (a
+    # HasSupertype:Legendary subject predicate / an amount.subject=Land count operand);
+    # poison/suspend fire from the kept word mirror over the oracle text (empty IR — a
+    # granter / a time-counter card with no Scryfall keyword). Real cards, full text.
+    "legends_matter": (
+        {
+            "name": "Kytheon's Irregulars",
+            "type_line": "Creature — Human Soldier",
+            "oracle_text": (
+                "Renown 4 (When this creature deals combat damage to a player, "
+                "if it isn't renowned, put four +1/+1 counters on it and it "
+                "becomes renowned.)\n{W}, {T}: Tap target creature."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="draw",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="you",
+                            predicates=("HasSupertype:Legendary",),
+                        ),
+                        raw="Whenever another legendary creature you control enters, draw a card.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "lands_matter": (
+        {
+            "name": "Dakkon Blackblade",
+            "type_line": "Legendary Creature — Human Wizard",
+            "oracle_text": (
+                "Dakkon Blackblade's power and toughness are each equal to the "
+                "number of lands you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="characteristic_pt",
+                        scope="you",
+                        amount=Quantity(
+                            op="count",
+                            subject=Filter(card_types=("Land",), controller="you"),
+                        ),
+                        raw="power and toughness equal to the number of lands you control",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "poison_matters": (
+        {
+            "name": "Phyresis",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": "Enchant creature\nEnchanted creature has infect.",
+            "keywords": ["Enchant"],
+        },
+        _ir(),
+    ),
+    "suspend_matters": (
+        {
+            "name": "Calciderm",
+            "type_line": "Creature — Beast",
+            "oracle_text": (
+                "Vanishing 4 (This permanent enters with four time counters on "
+                "it. At the beginning of your upkeep, remove a time counter from "
+                "it. When the last is removed, sacrifice it.)\nThis spell can't "
+                "be the target of spells or abilities your opponents control."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 
