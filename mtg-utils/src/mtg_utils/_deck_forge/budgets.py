@@ -18,7 +18,9 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils.card_classify import get_oracle_text, is_land, is_ramp
+from mtg_utils.card_ir import Card
 from mtg_utils.theme_presets import get_preset
 
 # Command Zone template bands, per 100 cards (min, max). Scaled by deck size for Brawl.
@@ -91,14 +93,49 @@ def _matches_any(card: dict, names: Sequence[str]) -> bool:
     return any(_matches_preset(card, name) for name in names)
 
 
+def _ir_draws(ir: Card) -> bool:
+    """Does the card's IR carry card advantage for YOU (the structured mirror of
+    the ``card-draw`` / ``cantrip`` presets)? Phase projects every "draw a card" to
+    ``category="draw"`` with the drawer in ``scope`` — ``you`` (Divination,
+    Phyrexian Arena, Rhystic Study) or symmetric ``any`` (Howling Mine). Connive
+    (``category="connive"``: "draw a card, then discard") is card advantage too —
+    a distinct category the draw-word regex catches only via reminder text. An
+    ``opp``-only draw (a giveaway) doesn't fill your card_draw slot.
+
+    More precise than the presets, which match the word "draw" anywhere — including
+    an OPPONENT'S draw (Underworld Dreams), a draw PAYOFF ("whenever you draw …" —
+    Nadir Kraken), and reminder text — none of which is a draw SOURCE."""
+    return any(
+        (e.category == "draw" and e.scope in ("you", "any")) or e.category == "connive"
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    )
+
+
 def role_of(card: dict) -> set[str]:
-    """Hard-counted template roles a card fills (a card may fill several)."""
+    """Hard-counted template roles a card fills (a card may fill several).
+
+    ``lands`` / ``ramp`` read ``card_classify`` (the cheapest correct source — a
+    structured type_line / produced_mana check, kept per ADR-0027). ``card_draw``
+    reads the candidate's Card IR (the ``draw`` effect category) when available,
+    degrading to the ``card-draw`` / ``cantrip`` presets when the card has no IR.
+    ``board_wipe`` and ``interaction`` stay on their curated presets: the IR's
+    ``destroy`` / ``exile`` / ``restriction`` categories don't structurally encode
+    the single-target-vs-mass and pacify-vs-self-drawback boundaries those presets
+    guard (the projection collapses "Destroy target creature" and "Destroy all
+    creatures" to the same node — see ADR-0027 A3 notes)."""
     roles: set[str] = set()
+    ir = ir_for(card)
     if is_land(card):
         roles.add("lands")
     elif is_ramp(card):
         roles.add("ramp")
-    if _matches_preset(card, "card-draw") or _matches_preset(card, "cantrip"):
+    draws = (
+        _ir_draws(ir)
+        if ir is not None
+        else (_matches_preset(card, "card-draw") or _matches_preset(card, "cantrip"))
+    )
+    if draws:
         roles.add("card_draw")
     if _matches_preset(card, "board-wipe"):
         roles.add("board_wipe")
@@ -113,6 +150,13 @@ def protects(card: dict) -> bool:
     Counts counterspells (answer removal) and cards that GRANT a protective quality to
     another permanent or save it for a turn — NOT a permanent that merely has hexproof /
     indestructible / ward on itself (which protects only itself, not your board).
+
+    Stays on oracle regex under ADR-0027 A3 (the one regex residual in this file):
+    the most common protect mode, a "gains protection from <color>" grant (Mother of
+    Runes, Alseid, Apostle's Blessing — ~80 cards), projects to ``grant_keyword`` with
+    an EMPTY ``counter_kind`` (the IR carries no "protection" marker; the keyword lives
+    only in ``raw``), so an IR-only ``protects`` would silently drop them — a recall
+    regression that needs a project.py marker (out of A3 scope).
     """
     if _matches_preset(card, "counterspell"):
         return True

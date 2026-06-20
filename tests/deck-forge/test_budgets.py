@@ -1,6 +1,7 @@
 """Tests for slot budgets vs the (soft) Command Zone template (band model, ADR-0024)."""
 
-from mtg_utils._deck_forge.budgets import protects, role_of, slot_budgets
+from mtg_utils._deck_forge.budgets import _ir_draws, protects, role_of, slot_budgets
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
 
 FOREST = {
     "name": "Forest",
@@ -202,3 +203,60 @@ def test_shape_scales_control_interaction_up():
     # Aggro trims wraths.
     aggro = slot_budgets([], deck_size=100, shape="aggro")
     assert aggro["board_wipe"]["max"] == 2
+
+
+# ── card_draw via Card IR (ADR-0027, A3) ─────────────────────────────────────
+# role_of resolves card_draw from the candidate's IR ``draw`` category when present
+# (the dict fixtures above carry no oracle_id, so they exercise the preset
+# fallback). These exercise the structured ``_ir_draws`` classifier directly.
+
+
+def _ir(*abilities: Ability) -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=abilities),))
+
+
+def test_ir_draw_for_you_fills_card_draw():
+    # "Draw two cards" (Divination) and an upkeep draw (Phyrexian Arena) both fill it.
+    divination = _ir(
+        Ability(kind="spell", effects=(Effect(category="draw", scope="you"),))
+    )
+    arena = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="upkeep"),
+            effects=(
+                Effect(category="draw", scope="you"),
+                Effect(category="lose_life", scope="you"),
+            ),
+        )
+    )
+    # Symmetric "each player draws" (Howling Mine, scope 'any') still fills your slot.
+    howling_mine = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="draw_step"),
+            effects=(Effect(category="draw", scope="any"),),
+        )
+    )
+    # Connive (Ledger Shredder) is card advantage too — its own IR category.
+    connive = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="cast_spell"),
+            effects=(Effect(category="connive", scope="any"),),
+        )
+    )
+    assert _ir_draws(divination) is True
+    assert _ir_draws(arena) is True
+    assert _ir_draws(howling_mine) is True
+    assert _ir_draws(connive) is True
+
+
+def test_ir_non_draw_and_opponent_draw_do_not_fill_card_draw():
+    bolt = _ir(Ability(kind="spell", effects=(Effect(category="damage", scope="any"),)))
+    # A pure opponent-only draw (a giveaway) doesn't fill YOUR card_draw slot.
+    giveaway = _ir(
+        Ability(kind="spell", effects=(Effect(category="draw", scope="opp"),))
+    )
+    assert _ir_draws(bolt) is False
+    assert _ir_draws(giveaway) is False
