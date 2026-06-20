@@ -1211,6 +1211,13 @@ def _project_face(record: dict) -> Face:
     sac_cost_markers = _sacrifice_cost_markers(record, abilities)
     if sac_cost_markers:
         abilities.append(Ability(kind="static", effects=tuple(sac_cost_markers)))
+    # Granted/dropped sac outlet (ADR-0027 sacrifice_matters shapes 4-5): a quoted
+    # "Sacrifice a creature: …" inside a grant (Fallen Ideal), a "has casualty N"
+    # grant (Anhelo), a free-spell pitch (Flare of Denial), or a flashback/escape sac
+    # cost (Dread Return) phase keeps only in an opaque raw or drops to a body effect.
+    sac_grant_markers = _sacrifice_grant_markers(record, abilities)
+    if sac_grant_markers:
+        abilities.append(Ability(kind="static", effects=tuple(sac_grant_markers)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -3017,24 +3024,53 @@ def _additional_cost_data(record: dict) -> dict | None:
     return data if isinstance(data, dict) else ac
 
 
+def _nonland_sacrifice_target(node: object) -> Filter | None | bool:
+    """Find a Sacrifice cost's non-land sacrificed-object Filter anywhere under
+    ``node`` (an ``additional_cost`` subtree — phase wraps a sac additional cost as a
+    bare Sacrifice, or nests it inside a Choice list / Kicker ``costs`` — Bone Shards,
+    Spark Harvest, Final Payment, Vicious Offering). Returns the first matching
+    Sacrifice's target Filter (None when it has no typed filter, i.e. "sacrifice a
+    permanent"); returns False when no non-land Sacrifice exists. A land-ONLY sac
+    target (Crop Rotation, Harrow) is skipped — that is the land_sacrifice lane."""
+    if isinstance(node, list):
+        for x in node:
+            r = _nonland_sacrifice_target(x)
+            if r is not False:
+                return r
+        return False
+    if not isinstance(node, dict):
+        return False
+    if _norm(node.get("type")) == "sacrifice":
+        subject = _filter(node.get("target"))
+        if subject is None or subject.card_types != ("Land",):
+            return subject
+        return False
+    for v in node.values():
+        r = _nonland_sacrifice_target(v)
+        if r is not False:
+            return r
+    return False
+
+
 def _sacrifice_cost_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
-    """One you-sacrifice marker when the card's ``additional_cost`` is a non-land
-    Sacrifice phase kept in the record but dropped off the projected spell (Altar's
-    Reap, Fling, Bone Splinters — additional-cost sac outlets, ADR-0027). Gated to a
-    Typed/Or sac target whose filter is NOT land-only (Crop Rotation / Harrow sac a
-    land → a separate land_sacrifice lane). Projects the sacrificed object's Filter as
-    the subject so the lane's land VETO + scope read it identically to a structural
-    sacrifice Effect. Skipped when a structural sacrifice Effect already exists."""
+    """One you-sacrifice marker when the card's ``additional_cost`` carries a non-land
+    Sacrifice phase kept in the record but dropped off the projected spell — a bare
+    additional-cost sac (Altar's Reap, Fling, Bone Splinters), a Choice that includes
+    a sac (Bone Shards "sacrifice a creature or discard", Spark Harvest, Final
+    Payment), or a Kicker sac (Vicious Offering). Projects the sacrificed object's
+    Filter as the subject so the lane's land VETO + scope read it identically to a
+    structural sacrifice Effect. The land-ONLY form (Crop Rotation, Harrow) is the
+    land_sacrifice lane and is excluded. Skipped when a structural sacrifice Effect
+    already exists. ADR-0027 sacrifice_matters shape 2."""
     if any(e.category == "sacrifice" for a in abilities for e in a.effects):
         return []
-    data = _additional_cost_data(record)
-    if not isinstance(data, dict) or _norm(data.get("type")) != "sacrifice":
+    subject = _nonland_sacrifice_target(record.get("additional_cost"))
+    if subject is False:
         return []
-    subject = _filter(data.get("target"))
-    # A land-only sac additional cost is the land_sacrifice lane, not sacrifice_matters
-    # (Crop Rotation, Harrow). Drop it; a Permanent/Creature/Artifact/Or target stays.
-    if subject is not None and subject.card_types == ("Land",):
-        return []
+    # A bare "sacrifice a permanent" with no typed filter still wants a concrete
+    # non-land subject so the signals land-ONLY veto reads it as a real sac outlet.
+    if not isinstance(subject, Filter):
+        subject = Filter(card_types=("Permanent",), controller="you")
     return [
         Effect(
             category="sacrifice",
@@ -3043,6 +3079,104 @@ def _sacrifice_cost_markers(record: dict, abilities: list[Ability]) -> list[Effe
             raw="additional cost: sacrifice a permanent",
         )
     ]
+
+
+# Sac-outlet shapes phase keeps only in an opaque raw / drops to a body effect
+# (granted/quoted sac outlets, casualty grants, free-spell pitch, graveyard-cast and
+# morph sac costs — ADR-0027 sacrifice_matters shapes 4-5). Each anchors on a NON-land
+# sacrificed object: the lazy ``[^.]*?`` between the count and the type lets an
+# adjective ("three black creatures") through while ``_SAC_TYPE`` excludes a bare
+# "sacrifice a land" (Brutal Suppression) and a land-fetch alt cost.
+_SAC_COUNT = r"(?:a|an|another|two|three|any number of|x|\d+)"
+_SAC_TYPE = r"(?:creature|artifact|permanent|enchantment|token|planeswalker)"
+# A granted / quoted sac outlet ("…has \"Sacrifice a creature: …\"" — Fallen Ideal,
+# Animal Boneyard, Lunarch Mantle, Ob Nixilis's emblem; Custody Battle's granted
+# upkeep edict-on-self). Anchored inside quotes.
+_GRANTED_SAC = re.compile(
+    rf'"[^"]*\bsacrifice {_SAC_COUNT}\b[^".]*?{_SAC_TYPE}',
+    re.IGNORECASE,
+)
+# A free-spell pitch ("you may sacrifice three black creatures rather than pay this
+# spell's mana cost" — Flare of Denial, Salvage Titan, Delraich, Demon of Death's
+# Gate, Dark Triumph). CR 118.9.
+_PITCH_SAC = re.compile(
+    rf"sacrifice {_SAC_COUNT}\b[^.]*?{_SAC_TYPE}[^.]*\brather than pay\b",
+    re.IGNORECASE,
+)
+# A keyworded cost paid in a non-land sacrifice phase drops with the keyword cost:
+# graveyard-cast ("Flashback—Sacrifice three creatures" — Dread Return; Cabal
+# Therapy's flashback sac) and a morph turn-up ("Morph—Sacrifice another creature" —
+# Gift of Doom). CR 702.34 / 702.37.
+_KEYWORD_COST_SAC = re.compile(
+    rf"(?:flashback|escape|buyback|morph|megamorph|disturb|embalm)\b[^.]*\bsacrifice "
+    rf"{_SAC_COUNT}\b[^.]*?{_SAC_TYPE}",
+    re.IGNORECASE,
+)
+# A GRANT that confers the Casualty keyword ("has casualty N" — Anhelo, Silverquill,
+# Ashad). The card's own printed Casualty rides the Scryfall keyword array; this is
+# the keyword-LESS granter. CR 702.153.
+_CASUALTY_GRANT = re.compile(r"\bhas casualty\b", re.IGNORECASE)
+# A pay-or-die outlet ("counter that spell / deals N damage to you / exile it / tap
+# this creature / discard a card UNLESS you sacrifice a creature" — Blood Funnel,
+# Minion of Leshrac, Demonlord of Ashmouth, Apocalypse Demon, Read the Runes) where
+# phase parsed only the penalty effect (counter/damage/exile/draw) and dropped the
+# you-sac alternative. The "you sacrifice" anchor keeps a forced opponent/each-player
+# sac out (their controller IS not "you").
+_PAY_OR_DIE_SAC = re.compile(
+    rf"\bunless you (?:may )?sacrifice {_SAC_COUNT}\b[^.]*?{_SAC_TYPE}",
+    re.IGNORECASE,
+)
+# A "discard a card AND sacrifice a creature" additional cost phase clipped to the
+# discard half (Ruthless Disposal — additional_cost keeps only Discard).
+_DISCARD_AND_SAC = re.compile(
+    rf"\bdiscard a card and sacrifice {_SAC_COUNT}\b[^.]*?{_SAC_TYPE}",
+    re.IGNORECASE,
+)
+# A modal-bullet sac option phase did not expand into the `choose` carrier ("choose
+# one — • Sacrifice an artifact: …" — Gearbane Orangutan, Plunge into Darkness,
+# Lorehold Command, Grab the Reins).
+_BULLET_SAC = re.compile(
+    rf"•\s*sacrifice {_SAC_COUNT}\b[^.•]*?{_SAC_TYPE}",
+    re.IGNORECASE,
+)
+# A cumulative-upkeep sac cost phase parsed as a SelfRef "sacrifice it" (Phyrexian
+# Soulgorger — "Cumulative upkeep—Sacrifice a creature"). CR 702.24.
+_CUMULATIVE_UPKEEP_SAC = re.compile(
+    rf"cumulative upkeep\s*[—-]\s*sacrifice {_SAC_COUNT}\b[^.]*?{_SAC_TYPE}",
+    re.IGNORECASE,
+)
+
+
+def _sacrifice_grant_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
+    """One you-sacrifice marker when a sac OUTLET survives only in an opaque raw or
+    phase dropped it to a body effect (granted/quoted sac outlet, casualty grant,
+    free-spell pitch, keyworded-cost sac, pay-or-die alternative, clipped discard+sac
+    additional cost — ADR-0027 sacrifice_matters shapes 4-5). Gated to faces with no
+    structural sacrifice effect (the structured path and the additional-cost marker
+    are preferred). The subject is a generic Permanent so the signals land-ONLY veto
+    passes (all anchors require a non-land sac target)."""
+    if any(e.category == "sacrifice" for a in abilities for e in a.effects):
+        return []
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    if (
+        _GRANTED_SAC.search(text)
+        or _PITCH_SAC.search(text)
+        or _KEYWORD_COST_SAC.search(text)
+        or _CASUALTY_GRANT.search(text)
+        or _PAY_OR_DIE_SAC.search(text)
+        or _DISCARD_AND_SAC.search(text)
+        or _BULLET_SAC.search(text)
+        or _CUMULATIVE_UPKEEP_SAC.search(text)
+    ):
+        return [
+            Effect(
+                category="sacrifice",
+                scope="you",
+                subject=Filter(card_types=("Permanent",), controller="you"),
+                raw="granted/dropped sacrifice outlet",
+            )
+        ]
+    return []
 
 
 def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
@@ -3452,8 +3586,10 @@ _EACH_PLAYER_CONTROLLERS = frozenset({"eachplayer", "allplayers", "scopedplayer"
 def _sacrifice_player_scope(eff: dict, fallback: str) -> str:
     """Scope for a Sacrifice effect, read from WHO sacrifices (the controller of the
     sacrificed object). A forced opponent sacrifice (edict) → opp; an each-player
-    sacrifice → each; otherwise the existing ``fallback`` (a you-sacrifice stays
-    "any"). ADR-0027 sacrifice_matters edict split."""
+    sacrifice → each; an explicit YOU-sacrifice → "any" (a you-sac, even when the
+    effect's broader ``_effect_scope`` leaked opp from a downstream target-player
+    clause — Cabal Therapist's "you may sacrifice … then target player reveals");
+    otherwise the existing ``fallback``. ADR-0027 sacrifice_matters edict split."""
     tgt = eff.get("target")
     if not isinstance(tgt, dict):
         return fallback
@@ -3463,6 +3599,8 @@ def _sacrifice_player_scope(eff: dict, fallback: str) -> str:
         return "opp"
     if cn in _EACH_PLAYER_CONTROLLERS:
         return "each"
+    if cn in ("you", "controller"):
+        return "any"
     return fallback
 
 

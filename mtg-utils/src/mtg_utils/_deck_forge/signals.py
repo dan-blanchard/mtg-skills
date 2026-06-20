@@ -4626,7 +4626,22 @@ _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECA
 _SAC_EDICT_RAW = re.compile(
     r"\b(?:each opponent|each player|each of your opponents|target opponent"
     r"|target player|that player|an opponent|defending player|enchanted player"
-    r"|opponents?)\b[^.]{0,70}?\bsacrifices\b",
+    r"|opponents?)\b[^.]{0,70}?\bsacrifices?\b",
+    re.IGNORECASE,
+)
+
+# sacrifice_matters subject-less / modal fallback (ADR-0027): a YOU-sacrifice of a
+# NON-land permanent surviving only in a sacrifice/choose effect raw phase left
+# subjectless ("sacrifice any number of creatures" — Dracoplasm, Shimatsu; "sacrifice
+# … unless you sacrifice a creature" pay-or-die — Phyrexian Dreadnought, Contamination;
+# a "you may sacrifice an artifact or discard" modal collapsed to `choose` — Chandra,
+# Gearbane). The lazy gap admits a count + adjective; the type list excludes a bare
+# "sacrifice a land" and a self-sac ("sacrifice it/this/~/<Name>") carries no type, so
+# it never matches. The edict guard (_SAC_EDICT_RAW) runs alongside this at the call.
+_SAC_OUTLET_RAW = re.compile(
+    r"\bsacrifice (?:a|an|another|two|three|any number of|x|\d+)\b[^.]*?\b"
+    r"(?:creature|artifact|permanent|enchantment|nonland|nontoken|token"
+    r"|food|treasure|clue|blood|planeswalker)s?\b",
     re.IGNORECASE,
 )
 
@@ -5247,18 +5262,41 @@ def extract_signals_ir(
             # the additional-cost-to-cast sac marker (Altar's Reap, Fling). phase
             # emits scope "any" even for a clearly-you sacrifice, so fire on scope NOT
             # opp/each (the edict split above takes those). Three discriminators keep
-            # the over-fire out: (1) a real non-land subject Filter — a subjectless
-            # SelfRef "sacrifice THIS" is a downside payoff, not a sac-theme outlet,
-            # and a land-typed subject is the land_sacrifice lane (Excavating Anurid,
-            # Serendib Djinn); (2) the raw must not name a FORCED opponent/each-player
-            # sacrifice phase mis-scoped to "any" (Malfegor, Barter in Blood — phase
-            # dropped the opponent controller; the raw still reads "<player>
-            # sacrifices"). CR 701.16.
+            # the over-fire out: (1) a real subject Filter that is NOT land-ONLY — a
+            # subjectless SelfRef "sacrifice THIS" is a downside payoff, not a
+            # sac-theme outlet, and a land-ONLY subject is the land_sacrifice lane
+            # (Excavating Anurid, Serendib Djinn); a mixed "creature or land" subject
+            # (Reprocess, Harvester Troll) stays — it IS a creature/artifact sac
+            # outlet. (2) the raw must not name a FORCED opponent/each-player sacrifice
+            # phase mis-scoped to "any" (Malfegor, Barter in Blood — phase dropped the
+            # opponent controller; the raw still reads "<player> sacrifices"). CR
+            # 701.16.
+            # A sacrifice whose SUBJECT Filter is controller "you" is a you-sac even
+            # when the effect scope leaked opp from a downstream target-player clause
+            # (Cabal Therapist's "you may sacrifice a creature … then target player
+            # reveals" — the supplement's possessive scope pass stamps the ability
+            # opp). The subject controller is the truth for who sacrifices.
+            _sac_subject_you = (
+                isinstance(e.subject, Filter) and e.subject.controller == "you"
+            )
             if (
                 cat == "sacrifice"
-                and e.scope not in ("opp", "each")
+                and (e.scope not in ("opp", "each") or _sac_subject_you)
                 and e.subject is not None
-                and "Land" not in ftypes
+                and e.subject.card_types != ("Land",)
+                and not _SAC_EDICT_RAW.search(e.raw or "")
+            ):
+                add("sacrifice_matters", "you", "", e.raw)
+            # Subject-less / modal fallback: phase parsed a sacrifice or a `choose`
+            # whose typed subject it dropped ("sacrifice any number of creatures" —
+            # Dracoplasm; "sacrifice it unless you sacrifice a creature" pay-or-die;
+            # "you may sacrifice an artifact or discard a card" → choose). The raw
+            # naming a non-land non-self sac IS the discriminator (a bare "sacrifice
+            # it/this/~" carries no type and never matches); the edict guard keeps a
+            # forced opponent sac out.
+            if (
+                cat in ("sacrifice", "choose")
+                and _SAC_OUTLET_RAW.search(e.raw or "")
                 and not _SAC_EDICT_RAW.search(e.raw or "")
             ):
                 add("sacrifice_matters", "you", "", e.raw)

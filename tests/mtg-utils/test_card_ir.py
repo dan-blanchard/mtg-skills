@@ -30,6 +30,7 @@ from mtg_utils._card_ir.project import (
     _quantity,
     _recover_graveyard_zones,
     _sacrifice_cost_markers,
+    _sacrifice_grant_markers,
     _sacrifice_player_scope,
     project_card,
 )
@@ -2197,6 +2198,9 @@ def test_sacrifice_player_scope_edict_vs_you():
     assert _sacrifice_player_scope(defend, "any") == "opp"
     assert _sacrifice_player_scope(each, "any") == "each"
     assert _sacrifice_player_scope(nested, "any") == "opp"
+    # an explicit You target overrides an opp fallback leaked by a downstream
+    # target-player clause (Cabal Therapist) — the subject controller is the truth.
+    assert _sacrifice_player_scope(you, "opp") == "any"
 
 
 def test_predatory_nightstalker_edict_scope():
@@ -2282,3 +2286,85 @@ def test_sacrifice_cost_marker_from_additional_cost():
         Ability(kind="spell", effects=(Effect(category="sacrifice", scope="you"),))
     ]
     assert not _sacrifice_cost_markers(reap, structural)
+
+
+def test_sacrifice_cost_marker_from_choice_and_kicker():
+    """A Sacrifice nested in a Choice additional cost (Bone Shards "sacrifice a
+    creature or discard") or a Kicker (Vicious Offering) is recovered; a Choice with
+    only land-sac + non-sac alternatives is not."""
+    bone = {
+        "name": "Bone Shards",
+        "additional_cost": {
+            "type": "Required",
+            "data": {
+                "type": "Choice",
+                "data": [
+                    {
+                        "type": "Sacrifice",
+                        "target": {"type": "Typed", "type_filters": ["Creature"]},
+                        "count": 1,
+                    },
+                    {"type": "Discard", "count": 1},
+                ],
+            },
+        },
+    }
+    markers = _sacrifice_cost_markers(bone, [])
+    assert len(markers) == 1
+    assert markers[0].category == "sacrifice"
+    assert markers[0].subject is not None
+    assert markers[0].subject.card_types == ("Creature",)
+    kicker = {
+        "name": "Vicious Offering",
+        "additional_cost": {
+            "type": "Kicker",
+            "data": {
+                "costs": [
+                    {
+                        "type": "Sacrifice",
+                        "target": {"type": "Typed", "type_filters": ["Creature"]},
+                        "count": 1,
+                    }
+                ]
+            },
+        },
+    }
+    assert len(_sacrifice_cost_markers(kicker, [])) == 1
+
+
+def test_sacrifice_grant_markers_shapes():
+    """The granted/dropped sac-outlet recovery fires on a quoted granted outlet, a
+    casualty grant, a free-spell pitch, a keyworded-cost sac, a pay-or-die
+    alternative, and a modal bullet — but NOT on a quoted land-sac or a Ward cost."""
+
+    def fires(text: str) -> bool:
+        return bool(_sacrifice_grant_markers({"oracle_text": text}, []))
+
+    assert fires('Enchanted creature has "Sacrifice a creature: ~ gets +2/+1."')
+    assert fires("The first instant or sorcery spell you cast has casualty 2.")
+    assert fires(
+        "You may sacrifice a nontoken blue creature rather than pay this "
+        "spell's mana cost. Counter target spell."
+    )
+    assert fires("Flashback—Sacrifice three creatures.")
+    assert fires("Morph—Sacrifice another creature.")
+    assert fires(
+        "Noncreature spells you cast cost {2} less. Whenever you cast a "
+        "noncreature spell, counter that spell unless you sacrifice a creature."
+    )
+    assert fires("• Destroy up to one target artifact.\n• Sacrifice an artifact: ...")
+    assert fires("Cumulative upkeep—Sacrifice a creature.")
+    # a quoted LAND-sac granted cost is the land_sacrifice lane, not this one
+    assert not fires(
+        'Activated abilities of nontoken Rebels cost an additional "Sacrifice '
+        'a land" to activate.'
+    )
+    # a Ward cost is the OPPONENT's sacrifice, not a you-sac outlet
+    assert not fires("Ward—Sacrifice a creature.\nFlying")
+    # gated to faces with no structural sacrifice effect
+    structural = [
+        Ability(kind="spell", effects=(Effect(category="sacrifice", scope="you"),))
+    ]
+    assert not _sacrifice_grant_markers(
+        {"oracle_text": "Cumulative upkeep—Sacrifice a creature."}, structural
+    )
