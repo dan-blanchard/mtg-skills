@@ -3329,6 +3329,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"triggers? an additional time|trigger an additional time"},
         r"triggers? an additional time|trigger an additional time",
     ),
+    # ADR-0027: cant_block_grant had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — phase's `cant_block` effect category + a
+    # modal/granted-quoted dropped-static face marker). The SERVE pool stays
+    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
+    # build, reusing the deleted regex.
+    ("cant_block_grant", "you"): _spec(
+        *SWEEP_LABELS["cant_block_grant"],
+        {"oracle": r"target creature can't block"},
+        r"target creature can't block",
+    ),
     # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word

@@ -742,14 +742,48 @@ def test_life_payment_insurance_opens_on_repeatable_pay_life():
 
 
 def test_land_exchange_opens_on_land_control():
-    # Sharkey taxes and copies opponents' land abilities, so he wants land-exchange to
-    # swap a weak land for their best. Real oracle.
+    # ADR-0027: land_exchange migrated to the Card IR — phase parses "exchange control
+    # of target X and target Y" as a gain_control effect with subject=None, read by
+    # the _LAND_EXCHANGE_RAW fallback. Political Trickery is the genuine swap. Sharkey
+    # (which copies/taxes land abilities, never EXCHANGES control) was the regex's lone
+    # false positive — it emits no gain_control effect, so the IR correctly drops it.
+    trickery = {
+        "name": "Political Trickery",
+        "type_line": "Sorcery",
+        "oracle_text": (
+            "Exchange control of target land you control and target land an "
+            "opponent controls. (This effect lasts indefinitely.)"
+        ),
+    }
+    ir = Card(
+        oracle_id="x",
+        name="Political Trickery",
+        faces=(
+            Face(
+                name="Political Trickery",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="gain_control",
+                                scope="any",
+                                subject=None,
+                                raw=(
+                                    "Exchange control of target land you control "
+                                    "and target land an opponent controls."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("land_exchange", "you") in _ks_hybrid_card(trickery, ir)
     sharkey = {
         "name": "Sharkey, Tyrant of the Shire",
         "type_line": "Legendary Creature — Avatar Rogue",
-        "mana_cost": "{2}{U}{B}",
-        "power": "3",
-        "toughness": "3",
         "oracle_text": (
             "Activated abilities of lands your opponents control can't be activated "
             "unless they're mana abilities.\nSharkey has all activated abilities of "
@@ -757,7 +791,11 @@ def test_land_exchange_opens_on_land_control():
             "be spent to activate Sharkey's abilities."
         ),
     }
-    assert ("land_exchange", "you") in _ks(sharkey)
+    assert ("land_exchange", "you") not in _ks(sharkey)
+
+
+def _ks_hybrid_card(card, ir):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
 
 
 def test_scavenge_fuel_opens_on_scavenge():

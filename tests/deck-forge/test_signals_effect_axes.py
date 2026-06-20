@@ -14,11 +14,9 @@ def _ks(card):
 CASES = [
     ("ramp_matters", "you", "{T}: Add {G}{G}."),
     ("removal_matters", "you", "{2}{B}: Destroy target creature."),
-    (
-        "counter_control",
-        "you",
-        "{U}: Counter target spell unless its controller pays {2}.",
-    ),
+    # ADR-0027: counter_control migrated to the Card IR (phase's `counter_spell`
+    # effect category), so it no longer fires on the regex path tested here — its IR
+    # path is proven in test_migrated_keys.
     ("team_buff", "you", "Each other creature you control has hexproof."),
     (
         "tutor_matters",

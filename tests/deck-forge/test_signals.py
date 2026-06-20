@@ -1651,7 +1651,9 @@ def test_impulse_look_at_and_play_opens_lane():
 
 
 def test_extra_upkeep_lane_opens():
-    # Obeka grants many additional upkeep steps; The Ninth Doctor grants one.
+    # ADR-0027: extra_upkeep migrated to the Card IR — phase's `extra_upkeep` effect
+    # category (Obeka, The Ninth Doctor — "additional upkeep step"), read via
+    # _DOER_EFFECT_KEYS, so the lane opens through the hybrid IR path, not the regex.
     obeka = {
         "name": "Obeka, Splitter of Seconds",
         "type_line": "Legendary Creature — Ogre Warlock",
@@ -1670,8 +1672,22 @@ def test_extra_upkeep_lane_opens():
             "your untap step, you get an additional upkeep step after this step."
         ),
     }
-    assert ("extra_upkeep", "you") in _keys(obeka)
-    assert ("extra_upkeep", "you") in _keys(ninth)
+    ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="extra_upkeep",
+                    scope="you",
+                    raw="additional upkeep step",
+                ),
+            ),
+        )
+    )
+    for card in (obeka, ninth):
+        hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+        assert ("extra_upkeep", "you") in hybrid
+        assert ("extra_upkeep", "you") not in _keys(card)
 
 
 def test_extra_end_step_lane_opens():
@@ -1703,9 +1719,12 @@ def test_extra_end_step_lane_opens():
 
 
 def test_extra_beginning_phase_decomposes_to_upkeep_and_draw():
-    # CR 501: the beginning phase contains untap, upkeep, AND draw steps — so an
+    # CR 501.1: the beginning phase contains untap, upkeep, AND draw steps — so an
     # extra beginning phase (Sphinx of the Second Sun) re-triggers upkeep- and
     # draw-step payoffs. The untap step has no servable payoff, so no untap lane.
+    # ADR-0027: phase mis-routes "additional beginning phase" to extra_combats, so the
+    # grant is recovered by an `_EXTRA_BEGINNING_PHASE_GRANT` dropped-static face
+    # marker emitting BOTH extra_upkeep + extra_draw, read through the hybrid IR path.
     card = {
         "name": "Sphinx of the Second Sun",
         "type_line": "Creature — Sphinx",
@@ -1716,9 +1735,29 @@ def test_extra_beginning_phase_decomposes_to_upkeep_and_draw():
             "includes the untap, upkeep, and draw steps.)"
         ),
     }
+    ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="extra_upkeep",
+                    scope="you",
+                    raw="additional beginning phase",
+                ),
+                Effect(
+                    category="extra_draw",
+                    scope="you",
+                    raw="additional beginning phase",
+                ),
+            ),
+        )
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+    assert ("extra_upkeep", "you") in hybrid
+    assert ("extra_draw_step", "you") in hybrid
     keys = _keys(card)
-    assert ("extra_upkeep", "you") in keys
-    assert ("extra_draw_step", "you") in keys
+    assert ("extra_upkeep", "you") not in keys
+    assert ("extra_draw_step", "you") not in keys
 
 
 def test_flying_from_top_opens_keyword_tribe():

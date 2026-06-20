@@ -4027,15 +4027,46 @@ class TestStructuredServeExtension:
         assert serves(sol_ring, sig) is False
 
     def test_counter_control_extraction_allows_adjective_gap(self):
-        from mtg_utils._deck_forge.signals import extract_signals
+        # ADR-0027: counter_control migrated to the Card IR — phase's `counter_spell`
+        # effect category serves "Counter target creature spell" (Essence Scatter,
+        # adjective gap), so the lane opens through the hybrid IR path, not the regex.
+        from mtg_utils._deck_forge.signals import (
+            extract_signals,
+            extract_signals_hybrid,
+        )
+        from mtg_utils.card_ir import Ability, Card, Effect, Face
 
         essence_scatter = {
             "name": "Essence Scatter",
             "type_line": "Instant",
             "oracle_text": "Counter target creature spell.",
         }
-        keys = {s.key for s in extract_signals(essence_scatter)}
-        assert "counter_control" in keys
+        ir = Card(
+            oracle_id="x",
+            name="Essence Scatter",
+            faces=(
+                Face(
+                    name="Essence Scatter",
+                    abilities=(
+                        Ability(
+                            kind="spell",
+                            effects=(
+                                Effect(
+                                    category="counter_spell",
+                                    scope="any",
+                                    raw="Counter target creature spell.",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hybrid = {s.key for s in extract_signals_hybrid(essence_scatter, ir)}
+        assert "counter_control" in hybrid
+        assert "counter_control" not in {
+            s.key for s in extract_signals(essence_scatter)
+        }
 
 
 class TestStructuredServeFixes4:

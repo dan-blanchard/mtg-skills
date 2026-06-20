@@ -1477,18 +1477,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"pay \d+ life:", re.IGNORECASE),
         "you",
     ),
-    # Land control / exchange (Sharkey taxes + copies opponents' land abilities): a
-    # land-control commander wants land-EXCHANGE effects (Political Trickery, Vedalken
-    # Plotter) to swap a weak land for an opponent's best while taxing the rest.
-    (
-        "land_exchange",
-        re.compile(
-            r"activated abilities of lands[^.]*opponents control"
-            r"|exchange control of[^.]*\bland\b",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: land_exchange migrated to the Card IR — phase's `gain_control` effect
+    # over a Land subject, plus a raw fallback (_LAND_EXCHANGE_RAW) for the "exchange
+    # control of target X and target Y" shape phase parses with subject=None (Political
+    # Trickery, Vedalken Plotter, Gauntlets of Chaos). NOT in _IR_FLOOR_LANES; the
+    # serve spec stays hand-registered in signal_specs. The deleted regex's other
+    # alternation ("activated abilities of lands … opponents control") only over-fired
+    # on Sharkey (copies/taxes land abilities, never exchanges control — it emits NO
+    # gain_control effect, so the structural IR correctly drops it).
     # ADR-0027: scavenge_fuel migrated to the Card IR — the Scryfall `scavenge`
     # keyword (_IR_KEYWORD_MAP, the intrinsic scavengers) plus a `scavenge`
     # dropped-static face marker for the graveyard-wide GRANTERS phase drops ("Each
@@ -2100,14 +2096,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        # Allow an adjective gap so "counter target CREATURE spell" / "noncreature
-        # spell" fire (Essence Scatter, Negate were missed by the keyword-immediately-
-        # after-"target" anchor). The serve is already FP-free at this breadth.
-        "counter_control",
-        re.compile(r"counter target (?:[a-z-]+ )*(?:spell|ability)", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: counter_control migrated to the Card IR — phase's `counter_spell`
+    # effect category plus a `counter_spell` dropped-static face marker for the
+    # "counter target … spell/ability" phase loses in a modal mode body (Fangkeeper's
+    # Familiar, Ertai Resurrected), a granted/quoted Aura ability (Equinox, Sunken
+    # Field), or a non-grant carrier (Goblin Artisans). NOT in _IR_FLOOR_LANES; the
+    # serve spec stays hand-registered in signal_specs (FP-free at this breadth).
     (
         "team_buff",
         re.compile(
@@ -4598,6 +4592,14 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
 )
 
+# land_exchange (ADR-0027): phase parses "exchange control of target X and target Y"
+# as a gain_control effect with subject=None (it never binds the land-typed object
+# onto the effect's Filter), so the "Land" in ftypes gate misses. Fall back to the
+# effect raw for the exchange-with-land phrase — the lane's own serve regex, so the
+# detector and serve stay consistent. Covers Gauntlets' "artifact, creature, or land"
+# (raw has "…or land…") and excludes Sharkey (no gain_control effect at all).
+_LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECASE)
+
 # Batch E — made artifact-token subtype → (signal key, scope).
 _TOKEN_SUBTYPE_KEYS: dict[str, tuple[str, str]] = {
     "treasure": ("treasure_matters", "you"),
@@ -5073,7 +5075,9 @@ def extract_signals_ir(
             if cat == "gain_control":
                 if e.scope == "opp":
                     add("donate_matters", "you", "", e.raw)
-                if "Land" in ftypes:
+                if "Land" in ftypes or (
+                    e.subject is None and _LAND_EXCHANGE_RAW.search(e.raw or "")
+                ):
                     add("land_exchange", "you", "", e.raw)
             if cat == "destroy":
                 if "Land" in ftypes:
@@ -5720,6 +5724,39 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "foretell_matters",
         "scavenge_fuel",
         "scry_surveil_matters",
+        # Group "tail-supplement 2" (ADR-0027 projection deepening) — the next batch
+        # of synthesis-tail keys whose residual cards phase DROPS, recovered by NARROW
+        # supplement markers so the lane fires from a NON-floor structural IR source.
+        # Floor-mirror-dep==0 (none is in _IR_FLOOR_LANES). NO-FLOOD held (only the
+        # target keys grew, each by its gap count; no non-target key moved). Each key's
+        # oracle-regex producer is deleted; serve specs stay hand-registered. See
+        # ADR-0027.
+        #   extra_draw_step / extra_upkeep ← phase's extra_draw/extra_upkeep effect
+        #                categories + an `_EXTRA_BEGINNING_PHASE_GRANT` face marker
+        #                emitting BOTH for "additional beginning phase" (CR 501.1 — a
+        #                beginning phase contains untap/upkeep/draw), which phase
+        #                mis-routes to extra_combats (Second Sun cycle) or drops
+        #                (Cyclonus). extra_draw fired 0 in the IR before this marker.
+        #   counter_control ← phase's `counter_spell` effect + a `counter_spell` face
+        #                marker for "counter target … spell/ability" phase loses in a
+        #                modal body (Fangkeeper, Ertai), an Aura quoted grant (Equinox,
+        #                Sunken Field), or a coin_flip carrier (Goblin Artisans).
+        #   cant_block_grant ← phase's `cant_block` effect + a `cant_block` face marker
+        #                for the modal mode body (Breeches, Retreat to Valakut) and the
+        #                granted quoted ability (Hostile Realm, Malicious Intent) phase
+        #                drops (CR 509). The structural IR is broader-and-correct recall
+        #                (176 vs the regex's 65 — "creatures can't block" etc.), not
+        #                over-fire.
+        #   land_exchange ← phase's `gain_control` over a Land subject + a raw fallback
+        #                for the subject=None "exchange control of … land" shape
+        #                (Political Trickery, Vedalken Plotter, Gauntlets). The IR
+        #                correctly drops Sharkey (copies/taxes land abilities, never
+        #                exchanges control — the regex's lone false positive).
+        "extra_draw_step",
+        "extra_upkeep",
+        "counter_control",
+        "cant_block_grant",
+        "land_exchange",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

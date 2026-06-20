@@ -716,12 +716,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # meaning) and the "Devour in Flames" CARD NAME, neither of which is the
     # Devour keyword (CR 702.82a). The serve pool stays oracle-defined, so the
     # spec is hand-registered in signal_specs reusing the deleted regex.
-    {
-        "key": "cant_block_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "target creature can't block",
-    },
+    # ADR-0027: cant_block_grant migrated to the Card IR — phase's `cant_block` effect
+    # category (the force-a-block-off statics/grants) plus a dropped-static face marker
+    # for the MODAL mode body ("• Target creature can't block this turn" — Breeches,
+    # Retreat to Valakut) and the GRANTED QUOTED ability ("Enchanted land has '{T}:
+    # Target creature can't block…'" — Hostile Realm, Malicious Intent) phase drops
+    # (CR 509). NOT in _IR_FLOOR_LANES; the serve spec is hand-registered in
+    # signal_specs reusing the deleted "target creature can't block" regex.
     {
         "key": "station_matters",
         "scope": "you",
@@ -870,33 +871,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|top [^.]*card[^.]*of your library\\.?[^.]*you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled|you may look at (?:it )?and (?:play|cast)",
     },
-    {
-        # Extra upkeep STEPS (Obeka, The Ninth Doctor) — each added upkeep step is
-        # another instance every "at the beginning of your upkeep" ability triggers
-        # in (CR 500.7 / 503 / 603.2), so the whole upkeep-payoff space is doubled.
-        # A beginning phase (CR 501) contains the untap, upkeep, AND draw steps, so an
-        # extra beginning phase (Sphinx of the Second Sun) re-triggers upkeep too.
-        # Narrow OPEN regex; the hand-spec serves the broad upkeep-trigger pool.
-        "key": "extra_upkeep",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "additional upkeep step|additional beginning phase",
-    },
-    # ADR-0027: extra_end_step migrated to the Card IR — served structurally from
-    # phase's `extra_end` effect category (CR 513). phase emits AdditionalPhase only
-    # for combat/upkeep, so Y'shtola Rhul's dropped "additional end step" clause is
-    # recovered by a `extra_end` dropped-static face marker. It is removed from
-    # _IR_FLOOR_LANES; the serve spec is hand-registered in signal_specs.
-    {
-        # Extra DRAW STEPS re-trigger "at the beginning of your draw step" abilities
-        # (CR 504). Opened by a beginning-phase grant (CR 501 — untap/upkeep/draw) too.
-        # The untap step has no triggered-ability payoff pool (its value is the untap
-        # itself), so there is no extra_untap_step lane.
-        "key": "extra_draw_step",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "additional draw step|additional beginning phase",
-    },
+    # ADR-0027: extra_upkeep + extra_draw_step migrated to the Card IR — phase's
+    # `extra_upkeep`/`extra_draw` effect categories (Obeka, Paradox Haze, The Ninth
+    # Doctor) plus an `_EXTRA_BEGINNING_PHASE_GRANT` dropped-static face marker that
+    # emits BOTH categories for "an additional beginning phase after this phase"
+    # (CR 501.1 — a beginning phase contains the untap, UPKEEP, and DRAW steps), which
+    # phase mis-routes to extra_combats (Shadow/Sphinx of the Second Sun) or drops
+    # entirely (Cyclonus). Neither is in _IR_FLOOR_LANES; their serve specs are
+    # hand-registered in signal_specs (reusing the deleted "additional beginning
+    # phase" regex). extra_end_step (CR 513) migrated earlier the same way.
     {
         "key": "tribe_damage_trigger",
         "scope": "you",

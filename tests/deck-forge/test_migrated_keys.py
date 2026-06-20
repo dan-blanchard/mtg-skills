@@ -1122,6 +1122,138 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Extra beginning phase (Sphinx of the Second Sun) — "an additional beginning
+    # phase after this phase" recovered as BOTH an `extra_upkeep` and an `extra_draw`
+    # dropped-static face marker (CR 501.1). extra_draw_step fired 0 in the IR before.
+    "extra_draw_step": (
+        {
+            "name": "Sphinx of the Second Sun",
+            "type_line": "Creature — Sphinx",
+            "oracle_text": (
+                "Flying\nAt the beginning of each of your postcombat main phases, "
+                "there is an additional beginning phase after this phase. (The "
+                "beginning phase includes the untap, upkeep, and draw steps.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="extra_draw",
+                        scope="you",
+                        raw="additional beginning phase",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "extra_upkeep": (
+        {
+            "name": "Sphinx of the Second Sun",
+            "type_line": "Creature — Sphinx",
+            "oracle_text": (
+                "Flying\nAt the beginning of each of your postcombat main phases, "
+                "there is an additional beginning phase after this phase. (The "
+                "beginning phase includes the untap, upkeep, and draw steps.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="extra_upkeep",
+                        scope="you",
+                        raw="additional beginning phase",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Modal counter (Ertai Resurrected) — "• Counter target spell, activated ability,
+    # or triggered ability" recovered as a `counter_spell` dropped-static face marker
+    # (phase keeps only the `choose` header). CR 701.5.
+    "counter_control": (
+        {
+            "name": "Ertai Resurrected",
+            "type_line": "Legendary Creature — Phyrexian Human Wizard",
+            "oracle_text": (
+                "Flash\nWhen Ertai Resurrected enters, choose up to one —\n"
+                "• Counter target spell, activated ability, or triggered ability. "
+                "Its controller draws a card.\n• Destroy another target creature or "
+                "planeswalker. Its controller draws a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="counter_spell",
+                        scope="any",
+                        raw="counter target spell",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Modal can't-block (Breeches) — "• Target creature can't block this turn"
+    # recovered as a `cant_block` dropped-static face marker (phase keeps only the
+    # `choose` header). CR 509.
+    "cant_block_grant": (
+        {
+            "name": "Breeches, Eager Pillager",
+            "type_line": "Legendary Creature — Goblin Pirate",
+            "oracle_text": (
+                "First strike\nWhenever a Pirate you control attacks, choose one "
+                "that hasn't been chosen this turn —\n• Create a Treasure token.\n"
+                "• Target creature can't block this turn.\n• Exile the top card of "
+                "your library. You may play it this turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cant_block",
+                        scope="any",
+                        raw="• Target creature can't block",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Land exchange (Political Trickery) — phase's `gain_control` effect with
+    # subject=None whose raw carries the "exchange control of … land" phrase, read by
+    # the _LAND_EXCHANGE_RAW fallback (phase never binds the land-typed object).
+    "land_exchange": (
+        {
+            "name": "Political Trickery",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Exchange control of target land you control and target land an "
+                "opponent controls. (This effect lasts indefinitely.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="gain_control",
+                        scope="any",
+                        subject=None,
+                        raw=(
+                            "Exchange control of target land you control and "
+                            "target land an opponent controls."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
