@@ -2524,6 +2524,41 @@ _SCRY_REPLACEMENT = re.compile(
 _EXTRA_END_GRANT = re.compile(
     r"\badditional end step\b|\badditional ending phase\b", re.IGNORECASE
 )
+# Extra beginning phase (CR 501.1) grant: "an additional beginning phase after this
+# phase" (Shadow / Sphinx of the Second Sun, Cyclonus's back face). A beginning
+# phase contains the untap, UPKEEP, and DRAW steps, so an extra one re-triggers both
+# "at the beginning of your upkeep" AND "at the beginning of your draw step" payoffs
+# — phase mis-routes the grant to `extra_combats` (Second Sun) or drops it entirely
+# (Cyclonus's combat-damage-triggered clause). Anchored on the exact phrase (only the
+# 4 phase-doublers carry it), never a bare "beginning phase" reference.
+_EXTRA_BEGINNING_PHASE_GRANT = re.compile(
+    r"\badditional beginning phase\b", re.IGNORECASE
+)
+# Counter a spell/ability (CR 701.5) buried where phase loses it: a modal mode body
+# ("• Counter target creature spell" — Fangkeeper's Familiar, Ertai Resurrected,
+# phase keeps only the `choose` header), a granted/quoted Aura ability ("Enchanted
+# land has '{T}: Counter target spell…'" — Equinox, Sunken Field, phase emits
+# abilities=()), or a non-grant carrier (Goblin Artisans' coin_flip absorbs "counter
+# target artifact spell you control"). The same `counter target … spell/ability`
+# phrase the counter_control regex uses (FP-free at this breadth), gated to faces
+# with no structural counter_spell so the 426 real counterspells aren't re-tagged.
+_COUNTER_TARGET_REF = re.compile(
+    r"counter target (?:[a-z-]+ )*(?:spell|ability)", re.IGNORECASE
+)
+# Can't-block grant (CR 509) phase loses in a MODAL mode body ("• Target creature
+# can't block this turn" — Breeches, Retreat to Valakut, phase keeps only the
+# `choose` header) or a GRANTED QUOTED ability ("Enchanted land has '{T}: Target
+# creature can't block…'" — Hostile Realm, Malicious Intent, phase emits
+# abilities=()). We isolate the modal bullet / quoted-grant SEGMENT, then apply the
+# same _CANT_BLOCK_REF (leading determiner + "creature … can't block") minus
+# _CANT_BLOCK_TAX as the carrier-raw marker — segment isolation keeps the greedy
+# determiner match from spanning an unrelated make_token "create … token with 'this
+# token can't block'" clause (Anax, Totentanz), which the per-carrier marker already
+# excludes via _CANT_BLOCK_CARRIERS dropping make_token.
+_CANT_BLOCK_MODAL_BULLET = re.compile(r"•[^•\n]*?can'?t block", re.IGNORECASE)
+_CANT_BLOCK_GRANT_QUOTE = re.compile(
+    r'(?:has|have|enters with) "[^"]*?can\'?t block[^"]*"', re.IGNORECASE
+)
 
 
 def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
@@ -2546,6 +2581,40 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
         markers.append(Effect(category="scry_surveil", scope="you", raw=m.group(0)))
     if (m := _EXTRA_END_GRANT.search(text)) is not None:
         markers.append(Effect(category="extra_end", scope="you", raw=m.group(0)))
+    # "Additional beginning phase" → an extra upkeep AND an extra draw step (CR
+    # 501.1). Gated to faces with no structural extra_upkeep/extra_draw (phase emits
+    # neither today — it mis-routes these to extra_combats — so this is the sole
+    # producer, but the gate keeps it append-only if phase ever grows the category).
+    if (m := _EXTRA_BEGINNING_PHASE_GRANT.search(text)) is not None:
+        have = {e.category for a in abilities for e in a.effects}
+        raw = m.group(0)
+        if "extra_upkeep" not in have:
+            markers.append(Effect(category="extra_upkeep", scope="you", raw=raw))
+        if "extra_draw" not in have:
+            markers.append(Effect(category="extra_draw", scope="you", raw=raw))
+    # "Counter target … spell/ability" phase lost in a modal/Aura/coin_flip carrier
+    # → a counter_spell marker, gated to faces with no structural counter_spell.
+    has_counter = any(
+        e.category == "counter_spell" for a in abilities for e in a.effects
+    )
+    if not has_counter and (m := _COUNTER_TARGET_REF.search(text)) is not None:
+        markers.append(Effect(category="counter_spell", scope="any", raw=m.group(0)))
+    # Modal / granted-quoted "can't block" phase dropped → a cant_block marker, gated
+    # to faces with no structural cant_block effect (the per-carrier marker already
+    # covers the carrier-raw shapes).
+    has_cant_block = any(
+        e.category == "cant_block" for a in abilities for e in a.effects
+    )
+    if not has_cant_block:
+        for pat in (_CANT_BLOCK_MODAL_BULLET, _CANT_BLOCK_GRANT_QUOTE):
+            for m in pat.finditer(text):
+                seg = m.group(0)
+                if _CANT_BLOCK_REF.search(seg) and not _CANT_BLOCK_TAX.search(seg):
+                    markers.append(Effect(category="cant_block", scope="any", raw=seg))
+                    break
+            else:
+                continue
+            break
     return markers
 
 
