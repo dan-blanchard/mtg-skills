@@ -226,6 +226,11 @@ CATEGORIES: frozenset[str] = frozenset(
         "tap",
         "topdeck_select",
         "fight",
+        # cast-from-a-zone (impulse / flashback-grant / graveyard-cast permission) —
+        # phase's CastFromZone / GrantCastingPermission map (project._EFFECT_CATEGORY)
+        # and the ADR-0027 graveyard-cast emblem marker
+        # (project._graveyard_cast_grant_markers).
+        "cast_from_zone",
         # Batch P — phase-native mechanic effects.
         "monarch",
         "suspect",

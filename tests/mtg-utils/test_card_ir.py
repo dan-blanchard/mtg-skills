@@ -20,11 +20,15 @@ from mtg_utils._card_ir.project import (
     _copied_type_from_text,
     _dropped_static_markers,
     _filter,
+    _graveyard_cast_grant_markers,
+    _graveyard_count_markers,
+    _has_graveyard_count,
     _narrow_payoff_condition_refs,
     _narrow_token_subtype_makers,
     _narrow_trigger_other_refs,
     _predicate,
     _quantity,
+    _recover_graveyard_zones,
     project_card,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
@@ -1740,3 +1744,285 @@ def test_quantity_experience_counter_operand():
     # a generic count operand stays op="count" (no false experience tag)
     generic = {"type": "ObjectCount", "filter": {"type": "Typed", "type_filters": []}}
     assert _quantity(generic).op == "count"
+
+
+# ── graveyard_matters shapes (ADR-0027) ───────────────────────────────────────
+
+
+def test_has_graveyard_count_recognizes_zoned_count_operands():
+    """GraveyardSize, a graveyard-zoned ZoneCardCount/ZoneCardCountAtLeast, and a
+    bare Zone(Graveyard) source (under a DistinctCardTypes count) are graveyard count
+    operands; a hand-zoned count or a battlefield count is not."""
+    assert _has_graveyard_count({"type": "GraveyardSize", "player": "Controller"})
+    assert _has_graveyard_count(
+        {"type": "ZoneCardCount", "zone": "Graveyard", "card_types": ["Instant"]}
+    )
+    assert _has_graveyard_count(
+        {"type": "ZoneCardCountAtLeast", "zone": "Graveyard", "count": 7}
+    )
+    assert _has_graveyard_count(
+        {"type": "DistinctCardTypes", "source": {"type": "Zone", "zone": "Graveyard"}}
+    )
+    assert not _has_graveyard_count(
+        {"type": "ZoneCardCount", "zone": "Hand", "card_types": []}
+    )
+    assert not _has_graveyard_count({"type": "ObjectCount", "filter": {}})
+
+
+def test_graveyard_count_marker_from_dynamic_power():
+    """Enigma Drake's "power equal to … cards in your graveyard"
+    (SetDynamicPower → Ref → ZoneCardCount(Graveyard)) recovers one in:graveyard
+    count marker, so the zone-aware graveyard_matters hook (scope you) fires."""
+    rec = {
+        "name": "Enigma Drake",
+        "oracle_text": "Flying\nEnigma Drake's power is equal to the number of "
+        "instant and sorcery cards in your graveyard.",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {"type": "SelfRef"},
+                "modifications": [
+                    {
+                        "type": "SetDynamicPower",
+                        "value": {
+                            "type": "Ref",
+                            "qty": {
+                                "type": "ZoneCardCount",
+                                "zone": "Graveyard",
+                                "card_types": ["Instant", "Sorcery"],
+                                "scope": "Controller",
+                            },
+                        },
+                    }
+                ],
+                "characteristic_defining": True,
+            }
+        ],
+    }
+    markers = _graveyard_count_markers(rec, [])
+    assert len(markers) == 1
+    assert markers[0].category == "board_count"
+    assert markers[0].zones == ("in:graveyard",)
+    # gated to faces with no structural in:graveyard count (no double-tag)
+    structural = [
+        Ability(
+            kind="static",
+            effects=(Effect(category="draw", zones=("in:graveyard",)),),
+        )
+    ]
+    assert not _graveyard_count_markers(rec, structural)
+
+
+def test_graveyard_count_marker_from_cost_reduction():
+    """Pteramander's "{1} less … for each instant and sorcery card in your graveyard"
+    keeps the operand in abilities[].cost_reduction.count — recovered as a marker."""
+    rec = {
+        "name": "Pteramander",
+        "oracle_text": "{7}{U}: Adapt 4. This ability costs {1} less to activate for "
+        "each instant and sorcery card in your graveyard.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {"type": "Adapt", "count": {"type": "Fixed", "value": 4}},
+                "cost_reduction": {
+                    "amount_per": 1,
+                    "count": {
+                        "type": "Ref",
+                        "qty": {
+                            "type": "ZoneCardCount",
+                            "zone": "Graveyard",
+                            "card_types": ["Instant", "Sorcery"],
+                            "scope": "Controller",
+                        },
+                    },
+                },
+            }
+        ],
+    }
+    markers = _graveyard_count_markers(rec, [])
+    assert {"board_count"} == {m.category for m in markers}
+    assert markers[0].zones == ("in:graveyard",)
+
+
+def test_graveyard_count_marker_not_for_nongraveyard_count():
+    """A card whose only count is over a NON-graveyard zone (hand) recovers no
+    graveyard count marker."""
+    rec = {
+        "name": "Reckless Fireweaver",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {"type": "SelfRef"},
+                "modifications": [
+                    {
+                        "type": "SetDynamicPower",
+                        "value": {
+                            "type": "Ref",
+                            "qty": {"type": "ZoneCardCount", "zone": "Hand"},
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    assert not _graveyard_count_markers(rec, [])
+
+
+def test_recover_graveyard_zones_self_return():
+    """World Breaker's "Return this card from your graveyard to your hand" parses as a
+    SelfRef bounce with zones=() — the recovery adds in:graveyard so the scope-gate
+    GY-recursion hook fires."""
+    ability = Ability(
+        kind="activated",
+        cost="mana,sacrifice",
+        effects=(
+            Effect(
+                category="bounce",
+                scope="any",
+                raw="{2}{C}, Sacrifice a land: Return this card from your graveyard "
+                "to your hand.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "in:graveyard" in out.effects[0].zones
+
+
+def test_recover_graveyard_zones_hand_or_graveyard_cheat():
+    """Dakkon's "put an artifact card from your hand or graveyard onto the
+    battlefield" loses the graveyard disjunct (cheat_play from:hand only) — the
+    recovery adds from:graveyard so the GY→battlefield cheat hook fires."""
+    ability = Ability(
+        kind="activated",
+        effects=(
+            Effect(
+                category="cheat_play",
+                scope="any",
+                zones=("from:hand", "to:battlefield"),
+                raw="You may put an artifact card from your hand or graveyard onto "
+                "the battlefield.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "from:graveyard" in out.effects[0].zones
+
+
+def test_recover_graveyard_zones_self_mill_deposit():
+    """Atris/Marchesa's "put one … into your hand and the other into your graveyard"
+    self-mill deposit (phase dropped to:graveyard) recovers to:graveyard."""
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="topdeck_select",
+                scope="any",
+                zones=("to:hand",),
+                raw="Put one of them into your hand and the other into your graveyard.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "to:graveyard" in out.effects[0].zones
+
+
+def test_recover_graveyard_zones_excludes_dies():
+    """A battlefield→graveyard 'dies' deposit is NOT self-mill — the recovery must
+    not add to:graveyard when from:battlefield is present (death, not fill-the-yard)."""
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="mill",
+                scope="any",
+                zones=("from:battlefield", "to:graveyard"),
+                raw="put it into your graveyard from the battlefield",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    # already had to:graveyard; recovery is append-only and leaves from:battlefield
+    assert "from:battlefield" in out.effects[0].zones
+
+
+def test_graveyard_cast_grant_marker_from_emblem():
+    """Jaya's emblem ("You may cast instant and sorcery spells from your graveyard")
+    parses as category='emblem' with the cast permission only in raw — recovered as a
+    cast_from_zone marker so graveyard_matters fires."""
+    rec = {"name": "Jaya Ballard", "oracle_text": ""}
+    abilities = [
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="emblem",
+                    scope="any",
+                    raw='You get an emblem with "You may cast instant and sorcery '
+                    'spells from your graveyard."',
+                ),
+            ),
+        )
+    ]
+    markers = _graveyard_cast_grant_markers(rec, abilities)
+    assert {"cast_from_zone"} == {m.category for m in markers}
+    assert markers[0].zones == ("from:graveyard",)
+
+
+def test_graveyard_cast_grant_marker_from_oracle_fallback():
+    """Danitha's "you may cast an Aura or Equipment spell from your graveyard" static
+    leaves no carrier raw (its static_abilities row recovers no mode) — the oracle
+    fallback recovers the cast_from_zone marker."""
+    rec = {
+        "name": "Danitha, New Benalia's Light",
+        "oracle_text": "Vigilance, trample, lifelink\nOnce during each of your turns, "
+        "you may cast an Aura or Equipment spell from your graveyard.",
+    }
+    markers = _graveyard_cast_grant_markers(rec, [])
+    assert {"cast_from_zone"} == {m.category for m in markers}
+
+
+def test_graveyard_cast_grant_marker_gated_to_no_structural():
+    """A face with a structural cast_from_zone already recovers no grant marker."""
+    rec = {"name": "X", "oracle_text": "cast a spell from your graveyard"}
+    structural = [Ability(kind="spell", effects=(Effect(category="cast_from_zone"),))]
+    assert not _graveyard_cast_grant_markers(rec, structural)
+
+
+def test_activation_restriction_threshold_recovers_graveyard_zone():
+    """Infected Vermin's "Activate only if there are seven or more cards in your
+    graveyard" rides activation_restrictions (not the condition field) — the
+    projected ability's condition carries the graveyard zone so the gate fires."""
+    rec = {
+        "name": "Infected Vermin",
+        "card_type": {"core_types": ["Creature"], "subtypes": ["Rat"]},
+        "oracle_text": "Threshold — {3}{B}: This creature deals 3 damage to each "
+        "creature and each player. Activate only if there are seven or more cards in "
+        "your graveyard.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "DamageAll",
+                    "amount": {"type": "Fixed", "value": 3},
+                    "target": {"type": "Typed", "type_filters": ["Creature"]},
+                    "player_filter": {"type": "All"},
+                },
+                "cost": {"type": "Mana", "cost": {"type": "Cost", "shards": ["Black"]}},
+                "activation_restrictions": [
+                    {
+                        "type": "RequiresCondition",
+                        "data": {
+                            "condition": {
+                                "type": "ZoneCardCountAtLeast",
+                                "zone": "Graveyard",
+                                "count": 7,
+                            }
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    card = project_card([rec])
+    conds = [ab.condition for ab in card.all_abilities() if ab.condition is not None]
+    assert any("graveyard" in c.zones for c in conds)

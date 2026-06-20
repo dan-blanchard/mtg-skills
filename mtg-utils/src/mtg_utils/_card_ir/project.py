@@ -1125,6 +1125,11 @@ def _project_face(record: dict) -> Face:
     # "if it has <madness/mutate>" / "to foretell" clauses phase left in a non-grant
     # carrier raw (Anje's untap, Pollywog's draw, Karfell's ramp).
     abilities = [_narrow_payoff_condition_refs(a) for a in abilities]
+    # Per-effect graveyard zone recovery (ADR-0027): append the missing graveyard
+    # zone tag to a bounce/cheat_play/deposit whose raw names a GY movement phase
+    # dropped (World Breaker's SelfRef return, Dakkon's hand-or-graveyard cheat,
+    # Atris/Marchesa's "the other into your graveyard" self-mill).
+    abilities = [_recover_graveyard_zones(a) for a in abilities]
     # Token-subtype maker recovery (ADR-0027): append make_token markers for named
     # token subtypes phase left only in a choose-list / granted-ability carrier raw.
     abilities = [_narrow_token_subtype_makers(a) for a in abilities]
@@ -1186,6 +1191,17 @@ def _project_face(record: dict) -> Face:
     dropped_markers = _dropped_static_markers(record, abilities)
     if dropped_markers:
         abilities.append(Ability(kind="static", effects=tuple(dropped_markers)))
+    # Graveyard count-operand (ADR-0027): a value scaling with cards-in-your-GY phase
+    # kept in a static-mod / cost_reduction / threshold raw but the projection dropped
+    # (Enigma Drake's P/T, Pteramander's cost reduction, Deep-Sea Terror's threshold).
+    gy_count_markers = _graveyard_count_markers(record, abilities)
+    if gy_count_markers:
+        abilities.append(Ability(kind="static", effects=tuple(gy_count_markers)))
+    # Graveyard-cast GRANT (ADR-0027): an emblem / quoted-static that lets you cast
+    # spells from your graveyard, surviving only in the carrier raw (Jaya's emblem).
+    gy_cast_markers = _graveyard_cast_grant_markers(record, abilities)
+    if gy_cast_markers:
+        abilities.append(Ability(kind="static", effects=tuple(gy_cast_markers)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -1305,6 +1321,23 @@ def _recover_clone_subjects(ability: Ability) -> Ability:
     return replace(ability, effects=effects)
 
 
+def _activation_condition(ab: dict) -> object:
+    """Lift a RequiresCondition out of ``activation_restrictions`` (Threshold gates —
+    Infected Vermin's "Activate only if there are seven or more cards in your
+    graveyard"). phase files these in a separate ``activation_restrictions`` array
+    (not the ``condition`` field), so the condition projection misses them entirely.
+    Returns the first restriction's inner ``condition`` dict, or the ability's own
+    ``condition`` when no RequiresCondition is present (CR 602.5)."""
+    for restr in ab.get("activation_restrictions") or []:
+        if not isinstance(restr, dict):
+            continue
+        if _norm(restr.get("type")) == "requirescondition":
+            data = restr.get("data")
+            if isinstance(data, dict) and isinstance(data.get("condition"), dict):
+                return data["condition"]
+    return ab.get("condition")
+
+
 def _project_spell_or_activated(ab: dict) -> Ability:
     kind = "activated" if _norm(ab.get("kind")) == "activated" else "spell"
     effects = _collect_effects(ab, ab.get("description") or "")
@@ -1313,7 +1346,7 @@ def _project_spell_or_activated(ab: dict) -> Ability:
             kind=kind,
             effects=tuple(effects),
             cost=_cost_string(ab.get("cost")),
-            condition=_project_condition(ab.get("condition")),
+            condition=_project_condition(_activation_condition(ab)),
         )
     )
 
@@ -1946,6 +1979,12 @@ def _condition_zones(node: object) -> tuple[str, ...]:
                 v = n.get(key)
                 if isinstance(v, str) and _norm(v) in _ZONE_NAMES:
                     found.add(_norm(v))
+            # GraveyardSize ("the number of cards in your graveyard" — Deep-Sea
+            # Terror's threshold lhs, Cryptbreaker, delirium-adjacent gates) carries
+            # its zone in the NODE TYPE, not a `zone` key, so the key scan above
+            # misses it. CR 400.1: it counts cards in a graveyard → surface graveyard.
+            if _norm(n.get("type")) == "graveyardsize":
+                found.add("graveyard")
             for child in n.values():
                 walk(child)
         elif isinstance(n, list):
@@ -2680,6 +2719,200 @@ _CANT_BLOCK_MODAL_BULLET = re.compile(r"•[^•\n]*?can'?t block", re.IGNORECAS
 _CANT_BLOCK_GRANT_QUOTE = re.compile(
     r'(?:has|have|enters with) "[^"]*?can\'?t block[^"]*"', re.IGNORECASE
 )
+
+
+# ── graveyard count-operand + zone recovery (ADR-0027 graveyard_matters) ───────
+# A value that SCALES with the number of cards in your graveyard — Enigma Drake's
+# "power equal to the number of instant and sorcery cards in your graveyard"
+# (SetDynamicPower → Ref → ZoneCardCount(zone=Graveyard)), Pteramander's "{1} less
+# … for each instant and sorcery card in your graveyard" (cost_reduction.count →
+# Ref → ZoneCardCount), Deep-Sea Terror's threshold lhs (GraveyardSize) — is the
+# strongest your-graveyard build-around (CR 400.1). phase keeps the operand in its
+# raw parse (a static_abilities modification value, a cost_reduction count, a
+# condition lhs), but the structured projection drops it (Enigma Drake has no
+# projected abilities; Pteramander's count collapses to a Fixed adapt amount). We
+# deep-scan the WHOLE phase record for a graveyard-zoned count node and, when one
+# exists, append ONE marker effect carrying zones=('in:graveyard',) so the
+# zone-aware graveyard_matters hook fires (mirrors the in:graveyard path the
+# structured count operands already take — a count OVER cards-in-GY, scope you).
+
+
+def _has_graveyard_count(node: object) -> bool:
+    """True if ``node`` (any phase subtree) contains a count/size operand over a
+    GRAVEYARD zone: a ZoneCardCount/ZoneCardCountAtLeast with zone='Graveyard', or a
+    GraveyardSize. The discriminator vs a recursion target: this is a NUMERIC operand
+    (the value scales with the GY's population), not a card pulled FROM the GY."""
+    if isinstance(node, list):
+        return any(_has_graveyard_count(x) for x in node)
+    if not isinstance(node, dict):
+        return False
+    t = _norm(node.get("type"))
+    if t == "graveyardsize":
+        return True
+    if t in ("zonecardcount", "zonecardcountatleast", "zone") and (
+        _norm(node.get("zone")) == "graveyard"
+    ):
+        # ZoneCardCount / a ZoneCardCountAtLeast threshold, or a bare Zone source
+        # under a DistinctCardTypes count ("card types among cards in all graveyards"
+        # — Polygoyf). Only reached from value/count/threshold sources, so a Zone here
+        # is always a count-of-cards-in-GY operand, never a recursion target.
+        return True
+    return any(_has_graveyard_count(v) for v in node.values())
+
+
+def _graveyard_count_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
+    """One in:graveyard count-operand marker when the record scales a value with the
+    number of cards in your graveyard (graveyard count-operand, ADR-0027). Scans the
+    static_abilities / abilities' cost_reduction / replacements for a graveyard-zoned
+    count node phase kept in its raw but the projection dropped. Gated to faces with
+    no structural in:graveyard count already (the projected zone-aware path is
+    preferred; this is the raw fallback for the dropped-operand cards)."""
+    has_struct = any("in:graveyard" in e.zones for a in abilities for e in a.effects)
+    if has_struct:
+        return []
+    # Only the value/count carriers — NOT a ChangeZone effect's own graveyard origin
+    # (a recursion, handled elsewhere). Scan the static-ability modification values,
+    # the per-ability cost_reduction counts, and replacement values.
+    sources: list[object] = []
+    for st in record.get("static_abilities") or []:
+        if isinstance(st, dict):
+            sources.append(st.get("modifications"))
+            sources.append(st.get("condition"))
+    for ab in record.get("abilities") or []:
+        if isinstance(ab, dict):
+            sources.append(ab.get("cost_reduction"))
+            sources.append(ab.get("activation_restrictions"))
+    for rep in record.get("replacements") or []:
+        if isinstance(rep, dict):
+            sources.append(rep.get("modifications"))
+    if not any(_has_graveyard_count(s) for s in sources):
+        return []
+    return [
+        Effect(
+            category="board_count",
+            scope="you",
+            raw="count of cards in your graveyard",
+            zones=("in:graveyard",),
+        )
+    ]
+
+
+# Per-effect graveyard ZONE recovery: phase parsed the EFFECT (a bounce / cheat_play
+# / topdeck_select) but lost the graveyard zone tag — a SelfRef recursion target
+# ("Return this card from your graveyard to your hand" — World Breaker, zones=()),
+# a hand-OR-graveyard disjunct phase collapsed to from:hand only (Dakkon's "from
+# your hand or graveyard"), or a "the other into your graveyard" self-mill deposit
+# phase dropped (Atris, Marchesa). We APPEND the missing zone tag from the effect's
+# raw, narrowly anchored on the explicit GY-movement phrase, so the signals zone
+# hooks fire. Append-only: a zone already present is untouched.
+_GY_RETURN_PHRASE = re.compile(
+    r"\breturn\b[^.]*\bfrom (?:your|a|an? \w+'?s?) graveyard\b[^.]*\bto\b",
+    re.IGNORECASE,
+)
+_HAND_OR_GY_PHRASE = re.compile(
+    r"\bfrom your hand (?:or|and) graveyard\b"
+    r"|\bfrom (?:your )?graveyard\b[^.]*\bonto the battlefield\b",
+    re.IGNORECASE,
+)
+_INTO_GY_DEPOSIT = re.compile(
+    r"\b(?:the (?:rest|other)|all[^.]*?)\b[^.]*?\binto (?:your|a|their) graveyard\b",
+    re.IGNORECASE,
+)
+
+
+def _recover_graveyard_zones(ability: Ability) -> Ability:
+    """Append a missing graveyard zone tag to an effect whose raw names a GY movement
+    phase dropped (per-effect graveyard zone recovery, ADR-0027). A return-from-GY →
+    in:graveyard (World Breaker, Grim Captain's Call SelfRef forms); a hand-or-GY /
+    GY-onto-battlefield cheat → from:graveyard (Dakkon); a deposit "the other into
+    your graveyard" → to:graveyard (Atris, Marchesa). Append-only."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        raw = e.raw or ""
+        zones = set(e.zones)
+        before = set(zones)
+        if (
+            e.category in ("bounce", "reanimate", "cast_from_zone", "blink")
+            and "in:graveyard" not in zones
+            and "from:battlefield" not in zones
+            and _GY_RETURN_PHRASE.search(raw)
+        ):
+            zones.add("in:graveyard")
+        if (
+            e.category in ("cheat_play", "reanimate")
+            and "from:graveyard" not in zones
+            and _HAND_OR_GY_PHRASE.search(raw)
+        ):
+            zones.add("from:graveyard")
+        if (
+            e.category in ("topdeck_select", "reveal", "mill", "discard")
+            and "to:graveyard" not in zones
+            and "from:battlefield" not in zones
+            and _INTO_GY_DEPOSIT.search(raw)
+        ):
+            zones.add("to:graveyard")
+        if zones != before:
+            changed = True
+            new_effects.append(replace(e, zones=tuple(sorted(zones))))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
+# Graveyard-cast GRANT marker (ADR-0027): a card that LETS YOU cast spells from your
+# graveyard via an emblem / quoted-static GRANT — Jaya Ballard's "[-8]: You get an
+# emblem with 'You may cast instant and sorcery spells from your graveyard'" — parses
+# as category='emblem' with the GY-cast permission only in its raw. The keyworded
+# self-cast (flashback/escape) rides castable_zones; a structured CastFromZone fires
+# directly; this is the emblem/grant residual. Anchored on "cast … from your/a
+# graveyard" so a reminder-text mention can't false-fire.
+_GRAVEYARD_CAST_GRANT = re.compile(
+    r"\bcast\b[^.\"]*\bfrom (?:your|a) graveyard\b", re.IGNORECASE
+)
+
+
+def _graveyard_cast_grant_markers(
+    record: dict, abilities: list[Ability]
+) -> list[Effect]:
+    """One cast_from_zone marker when an emblem / grant raw lets you cast from a
+    graveyard but no structural cast_from_zone already fires (graveyard-cast grant,
+    ADR-0027). Gated to faces with no structural cast_from_zone (the structured path
+    is preferred). Scans the emblem/grant carrier raws on the face."""
+    has_struct = any(
+        e.category == "cast_from_zone" for a in abilities for e in a.effects
+    )
+    if has_struct:
+        return []
+    for a in abilities:
+        for e in a.effects:
+            if e.category in ("emblem", "grant_keyword", "static", "other") and (
+                _GRAVEYARD_CAST_GRANT.search(e.raw or "")
+            ):
+                return [
+                    Effect(
+                        category="cast_from_zone",
+                        scope="you",
+                        raw=e.raw,
+                        zones=("from:graveyard",),
+                    )
+                ]
+    # Face oracle fallback: a graveyard-cast permission STATIC phase dropped entirely
+    # (Danitha's "you may cast an Aura or Equipment spell from your graveyard" — its
+    # static_abilities row recovers no recognized mode, so no carrier raw exists).
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    if (m := _GRAVEYARD_CAST_GRANT.search(text)) is not None:
+        return [
+            Effect(
+                category="cast_from_zone",
+                scope="you",
+                raw=m.group(0),
+                zones=("from:graveyard",),
+            )
+        ]
+    return []
 
 
 def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
