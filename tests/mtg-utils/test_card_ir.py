@@ -3525,6 +3525,139 @@ def test_norm_counter_kind_recovers_garbled_plus_one():
     assert _norm_counter_kind("study") == "study"
 
 
+# ── +1/+1-counter ref recovery (ADR-0027 counters_matter pass 2) ──────────────
+
+
+def test_counter_ref_marker_from_coin_flip_parent():
+    """A +1/+1 placement phase collapses into a coin_flip parent ("Put a +1/+1
+    counter on ~ for each flip you won" — Crazed Firecat) survives only in the
+    parent's raw. _narrow_counter_refs appends a place_counter(p1p1) marker so the
+    placement opens counters_matter (CR 122.1)."""
+    rec = {
+        "name": "Crazed Firecat",
+        "scryfall_oracle_id": "sc-firecat",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": (
+            "When ~ enters, flip a coin until you lose a flip. Put a +1/+1 "
+            "counter on ~ for each flip you won."
+        ),
+        "triggers": [
+            {
+                "trigger": {"mode": "EntersBattlefield"},
+                "execute": {
+                    "effect": {"type": "FlipCoinUntilLose"},
+                    "description": (
+                        "Flip a coin until you lose a flip. Put a +1/+1 "
+                        "counter on ~ for each flip you won."
+                    ),
+                },
+            }
+        ],
+    }
+    card = project_card([rec])
+    place = [e for e in _effects(card) if e.category == "place_counter"]
+    assert place, _effects(card)
+    assert place[0].counter_kind == "p1p1"
+    assert place[0].scope == "you"
+    # The coin_flip parent is untouched (append-only).
+    assert any(e.category == "coin_flip" for e in _effects(card))
+
+
+def test_counter_ref_marker_from_distribute_among():
+    """A distribute-among placement phase keeps only in a reanimate raw ("then
+    distribute four +1/+1 counters among any number of creatures" — Invoke Justice)
+    is recovered as a place_counter(p1p1) marker (CR 122.6 — distribution is a
+    placement source)."""
+    rec = {
+        "name": "Invoke Justice",
+        "scryfall_oracle_id": "sc-invoke",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": (
+            "Return target permanent card from your graveyard to the "
+            "battlefield, then distribute four +1/+1 counters among any number "
+            "of creatures and/or Vehicles target player controls."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "ChangeZone",
+                    "destination": "Battlefield",
+                },
+                "description": (
+                    "Return target permanent card from your graveyard to the "
+                    "battlefield, then distribute four +1/+1 counters among any "
+                    "number of creatures and/or Vehicles target player controls."
+                ),
+            }
+        ],
+    }
+    card = project_card([rec])
+    place = [e for e in _effects(card) if e.category == "place_counter"]
+    assert place, _effects(card)
+    assert place[0].counter_kind == "p1p1"
+
+
+def test_counter_have_ref_marker_for_payoff_reference():
+    """A "if that creature has a +1/+1 counter on it" PAYOFF reference phase drops to
+    a damage carrier (Bring Low) is recovered as a counters_have_ref marker so
+    counters_matter fires off the cares-about reference (CR 122.6)."""
+    rec = {
+        "name": "Bring Low",
+        "scryfall_oracle_id": "sc-bringlow",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": (
+            "~ deals 3 damage to target creature. If that creature has a +1/+1 "
+            "counter on it, ~ deals 5 damage to it instead."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "DealDamage",
+                    "count": {"type": "Fixed", "value": 3},
+                    "target": {"type": "Target"},
+                },
+                "description": (
+                    "~ deals 3 damage to target creature. If that creature has a "
+                    "+1/+1 counter on it, ~ deals 5 damage to it instead."
+                ),
+            }
+        ],
+    }
+    card = project_card([rec])
+    cats = {e.category for e in _effects(card)}
+    assert "counters_have_ref" in cats, _effects(card)
+
+
+def test_counter_ref_no_double_fire_when_place_counter_present():
+    """An ability phase ALREADY structured as a place_counter (a clean "put a +1/+1
+    counter" spell) gets NO extra marker — _narrow_counter_refs is gated on the
+    ability having no structured place_counter, so it never re-tags a clean parse."""
+    rec = {
+        "name": "Clean Placer",
+        "scryfall_oracle_id": "sc-clean",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": "Put a +1/+1 counter on target creature.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "PutCounter",
+                    "counter_type": "P1P1",
+                    "count": {"type": "Fixed", "value": 1},
+                    "target": {"type": "Target"},
+                },
+                "description": "Put a +1/+1 counter on target creature.",
+            }
+        ],
+    }
+    card = project_card([rec])
+    place = [e for e in _effects(card) if e.category == "place_counter"]
+    # Exactly one place_counter (the real one) — no appended duplicate marker.
+    assert len(place) == 1, _effects(card)
+
+
 # ── typed sacrifice-cost markers (ADR-0027 artifacts/enchantments cost-payer) ──
 
 

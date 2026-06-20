@@ -1148,6 +1148,90 @@ def _narrow_payoff_condition_refs(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
+# ── +1/+1-counter ref recovery (ADR-0027 counters_matter pass 2) ───────────────
+# counters_matter fires on ANY +1/+1 counter PLACEMENT regardless of recipient
+# (self / on-others / on-attacking / distribute-among — all are sources, CR 122.1 /
+# 122.6) and on a "has/with a +1/+1 counter" PAYOFF reference. phase structures the
+# clean cases as a place_counter(p1p1) (the existing IR edge), but DROPS the +1/+1
+# in two shapes, leaving it only inside a carrier effect's raw:
+#   (1) PLACEMENT nested in a branch phase collapses to ONE parent effect — a
+#       coin_flip ("Put a +1/+1 counter on ~ for each flip you won" — Crazed
+#       Firecat), a roll_die ("For each even result, put a +1/+1 counter on ~" —
+#       Clown Car, Journey to the Lost City, Overwhelming Encounter), a vote
+#       (Emissary Green, Regna's Sanction), a pay-cost ("put that many +1/+1
+#       counters" — the Adversary cycle, Chorus of the Conclave), a damage-prevention
+#       replacement (Vigor, Stormwild Capridor), an exile/reanimate rider (Augusta,
+#       Grey Host), or a distribute-among (Feast, Invoke Justice, Jared) — phase
+#       keeps the parent category and drops the placement.
+#   (2) PAYOFF REFERENCE — a creature/permanent referenced as HAVING a +1/+1
+#       counter ("with a +1/+1 counter on it can't be blocked" — Herald; "if that
+#       creature has a +1/+1 counter" — Bring Low; "for each +1/+1 counter on
+#       creatures you control" — Deepwood Denizen; "power greater than its base
+#       power" — Kutzil/Baird, the counters-on-it idiom). phase drops the +1/+1
+#       restriction/condition to a restriction / draw / damage / cost_reduction
+#       carrier, so the Counters filter-predicate the lane reads never lands.
+# Recover both: append a place_counter(p1p1) marker for a PLACEMENT and a
+# counters_have_ref marker for a PAYOFF reference, gated so neither fires on an
+# ability that already carries a structured place_counter (phase kept it). Append-
+# only; the carrier effect is untouched. The placement marker feeds the existing
+# place_counter(p1p1)→counters_matter edge; counters_have_ref is read by the lane in
+# signals.py. NO opponent gate: a +1/+1 placement is a source whoever receives it.
+_P1P1_PLACE_REF = re.compile(
+    r"\bput(?:s)?\b[^.]*?\+1/\+1 counter"
+    r"|\bdistribute(?:s)?\b[^.]*?\+1/\+1 counter"
+    r"|\bwith\b[^.]*?\+1/\+1 counters? on (?:it|them|him|her)\b"
+    r"|\bwith X additional \+1/\+1 counter",
+    re.IGNORECASE | re.DOTALL,
+)
+_P1P1_HAVE_REF = re.compile(
+    r"\bwith (?:a |an |one or more |no )?\+1/\+1 counters? on (?:it|them|him|her)\b"
+    r"|\bhas? (?:a |an )?\+1/\+1 counter on (?:it|him|her)\b"
+    r"|\bwith (?:a )?counters? on (?:it|them|him|her)\b"
+    r"|\+1/\+1 counters? you'?ve put\b"
+    r"|\+1/\+1 counters? on creatures you control\b"
+    r"|\bcounters? on creatures you control\b"
+    r"|\bpower greater than its base power\b"
+    r"|\bremove any number of \+1/\+1 counters\b",
+    re.IGNORECASE,
+)
+
+
+def _narrow_counter_refs(ability: Ability) -> Ability:
+    """Append +1/+1 markers phase left only in a carrier effect's raw: a
+    place_counter(p1p1) for a PLACEMENT nested in a branch/cost/distribute parent,
+    and a counters_have_ref for a "has/with a +1/+1 counter" PAYOFF reference
+    (counters_matter pass 2, ADR-0027). Append-only; both gated on the ability
+    having NO structured place_counter (so a clean placement phase already kept is
+    never re-tagged), and the placement marker is preferred — when a raw both places
+    AND references, the place_counter marker carries it (a placement IS a source)."""
+    if any(e.category == "place_counter" for e in ability.effects):
+        return ability
+    have = {e.category for e in ability.effects}
+    markers: list[Effect] = []
+    placed = False
+    for e in ability.effects:
+        raw = e.raw or ""
+        if not placed and _P1P1_PLACE_REF.search(raw):
+            markers.append(
+                Effect(
+                    category="place_counter", scope="you", counter_kind="p1p1", raw=raw
+                )
+            )
+            placed = True
+    # A pure payoff reference (no placement recovered) — fire the have-ref marker.
+    if not placed and "counters_have_ref" not in have:
+        for e in ability.effects:
+            raw = e.raw or ""
+            if _P1P1_HAVE_REF.search(raw):
+                markers.append(
+                    Effect(category="counters_have_ref", scope="you", raw=raw)
+                )
+                break
+    if not markers:
+        return ability
+    return replace(ability, effects=ability.effects + tuple(markers))
+
+
 # ── token-subtype maker recovery (ADR-0027 token-subtype synergy) ──────────────
 # A token MAKER for a named token subtype (Blood/Clue/Food/Treasure) normally rides
 # a make_token Effect whose subject Filter carries the subtype — the signal lane
@@ -1293,6 +1377,11 @@ def _project_face(record: dict) -> Face:
     # "if it has <madness/mutate>" / "to foretell" clauses phase left in a non-grant
     # carrier raw (Anje's untap, Pollywog's draw, Karfell's ramp).
     abilities = [_narrow_payoff_condition_refs(a) for a in abilities]
+    # +1/+1-counter ref recovery (ADR-0027 counters_matter pass 2): append a
+    # place_counter(p1p1) for a +1/+1 placement phase nested in a branch/cost/
+    # distribute parent, or a counters_have_ref for a "has/with a +1/+1 counter"
+    # payoff reference, when phase kept no structured place_counter on the ability.
+    abilities = [_narrow_counter_refs(a) for a in abilities]
     # Per-effect graveyard zone recovery (ADR-0027): append the missing graveyard
     # zone tag to a bounce/cheat_play/deposit whose raw names a GY movement phase
     # dropped (World Breaker's SelfRef return, Dakkon's hand-or-graveyard cheat,

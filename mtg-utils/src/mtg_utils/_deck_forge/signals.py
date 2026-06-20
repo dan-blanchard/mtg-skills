@@ -5770,6 +5770,18 @@ def extract_signals_ir(
                 or (not e.counter_kind and "+1/+1 counter" in (e.raw or ""))
             ):
                 add("counters_matter", "you", "", e.raw)
+            # counters_matter (ADR-0027 pass 2) — a "has/with a +1/+1 counter"
+            # PAYOFF reference phase dropped to a restriction / draw / damage /
+            # cost_reduction carrier, recovered as a counters_have_ref marker
+            # (project._narrow_counter_refs): "creatures you control with a +1/+1
+            # counter can't be blocked" (Herald), "if that creature has a +1/+1
+            # counter" (Bring Low), "for each +1/+1 counter on creatures you
+            # control" (Deepwood Denizen), "power greater than its base power"
+            # (Kutzil/Baird, the counters-on-it idiom). The marker is the structural
+            # boundary phase kept only in raw; a deck running these cares about the
+            # counter (the "_matters = cares-about" rule). CR 122.1 / 122.6.
+            if cat == "counters_have_ref":
+                add("counters_matter", "you", "", e.raw)
             # counters_matter (ADR-0027 shape 4) — proliferate is definitionally a
             # counters mechanic (CR 701.27: add another counter of each kind already
             # there). A direct category→lane edge, zero discriminator needed.
