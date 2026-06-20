@@ -2571,6 +2571,29 @@ _MASS_REMOVAL_PLAN_MIRROR = re.compile(
     r"|destroy all [^.]*creatures except|destroy all other creatures",
     re.IGNORECASE,
 )
+# ADR-0027 tranche2-B: a HAS-OTHER-PLAN mirror for the migrated team_buff key — a
+# "creatures you control have <evergreen keyword>" team-keyword grant is a go-wide
+# plan, NOT a vanilla voltron beater, so it silenced the commander-damage voltron tell
+# (Brave the Sands, Maze Behemoth, the DFC Topaz Dragon grant face; "other outlaws you
+# control have vigilance" — Vihaan; "creatures you control that entered this turn have
+# double strike" — Deathleaper). team_buff had TWO regex producers (a _HAND_FLOOR row
+# and a SWEEP row), both deleted by the migration, so this mirror is their UNION — byte-
+# identical to the pre-migration silencing (incl. the over-fire tail the narrower IR
+# drops). It feeds only the gate, NOT the silencing-set IR re-supply (which would miss
+# those over-fires AND, like mass_removal, over-silence). Needed once tranche2-A also
+# deletes anthem_static's regex that previously masked this loss.
+_TEAM_BUFF_PLAN_MIRROR = re.compile(
+    r"(?:creatures?|permanents?) you control (?:gain|gains|have|has) "
+    r"(?:flying|trample|menace|hexproof|indestructible|protection|deathtouch"
+    r"|lifelink|double strike|first strike|vigilance|haste|ward|reach)"
+    r"|(?:you and )?other \w+ you control have (?:hexproof|flying|trample"
+    r"|indestructible|protection|ward|deathtouch|lifelink|menace|vigilance|haste"
+    r"|first strike|double strike|reach)"
+    r"|(?:each |all )?creatures? you control(?: that[^.]*?)? (?:gain|gains|have|has) "
+    r"(?:indestructible|protection|hexproof|flying|trample|menace|deathtouch|lifelink"
+    r"|double strike|first strike|vigilance|haste|ward|reach)",
+    re.IGNORECASE,
+)
 # ADR-0027: a HAS-OTHER-PLAN mirror for the migrated sacrifice_matters key (its regex
 # producer is deleted, so it no longer rides the ``out`` signal set the voltron gate
 # reads). A you-sacrifice plan still silences the commander-damage voltron fallback —
@@ -3632,7 +3655,14 @@ def extract_signals(
     # voltron beater. Mirror just the gate (not an emission) so the commander-damage
     # membership fallback below stays silenced on aristocrats commanders, matching the
     # pre-migration behavior. The serve/IR side emits the real signal.
-    _oracle = card.get("oracle_text") or ""
+    # The mirrors run against the JOINED-face oracle (get_oracle_text) — NOT raw
+    # ``card.get("oracle_text")``, which is empty on a transform DFC, so a mirror keyed
+    # on it goes blind on a back-face plan body (Archangel Avacyn's "deals 3 damage to
+    # each other creature", Topaz Dragon's grant face). Joining both faces makes the
+    # mirrors see the DFC back face the pre-migration path silenced on. Reminder text is
+    # intentionally KEPT here (unlike ``text``, the detector input) so the mirrors stay
+    # byte-identical to their own pre-migration behavior on non-DFC cards.
+    _oracle = get_oracle_text(card) or ""
     has_other_plan = (
         any(
             s.confidence == "high"
@@ -3652,6 +3682,10 @@ def extract_signals(
         or _ANTHEM_GO_WIDE_MIRROR.search(_oracle)
         or _AOE_PING_PLAN_MIRROR.search(_oracle)
         or _MASS_REMOVAL_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-B: mirror the deleted team_buff regex (a go-wide team-
+        # keyword grant). Byte-identical to the old _HAND_FLOOR regex; required once
+        # tranche2-A also deletes the anthem_static regex that previously masked it.
+        or _TEAM_BUFF_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -7960,16 +7994,30 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # silence the spurious voltron tell from the IR re-supply (a +1/+1-counter
         # engine — Hardened Scales, Forgotten Ancient — is not a vanilla beater).
         "counters_matter",
+        # ADR-0027 tranche2-B: mass_bounce / permanent_etb / power_double each fired
+        # high-confidence in the regex path and counted toward has_other_plan, silencing
+        # the spurious commander-damage voltron tell on a non-vanilla-beater (a
+        # bounce/tempo engine — Scourge of Fleets; a permanent-ETB value engine —
+        # Amareth; a power-doubler — Okaun). Their regex producers are deleted, so the
+        # hybrid re-silences from the IR re-supply. None of the affected cards is a DFC,
+        # so the structural IR-signal gate suffices (no oracle mirror needed). team_buff
+        # is NOT here — it carries a regex over-fire tail the narrower IR drops AND DFC
+        # grant faces (Topaz Dragon), so it uses the byte-identical
+        # _TEAM_BUFF_PLAN_MIRROR gate instead.
+        "mass_bounce",
+        "permanent_etb",
+        "power_double",
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping / mass_removal keys
         # silenced the spurious commander-damage voltron membership tell when their
-        # (now-deleted) regex producers fired. To preserve pre-migration behavior,
-        # the silencing is done on the regex side via the has_other_plan oracle mirrors
-        # (_ANTHEM_GO_WIDE_MIRROR / _AOE_PING_PLAN_MIRROR / _MASS_REMOVAL_PLAN_MIRROR),
-        # each matching ONLY the old regex's matches — NOT the broader IR re-supply,
-        # which would over-silence the IR-only sweep/anthem bodies the old regex never
-        # caught. So these three are intentionally NOT in this set (the mirror is the
-        # byte-identical gate). activated_draw is a draw engine that never rode the
-        # per-card voltron membership gate at all.
+        # (now-deleted) regex producers fired. The silencing is done on the regex side
+        # via the has_other_plan oracle mirrors (_ANTHEM_GO_WIDE_MIRROR /
+        # _AOE_PING_PLAN_MIRROR / _MASS_REMOVAL_PLAN_MIRROR), each matching ONLY the old
+        # regex's matches — NOT the broader IR re-supply, which would over-silence the
+        # IR-only sweep/anthem bodies the old regex never caught (Sunblast Angel, Reiver
+        # Demon). The mirrors now run against the joined-face ``text`` (see _oracle), so
+        # they catch DFC back-face bodies (Archangel Avacyn, Fang Dragon) byte-
+        # identically — no silencing-set entry needed. activated_draw is a draw engine
+        # that never rode the per-card voltron membership gate at all.
     }
 )
 
