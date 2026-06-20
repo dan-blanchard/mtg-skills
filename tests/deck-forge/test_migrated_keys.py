@@ -1525,6 +1525,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Group mana (Magus of the Vineyard) — a ramp effect whose raw names a
+    # non-controller recipient ("that player adds {G}{G}"), read by _GROUP_MANA_RAW
+    # (phase has no recipient field, so the discriminator lives in the raw).
+    "group_mana": (
+        {
+            "name": "Magus of the Vineyard",
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": (
+                "At the beginning of each player's first main phase, that player "
+                "adds {G}{G}."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="begin_main", scope="each"),
+                effects=(
+                    Effect(
+                        category="ramp",
+                        scope="any",
+                        raw="that player adds {G}{G}",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

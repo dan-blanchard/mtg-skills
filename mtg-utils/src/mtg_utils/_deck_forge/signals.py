@@ -4619,6 +4619,17 @@ _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECA
 # need no raw scan. The card's OWN printed convoke rides the keyword array.
 _CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
 
+# group_mana (ADR-0027): symmetric/shared mana added to players OTHER than just the
+# controller. The Effect dataclass has no recipient field — phase flattens every
+# mana-recipient phrasing ("each player … adds {G}", "that player adds {B}{R}{G}",
+# "the active player adds {C}") into ramp/any, identical to controller-only "you add"
+# ramp. The non-controller recipient survives only in e.raw, so this discriminator
+# (a non-you player adding mana) separates group ramp (Magus of the Vineyard, Yurlok,
+# Valleymaker, Tangleroot) from your-own ramp (Sol Ring, Llanowar).
+_GROUP_MANA_RAW = re.compile(
+    r"(?:each|that|the active|chosen) player[^.]*adds \{", re.IGNORECASE
+)
+
 # venture_matters (ADR-0027): a dungeon-DOUBLING payoff phase keeps as a
 # trigger_doubling effect whose raw names rooms/dungeons ("Room abilities of dungeons
 # you own trigger an additional time" — Hama Pashar, Dungeon Delver). The dungeon
@@ -5049,7 +5060,10 @@ def extract_signals_ir(
                 add("fight_matters", "you", "", e.raw)
             if cat == "ramp":
                 add("ramp_matters", "you", "", e.raw)
-                if e.scope == "each":
+                # ADR-0027 — group_mana: a non-controller mana RECIPIENT in the ramp
+                # raw (phase emits scope='each' for ZERO ramp effects; the recipient
+                # survives only in raw — _GROUP_MANA_RAW is the discriminator).
+                if e.scope == "each" or _GROUP_MANA_RAW.search(e.raw or ""):
                     add("group_mana", "each", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
@@ -5933,6 +5947,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "suspect_matters",
         "venture_matters",
         "crimes_matter",
+        # group_mana ← phase emits scope='each' for ZERO ramp effects (the recipient
+        # field doesn't exist), so the dead each-scope arm is replaced by a
+        # non-controller-recipient discriminator (_GROUP_MANA_RAW) on the ramp effect
+        # raw — "each/that/the active/chosen player … adds {" — separating symmetric
+        # group ramp (Magus of the Vineyard, Yurlok, Valleymaker, Tangleroot) from
+        # your-own ramp. NOT in _IR_FLOOR_LANES; its SWEEP row is deleted, serve
+        # hand-registered. gap=0, over=0 (all 8 cards bind structurally). See ADR-0027.
+        "group_mana",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

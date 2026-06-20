@@ -2457,9 +2457,25 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "unspent_mana",
         (_MANA_AMP_EXTRA,),
     ),
-    ("group_mana", "each"): _sweep_spec_with_extras(
-        "group_mana",
-        (_SYM_MANA_EXTRA,),
+    # ADR-0027: group_mana migrated to the Card IR — its SWEEP_DETECTORS row is deleted
+    # (detection moved to a non-controller-recipient discriminator on phase's ramp
+    # effect raw), so hand-register the spec the sweep loop used to build, inlining the
+    # deleted regex + the symmetric-mana extra.
+    ("group_mana", "each"): _spec(
+        *SWEEP_LABELS["group_mana"],
+        {
+            "oracle": (
+                r"each player adds \{|that player adds \{"
+                r"|the active player[^.]*adds? \{"
+                r"|a player (?:loses?|losing)[^.]*mana[^.]*lose"
+            )
+        },
+        (
+            r"each player adds \{|that player adds \{"
+            r"|the active player[^.]*adds? \{"
+            r"|a player (?:loses?|losing)[^.]*mana[^.]*lose"
+        ),
+        extras=(_SYM_MANA_EXTRA,),
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,

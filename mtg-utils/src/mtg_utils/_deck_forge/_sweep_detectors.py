@@ -139,12 +139,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "look at (?:target player|that player|an opponent|each opponent|target opponent)'?s?'? hands?|plays? with (?:their|his or her) hands? revealed|reveals? (?:their|his or her) hands?|reveals? (?:\\w+ )?cards? (?:at random )?from (?:their|his or her|that player's) hand|reveals?[^.]*until you say stop",
     },
-    {
-        "key": "group_mana",
-        "scope": "each",
-        "is_widen_of": "",
-        "regex": "each player adds \\{|that player adds \\{|the active player[^.]*adds? \\{|a player (?:loses?|losing)[^.]*mana[^.]*lose",
-    },
+    # ADR-0027: group_mana migrated to the Card IR — phase emits scope='each' for ZERO
+    # ramp effects (the recipient field doesn't exist), so detection moved to a
+    # non-controller-recipient discriminator (_GROUP_MANA_RAW) on the ramp effect's raw
+    # ("each/that/the active/chosen player … adds {"), which separates symmetric group
+    # ramp from your-own ramp. NOT in _IR_FLOOR_LANES; serve hand-registered in
+    # signal_specs reusing the deleted regex + the symmetric-mana extra.
     {
         "key": "secret_writedown",
         "scope": "you",
