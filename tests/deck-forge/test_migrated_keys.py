@@ -749,6 +749,37 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # The Blood token-subtype synergy lane (CR 111.10g). The IR mirror is a
+    # make_token Effect whose subject Filter carries the Blood subtype (Bloodtithe
+    # Harvester, a canonical Blood maker) — the structural maker the lane reads. The
+    # sacrifice-payoff and choose-list / granted-ability maker paths are exercised by
+    # the dedicated tests below.
+    "blood_matters": (
+        {
+            "name": "Bloodtithe Harvester",
+            "type_line": "Creature — Vampire",
+            "oracle_text": (
+                "When this creature enters, create a Blood token. (It's an "
+                'artifact with "{1}, {T}, Discard a card, Sacrifice this token: '
+                'Draw a card.")\n{T}, Sacrifice this creature: Target creature '
+                "gets -X/-X until end of turn, where X is twice the number of "
+                "Blood tokens you control. Activate only as a sorcery."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        subject=Filter(card_types=("Artifact",), subtypes=("Blood",)),
+                        raw="create a Blood token",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
@@ -828,3 +859,159 @@ def test_creatures_matter_does_not_fire_on_a_subtype_lord():
         )
     )
     assert "creatures_matter" not in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_blood_matters_fires_from_a_sacrifice_effect_subject():
+    """Token-subtype sacrifice PAYOFF (effect side): Wedding Security "sacrifice a
+    Blood token" — a `sacrifice` Effect whose subject Filter carries the Blood
+    subtype opens blood_matters via the IR, not the deleted floor regex."""
+    card = {
+        "name": "Wedding Security",
+        "type_line": "Creature — Human Soldier",
+        "oracle_text": (
+            "Whenever this creature attacks, you may sacrifice a Blood token. If "
+            "you do, put a +1/+1 counter on this creature and draw a card."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="attacks", scope="you"),
+            effects=(
+                Effect(
+                    category="sacrifice",
+                    scope="any",
+                    subject=Filter(
+                        subtypes=("Blood",),
+                        controller="you",
+                        predicates=("Token",),
+                    ),
+                    raw="you may sacrifice a Blood token",
+                ),
+            ),
+        )
+    )
+    assert "blood_matters" not in {s.key for s in extract_signals(card)}
+    assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
+    """Token-subtype sacrifice PAYOFF (trigger side): Blood Hypnotist "whenever you
+    sacrifice one or more Blood tokens" — a `sacrificed` Trigger whose subject Filter
+    carries the Blood subtype opens blood_matters via the IR."""
+    card = {
+        "name": "Blood Hypnotist",
+        "type_line": "Creature — Vampire Wizard",
+        "oracle_text": (
+            "This creature can't block.\nWhenever you sacrifice one or more Blood "
+            "tokens, target creature can't block this turn. This ability triggers "
+            "only once each turn."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="sacrificed",
+                scope="you",
+                subject=Filter(
+                    subtypes=("Blood",),
+                    controller="you",
+                    predicates=("Token",),
+                ),
+            ),
+            effects=(Effect(category="cant_block", scope="any", raw="can't block"),),
+        )
+    )
+    assert "blood_matters" not in {s.key for s in extract_signals(card)}
+    assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def test_blood_matters_fires_from_a_recovered_choice_list_maker():
+    """Token-subtype maker recovery (choice list): Transmutation Font "create your
+    choice of a Blood token, a Clue token, or a Food token" — phase drops the choice
+    subtypes onto a `choose` effect; project._narrow_token_subtype_makers recovers
+    them as make_token markers, so all three lanes fire via the IR."""
+    card = {
+        "name": "Transmutation Font",
+        "type_line": "Artifact",
+        "oracle_text": (
+            "{T}: Create your choice of a Blood token, a Clue token, or a Food token."
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="activated",
+            cost="tap",
+            effects=(
+                # the recovered make_token markers the projection appends
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=("Blood",), predicates=("Token",)),
+                    raw="Create your choice of a Blood token, a Clue token, "
+                    "or a Food token.",
+                ),
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=("Clue",), predicates=("Token",)),
+                    raw="Create your choice of a Blood token, a Clue token, "
+                    "or a Food token.",
+                ),
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=("Food",), predicates=("Token",)),
+                    raw="Create your choice of a Blood token, a Clue token, "
+                    "or a Food token.",
+                ),
+            ),
+        )
+    )
+    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "blood_matters" in keys
+    # the generalized recovery also opens clue/food (these stay floor-served lanes,
+    # but the structural maker recovery is general — proves the widening generalized)
+    assert "clue_matters" in keys
+    assert "food_matters" in keys
+
+
+def test_blood_matters_fires_from_a_recovered_granted_ability_maker():
+    """Token-subtype maker recovery (granted ability): Ceremonial Knife grants the
+    equipped creature a quoted "create a Blood token" ability — phase folds it into a
+    `pump` carrier raw; the projection recovers the Blood make_token marker, so
+    blood_matters fires via the IR."""
+    card = {
+        "name": "Ceremonial Knife",
+        "type_line": "Artifact — Equipment",
+        "oracle_text": (
+            'Equipped creature gets +1/+0 and has "Whenever this creature deals '
+            'combat damage, create a Blood token."\nEquip {2}'
+        ),
+    }
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="any",
+                    subject=Filter(
+                        card_types=("Creature",), predicates=("EquippedBy",)
+                    ),
+                    raw='Equipped creature gets +1/+0 and has "Whenever ~ deals '
+                    'combat damage, create a Blood token."',
+                ),
+                # the recovered make_token marker the projection appends
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=("Blood",), predicates=("Token",)),
+                    raw='Equipped creature gets +1/+0 and has "Whenever ~ deals '
+                    'combat damage, create a Blood token."',
+                ),
+            ),
+        )
+    )
+    assert "blood_matters" in {s.key for s in extract_signals_hybrid(card, ir)}

@@ -6,7 +6,7 @@ stay clean. Each is a real archetype getting its own avenue.
 """
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _ks(card):
@@ -85,14 +85,17 @@ CASES = [
         "Whenever you sacrifice a Food, each opponent loses 1 life.",
     ),
     ("clue_matters", "you", "Whenever you investigate, draw a card."),
-    ("blood_matters", "you", "Whenever you sacrifice a Blood token, draw a card."),
+    # ADR-0027: blood_matters migrated to the Card IR (the token-subtype synergy
+    # widening reads sacrifice subjects), so it is asserted via the hybrid path
+    # below, not this regex CASES loop.
     (
         "daynight_matters",
         "you",
         "Daybound (If a player casts no spells during their own turn...)",
     ),
-    # ADR-0027: coven_matters / voting_matters / token_doubling migrated to the Card
-    # IR, so they are asserted via the hybrid path below, not this regex CASES loop.
+    # ADR-0027: coven_matters / voting_matters / token_doubling / blood_matters
+    # migrated to the Card IR, so they are asserted via the hybrid path below, not
+    # this regex CASES loop.
     (
         "counter_doubling",
         "you",
@@ -164,6 +167,46 @@ def test_token_doubling_is_ir_served():
     hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
     assert ("token_doubling", "you") in hybrid
     assert ("token_doubling", "you") not in _ks(c)
+
+
+def test_blood_matters_is_ir_served():
+    # ADR-0027: blood_matters is IR-served — the token-subtype synergy widening reads
+    # a `sacrificed` Trigger (or `sacrifice` Effect) whose subject Filter carries the
+    # Blood subtype, so a Blood sacrifice PAYOFF fires it via the hybrid path, not the
+    # deleted "blood tokens?" floor regex.
+    c = {
+        "name": "X",
+        "oracle_text": "Whenever you sacrifice a Blood token, draw a card.",
+    }
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="sacrificed",
+                            scope="you",
+                            subject=Filter(
+                                subtypes=("Blood",),
+                                controller="you",
+                                predicates=("Token",),
+                            ),
+                        ),
+                        effects=(
+                            Effect(category="draw", scope="you", raw="draw a card"),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("blood_matters", "you") in hybrid
+    assert ("blood_matters", "you") not in _ks(c)
 
 
 def test_monarch_matters_is_ir_served():

@@ -1912,7 +1912,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "you",
     ),
     ("clue_matters", re.compile(r"\bclue\b|\binvestigate\b", re.IGNORECASE), "you"),
-    ("blood_matters", re.compile(r"blood tokens?", re.IGNORECASE), "you"),
+    # ADR-0027: blood_matters migrated to the Card IR — detected structurally from a
+    # Blood-subtype maker (make_token subject), a Blood SACRIFICE PAYOFF (a sacrifice
+    # Effect/Trigger whose subject Filter carries the Blood subtype — Wedding
+    # Security, Blood Hypnotist), and the choose-list / granted-ability maker
+    # recovery (Transmutation Font, Ceremonial Knife — project._narrow_token_subtype_
+    # makers). It is removed from _IR_FLOOR_LANES (no floor mirror; floor-mirror-
+    # dependency == 0). This _HAND_FLOOR producer is deleted; the hand-written serve
+    # spec (signal_specs.py) survives. clue/food/treasure keep their floor for now.
     (
         "daynight_matters",
         re.compile(
@@ -4080,7 +4087,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "clue_matters",
         "treasure_matters",
         "food_matters",
-        "blood_matters",
+        # blood_matters removed — ADR-0027 migrated it to the Card IR (Blood-subtype
+        # makers + the sacrifice-Effect/Trigger subject widening + the choose-list /
+        # granted-ability maker recovery), so it fires from the STRUCTURAL IR alone
+        # and no longer needs the floor mirror. Its _HAND_FLOOR detector is deleted.
         # counter-type synergy (distinct from the +1/+1 counters_matter doer lane)
         "poison_matters",
         "oil_counter_matters",
@@ -5032,7 +5042,15 @@ def extract_signals_ir(
                 add("typed_anthem_multi", "you", "", e.raw)
             if amount_subject is not None and "Land" in _ftypes(amount_subject):
                 add("lands_matter", "you", "", e.raw)
-            if cat == "make_token":
+            # Token-subtype synergy (clue/food/treasure/blood). The maker opens the
+            # lane via a make_token subject carrying the token subtype; the SACRIFICE
+            # PAYOFF (Wedding Security "sacrifice a Blood token", artifact-token
+            # sac-fuel) opens it via a `sacrifice` Effect whose subject Filter carries
+            # the same subtype — both are the lane's stated intent ("makers plus
+            # sacrifice payoffs"). One general scan over both maker + sacrifice
+            # subjects (the trigger-side "whenever you sacrifice a <Subtype> token"
+            # payoff is read in the trigger loop below).
+            if cat in ("make_token", "sacrifice"):
                 for st in _fsubs_lower(e.subject):
                     if st in _TOKEN_SUBTYPE_KEYS:
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
@@ -5226,6 +5244,15 @@ def extract_signals_ir(
                 add("tap_untap_matters", "you", "", "")
             if ev == "discarded":
                 add("discard_matters", "you", "", "")
+            # Token-subtype sacrifice PAYOFF (trigger side): "whenever you sacrifice
+            # one or more <Subtype> tokens, ..." (Blood Hypnotist). The token subtype
+            # rides the trigger subject Filter — the same token-subtype synergy
+            # pattern the effect loop scans for makers + sacrifice-effect payoffs.
+            if ev == "sacrificed":
+                for st in tsub_kinds:
+                    if st in _TOKEN_SUBTYPE_KEYS:
+                        tk, ts = _TOKEN_SUBTYPE_KEYS[st]
+                        add(tk, ts, "", "")
             if ev == "drawn":
                 add("draw_matters", "you", "", "")
                 # Batch 11 — "whenever an OPPONENT draws" (Nekusar / Notion Thief).
@@ -5547,6 +5574,24 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # being the Devour keyword; the structural IR correctly excludes both. The
         # serve spec stays in signal_specs. See ADR-0027.
         "devour_matters",
+        # blood_matters (CR 111.10g — the Blood token subtype, a discard-a-card-draw
+        # artifact-token rummage engine) — the token-subtype synergy lane. REMOVED
+        # from _IR_FLOOR_LANES and now fires from the STRUCTURAL IR alone: a
+        # Blood-subtype make_token subject (the maker), a Blood SACRIFICE PAYOFF (a
+        # `sacrifice` Effect OR a `sacrificed` Trigger whose subject Filter carries
+        # the Blood subtype — Wedding Security, Blood Hypnotist; the token-subtype
+        # synergy widening reads sacrifice subjects, not just maker subjects), and the
+        # CHOOSE-LIST / GRANTED-ABILITY maker recovery (Transmutation Font's "create
+        # your choice of a Blood token", Ceremonial Knife's quoted "create a Blood
+        # token" grant — project._narrow_token_subtype_makers appends make_token
+        # markers for the dropped subtypes). Floor-mirror-dependency == 0 (commander-
+        # legal, floor lanes disabled): all 41 cards fire structurally with the floor
+        # on or off (the 4 former floor-only gap cards now bind structurally). Its
+        # "blood tokens?" _HAND_FLOOR producer is deleted; the serve spec stays in
+        # signal_specs. The widening generalizes to clue/food/treasure (genuine
+        # recall: +18/+10/+8 structural firings, all real makers/sac-payoffs), which
+        # keep their floor for now. See ADR-0027.
+        "blood_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
