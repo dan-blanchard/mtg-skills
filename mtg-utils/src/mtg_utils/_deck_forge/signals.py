@@ -3917,6 +3917,16 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "life_payment": ("life_payment_insurance", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
+    # ADR-0027 sweep markers (project._dropped_static_markers / _narrow_trigger_other
+    # _refs): a payoff/reference phase left only on the face oracle text or in an
+    # event='other' carrier raw is appended as a precise marker effect → its lane.
+    # starting_life ← "starting life total" compare (CR 103.4); mass_death ←
+    # "creatures that died this turn" count operand (CR 700.4); cycling ← a
+    # "cycle or discard" payoff trigger (CR 702.29). roll_die above already maps the
+    # dice marker (same category as phase's native roll_die effect).
+    "starting_life": ("starting_life_matters", "you"),
+    "mass_death": ("mass_death_payoff", "you"),
+    "cycling": ("cycling_matters", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
     "extra_combat": ("extra_combats", "you"),
     "extra_upkeep": ("extra_upkeep", "you"),

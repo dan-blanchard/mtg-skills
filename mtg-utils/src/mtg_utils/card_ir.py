@@ -281,6 +281,16 @@ CATEGORIES: frozenset[str] = frozenset(
         # produces for the granted/replacement residual.
         "mutate",
         "scavenge",
+        # ADR-0027 sweep dropped-static / trigger-other markers — precise categories
+        # appended for a payoff/reference phase left only on the face oracle text or
+        # in an event='other' carrier raw (project._dropped_static_markers /
+        # _narrow_trigger_other_refs). starting_life ← "starting life total" compare;
+        # mass_death ← "creatures that died this turn" count operand; cycling ← a
+        # "cycle or discard" payoff trigger; roll_die is also phase's own effect
+        # category (the keyword-less dice payoff/spell). CR 103.4 / 700.4 / 702.29.
+        "starting_life",
+        "mass_death",
+        "cycling",
         # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
         # artifacts / enchantments you control) the structured projection dropped to a
         # subjectless characteristic_pt / ModifyCost / damage / gate condition;

@@ -801,6 +801,39 @@ _RING_TEMPT_TRIG = re.compile(
 # phase" payoff. Anchored on a permanent-subject "phase out/in" so a doer's own
 # "~ phases out" reminder isn't double-tagged.
 _PHASING_TRIG = re.compile(r"\bpermanents? phase(?:s)? (?:in|out)\b", re.IGNORECASE)
+# Cycling (CR 702.29) PAYOFF trigger: "Whenever you cycle or discard a card, …"
+# (Faith of the Devoted, Drake Haven, the Amonkhet cycling payoffs). phase has a
+# typed `cycled` trigger for the self-cycle bonus, but flattens this DISCARD-OR-CYCLE
+# payoff to event='other' (the "or discard" disjunction defeats the typed parse),
+# keeping the trigger only in the consequence raw. The native cycling keyword + the
+# `cycled` trigger event already bind the keyword-bearing / self-cycle cards; this is
+# the keyword-less "cares when I cycle/discard" payoff. Anchored on "cycle or discard"
+# (the payoff signature) so a plain cycling card's own reminder doesn't false-fire.
+_CYCLING_TRIG = re.compile(
+    r"\bcycles? or discard\b|\bwhenever you cycle\b", re.IGNORECASE
+)
+# Dice (CR 706, AFR/Unfinity) PAYOFF trigger: "Whenever you roll one or more dice/a
+# die/a <N>/your <Nth> die, …" (Brazen Dwarf, Dee Kay, Feywild Trickster). phase
+# parses the consequence (damage / make_token / place_counter / draw) but flattens the
+# dice trigger to event='other', keeping the roll reference only in the raw. The
+# roll-a-die DOERS already ride phase's roll_die effect; this is the keyword-less
+# "cares when I roll" payoff. Anchored on the roll-trigger phrase.
+_DICE_TRIG = re.compile(
+    r"\bwhenever you roll\b|\broll(?:ed)? (?:one or more|your|a|\d+) (?:dice|die|\d)"
+    r"|\brolled (?:one or more|\d+) (?:dice|die)\b",
+    re.IGNORECASE,
+)
+# Dice (CR 706) as a SPELL/COST roll phase parses the consequence of but drops the
+# roll_die effect of: "Roll two d6 and choose one result" (Valiant Endeavor, the
+# *Endeavor cycle), "{6}, Roll a d8:" (Clay Golem cost), "reroll … dice" (Monitor
+# Monitor). The roll-trigger payoffs ride _DICE_TRIG above; this is the spell/cost
+# roll the dropped-static pass recovers. Mirrors the dice_matters regex anchors.
+_DICE_REF = re.compile(
+    r"\broll (?:a|one or more|two|\d+) (?:[a-z\-]+ )?(?:d\d+|dice|die)\b"
+    r"|\breroll (?:any|a|that|one or more) (?:die|dice)\b"
+    r"|\bresult of (?:the|a|your) (?:roll|die)\b",
+    re.IGNORECASE,
+)
 
 
 def _narrow_trigger_other_refs(ability: Ability) -> Ability:
@@ -858,6 +891,12 @@ def _narrow_trigger_other_refs(ability: Ability) -> Ability:
         # "permanents phase out/in" condition only in its raw (The War Doctor).
         if want("phasing") and _PHASING_TRIG.search(raw):
             markers.append(Effect(category="phasing", scope="you", raw=raw))
+        # Cycling PAYOFF: a "cycle or discard" trigger phase flattened to event='other'.
+        if want("cycling") and _CYCLING_TRIG.search(raw):
+            markers.append(Effect(category="cycling", scope="you", raw=raw))
+        # Dice PAYOFF: a "whenever you roll …" trigger phase flattened to event='other'.
+        if want("roll_die") and _DICE_TRIG.search(raw):
+            markers.append(Effect(category="roll_die", scope="you", raw=raw))
     if not markers:
         return ability
     return replace(ability, effects=ability.effects + tuple(markers))
@@ -3043,6 +3082,35 @@ _CANT_BLOCK_MODAL_BULLET = re.compile(r"•[^•\n]*?can'?t block", re.IGNORECAS
 _CANT_BLOCK_GRANT_QUOTE = re.compile(
     r'(?:has|have|enters with) "[^"]*?can\'?t block[^"]*"', re.IGNORECASE
 )
+# Oil counters (CR 122, ONE/MOM) as a PAYOFF reference — a card that COUNTS or
+# CONDITIONS on existing oil counters ("permanents you control with oil counters on
+# them", "if you control a permanent with an oil counter"). phase parses the
+# consequence (draw / damage / pump / cost reduction) but DROPS the oil-counter
+# operand/condition entirely (no place_counter, so _COUNTER_KIND_KEYS['oil'] never
+# fires). Anchored on the literal "oil counter(s)" phrase — it appears only on real
+# oil cards. The PLACER side (a place_counter with counter_kind='oil') already binds
+# the lane natively; this is the keyword-less cares-about payoff half.
+_OIL_REF = re.compile(r"\boil counters?\b", re.IGNORECASE)
+# "Starting life total" (CR 103.4) payoff reference — a card that compares against /
+# resets to the starting life total ("less than half their starting life total",
+# "your life total becomes equal to your starting life total", "greater than your
+# starting life total"). phase has no structure for this specific game value, so it
+# survives only on the face oracle text. Anchored TIGHTLY on "starting life total"
+# (the specific value) — NOT the broad regex's "life total is greater/less" second
+# arm, which over-fires on unrelated life thresholds ("if your life total is less
+# than 7" — Elderscale Wurm), which the structural IR correctly drops.
+_STARTING_LIFE_REF = re.compile(r"\bstarting life total\b", re.IGNORECASE)
+# Mass-death count operand (CR 700.4) payoff — a value/effect that SCALES with the
+# number of creatures that died this turn ("a +1/+1 counter for each creature that
+# died this turn", "a Treasure for each nontoken creature that died this turn",
+# "connives X, where X is the number of creatures that died this turn"). phase
+# parses the consequence (place_counter / make_token / connive / reanimate) but
+# drops the "creatures that died this turn" operand. Anchored on the morbid
+# count phrase — gated to faces with no structural mass_death marker yet.
+_MASS_DEATH_REF = re.compile(
+    r"creatures? (?:that )?died this turn|creature[^.]*\bdied\b[^.]*this turn",
+    re.IGNORECASE,
+)
 
 
 # ── graveyard count-operand + zone recovery (ADR-0027 graveyard_matters) ───────
@@ -3783,6 +3851,51 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     has_paylife = any(a.cost is not None and "paylife" in a.cost for a in abilities)
     if not has_paylife and (m := _PAY_LIFE_REF.search(text)) is not None:
         markers.append(Effect(category="life_payment", scope="you", raw=m.group(0)))
+    # Oil-counter PAYOFF reference phase dropped → a place_counter marker carrying
+    # counter_kind='oil' (the same discriminator phase stamps on a real oil placement),
+    # so the existing _COUNTER_KIND_KEYS['oil'] read fires oil_counter_matters. Gated to
+    # faces with no structural oil placement/marker already present. The counter_kind
+    # 'oil' is NOT 'p1p1', so this never leaks into counters_matter.
+    has_oil = any(
+        e.category == "place_counter" and e.counter_kind == "oil"
+        for a in abilities
+        for e in a.effects
+    )
+    if not has_oil and (m := _OIL_REF.search(text)) is not None:
+        markers.append(
+            Effect(
+                category="place_counter",
+                scope="you",
+                counter_kind="oil",
+                raw=m.group(0),
+            )
+        )
+    # "Starting life total" reference phase has no structure for → a starting_life
+    # marker. Read via _DOER_EFFECT_KEYS (CR 103.4).
+    if (m := _STARTING_LIFE_REF.search(text)) is not None:
+        markers.append(Effect(category="starting_life", scope="you", raw=m.group(0)))
+    # Mass-death count operand phase dropped → a mass_death marker. Read via
+    # _DOER_EFFECT_KEYS (CR 700.4).
+    if (m := _MASS_DEATH_REF.search(text)) is not None:
+        markers.append(Effect(category="mass_death", scope="you", raw=m.group(0)))
+    # Cycling "cycle or discard" PAYOFF trigger phase dropped ENTIRELY (the trigger
+    # phrase truncated off both the trigger and the effect raw — Pitiless Vizier,
+    # Zenith Seeker keep only "gain indestructible"/"gain flying") → a cycling marker.
+    # Gated to faces with no structural cycling marker (the _narrow_trigger_other_refs
+    # arm already binds the cards whose effect raw kept the phrase) and no `cycled`
+    # trigger (the typed self-cycle bonus binds natively).
+    has_cycling = any(
+        e.category == "cycling" for a in abilities for e in a.effects
+    ) or any(a.trigger is not None and a.trigger.event == "cycled" for a in abilities)
+    if not has_cycling and (m := _CYCLING_TRIG.search(text)) is not None:
+        markers.append(Effect(category="cycling", scope="you", raw=m.group(0)))
+    # Dice roll in a SPELL/COST form phase parsed the consequence of but dropped the
+    # roll_die effect → a roll_die marker, gated to faces with no structural roll_die
+    # effect/marker (the _narrow_trigger_other_refs arm + phase's native roll_die
+    # already bind the trigger / recognized-roll forms).
+    has_roll = any(e.category == "roll_die" for a in abilities for e in a.effects)
+    if not has_roll and (m := _DICE_REF.search(text)) is not None:
+        markers.append(Effect(category="roll_die", scope="you", raw=m.group(0)))
 
     # "Tapped creatures you control <grant>" phase parsed with the subject dropped →
     # a grant_keyword marker carrying the rebuilt Tapped-creature subject Filter, so
