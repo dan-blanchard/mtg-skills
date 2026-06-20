@@ -1092,6 +1092,225 @@ def test_for_each_creature_oracle_marker_recovers_count():
     assert e.amount.subject == Filter(card_types=("Creature",), controller="you")
 
 
+# ── artifacts/enchantments go-wide projection (ADR-0027) ──────────────────────
+# Cover the count-over-own-board operand for the two permanent-type lanes, the
+# composite (Artifact OR Enchantment) `Or` filter, the affinity/improvise keyword
+# operands, and the board_grant over a generic own-board artifact/enchantment set.
+
+
+def test_board_count_recovers_artifact_count_operand():
+    """One with the Machine: a Draw whose count is an Aggregate(Max, ManaValue) over
+    artifacts you control — the board_count marker recovers the generic artifact set."""
+    rec = {
+        "name": "One with the Machine",
+        "scryfall_oracle_id": "id-otm",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": "Draw cards equal to the greatest mana value among "
+        "artifacts you control.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Draw",
+                    "count": {
+                        "type": "Ref",
+                        "qty": {
+                            "type": "Aggregate",
+                            "function": "Max",
+                            "property": "ManaValue",
+                            "filter": {
+                                "type": "Typed",
+                                "type_filters": ["Artifact"],
+                                "controller": "You",
+                                "properties": [],
+                            },
+                        },
+                    },
+                    "target": {"type": "Controller"},
+                },
+            }
+        ],
+    }
+    card = project_card([rec])
+    subjects = {
+        e.amount.subject
+        for e in _effects(card)
+        if e.amount is not None and e.amount.subject is not None
+    }
+    assert Filter(card_types=("Artifact",), controller="you") in subjects
+
+
+def test_board_count_composite_or_fires_both_artifact_and_enchantment():
+    """Shambling Suit: a SetDynamicPower over an Or(artifacts you control,
+    enchantments you control) — the composite Or yields BOTH a board_count over
+    Artifact and one over Enchantment (each population is summed)."""
+    rec = {
+        "name": "Shambling Suit",
+        "scryfall_oracle_id": "id-shambling",
+        "card_type": {"core_types": ["Artifact", "Creature"]},
+        "oracle_text": "~'s power is equal to the number of artifacts and/or "
+        "enchantments you control.",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {"type": "SelfRef"},
+                "characteristic_defining": True,
+                "modifications": [
+                    {
+                        "type": "SetDynamicPower",
+                        "value": {
+                            "type": "Ref",
+                            "qty": {
+                                "type": "ObjectCount",
+                                "filter": {
+                                    "type": "Or",
+                                    "filters": [
+                                        {
+                                            "type": "Typed",
+                                            "type_filters": ["Artifact"],
+                                            "controller": "You",
+                                            "properties": [],
+                                        },
+                                        {
+                                            "type": "Typed",
+                                            "type_filters": ["Enchantment"],
+                                            "controller": "You",
+                                            "properties": [],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    subjects = {
+        e.amount.subject
+        for e in _effects(project_card([rec]))
+        if e.category == "board_count" and e.amount is not None
+    }
+    assert Filter(card_types=("Artifact",), controller="you") in subjects
+    assert Filter(card_types=("Enchantment",), controller="you") in subjects
+
+
+def test_affinity_keyword_recovers_typed_count_operand():
+    """Affinity for enchantments (CR 702.41a) — the projection drops the subject to a
+    bare keyword; the marker recovers the Enchantment board count (NOT Artifact)."""
+    rec = {
+        "name": "Brine Giant",
+        "scryfall_oracle_id": "id-brine",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Affinity for enchantments",
+        "keywords": [
+            {"Affinity": {"type_filters": ["Enchantment"], "controller": None}}
+        ],
+    }
+    subjects = {
+        e.amount.subject
+        for e in _effects(project_card([rec]))
+        if e.category == "board_count" and e.amount is not None
+    }
+    assert Filter(card_types=("Enchantment",), controller="you") in subjects
+    assert Filter(card_types=("Artifact",), controller="you") not in subjects
+
+
+def test_improvise_keyword_recovers_artifact_count_operand():
+    """Improvise (CR 702.126a) is always an artifact-tap count operand."""
+    rec = {
+        "name": "Whir of Invention",
+        "scryfall_oracle_id": "id-whir",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": "Improvise",
+        "keywords": ["Improvise"],
+    }
+    subjects = {
+        e.amount.subject
+        for e in _effects(project_card([rec]))
+        if e.category == "board_count" and e.amount is not None
+    }
+    assert Filter(card_types=("Artifact",), controller="you") in subjects
+
+
+def test_affinity_for_nonpermanent_type_emits_no_marker():
+    """Affinity for snow lands / gates / a tribe is NOT an artifact/enchantment care —
+    the marker emits nothing (the over-fire boundary on the bare Affinity keyword)."""
+    rec = {
+        "name": "Icebreaker Kraken",
+        "scryfall_oracle_id": "id-kraken",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Affinity for snow lands",
+        "keywords": [
+            {
+                "Affinity": {
+                    "type_filters": ["Land", {"Supertype": "Snow"}],
+                    "controller": None,
+                }
+            }
+        ],
+    }
+    assert not [e for e in _effects(project_card([rec])) if e.category == "board_count"]
+
+
+def test_board_grant_over_artifact_set_from_grant_ability():
+    """Ragost: a continuous static GrantAbility + AddSubtype over "artifacts you
+    control" → a board_grant over the generic artifact set (the grant ranges over the
+    whole population)."""
+    rec = {
+        "name": "Ragost, Deft Gastronaut",
+        "scryfall_oracle_id": "id-ragost",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Artifacts you control are Foods and have an ability.",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {
+                    "type": "Typed",
+                    "type_filters": ["Artifact"],
+                    "controller": "You",
+                    "properties": [],
+                },
+                "modifications": [
+                    {"type": "AddSubtype", "subtype": "Food"},
+                    {"type": "GrantAbility", "definition": {"kind": "Activated"}},
+                ],
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "board_grant")
+    assert e.subject == Filter(card_types=("Artifact",), controller="you")
+
+
+def test_parameterized_keyword_grant_over_artifact_set_is_board_grant():
+    """Elder Owyn Lyons: "Artifacts you control have ward {1}" — the parameterized
+    keyword (a dict, not a bare string) surfaces as a board_grant over the artifact
+    set, NOT a generic grant_keyword (which would move the creature keyword lanes)."""
+    rec = {
+        "name": "Elder Owyn Lyons",
+        "scryfall_oracle_id": "id-owyn",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Artifacts you control have ward {1}.",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {
+                    "type": "Typed",
+                    "type_filters": ["Artifact"],
+                    "controller": "You",
+                    "properties": [],
+                },
+                "modifications": [
+                    {"type": "AddKeyword", "keyword": {"Ward": {"type": "Mana"}}}
+                ],
+            }
+        ],
+    }
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "board_grant" in cats
+    assert "grant_keyword" not in cats
+
+
 # ── round-trip ────────────────────────────────────────────────────────────────
 
 

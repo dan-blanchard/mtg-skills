@@ -965,6 +965,18 @@ def _project_face(record: dict) -> Face:
     board_markers = _board_count_markers(record)
     if board_markers:
         abilities.append(Ability(kind="static", effects=tuple(board_markers)))
+    # Affinity / Improvise keyword count operands (ADR-0027 go-wide): the affinity
+    # subject's type the projection drops to a bare keyword (CR 702.41a / 702.126a —
+    # the cost scales with that type's own-board population). artifacts/enchantments
+    # only; other affinities (snow lands, gates, a tribe) emit nothing.
+    affinity_markers = _affinity_improvise_markers(record)
+    if affinity_markers:
+        abilities.append(Ability(kind="static", effects=tuple(affinity_markers)))
+    # Composite go-wide anthem/type-grant over the own-board artifact-AND-enchantment
+    # set phase Unimplemented-parsed (Bello) — fires both artifacts/enchantments_matter.
+    composite_grants = _composite_board_grant_markers(record)
+    if composite_grants:
+        abilities.append(Ability(kind="static", effects=tuple(composite_grants)))
     # "for each creature you control" count operand phase folded/Unrecognized — recover
     # it as a board_count marker only when no structured creature board-count already
     # exists (the board_markers above are already in `abilities`, so this scan covers
@@ -1421,6 +1433,7 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     pump_amount: Quantity | None = None
     is_pump = False
     set_power = set_toughness = False
+    grants_ability_or_type = False
     for m in st.get("modifications") or []:
         mt = _norm(m.get("type"))
         if mt in _PUMP_MODS:
@@ -1431,10 +1444,25 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             set_power = True
         elif mt in ("settoughness", "setdynamictoughness", "settoughnessdynamic"):
             set_toughness = True
+        elif mt in ("grantability", "addsubtype", "addtype"):
+            # A continuous static that GRANTS an activated/triggered ability or ADDS a
+            # type/subtype to the affected set ("Artifacts you control are Foods and
+            # have '{2},{T},Sacrifice: gain 3 life'" — Ragost). Unlike AddKeyword, no
+            # bare keyword survives, so it isn't a grant_keyword; surface it as a
+            # board_grant when the set is the whole own-board artifact/enchantment set.
+            grants_ability_or_type = True
         elif mt == "addkeyword":
             # Batch 6 — a static that GRANTS a keyword (Levitation → Flying). The
             # granted keyword rides in counter_kind (a free str field); the lane
-            # splits by keyword + whether the affected set is your whole team.
+            # splits by keyword + whether the affected set is your whole team. Only a
+            # BARE STRING keyword emits grant_keyword (unchanged — the keyword-grant
+            # lanes split by the keyword name). A PARAMETERIZED keyword (Ward {1},
+            # Protection from X — "Artifacts you control have ward {1}", Elder Owyn
+            # Lyons) is a dict {"Ward": {...}} with no bare keyword name the keyword
+            # lanes key on; it sets grants_ability_or_type so it surfaces as a
+            # board_grant ONLY when the affected set is the own-board artifact/
+            # enchantment set (scoped below), leaving the creature keyword-grant lanes
+            # untouched.
             kw = m.get("keyword")
             if isinstance(kw, str):
                 out.append(
@@ -1446,6 +1474,8 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                         counter_kind=_norm(kw),
                     )
                 )
+            elif isinstance(kw, dict) and kw:
+                grants_ability_or_type = True
     # A static that SETS base power AND toughness on OTHER permanents (Lignify 0/4,
     # Ovinize 0/1, Kenrith's Transformation, mass-animate like Living Plane) — the
     # base-P/T TOOLBOX. Distinct from a +X/+X pump. Excludes a characteristic-defining
@@ -1466,6 +1496,23 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
         out.append(
             Effect(
                 category="base_pt_set",
+                scope=_controller_scope(affected),
+                subject=affected,
+                raw=desc,
+            )
+        )
+    # A board_grant over the whole own-board artifact/enchantment set (Ragost). Gated
+    # to a generic own-board Artifact/Enchantment filter (controller you, no subtype)
+    # via _is_generic_board_filter so a single-target or tribal grant never reaches the
+    # artifacts/enchantments_matter lanes — the granted ability/type ranges over the
+    # population (CR 604.3 / continuous static), the go-wide care.
+    if grants_ability_or_type and any(
+        _is_generic_board_filter(st.get("affected"), ct)
+        for ct in ("Artifact", "Enchantment")
+    ):
+        out.append(
+            Effect(
+                category="board_grant",
                 scope=_controller_scope(affected),
                 subject=affected,
                 raw=desc,
@@ -1907,9 +1954,19 @@ _AGG_FUNCTIONS: frozenset[str] = frozenset({"sum"})
 
 
 def _is_generic_board_filter(node: object, card_type: str) -> bool:
-    """A phase Typed filter selecting your whole own-board set of ``card_type`` (no
-    subtype). controller you/unspecified passes; an explicit opponent set fails."""
-    if not isinstance(node, dict) or _norm(node.get("type")) != "typed":
+    """A phase filter selecting your whole own-board set of ``card_type`` (no subtype).
+    controller you/unspecified passes; an explicit opponent set fails. A COMPOSITE
+    ``Or`` of generic board filters ("artifacts and/or enchantments you control" —
+    Shambling Suit, Nettlecyst, Bello) matches ``card_type`` when ANY ``Or`` member is
+    a generic board filter of that type (each member's population is summed, so the
+    count operand covers both lanes — _board_count_markers emits one per type)."""
+    if not isinstance(node, dict):
+        return False
+    t = _norm(node.get("type"))
+    if t == "or":
+        members = _as_list(node.get("filters"))
+        return any(_is_generic_board_filter(m, card_type) for m in members)
+    if t != "typed":
         return False
     card_types, subtypes = _type_and_subtype_filters(node)
     if card_type not in card_types or subtypes:
@@ -2000,6 +2057,123 @@ def _board_count_markers(record: dict) -> list[Effect]:
                 )
                 break  # one marker per permanent type
     return out
+
+
+# The artifact/enchantment "matters" types the affinity-keyword marker fires for —
+# Affinity (CR 702.41a: "costs {1} less for each [text] you control") and Improvise
+# (CR 702.126a: "tap an untapped artifact you control" — always artifacts) are LITERAL
+# count-over-your-board operands. phase keeps the affinity subject's `type_filters` in
+# the raw keyword node but the projection drops it to a bare `keywords=('Affinity',)`,
+# so an affinity-for-artifacts and an affinity-for-enchantments are indistinguishable
+# downstream. This recovers the type the cost scales with, so the right lane fires (and
+# affinity-for-snow-lands / -gates / a tribe fires NEITHER artifacts nor enchantments).
+_AFFINITY_MARKER_TYPES: tuple[str, ...] = ("Artifact", "Enchantment")
+
+
+def _affinity_improvise_markers(record: dict) -> list[Effect]:
+    """`board_count` markers for the Affinity / Improvise keyword count operands.
+
+    Affinity (CR 702.41a) and Improvise (CR 702.126a) reduce a spell's cost for each
+    [text] / artifact you control — a count over your own board. phase stores the
+    Affinity subject's ``type_filters`` in the raw keyword node ({"Affinity": {...}})
+    but the keyword projection drops it; this scans the raw keyword array, and for an
+    Affinity-for-artifacts/-enchantments or any Improvise (artifacts only), emits one
+    `board_count` marker over the generic own-board Filter of that type. An Affinity
+    for a NON-artifact/-enchantment type (snow lands, gates, a tribe) emits nothing —
+    only the two permanent-type lanes care. Deduped per type."""
+    kws = record.get("keywords")
+    if not isinstance(kws, list):
+        return []
+    seen: set[str] = set()
+    out: list[Effect] = []
+
+    def emit(card_type: str, raw: str) -> None:
+        if card_type in seen:
+            return
+        seen.add(card_type)
+        f = Filter(card_types=(card_type,), controller="you")
+        out.append(
+            Effect(
+                category="board_count",
+                scope="you",
+                subject=f,
+                amount=Quantity(op="count", factor=1, subject=f),
+                raw=raw,
+            )
+        )
+
+    for kw in kws:
+        if isinstance(kw, str):
+            if _norm(kw) == "improvise":
+                emit("Artifact", "Improvise")
+            continue
+        if not isinstance(kw, dict) or not kw:
+            continue
+        name = next(iter(kw))
+        if _norm(name) == "improvise":
+            emit("Artifact", "Improvise")
+        elif _norm(name) == "affinity":
+            spec = kw[name]
+            card_types, _subtypes = (
+                _type_and_subtype_filters(spec) if isinstance(spec, dict) else ((), ())
+            )
+            for ct in _AFFINITY_MARKER_TYPES:
+                if ct in card_types:
+                    emit(ct, f"Affinity for {ct.lower()}s")
+    return out
+
+
+# A COMPOSITE go-wide anthem / type-grant over the whole own-board artifact-AND-
+# enchantment set ("each non-Equipment artifact and non-Aura enchantment you control …
+# is a 4/4 creature and has …" — Bello). phase Unimplemented-parses this static (a
+# composite-typed mass type/ability grant), dropping the subject; both populations are
+# buffed/animated, so it fires BOTH lanes. Anchored on the composite head "artifact[s]
+# … (and|and/or) … enchantment[s] you control" FOLLOWED by a go-wide anthem verb (is a
+# N/N creature / get(s) +X/+X / have/gain). A SINGLE-TARGET form ("up to one target
+# artifact or enchantment you control", "target artifact, creature, or enchantment you
+# control" — Adagia, Scrollshift) is excluded by the no-"target" gate, so removal /
+# copy / blink of one permanent never matches (over-fire boundary, CR 604.3).
+_COMPOSITE_BOARD_GRANT = re.compile(
+    r"artifacts?\b[^.]*?\benchantments?\s+you\s+control"
+    r"|artifacts?\s+and(?:/or)?\s+enchantments?\s+you\s+control",
+    re.IGNORECASE,
+)
+_COMPOSITE_BOARD_ANTHEM = re.compile(
+    r"\bis (?:a|an)\b[^.]*?\bcreature"  # "… is a 4/4 Elemental creature …"
+    r"|\bare\b[^.]*?\bcreatures?\b"
+    r"|\bget(?:s)?\s+[+-]"  # "… get +1/+1 …"
+    r"|\b(?:have|has|gain|gains)\b",  # "… have shroud / have <ability>"
+    re.IGNORECASE,
+)
+
+
+def _composite_board_grant_markers(record: dict) -> list[Effect]:
+    """`board_grant` markers (Artifact + Enchantment) for a composite go-wide anthem /
+    type-grant over the whole own-board artifact-and-enchantment set that phase
+    Unimplemented-parses (Bello). None unless the oracle text has the composite head
+    AND a go-wide anthem verb AND no single-target "target"/"up to … target" clause on
+    the matched span. Fires both lanes (each population is buffed/animated)."""
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    m = _COMPOSITE_BOARD_GRANT.search(text)
+    if m is None:
+        return []
+    # the clause around the composite head (to its sentence end) must carry an anthem
+    # verb and must NOT be a single-target ("target …") effect.
+    start = text.rfind(".", 0, m.start()) + 1
+    end = text.find(".", m.end())
+    clause = text[start : end if end != -1 else len(text)]
+    if "target" in clause.lower() or not _COMPOSITE_BOARD_ANTHEM.search(clause):
+        return []
+    raw = clause.strip()
+    return [
+        Effect(
+            category="board_grant",
+            scope="you",
+            subject=Filter(card_types=(ct,), controller="you"),
+            raw=raw,
+        )
+        for ct in ("Artifact", "Enchantment")
+    ]
 
 
 # A MASS keyword/protection/evasion grant to your WHOLE own-board creature set

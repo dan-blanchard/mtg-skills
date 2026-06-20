@@ -4364,15 +4364,40 @@ _TYPE_MATTERS_LANE: dict[str, str] = {
 }
 
 
-def _typed_matters_lane(f: object) -> str | None:
-    """The artifacts/enchantments lane for a YOUR-permanents filter of that type, or
-    None. Excludes Creature (its own go-wide rules) and opponent-controlled sets."""
-    if not isinstance(f, Filter) or f.controller == "opp":
-        return None
-    for card_type, lane in _TYPE_MATTERS_LANE.items():
-        if card_type in f.card_types:
-            return lane
+def _generic_board_subject(f: object) -> object:
+    """``f`` itself when it is a GENERIC own-board filter (controller you, NO subtypes)
+    that includes Artifact or Enchantment — the mass-anthem/grant shape over the whole
+    artifact/enchantment board. Else None. The no-subtype gate excludes a subtyped buff
+    ("Equipment you control", an Aura-subtype grant) which is a narrower tribal care,
+    and a single-target buff (controller 'any'/SelfRef). 'Artifact creatures you
+    control have flying' (Workshop Elders) carries ('Creature','Artifact') with no
+    subtype, so it passes and fires artifacts_matter (the artifact population is
+    buffed); a bare 'creatures you control' buff has no Artifact/Enchantment type, so
+    it never leaks into these lanes (it stays creatures_matter)."""
+    if (
+        isinstance(f, Filter)
+        and f.controller == "you"
+        and not f.subtypes
+        and ("Artifact" in f.card_types or "Enchantment" in f.card_types)
+    ):
+        return f
     return None
+
+
+def _typed_matters_lanes(f: object) -> list[str]:
+    """The artifacts/enchantments lane(s) for a YOUR-permanents filter, in order. A
+    COMPOSITE subject — a count/grant/trigger over the (Artifact AND/OR Enchantment)
+    board (Nettlecyst's "for each artifact and/or enchantment you control", Open the
+    Vaults, Fountain Watch) — carries BOTH card types, so it fires BOTH lanes (each
+    permanent type's population is a care). Excludes Creature (its own go-wide rules)
+    and opponent-controlled sets."""
+    if not isinstance(f, Filter) or f.controller == "opp":
+        return []
+    return [
+        lane
+        for card_type, lane in _TYPE_MATTERS_LANE.items()
+        if card_type in f.card_types
+    ]
 
 
 # Batch 6 — grant_keyword lanes. The granted keyword rides in Effect.counter_kind.
@@ -4679,39 +4704,64 @@ def extract_signals_ir(
             # over YOUR artifacts/enchantments (affinity CR 702.41, "for each artifact
             # you control" — Nim Lasher, Storm-Kiln, Tuvasa). The value scales with
             # that permanent type's population (CR 604.3), so the deck cares about it.
-            typed_lane = _typed_matters_lane(amount_subject)
-            if typed_lane is not None:
+            # A COMPOSITE count ("for each artifact and/or enchantment you control" —
+            # Nettlecyst, Shambling Suit) fires BOTH lanes (each population is a care).
+            for typed_lane in _typed_matters_lanes(amount_subject):
                 add(typed_lane, "you", "", e.raw)
-            # enchantments_matter token / recursion DOER (Aura/Role makers, Replenish-
-            # class GY recursion). A make_token of an Enchantment subject ("create a
-            # Role / Aura enchantment token", Enchantment-creature-token makers) → you
-            # make enchantments. A reanimate / graveyard_recursion / GY-zoned bounce or
-            # tutor of YOUR Enchantment cards → you value enchantment cards. Removal of
-            # an enchantment (destroy / exile / counter / shuffle-to-library) is a
-            # DIFFERENT category and never reaches here, so the over-fire boundary
-            # (enchantment HATE ≠ caring) holds. (Artifact has a much broader resource-
-            # token / sac / theft doer the regex covers; not projected here.)
+            # artifacts_matter / enchantments_matter STATIC anthem/grant DOER: a mass
+            # buff or keyword/type/ability grant over the GENERIC own-board artifact or
+            # enchantment set ("Artifacts you control have hexproof" — Padeem; "Artifact
+            # creatures you control have flying" — Workshop Elders; "Enchantment
+            # creatures you control have deathtouch…" — Zur Eternal Schemer; "Artifacts
+            # and enchantments you control have shroud" — Fountain Watch, composite).
+            # The granted permission/buff ranges over the whole board of that type
+            # (CR 604.3 / continuous static), so the deck cares about the population.
+            # Gated to YOUR generic set (no subtype, controller you) — a single-target
+            # buff/removal has a different subject shape and never reaches here. A
+            # composite (Artifact AND Enchantment) subject fires BOTH lanes.
+            if e.category in ("grant_keyword", "pump", "base_pt_set", "board_grant"):
+                gsub = _generic_board_subject(e.subject)
+                for grant_lane in _typed_matters_lanes(gsub):
+                    add(grant_lane, "you", "", e.raw)
+            # enchantments_matter token DOER (Aura/Role makers). A make_token of an
+            # Enchantment subject ("create a Role / Aura enchantment token",
+            # Enchantment-creature-token makers) → you make enchantments.
             esub = e.subject
             if (
                 isinstance(esub, Filter)
                 and "Enchantment" in esub.card_types
-                and (
-                    # you MAKE enchantments (Role / Aura / ench-creature tokens)
-                    (e.category == "make_token" and e.scope in ("you", "any"))
-                    # you VALUE your enchantment cards (GY recursion of yours)
-                    or (
-                        esub.controller == "you"
-                        and (
-                            e.category in ("reanimate", "graveyard_recursion")
-                            or (
-                                e.category in ("bounce", "tutor")
-                                and "in:graveyard" in e.zones
-                            )
-                        )
-                    )
-                )
+                and e.category == "make_token"
+                and e.scope in ("you", "any")
             ):
                 add("enchantments_matter", "you", "", e.raw)
+            # artifacts_matter / enchantments_matter MASS-RECURSION DOER (Replenish,
+            # Open the Vaults, Dance of the Manse — return ALL / up-to-X artifact and/or
+            # enchantment cards from the graveyard). A reanimate of YOUR artifact /
+            # enchantment cards values that type's cards as a recurrable resource; a
+            # COMPOSITE (Artifact AND Enchantment) reanimate is a mass-recursion build-
+            # around regardless of whose graveyard (only Open the Vaults / Dance of the
+            # Manse / Second Sunrise carry it — all "return all/up-to-X", never a single
+            # target), so it fires both lanes at any controller. A single-target
+            # bounce / tutor of one enchantment card (Argivian Find, Idyllic Tutor)
+            # is NOT here
+            # (it stays out — the over-fire boundary: a single-target tutor ≠ caring).
+            # Removal (destroy / exile / counter) is a different category, never hit.
+            if (
+                isinstance(esub, Filter)
+                and e.category in ("reanimate", "graveyard_recursion")
+                and esub.controller in ("you", "any")
+            ):
+                composite = (
+                    "Artifact" in esub.card_types and "Enchantment" in esub.card_types
+                )
+                if esub.controller == "you" or composite:
+                    for rec_lane in _typed_matters_lanes(
+                        Filter(
+                            card_types=esub.card_types,
+                            controller="you",
+                        )
+                    ):
+                        add(rec_lane, "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
                 add("lifegain_matters", "you", "", e.raw)
             # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard
@@ -5136,24 +5186,29 @@ def extract_signals_ir(
             if ev == "etb" and "Land" in tsubs:
                 add("landfall", "you", "", "")
             # artifacts_matter / enchantments_matter type-ETB DOER: "whenever an
-            # artifact/enchantment you control enters" (constellation, artifact-ETB
-            # engines). Gated to controller YOU — an opponent's artifact entering is
-            # not your build-around. A "Creature" co-type (artifact creature) still
-            # counts (the artifact entering is what triggers it).
-            if ev == "etb" and _filter_controller(trig.subject) == "you":
-                etb_lane = _typed_matters_lane(trig.subject)
-                if etb_lane is not None:
+            # artifact/enchantment (you control) enters" (constellation — Tuvasa /
+            # Eidolon of Blossoms; artifact-ETB engines — Leonin Elder, Disciple of the
+            # Vault). The any/you-controller symmetric form ("whenever an artifact
+            # enters" — phase controller=null→'any') is the common own-payoff in a
+            # type-flood deck, so it fires; an opponent-only set (controller opp — a
+            # punisher, "whenever an artifact an opponent controls enters") is excluded
+            # by _typed_matters_lanes' opp gate. A "Creature" co-type (artifact
+            # creature) still counts (the artifact entering is what triggers it).
+            if ev == "etb":
+                for etb_lane in _typed_matters_lanes(trig.subject):
                     add(etb_lane, "you", "", "")
-            # enchantments_matter "leaves the battlefield" DOER: "whenever an
-            # enchantment you control is put into a graveyard from the battlefield"
-            # (Starfield Mystic, Ashiok's Reaper — the enchantment-sac payoff). phase
-            # parses this as a `dies` trigger over an Enchantment-you-control subject.
-            if (
-                ev == "dies"
-                and _filter_controller(trig.subject) == "you"
-                and "Enchantment" in tsubs
-            ):
-                add("enchantments_matter", "you", "", "")
+            # artifacts_matter / enchantments_matter "leaves the battlefield" DOER:
+            # "whenever a(n) (nontoken) artifact/enchantment you control is put into a
+            # graveyard from the battlefield" (Farid — artifact-attrition engine;
+            # Starfield Mystic, Ashiok's Reaper — the enchantment-sac payoff). phase
+            # parses this as a `dies` trigger over an Artifact/Enchantment-you-control
+            # subject. A repeatable engine keyed on YOUR permanents of that type cycling
+            # through the graveyard cares about having many of them (CR 603). A
+            # composite subject fires both lanes; an opponent-scoped dies trigger
+            # (removal punish) is excluded by the controller-you gate.
+            if ev == "dies" and _filter_controller(trig.subject) == "you":
+                for dies_lane in _typed_matters_lanes(trig.subject):
+                    add(dies_lane, "you", "", "")
             if ev in ("combat_damage", "deals_damage"):
                 add("combat_damage_matters", "opponents", "", "")
                 if trig.scope == "opp":
@@ -5182,8 +5237,7 @@ def extract_signals_ir(
                 # NOT a type deck. The subject co-typing with Creature (artifact
                 # creature spell) still counts.
                 if trig.scope != "opp":
-                    cast_lane = _typed_matters_lane(trig.subject)
-                    if cast_lane is not None:
+                    for cast_lane in _typed_matters_lanes(trig.subject):
                         add(cast_lane, "you", "", "")
             # Batch 12 — nonhuman_attackers (Winota): an attack trigger whose
             # attacking subject is a non-Human creature you control.
