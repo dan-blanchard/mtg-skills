@@ -1387,19 +1387,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE),
         "you",
     ),
-    # Multicolor matters (Niv-Mizzet Reborn "for each color pair"; General Ferrous
-    # Rokiric, Rienne): a gold-cards commander wants the multicolored PAYOFFS ("whenever
-    # you cast a multicolored spell", converge, "multicolored creatures you control"),
-    # not just any gold card (that's the whole deck).
-    (
-        "multicolor_matters",
-        re.compile(
-            r"for each color pair|exactly those colors|cast a multicolored"
-            r"|multicolored (?:creature|permanent|spell)s? you",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: multicolor_matters migrated to the Card IR — served from the
+    # multicolor ColorCount subject-Filter predicate (the "multicolored <permanent> you
+    # control" / "multicolored card" build-arounds — Niv-Mizzet Reborn, Rienne) + a
+    # _IR_KEPT_DETECTORS word mirror for the "cast a multicolored spell" trigger / "for
+    # each color pair" refs that aren't a structured subject. This _HAND_FLOOR producer
+    # is deleted; the serve spec stays hand-registered.
     # Target-your-own payoff (Monk Gyatso): airbends a creature you control when it's
     # targeted, so it wants FREE ways to target your own creatures (the en-Kor "{0}:
     # target a creature you control" cycle, {0}-equip like Shuko).
@@ -1748,7 +1741,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # grants narrowed in project._narrow_mechanic_refs) AND the Condition(ismonarch)
     # gate lifted in extract_signals_ir. Its oracle-regex floor detector is deleted;
     # the serve spec stays hand-registered in signal_specs.py.
-    ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
+    # ADR-0027: initiative_matters migrated to the Card IR — served from a
+    # "\bthe initiative\b" _IR_KEPT_DETECTORS word mirror (phase v0.1.19 doesn't
+    # structure the CR 720 initiative designation). This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027: ring_matters migrated to the Card IR — served structurally from
     # phase's `ring_tempt` effect category (_DOER_EFFECT_KEYS). A "Whenever the Ring
     # tempts you" trigger (CR 701.54) phase flattened to event='other', and a
@@ -1766,7 +1762,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # category (_DOER_EFFECT_KEYS, the gainenergy producers) + an `_ENERGY_REF` ({e})
     # marker for the SINKS / "whenever you get {E}" payoffs / doublers phase loses.
     # Removed from _IR_FLOOR_LANES; serve stays hand-registered. (CR 122.1.)
-    ("devotion_matters", re.compile(r"devotion to \w", re.IGNORECASE), "you"),
+    # ADR-0027: devotion_matters migrated to the Card IR — served from the
+    # amount.op=="devotion" count operand (the scaling payoffs) + a "devotion to
+    # <color>" _IR_KEPT_DETECTORS word mirror for the cost-reduction / counterspell-tax
+    # / mana forms phase doesn't make a count operand. This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     (
         "superfriends_matters",
         re.compile(
@@ -1781,7 +1781,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    ("historic_matters", re.compile(r"\bhistoric\b", re.IGNORECASE), "you"),
+    # ADR-0027: historic_matters migrated to the Card IR — served from the "Historic"
+    # subject-Filter predicate + a "\bhistoric\b" _IR_KEPT_DETECTORS word mirror for the
+    # cost-reduction / "play a historic" / type-group refs phase leaves textual
+    # (artifacts, legendaries, and Sagas are historic). This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     (
         "legends_matter",
         re.compile(
@@ -1803,15 +1807,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "party_matters",
-        re.compile(
-            r"\byour party\b|members? of your party|full party"
-            r"|assemble[^.]*party|creatures? in your party",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: party_matters migrated to the Card IR — served from the
+    # amount.op=="party" count operand + a _IR_KEPT_DETECTORS word mirror for the
+    # "full party" CONDITION + "creatures in your party" non-count refs. This
+    # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered.
     (
         "exile_matters",
         re.compile(
@@ -2242,13 +2241,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Colorless / Devoid / Eldrazi (CR 702.114): colorless-payoff axis (anthems / cost
-    # reduction / cast-triggers) keyed on "colorless creature|spell|permanent".
-    (
-        "colorless_matters",
-        re.compile(r"colorless (?:creature|spell|permanent)", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: colorless_matters migrated to the Card IR — served from the
+    # ColorCount:EQ:0 subject-Filter predicate (the "colorless <permanent> you
+    # control" / "colorless card" build-arounds — Ancient Stirrings, Vile Aggregate) + a
+    # "colorless (creature|spell|permanent)" _IR_KEPT_DETECTORS word mirror for the
+    # cost-reduction / cast-restriction refs that aren't a structured subject (CR
+    # 702.114). This _HAND_FLOOR producer is deleted; the serve spec stays.
     # Exalted (CR 702.83): rewards attacking ALONE — the attacks-alone payoff/trigger.
     (
         "exalted_lone_attacker",
@@ -4121,6 +4119,56 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
+    # (rules-lawyer-verified: no card-property reference shape in the parse), moved
+    # here from _IR_FLOOR_LANES so the lane fires from a dedicated IR-path word mirror
+    # instead of the reused production floor Detector (floor-mirror-dep -> 0). Each
+    # retains its EXISTING structural bind in extract_signals_ir too (add() dedups):
+    #   • devotion_matters  ← amount.op=="devotion" count operand (the scaling payoffs);
+    #     this mirror adds the cost-reduction / counterspell-tax / mana forms
+    #     ("devotion to <color>") phase doesn't make a count operand. CR 700.5.
+    #   • party_matters     ← amount.op=="party" count operand; this mirror adds the
+    #     "full party" CONDITION + "creatures in your party" non-count refs. CR 700.6.
+    #   • historic_matters  ← the "Historic" subject-Filter predicate; this mirror adds
+    #     the cost-reduction / "play a historic" / type-group refs phase leaves textual
+    #     (artifacts, legendaries, and Sagas are historic — CR 702.18-style group).
+    #   • multicolor / colorless ← the ColorCount subject-Filter predicates (the
+    #     "multicolored/colorless <permanent> you control" build-arounds); this mirror
+    #     adds the "cast a multicolored spell" TRIGGER + "colorless spell/creature"
+    #     cost-reduction / cast-restriction refs that aren't a structured subject.
+    #   • initiative_matters / attractions_matter ← recent named designations (CR
+    #     720 / 717) phase doesn't structure at all — the word IS the build-around tell.
+    ("devotion_matters", re.compile(r"devotion to \w", re.IGNORECASE), "you"),
+    (
+        "party_matters",
+        re.compile(
+            r"\byour party\b|members? of your party|full party"
+            r"|assemble[^.]*party|creatures? in your party",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    ("historic_matters", re.compile(r"\bhistoric\b", re.IGNORECASE), "you"),
+    (
+        "multicolor_matters",
+        re.compile(
+            r"for each color pair|exactly those colors|cast a multicolored"
+            r"|multicolored (?:creature|permanent|spell)s? you",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "colorless_matters",
+        re.compile(r"colorless (?:creature|spell|permanent)", re.IGNORECASE),
+        "you",
+    ),
+    ("initiative_matters", re.compile(r"\bthe initiative\b", re.IGNORECASE), "you"),
+    (
+        "attractions_matter",
+        re.compile(r"\battraction\b|open an attraction", re.IGNORECASE),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -4163,7 +4211,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # resource / devotion
         # energy_matters removed — ADR-0027 migrated it to the Card IR (phase's `energy`
         # effect + a {e} face marker for the sinks/payoffs/doublers phase loses).
-        "devotion_matters",
+        # devotion_matters removed — ADR-0027 migrated it to the Card IR (the
+        # amount.op=="devotion" count operand + a "devotion to <color>" kept word
+        # mirror for the cost-reduction / counterspell-tax forms phase doesn't make a
+        # count operand). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
         # type / tribe / permanent-shape synergy
         "vehicles_matter",
         "island_matters",
@@ -4171,8 +4222,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # changeling_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # changeling keyword + a "changeling" / "is every creature type" marker). Its
         # SWEEP_DETECTORS row is deleted.
-        "colorless_matters",
-        "multicolor_matters",
+        # colorless_matters / multicolor_matters removed — ADR-0027 migrated them to the
+        # Card IR (the ColorCount subject-Filter predicate build-arounds +
+        # _IR_KEPT_DETECTORS word mirrors for the "cast a multicolored spell" trigger /
+        # "colorless spell/creature" cost-reduction refs that aren't a structured
+        # subject). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR rows deleted.
         "lands_matter",
         "superfriends_matters",
         "modified_matters",
@@ -4180,9 +4234,15 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # Power:LE/LT predicate read + a `_LOW_POWER_REF` marker rebuilding the dropped
         # subject from "creatures you control with power N or less").
         "power_matters",
-        "historic_matters",
+        # historic_matters removed — ADR-0027 migrated it to the Card IR (the
+        # "Historic" subject-Filter predicate + a "\bhistoric\b" kept word mirror for
+        # the cost-reduction / "play a historic" / type-group refs phase leaves
+        # textual). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         "domain_matters",
-        "party_matters",
+        # party_matters removed — ADR-0027 migrated it to the Card IR (the
+        # amount.op=="party" count operand + a _IR_KEPT_DETECTORS word mirror for the
+        # "full party" CONDITION + "creatures in your party" non-count refs). Moved
+        # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         "commander_matters",
         # mechanic / keyword synergy
         "arcane_matters",
@@ -4191,7 +4251,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # "lore counter" / "Saga you control" dropped-static face marker; the reminder-
         # stripped anchor excludes a vanilla Saga's intrinsic advancement, mirroring the
         # deleted SWEEP regex). Its SWEEP_DETECTORS row is deleted.
-        "initiative_matters",
+        # initiative_matters removed — ADR-0027 migrated it to the Card IR (a
+        # "\bthe initiative\b" _IR_KEPT_DETECTORS word mirror; phase v0.1.19 doesn't
+        # structure the CR 720 initiative designation). Moved floor->kept
+        # (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         # cycling_matters removed — ADR-0027 migrated it to the Card IR (phase's
         # `cycled` trigger + a `cycling_payoff` marker for the "cycle or discard" payoff
         # phase flattens to event='other' or truncates the trigger off entirely). Its
@@ -4200,7 +4263,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "void_warp_matters",
         "speed_matters",
         "stickers_matter",
-        "attractions_matter",
+        # attractions_matter removed — ADR-0027 migrated it to the Card IR (a
+        # "\battraction\b|open an attraction" kept word mirror; phase v0.1.19 doesn't
+        # structure the CR 717 Attraction designation). Moved floor->kept
+        # (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve stays).
         # suspect_matters removed — ADR-0027 migrated it to the Card IR (phase's
         # `suspect` effect + a verb/"suspected" face marker; the marker's "(?! counter)"
         # excludes Investigator's Journal's "suspect counter" same-named counter type).
@@ -6603,6 +6669,30 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # mirroring the regex (residual 0, ir_only 0). Its SWEEP_DETECTORS row is
         # deleted; serve hand-spec'd. CR 714.
         "saga_matters",
+        # Group "cares-about kept-detector" (ADR-0027) — 7 cares-about lanes phase
+        # v0.1.19 doesn't structure as a card-property payoff (rules-lawyer-verified: no
+        # reference shape in the parse). MOVED from _IR_FLOOR_LANES (a reused production
+        # floor Detector) to _IR_KEPT_DETECTORS (a dedicated IR-path word mirror), which
+        # zeroes floor-mirror-dep by construction — the lane no longer toggles with
+        # _IR_FLOOR_LANES. Each retains its EXISTING structural bind too (add() dedups):
+        # devotion/party ← the amount.op=="devotion"/"party" count operand (the scaling
+        # payoffs); multicolor/colorless ← the ColorCount subject-Filter predicates (the
+        # "<multicolored|colorless> permanent/card you control" build-arounds — the kept
+        # mirror is broader-and-correct: it adds Ancient Stirrings / Obscura Charm /
+        # Dragon Arch "card" refs the narrow regex missed); historic ← the "Historic"
+        # subject-Filter predicate. initiative (CR 720) / attractions (CR 717) have no
+        # structural form — the word IS the build-around tell. Floor-mirror-dep == 0 for
+        # all 7; regex-path parity exact (regex_only_resid == 0); NO-FLOOD (0 keys'
+        # firing counts changed by the floor->kept move). Their _HAND_FLOOR rows
+        # (devotion/historic/party/initiative/multicolor/colorless) + the attractions
+        # SWEEP_DETECTORS row are deleted; serve specs survive. CR 700.5/700.6/702.114.
+        "devotion_matters",
+        "party_matters",
+        "historic_matters",
+        "multicolor_matters",
+        "colorless_matters",
+        "initiative_matters",
+        "attractions_matter",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

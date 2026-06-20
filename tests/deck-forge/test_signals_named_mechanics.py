@@ -44,27 +44,22 @@ CASES = [
     # ADR-0027: monarch_matters migrated to the Card IR (structural monarch effect
     # + ismonarch condition), so it is asserted via the hybrid path below, not this
     # regex CASES loop.
-    (
-        "initiative_matters",
-        "you",
-        "When this creature enters, you take the initiative.",
-    ),
+    # ADR-0027: initiative_matters migrated to the Card IR (the \bthe initiative\b
+    # _IR_KEPT_DETECTORS word mirror), so it is asserted via the hybrid path below,
+    # not this regex CASES loop.
     # ADR-0027: ring_matters migrated to the Card IR (structural ring_tempt effect,
     # incl. the event='other' tempt trigger + the Ring-bearer raw-scan), so it is
     # asserted via the hybrid path below, not this regex CASES loop.
     # ADR-0027: venture_matters + energy_matters migrated to the Card IR (the venture/
     # energy effect categories + supplement markers), so they are proven via the hybrid
     # path in test_migrated_keys, not this regex CASES loop.
-    (
-        "devotion_matters",
-        "you",
-        "Your devotion to green is increased by this creature.",
-    ),
+    # ADR-0027: devotion_matters / historic_matters / party_matters migrated to the
+    # Card IR (the amount.op count operands + "devotion to <color>" / "\bhistoric\b" /
+    # "creatures in your party" _IR_KEPT_DETECTORS word mirrors), so they are asserted
+    # via the hybrid path below, not this regex CASES loop.
     ("superfriends_matters", "you", "Planeswalkers you control have hexproof."),
-    ("historic_matters", "you", "Whenever you cast a historic spell, draw a card."),
     ("legends_matter", "you", "Legendary creatures you control get +1/+1."),
     ("big_hand_matters", "you", "You have no maximum hand size."),
-    ("party_matters", "you", "Whenever a creature in your party attacks, draw a card."),
     (
         "exile_matters",
         "you",
@@ -127,6 +122,31 @@ def test_voting_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Each player votes for an option."}
     assert ("voting_matters", "each") in _ks_hybrid(c)
     assert ("voting_matters", "each") not in _ks(c)
+
+
+def test_initiative_matters_is_ir_served():
+    # ADR-0027: initiative_matters is IR-served from the \bthe initiative\b kept
+    # word-detector mirror, so it comes through the hybrid path, not pure regex.
+    c = {
+        "name": "X",
+        "oracle_text": "When this creature enters, you take the initiative.",
+    }
+    assert ("initiative_matters", "you") in _ks_hybrid(c)
+    assert ("initiative_matters", "you") not in _ks(c)
+
+
+def test_devotion_historic_party_are_ir_served():
+    # ADR-0027: these cares-about lanes are IR-served from their kept word-detector
+    # mirrors (devotion to <color> / \bhistoric\b / creatures in your party), so they
+    # come through the hybrid path, not pure regex.
+    for key, oracle in (
+        ("devotion_matters", "Your devotion to green is increased by this creature."),
+        ("historic_matters", "Whenever you cast a historic spell, draw a card."),
+        ("party_matters", "Whenever a creature in your party attacks, draw a card."),
+    ):
+        c = {"name": "X", "oracle_text": oracle}
+        assert (key, "you") in _ks_hybrid(c), f"{key} not IR-served"
+        assert (key, "you") not in _ks(c), f"{key} still regex-served"
 
 
 def test_token_doubling_is_ir_served():

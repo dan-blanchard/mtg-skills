@@ -424,7 +424,11 @@ class TestColorlessMatters:
             "type_line": "Legendary Artifact",
             "oracle_text": "Colorless creatures you control get +2/+2.\nWhenever you tap a permanent for {C}, add an additional {C}.\nWhenever you cast a colorless spell, you gain 2 life.",
         }
-        assert "colorless_matters" in _keys(monument)
+        # ADR-0027: colorless_matters migrated to the Card IR (the ColorCount:EQ:0
+        # subject-Filter predicate + a "colorless (creature|spell|permanent)" kept word
+        # mirror), so it comes through the hybrid path, not pure regex.
+        assert "colorless_matters" not in _keys(monument)
+        assert "colorless_matters" in _keys_hybrid(monument)
         assert serves(monument, _sig("colorless_matters", "you"))
 
     def test_colorless_hate_counterspell_excluded(self):

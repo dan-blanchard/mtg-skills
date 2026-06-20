@@ -728,7 +728,9 @@ def test_land_denial_opens_on_phasing_lands():
 
 def test_multicolor_matters_opens_on_color_pair_payoff():
     # Niv-Mizzet Reborn draws cards by exact color pair, so it's a gold-cards deck that
-    # wants the multicolored payoffs. Real oracle.
+    # wants the multicolored payoffs. Real oracle. ADR-0027: multicolor_matters migrated
+    # to the Card IR (the "for each color pair" / "exactly those colors" kept word
+    # mirror), so it comes through the hybrid path, not pure regex.
     niv = {
         "name": "Niv-Mizzet Reborn",
         "type_line": "Legendary Creature — Dragon Avatar",
@@ -742,7 +744,8 @@ def test_multicolor_matters_opens_on_color_pair_payoff():
             "your library in a random order."
         ),
     }
-    assert ("multicolor_matters", "you") in _ks(niv)
+    assert ("multicolor_matters", "you") in _ks_hybrid(niv)
+    assert ("multicolor_matters", "you") not in _ks(niv)
 
 
 def test_target_own_payoff_opens_on_targeted_your_creature():

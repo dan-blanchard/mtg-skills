@@ -3286,6 +3286,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bfirebend(?:ing|s)?\b"},
         r"\bfirebend(?:ing|s)?\b",
     ),
+    # ADR-0027: attractions_matter had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to an _IR_KEPT_DETECTORS word mirror). The SERVE pool stays
+    # oracle-defined (Attraction openers / visit payoffs), so hand-register the spec
+    # the sweep auto-register loop used to build, reusing the deleted regex.
+    ("attractions_matter", "you"): _spec(
+        *SWEEP_LABELS["attractions_matter"],
+        {"oracle": r"\battraction\b|open an attraction"},
+        r"\battraction\b|open an attraction",
+    ),
     # ADR-0027: companion_keyword had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Scryfall `companion` keyword). The SERVE pool stays
     # oracle-defined (a companion's starting-deck restriction text), so

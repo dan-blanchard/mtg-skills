@@ -2046,6 +2046,114 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Cares-about kept-detector group (ADR-0027): moved floor->kept. devotion/party
+    # prove the structural amount.op count-operand bind; the rest fire from the kept
+    # word mirror over the oracle text (empty IR).
+    "devotion_matters": (
+        {
+            "name": "Karametra's Acolyte",
+            "type_line": "Creature — Human Druid",
+            "oracle_text": (
+                "{T}: Add an amount of {G} equal to your devotion to green. "
+                "(Each {G} in the mana costs of permanents you control counts "
+                "toward your devotion to green.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="ramp",
+                        scope="you",
+                        amount=Quantity(op="devotion", factor=1),
+                        raw="add {G} equal to your devotion to green",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "party_matters": (
+        {
+            "name": "Archpriest of Iona",
+            "type_line": "Creature — Human Cleric",
+            "oracle_text": (
+                "Archpriest of Iona's power is equal to the number of creatures "
+                "in your party. (Your party consists of up to one each of Cleric, "
+                "Rogue, Warrior, and Wizard.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="you",
+                        amount=Quantity(op="party", factor=1),
+                        raw="power equal to the number of creatures in your party",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "historic_matters": (
+        {
+            "name": "Jhoira's Familiar",
+            "type_line": "Artifact Creature — Bird",
+            "oracle_text": (
+                "Flying\nHistoric spells you cast cost {1} less to cast. "
+                "(Artifacts, legendaries, and Sagas are historic.)"
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(),
+    ),
+    "multicolor_matters": (
+        {
+            "name": "Hero of Precinct One",
+            "type_line": "Creature — Human Warrior",
+            "oracle_text": (
+                "Whenever you cast a multicolored spell, create a 1/1 white "
+                "Human creature token."
+            ),
+        },
+        _ir(),
+    ),
+    "colorless_matters": (
+        {
+            "name": "Herald of Kozilek",
+            "type_line": "Creature — Eldrazi Drone",
+            "oracle_text": (
+                "Devoid (This card has no color.)\nColorless spells you cast "
+                "cost {1} less to cast."
+            ),
+            "keywords": ["Devoid"],
+        },
+        _ir(),
+    ),
+    "initiative_matters": (
+        {
+            "name": "Aarakocra Sneak",
+            "type_line": "Creature — Bird Rogue",
+            "oracle_text": (
+                "Flying\nWhen this creature enters, you take the initiative."
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(),
+    ),
+    "attractions_matter": (
+        {
+            "name": "Rad Rascal",
+            "type_line": "Creature — Devil Employee",
+            "oracle_text": (
+                "When this creature enters, open an Attraction. (Put the top "
+                "card of your Attraction deck onto the battlefield.)"
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

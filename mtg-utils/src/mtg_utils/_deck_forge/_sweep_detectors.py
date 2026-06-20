@@ -389,12 +389,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         # commanders and the same regex served ~25 non-donate cards — dropped.
         "regex": "(?:target opponent|another player|target player|that player|each opponent|each other player) gains control of[^.]*you control|(?:target opponent|another player|target player|that player) gains control of",
     },
-    {
-        "key": "attractions_matter",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\battraction\\b|open an attraction",
-    },
+    # ADR-0027: attractions_matter migrated to the Card IR — served from a
+    # "\battraction\b|open an attraction" _IR_KEPT_DETECTORS word mirror (phase v0.1.19
+    # doesn't structure the CR 717 Attraction designation). This SWEEP_DETECTORS row is
+    # deleted; the serve label below survives.
     {
         "key": "extra_land_drop",
         "scope": "you",
