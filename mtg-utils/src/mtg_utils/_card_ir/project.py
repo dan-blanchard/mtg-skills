@@ -3180,6 +3180,19 @@ _OIL_REF = re.compile(r"\boil counters?\b", re.IGNORECASE)
 # arm, which over-fires on unrelated life thresholds ("if your life total is less
 # than 7" — Elderscale Wurm), which the structural IR correctly drops.
 _STARTING_LIFE_REF = re.compile(r"\bstarting life total\b", re.IGNORECASE)
+# Saga (CR 714) / lore-counter MANIPULATION & PAYOFF — a card that puts/removes lore
+# counters on a Saga (Keldon Warcaller, Satsuki, Garnet), references lore counters in a
+# payoff/condition ("for each lore counter on this Saga", "lore counters among Sagas
+# you control" — the chapter-scaling Sagas, Tom Bombadil), or builds its own lore engine
+# on a non-Saga (Myth Realized, Mind Unbound, Scroll of the Masters). phase synthesizes
+# a place_counter(lore) for EVERY Saga's intrinsic advancement, so the counter-kind read
+# would flood the lane with every Saga; instead anchor on the FACE oracle "lore counter"
+# / "Saga you control" phrase (the reminder "(As this Saga enters … add a lore counter)"
+# is stripped, so a vanilla Saga whose only lore mention is the reminder doesn't fire —
+# exactly mirroring the deleted regex).
+_SAGA_REF = re.compile(
+    r"\blore counters?\b|\bon (?:a|target) saga you control\b", re.IGNORECASE
+)
 # Fight (CR 701.12) GRANTED / QUOTED / modal / symmetric phase drops: a granted
 # "it fights" (Tolsimir's Wolf trigger), a quoted token "when this token enters, it
 # fights" (Aggressive Biomancy, Mythos of Illuna's copy grant), a modal "Fight!"
@@ -4115,6 +4128,12 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     has_fight = any(e.category == "fight" for a in abilities for e in a.effects)
     if not has_fight and (m := _FIGHT_REF.search(text)) is not None:
         markers.append(Effect(category="fight", scope="you", raw=m.group(0)))
+    # Saga / lore-counter manipulation & payoff phase has no structure for (the lore
+    # placement is the synthesized intrinsic advancement, subjectless) → a saga marker.
+    # Anchored on the stripped-oracle "lore counter" / "Saga you control" so a vanilla
+    # Saga (reminder-only lore mention) doesn't fire. Read via _DOER_EFFECT_KEYS.
+    if (m := _SAGA_REF.search(text)) is not None:
+        markers.append(Effect(category="saga", scope="you", raw=m.group(0)))
     # Cycling "cycle or discard" PAYOFF trigger phase dropped ENTIRELY (the trigger
     # phrase truncated off both the trigger and the effect raw — Pitiless Vizier,
     # Zenith Seeker keep only "gain indestructible"/"gain flying") → a cycling marker.

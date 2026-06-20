@@ -312,6 +312,10 @@ CATEGORIES: frozenset[str] = frozenset(
         # "was a Treasure", "is a Food") phase has no structure for; the subtype rides
         # counter_kind. Read in extract_signals_ir → food/treasure/clue/blood_matters.
         "token_subtype_ref",
+        # saga ← a lore-counter MANIPULATION / PAYOFF ("lore counter", "Saga you
+        # control") phase keeps only on the face oracle (the lore placement it does emit
+        # is the subjectless intrinsic advancement). CR 714 → saga_matters.
+        "saga",
         # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
         # artifacts / enchantments you control) the structured projection dropped to a
         # subjectless characteristic_pt / ModifyCost / damage / gate condition;

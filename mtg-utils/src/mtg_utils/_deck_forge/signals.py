@@ -3916,6 +3916,9 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # creature_cast ← the face-only-drop creature-cast reference (Blink's quoted token
     # ability, Glimpse of Nature's delayed trigger); scope "any" mirrors the regex.
     "creature_cast": ("creature_cast_trigger", "any"),
+    # saga ← a lore-counter manipulation/payoff face reference (the chapter-advancement
+    # build-around; a vanilla Saga's own reminder-only lore mention doesn't fire).
+    "saga": ("saga_matters", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
     "extra_combat": ("extra_combats", "you"),
     "extra_upkeep": ("extra_upkeep", "you"),
@@ -4645,6 +4648,11 @@ _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     "shield": ("shield_counter_matters", "you"),
     "rad": ("rad_counter_matters", "opponents"),
     "ki": ("ki_counter_matters", "you"),
+    # NB: lore counters do NOT map here — saga_matters fires from a `saga` marker
+    # (project._dropped_static_markers, the "lore counter" / "Saga you control" face
+    # reference), NOT every lore placement (a vanilla Saga's intrinsic chapter
+    # advancement is not a build-around tell — the reminder is stripped, matching the
+    # regex).
 }
 
 _PERMANENT_TYPES: frozenset[str] = frozenset(
