@@ -2464,6 +2464,134 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # Group "tranche2-B" — structural IR migrations.
+    #   mass_bounce       ← Effect(bounce, counter_kind="all") + board subject
+    #   permanent_etb     ← Trigger(etb) with a Permanent-you-control subject
+    #   team_buff         ← Effect(grant_keyword, ck=<evergreen kw>) + team subject
+    #   destroy_legendary ← Effect(destroy) subject Filter HasSupertype:Legendary
+    #   power_double      ← Effect(pump/pump_target) raw "double … power"
+    "mass_bounce": (
+        {
+            "name": "Evacuation",
+            "type_line": "Instant",
+            "oracle_text": "Return all creatures to their owners' hands.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="bounce",
+                        scope="any",
+                        counter_kind="all",
+                        subject=Filter(card_types=("Creature",), controller="any"),
+                        raw="Return all creatures to their owners' hands.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "permanent_etb": (
+        {
+            "name": "Amareth, the Lustrous",
+            "type_line": "Legendary Creature — Dragon Avatar",
+            "oracle_text": (
+                "Flying\nWhenever another permanent you control enters, look at "
+                "the top card of your library. If it shares a card type with that "
+                "permanent, you may reveal that card and put it into your hand."
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="etb",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Permanent",),
+                        controller="you",
+                        predicates=("Another",),
+                    ),
+                ),
+                effects=(
+                    Effect(
+                        category="topdeck_select",
+                        scope="any",
+                        raw="look at the top card of your library",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "team_buff": (
+        {
+            "name": "Brave the Sands",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creatures you control have vigilance.\nEach creature you control "
+                "can block an additional creature each combat."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="you",
+                        counter_kind="vigilance",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw="Creatures you control have vigilance.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "destroy_legendary": (
+        {
+            "name": "Hero's Demise",
+            "type_line": "Instant",
+            "oracle_text": "Destroy target legendary creature.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="destroy",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="any",
+                            predicates=("HasSupertype:Legendary",),
+                        ),
+                        raw="Destroy target legendary creature.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "power_double": (
+        {
+            "name": "Unleash Fury",
+            "type_line": "Instant",
+            "oracle_text": "Double the power of target creature until end of turn.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="pump_target",
+                        scope="any",
+                        subject=Filter(card_types=("Creature",), controller="any"),
+                        raw="Double the power of target creature until end of turn.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

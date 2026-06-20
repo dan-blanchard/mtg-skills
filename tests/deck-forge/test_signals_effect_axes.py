@@ -19,7 +19,9 @@ CASES = [
     # ADR-0027: counter_control migrated to the Card IR (phase's `counter_spell`
     # effect category), so it no longer fires on the regex path tested here — its IR
     # path is proven in test_migrated_keys.
-    ("team_buff", "you", "Each other creature you control has hexproof."),
+    # ADR-0027: team_buff migrated to the Card IR (phase's `grant_keyword` effect on a
+    # generic "creatures you control" subject), so it no longer fires on the regex path
+    # tested here — its IR path is proven in test_migrated_keys.
     (
         "tutor_matters",
         "you",

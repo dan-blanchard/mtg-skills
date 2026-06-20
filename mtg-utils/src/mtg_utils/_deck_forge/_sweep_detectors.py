@@ -177,12 +177,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "deals? damage[^.]*equal to (?:its|that creature.s|[^.]*) power[^.]*to (?:any target|target|each opponent|that player|target player)",
     },
-    {
-        "key": "power_double",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "double the power|doubles? the power and toughness|power(?: and toughness)? (?:is|are) doubled|double [A-Z][a-z']+ power|doubles? [^.]*power until end of turn",
-    },
+    # ADR-0027: power_double migrated to the Card IR — a pump/pump_target Effect whose
+    # raw carries the "double … power" / "power … doubled" word-mirror (phase sets no
+    # multiply quantity for P/T doubling, so the category + raw is the discriminator).
+    # This SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses
+    # the deleted regex.
     {
         "key": "noncreature_cast_punish",
         "scope": "any",
@@ -451,12 +450,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bexcess damage\\b",
     },
-    {
-        "key": "destroy_legendary",
-        "scope": "any",
-        "is_widen_of": "removal_matters",
-        "regex": "destroy (?:up to one )?target legendary (?:permanent|creature)",
-    },
+    # ADR-0027: destroy_legendary migrated to the Card IR — a `destroy` Effect whose
+    # subject Filter carries the exact HasSupertype:Legendary predicate (the mass
+    # "destroy each legendary" form rides counter_kind=='all' with the same predicate).
+    # This SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses
+    # the deleted regex. (is_widen_of removal_matters is preserved structurally — the
+    # destroy effect still opens removal_matters where it qualifies.)
     {
         "key": "anthem_static",
         "scope": "you",
@@ -623,12 +622,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "is (?:on the battlefield or )?in the command zone|activate this ability only if[^.]*command zone",
     },
-    {
-        "key": "mass_bounce",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "return each (?:other )?(?:nonland )?permanent[^.]*to (?:its|their) owner's hand|return each (?:other )?[^.]*?creatures?[^.]*?to (?:its|their) owner's hand|return all[^.]*to (?:its|their) owners' hands",
-    },
+    # ADR-0027: mass_bounce migrated to the Card IR — a `bounce` Effect with
+    # counter_kind=='all' (the mass discriminator) on a generic Creature/Permanent
+    # subject (_is_mass_bounce_subject), excluding graveyard recursion. This
+    # SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses the
+    # deleted regex.
     {
         "key": "activated_draw",
         "scope": "you",
@@ -906,20 +904,20 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # SUBJECT + quoted-grant recursion); this SWEEP_DETECTORS row is deleted. Its regex
     # over-fired by folding board wipes ("destroy all/each", "damage divided") and land
     # destruction into removal — the IR excludes those (mass_removal / land_destruction
-    # carry them). The destroy_legendary widen (is_widen_of removal_matters) is a
-    # DIFFERENT key and stays.
+    # carry them). destroy_legendary (also ADR-0027-migrated, the HasSupertype:Legendary
+    # destroy subject) is a DIFFERENT key.
     {
         "key": "exile_removal",
         "scope": "you",
         "is_widen_of": "exile_removal",
         "regex": "exile (?:up to (?:one|two|three|\\w+|x) )?(?:other )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|exile [^.]*and target (?:permanent|creature)",
     },
-    {
-        "key": "team_buff",
-        "scope": "you",
-        "is_widen_of": "team_buff",
-        "regex": "(?:you and )?other \\w+ you control have (?:hexproof|flying|trample|indestructible|protection|ward|deathtouch|lifelink|menace|vigilance|haste|first strike|double strike|reach)|(?:each |all )?creatures? you control(?: that[^.]*?)? (?:gain|gains|have|has) (?:indestructible|protection|hexproof|flying|trample|menace|deathtouch|lifelink|double strike|first strike|vigilance|haste|ward|reach)",
-    },
+    # ADR-0027: team_buff migrated to the Card IR — the grant_keyword Effect on a
+    # generic "creatures you control" subject (_is_team_buff_grant + _TEAM_BUFF_GRANT_KW).
+    # This SWEEP_DETECTORS row + the _HAND_FLOOR team_buff row are deleted; the hand-spec
+    # serve in signal_specs reuses the deleted regex. (anthem_static, the separate
+    # +N/+N stat-anthem lane that documents is_widen_of team_buff, is a DIFFERENT key
+    # and stays on regex.)
     # ADR-0027: venture_matters migrated to the Card IR — its SWEEP_DETECTORS widen row
     # (dungeon / room-abilities oracle text) is deleted; the hand-registered serve spec
     # in signal_specs carries the lane (the structural IR — venture effect + condition

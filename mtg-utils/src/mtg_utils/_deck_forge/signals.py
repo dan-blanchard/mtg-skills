@@ -1959,16 +1959,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Familiar, Ertai Resurrected), a granted/quoted Aura ability (Equinox, Sunken
     # Field), or a non-grant carrier (Goblin Artisans). NOT in _IR_FLOOR_LANES; the
     # serve spec stays hand-registered in signal_specs (FP-free at this breadth).
-    (
-        "team_buff",
-        re.compile(
-            r"(?:creatures?|permanents?) you control (?:gain|gains|have|has) "
-            r"(?:flying|trample|menace|hexproof|indestructible|protection|deathtouch"
-            r"|lifelink|double strike|first strike|vigilance|haste|ward|reach)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: team_buff migrated to the Card IR — phase's `grant_keyword` Effect (one
+    # per granted keyword, the keyword in counter_kind) on a GENERIC "creatures you
+    # control" subject (_is_team_buff_grant + _TEAM_BUFF_GRANT_KW). The structural IR
+    # drops the regex's tribal / color / attacking / single-target over-fires (it
+    # matched the "creatures you control have <kw>" mass_grant roll-up text even when
+    # the real grant was tribal/color-scoped); 0 genuine generic anthems lost. NOT in
+    # _IR_FLOOR_LANES; this _HAND_FLOOR producer + the SWEEP_DETECTORS team_buff row
+    # are deleted; the serve spec stays hand-registered.
     (
         "tutor_matters",
         re.compile(
@@ -2013,17 +2011,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
-    # "another permanent you control enters" — the generic permanent-ETB value engine
-    # (distinct from creature_etb, which needs the word "creature"). Amareth.
-    (
-        "permanent_etb",
-        re.compile(
-            r"\bwhen(?:ever)?\b[^.]*?\b(?:a|an|another|one or more|each) "
-            r"(?:nonland |nontoken )?permanents? you control enters",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: permanent_etb migrated to the Card IR — an `etb` Trigger whose subject
+    # Filter carries the 'Permanent' card_type and controller=='you' (Amareth, the
+    # canonical card). The structural IR is BROADER-and-correct: it catches the
+    # "a/another permanent you control enters" variants the narrow word-order regex
+    # missed (Cloudstone Curio, Kodama, Yoshimaru, Builder's Talent). NOT in
+    # _IR_FLOOR_LANES; this _HAND_FLOOR producer is deleted; the serve spec stays.
     (
         # Evasion = a blocking RESTRICTION (CR 509.1b). "attacks if able" is a
         # forced-attack REQUIREMENT (CR 508.1d) — that belongs to forced_attack/goad.
@@ -4953,6 +4946,52 @@ def _is_all_creatures_grant(f: object) -> bool:
     )
 
 
+# ADR-0027 team_buff — the full evergreen team-keyword anthem set. team_buff is the
+# BROAD union of keyword anthems ("creatures you control have/gain <keyword>"); it
+# intentionally overlaps team_evasion_grant (the evasion subset) + protection_grant
+# (the protective subset) — the seen-set dedups within a lane. (CR: evergreen
+# keyword abilities granted to your whole creature board.)
+_TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
+    {
+        "flying",
+        "trample",
+        "menace",
+        "hexproof",
+        "indestructible",
+        "protection",
+        "deathtouch",
+        "lifelink",
+        "doublestrike",
+        "firststrike",
+        "vigilance",
+        "haste",
+        "ward",
+        "reach",
+    }
+)
+# Predicates an anthem subject may carry while still being a GENERIC your-team
+# anthem (not a tribal / single-target narrowing): Always Watching's "Nontoken
+# creatures you control have vigilance" and Tam-style "Each OTHER creature you
+# control …" stay in. A subtype (tribal), a HasColor / Attacking / EquippedBy /
+# Cmc narrowing, or an opp/single controller fails the gate. (ADR-0027.)
+_TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
+
+
+def _is_team_buff_grant(f: object) -> bool:
+    """The team_buff anthem shape: GENERIC creatures YOU control (no subtypes) whose
+    only predicates are in ``_TEAM_BUFF_OK_PREDS`` (NonToken/Another/Other). Broader
+    than ``_is_team_creature_grant`` (which tolerates NO predicates) so the genuine
+    Always Watching / "each other creature you control" anthems land — kept SEPARATE
+    so relaxing it never perturbs team_evasion_grant / protection_grant. (ADR-0027.)"""
+    return (
+        isinstance(f, Filter)
+        and "Creature" in f.card_types
+        and f.controller == "you"
+        and not f.subtypes
+        and set(f.predicates) <= _TEAM_BUFF_OK_PREDS
+    )
+
+
 # Batch E — counter KIND → (signal key, scope). NB: p1p1 is deliberately ABSENT
 # — +1/+1 counters are ubiquitous, so place_counter→counters_matter floods the
 # lane (1552 IR_ONLY); counters_matter derives from the counter_added trigger +
@@ -5184,6 +5223,16 @@ _UNTAP_ENGINE_RAW = re.compile(
 )
 
 
+# ADR-0027 power_double — the word-mirror discriminator. phase does NOT set
+# Quantity(op='multiply') for P/T DOUBLING (Unleash Fury / Mr. Orfeo / Unnatural
+# Growth all have amount=None on the pump), so a x2 power-double is category-
+# indistinguishable from a flat +X pump by structure alone — the raw "double …
+# power" / "power … doubled" phrasing IS the discriminator. (Keying off the Scryfall
+# `Double` keyword would over-fire: most Double cards double DAMAGE / counters /
+# tokens, not power.)
+_POWER_DOUBLE_RAW = re.compile(r"double[^.]*power|power[^.]*doubled", re.IGNORECASE)
+
+
 def _is_scaling_count(amount: Quantity | None, raw: str) -> bool:
     """True when an operand is a genuine BOARD-COUNT scaler ("for each <X>"), not a
     bare X-spell whose X is the cast cost. A NAMED count op (counters / domain /
@@ -5231,6 +5280,35 @@ def _is_permanent_subtype_destroy(f: object) -> bool:
     if not isinstance(f, Filter) or not f.subtypes:
         return False
     return any(s.lower() not in _LAND_SUBTYPES for s in f.subtypes)
+
+
+# ADR-0027 destroy_legendary — phase stamps this exact predicate on a destroy
+# subject only for an explicitly legendary-restricted target (Bounty Agent, Tsabo
+# Tavoc). NB: match the EXACT string, NOT a "legendary" substring — `NotSupertype:
+# Legendary` ("destroy target NONlegendary creature" — Cast Down, One Ring) is the
+# OPPOSITE and must NOT fire. (CR 205.4a.)
+_LEGENDARY_DESTROY_PRED = "HasSupertype:Legendary"
+
+# ADR-0027 mass_bounce — the predicates a board-wide bounce subject may carry while
+# still being a full board sweep (vs a single-target rider): "all OTHER permanents",
+# "all NONLAND permanents". A graveyard-recursion subject ("return all creature
+# cards from graveyards" — Garna, Empty the Catacombs) carries InZone/Owned and is
+# EXCLUDED — that is recursion, not a board bounce.
+_MASS_BOUNCE_ZONE_PREDS = frozenset({"InZone", "Owned"})
+
+
+def _is_mass_bounce_subject(f: object) -> bool:
+    """The board-wide bounce subject (ADR-0027 mass_bounce): a generic Creature /
+    Permanent card-type sweep, EXCLUDING graveyard/library recursion (an InZone /
+    Owned predicate, which marks "all <type> cards from graveyards" — recursion, not
+    a board bounce). Color / CMC / token / power-threshold predicates are KEPT — a
+    "return all green permanents" / "all attacking creatures" sweep is still mass
+    bounce. The mass discriminator (counter_kind=='all') is applied by the caller."""
+    if not isinstance(f, Filter):
+        return False
+    if _MASS_BOUNCE_ZONE_PREDS & set(f.predicates):
+        return False
+    return "Creature" in f.card_types or "Permanent" in f.card_types
 
 
 def _filter_controller(f: object) -> str:
@@ -5855,6 +5933,23 @@ def extract_signals_ir(
                         add("protection_grant", "you", "", e.raw)
                 elif _is_all_creatures_grant(e.subject):
                     add("all_creatures_kw_grant", "any", "", e.raw)
+                # team_buff (ADR-0027): the BROAD union anthem — a generic
+                # "creatures you control have/gain <evergreen keyword>" grant
+                # (Akroma's Memorial, Brave the Sands, Always Watching). phase emits
+                # one grant_keyword Effect per keyword with the granted keyword in
+                # counter_kind; the summary ck=='mass_grant' roll-up is IGNORED (a
+                # duplicate). The over-fire boundary is _is_team_buff_grant: a tribal
+                # ("Sliver creatures you control", subtypes), color ("Red creatures",
+                # HasColor), attacking ("Attacking creatures", Attacking), or single-
+                # target ("target creature you control gains", controller 'any')
+                # grant fails the gate and stays out. It intentionally co-fires with
+                # team_evasion_grant / protection_grant (the subsets) — the seen-set
+                # dedups within a lane. (Kira's quoted-ability grant is a grant_keyword
+                # carrier of a quoted ABILITY, ck not a bare keyword, correctly out.)
+                if e.counter_kind in _TEAM_BUFF_GRANT_KW and _is_team_buff_grant(
+                    e.subject
+                ):
+                    add("team_buff", "you", "", e.raw)
                 # ADR-0027 — myriad_grant: a card that GRANTS myriad (CR 702.115) to a
                 # creature/team (Blade of Selves, Legion Loyalty, Duke Ulder, Corporeal
                 # Projection) or confers it via a copy-exception (Muddle's project.py
@@ -6002,6 +6097,42 @@ def extract_signals_ir(
                     or _is_permanent_subtype_destroy(e.subject)
                 ):
                     add("removal_matters", "you", "", e.raw)
+                # destroy_legendary (ADR-0027): a destroy whose subject is restricted
+                # to legendary permanents (Bounty Agent, Tsabo Tavoc, Hero's Demise;
+                # the mass form "destroy each legendary creature" — Invasion of Fiora —
+                # rides counter_kind=="all" but carries the same predicate). The exact
+                # HasSupertype:Legendary predicate IS the discriminator — a generic
+                # "destroy target creature" (Hero's Downfall, predicates=()) lacks it,
+                # and "destroy target NONlegendary creature" (Cast Down, One Ring)
+                # carries NotSupertype:Legendary, the OPPOSITE, so neither fires. Scope
+                # 'any' (the regex forces it). is_widen_of removal_matters is preserved
+                # — it stays a destroy effect, which opened removal_matters above where
+                # it qualifies. (CR 205.4a.) See ADR-0027.
+                if (
+                    isinstance(e.subject, Filter)
+                    and _LEGENDARY_DESTROY_PRED in e.subject.predicates
+                ):
+                    add("destroy_legendary", "any", "", e.raw)
+            # mass_bounce (ADR-0027): a BOARD-WIDE bounce — counter_kind=="all" (the
+            # mass discriminator, the same convention as the mass-untap arm above) on
+            # a generic Creature/Permanent subject (Evacuation, River's Rebuke,
+            # Devastation Tide). counter_kind=="" is a single-target bounce (Cyclonic
+            # Rift's base mode, "return target creature") — correctly excluded. A
+            # graveyard-recursion subject ("return all creature cards from graveyards"
+            # — Garna, Empty the Catacombs, Wrenn and Seven) carries an InZone/Owned
+            # predicate and is excluded by _is_mass_bounce_subject (that is recursion,
+            # CR 404, not a board bounce). Scope 'any' (the sweep convention — symmetric
+            # vs one-sided follows the subject; Evacuation is symmetric). KEPT RESIDUAL:
+            # Cyclonic Rift's OVERLOAD 'each' mode is a phase modal-alt-cost parse drop;
+            # artifact/enchantment-only sweeps (Rebuild, Reduce to Dreams) are scoped
+            # out (the lane's subject is Creature/Permanent, CR 115.10). See ADR-0027.
+            if (
+                cat == "bounce"
+                and e.counter_kind == "all"
+                and _is_mass_bounce_subject(e.subject)
+                and not any("graveyard" in z or "library" in z for z in e.zones)
+            ):
+                add("mass_bounce", "any", "", e.raw)
             # removal_matters (ADR-0027): a SINGLE-TARGET DAMAGE effect to a creature /
             # permanent (cat=='damage', subject a creature or other permanent type, or
             # a permanent subtype) is removal — Flame Slash, Crossbow Infantry, Nin
@@ -6099,6 +6230,18 @@ def extract_signals_ir(
                     and "counter" in (e.raw or "").lower()
                 ):
                     add("counters_matter", "you", "", e.raw)
+            # power_double (ADR-0027): a P/T-DOUBLING effect. phase does NOT set a
+            # multiply quantity for power doubling (Unleash Fury / Mr. Orfeo /
+            # Unnatural Growth all carry amount=None), so the raw word-mirror "double
+            # … power" / "power … doubled" IS the discriminator — keyed off the
+            # pump/pump_target category, NOT the over-firing Scryfall `Double` keyword
+            # (which mostly doubles DAMAGE / counters / tokens). Single-target doublers
+            # (Unleash Fury) land in pump_target; mass doublers (Unnatural Growth,
+            # Zopandrel) land in pump with a you-controller subject. NB: outside the
+            # `e.amount is not None` block above — power-doublers have no amount.
+            # Scope 'you' (the doubling payoff is your own beater). See ADR-0027.
+            if cat in ("pump", "pump_target") and _POWER_DOUBLE_RAW.search(e.raw or ""):
+                add("power_double", "you", "", e.raw)
             # Batch 12 — typed_anthem_multi: a pump over creatures of MULTIPLE named
             # types ("each creature that's an Assassin, Mercenary, or Pirate gets ...")
             # — an AnyOf-of-subtypes on a creature filter (single-type is type_matters).
@@ -6468,6 +6611,22 @@ def extract_signals_ir(
                     "",
                     "",
                 )
+            # permanent_etb (ADR-0027): the GENERIC permanent-ETB value engine —
+            # "whenever a/another permanent you control enters" (Amareth, Cloudstone
+            # Curio, Kodama of the East Tree, Yoshimaru, Builder's Talent). The
+            # discriminator vs creature_etb is the subject card_type: 'Permanent' (NOT
+            # 'Creature' — that is creature_etb) and the controller-you gate (an
+            # opponent-scoped permanent-ETB punisher is excluded; a self-ETB
+            # SelfRef→None never has card_types=='Permanent', so it can't false-fire).
+            # The IR is BROADER-and-correct vs the narrow word-order regex (it catches
+            # "a/another permanent you control enters" variants the regex missed; +12
+            # genuine recall, all generic-permanent-ETB engines). (CR 603.)
+            if (
+                ev == "etb"
+                and "Permanent" in tsubs
+                and _filter_controller(trig.subject) == "you"
+            ):
+                add("permanent_etb", "you", "", "")
             # Batch 14 — landfall: a land ENTERING (etb trigger w/ Land subject) is
             # the bulk of landfall; the LandPlayed "play a land" trigger (_PAYOFF)
             # catches the rest.
@@ -7360,6 +7519,58 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # counter_place_trigger / counter_distribute / self_counter_grow SWEEP rows
         # (their own widen lanes) are independent and stay regex. See ADR-0027.
         "counters_matter",
+        # Group "tranche2-B" (ADR-0027) — 5 keys phase v0.1.19 NOW structures, each
+        # fires from the STRUCTURAL IR alone (NONE in _IR_FLOOR_LANES; floor-mirror-dep
+        # == 0 by construction — no key reads a floor detector). Each key's oracle-regex
+        # producer is deleted; serve specs stay hand-registered. NO-FLOOD held (only the
+        # target keys' firing counts changed; no non-target key moved). See ADR-0027.
+        #   mass_bounce ← a `bounce` Effect with counter_kind=='all' (the mass
+        #                discriminator, same convention as the mass-untap arm) on a
+        #                generic Creature/Permanent subject (_is_mass_bounce_subject),
+        #                excluding graveyard recursion (InZone/Owned predicate or a
+        #                graveyard/library zone — Garna, Wrenn, Empty the Catacombs).
+        #                Single-target bounce (Cyclonic Rift base, counter_kind=='')
+        #                stays out. Kept residual: Cyclonic Rift's overload 'each' mode
+        #                (a phase modal-alt-cost parse drop) + artifact/enchantment-only
+        #                sweeps (Rebuild, Reduce to Dreams — out of the Creature/
+        #                Permanent subject scope). CR 115.10.
+        #   permanent_etb ← an `etb` Trigger whose subject Filter carries 'Permanent'
+        #                and controller=='you' (Amareth). BROADER-and-correct vs the
+        #                narrow word-order regex (+12 generic-permanent-ETB engines:
+        #                Cloudstone Curio, Kodama, Yoshimaru). creature_etb (Creature
+        #                subject) and an opp-scoped punisher stay out. CR 603.
+        #   team_buff ← the `grant_keyword` Effect (one per keyword, keyword in
+        #                counter_kind) on a GENERIC "creatures you control" subject
+        #                (_is_team_buff_grant tolerates NonToken/Another/Other;
+        #                _TEAM_BUFF_GRANT_KW is the evergreen team-keyword set).
+        #                Co-fires with team_evasion_grant / protection_grant (subsets;
+        #                seen-set dedups). The structural IR drops the regex's tribal /
+        #                color / attacking / single-target over-fires (it matched the
+        #                "creatures you control have <kw>" mass_grant roll-up text even
+        #                when the real grant was narrowed) — 0 genuine generic anthems
+        #                lost. The summary ck=='mass_grant' roll-up Effect is ignored.
+        #   destroy_legendary ← a `destroy` Effect whose subject Filter carries the
+        #                exact HasSupertype:Legendary predicate (Bounty Agent, Tsabo
+        #                Tavoc; the mass "destroy each legendary" form — Invasion of
+        #                Fiora — rides counter_kind=='all' with the same predicate). The
+        #                exact string is the discriminator: a generic "destroy target
+        #                creature" lacks it; NotSupertype:Legendary ("nonlegendary" —
+        #                Cast Down, One Ring) is the OPPOSITE and stays out. ~0
+        #                residual. CR 205.4a. is_widen_of removal_matters preserved.
+        #   power_double ← a `pump`/`pump_target` Effect whose raw carries the
+        #                "double … power" / "power … doubled" word-mirror
+        #                (_POWER_DOUBLE_RAW). phase sets no multiply quantity for P/T
+        #                doubling (amount=None), so the category + raw is the
+        #                discriminator (NOT the over-firing Scryfall `Double` keyword,
+        #                which mostly doubles damage/counters/tokens). Single-target
+        #                doublers (Unleash Fury) land in pump_target; mass doublers
+        #                (Unnatural Growth) in pump. Kept residual: a Saga chapter
+        #                (Roar of Endless Song, phase structures as saga steps).
+        "mass_bounce",
+        "permanent_etb",
+        "team_buff",
+        "destroy_legendary",
+        "power_double",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

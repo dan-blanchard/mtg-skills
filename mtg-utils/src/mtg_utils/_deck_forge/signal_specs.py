@@ -2330,8 +2330,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
     # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit
     # the fat bodies they exploit (Ghalta / Worldspine Wurm), not just the engine cards.
+    # ADR-0027: power_double migrated to the Card IR (a pump/pump_target effect whose
+    # raw carries the "double … power" word-mirror); its SWEEP_DETECTORS row is deleted,
+    # so the serve passes the deleted regex explicitly to keep the serve pool.
     ("power_double", "you"): _sweep_spec_with_extras(
-        "power_double", (_POWER_FLING_EXTRA,), serve_power_min=5
+        "power_double",
+        (_POWER_FLING_EXTRA,),
+        serve_power_min=5,
+        regex=(
+            r"double the power|doubles? the power and toughness"
+            r"|power(?: and toughness)? (?:is|are) doubled|double [A-Z][a-z']+ power"
+            r"|doubles? [^.]*power until end of turn"
+        ),
     ),
     # Firebreathing / variable-P/T decks pump power, then fling it for damage.
     ("self_pump", "you"): _sweep_spec_with_extras("self_pump", (_POWER_FLING_EXTRA,)),
@@ -3269,6 +3279,32 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["seek_matters"],
         {"oracle": r"\bseek\b"},
         r"\bseek\b",
+    ),
+    # ADR-0027: mass_bounce + destroy_legendary had their oracle-regex SWEEP_DETECTORS
+    # rows deleted (detection moved to the Card IR — the bounce/destroy effect shape).
+    # The SERVE pool (the cards that ARE the thing) is still oracle-defined, so
+    # hand-register the spec the sweep auto-register loop used to build, reusing the
+    # deleted regex as the serve pattern. (SWEEP_LABELS still carries the human label.)
+    ("mass_bounce", "any"): _spec(
+        *SWEEP_LABELS["mass_bounce"],
+        {
+            "oracle": (
+                r"return each (?:other )?(?:nonland )?permanent[^.]*to (?:its|their) "
+                r"owner's hand|return each (?:other )?[^.]*?creatures?[^.]*?to "
+                r"(?:its|their) owner's hand|return all[^.]*to (?:its|their) "
+                r"owners' hands"
+            )
+        },
+        (
+            r"return each (?:other )?(?:nonland )?permanent[^.]*to (?:its|their) "
+            r"owner's hand|return each (?:other )?[^.]*?creatures?[^.]*?to "
+            r"(?:its|their) owner's hand|return all[^.]*to (?:its|their) owners' hands"
+        ),
+    ),
+    ("destroy_legendary", "any"): _spec(
+        *SWEEP_LABELS["destroy_legendary"],
+        {"oracle": r"destroy (?:up to one )?target legendary (?:permanent|creature)"},
+        r"destroy (?:up to one )?target legendary (?:permanent|creature)",
     ),
     # ADR-0027: the four bending lanes had their oracle-regex SWEEP_DETECTORS rows
     # deleted (detection moved to the Card IR — the kept word-detector mirror in

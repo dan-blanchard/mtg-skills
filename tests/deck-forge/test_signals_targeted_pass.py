@@ -7,7 +7,12 @@ Oracle text is verbatim from the residual (real Scryfall cards), per ADR-0009.
 """
 
 from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _sigs(oracle, name="X", **extra):
@@ -116,6 +121,9 @@ def test_tribal_etb_no_junk_subject_for_creature():
 
 
 # ── 4. permanent_etb value engine: "another permanent you control enters" ──
+# ADR-0027: permanent_etb migrated to the Card IR (an `etb` Trigger with a Permanent-
+# you-control subject), so it is served via extract_signals_hybrid, not the regex
+# path. (The structural-IR proof — Amareth — also lives in test_migrated_keys.)
 AMARETH = (
     "Flying\n"
     "Whenever another permanent you control enters, look at the top card of your "
@@ -124,20 +132,86 @@ AMARETH = (
 )
 
 
+def _amareth_card_ir():
+    card = {
+        "name": "Amareth, the Lustrous",
+        "oracle_text": AMARETH,
+        "type_line": "Legendary Creature — Dragon Avatar",
+    }
+    ir = Card(
+        oracle_id="x",
+        name="Amareth, the Lustrous",
+        faces=(
+            Face(
+                name="Amareth, the Lustrous",
+                keywords=("Flying",),
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="etb",
+                            scope="you",
+                            subject=Filter(
+                                card_types=("Permanent",),
+                                controller="you",
+                                predicates=("Another",),
+                            ),
+                        ),
+                        effects=(
+                            Effect(
+                                category="topdeck_select",
+                                scope="any",
+                                raw="look at the top card of your library",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    return card, ir
+
+
 def test_permanent_etb_fires_for_amareth():
-    assert "permanent_etb" in _keys(AMARETH, name="Amareth, the Lustrous")
+    card, ir = _amareth_card_ir()
+    assert "permanent_etb" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 def test_permanent_etb_scope_you():
-    sig = next(s for s in _sigs(AMARETH, name="Amareth") if s.key == "permanent_etb")
+    card, ir = _amareth_card_ir()
+    sig = next(s for s in extract_signals_hybrid(card, ir) if s.key == "permanent_etb")
     assert sig.scope == "you"
 
 
 def test_creature_etb_does_not_fire_permanent_etb():
-    # a creature-only ETB is creature_etb, not the generic permanent axis.
-    assert "permanent_etb" not in _keys(
-        "Whenever a creature you control enters, draw a card."
+    # a creature-only ETB is creature_etb, not the generic permanent axis (the IR's
+    # 'Creature'-subject etb trigger opens creature_etb, never permanent_etb).
+    card = {
+        "name": "X",
+        "oracle_text": "Whenever a creature you control enters, draw a card.",
+        "type_line": "Legendary Creature",
+    }
+    ir = Card(
+        oracle_id="y",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="etb",
+                            scope="you",
+                            subject=Filter(card_types=("Creature",), controller="you"),
+                        ),
+                        effects=(Effect(category="draw", scope="you", raw="draw"),),
+                    ),
+                ),
+            ),
+        ),
     )
+    assert "permanent_etb" not in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 # ── new keys must have specs so the UI renders an avenue + serves() works ──
