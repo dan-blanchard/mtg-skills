@@ -13,7 +13,9 @@ def _ks(card):
 
 CASES = [
     ("ramp_matters", "you", "{T}: Add {G}{G}."),
-    ("removal_matters", "you", "{2}{B}: Destroy target creature."),
+    # ADR-0027: removal_matters migrated to the Card IR (phase's single-target
+    # destroy/damage SUBJECT), so it no longer fires on the regex path tested here —
+    # its IR path is proven in test_migrated_keys.
     # ADR-0027: counter_control migrated to the Card IR (phase's `counter_spell`
     # effect category), so it no longer fires on the regex path tested here — its IR
     # path is proven in test_migrated_keys.

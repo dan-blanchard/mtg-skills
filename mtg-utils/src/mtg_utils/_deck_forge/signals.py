@@ -2029,18 +2029,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        # Destroy/damage removal — the slice that indestructible & regeneration blank
-        # (CR 701.8/702.12/702.19). Exile is a separate axis (bypasses those).
-        "removal_matters",
-        re.compile(
-            r"destroy target "
-            r"(?:creature|permanent|artifact|enchantment|planeswalker|nonland)"
-            r"|deals? (?:\d+|x) damage to target (?:creature|permanent)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: removal_matters migrated to the Card IR — phase's `destroy` / `damage`
+    # effect categories with a single-target permanent SUBJECT (CR 115.1), plus the
+    # quoted-grant-ability recursion (an Aura/Equipment granting "{T}: Destroy/deal
+    # damage to target …" — Manriki-Gusari, Lavamancer's Skill) and the
+    # removal-target-subject recovery (Combo Attack, Broken Visage). The mass form
+    # ("destroy/deal damage to EACH/ALL …" — DamageAll/DestroyAll, counter_kind=="all")
+    # is a BOARD WIPE (CR 115.10), correctly EXCLUDED here and served by mass_removal;
+    # the regex over-fired by folding board wipes / land destruction into removal. NOT
+    # in _IR_FLOOR_LANES (floor-mirror-dep == 0); this _HAND_FLOOR producer is deleted
+    # and the SWEEP_DETECTORS removal_matters row with it; serve stays hand-registered.
     (
         # Exile removal — bypasses indestructible/regeneration and stops death/LTB
         # recursion (CR 406, 701.10). Distinct build axis from destroy/damage.
@@ -5418,27 +5416,41 @@ def extract_signals_ir(
                     add("land_destruction", "you", "", e.raw)
                 if "Creature" in ftypes and ab.kind in ("activated", "triggered"):
                     add("kill_engine", "you", "", e.raw)
-                # removal_matters: a destroy whose subject is a permanent TYPE, or
-                # (ADR-0027) a subtype-ONLY subject that names a permanent — "destroy
-                # target Wall/Equipment/Aura" (card_types=(), subtypes set) is removal
-                # of a creature / artifact / enchantment. Land-subtype-only destroys
-                # ("destroy target Island") route to land_destruction above and are
-                # excluded here (CR 305.6 — the lane's discriminator).
-                if (ftypes & _PERMANENT_TYPES) or _is_permanent_subtype_destroy(
-                    e.subject
+                # removal_matters: a SINGLE-TARGET destroy whose subject is a
+                # permanent TYPE, or (ADR-0027) a subtype-ONLY subject that names a
+                # permanent — "destroy target Wall/Equipment/Aura" (card_types=(),
+                # subtypes set) is removal of a creature / artifact / enchantment.
+                # Land-subtype-only destroys ("destroy target Island") route to
+                # land_destruction above and are excluded here (CR 305.6 — the lane's
+                # discriminator). The MASS form ("destroy ALL creatures" — DestroyAll,
+                # counter_kind=="all") is a BOARD WIPE, not single-target removal (CR
+                # 115.10 vs 115.1) — it is a distinct build axis and the regex lane
+                # (anchored on "destroy target …") excludes it, so the IR must too.
+                if e.counter_kind != "all" and (
+                    (ftypes & _PERMANENT_TYPES)
+                    or _is_permanent_subtype_destroy(e.subject)
                 ):
                     add("removal_matters", "you", "", e.raw)
-            # removal_matters (ADR-0027): a DAMAGE effect to a target creature /
+            # removal_matters (ADR-0027): a SINGLE-TARGET DAMAGE effect to a creature /
             # permanent (cat=='damage', subject a creature or other permanent type, or
             # a permanent subtype) is removal — Flame Slash, Crossbow Infantry, Nin
             # (op=count), Surgehacker (op=multiply), Hobbit's Sting (X). The regex
             # routed this only to direct_damage; the lane was never wired to damage.
-            # Discriminator vs over-fire: the damage SUBJECT must be a creature /
+            # Discriminators vs over-fire: (1) the damage SUBJECT must be a creature /
             # permanent (its card_types intersect _PERMANENT_TYPES OR it has a
             # permanent subtype) — a player/PW-only burn ("deal 3 to any target",
-            # subject=None or {Player}/{Planeswalker}) stays direct_damage, not removal.
-            if cat == "damage" and (
-                (ftypes & _PERMANENT_TYPES) or _is_permanent_subtype_destroy(e.subject)
+            # subject=None or {Player}/{Planeswalker}) stays direct_damage; (2) the MASS
+            # form ("deals N damage to EACH creature" — DamageAll, counter_kind=="all")
+            # is a board wipe, NOT the single-target burn the lane wants (CR 115.10 vs
+            # 115.1), and the regex lane (anchored on "to target creature/permanent")
+            # excludes it, so the IR must too.
+            if (
+                cat == "damage"
+                and e.counter_kind != "all"
+                and (
+                    (ftypes & _PERMANENT_TYPES)
+                    or _is_permanent_subtype_destroy(e.subject)
+                )
             ):
                 add("removal_matters", "you", "", e.raw)
             if cat == "exile" and ftypes & _PERMANENT_TYPES:
@@ -6353,6 +6365,28 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # value-paylife with no "if you do" anchor, a replacement-effect life loss).
         # NO-FLOOD held (only lifeloss_matters grew). See ADR-0027.
         "lifeloss_matters",
+        # removal_matters ← phase's `destroy` / `damage` effect with a SINGLE-TARGET
+        # permanent SUBJECT (card_types ∩ permanent types OR a permanent subtype, CR
+        # 115.1), the quoted-grant-ability recursion (an Aura/Equipment granting "{T}:
+        # Destroy/deal damage to target …" — Manriki-Gusari, Lavamancer's Skill), the
+        # subtype-only destroy ("destroy target Wall"), the modal destroy/damage bullet
+        # (subject recovered via the modal-split recursion), and the
+        # removal-target-subject recovery (Combo Attack, Broken Visage). The MASS form
+        # ("destroy/deal damage to EACH/ALL …" — DamageAll/DestroyAll, counter_kind ==
+        # "all") is a BOARD WIPE (CR 115.10), EXCLUDED here and served by the
+        # mass_removal lane; land destruction routes to land_destruction. NOT in
+        # _IR_FLOOR_LANES; floor-mirror-dep == 0 (floor-ON 2533 == floor-OFF 2533, the
+        # IR removal arm reads no floor detector). The deleted broad regex (the
+        # _HAND_FLOOR row + the SWEEP_DETECTORS row) over-fired by folding board wipes
+        # ("destroy all/each", "damage divided") and land destruction into removal —
+        # the A-B (regex-only) residual re-adjudicates to ~259/275 over-fire (mass /
+        # land / divided), the ~16 remaining genuine single-target gaps being niche
+        # sub-shapes (coin-flip-wrapped destroy, clone-exception grant, conditional
+        # edicts). NO-FLOOD held: the migration DROPS the 470 board-wipe/land over-fires
+        # and ADDS ~218 genuine single-target recall the narrow regex missed ("destroy
+        # X/two/any-number-of target", fight-style "deals damage equal to its power to
+        # target creature", granted Aura/Equipment removal). See ADR-0027.
+        "removal_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

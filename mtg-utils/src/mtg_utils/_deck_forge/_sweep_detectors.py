@@ -916,12 +916,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "spell_copy_matters",
         "regex": "copy target (?:permanent|creature|artifact|enchantment|sorcery|instant)[^.]* spell|copy target [^.]*spell you (?:control|cast)|copy (?:it|that spell) (?:three|two|\\d+) times|\\bcasualty\\b|\\breplicate\\b|\\bstorm\\b|\\bconspire\\b|copy that (?:card|spell)[^.]*you may cast (?:the|that) copy",
     },
-    {
-        "key": "removal_matters",
-        "scope": "you",
-        "is_widen_of": "removal_matters",
-        "regex": "destroy (?:up to (?:one|two|three) )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker|land|battle)|destroy target noncreature|destroy target enchanted creature|destroy (?:all|each)(?: non-?\\w+)? creatures?|deals? (?:\\d+|x) damage to target (?:[a-z]+ )*(?:creature|permanent|planeswalker)|deals? damage equal to [^.]* to target (?:[a-z]+ )*creature|deals? \\d+ damage divided[^.]*among [^.]*target|destroy up to (?:\\w+|x) target|destroy target (?:attacking|blocking|tapped|enchanted) [A-Za-z ]*creature|destroy target [A-Z][a-z]+\\b",
-    },
+    # ADR-0027: removal_matters migrated to the Card IR (single-target destroy/damage
+    # SUBJECT + quoted-grant recursion); this SWEEP_DETECTORS row is deleted. Its regex
+    # over-fired by folding board wipes ("destroy all/each", "damage divided") and land
+    # destruction into removal — the IR excludes those (mass_removal / land_destruction
+    # carry them). The destroy_legendary widen (is_widen_of removal_matters) is a
+    # DIFFERENT key and stays.
     {
         "key": "exile_removal",
         "scope": "you",

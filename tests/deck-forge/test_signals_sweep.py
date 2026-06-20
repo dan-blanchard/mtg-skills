@@ -19,9 +19,9 @@ from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
 def test_sweep_detectors_loaded():
     # The threshold drops as the ADR-0027 regex→IR strangler deletes SWEEP rows
     # (boast/exhaust/explore/phasing/end_the_turn/extra_end_step/trigger_doubling +
-    # lifeloss_matters + earlier batches migrated to the Card IR); it still guards "a
-    # substantial set loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 124
+    # lifeloss_matters + removal_matters + earlier batches migrated to the Card IR); it
+    # still guards "a substantial set loads", not an exact count.
+    assert len(SWEEP_DETECTORS) >= 123
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

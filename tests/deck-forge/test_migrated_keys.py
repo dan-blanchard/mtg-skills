@@ -1632,6 +1632,30 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # removal_matters ← a `damage` / `destroy` Effect with a SINGLE-TARGET permanent
+    # subject. Flame Slash deals 4 damage to a target Creature (phase emits a damage
+    # effect, Creature subject, scope "any"); the regex no longer fires the lane.
+    "removal_matters": (
+        {
+            "name": "Flame Slash",
+            "type_line": "Sorcery",
+            "oracle_text": "Flame Slash deals 4 damage to target creature.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="damage",
+                        scope="any",
+                        subject=Filter(card_types=("Creature",)),
+                        amount=Quantity(op="fixed", factor=4),
+                        raw="~ deals 4 damage to target creature.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # lifeloss_matters ← a structured `lose_life` Effect. Gray Merchant drains each
     # opponent (phase emits scope "any" for "each opponent loses N").
     "lifeloss_matters": (

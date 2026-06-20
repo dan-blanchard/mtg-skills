@@ -8,7 +8,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
 
 
 def _keys(card):
@@ -58,14 +58,41 @@ def test_flying_counter_is_keyword_counter():
     assert "keyword_counter" in _keys(c)
 
 
-# #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/damage.
+# #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/
+# damage. exile_removal is still regex-served; removal_matters migrated to the Card IR
+# (ADR-0027), so the regex no longer fires it — it is served via the hybrid IR path
+# from a single-target destroy Effect.
 def test_exile_removal_separate_from_destroy():
     ex = {"name": "X", "oracle_text": "Exile target creature."}
     de = {"name": "Y", "oracle_text": "Destroy target creature."}
     assert "exile_removal" in _keys(ex)
     assert "removal_matters" not in _keys(ex)
-    assert "removal_matters" in _keys(de)
+    # Regex no longer fires removal_matters (it is IR-served now).
+    assert "removal_matters" not in _keys(de)
     assert "exile_removal" not in _keys(de)
+    destroy_ir = Card(
+        oracle_id="y",
+        name="Y",
+        faces=(
+            Face(
+                name="Y",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="destroy",
+                                scope="any",
+                                subject=Filter(card_types=("Creature",)),
+                                raw="Destroy target creature.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "removal_matters" in {s.key for s in extract_signals_hybrid(de, destroy_ir)}
 
 
 # #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing.
