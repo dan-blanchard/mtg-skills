@@ -52,8 +52,9 @@ CASES = [
     # ADR-0027: ring_matters migrated to the Card IR (structural ring_tempt effect,
     # incl. the event='other' tempt trigger + the Ring-bearer raw-scan), so it is
     # asserted via the hybrid path below, not this regex CASES loop.
-    ("venture_matters", "you", "When this creature enters, venture into the dungeon."),
-    ("energy_matters", "you", "When this creature enters, you get {E}{E}."),
+    # ADR-0027: venture_matters + energy_matters migrated to the Card IR (the venture/
+    # energy effect categories + supplement markers), so they are proven via the hybrid
+    # path in test_migrated_keys, not this regex CASES loop.
     (
         "devotion_matters",
         "you",
@@ -524,11 +525,42 @@ def test_dice_rolling():
 
 
 def test_commit_a_crime():
+    # ADR-0027: crimes_matter migrated to the Card IR — the "Whenever you commit a
+    # crime" TRIGGER form binds via phase's commit_crime trigger event (the condition
+    # form rides a `crime` marker), read through the hybrid IR path, not the regex.
     c = {
         "name": "Vadmir-like",
-        "oracle_text": "Whenever you commit a crime, put a +1/+1 counter on this creature.",
+        "oracle_text": (
+            "Whenever you commit a crime, put a +1/+1 counter on this creature."
+        ),
     }
-    assert ("crimes_matter", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Vadmir-like",
+        faces=(
+            Face(
+                name="Vadmir-like",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="commit_crime", scope="you"),
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="p1p1",
+                                raw="put a +1/+1 counter on this creature",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("crimes_matter", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
+    assert ("crimes_matter", "you") not in _ks(c)
 
 
 def test_connive_keyword():

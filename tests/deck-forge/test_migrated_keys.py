@@ -1404,6 +1404,127 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Energy producer (Aether Hub) — phase's `energy` effect category lights the lane.
+    "energy_matters": (
+        {
+            "name": "Aether Hub",
+            "type_line": "Land",
+            "oracle_text": (
+                "When this land enters, you get {E} (an energy counter).\n"
+                "{T}: Add {C}.\n{T}, Pay {E}: Add one mana of any color."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you"),
+                effects=(
+                    Effect(
+                        category="energy",
+                        scope="you",
+                        raw="you get {E}",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Rad-counter maker (Nuclear Fallout) — the "rad counter(s)" clause phase mangles is
+    # recovered as a `rad_counter` dropped-static face marker (scope opponents).
+    "rad_counter_matters": (
+        {
+            "name": "Nuclear Fallout",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Each creature gets twice -X/-X until end of turn. Each player "
+                "gets X rad counters."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="rad_counter",
+                        scope="opp",
+                        raw="rad counters",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Suspect doer (Case of the Stashed Skeleton) — "suspect it" (the verb buried
+    # mid-clause) is recovered as a `suspect` dropped-static face marker.
+    "suspect_matters": (
+        {
+            "name": "Case of the Stashed Skeleton",
+            "type_line": "Enchantment — Case",
+            "oracle_text": (
+                "When this Case enters, create a 2/1 black Skeleton creature "
+                "token and suspect it. (It has menace and can't block.)\nTo "
+                "solve — You control no suspected Skeletons.\nSolved — {1}{B}, "
+                "Sacrifice this Case: Search your library for a card, put it "
+                "into your hand, then shuffle."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(Effect(category="suspect", scope="you", raw="suspect"),),
+            )
+        ),
+    ),
+    # Venture / dungeon payoff (Gloom Stalker) — the dungeon-completion gate is read off
+    # the condition kind 'completedadungeon'.
+    "venture_matters": (
+        {
+            "name": "Gloom Stalker",
+            "type_line": "Creature — Dwarf Ranger",
+            "oracle_text": (
+                "As long as you've completed a dungeon, this creature has "
+                "double strike."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                condition=Condition(kind="completedadungeon"),
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="you",
+                        raw="this creature has double strike",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Crime payoff (Oko, the Ringleader) — the condition-form "if you've committed a
+    # crime this turn" is recovered as a `crime` dropped-static face marker.
+    "crimes_matter": (
+        {
+            "name": "Oko, the Ringleader",
+            "type_line": "Legendary Planeswalker — Oko",
+            "oracle_text": (
+                "At the beginning of combat on your turn, Oko becomes a copy of "
+                "up to one target creature you control until end of turn, except "
+                "he has hexproof.\n+1: Draw two cards. If you've committed a "
+                "crime this turn, discard a card. Otherwise, discard two cards.\n"
+                "−1: Create a 3/3 green Elk creature token."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="crime",
+                        scope="you",
+                        raw="if you've committed a crime",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

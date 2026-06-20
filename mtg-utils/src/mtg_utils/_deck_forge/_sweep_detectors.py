@@ -748,13 +748,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # "fade" is dropped: fade counters are the Fading keyword's sacrifice clock
     # (CR 702.32), not a build-around payoff axis. The cross-type axis (proliferate)
     # already lives in proliferate_matters.
-    {
-        # rad counters go on PLAYERS (each player gets one), so scope "each".
-        "key": "rad_counter_matters",
-        "scope": "each",
-        "is_widen_of": "",
-        "regex": "\\brad counters?\\b",
-    },
+    # ADR-0027: rad_counter_matters migrated to the Card IR — phase's `rad_counter`
+    # effect category + a rad place_counter (counter_kind='rad') plus a `_RAD_REF`
+    # ("rad counter(s)") dropped-static face marker for the clauses phase mangles (the
+    # rad kind dropped to '', a counter_doubling, or a dropped clause). Removed from
+    # _IR_FLOOR_LANES; serve hand-registered in signal_specs reusing the deleted regex.
     {
         "key": "oil_counter_matters",
         "scope": "you",
@@ -936,12 +934,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "team_buff",
         "regex": "(?:you and )?other \\w+ you control have (?:hexproof|flying|trample|indestructible|protection|ward|deathtouch|lifelink|menace|vigilance|haste|first strike|double strike|reach)|(?:each |all )?creatures? you control(?: that[^.]*?)? (?:gain|gains|have|has) (?:indestructible|protection|hexproof|flying|trample|menace|deathtouch|lifelink|double strike|first strike|vigilance|haste|ward|reach)",
     },
-    {
-        "key": "venture_matters",
-        "scope": "you",
-        "is_widen_of": "venture_matters",
-        "regex": "\\bdungeons?\\b|room abilities",
-    },
+    # ADR-0027: venture_matters migrated to the Card IR — its SWEEP_DETECTORS widen row
+    # (dungeon / room-abilities oracle text) is deleted; the hand-registered serve spec
+    # in signal_specs carries the lane (the structural IR — venture effect + condition
+    # kind + trigger_doubling-over-dungeons + dropped-clause marker — does detection).
     {
         "key": "big_hand_matters",
         "scope": "you",

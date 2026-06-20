@@ -1809,14 +1809,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # are appended as `ring_tempt` marker effects by
     # project._narrow_trigger_other_refs. Its oracle-regex floor detector is deleted
     # and it is removed from _IR_FLOOR_LANES; the serve spec stays hand-registered.
-    (
-        "venture_matters",
-        re.compile(
-            r"venture into the dungeon|complete a dungeon|\bdungeon\b", re.IGNORECASE
-        ),
-        "you",
-    ),
-    ("energy_matters", re.compile(r"\{e\}|energy counters?", re.IGNORECASE), "you"),
+    # ADR-0027: venture_matters migrated to the Card IR — phase's venture/take-the-
+    # initiative effect category (_DOER_EFFECT_KEYS) + a condition-kind read
+    # (completedadungeon / isinitiative — Gloom Stalker, Imoen, Safana) + a
+    # trigger_doubling-over-dungeons read (Hama Pashar, Dungeon Delver) + a
+    # `_VENTURE_REF` dropped-clause marker (You Find a Cursed Idol, Fly, Dungeon
+    # Crawler). Removed from _IR_FLOOR_LANES; serve stays hand-registered. (CR 701.46.)
+    # ADR-0027: energy_matters migrated to the Card IR — phase's `energy` effect
+    # category (_DOER_EFFECT_KEYS, the gainenergy producers) + an `_ENERGY_REF` ({e})
+    # marker for the SINKS / "whenever you get {E}" payoffs / doublers phase loses.
+    # Removed from _IR_FLOOR_LANES; serve stays hand-registered. (CR 122.1.)
     ("devotion_matters", re.compile(r"devotion to \w", re.IGNORECASE), "you"),
     (
         "superfriends_matters",
@@ -2034,11 +2036,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "crimes_matter",
-        re.compile(r"commit(?:s|ted)? a crime|whenever you commit", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: crimes_matter migrated to the Card IR — phase's commit_crime trigger
+    # event (_PAYOFF_TRIGGER_KEYS, the "Whenever you commit a crime" trigger form) + a
+    # `_CRIME_REF`/`crime` marker for the condition-form payoff phase has no condition
+    # kind for ("(if|as long as) you've committed a crime this turn" — Oko, Nimble
+    # Brigand, Slickshot Vault-Buster, the Outlaws cost-reducers). Removed from
+    # _IR_FLOOR_LANES; serve stays hand-registered. (CR 701.49.)
     # ADR-0027: connive_matters migrated to the Card IR — phase's `connive` effect
     # category (self-conniving cards, _DOER_EFFECT_KEYS) + the `_CONNIVE_REF`
     # applied/granted marker, plus the Scryfall `connive` keyword (_IR_KEYWORD_MAP)
@@ -2366,13 +2369,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Scryfall `saddle` keyword (_DIRECT_KEYWORD_SIGNALS, a structured field that
     # survives). Its oracle-regex floor detector is deleted; the serve spec stays
     # hand-registered in signal_specs.py.
-    # Suspect (CR 701.60): a designation granting menace + can't-block. Key on the
-    # oracle term — the keyword[] field is incomplete here (misses Cases / instants).
-    (
-        "suspect_matters",
-        re.compile(r"\bsuspects?\b|\bsuspected\b", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: suspect_matters migrated to the Card IR — phase's `suspect` effect
+    # category (_DOER_EFFECT_KEYS, the leading-imperative suspect verb) + a
+    # `_SUSPECT_REF` marker for the verb buried mid-clause / in a granted ability and
+    # the "suspected" adjective form phase loses (the marker's "(?! counter)" excludes
+    # Investigator's Journal's "suspect counter" — a same-named COUNTER type, not the
+    # designation, CR 701.60b). Removed from _IR_FLOOR_LANES; serve hand-registered.
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
     # (Goreclaw), or a Ferocious-style "if you control a creature with power N or
@@ -3901,6 +3903,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # granter residual. CR 702.139 mutate, 702.97 scavenge.
     "mutate": ("mutate_matters", "you"),
     "scavenge": ("scavenge_fuel", "you"),
+    # ADR-0027 condition-form crime marker (project._dropped_static_markers): a
+    # "(if|as long as) you've committed a crime this turn" payoff phase has no
+    # condition kind for. The TRIGGER form ("Whenever you commit a crime") rides
+    # phase's commit_crime trigger event (_PAYOFF_TRIGGER_KEYS); this is the
+    # keyword-less condition-form payoff half (CR 701.49).
+    "crime": ("crimes_matter", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
@@ -4121,9 +4129,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "poison_matters",
         "oil_counter_matters",
         "shield_counter_matters",
-        "rad_counter_matters",
+        # rad_counter_matters removed — ADR-0027 migrated it to the Card IR (the
+        # `rad_counter` effect / rad place_counter + a "rad counter(s)" face marker).
         # resource / devotion
-        "energy_matters",
+        # energy_matters removed — ADR-0027 migrated it to the Card IR (phase's `energy`
+        # effect + a {e} face marker for the sinks/payoffs/doublers phase loses).
         "devotion_matters",
         # type / tribe / permanent-shape synergy
         "vehicles_matter",
@@ -4152,8 +4162,12 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "speed_matters",
         "stickers_matter",
         "attractions_matter",
-        "suspect_matters",
-        "venture_matters",
+        # suspect_matters removed — ADR-0027 migrated it to the Card IR (phase's
+        # `suspect` effect + a verb/"suspected" face marker; the marker's "(?! counter)"
+        # excludes Investigator's Journal's "suspect counter" same-named counter type).
+        # venture_matters removed — ADR-0027 migrated it to the Card IR (the venture/
+        # take-initiative effect + a completedadungeon/isinitiative condition read +
+        # a trigger_doubling-over-dungeons read + a venture/complete-a-dungeon marker).
         # foretell_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # foretell keyword + the "has foretell"/"you foretell" marker, plus the
         # Foretold-predicate payoff bind (Niko) and the "to foretell" enabler marker
@@ -4193,7 +4207,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # IR correctly excludes. Its _HAND_FLOOR detector is deleted.
         "dice_matters",
         "exalted_lone_attacker",
-        "crimes_matter",
+        # crimes_matter removed — ADR-0027 migrated it to the Card IR (phase's
+        # commit_crime trigger event + a `crime` condition-form marker for the
+        # "(if|as long as) you've committed a crime" payoff phase has no kind for).
         # scry_surveil_matters removed — ADR-0027 migrated it to the Card IR (the
         # scried/surveiled trigger events + the event='other' scry/surveil payoff
         # marker, plus the "if you would scry a number of cards" replacement marker
@@ -4602,6 +4618,13 @@ _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECA
 # granters ("<type> spells you cast have convoke") carry counter_kind='convoke' and
 # need no raw scan. The card's OWN printed convoke rides the keyword array.
 _CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
+
+# venture_matters (ADR-0027): a dungeon-DOUBLING payoff phase keeps as a
+# trigger_doubling effect whose raw names rooms/dungeons ("Room abilities of dungeons
+# you own trigger an additional time" — Hama Pashar, Dungeon Delver). The dungeon
+# qualifier survives only in raw, so anchor on it rather than firing on every
+# trigger_doubling (Panharmonicon is NOT a venture card).
+_DUNGEON_RAW = re.compile(r"\broom abilit|\bdungeon", re.IGNORECASE)
 
 # typed_anthem_multi (ADR-0027): phase drops the typed subject entirely on some pump
 # anthems (subject=None), so neither the AnyOf nor the 2+-subtypes structural guard
@@ -5237,6 +5260,11 @@ def extract_signals_ir(
             # trigger-doubling engine ("a triggered ability triggers an extra time").
             if cat == "trigger_doubling":
                 add("trigger_doubling", "you", "", e.raw)
+                # ADR-0027 — venture_matters DUNGEON-DOUBLING payoff: the trigger
+                # doubler is scoped to room/dungeon abilities (Hama Pashar, Dungeon
+                # Delver), so it's also a dungeon-completion payoff.
+                if _DUNGEON_RAW.search(e.raw or ""):
+                    add("venture_matters", "you", "", e.raw)
             # Batch 6 (flash_grant) — CastWithKeyword{Flash}: a flash ENABLER (cast
             # spells as though they had flash — Teferi, Yeva, Alchemist's Refuge).
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
@@ -5312,6 +5340,13 @@ def extract_signals_ir(
             # misses it; this lifts the ismonarch gate into the monarch lane.
             if cond.kind == "ismonarch":
                 add("monarch_matters", "you", "", "")
+            # ADR-0027 — venture_matters condition-kind PAYOFFS: a dungeon-completion
+            # ("as long as you've completed a dungeon" — Gloom Stalker) or initiative
+            # ("if you have the initiative" — Imoen, Safana) gate. phase has a stable
+            # enum kind for these; the venture verb lives in no effect category, so the
+            # condition gate is the structural anchor (CR 701.46 / 720).
+            if cond.kind in ("completedadungeon", "isinitiative"):
+                add("venture_matters", "you", "", "")
         # Trigger-gated graveyard_matters (the trigger-dimension projection): a
         # trigger on cards ENTERING the graveyard from a non-battlefield zone
         # (mill / "put into your graveyard from anywhere" — Syr Konrad) or LEAVING
@@ -5869,6 +5904,35 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "tapped_matters",
         "typed_anthem_multi",
         "life_total_set",
+        # Group "tail-supplement 4" (ADR-0027 projection deepening) — five floored
+        # synthesis-tail keys, all REMOVED from _IR_FLOOR_LANES; floor-mirror-dep == 0
+        # for each (the floor-dependent gap cards now bind structurally). NO-FLOOD held
+        # (only the target keys grew; no non-target key moved). Each key's oracle-regex
+        # producer is deleted; serve specs stay hand-registered. See ADR-0027.
+        #   energy_matters ← phase's `energy` effect (gainenergy producers) + an
+        #                `_ENERGY_REF` ({e}) marker for the sinks / "whenever you get
+        #                {E}" payoffs / doublers phase loses. {e} is unambiguous (real
+        #                energy cards only).
+        #   rad_counter_matters ← phase's `rad_counter` effect / rad place_counter + a
+        #                `_RAD_REF` ("rad counter(s)") marker for the clauses phase
+        #                mangles (rad kind dropped to '', counter_doubling, dropped).
+        #   suspect_matters ← phase's `suspect` effect (leading-verb) + a `_SUSPECT_REF`
+        #                marker for the verb mid-clause/granted + the "suspected" state.
+        #                The "(?! counter)" drops Investigator's Journal's "suspect
+        #                counter" (a same-named counter type, CR 701.60b).
+        #   venture_matters ← phase's venture/take-initiative effect + a
+        #                completedadungeon/isinitiative condition read + a
+        #                trigger_doubling-over-dungeons read + a `_VENTURE_REF`
+        #                dropped-clause marker (gated out of a restriction effect so
+        #                Keen-Eared Sentry's opponent anti-venture hate stays out).
+        #   crimes_matter ← phase's commit_crime trigger event (the trigger form) + a
+        #                `crime` condition-form marker ("(if|as long as) you've
+        #                committed a crime") for the payoff phase has no kind for.
+        "energy_matters",
+        "rad_counter_matters",
+        "suspect_matters",
+        "venture_matters",
+        "crimes_matter",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

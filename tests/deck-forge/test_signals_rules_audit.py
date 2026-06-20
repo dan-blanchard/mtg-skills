@@ -213,9 +213,33 @@ def test_mv_scaling_burn_still_opens_noncombat():
 # rad commander must not open oil/ki/shield, and shield (122.1c, excluded from
 # keyword_counter) has its own home. fade is dropped (Fading clock, CR 702.32).
 def test_named_counters_are_separate_lanes():
+    # ADR-0027: rad_counter_matters migrated to the Card IR — "rad counter(s)" phase
+    # mangles, recovered by a `rad_counter` marker, read through the hybrid IR path.
     rad = {"name": "X", "oracle_text": "Each player gets a rad counter."}
+    rad_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="rad_counter",
+                                scope="opp",
+                                raw="rad counter",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "rad_counter_matters" in {s.key for s in extract_signals_hybrid(rad, rad_ir)}
     k = _keys(rad)
-    assert "rad_counter_matters" in k
+    assert "rad_counter_matters" not in k  # regex path no longer produces it
     assert "oil_counter_matters" not in k
     assert "shield_counter_matters" not in k
     assert "named_counter_mechanic" not in k  # the old junk-drawer key is gone

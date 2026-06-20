@@ -3349,6 +3349,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bconvoke\b"},
         r"\bconvoke\b",
     ),
+    # ADR-0027: rad_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — phase's `rad_counter` effect / rad place_counter
+    # + a "rad counter(s)" face marker). The IR fires scope "opponents" (rad counters go
+    # on players as a kill clock). Serve hand-registered reusing the deleted regex.
+    ("rad_counter_matters", "opponents"): _spec(
+        *SWEEP_LABELS["rad_counter_matters"],
+        {"oracle": r"\brad counters?\b"},
+        r"\brad counters?\b",
+    ),
     ("myriad_grant", "you"): _spec(
         *SWEEP_LABELS["myriad_grant"],
         {"oracle": r"gains? myriad|\bmyriad\b"},

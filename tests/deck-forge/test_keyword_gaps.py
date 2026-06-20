@@ -726,5 +726,30 @@ class TestSuspectMatters:
     }
 
     def test_suspect_commander_emits_and_served(self):
-        assert "suspect_matters" in _keys(self.NELLY)
+        # ADR-0027: suspect_matters migrated to the Card IR — Nelly's "suspect target
+        # creature" is phase's `suspect` effect category, read through the hybrid IR
+        # path. The serve pool stays oracle-defined (the hand spec).
+        ir = Card(
+            oracle_id="x",
+            name="Nelly Borca, Impulsive Accuser",
+            faces=(
+                Face(
+                    name="Nelly Borca, Impulsive Accuser",
+                    abilities=(
+                        Ability(
+                            kind="triggered",
+                            effects=(
+                                Effect(
+                                    category="suspect",
+                                    scope="you",
+                                    raw="suspect target creature",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        assert "suspect_matters" in _keys_hybrid(self.NELLY, ir)
+        assert "suspect_matters" not in _keys(self.NELLY)
         assert serves(self.NELLY, _sig("suspect_matters", "you"))
