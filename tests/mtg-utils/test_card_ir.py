@@ -1505,6 +1505,85 @@ def test_quoted_grant_to_opponent_permanents_is_excluded():
     assert "destroy" not in cats
 
 
+def test_damage_all_carries_mass_counter_kind_tell():
+    """DamageAll ("deals N damage to each creature" — Breath Weapon) carries the
+    counter_kind='all' mass tell so the single-target removal_matters arm (CR 115.1)
+    can exclude the board-wipe form (CR 115.10)."""
+    rec = {
+        "name": "Breath Weapon",
+        "scryfall_oracle_id": "id-breath",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": "Breath Weapon deals 2 damage to each non-Dragon creature.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "DamageAll",
+                    "amount": {"type": "Fixed", "value": 2},
+                    "target": {"type": "Typed", "type_filters": ["Creature"]},
+                },
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "damage")
+    assert e.counter_kind == "all"
+
+
+def test_destroy_all_carries_mass_counter_kind_tell():
+    """DestroyAll ("destroy all creatures" — a board wipe) carries the
+    counter_kind='all' mass tell so removal_matters excludes it (it is a board_wipe
+    axis, not single-target removal)."""
+    rec = {
+        "name": "Day of Judgment",
+        "scryfall_oracle_id": "id-doj",
+        "card_type": {"core_types": ["Sorcery"]},
+        "oracle_text": "Destroy all creatures.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "DestroyAll",
+                    "target": {"type": "Typed", "type_filters": ["Creature"]},
+                },
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "destroy")
+    assert e.counter_kind == "all"
+
+
+def test_post_supplement_recovers_removal_target_subject():
+    """Combo Attack: "deal damage … to target creature" is an Unimplemented effect
+    phase leaves as `other`; the supplement re-derives the `damage` category, and the
+    POST-supplement removal-target-subject pass rebuilds the single-target Creature
+    subject so removal_matters can read it (the pre-supplement pass ran before the
+    category existed)."""
+    rec = {
+        "name": "Combo Attack",
+        "scryfall_oracle_id": "id-combo",
+        "card_type": {"core_types": ["Instant"]},
+        "oracle_text": (
+            "Two target creatures your team controls each deal damage equal to "
+            "their power to target creature."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Unimplemented",
+                    "description": (
+                        "Two target creatures your team controls each deal damage "
+                        "equal to their power to target creature."
+                    ),
+                },
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "damage")
+    assert e.subject is not None
+    assert "Creature" in e.subject.card_types
+
+
 # ── mass zone-move tell (ADR-0027 type-payoff recursion) ──────────────────────
 
 

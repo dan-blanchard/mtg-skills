@@ -268,7 +268,12 @@ _EFFECT_CATEGORY: dict[str, str] = {
 # bounce alone — pumpall / the tap variants are read by the creatures go-wide arm via
 # its generic-set gate, not counter_kind, so marking them here would be inert noise.
 # ChangeZoneAll is marked in _changezone_effect (its own zone-routing handler).
-_MASS_EFFECT_TYPES = frozenset({"bounceall"})
+# DamageAll / DestroyAll carry the same counter_kind="all" mass tell so the single-
+# target removal_matters arm (CR 115.1) can exclude the board-wipe form (CR 115.10):
+# "deals N damage to EACH creature" / "destroy ALL creatures" is a board wipe, not
+# the single-target destroy/burn the lane wants. The destroy arm's OTHER consumers
+# (land_destruction / kill_engine read the type, not counter_kind) are unaffected.
+_MASS_EFFECT_TYPES = frozenset({"bounceall", "damageall", "destroyall"})
 
 # Batch 14 — AdditionalPhase.phase → the extra-phase category (distinct lanes).
 _EXTRA_PHASE: dict[str, str] = {
@@ -335,6 +340,27 @@ def project_card(records: list[dict]) -> Card:
         many_copies=_allows_many_copies(records[0]),
     )
     card = supplement_card(card)
+    # Post-supplement removal target-subject recovery (ADR-0027 removal_matters
+    # shape 3): the supplement re-derives a `damage` / `destroy` CATEGORY from a
+    # GenericEffect / Unimplemented body the projection left as `other` (Combo
+    # Attack's "deal damage … to target creature", Broken Visage's "destroy target
+    # … attacking creature"), but its SUBJECT stays None — the pre-supplement
+    # _recover_removal_target_subject pass ran before the category existed. Re-run it
+    # over the supplemented faces so the single-target creature/permanent subject is
+    # rebuilt and removal_matters fires. Append-only on subject (a structured subject
+    # is never overwritten); idempotent (an already-subject'd effect is untouched).
+    card = replace(
+        card,
+        faces=tuple(
+            replace(
+                face,
+                abilities=tuple(
+                    _recover_removal_target_subject(a) for a in face.abilities
+                ),
+            )
+            for face in card.faces
+        ),
+    )
     return replace(card, parse_confidence=_confidence(card))
 
 
