@@ -150,10 +150,64 @@ def test_noncombat_damage_to_opponent_excluded():
 
 # #12 Food keys on the Food-token mechanic, not the bare word.
 def test_food_token_fires():
-    assert "food_matters" in _keys({"name": "X", "oracle_text": "Create a Food token."})
-    assert "food_matters" in _keys(
-        {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
+    # ADR-0027: food_matters migrated to the Card IR — a Food-subtype make_token MAKER
+    # and a "Sacrifice a Food" SAC PAYOFF open the lane via _TOKEN_SUBTYPE_KEYS through
+    # the hybrid, not the deleted regex.
+    maker = {"name": "X", "oracle_text": "Create a Food token."}
+    maker_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Artifact",), subtypes=("Food",)
+                                ),
+                                raw="Create a Food token.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
+    assert "food_matters" in {s.key for s in extract_signals_hybrid(maker, maker_ir)}
+    assert "food_matters" not in _keys(maker)
+    sac = {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
+    sac_ir = Card(
+        oracle_id="y",
+        name="Y",
+        faces=(
+            Face(
+                name="Y",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="sacrifice",
+                        effects=(
+                            Effect(
+                                category="sacrifice",
+                                scope="you",
+                                subject=Filter(
+                                    subtypes=("Food",), predicates=("Token",)
+                                ),
+                                raw="Sacrifice a Food",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "food_matters" in {s.key for s in extract_signals_hybrid(sac, sac_ir)}
+    assert "food_matters" not in _keys(sac)
 
 
 # #13 stun (CR 122.1d) and shield (122.1c) counters are replacement-effect counters

@@ -1968,6 +1968,60 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Food maker (Trail of Crumbs) — the Food-subtype make_token opens the lane via
+    # _TOKEN_SUBTYPE_KEYS (the same structural read blood_matters uses).
+    "food_matters": (
+        {
+            "name": "Gingerbrute",
+            "type_line": "Artifact Creature — Food Golem",
+            "oracle_text": (
+                "{1}: Gingerbrute can't be blocked this turn except by "
+                "creatures with haste.\n{2}, {T}, Sacrifice Gingerbrute: You "
+                "gain 3 life."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        subject=Filter(card_types=("Artifact",), subtypes=("Food",)),
+                        raw="create a Food token",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Treasure maker (Dockside Extortionist) — the Treasure-subtype make_token opens
+    # the lane via _TOKEN_SUBTYPE_KEYS.
+    "treasure_matters": (
+        {
+            "name": "Dockside Extortionist",
+            "type_line": "Creature — Goblin Pirate",
+            "oracle_text": (
+                "When this creature enters, create a number of Treasure tokens "
+                "equal to the number of artifacts and enchantments your "
+                "opponents control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Artifact",), subtypes=("Treasure",)
+                        ),
+                        raw="create a number of Treasure tokens",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

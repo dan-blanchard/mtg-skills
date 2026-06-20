@@ -1578,11 +1578,41 @@ def test_fblthp_free_plot_opens_for_zero_cost():
 
 
 def test_treasure_matters():
+    # ADR-0027: treasure_matters migrated to the Card IR — a Treasure-subtype make_token
+    # opens the lane via _TOKEN_SUBTYPE_KEYS through the hybrid, not the deleted regex.
     c = {
         "name": "Goldspan-like",
         "oracle_text": "Whenever this creature attacks, create a Treasure token.",
     }
-    assert ("treasure_matters", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Goldspan-like",
+        faces=(
+            Face(
+                name="Goldspan-like",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="attacks"),
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Artifact",), subtypes=("Treasure",)
+                                ),
+                                raw="create a Treasure token",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("treasure_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
+    assert ("treasure_matters", "you") not in _ks(c)
 
 
 def test_artifacts_matter():
@@ -3075,6 +3105,9 @@ def test_treasure_care_opens_treasure_matters():
     # permanent was a Treasure" (Evereth), "sacrifice a Treasure" (Kain) — is a Treasure
     # deck wanting Treasure makers/doublers (Academy Manufactor, Xorn). The detector
     # keyed on "create ... Treasure" / "Treasures you control" and missed these.
+    # ADR-0027: treasure_matters migrated to the Card IR — the "was a Treasure" care is
+    # a `token_subtype_ref` marker (subtype in counter_kind) read via _TOKEN_SUBTYPE_KEYS
+    # through the hybrid, not the deleted regex.
     evereth = {
         "name": "Evereth, Viceroy of Plunder",
         "type_line": "Legendary Creature — Human Pirate",
@@ -3084,10 +3117,36 @@ def test_treasure_care_opens_treasure_matters():
             "lifelink until end of turn. Activate only as a sorcery."
         ),
     }
-    assert ("treasure_matters", "you") in _ks(evereth)
+    evereth_ir = Card(
+        oracle_id="x",
+        name="Evereth, Viceroy of Plunder",
+        faces=(
+            Face(
+                name="Evereth, Viceroy of Plunder",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="token_subtype_ref",
+                                scope="you",
+                                counter_kind="treasure",
+                                raw="was a Treasure",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("treasure_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(evereth, evereth_ir)
+    }
+    assert ("treasure_matters", "you") not in _ks(evereth)
     # Over-fire guard: a vanilla creature is not a Treasure commander.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert ("treasure_matters", "you") not in _ks(bear)
+    assert ("treasure_matters", "you") not in _ks_hybrid(bear)
 
 
 def test_mana_ability_payoff_opens_ramp():

@@ -1477,18 +1477,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bcharge counter|\bexperience counter", re.IGNORECASE),
         "you",
     ),
-    (
-        "treasure_matters",
-        re.compile(
-            r"create (?:a|an|one|two|three|four|five|\d+|x)[^.]*?\btreasure token"
-            r"|\btreasures? you control\b"
-            # Treasure-CARE without making it: "if the sacrificed permanent was a
-            # Treasure" (Evereth), "sacrifice a Treasure" (Kain) — a Treasure deck.
-            r"|sacrifice a treasure|(?:was|were) (?:a |an )?treasures?\b",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: treasure_matters migrated to the Card IR — detected structurally like
+    # blood_matters: a Treasure-subtype make_token maker (incl. the die-roll/vote/choice
+    # branch + Aftermath-DFC recovery), a "Sacrifice a Treasure" SAC PAYOFF, and a
+    # `token_subtype_ref` "Treasures you control" / "was a Treasure" cares-about marker
+    # (project._narrow_token_subtype_makers + _dropped_static_markers). Removed from
+    # _IR_FLOOR_LANES; floor-mirror-dep == 0. The structural IR is broader-and-correct
+    # recall (the make_token-SUBJECT Treasure makers the "create … treasure token" regex
+    # missed — Old Gnawbone, Prismari Command, Wanted Scoundrels). This _HAND_FLOOR
+    # producer is deleted; the hand-written serve spec survives.
     (
         "artifacts_matter",
         re.compile(
@@ -1842,17 +1839,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # marker for the keyword-less cast-payoff ("if it has mutate" —
     # project._narrow_payoff_condition_refs, read via _DOER_EFFECT_KEYS; Pollywog
     # Symbiote). This _HAND_FLOOR producer is deleted; the serve spec stays.
-    (
-        # Anchor on the Food-token mechanic (CR 111.10), like its sibling token axes,
-        # not the bare word.
-        "food_matters",
-        re.compile(
-            r"\bfood token|create (?:a|an|one|two|three|x|\d+)[^.]*?\bfood\b"
-            r"|sacrifice a food|foods? you control",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: food_matters migrated to the Card IR — detected structurally like
+    # blood_matters: a Food-subtype make_token maker (incl. the die-roll/vote/choice
+    # branch + Aftermath-DFC recovery), a "Sacrifice a Food" SAC PAYOFF, and a
+    # `token_subtype_ref` "Foods you control" / "is a Food" cares-about marker
+    # (project._narrow_token_subtype_makers + _dropped_static_markers). Removed from
+    # _IR_FLOOR_LANES; floor-mirror-dep == 0. This _HAND_FLOOR producer is deleted; the
+    # hand-written serve spec survives.
     ("clue_matters", re.compile(r"\bclue\b|\binvestigate\b", re.IGNORECASE), "you"),
     # ADR-0027: blood_matters migrated to the Card IR — detected structurally from a
     # Blood-subtype maker (make_token subject), a Blood SACRIFICE PAYOFF (a sacrifice
@@ -4144,8 +4137,14 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
     {
         # token-type synergy
         "clue_matters",
-        "treasure_matters",
-        "food_matters",
+        # food_matters / treasure_matters removed — ADR-0027 migrated them to the Card
+        # IR (the generalized blood_matters widening: Food/Treasure-subtype make_token
+        # makers incl. the die-roll/vote/choice branch + Aftermath-DFC recovery, a
+        # "Sacrifice a Food/Treasure" SAC PAYOFF, and a `token_subtype_ref` "Foods/
+        # Treasures you control" cares-about marker). Removed from _IR_FLOOR_LANES;
+        # floor-mirror-dep == 0. Their _HAND_FLOOR detectors are deleted; serve specs
+        # survive. clue_matters keeps its floor (its "investigate" arm has no structural
+        # IR form yet).
         # blood_matters removed — ADR-0027 migrated it to the Card IR (Blood-subtype
         # makers + the sacrifice-Effect/Trigger subject widening + the choose-list /
         # granted-ability maker recovery), so it fires from the STRUCTURAL IR alone
@@ -6567,6 +6566,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Harpooner, Skophos Maze-Warden — granted/token fights the narrow regex
         # missed). Its SWEEP_DETECTORS row is deleted; serve hand-spec'd. CR 701.12.
         "fight_matters",
+        # food_matters / treasure_matters ← the generalized blood_matters token-subtype
+        # widening: a Food/Treasure-subtype make_token MAKER (the die-roll/vote/choice
+        # branch + the Aftermath-DFC face fallback), a "Sacrifice a Food/Treasure" SAC
+        # PAYOFF, and a `token_subtype_ref` "Foods/Treasures you control" / "was a
+        # Treasure" / "is a Food" CARES-ABOUT marker (project._narrow_token_subtype_
+        # makers + _dropped_static_markers, read via _TOKEN_SUBTYPE_KEYS). REMOVED from
+        # _IR_FLOOR_LANES; floor-mirror-dep == 0 (floor-ON == floor-OFF: 157/324).
+        # NO-FLOOD held (token_maker/tokens_matter/creatures_matter unchanged — the
+        # markers route ONLY through _TOKEN_SUBTYPE_KEYS to the 4 subtype lanes). The
+        # migration is broader-and-correct recall (+4 food sac-payoffs / +27 treasure
+        # make_token-SUBJECT makers the narrow "create … <Subtype> token" regex missed —
+        # Old Gnawbone, Prismari Command, Wanted Scoundrels). CR 111.10 / 701.16.
+        "food_matters",
+        "treasure_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

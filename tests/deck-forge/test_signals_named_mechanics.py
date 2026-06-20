@@ -76,11 +76,9 @@ CASES = [
     # hybrid path below, not this regex CASES loop.
     ("poison_matters", "opponents", "This creature has infect."),
     ("modified_matters", "you", "Modified creatures you control get +1/+1."),
-    (
-        "food_matters",
-        "you",
-        "Whenever you sacrifice a Food, each opponent loses 1 life.",
-    ),
+    # ADR-0027: food_matters / treasure_matters migrated to the Card IR (the token-
+    # subtype synergy widening reads make_token / sacrifice subjects), so they are
+    # asserted via the hybrid path in test_migrated_keys, not this regex CASES loop.
     ("clue_matters", "you", "Whenever you investigate, draw a card."),
     # ADR-0027: blood_matters migrated to the Card IR (the token-subtype synergy
     # widening reads sacrifice subjects), so it is asserted via the hybrid path
