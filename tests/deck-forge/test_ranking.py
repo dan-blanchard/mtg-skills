@@ -1,7 +1,14 @@
 """Tests for transparent multi-axis candidate ranking (D6)."""
 
-from mtg_utils._deck_forge.ranking import rank_candidates, score_candidate
+from mtg_utils._deck_forge.ranking import (
+    _ability_is_payoff,
+    _clause_role,
+    _clause_role_regex,
+    rank_candidates,
+    score_candidate,
+)
 from mtg_utils._deck_forge.signals import Signal
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 # ── Depth-over-breadth synergy (synergy_score) ───────────────────────────────
@@ -400,3 +407,207 @@ def test_partner_widening_synergy_breaks_ties_within_a_widening_tier():
     )
     assert [r["card"]["name"] for r in ranked] == ["Adds G + synergy", "Adds W only"]
     assert {r["score"]["color_widening"] for r in ranked} == {1}
+
+
+# ── Card IR role clustering (ADR-0027, A3) ───────────────────────────────────
+# The synthetic dict fixtures above carry no oracle_id, so they exercise the
+# regex fallback (``ir is None``). These tests exercise the IR path by injecting a
+# constructed ``Card`` IR via ``_ir_resolved`` — the same join ``rank_candidates``
+# does by oracle_id at runtime. They assert the structured classifier mirrors the
+# regex tiers where both agree, and is strictly MORE accurate where the regex
+# over-/under-fires (the ADR's "adjudicated correctness, not regex parity").
+
+
+def _ir(*abilities: Ability) -> Card:
+    """A single-face Card IR carrying the given abilities."""
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=abilities),))
+
+
+def _your_creatures(**kw) -> Filter:
+    return Filter(card_types=("Creature",), controller="you", **kw)
+
+
+def test_ir_triggered_reward_is_a_payoff():
+    # Blood-Artist shape: a death trigger draining each opponent — a reward.
+    drain = Ability(
+        kind="triggered",
+        trigger=Trigger(event="dies"),
+        effects=(
+            Effect(category="lose_life", scope="any", raw="target player loses 1 life"),
+            Effect(category="gain_life", scope="any", raw="you gain 1 life"),
+        ),
+    )
+    assert _ability_is_payoff(drain) is True
+
+
+def test_ir_token_maker_is_an_enabler_not_a_payoff():
+    # CR 111.1: creating a creature token is generative fodder, not a reward.
+    etb_token = Ability(
+        kind="triggered",
+        trigger=Trigger(event="etb"),
+        effects=(
+            Effect(
+                category="make_token",
+                subject=Filter(card_types=("Creature",), subtypes=("Soldier",)),
+                raw="create a 1/1 Soldier creature token",
+            ),
+        ),
+    )
+    assert _ability_is_payoff(etb_token) is False
+
+
+def test_ir_activated_strong_reward_is_a_payoff_but_self_pump_is_not():
+    # Walking Ballista: "Remove a counter: deal 1 damage" — activated strong reward.
+    ping = Ability(
+        kind="activated",
+        cost="removecounter",
+        effects=(Effect(category="damage", raw="deals 1 damage to any target"),),
+    )
+    # A bare self-pump activation ("{4}: put a +1/+1 counter on this") is NOT a payoff.
+    self_pump = Ability(
+        kind="activated",
+        cost="mana",
+        effects=(Effect(category="place_counter", counter_kind="p1p1", raw="..."),),
+    )
+    assert _ability_is_payoff(ping) is True
+    assert _ability_is_payoff(self_pump) is False
+
+
+def test_ir_static_team_anthem_is_a_payoff_across_ability_kinds():
+    # A static anthem over YOUR creatures, and the same buff off a planeswalker
+    # loyalty (activated) ability — both are anthem payoffs (Sorin's +1).
+    static_anthem = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="pump",
+                subject=_your_creatures(),
+                raw="Creatures you control get +1/+1.",
+            ),
+        ),
+    )
+    loyalty_anthem = Ability(
+        kind="activated",
+        effects=(
+            Effect(
+                category="grant_keyword",
+                counter_kind="lifelink",
+                subject=_your_creatures(),
+                raw="creatures you control get +1/+0 and gain lifelink",
+            ),
+        ),
+    )
+    # An EQUIPMENT buff ("Equipped creature gets …", controller 'any') is NOT an
+    # anthem — it pumps one creature, so it stays an enabler.
+    equip_buff = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="pump",
+                subject=Filter(card_types=("Creature",), controller="any"),
+                raw="Equipped creature gets +1/+2.",
+            ),
+        ),
+    )
+    assert _ability_is_payoff(static_anthem) is True
+    assert _ability_is_payoff(loyalty_anthem) is True
+    assert _ability_is_payoff(equip_buff) is False
+
+
+def test_ir_clause_role_credits_tribal_anthem_the_regex_misses():
+    # "Sliver creatures you control have vigilance" — a real typed anthem the
+    # regex (_STATIC_PAYOFF_RE, which needs "creatures you control get/…") misses.
+    clause = "Sliver creatures you control have vigilance."
+    sliver_anthem = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="grant_keyword",
+                    counter_kind="vigilance",
+                    subject=_your_creatures(subtypes=("Sliver",)),
+                    raw=clause,
+                ),
+            ),
+        )
+    )
+    payoff_raws = ["sliver creatures you control have vigilance"]
+    assert _clause_role_regex(clause) == "enabler"  # regex under-fires
+    assert _clause_role(clause, sliver_anthem, payoff_raws) == "payoff"
+
+
+def test_ir_path_does_not_scramble_ranked_order():
+    # The injected IR path must keep the aristocrats order the regex path produces
+    # (payoffs above box-tickers) — equivalent-or-better, never scrambled.
+    bastion_ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb"),
+            effects=(
+                Effect(
+                    category="make_token",
+                    subject=Filter(card_types=("Creature",), subtypes=("Soldier",)),
+                    raw="When this enchantment enters, create a 1/1 white Human "
+                    "Soldier creature token.",
+                ),
+            ),
+        ),
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="dies"),
+            effects=(
+                Effect(
+                    category="lose_life",
+                    scope="any",
+                    raw="Whenever a creature you control dies, each opponent loses "
+                    "1 life and you gain 1 life.",
+                ),
+                Effect(
+                    category="gain_life",
+                    scope="any",
+                    raw="Whenever a creature you control dies, each opponent loses "
+                    "1 life and you gain 1 life.",
+                ),
+            ),
+        ),
+    )
+    elven_bow_ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb"),
+            effects=(
+                Effect(
+                    category="make_token",
+                    subject=Filter(card_types=("Creature",), subtypes=("Elf",)),
+                    raw="When this Equipment enters, you may pay {2}. If you do, "
+                    "create a 1/1 green Elf Warrior creature token, then attach "
+                    "this Equipment to it.",
+                ),
+            ),
+        ),
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    subject=Filter(card_types=("Creature",), controller="any"),
+                    raw="Equipped creature gets +1/+2 and has reach.",
+                ),
+            ),
+        ),
+    )
+    bastion = score_candidate(
+        _BASTION,
+        active_signals=_ARI_SIGNALS,
+        focus_sets=_ARI_FOCUS,
+        _ir_resolved=(bastion_ir,),
+    )["synergy_score"]
+    elven_bow = score_candidate(
+        _ELVEN_BOW,
+        active_signals=_ARI_SIGNALS,
+        focus_sets=_ARI_FOCUS,
+        _ir_resolved=(elven_bow_ir,),
+    )["synergy_score"]
+    # The real death-payoff outscores the incidental token-equipment (the crux),
+    # exactly as the regex path does — the IR clusters by structured ability.
+    assert bastion > elven_bow
