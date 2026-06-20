@@ -2598,6 +2598,42 @@ _LIFE_TOTAL_SET = re.compile(
 # one") never says "do so" or "must be blocked … if able", so it can't match.
 _LURE_ABLE = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
 _LURE_MUST = re.compile(r"\bmust be blocked\b[^.]*?\bif able\b", re.IGNORECASE)
+# Energy ({E}, CR 122.1) phase loses on a SINK ("pay {E}", "Replicate—Pay {E}{E}{E}",
+# "unless you pay {E}"), a "Whenever you get one or more {E}" PAYOFF trigger (flattened
+# to event='other'), or a replacement/doubler ("get that many plus one {E} instead").
+# The {e} symbol is an unambiguous anchor — it appears only on real energy cards (no
+# reminder/flavor/adjacent-mechanic collision) — so a single broad marker is safe.
+_ENERGY_REF = re.compile(r"\{e\}", re.IGNORECASE)
+# Rad counters (CR 122, Fallout) phase mangles: a place_counter with the rad kind
+# dropped (counter_kind=''), a counter_doubling, or a clause dropped entirely. phase's
+# player-counter-kind projection is unreliable here, so anchor on the literal phrase —
+# "rad counter(s)" appears only on real rad cards.
+_RAD_REF = re.compile(r"\brad counters?\b", re.IGNORECASE)
+# Suspect (CR 701.60) phase emits only on the leading imperative verb. The verb buried
+# mid-clause / in a granted ability ("…and suspect it", "suspect up to one target") and
+# the adjective/state form ("suspected creature") survive only in raw. Anchored on the
+# verb (NOT followed by "counter" — Investigator's Journal's "suspect counter" is a
+# same-named COUNTER type, not the Suspect designation, CR 701.60b) or "suspected".
+_SUSPECT_REF = re.compile(r"\bsuspects?\b(?! counter)|\bsuspected\b", re.IGNORECASE)
+# Venture / dungeon-completion (CR 701.46) phase drops on a non-primary modal mode (You
+# Find a Cursed Idol), a granted nested ability (Fly), or an unrecognized "complete a
+# dungeon" trigger (Dungeon Crawler). Anchored on the venture/complete verb phrase;
+# gated OUT of a `restriction` effect (Keen-Eared Sentry's opponent-scoped anti-venture
+# hate is not a venture enabler/payoff for the controller).
+_VENTURE_REF = re.compile(
+    r"\bventure into the dungeon\b|\bcomplete a dungeon\b", re.IGNORECASE
+)
+# Crimes (CR 701.49, Outlaws) in CONDITION form — "(if|as long as) you've committed a
+# crime this turn" / a cost reduction "if you've committed a crime" — the dominant
+# crime-PAYOFF template phase has no condition kind for (it flattens the crime check
+# into a quantitycomparison condition or drops it into raw). The TRIGGER form ("Whenever
+# you commit a crime") already binds via phase's commit_crime trigger event; this is the
+# keyword-less condition-form payoff. Anchored on the explicit "committed a crime".
+_CRIME_REF = re.compile(
+    r"(?:if|as long as|whenever) you'?ve committed a crime"
+    r"|committed a crime this turn",
+    re.IGNORECASE,
+)
 # Counter a spell/ability (CR 701.5) buried where phase loses it: a modal mode body
 # ("• Counter target creature spell" — Fangkeeper's Familiar, Ertai Resurrected,
 # phase keeps only the `choose` header), a granted/quoted Aura ability ("Enchanted
@@ -2675,6 +2711,54 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
         m = _LURE_ABLE.search(text) or _LURE_MUST.search(text)
         if m is not None:
             markers.append(Effect(category="lure", scope="you", raw=m.group(0)))
+    # Energy sink / payoff / replacement phase loses → an energy marker, gated to faces
+    # with no structural energy effect.
+    has_energy = any(e.category == "energy" for a in abilities for e in a.effects)
+    if not has_energy and (m := _ENERGY_REF.search(text)) is not None:
+        markers.append(Effect(category="energy", scope="you", raw=m.group(0)))
+    # Rad-counter clause phase mangled/dropped → a rad_counter marker, gated to faces
+    # with no structural rad place_counter / rad_counter effect.
+    has_rad = any(
+        e.category == "rad_counter"
+        or (e.category == "place_counter" and e.counter_kind == "rad")
+        for a in abilities
+        for e in a.effects
+    )
+    if not has_rad and (m := _RAD_REF.search(text)) is not None:
+        markers.append(Effect(category="rad_counter", scope="opp", raw=m.group(0)))
+    # Suspect verb (mid-clause / granted) or "suspected" state phase loses → a suspect
+    # marker, gated to faces with no structural suspect effect.
+    has_suspect = any(e.category == "suspect" for a in abilities for e in a.effects)
+    if not has_suspect and (m := _SUSPECT_REF.search(text)) is not None:
+        markers.append(Effect(category="suspect", scope="you", raw=m.group(0)))
+    # Condition-form crime check phase has no condition kind for → a `crime` marker,
+    # gated to faces with no structural commit_crime trigger (the trigger form already
+    # binds) and no crime marker yet.
+    has_crime_trigger = any(
+        a.trigger is not None and a.trigger.event == "commit_crime" for a in abilities
+    )
+    if not has_crime_trigger and (m := _CRIME_REF.search(text)) is not None:
+        markers.append(Effect(category="crime", scope="you", raw=m.group(0)))
+    # Venture / dungeon-completion phase drops (modal mode, granted ability, "complete
+    # a dungeon" trigger) → a venture marker, gated to faces with no structural venture
+    # effect AND where the venture phrase is NOT confined to a `restriction` effect
+    # (Keen-Eared Sentry's opponent anti-venture hate).
+    has_venture = any(e.category == "venture" for a in abilities for e in a.effects)
+    venture_in_restriction_only = any(
+        e.category == "restriction" and _VENTURE_REF.search(e.raw or "")
+        for a in abilities
+        for e in a.effects
+    ) and not any(
+        e.category != "restriction" and _VENTURE_REF.search(e.raw or "")
+        for a in abilities
+        for e in a.effects
+    )
+    if (
+        not has_venture
+        and not venture_in_restriction_only
+        and (m := _VENTURE_REF.search(text)) is not None
+    ):
+        markers.append(Effect(category="venture", scope="you", raw=m.group(0)))
 
     # "Tapped creatures you control <grant>" phase parsed with the subject dropped →
     # a grant_keyword marker carrying the rebuilt Tapped-creature subject Filter, so
