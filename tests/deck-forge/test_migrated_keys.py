@@ -320,6 +320,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    "counters_matter": (
+        {
+            "name": "Steady Aim",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Put two +1/+1 counters on target creature. It gains "
+                "indestructible until end of turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="you",
+                        counter_kind="p1p1",
+                        raw="Put two +1/+1 counters on target creature.",
+                    ),
+                ),
+            )
+        ),
+    ),
     "goad_matters": (
         {
             "name": "Disrupt Decorum",

@@ -476,42 +476,20 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "you",
     ),
-    (
-        # Counter payoffs: "for each"/"number of" count-matters PLUS distributor
-        # anchors (Mikaeus, Shalai and Hallar) that spread/reward counters without
-        # the count phrasing — but NOT bare "put a +1/+1 counter on it" self-growth.
-        "counters_matter",
-        lambda c: (
-            "+1/+1 counter" in c
-            and (
-                "for each" in c
-                or "number of" in c
-                # Board-wide placement: "put a +1/+1 counter on each <group>" — on
-                # each attacking / other / legendary / artifact creature, on each
-                # <tribe> you control, on each of up to N target creatures. All are
-                # counter ENGINES (Drana, Edgar Markov, Steel Overseer, Iron Spider).
-                or "+1/+1 counter on each" in c
-                or "creatures you control with +1/+1 counter" in c
-                # A VARIABLE count ("put X +1/+1 counters …") is a scaling counter
-                # engine, not bare self-growth (Halana and Alena, Champion of Lambholt).
-                or "x +1/+1 counter" in c
-                # MULTI-counter placement ("put three +1/+1 counters on …" — plural)
-                # is a counter engine; bare single self-growth ("put a +1/+1 counter on
-                # it") stays out (Minsc & Boo, Hardened Scales decks).
-                or "+1/+1 counters on" in c
-                # Recurring placement on ANOTHER creature (Anafenza: "+1/+1 counter on
-                # another target …") is an engine, not self-growth.
-                or "+1/+1 counter on another" in c
-                # Placement on a CHOSEN creature — "counter on target/up to one target/
-                # that creature" — is a counters engine (Leinore's Coven, Shelinda),
-                # distinct from bare self-growth "counter on it".
-                or "+1/+1 counter on target" in c
-                or "+1/+1 counter on up to one target" in c
-                or "+1/+1 counter on that creature" in c
-            )
-        ),
-        None,
-    ),
+    # ADR-0027: counters_matter migrated to the Card IR — it fires on ANY +1/+1
+    # counter PLACEMENT regardless of recipient (self / on-others / on-attacking /
+    # distribute-among — all are sources, CR 122.1 / 122.6) and on a "has/with a
+    # +1/+1 counter" PAYOFF reference. Sources: phase's place_counter(p1p1) +
+    # counter_move(p1p1) + proliferate + the counter_added trigger + the count-form
+    # payoff (amount.subject / e.subject with the Counters predicate) + the
+    # counters_have_ref marker (project._narrow_counter_refs / _counter_face_marker
+    # for the placement/payoff phase folds into a coin_flip / roll_die / vote / pay-
+    # cost / distribute / trimmed-grant carrier or drops entirely) + the +1/+1
+    # keyword block (mentor/training/modular/bolster/evolve/outlast/renown/adapt/
+    # graft/riot/bloodthirst/fabricate/sunburst/tribute/unleash/ravenous/reinforce/
+    # scavenge/undying/dethrone/devour — all structurally produce a place_counter or
+    # carry the keyword). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0; floor-ON ==
+    # floor-OFF). This _DETECTORS producer is deleted; the serve spec stays.
     # Combat-damage triggers (distinct from attack_matters, which keys on "attack").
     # Forced opponents — the damaged party is a player/opponent. The single biggest
     # zero-signal recovery (Edric, Dragonlord Ojutai, Wrexial, …).
@@ -973,15 +951,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # A commander that rewards a creature whose "power [is] greater than its base power"
     # (Kutzil, Baird) is a pump / +1/+1-counters payoff — the only way a creature's
     # power exceeds its BASE power is a counter or a pump (CR 613.4c puts BOTH in
-    # layer 7c). Open counters_matter (so +1/+1 sources like Forgotten Ancient /
-    # Hardened Scales surface) AND modified_matters (so pumps / Auras / Equipment that
-    # also satisfy "power > base" surface). Niche: only two commander-legal cards carry
-    # the phrase, so precision is near-total.
-    (
-        "counters_matter",
-        re.compile(r"power greater than its base power", re.IGNORECASE),
-        "you",
-    ),
+    # layer 7c). modified_matters fires for the pump/Aura/Equipment side; the
+    # counters_matter twin is migrated to the Card IR (the "power greater than its
+    # base power" anchor in project._P1P1_HAVE_FACE / signals._P1P1_HAVE_REF →
+    # counters_have_ref, ADR-0027). That counters_matter _HAND_FLOOR producer is
+    # deleted; modified_matters stays hand-floored.
     (
         "modified_matters",
         re.compile(r"power greater than its base power", re.IGNORECASE),
@@ -2154,22 +2128,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the cares-about payoffs phase leaves textual, served from a "-1/-1 counter"
     # _IR_KEPT_DETECTORS word mirror (CR 122 / 702.80 Wither / 702.90 Infect). This
     # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered.
-    # Cares about its permanents HAVING counters (any kind) — Xolatoyac untaps "each
-    # permanent you control with a counter on it", so it wants counter producers. The
-    # +1/+1-specific counters_matter detector misses the any-counter form; the "you
-    # control with a counter" anchor keeps a bare self-counter body ("enters with a
-    # +1/+1 counter on it") out.
-    (
-        "counters_matter",
-        re.compile(
-            r"(?:permanents?|creatures?) you control with (?:a |one or more )?"
-            r"counters? on (?:it|them)"
-            r"|for each (?:permanent|creature) you control with "
-            r"(?:a |one or more )?counter",
-            re.IGNORECASE,
-        ),
-        "any",
-    ),
+    # ADR-0027: the any-counter HAVE form of counters_matter ("permanents/creatures
+    # you control with a counter on it" — Xolatoyac, Hidden Hideout, Michelangelo —
+    # and "for each <permanent/creature> you control with a counter") migrated to the
+    # Card IR: the counters_have_ref marker (project._narrow_counter_refs /
+    # _counter_face_marker, "with a counter(s) on it/them" + "+1/+1 counter on
+    # creatures you control" anchors) and the count-form payoff (amount.subject with
+    # the Counters predicate). This _HAND_FLOOR producer is deleted; the serve spec
+    # stays hand-registered.
     # Creatures-are-lands (Ashaya): "nontoken creatures you control are Forest lands" —
     # its creatures ARE lands, so untap-lands effects (Quirion Ranger, Argothian Elder,
     # Seedborn Muse) untap its creature-lands for mana and re-use -> the untap engine.
@@ -2382,14 +2348,14 @@ def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
 # make tokens. The keyword is authoritative, so these are high confidence.
 _DIRECT_KEYWORD_SIGNALS = {
     "dash": ("dash_matters", "you"),
-    "mentor": ("counters_matter", "any"),
-    "training": ("counters_matter", "any"),
-    "modular": ("counters_matter", "any"),
-    "bolster": ("counters_matter", "any"),
-    "evolve": ("counters_matter", "any"),
-    "outlast": ("counters_matter", "any"),
-    "renown": ("counters_matter", "any"),
-    "adapt": ("counters_matter", "any"),
+    # ADR-0027: the +1/+1-counter keyword block (mentor/training/modular/bolster/
+    # evolve/outlast/renown/adapt — and dethrone/undying/graft/riot/bloodthirst/
+    # fabricate/sunburst/tribute/unleash/ravenous/reinforce/scavenge below) removed
+    # from the regex keyword path with the counters_matter migration — every one of
+    # their keyword cards already fires counters_matter STRUCTURALLY from the IR (each
+    # keyword projects a place_counter via phase's effect mapping), verified 0-miss
+    # over the commander-legal corpus. The regex `extract_signals` must no longer emit
+    # the migrated key.
     "battle cry": ("attack_matters", "you"),
     "battalion": ("attack_matters", "you"),
     "melee": ("attack_matters", "you"),
@@ -2433,24 +2399,15 @@ _DIRECT_KEYWORD_SIGNALS = {
     "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
     "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
     # afflict / spectacle (→ lifeloss_matters) removed for the ADR-0027 migration —
-    # see the note at the top of this map; the IR covers their keyword cards.
-    "dethrone": ("counters_matter", "any"),  # attacks the top life total → +1/+1
-    # +1/+1-counter keyword abilities: a commander with one is a counters deck (Exava=
-    # Unleash, Indoraptor=Bloodthirst, Cytoplast=Graft). Mirrors the counters SERVE set.
-    "undying": ("counters_matter", "any"),
+    # see the note at the top of this map; the IR covers their keyword cards. The
+    # +1/+1-counter keyword block (dethrone/undying/graft/riot/bloodthirst/fabricate/
+    # sunburst/tribute/unleash/ravenous/reinforce/scavenge) is likewise removed for
+    # the counters_matter migration — the IR fires counters_matter on all of them
+    # structurally (see the note at the top of this map).
     # Persist returns with a -1/-1 counter (CR 702.79a), so it wants the -1/-1 serve
-    # set, not the +1/+1-centric counters_matter. (Undying/graft are genuinely +1/+1.)
+    # set, not the +1/+1-centric counters_matter — it stays (minus_counters_matter is
+    # NOT migrated via this keyword path).
     "persist": ("minus_counters_matter", "you"),
-    "graft": ("counters_matter", "any"),
-    "riot": ("counters_matter", "any"),
-    "bloodthirst": ("counters_matter", "any"),
-    "fabricate": ("counters_matter", "any"),
-    "sunburst": ("counters_matter", "any"),
-    "tribute": ("counters_matter", "any"),
-    "unleash": ("counters_matter", "any"),
-    "ravenous": ("counters_matter", "any"),
-    "reinforce": ("counters_matter", "any"),
-    "scavenge": ("counters_matter", "any"),
 }
 
 
@@ -3563,10 +3520,11 @@ def extract_signals(
     _meld_raw = get_oracle_text(card)
     if name and _MELD_FULLTEXT_RE.search(_meld_raw):
         add("meld_pair", "you", name, _meld_raw[:160])
-    if _detect_self_counter_payoff(text, name):
-        add("counters_matter", "you", "", text[:160])
-    if _detect_counter_have_payoff(text):
-        add("counters_matter", "you", "", text[:160])
+    # ADR-0027: counters_matter migrated to the Card IR — the self-counter-payoff and
+    # counter-HAVE-payoff add() producers are deleted (the +1/+1 placement / "has a
+    # +1/+1 counter" reference fires from place_counter(p1p1) + the counters_have_ref
+    # marker via the IR path). _detect_self_counter_payoff / _detect_counter_have_
+    # payoff are retained for any non-migrated reader but no longer feed the regex path.
     if _detect_polymorph_cheat(text):
         add("cheat_into_play", "you", "", text[:160])
     # ADR-0027: reanimator migrated to the Card IR — a creature whose `reanimate`
@@ -3934,6 +3892,36 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "explore": (("explore_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
+    # ADR-0027 counters_matter migration: the +1/+1-counter keyword block MOVED here
+    # from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). counters_matter
+    # is migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the
+    # IR path STILL needs the keyword for cards whose place_counter phase emits with a
+    # blank counter_kind + a reminder-stripped raw (no "+1/+1" in the structural text —
+    # Anafenza Kin-Tree's bolster, Goblin Glory Chaser's renown, Pteramander's adapt),
+    # which the structural place_counter→counters_matter edge misses. _IR_KEYWORD_MAP
+    # is IR-only (extract_signals doesn't read it), so this is the saddle-style move.
+    # Each is definitionally a +1/+1-counter mechanic (CR 702.x). devour is mapped
+    # above (it also sacs).
+    # (scavenge and undying are mapped lower in this dict — counters_matter is merged
+    # into their existing entries there to avoid a duplicate key.)
+    "mentor": (("counters_matter", "any"),),
+    "training": (("counters_matter", "any"),),
+    "modular": (("counters_matter", "any"),),
+    "bolster": (("counters_matter", "any"),),
+    "evolve": (("counters_matter", "any"),),
+    "outlast": (("counters_matter", "any"),),
+    "renown": (("counters_matter", "any"),),
+    "adapt": (("counters_matter", "any"),),
+    "dethrone": (("counters_matter", "any"),),
+    "graft": (("counters_matter", "any"),),
+    "riot": (("counters_matter", "any"),),
+    "bloodthirst": (("counters_matter", "any"),),
+    "fabricate": (("counters_matter", "any"),),
+    "sunburst": (("counters_matter", "any"),),
+    "tribute": (("counters_matter", "any"),),
+    "unleash": (("counters_matter", "any"),),
+    "ravenous": (("counters_matter", "any"),),
+    "reinforce": (("counters_matter", "any"),),
     # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
     # and reminder-only phasers (Sandbar Crocodile) whose only "phases out" sits in
     # the stripped reminder text the regex floor misses. The phasing EFFECT category
@@ -3971,7 +3959,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # marker (project._narrow_mechanic_refs → _DOER_EFFECT_KEYS) covers the
     # keyword-less "becomes saddled" granters.
     "saddle": (("saddle_matters", "you"),),
-    "scavenge": (("scavenge_fuel", "you"), ("graveyard_matters", "you")),
+    # scavenge (CR 702.91) exiles a card from your GY to put that many +1/+1 counters
+    # — a +1/+1 source, so it ALSO opens counters_matter (ADR-0027 migration merge).
+    "scavenge": (
+        ("scavenge_fuel", "you"),
+        ("graveyard_matters", "you"),
+        ("counters_matter", "any"),
+    ),
     # Spectacle (CR 702.111) — "cast cheaper if an opponent lost life this turn" is a
     # life-loss PAYOFF (it cares about opponents having lost life), but the condition
     # lives entirely in reminder text that the structural projection strips, so the IR
@@ -3982,7 +3976,14 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "soulbond": (("soulbond_matters", "you"),),
     "specialize": (("specialize_matters", "you"),),
     "suspend": (("suspend_matters", "you"),),
-    "undying": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
+    # undying (CR 702.92) returns with a +1/+1 counter — a +1/+1 source, so it ALSO
+    # opens counters_matter (ADR-0027 migration merge). persist returns with a -1/-1
+    # counter (its own minus lane), so it is NOT given counters_matter.
+    "undying": (
+        ("undying_persist_matters", "you"),
+        ("dies_recursion", "you"),
+        ("counters_matter", "any"),
+    ),
     "persist": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
     "affinity": (("affinity_type", "you"),),
     # Investigate (CR 701.27) IS "create a Clue token" — a colorless ARTIFACT (CR
@@ -7334,6 +7335,31 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # producers (the _HAND_FLOOR + the SWEEP row) are deleted; the serve spec is
         # hand-registered. See ADR-0027.
         "spell_copy_matters",
+        # Group "counters" (ADR-0027 counters_matter pass 2) — counters_matter fires
+        # from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0,
+        # floor-ON == floor-OFF). It fires on ANY +1/+1 counter PLACEMENT regardless
+        # of recipient (self / on-others / on-attacking / distribute-among — all are
+        # sources, CR 122.1 / 122.6) and on a "has/with a +1/+1 counter" PAYOFF
+        # reference. Sources: phase's place_counter(p1p1) + counter_move(p1p1) +
+        # proliferate + the counter_added trigger + the count-form payoff (the Counters
+        # predicate on amount.subject / e.subject) + the amass/fabricate/devour modal
+        # fan-out + the counters_have_ref marker (project._narrow_counter_refs /
+        # _counter_face_marker — the placement/payoff phase folds into a coin_flip /
+        # roll_die / vote / pay-cost / distribute / trimmed-grant / reanimate-rider
+        # carrier or drops entirely) + the +1/+1 keyword block (mentor/training/
+        # modular/bolster/evolve/outlast/renown/adapt/graft/riot/bloodthirst/
+        # fabricate/sunburst/tribute/unleash/ravenous/reinforce/scavenge/undying/
+        # dethrone/devour — every one verified to project a place_counter / carry its
+        # keyword, 0-miss). LOSE == 0 in production config (floor lanes ON): the IR
+        # fires counters_matter on ALL 1895 cards the regex did, plus 1243 the narrow
+        # regex missed (genuine recall; IR 3138 vs regex 1895). All regex producers
+        # (the count/board-wide _DETECTORS row, the two _HAND_FLOOR rows — "power
+        # greater than its base power" twin + the any-counter HAVE form — the +1/+1
+        # keyword block in _DIRECT_KEYWORD_SIGNALS, and the two self-/have-counter
+        # add() calls) are deleted; the serve spec stays hand-registered. The
+        # counter_place_trigger / counter_distribute / self_counter_grow SWEEP rows
+        # (their own widen lanes) are independent and stay regex. See ADR-0027.
+        "counters_matter",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -7521,6 +7547,12 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "lands_matter",
         "poison_matters",
         "suspend_matters",
+        # ADR-0027 counters_matter pass 2: the +1/+1-counter regex producers (detector
+        # / floor / keyword block / self-counter adds) fired high-confidence non-
+        # generic, counting toward has_other_plan. Now migrated, so the hybrid must re-
+        # silence the spurious voltron tell from the IR re-supply (a +1/+1-counter
+        # engine — Hardened Scales, Forgotten Ancient — is not a vanilla beater).
+        "counters_matter",
     }
 )
 

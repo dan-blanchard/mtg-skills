@@ -511,13 +511,35 @@ def test_voltron_does_not_fire_on_equipment_payload():
 
 
 def test_counters_matter_widened_for_distributors():
-    # The old rule needed "for each"/"number of"; a distributor like
-    # "+1/+1 counter on each creature you control" (Mikaeus) must now register.
+    # A distributor like "+1/+1 counter on each creature you control" (Mikaeus) is a
+    # counters engine. ADR-0027: counters_matter migrated to the IR — the placement
+    # projects a place_counter(p1p1); assert via the hybrid (production) path.
     c = {
         "name": "Mikaeus-like",
         "oracle_text": "At the beginning of your end step, put a +1/+1 counter on each creature you control.",
     }
-    assert any(s.key == "counters_matter" for s in extract_signals(c))
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="p1p1",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert any(s.key == "counters_matter" for s in extract_signals_hybrid(c, ir))
 
 
 def test_poison_scoped_to_opponents():

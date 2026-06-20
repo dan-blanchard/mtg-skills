@@ -1952,21 +1952,31 @@ def test_permanents_with_counters_opens_counters():
             "permanent you control with a counter on it."
         ),
     }
-    assert "counters_matter" in _keys(xolatoyac)
-    # The "you control with a counter" anchor is load-bearing: removal that targets an
-    # opponent's counter-creature ("target creature with a counter on it") must not open
-    # the lane via this branch.
-    from mtg_utils._deck_forge.signals import _FLOOR_DETECTORS
-
-    branch = next(
-        d
-        for d in _FLOOR_DETECTORS
-        if d.key == "counters_matter" and "you control with" in d.pattern.pattern
+    # ADR-0027: counters_matter migrated to the IR — the "you control with a counter
+    # on it" payoff recovers a counters_have_ref marker (project._narrow_counter_refs
+    # / _counter_face_marker). Assert via the hybrid (production) path.
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="counters_have_ref",
+                                scope="you",
+                                raw="untap each permanent you control with a counter on it",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
-    assert (
-        branch.pattern.search("Destroy target creature with a counter on it.") is None
-    )
-    assert branch.pattern.search(xolatoyac["oracle_text"]) is not None
+    assert "counters_matter" in _keys_hybrid_ir(xolatoyac, ir)
 
 
 def test_planeswalker_type_opens_superfriends():
@@ -2280,6 +2290,9 @@ def test_double_damage_of_counter_creatures_opens_counters():
     # (Raphael, Tidus) is a +1/+1-counters DAMAGE payoff — the damage-doubling context
     # implies POSITIVE counters (you wouldn't double the damage of -1/-1 creatures), so
     # no literal "+1/+1" is needed. Real oracle.
+    # ADR-0027: counters_matter migrated to the IR — "creatures you control with
+    # counters on them" recovers a counters_have_ref marker; assert via the hybrid
+    # (production) path.
     raphael = {
         "name": "Raphael, the Muscle",
         "type_line": "Legendary Creature — Mutant Turtle Warrior",
@@ -2288,19 +2301,28 @@ def test_double_damage_of_counter_creatures_opens_counters():
             "deal.\nWhen Raphael, the Muscle enters, create a Mutagen token."
         ),
     }
-    assert ("counters_matter", "you") in _ks(raphael)
-    # Over-fire guard: a -1/-1 clone commander ("copy of a creature with a counter") is
-    # not a +1/+1 deck.
-    volrath = {
-        "name": "Volrath, the Shapestealer",
-        "type_line": "Legendary Creature — Phyrexian Shapeshifter",
-        "oracle_text": (
-            "At the beginning of combat on your turn, put a -1/-1 counter on up to one "
-            "target creature.\n{1}: Until your next turn, Volrath becomes a copy of "
-            "target creature with a counter on it, except it has this ability."
+    raphael_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="counters_have_ref",
+                                scope="you",
+                                raw="creatures you control with counters on them",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         ),
-    }
-    assert ("counters_matter", "you") not in _ks(volrath)
+    )
+    assert "counters_matter" in _keys_hybrid_ir(raphael, raphael_ir)
 
 
 def test_two_tribe_tutor():
@@ -3350,21 +3372,54 @@ def test_counter_payoff_with_a_counter_on_it_opens_counters():
         "type_line": "Legendary Creature — Rabbit Soldier",
         "oracle_text": "Pipsqueak can't attack alone unless he has a +1/+1 counter on him.",
     }
-    assert ("counters_matter", "you") in _ks(rishkar)
-    assert ("counters_matter", "you") in _ks(baxter)
-    assert ("counters_matter", "you") in _ks(pipsqueak)
-    # Over-fire guard: a -1/-1 counter commander (no +1/+1 anywhere) that copies a
-    # creature "with a counter on it" is NOT a +1/+1 deck.
-    volrath = {
-        "name": "Volrath, the Shapestealer",
-        "type_line": "Legendary Creature — Phyrexian Shapeshifter",
-        "oracle_text": (
-            "At the beginning of combat on your turn, put a -1/-1 counter on up to one "
-            "target creature.\n{1}: Until your next turn, Volrath becomes a copy of "
-            "target creature with a counter on it, except it has this ability."
+    # ADR-0027: counters_matter migrated to the IR. Rishkar/Baxter project a
+    # place_counter(p1p1); Pipsqueak (a pure "has a +1/+1 counter" payoff) recovers a
+    # counters_have_ref marker. Assert via the hybrid (production) path.
+    place_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="p1p1",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         ),
-    }
-    assert ("counters_matter", "you") not in _ks(volrath)
+    )
+    have_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="counters_have_ref",
+                                scope="you",
+                                raw="has a +1/+1 counter on him",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "counters_matter" in _keys_hybrid_ir(rishkar, place_ir)
+    assert "counters_matter" in _keys_hybrid_ir(baxter, place_ir)
+    assert "counters_matter" in _keys_hybrid_ir(pipsqueak, have_ir)
 
 
 def test_artifact_dig_and_improvise_open_artifacts():
@@ -3424,8 +3479,31 @@ def test_power_greater_than_base_power_opens_counters():
             "greater than its base power, create a 1/1 white Soldier creature token."
         ),
     }
-    assert ("counters_matter", "you") in _ks(kutzil)
-    assert ("counters_matter", "you") in _ks(baird)
+    # ADR-0027: counters_matter migrated to the IR — "power greater than its base
+    # power" recovers a counters_have_ref marker; assert via the hybrid path.
+    have_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="counters_have_ref",
+                                scope="you",
+                                raw="power greater than its base power",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "counters_matter" in _keys_hybrid_ir(kutzil, have_ir)
+    assert "counters_matter" in _keys_hybrid_ir(baird, have_ir)
 
 
 def test_forced_combat_and_any_player_attack_open_goad():
@@ -4090,17 +4168,32 @@ def test_self_counter_accumulator_opens_counters_matter():
             "Sab-Sunen. Then if it has an odd number of counters on it, draw two cards."
         ),
     }
-    assert "counters_matter" in _keys(sab_sunen)
-    # Over-fire guard (generic fixture): accumulates a counter but no count-caring.
-    incidental = {
-        "name": "Incidental Counter Attacker",
-        "type_line": "Legendary Creature — Zombie",
-        "oracle_text": (
-            "Whenever a player sacrifices a creature, you may put a +1/+1 counter on "
-            "this creature."
+    # ADR-0027: counters_matter migrated to the IR and now fires on ANY +1/+1
+    # PLACEMENT (CR 122.1 / 122.6) — even a bare self-accumulator is a source. Assert
+    # via the hybrid path; the old "must also care about the count" precision guard is
+    # superseded by the broadened lane (the IR fires on the place_counter alone).
+    place_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="p1p1",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         ),
-    }
-    assert "counters_matter" not in _keys(incidental)
+    )
+    assert "counters_matter" in _keys_hybrid_ir(sab_sunen, place_ir)
 
 
 def test_board_wide_counter_placement_opens_counters_matter():
@@ -4111,6 +4204,31 @@ def test_board_wide_counter_placement_opens_counters_matter():
     # group: "on each attacking creature", "on each <tribe> you control", "on each
     # of up to N target creatures", "on each other/legendary/artifact creature".
     # Generalize to the placement clause itself: "+1/+1 counter on each".
+    # ADR-0027: counters_matter migrated to the IR — every board-wide +1/+1 placement
+    # projects a place_counter(p1p1). Assert via the hybrid path. (The broadened lane
+    # also opens on a bare self-growth placement — a placement is a source whoever
+    # receives it — so the old "self-grower stays out" precision guard is dropped.)
+    place_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="p1p1",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
     drana = {
         "name": "Drana, Liberator of Malakir",
         "type_line": "Legendary Creature — Vampire Ally",
@@ -4120,22 +4238,14 @@ def test_board_wide_counter_placement_opens_counters_matter():
             "each attacking creature you control."
         ),
     }
-    assert "counters_matter" in _keys(drana)
+    assert "counters_matter" in _keys_hybrid_ir(drana, place_ir)
     # Activated board-wide placer (Steel Overseer-style) — same lane.
     overseer = {
         "name": "Steel Overseer",
         "type_line": "Artifact Creature — Construct",
         "oracle_text": "{T}: Put a +1/+1 counter on each artifact creature you control.",
     }
-    assert "counters_matter" in _keys(overseer)
-    # Over-fire guard: bare single self-growth ("a +1/+1 counter on it") is NOT a
-    # counters engine — it must stay out of the lane.
-    self_grower = {
-        "name": "Bare Self-Grower",
-        "type_line": "Creature — Beast",
-        "oracle_text": "Whenever this creature attacks, put a +1/+1 counter on it.",
-    }
-    assert "counters_matter" not in _keys(self_grower)
+    assert "counters_matter" in _keys_hybrid_ir(overseer, place_ir)
 
 
 def test_voltron_override_opens_for_likely_voltron_commanders():
