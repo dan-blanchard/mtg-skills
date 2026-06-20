@@ -2052,6 +2052,22 @@ def test_dropped_static_goad_reward_marker():
     }
 
 
+def test_dropped_static_tap_or_untap_marker():
+    """A "tap or untap target permanent" modal phase drops the untap half from
+    (Twiddle, Pestermite) recovers an untap marker with a Permanent target subject,
+    gated to faces with no structural untap."""
+    twiddle = {
+        "oracle_text": "You may tap or untap target artifact, creature, or land."
+    }
+    untaps = [e for e in _dropped_static_markers(twiddle, []) if e.category == "untap"]
+    assert len(untaps) == 1
+    assert untaps[0].subject is not None
+    structural = [Ability(kind="spell", effects=(Effect(category="untap"),))]
+    assert all(
+        e.category != "untap" for e in _dropped_static_markers(twiddle, structural)
+    )
+
+
 def test_dropped_static_spell_copy_marker_and_storm_name_exclusion():
     """A granted/quoted/conditional copy ("copy that spell", "has replicate/casualty/
     storm/demonstrate") recovers a spell_copy marker, gated to faces with no structural

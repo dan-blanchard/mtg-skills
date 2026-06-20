@@ -3727,7 +3727,12 @@ def extract_signals(
 # "doer" set: a card that DOES X (makes the resource), keyed off the effect.
 # None scope = derive from the effect's own scope.
 _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
-    "untap": ("untap_engine", "you"),
+    # ADR-0027: untap is NOT a blanket doer — every "untap it/that/this" incidental
+    # untap (Act of Treason's threaten, Abduction's enchant, Amulet of Vigor) and the
+    # "doesn't untap" INVERSION (Basalt Monolith) fired untap_engine through the doer
+    # loop. The lane wants a deliberate untap ENGINE (untap target/all/each — Seedborn
+    # Muse, Kiora), so it now fires from a GATED arm (cat=="untap" + _UNTAP_ENGINE_RAW
+    # or a mass untap) instead of this entry. See extract_signals_ir.
     "proliferate": ("proliferate_matters", "you"),
     "topdeck_select": ("topdeck_selection", "you"),
     "gain_control": ("gain_control", "you"),
@@ -5060,6 +5065,17 @@ _FOR_EACH_RAW = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORE
 _NAMED_SCALE_OPS = frozenset({"counters", "domain", "devotion", "party", "experience"})
 
 
+# untap_engine discriminator (ADR-0027): the lane wants a DELIBERATE untap engine —
+# "untap target/another target/all/each/two/up to <permanent>" (Seedborn Muse,
+# Kiora, Murkfiend Liege) — NOT an incidental "untap it/this/that" rider (Act of
+# Treason's threaten, Abduction, Amulet of Vigor) nor the "doesn't untap" INVERSION
+# (Basalt Monolith). Mirrors the deleted regex's anchor; a mass untap (counter_kind
+# =='all', the structured "untap all") also opens it even when the raw is empty.
+_UNTAP_ENGINE_RAW = re.compile(
+    r"\buntap (?:target|another target|all|each|two|up to)", re.IGNORECASE
+)
+
+
 def _is_scaling_count(amount: Quantity | None, raw: str) -> bool:
     """True when an operand is a genuine BOARD-COUNT scaler ("for each <X>"), not a
     bare X-spell whose X is the cast cost. A NAMED count op (counters / domain /
@@ -5850,6 +5866,23 @@ def extract_signals_ir(
                 add("color_hoser", "you", "", e.raw)
             if cat == "tap" and e.scope == "opp":
                 add("tap_down", "opponents", "", e.raw)
+            # untap_engine (ADR-0027): a DELIBERATE untap engine — a mass untap
+            # (counter_kind=='all', the structured "untap all creatures/permanents"),
+            # a raw "untap target/all/each/two/up to <permanent>", OR a modal-split
+            # untap whose subject is a real TARGET permanent (Dream's Grip's "• Untap
+            # target permanent" — phase structures the effect but drops the bullet
+            # raw). Gated off the incidental "untap it/this/that" rider and the
+            # "doesn't untap" inversion (no target subject, no engine raw).
+            if cat == "untap" and (
+                e.counter_kind == "all"
+                or _UNTAP_ENGINE_RAW.search(e.raw or "")
+                or (
+                    isinstance(e.subject, Filter)
+                    and bool(e.subject.card_types)
+                    and e.subject.controller != "opp"
+                )
+            ):
+                add("untap_engine", "you", "", e.raw)
             if cat == "pump" and e.amount is not None:
                 # scaling_pump = a +X/+X that SCALES with a board count ("for each
                 # creature", "for each +1/+1 counter", domain/devotion/party), NOT a

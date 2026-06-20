@@ -3218,6 +3218,15 @@ _LIFE_TOTAL_SET = re.compile(
 # one") never says "do so" or "must be blocked … if able", so it can't match.
 _LURE_ABLE = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
 _LURE_MUST = re.compile(r"\bmust be blocked\b[^.]*?\bif able\b", re.IGNORECASE)
+# "Tap OR untap target" (CR 701.20) — phase parses the disjunction as a target_only
+# + a `choose` "tap or untap" marker, DROPPING the untap half (Twiddle, Pestermite,
+# Coral Trickster, the whole untap-engine cantrip family). The untap side is the
+# engine half (used to untap mana sources / pseudo-vigilance), so recover an untap
+# effect. Gated to faces with no structural untap (Dream's Grip's explicit modal
+# "• Untap target permanent" already structures both, so it's skipped).
+_TAP_OR_UNTAP_REF = re.compile(
+    r"\btap or untap (?:target|another target|up to)\b", re.IGNORECASE
+)
 # Combat-forcing disentanglement (CR 508.1g / 701.38). Two structurally distinct
 # compulsions phase DROPS to raw (the self/team static carries no abilities; the
 # reward-payoff trigger flattens to event=None with the redirect condition in raw):
@@ -4133,6 +4142,20 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     # being redirected at another player, so it wants goad effects, not a self-swing.
     if (m := _GOAD_REWARD_REF.search(text)) is not None:
         markers.append(Effect(category="goad_all", scope="opp", raw=m.group(0)))
+    # "Tap or untap target" modal phase dropped the untap half from → an untap marker
+    # carrying a Permanent target subject (read into untap_engine), gated to faces with
+    # no structural untap effect. The tap half stays in phase's target_only/tap; this
+    # recovers the untap-engine side (Twiddle, Pestermite, Coral Trickster).
+    has_untap = any(e.category == "untap" for a in abilities for e in a.effects)
+    if not has_untap and (m := _TAP_OR_UNTAP_REF.search(text)) is not None:
+        markers.append(
+            Effect(
+                category="untap",
+                scope="you",
+                subject=Filter(card_types=("Permanent",)),
+                raw=m.group(0),
+            )
+        )
     # Energy sink / payoff / replacement phase loses → an energy marker, gated to faces
     # with no structural energy effect.
     has_energy = any(e.category == "energy" for a in abilities for e in a.effects)
