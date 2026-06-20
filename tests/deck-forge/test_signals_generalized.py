@@ -2793,7 +2793,33 @@ def test_spell_copy_cross_opens_spellcast():
             "that spell, and the copy targets the chosen player or permanent."
         ),
     }
-    keys = {s.key for s in extract_signals(zevlor, include_membership=True)}
+    # ADR-0027: spell_copy_matters migrated to the IR, so the cross-open is
+    # reconciled in the hybrid (the regex path no longer emits spell_copy_matters).
+    spell_copy_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(
+                            Effect(
+                                category="spell_copy",
+                                scope="you",
+                                raw="copy that spell",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    keys = {
+        s.key
+        for s in extract_signals_hybrid(zevlor, spell_copy_ir, include_membership=True)
+    }
     assert "spell_copy_matters" in keys  # precondition
     assert "spellcast_matters" in keys  # cross-opened
 

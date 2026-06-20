@@ -1940,15 +1940,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # applied/granted marker, plus the Scryfall `connive` keyword (_IR_KEYWORD_MAP)
     # which lifts the keyword-less GRANTER phase swallows into an Enchant parse
     # (Security Bypass). This _HAND_FLOOR producer is deleted; the serve spec stays.
-    (
-        "spell_copy_matters",
-        re.compile(
-            r"copy target (?:instant or sorcery spell|spell)|\bcopy that spell\b"
-            r"|you may copy (?:it|that spell)|whenever you copy (?:a|an|target|that)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: spell_copy_matters migrated to the Card IR — phase's `spell_copy`
+    # effect (CopySpell + CastCopyOfCard) + the storm/replicate/conspire/casualty
+    # Scryfall keywords (the HAVERS, _IR_KEYWORD_MAP) + a `_COPY_SPELL_REF` marker for
+    # the granted/quoted/conditional copy phase folds into a modal / coin-flip / storm-
+    # reminder carrier and the keyword-less GRANTERS ("…spell you cast has replicate/
+    # casualty/storm/demonstrate"). The IR EXCLUDES the deleted regex's `\bstorm\b`
+    # card-NAME over-fire (Comet Storm, Arrow Storm — burn, not the keyword). Both
+    # regex producers (this _HAND_FLOOR + the SWEEP row) are deleted; the serve spec
+    # stays hand-registered.
     # ── Effect-axis detectors: every ability is a direction to build around ──────
     (
         "ramp_matters",
@@ -3897,9 +3897,10 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Casualty (CR 702.153) sacrifices a creature as a cost to copy the spell — the
     # printed KEYWORD is the structural anchor for the sac cost phase folds into the
     # Casualty parse (no sacrifice Effect / cost token survives). Mirrors the regex
-    # `\bcasualty\b` → sacrifice_matters. The GRANTER (Anhelo — "has casualty 2") is
+    # `\bcasualty\b` → sacrifice_matters. It ALSO copies the spell, so it opens
+    # spell_copy_matters too (ADR-0027). The GRANTER (Anhelo — "has casualty 2") is
     # keyword-less and is recovered by a cast_with_keyword raw marker below.
-    "casualty": (("sacrifice_matters", "you"),),
+    "casualty": (("sacrifice_matters", "you"), ("spell_copy_matters", "you")),
     "changeling": (("changeling_matters", "you"),),
     "companion": (("companion_keyword", "you"),),
     # Connive (CR 701.50) as the printed KEYWORD — covers the keyword-LESS GRANTER
@@ -3984,6 +3985,16 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "skulk": (("evasion_self", "you"),),
     "horsemanship": (("evasion_self", "you"),),
     "shadow": (("evasion_self", "you"),),
+    # Spell-copy keywords (CR 702.40 storm, 702.108 replicate, 702.78 conspire) —
+    # each COPIES the spell, the printed-keyword path for spell_copy_matters that the
+    # structural CopySpell effect misses (the copy rides the keyword, not a CopySpell
+    # node). Distinct from the deleted regex's `\bstorm\b`, which over-fired on every
+    # card NAMED "… Storm" (Comet Storm, Arrow Storm — burn, not the keyword); the
+    # Scryfall keyword array carries Storm-the-mechanic only. Casualty is mapped above
+    # (it sacs AND copies). CR 702.153.
+    "storm": (("spell_copy_matters", "you"),),
+    "replicate": (("spell_copy_matters", "you"),),
+    "conspire": (("spell_copy_matters", "you"),),
 }
 
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
@@ -7056,6 +7067,25 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # two goad _DETECTORS / _HAND_FLOOR producers are deleted; the serve spec is
         # registered. See ADR-0027.
         "goad_matters",
+        # Group "spell-copy" (ADR-0027 projection deepening) — spell_copy_matters fires
+        # from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0):
+        # phase's `spell_copy` effect (CopySpell + CastCopyOfCard) + the storm/replicate
+        # /conspire/casualty Scryfall keywords (the HAVERS, _IR_KEYWORD_MAP) + a
+        # `_COPY_SPELL_REF` face marker (project._dropped_static_markers) for the
+        # granted/quoted/conditional copy phase folds into a modal / coin-flip / storm-
+        # reminder carrier (God-Eternal Kefnet, Twinferno, Krark, Pyromancer's Goggles)
+        # AND the keyword-less GRANTERS ("…spell you cast has replicate/casualty/storm/
+        # demonstrate" — Anhelo, Djinn Illuminatus, Wort, Threefold Signal, The Twelfth
+        # Doctor). The structural IR EXCLUDES the deleted regex's `\bstorm\b` card-NAME
+        # over-fire — 20 of the 21 regex-only residual are cards merely NAMED "… Storm"
+        # (Comet Storm, Arrow Storm, Tropical Storm — burn/effects, not the keyword),
+        # which the IR correctly drops; the 21st (Refuse // Cooperate) is an irreducible
+        # phase gap (phase has no record for the Aftermath back face that carries "Copy
+        # target instant or sorcery spell"). The IR_ONLY (121) are 100% genuine copy
+        # cards (all mention copy / a copy-keyword) the narrow regex missed. Both regex
+        # producers (the _HAND_FLOOR + the SWEEP row) are deleted; the serve spec is
+        # hand-registered. See ADR-0027.
+        "spell_copy_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -7103,6 +7133,22 @@ def extract_signals_hybrid(
             continue
         seen.add(ident)
         out.append(sig)
+    # ADR-0027 spell-copy cross-open reconciliation: the regex path cross-opens
+    # spellcast_matters from a spell_copy_matters commander (a spell-copier is a
+    # spellslinger wanting a dense I/S base), gated on the regex set carrying
+    # spell_copy_matters. Now that spell_copy_matters migrated, the regex set lacks it,
+    # so the cross-open stops firing — re-supply it here when the IR provides spell_copy
+    # and the regex set didn't already cross-open spellcast (matching pre-migration
+    # behavior; low confidence, you-scope).
+    out_keys = {s.key for s in out}
+    if (
+        "spell_copy_matters" in out_keys
+        and "spell_copy_matters" not in {s.key for s in regex_signals}
+        and "spellcast_matters" not in out_keys
+    ):
+        out.append(
+            Signal("spellcast_matters", "you", "", "", record.get("name", ""), "low")
+        )
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
     # voltron MEMBERSHIP fallback against its OWN signal set (gated on
     # ``not has_other_plan``), which no longer carries a migrated PLAN key — when a key

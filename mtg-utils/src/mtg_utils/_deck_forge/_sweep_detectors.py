@@ -896,12 +896,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # a Creature subject + an effect-raw / face-oracle "whenever/when [player] casts a …
     # creature spell" scan (recovers the qualified-subject triggers the bare regex
     # missed). This SWEEP_DETECTORS row is deleted; the serve hand-spec keeps its regex.
-    {
-        "key": "spell_copy_matters",
-        "scope": "you",
-        "is_widen_of": "spell_copy_matters",
-        "regex": "copy target (?:permanent|creature|artifact|enchantment|sorcery|instant)[^.]* spell|copy target [^.]*spell you (?:control|cast)|copy (?:it|that spell) (?:three|two|\\d+) times|\\bcasualty\\b|\\breplicate\\b|\\bstorm\\b|\\bconspire\\b|copy that (?:card|spell)[^.]*you may cast (?:the|that) copy",
-    },
+    # ADR-0027: spell_copy_matters migrated to the Card IR — phase's `spell_copy` effect
+    # (CopySpell + CastCopyOfCard) + storm/replicate/conspire/casualty Scryfall keywords
+    # + a `_COPY_SPELL_REF` granted/quoted/conditional marker (project). The structural
+    # IR EXCLUDES this row's `\bstorm\b` over-fire on the "… Storm" card NAME (Comet
+    # Storm, Arrow Storm). This SWEEP_DETECTORS row is deleted; the hand-spec serve in
+    # signal_specs.py is independent and survives.
     # ADR-0027: removal_matters migrated to the Card IR (single-target destroy/damage
     # SUBJECT + quoted-grant recursion); this SWEEP_DETECTORS row is deleted. Its regex
     # over-fired by folding board wipes ("destroy all/each", "damage divided") and land

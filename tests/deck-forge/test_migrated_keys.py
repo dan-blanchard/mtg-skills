@@ -300,6 +300,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    "spell_copy_matters": (
+        {
+            "name": "Twincast",
+            "type_line": "Instant",
+            "oracle_text": "Copy target instant or sorcery spell. You may choose new "
+            "targets for the copy.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="spell_copy",
+                        scope="you",
+                        raw="Copy target instant or sorcery spell.",
+                    ),
+                ),
+            )
+        ),
+    ),
     "goad_matters": (
         {
             "name": "Disrupt Decorum",

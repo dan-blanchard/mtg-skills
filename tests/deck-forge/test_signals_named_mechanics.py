@@ -737,12 +737,40 @@ def test_loot_outlet_is_a_discard_avenue():
     assert ("discard_matters", "you") in _ks(c)
 
 
+def _spell_copy_ir() -> Card:
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="spell_copy",
+                                scope="you",
+                                raw="Copy target instant or sorcery spell.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 def test_spell_copy():
+    # ADR-0027: spell_copy_matters migrated to the IR (phase's spell_copy effect /
+    # copy keywords / granted-copy marker) — the regex path no longer emits it.
     c = {
         "name": "X",
         "oracle_text": "Copy target instant or sorcery spell you control.",
     }
-    assert ("spell_copy_matters", "you") in _ks(c)
+    assert ("spell_copy_matters", "you") not in _ks(c)
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _spell_copy_ir())}
+    assert ("spell_copy_matters", "you") in hybrid
 
 
 def test_kitsa_gets_three_avenues():
@@ -753,7 +781,9 @@ def test_kitsa_gets_three_avenues():
         ),
         "keywords": ["Prowess", "Vigilance"],
     }
-    keys = _keys(c)
+    # spellcast (prowess) + discard (loot) come from the regex path; spell_copy now
+    # comes from the IR (migrated), so check the hybrid for all three.
+    keys = {s.key for s in extract_signals_hybrid(c, _spell_copy_ir())}
     assert "spellcast_matters" in keys  # prowess → spellslinger
     assert "discard_matters" in keys  # loot outlet
     assert "spell_copy_matters" in keys  # copy spells
