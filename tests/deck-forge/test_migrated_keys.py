@@ -729,6 +729,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # The sacrifice-creatures-for-+1/+1-counters keyword lane (CR 702.82). The IR
+    # mirror is the Scryfall "Devour" keyword (Mycoloth, the canonical Devour
+    # build-around) read via _IR_KEYWORD_MAP — the structural source that keeps the
+    # "Devour Intellect" flavor word and the "Devour in Flames" card name out. Like
+    # specialize, devour is read off the Scryfall keyword array, not the IR
+    # structure, so a bare non-None IR routes the hybrid to the IR path.
+    "devour_matters": (
+        {
+            "name": "Mycoloth",
+            "type_line": "Creature — Fungus",
+            "oracle_text": (
+                "Devour 2 (As this creature enters, you may sacrifice any number "
+                "of creatures. It enters with twice that many +1/+1 counters on "
+                "it.)\nAt the beginning of your upkeep, create a 1/1 green "
+                "Saproling creature token for each +1/+1 counter on this creature."
+            ),
+            "keywords": ["Devour"],
+        },
+        _ir(),
+    ),
 }
 
 

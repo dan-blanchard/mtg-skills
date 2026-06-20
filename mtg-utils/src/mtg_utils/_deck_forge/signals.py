@@ -5535,6 +5535,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # producer ("creatures you control"/"for each creature you control" substring)
         # is deleted; the serve spec stays in signal_specs. See ADR-0027.
         "creatures_matter",
+        # devour_matters (CR 702.82) — the sacrifice-creatures-for-+1/+1-counters
+        # keyword lane. Fires from STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES): the
+        # Scryfall `devour` keyword via _IR_KEYWORD_MAP plus phase's `devour` effect
+        # category (the `devour N` make-token marker + the supplement keyword value),
+        # fanned by the cat=="devour" arm in extract_signals_ir. Floor-mirror-dep==0
+        # (commander-legal, floor lanes disabled): the IR set is identical with the
+        # floor on or off. Its over-broad "\bdevour\b" SWEEP_DETECTORS regex producer
+        # is deleted — it 100% over-fired on the "Devour Intellect" FLAVOR WORD
+        # (CR 207.2d, no rules meaning) and the "Devour in Flames" CARD NAME, neither
+        # being the Devour keyword; the structural IR correctly excludes both. The
+        # serve spec stays in signal_specs. See ADR-0027.
+        "devour_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

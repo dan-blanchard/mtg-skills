@@ -3283,6 +3283,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bsoulbond\b"},
         r"\bsoulbond\b",
     ),
+    # ADR-0027: devour_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — the Scryfall `devour` keyword + phase's
+    # `devour` effect category). The SERVE pool (the cards that ARE devourers /
+    # token fodder to devour) stays oracle-defined, so hand-register the spec the
+    # sweep auto-register loop used to build, reusing the deleted regex as the
+    # serve pattern. (SWEEP_LABELS still carries the human label.)
+    ("devour_matters", "you"): _spec(
+        *SWEEP_LABELS["devour_matters"],
+        {"oracle": r"\bdevour\b"},
+        r"\bdevour\b",
+    ),
     # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word

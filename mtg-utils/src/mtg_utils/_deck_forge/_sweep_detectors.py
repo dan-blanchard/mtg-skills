@@ -711,12 +711,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield|\\b(?:undying|persist)\\b",
     },
-    {
-        "key": "devour_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bdevour\\b",
-    },
+    # ADR-0027: devour_matters' oracle-regex SWEEP_DETECTORS row was deleted
+    # (detection moved to the Card IR — the Scryfall `devour` keyword via
+    # _IR_KEYWORD_MAP + phase's `devour` effect category, fanned via the
+    # cat=="devour" arm in extract_signals_ir). The bare "\bdevour\b" regex
+    # over-fired on the "Devour Intellect" FLAVOR WORD (CR 207.2d — no rules
+    # meaning) and the "Devour in Flames" CARD NAME, neither of which is the
+    # Devour keyword (CR 702.82a). The serve pool stays oracle-defined, so the
+    # spec is hand-registered in signal_specs reusing the deleted regex.
     {
         "key": "cant_block_grant",
         "scope": "you",
