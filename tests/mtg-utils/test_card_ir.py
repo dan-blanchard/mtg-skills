@@ -23,6 +23,7 @@ from mtg_utils._card_ir.project import (
     _filter,
     _graveyard_cast_grant_markers,
     _graveyard_count_markers,
+    _graveyard_count_player,
     _has_graveyard_count,
     _lifeloss_markers,
     _modal_split_effects,
@@ -2689,6 +2690,254 @@ def test_graveyard_count_marker_from_effect_amount():
     markers = _graveyard_count_markers(rec, [])
     assert {"board_count"} == {m.category for m in markers}
     assert markers[0].zones == ("in:graveyard",)
+
+
+# ── ADR-0027 graveyard_matters pass 2: threshold/cost-reduction deep scan, GY
+#    tutor / grant-keyword zone recovery, opp-GY count + exile scope ────────────
+
+
+def test_graveyard_count_marker_from_threshold_subability():
+    """Kirtar's Wrath's threshold ("If there are seven or more cards in your
+    graveyard, instead …") rides a NESTED sub_ability.condition QuantityCheck →
+    GraveyardSize — the deep-scan recovers an in:graveyard count marker (scope you)."""
+    rec = {
+        "name": "Kirtar's Wrath",
+        "oracle_text": "Destroy all creatures. They can't be regenerated.\n"
+        "Threshold — If there are seven or more cards in your graveyard, instead "
+        "destroy all creatures, then create two 1/1 white Spirit creature tokens.",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {"type": "DestroyAll"},
+                "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {"type": "DestroyAll"},
+                    "condition": {
+                        "type": "ConditionInstead",
+                        "inner": {
+                            "type": "QuantityCheck",
+                            "lhs": {
+                                "type": "Ref",
+                                "qty": {
+                                    "type": "GraveyardSize",
+                                    "player": {"type": "Controller"},
+                                },
+                            },
+                            "comparator": "GE",
+                            "rhs": {"type": "Fixed", "value": 7},
+                        },
+                    },
+                },
+            }
+        ],
+    }
+    markers = _graveyard_count_markers(rec, [])
+    assert {"board_count"} == {m.category for m in markers}
+    assert markers[0].zones == ("in:graveyard",)
+    assert markers[0].scope == "you"
+
+
+def test_graveyard_count_marker_from_modify_cost_dynamic_count():
+    """The Magic Mirror's "costs {1} less … for each instant and sorcery card in your
+    graveyard" rides static_abilities[].mode.ModifyCost.dynamic_count (a graveyard
+    ZoneCardCount) — the deep-scan recovers the count marker the old slot-list missed."""
+    rec = {
+        "name": "The Magic Mirror",
+        "static_abilities": [
+            {
+                "mode": {
+                    "ModifyCost": {
+                        "mode": "Reduce",
+                        "dynamic_count": {
+                            "type": "ZoneCardCount",
+                            "zone": "Graveyard",
+                            "card_types": ["Instant", "Sorcery"],
+                            "scope": "Controller",
+                        },
+                    }
+                },
+                "affected": {"type": "SelfRef"},
+            }
+        ],
+    }
+    markers = _graveyard_count_markers(rec, [])
+    assert {"board_count"} == {m.category for m in markers}
+    assert markers[0].scope == "you"
+
+
+def test_graveyard_count_marker_opponent_scope():
+    """Anticognition's "If an opponent has eight or more cards in their graveyard"
+    is a count over the OPPONENT's graveyard (GraveyardSize.player == Opponent) — the
+    marker scope is opp (graveyard interaction), not you."""
+    rec = {
+        "name": "Anticognition",
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {"type": "Counter"},
+                "sub_ability": {
+                    "kind": "Spell",
+                    "effect": {"type": "Counter"},
+                    "condition": {
+                        "type": "QuantityCheck",
+                        "lhs": {
+                            "type": "Ref",
+                            "qty": {
+                                "type": "GraveyardSize",
+                                "player": {"type": "Opponent"},
+                            },
+                        },
+                        "comparator": "GE",
+                        "rhs": {"type": "Fixed", "value": 8},
+                    },
+                },
+            }
+        ],
+    }
+    markers = _graveyard_count_markers(rec, [])
+    assert {"board_count"} == {m.category for m in markers}
+    assert markers[0].scope == "opp"
+
+
+def test_graveyard_count_player_helper():
+    """_graveyard_count_player returns opp for an Opponent-owned count and you for a
+    Controller-owned / unowned (DistinctCardTypes) graveyard count."""
+    opp = {"type": "GraveyardSize", "player": {"type": "Opponent"}}
+    you = {"type": "GraveyardSize", "player": {"type": "Controller"}}
+    distinct = {
+        "type": "DistinctCardTypes",
+        "source": {"type": "Zone", "zone": "Graveyard"},
+    }
+    assert _graveyard_count_player(opp) == "opp"
+    assert _graveyard_count_player(you) == "you"
+    assert _graveyard_count_player(distinct) == "you"
+
+
+def test_recover_graveyard_zones_tutor_own_graveyard():
+    """Boonweaver Giant's "search your graveyard, hand, and/or library …" tutor lost
+    the graveyard disjunct — the recovery adds from:graveyard and keeps scope you."""
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="tutor",
+                scope="any",
+                raw="When ~ enters, you may search your graveyard, hand, and/or "
+                "library for an Aura card and put it onto the battlefield.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "from:graveyard" in out.effects[0].zones
+    assert out.effects[0].scope == "you"
+
+
+def test_recover_graveyard_zones_tutor_library_and_or_graveyard():
+    """Raven Clan War-Axe's "search your library and/or graveyard" (graveyard last in
+    the zone list) still recovers from:graveyard, scope you."""
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="tutor",
+                scope="any",
+                raw="search your library and/or graveyard for a card named Eivor.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "from:graveyard" in out.effects[0].zones
+    assert out.effects[0].scope == "you"
+
+
+def test_recover_graveyard_zones_tutor_opponent_graveyard():
+    """Dispossess's "search target opponent's graveyard, hand, and library" is GY hate
+    — the recovery adds from:graveyard and sets scope opp."""
+    ability = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="tutor",
+                scope="any",
+                raw="Choose an artifact card name. Search target opponent's "
+                "graveyard, hand, and library for any number of cards with that "
+                "name and exile them.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "from:graveyard" in out.effects[0].zones
+    assert out.effects[0].scope == "opp"
+
+
+def test_recover_graveyard_zones_grant_keyword_in_graveyard():
+    """Lier's "Each instant and sorcery card in your graveyard has flashback"
+    grant_keyword keeps the GY reference only in the raw — the recovery adds
+    in:graveyard so the zone-aware graveyard_matters hook fires."""
+    ability = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="grant_keyword",
+                scope="any",
+                raw="Each instant and sorcery card in your graveyard has flashback.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "in:graveyard" in out.effects[0].zones
+
+
+def test_recover_graveyard_zones_dig_until_deposit():
+    """Hermit Druid's "Put that card into your hand and all other cards revealed this
+    way into your graveyard" (a dig_until self-mill deposit) recovers to:graveyard."""
+    ability = Ability(
+        kind="activated",
+        effects=(
+            Effect(
+                category="dig_until",
+                scope="any",
+                raw="Reveal cards from the top of your library until you reveal a "
+                "basic land card. Put that card into your hand and all other cards "
+                "revealed this way into your graveyard.",
+            ),
+        ),
+    )
+    out = _recover_graveyard_zones(ability)
+    assert "to:graveyard" in out.effects[0].zones
+
+
+def test_graveyard_wide_cast_grant_face_fallback():
+    """Underworld Breach's "Each nonland card in your graveyard has escape" drops the
+    static entirely (no carrier effect) — the GY-wide cast-keyword face fallback emits
+    a cast_from_zone marker so graveyard_matters fires."""
+    rec = {
+        "name": "Underworld Breach",
+        "oracle_text": "Each nonland card in your graveyard has escape. The escape "
+        "cost is equal to the card's mana cost plus exile three other cards from your "
+        "graveyard. (You may cast cards from your graveyard for their escape cost.)\n"
+        "At the beginning of the end step, sacrifice this enchantment.",
+    }
+    markers = _graveyard_cast_grant_markers(rec, [])
+    assert {"cast_from_zone"} == {m.category for m in markers}
+    assert markers[0].zones == ("from:graveyard",)
+
+
+def test_graveyard_wide_cast_grant_gated_to_no_in_graveyard():
+    """When a grant_keyword effect already carries in:graveyard (the zone recovery
+    handled Lier/Snapcaster), the GY-wide face fallback does NOT also emit a redundant
+    cast_from_zone marker."""
+    rec = {
+        "name": "Lier, Disciple of the Drowned",
+        "oracle_text": "Each instant and sorcery card in your graveyard has flashback.",
+    }
+    abilities = [
+        Ability(
+            kind="static",
+            effects=(Effect(category="grant_keyword", zones=("in:graveyard",)),),
+        )
+    ]
+    assert not _graveyard_cast_grant_markers(rec, abilities)
 
 
 # ── ADR-0027 sacrifice_matters: edict scope split + additional-cost marker ─────

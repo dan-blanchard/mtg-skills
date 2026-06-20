@@ -145,6 +145,130 @@ def test_graveyard_from_castable_zone():
     assert _sigs(ir) == [("graveyard_matters", "you", "")]
 
 
+# ── graveyard_matters pass 2 (from:graveyard recursion / search, exile-in-GY
+#    hate, scope fidelity — ADR-0027) ───────────────────────────────────────────
+
+
+def test_graveyard_bounce_from_graveyard_scoped_you():
+    """A bounce returning cards FROM your graveyard to hand (Metallurgic Summonings,
+    from:graveyard) fires graveyard_matters at you — _gy_scope reads "your graveyard"
+    in the raw, overriding phase's recursion-target 'any' scope."""
+    ir = _ir(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="bounce",
+                    scope="any",
+                    zones=("from:graveyard", "to:hand"),
+                    raw="Return all instant and sorcery cards from your graveyard to "
+                    "your hand.",
+                ),
+            ),
+        )
+    )
+    assert _sigs(ir) == [("graveyard_matters", "you", "")]
+
+
+def test_graveyard_tutor_from_graveyard_scoped_you():
+    """A tutor whose search reaches YOUR graveyard (recovered from:graveyard, scope
+    you) fires graveyard_matters at you and cross-opens tutor_matters."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="tutor",
+                    scope="you",
+                    zones=("from:graveyard",),
+                    raw="search your graveyard, hand, and/or library for an Aura.",
+                ),
+            ),
+        )
+    )
+    assert ("graveyard_matters", "you", "") in _sigs(ir)
+
+
+def test_graveyard_tutor_from_opponent_graveyard_scoped_opponents():
+    """A tutor that searches an OPPONENT's graveyard (recovered from:graveyard, scope
+    opp) fires graveyard_matters at opponents (GY hate)."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="tutor",
+                    scope="opp",
+                    zones=("from:graveyard",),
+                    raw="Search target opponent's graveyard, hand, and library and "
+                    "exile them.",
+                ),
+            ),
+        )
+    )
+    assert ("graveyard_matters", "opponents", "") in _sigs(ir)
+
+
+def test_graveyard_exile_in_graveyard_hate_scoped_opponents():
+    """An exile of a card targeted IN an opponent's graveyard (in:graveyard, not
+    from:graveyard — Disposal Mummy) fires graveyard_matters at opponents (GY hate);
+    the in:graveyard hate path now covers it (it was double-missed before pass 2)."""
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="exile",
+                    scope="any",
+                    zones=("to:exile", "in:graveyard"),
+                    raw="exile target card from an opponent's graveyard.",
+                ),
+            ),
+        )
+    )
+    assert _sigs(ir) == [("graveyard_matters", "opponents", "")]
+
+
+def test_graveyard_count_marker_opp_scope_fires_opponents():
+    """The opponent-GY count marker (board_count, scope opp — Anticognition) fires
+    graveyard_matters at opponents via the in:graveyard zone hook + _gy_scope."""
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="board_count",
+                    scope="opp",
+                    zones=("in:graveyard",),
+                    raw="count of cards in a graveyard",
+                ),
+            ),
+        )
+    )
+    assert _sigs(ir) == [("graveyard_matters", "opponents", "")]
+
+
+def test_graveyard_bare_a_graveyard_recursion_stays_any():
+    """A recursion target with NO "your"/"opponent" tell ("Return target creature
+    card from a graveyard" — a bare graveyard) stays scope any (the scope-split serves
+    it as its own avenue); _gy_scope only forces you/opp on an explicit tell."""
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="bounce",
+                    scope="any",
+                    zones=("from:graveyard", "to:hand"),
+                    raw="Return target creature card from a graveyard to its owner's "
+                    "hand.",
+                ),
+            ),
+        )
+    )
+    assert _sigs(ir) == [("graveyard_matters", "any", "")]
+
+
 # ── token_maker (subject-bearing) ─────────────────────────────────────────────
 
 

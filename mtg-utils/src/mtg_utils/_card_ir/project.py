@@ -3526,48 +3526,96 @@ def _has_graveyard_count(node: object) -> bool:
     return any(_has_graveyard_count(v) for v in node.values())
 
 
+def _graveyard_count_player(node: object) -> str:
+    """The scope of the FIRST graveyard count operand in ``node``: 'opp' when the
+    count is over an opponent's graveyard ("eight or more cards in their graveyard"
+    — Anticognition: GraveyardSize.player.type == 'Opponent'), else 'you' (Controller
+    / a DistinctCardTypes whose Zone carries no player defaults to your graveyard).
+    Mirrors ``_has_graveyard_count``'s match set so the marker's scope tracks whose
+    graveyard the build-around counts (ADR-0027 scope-split)."""
+    if isinstance(node, list):
+        for x in node:
+            s = _graveyard_count_player(x)
+            if s == "opp":
+                return s
+        return "you"
+    if not isinstance(node, dict):
+        return "you"
+    t = _norm(node.get("type"))
+    src = node.get("source")
+    is_count = (
+        t == "graveyardsize"
+        or (
+            t in ("zonecardcount", "zonecardcountatleast")
+            and _norm(node.get("zone")) == "graveyard"
+        )
+        or (
+            t == "distinctcardtypes"
+            and isinstance(src, dict)
+            and _norm(src.get("zone")) == "graveyard"
+        )
+    )
+    if is_count:
+        # GraveyardSize carries `player`; a graveyard ZoneCardCount carries `scope`
+        # ('Controller'/'Opponent'). Either naming an opponent → 'opp'.
+        owner = node.get("player")
+        owner_t = _norm(owner.get("type")) if isinstance(owner, dict) else None
+        scope = _norm(node.get("scope"))
+        if owner_t == "opponent" or scope == "opponent":
+            return "opp"
+        return "you"
+    for v in node.values():
+        s = _graveyard_count_player(v)
+        if s == "opp":
+            return s
+    return "you"
+
+
 def _graveyard_count_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
-    """One in:graveyard count-operand marker when the record scales a value with the
-    number of cards in your graveyard (graveyard count-operand, ADR-0027). Scans the
-    static_abilities / abilities' cost_reduction / replacements for a graveyard-zoned
-    count node phase kept in its raw but the projection dropped. Gated to faces with
-    no structural in:graveyard count already (the projected zone-aware path is
-    preferred; this is the raw fallback for the dropped-operand cards)."""
+    """One in:graveyard count-operand marker when the record scales a value with /
+    gates on the number of cards in a graveyard (graveyard count-operand, ADR-0027).
+    Deep-scans the static_abilities / abilities / triggers / replacements subtrees
+    for a graveyard-zoned count node phase kept in its raw but the projection dropped
+    (a cost_reduction count, a ModifyCost dynamic_count, a threshold/spell-mastery
+    sub_ability condition). Gated to faces with no structural in:graveyard count
+    already (the projected zone-aware path is preferred; this is the raw fallback for
+    the dropped-operand cards). Scope tracks whose graveyard the count is over
+    (Controller → you, Opponent → opp)."""
     has_struct = any("in:graveyard" in e.zones for a in abilities for e in a.effects)
     if has_struct:
         return []
-    # Only the value/count carriers — NOT a ChangeZone effect's own graveyard origin
-    # (a recursion, handled elsewhere). Scan the static-ability modification values,
-    # the per-ability cost_reduction counts, and replacement values.
-    sources: list[object] = []
-    for st in record.get("static_abilities") or []:
-        if isinstance(st, dict):
-            sources.append(st.get("modifications"))
-            sources.append(st.get("condition"))
-    for ab in record.get("abilities") or []:
-        if isinstance(ab, dict):
-            sources.append(ab.get("cost_reduction"))
-            sources.append(ab.get("activation_restrictions"))
-            # The X-operand can ride the effect's own amount/value subtree (Liliana
-            # Waker's "-X/-X where X is GraveyardSize", Altar of the Goyf's "+X/+X
-            # where X is card types among cards in all graveyards") — phase keeps the
-            # GraveyardSize/DistinctCardTypes Ref but the projection drops it to a
-            # subjectless pump. _has_graveyard_count is count-typed only (not a bare
-            # Zone origin), so a recursion effect's graveyard origin never matches.
-            sources.append(ab.get("effect"))
-    for tr in record.get("triggers") or []:
-        if isinstance(tr, dict):
-            sources.append(tr.get("execute"))
-    for rep in record.get("replacements") or []:
-        if isinstance(rep, dict):
-            sources.append(rep.get("modifications"))
+    # Deep-scan the ability containers as WHOLE subtrees: a graveyard count operand
+    # rides many phase slots the structured projection drops — a cost_reduction count
+    # (Pteramander), a static ModifyCost.dynamic_count (The Magic Mirror, in
+    # `static_abilities[].mode.ModifyCost`), an activation_restrictions threshold
+    # (Infected Vermin), a NESTED sub_ability.condition QuantityCheck (Kirtar's Wrath,
+    # Cabal Ritual — the threshold "instead" sub-ability), or the effect's own amount
+    # subtree (Liliana Waker). _has_graveyard_count matches ONLY a count-typed node
+    # (GraveyardSize / a graveyard ZoneCardCount / a DistinctCardTypes over a
+    # graveyard Zone), never a bare Zone(Graveyard) recursion origin, so scanning the
+    # whole container can't mistake a Reanimate/Feldon recursion for a count.
+    sources: list[object] = [
+        record.get("static_abilities"),
+        record.get("abilities"),
+        record.get("triggers"),
+        record.get("replacements"),
+    ]
     if not any(_has_graveyard_count(s) for s in sources):
         return []
+    # Whose graveyard the count is over decides the marker's scope (Anticognition's
+    # "their graveyard" → opp = graveyard interaction; a Controller count → you).
+    scope = "you"
+    for s in sources:
+        if _has_graveyard_count(s):
+            p = _graveyard_count_player(s)
+            if p == "opp":
+                scope = "opp"
+                break
     return [
         Effect(
             category="board_count",
-            scope="you",
-            raw="count of cards in your graveyard",
+            scope=scope,
+            raw="count of cards in a graveyard",
             zones=("in:graveyard",),
         )
     ]
@@ -3606,6 +3654,31 @@ _GY_CARD_REFERENCE = re.compile(
     r"\bcards?\b[^.]*?\b(?:in|from)\b[^.]*?\bgraveyard\b", re.IGNORECASE
 )
 _GY_FROM_BATTLEFIELD = re.compile(r"\bfrom the battlefield\b", re.IGNORECASE)
+# A TUTOR whose search zone INCLUDES a graveyard — "Search your graveyard, hand,
+# and/or library for …" (Boonweaver Giant, Dark Supplicant), "Search target
+# opponent's graveyard, hand, and library …" (Dispossess — GY hate). phase types the
+# Token/CheatPlay/tutor but DROPS the graveyard disjunct from the multi-zone search,
+# so from:graveyard is lost. The "your" vs "opponent's/target player's" prefix
+# decides whose graveyard the search reaches (recovered as the effect's scope).
+# "search your … graveyard" with the graveyard anywhere in the multi-zone list
+# ("search your graveyard, hand, and/or library", "search your library and/or
+# graveyard" — Raven Clan War-Axe, The First Doctor). Bounded to one clause (no
+# sentence break) so a "search your library …. put into your graveyard" can't match.
+_SEARCH_OWN_GY = re.compile(
+    r"\bsearch your (?:[\w,/ ]*?\b(?:and/or|and|or) )?graveyard\b", re.IGNORECASE
+)
+_SEARCH_OPP_GY = re.compile(
+    r"\bsearch (?:target )?(?:that |its )?(?:\w+ )?"
+    r"(?:opponent'?s?|player'?s?|controller'?s?) "
+    r"(?:[\w,/ ]*?\b(?:and/or|and|or) )?graveyard\b",
+    re.IGNORECASE,
+)
+# A card REFERENCED in a graveyard inside a GRANT raw — "Each instant and sorcery
+# card in your graveyard has flashback" (Lier), "card in your graveyard gains
+# flashback" (Snapcaster), "card in your graveyard that's exactly two colors has
+# jump-start" (Niv-Mizzet, Supreme). phase types these grant_keyword (or drops the
+# static entirely), keeping the GY reference only in the raw — a graveyard-cast
+# payoff. Anchored on the same _GY_CARD_REFERENCE so a non-GY grant can't match.
 
 
 def _recover_graveyard_zones(ability: Ability) -> Ability:
@@ -3615,13 +3688,18 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
     GY-onto-battlefield cheat → from:graveyard (Dakkon); a deposit "the other into
     your graveyard" → to:graveyard (Atris, Marchesa); a card REFERENCED in/from a
     graveyard whose target lost the InZone (Aberrant Mind, Biblioplex, All Suns'
-    Dawn) → in:graveyard. Append-only."""
+    Dawn) or a GY-wide cast-keyword GRANT (Lier, Snapcaster, Niv-Mizzet) becomes
+    in:graveyard; a multi-zone TUTOR whose graveyard disjunct phase dropped becomes
+    from:graveyard (Boonweaver scope you, Dispossess scope opp). Append-only (a
+    tutor's scope is also recovered when its search reaches a graveyard)."""
     new_effects: list[Effect] = []
     changed = False
     for e in ability.effects:
         raw = e.raw or ""
         zones = set(e.zones)
         before = set(zones)
+        before_scope = e.scope
+        scope = e.scope
         if (
             e.category in ("bounce", "reanimate", "cast_from_zone", "blink")
             and "in:graveyard" not in zones
@@ -3630,19 +3708,46 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
         ):
             zones.add("in:graveyard")
         # A card referenced IN/FROM a graveyard in a target_only / topdeck_stack /
-        # choose / make_token / bounce raw — graveyard recursion/selection whose
-        # InZone target the structured projection dropped. Excludes a deposit (no
-        # to:/in: added when the only GY mention is "into … graveyard") and a
-        # from:battlefield dies-event.
+        # choose / make_token / bounce / grant_keyword raw — graveyard
+        # recursion / selection / cast-grant whose InZone target the structured
+        # projection dropped. grant_keyword covers a GY-wide cast-keyword grant
+        # ("Each instant and sorcery card in your graveyard has flashback" — Lier;
+        # "card in your graveyard gains flashback" — Snapcaster; jump-start —
+        # Niv-Mizzet, Supreme). Excludes a deposit (no to:/in: added when the only GY
+        # mention is "into … graveyard") and a from:battlefield dies-event.
         if (
             e.category
-            in ("target_only", "topdeck_stack", "choose", "make_token", "bounce")
+            in (
+                "target_only",
+                "topdeck_stack",
+                "choose",
+                "make_token",
+                "bounce",
+                "grant_keyword",
+            )
             and "in:graveyard" not in zones
             and "to:graveyard" not in zones
             and not _GY_FROM_BATTLEFIELD.search(raw)
             and _GY_CARD_REFERENCE.search(raw)
         ):
             zones.add("in:graveyard")
+        # A TUTOR whose multi-zone search reaches a graveyard (the GY disjunct phase
+        # dropped). "search your graveyard …" → from:graveyard, scope you (the search
+        # recovers YOUR graveyard — Boonweaver, Dark Supplicant); "search … an
+        # opponent's graveyard …" → from:graveyard, scope opp (graveyard hate —
+        # Dispossess, Unmoored Ego). The tutor doer lane uses a fixed scope, so the
+        # scope override only steers the graveyard hook (ADR-0027 scope-split).
+        if (
+            e.category == "tutor"
+            and "from:graveyard" not in zones
+            and not _GY_FROM_BATTLEFIELD.search(raw)
+        ):
+            if _SEARCH_OWN_GY.search(raw):
+                zones.add("from:graveyard")
+                scope = "you"
+            elif _SEARCH_OPP_GY.search(raw):
+                zones.add("from:graveyard")
+                scope = "opp"
         if (
             e.category in ("cheat_play", "reanimate")
             and "from:graveyard" not in zones
@@ -3650,15 +3755,15 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
         ):
             zones.add("from:graveyard")
         if (
-            e.category in ("topdeck_select", "reveal", "mill", "discard")
+            e.category in ("topdeck_select", "reveal", "mill", "discard", "dig_until")
             and "to:graveyard" not in zones
             and "from:battlefield" not in zones
             and _INTO_GY_DEPOSIT.search(raw)
         ):
             zones.add("to:graveyard")
-        if zones != before:
+        if zones != before or scope != before_scope:
             changed = True
-            new_effects.append(replace(e, zones=tuple(sorted(zones))))
+            new_effects.append(replace(e, zones=tuple(sorted(zones)), scope=scope))
         else:
             new_effects.append(e)
     if not changed:
@@ -3735,6 +3840,18 @@ def _recover_removal_target_subject(ability: Ability) -> Ability:
 _GRAVEYARD_CAST_GRANT = re.compile(
     r"\bcast\b[^.\"]*\bfrom (?:your|a) graveyard\b", re.IGNORECASE
 )
+# A GY-WIDE cast-keyword grant whose static phase DROPPED entirely (no carrier
+# effect to attach a zone to): "Each nonland card in your graveyard has escape"
+# (Underworld Breach), "Each creature card in your graveyard has scavenge" (Varolz),
+# "has unearth" (Dregscape Sliver). Each of these keywords (CR 702.x) lets you cast /
+# play the card from the graveyard, so the card is a graveyard-cast payoff. Anchored
+# on a GY card reference + a known graveyard-castable keyword.
+_GY_WIDE_CAST_GRANT = re.compile(
+    r"cards? in your graveyard (?:ha(?:s|ve)|gains?) (?:[^.]*\b)?"
+    r"(?:flashback|escape|jump-?start|retrace|encore|disturb|unearth|scavenge"
+    r"|embalm|eternalize|aftermath)\b",
+    re.IGNORECASE,
+)
 
 
 def _graveyard_cast_grant_markers(
@@ -3767,6 +3884,21 @@ def _graveyard_cast_grant_markers(
     # static_abilities row recovers no recognized mode, so no carrier raw exists).
     text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
     if (m := _GRAVEYARD_CAST_GRANT.search(text)) is not None:
+        return [
+            Effect(
+                category="cast_from_zone",
+                scope="you",
+                raw=m.group(0),
+                zones=("from:graveyard",),
+            )
+        ]
+    # GY-WIDE cast-keyword grant whose static phase dropped entirely (no carrier
+    # effect, and the grant_keyword zone-recovery couldn't attach in:graveyard) —
+    # Underworld Breach, Varolz, Dregscape Sliver. Gated to faces with no recovered
+    # in:graveyard reference so a Lier/Snapcaster (whose grant_keyword already carries
+    # in:graveyard) doesn't also emit a redundant marker.
+    has_ingy = any("in:graveyard" in e.zones for a in abilities for e in a.effects)
+    if not has_ingy and (m := _GY_WIDE_CAST_GRANT.search(text)) is not None:
         return [
             Effect(
                 category="cast_from_zone",
