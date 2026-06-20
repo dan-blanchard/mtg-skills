@@ -2026,3 +2026,147 @@ def test_activation_restriction_threshold_recovers_graveyard_zone():
     card = project_card([rec])
     conds = [ab.condition for ab in card.all_abilities() if ab.condition is not None]
     assert any("graveyard" in c.zones for c in conds)
+
+
+def test_graveyard_exile_cost_marks_exilegrave():
+    """A "Exile this card from your graveyard" cost (Renew / escape, Boneyard
+    Mycodrax) marks the cost `exilegrave` so the GY-fuel cost hook fires; a
+    battlefield/hand exile cost stays the generic `exile` part."""
+    renew = {
+        "name": "Agent of Kotis",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "PutCounter",
+                    "counter_type": "P1P1",
+                    "count": {"type": "Fixed", "value": 2},
+                    "target": {"type": "Typed", "type_filters": ["Creature"]},
+                },
+                "cost": {
+                    "type": "Composite",
+                    "costs": [
+                        {
+                            "type": "Mana",
+                            "cost": {"type": "Cost", "shards": ["Blue"], "generic": 3},
+                        },
+                        {
+                            "type": "Exile",
+                            "count": 1,
+                            "zone": "Graveyard",
+                            "filter": {"type": "SelfRef"},
+                        },
+                    ],
+                },
+            }
+        ],
+    }
+    ab = project_card([renew]).all_abilities()[0]
+    assert "exilegrave" in (ab.cost or "")
+    # a non-graveyard exile cost stays generic
+    other = {
+        "name": "X",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {"type": "Draw", "count": {"type": "Fixed", "value": 1}},
+                "cost": {"type": "Exile", "count": 1, "zone": "Hand"},
+            }
+        ],
+    }
+    ab2 = project_card([other]).all_abilities()[0]
+    assert "exilegrave" not in (ab2.cost or "")
+
+
+def test_topdeck_stack_surfaces_graveyard_origin_zone():
+    """Academy Ruins' "Put target artifact card from your graveyard on top of your
+    library" (PutAtLibraryPosition with an InZone:Graveyard target) now surfaces
+    in:graveyard so the zone-aware graveyard_matters hook reads the GY→library
+    recursion."""
+    rec = {
+        "name": "Academy Ruins",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "PutAtLibraryPosition",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Artifact"],
+                        "controller": "You",
+                        "properties": [{"type": "InZone", "zone": "Graveyard"}],
+                    },
+                    "count": {"type": "Fixed", "value": 1},
+                    "position": {"type": "Top"},
+                },
+                "cost": {"type": "Tap"},
+            }
+        ],
+    }
+    eff = _effect_with(project_card([rec]), "topdeck_stack")
+    assert "in:graveyard" in eff.zones
+
+
+def test_recover_graveyard_zones_card_reference():
+    """A card REFERENCED in/from a graveyard in a target_only / topdeck raw (Aberrant
+    Mind's "choose target card in your graveyard") recovers in:graveyard; a deposit
+    or a from:battlefield dies-event does not."""
+    ref = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="target_only",
+                scope="any",
+                raw="When ~ enters, choose target instant or sorcery card in your "
+                "graveyard.",
+            ),
+        ),
+    )
+    assert "in:graveyard" in _recover_graveyard_zones(ref).effects[0].zones
+    # a dies-event card "put into a graveyard from the battlefield" is not recursion
+    dies = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="target_only",
+                scope="any",
+                raw="a card is put into a graveyard from the battlefield",
+            ),
+        ),
+    )
+    assert "in:graveyard" not in _recover_graveyard_zones(dies).effects[0].zones
+
+
+def test_graveyard_count_marker_from_effect_amount():
+    """Liliana Waker's "-X/-X where X is GraveyardSize" keeps the GraveyardSize in the
+    ability effect subtree — recovered as an in:graveyard count marker."""
+    rec = {
+        "name": "Liliana, Waker of the Dead",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "Pump",
+                    "power": {
+                        "type": "Quantity",
+                        "value": {
+                            "type": "Multiply",
+                            "factor": -1,
+                            "inner": {
+                                "type": "Ref",
+                                "qty": {
+                                    "type": "GraveyardSize",
+                                    "player": {"type": "Controller"},
+                                },
+                            },
+                        },
+                    },
+                    "target": {"type": "Typed", "type_filters": ["Creature"]},
+                },
+                "cost": {"type": "Loyalty", "amount": -3},
+            }
+        ],
+    }
+    markers = _graveyard_count_markers(rec, [])
+    assert {"board_count"} == {m.category for m in markers}
+    assert markers[0].zones == ("in:graveyard",)

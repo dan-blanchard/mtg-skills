@@ -4953,18 +4953,76 @@ def extract_signals_ir(
             # reanimator / creature_recursion lanes (those are GY→battlefield).
             if e.category in ("reanimate", "mill", "graveyard_recursion"):
                 add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
-            # Zone-aware graveyard_matters (structural projection): an effect that
-            # targets/counts cards IN YOUR graveyard (delve, "creature card in your
-            # graveyard") cares about graveyards. Gated to scope you — an any-scope
-            # in:graveyard is ambiguous (your-GY benefit vs opponent-GY hate), and
-            # recursion/reanimation FROM the graveyard already fires above via
-            # category. bare from:/to: excluded (origin=graveyard→exile is GY HATE).
+            # GY-recursion at the TARGET's scope (ADR-0027 scope-gate fix): a bounce /
+            # cast-from-zone / reanimate / blink whose target is restricted IN the
+            # graveyard ('in:graveyard') is graveyard recursion — Raise Dead / Monk
+            # Idealist / World Breaker / Grim Captain's Call return a card FROM a
+            # graveyard. phase assigns these scope='any' (the affected OBJECT is the
+            # recursion target, which carries no controller), so the old "==you" gate
+            # below dropped them. Fire at _ir_scope(e.scope): 'your graveyard' stays
+            # you, 'from a graveyard' / an opponent's GY (Spurnmage, scope='opp')
+            # becomes the GY-hate/any avenue the scope-split already serves. A
+            # battlefield→graveyard 'dies' is from:battlefield (excluded) and isn't a
+            # recursion category, so it never reaches here (CR 700.4).
             if (
-                "in:graveyard" in e.zones
-                and e.category != "exile"
-                and _ir_scope(e.scope) == "you"
+                e.category in ("bounce", "cast_from_zone", "reanimate", "blink")
+                and "in:graveyard" in e.zones
+                and "from:battlefield" not in e.zones
             ):
-                add("graveyard_matters", "you", "", e.raw)
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # GY→battlefield cheat (ADR-0027 scope-gate fix, extended): a cheat_play /
+            # reanimate whose ORIGIN includes a graveyard ('from:graveyard') puts a
+            # card onto the battlefield from a graveyard — reanimation. Dakkon's "from
+            # your hand or graveyard onto the battlefield" carries from:graveyard after
+            # the per-effect zone recovery; the disjunction's graveyard source is a
+            # genuine GY payoff (the hand source is incidental).
+            if (
+                e.category in ("cheat_play", "reanimate")
+                and "from:graveyard" in e.zones
+            ):
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # Graveyard-cast payoff (ADR-0027): an effect that LETS YOU cast cards from
+            # a graveyard (Finale of Promise's CastFromZone, Laelia, Jaya's emblem
+            # marker) — the recovered 'from:graveyard' zone or a bare cast_from_zone
+            # category. The keyworded self-cast (flashback/escape) rides castable_zones
+            # above; this is the effect that grants the casting.
+            if e.category == "cast_from_zone" and (
+                not e.zones or "from:graveyard" in e.zones
+            ):
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # Self-mill / fill-the-yard (ADR-0027): an effect that DEPOSITS cards into a
+            # graveyard ('to:graveyard') — Mulch puts the non-lands in, Atris/Marchesa
+            # bin a separated pile — fuels GY payoffs. Mirrors the trigger-dimension
+            # policy below: the battlefield→graveyard 'dies' movement (from:battlefield)
+            # is death, not self-mill, so it's excluded. Your/any scope only (an
+            # opponent-only bin is mill against them, a different lane).
+            if (
+                "to:graveyard" in e.zones
+                and "from:battlefield" not in e.zones
+                and _ir_scope(e.scope) in ("you", "any")
+            ):
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # Graveyard-HATE (ADR-0027): an exile EFFECT whose origin is a graveyard
+            # ('from:graveyard') — Farewell's exile-all-graveyards mode, Consecrate /
+            # Jack-o'-Lantern / Heated Argument exile a card from a graveyard. The
+            # lane's intent includes GY hate; scope discriminates (an opponent's GY =
+            # hate, your own = escape/delve self-exile fuel). Gated to from:graveyard
+            # in zones, so a to:exile-only removal (Farewell's battlefield modes) stays
+            # out. blink also carries from:graveyard (Heated Argument's exile-as-cost).
+            if e.category in ("exile", "blink") and "from:graveyard" in e.zones:
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
+            # Zone-aware graveyard_matters (structural projection): an effect that
+            # targets/counts/copies cards IN a graveyard (delve, "creature card in
+            # your graveyard", a count-operand over cards-in-GY — Enigma Drake /
+            # Pteramander markers, a copy-of-a-card-in-GY recursion — Feldon, a
+            # return-the-target-in-GY — Brilliance Unleashed) cares about graveyards.
+            # Fired at _ir_scope(e.scope) (ADR-0027 scope-gate): a 'your graveyard'
+            # reference stays you; a 'a graveyard' reference (no controller) becomes
+            # any, which the scope-split serves as its own avenue. exile/blink already
+            # fire above via the GY-hate hook (origin=graveyard→exile). The count
+            # marker carries scope you, so the count-operand path stays you-scoped.
+            if "in:graveyard" in e.zones and e.category not in ("exile", "blink"):
+                add("graveyard_matters", _ir_scope(e.scope), "", e.raw)
             # An effect that scales with YOUR hand size (ZoneCardCount(Hand) — "draw
             # cards equal to the number of cards in your hand") cares about a big hand.
             if "in:hand" in e.zones and _ir_scope(e.scope) == "you":
@@ -5385,6 +5443,14 @@ def extract_signals_ir(
             # (Cycling's "discardself") out, so this no longer floods on alt-costs.
             if "discard" in cost_parts:
                 add("discard_outlet", "you", "", "")
+            # A graveyard-FUEL cost ("Exile this card from your graveyard" — Renew /
+            # escape, Boneyard Mycodrax; "Exile the top card of your graveyard" —
+            # Alms): the ability is powered by spending graveyard cards, a self-GY
+            # payoff (CR 702.55a / Renew). The cost projection tags this `exilegrave`
+            # (a battlefield/hand exile cost stays generic `exile`), so it never fires
+            # on a non-graveyard exile cost.
+            if "exilegrave" in cost_parts:
+                add("graveyard_matters", "you", "", "")
         trig = ab.trigger
         if trig is not None:
             # death_matters is the ARISTOCRATS payoff — OTHER creatures dying. A

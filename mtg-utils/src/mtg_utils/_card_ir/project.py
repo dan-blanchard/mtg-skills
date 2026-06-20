@@ -1252,6 +1252,27 @@ def _cost_string(cost: object) -> str | None:
                 # outlet; splitting it out is what unblocks the lane (the +471 flood).
                 self_discard = bool(node.get("self_ref"))
                 seen.add("discardself" if self_discard else "discard")
+            elif t == "exile":
+                # An exile cost that PAYS FROM A GRAVEYARD ("Exile this card from your
+                # graveyard" — Renew/escape-style, Boneyard Mycodrax; "Exile the top
+                # card of your graveyard" — Alms) is a graveyard payoff: it spends GY
+                # cards as fuel (CR 702.55a escape / Renew). Distinct cost marker so
+                # graveyard_matters fires; a battlefield/exile-from-hand exile cost
+                # stays the generic ``exile`` part (no GY synergy).
+                if _norm(node.get("zone")) == "graveyard":
+                    seen.add("exilegrave")
+                else:
+                    seen.add("exile")
+            elif t == "effectcost":
+                # An EffectCost wrapping a ChangeZone whose origin is the graveyard
+                # ("Exile the top card of your graveyard: …" — Alms) — same GY-fuel
+                # cost in a different phase shape. Surface exilegrave when the wrapped
+                # effect's origin is a graveyard.
+                inner = node.get("effect")
+                if isinstance(inner, dict) and _norm(inner.get("origin")) == (
+                    "graveyard"
+                ):
+                    seen.add("exilegrave")
             elif t in _COST_TYPES:
                 seen.add(t)
             for v in node.values():
@@ -1870,6 +1891,11 @@ def _library_position_effect(eff: dict, raw: str) -> Effect:
         subject=_effect_subject(eff),
         raw=raw,
         counter_kind=where,
+        # The moved card can be restricted IN a zone — "put target artifact card from
+        # your graveyard on top of your library" (Academy Ruins) carries an
+        # InZone:Graveyard target. Surfacing it as in:graveyard lets graveyard_matters
+        # read this graveyard→library recursion (ADR-0027).
+        zones=_zone_tags(eff),
     )
 
 
@@ -2747,16 +2773,23 @@ def _has_graveyard_count(node: object) -> bool:
     if not isinstance(node, dict):
         return False
     t = _norm(node.get("type"))
+    # GraveyardSize ("number of cards in your graveyard") and a graveyard-zoned
+    # ZoneCardCount / ZoneCardCountAtLeast (a typed/threshold GY count) are
+    # unambiguously NUMERIC operands over the GY population (CR 400.1).
     if t == "graveyardsize":
         return True
-    if t in ("zonecardcount", "zonecardcountatleast", "zone") and (
+    if t in ("zonecardcount", "zonecardcountatleast") and (
         _norm(node.get("zone")) == "graveyard"
     ):
-        # ZoneCardCount / a ZoneCardCountAtLeast threshold, or a bare Zone source
-        # under a DistinctCardTypes count ("card types among cards in all graveyards"
-        # — Polygoyf). Only reached from value/count/threshold sources, so a Zone here
-        # is always a count-of-cards-in-GY operand, never a recursion target.
         return True
+    # DistinctCardTypes over a graveyard Zone ("card types among cards in all
+    # graveyards" — Polygoyf): the COUNT wrapper makes the Zone a population total,
+    # not a recursion source. Gated to the wrapper so a bare Zone(Graveyard) used as
+    # a ChangeZone origin/filter (recursion — Reanimate, Feldon) is NOT a count.
+    if t == "distinctcardtypes":
+        src = node.get("source")
+        if isinstance(src, dict) and _norm(src.get("zone")) == "graveyard":
+            return True
     return any(_has_graveyard_count(v) for v in node.values())
 
 
@@ -2782,6 +2815,16 @@ def _graveyard_count_markers(record: dict, abilities: list[Ability]) -> list[Eff
         if isinstance(ab, dict):
             sources.append(ab.get("cost_reduction"))
             sources.append(ab.get("activation_restrictions"))
+            # The X-operand can ride the effect's own amount/value subtree (Liliana
+            # Waker's "-X/-X where X is GraveyardSize", Altar of the Goyf's "+X/+X
+            # where X is card types among cards in all graveyards") — phase keeps the
+            # GraveyardSize/DistinctCardTypes Ref but the projection drops it to a
+            # subjectless pump. _has_graveyard_count is count-typed only (not a bare
+            # Zone origin), so a recursion effect's graveyard origin never matches.
+            sources.append(ab.get("effect"))
+    for tr in record.get("triggers") or []:
+        if isinstance(tr, dict):
+            sources.append(tr.get("execute"))
     for rep in record.get("replacements") or []:
         if isinstance(rep, dict):
             sources.append(rep.get("modifications"))
@@ -2818,6 +2861,18 @@ _INTO_GY_DEPOSIT = re.compile(
     r"\b(?:the (?:rest|other)|all[^.]*?)\b[^.]*?\binto (?:your|a|their) graveyard\b",
     re.IGNORECASE,
 )
+# A card REFERENCED in/from a graveyard, surviving only in a target_only / topdeck /
+# choose / bounce raw whose structured target lost the InZone:Graveyard property
+# ("choose target instant or sorcery card in your graveyard" — Aberrant Mind; "put
+# up to one target card from your graveyard on top of your library" — Biblioplex,
+# Academy Ruins; "return … card … from your graveyard to your hand" — All Suns'
+# Dawn after the Unimplemented recovery). Anchored on a CARD object "(in|from) …
+# graveyard" so a "put X into your graveyard" deposit (to:graveyard, a different
+# tag) or a "from the battlefield" dies-event can't match.
+_GY_CARD_REFERENCE = re.compile(
+    r"\bcards?\b[^.]*?\b(?:in|from)\b[^.]*?\bgraveyard\b", re.IGNORECASE
+)
+_GY_FROM_BATTLEFIELD = re.compile(r"\bfrom the battlefield\b", re.IGNORECASE)
 
 
 def _recover_graveyard_zones(ability: Ability) -> Ability:
@@ -2825,7 +2880,9 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
     phase dropped (per-effect graveyard zone recovery, ADR-0027). A return-from-GY →
     in:graveyard (World Breaker, Grim Captain's Call SelfRef forms); a hand-or-GY /
     GY-onto-battlefield cheat → from:graveyard (Dakkon); a deposit "the other into
-    your graveyard" → to:graveyard (Atris, Marchesa). Append-only."""
+    your graveyard" → to:graveyard (Atris, Marchesa); a card REFERENCED in/from a
+    graveyard whose target lost the InZone (Aberrant Mind, Biblioplex, All Suns'
+    Dawn) → in:graveyard. Append-only."""
     new_effects: list[Effect] = []
     changed = False
     for e in ability.effects:
@@ -2837,6 +2894,20 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
             and "in:graveyard" not in zones
             and "from:battlefield" not in zones
             and _GY_RETURN_PHRASE.search(raw)
+        ):
+            zones.add("in:graveyard")
+        # A card referenced IN/FROM a graveyard in a target_only / topdeck_stack /
+        # choose / make_token / bounce raw — graveyard recursion/selection whose
+        # InZone target the structured projection dropped. Excludes a deposit (no
+        # to:/in: added when the only GY mention is "into … graveyard") and a
+        # from:battlefield dies-event.
+        if (
+            e.category
+            in ("target_only", "topdeck_stack", "choose", "make_token", "bounce")
+            and "in:graveyard" not in zones
+            and "to:graveyard" not in zones
+            and not _GY_FROM_BATTLEFIELD.search(raw)
+            and _GY_CARD_REFERENCE.search(raw)
         ):
             zones.add("in:graveyard")
         if (
