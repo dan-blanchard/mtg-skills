@@ -340,12 +340,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bconjure\\b",
     },
-    {
-        "key": "saga_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "lore counter|on (?:a|target) saga you control",
-    },
+    # ADR-0027: saga_matters migrated to the Card IR — a `_SAGA_REF` ("lore counter" /
+    # "Saga you control") dropped-static face marker (the lore-counter manipulation /
+    # payoff, anchored on the stripped oracle so a vanilla Saga's reminder-only lore
+    # mention doesn't fire — exactly mirroring this regex). This SWEEP_DETECTORS row is
+    # deleted; the serve hand-spec survives.
     {
         # Scope is "any": the row matches both self-wins ("you win the game") and
         # opponent-losses ("that player loses the game"), so a single forced scope can't

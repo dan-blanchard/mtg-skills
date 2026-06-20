@@ -4187,7 +4187,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # mechanic / keyword synergy
         "arcane_matters",
         "daynight_matters",
-        "saga_matters",
+        # saga_matters removed — ADR-0027 migrated it to the Card IR (a `_SAGA_REF`
+        # "lore counter" / "Saga you control" dropped-static face marker; the reminder-
+        # stripped anchor excludes a vanilla Saga's intrinsic advancement, mirroring the
+        # deleted SWEEP regex). Its SWEEP_DETECTORS row is deleted.
         "initiative_matters",
         # cycling_matters removed — ADR-0027 migrated it to the Card IR (phase's
         # `cycled` trigger + a `cycling_payoff` marker for the "cycle or discard" payoff
@@ -6588,6 +6591,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Old Gnawbone, Prismari Command, Wanted Scoundrels). CR 111.10 / 701.16.
         "food_matters",
         "treasure_matters",
+        # saga_matters ← a `_SAGA_REF` ("lore counter" / "Saga you control") dropped-
+        # static face marker (lore-counter manipulation — Keldon Warcaller, Satsuki,
+        # Garnet; chapter-scaling payoff Sagas; the Saga-payoff commander Tom Bombadil;
+        # non-Saga lore engines — Myth Realized, Mind Unbound). REMOVED from
+        # _IR_FLOOR_LANES; floor-mirror-dep == 0 (17 == 17). NO-FLOOD held: mapping
+        # counter_kind='lore' → saga_matters would have flooded the lane with all 186
+        # Sagas (phase synthesizes a lore placement for every Saga's chapter
+        # advancement); the reminder-stripped face anchor fires ONLY on the build-around
+        # tell (a vanilla Saga's reminder-only lore mention is excluded), exactly
+        # mirroring the regex (residual 0, ir_only 0). Its SWEEP_DETECTORS row is
+        # deleted; serve hand-spec'd. CR 714.
+        "saga_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

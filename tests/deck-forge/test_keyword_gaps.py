@@ -532,7 +532,16 @@ class TestSagaMatters:
     }
 
     def test_saga_commander_emits(self):
-        assert "saga_matters" in _keys(self.LORD)
+        # ADR-0027: saga_matters migrated to the Card IR — the "lore counters on a Saga"
+        # reference is a `saga` dropped-static marker → the hybrid path, not the regex.
+        ir = _ir_with(
+            Ability(
+                kind="static",
+                effects=(Effect(category="saga", scope="you", raw="lore counters"),),
+            )
+        )
+        assert "saga_matters" in _keys_hybrid(self.LORD, ir)
+        assert "saga_matters" not in _keys(self.LORD)
 
     def test_saga_search_is_subtype_and_serves(self):
         spec = spec_for(_sig("saga_matters", "you"))

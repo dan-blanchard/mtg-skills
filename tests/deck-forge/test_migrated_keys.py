@@ -2022,6 +2022,30 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Saga / lore-counter payoff (Keldon Warcaller) — the "put a lore counter on target
+    # Saga you control" manipulation is recovered as a `saga` dropped-static marker.
+    "saga_matters": (
+        {
+            "name": "Keldon Warcaller",
+            "type_line": "Creature — Human Warrior",
+            "oracle_text": (
+                "Whenever this creature attacks, put a lore counter on target "
+                "Saga you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="saga",
+                        scope="you",
+                        raw="lore counter",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
