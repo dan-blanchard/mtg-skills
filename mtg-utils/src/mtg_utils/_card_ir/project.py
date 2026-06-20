@@ -1785,6 +1785,54 @@ def _has_devotion_condition(st: dict) -> bool:
     return walk(st.get("condition"))
 
 
+def _granted_ability_effects(st: dict, affected: Filter | None) -> list[Effect]:
+    """Recursively project a static's GRANTED QUOTED abilities into structured
+    nested Effect(s) (quoted-grant-ability recursion, ADR-0027).
+
+    phase parses an "Enchanted/Equipped creature has '<ability>'" / "Creatures you
+    control have '<ability>'" / "<type> you control gain '<ability>'" grant as a
+    GrantAbility / GrantTrigger MODIFICATION whose ``definition`` (activated/spell)
+    or ``trigger`` is a FULLY STRUCTURED ability node — but the structured
+    projection never descended into it, so the granted body (its destroy / damage /
+    PutCounter / etc. Effect) was LOST and only the carrier raw survived. Recurse the
+    granted node through the same ``_collect_effects`` machinery a real
+    spell/activated/triggered ability goes through (mirrors how ``_modal_split_effects``
+    recurses ``_collect_effects`` per mode), so the lanes that read those effect
+    categories (removal: destroy / damage-to-permanent; counters: place_counter; …)
+    fire from real STRUCTURE rather than a brittle raw scan.
+
+    SCOPE / RULES-LAWYER GATE (CR 113.3, 702.x grant rules): the granted ability's
+    SUBJECT — who HAS it — is the static's ``affected`` set, and the source it
+    controls is controlled by that permanent's controller. A grant onto an
+    OPPONENT'S permanents (``affected.controller == 'opp'``) is THEIR ability, not
+    yours, so it is EXCLUDED (the recovered removal/counters are not a care of
+    yours). Every other affected set — your team (controller You), an Aura/Equipment
+    you control (EnchantedBy / EquippedBy → null controller), your commander, an
+    owned card — describes a permanent you control, so the granted source is yours.
+    Append-only: the carrier static's own effects (a board_grant / grant_keyword)
+    are untouched; this only ADDS the recovered inner effects."""
+    if affected is not None and affected.controller == "opp":
+        return []
+    out: list[Effect] = []
+    for m in st.get("modifications") or []:
+        mt = _norm(m.get("type"))
+        if mt == "grantability":
+            node = m.get("definition")
+            if isinstance(node, dict):
+                out.extend(_collect_effects(node, node.get("description") or ""))
+        elif mt == "granttrigger":
+            tr = m.get("trigger")
+            if isinstance(tr, dict):
+                out.extend(
+                    _collect_effects(tr.get("execute"), tr.get("description") or "")
+                )
+    # Drop the textless `other` placeholders the recursion can leave for an inner
+    # body phase couldn't structure (e.g. a granted "{T}: Add {G}" whose mana arm is
+    # not lane-relevant) — they would only mark the carrier partial. Keep only the
+    # genuinely structured inner effects (the gain over the prior raw-only floor).
+    return [e for e in out if e.category != "other"]
+
+
 def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     """A continuous static's modifications + restriction mode → effects."""
     affected = _filter(st.get("affected"))
@@ -1821,6 +1869,9 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             # have '{2},{T},Sacrifice: gain 3 life'" — Ragost). Unlike AddKeyword, no
             # bare keyword survives, so it isn't a grant_keyword; surface it as a
             # board_grant when the set is the whole own-board artifact/enchantment set.
+            # The GRANTED ability's structured body (its destroy / damage / PutCounter
+            # Effect) is recovered separately by _granted_ability_effects below, so the
+            # removal / counters lanes fire from the inner structure too.
             grants_ability_or_type = True
         elif mt == "addkeyword":
             # Batch 6 — a static that GRANTS a keyword (Levitation → Flying). The
@@ -1997,6 +2048,11 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
                 raw=desc,
             )
         )
+    # Quoted-grant-ability recursion (ADR-0027): recover the STRUCTURED inner effects
+    # of a GrantAbility / GrantTrigger modification (the carrier static keeps the
+    # grant opaque; here we descend into the granted ability node so its destroy /
+    # damage / place_counter Effect reaches the lanes that read those categories).
+    out.extend(_granted_ability_effects(st, affected))
     return out
 
 

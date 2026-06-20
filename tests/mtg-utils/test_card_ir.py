@@ -1327,6 +1327,184 @@ def test_parameterized_keyword_grant_over_artifact_set_is_board_grant():
     assert "grant_keyword" not in cats
 
 
+# ── quoted-grant-ability recursion (ADR-0027) ─────────────────────────────────
+
+
+def _grant_ability_static(affected, definition):
+    return {
+        "mode": "Continuous",
+        "affected": affected,
+        "modifications": [{"type": "GrantAbility", "definition": definition}],
+    }
+
+
+def test_quoted_grant_destroy_recovers_inner_destroy_effect():
+    """Manriki-Gusari: 'Equipped creature ... has "{T}: Destroy target Equipment."'.
+    phase keeps the grant opaque (a GrantAbility modification); the recursion descends
+    into the granted definition and recovers the inner destroy Effect (subject
+    Equipment), so removal/artifact lanes can read it."""
+    rec = {
+        "name": "Manriki-Gusari",
+        "scryfall_oracle_id": "id-manriki",
+        "card_type": {"core_types": ["Artifact"], "subtypes": ["Equipment"]},
+        "oracle_text": (
+            'Equipped creature gets +1/+2 and has "{T}: Destroy target Equipment."'
+        ),
+        "static_abilities": [
+            _grant_ability_static(
+                {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": None,
+                    "properties": [{"type": "EquippedBy"}],
+                },
+                {
+                    "kind": "Activated",
+                    "cost": {"type": "Tap"},
+                    "effect": {
+                        "type": "Destroy",
+                        "target": {
+                            "type": "Typed",
+                            "type_filters": [{"Subtype": "Equipment"}],
+                        },
+                    },
+                    "description": "{T}: Destroy target Equipment.",
+                },
+            )
+        ],
+    }
+    e = _effect_with(project_card([rec]), "destroy")
+    assert e.subject == Filter(subtypes=("Equipment",))
+
+
+def test_quoted_grant_damage_recovers_inner_damage_effect():
+    """Lavamancer's Skill: an Aura whose enchanted creature 'has "{T}: ~ deals 1
+    damage to target creature."' — the recursion recovers the damage Effect with its
+    creature target subject (removal_matters' source)."""
+    rec = {
+        "name": "Lavamancer's Skill",
+        "scryfall_oracle_id": "id-lavamancer",
+        "card_type": {"core_types": ["Enchantment"], "subtypes": ["Aura"]},
+        "oracle_text": (
+            'Enchanted creature has "{T}: This creature deals 1 damage to target '
+            'creature."'
+        ),
+        "static_abilities": [
+            _grant_ability_static(
+                {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": None,
+                    "properties": [{"type": "EnchantedBy"}],
+                },
+                {
+                    "kind": "Activated",
+                    "cost": {"type": "Tap"},
+                    "effect": {
+                        "type": "DealDamage",
+                        "amount": {"type": "Fixed", "value": 1},
+                        "target": {
+                            "type": "Typed",
+                            "type_filters": ["Creature"],
+                        },
+                    },
+                    "description": "{T}: ~ deals 1 damage to target creature.",
+                },
+            )
+        ],
+    }
+    e = _effect_with(project_card([rec]), "damage")
+    assert "Creature" in e.subject.card_types
+
+
+def test_quoted_grant_trigger_recovers_inner_put_counter():
+    """Mephidross Vampire: 'Each creature you control ... has "Whenever ~ deals damage
+    to a creature, put a +1/+1 counter on ~."' — a GrantTrigger modification; the
+    recursion descends into the trigger's execute and recovers the place_counter
+    (counter_kind p1p1)."""
+    rec = {
+        "name": "Mephidross Vampire",
+        "scryfall_oracle_id": "id-mephidross",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": (
+            'Each creature you control ... has "Whenever this creature deals damage '
+            'to a creature, put a +1/+1 counter on this creature."'
+        ),
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": "You",
+                    "properties": [],
+                },
+                "modifications": [
+                    {
+                        "type": "GrantTrigger",
+                        "trigger": {
+                            "mode": "DamageDone",
+                            "execute": {
+                                "kind": "Spell",
+                                "effect": {
+                                    "type": "PutCounter",
+                                    "counter_type": "P1P1",
+                                    "count": {"type": "Fixed", "value": 1},
+                                    "target": {"type": "SelfRef"},
+                                },
+                            },
+                            "description": (
+                                "Whenever ~ deals damage to a creature, put a "
+                                "+1/+1 counter on ~."
+                            ),
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    e = _effect_with(project_card([rec]), "place_counter")
+    assert e.counter_kind == "p1p1"
+
+
+def test_quoted_grant_to_opponent_permanents_is_excluded():
+    """SCOPE GATE (rules-lawyer): a quoted ability GRANTED to permanents an OPPONENT
+    controls is THEIR ability, not yours — the recursion must NOT recover its inner
+    removal/counters effect (it is not a care of yours)."""
+    rec = {
+        "name": "Curse Grant",
+        "scryfall_oracle_id": "id-cursegrant",
+        "card_type": {"core_types": ["Enchantment"]},
+        "oracle_text": (
+            'Creatures your opponents control have "{T}: Destroy target creature."'
+        ),
+        "static_abilities": [
+            _grant_ability_static(
+                {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": "Opponent",
+                    "properties": [],
+                },
+                {
+                    "kind": "Activated",
+                    "cost": {"type": "Tap"},
+                    "effect": {
+                        "type": "Destroy",
+                        "target": {
+                            "type": "Typed",
+                            "type_filters": ["Creature"],
+                        },
+                    },
+                    "description": "{T}: Destroy target creature.",
+                },
+            )
+        ],
+    }
+    cats = {e.category for e in _effects(project_card([rec]))}
+    assert "destroy" not in cats
+
+
 # ── mass zone-move tell (ADR-0027 type-payoff recursion) ──────────────────────
 
 
