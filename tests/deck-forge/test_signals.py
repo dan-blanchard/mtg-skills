@@ -11,7 +11,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
 
 
 def _keys(card):
@@ -172,8 +172,12 @@ def test_signal_is_hashable_frozen():
 
 # ── Reanimator payoff: "entered/cast from a graveyard" (Celes, Rune Knight) ──────
 # The generic graveyard_matters lane is the FUEL (fill your yard / self-mill); a
-# commander that rewards a creature ENTERING from a graveyard (reanimation) or being
-# CAST from a graveyard (escape/disturb) is a reanimator PAYOFF — its own avenue.
+# ADR-0027: reanimator migrated to the Card IR and its boundary was CORRECTED
+# (rules-lawyer-verified, CR 702.34 / 603): the archetype is ACTIVE creature
+# reanimation (a `reanimate` effect putting a CREATURE card from a graveyard onto the
+# battlefield). The legacy regex conflated this with "entered/cast FROM a graveyard"
+# (escape / disturb / flashback / recursion payoffs — Celes, River Kelpie), which is a
+# SEPARATE graveyard-recursion axis. Celes is that recursion payoff, NOT reanimator.
 CELES = {
     "name": "Celes, Rune Knight",
     "type_line": "Legendary Creature — Human Wizard Knight",
@@ -188,20 +192,40 @@ CELES = {
 }
 
 
-def test_reanimator_payoff_detected_for_celes():
-    assert ("reanimator", "you") in _keys(CELES)
+def test_celes_is_not_reanimator_cast_from_graveyard_is_a_separate_axis():
+    # The corrected boundary: an "entered/cast from a graveyard" PAYOFF is graveyard
+    # recursion (escape/disturb/flashback), not the active-reanimation archetype.
+    assert ("reanimator", "you") not in _keys_hybrid(CELES)
+    # The graveyard FUEL still fires (Celes fills/uses its own graveyard).
+    assert ("graveyard_matters", "you") in _keys_hybrid(CELES)
 
 
-def test_reanimator_and_graveyard_fuel_both_fire_for_celes():
-    keys = _keys(CELES)
-    assert ("reanimator", "you") in keys  # the payoff (reanimation/cast-from-grave)
-    assert ("graveyard_matters", "you") in keys  # the fuel (fill your own graveyard)
-
-
-def test_reanimator_quotes_the_payoff_clause():
-    sig = next(s for s in extract_signals(CELES) if s.key == "reanimator")
-    assert sig.scope == "you"
-    assert "from a graveyard" in sig.text.lower()
+def test_reanimator_fires_for_active_creature_reanimation_via_ir():
+    # A CREATURE that returns a creature card from a graveyard to the battlefield IS
+    # the reanimator archetype — read from the structural `reanimate` IR effect.
+    card = {
+        "name": "Loyal Retainers",
+        "type_line": "Creature — Human Advisor",
+        "oracle_text": (
+            "Sacrifice this creature: Return target legendary creature card "
+            "from your graveyard to the battlefield."
+        ),
+    }
+    ir = _ir_with(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="reanimate",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",)),
+                    raw="Return target legendary creature card from your graveyard to the battlefield.",
+                ),
+            ),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+    assert ("reanimator", "you") in keys
 
 
 def test_reanimator_not_fired_by_regrowth_to_hand():
@@ -210,7 +234,7 @@ def test_reanimator_not_fired_by_regrowth_to_hand():
         "name": "Regrowth",
         "oracle_text": "Return target card from your graveyard to your hand.",
     }
-    assert ("reanimator", "you") not in _keys(card)
+    assert ("reanimator", "you") not in _keys_hybrid(card)
 
 
 def test_reanimator_not_fired_by_plain_reanimation_spell():

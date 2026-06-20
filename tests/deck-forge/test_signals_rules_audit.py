@@ -408,16 +408,68 @@ def test_end_the_turn_split_from_timing_restriction():
 
 
 # #17 Donate = a control change (CR 701.12). A group-hug "target opponent draws/creates"
-# card must NOT open the donate lane.
+# card must NOT open the donate lane. ADR-0027: donate migrated to the IR — a
+# gain_control effect whose raw names an another-player RECIPIENT.
 def test_donate_is_control_change_only():
     zedruu = {
         "name": "X",
         "oracle_text": "Target player gains control of target permanent you control.",
     }
-    assert "donate_matters" in _keys(zedruu)
+    zedruu_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(
+                            Effect(
+                                category="gain_control",
+                                scope="any",
+                                subject=Filter(
+                                    card_types=("Permanent",), controller="you"
+                                ),
+                                raw="Target player gains control of target permanent you control.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "donate_matters" in {
+        s.key for s in extract_signals_hybrid(zedruu, zedruu_ir)
+    }
 
+    # A group-hug "target opponent draws" is NOT a control change — its IR carries a
+    # draw effect, not gain_control, so the lane stays closed.
     grouphug = {"name": "Y", "oracle_text": "Target opponent draws two cards."}
-    assert "donate_matters" not in _keys(grouphug)
+    grouphug_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(
+                            Effect(
+                                category="draw",
+                                scope="opp",
+                                raw="Target opponent draws two cards.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "donate_matters" not in {
+        s.key for s in extract_signals_hybrid(grouphug, grouphug_ir)
+    }
 
 
 # #18 Meld (CR 701.42) is subject-bearing: a meld piece's lane serves ONLY its named

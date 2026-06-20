@@ -60,6 +60,10 @@ def _keys_hybrid(card):
     return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
 
 
+def _keys_hybrid_ir(card, ir):
+    return {s.key for s in extract_signals_hybrid(card, ir)}
+
+
 # --- parametric subject capture (the core generalization) ----------------------
 
 
@@ -2986,11 +2990,12 @@ def test_warp_granting_opens_cheat_into_play():
 
 
 def test_active_reanimation_opens_reanimator():
-    # A commander whose OWN ability actively reanimates — "return/put target creature
+    # A CREATURE whose OWN ability actively reanimates — "return/put target creature
     # card from a graveyard onto/to the battlefield" (Alesha, Olivia Crimson Bride,
-    # Sauron) — is a reanimator deck wanting reanimation spells + fat targets. The
-    # reanimator detector keyed only on the self-recur "enters/cast FROM a graveyard"
-    # form and missed the active-reanimation ability. Real oracle.
+    # Sauron) — is a reanimator deck wanting reanimation spells + fat targets. ADR-0027:
+    # reanimator migrated to the IR; the lane reads a structural `reanimate` effect that
+    # returns CREATURE cards (the archetype), NOT the regex's conflated "entered/cast
+    # FROM a graveyard" recursion form (a separate axis — CR 702.34 / 603). Real oracle.
     alesha = {
         "name": "Alesha, Who Smiles at Death",
         "type_line": "Legendary Creature — Human Warrior",
@@ -3008,8 +3013,30 @@ def test_active_reanimation_opens_reanimator():
             "creature card from your graveyard to the battlefield tapped and attacking."
         ),
     }
-    assert "reanimator" in _keys(alesha)
-    assert "reanimator" in _keys(olivia)
+    reanimate_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="reanimate",
+                                scope="you",
+                                subject=Filter(card_types=("Creature",)),
+                                raw="return target creature card from your graveyard to the battlefield",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "reanimator" in _keys_hybrid_ir(alesha, reanimate_ir)
+    assert "reanimator" in _keys_hybrid_ir(olivia, reanimate_ir)
     # Over-fire guard: a self-mill spell (fills the yard, doesn't reanimate) is not a
     # reanimator commander.
     selfmill = {
@@ -3017,7 +3044,7 @@ def test_active_reanimation_opens_reanimator():
         "type_line": "Legendary Creature — Wizard",
         "oracle_text": "Put the top four cards of your library into your graveyard.",
     }
-    assert "reanimator" not in _keys(selfmill)
+    assert "reanimator" not in _keys_hybrid(selfmill)
 
 
 def test_creature_died_this_turn_payoff_opens_death():
@@ -3488,8 +3515,9 @@ def test_player_burn_source_opens_direct_damage():
 def test_donate_via_that_player_opens_donate():
     # Blim gives his own permanents to opponents ("that player gains control of target
     # permanent you control") — a donate commander wanting donate enablers (Harmless
-    # Offering, Bazaar Trader). The donate detector matched "target opponent/player" but
-    # not the "that player" form. Real oracle.
+    # Offering, Bazaar Trader). ADR-0027: donate migrated to the IR — a `gain_control`
+    # effect whose raw names an another-player RECIPIENT (phase drops the recipient to
+    # scope='any', so the lane reads the effect raw). Real oracle.
     blim = {
         "name": "Blim, Comedic Genius",
         "type_line": "Legendary Creature — Zombie Spirit",
@@ -3499,9 +3527,34 @@ def test_donate_via_that_player_opens_donate():
             "discards cards equal to the number of permanents they control."
         ),
     }
-    assert ("donate_matters", "you") in _ks(blim)
-    # Over-fire guard: a commander where YOU gain control (the opposite of donate) does
-    # not open the donate lane.
+    blim_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="gain_control",
+                                scope="any",
+                                subject=Filter(
+                                    card_types=("Permanent",), controller="you"
+                                ),
+                                raw="that player gains control of target permanent you control",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    blim_keys = {(s.key, s.scope) for s in extract_signals_hybrid(blim, blim_ir)}
+    assert ("donate_matters", "you") in blim_keys
+    # Over-fire guard: a commander where YOU gain control (the opposite of donate — its
+    # raw names no other-player recipient) does not open the donate lane.
     silumgar = {
         "name": "Dragonlord Silumgar",
         "type_line": "Legendary Creature — Elder Dragon",
@@ -3510,7 +3563,32 @@ def test_donate_via_that_player_opens_donate():
             "target creature or planeswalker for as long as you control Silumgar."
         ),
     }
-    assert ("donate_matters", "you") not in _ks(silumgar)
+    silumgar_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="gain_control",
+                                scope="you",
+                                subject=Filter(card_types=("Creature", "Planeswalker")),
+                                raw="gain control of target creature or planeswalker",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    donate_keys = {
+        (s.key, s.scope) for s in extract_signals_hybrid(silumgar, silumgar_ir)
+    }
+    assert ("donate_matters", "you") not in donate_keys
 
 
 def test_dont_own_payoff_opens_theft_and_gain_control():

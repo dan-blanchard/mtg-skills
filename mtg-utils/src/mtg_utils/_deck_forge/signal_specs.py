@@ -2341,8 +2341,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Donate commander (Jon Irenicus, Harmless Offering) wants drawback creatures to
     # hand to opponents for the downside.
+    # ADR-0027: donate_matters had its SWEEP_DETECTORS row deleted (detection moved to
+    # the Card IR — a gain_control raw-recipient discriminator). The serve pool stays
+    # oracle-defined, so pass the deleted regex explicitly.
     ("donate_matters", "you"): _sweep_spec_with_extras(
-        "donate_matters", (_DRAWBACK_EXTRA, _FORCE_FEED_EXTRA)
+        "donate_matters",
+        (_DRAWBACK_EXTRA, _FORCE_FEED_EXTRA),
+        regex=(
+            r"(?:target opponent|another player|target player|that player"
+            r"|each opponent|each other player) gains control of[^.]*you control"
+            r"|(?:target opponent|another player|target player|that player) "
+            r"gains control of"
+        ),
     ),
     # Legend-rule-off commander (Brothers Yamazaki) wants self-copy effects to run
     # multiple copies of itself.
@@ -3528,6 +3538,73 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"can be blocked as though (?:it|they) didn't have"},
         r"can be blocked as though (?:it|they) didn't have",
     ),
+    # ADR-0027: commander_matters / hand_disruption / opponent_exile_matters had their
+    # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
+    # predicate/trigger bind + a kept word mirror per key). The auto-register sweep loop
+    # used to build their serve specs from the now-gone rows, so hand-register them
+    # reusing each deleted regex as the serve pattern.
+    ("commander_matters", "you"): _spec(
+        *SWEEP_LABELS["commander_matters"],
+        {
+            "oracle": (
+                r"commanders? you (?:control|own) "
+                r"(?:have|has|get|gets|gain|gains)"
+                r"|commander creatures? you (?:own|control)"
+                r"|whenever your commander\b|whenever a commander\b"
+                r"|your commander (?:has|have|deals|enters|attacks|gets|gains)"
+                r"|is your commander|it'?s your commander"
+                r"|while [^.]*your commander|it's a copy of your other commander"
+                r"|copy of any of your commanders|each commander you (?:control|own)"
+                r"|for each commander|commander damage"
+            )
+        },
+        r"commanders? you (?:control|own) (?:have|has|get|gets|gain|gains)"
+        r"|commander creatures? you (?:own|control)"
+        r"|whenever your commander\b|whenever a commander\b"
+        r"|your commander (?:has|have|deals|enters|attacks|gets|gains)"
+        r"|is your commander|it'?s your commander|while [^.]*your commander"
+        r"|it's a copy of your other commander|copy of any of your commanders"
+        r"|each commander you (?:control|own)|for each commander|commander damage",
+    ),
+    ("hand_disruption", "opponents"): _spec(
+        *SWEEP_LABELS["hand_disruption"],
+        {
+            "oracle": (
+                r"look at (?:target player|that player|an opponent|each opponent"
+                r"|target opponent)'?s?'? hands?"
+                r"|plays? with (?:their|his or her) hands? revealed"
+                r"|reveals? (?:their|his or her) hands?"
+                r"|reveals? (?:\w+ )?cards? (?:at random )?from "
+                r"(?:their|his or her|that player's) hand"
+                r"|reveals?[^.]*until you say stop"
+            )
+        },
+        r"look at (?:target player|that player|an opponent|each opponent"
+        r"|target opponent)'?s?'? hands?"
+        r"|plays? with (?:their|his or her) hands? revealed"
+        r"|reveals? (?:their|his or her) hands?"
+        r"|reveals? (?:\w+ )?cards? (?:at random )?from "
+        r"(?:their|his or her|that player's) hand"
+        r"|reveals?[^.]*until you say stop",
+    ),
+    ("opponent_exile_matters", "opponents"): _spec(
+        *SWEEP_LABELS["opponent_exile_matters"],
+        {
+            "oracle": (
+                r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
+                r"|for each card your opponents own in exile"
+                r"|opponents own in exile"
+                r"|exile (?:target player's|target opponent's|each opponent's"
+                r"|that player's) graveyard"
+                r"|if a card would be put into an opponent's graveyard"
+            )
+        },
+        r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
+        r"|for each card your opponents own in exile|opponents own in exile"
+        r"|exile (?:target player's|target opponent's|each opponent's"
+        r"|that player's) graveyard"
+        r"|if a card would be put into an opponent's graveyard",
+    ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",
         "villainous-choice cards (the punisher pool a villainous-choice commander — "
@@ -3644,8 +3721,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         _UNTAP_ORACLE,
     ),
     # Tap/untap commander (Tui and La) wants the untap effects that retrigger it.
+    # ADR-0027: tap_untap_matters had its SWEEP_DETECTORS row deleted (detection moved
+    # to the Card IR — the `taps` trigger + a "becomes tapped/untapped" kept mirror).
+    # The serve pool stays oracle-defined, so pass the deleted regex explicitly.
     ("tap_untap_matters", "you"): _sweep_spec_with_extras(
-        "tap_untap_matters", (_UNTAP_EXTRA,)
+        "tap_untap_matters",
+        (_UNTAP_EXTRA,),
+        regex=(r"whenever [^.]*becomes? (?:tapped|untapped)|becomes? untapped, put"),
     ),
     # Activated-ability engine: the support package for a {T}: commander — activated-
     # ability cost reducers (Training Grounds), untappers + haste-for-abilities

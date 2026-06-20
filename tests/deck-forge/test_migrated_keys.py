@@ -2154,6 +2154,149 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # SWEEP batch (ADR-0027). donate / reanimator / opponent_exile read STRUCTURED IR
+    # (a gain_control raw-recipient discriminator / a reanimate effect / a graveyard-
+    # hate raw); the rest fire from the kept word mirror over the oracle text (empty
+    # IR). Each card is real, full oracle_text + type_line.
+    "donate_matters": (
+        {
+            "name": "Harmless Offering",
+            "type_line": "Sorcery",
+            "oracle_text": "Target opponent gains control of target permanent you control.",
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="gain_control",
+                        scope="any",
+                        subject=Filter(card_types=("Permanent",), controller="you"),
+                        raw="Target opponent gains control of target permanent you control.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "minus_counters_matter": (
+        {
+            "name": "Crumbling Ashes",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "At the beginning of your upkeep, destroy target creature with a "
+                "-1/-1 counter on it."
+            ),
+        },
+        _ir(),
+    ),
+    "team_evasion_grant": (
+        {
+            "name": "Galerider Sliver",
+            "type_line": "Creature — Sliver",
+            "oracle_text": "Sliver creatures you control have flying.",
+        },
+        _ir(),
+    ),
+    "hand_disruption": (
+        {
+            "name": "Peek",
+            "type_line": "Instant",
+            "oracle_text": "Look at target player's hand.\nDraw a card.",
+        },
+        _ir(),
+    ),
+    "commander_matters": (
+        {
+            "name": "Kediss, Emberclaw Familiar",
+            "type_line": "Legendary Creature — Elemental Lizard",
+            "oracle_text": (
+                "Whenever a commander you control deals combat damage to an "
+                "opponent, it deals that much damage to each other opponent.\n"
+                "Partner (You can have two commanders if both have partner.)"
+            ),
+            "keywords": ["Partner"],
+        },
+        _ir(),
+    ),
+    "domain_matters": (
+        {
+            "name": "Matca Rioters",
+            "type_line": "Creature — Human Warrior",
+            "oracle_text": (
+                "Domain — Matca Rioters's power and toughness are each equal to "
+                "the number of basic land types among lands you control."
+            ),
+        },
+        _ir(),
+    ),
+    "opponent_exile_matters": (
+        {
+            "name": "Bojuka Bog",
+            "type_line": "Land",
+            "oracle_text": (
+                "This land enters tapped.\nWhen this land enters, exile target "
+                "player's graveyard.\n{T}: Add {B}."
+            ),
+        },
+        _ir(),
+    ),
+    "exalted_lone_attacker": (
+        {
+            "name": "Rogue Kavu",
+            "type_line": "Creature — Kavu",
+            "oracle_text": (
+                "Whenever this creature attacks alone, it gets +2/+0 until end of turn."
+            ),
+        },
+        _ir(),
+    ),
+    "speed_matters": (
+        {
+            "name": "The Speed Demon",
+            "type_line": "Legendary Creature — Demon",
+            "oracle_text": (
+                "Flying, trample\nStart your engines!\nAt the beginning of your "
+                "end step, you draw X cards and lose X life, where X is your speed."
+            ),
+            "keywords": ["Flying", "Trample"],
+        },
+        _ir(),
+    ),
+    "tap_untap_matters": (
+        {
+            "name": "Pheres-Band Tromper",
+            "type_line": "Creature — Centaur Warrior",
+            "oracle_text": (
+                "Inspired — Whenever this creature becomes untapped, put a +1/+1 "
+                "counter on it."
+            ),
+        },
+        _ir(),
+    ),
+    "reanimator": (
+        {
+            "name": "Loyal Retainers",
+            "type_line": "Creature — Human Advisor",
+            "oracle_text": (
+                "Sacrifice this creature: Return target legendary creature card "
+                "from your graveyard to the battlefield. Activate only during "
+                "your turn, before attackers are declared."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="reanimate",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="Return target legendary creature card from your graveyard to the battlefield.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

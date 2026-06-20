@@ -372,24 +372,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         _re(r"\{t\}\s*[,:]|\{q\}\s*[,:]|\{(?:\d+|x)\}[^.\n]{0,18}:"),
         "you",
     ),
-    # Reanimator PAYOFF: a trigger that rewards a creature ENTERING from a graveyard
-    # (reanimation) or being CAST from a graveyard (escape/disturb) — Celes, Prized
-    # Amalgam, Flayer of the Hatebound, River Kelpie. Distinct from graveyard_matters
-    # above, which is the FUEL (fill your own yard / self-mill); this is the PAYOFF, and
-    # it opens a reanimation-effects avenue, not a self-mill one. Forced "you": the deck
-    # always reanimates / recasts from its OWN graveyard. The phrasing ("enters/cast
-    # FROM a graveyard") never matches a plain reanimation spell ("…to the battlefield")
-    # or a regrowth ("…to your hand"), so those stay enablers the avenue FINDS, not
-    # payoff signals. Verified against bulk: 36 cards, all genuine.
-    (
-        "reanimator",
-        _re(
-            r"enter(?:s|ed)?(?: the battlefield)? from "
-            r"(?:a|your|their|an? \w+'?s?) graveyard"
-            r"|\bcast from (?:a|your|their) graveyard"
-        ),
-        "you",
-    ),
+    # ADR-0027: the reanimator PAYOFF regex ("enters/cast FROM a graveyard") is deleted
+    # with the reanimator migration. It CONFLATED the reanimator archetype (active
+    # creature reanimation — a `reanimate` effect, the migrated IR bind) with the
+    # escape/disturb/flashback "cast from a graveyard" engine, which is a SEPARATE
+    # graveyard-recursion axis (CR 702.34 casting ≠ reanimation putting onto the
+    # battlefield — rules-lawyer-verified). The structural IR correctly excludes the
+    # cast-from-graveyard cards; the regex's 36 "enters/cast from a graveyard" payoff
+    # cards (Prized Amalgam, River Kelpie, Flayer of the Hatebound — self-recursion /
+    # escape, not the archetype) are the over-fire the migration drops.
     # Spellslinger cast trigger — but NOT when the only cast trigger is an *enchantment*
     # or *artifact* spell: those are enchantress / artifact-cast archetypes (Sythis,
     # Sai), routed to their own type lanes below, not to cheap instants/sorceries.
@@ -2168,12 +2159,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # from _IR_FLOOR_LANES. The "\bmadness\b" floor over-fired on the "Crown of
     # Madness" ability WORD (CR 207.2c — Bloodboil Sorcerer), which the structural IR
     # correctly excludes. This _HAND_FLOOR producer is deleted; the serve spec stays.
-    # Speed / Max speed (CR 702.179/702.178, Aetherdrift): max-speed payoffs unsurfaced.
-    (
-        "speed_matters",
-        re.compile(r"start your engines|max speed|your speed", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: speed_matters migrated to the Card IR — phase's `speed` doer +
+    # a "start your engines|max speed|your speed" _IR_KEPT_DETECTORS word mirror (phase
+    # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation; Aetherdrift).
+    # Moved floor->kept (floor-mirror-dep -> 0); this _HAND_FLOOR producer is deleted;
+    # the serve spec stays hand-registered.
     # ADR-0027: discover_matters migrated to the Card IR — served structurally from
     # the Scryfall `discover` keyword (_IR_KEYWORD_MAP, the discover SOURCES) plus a
     # `discover` effect category for the keyword-less re-trigger payoff (Curator of
@@ -2197,9 +2187,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # "Undying Flames" card NAME (Epic damage, no undying mechanic), which the
     # structural IR correctly drops. This _HAND_FLOOR producer is deleted; the serve
     # hand-spec stays. (dies_recursion still includes the undying/persist keywords.)
-    # -1/-1 counters (CR 122 / 702.80 Wither / 702.90 Infect): the symmetric counter
-    # axis counters_matter (hard-pinned to +1/+1) leaves homeless — Hapatra aristocrats.
-    ("minus_counters_matter", re.compile(r"-1/-1 counter", re.IGNORECASE), "you"),
+    # ADR-0027: minus_counters_matter migrated to the Card IR — phase's place_counter
+    # (counter_kind='m1m1') is the maker (via _COUNTER_KIND_KEYS); the "-1/-1 counter"
+    # references (remove / cost / ward / "with a -1/-1 counter on it" / prevention) are
+    # the cares-about payoffs phase leaves textual, served from a "-1/-1 counter"
+    # _IR_KEPT_DETECTORS word mirror (CR 122 / 702.80 Wither / 702.90 Infect). This
+    # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered.
     # Cares about its permanents HAVING counters (any kind) — Xolatoyac untaps "each
     # permanent you control with a counter on it", so it wants counter producers. The
     # +1/+1-specific counters_matter detector misses the any-counter form; the "you
@@ -2247,12 +2240,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # "colorless (creature|spell|permanent)" _IR_KEPT_DETECTORS word mirror for the
     # cost-reduction / cast-restriction refs that aren't a structured subject (CR
     # 702.114). This _HAND_FLOOR producer is deleted; the serve spec stays.
-    # Exalted (CR 702.83): rewards attacking ALONE — the attacks-alone payoff/trigger.
-    (
-        "exalted_lone_attacker",
-        re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: exalted_lone_attacker migrated to the Card IR — the Scryfall `exalted`
+    # keyword (_IR_KEYWORD_MAP, the bearers) + an "attacks alone|\bexalted\b"
+    # _IR_KEPT_DETECTORS word mirror for the attacks-alone payoff triggers + "X have
+    # exalted" grants phase leaves textual (CR 702.83). Moved floor->kept (floor-mirror-
+    # dep -> 0); this _HAND_FLOOR producer is deleted; the serve spec stays.
     # Flash (CR 702.8): flash-GRANTING enablers ("cast … spells … as though they had
     # flash" — class grant, NOT the one-shot "as though IT had flash") + opponent-turn
     # cast payoffs. spellslinger's serve is instant/sorcery + prowess/magecraft and
@@ -2267,20 +2259,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Team evasion-keyword grants (CR 702.13/702.14/509): "creatures you control
-    # gain/have <evasion keyword>". evasion_self covers single-attacker/landwalk/team
-    # can't-be-blocked but misses the keyword grants (menace/fear/horsemanship/…).
-    (
-        "team_evasion_grant",
-        re.compile(
-            r"(?:other |attacking )?creatures you control (?:gain|have)\b"
-            r"[^.]{0,40}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk"
-            r"|flying|can't be blocked)\b"
-            r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: team_evasion_grant migrated to the Card IR — phase's grant_keyword on a
+    # generic creatures-you-control subject (the structural team grant) + a kept word
+    # mirror for the subtype/color-scoped grants ("Sliver creatures you control have
+    # flying", "Blue creatures you control can't be blocked") the narrow generic gate
+    # excludes (CR 702.13/702.14/509). This _HAND_FLOOR producer is deleted; the serve
+    # spec stays hand-registered.
     # ADR-0027: lessons_matter migrated to the Card IR — detected from the kept
     # word-detector mirror (signals._IR_KEPT_DETECTORS: \blessons?\b; Lesson is a
     # subtype CR 702.x phase doesn't surface as a payoff tag). This _HAND_FLOOR
@@ -3135,19 +3119,6 @@ def _detect_polymorph_cheat(text: str) -> bool:
     return _POLYMORPH_CHEAT_RE.search(text) is not None
 
 
-# ACTIVE reanimation in a COMMANDER's own oracle — "return/put a creature card from a
-# graveyard onto/to the battlefield" (Alesha, Olivia, Sauron, Sheoldred, Reya). A
-# commander that reanimates IS a reanimator deck. Creature-gated by the caller, so the
-# reanimation SPELLS / Auras the avenue merely FINDS (Reanimate, Animate Dead —
-# instants/sorceries/enchantments) stay enablers, not the archetype label itself.
-_ACTIVE_REANIMATION_RE = re.compile(
-    r"(?:return|put) (?:target |a |that |all |each )?creature cards?"
-    r"[^.]*from (?:a|your|their|target player'?s?|an opponent'?s?|each"
-    r"|that player'?s?) graveyard[^.]*(?:to|onto) the battlefield",
-    re.IGNORECASE,
-)
-
-
 # Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
 # Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
 # verbs (gain control, opponents lose life, skip a step).
@@ -3641,10 +3612,12 @@ def extract_signals(
         add("counters_matter", "you", "", text[:160])
     if _detect_polymorph_cheat(text):
         add("cheat_into_play", "you", "", text[:160])
-    # Active reanimation is the reanimator archetype only on a CREATURE (a commander);
-    # reanimation spells/Auras stay enablers the avenue finds (_ACTIVE_REANIMATION_RE).
-    if is_creature(card) and _ACTIVE_REANIMATION_RE.search(text):
-        add("reanimator", "you", "", text[:160])
+    # ADR-0027: reanimator migrated to the Card IR — a creature whose `reanimate`
+    # effect returns CREATURE cards from a graveyard to the battlefield (the archetype),
+    # via _reanimates_creature (incl. its raw fallback for the subject phase drops). The
+    # legacy regex conflated this with "cast a spell FROM a graveyard" (flashback /
+    # escape / disturb — CR 702.34 casting ≠ reanimation), which the structural IR
+    # correctly drops. The legacy active-reanimation oracle-regex producer is deleted.
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
     if _LOOT_FULLTEXT_RE.search(text):
@@ -4169,6 +4142,118 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\battraction\b|open an attraction", re.IGNORECASE),
         "you",
     ),
+    # ADR-0027 batch — cares-about / payoff lanes phase v0.1.19 scatters across
+    # categories it doesn't unify (a count operand it drops, a trigger flattened to
+    # event='other', a grant whose subject it folds), so each fires from a dedicated
+    # IR-path word mirror (the deleted regex producer) alongside its EXISTING structural
+    # bind (add() dedups). Each mirror reproduces the deleted regex exactly (regex-only
+    # residual == 0). rules-lawyer-verified boundaries:
+    #   • minus_counters_matter ← place_counter(m1m1) is the maker; the "-1/-1 counter"
+    #     references (remove / cost / ward / "with a -1/-1 counter on it" / prevention)
+    #     are the cares-about payoffs phase leaves textual (CR 122 / 702.80 Wither).
+    #   • exalted_lone_attacker ← the `exalted` keyword is the bearer; "attacks alone"
+    #     payoff triggers + "X have exalted" grants are textual (CR 702.83).
+    #   • speed_matters ← phase's `speed` doer is the changer; "Start your engines!" /
+    #     "max speed" / "your speed" payoffs are unstructured (CR 702.178/702.179).
+    #   • tap_untap_matters ← phase's `taps` (tap-for-mana) trigger is structured; the
+    #     "becomes tapped/untapped" trigger (Inspired) flattens to event='other'.
+    #   • domain_matters ← amount.op=='domain' is the scaler; cost-reduction /
+    #     conditions / the "Domain —" ability word are textual (CR 700.3).
+    #   • commander_matters ← the IsCommander subject-Filter predicate is structured;
+    #     Background grants ("Commander creatures you own have …") + "commander damage"
+    #     / "your commander costs less" are textual (CR 903).
+    #   • hand_disruption ← the opp-reveal trigger is structured; "look at … hand" /
+    #     "play with hands revealed" / modal reveal-and-discard are textual.
+    #   • team_evasion_grant ← phase structures the generic creatures-you-control
+    #     keyword grant; the subtype/color-scoped grants ("Sliver creatures you control
+    #     have flying", "Blue creatures you control can't be blocked") are the broader
+    #     team-evasion forms (CR 702.13/702.14/509).
+    #   • opponent_exile_matters ← GRAVEYARD HATE (CR 406), scattered across exile/
+    #     cheat_play/pump categories phase doesn't unify; the lane is the kept mirror
+    #     alone (the old permanent-exile arm mis-fired on Path-to-Exile removal).
+    (
+        "minus_counters_matter",
+        re.compile(r"-1/-1 counter", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "exalted_lone_attacker",
+        re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "speed_matters",
+        re.compile(r"start your engines|max speed|your speed", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "tap_untap_matters",
+        re.compile(
+            r"whenever [^.]*becomes? (?:tapped|untapped)|becomes? untapped, put",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "domain_matters",
+        re.compile(
+            r"\bdomain\b|number of basic land types? (?:among|you)"
+            r"|basic land types? among",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "commander_matters",
+        re.compile(
+            r"commanders? you (?:control|own) (?:have|has|get|gets|gain|gains)"
+            r"|commander creatures? you (?:own|control)|whenever your commander\b"
+            r"|whenever a commander\b"
+            r"|your commander (?:has|have|deals|enters|attacks|gets|gains)"
+            r"|is your commander|it'?s your commander|while [^.]*your commander"
+            r"|it's a copy of your other commander|copy of any of your commanders"
+            r"|each commander you (?:control|own)|for each commander|commander damage",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "hand_disruption",
+        re.compile(
+            r"look at (?:target player|that player|an opponent|each opponent"
+            r"|target opponent)'?s?'? hands?"
+            r"|plays? with (?:their|his or her) hands? revealed"
+            r"|reveals? (?:their|his or her) hands?"
+            r"|reveals? (?:\w+ )?cards? (?:at random )?from "
+            r"(?:their|his or her|that player's) hand"
+            r"|reveals?[^.]*until you say stop",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
+    (
+        "team_evasion_grant",
+        re.compile(
+            r"(?:other |attacking )?creatures you control (?:gain|have)\b"
+            r"[^.]{0,40}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk"
+            r"|flying|can't be blocked)\b"
+            r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "opponent_exile_matters",
+        re.compile(
+            r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
+            r"|for each card your opponents own in exile|opponents own in exile"
+            r"|exile (?:target player's|target opponent's|each opponent's"
+            r"|that player's) graveyard"
+            r"|if a card would be put into an opponent's graveyard",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -4238,12 +4323,18 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # "Historic" subject-Filter predicate + a "\bhistoric\b" kept word mirror for
         # the cost-reduction / "play a historic" / type-group refs phase leaves
         # textual). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
-        "domain_matters",
+        # domain_matters removed — ADR-0027 migrated it to the Card IR (the
+        # amount.op=="domain" count operand + a "\bdomain\b|basic land types" kept word
+        # mirror for the cost-reduction / condition / ability-word refs phase leaves
+        # textual). Moved floor->kept (floor-mirror-dep -> 0); SWEEP row deleted.
         # party_matters removed — ADR-0027 migrated it to the Card IR (the
         # amount.op=="party" count operand + a _IR_KEPT_DETECTORS word mirror for the
         # "full party" CONDITION + "creatures in your party" non-count refs). Moved
         # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
-        "commander_matters",
+        # commander_matters removed — ADR-0027 migrated it to the Card IR (the
+        # IsCommander subject-Filter predicate + a kept word mirror for the Background
+        # grants / "commander damage" / "your commander costs less" refs phase leaves
+        # textual). Moved floor->kept (floor-mirror-dep -> 0); SWEEP row deleted.
         # mechanic / keyword synergy
         "arcane_matters",
         "daynight_matters",
@@ -4261,7 +4352,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # _HAND_FLOOR detector is deleted.
         "station_matters",
         "void_warp_matters",
-        "speed_matters",
+        # speed_matters removed — ADR-0027 migrated it to the Card IR (phase's `speed`
+        # doer + a "start your engines|max speed|your speed" kept word mirror; phase
+        # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation). Moved
+        # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         "stickers_matter",
         # attractions_matter removed — ADR-0027 migrated it to the Card IR (a
         # "\battraction\b|open an attraction" kept word mirror; phase v0.1.19 doesn't
@@ -4319,7 +4413,11 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # roll_die effect + a `roll_die` marker for the "whenever you roll" payoff
         # trigger / "Roll two d6 and choose" spell / "Roll a d8:" cost / "reroll" phase
         # keeps only in raw). Its _HAND_FLOOR + SWEEP_DETECTORS rows are deleted.
-        "exalted_lone_attacker",
+        # exalted_lone_attacker removed — ADR-0027 migrated it to the Card IR (the
+        # Scryfall `exalted` keyword + an "attacks alone|\bexalted\b" kept word mirror
+        # for the attacks-alone payoff triggers + "X have exalted" grants phase leaves
+        # textual; CR 702.83). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR
+        # row deleted.
         # crimes_matter removed — ADR-0027 migrated it to the Card IR (phase's
         # commit_crime trigger event + a `crime` condition-form marker for the
         # "(if|as long as) you've committed a crime" payoff phase has no kind for).
@@ -4763,6 +4861,34 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
 # (raw has "…or land…") and excludes Sharkey (no gain_control effect at all).
 _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECASE)
 
+# donate_matters (ADR-0027): a control CHANGE that gives a permanent YOU control to
+# ANOTHER player (CR 701.12 — Donate, Harmless Offering, Zedruu). phase parses these
+# as gain_control with scope='any' (the RECIPIENT — an opponent/other player — is
+# dropped from the typed shape), so read the effect raw for the giving-away phrasing.
+# The recipient discriminator ("<target/another/that player|opponent|its owner> gains
+# control") is what separates donate (you give away) from theft (you take). Mirrors
+# the lane's own (deleted) serve regex; reproduces it exactly (residual 0). "gains"
+# (not "gain") keeps the subjunctive "have an opponent GAIN control" outside the same
+# clause but matches the indicative donate clause the regex caught.
+_DONATE_RAW = re.compile(
+    r"(?:target opponent|another player|target player|that player|each opponent"
+    r"|each other player|the player with|its owner) gains control of",
+    re.IGNORECASE,
+)
+
+# reanimate subject-recovery (ADR-0027): phase emits cat='reanimate' but DROPS the
+# creature subject (subject=None) on the pay-{X}/"when you do" nesting (Isareth) and
+# many "return target creature card from a graveyard to the battlefield" shapes
+# (Beacon of Unrest, Liliana Death's Majesty, Coffin Queen). Recover the creature-card
+# reanimation from the effect raw so _reanimates_creature stays true to its docstring
+# (creature reanimation = the archetype). Gated to cat='reanimate' so it can never
+# reach flashback / escape / unearth (distinct categories — CR 702.34 casting ≠
+# reanimation putting onto the battlefield).
+_REANIMATE_CREATURE_RAW = re.compile(
+    r"(?:return|put)[^.]*\bcreature cards?\b[^.]*\bgraveyard\b[^.]*\bbattlefield\b",
+    re.IGNORECASE,
+)
+
 # sacrifice_matters edict exclusion (ADR-0027): a FORCED sacrifice phase mis-scoped
 # to "any" (it dropped the opponent/each-player controller — Malfegor, Barter in
 # Blood, Plaguecrafter), so the structural opp/each edict split missed it. The raw
@@ -4996,9 +5122,18 @@ def _predicate_build_around_lanes(f: object) -> list[str]:
 def _reanimates_creature(e: object) -> bool:
     """A reanimate effect that returns CREATURE cards (matches the regex detector,
     which requires 'creature cards' — a Permanent-card return like Sun Titan is a
-    separate recursion engine, not the reanimator archetype)."""
+    separate recursion engine, not the reanimator archetype).
+
+    ADR-0027: phase drops the creature subject (subject=None) on the pay-{X}/"when
+    you do" nesting (Isareth) and many "return target creature card from a graveyard
+    to the battlefield" shapes (Beacon of Unrest, Liliana Death's Majesty). Fall back
+    to the effect raw so the creature-card reanimation is still recognized."""
     f = getattr(e, "subject", None)
-    return isinstance(f, Filter) and "Creature" in f.card_types
+    if isinstance(f, Filter) and "Creature" in f.card_types:
+        return True
+    if f is not None:
+        return False
+    return bool(_REANIMATE_CREATURE_RAW.search(getattr(e, "raw", "") or ""))
 
 
 def _kindred_subjects(f: object, vocab: frozenset[str]) -> list[str]:
@@ -5544,7 +5679,10 @@ def extract_signals_ir(
             ):
                 add("sacrifice_matters", "you", "", e.raw)
             if cat == "gain_control":
-                if e.scope == "opp":
+                # donate_matters (ADR-0027): you GIVE a permanent you control to
+                # another player. phase drops the recipient (scope='any'), so read
+                # the raw for the recipient-is-another-player phrasing.
+                if _DONATE_RAW.search(e.raw or ""):
                     add("donate_matters", "you", "", e.raw)
                 if "Land" in ftypes or (
                     e.subject is None and _LAND_EXCHANGE_RAW.search(e.raw or "")
@@ -5594,8 +5732,13 @@ def extract_signals_ir(
                 add("removal_matters", "you", "", e.raw)
             if cat == "exile" and ftypes & _PERMANENT_TYPES:
                 add("exile_removal", "you", "", e.raw)
-                if e.scope == "opp":
-                    add("opponent_exile_matters", "opponents", "", e.raw)
+            # opponent_exile_matters (ADR-0027): GRAVEYARD HATE, not permanent removal —
+            # fires from the _IR_KEPT_DETECTORS word mirror (the deleted sweep regex)
+            # because phase scatters its forms across categories phase doesn't unify
+            # (graveyard-zone exile → cat='exile' subject=None; Leyline's replacement →
+            # cat='cheat_play'; Umbris's "cards opponents own in exile" → cat='pump').
+            # The old permanent-exile arm here mis-fired the lane on Path-to-Exile-style
+            # removal (scope='opp', permanent subject) and is removed.
             # Batch 5 — color_hoser: destroy/exile/counter keyed on a SPECIFIC color
             # ("destroy target blue permanent", "counter target red spell") — the
             # Painter toolbox's payoff. Gate on a removal EFFECT context (not any color
@@ -6693,6 +6836,68 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "colorless_matters",
         "initiative_matters",
         "attractions_matter",
+        # Group "SWEEP batch" (ADR-0027) — 11 keys whose forms phase scatters across
+        # categories it doesn't unify (a count operand it drops, a trigger flattened to
+        # event='other', a grant whose subject it folds, a zone-exile with subject=None,
+        # a recipient it drops). Each fires from its EXISTING structural bind PLUS a
+        # dedicated _IR_KEPT_DETECTORS word mirror (or a raw discriminator), reproducing
+        # the deleted regex exactly (regex_only_resid == 0). rules-lawyer-verified.
+        #   donate_matters ← a gain_control effect whose raw names an another-player
+        #                RECIPIENT (_DONATE_RAW; phase drops the recipient to
+        #                scope='any'). Replaces the dead scope=='opp' arm. CR 701.12.
+        #   minus_counters_matter ← place_counter(m1m1) maker + a "-1/-1 counter" kept
+        #                mirror for the remove/cost/ward/"with a counter" payoffs.
+        #   team_evasion_grant ← the generic creatures-you-control grant_keyword +
+        #                a kept mirror for subtype/color-scoped grants (Slivers have
+        #                flying). +15 pump+grant recall the narrow regex missed.
+        #   hand_disruption ← the opp-reveal trigger + a kept mirror for "look at
+        #                hand" / "play with hands revealed" / modal reveal-discard.
+        #                +6 recall.
+        #   commander_matters ← the IsCommander predicate + a kept mirror for Background
+        #                grants / "commander damage". Moved floor->kept. +13 recall.
+        #   domain_matters ← amount.op=='domain' + a "\bdomain\b|basic land types" kept
+        #                mirror. Moved floor->kept (floor-mirror-dep -> 0). CR 700.3.
+        #   opponent_exile_matters ← GRAVEYARD HATE alone (CR 406) from a kept mirror;
+        #                the old permanent-exile arm mis-fired on Path-to-Exile
+        #                removal and is removed (so the 19 ir_only removal cards
+        #                correctly leave the lane). phase scatters the forms across
+        #                exile / cheat_play / pump.
+        #   exalted_lone_attacker ← the `exalted` keyword + an "attacks alone|exalted"
+        #                kept mirror. Moved floor->kept. CR 702.83.
+        #   speed_matters ← phase's `speed` doer + a "start your engines|max speed|your
+        #                speed" kept mirror. Moved floor->kept. CR 702.178/702.179.
+        #   tap_untap_matters ← the `taps` (tap-for-mana) trigger + a "becomes tapped/
+        #                untapped" kept mirror (Inspired flattens to event='other').
+        #                +65 tap-for-mana recall the regex missed.
+        #   reanimator ← a creature whose `reanimate` returns CREATURE cards from a
+        #                graveyard (incl. a raw fallback for the subject phase drops —
+        #                Isareth, Beacon of Unrest). The regex conflated this with
+        #                "cast a spell FROM a graveyard" (flashback/escape — CR 702.34
+        #                casting ≠ reanimation), which the structural IR correctly
+        #                drops; the 38 regex-only residual re-adjudicates to all
+        #                over-fire (flashback/escape/unearth/self-recursion). +25
+        #                genuine creature-reanimation recall (the raw fallback). CR 603.
+        # Floor-mirror-dep == 0 for all 11 (regex-path parity exact). NO-FLOOD: an
+        # in-process before/after over the commander-legal corpus changed ZERO
+        # non-target key firing counts (the removed opponent_exile permanent-exile arm
+        # only dropped
+        # that lane's mis-fires; exile_removal — the sibling on the same arm — is
+        # unchanged). color_hoser was the 12th batch key — SKIPPED: 18 genuine gaps
+        # (colored counterspells with subject=None, NotColor anthems on cat='pump',
+        # destroy-target-color with dropped predicates, mass-bounce/restriction
+        # categories the bind doesn't cover) need a deeper IR-bind widening, not a clean
+        # over-fire migration. See ADR-0027.
+        "donate_matters",
+        "minus_counters_matter",
+        "team_evasion_grant",
+        "hand_disruption",
+        "commander_matters",
+        "domain_matters",
+        "opponent_exile_matters",
+        "exalted_lone_attacker",
+        "speed_matters",
+        "tap_untap_matters",
+        "reanimator",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -6741,18 +6946,22 @@ def extract_signals_hybrid(
         seen.add(ident)
         out.append(sig)
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
-    # voltron MEMBERSHIP fallback against its OWN signal set, which no longer carries a
-    # migrated PLAN key (sacrifice_matters / lifeloss_matters). The *_PLAN_MIRROR
-    # re-silences it on the oracle text, but a DFC's empty top-level oracle_text leaves
-    # the mirror blind — so a transform aristocrat / drain (Ravenous Demon) can leak
-    # the low-confidence membership signal. When the IR supplies a migrated plan the
-    # regex set lacked, drop that spurious membership voltron tell (a real engine isn't
-    # a vanilla beater).
+    # voltron MEMBERSHIP fallback against its OWN signal set (gated on
+    # ``not has_other_plan``), which no longer carries a migrated PLAN key — when a key
+    # migrates, its regex producer is deleted, so the regex set stops silencing the
+    # membership tell on a card whose plan now lives only in the IR (a reanimator /
+    # tap-untap / hand-disruption / aristocrats engine is NOT a vanilla beater). The
+    # sacrifice/lifeloss *_PLAN_MIRROR re-silences those two on the oracle, but it goes
+    # blind on a DFC's empty top-level oracle_text and doesn't cover the SWEEP-batch
+    # plan keys. So drop the spurious low-confidence commander-damage membership tell
+    # when the IR supplies one of the plan keys whose regex producer this batch deleted
+    # and the regex set now LACKS — exactly the keys that used to count toward
+    # `has_other_plan` (matching pre-migration behavior; a non-plan migrated key like a
+    # color/type predicate is excluded, so voltron firings the OLD path kept survive).
     if include_membership:
         regex_keys = {s.key for s in regex_signals}
         ir_plan = any(
-            s.key in ("sacrifice_matters", "lifeloss_matters")
-            and s.key not in regex_keys
+            s.key in _VOLTRON_SILENCING_PLAN_KEYS and s.key not in regex_keys
             for s in out
         )
         if ir_plan:
@@ -6828,6 +7037,30 @@ def rank_deck_signals(
 # creature commander) and discriminates no archetype. The other keys each pin a
 # real sub-archetype, so they are NOT generic.
 _GENERIC_KEYS = frozenset({"creatures_matter"})
+
+# ADR-0027 voltron reconciliation set: migrated plan keys whose (now-deleted) regex
+# producer used to count toward `has_other_plan` and so silenced the commander-damage
+# voltron membership tell. When the IR re-supplies one of these the regex set lacks,
+# the hybrid re-silences voltron — preserving pre-migration behavior. Only the keys
+# that actually fire as a high-confidence non-generic non-voltron-compat plan in the
+# regex path belong here (sacrifice/lifeloss were the first two; the SWEEP batch adds
+# the engine plans whose deletion would otherwise leak a vanilla-beater voltron tell).
+_VOLTRON_SILENCING_PLAN_KEYS = frozenset(
+    {
+        "sacrifice_matters",
+        "lifeloss_matters",
+        "reanimator",
+        "tap_untap_matters",
+        "minus_counters_matter",
+        "donate_matters",
+        "hand_disruption",
+        "team_evasion_grant",
+        "commander_matters",
+        "opponent_exile_matters",
+        "domain_matters",
+        "speed_matters",
+    }
+)
 
 _SELF_MARKER = re.compile(r"\byou\b|\byour\b", re.IGNORECASE)
 _THIRD_PARTY_POSSESSIVE = re.compile(

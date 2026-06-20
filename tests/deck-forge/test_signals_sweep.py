@@ -16,13 +16,20 @@ from mtg_utils._deck_forge.signals import (
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
 
 
+# A minimal non-None IR for ADR-0027 keys whose IR source scans the record directly
+# (kept word-detector mirror) — any non-None Card routes the hybrid to the IR path.
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
 def test_sweep_detectors_loaded():
     # The threshold drops as the ADR-0027 regex→IR strangler deletes SWEEP rows
     # (boast/exhaust/explore/phasing/end_the_turn/extra_end_step/trigger_doubling +
     # lifeloss_matters + removal_matters + the sweep batches oil/starting_life/dice +
-    # changeling/creature_cast/fight + earlier batches migrated to the Card IR); it
+    # changeling/creature_cast/fight + the SWEEP batch commander/tap_untap/hand_disruption
+    # /opponent_exile/domain/donate + earlier batches migrated to the Card IR); it
     # still guards "a substantial set loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 115
+    assert len(SWEEP_DETECTORS) >= 105
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -41,17 +48,19 @@ def test_representative_sweep_keys_fire_from_oracle():
             "free_cast",
             "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
         ),
-        ("commander_matters", "Commanders you control have indestructible."),
         ("topdeck_selection", "Look at the top three cards of your library."),
         ("mass_removal", "Destroy all creatures."),
-        # ADR-0027: coin_flip migrated to the Card IR (its SWEEP_DETECTORS row is
-        # deleted), so it no longer fires from the regex path — swapped for another
-        # still-regex sweep key to keep this representativeness check.
+        # ADR-0027: coin_flip / commander_matters / hand_disruption migrated to the Card
+        # IR (their SWEEP_DETECTORS rows are deleted), so they no longer fire from the
+        # regex path — swapped for still-regex sweep keys to keep this check.
         (
             "voltron_matters",
             "Whenever you attach an Equipment to a creature, draw a card.",
         ),
-        ("hand_disruption", "Look at target opponent's hand."),
+        (
+            "variable_pt",
+            "Its power and toughness are each equal to the number of cards in your hand.",
+        ),
     ]
     for key, oracle in cases:
         keys = {s.key for s in extract_signals({"name": "X", "oracle_text": oracle})}
@@ -69,8 +78,11 @@ def test_hand_disruption_matches_plural_hands_revealed():
         "type_line": "Enchantment",
         "oracle_text": "Your opponents play with their hands revealed.",
     }
-    # DETECT: a commander with this text opens the hand-disruption lane.
-    assert "hand_disruption" in {s.key for s in extract_signals(telepathy)}
+    # DETECT: a commander with this text opens the hand-disruption lane. ADR-0027:
+    # hand_disruption migrated to the IR (kept word mirror) — hybrid path.
+    assert "hand_disruption" in {
+        s.key for s in extract_signals_hybrid(telepathy, _bare_ir())
+    }
     # SERVE: a hand_disruption commander's Telepathy is now credited.
     spec = spec_for(
         Signal(key="hand_disruption", scope="opponents", subject="", text="", source="")
@@ -94,11 +106,15 @@ def test_hand_disruption_matches_forced_reveal_from_hand():
             "revealed this way. Activate only during your turn."
         ),
     }
-    assert "hand_disruption" in {s.key for s in extract_signals(nebuchadnezzar)}
+    assert "hand_disruption" in {
+        s.key for s in extract_signals_hybrid(nebuchadnezzar, _bare_ir())
+    }
     # Self-scoped: revealing from YOUR OWN hand ("from your hand") is not opponent
     # disruption — the "their/that player's hand" anchor keeps it out.
     self_reveal = {"name": "X", "oracle_text": "Reveal two cards from your hand."}
-    assert "hand_disruption" not in {s.key for s in extract_signals(self_reveal)}
+    assert "hand_disruption" not in {
+        s.key for s in extract_signals_hybrid(self_reveal, _bare_ir())
+    }
 
 
 def test_unspent_mana_opens_on_mana_retained_across_steps():

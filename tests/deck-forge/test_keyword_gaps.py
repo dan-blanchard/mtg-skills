@@ -201,7 +201,8 @@ class TestSpeedMatters:
             "oracle_text": "First strike, vigilance, haste\nStart your engines! (If you have no speed, it starts at 1. It increases once on each of your turns when an opponent loses life. Max speed is 4.)\nOther creatures you control get +X/+0, where X is your speed.\nNoncreature spells you cast cost {X} less to cast, where X is your speed.",
             "keywords": ["Start your engines!", "Max speed"],
         }
-        assert "speed_matters" in _keys(samut)
+        # ADR-0027: speed_matters migrated to the IR (kept word mirror) — hybrid path.
+        assert "speed_matters" in _keys_hybrid(samut)
 
     def test_speed_keyword_card_served(self):
         card = {
@@ -334,7 +335,9 @@ class TestMinusCountersMatter:
     }
 
     def test_minus_counter_commander_emits(self):
-        assert "minus_counters_matter" in _keys(self.HAPATRA)
+        # ADR-0027: minus_counters_matter migrated to the IR (place_counter(m1m1) +
+        # "-1/-1 counter" kept word mirror) — hybrid path.
+        assert "minus_counters_matter" in _keys_hybrid(self.HAPATRA)
 
     def test_plus_one_commander_does_not_emit_minus(self):
         # The +1/+1-pin is load-bearing: a +1/+1 commander must NOT fire minus_counters.
@@ -343,7 +346,7 @@ class TestMinusCountersMatter:
             "type_line": "Legendary Creature — Fungus",
             "oracle_text": "At the beginning of your upkeep, put a +1/+1 counter on each creature you control.",
         }
-        assert "minus_counters_matter" not in _keys(ghave)
+        assert "minus_counters_matter" not in _keys_hybrid(ghave)
 
     def test_minus_payoff_served_wither_keyword_served(self):
         sig = _sig("minus_counters_matter", "you")
@@ -453,7 +456,9 @@ class TestExaltedLoneAttacker:
             "type_line": "Legendary Creature — Human Knight",
             "oracle_text": "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)\nWhenever a creature you control attacks alone, it gains double strike until end of turn.",
         }
-        assert "exalted_lone_attacker" in _keys(rafiq)
+        # ADR-0027: exalted_lone_attacker migrated to the IR (exalted keyword +
+        # "attacks alone|exalted" kept word mirror) — hybrid path.
+        assert "exalted_lone_attacker" in _keys_hybrid(rafiq)
         assert serves(rafiq, _sig("exalted_lone_attacker", "you"))
 
 
@@ -503,7 +508,9 @@ class TestTeamEvasionGrant:
     }
 
     def test_team_evasion_grant_emits_and_served(self):
-        assert "team_evasion_grant" in _keys(self.SUN_QUAN)
+        # ADR-0027: team_evasion_grant migrated to the IR (the generic grant_keyword +
+        # a kept word mirror for the subtype/color-scoped grants) — hybrid path.
+        assert "team_evasion_grant" in _keys_hybrid(self.SUN_QUAN)
         assert serves(self.SUN_QUAN, _sig("team_evasion_grant", "you"))
 
     def test_disjoint_from_evasion_self(self):

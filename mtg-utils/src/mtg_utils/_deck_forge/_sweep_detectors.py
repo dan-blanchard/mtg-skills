@@ -20,15 +20,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "rather than pay (?:its|their|the) mana cost|without paying (?:its|their) mana cost|may cast (?:it|that (?:card|spell)|those cards)[^.]*without paying",
     },
-    {
-        "key": "commander_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        # No trailing "|champions? of": CR 702.72a defines the champion KEYWORD as
-        # "Champion an [object]", never "champion of" — that branch only over-fired on
-        # the name fragment. partner_background already covers the real commander variants.
-        "regex": "commanders? you (?:control|own) (?:have|has|get|gets|gain|gains)|commander creatures? you (?:own|control)|whenever your commander\\b|whenever a commander\\b|your commander (?:has|have|deals|enters|attacks|gets|gains)|is your commander|it'?s your commander|while [^.]*your commander|it's a copy of your other commander|copy of any of your commanders|each commander you (?:control|own)|for each commander|commander damage",
-    },
+    # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-
+    # Filter predicate + a kept word mirror (signals._IR_KEPT_DETECTORS) for the
+    # Background grants / "commander damage" / "your commander costs less" refs phase
+    # leaves textual. Its SWEEP_DETECTORS row is deleted; the serve is hand-registered
+    # in signal_specs.py reusing the deleted regex (SWEEP_LABELS still carries the
+    # human label).
     {
         "key": "variable_pt",
         "scope": "any",
@@ -59,12 +56,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "(?<!un)tap target (?:permanent|creature|land|nonland permanent)[^.]*(?:an opponent|that player) controls|skips? (?:their|his or her|its) next untap step|tap (?:up to )?\\w+ target permanents? (?:an opponent|that player) controls|\\bdetain\\b",
     },
-    {
-        "key": "tap_untap_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "whenever [^.]*becomes? (?:tapped|untapped)|becomes? untapped, put",
-    },
+    # ADR-0027: tap_untap_matters migrated to the Card IR — phase's `taps` (tap-for-
+    # mana) trigger + a "whenever … becomes tapped/untapped" kept word mirror
+    # (signals._IR_KEPT_DETECTORS) for the Inspired trigger phase flattens to
+    # event='other'. Its SWEEP_DETECTORS row is deleted; the serve is hand-registered in
+    # signal_specs.py reusing the deleted regex.
     {
         "key": "ability_copy",
         "scope": "you",
@@ -133,12 +129,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "exile cards? from the top of your library until|exile (?:the )?top[^.]*until you exile|reveal cards from the top of your library until",
     },
-    {
-        "key": "hand_disruption",
-        "scope": "opponents",
-        "is_widen_of": "",
-        "regex": "look at (?:target player|that player|an opponent|each opponent|target opponent)'?s?'? hands?|plays? with (?:their|his or her) hands? revealed|reveals? (?:their|his or her) hands?|reveals? (?:\\w+ )?cards? (?:at random )?from (?:their|his or her|that player's) hand|reveals?[^.]*until you say stop",
-    },
+    # ADR-0027: hand_disruption migrated to the Card IR — phase's opp-reveal trigger +
+    # a kept word mirror (signals._IR_KEPT_DETECTORS) for the "look at … hand" / "play
+    # with hands revealed" / modal reveal-and-discard forms phase leaves textual. Its
+    # SWEEP_DETECTORS row is deleted; the serve is hand-registered in signal_specs.py
+    # reusing the deleted regex.
     # ADR-0027: group_mana migrated to the Card IR — phase emits scope='each' for ZERO
     # ramp effects (the recipient field doesn't exist), so detection moved to a
     # non-controller-recipient discriminator (_GROUP_MANA_RAW) on the ramp effect's raw
@@ -200,12 +195,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "at the beginning of combat on your turn[^.]*creature[^.]*\\.?\\s*(?:until end of turn,? )?that creature gets \\+|whenever (?:this creature|[A-Z][a-z]+) attacks[^.]*(?:creature|it) gets \\+\\d/|whenever [\\w ]+ blocks(?: or becomes blocked)?[^.]*gets [+\\-]|whenever [\\w ]+ attacks[^.]*,? (?:it|[\\w ]+?) gets [+\\-]",
     },
-    {
-        "key": "opponent_exile_matters",
-        "scope": "opponents",
-        "is_widen_of": "exile_matters",
-        "regex": "cards? (?:your opponents own|an opponent owns)[^.]*in exile|for each card your opponents own in exile|opponents own in exile|exile (?:target player's|target opponent's|each opponent's|that player's) graveyard|if a card would be put into an opponent's graveyard",
-    },
+    # ADR-0027: opponent_exile_matters migrated to the Card IR — GRAVEYARD HATE (CR
+    # 406), served from a kept word mirror (signals._IR_KEPT_DETECTORS) because phase
+    # scatters its forms across categories it doesn't unify (graveyard-zone exile →
+    # cat='exile' subject=None; Leyline replacement → cat='cheat_play'; Umbris payoff →
+    # cat='pump'). The old permanent-exile structural arm mis-fired on Path-to-Exile
+    # removal and is removed. Its SWEEP_DETECTORS row is deleted; the serve is hand-
+    # registered in signal_specs.py reusing the deleted regex.
     {
         "key": "opponent_counter_grant",
         "scope": "opponents",
@@ -328,12 +324,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # rows are deleted; SWEEP_LABELS still carries each human label, and the serve
     # specs are hand-registered in signal_specs.py (the sweep auto-register loop no
     # longer reaches them).
-    {
-        "key": "domain_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bdomain\\b|number of basic land types? (?:among|you)|basic land types? among",
-    },
+    # ADR-0027: domain_matters migrated to the Card IR — the amount.op=='domain' count
+    # operand + a "\\bdomain\\b|basic land types" kept word mirror
+    # (signals._IR_KEPT_DETECTORS) for the cost-reduction / condition / "Domain —"
+    # ability-word refs phase leaves textual (CR 700.3). Its SWEEP_DETECTORS row is
+    # deleted; the serve is its own hand-written _spec in signal_specs.py (independent
+    # of this regex).
     {
         "key": "conjure_matters",
         "scope": "you",
@@ -380,15 +376,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "assigns? combat damage equal to its (?:toughness|mana value) rather than its power|deals damage equal to its toughness",
     },
-    {
-        "key": "donate_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        # Donate = a CONTROL CHANGE (CR 701.12). The old middle clause
-        # "target opponent (creates|draws|gains|puts)" mis-opened for group-hug/gift
-        # commanders and the same regex served ~25 non-donate cards — dropped.
-        "regex": "(?:target opponent|another player|target player|that player|each opponent|each other player) gains control of[^.]*you control|(?:target opponent|another player|target player|that player) gains control of",
-    },
+    # ADR-0027: donate_matters migrated to the Card IR — a `gain_control` effect whose
+    # raw names another-player RECIPIENT (you GIVE a permanent you control away; phase
+    # drops the recipient to scope='any', so the lane reads the effect raw — the
+    # _DONATE_RAW discriminator in signals.py, the lane's own deleted serve regex
+    # minus its "[^.]*you control" arm, reproducing it exactly). CR 701.12. Its
+    # SWEEP_DETECTORS row is deleted; the serve is hand-registered in signal_specs.py
+    # reusing the deleted regex.
     # ADR-0027: attractions_matter migrated to the Card IR — served from a
     # "\battraction\b|open an attraction" _IR_KEPT_DETECTORS word mirror (phase v0.1.19
     # doesn't structure the CR 717 Attraction designation). This SWEEP_DETECTORS row is
