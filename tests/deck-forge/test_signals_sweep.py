@@ -11,7 +11,11 @@ from mtg_utils._deck_forge.signals import Signal, extract_signals
 
 
 def test_sweep_detectors_loaded():
-    assert len(SWEEP_DETECTORS) >= 140
+    # The threshold drops as the ADR-0027 regex→IR strangler deletes SWEEP rows
+    # (boast/exhaust/explore/phasing/end_the_turn/extra_end_step/trigger_doubling +
+    # earlier batches migrated to the Card IR); it still guards "a substantial set
+    # loads", not an exact count.
+    assert len(SWEEP_DETECTORS) >= 130
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

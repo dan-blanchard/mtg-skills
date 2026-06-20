@@ -8,7 +8,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face
 
 
 def _keys(card):
@@ -237,12 +237,38 @@ def test_named_counters_are_separate_lanes():
 # #16 End-the-turn (CR 724, your-turn engine) is its own you-scoped lane, split from
 # the opponents/any-scoped timing-restriction lane.
 def test_end_the_turn_split_from_timing_restriction():
+    # ADR-0027: end_the_turn migrated to the Card IR — phase's `end_the_turn` effect
+    # category opens it via the hybrid (Obeka); timing_control stays on regex. The
+    # split (end_the_turn ≠ the opponents-scoped timing restriction) still holds.
     obeka = {
         "name": "X",
         "oracle_text": "{T}: The player whose turn it is may end the turn.",
     }
-    assert "end_the_turn" in _keys(obeka)
-    assert "timing_control" not in _keys(obeka)
+    obeka_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="tap",
+                        effects=(
+                            Effect(
+                                category="end_the_turn",
+                                scope="any",
+                                raw="may end the turn",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    obeka_hybrid = {s.key for s in extract_signals_hybrid(obeka, obeka_ir)}
+    assert "end_the_turn" in obeka_hybrid
+    assert "timing_control" not in obeka_hybrid
 
     teferi = {
         "name": "Y",

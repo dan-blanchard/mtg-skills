@@ -37,11 +37,9 @@ CASES = [
         "Whenever you attach an Equipment to a creature, draw a card.",
     ),
     ("vehicles_matter", "you", "Vehicles you control get +1/+1."),
-    (
-        "scry_surveil_matters",
-        "you",
-        "Whenever you scry, put a +1/+1 counter on this creature.",
-    ),
+    # ADR-0027: scry_surveil_matters migrated to the Card IR (the scried/surveiled
+    # trigger events + the event='other' scry/surveil payoff marker), so it is
+    # asserted via the hybrid path below, not this regex CASES loop.
     # named mechanics
     # ADR-0027: monarch_matters migrated to the Card IR (structural monarch effect
     # + ismonarch condition), so it is asserted via the hybrid path below, not this
@@ -71,14 +69,12 @@ CASES = [
         "you",
         "This creature gets +1/+0 for each card you own in exile.",
     ),
-    (
-        "experience_matters",
-        "you",
-        "When this creature enters, you get an experience counter.",
-    ),
+    # ADR-0027: experience_matters / mutate_matters migrated to the Card IR (the
+    # GivePlayerCounter experience gainer + experience scaler operand; the mutate
+    # keyword + "if it has mutate" payoff marker), so they are asserted via the
+    # hybrid path below, not this regex CASES loop.
     ("poison_matters", "opponents", "This creature has infect."),
     ("modified_matters", "you", "Modified creatures you control get +1/+1."),
-    ("mutate_matters", "you", "Mutate {2}{G}{U}"),
     (
         "food_matters",
         "you",
@@ -536,11 +532,99 @@ def test_commit_a_crime():
 
 
 def test_connive_keyword():
+    # ADR-0027: connive_matters migrated to the Card IR — phase's `connive` effect
+    # category (a self-conniving card) opens the lane via _DOER_EFFECT_KEYS, so it
+    # comes through the hybrid path, not the deleted regex.
     c = {
         "name": "Prowler-like",
         "oracle_text": "Whenever this creature attacks, it connives.",
     }
-    assert ("connive_matters", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(category="connive", scope="you", raw="it connives"),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("connive_matters", "you") in hybrid
+    assert ("connive_matters", "you") not in _ks(c)
+
+
+def _one_ability_ir(ability):
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=(ability,)),))
+
+
+def test_scry_surveil_is_ir_served():
+    # ADR-0027: scry_surveil_matters migrated to the Card IR — phase's `scry_surveil`
+    # effect category (the event='other' scry/surveil payoff) opens it via the hybrid.
+    c = {
+        "name": "X",
+        "oracle_text": "Whenever you scry, put a +1/+1 counter on this creature.",
+    }
+    ir = _one_ability_ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="other"),
+            effects=(
+                Effect(category="scry_surveil", scope="you", raw="whenever you scry"),
+            ),
+        )
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("scry_surveil_matters", "you") in hybrid
+    assert ("scry_surveil_matters", "you") not in _ks(c)
+
+
+def test_experience_is_ir_served():
+    # ADR-0027: experience_matters migrated to the Card IR — the GivePlayerCounter
+    # experience GAINER (phase's experience_counter effect category) opens it.
+    c = {
+        "name": "X",
+        "oracle_text": "When this creature enters, you get an experience counter.",
+    }
+    ir = _one_ability_ir(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="experience_counter",
+                    scope="you",
+                    raw="you get an experience counter",
+                ),
+            ),
+        )
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("experience_matters", "you") in hybrid
+    assert ("experience_matters", "you") not in _ks(c)
+
+
+def test_mutate_is_ir_served():
+    # ADR-0027: mutate_matters migrated to the Card IR — the Scryfall mutate keyword
+    # opens it via _IR_KEYWORD_MAP (a mutate creature carries the keyword).
+    c = {
+        "name": "X",
+        "oracle_text": "Mutate {2}{G}{U}",
+        "keywords": ["Mutate"],
+    }
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, _ks_bare_ir())}
+    assert ("mutate_matters", "you") in hybrid
+    assert ("mutate_matters", "you") not in _ks(c)
+
+
+def _ks_bare_ir():
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def test_prowess_keyword_surfaces_spellslinger():

@@ -12,7 +12,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
 
 
 def _sig(key, scope="you", subject=""):
@@ -29,8 +29,18 @@ def _bare_ir() -> Card:
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
-def _keys_hybrid(card):
-    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+def _keys_hybrid(card, ir=None):
+    return {s.key for s in extract_signals_hybrid(card, ir or _bare_ir())}
+
+
+def _ir_with(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
+    """A Card IR carrying the given abilities/keywords — the structural marker an
+    ADR-0027-migrated effect-based key reads (e.g. a `madness` payoff marker)."""
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(Face(name="X", keywords=keywords, abilities=tuple(abilities)),),
+    )
 
 
 def _subjects(card, key):
@@ -143,7 +153,19 @@ class TestMadnessMatters:
             "type_line": "Legendary Creature — Vampire",
             "oracle_text": "Haste\n{T}, Discard a card: Draw a card.\nWhenever you discard a card, if it has madness, untap Anje Falkenrath.",
         }
-        assert "madness_matters" in _keys(anje)
+        # ADR-0027: madness_matters migrated to the Card IR — Anje's "if it has
+        # madness" payoff rides a `madness` marker (project._narrow_payoff_condition
+        # _refs), so it comes through the hybrid, not the pure regex path.
+        ir = _ir_with(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(category="madness", scope="you", raw="if it has madness"),
+                ),
+            )
+        )
+        assert "madness_matters" in _keys_hybrid(anje, ir)
+        assert "madness_matters" not in _keys(anje)
 
     def test_madness_keyword_card_emits_and_serves(self):
         visitor = {
@@ -152,7 +174,8 @@ class TestMadnessMatters:
             "oracle_text": "At the beginning of each player's upkeep, if that player has no cards in hand, you draw a card and you lose 1 life.\nMadness {1}{B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
             "keywords": ["Madness"],
         }
-        assert "madness_matters" in _keys(visitor)
+        # The Scryfall madness keyword opens the lane via _IR_KEYWORD_MAP (hybrid).
+        assert "madness_matters" in _keys_hybrid(visitor)
         assert serves(visitor, _sig("madness_matters", "you"))
 
     def test_non_madness_not_served(self):
@@ -220,7 +243,9 @@ class TestForetellMatters:
             "oracle_text": "Destroy all creatures.\nForetell {1}{W}{W} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
             "keywords": ["Foretell"],
         }
-        assert "foretell_matters" in _keys(doomskar)
+        # ADR-0027: foretell_matters migrated to the Card IR — the Scryfall foretell
+        # keyword opens the lane via _IR_KEYWORD_MAP (hybrid), not the regex floor.
+        assert "foretell_matters" in _keys_hybrid(doomskar)
         assert serves(doomskar, _sig("foretell_matters", "you"))
 
     def test_foretell_payoff_carer_emits(self):
@@ -229,7 +254,30 @@ class TestForetellMatters:
             "type_line": "Legendary Creature — God",
             "oracle_text": "Alrund gets +1/+1 for each card in your hand and each foretold card you own in exile.",
         }
-        assert "foretell_matters" in _keys(alrund)
+        # The Foretold predicate on the counted subject Filter opens the lane (the
+        # structural payoff bind), not the deleted regex floor.
+        ir = _ir_with(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="any",
+                        amount=Quantity(
+                            op="count",
+                            factor=1,
+                            subject=Filter(
+                                card_types=("Card",),
+                                predicates=("Foretold", "Owned", "InZone"),
+                            ),
+                        ),
+                        raw="+1/+1 for each foretold card you own in exile",
+                    ),
+                ),
+            )
+        )
+        assert "foretell_matters" in _keys_hybrid(alrund, ir)
+        assert "foretell_matters" not in _keys(alrund)
 
 
 class TestUndyingPersistMatters:

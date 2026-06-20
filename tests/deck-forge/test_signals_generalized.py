@@ -777,7 +777,31 @@ def test_scavenge_fuel_opens_on_scavenge():
             "creature: Regenerate Varolz."
         ),
     }
-    assert ("scavenge_fuel", "you") in _ks(varolz)
+    # ADR-0027: scavenge_fuel migrated to the Card IR — Varolz is a keyword-less
+    # graveyard-wide GRANTER, recovered by a `scavenge` dropped-static face marker
+    # (read via _DOER_EFFECT_KEYS), so the lane opens through the hybrid IR path.
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="scavenge", scope="you", raw="has scavenge"
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(varolz, ir)}
+    assert ("scavenge_fuel", "you") in hybrid
+    assert ("scavenge_fuel", "you") not in _ks(varolz)
 
 
 def test_free_spell_storm_opens_on_cost_less_per_spell():

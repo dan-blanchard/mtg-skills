@@ -297,12 +297,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "spells you cast have (?:convoke|affinity|cascade|flash|trample|deathtouch|delve|undaunted|haste|lifelink|menace|ward|improvise|demonstrate|casualty|flashback)|(?:noncreature spells|creature spells|spells) you cast have (?:improvise|demonstrate|casualty|convoke|affinity|cascade|flashback)|spell you cast(?: each turn)? has casualty|creature spells you cast have",
     },
-    {
-        "key": "exhaust_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bexhaust\\b",
-    },
+    # ADR-0027: exhaust_matters migrated to the Card IR — served structurally from
+    # the Scryfall `exhaust` keyword (_IR_KEYWORD_MAP) plus an `exhaust` effect
+    # marker for the keyword-less payoff ("activate an exhaust ability", including
+    # Pit Automaton's delayed-trigger-inside-activated-ability shape). The serve spec
+    # is hand-registered in signal_specs reusing the deleted regex.
     {
         "key": "partner_background",
         "scope": "you",
@@ -512,12 +511,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "if it has flying[^.]*first strike|the same is true for first strike, double strike|has flying[^.]*\\+1/\\+1",
     },
-    {
-        "key": "trigger_doubling",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "that ability triggers an additional time|triggers? an additional time|trigger an additional time",
-    },
+    # ADR-0027: trigger_doubling migrated to the Card IR — served structurally from
+    # phase's `trigger_doubling` effect category (Panharmonicon/Yarok class) plus a
+    # `trigger_doubling` dropped-static face marker for the granted/quoted form
+    # phase drops entirely (The Masamune's equipped-creature "triggers an additional
+    # time"). The serve spec is hand-registered in signal_specs reusing the regex.
     # ADR-0027: ninjutsu_matters migrated to the Card IR — served structurally from
     # the Scryfall `ninjutsu`/`commander ninjutsu` keyword (_IR_KEYWORD_MAP) plus a
     # `ninjutsu` marker effect for the keyword-less payoff commander (Satoru: "Whenever
@@ -530,12 +528,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bsuspend\\b",
     },
-    {
-        "key": "boast_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bboast\\b",
-    },
+    # ADR-0027: boast_matters migrated to the Card IR — served structurally from the
+    # Scryfall `boast` keyword (_IR_KEYWORD_MAP) + phase's `boast` effect category
+    # (the event='other' boast-payoff trigger) plus a `boast` dropped-static face
+    # marker for the "can boast twice" static amplifier phase drops (Birgi). The
+    # serve spec is hand-registered in signal_specs reusing the deleted regex.
     # ADR-0027: soulbond_matters migrated to the Card IR — served structurally from
     # the Scryfall `soulbond` keyword (_IR_KEYWORD_MAP) plus a `soulbond` effect
     # marker for non-keyword references ("paired with a creature with soulbond" —
@@ -591,12 +588,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bconvoke\\b",
     },
-    {
-        "key": "explore_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bexplores?\\b",
-    },
+    # ADR-0027: explore_matters migrated to the Card IR — served structurally from
+    # the Scryfall `explore` keyword (_IR_KEYWORD_MAP, the authoritative path: 53 ⊇
+    # the 44 regex hits, covering Map-token grants / granted-ability / replacement-
+    # clause explore cards that emit no explore Effect node) + phase's `explore`
+    # effect category (the event='other' explore payoff). The serve spec is hand-
+    # registered in signal_specs reusing the deleted regex.
     {
         "key": "changeling_matters",
         "scope": "you",
@@ -791,12 +788,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "gains? myriad|\\bmyriad\\b",
     },
-    {
-        "key": "phasing_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "phase out|phases out|phased out",
-    },
+    # ADR-0027: phasing_matters migrated to the Card IR — served structurally from
+    # the Scryfall `phasing` keyword (_IR_KEYWORD_MAP) + phase's `phasing` effect
+    # category (the phase-out/in DOER markers, _narrow_mechanic_refs) plus a
+    # `phasing` payoff-trigger marker for the event='other' "permanents phase out"
+    # payoff phase keeps only in a place_counter raw (The War Doctor). It is removed
+    # from _IR_FLOOR_LANES; the serve spec is hand-registered in signal_specs.
     {
         "key": "color_change",
         "scope": "you",
@@ -812,15 +809,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "cast spells (?:and activate abilities )?only during their own|spells? only any time they could cast a sorcery|can cast spells only",
     },
-    {
-        # End-the-turn engine (Obeka, Sundial of the Infinite, Glorious End) — CR 724.
-        # Fired on YOUR OWN turn to lock in value and fizzle end-step downsides, so this
-        # is scope "you", split out of the opponents-scoped timing_control restriction.
-        "key": "end_the_turn",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bend the turn\\b",
-    },
+    # ADR-0027: end_the_turn migrated to the Card IR — served structurally from
+    # phase's `end_the_turn` effect category (CR 724; the EndTheTurn effect + the
+    # failed-parse "end the turn" supplement recovery, now reconciled to the same
+    # category string the _DOER_EFFECT_KEYS key reads — Obeka). The serve spec is
+    # hand-registered in signal_specs reusing the deleted regex.
     {
         "key": "sacrifice_protection",
         "scope": "you",
@@ -889,16 +882,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "additional upkeep step|additional beginning phase",
     },
-    {
-        # Extra END STEPS (Y'shtola Rhul) re-trigger every "at the beginning of your
-        # end step" ability (CR 513). An extra ENDING phase (CR 513) likewise contains
-        # the end step. Combat / main-phase grants are NOT here — those co-occur as the
-        # extra-combat package (Aggravated Assault) owned by extra_combats.
-        "key": "extra_end_step",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "additional end step|additional ending phase",
-    },
+    # ADR-0027: extra_end_step migrated to the Card IR — served structurally from
+    # phase's `extra_end` effect category (CR 513). phase emits AdditionalPhase only
+    # for combat/upkeep, so Y'shtola Rhul's dropped "additional end step" clause is
+    # recovered by a `extra_end` dropped-static face marker. It is removed from
+    # _IR_FLOOR_LANES; the serve spec is hand-registered in signal_specs.
     {
         # Extra DRAW STEPS re-trigger "at the beginning of your draw step" abilities
         # (CR 504). Opened by a beginning-phase grant (CR 501 — untap/upkeep/draw) too.

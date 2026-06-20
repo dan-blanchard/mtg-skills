@@ -1489,15 +1489,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Scavenge fuel (Varolz: "each creature card in your graveyard has scavenge … +1/+1
-    # counters equal to that card's power"): scavenge converts a creature's POWER into
-    # counters, so a scavenge commander wants high-power creatures (Force of Savagery
-    # 8/0, Yargle 18/6, Rotting Regisaur) as the biggest scavenge payloads.
-    (
-        "scavenge_fuel",
-        re.compile(r"\bscavenge\b", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: scavenge_fuel migrated to the Card IR — the Scryfall `scavenge`
+    # keyword (_IR_KEYWORD_MAP, the intrinsic scavengers) plus a `scavenge`
+    # dropped-static face marker for the graveyard-wide GRANTERS phase drops ("Each
+    # creature card in your graveyard has scavenge" — Varolz, Young Deathclaws, The
+    # Cave of Skulls, project._dropped_static_markers, read via _DOER_EFFECT_KEYS).
+    # The "\bscavenge\b" floor over-fired on the "Scavenge the Dead" ability WORD
+    # (CR 207.2c — Malanthrope), which the structural IR correctly excludes. This
+    # _HAND_FLOOR producer is deleted; the serve spec stays in signal_specs.
     # Free-spell storm (Thrasta: "costs {3} less for each other spell cast this turn"):
     # a commander whose cost drops per spell cast wants FREE (0-cost) spells to chain,
     # each cutting its cost (Ornithopter, Memnite, Lotus Petal, Mishra's Bauble).
@@ -1804,15 +1803,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "scry_surveil_matters",
-        re.compile(
-            r"whenever you scry or surveil\b|whenever you (?:scry|surveil)\b"
-            r"|if you would scry (?:a number of cards|\d)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: scry_surveil_matters migrated to the Card IR — the scried/surveiled
+    # trigger events (_PAYOFF_TRIGGER_KEYS) + phase's `scry_surveil` effect category
+    # (the event='other' "whenever you scry/surveil" payoff trigger,
+    # _narrow_trigger_other_refs) plus a `scry_surveil` dropped-static face marker
+    # for the "if you would scry a number of cards … instead" REPLACEMENT phase drops
+    # entirely (Kenessos, Eligeth — project._dropped_static_markers). Removed from
+    # _IR_FLOOR_LANES; this _HAND_FLOOR producer is deleted; the serve spec stays.
     # ── Named-mechanic long tail (precise named anchors → novel build-arounds) ───
     # ADR-0027: monarch_matters migrated to the Card IR — served structurally from
     # phase's `monarch` effect category (_DOER_EFFECT_KEYS, "you become the monarch"
@@ -1890,7 +1887,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    ("experience_matters", re.compile(r"experience counters?", re.IGNORECASE), "you"),
+    # ADR-0027: experience_matters migrated to the Card IR — the GivePlayerCounter
+    # ->experience_counter gainers (_DOER_EFFECT_KEYS) plus the experience SCALER
+    # operand (op="experience" from a Ref->PlayerCounter{Experience}, project
+    # ._quantity) for Atreus/Azula. This _HAND_FLOOR producer is deleted; the
+    # hand-written serve spec stays in signal_specs.
     (
         "poison_matters",
         re.compile(
@@ -1899,7 +1900,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "opponents",
     ),
     ("modified_matters", re.compile(r"\bmodified\b", re.IGNORECASE), "you"),
-    ("mutate_matters", re.compile(r"\bmutate\b", re.IGNORECASE), "you"),
+    # ADR-0027: mutate_matters migrated to the Card IR — the Scryfall `mutate`
+    # keyword (_IR_KEYWORD_MAP, the 34 mutate creatures) plus a `mutate` payoff
+    # marker for the keyword-less cast-payoff ("if it has mutate" —
+    # project._narrow_payoff_condition_refs, read via _DOER_EFFECT_KEYS; Pollywog
+    # Symbiote). This _HAND_FLOOR producer is deleted; the serve spec stays.
     (
         # Anchor on the Food-token mechanic (CR 111.10), like its sibling token axes,
         # not the bare word.
@@ -2049,7 +2054,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"commit(?:s|ted)? a crime|whenever you commit", re.IGNORECASE),
         "you",
     ),
-    ("connive_matters", re.compile(r"\bconnives?\b", re.IGNORECASE), "you"),
+    # ADR-0027: connive_matters migrated to the Card IR — phase's `connive` effect
+    # category (self-conniving cards, _DOER_EFFECT_KEYS) + the `_CONNIVE_REF`
+    # applied/granted marker, plus the Scryfall `connive` keyword (_IR_KEYWORD_MAP)
+    # which lifts the keyword-less GRANTER phase swallows into an Enchant parse
+    # (Security Bypass). This _HAND_FLOOR producer is deleted; the serve spec stays.
     (
         "spell_copy_matters",
         re.compile(
@@ -2221,7 +2230,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Each fires on a commander/card that bears or cares about the keyword; the matching
     # SPECS entry serves the keyword[] bearers (authoritative) plus the payoff phrasing.
     # Madness (CR 702.35): discard to cast — discard_matters covers only 1/61.
-    ("madness_matters", re.compile(r"\bmadness\b", re.IGNORECASE), "you"),
+    # ADR-0027: madness_matters migrated to the Card IR — the Scryfall `madness`
+    # keyword (_IR_KEYWORD_MAP) + the `_MADNESS_GRANT` "has madness" conferral
+    # marker, plus a `madness` payoff marker for the "if it has madness" condition
+    # (project._narrow_payoff_condition_refs; Anje Falkenrath's untap loop). Removed
+    # from _IR_FLOOR_LANES. The "\bmadness\b" floor over-fired on the "Crown of
+    # Madness" ability WORD (CR 207.2c — Bloodboil Sorcerer), which the structural IR
+    # correctly excludes. This _HAND_FLOOR producer is deleted; the serve spec stays.
     # Speed / Max speed (CR 702.179/702.178, Aetherdrift): max-speed payoffs unsurfaced.
     (
         "speed_matters",
@@ -2236,7 +2251,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # read via _DOER_EFFECT_KEYS). Its oracle-regex floor detector is deleted; the
     # serve spec stays hand-registered in signal_specs.py.
     # Foretell (CR 702.143): the foretold-card payoff/engine axis (Alrund, Ranar).
-    ("foretell_matters", re.compile(r"\bforetell\b|foretold", re.IGNORECASE), "you"),
+    # ADR-0027: foretell_matters migrated to the Card IR — the Scryfall `foretell`
+    # keyword (_IR_KEYWORD_MAP) + the `_FORETELL_REF` "has foretell"/"you foretell"
+    # marker, plus the Foretold-predicate payoff bind (Niko Defies Destiny — a
+    # counted subject Filter carrying the Foretold predicate) and a `foretell`
+    # marker for the "to foretell" mana ENABLER (Karfell Harbinger,
+    # project._narrow_payoff_condition_refs). Removed from _IR_FLOOR_LANES. This
+    # _HAND_FLOOR producer is deleted; the serve spec stays in signal_specs.
     # Undying (CR 702.93a, +1/+1) / Persist (CR 702.79a, -1/-1): the counter-bearing
     # SUBSET of dies_recursion. Distinct lane because the COUNTER is the point for a
     # counters deck — undying feeds +1/+1 synergies, persist feeds -1/-1/aristocrats —
@@ -3888,6 +3909,15 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "affinity": ("affinity_type", "you"),
     "madness": ("madness_matters", "you"),
     "foretell": ("foretell_matters", "you"),
+    # ADR-0027 keyword-conditioned payoff markers (project._narrow_payoff_condition
+    # _refs) + dropped-static face markers (project._dropped_static_markers): a
+    # mutate cast-payoff / scavenge graveyard-grant phase left only in a non-grant
+    # carrier raw or dropped entirely (surviving on the face oracle text) is appended
+    # as a precise marker effect → its lane. The keyword-bearing makers ride the
+    # Scryfall keyword array (_IR_KEYWORD_MAP); these add the keyword-LESS payoff /
+    # granter residual. CR 702.139 mutate, 702.97 scavenge.
+    "mutate": ("mutate_matters", "you"),
+    "scavenge": ("scavenge_fuel", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
@@ -3939,9 +3969,22 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "cascade": (("cascade_matters", "you"),),
     "changeling": (("changeling_matters", "you"),),
     "companion": (("companion_keyword", "you"),),
+    # Connive (CR 701.50) as the printed KEYWORD — covers the keyword-LESS GRANTER
+    # (Security Bypass's Aura grants the enchanted creature "it connives", which
+    # phase swallows into the Enchant parse so no connive effect is emitted). The
+    # native connive EFFECT already covers self-conniving cards via _DOER_EFFECT_KEYS;
+    # Scryfall tags the granter with the keyword too, so this lifts it cleanly.
+    "connive": (("connive_matters", "you"),),
     "convoke": (("convoke_matters", "you"),),
     "devour": (("devour_matters", "you"),),
     "discover": (("discover_matters", "you"),),
+    # Explore (CR 701.44) as the printed KEYWORD — the Scryfall-authoritative path
+    # covers explore cards whose explore lives in a granted ability / replacement
+    # clause / Map-token grant (Topography Tracker, Glowcap Lantern, Get Lost, …)
+    # and so emit NO explore EFFECT node. The explore EFFECT category (doers + the
+    # event='other' payoff trigger) opens it via _DOER_EFFECT_KEYS; this opens it
+    # from the keyword the card actually carries (53 ⊇ the 44 regex hits).
+    "explore": (("explore_matters", "you"),),
     "foretell": (("foretell_matters", "you"),),
     "madness": (("madness_matters", "you"),),
     # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
@@ -4129,8 +4172,15 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "attractions_matter",
         "suspect_matters",
         "venture_matters",
-        "foretell_matters",
-        "phasing_matters",
+        # foretell_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # foretell keyword + the "has foretell"/"you foretell" marker, plus the
+        # Foretold-predicate payoff bind (Niko) and the "to foretell" enabler marker
+        # (Karfell)), so it no longer needs the regex floor (its _HAND_FLOOR detector
+        # is deleted).
+        # phasing_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # phasing keyword + the phase-out/in DOER markers, plus the event='other'
+        # "permanents phase out" payoff-trigger marker (The War Doctor)), so it no
+        # longer needs the regex floor (its SWEEP_DETECTORS row is deleted).
         # ring_matters removed — ADR-0027 migrated it to the Card IR (structural
         # ring_tempt effect, including the event='other' tempt trigger + the
         # Ring-bearer raw-scan), so it no longer needs the regex floor (its
@@ -4147,11 +4197,19 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # monarch_matters removed — ADR-0027 migrated it to the Card IR (structural
         # monarch effect + ismonarch condition), so it no longer needs the regex
         # floor (its _HAND_FLOOR detector is deleted).
-        "madness_matters",
+        # madness_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # madness keyword + the "has madness" grant marker + the "if it has madness"
+        # payoff marker (Anje)); the "\bmadness\b" floor over-fired on the "Crown of
+        # Madness" ability word (CR 207.2c — Bloodboil Sorcerer), which the structural
+        # IR correctly excludes. Its _HAND_FLOOR detector is deleted.
         "dice_matters",
         "exalted_lone_attacker",
         "crimes_matter",
-        "scry_surveil_matters",
+        # scry_surveil_matters removed — ADR-0027 migrated it to the Card IR (the
+        # scried/surveiled trigger events + the event='other' scry/surveil payoff
+        # marker, plus the "if you would scry a number of cards" replacement marker
+        # (Kenessos, Eligeth)), so it no longer needs the regex floor (its _HAND_FLOOR
+        # detector is deleted).
         "regenerate_matters",
         # spell-pattern / count payoffs
         "second_spell_matters",
@@ -4746,6 +4804,13 @@ def extract_signals_ir(
                 # ubiquitous one-off scaling, not a power build-around.)
                 elif e.amount.op == "counters":
                     add("counters_matter", "you", "", e.raw)
+                # ADR-0027 — "for each experience counter you have" → experience
+                # payoff SCALER (Atreus's draw-X, Azula's pump-X). The experience
+                # GAINERS ride the GivePlayerCounter -> experience_counter category
+                # (_DOER_EFFECT_KEYS); this is the count-operand scaler side phase
+                # collapsed to a bare op (CR 122.1).
+                elif e.amount.op == "experience":
+                    add("experience_matters", "you", "", e.raw)
             # creatures_matter go-wide DOERs (over-fire-gated per rules-lawyer /
             # CR 604.3): a COUNT operand over your creatures (any effect — the value
             # scales with the population), OR a TEAM ANTHEM buffing them — a pump
@@ -4910,6 +4975,15 @@ def extract_signals_ir(
                 # "a creature with a +1/+1 counter" payoff isn't controller-bound.
                 if esub.controller != "opp" and "Counters" in esub.predicates:
                     add("counters_matter", "you", "", e.raw)
+            # ADR-0027 — a FORETOLD-card reference: an effect (or its count operand)
+            # acting on / scaling with foretold cards you own is a foretell PAYOFF
+            # (Niko Defies Destiny — "2 life for each foretold card you own in
+            # exile"). The Foretold predicate is the structural discriminator phase
+            # keeps on the counted subject Filter; the foretell makers ride the
+            # keyword, the granters ride the foretell marker (CR 702.143).
+            for fsub in (e.subject, amount_subject):
+                if fsub is not None and "Foretold" in fsub.predicates:
+                    add("foretell_matters", "you", "", e.raw)
             # ── Batch E — effect-category lanes ──
             cat = e.category
             ftypes = _ftypes(e.subject)
@@ -5592,6 +5666,60 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # recall: +18/+10/+8 structural firings, all real makers/sac-payoffs), which
         # keep their floor for now. See ADR-0027.
         "blood_matters",
+        # Group "tail-supplement" (ADR-0027 projection deepening) — the 1-2-card
+        # synthesis tail: keys whose last residual is a named-mechanic reference phase
+        # DROPS (a static grant, a payoff condition, a replacement clause, a delayed
+        # trigger, a count operand), recovered by a NARROW supplement marker so the
+        # lane fires from a NON-floor structural IR source. Floor-mirror-dep==0
+        # (commander-legal, floor lanes disabled) for each; the boundary over-fires
+        # (Bloodboil's "Crown of Madness" / Malanthrope's "Scavenge the Dead" ability
+        # words, CR 207.2c, rules-lawyer-verified) are the cards the structural IR
+        # correctly drops. Each key's oracle-regex producer is deleted; serve specs
+        # stay in signal_specs. See ADR-0027.
+        #   boast      ← `boast` keyword + event='other' payoff + "can boast" face
+        #                amplifier marker (Birgi).
+        #   connive    ← phase's connive effect + the applied/granted marker + the
+        #                Scryfall connive keyword granter-lift (Security Bypass).
+        #   end_the_turn ← phase's end_the_turn effect (supplement category reconciled
+        #                — Obeka).
+        #   exhaust    ← `exhaust` keyword + the exhaust payoff marker, now firing on
+        #                the delayed-trigger-inside-activated shape (Pit Automaton).
+        #   extra_end_step ← phase's extra_end effect + the "additional end step" face
+        #                marker (Y'shtola; left _IR_FLOOR_LANES — it was never floored).
+        #   madness    ← `madness` keyword + grant marker + "if it has madness" payoff
+        #                marker (Anje); left _IR_FLOOR_LANES.
+        #   mutate     ← `mutate` keyword + "if it has mutate" keyword-less payoff
+        #                marker (Pollywog).
+        #   phasing    ← `phasing` keyword + phase-out DOER markers + event='other'
+        #                payoff marker (War Doctor); left _IR_FLOOR_LANES.
+        #   trigger_doubling ← phase's trigger_doubling effect + the granted/quoted
+        #                "triggers an additional time" face marker (The Masamune).
+        #   experience ← GivePlayerCounter gainers + the op="experience" scaler
+        #                operand (Atreus, Azula).
+        #   explore    ← `explore` keyword (authoritative, 53 ⊇ 44 regex) + the
+        #                event='other' explore payoff (Topography Tracker, Glowcap).
+        #   foretell   ← `foretell` keyword + grant marker + Foretold-predicate payoff
+        #                (Niko) + "to foretell" enabler marker (Karfell); left
+        #                _IR_FLOOR_LANES.
+        #   scavenge_fuel ← `scavenge` keyword + the "has scavenge" graveyard-grant
+        #                face marker (Varolz, Young Deathclaws, Cave of Skulls).
+        #   scry_surveil ← scried/surveiled triggers + event='other' payoff + the
+        #                "if you would scry a number of cards" replacement face marker
+        #                (Kenessos, Eligeth); left _IR_FLOOR_LANES.
+        "boast_matters",
+        "connive_matters",
+        "end_the_turn",
+        "exhaust_matters",
+        "extra_end_step",
+        "madness_matters",
+        "mutate_matters",
+        "phasing_matters",
+        "trigger_doubling",
+        "experience_matters",
+        "explore_matters",
+        "foretell_matters",
+        "scavenge_fuel",
+        "scry_surveil_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

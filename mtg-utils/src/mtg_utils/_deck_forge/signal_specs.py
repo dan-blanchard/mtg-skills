@@ -3294,6 +3294,41 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bdevour\b"},
         r"\bdevour\b",
     ),
+    # ADR-0027 tail-supplement: boast/exhaust/explore/phasing/end_the_turn/
+    # trigger_doubling each had their oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — keyword array + effect-category + supplement
+    # markers). The SERVE pool stays oracle-defined, so hand-register the spec the
+    # sweep auto-register loop used to build, reusing each deleted regex.
+    ("boast_matters", "you"): _spec(
+        *SWEEP_LABELS["boast_matters"],
+        {"oracle": r"\bboast\b"},
+        r"\bboast\b",
+    ),
+    ("exhaust_matters", "you"): _spec(
+        *SWEEP_LABELS["exhaust_matters"],
+        {"oracle": r"\bexhaust\b"},
+        r"\bexhaust\b",
+    ),
+    ("explore_matters", "you"): _spec(
+        *SWEEP_LABELS["explore_matters"],
+        {"oracle": r"\bexplores?\b"},
+        r"\bexplores?\b",
+    ),
+    ("phasing_matters", "you"): _spec(
+        *SWEEP_LABELS["phasing_matters"],
+        {"oracle": r"phase out|phases out|phased out"},
+        r"phase out|phases out|phased out",
+    ),
+    ("end_the_turn", "you"): _spec(
+        *SWEEP_LABELS["end_the_turn"],
+        {"oracle": r"\bend the turn\b"},
+        r"\bend the turn\b",
+    ),
+    ("trigger_doubling", "you"): _spec(
+        *SWEEP_LABELS["trigger_doubling"],
+        {"oracle": r"triggers? an additional time|trigger an additional time"},
+        r"triggers? an additional time|trigger an additional time",
+    ),
     # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word

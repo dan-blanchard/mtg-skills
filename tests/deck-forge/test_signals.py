@@ -11,11 +11,21 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Card, Face
+from mtg_utils.card_ir import Ability, Card, Effect, Face
 
 
 def _keys(card):
     return {(s.key, s.scope) for s in extract_signals(card)}
+
+
+def _ir_with(*abilities: Ability) -> Card:
+    """A Card IR carrying the given abilities — the structural marker an ADR-0027-
+    migrated effect-based key reads."""
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(Face(name="X", abilities=tuple(abilities)),),
+    )
 
 
 # A minimal non-None IR for ADR-0027 keys whose IR source scans the record
@@ -1676,7 +1686,20 @@ def test_extra_end_step_lane_opens():
             "after this step."
         ),
     }
-    assert ("extra_end_step", "you") in _keys(card)
+    # ADR-0027: extra_end_step migrated to the Card IR — phase drops the "additional
+    # end step" clause, recovered by an `extra_end` dropped-static face marker
+    # (read via _DOER_EFFECT_KEYS), so the lane opens through the hybrid IR path.
+    ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(category="extra_end", scope="you", raw="additional end step"),
+            ),
+        )
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
+    assert ("extra_end_step", "you") in hybrid
+    assert ("extra_end_step", "you") not in _keys(card)
 
 
 def test_extra_beginning_phase_decomposes_to_upkeep_and_draw():

@@ -780,6 +780,348 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ── ADR-0027 tail-supplement batch ───────────────────────────────────────
+    # Each pairs a real gap card with the IR marker the supplement appended for it.
+    # Boast amplifier (Birgi) — the "can boast twice" static phase drops is recovered
+    # as a `boast` dropped-static face marker.
+    "boast_matters": (
+        {
+            "name": "Birgi, God of Storytelling",
+            "type_line": "Legendary Creature — God",
+            "oracle_text": (
+                "Whenever you cast a spell, add {R}. Until end of turn, you don't "
+                "lose this mana as steps and phases end.\nCreatures you control can "
+                "boast twice during each of your turns rather than once."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(Effect(category="boast", scope="you", raw="can boast twice"),),
+            )
+        ),
+    ),
+    # Connive GRANTER (Security Bypass) — phase swallows the quoted "it connives"
+    # grant into the Enchant parse; the Scryfall connive keyword lifts it.
+    "connive_matters": (
+        {
+            "name": "Security Bypass",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": (
+                "Enchant creature\nAs long as enchanted creature is attacking "
+                "alone, it can't be blocked.\nEnchanted creature has \"Whenever "
+                'this creature deals combat damage to a player, it connives."'
+            ),
+            "keywords": ["Enchant", "Connive"],
+        },
+        # connive is read off the Scryfall keyword array, so a bare non-None IR
+        # routes the hybrid to the IR path.
+        _ir(keywords=("Enchant",)),
+    ),
+    # End-the-turn (Obeka) — phase's end_the_turn effect (the supplement category
+    # reconciled to the lane's binding string).
+    "end_the_turn": (
+        {
+            "name": "Obeka, Brute Chronologist",
+            "type_line": "Legendary Creature — Ogre Wizard",
+            "oracle_text": ("{T}: The player whose turn it is may end the turn."),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="tap",
+                effects=(
+                    Effect(
+                        category="end_the_turn",
+                        scope="any",
+                        raw="The player whose turn it is may end the turn.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Exhaust PAYOFF (Pit Automaton) — a delayed exhaust trigger inside an activated
+    # ability, recovered by the now-ungated exhaust marker.
+    "exhaust_matters": (
+        {
+            "name": "Pit Automaton",
+            "type_line": "Artifact Creature — Construct",
+            "oracle_text": (
+                "Defender\n{T}: Add {C}{C}. Spend this mana only to activate "
+                "abilities.\n{2}, {T}: When you next activate an exhaust ability "
+                "that isn't a mana ability this turn, copy it. You may choose new "
+                "targets for the copy."
+            ),
+            "keywords": ["Defender"],
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana,tap",
+                effects=(
+                    Effect(
+                        category="exhaust",
+                        scope="you",
+                        raw="activate an exhaust ability",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Extra end step (Y'shtola) — the dropped "additional end step" clause recovered
+    # as an `extra_end` dropped-static face marker.
+    "extra_end_step": (
+        {
+            "name": "Y'shtola Rhul",
+            "type_line": "Legendary Creature — Hyur Cleric",
+            "oracle_text": (
+                "At the beginning of your end step, exile target creature you "
+                "control, then return it to the battlefield under its owner's "
+                "control. Then if it's the first end step of the turn, there is an "
+                "additional end step after this step."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="extra_end",
+                        scope="you",
+                        raw="additional end step",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Madness payoff (Anje) — the "if it has madness" condition recovered as a
+    # `madness` payoff marker (distinct from the "has madness" grant).
+    "madness_matters": (
+        {
+            "name": "Anje Falkenrath",
+            "type_line": "Legendary Creature — Vampire",
+            "oracle_text": (
+                "Haste\n{T}, Discard a card: Draw a card.\nWhenever you discard a "
+                "card, if it has madness, untap Anje Falkenrath."
+            ),
+            "keywords": ["Haste"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="madness",
+                        scope="you",
+                        raw="if it has madness",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Mutate payoff (Pollywog) — keyword-less cast-payoff recovered as a `mutate`
+    # marker from "if it has mutate".
+    "mutate_matters": (
+        {
+            "name": "Pollywog Symbiote",
+            "type_line": "Creature — Frog",
+            "oracle_text": (
+                "Each creature spell you cast costs {1} less to cast if it has "
+                "mutate.\nWhenever you cast a creature spell, if it has mutate, "
+                "draw a card, then discard a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(category="mutate", scope="you", raw="if it has mutate"),
+                ),
+            )
+        ),
+    ),
+    # Phasing PAYOFF (The War Doctor) — the event='other' "permanents phase out"
+    # payoff recovered as a `phasing` marker.
+    "phasing_matters": (
+        {
+            "name": "The War Doctor",
+            "type_line": "Legendary Creature — Time Lord Doctor",
+            "oracle_text": (
+                "Whenever one or more other permanents phase out and whenever one "
+                "or more other cards are put into exile from anywhere, put a time "
+                "counter on The War Doctor."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="phasing",
+                        scope="you",
+                        raw="permanents phase out",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Trigger-doubling GRANT (The Masamune) — the granted/quoted "triggers an
+    # additional time" recovered as a `trigger_doubling` dropped-static face marker.
+    "trigger_doubling": (
+        {
+            "name": "The Masamune",
+            "type_line": "Legendary Artifact — Equipment",
+            "oracle_text": (
+                "As long as equipped creature is attacking, it has first strike "
+                'and must be blocked if able.\nEquipped creature has "If a creature '
+                "dying causes a triggered ability of this creature or an emblem you "
+                'own to trigger, that ability triggers an additional time."\n'
+                "Equip {2}"
+            ),
+            "keywords": ["Equip"],
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="trigger_doubling",
+                        scope="you",
+                        raw="triggers an additional time",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Experience SCALER (Atreus) — "for each experience counter you have" stamps
+    # op="experience" on the draw operand.
+    "experience_matters": (
+        {
+            "name": "Atreus, Impulsive Son",
+            "type_line": "Legendary Creature — God Archer",
+            "oracle_text": (
+                "Reach\n{3}, {T}: Draw a card for each experience counter you "
+                "have, then discard a card. Atreus deals 2 damage to each opponent."
+            ),
+            "keywords": ["Reach"],
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana,tap",
+                effects=(
+                    Effect(
+                        category="draw",
+                        scope="you",
+                        amount=Quantity(op="experience", factor=1),
+                        raw="Draw a card for each experience counter you have",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Explore (Topography Tracker) — read off the Scryfall explore keyword (the
+    # authoritative path covering Map-token / granted-ability explore cards).
+    "explore_matters": (
+        {
+            "name": "Topography Tracker",
+            "type_line": "Creature — Elf Scout",
+            "oracle_text": (
+                "When this creature enters, create a Map token.\nIf a creature you "
+                "control would explore, instead it explores, then it explores "
+                "again."
+            ),
+            "keywords": ["Explore"],
+        },
+        # explore is read off the Scryfall keyword array, so a bare non-None IR
+        # routes the hybrid to the IR path.
+        _ir(),
+    ),
+    # Foretell payoff (Niko) — the Foretold predicate on a counted subject Filter.
+    "foretell_matters": (
+        {
+            "name": "Niko Defies Destiny",
+            "type_line": "Enchantment — Saga",
+            "oracle_text": (
+                "I — You gain 2 life for each foretold card you own in exile.\n"
+                "II — Add {W}{U}. Spend this mana only to foretell cards or cast "
+                "spells that have foretell.\nIII — Return target card with foretell "
+                "from your graveyard to your hand."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="gain_life",
+                        scope="any",
+                        amount=Quantity(
+                            op="multiply",
+                            factor=2,
+                            subject=Filter(
+                                card_types=("Card",),
+                                predicates=("Foretold", "Owned", "InZone"),
+                            ),
+                        ),
+                        raw="gain 2 life for each foretold card you own in exile",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Scavenge GRANTER (Varolz) — the graveyard-wide "has scavenge" grant recovered
+    # as a `scavenge` dropped-static face marker.
+    "scavenge_fuel": (
+        {
+            "name": "Varolz, the Scar-Striped",
+            "type_line": "Legendary Creature — Troll Warrior",
+            "oracle_text": (
+                "Each creature card in your graveyard has scavenge. The scavenge "
+                "cost is equal to its mana cost.\nSacrifice another creature: "
+                "Regenerate Varolz, the Scar-Striped."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="scavenge",
+                        scope="you",
+                        raw="has scavenge",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Scry-replacement payoff (Kenessos) — the "if you would scry a number of cards"
+    # replacement recovered as a `scry_surveil` dropped-static face marker.
+    "scry_surveil_matters": (
+        {
+            "name": "Kenessos, Priest of Thassa",
+            "type_line": "Legendary Creature — Triton Wizard",
+            "oracle_text": (
+                "If you would scry a number of cards, scry that many cards plus "
+                "one instead.\n{3}{G/U}: Look at the top card of your library. If "
+                "it's a Kraken, Leviathan, Octopus, or Serpent creature card, you "
+                "may put it onto the battlefield."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="scry_surveil",
+                        scope="you",
+                        raw="if you would scry a number of cards",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
