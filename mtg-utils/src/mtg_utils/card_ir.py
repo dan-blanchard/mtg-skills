@@ -285,12 +285,14 @@ CATEGORIES: frozenset[str] = frozenset(
         # appended for a payoff/reference phase left only on the face oracle text or
         # in an event='other' carrier raw (project._dropped_static_markers /
         # _narrow_trigger_other_refs). starting_life ← "starting life total" compare;
-        # mass_death ← "creatures that died this turn" count operand; cycling ← a
-        # "cycle or discard" payoff trigger; roll_die is also phase's own effect
-        # category (the keyword-less dice payoff/spell). CR 103.4 / 700.4 / 702.29.
+        # mass_death ← "creatures that died this turn" count operand; cycling_payoff
+        # ← a "cycle or discard" payoff trigger (DISTINCT from phase's native `cycling`
+        # doer effect for landcycling, so the payoff lane stays payoff-only); roll_die
+        # is also phase's own effect category (the keyword-less dice payoff/spell).
+        # CR 103.4 / 700.4 / 702.29.
         "starting_life",
         "mass_death",
-        "cycling",
+        "cycling_payoff",
         # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
         # artifacts / enchantments you control) the structured projection dropped to a
         # subjectless characteristic_pt / ModifyCost / damage / gate condition;

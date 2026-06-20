@@ -3374,6 +3374,31 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\brad counters?\b"},
         r"\brad counters?\b",
     ),
+    # ADR-0027: oil_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — phase's place_counter(counter_kind='oil') placer
+    # + an "oil counter(s)" payoff marker). Serve hand-registered reusing the deleted
+    # regex so the lane still surfaces oil sources and payoffs.
+    ("oil_counter_matters", "you"): _spec(
+        *SWEEP_LABELS["oil_counter_matters"],
+        {"oracle": r"\boil counters?\b"},
+        r"\boil counters?\b",
+    ),
+    # ADR-0027: starting_life_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — a "starting life total" compare marker). Serve
+    # hand-registered reusing the deleted regex.
+    ("starting_life_matters", "you"): _spec(
+        *SWEEP_LABELS["starting_life_matters"],
+        {
+            "oracle": (
+                r"(?:greater than|less than|above|below|equal to|more than) your "
+                r"starting life total|starting life total"
+            )
+        },
+        (
+            r"(?:greater than|less than|above|below|equal to|more than) your "
+            r"starting life total|starting life total"
+        ),
+    ),
     ("myriad_grant", "you"): _spec(
         *SWEEP_LABELS["myriad_grant"],
         {"oracle": r"gains? myriad|\bmyriad\b"},

@@ -351,7 +351,23 @@ class TestCyclingMatters:
     }
 
     def test_cycling_payoff_commander_emits(self):
-        assert "cycling_matters" in _keys(self.DRAKE_HAVEN)
+        # ADR-0027: cycling_matters migrated to the Card IR — the "cycle or discard"
+        # payoff phase flattens to event='other', recovered as a `cycling_payoff`
+        # marker (read via _DOER_EFFECT_KEYS); the regex path no longer produces it.
+        ir = _ir_with(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cycling_payoff",
+                        scope="you",
+                        raw="Whenever you cycle or discard a card",
+                    ),
+                ),
+            )
+        )
+        assert "cycling_matters" in _keys_hybrid(self.DRAKE_HAVEN, ir)
+        assert "cycling_matters" not in _keys(self.DRAKE_HAVEN)
 
     def test_cycling_payoff_served_not_by_discard_matters(self):
         assert serves(self.DRAKE_HAVEN, _sig("cycling_matters", "you"))

@@ -892,8 +892,8 @@ def _narrow_trigger_other_refs(ability: Ability) -> Ability:
         if want("phasing") and _PHASING_TRIG.search(raw):
             markers.append(Effect(category="phasing", scope="you", raw=raw))
         # Cycling PAYOFF: a "cycle or discard" trigger phase flattened to event='other'.
-        if want("cycling") and _CYCLING_TRIG.search(raw):
-            markers.append(Effect(category="cycling", scope="you", raw=raw))
+        if want("cycling_payoff") and _CYCLING_TRIG.search(raw):
+            markers.append(Effect(category="cycling_payoff", scope="you", raw=raw))
         # Dice PAYOFF: a "whenever you roll …" trigger phase flattened to event='other'.
         if want("roll_die") and _DICE_TRIG.search(raw):
             markers.append(Effect(category="roll_die", scope="you", raw=raw))
@@ -3105,10 +3105,13 @@ _STARTING_LIFE_REF = re.compile(r"\bstarting life total\b", re.IGNORECASE)
 # died this turn", "a Treasure for each nontoken creature that died this turn",
 # "connives X, where X is the number of creatures that died this turn"). phase
 # parses the consequence (place_counter / make_token / connive / reanimate) but
-# drops the "creatures that died this turn" operand. Anchored on the morbid
-# count phrase — gated to faces with no structural mass_death marker yet.
+# drops the "creatures that died this turn" operand. Anchored on the AGGREGATE
+# ("for each" / "number of") shape — the board-wipe payoff the regex deliberately
+# isolates — NOT the single-death conditional ("if a creature died this turn",
+# morbid — Bone Picker, Tragic Slip), which is plain death_matters and would flood
+# the lane. Mirrors the mass_death_payoff regex exactly (4 board-wipe commanders).
 _MASS_DEATH_REF = re.compile(
-    r"creatures? (?:that )?died this turn|creature[^.]*\bdied\b[^.]*this turn",
+    r"(?:for each|number of) (?:nontoken )?(?:creature|permanent)s?[^.]*died this turn",
     re.IGNORECASE,
 )
 
@@ -3885,10 +3888,10 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     # arm already binds the cards whose effect raw kept the phrase) and no `cycled`
     # trigger (the typed self-cycle bonus binds natively).
     has_cycling = any(
-        e.category == "cycling" for a in abilities for e in a.effects
+        e.category == "cycling_payoff" for a in abilities for e in a.effects
     ) or any(a.trigger is not None and a.trigger.event == "cycled" for a in abilities)
     if not has_cycling and (m := _CYCLING_TRIG.search(text)) is not None:
-        markers.append(Effect(category="cycling", scope="you", raw=m.group(0)))
+        markers.append(Effect(category="cycling_payoff", scope="you", raw=m.group(0)))
     # Dice roll in a SPELL/COST form phase parsed the consequence of but dropped the
     # roll_die effect → a roll_die marker, gated to faces with no structural roll_die
     # effect/marker (the _narrow_trigger_other_refs arm + phase's native roll_die

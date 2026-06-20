@@ -1199,24 +1199,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"no mana (?:was|is) spent to cast", re.IGNORECASE),
         "you",
     ),
-    # Mass-death payoff (Tobias, Nevinyrral, Gadrak, Mahadi): a commander whose reward
-    # SCALES with the count of creatures that died this turn ("for each ... creature ...
-    # died this turn" / "the number of creatures ... died this turn") wants to force a
-    # big death turn and convert it — so it wants board wipes (the maximal death engine)
-    # plus MASS-reanimation to refill the wiped board. Keyed on the AGGREGATE/count
-    # shape ("for each" / "number of"), NOT a single-death conditional: "if a creature
-    # died this turn, <reward>" (Old Flitterfang's one Food, Scorpion, Shessra) earns
-    # the same payoff whether 1 or 10 died, so a wipe buys it nothing — that's plain
-    # death_matters, not this. Excluding it keeps the lane precise (4 commanders).
-    (
-        "mass_death_payoff",
-        re.compile(
-            r"(?:for each|number of) (?:nontoken )?(?:creature|permanent)s?"
-            r"[^.]*died this turn",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: mass_death_payoff migrated to the Card IR — a `_MASS_DEATH_REF`
+    # ("for each|number of … creature … died this turn") count-operand marker
+    # (project._dropped_static_markers), keyed on the AGGREGATE board-wipe shape and
+    # EXCLUDING the single-death conditional ("if a creature died this turn", morbid —
+    # plain death_matters). This _HAND_FLOOR producer is deleted; the serve spec stays.
     # Per-target payoff (Hinata: "Spells you cast cost {1} less to cast for each
     # target"): a commander whose spells get CHEAPER per target wants spells whose
     # target COUNT scales — X-target / "any number of targets" — so the discount
@@ -1990,15 +1977,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "dice_matters",
-        re.compile(
-            r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)"
-            r"|result of (?:the|a|your) (?:roll|die)|whenever you roll",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: dice_matters migrated to the Card IR — phase's native `roll_die` effect
+    # + a `roll_die` marker (project._narrow_trigger_other_refs for the "whenever you
+    # roll" payoff trigger + _dropped_static_markers for the "Roll two d6 and choose"
+    # spell / "Roll a d8:" cost / "reroll" forms phase keeps only in raw). The
+    # structural IR is broader-and-correct recall ("rolls a d20", "Roll X dice", "Roll
+    # the planar die", "20-sided die" — Chaos Dragon, Clown Car, Fractured Powerstone,
+    # "Name Sticker" Goblin), not over-fire. This _HAND_FLOOR producer is deleted (the
+    # SWEEP_DETECTORS row too); the serve spec stays. (CR 706.)
     # ADR-0027: crimes_matter migrated to the Card IR — phase's commit_crime trigger
     # event (_PAYOFF_TRIGGER_KEYS, the "Whenever you commit a crime" trigger form) + a
     # `_CRIME_REF`/`crime` marker for the condition-form payoff phase has no condition
@@ -2244,16 +2230,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Cycling (CR 702.29): payoffs use "cycle or discard"; discard_matters serves 0/32.
-    (
-        "cycling_matters",
-        re.compile(
-            r"whenever you cycle|cycles? or discard"
-            r"|whenever (?:a player|another player) cycles",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: cycling_matters migrated to the Card IR — phase's `cycled` trigger +
+    # a `cycling_payoff` marker (project._narrow_trigger_other_refs for the "cycle or
+    # discard" payoff phase flattens to event='other', + _dropped_static_markers for
+    # the cards phase truncates the trigger phrase off entirely). The `cycling_payoff`
+    # category is DISTINCT from phase's native `cycling` landcycling doer, so the lane
+    # stays payoff-only. This _HAND_FLOOR producer is deleted; the serve spec stays.
     # Kicker (CR 702.33): "cast a kicked spell" payoffs; spellcast_matters serves 0/10.
     (
         "kicked_spell_matters",
@@ -3926,7 +3908,7 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # dice marker (same category as phase's native roll_die effect).
     "starting_life": ("starting_life_matters", "you"),
     "mass_death": ("mass_death_payoff", "you"),
-    "cycling": ("cycling_matters", "you"),
+    "cycling_payoff": ("cycling_matters", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
     "extra_combat": ("extra_combats", "you"),
     "extra_upkeep": ("extra_upkeep", "you"),
@@ -4156,7 +4138,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # and no longer needs the floor mirror. Its _HAND_FLOOR detector is deleted.
         # counter-type synergy (distinct from the +1/+1 counters_matter doer lane)
         "poison_matters",
-        "oil_counter_matters",
+        # oil_counter_matters removed — ADR-0027 migrated it to the Card IR (phase's
+        # place_counter(counter_kind='oil') placer + an `_OIL_REF` payoff marker for the
+        # count-operand/condition phase drops). Its SWEEP_DETECTORS row is deleted.
         "shield_counter_matters",
         # rad_counter_matters removed — ADR-0027 migrated it to the Card IR (the
         # `rad_counter` effect / rad place_counter + a "rad counter(s)" face marker).
@@ -4187,7 +4171,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "daynight_matters",
         "saga_matters",
         "initiative_matters",
-        "cycling_matters",
+        # cycling_matters removed — ADR-0027 migrated it to the Card IR (phase's
+        # `cycled` trigger + a `cycling_payoff` marker for the "cycle or discard" payoff
+        # phase flattens to event='other' or truncates the trigger off entirely). Its
+        # _HAND_FLOOR detector is deleted.
         "station_matters",
         "void_warp_matters",
         "speed_matters",
@@ -4236,7 +4223,10 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # payoff marker (Anje)); the "\bmadness\b" floor over-fired on the "Crown of
         # Madness" ability word (CR 207.2c — Bloodboil Sorcerer), which the structural
         # IR correctly excludes. Its _HAND_FLOOR detector is deleted.
-        "dice_matters",
+        # dice_matters removed — ADR-0027 migrated it to the Card IR (phase's native
+        # roll_die effect + a `roll_die` marker for the "whenever you roll" payoff
+        # trigger / "Roll two d6 and choose" spell / "Roll a d8:" cost / "reroll" phase
+        # keeps only in raw). Its _HAND_FLOOR + SWEEP_DETECTORS rows are deleted.
         "exalted_lone_attacker",
         # crimes_matter removed — ADR-0027 migrated it to the Card IR (phase's
         # commit_crime trigger event + a `crime` condition-form marker for the
@@ -4253,9 +4243,14 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "big_hand_matters",
         "cast_from_exile",
         "exile_matters",
-        "starting_life_matters",
+        # starting_life_matters removed — ADR-0027 migrated it to the Card IR (a
+        # `_STARTING_LIFE_REF` "starting life total" compare marker, CR 103.4). The
+        # broad regex over-fired on unrelated life thresholds (Elderscale Wurm,
+        # Sigarda's Splendor), which the tight IR marker drops. Its SWEEP row is gone.
         "theft_matters",
-        "mass_death_payoff",
+        # mass_death_payoff removed — ADR-0027 migrated it to the Card IR (a
+        # `_MASS_DEATH_REF` "creatures that died this turn" count-operand marker). Its
+        # _HAND_FLOOR detector is deleted.
         "noncombat_damage_payoff",
         "land_sacrifice_matters",
     }
@@ -6397,6 +6392,36 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # X/two/any-number-of target", fight-style "deals damage equal to its power to
         # target creature", granted Aura/Equipment removal). See ADR-0027.
         "removal_matters",
+        # Group "sweep" (ADR-0027 small-residual close) — five low-residual keys closed
+        # by the sweep markers (prior commit). Four left _IR_FLOOR_LANES and
+        # now fire from the STRUCTURAL IR alone; floor-mirror-dep == 0 for each
+        # (extract_signals_ir reproduces production with the floor lanes disabled).
+        # NO-FLOOD held (only the target keys grew; no non-target key moved). Each key's
+        # oracle-regex producer is deleted; serve specs stay hand-registered. ADR-0027.
+        #   oil_counter_matters ← phase's place_counter(counter_kind='oil') placer +
+        #                an `_OIL_REF` ("oil counter(s)") payoff marker (Urabrask's
+        #                Anointer, Kuldotha Cackler — the count-operand/condition phase
+        #                drops). The 'oil' kind never leaks into counters_matter (p1p1).
+        #   mass_death_payoff ← a `_MASS_DEATH_REF` ("creatures that died this turn")
+        #                count-operand marker (Khabál Ghoul, Gadrak, Spymaster's Vault).
+        #   starting_life_matters ← a `_STARTING_LIFE_REF` ("starting life total")
+        #                compare marker. The broad regex's "life total is greater/less"
+        #                arm over-fired on unrelated thresholds (Elderscale Wurm's
+        #                "less than 7", Sigarda's Splendor's "last noted life total"),
+        #                which the tight IR marker correctly drops (CR 103.4).
+        #   cycling_matters ← phase's `cycled` trigger + a `cycling` marker (the
+        #                _narrow_trigger_other_refs arm for the "cycle or discard"
+        #                payoff trigger phase flattens to event='other', plus the
+        #                _dropped_static_markers arm for the cards phase truncates the
+        #                trigger phrase off entirely — Pitiless Vizier, Zenith Seeker).
+        #   dice_matters ← phase's native roll_die effect + a `roll_die` marker (the
+        #                trigger-other "whenever you roll" payoff + the dropped-static
+        #                "Roll two d6 and choose" SPELL / "Roll a d8:" COST / "reroll").
+        "oil_counter_matters",
+        "mass_death_payoff",
+        "starting_life_matters",
+        "cycling_matters",
+        "dice_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

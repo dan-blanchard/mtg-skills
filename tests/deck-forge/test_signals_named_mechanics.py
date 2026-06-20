@@ -517,11 +517,39 @@ def test_specialize():
 
 
 def test_dice_rolling():
+    # ADR-0027: dice_matters migrated to the Card IR — phase's native roll_die effect
+    # (and the "whenever you roll" payoff marker) opens the lane via _DOER_EFFECT_KEYS,
+    # so it comes through the hybrid path, not the deleted regex.
     c = {
         "name": "Wyll-like",
         "oracle_text": "Whenever you roll one or more dice, create a Treasure token.",
     }
-    assert ("dice_matters", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Wyll-like",
+        faces=(
+            Face(
+                name="Wyll-like",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="other"),
+                        effects=(
+                            Effect(
+                                category="roll_die",
+                                scope="you",
+                                raw="Whenever you roll one or more dice",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("dice_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
+    assert ("dice_matters", "you") not in _ks(c)
 
 
 def test_commit_a_crime():

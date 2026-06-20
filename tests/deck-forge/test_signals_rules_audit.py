@@ -271,9 +271,33 @@ def test_named_counters_are_separate_lanes():
     assert "shield_counter_matters" not in k
     assert "named_counter_mechanic" not in k  # the old junk-drawer key is gone
 
-    assert "oil_counter_matters" in _keys(
-        {"name": "Y", "oracle_text": "Put two oil counters on it."}
+    # ADR-0027: oil_counter_matters also migrated to the Card IR — the regex path no
+    # longer produces it; the hybrid serves it from a place_counter(counter_kind='oil').
+    oil = {"name": "Y", "oracle_text": "Put two oil counters on it."}
+    oil_ir = Card(
+        oracle_id="y",
+        name="Y",
+        faces=(
+            Face(
+                name="Y",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="oil",
+                                raw="oil counters",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
+    assert "oil_counter_matters" not in _keys(oil)  # regex path no longer produces it
+    assert "oil_counter_matters" in {s.key for s in extract_signals_hybrid(oil, oil_ir)}
     assert "shield_counter_matters" in _keys(
         {
             "name": "Z",

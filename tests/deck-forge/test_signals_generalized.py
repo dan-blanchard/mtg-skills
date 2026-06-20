@@ -322,7 +322,35 @@ def test_mass_death_payoff_opens_on_aggregate_death_count():
             "died this turn, create a 2/2 black Zombie creature token."
         ),
     }
-    assert ("mass_death_payoff", "you") in _ks(tobias)
+    # ADR-0027: mass_death_payoff migrated to the Card IR — the aggregate "for each …
+    # creature … died this turn" count operand is recovered as a `mass_death` marker
+    # (read via _DOER_EFFECT_KEYS); the regex path no longer produces it.
+    tobias_ir = Card(
+        oracle_id="x",
+        name="Tobias, Doomed Conqueror",
+        faces=(
+            Face(
+                name="Tobias, Doomed Conqueror",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="mass_death",
+                                scope="you",
+                                raw="for each nontoken creature you controlled "
+                                "that died this turn",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("mass_death_payoff", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(tobias, tobias_ir)
+    }
+    assert ("mass_death_payoff", "you") not in _ks(tobias)
     # Precision guard: a SINGLE-death conditional with a FIXED reward ("if a creature
     # died this turn, create a Food token") does NOT scale with mass death — Old
     # Flitterfang makes one Food whether 1 or 10 died, so a board wipe buys it nothing.

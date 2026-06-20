@@ -575,12 +575,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\{tk\\}|\\bstickers?\\b",
     },
-    {
-        "key": "starting_life_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:greater than|less than|above|below|equal to) your starting life total|life total is (?:greater|less|higher|lower)",
-    },
+    # ADR-0027: starting_life_matters migrated to the Card IR — a `_STARTING_LIFE_REF`
+    # ("starting life total") dropped-static compare marker (CR 103.4). The broad
+    # regex's second arm ("life total is greater/less") over-fired on unrelated
+    # thresholds (Elderscale Wurm's "less than 7", Sigarda's "last noted life total"),
+    # which the tight IR marker drops; the marker is also broader-and-correct recall
+    # ("N life more than your starting life total", "becomes half your starting life
+    # total" — Righteous Valkyrie, Torgaar). Removed from _IR_FLOOR_LANES; serve
+    # hand-registered reusing the deleted regex.
     {
         "key": "miracle_grant",
         "scope": "you",
@@ -753,12 +755,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ("rad counter(s)") dropped-static face marker for the clauses phase mangles (the
     # rad kind dropped to '', a counter_doubling, or a dropped clause). Removed from
     # _IR_FLOOR_LANES; serve hand-registered in signal_specs reusing the deleted regex.
-    {
-        "key": "oil_counter_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\boil counters?\\b",
-    },
+    # ADR-0027: oil_counter_matters migrated to the Card IR — phase's place_counter
+    # (counter_kind='oil') placer + an `_OIL_REF` ("oil counter(s)") dropped-static
+    # marker for the count-operand/condition payoff phase drops. Removed from
+    # _IR_FLOOR_LANES; serve hand-registered in signal_specs reusing the deleted regex.
     # ADR-0027: ki_counter_matters migrated to the Card IR (served structurally
     # from phase's counter-kind projection — _COUNTER_KIND_KEYS['ki'] in
     # signals.py); its oracle-regex detector row is deleted. The SWEEP_LABELS
@@ -962,12 +962,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "counter_doubling",
         "regex": "that many plus one[^.]*counters?|one or more counters? would be put on|(?:put|placed?) (?:twice that many|that many plus (?:one|\\d+))[^.]*counters?|double the number of [^.]*counters?",
     },
-    {
-        "key": "dice_matters",
-        "scope": "you",
-        "is_widen_of": "dice_matters",
-        "regex": "roll (?:a|one or more|two|\\d+) (?:[a-z\\-]+ )?(?:d\\d+|dice|die)|reroll (?:any|a|that) (?:die|dice)|result of (?:the|a|your) (?:roll|die)|whenever you roll",
-    },
+    # ADR-0027: dice_matters migrated to the Card IR — phase's native roll_die effect
+    # + a `roll_die` marker (project._narrow_trigger_other_refs for the "whenever you
+    # roll" payoff trigger + _dropped_static_markers for the spell/cost/reroll forms).
+    # Both its oracle-regex sources (this self-widen SWEEP row + the _HAND_FLOOR
+    # detector) are deleted; serve hand-registered reusing the deleted regex.
     # ADR-0027: specialize_matters migrated to the Card IR (served from the
     # Scryfall `specialize` keyword — _IR_KEYWORD_MAP in signals.py); both its
     # oracle-regex sources (this row + the _HAND_FLOOR detector) are deleted. Its

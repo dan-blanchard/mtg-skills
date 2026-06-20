@@ -1681,6 +1681,135 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ── ADR-0027 sweep ──
+    # Oil-counter PAYOFF (Kuldotha Cackler) — the count operand "permanents you control
+    # with oil counters on them" is recovered as a place_counter(counter_kind='oil')
+    # dropped-static marker, read via _COUNTER_KIND_KEYS['oil'].
+    "oil_counter_matters": (
+        {
+            "name": "Kuldotha Cackler",
+            "type_line": "Creature — Phyrexian Hyena",
+            "oracle_text": (
+                "Trample\nWhenever this creature attacks, it gets +X/+0 until "
+                "end of turn, where X is the number of permanents you control "
+                "with oil counters on them."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="you",
+                        counter_kind="oil",
+                        raw="oil counters",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Mass-death payoff (Khabál Ghoul) — the aggregate "for each creature that died this
+    # turn" count operand is recovered as a `mass_death` dropped-static marker.
+    "mass_death_payoff": (
+        {
+            "name": "Khabál Ghoul",
+            "type_line": "Creature — Zombie",
+            "oracle_text": (
+                "At the beginning of each end step, put a +1/+1 counter on this "
+                "creature for each creature that died this turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="mass_death",
+                        scope="you",
+                        raw="for each creature that died this turn",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Starting-life payoff (Path of Bravery) — the "starting life total" compare is
+    # recovered as a `starting_life` dropped-static marker.
+    "starting_life_matters": (
+        {
+            "name": "Path of Bravery",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "As long as your life total is greater than or equal to your "
+                "starting life total, creatures you control get +1/+1.\nWhenever "
+                "one or more creatures you control attack, you gain life equal to "
+                "the number of attacking creatures."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="starting_life",
+                        scope="you",
+                        raw="starting life total",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Cycling payoff (Faith of the Devoted) — the "cycle or discard" trigger phase
+    # flattens to event='other' is recovered as a `cycling_payoff` marker (distinct
+    # from phase's native `cycling` landcycling doer).
+    "cycling_matters": (
+        {
+            "name": "Faith of the Devoted",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever you cycle or discard a card, you may pay {1}. If you "
+                "do, each opponent loses 2 life and you gain 2 life."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="cycling_payoff",
+                        scope="you",
+                        raw="Whenever you cycle or discard a card",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Dice payoff (Brazen Dwarf) — phase's native roll_die effect (and the "whenever
+    # you roll" payoff marker) opens the lane via _DOER_EFFECT_KEYS['roll_die'].
+    "dice_matters": (
+        {
+            "name": "Brazen Dwarf",
+            "type_line": "Creature — Dwarf Shaman",
+            "oracle_text": (
+                "Whenever you roll one or more dice, this creature deals 1 "
+                "damage to each opponent."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other"),
+                effects=(
+                    Effect(
+                        category="roll_die",
+                        scope="you",
+                        raw="Whenever you roll one or more dice",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
