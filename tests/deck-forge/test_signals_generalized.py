@@ -736,17 +736,40 @@ def test_target_own_payoff_opens_on_targeted_your_creature():
 
 
 def test_life_payment_insurance_opens_on_repeatable_pay_life():
-    # Selenia's "Pay 2 life:" ability drives her own life low, so she wants life-loss
-    # insurance. Real oracle.
+    # ADR-0027: life_payment_insurance migrated to the Card IR — Selenia's "Pay 2 life:"
+    # is a repeatable activation COST ("paylife" in Ability.cost), read through the
+    # hybrid IR path, not the regex.
     selenia = {
         "name": "Selenia, Dark Angel",
         "type_line": "Legendary Creature — Phyrexian Angel",
-        "mana_cost": "{3}{W}{B}",
-        "power": "3",
-        "toughness": "3",
         "oracle_text": "Flying\nPay 2 life: Return Selenia to its owner's hand.",
     }
-    assert ("life_payment_insurance", "you") in _ks(selenia)
+    selenia_ir = Card(
+        oracle_id="x",
+        name="Selenia, Dark Angel",
+        faces=(
+            Face(
+                name="Selenia, Dark Angel",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="paylife",
+                        effects=(
+                            Effect(
+                                category="bounce",
+                                scope="you",
+                                raw="Return Selenia to its owner's hand",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("life_payment_insurance", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(selenia, selenia_ir)
+    }
+    assert ("life_payment_insurance", "you") not in _ks(selenia)
 
 
 def test_land_exchange_opens_on_land_control():

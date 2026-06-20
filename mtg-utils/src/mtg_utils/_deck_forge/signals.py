@@ -1451,14 +1451,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Self-life-payment (Selenia "Pay 2 life:"; Beledros, Vilis, Chainer): a commander
-    # with a repeatable "pay N life:" ability drives its own life low, so it wants
-    # life-loss insurance (Phyrexian Unlife "don't lose at 0 life", Angel's Grace).
-    (
-        "life_payment_insurance",
-        re.compile(r"pay \d+ life:", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: life_payment_insurance migrated to the Card IR — a repeatable "Pay N
+    # life:" ACTIVATION COST ("paylife" in Ability.cost; Selenia, Beledros, the
+    # fetchlands — genuine recall the narrow regex missed) + a `life_payment` marker for
+    # the misparsed cost (Arco-Flagellant, Hibernation Sliver) and the conferred quoted
+    # "…Pay 1 life: Draw" ability phase drops (Underworld Connections, the volvers).
+    # NOT in _IR_FLOOR_LANES; serve stays hand-registered. (CR 118.)
     # ADR-0027: land_exchange migrated to the Card IR — phase's `gain_control` effect
     # over a Land subject, plus a raw fallback (_LAND_EXCHANGE_RAW) for the "exchange
     # control of target X and target Y" shape phase parses with subject=None (Political
@@ -3902,6 +3900,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # phase's commit_crime trigger event (_PAYOFF_TRIGGER_KEYS); this is the
     # keyword-less condition-form payoff half (CR 701.49).
     "crime": ("crimes_matter", "you"),
+    # ADR-0027 repeatable-pay-life marker (project._dropped_static_markers): a
+    # "Pay N life:" activated-ability cost phase misparses (Arco-Flagellant,
+    # Hibernation Sliver) or drops inside a conferred quoted ability (Underworld
+    # Connections, the volvers). The structural paylife COST rides "paylife" in
+    # cost_parts below; this is the misparse/conferred-ability residual (CR 118).
+    "life_payment": ("life_payment_insurance", "you"),
     "roll_die": ("dice_matters", "you"),
     "dig_until": ("dig_until", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
@@ -5959,6 +5963,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # team-anthem read). REMOVED from _IR_FLOOR_LANES; floor-mirror-dep == 0
         # (with_floor 33 == without_floor 33). NO-FLOOD held. See ADR-0027.
         "low_power_matters",
+        # life_payment_insurance ← a repeatable "Pay N life:" ACTIVATION COST
+        # ("paylife" in Ability.cost — Selenia, Beledros, the fetchlands; genuine recall
+        # the narrow "pay N life:" regex missed) + a `life_payment` marker for the
+        # misparsed cost (Arco-Flagellant, Hibernation Sliver) and the conferred quoted
+        # "…Pay 1 life: Draw" ability phase drops (Underworld Connections, the volvers).
+        # NOT in _IR_FLOOR_LANES; gap=0, over=36 (all genuine paylife-cost recall).
+        # NO-FLOOD held (only this key grew, +7). See ADR-0027.
+        "life_payment_insurance",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

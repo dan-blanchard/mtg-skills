@@ -1583,6 +1583,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Conferred pay-life cost (Underworld Connections) — the "Pay 1 life:" inside a
+    # granted quoted ability phase drops is recovered as a `life_payment` marker.
+    "life_payment_insurance": (
+        {
+            "name": "Underworld Connections",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": (
+                'Enchant land\nEnchanted land has "{T}, Pay 1 life: Draw a card."'
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="life_payment",
+                        scope="you",
+                        raw="Pay 1 life:",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

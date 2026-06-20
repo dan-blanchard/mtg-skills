@@ -2657,6 +2657,15 @@ _COUNTER_TARGET_REF = re.compile(
 _LOW_POWER_REF = re.compile(
     r"creatures? you control with power (\d+) or (?:less|fewer)", re.IGNORECASE
 )
+# Repeatable "Pay N life:" activated-ability cost phase loses: it misparses the cost
+# (Arco-Flagellant's Endurant ability becomes a spell-with-pay_cost; Hibernation
+# Sliver's self-usable granted ability) or drops the conferred quoted "…Pay 1 life:
+# Draw" ability entirely (Underworld Connections, Degavolver, Anavolver, Lithoform
+# Blight, Forgotten Monument). The colon-delimited "Pay N life:" is the precise cost
+# anchor (not reminder text, not a one-shot cast-time additional cost). Gated to faces
+# with no structural paylife cost so the 167 cards that parse it natively aren't
+# double-tagged. CR 118.
+_PAY_LIFE_REF = re.compile(r"[Pp]ay \d+ life:")
 # Can't-block grant (CR 509) phase loses in a MODAL mode body ("• Target creature
 # can't block this turn" — Breeches, Retreat to Valakut, phase keeps only the
 # `choose` header) or a GRANTED QUOTED ability ("Enchanted land has '{T}: Target
@@ -2807,6 +2816,11 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
                 raw=m.group(0),
             )
         )
+    # Repeatable "Pay N life:" cost phase misparsed / dropped (a conferred quoted
+    # ability) → a life_payment marker, gated to faces with no structural paylife cost.
+    has_paylife = any(a.cost is not None and "paylife" in a.cost for a in abilities)
+    if not has_paylife and (m := _PAY_LIFE_REF.search(text)) is not None:
+        markers.append(Effect(category="life_payment", scope="you", raw=m.group(0)))
 
     # "Tapped creatures you control <grant>" phase parsed with the subject dropped →
     # a grant_keyword marker carrying the rebuilt Tapped-creature subject Filter, so
