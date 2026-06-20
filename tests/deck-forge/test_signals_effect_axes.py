@@ -89,8 +89,13 @@ def test_lifegain_widened_for_activated_gain():
 
 
 def test_lifeloss_widened_for_pay_life_engine():
+    # ADR-0027: lifeloss_matters is IR-served; a "Pay N life:" cost buying a non-ramp
+    # engine fires it from the IR (the paylife-cost + life_payment marker path).
+    from mtg_utils._card_ir.project import project_card
+
     c = {"name": "Bargainer", "oracle_text": "{B}, Pay 2 life: Draw a card."}
-    assert any(s.key == "lifeloss_matters" for s in extract_signals(c))
+    ir = project_card([{**c, "card_type": {"core_types": ["Artifact"]}}])
+    assert any(s.key == "lifeloss_matters" for s in extract_signals_hybrid(c, ir))
 
 
 # --- recognizable axes from the one-off tail ----------------------------------

@@ -6,7 +6,8 @@ Single-clause widens vs full-text detectors (the extractor splits clauses on '.'
 trigger→payoff patterns spanning a sentence boundary need a full-text pass).
 """
 
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._card_ir.project import project_card
+from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
 
 
 def _sigs(oracle, name="X", **extra):
@@ -17,6 +18,15 @@ def _sigs(oracle, name="X", **extra):
 
 def _keys(oracle, **kw):
     return {s.key for s in _sigs(oracle, **kw)}
+
+
+def _hybrid_sigs(oracle, name="X", **extra):
+    # ADR-0027: migrated keys (lifeloss_matters) are served from the IR; build the IR
+    # from the same oracle so the hybrid reads it like production.
+    card = {"name": name, "oracle_text": oracle, "type_line": "Legendary Creature"}
+    card.update(extra)
+    ir = project_card([{**card, "card_type": {"core_types": ["Creature"]}}])
+    return extract_signals_hybrid(card, ir)
 
 
 # ── Gogo: clone via bare infinitive "become a copy of" ──
@@ -87,14 +97,17 @@ def test_haktos_forced_attack():
 
 # ── The Actualizer: life-loss with an interposed relative clause ──
 def test_lifeloss_with_relative_clause():
-    sigs = _sigs(
+    # ADR-0027: lifeloss_matters is IR-served; phase emits the structural lose_life.
+    sigs = _hybrid_sigs(
         "Each opponent who guessed incorrectly loses 3 life.", name="The Actualizer"
     )
     assert any(s.key == "lifeloss_matters" and s.scope == "opponents" for s in sigs)
 
 
 def test_plain_lifeloss_still_fires():
-    assert "lifeloss_matters" in _keys("Each opponent loses 2 life.")
+    assert "lifeloss_matters" in {
+        s.key for s in _hybrid_sigs("Each opponent loses 2 life.")
+    }
 
 
 # ── Norin: self-blink (full text — exile-by-name + cross-sentence return) ──

@@ -944,12 +944,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "big_hand_matters",
         "regex": "(?:five|six|seven|eight) or more cards in (?:your )?hand|maximum hand size|(?:equal to|number of) [^.]*cards in your hand",
     },
-    {
-        "key": "lifeloss_matters",
-        "scope": "opponents",
-        "is_widen_of": "lifeloss_matters",
-        "regex": "\\b(?:each opponent|each player|target opponent|target player|that player|an opponent|opponents|each of your opponents)(?: each)? loses? (?:exactly )?(?:\\d+ |x |that much )?life\\b",
-    },
+    # ADR-0027: lifeloss_matters migrated to the Card IR — served from the structural
+    # `lose_life` Effect (the drain / self-loss split), a `life_payment` marker + a
+    # paylife engine cost, a `life_lost` trigger payoff, and the project
+    # _lifeloss_markers. This sweep row + the two _DETECTORS regexes are deleted; the
+    # hand-written serve specs in signal_specs.py survive (independent of the regex).
     # ADR-0027: token_doubling migrated to the Card IR — detected structurally from
     # the token-doubling replacement effect (phase v0.1.60 `replacements`, the
     # `cat == "token_doubling"` branch in extract_signals_ir). Both its oracle-regex

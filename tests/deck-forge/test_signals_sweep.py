@@ -5,17 +5,23 @@ tests pin: the set loads, EVERY key resolves to an avenue (actionable), and a
 representative sample actually fires on the oracle phrasing it was mined from.
 """
 
+from mtg_utils._card_ir.project import project_card
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Trigger
 
 
 def test_sweep_detectors_loaded():
     # The threshold drops as the ADR-0027 regex→IR strangler deletes SWEEP rows
     # (boast/exhaust/explore/phasing/end_the_turn/extra_end_step/trigger_doubling +
-    # earlier batches migrated to the Card IR); it still guards "a substantial set
-    # loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 125
+    # lifeloss_matters + earlier batches migrated to the Card IR); it still guards "a
+    # substantial set loads", not an exact count.
+    assert len(SWEEP_DETECTORS) >= 124
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -153,7 +159,28 @@ def test_lifeloss_matters_opens_on_opponents_lose_n_life():
             "Until your next end step, you may play that card."
         ),
     }
-    assert "lifeloss_matters" in {s.key for s in extract_signals(ob_nixilis)}
+    # ADR-0027: lifeloss_matters is IR-served — "whenever one or more opponents each
+    # lose exactly 1 life" is a `life_lost` trigger payoff (scope opp → opponents).
+    # phase emits the structural trigger; the IR here mirrors that node.
+    ob_ir = Card(
+        oracle_id="x",
+        name="Ob Nixilis, Captive Kingpin",
+        faces=(
+            Face(
+                name="Ob Nixilis, Captive Kingpin",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="life_lost", scope="opp"),
+                        effects=(Effect(category="place_counter", scope="you"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "lifeloss_matters" in {
+        s.key for s in extract_signals_hybrid(ob_nixilis, ob_ir)
+    }
     # A card with no life-loss reference must not open the lane.
     grizzly_bears = {
         "name": "Grizzly Bears",
@@ -163,4 +190,7 @@ def test_lifeloss_matters_opens_on_opponents_lose_n_life():
         "toughness": "2",
         "oracle_text": "",
     }
-    assert "lifeloss_matters" not in {s.key for s in extract_signals(grizzly_bears)}
+    gb_ir = project_card([{**grizzly_bears, "card_type": {"core_types": ["Creature"]}}])
+    assert "lifeloss_matters" not in {
+        s.key for s in extract_signals_hybrid(grizzly_bears, gb_ir)
+    }

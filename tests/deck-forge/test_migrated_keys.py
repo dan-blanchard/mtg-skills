@@ -1632,6 +1632,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # lifeloss_matters ← a structured `lose_life` Effect. Gray Merchant drains each
+    # opponent (phase emits scope "any" for "each opponent loses N").
+    "lifeloss_matters": (
+        {
+            "name": "Gray Merchant of Asphodel",
+            "type_line": "Creature — Zombie",
+            "oracle_text": (
+                "When this creature enters, each opponent loses X life, where X is "
+                "your devotion to black. You gain life equal to the life lost this "
+                "way."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="lose_life",
+                        scope="any",
+                        raw="each opponent loses X life",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

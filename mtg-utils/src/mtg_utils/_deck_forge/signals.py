@@ -547,41 +547,16 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         _re(r"whenever you discard|draw (?:a|two|three|x|\d+) cards?, then discard"),
         "you",
     ),
-    # Life-loss / drain. Scope varies (opponents drain vs your own life-loss), so
-    # forced_scope is None — the clause scope resolves it.
-    (
-        "lifeloss_matters",
-        _re(
-            r"\b(?:each opponent|each player|target opponent|target player|that player"
-            r"|an opponent|each of your opponents|opponents?)"
-            r"(?:\s+who\b[^.]{0,40}?)? loses? (?:\d+|x) life\b"
-            r"|\bwhenever you (?:gain or )?lose life\b"
-            r"|\bwhenever (?:an opponent|a player|one or more (?:players|opponents))"
-            r" loses? life\b"
-            # Past-tense life-loss COUNT payoff ("for each 1 life your opponents have
-            # lost this turn" — Neheb, Rakdos Lord of Riots, Wound Reflection).
-            r"|\blife [^.]*?lost this turn\b"
-            # The natural "lost … life this turn" order (lost-before-life) the above
-            # life-before-lost pattern misses — drain payoffs that reward an opponent
-            # having lost life (Sygg: "an opponent lost 3 or more life this turn";
-            # Belbe: "opponents who lost life this turn").
-            r"|opponents? (?:who|that) lost life this turn"
-            r"|opponent lost \d+ or more life this turn"
-        ),
-        None,
-    ),
-    # Pay-life / self life-loss as a resource (forced you — it's your life). Numeric
-    # AND the variable self-anchored forms: "you lose X life" draw engines, "you lose
-    # that much life", "you lose life equal to", "you may pay X life". Anchored on
-    # "you" so a "Ward, pay life equal to" cost (the opponent pays, Raubahn) stays out.
-    (
-        "lifeloss_matters",
-        _re(
-            r"pay \d+ life|you lose \d+ life|you lose (?:x|that much) life"
-            r"|you lose life equal to|you may pay (?:\d+|x) life"
-        ),
-        "you",
-    ),
+    # ADR-0027: lifeloss_matters migrated to the Card IR — a structured `lose_life`
+    # Effect (scope you→you else opponents; the drain / self-loss split), a
+    # `life_payment` marker + a paylife ACTIVATION COST buying a non-ramp engine (the
+    # self life-as-resource half), a `life_lost` trigger payoff, and the project
+    # _lifeloss_markers (pay-life additional cost / pitch / keyworded-cost /
+    # cumulative-upkeep / tax / Defiler / granted / modal / dice / choose self-loss +
+    # the modal / granted / lost-life-this-turn / dice drain). The broad regex
+    # over-fired on pay-life MANA sources (painlands etc.), Ward—Pay life (the opponent
+    # pays), and lifeGAIN-context. NOT in _IR_FLOOR_LANES; both _DETECTORS producers
+    # are deleted; the serve specs stay hand-registered. (CR 119.3 / 118.)
 )
 
 
@@ -2503,7 +2478,11 @@ _DIRECT_KEYWORD_SIGNALS = {
     "battalion": ("attack_matters", "you"),
     "melee": ("attack_matters", "you"),
     "exalted": ("voltron_matters", "you"),
-    "extort": ("lifeloss_matters", "opponents"),
+    # ADR-0027: extort / afflict / spectacle (→ lifeloss_matters) removed from the
+    # regex keyword path with the lifeloss_matters migration — all their keyword cards
+    # already fire lifeloss_matters STRUCTURALLY from the IR (extort's lose_life
+    # effect, afflict's "player loses life", spectacle's "opponent lost life"), so the
+    # regex `extract_signals` must no longer emit the migrated key.
     "amass": ("tokens_matter", "you"),
     "mobilize": ("tokens_matter", "you"),
     # Station (702.184) accrues charge counters → route to the proliferate avenue (which
@@ -2537,8 +2516,8 @@ _DIRECT_KEYWORD_SIGNALS = {
     "lifelink": ("lifegain_matters", "you"),  # gains life in combat → lifegain payoffs
     "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
     "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
-    "afflict": ("lifeloss_matters", "opponents"),  # becomes blocked → player loses life
-    "spectacle": ("lifeloss_matters", "opponents"),  # alt cost if opponent lost life
+    # afflict / spectacle (→ lifeloss_matters) removed for the ADR-0027 migration —
+    # see the note at the top of this map; the IR covers their keyword cards.
     "dethrone": ("counters_matter", "any"),  # attacks the top life total → +1/+1
     # +1/+1-counter keyword abilities: a commander with one is a counters deck (Exava=
     # Unleash, Indoraptor=Bloodthirst, Cytoplast=Graft). Mirrors the counters SERVE set.
@@ -2703,6 +2682,23 @@ _VOLTRON_COMPAT_KEYS = frozenset({"partner_background", "conditional_self_protec
 # gate (it emits no signal; the real lane is served from the IR). See ADR-0027.
 _SACRIFICE_PLAN_MIRROR = re.compile(
     r"sacrifice (?:a|an|another|two|three|x|\d)|\bcasualty\b", re.IGNORECASE
+)
+# ADR-0027: the same HAS-OTHER-PLAN mirror for the migrated lifeloss_matters key — a
+# drain / self-life-loss plan still silences the commander-damage voltron fallback.
+# Mirrors the two deleted lifeloss _DETECTORS regexes exactly; feeds only the gate.
+_LIFELOSS_PLAN_MIRROR = re.compile(
+    r"\b(?:each opponent|each player|target opponent|target player|that player"
+    r"|an opponent|each of your opponents|opponents?)"
+    r"(?:\s+who\b[^.]{0,40}?)? loses? (?:\d+|x) life\b"
+    r"|\bwhenever you (?:gain or )?lose life\b"
+    r"|\bwhenever (?:an opponent|a player|one or more (?:players|opponents))"
+    r" loses? life\b"
+    r"|\blife [^.]*?lost this turn\b"
+    r"|opponents? (?:who|that) lost life this turn"
+    r"|opponent lost \d+ or more life this turn"
+    r"|pay \d+ life|you lose \d+ life|you lose (?:x|that much) life"
+    r"|you lose life equal to|you may pay (?:\d+|x) life",
+    re.IGNORECASE,
 )
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
@@ -3744,12 +3740,17 @@ def extract_signals(
     # voltron beater. Mirror just the gate (not an emission) so the commander-damage
     # membership fallback below stays silenced on aristocrats commanders, matching the
     # pre-migration behavior. The serve/IR side emits the real signal.
-    has_other_plan = any(
-        s.confidence == "high"
-        and s.key not in _GENERIC_KEYS
-        and s.key not in _VOLTRON_COMPAT_KEYS
-        for s in out
-    ) or _SACRIFICE_PLAN_MIRROR.search(card.get("oracle_text") or "")
+    _oracle = card.get("oracle_text") or ""
+    has_other_plan = (
+        any(
+            s.confidence == "high"
+            and s.key not in _GENERIC_KEYS
+            and s.key not in _VOLTRON_COMPAT_KEYS
+            for s in out
+        )
+        or _SACRIFICE_PLAN_MIRROR.search(_oracle)
+        or _LIFELOSS_PLAN_MIRROR.search(_oracle)
+    )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
     # Hexproof / indestructible / shroud creatures are PRIME voltron targets — un-
@@ -4029,6 +4030,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # keyword-less "becomes saddled" granters.
     "saddle": (("saddle_matters", "you"),),
     "scavenge": (("scavenge_fuel", "you"), ("graveyard_matters", "you")),
+    # Spectacle (CR 702.111) — "cast cheaper if an opponent lost life this turn" is a
+    # life-loss PAYOFF (it cares about opponents having lost life), but the condition
+    # lives entirely in reminder text that the structural projection strips, so the IR
+    # fires no lose_life. Moved here from _DIRECT_KEYWORD_SIGNALS for the ADR-0027
+    # lifeloss_matters migration so the keyword route stays on the IR path (extort /
+    # afflict already fire lifeloss STRUCTURALLY and need no keyword entry).
+    "spectacle": (("lifeloss_matters", "opponents"),),
     "soulbond": (("soulbond_matters", "you"),),
     "specialize": (("specialize_matters", "you"),),
     "suspend": (("suspend_matters", "you"),),
@@ -6196,6 +6204,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # recovered-from-mis-scope recall, plus 3 typed-sac-subject recall gains on
         # food/legends/type_matters — all correct). See ADR-0027.
         "sacrifice_matters",
+        # lifeloss_matters ← a structured `lose_life` Effect (scope you→you else
+        # opponents — the drain / self-loss split), a `life_payment` marker + a paylife
+        # ACTIVATION COST buying a non-ramp engine (the self life-as-resource half), a
+        # `life_lost` trigger payoff, and the project _lifeloss_markers (pay-life
+        # additional cost / pitch / keyworded-cost / cumulative-upkeep / tax / Defiler
+        # / granted / modal / dice / choose self-loss + the modal / granted /
+        # lost-life-this-turn / dice drain). extort / afflict / spectacle are removed
+        # from the regex keyword path (the IR covers them structurally). NOT in
+        # _IR_FLOOR_LANES; floor-mirror-dep == 0 (floor-ON 1262 == floor-OFF 1262). The
+        # deleted broad regex over-fired on pay-life MANA sources (painlands etc.),
+        # Ward—Pay life (the opponent pays), and lifeGAIN-context. The floor-disabled
+        # residual re-adjudicates to ~all over-fire bar ~3 deep edge cards (a
+        # value-paylife with no "if you do" anchor, a replacement-effect life loss).
+        # NO-FLOOD held (only lifeloss_matters grew). See ADR-0027.
+        "lifeloss_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -6244,15 +6267,21 @@ def extract_signals_hybrid(
         seen.add(ident)
         out.append(sig)
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
-    # voltron MEMBERSHIP fallback against its OWN signal set, which no longer carries
-    # the migrated sacrifice_matters plan. The _SACRIFICE_PLAN_MIRROR re-silences it on
-    # the oracle text, but a DFC's empty top-level oracle_text leaves it blind — so a
-    # transform aristocrat (Ravenous Demon) can leak the low-confidence membership
-    # signal. When the IR supplies a sacrifice_matters plan the regex set lacked, drop
-    # that spurious membership voltron tell (a real engine isn't a vanilla beater).
-    if include_membership and any(s.key == "sacrifice_matters" for s in out):
-        regex_had_sac = any(s.key == "sacrifice_matters" for s in regex_signals)
-        if not regex_had_sac:
+    # voltron MEMBERSHIP fallback against its OWN signal set, which no longer carries a
+    # migrated PLAN key (sacrifice_matters / lifeloss_matters). The *_PLAN_MIRROR
+    # re-silences it on the oracle text, but a DFC's empty top-level oracle_text leaves
+    # the mirror blind — so a transform aristocrat / drain (Ravenous Demon) can leak
+    # the low-confidence membership signal. When the IR supplies a migrated plan the
+    # regex set lacked, drop that spurious membership voltron tell (a real engine isn't
+    # a vanilla beater).
+    if include_membership:
+        regex_keys = {s.key for s in regex_signals}
+        ir_plan = any(
+            s.key in ("sacrifice_matters", "lifeloss_matters")
+            and s.key not in regex_keys
+            for s in out
+        )
+        if ir_plan:
             out = [
                 s
                 for s in out

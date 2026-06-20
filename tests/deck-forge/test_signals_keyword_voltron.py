@@ -46,7 +46,39 @@ def test_exalted_is_voltron():
 
 
 def test_extort_is_drain():
-    sigs = _sigs(keywords=["Extort"])
+    # ADR-0027: lifeloss_matters is migrated. phase models Extort (CR 702.101) as a
+    # structural `lose_life` ("each opponent loses 1 life"), so a real extort card
+    # fires the lane from the IR — not the regex keyword path.
+    from mtg_utils._card_ir.project import project_card
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+
+    card = {
+        "name": "Extort Lord",
+        "type_line": "Legendary Creature — Test",
+        "keywords": ["Extort"],
+        "oracle_text": "Extort",
+    }
+    ir = project_card(
+        [
+            {
+                "name": "Extort Lord",
+                "card_type": {"core_types": ["Creature"]},
+                "triggers": [
+                    {
+                        "mode": "SpellCast",
+                        "execute": {
+                            "effect": {
+                                "type": "LoseLife",
+                                "target": {"type": "EachOpponent"},
+                                "count": {"type": "Fixed", "value": 1},
+                            }
+                        },
+                    }
+                ],
+            }
+        ]
+    )
+    sigs = extract_signals_hybrid(card, ir)
     assert any(s.key == "lifeloss_matters" and s.scope == "opponents" for s in sigs)
 
 

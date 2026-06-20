@@ -5398,10 +5398,33 @@ def test_variable_self_lifeloss_opens_life_as_resource_lane():
             "damage equal to its power to any target."
         ),
     }
-    assert ("lifeloss_matters", "you") in _ks(asmodeus)
-    assert ("lifeloss_matters", "you") in _ks(belakor)
+    # ADR-0027: lifeloss_matters is IR-served — both fire from the structural
+    # `lose_life` ("you lose X/that much life"). phase emits the lose_life Effect; the
+    # IR here mirrors that node (the supplement does not synthesize a bare-clause
+    # lose_life out of a trimmed activated-ability raw).
+    self_loss_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(Effect(category="lose_life", scope="you"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("lifeloss_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(asmodeus, self_loss_ir)
+    }
+    assert ("lifeloss_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(belakor, self_loss_ir)
+    }
     # Over-fire guard: a "Ward—Pay life equal to" cost (Raubahn) is the OPPONENT paying,
-    # not self life-loss — it has no "you", so the self-anchored detector stays out.
+    # not self life-loss — phase emits no lose_life, so the lane stays out on the IR.
     raubahn = {
         "name": "Raubahn, Bull of Ala Mhigo",
         "type_line": "Legendary Creature — Human Warrior",
@@ -5411,7 +5434,9 @@ def test_variable_self_lifeloss_opens_life_as_resource_lane():
             "to target attacking creature."
         ),
     }
-    assert "lifeloss_matters" not in _keys(raubahn)
+    assert "lifeloss_matters" not in {
+        s.key for s in extract_signals_hybrid(raubahn, _bare_ir())
+    }
 
 
 def test_attacking_team_double_strike_opens_combat_damage():

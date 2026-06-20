@@ -1396,13 +1396,12 @@ def test_counter_keyword_commander_opens_counters():
 
 def test_archetype_keywords_open_their_lane():
     # CR-keyword audit (Dan): an archetype-defining keyword ability on the COMMANDER
-    # opens that lane via the keyword (the mechanic is reminder text, stripped).
+    # opens that lane via the keyword (the mechanic is reminder text, stripped). The
+    # non-migrated keywords still read from the regex keyword path.
     cases = [
         ("Prowess", ("spellcast_matters", "you")),
         ("Bushido", ("attack_matters", "you")),
         ("Annihilator", ("attack_matters", "you")),
-        ("Exploit", ("sacrifice_matters", "you")),
-        ("Afflict", ("lifeloss_matters", "opponents")),
     ]
     for kw, expect in cases:
         card = {
@@ -1412,6 +1411,24 @@ def test_archetype_keywords_open_their_lane():
             "oracle_text": "Some ability.",
         }
         assert expect in {(s.key, s.scope) for s in extract_signals(card)}, kw
+    # ADR-0027: Exploit (sacrifice_matters) and Afflict (lifeloss_matters) are migrated
+    # — phase models both as a STRUCTURAL effect (exploit's sacrifice, afflict's
+    # lose_life), so they fire from the IR, not the regex keyword path.
+    afflict = {
+        "name": "Afflict Lord",
+        "type_line": "Legendary Creature — Test",
+        "keywords": ["Afflict"],
+        "oracle_text": "Afflict 2",
+    }
+    ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(Effect(category="lose_life", scope="any"),),
+        )
+    )
+    assert ("lifeloss_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(afflict, ir)
+    }
 
 
 def test_attack_conditional_keywords_open_attack_matters():
@@ -1435,11 +1452,6 @@ def test_past_tense_count_payoffs_open_their_lane():
     # "died this turn". Each rewards an accumulated count and should open the present-
     # tense lane. Verified real templating + commanders via bulk.
     cases = [
-        # Neheb / Rakdos: "for each 1 life your opponents have lost this turn"
-        (
-            "lifeloss_matters",
-            "Add {R} for each 1 life your opponents have lost this turn.",
-        ),
         # Varragoth / Relentless Assault: combat-count payoff
         (
             "attack_matters",
@@ -1463,6 +1475,19 @@ def test_past_tense_count_payoffs_open_their_lane():
             "oracle_text": oracle,
         }
         assert key in {s.key for s in extract_signals(card)}, (key, oracle)
+    # ADR-0027: lifeloss_matters is migrated — Neheb / Rakdos "for each 1 life your
+    # opponents have lost this turn" fires from the IR's _LOST_LIFE_TURN drain marker.
+    neheb = {
+        "name": "Neheb",
+        "type_line": "Legendary Creature — Test",
+        "oracle_text": "Add {R} for each 1 life your opponents have lost this turn.",
+    }
+    from mtg_utils._card_ir.project import project_card
+
+    neheb_ir = project_card([{**neheb, "card_type": {"core_types": ["Creature"]}}])
+    assert "lifeloss_matters" in {
+        s.key for s in extract_signals_hybrid(neheb, neheb_ir)
+    }
 
 
 def test_past_tense_death_count_opens_death_matters():
@@ -1892,7 +1917,8 @@ def test_mv_scaling_burn_opens_noncombat_damage():
 
 def test_opponent_lost_life_this_turn_opens_drain():
     # Sygg pays off "an opponent lost 3 or more life this turn" — a drain/lifeloss
-    # payoff the detector missed (it only matched "life ... lost this turn").
+    # payoff. ADR-0027: lifeloss_matters is migrated, served from the IR's
+    # _LOST_LIFE_TURN drain marker.
     card = {
         "name": "Sygg, River Cutthroat",
         "type_line": "Legendary Creature — Merfolk Rogue",
@@ -1901,7 +1927,12 @@ def test_opponent_lost_life_this_turn_opens_drain():
             "life this turn, you may draw a card. (Damage causes loss of life.)"
         ),
     }
-    assert ("lifeloss_matters", "opponents") in _keys(card)
+    from mtg_utils._card_ir.project import project_card
+
+    ir = project_card([{**card, "card_type": {"core_types": ["Creature"]}}])
+    assert ("lifeloss_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
+    }
 
 
 def test_turn_target_face_up_opens_facedown():

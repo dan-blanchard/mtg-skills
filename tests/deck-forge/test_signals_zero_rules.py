@@ -70,19 +70,60 @@ def test_discard_matters():
 
 
 def test_lifeloss_drain_scoped_opponents():
+    # ADR-0027: lifeloss_matters is IR-served — a `lose_life` drain (scope any/opp →
+    # opponents).
     c = {
         "name": "Drainer",
         "oracle_text": "Whenever a creature you control dies, each opponent loses 1 life.",
     }
-    assert ("lifeloss_matters", "opponents") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Drainer",
+        faces=(
+            Face(
+                name="Drainer",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(Effect(category="lose_life", scope="any"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("lifeloss_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
 
 
 def test_lifeloss_self_scoped_you():
+    # ADR-0027: lifeloss_matters is IR-served — "whenever you lose life" is a
+    # `life_lost` trigger payoff (scope you → you).
+    from mtg_utils.card_ir import Trigger
+
     c = {
         "name": "Vilis-like",
         "oracle_text": "Whenever you lose life, draw that many cards.",
     }
-    assert ("lifeloss_matters", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Vilis-like",
+        faces=(
+            Face(
+                name="Vilis-like",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="life_lost", scope="you"),
+                        effects=(Effect(category="draw", scope="you"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("lifeloss_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
 
 
 def test_lands_matter_count_payoff():
