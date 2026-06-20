@@ -937,6 +937,64 @@ def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
     return replace(ability, effects=ability.effects + tuple(markers))
 
 
+# ── token-subtype maker recovery (ADR-0027 token-subtype synergy) ──────────────
+# A token MAKER for a named token subtype (Blood/Clue/Food/Treasure) normally rides
+# a make_token Effect whose subject Filter carries the subtype — the signal lane
+# (clue/food/treasure/blood_matters) reads that subtype. phase drops the subtype in
+# two shapes, leaving it only in a carrier raw:
+#   (1) CHOICE LIST — "Create your choice of a Blood token, a Clue token, or a Food
+#       token" (Transmutation Font) flattens to Effect(category='choose',
+#       subject=None); the choice-branch subtypes are lost.
+#   (2) GRANTED/QUOTED ABILITY — 'Equipped creature ... has "Whenever ~ deals
+#       combat damage, create a Blood token."' (Ceremonial Knife) folds the inner
+#       make-token into a pump/grant carrier raw; the quoted body isn't re-parsed.
+# Recover the named subtypes from the raw and APPEND a make_token marker Effect per
+# subtype (subject Filter carries the subtype) so the existing make_token signal
+# rule fires the right lane. Append-only; the carrier effect is untouched. Anchored
+# on the explicit "<Subtype> token" phrase inside a choose/grant carrier, never a
+# bare subtype mention — general for clue/food/treasure/blood.
+# Carriers a dropped token-subtype maker hides inside: the modal `choose` header
+# (choice list) and the grant carriers that fold a quoted "create a <Subtype>
+# token" ability into their raw. NOT make_token itself — a real maker already
+# carries the subtype on its subject Filter, so recovering it from raw would be
+# redundant and risk a raw-flavor over-fire.
+_TOKEN_SUBTYPE_MAKER_CARRIERS: frozenset[str] = frozenset(
+    {"choose", "pump", "pump_target", "grant_keyword"}
+)
+_TOKEN_SUBTYPE_REF = re.compile(
+    r"\b(blood|clue|food|treasure) tokens?\b", re.IGNORECASE
+)
+
+
+def _narrow_token_subtype_makers(ability: Ability) -> Ability:
+    """Append make_token markers for named token subtypes phase left only in a
+    choose/granted-ability carrier raw (Transmutation Font, Ceremonial Knife). The
+    subtype rides the marker's subject Filter so the make_token signal rule fires
+    clue/food/treasure/blood_matters. Append-only; anchored on "<Subtype> token"."""
+    markers: list[Effect] = []
+    for e in ability.effects:
+        if e.category not in _TOKEN_SUBTYPE_MAKER_CARRIERS:
+            continue
+        raw = e.raw or ""
+        seen: set[str] = set()
+        for m in _TOKEN_SUBTYPE_REF.finditer(raw):
+            sub = m.group(1).capitalize()
+            if sub in seen:
+                continue
+            seen.add(sub)
+            markers.append(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=(sub,), predicates=("Token",)),
+                    raw=raw,
+                )
+            )
+    if not markers:
+        return ability
+    return replace(ability, effects=ability.effects + tuple(markers))
+
+
 def _project_face(record: dict) -> Face:
     abilities: list[Ability] = []
     for ab in record.get("abilities") or []:
@@ -968,6 +1026,9 @@ def _project_face(record: dict) -> Face:
     # Conferred-keyword re-parse (ADR-0027): append precise markers for keywords/
     # abilities GRANTED to a class of objects, surviving only in a grant carrier raw.
     abilities = [_narrow_conferred_keyword_refs(a) for a in abilities]
+    # Token-subtype maker recovery (ADR-0027): append make_token markers for named
+    # token subtypes phase left only in a choose-list / granted-ability carrier raw.
+    abilities = [_narrow_token_subtype_makers(a) for a in abilities]
     # Own-board count operand (ADR-0027 go-wide): recover the count-over-your-board
     # operand phase keeps in its raw parse but the structured projection drops (a
     # characteristic-defining */* P/T, a ModifyCost reduction, a damage X, a gate

@@ -19,6 +19,7 @@ from __future__ import annotations
 from mtg_utils._card_ir.project import (
     _copied_type_from_text,
     _filter,
+    _narrow_token_subtype_makers,
     _predicate,
     project_card,
 )
@@ -1495,3 +1496,70 @@ def test_dfc_faces_grouped_by_oracle_id(tmp_path):
     card = load_card_ir(out)["dfc-1"]
     assert [f.name for f in card.faces] == ["Front", "Back"]
     assert card.keywords == ("Flying", "Haste")
+
+
+# ── token-subtype maker recovery (ADR-0027) ───────────────────────────────────
+def _maker_subtypes(ability: Ability) -> set[str]:
+    return {
+        st
+        for e in ability.effects
+        if e.category == "make_token" and isinstance(e.subject, Filter)
+        for st in e.subject.subtypes
+    }
+
+
+def test_token_subtype_maker_recovery_from_choice_list():
+    """A `choose` carrier whose raw lists named token subtypes (Transmutation Font's
+    "create your choice of a Blood token, a Clue token, or a Food token") recovers a
+    make_token marker per subtype, so each token-subtype lane can read it."""
+    ability = Ability(
+        kind="activated",
+        cost="tap",
+        effects=(
+            Effect(
+                category="choose",
+                scope="any",
+                raw="{T}: Create your choice of a Blood token, a Clue token, "
+                "or a Food token.",
+            ),
+        ),
+    )
+    out = _narrow_token_subtype_makers(ability)
+    assert _maker_subtypes(out) == {"Blood", "Clue", "Food"}
+
+
+def test_token_subtype_maker_recovery_from_granted_ability():
+    """A grant carrier (pump) whose raw folds a quoted "create a Blood token" ability
+    (Ceremonial Knife) recovers the Blood make_token marker."""
+    ability = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="pump",
+                scope="any",
+                subject=Filter(card_types=("Creature",), predicates=("EquippedBy",)),
+                raw='Equipped creature gets +1/+0 and has "Whenever ~ deals combat '
+                'damage, create a Blood token."',
+            ),
+        ),
+    )
+    out = _narrow_token_subtype_makers(ability)
+    assert _maker_subtypes(out) == {"Blood"}
+
+
+def test_token_subtype_maker_recovery_ignores_non_carrier_and_bare_mention():
+    """Append-only + carrier-gated: a non-carrier effect (e.g. a draw) whose raw
+    happens to mention a token subtype recovers nothing; a real make_token carrier is
+    left untouched (its own subject already carries the subtype)."""
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="draw",
+                scope="you",
+                raw="Whenever you draw a card, you may discard a Blood token.",
+            ),
+        ),
+    )
+    out = _narrow_token_subtype_makers(ability)
+    assert out is ability  # nothing appended (draw is not a carrier)
