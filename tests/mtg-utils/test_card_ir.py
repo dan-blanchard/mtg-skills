@@ -34,6 +34,7 @@ from mtg_utils._card_ir.project import (
     _project_effect,
     _project_replacement,
     _quantity,
+    _recover_count_operand,
     _recover_graveyard_zones,
     _sacrifice_cost_markers,
     _sacrifice_grant_markers,
@@ -2310,6 +2311,84 @@ def test_recover_graveyard_zones_excludes_dies():
     out = _recover_graveyard_zones(ability)
     # already had to:graveyard; recovery is append-only and leaves from:battlefield
     assert "from:battlefield" in out.effects[0].zones
+
+
+def test_recover_count_operand_pump_for_each():
+    """A pump whose "for each X" scaling phase dropped to op='fixed' (Pride of the
+    Clouds, Strata Scythe) is lifted to op='count' with the counted permanent class as
+    subject, so scaling_pump fires; the per-unit factor is preserved (Anya's +3/+3)."""
+    pump = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="pump",
+                scope="any",
+                amount=Quantity(op="fixed", factor=1),
+                raw="~ gets +1/+1 for each other creature on the battlefield with "
+                "flying.",
+            ),
+        ),
+    )
+    out = _recover_count_operand(pump)
+    amt = out.effects[0].amount
+    assert amt.op == "count"
+    assert amt.subject is not None
+    assert "Creature" in amt.subject.card_types
+    anya = Ability(
+        kind="static",
+        effects=(
+            Effect(
+                category="pump",
+                scope="you",
+                amount=Quantity(op="fixed", factor=3),
+                raw="~ gets +3/+3 for each opponent whose life total is less.",
+            ),
+        ),
+    )
+    assert _recover_count_operand(anya).effects[0].amount.factor == 3
+
+
+def test_recover_count_operand_draw_and_guards():
+    """A "draw a card for each creature it devoured" draw (Skullmulcher) lifts to
+    op='count'; a bare "draw X cards" (Braingeyser — already op='count', no "for
+    each") and a structured count are both left untouched."""
+    skull = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="draw",
+                scope="you",
+                amount=Quantity(op="fixed", factor=1),
+                raw="When ~ enters, draw a card for each creature it devoured.",
+            ),
+        ),
+    )
+    assert _recover_count_operand(skull).effects[0].amount.op == "count"
+    braingeyser = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="draw",
+                scope="any",
+                amount=Quantity(op="count", factor=1),
+                raw="Target player draws X cards.",
+            ),
+        ),
+    )
+    # op already count (not fixed) → untouched; no "for each" so never re-tagged.
+    assert _recover_count_operand(braingeyser).effects[0].amount.op == "count"
+    plain = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="draw",
+                scope="you",
+                amount=Quantity(op="fixed", factor=2),
+                raw="Draw two cards.",
+            ),
+        ),
+    )
+    assert _recover_count_operand(plain).effects[0].amount.op == "fixed"
 
 
 def test_graveyard_cast_grant_marker_from_emblem():

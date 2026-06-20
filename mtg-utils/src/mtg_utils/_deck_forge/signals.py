@@ -50,7 +50,7 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
-from mtg_utils.card_ir import Card, Effect, Filter
+from mtg_utils.card_ir import Card, Effect, Filter, Quantity
 from mtg_utils.theme_presets import get_preset
 
 
@@ -5030,6 +5030,40 @@ _GOAD_STYLE_FORCE = re.compile(
     r"target creature[^.]*attacks?[^.]*\bif able\b", re.IGNORECASE
 )
 
+# Scaling-count discriminator (ADR-0027 count-operand cluster): draw_for_each /
+# scaling_pump want a value that SCALES with a board count ("for each creature you
+# control", "equal to the number of …"), NOT a bare X-spell ("draw X cards", "pump
+# +X/+X") whose X is the cast/activation cost. phase emits op='count' for BOTH (X is a
+# count too), so the count op alone over-fires the lanes onto Braingeyser / Champion
+# of Wits. A genuine scaling-count carries a counted SUBJECT (Shamanic Revelation's
+# creature set) OR names the count in raw ("for each" / "equal to the number of"); a
+# bare X-spell has neither. CR 107.3.
+_FOR_EACH_RAW = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE)
+
+
+# The named count ops that are ALWAYS a "for each <X>" scale (CR 700.3 domain, CR
+# 107.x devotion/party, CR 122 counters/experience) — distinct from the generic
+# `count` op, which also covers bare X-spells. A pump/draw scaling on any of these is
+# genuine (Kalemne's +1/+1 per experience, Atreus's draw-per-experience). experience
+# also routes to experience_matters (a correct co-fire), not stolen from it.
+_NAMED_SCALE_OPS = frozenset({"counters", "domain", "devotion", "party", "experience"})
+
+
+def _is_scaling_count(amount: Quantity | None, raw: str) -> bool:
+    """True when an operand is a genuine BOARD-COUNT scaler ("for each <X>"), not a
+    bare X-spell whose X is the cast cost. A NAMED count op (counters / domain /
+    devotion / party) is always a scale; the generic `count`/`multiply` op is a scale
+    only with a counted SUBJECT or a "for each" / "number of" raw (a bare X-spell —
+    Braingeyser — has neither). Gates draw_for_each / scaling_pump off X-spells."""
+    if amount is None:
+        return False
+    if amount.op in _NAMED_SCALE_OPS:
+        return True
+    if amount.op not in ("count", "multiply"):
+        return False
+    return amount.subject is not None or bool(_FOR_EACH_RAW.search(raw or ""))
+
+
 # typed_anthem_multi (ADR-0027): phase drops the typed subject entirely on some pump
 # anthems (subject=None), so neither the AnyOf nor the 2+-subtypes structural guard
 # can see the disjunction. Recover from the pump effect's raw: "that's a X[, a Y]…,?
@@ -5652,7 +5686,10 @@ def extract_signals_ir(
             ):
                 add("topdeck_stack", "you", "", e.raw)
             if cat == "draw":
-                if e.amount is not None and e.amount.op in ("count", "multiply"):
+                # draw_for_each = a draw that SCALES with a board count, NOT a bare
+                # "draw X cards" X-spell (Braingeyser). The scaling-count gate keeps
+                # the X-spells (op='count', no subject, no "for each") out.
+                if _is_scaling_count(e.amount, e.raw or ""):
                     add("draw_for_each", "you", "", e.raw)
                 if e.scope == "each":
                     add("group_hug_draw", "each", "", e.raw)
@@ -5802,19 +5839,24 @@ def extract_signals_ir(
                 add("color_hoser", "you", "", e.raw)
             if cat == "tap" and e.scope == "opp":
                 add("tap_down", "opponents", "", e.raw)
-            if (
-                cat == "pump"
-                and e.amount is not None
-                and e.amount.op in ("count", "multiply")
-            ):
-                add("scaling_pump", "you", "", e.raw)
+            if cat == "pump" and e.amount is not None:
+                # scaling_pump = a +X/+X that SCALES with a board count ("for each
+                # creature", "for each +1/+1 counter", domain/devotion/party), NOT a
+                # bare "gets +X/+X" X-pump (firebreathing X). _is_scaling_count keeps
+                # the bare-X pumps out and admits the NAMED scale ops (counters/domain/
+                # devotion/party) phase routes off the generic `count`.
+                if _is_scaling_count(e.amount, e.raw or ""):
+                    add("scaling_pump", "you", "", e.raw)
                 # counters_matter (ADR-0027 shape 6) — the counter-COUNT payoff reaches
                 # the IR as a PUMP whose value counts counters on a permanent ("Humans
                 # you control get +1/+1 for each counter on ~" — Kyler; High Sentinels).
-                # The amount.op=='counters' arm above catches the literal-counters
-                # form; the op=='count' form needs the raw to confirm the counted thing
-                # is counters (op=='count' alone is too broad — it counts anything).
-                if "counter" in (e.raw or "").lower():
+                # Gated to the count-bearing ops + a "counter" raw (op alone is too
+                # broad — a count counts anything; a fixed pump mentioning "counter" in
+                # an unrelated clause must not leak).
+                if (
+                    e.amount.op in ("count", "multiply", "counters")
+                    and "counter" in (e.raw or "").lower()
+                ):
                     add("counters_matter", "you", "", e.raw)
             # Batch 12 — typed_anthem_multi: a pump over creatures of MULTIPLE named
             # types ("each creature that's an Assassin, Mercenary, or Pirate gets ...")

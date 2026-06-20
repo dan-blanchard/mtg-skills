@@ -1305,6 +1305,12 @@ def _project_face(record: dict) -> Face:
     # the predicate-narrowed (Smite "blocked creature") and power-scaled (Crush
     # Underfoot "damage equal to its power to target creature") removal phase strips.
     abilities = [_recover_removal_target_subject(a) for a in abilities]
+    # Count-operand recovery (ADR-0027 count-operand cluster): a draw / pump whose
+    # "for each X" scaling operand phase dropped to op='fixed' factor=1 — restore the
+    # op='count' (with the counted permanent class as subject when named) so
+    # scaling_pump / draw_for_each fire (Strata Scythe, Pride of the Clouds,
+    # Skullmulcher, Voice of Many).
+    abilities = [_recover_count_operand(a) for a in abilities]
     # Token-subtype maker recovery (ADR-0027): append make_token markers for named
     # token subtypes phase left only in a choose-list / granted-ability carrier raw.
     abilities = [_narrow_token_subtype_makers(a) for a in abilities]
@@ -2973,6 +2979,77 @@ _FOR_EACH_CREATURE = re.compile(
     r"(?!\w)(?! of (?:that|a|the chosen))",
     re.IGNORECASE,
 )
+
+
+# Count-operand recovery (ADR-0027 count-operand cluster). phase DROPS the "for each
+# X" / "equal to the number of X" SCALING operand off some draw and pump effects,
+# leaving amount.op='fixed' factor=1 — the scaling is lost (Strata Scythe, Pride of
+# the Clouds, Skullmulcher, Voice of Many, Allied Strategies). The phrase survives in
+# raw, so this anchor lifts the dropped count back to op='count' so scaling_pump /
+# draw_for_each fire. Anchored on the genuine count phrase, NOT a "draw X cards" X-
+# spell (Braingeyser — that is op='count' already, with no "for each") nor a "deals N
+# to each" SYMMETRIC distribution.
+_FOR_EACH_COUNT = re.compile(
+    r"\bfor each\b|\bequal to the number of\b|\bcards equal to the number\b",
+    re.IGNORECASE,
+)
+# The counted SUBJECT, when the raw names a clear permanent class right after "for
+# each" / "number of" — so the recovered count carries a real Filter (a creature
+# scaling vs an artifact scaling read differently downstream). A bare/uncapturable
+# count (an opponent count, a same-name count) leaves subject=None — still a genuine
+# scaling draw/pump, just unattributed.
+_FOR_EACH_SUBJECT = re.compile(
+    r"(?:for each|number of)\s+(?:other\s+)?(?:tapped\s+|attacking\s+)?"
+    r"(creature|artifact|enchantment|land|permanent|aura|card|counter)s?\b",
+    re.IGNORECASE,
+)
+_FOR_EACH_TYPE_MAP = {
+    "creature": "Creature",
+    "artifact": "Artifact",
+    "enchantment": "Enchantment",
+    "land": "Land",
+    "permanent": "Permanent",
+    "aura": "Aura",
+}
+
+
+def _recover_count_operand(ability: Ability) -> Ability:
+    """Lift a DROPPED "for each X" scaling operand on a draw / pump effect back to
+    op='count' (ADR-0027 count-operand cluster). phase leaves the amount as
+    op='fixed' factor=1 when it loses the count, but the "for each" / "equal to the
+    number of" phrase survives in raw — so this restores the count so scaling_pump /
+    draw_for_each fire. A counted permanent CLASS named in the raw becomes the count
+    subject; an uncapturable count (opponents, same-name) stays subject=None. Append-
+    only: an effect already carrying a count/counters/domain/devotion/party operand
+    is untouched (the structured count is preferred). CR 107.3."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        amt = e.amount
+        if (
+            e.category in ("draw", "pump")
+            and amt is not None
+            and amt.op == "fixed"
+            and amt.subject is None
+            and _FOR_EACH_COUNT.search(e.raw or "")
+        ):
+            # The recovered count multiplies by the same per-unit factor phase kept
+            # (Anya's +3/+3 for each, Nyxathid's -1/-1 for each), so preserve it.
+            subj = None
+            sm = _FOR_EACH_SUBJECT.search(e.raw or "")
+            if sm is not None:
+                ct = _FOR_EACH_TYPE_MAP.get(sm.group(1).lower())
+                if ct is not None:
+                    subj = Filter(card_types=(ct,))
+            new_effects.append(
+                replace(e, amount=Quantity(op="count", factor=amt.factor, subject=subj))
+            )
+            changed = True
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
 
 
 def _mass_untap_marker(record: dict) -> Effect | None:
