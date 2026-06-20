@@ -36,6 +36,29 @@ def _norm(token: object) -> str:
     return re.sub(r"[^a-z0-9]", "", str(token).lower())
 
 
+def _norm_counter_kind(raw: object) -> str:
+    """Normalize a phase ``counter_type`` into a clean kind token, recovering the
+    +1/+1 signature phase sometimes mis-parses (ADR-0027).
+
+    phase emits a clean ``"P1P1"`` for most placements, but when adjacent rider
+    text leaks into the field it returns a garbled string that still CONTAINS the
+    ``+1/+1`` signature — ``"additional +1/+1"`` (Necromantic Summons, Turntimber
+    Symbiosis), ``"flying and with X +1/+1"`` (Dralnu's Pet), ``"trample. the token
+    enters with X +1/+1"`` (Printlifter Ooze), ``"a number of +1/+1"`` (Grave
+    Endeavor's ``enter_with_counters``). A clean ``_norm`` of those yields a
+    distinct junk token (``additional11`` / ``flyingandwithx11`` / …) that no lane
+    reads, so the +1/+1 placement is lost. Detect the ``+1/+1`` substring in the
+    PRE-normalized text and collapse to ``p1p1``; likewise ``-1/-1`` → ``m1m1``.
+    Anything else falls through to the ordinary ``_norm`` (clean kinds, named
+    counters like ``study`` / ``growth`` stay themselves). CR 122.1 / 614.12."""
+    if isinstance(raw, str):
+        if "+1/+1" in raw:
+            return "p1p1"
+        if "-1/-1" in raw:
+            return "m1m1"
+    return _norm(raw) if isinstance(raw, str) else ""
+
+
 def _str_tuple(value: object) -> tuple[str, ...]:
     """A JSON list field → tuple of its string items (() if absent/not a list)."""
     if not isinstance(value, list):
@@ -1483,18 +1506,27 @@ def _project_replacement(rep: dict) -> Ability | None:
         return _static_effect("counter_doubling", "you", raw, counter_kind=ck)
     if event == "damagedone" and dmod in _INCREASE_MODS:
         return _static_effect("damage_doubling", "you", raw)
-    # Enters-with self-counter (ADR-0027): "~ enters with N +1/+1 counters on it"
-    # parses as a Moved→Battlefield replacement whose `execute` is a PutCounter
-    # (counter_type carries the kind: P1P1 / M1M1 / Oil / Shield / Lore / …). phase
-    # treats enters-with as a characteristic-defining property, so the structured
-    # projection emits NOTHING for it (Faithful Watchdog, Mistcutter Hydra,
-    # Cryptborn Horror, Diregraf Colossus — 469 p1p1 cards keep only their keywords).
-    # Project the execute through the normal effect machinery so the place_counter
-    # lands with its real counter_kind (→ the matching counters / minus_counters /
-    # oil / shield / saga lane). A garbled counter_type (a long mis-parsed string,
-    # not a clean kind token) yields a kindless place_counter — still a +1/+1
-    # enters-with marker the raw fallback in signals can read. CR 614.12 / 122.1.
-    if event == "moved" and _norm(rep.get("destination_zone")) == "battlefield":
+    # Enters-with counter (ADR-0027): an enters-with replacement whose `execute` is
+    # a PutCounter (counter_type carries the kind: P1P1 / M1M1 / Oil / Shield / Lore
+    # / …). Two events reach the battlefield with this shape:
+    #   • `Moved`→Battlefield — the SELF form "~ enters with N +1/+1 counters on it"
+    #     (Faithful Watchdog, Mistcutter Hydra, Cryptborn Horror, Diregraf Colossus —
+    #     469 p1p1 cards). CR 614.12.
+    #   • `ChangeZone`→Battlefield — the OTHER/static form "each other Angel/creature/
+    #     Vehicle you control enters with an additional +1/+1 counter on it" (Giada,
+    #     Coin of Mastery, Oona's Blackguard, Bloodspore Thrinax, Bioengineered
+    #     Future, Communal Brewing), a continuous static counter grant onto YOUR
+    #     board (the `valid_card` set is controller You). CR 614.13.
+    # phase treats enters-with as a characteristic-defining property, so the
+    # structured projection emits NOTHING for either. Project the execute through the
+    # normal effect machinery so the place_counter lands with its real counter_kind
+    # (→ the matching counters / minus_counters / oil / shield / saga lane), scope
+    # forced to you — the grant is over a permanent its controller drives. A garbled
+    # counter_type is normalized to p1p1 by _norm_counter_kind. CR 122.1.
+    if (
+        event in ("moved", "changezone")
+        and _norm(rep.get("destination_zone")) == "battlefield"
+    ):
         execute = rep.get("execute")
         eff = execute.get("effect") if isinstance(execute, dict) else None
         if isinstance(eff, dict) and _norm(eff.get("type")) in (
@@ -1509,6 +1541,49 @@ def _project_replacement(rep: dict) -> Ability | None:
             if place:
                 return Ability(kind="static", effects=tuple(place))
     return None
+
+
+def _enter_with_counter_effects(eff: dict, raw: str) -> list[Effect]:
+    """Recover the ``enter_with_counters`` rider phase nests INSIDE an effect dict
+    (ADR-0027). Two shapes carry it on the effect itself (not a top-level
+    replacement):
+
+      • a ``Token`` effect — "create a Fractal token, then put X +1/+1 counters on
+        it" parses the placement as ``token.enter_with_counters`` (Body of Research,
+        the Fractal cycle, Slime Against Humanity, Clown Car). phase keeps the made
+        token's entering counters as a property of the token spec, so the structured
+        projection (which emits ``make_token``) drops the placement entirely.
+      • a ``ChangeZone`` / reanimate effect — "return ~ to the battlefield WITH N
+        +1/+1 counters on it" parses as ``changezone.enter_with_counters`` (Evil
+        Reawakened, the Transmogrant cycle, Phoenix Chick, the exile-and-return
+        blink riders Long Road Home / Planar Incision / Feign Death). The returned
+        object's entering counters ride the move, again dropped by the structured
+        projection.
+
+    Either way the entering ``+1/+1`` counters are real counter placements (CR
+    614.13c — the object enters with the counters), so emit a ``place_counter``
+    per kind (scope you — the controller chooses to make/return it). The garbled
+    kind (``"a number of +1/+1"``) is normalized through ``_norm_counter_kind`` so
+    it lands as ``p1p1``, not junk. Non-+1/+1 entering counters (a named ``study`` /
+    ``growth`` / Saga ``lore``) keep their own kind → their own lane."""
+    ewc = eff.get("enter_with_counters")
+    if not isinstance(ewc, list):
+        return []
+    out: list[Effect] = []
+    for pair in ewc:
+        if not (isinstance(pair, list) and pair):
+            continue
+        kind = _norm_counter_kind(pair[0])
+        if kind:
+            out.append(
+                Effect(
+                    category="place_counter",
+                    scope="you",
+                    raw=raw,
+                    counter_kind=kind,
+                )
+            )
+    return out
 
 
 def _static_effect(
@@ -1633,7 +1708,10 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             out.append(Effect(category="other", scope=_effect_scope(eff), raw=raw))
         return out
     if etype in ("changezone", "changezoneall"):
-        return [_changezone_effect(eff, raw, mass=etype == "changezoneall")]
+        return [
+            _changezone_effect(eff, raw, mass=etype == "changezoneall"),
+            *_enter_with_counter_effects(eff, raw),
+        ]
     if etype == "copytokenof":
         return [_copy_token_effect(eff, raw)]
     if etype == "additionalphase":
@@ -1689,7 +1767,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
     ck = eff.get("counter_type")
-    counter_kind = _norm(ck) if isinstance(ck, str) else ""
+    counter_kind = _norm_counter_kind(ck) if isinstance(ck, str) else ""
     if etype in _MASS_EFFECT_TYPES:
         counter_kind = "all"
     scope = _effect_scope(eff)
@@ -1712,7 +1790,8 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             raw=raw,
             counter_kind=counter_kind,
             zones=_zone_tags(eff),
-        )
+        ),
+        *_enter_with_counter_effects(eff, raw),
     ]
 
 

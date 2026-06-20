@@ -29,7 +29,9 @@ from mtg_utils._card_ir.project import (
     _narrow_payoff_condition_refs,
     _narrow_token_subtype_makers,
     _narrow_trigger_other_refs,
+    _norm_counter_kind,
     _predicate,
+    _project_effect,
     _project_replacement,
     _quantity,
     _recover_graveyard_zones,
@@ -2896,3 +2898,126 @@ def test_moved_replacement_without_putcounter_is_ignored():
         "description": "~ enters tapped.",
     }
     assert _project_replacement(rep) is None
+
+
+# ── enters-with-OTHER static grant (ADR-0027 counters_matter close, bucket D) ──
+
+
+def test_changezone_replacement_with_putcounter_projects_place_counter():
+    """ "Each other Angel you control enters with an additional +1/+1 counter on it"
+    (Giada, Coin of Mastery, Oona's Blackguard) parses as a ChangeZone→Battlefield
+    replacement whose execute is PutCounter(P1P1) — the SAME execute shape as the
+    Moved self form, just a different event. The projection recovers a place_counter
+    (kind p1p1, scope you) so the static +1/+1 grant opens counters_matter."""
+    rep = {
+        "event": "ChangeZone",
+        "destination_zone": "Battlefield",
+        "execute": {
+            "kind": "Spell",
+            "effect": {
+                "type": "PutCounter",
+                "counter_type": "P1P1",
+                "count": {"type": "Fixed", "value": 1},
+                "target": {"type": "SelfRef"},
+            },
+        },
+        "valid_card": {
+            "type": "Typed",
+            "type_filters": [{"Subtype": "Angel"}],
+            "controller": "You",
+            "properties": [{"type": "Another"}],
+        },
+        "description": "Each other Angel you control enters with an additional "
+        "+1/+1 counter on it for each Angel you already control.",
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert [e.category for e in ab.effects] == ["place_counter"]
+    assert ab.effects[0].counter_kind == "p1p1"
+    assert ab.effects[0].scope == "you"
+
+
+# ── enter_with_counters nested on a Token effect (bucket A) ───────────────────
+
+
+def test_token_enter_with_counters_projects_place_counter():
+    """ "Create a 0/0 Fractal token. Put X +1/+1 counters on it" (Body of Research,
+    the Fractal cycle, Slime Against Humanity) parses the placement as
+    token.enter_with_counters — a property of the made token spec the structured
+    projection (make_token) otherwise drops. _project_effect appends a place_counter
+    (kind p1p1, scope you) so the token's +1/+1 counters open counters_matter."""
+    eff = {
+        "type": "Token",
+        "name": "Fractal",
+        "types": ["Creature", "Fractal"],
+        "count": {"type": "Fixed", "value": 1},
+        "enter_with_counters": [
+            ["P1P1", {"type": "Ref", "qty": {"type": "ZoneCardCount"}}]
+        ],
+    }
+    effs = _project_effect(eff, "Create a Fractal token. Put X +1/+1 counters on it.")
+    cats = [e.category for e in effs]
+    assert "make_token" in cats
+    place = [e for e in effs if e.category == "place_counter"]
+    assert place
+    assert place[0].counter_kind == "p1p1"
+    assert place[0].scope == "you"
+
+
+def test_token_without_enter_with_counters_has_no_place_counter():
+    """A plain token maker (no entering counters) projects make_token only — the
+    enter_with_counters bind must not invent a placement."""
+    eff = {
+        "type": "Token",
+        "name": "Soldier",
+        "types": ["Creature", "Soldier"],
+        "count": {"type": "Fixed", "value": 1},
+    }
+    effs = _project_effect(eff, "Create a 1/1 white Soldier creature token.")
+    assert [e.category for e in effs] == ["make_token"]
+
+
+# ── enter_with_counters nested on a ChangeZone/reanimate effect (bucket B) ────
+
+
+def test_changezone_enter_with_counters_projects_place_counter():
+    """ "Return target creature card from your graveyard to the battlefield with two
+    additional +1/+1 counters on it" (Evil Reawakened, the Transmogrant cycle,
+    Phoenix Chick) parses the rider as changezone.enter_with_counters. _project_effect
+    appends a place_counter (kind p1p1) alongside the reanimate so the returned
+    creature's entering counters open counters_matter (CR 614.13)."""
+    eff = {
+        "type": "ChangeZone",
+        "destination": "Battlefield",
+        "enter_with_counters": [["P1P1", {"type": "Fixed", "value": 2}]],
+    }
+    effs = _project_effect(
+        eff, "Return target creature card from your graveyard with two +1/+1 counters."
+    )
+    # The change-zone move keeps its own (primary) effect; the rider is APPENDED as a
+    # second place_counter — never replacing the move.
+    assert len(effs) >= 2
+    place = [e for e in effs if e.category == "place_counter"]
+    assert place
+    assert place[0].counter_kind == "p1p1"
+    assert place[0].scope == "you"
+
+
+# ── garbled counter_type normalization (the mis-parsed +1/+1 signature) ───────
+
+
+def test_norm_counter_kind_recovers_garbled_plus_one():
+    """phase sometimes leaks rider text into counter_type ("additional +1/+1",
+    "flying and with X +1/+1", "trample. the token enters with X +1/+1"). The +1/+1
+    signature survives in the raw string, so _norm_counter_kind collapses it to the
+    clean p1p1 kind instead of a junk token no lane reads (Necromantic Summons,
+    Dralnu's Pet, Printlifter Ooze, Turntimber Symbiosis)."""
+    assert _norm_counter_kind("additional +1/+1") == "p1p1"
+    assert _norm_counter_kind("flying and with X +1/+1") == "p1p1"
+    assert _norm_counter_kind("trample. the token enters with X +1/+1") == "p1p1"
+    assert _norm_counter_kind("a number of +1/+1") == "p1p1"
+    # -1/-1 routes to the minus lane; clean + named kinds stay themselves.
+    assert _norm_counter_kind("additional -1/-1") == "m1m1"
+    assert _norm_counter_kind("P1P1") == "p1p1"
+    assert _norm_counter_kind("Oil") == "oil"
+    assert _norm_counter_kind("study") == "study"
