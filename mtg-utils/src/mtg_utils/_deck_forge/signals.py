@@ -3981,6 +3981,14 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "undying": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
     "persist": (("undying_persist_matters", "you"), ("dies_recursion", "you")),
     "affinity": (("affinity_type", "you"),),
+    # Investigate (CR 701.27) IS "create a Clue token" — a colorless ARTIFACT (CR
+    # 205.3g). phase tags the keyword but drops the Clue subtype off the make_token
+    # subject (the keyword-action's reminder text isn't structured — Deduce, Bygone
+    # Bishop, Angelic Sleuth all carry make_token subject=None), so the keyword is the
+    # structural anchor that the Clues feed an artifacts deck (affinity / metalcraft /
+    # Academy Manufactor). The dedicated clue_matters lane reads investigate off its own
+    # regex floor; this opens artifacts_matter, which has no other tell for these.
+    "investigate": (("artifacts_matter", "you"),),
     "islandwalk": (("island_matters", "you"),),
     "enlist": (("enlist_matters", "you"),),
     "exalted": (("exalted_lone_attacker", "you"),),
@@ -4781,6 +4789,42 @@ def _typed_matters_lanes(f: object) -> list[str]:
     ]
 
 
+# Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): Treasure / Clue / Food /
+# Powerstone / Gold / Map / Junk / Incubator / Blood / Lander / Mutagen are all
+# artifact tokens, so a maker / sac-payoff over one feeds artifacts_matter (affinity,
+# metalcraft, Academy Manufactor) even when phase carries only the subtype and drops
+# the Artifact card-type (Emissary Green, Giant Opportunity). NOT a bare token go-wide
+# subtype (Servo/Thopter artifact CREATURE tokens are a tokens deck — those carry the
+# Artifact card-type explicitly, read off card_types, not this subtype set).
+_ARTIFACT_TOKEN_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "treasure",
+        "clue",
+        "food",
+        "powerstone",
+        "gold",
+        "map",
+        "junk",
+        "incubator",
+        "blood",
+        "lander",
+        "mutagen",
+    }
+)
+
+
+def _is_artifact_subject(f: object) -> bool:
+    """True when ``f`` is an Artifact subject — the Artifact card-type, OR an
+    artifact-token subtype (Treasure/Clue/Food/…) phase carries with an empty
+    card_types tuple. The artifact-token branch fires the artifacts lane off a
+    resource-token maker / sac-payoff (CR 205.3g)."""
+    if not isinstance(f, Filter):
+        return False
+    return "Artifact" in f.card_types or bool(
+        _fsubs_lower(f) & _ARTIFACT_TOKEN_SUBTYPES
+    )
+
+
 # ── Generalized type-payoff shapes (ADR-0027) ─────────────────────────────────
 # A FAMILY of effect-shape detectors that, given an effect over a card-type-filtered
 # subject, return the matters-lane(s) the effect is a PAYOFF for. They read only the
@@ -4816,27 +4860,35 @@ def _type_tutor_lanes(e: object) -> list[str]:
 
 
 def _type_recursion_lanes(e: object) -> list[str]:
-    """A MASS recursion of a card-type from a graveyard → that type's matters-lane(s).
+    """A TYPE-RESTRICTED graveyard recursion of a card-type → that type's lane(s).
 
-    A reanimate / graveyard-recursion / graveyard→hand bounce of YOUR <type> cards
-    ("return ALL enchantment cards from your graveyard" — Crystal Chimes; Replenish),
-    OR a COMPOSITE one at any controller ("return all artifact and enchantment cards"
-    — Open the Vaults, Dance of the Manse, Second Sunrise), values that type's cards as
-    a recurrable resource, so it fires the lane(s). A composite fires BOTH lanes.
+    SETTLED RULE (CR 115.1 single-target / 115.10 mass): the discriminator is the
+    target FILTER's card-TYPE, NOT mass-vs-single. A reanimate / graveyard-recursion /
+    graveyard→hand bounce / graveyard→library recursion whose target is FILTERED to a
+    card type fires that type's lane whether it returns ONE ("return target enchantment
+    card" — Auramancer, Monk Idealist, Skull of Orm; "return target artifact card" —
+    Refurbish, Argivian Archaeologist) or ALL ("return all enchantment cards" — Crystal
+    Chimes, Replenish; "return all artifact and enchantment cards" — Open the Vaults,
+    Dance of the Manse). Type-gating = only useful in a deck full of that type. A
+    COMPOSITE ("artifact OR enchantment card" — Argivian Find, Open the Vaults) fires
+    BOTH lanes.
 
-    GATE (the over-fire boundary — CR 115.10 mass vs CR 115.1 single-target): ONLY the
-    MASS / non-targeted form fires, and the SOLE mass tell is ``counter_kind == "all"``
-    (set in project._changezone_effect / _MASS_EFFECT_TYPES for ChangeZoneAll /
-    BounceAll). A single-target "return TARGET enchantment card" (Skull of Orm) is
-    GATED OUT — and so is a single-target COMPOSITE ("return target artifact OR
-    enchantment card" — Argivian Find, fixed magnitude 1 = generic recursion value):
-    being composite is NOT a mass proxy. The mass form returns "from ALL graveyards"
-    (Open the Vaults — controller 'any'), so an any-controller mass spell still fires
-    its own-board lanes. Removal/reset (destroy/exile/counter) is a different category
-    and never reaches here."""
+    GATE (the over-fire boundary): the target must be TYPE-restricted. A GENERIC-target
+    recursion ("return target card" / "return target permanent card" — Regrowth,
+    Eternal Witness, Pull from Eternity) is NOT type-gated, so it fires nothing here. An
+    Aura-SUBTYPE recursion ("return target Aura" — Dowsing Shaman) is the narrower
+    voltron/aura care, routed to a LOOSE enchantments_matter member (no dedicated Aura
+    lane exists). Removal/reset (destroy/exile/counter) is a different category and
+    never reaches here."""
     if not isinstance(e, Effect):
         return []
-    if e.category not in ("reanimate", "graveyard_recursion", "bounce"):
+    if e.category not in (
+        "reanimate",
+        "graveyard_recursion",
+        "bounce",
+        "cast_from_zone",
+        "topdeck_stack",
+    ):
         return []
     sub = e.subject
     if not isinstance(sub, Filter) or sub.controller == "opp":
@@ -4845,11 +4897,12 @@ def _type_recursion_lanes(e: object) -> list[str]:
     # hand/library move is not graveyard recursion of the type as a resource.
     if "from:graveyard" not in e.zones and "in:graveyard" not in e.zones:
         return []
-    if e.counter_kind != "all":  # the sole mass tell (CR 115.10)
-        return []
-    # YOUR cards, or a mass spell over all graveyards (Open the Vaults — controller
-    # 'any'); an opp-only mass recursion was already excluded above.
-    return _typed_matters_lanes(Filter(card_types=sub.card_types, controller="you"))
+    lanes = _typed_matters_lanes(Filter(card_types=sub.card_types, controller="you"))
+    # Aura-SUBTYPE recursion → a loose enchantments_matter member (CR 205.3 — Auras are
+    # enchantments), only when no broader card-type lane already fired for it.
+    if not lanes and "aura" in _fsubs_lower(sub):
+        return ["enchantments_matter"]
+    return lanes
 
 
 # Batch 6 — grant_keyword lanes. The granted keyword rides in Effect.counter_kind.
@@ -5458,24 +5511,52 @@ def extract_signals_ir(
                 gsub = _generic_board_subject(e.subject)
                 for grant_lane in _typed_matters_lanes(gsub):
                     add(grant_lane, "you", "", e.raw)
-            # enchantments_matter token DOER (Aura/Role makers). A make_token of an
-            # Enchantment subject ("create a Role / Aura enchantment token",
-            # Enchantment-creature-token makers) → you make enchantments.
+            # artifacts_matter / enchantments_matter BECOMES-TYPE DOER: a "becomes a/an
+            # artifact|enchantment (creature)" type-grant (Sydri, Karn's Touch animate
+            # your artifacts; Argent Mutation, Titania's Song grant the artifact type
+            # for affinity/combo). phase drops the granted type to a subject=None
+            # carrier; project._becomes_type_markers recovers it as a `becomes_type`
+            # marker whose subject carries the granted card-type.
+            if e.category == "becomes_type":
+                for bt_lane in _typed_matters_lanes(e.subject):
+                    add(bt_lane, "you", "", e.raw)
+            # artifacts_matter / enchantments_matter token + sac-payoff DOER. A
+            # make_token of an Artifact subject — incl. a Treasure/Clue/Food/Powerstone
+            # resource-token maker phase carries by SUBTYPE with an empty card_types
+            # (CR 205.3g; Beza, Atsushi, Emissary Green) — feeds affinity/metalcraft, so
+            # it fires artifacts_matter; an Enchantment-token maker ("create a Role/Aura
+            # enchantment token" — Gylwain, Ellivere; Enchantment-creature tokens) fires
+            # enchantments_matter. The SAC PAYOFF is symmetric: a `sacrifice` of an
+            # artifact/enchantment (Atog-style outlet, "sacrifice two Foods" — Giant
+            # Opportunity) values having that type's permanents as fodder (CR 701.16),
+            # so it opens the lane too — the same maker+sac-payoff pairing the
+            # token-subtype lanes (clue/food/treasure) read. Scoped to YOU (a
+            # make_token scope you/any; a sacrifice over a non-opp subject/scope).
             esub = e.subject
+            if e.category == "make_token" and e.scope in ("you", "any"):
+                if _is_artifact_subject(esub):
+                    add("artifacts_matter", "you", "", e.raw)
+                if isinstance(esub, Filter) and "Enchantment" in esub.card_types:
+                    add("enchantments_matter", "you", "", e.raw)
             if (
-                isinstance(esub, Filter)
-                and "Enchantment" in esub.card_types
-                and e.category == "make_token"
-                and e.scope in ("you", "any")
+                e.category == "sacrifice"
+                and isinstance(esub, Filter)
+                and esub.controller != "opp"
+                and e.scope != "opp"
             ):
-                add("enchantments_matter", "you", "", e.raw)
-            # artifacts_matter / enchantments_matter MASS-RECURSION DOER (Crystal
-            # Chimes, Replenish, Open the Vaults — return ALL / up-to-X artifact and/or
-            # enchantment cards from a graveyard). ONLY the MASS form fires (CR 115.10):
-            # a reanimate / graveyard-recursion / graveyard→hand bounce marked
-            # counter_kind="all", OR a composite at any controller. A single-target
-            # "return TARGET enchantment card" (Skull of Orm, Argivian Find — CR 115.1)
-            # is gated out by _type_recursion_lanes. Removal is a different category.
+                if _is_artifact_subject(esub):
+                    add("artifacts_matter", "you", "", e.raw)
+                if "Enchantment" in esub.card_types:
+                    add("enchantments_matter", "you", "", e.raw)
+            # artifacts_matter / enchantments_matter TYPE-RECURSION DOER: a graveyard
+            # recursion (reanimate / graveyard→hand bounce / graveyard→library) whose
+            # target is FILTERED to the card type — SINGLE-target ("return target
+            # enchantment card" — Auramancer, Monk Idealist; "return target artifact
+            # card" — Refurbish, Argivian Archaeologist) OR MASS ("return all
+            # enchantment cards" — Crystal Chimes, Open the Vaults). The discriminator
+            # is the TYPE, not mass-vs-single (CR 115.1/115.10) — type-gating = useful
+            # in that type's deck. Composite fires both; generic-target ("return target
+            # card" — Regrowth) fires nothing; Aura-subtype → loose enchantments member.
             for rec_lane in _type_recursion_lanes(e):
                 add(rec_lane, "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
@@ -6051,6 +6132,14 @@ def extract_signals_ir(
             if cat == "token_subtype_ref" and e.counter_kind in _TOKEN_SUBTYPE_KEYS:
                 tk, ts = _TOKEN_SUBTYPE_KEYS[e.counter_kind]
                 add(tk, ts, "", e.raw)
+            # An artifact-token-subtype cares-about ref ("Treasures you control", "Clues
+            # you control") also feeds artifacts_matter (CR 205.3g — those tokens are
+            # artifacts; Confront the Unknown, Academy Manufactor payoffs).
+            if (
+                cat == "token_subtype_ref"
+                and e.counter_kind in _ARTIFACT_TOKEN_SUBTYPES
+            ):
+                add("artifacts_matter", "you", "", e.raw)
             # Modal keyword mechanics — own CR-accurate category fanning to EVERY mode
             # it touches, instead of being flattened into a single facet. The keyword
             # maps already fire the primary lane (amass→tokens_matter,
@@ -6391,6 +6480,17 @@ def extract_signals_ir(
             if ev == "dies" and _filter_controller(trig.subject) == "you":
                 for dies_lane in _typed_matters_lanes(trig.subject):
                     add(dies_lane, "you", "", "")
+            # artifacts_matter / enchantments_matter ABILITY-PAYOFF DOER: "whenever you
+            # activate an ability of an artifact, … copy it" (Kurkesh, Artificer Class).
+            # phase tags the ability-activation trigger as event='other' but keeps the
+            # ACTIVATED-OBJECT type on the trigger subject Filter. A deck rewarding its
+            # own artifact activations cares about running many (CR 602/113). Gated on a
+            # type-filtered subject scoped !=opp — an OPPONENT-activates punisher (Harsh
+            # Mentor, Immolation Shaman, "ability of an artifact, creature, or land")
+            # collapses to subject=None and never fires.
+            if ev == "other" and trig.scope != "opp":
+                for abil_lane in _typed_matters_lanes(trig.subject):
+                    add(abil_lane, "you", "", "")
             if ev in ("combat_damage", "deals_damage"):
                 add("combat_damage_matters", "opponents", "", "")
                 if trig.scope == "opp":

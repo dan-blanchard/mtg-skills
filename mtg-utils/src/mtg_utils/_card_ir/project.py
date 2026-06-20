@@ -1399,6 +1399,28 @@ def _project_face(record: dict) -> Face:
     sac_grant_markers = _sacrifice_grant_markers(record, abilities)
     if sac_grant_markers:
         abilities.append(Ability(kind="static", effects=tuple(sac_grant_markers)))
+    # Typed sacrifice ACTIVATION-COST markers (ADR-0027 artifacts/enchantments
+    # cost-payer): "Sacrifice an artifact: …" (Atog, Krark-Clan Ironworks) / "Sacrifice
+    # an enchantment: …". phase keeps the activated ability but collapses the cost to a
+    # bare "sacrifice" token, dropping the sacrificed TYPE — so the typeless cost-parts
+    # arm fires sacrifice_matters but the artifacts/enchantments lane has no tell.
+    # Surface a sacrifice marker carrying the sacrificed object's typed Filter so the
+    # artifacts/enchantments sac-payoff arm fires (sacrifice_matters already fires off
+    # the cost token, so this adds no new sac firing). Artifact/Enchantment only.
+    typed_cost_markers = _typed_sacrifice_cost_markers(record)
+    if typed_cost_markers:
+        abilities.append(Ability(kind="static", effects=tuple(typed_cost_markers)))
+    # Becomes-an-artifact / enchantment TYPE-GRANT markers (ADR-0027): "target
+    # noncreature artifact becomes an artifact creature" (Sydri, Karn's Touch — animate
+    # your artifacts) and "<permanent> becomes an artifact in addition to its other
+    # types" (Argent Mutation, Titania's Song — grant the artifact type for affinity /
+    # combo). phase parses these as a base_pt_set / animate / state with subject=None,
+    # losing the granted TYPE (it survives only in the effect raw). Surface a
+    # becomes_type marker carrying the granted card-type so the artifacts/enchantments
+    # lane fires.
+    becomes_markers = _becomes_type_markers(abilities)
+    if becomes_markers:
+        abilities.append(Ability(kind="static", effects=tuple(becomes_markers)))
     # Life-loss markers (ADR-0027 lifeloss_matters): a self pay-life additional cost /
     # free-spell pitch (Bitter Triumph, Contagion, K'rrik) → lose_life scope you; a
     # modal-bullet opponents drain phase swallowed into a `choose` (Inquisitor Exarch,
@@ -3976,6 +3998,104 @@ def _sacrifice_cost_markers(record: dict, abilities: list[Ability]) -> list[Effe
             raw="additional cost: sacrifice a permanent",
         )
     ]
+
+
+# Artifact/Enchantment card-types whose typed sacrifice ACTIVATION cost opens the
+# matching matters lane (ADR-0027 cost-payer). Other typed sac costs (creature,
+# permanent, land) are read by the existing sacrifice/land-sac lanes off the cost
+# token, so only these two need the type recovered.
+_COST_PAYER_TYPES = frozenset({"Artifact", "Enchantment"})
+
+
+def _typed_sacrifice_cost_markers(record: dict) -> list[Effect]:
+    """One sacrifice marker per ABILITY whose activation cost sacrifices an
+    Artifact / Enchantment ("Sacrifice an artifact: …" — Atog, Krark-Clan Ironworks;
+    "Sacrifice an enchantment: …"). phase keeps the activated ability but collapses the
+    cost to a bare ``sacrifice`` token, dropping the sacrificed object's TYPE — so the
+    artifacts/enchantments cost-payer lane has no tell (sacrifice_matters still fires
+    off the cost token). Surfaces the sacrificed Filter as a marker subject so the
+    artifacts/enchantments sac-payoff arm reads it. ADR-0027 cost-payer shape."""
+    markers: list[Effect] = []
+    seen: set[tuple[str, ...]] = set()
+    for ab in record.get("abilities") or []:
+        subject = _typed_sacrifice_cost_target(ab.get("cost"))
+        if subject is None:
+            continue
+        key = subject.card_types
+        if key in seen:
+            continue
+        seen.add(key)
+        markers.append(
+            Effect(
+                category="sacrifice",
+                scope="you",
+                subject=subject,
+                raw=f"cost: sacrifice {' or '.join(subject.card_types).lower()}",
+            )
+        )
+    return markers
+
+
+def _typed_sacrifice_cost_target(node: object) -> Filter | None:
+    """The Filter of an Artifact/Enchantment Sacrifice cost anywhere under ``node`` (an
+    activation ``cost`` subtree). None when there is no such typed Sacrifice cost — a
+    bare/SelfRef sac, a land/creature/permanent sac, or no sac at all."""
+    if isinstance(node, list):
+        for x in node:
+            r = _typed_sacrifice_cost_target(x)
+            if r is not None:
+                return r
+        return None
+    if not isinstance(node, dict):
+        return None
+    if _norm(node.get("type")) == "sacrifice":
+        subject = _filter(node.get("target"))
+        if subject is not None and (set(subject.card_types) & _COST_PAYER_TYPES):
+            return subject
+    for v in node.values():
+        r = _typed_sacrifice_cost_target(v)
+        if r is not None:
+            return r
+    return None
+
+
+# "becomes a/an artifact|enchantment" — a TYPE-GRANT (animate / grant the type) whose
+# granted card-type phase drops to a subject=None base_pt_set/animate/state. Anchored
+# on "becomes" + the type so a token "create a token that's an artifact" (a maker, not
+# a grant) and a clone "becomes a copy of" never match.
+_BECOMES_TYPE_RE = re.compile(
+    r"becomes? (?:a|an) (?:\w+ )*?(artifact|enchantment)\b", re.IGNORECASE
+)
+
+
+def _becomes_type_markers(abilities: list[Ability]) -> list[Effect]:
+    """One becomes_type marker per distinct Artifact/Enchantment a "becomes a/an
+    <type>" type-grant confers (Sydri, Karn's Touch, Argent Mutation, Titania's Song).
+    Read off the projected effect raws (the type survives there after phase drops it to
+    a subject=None base_pt_set/animate/state). Skipped when a structural make_token or
+    clone already carries the type (a token maker / copy is not a type-grant)."""
+    markers: list[Effect] = []
+    seen: set[str] = set()
+    for ab in abilities:
+        for e in ab.effects:
+            if e.category in ("make_token", "clone"):
+                continue
+            m = _BECOMES_TYPE_RE.search(e.raw or "")
+            if not m:
+                continue
+            ctype = m.group(1).capitalize()
+            if ctype in seen:
+                continue
+            seen.add(ctype)
+            markers.append(
+                Effect(
+                    category="becomes_type",
+                    scope="you",
+                    subject=Filter(card_types=(ctype,), controller="you"),
+                    raw=f"grant: becomes a {ctype.lower()}",
+                )
+            )
+    return markers
 
 
 # Sac-outlet shapes phase keeps only in an opaque raw / drops to a body effect

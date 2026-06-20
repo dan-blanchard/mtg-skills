@@ -1530,10 +1530,12 @@ def test_mass_recursion_fires_matters_lane():
     assert _matter_keys(ir) == {("enchantments_matter", "")}
 
 
-def test_single_target_recursion_does_not_fire_matters_lane():
-    # Skull of Orm — "return TARGET enchantment card" (no mass tell, fixed magnitude 1
-    # = generic recursion value, CR 115.1). Argivian Find (composite single-target) is
-    # likewise gated out — only "all/up-to-X" mass spells carry both types.
+def test_single_target_recursion_fires_matters_lane():
+    # SETTLED RULE (ADR-0027): a single-target TYPE-RESTRICTED recursion fires the lane
+    # — the discriminator is the target FILTER's card-type, not mass-vs-single (CR
+    # 115.1/115.10), since type-gating = only useful in that type's deck. Skull of Orm
+    # ("return TARGET enchantment card") fires enchantments_matter; Argivian Find
+    # (single-target COMPOSITE "artifact OR enchantment card") fires BOTH.
     skull = _ir(
         Ability(
             kind="activated",
@@ -1551,7 +1553,7 @@ def test_single_target_recursion_does_not_fire_matters_lane():
             ),
         )
     )
-    assert _matter_keys(skull) == set()
+    assert _matter_keys(skull) == {("enchantments_matter", "")}
     argivian = _ir(
         Ability(
             kind="spell",
@@ -1568,7 +1570,28 @@ def test_single_target_recursion_does_not_fire_matters_lane():
             ),
         )
     )
-    assert _matter_keys(argivian) == set()
+    assert _matter_keys(argivian) == {
+        ("artifacts_matter", ""),
+        ("enchantments_matter", ""),
+    }
+
+
+def test_generic_target_recursion_does_not_fire_matters_lane():
+    # The over-fire boundary: a GENERIC-target recursion ("return target card" —
+    # Regrowth; "return target permanent card") is NOT type-gated, so it fires nothing.
+    regrowth = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="bounce",
+                    subject=Filter(controller="you", predicates=("InZone",)),
+                    zones=("in:graveyard",),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(regrowth) == set()
 
 
 def test_composite_mass_recursion_fires_both_lanes_any_controller():
@@ -1593,6 +1616,143 @@ def test_composite_mass_recursion_fires_both_lanes_any_controller():
         ("artifacts_matter", ""),
         ("enchantments_matter", ""),
     }
+
+
+def test_aura_subtype_recursion_routes_to_enchantments():
+    # Dowsing Shaman — "return target Aura" (CR 205.3 — Auras are enchantments) routes
+    # to a loose enchantments_matter member (no dedicated Aura lane).
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="bounce",
+                    subject=Filter(
+                        subtypes=("Aura",), controller="you", predicates=("InZone",)
+                    ),
+                    zones=("in:graveyard",),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("enchantments_matter", "")}
+
+
+# ── token-maker + sac-payoff + cost-payer + becomes + ability-payoff (ADR-0027) ─
+
+
+def test_artifact_token_maker_fires_artifacts_lane():
+    # Beza / Emissary Green — a Treasure-token maker phase carries by SUBTYPE with an
+    # empty card_types tuple (CR 205.3g) still fires artifacts_matter.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you"),
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=("Treasure",), predicates=("Token",)),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("artifacts_matter", "")}
+
+
+def test_sac_artifact_effect_fires_artifacts_lane():
+    # Giant Opportunity — "sacrifice two Foods" (artifact-token sac payoff) fires
+    # artifacts_matter (Food is an artifact token).
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="sacrifice",
+                    scope="you",
+                    subject=Filter(subtypes=("Food",), controller="you"),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("artifacts_matter", "")}
+
+
+def test_sac_an_artifact_cost_fires_artifacts_lane():
+    # Atog — "Sacrifice an artifact: …" (cost-payer); project surfaces the typed
+    # sacrifice marker so artifacts_matter fires.
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="sacrifice",
+                    scope="you",
+                    subject=Filter(card_types=("Artifact",), controller="you"),
+                    raw="cost: sacrifice artifact",
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("artifacts_matter", "")}
+
+
+def test_becomes_artifact_grant_fires_artifacts_lane():
+    # Sydri / Karn's Touch — a becomes_type marker (granted Artifact card-type).
+    ir = _ir(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="becomes_type",
+                    scope="you",
+                    subject=Filter(card_types=("Artifact",), controller="you"),
+                    raw="grant: becomes a artifact",
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("artifacts_matter", "")}
+
+
+def test_ability_of_artifact_trigger_fires_artifacts_lane():
+    # Kurkesh — "whenever you activate an ability of an artifact" (event='other',
+    # typed subject, scope != opp).
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="other",
+                scope="any",
+                subject=Filter(card_types=("Artifact",), predicates=("InZone",)),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("artifacts_matter", "")}
+
+
+def test_opponent_ability_punisher_does_not_fire_artifacts_lane():
+    # Harsh Mentor — "whenever an OPPONENT activates an ability …" is a punisher; phase
+    # collapses the multi-type subject to None, so it never fires the own-payoff lane.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="other", scope="opp", subject=None),
+        )
+    )
+    assert _matter_keys(ir) == set()
+
+
+def test_investigate_keyword_fires_artifacts_lane():
+    # Deduce / Bygone Bishop — Investigate (CR 701.27) makes a Clue (a colorless
+    # ARTIFACT); the Scryfall keyword is the anchor (phase drops the Clue subtype).
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="draw"),)))
+    keys = {
+        (s.key, s.subject)
+        for s in extract_signals_ir({"name": "T", "keywords": ["Investigate"]}, ir)
+        if s.key == "artifacts_matter"
+    }
+    assert keys == {("artifacts_matter", "")}
 
 
 # ── include_membership threading (ADR-0027 membership-reuse pattern) ───────────

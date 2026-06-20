@@ -3523,3 +3523,109 @@ def test_norm_counter_kind_recovers_garbled_plus_one():
     assert _norm_counter_kind("P1P1") == "p1p1"
     assert _norm_counter_kind("Oil") == "oil"
     assert _norm_counter_kind("study") == "study"
+
+
+# ── typed sacrifice-cost markers (ADR-0027 artifacts/enchantments cost-payer) ──
+
+
+def _sac_cost_activated(type_filters: list[str]):
+    """An activated ability whose cost sacrifices a typed permanent (Atog-style)."""
+    return {
+        "name": "T",
+        "scryfall_oracle_id": "sc-cost",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "Sacrifice an artifact: This creature gets +2/+2.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {"type": "Pump", "amount": {"power": 2, "toughness": 2}},
+                "cost": {
+                    "type": "Sacrifice",
+                    "target": {"type": "Typed", "type_filters": type_filters},
+                    "count": 1,
+                },
+            }
+        ],
+    }
+
+
+def test_typed_sacrifice_cost_marks_artifact():
+    """'Sacrifice an artifact: …' (Atog) — phase drops the sacrificed TYPE off the
+    bare 'sacrifice' cost token; a sacrifice marker recovers the Artifact subject."""
+    card = project_card([_sac_cost_activated(["Artifact"])])
+    sac = [
+        e
+        for e in _effects(card)
+        if e.category == "sacrifice"
+        and isinstance(e.subject, Filter)
+        and "Artifact" in e.subject.card_types
+    ]
+    assert sac
+    assert sac[0].scope == "you"
+
+
+def test_typed_sacrifice_cost_marks_enchantment():
+    card = project_card([_sac_cost_activated(["Enchantment"])])
+    assert any(
+        e.category == "sacrifice"
+        and isinstance(e.subject, Filter)
+        and "Enchantment" in e.subject.card_types
+        for e in _effects(card)
+    )
+
+
+def test_typed_sacrifice_cost_creature_emits_no_typed_marker():
+    """A 'Sacrifice a creature:' cost is read by the existing sac lane off the cost
+    token; it is NOT an artifact/enchantment cost-payer, so no marker is appended."""
+    card = project_card([_sac_cost_activated(["Creature"])])
+    # No appended cost: marker with an Artifact/Enchantment subject.
+    assert not any(
+        e.category == "sacrifice"
+        and isinstance(e.subject, Filter)
+        and (e.subject.card_types in (("Artifact",), ("Enchantment",)))
+        and (e.raw or "").startswith("cost: sacrifice")
+        for e in _effects(card)
+    )
+
+
+# ── becomes-an-artifact/enchantment type-grant markers (ADR-0027) ─────────────
+
+
+def test_becomes_artifact_creature_marks_artifact():
+    """'Target noncreature artifact becomes an artifact creature' (Sydri, Karn's
+    Touch) — phase drops the granted type to a subject=None base_pt_set; a
+    becomes_type marker recovers the Artifact card-type."""
+    rec = _spell(
+        {"type": "Unimplemented"},
+        "Target noncreature artifact becomes an artifact creature with power and "
+        "toughness each equal to its mana value until end of turn.",
+    )
+    card = project_card([rec])
+    bt = [e for e in _effects(card) if e.category == "becomes_type"]
+    assert bt
+    assert bt[0].subject == Filter(card_types=("Artifact",), controller="you")
+
+
+def test_becomes_enchantment_marks_enchantment():
+    rec = _spell(
+        {"type": "Unimplemented"},
+        "Target permanent becomes an enchantment in addition to its other types.",
+    )
+    card = project_card([rec])
+    assert any(
+        e.category == "becomes_type"
+        and isinstance(e.subject, Filter)
+        and "Enchantment" in e.subject.card_types
+        for e in _effects(card)
+    )
+
+
+def test_becomes_a_copy_is_not_a_becomes_type_grant():
+    """A clone ('becomes a copy of target creature') is NOT a type-grant — the
+    becomes_type marker must not fire on it."""
+    rec = _spell(
+        {"type": "Unimplemented"},
+        "Target creature becomes a copy of another target creature.",
+    )
+    card = project_card([rec])
+    assert not any(e.category == "becomes_type" for e in _effects(card))
