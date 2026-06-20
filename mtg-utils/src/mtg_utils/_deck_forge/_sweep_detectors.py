@@ -93,12 +93,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value",
     },
-    {
-        "key": "mass_removal",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "destroy all (?:other )?(?:nonland )?(?:permanents|creatures|artifacts|enchantments|other creatures)|deals? \\d+ damage to each (?:creature|nonlegendary creature|other creature)|exile all (?:creatures|permanents)|exile all (?:black|white|blue|red|green) creatures|all creatures get -\\d|destroy all [^.]*creatures except|destroy all other creatures",
-    },
+    # ADR-0027: mass_removal migrated to the Card IR — a BOARD WIPE (CR 115.10) is the
+    # counter_kind=='all' "each/all" discriminator on a destroy/exile/damage of a
+    # battlefield permanent type, or the negative all-creatures pump (Languish/Toxic
+    # Deluge). The structural gate is STRICTLY broader-and-cleaner than this regex: it
+    # drops the regex's EOT-modal debuff / exile-your-own-board / mass-reanimation
+    # over-fires and adds the typed/predicate sweeps the regex missed (Maelstrom Pulse,
+    # Earthquake, Breath Weapon). Land destruction (Armageddon) and graveyard exile
+    # (Living Death) are excluded by the battlefield-type + graveyard-zone gates. This
+    # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered in
+    # signal_specs.py (the rebuild-after-wrath package + indestructible serve keyword).
     {
         "key": "debuff_matters",
         "scope": "any",
@@ -456,12 +460,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # This SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses
     # the deleted regex. (is_widen_of removal_matters is preserved structurally — the
     # destroy effect still opens removal_matters where it qualifies.)
-    {
-        "key": "anthem_static",
-        "scope": "you",
-        "is_widen_of": "team_buff",
-        "regex": "(?:other [a-z]+ creatures|creatures you control|[a-z]+ creatures you control|nonblack creatures|other creatures) get \\+\\d/\\+\\d",
-    },
+    # ADR-0027: anthem_static migrated to the Card IR — a STATIC +N/+N over a creature
+    # GROUP (extract_signals_ir: ab.kind=='static', pump Effect, amount.factor>=0,
+    # scope!='opp', subject a creature group). The structural gate is strictly cleaner
+    # than this regex: ab.kind=='static' drops the regex's one-shot / until-end-of-turn
+    # pump over-fires (Charge, Overcome, Steadfast Unicorn, planeswalker minus
+    # abilities) and factor>=0/scope!='opp' drops the debuff half of a split anthem
+    # (Elesh Norn's -2/-2). It also adds the typed/subtype/predicate anthems the
+    # narrow regex subject-phrase list missed. is_widen_of='team_buff' is preserved by
+    # the serve spec. This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the label
+    # and the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027: all_creatures_kw_grant migrated to the Card IR — detected
     # structurally from the GrantKeyword effect whose subject is "all creatures"
     # (extract_signals_ir's grant_keyword branch + _is_all_creatures_grant). Its
@@ -627,12 +635,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # subject (_is_mass_bounce_subject), excluding graveyard recursion. This
     # SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses the
     # deleted regex.
-    {
-        "key": "activated_draw",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\{t\\}: draw a card",
-    },
+    # ADR-0027: activated_draw migrated to the Card IR — a TAP-to-DRAW activated engine
+    # is an Ability(kind=='activated') whose cost contains 'tap' (the {T}: gate the
+    # cost field now carries) and an Effect(category=='draw') (extract_signals_ir,
+    # cost-based lanes). The looser 'tap' in cost catches the {N}{T}: draw rocks/lands
+    # (Arch of Orazca, Bonders' Enclave) the literal `{t}: draw a card` regex missed,
+    # while sacself/discardself/paylife-cost draws (Forgotten Cave, Erebos) lack 'tap'
+    # and stay out. This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the label
+    # and the serve spec stays hand-registered in signal_specs.py.
     {
         "key": "forced_attack",
         "scope": "any",

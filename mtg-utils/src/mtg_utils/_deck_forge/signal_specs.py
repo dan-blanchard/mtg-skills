@@ -2376,10 +2376,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # A repeatable-wrath commander (Mageta) wants to rebuild after the sweep:
     # reanimation (Breath of Life) plus indestructible bombs (Zetalpa) that survive it.
+    # ADR-0027: mass_removal migrated to the Card IR (detection moved to the structural
+    # counter_kind=='all' destroy/exile/damage + negative-pump arms; its SWEEP_DETECTORS
+    # row is deleted). The SERVE pool stays oracle-defined (board wipes + the
+    # rebuild-after-wrath package), so pass the deleted regex inline so the
+    # auto-register loop's missing-row lookup never runs.
     ("mass_removal", "you"): _sweep_spec_with_extras(
         "mass_removal",
         (_REANIMATION_EXTRA, _BOARD_PROTECTION_EXTRA),
         serve_keywords=("indestructible",),
+        regex=(
+            "destroy all (?:other )?(?:nonland )?(?:permanents|creatures|artifacts"
+            "|enchantments|other creatures)|deals? \\d+ damage to each (?:creature"
+            "|nonlegendary creature|other creature)|exile all (?:creatures|permanents)"
+            "|exile all (?:black|white|blue|red|green) creatures|all creatures get -\\d"
+            "|destroy all [^.]*creatures except|destroy all other creatures"
+        ),
     ),
     ("variable_pt", "you"): _sweep_spec_with_extras(
         "variable_pt", (_POWER_FLING_EXTRA,)
@@ -4064,6 +4076,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|creatures you control of the chosen colou?r)"
         r" get \+\d/\+\d",
         serve_not=r"get \+\d/\+\d[^.]*until end of turn",
+    ),
+    # ADR-0027: activated_draw had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the structural tap-cost + draw-effect IR arm). It had NO
+    # hand-written serve, so the sweep auto-register loop built it; now that the row is
+    # gone, hand-register the spec the loop used to build, reusing SWEEP_LABELS + the
+    # deleted regex (the SERVE pool stays oracle-defined — repeatable {T}:Draw engines).
+    ("activated_draw", "you"): _spec(
+        *SWEEP_LABELS["activated_draw"],
+        {"oracle": r"\{t\}: draw a card"},
+        r"\{t\}: draw a card",
     ),
     # free_creature_payoff (Satoru): the "no mana was spent to cast" payoff wants 0-cost
     # CREATURES (Ornithopter / Memnite / Phyrexian Walker / Kobolds / Shield Sphere) —

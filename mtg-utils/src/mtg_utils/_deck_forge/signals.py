@@ -1264,21 +1264,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"lands? you control phase", re.IGNORECASE),
         "you",
     ),
-    # Repeatable "damage to each creature" board ping (Tibor, Pestilence, Pyrohemia,
-    # Plague Spitter): with deathtouch on the source every ping is lethal (CR 702.2b),
-    # so it's a recurring one-sided board wipe. The repeatable frame (activated cost,
-    # upkeep/end-step trigger, or cast-trigger) is the precision gate -- a one-shot ETB
-    # sweep (Chaos Maw) can't be suited up before it resolves, so it stays out.
-    (
-        "aoe_ping",
-        re.compile(
-            r"\{[^}]*\}[^.]*:[^.]*deals? \d+ damage to each (?:other )?creature"
-            r"|at the beginning of[^.]*deals? \d+ damage to each (?:other )?creature"
-            r"|whenever you cast[^.]*deals? \d+ damage to each (?:other )?creature",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: aoe_ping migrated to the Card IR — a REPEATABLE "damage to each
+    # creature" board ping (Tibor, Pestilence, Pyrohemia) is structurally an Effect
+    # (category=='damage', counter_kind=='all', Creature subject) carried by a
+    # REPEATABLE-FRAME ability: an activated ability whose cost has 'tap'/'mana' but
+    # NOT 'sacself'/'sacrifice' (the {T}: gate the cost field now supplies), OR a
+    # triggered ability on upkeep/end_step/cast_spell (extract_signals_ir, per-ability
+    # loop). A one-shot ETB sweep (Chaos Maw, event='etb') or sac-self pinger
+    # (Bloodfire Colossus, cost='mana,sacself') can't be suited up before it fires, so
+    # both are excluded. This _HAND_FLOOR producer is deleted; the serve spec stays
+    # hand-registered in signal_specs.py (deathtouch on the source so each ping kills).
     # ADR-0027: nonhuman_attackers migrated to the Card IR — detected structurally
     # from an attacks-trigger whose subject Filter carries NotSubtype:Human and a
     # "you"-controller (the dedicated branch in extract_signals_ir). This _HAND_FLOOR
@@ -2541,6 +2536,41 @@ _VOLTRON_KEYWORDS = frozenset(
 # suit up), and conditional self-protection is a resilient-beater tell (Thrun). A real
 # engine (attack/graveyard/tokens/spellcast) still suppresses; voltron isn't its plan.
 _VOLTRON_COMPAT_KEYS = frozenset({"partner_background", "conditional_self_protection"})
+# ADR-0027 tranche2-A: a GO-WIDE-GATE mirror for the migrated anthem_static key. Its
+# regex producer is deleted, so it no longer rides the ``out`` set the CLASS_TRIBES
+# go_wide gate reads (an anthem lord is a go-wide commander, so its own class type
+# becomes a build-around — CR 205.3). Mirror the deleted anthem regex so the regex-path
+# go_wide gate still recognizes a static team-buff; it only feeds the gate (it emits no
+# signal — anthem_static itself is served from the IR). The IR path's go_wide gate sees
+# the real anthem_static signal, so this keeps the two paths' type_matters in parity.
+_ANTHEM_GO_WIDE_MIRROR = re.compile(
+    r"(?:other [a-z]+ creatures|creatures you control|[a-z]+ creatures you control"
+    r"|nonblack creatures|other creatures) get \+\d/\+\d",
+    re.IGNORECASE,
+)
+# ADR-0027 tranche2-A: a HAS-OTHER-PLAN mirror for the migrated aoe_ping key — a
+# "deals N damage to each creature" body (one-shot or repeatable) is a board-ping plan,
+# NOT a vanilla voltron beater, so it silenced the commander-damage voltron tell.
+# Mirrors the deleted aoe_ping _HAND_FLOOR regex exactly; feeds only the gate.
+_AOE_PING_PLAN_MIRROR = re.compile(
+    r"\{[^}]*\}[^.]*:[^.]*deals? \d+ damage to each (?:other )?creature"
+    r"|at the beginning of[^.]*deals? \d+ damage to each (?:other )?creature"
+    r"|whenever you cast[^.]*deals? \d+ damage to each (?:other )?creature",
+    re.IGNORECASE,
+)
+# ADR-0027 tranche2-A: a HAS-OTHER-PLAN mirror for the migrated mass_removal key — a
+# board wipe (on a body or a spell) is a control plan, NOT a vanilla voltron beater, so
+# it silenced the commander-damage voltron tell on a sweep-creature (Chaos Maw, Child
+# of Alara). Mirrors the deleted mass_removal SWEEP_DETECTORS regex EXACTLY (only the
+# old regex's matches, not the broader IR re-supply); feeds only the gate.
+_MASS_REMOVAL_PLAN_MIRROR = re.compile(
+    r"destroy all (?:other )?(?:nonland )?(?:permanents|creatures|artifacts"
+    r"|enchantments|other creatures)|deals? \d+ damage to each (?:creature"
+    r"|nonlegendary creature|other creature)|exile all (?:creatures|permanents)"
+    r"|exile all (?:black|white|blue|red|green) creatures|all creatures get -\d"
+    r"|destroy all [^.]*creatures except|destroy all other creatures",
+    re.IGNORECASE,
+)
 # ADR-0027: a HAS-OTHER-PLAN mirror for the migrated sacrifice_matters key (its regex
 # producer is deleted, so it no longer rides the ``out`` signal set the voltron gate
 # reads). A you-sacrifice plan still silences the commander-damage voltron fallback —
@@ -3415,8 +3445,14 @@ def extract_signals(
         # commander ALSO rewards a board of creatures, so its own class is gated on a
         # go-wide signal; race tribes (Dragon/Kraken) open unconditionally. (CR 205.3.)
         keys_now = {s.key for s in out}
+        # anthem_static's regex producer is deleted (ADR-0027 tranche2-A migration), so
+        # it never rides ``keys_now`` here — the oracle mirror keeps the go_wide gate
+        # aware of a static team-buff so an anthem lord's own class type still opens
+        # (the IR path's go_wide sees the real anthem_static signal; preserves parity).
         _gate = {"creatures_matter", "attack_matters", "anthem_static"}
-        go_wide = bool(keys_now & _gate)
+        go_wide = bool(keys_now & _gate) or bool(
+            _ANTHEM_GO_WIDE_MIRROR.search(card.get("oracle_text") or "")
+        )
         for tok in type_line.split("—", 1)[1].split():
             sub = tok.strip().lower()
             if sub in TRIBAL_SUBTYPES or (sub in CLASS_TRIBES and go_wide):
@@ -3606,6 +3642,16 @@ def extract_signals(
         )
         or _SACRIFICE_PLAN_MIRROR.search(_oracle)
         or _LIFELOSS_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
+        # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
+        # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping
+        # body), which silenced the commander-damage voltron membership tell. Mirror the
+        # two deleted regexes (gate-only — the real lanes are served from the IR) so the
+        # silencing is identical to pre-migration, including the EOT-pump / one-shot
+        # bodies the broad regexes incidentally covered.
+        or _ANTHEM_GO_WIDE_MIRROR.search(_oracle)
+        or _AOE_PING_PLAN_MIRROR.search(_oracle)
+        or _MASS_REMOVAL_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -5048,6 +5094,19 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
 # (raw has "…or land…") and excludes Sharkey (no gain_control effect at all).
 _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECASE)
 
+# mass_removal (ADR-0027): a BOARD WIPE — the counter_kind=='all' "each/all"
+# discriminator on a destroy/exile/damage of a battlefield permanent type, or a
+# negative all-creatures pump (Languish/Toxic Deluge). The battlefield-type gate
+# (NOT Land-only, NOT a graveyard Card/None subject) separates a real sweep from
+# land destruction (Armageddon → land_destruction) and graveyard exile (delve /
+# GY-hate). CR 115.10. The pump arm needs the negative-pump raw because phase drops
+# the -X/-X amount (amount=None), so the "all creatures get -" raw is the only
+# discriminator vs the 1000+ positive all-creatures anthems (Glorious Anthem).
+_MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
+    {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker"}
+)
+_MASS_DEBUFF_RAW = re.compile(r"all .*creatures? .*get -", re.IGNORECASE)
+
 # donate_matters (ADR-0027): a control CHANGE that gives a permanent YOU control to
 # ANOTHER player (CR 701.12 — Donate, Harmless Offering, Zedruu). phase parses these
 # as gain_control with scope='any' (the RECIPIENT — an opponent/other player — is
@@ -6175,6 +6234,45 @@ def extract_signals_ir(
                 and not any("graveyard" in z for z in e.zones)
             ):
                 add("exile_removal", "you", "", e.raw)
+            # mass_removal (ADR-0027): a BOARD WIPE (CR 115.10) — three arms, all
+            # keyed on the counter_kind=='all' "each/all" mass discriminator phase
+            # isolates from single-target removal. (1) DESTROY/EXILE sweep over a
+            # battlefield permanent type (Wrath, Day of Judgment, Merciless Eviction's
+            # per-mode exile/all, Bane of Progress, In Garruk's Wake, Plague Wind) —
+            # gated to _MASS_REMOVAL_TYPES so "destroy all LANDS" (Armageddon →
+            # land_destruction) and an exile-all over a graveyard Card/None subject
+            # (delve / GY-hate) stay out. (2) DAMAGE sweep over a Creature/Permanent
+            # subject (Pyroclasm, Blasphemous Act) — a player-subject "deal N to each
+            # opponent" group burn carries no creature subject and is excluded. (3)
+            # the -X/-X DEBUFF sweep is the pump arm below (amount dropped to None).
+            if (
+                cat in ("destroy", "exile")
+                and e.counter_kind == "all"
+                and (ftypes & _MASS_REMOVAL_TYPES)
+                # GY-hate / mass reanimation exclusion (mirrors exile_removal): an
+                # "exile all <type> cards from graveyards" (Living Death, Living End,
+                # Gerrard, Scrap Mastery) touches a graveyard zone — that is GY
+                # recursion / hate, NOT a battlefield board wipe (CR 406), excluded.
+                and not any("graveyard" in z for z in e.zones)
+            ):
+                add("mass_removal", "you", "", e.raw)
+            if (
+                cat == "damage"
+                and e.counter_kind == "all"
+                and (ftypes & {"Creature", "Permanent"})
+            ):
+                add("mass_removal", "you", "", e.raw)
+            # mass_removal -X/-X DEBUFF sweep (Languish, Toxic Deluge): phase emits a
+            # pump over a Creature subject but DROPS the negative amount (amount=None),
+            # so the "all creatures get -" raw is the discriminator vs the positive
+            # all-creatures ANTHEM (anthem_static, 1000+ cards). Gate on a creature
+            # subject + the negative-pump raw.
+            if (
+                cat == "pump"
+                and "Creature" in ftypes
+                and _MASS_DEBUFF_RAW.search(e.raw or "")
+            ):
+                add("mass_removal", "you", "", e.raw)
             # opponent_exile_matters (ADR-0027): GRAVEYARD HATE, not permanent removal —
             # fires from the _IR_KEPT_DETECTORS word mirror (the deleted sweep regex)
             # because phase scatters its forms across categories phase doesn't unify
@@ -6211,6 +6309,33 @@ def extract_signals_ir(
                 )
             ):
                 add("untap_engine", "you", "", e.raw)
+            # anthem_static (ADR-0027): a STATIC +N/+N over a creature GROUP — the
+            # team buff you build go-wide to ride (CR 611, continuous). Two structural
+            # discriminators vs over-fire: (1) ab.kind=='static' excludes the one-shot
+            # / until-end-of-turn pump (Charge, Overcome — k='spell'); a temporary pump
+            # is never a static ability. (2) factor>=0 AND scope!='opp' excludes the
+            # DEBUFF half of a split anthem (Elesh Norn's "creatures opponents control
+            # get -2/-2" projects as a SEPARATE pump, factor=-2 scope='opp'). factor>=0
+            # (NOT >0) KEEPS the toughness-only anthems +0/+N (Veteran Armorer, Castle)
+            # whose Quantity.factor encodes the POWER bonus (0) only. The subject must
+            # be a creature GROUP: 'Creature' card_type AND (controller=='you' OR
+            # 'Another' OR a subtype) — a single-target pump (controller 'any', no
+            # Another/subtype) fails the group test and stays out. (widen of team_buff.)
+            if (
+                ab.kind == "static"
+                and e.category == "pump"
+                and e.amount is not None
+                and e.amount.factor >= 0
+                and e.scope != "opp"
+                and isinstance(e.subject, Filter)
+                and "Creature" in e.subject.card_types
+                and (
+                    e.subject.controller == "you"
+                    or "Another" in e.subject.predicates
+                    or bool(e.subject.subtypes)
+                )
+            ):
+                add("anthem_static", "you", "", e.raw)
             if cat == "pump" and e.amount is not None:
                 # scaling_pump = a +X/+X that SCALES with a board count ("for each
                 # creature", "for each +1/+1 counter", domain/devotion/party), NOT a
@@ -6459,6 +6584,21 @@ def extract_signals_ir(
             cost_parts = set(ab.cost.split(","))
             if "sacrifice" in cost_parts:
                 add("sacrifice_matters", "you", "", "")
+            # activated_draw (ADR-0027): a TAP-to-DRAW activated engine — the
+            # repeatable card-advantage source you want to untap (Arch of Orazca,
+            # Bonders' Enclave, Arcane Encyclopedia, Niv-Mizzet). The {T} gate is the
+            # cost field carrying 'tap'; the draw is an Effect category=='draw'. Use
+            # the LOOSER 'tap' in cost (catches the {N}{T}: draw rocks/lands the literal
+            # regex {T}-only anchor missed) — a tap-to-draw engine with an extra mana
+            # cost is still the same engine. A sacself/discardself-cost draw (Forgotten
+            # Cave cycling, cost='discardself,mana') lacks 'tap' → correctly excluded;
+            # a paylife-draw (Erebos, cost='mana,paylife') likewise lacks 'tap'.
+            if (
+                ab.kind == "activated"
+                and "tap" in cost_parts
+                and any(e.category == "draw" for e in ab.effects)
+            ):
+                add("activated_draw", "you", "", "")
             # Batch 2 — a repeatable pay-life COST wants lifegain insurance.
             if "paylife" in cost_parts:
                 add("life_payment_insurance", "you", "", "")
@@ -6497,6 +6637,35 @@ def extract_signals_ir(
                 card.get("oracle_text") or ""
             ):
                 add("counters_matter", "you", "", "")
+        # aoe_ping (ADR-0027): a REPEATABLE "damage to each creature" board ping — with
+        # deathtouch on the source every ping is lethal (CR 702.2b), a recurring
+        # one-sided wipe (Pestilence, Pyrohemia, Tibor and Lumia). The damage half is
+        # the counter_kind=='all' damage over a Creature subject; the REPEATABLE-FRAME
+        # gate is the precision discriminator. Repeatable = (a) an activated ability
+        # whose cost has 'tap' or 'mana' but NOT 'sacself'/'sacrifice' (a one-shot
+        # sac-self pinger — Bloodfire Colossus cost='mana,sacself' — can't be suited up
+        # before it fires, excluded), OR (b) a triggered ability on upkeep / end_step /
+        # cast_spell. A one-shot ETB sweep (Chaos Maw, event='etb') is NOT repeatable
+        # and stays out — the lane's whole point is gearing up the source first.
+        _ap_cost = set(ab.cost.split(",")) if ab.cost else set()
+        _ap_repeatable = (
+            ab.kind == "activated"
+            and not ({"sacself", "sacrifice"} & _ap_cost)
+            and bool({"tap", "mana"} & _ap_cost)
+        ) or (
+            ab.kind == "triggered"
+            and ab.trigger is not None
+            and ab.trigger.event in ("upkeep", "end_step", "cast_spell")
+        )
+        if _ap_repeatable:
+            for e in ab.effects:
+                if (
+                    e.category == "damage"
+                    and e.counter_kind == "all"
+                    and isinstance(e.subject, Filter)
+                    and "Creature" in e.subject.card_types
+                ):
+                    add("aoe_ping", "you", "", e.raw)
         trig = ab.trigger
         if trig is not None:
             # counters_matter (ADR-0027) — a counter-HAVE TRIGGER: "whenever a creature
@@ -7571,6 +7740,33 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "team_buff",
         "destroy_legendary",
         "power_double",
+        # Group "tranche2-A structural sweeps" (ADR-0027) — four removal/buff lanes
+        # phase v0.1.60 now structures cleanly, each migrated from a STRUCTURAL /
+        # cost-bearing IR source (NONE are in _IR_FLOOR_LANES; floor-disabled IR ==
+        # floor-on IR for all four). The IR is strictly broader-and-cleaner than the
+        # deleted regex — it drops the regex's over-fires and adds the typed/predicate
+        # cases the narrow regex missed.
+        #  • activated_draw ← Ability(kind=='activated') with 'tap' in cost + a draw
+        #    Effect (the {T}: gate the cost field now supplies; the loose 'tap' catches
+        #    the {N}{T}: draw rocks the literal `{t}: draw a card` regex missed). The
+        #    5 regex-only are GRANTED {T}:Draw abilities phase folds into the granter.
+        #  • anthem_static ← Ability(kind=='static') pump over a creature GROUP,
+        #    factor>=0 (keeps +0/+N toughness anthems), scope!='opp' (drops the debuff
+        #    half of a split anthem). kind=='static' drops the 303 EOT/one-shot pump
+        #    over-fires the regex caught (Charge, planeswalker minus abilities); a
+        #    ~15-card emblem/phase-parse-gap residual is the accepted tail.
+        #  • aoe_ping ← a counter_kind=='all' damage Effect over a Creature subject on
+        #    a REPEATABLE-FRAME ability (activated tap/mana cost without sacself, or an
+        #    upkeep/end_step/cast_spell trigger). Drops the regex's sacself one-shot
+        #    pingers (Bloodfire Colossus) and one-shot ETB sweeps (Chaos Maw).
+        #  • mass_removal ← a counter_kind=='all' destroy/exile/damage of a battlefield
+        #    permanent type, or a negative all-creatures pump (Languish/Toxic Deluge).
+        #    Battlefield-type + graveyard-zone gates exclude land destruction
+        #    (Armageddon) and mass reanimation/GY-hate (Living Death, Gerrard).
+        "activated_draw",
+        "anthem_static",
+        "aoe_ping",
+        "mass_removal",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -7764,6 +7960,16 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # silence the spurious voltron tell from the IR re-supply (a +1/+1-counter
         # engine — Hardened Scales, Forgotten Ancient — is not a vanilla beater).
         "counters_matter",
+        # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping / mass_removal keys
+        # silenced the spurious commander-damage voltron membership tell when their
+        # (now-deleted) regex producers fired. To preserve pre-migration behavior,
+        # the silencing is done on the regex side via the has_other_plan oracle mirrors
+        # (_ANTHEM_GO_WIDE_MIRROR / _AOE_PING_PLAN_MIRROR / _MASS_REMOVAL_PLAN_MIRROR),
+        # each matching ONLY the old regex's matches — NOT the broader IR re-supply,
+        # which would over-silence the IR-only sweep/anthem bodies the old regex never
+        # caught. So these three are intentionally NOT in this set (the mirror is the
+        # byte-identical gate). activated_draw is a draw engine that never rode the
+        # per-card voltron membership gate at all.
     }
 )
 

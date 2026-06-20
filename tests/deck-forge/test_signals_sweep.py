@@ -28,9 +28,10 @@ def test_sweep_detectors_loaded():
     # lifeloss_matters + removal_matters + the sweep batches oil/starting_life/dice +
     # changeling/creature_cast/fight + the SWEEP batch commander/tap_untap/hand_disruption
     # /opponent_exile/domain/donate + tranche2-B's mass_bounce/power_double/
-    # destroy_legendary/team_buff + earlier batches migrated to the Card IR); it
-    # still guards "a substantial set loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 100
+    # destroy_legendary/team_buff + tranche2-A activated_draw/anthem_static/mass_removal
+    # + earlier batches migrated to the Card IR); it still guards "a substantial set
+    # loads", not an exact count.
+    assert len(SWEEP_DETECTORS) >= 80
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -50,10 +51,12 @@ def test_representative_sweep_keys_fire_from_oracle():
             "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
         ),
         ("topdeck_selection", "Look at the top three cards of your library."),
-        ("mass_removal", "Destroy all creatures."),
-        # ADR-0027: coin_flip / commander_matters / hand_disruption migrated to the Card
-        # IR (their SWEEP_DETECTORS rows are deleted), so they no longer fire from the
-        # regex path — swapped for still-regex sweep keys to keep this check.
+        # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
+        # (tranche2-A) migrated to the Card IR (their SWEEP_DETECTORS rows are deleted),
+        # so they no longer fire from the regex path — swapped for still-regex sweep
+        # keys to keep this check. ("Destroy all creatures." now routes through the IR
+        # mass_removal arm in the hybrid, asserted in test_migrated_keys.)
+        ("debuff_matters", "All creatures get -1/-1 until end of turn."),
         (
             "voltron_matters",
             "Whenever you attach an Equipment to a creature, draw a card.",

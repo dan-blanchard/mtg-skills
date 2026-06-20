@@ -2592,6 +2592,96 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 tranche2-A structural sweeps.
+    #   activated_draw ← Ability(kind="activated", 'tap' in cost) + a draw Effect.
+    #   anthem_static  ← Ability(kind="static") pump over a creature GROUP, factor>=0.
+    #   aoe_ping       ← a counter_kind="all" damage Effect over a Creature subject on
+    #                    a repeatable-frame ability (activated tap/mana cost).
+    #   mass_removal   ← a counter_kind="all" destroy of a battlefield permanent type.
+    "activated_draw": (
+        {
+            "name": "Arch of Orazca",
+            "type_line": "Land",
+            "oracle_text": (
+                "{T}: Add {C}.\nAscend (If you control ten or more permanents, you "
+                "get the city's blessing for the rest of the game.)\n{5}, {T}: Draw "
+                "a card. Activate only if you have the city's blessing."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana,tap",
+                effects=(Effect(category="draw", scope="you", raw="Draw a card."),),
+            )
+        ),
+    ),
+    "anthem_static": (
+        {
+            "name": "Glorious Anthem",
+            "type_line": "Enchantment",
+            "oracle_text": "Creatures you control get +1/+1.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        amount=Quantity(op="fixed", factor=1),
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw="Creatures you control get +1/+1.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "aoe_ping": (
+        {
+            "name": "Pestilence",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "At the beginning of the end step, if no creatures are on the "
+                "battlefield, sacrifice Pestilence.\n{B}: Pestilence deals 1 damage "
+                "to each creature and each player."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana",
+                effects=(
+                    Effect(
+                        category="damage",
+                        counter_kind="all",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="~ deals 1 damage to each creature and each player.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "mass_removal": (
+        {
+            "name": "Wrath of God",
+            "type_line": "Sorcery",
+            "oracle_text": "Destroy all creatures. They can't be regenerated.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="destroy",
+                        counter_kind="all",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="Destroy all creatures.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

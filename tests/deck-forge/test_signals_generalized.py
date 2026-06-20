@@ -1217,9 +1217,84 @@ def test_repeatable_aoe_ping_opens_for_deathtouch_combo():
         "keywords": [],
         "oracle_text": "When this creature enters, it deals 3 damage to each other creature.",
     }
-    assert any(k == "aoe_ping" for k, _, _ in _ksub(tibor))
-    assert any(k == "aoe_ping" for k, _, _ in _ksub(pestilence))
-    assert not any(k == "aoe_ping" for k, _, _ in _ksub(chaos_maw))
+    # ADR-0027 tranche2-A: aoe_ping migrated to the Card IR — a counter_kind="all"
+    # damage Effect over a Creature subject on a REPEATABLE-FRAME ability (a cast-trigger
+    # for Tibor, an activated mana cost for Pestilence). A one-shot ETB sweep (Chaos Maw,
+    # event="etb") is NOT repeatable and must stay out. Asserted via the hybrid.
+    tibor_ir = Card(
+        oracle_id="tibor",
+        name="Tibor and Lumia",
+        faces=(
+            Face(
+                name="Tibor and Lumia",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="cast_spell", scope="you"),
+                        effects=(
+                            Effect(
+                                category="damage",
+                                counter_kind="all",
+                                subject=Filter(card_types=("Creature",)),
+                                raw="~ deals 1 damage to each creature without flying.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    pestilence_ir = Card(
+        oracle_id="pestilence",
+        name="Pestilence",
+        faces=(
+            Face(
+                name="Pestilence",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="mana",
+                        effects=(
+                            Effect(
+                                category="damage",
+                                counter_kind="all",
+                                subject=Filter(card_types=("Creature",)),
+                                raw="~ deals 1 damage to each creature and each player.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    chaos_maw_ir = Card(
+        oracle_id="chaos_maw",
+        name="Chaos Maw",
+        faces=(
+            Face(
+                name="Chaos Maw",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="etb", scope="you"),
+                        effects=(
+                            Effect(
+                                category="damage",
+                                counter_kind="all",
+                                subject=Filter(card_types=("Creature",)),
+                                raw="it deals 3 damage to each other creature.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert any(k == "aoe_ping" for k, _, _ in _ksub_hybrid(tibor, tibor_ir))
+    assert any(k == "aoe_ping" for k, _, _ in _ksub_hybrid(pestilence, pestilence_ir))
+    assert not any(k == "aoe_ping" for k, _, _ in _ksub_hybrid(chaos_maw, chaos_maw_ir))
+    # And the regex path no longer fires it (the _HAND_FLOOR producer is deleted).
+    assert not any(k == "aoe_ping" for k, _, _ in _ksub(tibor))
 
 
 def test_numot_repeatable_land_destruction_opens_lane():
