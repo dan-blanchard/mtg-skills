@@ -2052,6 +2052,30 @@ def test_dropped_static_goad_reward_marker():
     }
 
 
+def test_dropped_static_spell_copy_marker_and_storm_name_exclusion():
+    """A granted/quoted/conditional copy ("copy that spell", "has replicate/casualty/
+    storm/demonstrate") recovers a spell_copy marker, gated to faces with no structural
+    spell_copy; a card merely NAMED "… Storm" (no copy verb, no copy keyword) and a
+    clone ("create a copy of target creature") recover nothing."""
+    djinn = {
+        "oracle_text": "Each instant and sorcery spell you cast has replicate.",
+    }
+    assert "spell_copy" in {e.category for e in _dropped_static_markers(djinn, [])}
+    kefnet = {"oracle_text": "Whenever you reveal an instant card, copy that card."}
+    assert "spell_copy" in {e.category for e in _dropped_static_markers(kefnet, [])}
+    # gated: a face already carrying structural spell_copy recovers nothing
+    structural = [Ability(kind="spell", effects=(Effect(category="spell_copy"),))]
+    assert all(
+        e.category != "spell_copy" for e in _dropped_static_markers(kefnet, structural)
+    )
+    # Storm-NAME over-fire excluded (no copy verb / keyword)
+    comet = {"oracle_text": "Comet Storm deals X damage divided as you choose."}
+    assert "spell_copy" not in {e.category for e in _dropped_static_markers(comet, [])}
+    # clone excluded (copy of a creature, not a spell/card-copy)
+    clone = {"oracle_text": "Create a token that's a copy of target creature."}
+    assert "spell_copy" not in {e.category for e in _dropped_static_markers(clone, [])}
+
+
 def test_dropped_static_scavenge_not_ability_word():
     """Anchored on "has scavenge" (the grant), so Malanthrope's "Scavenge the Dead"
     ability WORD (CR 207.2c — no rules meaning) recovers nothing."""

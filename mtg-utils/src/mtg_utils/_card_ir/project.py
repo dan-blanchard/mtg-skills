@@ -3301,6 +3301,29 @@ _CRIME_REF = re.compile(
 _COUNTER_TARGET_REF = re.compile(
     r"counter target (?:[a-z-]+ )*(?:spell|ability)", re.IGNORECASE
 )
+# Spell-copy (CR 707) GRANTED / QUOTED / CONDITIONAL phase drops to raw: a "copy
+# that/it/this/the … spell|card" clause phase loses in a modal bullet (Twinferno),
+# a granted/quoted ability (Ral's emblem, God-Eternal Kefnet), a coin-flip /
+# replacement / reflexive body (Krark, Pyromancer's Goggles), or a storm-style "copy
+# it for each spell cast" reminder (Storm Force of Nature, Crackling Spellslinger).
+# The structural CopySpell effect + the storm/replicate/conspire/casualty KEYWORDS
+# cover the rest; this is the keyword-less granted/conditional residual. EXCLUDES
+# "copy of …" (clone — "create a copy of target creature" is CopyTokenOf / BecomeCopy,
+# the clone lanes, not spell-copy) by anchoring "copy <pron> … spell/card" and "copy
+# it for each spell". Gated to faces with no structural spell_copy.
+_COPY_SPELL_REF = re.compile(
+    r"\bcop(?:y|ies)\s+(?:that|it|this|the|each|target)\b[^.]*\b(?:spell|card)\b"
+    r"|\bcop(?:y|ies)\s+(?:it|that spell)\s+for each spell\b"
+    r"|\bcop(?:y|ies)\s+(?:it|that spell)(?:\s+three times| twice| \d+ times)"
+    # Keyword-less GRANTER of a spell-copy keyword ("… spell you cast has/have
+    # casualty/replicate/conspire/storm/demonstrate" — Anhelo, Djinn Illuminatus,
+    # Wort, Threefold Signal, Crackling Spellslinger, The Twelfth Doctor). The HAVERS
+    # ride the Scryfall keyword; this is the conferral phase folds into the cast-grant
+    # carrier. Anchored on "has/have <copy-keyword>" so a card NAMED "… Storm" can't
+    # match.
+    r"|\b(?:has|have)\s+(?:casualty|replicate|conspire|storm|demonstrate)\b",
+    re.IGNORECASE,
+)
 # Low-power payoff (CR 208) — "creature(s) you control with power N or less" buff /
 # evasion / etb. phase DROPS the power threshold predicate on these effect/trigger
 # subject shapes (the subject is None, or the Filter has empty predicates), so the
@@ -4074,6 +4097,16 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     )
     if not has_counter and (m := _COUNTER_TARGET_REF.search(text)) is not None:
         markers.append(Effect(category="counter_spell", scope="any", raw=m.group(0)))
+    # Spell-copy GRANTED / QUOTED / CONDITIONAL ("copy that/it/this spell|card", "copy
+    # it for each spell cast") phase lost in a modal / granted / coin-flip / storm-
+    # reminder carrier → a spell_copy marker, gated to faces with no structural
+    # spell_copy. The CopySpell effect + storm/replicate/conspire keywords cover the
+    # rest; the "copy of <creature>" clone form is excluded by the spell|card anchor.
+    has_spell_copy = any(
+        e.category == "spell_copy" for a in abilities for e in a.effects
+    )
+    if not has_spell_copy and (m := _COPY_SPELL_REF.search(text)) is not None:
+        markers.append(Effect(category="spell_copy", scope="you", raw=m.group(0)))
     # "Life total becomes <X>" / "double … life total" phase mis-tagged or dropped →
     # a set_life marker, gated to faces with no structural set_life effect.
     has_set_life = any(e.category == "set_life" for a in abilities for e in a.effects)
