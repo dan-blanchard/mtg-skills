@@ -2129,7 +2129,23 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     grants_ability_or_type = False
     for m in st.get("modifications") or []:
         mt = _norm(m.get("type"))
-        if mt in _PUMP_MODS:
+        if mt == "changecontroller":
+            # A continuous static that CHANGES the controller of the affected set —
+            # the canonical theft Auras (Control Magic, Mind Control, Confiscate,
+            # Take Possession) and steal statics. phase models these as a static
+            # ChangeController modification (NOT a gaincontrol EFFECT), so the
+            # gain_control effect-category never fired. Surface it as a gain_control
+            # effect so the theft lane reads it. CR 805/720. The affected set is what's
+            # stolen (EnchantedBy creature); scope is you (you take control).
+            out.append(
+                Effect(
+                    category="gain_control",
+                    scope="you",
+                    subject=affected,
+                    raw=desc,
+                )
+            )
+        elif mt in _PUMP_MODS:
             is_pump = True
             if pump_amount is None:
                 pump_amount = _quantity(m.get("value"))

@@ -3735,7 +3735,11 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # or a mass untap) instead of this entry. See extract_signals_ir.
     "proliferate": ("proliferate_matters", "you"),
     "topdeck_select": ("topdeck_selection", "you"),
-    "gain_control": ("gain_control", "you"),
+    # ADR-0027: gain_control is NOT a blanket doer — the blanket fire mislabeled DONATE
+    # (you give your own permanent away — Donate, Bazaar Trader) and RETURN-CONTROL
+    # resets (Brooding Saurian) as theft. gain_control now fires from a GATED arm
+    # (cat=="gain_control", excluding donate + Owned-subject return) in
+    # extract_signals_ir.
     "mill": ("mill_matters", "any"),
     "tutor": ("tutor_matters", "you"),
     # Batch P — phase-native mechanic effects.
@@ -4929,6 +4933,20 @@ _DONATE_RAW = re.compile(
     r"|each other player|the player with|its owner) gains control of",
     re.IGNORECASE,
 )
+# GIVE-control-AWAY drawback (ADR-0027 gain_control exclusion): a card whose control-
+# change effect GIVES a permanent to an OPPONENT / redistributes to EACH player — a
+# drawback (Akroan Horse, Rainbow Vale, Crag Saurian) or chaos (Scrambleverse), NOT
+# theft. phase maps these GiveControl effects to the gain_control category, so the
+# theft lane must exclude the give-away direction. Broader than _DONATE_RAW (adds
+# "an opponent" / "each player" / "that creature's controller / source's controller")
+# and gain_control-only (NOT wired to donate_matters, a separate migrated lane).
+_GIVE_CONTROL_AWAY = re.compile(
+    r"(?:an opponent|each player|that (?:creature's|permanent's|source's) controller"
+    r"|target opponent|another player|that player|each opponent|its owner"
+    r"|the (?:attacking|defending) player|the player with(?: the)?)"
+    r" (?:[a-z ]*? )?gains control of",
+    re.IGNORECASE,
+)
 
 # reanimate subject-recovery (ADR-0027): phase emits cat='reanimate' but DROPS the
 # creature subject (subject=None) on the pay-{X}/"when you do" nesting (Isareth) and
@@ -5797,12 +5815,26 @@ def extract_signals_ir(
                 # donate_matters (ADR-0027): you GIVE a permanent you control to
                 # another player. phase drops the recipient (scope='any'), so read
                 # the raw for the recipient-is-another-player phrasing.
-                if _DONATE_RAW.search(e.raw or ""):
+                is_donate = bool(_DONATE_RAW.search(e.raw or ""))
+                if is_donate:
                     add("donate_matters", "you", "", e.raw)
                 if "Land" in ftypes or (
                     e.subject is None and _LAND_EXCHANGE_RAW.search(e.raw or "")
                 ):
                     add("land_exchange", "you", "", e.raw)
+                # gain_control = THEFT (you take an opponent's/any permanent). EXCLUDE
+                # (ADR-0027): a DONATE (you GIVE your own permanent away — Donate,
+                # Bazaar Trader, Conjured Currency); and a RETURN-CONTROL reset ("each
+                # player gains control of permanents they own" — Brooding Saurian),
+                # which the Owned-subject tell marks. The old blanket _DOER_EFFECT_KEYS
+                # entry fired gain_control on those give-away/reset directions; this
+                # gated arm replaces it.
+                returns_own = (
+                    isinstance(e.subject, Filter) and "Owned" in e.subject.predicates
+                )
+                gives_away = bool(_GIVE_CONTROL_AWAY.search(e.raw or ""))
+                if not is_donate and not returns_own and not gives_away:
+                    add("gain_control", "you", "", e.raw)
             if cat == "destroy":
                 if "Land" in ftypes:
                     add("land_destruction", "you", "", e.raw)
@@ -5845,7 +5877,25 @@ def extract_signals_ir(
                 )
             ):
                 add("removal_matters", "you", "", e.raw)
-            if cat == "exile" and ftypes & _PERMANENT_TYPES:
+            # exile_removal = genuine targeted EXILE of a permanent (CR 406). EXCLUDE
+            # (ADR-0027): (1) BLINK — exiling YOUR OWN permanent to flicker it ("Exile
+            # another target creature you own. Return it" — Charming Prince, Aminatou,
+            # Angel of Condemnation's first mode); the `Owned` predicate / controller-
+            # you subject is the tell, and the return makes it ETB-value, not removal.
+            # (2) GY-HATE — exiling a card FROM a graveyard (zones in:/from: graveyard),
+            # which is opponent_exile_matters, not permanent removal. Keep the genuine
+            # opponent/any-target permanent exile.
+            if (
+                cat == "exile"
+                and ftypes & _PERMANENT_TYPES
+                and not (
+                    isinstance(e.subject, Filter)
+                    and (
+                        "Owned" in e.subject.predicates or e.subject.controller == "you"
+                    )
+                )
+                and not any("graveyard" in z for z in e.zones)
+            ):
                 add("exile_removal", "you", "", e.raw)
             # opponent_exile_matters (ADR-0027): GRAVEYARD HATE, not permanent removal —
             # fires from the _IR_KEPT_DETECTORS word mirror (the deleted sweep regex)

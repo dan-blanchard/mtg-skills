@@ -2052,6 +2052,39 @@ def test_dropped_static_goad_reward_marker():
     }
 
 
+def test_changecontroller_static_is_gain_control():
+    """A continuous static ChangeController modification (the canonical theft Auras —
+    Control Magic, Mind Control, Confiscate) projects to a gain_control effect (scope
+    you), so the theft lane fires; phase models it as a static modification, not a
+    gaincontrol EFFECT, so the projection had dropped it."""
+    control_magic = {
+        "name": "Control Magic",
+        "scryfall_oracle_id": "cm",
+        "oracle_text": "Enchant creature\nYou control enchanted creature.",
+        "static_abilities": [
+            {
+                "mode": "Continuous",
+                "affected": {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": None,
+                    "properties": [{"type": "EnchantedBy"}],
+                },
+                "modifications": [{"type": "ChangeController"}],
+            }
+        ],
+    }
+    card = project_card([control_magic])
+    gc = [
+        e
+        for a in card.all_abilities()
+        for e in a.effects
+        if e.category == "gain_control"
+    ]
+    assert len(gc) == 1
+    assert gc[0].scope == "you"
+
+
 def test_dropped_static_tap_or_untap_marker():
     """A "tap or untap target permanent" modal phase drops the untap half from
     (Twiddle, Pestermite) recovers an untap marker with a Permanent target subject,
