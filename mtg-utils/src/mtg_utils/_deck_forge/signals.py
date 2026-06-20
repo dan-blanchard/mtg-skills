@@ -3919,7 +3919,11 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Scryfall tags the granter with the keyword too, so this lifts it cleanly.
     "connive": (("connive_matters", "you"),),
     "convoke": (("convoke_matters", "you"),),
-    "devour": (("devour_matters", "you"),),
+    # Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
+    # definitional +1/+1 source, so the printed keyword opens counters_matter too
+    # (mirrors the `devour` EFFECT-category fan-out; covers Preyseizer Dragon, whose
+    # devour rides the keyword + a board_count, not a `devour` effect). CR 122.1.
+    "devour": (("devour_matters", "you"), ("counters_matter", "any")),
     "discover": (("discover_matters", "you"),),
     # Explore (CR 701.44) as the printed KEYWORD — the Scryfall-authoritative path
     # covers explore cards whose explore lives in a granted ability / replacement

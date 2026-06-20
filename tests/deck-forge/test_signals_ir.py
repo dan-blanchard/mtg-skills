@@ -1802,3 +1802,14 @@ def test_ir_membership_flag_does_not_touch_payoff_signals():
     off = {s.key for s in extract_signals_ir(_TRIBAL_CMD, ir, include_membership=False)}
     assert "voltron_matters" in on
     assert "voltron_matters" in off
+
+
+def test_devour_keyword_opens_counters_matter():
+    """Devour (CR 702.82) enters with +1/+1 counters per sacrificed creature — a
+    definitional +1/+1 source, so the printed keyword opens counters_matter as well
+    as devour_matters (Preyseizer Dragon, whose devour rides the keyword + a
+    board_count, not a structured `devour` effect)."""
+    card = {"name": "Preyseizer Dragon", "keywords": ["Flying", "Devour"]}
+    keys = {s.key for s in extract_signals_ir(card, _ir())}
+    assert "devour_matters" in keys
+    assert "counters_matter" in keys

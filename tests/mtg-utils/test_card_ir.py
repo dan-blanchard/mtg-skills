@@ -3658,6 +3658,64 @@ def test_counter_ref_no_double_fire_when_place_counter_present():
     assert len(place) == 1, _effects(card)
 
 
+def test_counter_face_marker_recovers_dropped_placement():
+    """A +1/+1 placement phase drops ENTIRELY (kept only on the face oracle text, not
+    folded into any carrier raw — a trimmed grant clause: "Target creature you
+    control with a +1/+1 counter on it gains lifelink" → phase keeps "gain lifelink",
+    losing the placement). The face-level fallback _counter_face_marker recovers a
+    counters effect so the lane fires (Ollenbock, Steppe Glider)."""
+    rec = {
+        "name": "Steppe Glider",
+        "scryfall_oracle_id": "sc-steppe",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": (
+            "Flying, vigilance\n{1}{W}: Target creature with a +1/+1 counter on "
+            "it gains flying and vigilance until end of turn."
+        ),
+        # phase keeps only the trimmed grant_keyword clause, losing the +1/+1 ref.
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {"type": "GrantKeyword", "keyword": "Flying"},
+                "description": "gain flying and vigilance",
+            }
+        ],
+    }
+    card = project_card([rec])
+    cats = {e.category for e in _effects(card)}
+    assert "place_counter" in cats or "counters_have_ref" in cats, _effects(card)
+
+
+def test_counter_face_marker_gated_by_p1p1_place_counter():
+    """The face fallback is gated on a p1p1 place_counter already present — a clean
+    "put a +1/+1 counter" placement gets no extra face marker (no double-fire). A
+    NON-p1p1 named-counter placement (voyage/oil) does NOT block it, so a separate
+    +1/+1 return rider on the same face still recovers (Cosima)."""
+    rec = {
+        "name": "Clean Face Placer",
+        "scryfall_oracle_id": "sc-cleanface",
+        "card_type": {"core_types": ["Creature"]},
+        "oracle_text": "When ~ enters, put a +1/+1 counter on target creature.",
+        "triggers": [
+            {
+                "trigger": {"mode": "EntersBattlefield"},
+                "execute": {
+                    "effect": {
+                        "type": "PutCounter",
+                        "counter_type": "P1P1",
+                        "count": {"type": "Fixed", "value": 1},
+                        "target": {"type": "Target"},
+                    },
+                    "description": "put a +1/+1 counter on target creature",
+                },
+            }
+        ],
+    }
+    card = project_card([rec])
+    place = [e for e in _effects(card) if e.category == "place_counter"]
+    assert len(place) == 1, _effects(card)  # the real one, no appended face marker
+
+
 # ── typed sacrifice-cost markers (ADR-0027 artifacts/enchantments cost-payer) ──
 
 

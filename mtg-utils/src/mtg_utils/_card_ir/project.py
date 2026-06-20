@@ -1461,6 +1461,14 @@ def _project_face(record: dict) -> Face:
     dropped_markers = _dropped_static_markers(record, abilities)
     if dropped_markers:
         abilities.append(Ability(kind="static", effects=tuple(dropped_markers)))
+    # Face-level +1/+1 fallback (ADR-0027 counters_matter pass 2): a +1/+1 placement
+    # or "has/with a +1/+1 counter" reference phase dropped ENTIRELY (a trimmed grant
+    # clause, a devour/enters-with-copy/cast-from-GY placement, a dropped damage-
+    # prevention replacement), surviving only on the face oracle text. Gated on no
+    # structured counters effect already present so it never re-tags a clean parse.
+    counter_marker = _counter_face_marker(record, abilities)
+    if counter_marker is not None:
+        abilities.append(Ability(kind="static", effects=(counter_marker,)))
     # Graveyard count-operand (ADR-0027): a value scaling with cards-in-your-GY phase
     # kept in a static-mod / cost_reduction / threshold raw but the projection dropped
     # (Enigma Drake's P/T, Pteramander's cost reduction, Deep-Sea Terror's threshold).
@@ -3195,6 +3203,73 @@ def _mass_untap_marker(record: dict) -> Effect | None:
         raw=m.group(0),
         counter_kind="all",
     )
+
+
+# Record-level +1/+1 fallback (ADR-0027 counters_matter pass 2): a face whose +1/+1
+# PLACEMENT or "has/with a +1/+1 counter" PAYOFF reference phase dropped ENTIRELY —
+# not folded into a carrier raw (so _narrow_counter_refs can't see it), but absent
+# from the structured parse, surviving only on the FACE oracle text. phase trims a
+# grant's reference clause ("Target creature you control with a +1/+1 counter on it
+# gains …" → kept only "gain lifelink" — Ollenbock, Steppe Glider), drops a devour /
+# enters-with-copy / cast-from-graveyard placement (Preyseizer, The Mimeoplasm,
+# Worldheart Phoenix, Undead Sprinter), or loses a damage-prevention replacement
+# (Vigor, Stormwild Capridor). Mirrors _mass_creature_grant_marker / the dropped-
+# static face markers: a narrowly-anchored face-text scan, GATED to faces with no
+# structured counters effect (so it never re-tags a clean parse). The anchors are the
+# explicit placement / has-a-counter phrases (never a bare "counter" word), CR 122.1
+# / 122.6.
+_P1P1_PLACE_FACE = re.compile(
+    r"\bput(?:s)?\b[^.]*?\+1/\+1 counter"
+    r"|\bdistribute(?:s)?\b[^.]*?\+1/\+1 counter"
+    r"|\benters?\b[^.]*?\bwith\b[^.]*?\+1/\+1 counter"
+    r"|\benters? as a copy\b[^.]*?\+1/\+1 counter"
+    # A reanimate / blink RIDER: "return ~ to the battlefield with N +1/+1 counters
+    # on it" (Cosima's voyage-return, Abuelo's "with X additional"). The placement
+    # rides the return, which phase keeps as a changezone with the +1/+1 dropped.
+    r"|\b(?:return|battlefield)\b[^.]*?\bwith\b[^.]*?\+1/\+1 counters? on it"
+    r"|\bwith X additional \+1/\+1 counter",
+    re.IGNORECASE | re.DOTALL,
+)
+_P1P1_HAVE_FACE = re.compile(
+    r"\bwith (?:a |an |one or more |no )?\+1/\+1 counters? on (?:it|them|him|her)\b"
+    r"|\bhas? (?:a |an )?\+1/\+1 counter on (?:it|him|her)\b"
+    r"|\bwith (?:a )?counters? on (?:it|them|him|her)\b"
+    r"|\+1/\+1 counters? on creatures you control\b"
+    r"|\bpower greater than its base power\b"
+    r"|\bremove any number of \+1/\+1 counters\b",
+    re.IGNORECASE,
+)
+
+
+def _counter_face_marker(record: dict, abilities: list[Ability]) -> Effect | None:
+    """A face-level +1/+1 marker when the oracle text places (or references a
+    creature having) a +1/+1 counter but NO structured counters effect survived the
+    parse — a place_counter(p1p1) for a placement, else a counters_have_ref for a
+    payoff reference. None when a place_counter / counters_have_ref already exists on
+    the face (the per-ability marker / structural parse covered it) or no phrase
+    matches (counters_matter pass 2, CR 122.1 / 122.6). Reminder text is stripped so
+    a keyword's own reminder ("(… put X +1/+1 counters …)") never false-fires. The
+    gate blocks only a p1p1 place_counter or a counters_have_ref already present — a
+    NON-p1p1 named-counter placement (voyage/oil/charge) does NOT cover a separate
+    +1/+1 placement on the same face (Cosima's voyage counter alongside its
+    enters-with-a-+1/+1-counter return rider)."""
+    if any(
+        (e.category == "place_counter" and e.counter_kind == "p1p1")
+        or e.category == "counters_have_ref"
+        for a in abilities
+        for e in a.effects
+    ):
+        return None
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    m = _P1P1_PLACE_FACE.search(text)
+    if m is not None:
+        return Effect(
+            category="place_counter", scope="you", counter_kind="p1p1", raw=m.group(0)
+        )
+    m = _P1P1_HAVE_FACE.search(text)
+    if m is not None:
+        return Effect(category="counters_have_ref", scope="you", raw=m.group(0))
+    return None
 
 
 def _for_each_creature_marker(record: dict) -> Effect | None:
