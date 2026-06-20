@@ -4115,6 +4115,10 @@ def test_low_power_matters_opens_and_serves():
     # small-creature payoffs (Raid Bombardment, Delney, Arabella). Anchored on "you
     # control with power N or less" so removal and the vanilla power<=2 pool stay out.
     # Real oracle, full text.
+    # ADR-0027: low_power_matters migrated to the Card IR — phase drops the power
+    # threshold on Subira's buff/etb subject, recovered by a `_LOW_POWER_REF` marker
+    # rebuilding the Power:LE Creature subject, read through the hybrid IR path. The
+    # serve pool stays oracle-defined (the hand spec).
     subira = {
         "name": "Subira, Tulzidi Caravanner",
         "type_line": "Legendary Creature — Human Shaman",
@@ -4126,7 +4130,34 @@ def test_low_power_matters_opens_and_serves():
             "control with power 2 or less deals combat damage to a player, draw a card."
         ),
     }
-    assert "low_power_matters" in _keys(subira)
+    subira_ir = Card(
+        oracle_id="x",
+        name="Subira, Tulzidi Caravanner",
+        faces=(
+            Face(
+                name="Subira, Tulzidi Caravanner",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="tap",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",),
+                                    controller="you",
+                                    predicates=("PtComparison:Power:LE:2",),
+                                ),
+                                raw="creature you control with power 2 or less",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("low_power_matters", "you") in _ks_hybrid_card(subira, subira_ir)
+    assert "low_power_matters" not in _keys(subira)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal

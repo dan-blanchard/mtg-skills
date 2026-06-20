@@ -1551,6 +1551,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Low-power payoff (Subira) — a Power:LE predicate on a you-controller Creature
+    # Filter (the buff/etb shape's predicate phase drops, rebuilt by _LOW_POWER_REF),
+    # read by _predicate_build_around_lanes.
+    "low_power_matters": (
+        {
+            "name": "Subira, Tulzidi Caravanner",
+            "type_line": "Legendary Creature — Human Shaman",
+            "oracle_text": (
+                "Haste\n{1}: Another target creature with power 2 or less can't "
+                "be blocked this turn.\n{1}{R}, {T}, Discard your hand: Until end "
+                "of turn, whenever a creature you control with power 2 or less "
+                "deals combat damage to a player, draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="tap",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="you",
+                            predicates=("PtComparison:Power:LE:2",),
+                        ),
+                        raw="creature you control with power 2 or less",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

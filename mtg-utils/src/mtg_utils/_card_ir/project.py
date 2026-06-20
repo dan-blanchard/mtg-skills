@@ -2645,6 +2645,18 @@ _CRIME_REF = re.compile(
 _COUNTER_TARGET_REF = re.compile(
     r"counter target (?:[a-z-]+ )*(?:spell|ability)", re.IGNORECASE
 )
+# Low-power payoff (CR 208) — "creature(s) you control with power N or less" buff /
+# evasion / etb. phase DROPS the power threshold predicate on these effect/trigger
+# subject shapes (the subject is None, or the Filter has empty predicates), so the
+# low_power_matters detector (which keys on a PtComparison:Power:LE/LT predicate on a
+# you-controller Creature Filter) never fires. We rebuild that subject Filter from the
+# raw, captured with the threshold N so the existing predicate read fires the lane.
+# Anchored on "you control with power N or less/fewer" — removal ("destroy a target
+# with power N or less") and evasion-bypass ("can't be blocked by creatures with power
+# N or greater") never say "you control".
+_LOW_POWER_REF = re.compile(
+    r"creatures? you control with power (\d+) or (?:less|fewer)", re.IGNORECASE
+)
 # Can't-block grant (CR 509) phase loses in a MODAL mode body ("• Target creature
 # can't block this turn" — Breeches, Retreat to Valakut, phase keeps only the
 # `choose` header) or a GRANTED QUOTED ability ("Enchanted land has '{T}: Target
@@ -2759,6 +2771,42 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
         and (m := _VENTURE_REF.search(text)) is not None
     ):
         markers.append(Effect(category="venture", scope="you", raw=m.group(0)))
+    # "Creatures you control with power N or less" buff/etb phase dropped the power
+    # threshold from → a pump marker carrying the rebuilt Power:LE subject Filter, so
+    # the existing predicate read fires low_power_matters. Gated to faces with no
+    # structural you-controller Power:LE/LT predicate already present.
+    has_low_power = any(
+        s is not None
+        and s.controller == "you"
+        and any(
+            p.startswith(("PtComparison:Power:LE:", "PtComparison:Power:LT:"))
+            and not p.endswith(":*")
+            for p in s.predicates
+        )
+        for a in abilities
+        for e in a.effects
+        for s in (
+            e.subject,
+            e.amount.subject if e.amount is not None else None,
+        )
+    )
+    if not has_low_power and (m := _LOW_POWER_REF.search(text)) is not None:
+        # category="tap" (not pump): the predicate read (_predicate_build_around_lanes)
+        # scans EVERY effect's subject Filter regardless of category, so the Power:LE
+        # predicate lights low_power_matters — while `tap` stays out of the
+        # creatures_matter team-anthem read (which keys on pump/grant_keyword/base_pt).
+        markers.append(
+            Effect(
+                category="tap",
+                scope="you",
+                subject=Filter(
+                    card_types=("Creature",),
+                    controller="you",
+                    predicates=(f"PtComparison:Power:LE:{m.group(1)}",),
+                ),
+                raw=m.group(0),
+            )
+        )
 
     # "Tapped creatures you control <grant>" phase parsed with the subject dropped →
     # a grant_keyword marker carrying the rebuilt Tapped-creature subject Filter, so

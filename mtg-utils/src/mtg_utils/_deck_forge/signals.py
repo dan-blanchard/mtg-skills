@@ -1031,20 +1031,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"power greater than its base power", re.IGNORECASE),
         "you",
     ),
-    # Small-creatures-matter (Subira, Delney, Arabella, Ezuri): a commander that rewards
-    # or buffs "creature(s) YOU CONTROL with power N or less" runs a go-wide weenie deck
-    # and wants the small-creature payoffs (Raid Bombardment, Reconnaissance Mission).
-    # Anchored on "you control with power N or less" so removal ("destroy a target
-    # with power N or less") and evasion-bypass ("can't be blocked by creatures with
-    # power N or greater") — never "you control" — stay out. Oracle-only serve (no
-    # power_max: that would credit every power<=2 vanilla as on-theme fodder).
-    (
-        "low_power_matters",
-        re.compile(
-            r"creatures? you control with power \d+ or (?:less|fewer)", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: low_power_matters migrated to the Card IR — a non-dynamic
+    # PtComparison:Power:LE/LT predicate on a you-controller Creature Filter, read by
+    # _predicate_build_around_lanes (the recursion cards — Alesha, Reveillark — carry it
+    # natively; phase DROPS it on the buff/etb subject shapes, recovered by a
+    # `_LOW_POWER_REF` marker that rebuilds the Power:LE subject from "creatures you
+    # control with power N or less" — Subira, Underfoot Underdogs). Removed from
+    # _IR_FLOOR_LANES; serve stays hand-registered.
     # Creature-count-scaling = a GO-WIDE commander: its own power scales with "for each
     # (other) creature you control" / "equal to the number of creatures you control"
     # (Leonardo, Adeline, Suki). It wants to flood the board, so open tokens_matter —
@@ -4145,7 +4138,9 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "lands_matter",
         "superfriends_matters",
         "modified_matters",
-        "low_power_matters",
+        # low_power_matters removed — ADR-0027 migrated it to the Card IR (the
+        # Power:LE/LT predicate read + a `_LOW_POWER_REF` marker rebuilding the dropped
+        # subject from "creatures you control with power N or less").
         "power_matters",
         "historic_matters",
         "domain_matters",
@@ -5955,6 +5950,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # your-own ramp. NOT in _IR_FLOOR_LANES; its SWEEP row is deleted, serve
         # hand-registered. gap=0, over=0 (all 8 cards bind structurally). See ADR-0027.
         "group_mana",
+        # low_power_matters ← a non-dynamic PtComparison:Power:LE/LT predicate on a
+        # you-controller Creature Filter (read by _predicate_build_around_lanes). The
+        # recursion cards (Alesha, Reveillark, Vesperlark, Shirei — "return a creature
+        # with power N or less") carry the predicate natively; phase DROPS it on the
+        # buff/etb subject shapes, recovered by a `_LOW_POWER_REF` marker that rebuilds
+        # the Power:LE subject (category="tap" so it stays out of the creatures_matter
+        # team-anthem read). REMOVED from _IR_FLOOR_LANES; floor-mirror-dep == 0
+        # (with_floor 33 == without_floor 33). NO-FLOOD held. See ADR-0027.
+        "low_power_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
