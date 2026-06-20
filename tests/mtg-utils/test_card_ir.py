@@ -23,6 +23,7 @@ from mtg_utils._card_ir.project import (
     _graveyard_cast_grant_markers,
     _graveyard_count_markers,
     _has_graveyard_count,
+    _lifeloss_markers,
     _narrow_payoff_condition_refs,
     _narrow_token_subtype_makers,
     _narrow_trigger_other_refs,
@@ -2368,3 +2369,97 @@ def test_sacrifice_grant_markers_shapes():
     assert not _sacrifice_grant_markers(
         {"oracle_text": "Cumulative upkeep—Sacrifice a creature."}, structural
     )
+
+
+# ── ADR-0027 lifeloss_matters: self / drain markers ────────────────────────────
+
+
+def test_lifeloss_markers_self_shapes():
+    """The self life-loss recovery fires a lose_life scope=you marker on a pay-life
+    additional cost, a free-spell pitch, a keyworded-cost / cumulative-upkeep / tax /
+    Defiler pay-life, a granted / modal / dice / choose "you lose N life", and the
+    "gain or lose life" payoff."""
+
+    def self_marker(text: str, record: dict | None = None) -> bool:
+        rec = {"oracle_text": text}
+        if record:
+            rec.update(record)
+        return any(
+            m.category == "lose_life" and m.scope == "you"
+            for m in _lifeloss_markers(rec, [])
+        )
+
+    # additional_cost PayLife (bare and nested in a Choice)
+    assert self_marker(
+        "Destroy target creature.",
+        {
+            "additional_cost": {
+                "type": "Required",
+                "data": {
+                    "type": "Choice",
+                    "data": [
+                        {"type": "PayLife", "amount": {"type": "Fixed", "value": 5}},
+                        {"type": "Discard", "count": 1},
+                    ],
+                },
+            }
+        },
+    )
+    assert self_marker(
+        "You may pay 1 life and exile a blue card from your hand rather than "
+        "pay this spell's mana cost. Counter target spell."
+    )
+    assert self_marker("Flashback—{1}{U}, Pay 3 life.")
+    assert self_marker("Cumulative upkeep—Pay 1 life.")
+    assert self_marker(
+        "At the beginning of your upkeep, tap this creature unless you pay 1 life."
+    )
+    assert self_marker(
+        "As an additional cost to cast green permanent spells, you may pay 2 life."
+    )
+    assert self_marker("• You draw a card and you lose 1 life.")
+    assert self_marker("1—9 | You draw a card and you lose 1 life.")
+    assert self_marker("Whenever you gain or lose life during your turn, ...")
+
+
+def test_lifeloss_markers_drain_shapes():
+    """The drain recovery fires a lose_life scope=opp marker on a modal-bullet
+    opponent loss, a quoted granted "target player loses N life", a "lost life this
+    turn" payoff, and a dice-table opponent drain."""
+
+    def drain_marker(text: str) -> bool:
+        return any(
+            m.category == "lose_life" and m.scope == "opp"
+            for m in _lifeloss_markers({"oracle_text": text}, [])
+        )
+
+    assert drain_marker("• Target opponent loses 5 life.")
+    assert drain_marker('Enchanted land has "{T}: Target player loses 3 life."')
+    assert drain_marker(
+        "At the beginning of each end step, if an opponent lost 3 or more life "
+        "this turn, draw a card."
+    )
+    assert drain_marker("1—9 | Each opponent loses 2 life.")
+
+
+def test_lifeloss_markers_excluded():
+    """A Land card (the pay-life mana VETO), a face with a structural lose_life, and a
+    Ward cost (the OPPONENT pays) recover no marker."""
+    # Land card with a pay-life mana ability
+    assert not _lifeloss_markers(
+        {
+            "oracle_text": "{T}, Pay 1 life: Add {G} or {W}.",
+            "card_type": {"core_types": ["Land"]},
+        },
+        [],
+    )
+    # already has a structural lose_life
+    structural = [
+        Ability(kind="spell", effects=(Effect(category="lose_life", scope="you"),))
+    ]
+    assert not _lifeloss_markers(
+        {"oracle_text": "You may pay 2 life rather than pay this spell's mana cost."},
+        structural,
+    )
+    # a Ward cost is the opponent's life payment, not a you-loss engine
+    assert not _lifeloss_markers({"oracle_text": "Ward—Pay 2 life.\nFlying"}, [])

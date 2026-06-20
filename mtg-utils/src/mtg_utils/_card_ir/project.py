@@ -1218,6 +1218,13 @@ def _project_face(record: dict) -> Face:
     sac_grant_markers = _sacrifice_grant_markers(record, abilities)
     if sac_grant_markers:
         abilities.append(Ability(kind="static", effects=tuple(sac_grant_markers)))
+    # Life-loss markers (ADR-0027 lifeloss_matters): a self pay-life additional cost /
+    # free-spell pitch (Bitter Triumph, Contagion, K'rrik) → lose_life scope you; a
+    # modal-bullet opponents drain phase swallowed into a `choose` (Inquisitor Exarch,
+    # Junji, Skemfar Shadowsage) → lose_life scope opp.
+    lifeloss_markers = _lifeloss_markers(record, abilities)
+    if lifeloss_markers:
+        abilities.append(Ability(kind="static", effects=tuple(lifeloss_markers)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -3177,6 +3184,141 @@ def _sacrifice_grant_markers(record: dict, abilities: list[Ability]) -> list[Eff
             )
         ]
     return []
+
+
+# Life-loss shapes phase keeps in the record / collapses to a non-lose_life node
+# (ADR-0027 lifeloss_matters shape 4). The SELF half (→ lose_life scope you): a
+# pay-life additional cost (PayLife in additional_cost — Bitter Triumph, Final
+# Payment), a free-spell pitch ("pay N life rather than pay" — Contagion, K'rrik), a
+# keyworded-cost pay-life (Flashback/Escape/Blitz/Morph/Warp—Pay N life — Deep
+# Analysis, Tenacious Underdog), a "you may pay N life. If you do" value engine
+# (Arrogant Poet, Seymour Flux), a cumulative-upkeep pay-life (Inner Sanctum,
+# Gallowbraid), a "tap this unless you pay N life" / "unless you pay N life" upkeep
+# tax (Carnophage), a Defiler-style static additional cost ("as an additional cost
+# to cast … you may pay 2 life"), a quoted granted "you lose N life", and a modal "•
+# … you lose N life". The DRAIN half (→ lose_life scope opp): a modal-bullet opponent
+# drain (Inquisitor Exarch), a quoted granted "target player loses N life" (Caustic
+# Tar, Claim of Erebos), and a "lost life this turn" past-tense payoff (Rakdos, Sygg).
+_LIFE = r"(?:\d+|x|that much|half)"
+_PITCH_PAY_LIFE = re.compile(
+    r"\bpay (?:\d+|x) life\b[^.]*\brather than pay\b", re.IGNORECASE
+)
+_KEYWORD_COST_PAY_LIFE = re.compile(
+    r"\b(?:flashback|escape|blitz|morph|megamorph|disturb|warp|buyback|embalm"
+    r"|unearth|recover|aftermath)\b[^.]*\bpay \d+ life\b",
+    re.IGNORECASE,
+)
+_MAY_PAY_LIFE = re.compile(
+    r"\byou may pay (?:\d+|x) life\b[\s.,]*?\b(?:if you do|when you do|where x is)\b"
+    r"|\bwhenever you (?:gain or lose|lose or gain) life\b",
+    re.IGNORECASE,
+)
+_CUMULATIVE_UPKEEP_LIFE = re.compile(
+    r"cumulative upkeep\s*[—-]\s*pay \d+ life", re.IGNORECASE
+)
+_TAX_PAY_LIFE = re.compile(r"\bunless you pay \d+ life\b", re.IGNORECASE)
+_DEFILER_PAY_LIFE = re.compile(
+    r"as an additional cost to cast[^.]*\byou may pay \d+ life\b", re.IGNORECASE
+)
+_GRANTED_SELF_LOSS = re.compile(rf'"[^"]*\byou lose {_LIFE}[^"]*\blife', re.IGNORECASE)
+_MODAL_SELF_LOSS = re.compile(rf"•[^•]*?\byou lose {_LIFE}[^•.]*?\blife", re.IGNORECASE)
+_DRAIN_PARTY = (
+    r"(?:each opponent|target opponent|target player|each player|that player"
+    r"|an opponent|opponents?|a player)"
+)
+_MODAL_DRAIN = re.compile(
+    rf"•[^•]*?\b{_DRAIN_PARTY}\b[^•.]*?\bloses? {_LIFE}[^•.]*?\blife", re.IGNORECASE
+)
+_GRANTED_DRAIN = re.compile(
+    rf'"[^"]*\b{_DRAIN_PARTY}\b[^"]*\bloses? {_LIFE}[^"]*\blife', re.IGNORECASE
+)
+# A past-tense "lost life this turn" payoff — the card CARES that a player lost life
+# (Rakdos, Sygg, Belbe), the cares-about half of the lane.
+_LOST_LIFE_TURN = re.compile(
+    r"\blost (?:\d+ or more |\d+ )?life this turn\b"
+    r"|\blife [^.]*\blost this turn\b",
+    re.IGNORECASE,
+)
+# A die-roll result row that costs you life ("1—9 | You draw a card and you lose 1
+# life" — Nothic, Treasure Chest's "Trapped! — You lose 3 life") or drains opponents
+# ("1—9 | Each opponent loses 2 life" — Herald of Hadar) phase keeps in a d20-table
+# raw the projection drops. The "N |" / "N—M |" row marker anchors it.
+_DICE_SELF_LOSS = re.compile(r"\d+\s*[|—-][^|]*?\byou lose \d+ life", re.IGNORECASE)
+_DICE_DRAIN = re.compile(
+    rf"\d+\s*[|—-][^|]*?\b{_DRAIN_PARTY}\b[^|]*?\bloses? \d+ life", re.IGNORECASE
+)
+# A "choose one … you lose N life" modal where the self-loss mode rides a non-bullet
+# choose list (Zuko, Promise of Power, Gruesome Realization).
+_CHOOSE_SELF_LOSS = re.compile(
+    r"\bchoose (?:one|two|any number)[^.]*?\byou lose \d+ life", re.IGNORECASE
+)
+
+
+def _has_paylife_additional_cost(record: dict) -> bool:
+    """True if the record's ``additional_cost`` contains a PayLife (a bare cost or
+    one nested in a Choice — Bitter Triumph "discard a card or pay 3 life", Final
+    Payment "pay 5 life or sacrifice a creature")."""
+    found = [False]
+
+    def walk(n: object) -> None:
+        if isinstance(n, dict):
+            if _norm(n.get("type")) == "paylife":
+                found[0] = True
+            for v in n.values():
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+
+    walk(record.get("additional_cost"))
+    return found[0]
+
+
+_LIFELOSS_SELF_PATTERNS = (
+    _PITCH_PAY_LIFE,
+    _KEYWORD_COST_PAY_LIFE,
+    _MAY_PAY_LIFE,
+    _CUMULATIVE_UPKEEP_LIFE,
+    _TAX_PAY_LIFE,
+    _DEFILER_PAY_LIFE,
+    _GRANTED_SELF_LOSS,
+    _MODAL_SELF_LOSS,
+    _DICE_SELF_LOSS,
+    _CHOOSE_SELF_LOSS,
+)
+_LIFELOSS_DRAIN_PATTERNS = (
+    _MODAL_DRAIN,
+    _GRANTED_DRAIN,
+    _LOST_LIFE_TURN,
+    _DICE_DRAIN,
+)
+
+
+def _lifeloss_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
+    """lose_life markers for life-loss phase kept in the record but dropped off the
+    projection (ADR-0027 lifeloss_matters shape 4). A SELF life-loss (a pay-life
+    additional cost, a free-spell pitch, a keyworded-cost / cumulative-upkeep / tax /
+    Defiler pay-life, a granted or modal "you lose N life") → a `lose_life` scope=you
+    marker; a DRAIN (a modal-bullet / quoted-granted opponent loss, a "lost life this
+    turn" payoff) → a scope=opp marker. Gated to faces with no structural lose_life. A
+    Land card is excluded (the lane's pay-life mana-source VETO)."""
+    if "Land" in _type_line(record.get("card_type")):
+        return []
+    if any(e.category == "lose_life" for a in abilities for e in a.effects):
+        return []
+    text = re.sub(r"\([^)]*\)", " ", record.get("oracle_text") or "")
+    out: list[Effect] = []
+    if _has_paylife_additional_cost(record) or any(
+        p.search(text) for p in _LIFELOSS_SELF_PATTERNS
+    ):
+        out.append(
+            Effect(category="lose_life", scope="you", raw="pay-life cost / self loss")
+        )
+    if any(p.search(text) for p in _LIFELOSS_DRAIN_PATTERNS):
+        out.append(
+            Effect(category="lose_life", scope="opp", raw="opponents drain / payoff")
+        )
+    return out
 
 
 def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effect]:

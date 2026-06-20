@@ -5261,6 +5261,13 @@ def extract_signals_ir(
                     "",
                     e.raw,
                 )
+            # A `life_payment` marker (project._dropped_static_markers: a "Pay N life:"
+            # cost phase misparsed — Arco-Flagellant — or dropped inside a conferred
+            # quoted ability — Hibernation Sliver, Underworld Connections) is a self
+            # life-as-resource engine, so it opens lifeloss_matters too. (It already
+            # opens life_payment_insurance via _DOER_EFFECT_KEYS.) Not a Land card.
+            if cat == "life_payment" and not card_is_land:
+                add("lifeloss_matters", "you", "", e.raw)
             # An edict forces OPPONENTS / each player to sacrifice — gate on an
             # explicit opp/each scope (an unscoped sacrifice effect is ambiguous,
             # often a self-sac inside a larger effect, so don't call it an edict).
@@ -5588,6 +5595,19 @@ def extract_signals_ir(
                 add("self_death_payoff", "you", "", "")
             if trig.event == "life_gained":
                 add("lifegain_matters", "you", "", "")
+            # ADR-0027 lifeloss_matters — the pure life-loss PAYOFF: a trigger that
+            # fires when a player loses life ("whenever an opponent loses life" →
+            # Exquisite Blood, Mindcrank, Bloodthirsty Conqueror; "whenever you lose
+            # life" → Vilis). phase parses it as Trigger(event='life_lost') — a
+            # cares-about payoff that combos with the drain, so it opens the lane. An
+            # opp-scoped trigger is the drain payoff (opponents); else you/any.
+            if trig.event == "life_lost":
+                add(
+                    "lifeloss_matters",
+                    "opponents" if trig.scope == "opp" else "you",
+                    "",
+                    "",
+                )
             # ADR-0027 sacrifice_matters — the pure SAC PAYOFF: a trigger that fires
             # on the act of sacrificing ("whenever you sacrifice a creature/artifact"
             # → reward; Gleaming Geardrake's "sacrificed" trigger → +1/+1 counter).
