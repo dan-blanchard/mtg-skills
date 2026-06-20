@@ -17,6 +17,7 @@ the IR exists to solve:
 from __future__ import annotations
 
 from mtg_utils._card_ir.project import (
+    _collect_effects,
     _copied_type_from_text,
     _dropped_static_markers,
     _filter,
@@ -24,10 +25,12 @@ from mtg_utils._card_ir.project import (
     _graveyard_count_markers,
     _has_graveyard_count,
     _lifeloss_markers,
+    _modal_split_effects,
     _narrow_payoff_condition_refs,
     _narrow_token_subtype_makers,
     _narrow_trigger_other_refs,
     _predicate,
+    _project_replacement,
     _quantity,
     _recover_graveyard_zones,
     _sacrifice_cost_markers,
@@ -2463,3 +2466,176 @@ def test_lifeloss_markers_excluded():
     )
     # a Ward cost is the opponent's life payment, not a you-loss engine
     assert not _lifeloss_markers({"oracle_text": "Ward—Pay 2 life.\nFlying"}, [])
+
+
+# ── generalized modal-choose-split (ADR-0027 removal_matters shape 4 + reuse) ──
+
+
+def test_modal_split_recovers_typed_mode_bodies():
+    """A modal `choose` whose per-mode bodies phase keeps only in the sibling
+    `mode_abilities` array (Mishra's "• Destroy target artifact or planeswalker",
+    "• Mishra deals 3 damage", "• opponent discards") recovers each as a real typed
+    Effect with its subject — the destroy bullet lands as destroy(Artifact,
+    Planeswalker), not a subjectless `other` (CR 700.2)."""
+    modes = [
+        {
+            "kind": "Spell",
+            "effect": {
+                "type": "Discard",
+                "count": {"type": "Fixed", "value": 2},
+                "target": {"type": "Typed", "controller": "Opponent"},
+            },
+        },
+        {
+            "kind": "Spell",
+            "effect": {
+                "type": "DealDamage",
+                "amount": {"type": "Fixed", "value": 3},
+                "target": {"type": "Any"},
+            },
+        },
+        {
+            "kind": "Spell",
+            "effect": {
+                "type": "Destroy",
+                "target": {
+                    "type": "Or",
+                    "filters": [
+                        {"type": "Typed", "type_filters": ["Artifact"]},
+                        {"type": "Typed", "type_filters": ["Planeswalker"]},
+                    ],
+                },
+            },
+        },
+    ]
+    descs = [
+        "Target opponent discards two cards.",
+        "~ deals 3 damage to any target.",
+        "Destroy target artifact or planeswalker.",
+    ]
+    effs = _modal_split_effects(modes, descs, "choose three —")
+    cats = [e.category for e in effs]
+    assert "destroy" in cats
+    destroy = next(e for e in effs if e.category == "destroy")
+    assert set(destroy.subject.card_types) == {"Artifact", "Planeswalker"}
+    # the mode_description text rides each mode's raw as a bullet
+    assert destroy.raw == "• Destroy target artifact or planeswalker."
+
+
+def test_modal_split_via_collect_effects_prepends_choose_marker():
+    """Driving the split through `_collect_effects` (the integration seam) on a
+    placeholder GenericEffect node with a `mode_abilities` sibling prepends a
+    `choose` marker and SUPPRESSES the empty placeholder (no stray `other`)."""
+    node = {
+        "effect": {"type": "GenericEffect", "static_abilities": []},
+        "modal": {
+            "mode_descriptions": [
+                "Destroy target artifact.",
+                "Destroy target enchantment.",
+            ]
+        },
+        "mode_abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Destroy",
+                    "target": {"type": "Typed", "type_filters": ["Artifact"]},
+                },
+            },
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Destroy",
+                    "target": {"type": "Typed", "type_filters": ["Enchantment"]},
+                },
+            },
+        ],
+    }
+    effs = _collect_effects(node, "Choose one —")
+    cats = [e.category for e in effs]
+    assert cats[0] == "choose"
+    assert cats.count("destroy") == 2
+    assert "other" not in cats  # placeholder suppressed
+    arts = {tuple(e.subject.card_types) for e in effs if e.category == "destroy"}
+    assert ("Artifact",) in arts
+    assert ("Enchantment",) in arts
+
+
+def test_modal_split_text_recovers_unstructured_mode():
+    """A mode whose body phase couldn't structure (a GenericEffect token bullet)
+    falls back to supplement text-recovery so its category still surfaces (the prior
+    floor), keeping the card from regressing to partial."""
+    modes = [
+        {"kind": "Spell", "effect": {"type": "GenericEffect", "static_abilities": []}},
+    ]
+    descs = ["You gain 3 life."]
+    effs = _modal_split_effects(modes, descs, "choose one —")
+    # the gain-life category recovered from the bullet text, not a bare `other`
+    assert [e.category for e in effs] == ["gain_life"]
+
+
+# ── enters-with self-counter replacement (ADR-0027 counters_matter shape 2a) ───
+
+
+def test_enters_with_p1p1_replacement_projects_place_counter():
+    """ "~ enters with N +1/+1 counters on it" parses as a Moved→Battlefield
+    replacement whose execute is a PutCounter(P1P1). phase emits nothing structural
+    for enters-with; the projection recovers a place_counter (kind p1p1, scope you)
+    so the +1/+1 counters_matter lane fires (Faithful Watchdog, Mistcutter Hydra)."""
+    rep = {
+        "event": "Moved",
+        "destination_zone": "Battlefield",
+        "execute": {
+            "kind": "Spell",
+            "effect": {
+                "type": "PutCounter",
+                "counter_type": "P1P1",
+                "count": {"type": "Fixed", "value": 3},
+                "target": {"type": "SelfRef"},
+            },
+        },
+        "description": "~ enters with three +1/+1 counters on it.",
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert [e.category for e in ab.effects] == ["place_counter"]
+    e = ab.effects[0]
+    assert e.counter_kind == "p1p1"
+    assert e.scope == "you"
+
+
+def test_enters_with_oil_replacement_routes_to_oil_kind():
+    """A non-p1p1 enters-with kind (Oil) keeps its counter_kind so it routes to the
+    oil_counter lane, NOT +1/+1 counters_matter (CR 122.1 — kinds are distinct)."""
+    rep = {
+        "event": "Moved",
+        "destination_zone": "Battlefield",
+        "execute": {
+            "kind": "Spell",
+            "effect": {
+                "type": "PutCounter",
+                "counter_type": "Oil",
+                "count": {"type": "Fixed", "value": 3},
+                "target": {"type": "SelfRef"},
+            },
+        },
+        "description": "~ enters with three oil counters on it.",
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert ab.effects[0].counter_kind == "oil"
+
+
+def test_moved_replacement_without_putcounter_is_ignored():
+    """A Moved→Battlefield replacement whose execute is NOT a PutCounter (a generic
+    enters-tapped / other ETB replacement) projects no place_counter ability."""
+    rep = {
+        "event": "Moved",
+        "destination_zone": "Battlefield",
+        "execute": {
+            "kind": "Spell",
+            "effect": {"type": "GenericEffect", "static_abilities": []},
+        },
+        "description": "~ enters tapped.",
+    }
+    assert _project_replacement(rep) is None

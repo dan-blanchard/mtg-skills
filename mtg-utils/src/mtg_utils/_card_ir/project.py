@@ -1450,6 +1450,31 @@ def _project_replacement(rep: dict) -> Ability | None:
         return _static_effect("counter_doubling", "you", raw, counter_kind=ck)
     if event == "damagedone" and dmod in _INCREASE_MODS:
         return _static_effect("damage_doubling", "you", raw)
+    # Enters-with self-counter (ADR-0027): "~ enters with N +1/+1 counters on it"
+    # parses as a Moved→Battlefield replacement whose `execute` is a PutCounter
+    # (counter_type carries the kind: P1P1 / M1M1 / Oil / Shield / Lore / …). phase
+    # treats enters-with as a characteristic-defining property, so the structured
+    # projection emits NOTHING for it (Faithful Watchdog, Mistcutter Hydra,
+    # Cryptborn Horror, Diregraf Colossus — 469 p1p1 cards keep only their keywords).
+    # Project the execute through the normal effect machinery so the place_counter
+    # lands with its real counter_kind (→ the matching counters / minus_counters /
+    # oil / shield / saga lane). A garbled counter_type (a long mis-parsed string,
+    # not a clean kind token) yields a kindless place_counter — still a +1/+1
+    # enters-with marker the raw fallback in signals can read. CR 614.12 / 122.1.
+    if event == "moved" and _norm(rep.get("destination_zone")) == "battlefield":
+        execute = rep.get("execute")
+        eff = execute.get("effect") if isinstance(execute, dict) else None
+        if isinstance(eff, dict) and _norm(eff.get("type")) in (
+            "putcounter",
+            "putcounterall",
+            "addpendingetbcounters",
+        ):
+            effs = _collect_effects(execute, raw or rep.get("description") or "")
+            place = [
+                replace(e, scope="you") for e in effs if e.category == "place_counter"
+            ]
+            if place:
+                return Ability(kind="static", effects=tuple(place))
     return None
 
 
@@ -1470,12 +1495,83 @@ def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
         return []
     raw = node.get("description") or default_raw
     out: list[Effect] = []
-    eff = node.get("effect")
-    if isinstance(eff, dict):
-        out.extend(_project_effect(eff, raw))
+    # Generalized modal-choose-split (ADR-0027): phase parses a modal ability
+    # ("choose one/three — • …") into a placeholder GenericEffect plus a sibling
+    # `mode_abilities` array — each entry a FULLY STRUCTURED ability dict (its own
+    # typed `effect`/`sub_ability`/`cost`). The structured projection never descends
+    # into it, so the per-mode bodies (• Destroy target artifact, • Mishra deals 3
+    # damage, • you lose 2 life, • mill four) are LOST — only a downstream raw-text
+    # recovery (_fill_sole_empty) re-derives their CATEGORY, dropping the SUBJECT
+    # (the destroy/damage target). Recovering the modes structurally restores those
+    # subjects, so subject-gated lanes (removal_matters' permanent target, the
+    # counters kind, the graveyard self-mill zone) fire from real structure. General
+    # by construction: it reuses _collect_effects per mode and benefits every lane,
+    # not just removal (CR 700.2 — a modal spell/ability). When modes are recovered
+    # we prepend a `choose` marker and SUPPRESS the empty GenericEffect placeholder
+    # (it would only add an `other`, marking the card partial); a mode whose own body
+    # also fails recursively still leaves its own `other`, an honest gap.
+    modes = node.get("mode_abilities")
+    mode_descs = (node.get("modal") or {}).get("mode_descriptions")
+    mode_effects = _modal_split_effects(modes, mode_descs, raw) if modes else []
+    if mode_effects:
+        out.append(Effect(category="choose", scope="any", raw=raw))
+        out.extend(mode_effects)
+    else:
+        eff = node.get("effect")
+        if isinstance(eff, dict):
+            out.extend(_project_effect(eff, raw))
     sub = node.get("sub_ability")
     if isinstance(sub, dict):
         out.extend(_collect_effects(sub, default_raw))
+    return out
+
+
+def _modal_split_effects(
+    modes: object, descs: object, carrier_raw: str
+) -> list[Effect]:
+    """Project a `mode_abilities` array (the structured per-mode bodies of a modal
+    `choose`) into a flat effect list (generalized modal-choose-split, ADR-0027).
+    Each mode is itself an ability node; we recurse `_collect_effects` to recover its
+    typed effects with their real subjects. The positionally-aligned
+    `modal.mode_descriptions` text becomes each mode's effect raw, prefixed with "• "
+    (the oracle bullet form) so a downstream raw-marker / discriminator pass keys on
+    the bullet shape consistently; a mode's own `description` wins when present. A
+    mode phase couldn't structure (a GenericEffect / Unimplemented body) falls back to
+    the same supplement text-recovery `_fill_sole_empty` uses — preserving the prior
+    category floor so confidence is unchanged, with the structured-subject modes a
+    strict gain. Bounded by the mode list; no mode re-nests a modal in practice, so
+    the recursion is shallow."""
+    if not isinstance(modes, list):
+        return []
+    desc_list = descs if isinstance(descs, list) else []
+    out: list[Effect] = []
+    for i, mode in enumerate(modes):
+        if not isinstance(mode, dict):
+            continue
+        own = mode.get("description")
+        bullet = desc_list[i] if i < len(desc_list) else None
+        if isinstance(own, str) and own:
+            mode_raw = own
+        elif isinstance(bullet, str) and bullet:
+            mode_raw = f"• {bullet}"
+        else:
+            mode_raw = carrier_raw
+        mode_effs = _collect_effects(mode, mode_raw)
+        structural = [e for e in mode_effs if e.category != "other"]
+        if structural:
+            out.extend(structural)
+            continue
+        # The mode's body is unparsed (a GenericEffect / Unimplemented phase couldn't
+        # structure — Outlaws' Merriment's token bullets, a "create a 3/1 …" body).
+        # Recover its CATEGORY from the bullet raw via the same supplement grammar
+        # _fill_sole_empty uses, so the lane still fires and the card stays `full`
+        # (the structured-subject modes above are the gain; this preserves the prior
+        # text-recovery floor for modes phase can't type). A truly empty bullet (no
+        # raw) contributes nothing and is dropped.
+        if (mode_raw or "").strip():
+            rec = recover_effect_from_text(mode_raw)
+            if rec.category != "other":
+                out.append(rec)
     return out
 
 
