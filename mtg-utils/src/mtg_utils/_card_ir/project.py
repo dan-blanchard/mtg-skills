@@ -1202,6 +1202,15 @@ def _project_face(record: dict) -> Face:
     gy_cast_markers = _graveyard_cast_grant_markers(record, abilities)
     if gy_cast_markers:
         abilities.append(Ability(kind="static", effects=tuple(gy_cast_markers)))
+    # Additional-cost sacrifice (ADR-0027 sacrifice_matters): an "As an additional
+    # cost to cast this spell, sacrifice a <permanent>" outlet. phase keeps it in the
+    # record's `additional_cost` field but drops it off the projected spell ability
+    # (Altar's Reap → only draw; Fling → only damage). Surface a sacrifice marker so
+    # the you-sac lane fires; the land-sac form (Crop Rotation, Harrow) is a separate
+    # land_sacrifice lane and is excluded.
+    sac_cost_markers = _sacrifice_cost_markers(record, abilities)
+    if sac_cost_markers:
+        abilities.append(Ability(kind="static", effects=tuple(sac_cost_markers)))
     return Face(
         name=record.get("name") or "",
         type_line=_type_line(record.get("card_type")),
@@ -1540,11 +1549,22 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     counter_kind = _norm(ck) if isinstance(ck, str) else ""
     if etype in _MASS_EFFECT_TYPES:
         counter_kind = "all"
+    scope = _effect_scope(eff)
+    # ADR-0027 sacrifice_matters edict split: a Sacrifice effect's "who sacrifices"
+    # is the controller of the sacrificed object (the effect's `target`). phase
+    # encodes a FORCED OTHER-player sacrifice (an edict) as target.controller =
+    # TargetPlayer / ScopedPlayer / DefendingPlayer / Opponent, but _effect_scope
+    # never reads a Typed target's `controller`, so every edict landed on scope
+    # "any" — indistinguishable from a genuine you-sacrifice. Promote the scope to
+    # opp/each from the sacrificing player so signals can keep the edict (opp/each →
+    # edict_matters) out of the you-sac sacrifice_matters lane (CR 701.16).
+    if category == "sacrifice":
+        scope = _sacrifice_player_scope(eff, scope)
     return [
         Effect(
             category=category,
             amount=_amount(eff),
-            scope=_effect_scope(eff),
+            scope=scope,
             subject=_effect_subject(eff),
             raw=raw,
             counter_kind=counter_kind,
@@ -2986,6 +3006,45 @@ def _graveyard_cast_grant_markers(
     return []
 
 
+def _additional_cost_data(record: dict) -> dict | None:
+    """The inner data of a record's ``additional_cost`` (phase wraps it as
+    ``{type: Required/Optional, data: {...}}``; some records inline it). None when
+    absent or malformed."""
+    ac = record.get("additional_cost")
+    if not isinstance(ac, dict):
+        return None
+    data = ac.get("data")
+    return data if isinstance(data, dict) else ac
+
+
+def _sacrifice_cost_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
+    """One you-sacrifice marker when the card's ``additional_cost`` is a non-land
+    Sacrifice phase kept in the record but dropped off the projected spell (Altar's
+    Reap, Fling, Bone Splinters — additional-cost sac outlets, ADR-0027). Gated to a
+    Typed/Or sac target whose filter is NOT land-only (Crop Rotation / Harrow sac a
+    land → a separate land_sacrifice lane). Projects the sacrificed object's Filter as
+    the subject so the lane's land VETO + scope read it identically to a structural
+    sacrifice Effect. Skipped when a structural sacrifice Effect already exists."""
+    if any(e.category == "sacrifice" for a in abilities for e in a.effects):
+        return []
+    data = _additional_cost_data(record)
+    if not isinstance(data, dict) or _norm(data.get("type")) != "sacrifice":
+        return []
+    subject = _filter(data.get("target"))
+    # A land-only sac additional cost is the land_sacrifice lane, not sacrifice_matters
+    # (Crop Rotation, Harrow). Drop it; a Permanent/Creature/Artifact/Or target stays.
+    if subject is not None and subject.card_types == ("Land",):
+        return []
+    return [
+        Effect(
+            category="sacrifice",
+            scope="you",
+            subject=subject,
+            raw="additional cost: sacrifice a permanent",
+        )
+    ]
+
+
 def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effect]:
     """Markers for named-mechanic statics/replacements phase dropped from the parse
     entirely, surviving only on the face oracle text (dropped-static face markers,
@@ -3378,6 +3437,33 @@ def _effect_scope(eff: dict) -> str:
         if pst == "all":
             return "each"
     return "any"
+
+
+# Player-controller values phase puts on a sacrificed object's `target.controller`
+# when ANOTHER player does the sacrificing (an edict). "You"/null/None mean the
+# active player sacrifices their own permanent — a genuine self-sacrifice — so they
+# are NOT promoted off scope "any".
+_EDICT_PLAYER_CONTROLLERS = frozenset(
+    {"targetplayer", "targetopponent", "defendingplayer", "opponent"}
+)
+_EACH_PLAYER_CONTROLLERS = frozenset({"eachplayer", "allplayers", "scopedplayer"})
+
+
+def _sacrifice_player_scope(eff: dict, fallback: str) -> str:
+    """Scope for a Sacrifice effect, read from WHO sacrifices (the controller of the
+    sacrificed object). A forced opponent sacrifice (edict) → opp; an each-player
+    sacrifice → each; otherwise the existing ``fallback`` (a you-sacrifice stays
+    "any"). ADR-0027 sacrifice_matters edict split."""
+    tgt = eff.get("target")
+    if not isinstance(tgt, dict):
+        return fallback
+    ctrl = tgt.get("controller")
+    cn = _norm(ctrl.get("type")) if isinstance(ctrl, dict) else _norm(ctrl)
+    if cn in _EDICT_PLAYER_CONTROLLERS:
+        return "opp"
+    if cn in _EACH_PLAYER_CONTROLLERS:
+        return "each"
+    return fallback
 
 
 def _trigger_event(tr: dict) -> str:

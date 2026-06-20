@@ -3955,6 +3955,12 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
 _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "boast": (("boast_matters", "you"),),
     "cascade": (("cascade_matters", "you"),),
+    # Casualty (CR 702.153) sacrifices a creature as a cost to copy the spell — the
+    # printed KEYWORD is the structural anchor for the sac cost phase folds into the
+    # Casualty parse (no sacrifice Effect / cost token survives). Mirrors the regex
+    # `\bcasualty\b` → sacrifice_matters. The GRANTER (Anhelo — "has casualty 2") is
+    # keyword-less and is recovered by a cast_with_keyword raw marker below.
+    "casualty": (("sacrifice_matters", "you"),),
     "changeling": (("changeling_matters", "you"),),
     "companion": (("companion_keyword", "you"),),
     # Connive (CR 701.50) as the printed KEYWORD — covers the keyword-LESS GRANTER
@@ -4610,6 +4616,20 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
 # (raw has "…or land…") and excludes Sharkey (no gain_control effect at all).
 _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECASE)
 
+# sacrifice_matters edict exclusion (ADR-0027): a FORCED sacrifice phase mis-scoped
+# to "any" (it dropped the opponent/each-player controller — Malfegor, Barter in
+# Blood, Plaguecrafter), so the structural opp/each edict split missed it. The raw
+# still names the sacrificing party ("<each opponent / each player / target player /
+# defending player / an opponent> ... sacrifices"), the 3rd-person forced form that
+# distinguishes an edict from a you-sacrifice ("you ... sacrifice"). Kept out of the
+# you-sac sacrifice_matters lane (it stays an edict_matters / removal effect).
+_SAC_EDICT_RAW = re.compile(
+    r"\b(?:each opponent|each player|each of your opponents|target opponent"
+    r"|target player|that player|an opponent|defending player|enchanted player"
+    r"|opponents?)\b[^.]{0,70}?\bsacrifices\b",
+    re.IGNORECASE,
+)
+
 # convoke_matters (ADR-0027): the keyword-LESS convoke GRANTERS + PAYOFFS phase keeps
 # only in a carrier raw — Wand of the Worldsoul's grant_spell_ability ("the next spell
 # you cast this turn has convoke", counter_kind dropped) and the "spell that has
@@ -4830,6 +4850,12 @@ def extract_signals_ir(
     # its own graveyard.
     if "graveyard" in ir.castable_zones:
         add("graveyard_matters", "you", "", "")
+
+    # lifeloss_matters paylife VETO (ADR-0027): a card whose ONLY pay-life ability is
+    # mana fixing is a painland/fetchland/shockland, not a life-as-resource engine —
+    # phase types those COST[paylife,tap]→ramp identically. Mirror the regex's land
+    # VETO so a paylife mana-source never opens the lane.
+    card_is_land = "land" in (card.get("type_line") or "").lower()
 
     for ab in ir.all_abilities():
         for e in ab.effects:
@@ -5197,12 +5223,45 @@ def extract_signals_ir(
                 add("symmetric_damage_each", "each", "", e.raw)
             if cat == "discard" and e.scope == "opp":
                 add("opponent_discard", "opponents", "", e.raw)
+            # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
+            # `lose_life` category distinct from gain_life / set_life, so the lane reads
+            # it directly. scope splits the half: a drain ("each opponent / target
+            # player / that player loses N life") is scope opp/any → opponents; a self
+            # life-loss cost/payoff ("you lose N/X life") is scope you → you. lifeGAIN
+            # and combat damage are sibling categories that never reach here. CR 119.3.
+            if cat == "lose_life":
+                add(
+                    "lifeloss_matters",
+                    "you" if e.scope == "you" else "opponents",
+                    "",
+                    e.raw,
+                )
             # An edict forces OPPONENTS / each player to sacrifice — gate on an
             # explicit opp/each scope (an unscoped sacrifice effect is ambiguous,
             # often a self-sac inside a larger effect, so don't call it an edict).
             # A sac OUTLET is a COST (handled per-ability below).
             if cat == "sacrifice" and e.scope in ("opp", "each"):
                 add("edict_matters", _ir_scope(e.scope), "", e.raw)
+            # ADR-0027 sacrifice_matters — a YOU-sacrifice effect (the dominant gap):
+            # "you may sacrifice a creature/artifact", "sacrifice another creature",
+            # the additional-cost-to-cast sac marker (Altar's Reap, Fling). phase
+            # emits scope "any" even for a clearly-you sacrifice, so fire on scope NOT
+            # opp/each (the edict split above takes those). Three discriminators keep
+            # the over-fire out: (1) a real non-land subject Filter — a subjectless
+            # SelfRef "sacrifice THIS" is a downside payoff, not a sac-theme outlet,
+            # and a land-typed subject is the land_sacrifice lane (Excavating Anurid,
+            # Serendib Djinn); (2) the raw must not name a FORCED opponent/each-player
+            # sacrifice phase mis-scoped to "any" (Malfegor, Barter in Blood — phase
+            # dropped the opponent controller; the raw still reads "<player>
+            # sacrifices"). CR 701.16.
+            if (
+                cat == "sacrifice"
+                and e.scope not in ("opp", "each")
+                and e.subject is not None
+                and "Land" not in ftypes
+                and not _SAC_EDICT_RAW.search(e.raw or "")
+            ):
+                add("sacrifice_matters", "you", "", e.raw)
             if cat == "gain_control":
                 if e.scope == "opp":
                     add("donate_matters", "you", "", e.raw)
@@ -5438,6 +5497,16 @@ def extract_signals_ir(
             # Batch 2 — a repeatable pay-life COST wants lifegain insurance.
             if "paylife" in cost_parts:
                 add("life_payment_insurance", "you", "", "")
+                # ADR-0027 lifeloss_matters — a pay-life ACTIVATION COST that buys a
+                # real engine effect (Beledros paylife→untap-all-lands, Cauldron
+                # paylife→reanimate, Sentry paylife→regenerate) is a life-as-resource
+                # payoff. Gate hard against the lane's land trap: a paylife ability
+                # whose ONLY effects are mana fixing (`ramp`) is a painland/fetch/
+                # shockland (Horizon Canopy, Boseiju), excluded by the non-ramp gate;
+                # a Land card is excluded defensively (Eumidian Hatchery rides a
+                # place_counter past the ramp gate but is still mana fixing). CR 118.
+                if not card_is_land and any(e.category != "ramp" for e in ab.effects):
+                    add("lifeloss_matters", "you", "", "")
             # A discard OUTLET ("Discard a card: ...") pitches fodder for value —
             # madness/reanimator fuel. The cost projection splits self-discard
             # (Cycling's "discardself") out, so this no longer floods on alt-costs.
@@ -5471,6 +5540,13 @@ def extract_signals_ir(
                 add("self_death_payoff", "you", "", "")
             if trig.event == "life_gained":
                 add("lifegain_matters", "you", "", "")
+            # ADR-0027 sacrifice_matters — the pure SAC PAYOFF: a trigger that fires
+            # on the act of sacrificing ("whenever you sacrifice a creature/artifact"
+            # → reward; Gleaming Geardrake's "sacrificed" trigger → +1/+1 counter).
+            # phase parses this as Trigger(event='sacrificed') — unambiguously a sac
+            # payoff, so no discriminator is needed. CR 701.16.
+            if trig.event == "sacrificed":
+                add("sacrifice_matters", "you", "", "")
             # Batch 2c — trigger-event "payoff" lanes.
             payoff = _PAYOFF_TRIGGER_KEYS.get(trig.event)
             if payoff is not None:

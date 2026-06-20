@@ -29,6 +29,8 @@ from mtg_utils._card_ir.project import (
     _predicate,
     _quantity,
     _recover_graveyard_zones,
+    _sacrifice_cost_markers,
+    _sacrifice_player_scope,
     project_card,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter, Quantity, Trigger
@@ -2170,3 +2172,113 @@ def test_graveyard_count_marker_from_effect_amount():
     markers = _graveyard_count_markers(rec, [])
     assert {"board_count"} == {m.category for m in markers}
     assert markers[0].zones == ("in:graveyard",)
+
+
+# ── ADR-0027 sacrifice_matters: edict scope split + additional-cost marker ─────
+
+
+def test_sacrifice_player_scope_edict_vs_you():
+    """A Sacrifice effect's scope reads WHO sacrifices (the sacrificed object's
+    controller): a forced opponent sac (TargetPlayer / DefendingPlayer / Opponent) →
+    opp; each-player → each; a you/null self-sacrifice keeps the fallback ('any')."""
+    you = {
+        "target": {"type": "Typed", "type_filters": ["Creature"], "controller": "You"}
+    }
+    null = {
+        "target": {"type": "Typed", "type_filters": ["Creature"], "controller": None}
+    }
+    edict = {"target": {"type": "Typed", "controller": "TargetPlayer"}}
+    defend = {"target": {"type": "Typed", "controller": "DefendingPlayer"}}
+    each = {"target": {"type": "Typed", "controller": "ScopedPlayer"}}
+    nested = {"target": {"type": "Typed", "controller": {"type": "Opponent"}}}
+    assert _sacrifice_player_scope(you, "any") == "any"
+    assert _sacrifice_player_scope(null, "any") == "any"
+    assert _sacrifice_player_scope(edict, "any") == "opp"
+    assert _sacrifice_player_scope(defend, "any") == "opp"
+    assert _sacrifice_player_scope(each, "any") == "each"
+    assert _sacrifice_player_scope(nested, "any") == "opp"
+
+
+def test_predatory_nightstalker_edict_scope():
+    """An edict ("target opponent sacrifice a creature") projects the Sacrifice
+    effect at scope opp — the structural discriminator that keeps it out of the
+    you-sacrifice lane while edict_matters still fires."""
+    rec = {
+        "name": "Predatory Nightstalker",
+        "oracle_text": "When this creature enters, you may have target opponent "
+        "sacrifice a creature of their choice.",
+        "triggers": [
+            {
+                "mode": "ChangesZone",
+                "destination": "Battlefield",
+                "execute": {
+                    "effect": {
+                        "type": "Sacrifice",
+                        "target": {
+                            "type": "Typed",
+                            "type_filters": ["Creature"],
+                            "controller": "TargetPlayer",
+                        },
+                        "count": {"type": "Fixed", "value": 1},
+                    }
+                },
+            }
+        ],
+    }
+    card = project_card([rec])
+    sacs = [
+        e
+        for f in card.faces
+        for a in f.abilities
+        for e in a.effects
+        if e.category == "sacrifice"
+    ]
+    assert sacs
+    assert all(e.scope == "opp" for e in sacs)
+
+
+def test_sacrifice_cost_marker_from_additional_cost():
+    """Altar's Reap keeps its "sacrifice a creature" additional cost in the record's
+    additional_cost field but drops it off the projected spell — recovered as a
+    you-sacrifice marker (the land-sac form is excluded)."""
+    reap = {
+        "name": "Altar's Reap",
+        "oracle_text": "As an additional cost to cast this spell, sacrifice a "
+        "creature.\nDraw two cards.",
+        "additional_cost": {
+            "type": "Required",
+            "data": {
+                "type": "Sacrifice",
+                "target": {
+                    "type": "Typed",
+                    "type_filters": ["Creature"],
+                    "controller": None,
+                    "properties": [],
+                },
+                "count": 1,
+            },
+        },
+    }
+    markers = _sacrifice_cost_markers(reap, [])
+    assert len(markers) == 1
+    assert markers[0].category == "sacrifice"
+    assert markers[0].scope == "you"
+    assert markers[0].subject is not None
+    assert markers[0].subject.card_types == ("Creature",)
+    # land-only additional-cost sac (Crop Rotation / Harrow) is the land_sacrifice
+    # lane, not sacrifice_matters → no marker.
+    land = dict(reap)
+    land["additional_cost"] = {
+        "type": "Required",
+        "data": {
+            "type": "Sacrifice",
+            "target": {"type": "Typed", "type_filters": ["Land"], "controller": None},
+            "count": 1,
+        },
+    }
+    assert not _sacrifice_cost_markers(land, [])
+    # gated to faces with no structural sacrifice effect (no double-tag)
+    structural = [
+        Ability(kind="spell", effects=(Effect(category="sacrifice", scope="you"),))
+    ]
+    assert not _sacrifice_cost_markers(reap, structural)
