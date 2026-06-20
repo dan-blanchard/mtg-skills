@@ -915,6 +915,14 @@ _DAMAGE_REFLECT_TRIG = re.compile(
     r"\bwhenever\b[^.\"]*?\bis dealt damage\b", re.IGNORECASE
 )
 _DAMAGE_REFLECT_DEALS = re.compile(r"\bdeals that much damage\b", re.IGNORECASE)
+# Myriad (CR 702.115) CONFERRED via a copy-with-modification: "becomes a copy of …
+# except it has myriad" (Muddle, the Ever-Changing — CR 707.2). phase parses the
+# copy as a `clone` carrier and drops the conferred keyword (counter_kind=''). The
+# native myriad granters ("<class> have myriad" — Blade of Selves, Legion Loyalty)
+# already carry counter_kind='myriad' on a grant_keyword effect; this catches the
+# clone-exception conferral phase folds away. Anchored on "has/with myriad", never
+# the bare keyword (the card's own printed myriad rides the keyword array).
+_MYRIAD_GRANT = re.compile(r"\b(?:has|with) myriad\b", re.IGNORECASE)
 
 
 def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
@@ -954,6 +962,23 @@ def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
             and _DAMAGE_REFLECT_DEALS.search(raw)
         ):
             markers.append(Effect(category="damage_reflect", scope="you", raw=raw))
+        # Myriad conferred via a copy-exception (Muddle) → a grant_keyword marker
+        # carrying counter_kind='myriad' (the same discriminator phase stamps on the
+        # native "<class> have myriad" granters), gated so a card already carrying a
+        # myriad-counter_kind grant isn't double-tagged.
+        if (
+            not any(m.counter_kind == "myriad" for m in markers)
+            and "myriad" not in {e.counter_kind for e in ability.effects}
+            and _MYRIAD_GRANT.search(raw)
+        ):
+            markers.append(
+                Effect(
+                    category="grant_keyword",
+                    scope="you",
+                    counter_kind="myriad",
+                    raw=raw,
+                )
+            )
     if not markers:
         return ability
     return replace(ability, effects=ability.effects + tuple(markers))
@@ -2524,6 +2549,20 @@ _SCRY_REPLACEMENT = re.compile(
 _EXTRA_END_GRANT = re.compile(
     r"\badditional end step\b|\badditional ending phase\b", re.IGNORECASE
 )
+# Tapped-creatures payoff (CR 509) phase strips the subject/predicate from: a GRANT
+# ("Tapped creatures you control can block as though they were untapped" — Masako the
+# Humorless) parsed as a grant_keyword with subject=None, or a COUNT ("X is the number
+# of tapped creatures you control" — Harvest Season) whose board_count subject phase
+# emits without the Tapped predicate. Anchored on the grant verb after the subject OR
+# the "number of tapped creatures you control" count phrase, so a removal "destroy
+# tapped creatures" can't match. The marker rebuilds a Tapped-creature subject Filter
+# so the existing Tapped-predicate read fires tapped_matters. Gated to faces with no
+# structural Tapped predicate.
+_TAPPED_GRANT = re.compile(
+    r"\btapped creatures you control (?:have|get|gain|gains|are|can|with)\b"
+    r"|\bnumber of tapped creatures you control\b",
+    re.IGNORECASE,
+)
 # Extra beginning phase (CR 501.1) grant: "an additional beginning phase after this
 # phase" (Shadow / Sphinx of the Second Sun, Cyclonus's back face). A beginning
 # phase contains the untap, UPKEEP, and DRAW steps, so an extra one re-triggers both
@@ -2534,6 +2573,31 @@ _EXTRA_END_GRANT = re.compile(
 _EXTRA_BEGINNING_PHASE_GRANT = re.compile(
     r"\badditional beginning phase\b", re.IGNORECASE
 )
+# Life-total SET / DOUBLE (CR 119/120) phase mis-categorizes or drops: "your life
+# total becomes <X>" (the most common set-life wording) routes to animate (Touch of
+# the Eternal, Invincible Hymn), shuffle (Lich's Mirror), or lose_game (Enduring
+# Angel), or is dropped entirely on a modal bullet / replacement (Captive Audience,
+# The Golden Throne, Exquisite Archangel, Stunning Reversal). Life DOUBLING ("double
+# … life total") routes to the `double` category, which is NOT the set_life lane.
+# Both are in-lane ("set/exchange/double a life total"); anchored on "life total
+# becomes" and "double … life total" — the latter requires "life total" in the same
+# clause so token/counter/damage doubling (the bulk of `double`) is excluded, and a
+# damage-scaled-by-life clause ("damage equal to half … life total" — Heartless
+# Hidetsugu) never says "becomes" or "double".
+_LIFE_TOTAL_SET = re.compile(
+    r"\blife total becomes\b|\bdouble\b[^.]*\blife total\b", re.IGNORECASE
+)
+# Lure / force-a-block (CR 509.1c/h) phase swallows into a pump/grant_keyword compound
+# clause (Indrik Umbra, Revenge of the Hunted), drops in a conditional static (Seton's
+# Desire, Stone-Tongue Basilisk), folds the equip rider as "must be blocked by <type>
+# if able" (Ace's Baseball Bat, Slayer's Cleaver), or buries it in a modal bullet
+# (Glorfindel). Two phrasings: "able to block <X> do so" (force ALL able blockers) and
+# "must be blocked [by <type>] if able" (force a block on the attacker). Both force a
+# block — the lane explicitly wants force-a-block — so a by-<type> restriction is a
+# refinement, not a disqualifier. The block-LIMIT tax ("can't be blocked by more than
+# one") never says "do so" or "must be blocked … if able", so it can't match.
+_LURE_ABLE = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
+_LURE_MUST = re.compile(r"\bmust be blocked\b[^.]*?\bif able\b", re.IGNORECASE)
 # Counter a spell/ability (CR 701.5) buried where phase loses it: a modal mode body
 # ("• Counter target creature spell" — Fangkeeper's Familiar, Ertai Resurrected,
 # phase keeps only the `choose` header), a granted/quoted Aura ability ("Enchanted
@@ -2599,6 +2663,60 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     )
     if not has_counter and (m := _COUNTER_TARGET_REF.search(text)) is not None:
         markers.append(Effect(category="counter_spell", scope="any", raw=m.group(0)))
+    # "Life total becomes <X>" / "double … life total" phase mis-tagged or dropped →
+    # a set_life marker, gated to faces with no structural set_life effect.
+    has_set_life = any(e.category == "set_life" for a in abilities for e in a.effects)
+    if not has_set_life and (m := _LIFE_TOTAL_SET.search(text)) is not None:
+        markers.append(Effect(category="set_life", scope="any", raw=m.group(0)))
+    # Force-a-block (lure) phase swallowed into a compound pump/grant clause or
+    # dropped, gated to faces with no structural lure effect.
+    has_lure = any(e.category == "lure" for a in abilities for e in a.effects)
+    if not has_lure:
+        m = _LURE_ABLE.search(text) or _LURE_MUST.search(text)
+        if m is not None:
+            markers.append(Effect(category="lure", scope="you", raw=m.group(0)))
+
+    # "Tapped creatures you control <grant>" phase parsed with the subject dropped →
+    # a grant_keyword marker carrying the rebuilt Tapped-creature subject Filter, so
+    # the existing Tapped-predicate read fires tapped_matters (Masako). Gated to faces
+    # with no structural Tapped predicate already present.
+    def _has_tapped(a: Ability) -> bool:
+        if (
+            a.condition is not None
+            and a.condition.subject is not None
+            and "Tapped" in a.condition.subject.predicates
+        ):
+            return True
+        for e in a.effects:
+            if e.subject is not None and "Tapped" in e.subject.predicates:
+                return True
+            if (
+                e.amount is not None
+                and e.amount.subject is not None
+                and "Tapped" in e.amount.subject.predicates
+            ):
+                return True
+        return False
+
+    has_tapped_pred = any(_has_tapped(a) for a in abilities)
+    if not has_tapped_pred and (m := _TAPPED_GRANT.search(text)) is not None:
+        # category="tap" (not grant_keyword): the Tapped-creature subject lights the
+        # tapped_matters predicate read, while NOT tripping the creatures_matter
+        # team-anthem read (which keys on grant_keyword/pump/base_pt_set) — Masako's
+        # "tapped creatures can block as though untapped" is a state grant, not a
+        # whole-board anthem. The tapped_matters read is effect-category-agnostic.
+        markers.append(
+            Effect(
+                category="tap",
+                scope="you",
+                subject=Filter(
+                    card_types=("Creature",),
+                    controller="you",
+                    predicates=("Tapped",),
+                ),
+                raw=m.group(0),
+            )
+        )
     # Modal / granted-quoted "can't block" phase dropped → a cant_block marker, gated
     # to faces with no structural cant_block effect (the per-carrier marker already
     # covers the carrier-raw shapes).
