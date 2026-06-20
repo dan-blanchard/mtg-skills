@@ -3128,6 +3128,22 @@ _OIL_REF = re.compile(r"\boil counters?\b", re.IGNORECASE)
 # arm, which over-fires on unrelated life thresholds ("if your life total is less
 # than 7" — Elderscale Wurm), which the structural IR correctly drops.
 _STARTING_LIFE_REF = re.compile(r"\bstarting life total\b", re.IGNORECASE)
+# Fight (CR 701.12) GRANTED / QUOTED / modal / symmetric phase drops: a granted
+# "it fights" (Tolsimir's Wolf trigger), a quoted token "when this token enters, it
+# fights" (Aggressive Biomancy, Mythos of Illuna's copy grant), a modal "Fight!"
+# bullet (Magus Sisters), a DFC face (Prepare // Fight), an emblem "have it fight"
+# (Kiora), or a symmetric "fight each other" (Tunnel of Love). phase emits a `fight`
+# effect for a plain top-level fight; this recovers the granted/quoted/modal residual.
+# Anchored on the fight VERB in its real shapes (mirrors the fight_matters regex):
+# "fight(s) [up to N] [other/another] target/creature", "fight(s) it", "fight each
+# other" — the verb appears only on real fight cards (the noun "fight" is rare and the
+# anchor requires a fight TARGET/object).
+_FIGHT_REF = re.compile(
+    r"\bfights? (?:up to (?:one|two|\d+) )?(?:other |another )?target\b"
+    r"|\bfights? (?:up to (?:one|two) )?(?:other )?creature"
+    r"|\bfight each other\b|\bfights? it\b|\bfights? (?:another|each)\b",
+    re.IGNORECASE,
+)
 # Creature-cast trigger (CR 601) phase drops ENTIRELY (the quoted token ability —
 # Blink's "create a token with 'Whenever an opponent casts a creature spell …'" — or a
 # spell's delayed trigger — Glimpse of Nature's "Whenever you cast a creature spell this
@@ -3972,6 +3988,12 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     )
     if not has_creature_cast and (m := _CREATURE_CAST_REF.search(text)) is not None:
         markers.append(Effect(category="creature_cast", scope="any", raw=m.group(0)))
+    # Fight GRANTED / QUOTED / modal / symmetric phase drops → a fight marker, gated to
+    # faces with no structural fight effect (the plain top-level fight binds natively).
+    # Read via _DOER_EFFECT_KEYS (CR 701.12).
+    has_fight = any(e.category == "fight" for a in abilities for e in a.effects)
+    if not has_fight and (m := _FIGHT_REF.search(text)) is not None:
+        markers.append(Effect(category="fight", scope="you", raw=m.group(0)))
     # Cycling "cycle or discard" PAYOFF trigger phase dropped ENTIRELY (the trigger
     # phrase truncated off both the trigger and the effect raw — Pitiless Vizier,
     # Zenith Seeker keep only "gain indestructible"/"gain flying") → a cycling marker.

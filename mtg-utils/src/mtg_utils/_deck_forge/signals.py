@@ -4740,6 +4740,17 @@ _CREATURE_SPELL_RAW = re.compile(
     re.IGNORECASE,
 )
 
+# fight_matters (ADR-0027): a face-level fallback for an Aftermath DFC whose "Fight"
+# back face phase never projects into the IR (Prepare // Fight) — the fight survives
+# only on the combined face oracle. Mirrors the project `_FIGHT_REF` / fight_matters
+# regex shapes (the fight VERB with a target/creature/each-other object).
+_FIGHT_RAW = re.compile(
+    r"\bfights? (?:up to (?:one|two|\d+) )?(?:other |another )?target\b"
+    r"|\bfights? (?:up to (?:one|two) )?(?:other )?creature"
+    r"|\bfight each other\b|\bfights? it\b|\bfights? (?:another|each)\b",
+    re.IGNORECASE,
+)
+
 # group_mana (ADR-0027): symmetric/shared mana added to players OTHER than just the
 # controller. The Effect dataclass has no recipient field — phase flattens every
 # mana-recipient phrasing ("each player … adds {G}", "that player adds {B}{R}{G}",
@@ -6030,6 +6041,16 @@ def extract_signals_ir(
     for det in _FLOOR_DETECTORS:
         if det.key in _IR_FLOOR_LANES and det.pattern.search(kept_oracle):
             add(det.key, det.scope, "", "")
+
+    # ADR-0027 fight_matters (face-level fallback): an Aftermath DFC whose "Fight" back
+    # face phase never projects into the IR (Prepare // Fight) keeps the fight only on
+    # the combined face oracle. Gated to faces with no structural fight effect/marker —
+    # the project `_FIGHT_REF` dropped-static marker covers the single-face drops; this
+    # is the back-face-not-projected residual. Reminder already stripped (kept_oracle).
+    if not any(s.key == "fight_matters" for s in out) and _FIGHT_RAW.search(
+        kept_oracle
+    ):
+        add("fight_matters", "you", "", "")
 
     # Batch K — additional keyword-array lanes + type_line membership (clean
     # structured-field lookups; membership is low-confidence, as in the regex path).
