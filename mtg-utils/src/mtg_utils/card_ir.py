@@ -307,6 +307,11 @@ CATEGORIES: frozenset[str] = frozenset(
         # face oracle (a quoted token ability — Blink — or a spell's delayed trigger —
         # Glimpse of Nature). CR 601 (a creatures-being-cast payoff, scope "any").
         "creature_cast",
+        # token_subtype_ref ← a cares-about reference to a named token subtype
+        # (Food/Treasure/Clue/Blood) WITHOUT making/sacrificing it ("Foods you control",
+        # "was a Treasure", "is a Food") phase has no structure for; the subtype rides
+        # counter_kind. Read in extract_signals_ir → food/treasure/clue/blood_matters.
+        "token_subtype_ref",
         # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
         # artifacts / enchantments you control) the structured projection dropped to a
         # subjectless characteristic_pt / ModifyCost / damage / gate condition;

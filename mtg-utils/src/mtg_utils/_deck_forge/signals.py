@@ -4751,6 +4751,14 @@ _FIGHT_RAW = re.compile(
     re.IGNORECASE,
 )
 
+# token-subtype (ADR-0027): a face-level fallback for an Aftermath DFC whose
+# "create … <Subtype> token" back face phase never projects into the IR (Indulge //
+# Excess) — the maker survives only on the combined face oracle. Anchored on a creation
+# verb + "<Subtype> token" so a "discard a Blood token" outlet doesn't false-fire.
+_TOKEN_SUBTYPE_RAW = re.compile(
+    r"\bcreates?\b[^.]*?\b(blood|clue|food|treasure) tokens?\b", re.IGNORECASE
+)
+
 # group_mana (ADR-0027): symmetric/shared mana added to players OTHER than just the
 # controller. The Effect dataclass has no recipient field — phase flattens every
 # mana-recipient phrasing ("each player … adds {G}", "that player adds {B}{R}{G}",
@@ -5581,6 +5589,13 @@ def extract_signals_ir(
                     if st in _TOKEN_SUBTYPE_KEYS:
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
                         add(tk, ts, "", e.raw)
+            # ADR-0027 token_subtype_ref marker (project._dropped_static_markers): a
+            # cares-about reference to a named token subtype ("Foods you control", "was
+            # a Treasure") — the subtype rides counter_kind → its food/treasure/clue/
+            # blood lane (the "_matters = cares-about" payoff side).
+            if cat == "token_subtype_ref" and e.counter_kind in _TOKEN_SUBTYPE_KEYS:
+                tk, ts = _TOKEN_SUBTYPE_KEYS[e.counter_kind]
+                add(tk, ts, "", e.raw)
             # Modal keyword mechanics — own CR-accurate category fanning to EVERY mode
             # it touches, instead of being flattened into a single facet. The keyword
             # maps already fire the primary lane (amass→tokens_matter,
@@ -6051,6 +6066,17 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("fight_matters", "you", "", "")
+
+    # ADR-0027 token-subtype (face-level fallback): an Aftermath DFC whose "<Subtype>
+    # token" back face phase never projects into the IR (Indulge // Excess) keeps the
+    # maker only on the combined face oracle. One scan over kept_oracle per migrated
+    # subtype, gated to subtypes not already opened by a structural maker/sac/ref.
+    for tm in _TOKEN_SUBTYPE_RAW.finditer(kept_oracle):
+        st = tm.group(1).lower()
+        if st in _TOKEN_SUBTYPE_KEYS:
+            tk, ts = _TOKEN_SUBTYPE_KEYS[st]
+            if not any(s.key == tk for s in out):
+                add(tk, ts, "", "")
 
     # Batch K — additional keyword-array lanes + type_line membership (clean
     # structured-field lookups; membership is low-confidence, as in the regex path).

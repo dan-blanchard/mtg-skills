@@ -1162,40 +1162,92 @@ def _narrow_payoff_condition_refs(ability: Ability) -> Ability:
 # Recover the named subtypes from the raw and APPEND a make_token marker Effect per
 # subtype (subject Filter carries the subtype) so the existing make_token signal
 # rule fires the right lane. Append-only; the carrier effect is untouched. Anchored
-# on the explicit "<Subtype> token" phrase inside a choose/grant carrier, never a
-# bare subtype mention — general for clue/food/treasure/blood.
-# Carriers a dropped token-subtype maker hides inside: the modal `choose` header
-# (choice list) and the grant carriers that fold a quoted "create a <Subtype>
-# token" ability into their raw. NOT make_token itself — a real maker already
-# carries the subtype on its subject Filter, so recovering it from raw would be
-# redundant and risk a raw-flavor over-fire.
-_TOKEN_SUBTYPE_MAKER_CARRIERS: frozenset[str] = frozenset(
-    {"choose", "pump", "pump_target", "grant_keyword"}
-)
+# on the explicit "<Subtype> token" phrase (a MAKER) or "Sacrifice a <Subtype>" (a
+# SACRIFICE PAYOFF), never a bare subtype mention — general for clue/food/treasure/
+# blood. Scans EVERY effect raw: phase drops the subtype off a make-token buried in a
+# die-roll / vote / dilemma / coin-flip / cost branch (Hoarding Ogre, Seize the
+# Spotlight, Treasure Chest) AND off a "Sacrifice a Food:" activated-ability cost
+# (Wicked Wolf, Cauldron Familiar, Capenna Express — the food/treasure is the SAC
+# fuel, which the lane reads off a sacrifice subject). The same-subtype dedup keeps a
+# real make_token (which already carries the subtype on its subject) from double-firing.
+# A MAKER reference: "<Subtype> token" — but ONLY counted when its raw also names a
+# creation verb (create/creates), so a "discard a Blood token" / "exile a Food token"
+# (a sac/discard outlet, NOT a maker) doesn't false-fire. The choice-list "Create your
+# choice of a Blood token, a Clue token, …" and the d20/vote branch "Create a Treasure
+# token" both carry "create" in the same raw.
 _TOKEN_SUBTYPE_REF = re.compile(
     r"\b(blood|clue|food|treasure) tokens?\b", re.IGNORECASE
+)
+_TOKEN_CREATE_VERB = re.compile(r"\bcreates?\b", re.IGNORECASE)
+_TOKEN_SUBTYPE_SAC = re.compile(
+    r"\bsacrifice (?:a|an|another|\d+|two|three|four|five) "
+    r"(blood|clue|food|treasure)s?\b",
+    re.IGNORECASE,
+)
+# A CARES-ABOUT reference to a named token subtype WITHOUT making/sacrificing it —
+# "<Subtype>s you control" (a count operand / anthem subject — Hobbit's Sting,
+# Vihaan, Rent Is Due, Honored Dreyleader), "(was|were) (a|an) <Subtype>" (a sac
+# condition — Evereth), "is a <Subtype>" / "that's a <Subtype>" (a Food-creature
+# anthem — Brenard, Shelob). The lane (food/treasure/clue/blood_matters) is a
+# cares-about payoff (the "_matters = cares-about" rule), so a deck running these
+# wants the subtype. Anchored on the explicit own-control / state phrasing.
+_TOKEN_SUBTYPE_OWN_REF = re.compile(
+    r"\b(blood|clue|food|treasure)s? you control\b"
+    r"|\b(?:was|were) (?:a |an )?(blood|clue|food|treasure)s?\b"
+    r"|(?:\bis|\bare|that's|that are|it's|except it's) (?:a |an )?"
+    r"(blood|clue|food|treasure)\b",
+    re.IGNORECASE,
 )
 
 
 def _narrow_token_subtype_makers(ability: Ability) -> Ability:
-    """Append make_token markers for named token subtypes phase left only in a
-    choose/granted-ability carrier raw (Transmutation Font, Ceremonial Knife). The
-    subtype rides the marker's subject Filter so the make_token signal rule fires
-    clue/food/treasure/blood_matters. Append-only; anchored on "<Subtype> token"."""
+    """Append token-subtype markers for named subtypes phase left only in an effect raw
+    — a "<Subtype> token" MAKER (die-roll / vote / choice / granted-ability branch) or a
+    "Sacrifice a <Subtype>" SAC PAYOFF (an activated cost). The subtype rides the
+    marker's subject Filter so the make_token / sacrifice signal rule fires clue/food/
+    treasure/blood_matters. Append-only; anchored on the explicit token/sac phrase."""
+    have_make = {
+        st
+        for e in ability.effects
+        if e.category == "make_token" and e.subject is not None
+        for st in e.subject.subtypes
+    }
+    have_sac = {
+        st
+        for e in ability.effects
+        if e.category == "sacrifice" and e.subject is not None
+        for st in e.subject.subtypes
+    }
     markers: list[Effect] = []
+    made: set[str] = set()
+    sacd: set[str] = set()
     for e in ability.effects:
-        if e.category not in _TOKEN_SUBTYPE_MAKER_CARRIERS:
-            continue
         raw = e.raw or ""
-        seen: set[str] = set()
-        for m in _TOKEN_SUBTYPE_REF.finditer(raw):
+        # A make_token marker only when the raw carries a creation verb (so a
+        # "discard a Blood token" sac/discard outlet doesn't false-fire as a maker).
+        for m in (
+            _TOKEN_SUBTYPE_REF.finditer(raw) if _TOKEN_CREATE_VERB.search(raw) else ()
+        ):
             sub = m.group(1).capitalize()
-            if sub in seen:
+            if sub in have_make or sub in made:
                 continue
-            seen.add(sub)
+            made.add(sub)
             markers.append(
                 Effect(
                     category="make_token",
+                    scope="you",
+                    subject=Filter(subtypes=(sub,), predicates=("Token",)),
+                    raw=raw,
+                )
+            )
+        for m in _TOKEN_SUBTYPE_SAC.finditer(raw):
+            sub = m.group(1).capitalize()
+            if sub in have_sac or sub in sacd:
+                continue
+            sacd.add(sub)
+            markers.append(
+                Effect(
+                    category="sacrifice",
                     scope="you",
                     subject=Filter(subtypes=(sub,), predicates=("Token",)),
                     raw=raw,
@@ -3988,6 +4040,75 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     )
     if not has_creature_cast and (m := _CREATURE_CAST_REF.search(text)) is not None:
         markers.append(Effect(category="creature_cast", scope="any", raw=m.group(0)))
+    # Token-subtype (Food/Treasure/Clue/Blood) phase drops off EVERY raw — a "Create a
+    # <Subtype> token" buried in a die-roll / vote / dilemma branch whose consequence
+    # phase doesn't keep (Hoarding Ogre, Treasure Chest, Seize the Spotlight) or a
+    # "Sacrifice a <Subtype>" cost on a branch phase dropped — surviving only on face
+    # oracle. A face-level marker per subtype, gated to faces with no structural maker /
+    # sac for that subtype (the per-ability _narrow_token_subtype_makers binds the
+    # raw-survivors). CR 111.10 / 701.16.
+    have_make_sub = {
+        st
+        for a in abilities
+        for e in a.effects
+        if e.category == "make_token" and e.subject is not None
+        for st in e.subject.subtypes
+    }
+    have_sac_sub = {
+        st
+        for a in abilities
+        for e in a.effects
+        if e.category == "sacrifice" and e.subject is not None
+        for st in e.subject.subtypes
+    }
+    made_face: set[str] = set()
+    for tm in (
+        _TOKEN_SUBTYPE_REF.finditer(text) if _TOKEN_CREATE_VERB.search(text) else ()
+    ):
+        sub = tm.group(1).capitalize()
+        if sub in have_make_sub or sub in made_face:
+            continue
+        made_face.add(sub)
+        markers.append(
+            Effect(
+                category="make_token",
+                scope="you",
+                subject=Filter(subtypes=(sub,), predicates=("Token",)),
+                raw=tm.group(0),
+            )
+        )
+    sacd_face: set[str] = set()
+    for tm in _TOKEN_SUBTYPE_SAC.finditer(text):
+        sub = tm.group(1).capitalize()
+        if sub in have_sac_sub or sub in sacd_face:
+            continue
+        sacd_face.add(sub)
+        markers.append(
+            Effect(
+                category="sacrifice",
+                scope="you",
+                subject=Filter(subtypes=(sub,), predicates=("Token",)),
+                raw=tm.group(0),
+            )
+        )
+    # CARES-ABOUT subtype reference ("<Subtype>s you control" / "was a <Subtype>" / "is
+    # a <Subtype>") phase has no structure for → a token_subtype_ref marker carrying the
+    # subtype in counter_kind. Read in extract_signals_ir → the right lane. Gated to
+    # subtypes not already made/sacd on this face (the maker/sac is the stronger tell).
+    ref_seen: set[str] = set()
+    for tm in _TOKEN_SUBTYPE_OWN_REF.finditer(text):
+        sub = next(g for g in tm.groups() if g).capitalize()
+        if sub in have_make_sub or sub in have_sac_sub or sub in ref_seen:
+            continue
+        ref_seen.add(sub)
+        markers.append(
+            Effect(
+                category="token_subtype_ref",
+                scope="you",
+                counter_kind=sub.lower(),
+                raw=tm.group(0),
+            )
+        )
     # Fight GRANTED / QUOTED / modal / symmetric phase drops → a fight marker, gated to
     # faces with no structural fight effect (the plain top-level fight binds natively).
     # Read via _DOER_EFFECT_KEYS (CR 701.12).
