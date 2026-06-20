@@ -1950,6 +1950,70 @@ def test_dropped_static_trigger_doubling_gated_to_no_structural():
     assert not _dropped_static_markers(masamune, structural)
 
 
+def test_replacement_triple_damage_is_damage_doubling():
+    """A DamageDone replacement with damage_modification Triple (Fiery Emancipation,
+    City on Fire) projects to damage_doubling — the multiplier set covers triple,
+    not just double, so the triplers stop falling through to a synthesized generic
+    `damage` effect (which over-fired direct_damage)."""
+    rep = {
+        "event": "DamageDone",
+        "description": "it deals triple that damage instead",
+        "damage_modification": {"type": "Triple"},
+    }
+    ab = _project_replacement(rep)
+    assert ab is not None
+    assert [e.category for e in ab.effects] == ["damage_doubling"]
+
+
+def test_add_target_replacement_nested_doubling_recovered():
+    """An AddTargetReplacement installing a DamageDone replacement (Goblin Goliath,
+    Isengard Unleashed) carries the amplifier as a NESTED damage_modification the
+    generic redirect category drops — recover it as damage_doubling."""
+    eff = {
+        "type": "AddTargetReplacement",
+        "replacement": {
+            "event": "DamageDone",
+            "damage_modification": {"type": "Double"},
+            "description": "it deals double that damage instead",
+        },
+    }
+    out = _project_effect(eff, "deal double")
+    assert [e.category for e in out] == ["damage_doubling"]
+
+
+def test_create_damage_replacement_doubling_recovered():
+    """A CreateDamageReplacement with modification Double (Desperate Gambit's
+    coin-flip one-shot) recovers a damage_doubling effect; a None/Prevent
+    modification (a redirect/prevention) does not."""
+    doubler = {
+        "type": "CreateDamageReplacement",
+        "modification": {"type": "Double"},
+    }
+    assert [e.category for e in _project_effect(doubler, "x")] == ["damage_doubling"]
+    redirect = {"type": "CreateDamageReplacement", "modification": {"type": "Prevent"}}
+    assert all(e.category != "damage_doubling" for e in _project_effect(redirect, "x"))
+
+
+def test_dropped_static_damage_doubling_marker_gated():
+    """A card whose doubler phase dropped the modification from (Neriv's "deals twice
+    that much damage") recovers a damage_doubling marker, gated to faces with no
+    structural one; "prevent half that damage" (Dark Sphere, a halver) recovers
+    nothing."""
+    neriv = {
+        "oracle_text": "If a creature you control that entered this turn would deal "
+        "damage, it deals twice that much damage instead."
+    }
+    assert "damage_doubling" in {e.category for e in _dropped_static_markers(neriv, [])}
+    structural = [Ability(kind="static", effects=(Effect(category="damage_doubling"),))]
+    assert not _dropped_static_markers(neriv, structural)
+    halver = {
+        "oracle_text": "prevent half that damage, rounded down.",
+    }
+    assert all(
+        e.category != "damage_doubling" for e in _dropped_static_markers(halver, [])
+    )
+
+
 def test_dropped_static_scavenge_not_ability_word():
     """Anchored on "has scavenge" (the grant), so Malanthrope's "Scavenge the Dead"
     ability WORD (CR 207.2c — no rules meaning) recovers nothing."""

@@ -1606,6 +1606,15 @@ def _project_top_static(st: dict) -> Ability | None:
 # (decreases) and excluded.
 _INCREASE_MODS = ("double", "multiply", "plus")
 
+# Damage-modification types that INCREASE dealt damage → the damage-doubling
+# archetype (CR 615 replacement, combat AND noncombat). phase emits a distinct
+# `Triple` for damage (City on Fire, Fiery Emancipation) where token/counter
+# quantity uses `Multiply`, so the damage set adds it explicitly. Plus is the
+# "deals that much damage plus N" adder (Gratuitous Violence's siblings). Minus /
+# LifeFloor / Prevent / SetToSourcePower are decreases / floors / a source-power
+# rewrite — NOT amplifiers — and excluded.
+_DAMAGE_INCREASE_MODS = ("double", "triple", "multiply", "plus")
+
 
 def _project_replacement(rep: dict) -> Ability | None:
     """A replacement effect (v0.1.60's top-level ``replacements``) → a static
@@ -1623,7 +1632,7 @@ def _project_replacement(rep: dict) -> Ability | None:
         cm = rep.get("counter_match") or {}
         ck = _norm(cm.get("data")) if isinstance(cm.get("data"), str) else ""
         return _static_effect("counter_doubling", "you", raw, counter_kind=ck)
-    if event == "damagedone" and dmod in _INCREASE_MODS:
+    if event == "damagedone" and dmod in _DAMAGE_INCREASE_MODS:
         return _static_effect("damage_doubling", "you", raw)
     # Enters-with counter (ADR-0027): an enters-with replacement whose `execute` is
     # a PutCounter (counter_type carries the kind: P1P1 / M1M1 / Oil / Shield / Lore
@@ -1814,8 +1823,43 @@ _PLAYER_COUNTER_CATEGORY: dict[str, str] = {
 }
 
 
+def _damage_doubling_from_replacement(eff: dict, raw: str) -> Effect | None:
+    """A CONDITIONAL / temporal damage-doubler phase nests inside a replacement-
+    creating effect (ADR-0027 damage cluster). Two shapes carry the amplifier as a
+    NESTED modification the generic redirect/damage_replacement category drops:
+
+      • ``AddTargetReplacement`` — an activated/spell effect that installs a
+        DamageDone replacement for the turn ("If a source you control would deal
+        damage … this turn, it deals double/triple that damage instead" — Goblin
+        Goliath, Isengard Unleashed, Insult, Quest for Pure Flame). The amplifier
+        is ``replacement.damage_modification`` on a DamageDone event.
+      • ``CreateDamageReplacement`` — the coin-flip / choose-a-source one-shot
+        ("the next time that source would deal damage, it deals double that damage"
+        — Desperate Gambit, Impulsive Maneuvers). The amplifier is ``modification``.
+
+    Both are real damage_doubling payoffs (CR 615): they want burn / big hits to
+    amplify, the same archetype as Furnace of Rath. Returns a damage_doubling Effect
+    when the nested modification INCREASES damage (double/triple/multiply/plus),
+    else None (a Prevent / Minus / redirect-only replacement is not a doubler)."""
+    etype = _norm(eff.get("type"))
+    if etype == "addtargetreplacement":
+        rep = eff.get("replacement")
+        if isinstance(rep, dict) and _norm(rep.get("event")) == "damagedone":
+            dmod = _norm((rep.get("damage_modification") or {}).get("type"))
+            if dmod in _DAMAGE_INCREASE_MODS:
+                return Effect(category="damage_doubling", scope="you", raw=raw)
+    elif etype == "createdamagereplacement":
+        md = _norm((eff.get("modification") or {}).get("type"))
+        if md in _DAMAGE_INCREASE_MODS:
+            return Effect(category="damage_doubling", scope="you", raw=raw)
+    return None
+
+
 def _project_effect(eff: dict, raw: str) -> list[Effect]:
     etype = _norm(eff.get("type"))
+    dd = _damage_doubling_from_replacement(eff, raw)
+    if dd is not None:
+        return [dd]
     if etype in _RECURSE:
         out: list[Effect] = []
         for st in eff.get("static_abilities") or []:
@@ -3012,6 +3056,23 @@ _TRIGGER_DOUBLING_GRANT = re.compile(
     r"\btriggers? an additional time\b|\btrigger an additional time\b",
     re.IGNORECASE,
 )
+# Damage-doubling (CR 615) AMPLIFIER phase dropped the modification from — a
+# DamageDone replacement whose `damage_modification` phase left None (Neriv —
+# entered-this-turn-source condition; Lightning — a delayed source-scoped grant),
+# an `Unimplemented` "deal triple that damage" sub_ability (Jeska's loyalty mode),
+# or a one-shot "deals twice that much damage" rider on a sacrifice/discard payoff
+# (Borborygmos, Surtland Flinger, Cut Propulsion). All are genuine damage
+# amplifiers (burn / big-hit payoffs), the Furnace-of-Rath archetype. EXCLUDES
+# halving / prevention ("prevent half that damage" — Dark Sphere; the opposite of a
+# doubler, an old SWEEP over-fire the structural IR correctly drops). Gated to faces
+# with no structural damage_doubling.
+_DAMAGE_DOUBLING_REF = re.compile(
+    r"\bdeals? (?:double|triple) that damage\b"
+    r"|\bdeals? twice that (?:much|damage)\b"
+    r"|\bdouble the (?:next )?damage\b"
+    r"|\bdeals that much damage plus\b",
+    re.IGNORECASE,
+)
 # Scavenge (CR 702.97) graveyard-wide GRANT: "Each creature card in your graveyard
 # has scavenge" (Varolz, Young Deathclaws, The Cave of Skulls). The intrinsic
 # scavengers carry the keyword; this is the keyword-less granter. Anchored on the
@@ -3871,6 +3932,11 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     )
     if not has_struct_td and (m := _TRIGGER_DOUBLING_GRANT.search(text)) is not None:
         markers.append(Effect(category="trigger_doubling", scope="you", raw=m.group(0)))
+    has_struct_dd = any(
+        e.category == "damage_doubling" for a in abilities for e in a.effects
+    )
+    if not has_struct_dd and (m := _DAMAGE_DOUBLING_REF.search(text)) is not None:
+        markers.append(Effect(category="damage_doubling", scope="you", raw=m.group(0)))
     if (m := _SCAVENGE_GRANT.search(text)) is not None:
         markers.append(Effect(category="scavenge", scope="you", raw=m.group(0)))
     if (m := _SCRY_REPLACEMENT.search(text)) is not None:
