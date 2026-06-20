@@ -2872,11 +2872,11 @@ def test_play_from_top_cross_opens_topdeck_selection():
     assert ("topdeck_selection", "you") not in _ks(plain)
 
 
-def test_sac_and_return_this_turn_opens_sacrifice():
-    # A commander that RETURNS creatures that hit the graveyard this turn (Garna,
-    # Gerrard) is a sac-and-return engine — it wants sac outlets (Carrion Feeder, Altar
-    # of Dementia) to put creatures in the yard on demand, then brings them back. It
-    # opened graveyard/clone but not sacrifice_matters. Real oracle.
+def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
+    # ADR-0027: the old "sac-and-return-this-turn" floor regex fired sacrifice_matters
+    # on Garna / Gerrard — reanimation engines that name NO sacrifice at all. That was
+    # an over-fire (a return-from-graveyard payoff is not a sacrifice OUTLET); the
+    # migrated IR path correctly drops it, and the floor regex is deleted. Real oracle.
     garna = {
         "name": "Garna, the Bloodflame",
         "type_line": "Legendary Creature — Human Warrior",
@@ -2895,8 +2895,8 @@ def test_sac_and_return_this_turn_opens_sacrifice():
             "battlefield this turn."
         ),
     }
-    assert ("sacrifice_matters", "you") in _ks(garna)
-    assert ("sacrifice_matters", "you") in _ks(gerrard)
+    assert ("sacrifice_matters", "you") not in _ks(garna)
+    assert ("sacrifice_matters", "you") not in _ks(gerrard)
     # Over-fire guard: a vanilla creature is not a sac-and-return engine.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert ("sacrifice_matters", "you") not in _ks(bear)

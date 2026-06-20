@@ -1606,6 +1606,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # sacrifice_matters ← a you-sacrifice Effect (scope not opp/each, a non-land
+    # subject, not a forced-opponent edict). Disciple of Bolas sacs "another
+    # creature" — phase emits scope "any" with a Creature subject.
+    "sacrifice_matters": (
+        {
+            "name": "Disciple of Bolas",
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": (
+                "When this creature enters, sacrifice another creature. You gain "
+                "X life and draw X cards, where X is that creature's power."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="any",
+                        subject=Filter(card_types=("Creature",), controller="any"),
+                        raw="When ~ enters, sacrifice another creature. …",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

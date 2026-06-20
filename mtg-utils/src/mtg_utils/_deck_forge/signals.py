@@ -440,7 +440,14 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         None,
     ),
-    ("sacrifice_matters", _re(r"sacrifice (?:a|an|another|two|three|x|\d)"), "you"),
+    # ADR-0027: sacrifice_matters migrated to the Card IR — a you-sacrifice EFFECT
+    # (scope not opp/each, a non-land subject, not a forced-opponent edict raw) + a
+    # "sacrificed" trigger payoff + the Casualty keyword + the additional-cost /
+    # granted / pitch / morph / pay-or-die / bullet sac markers (project.py). The
+    # broad oracle regex over-fired on land-sac, edicts, "controller may sacrifice",
+    # Ward—Sacrifice, and reanimation engines with no sacrifice. NOT in
+    # _IR_FLOOR_LANES; this _DETECTORS producer is deleted; the serve spec stays
+    # hand-registered. (CR 701.16.)
     (
         "attack_matters",
         # Past-tense "attacked this turn" is a combat-count payoff (Relentless Assault,
@@ -1146,19 +1153,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Sac-and-return-this-turn engine (Garna, Gerrard, Moira): "return ... creature/
-    # permanent cards ... that (died | were put into your graveyard) ... this turn." It
-    # wants sac outlets to put creatures in the yard on demand, then brings them back —
-    # an aristocrats/sacrifice deck.
-    (
-        "sacrifice_matters",
-        re.compile(
-            r"return[^.]*(?:creature|permanent) cards?[^.]*"
-            r"(?:died|put there|put into (?:a|your|their) graveyard)[^.]*this turn",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: the "sac-and-return-this-turn engine" floor (Garna, Gerrard, Moira)
+    # is DELETED with the sacrifice_matters migration — it over-fired on reanimation
+    # engines that name no sacrifice at all (the IR path correctly drops them).
     # Warp-GRANTING (Tannuk: "cards in your hand have warp") — warp casts a card from
     # hand for its warp cost and exiles it at end of turn, a temporary cheat-into-play.
     # A commander handing out warp is a cheat deck wanting fat creatures + cheat
@@ -2350,9 +2347,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Casualty (CR 702.153) sacrifices a creature as a cost — a casualty granter
-    # (Anhelo, Silverquill) wants the sac-fodder avenue. Route the grant to sacrifice.
-    ("sacrifice_matters", re.compile(r"\bcasualty\b", re.IGNORECASE), "you"),
+    # ADR-0027: the Casualty (CR 702.153) sacrifice_matters regex is DELETED with the
+    # migration — the printed Casualty keyword now routes via _IR_KEYWORD_MAP and the
+    # keyword-LESS granter (Anhelo "has casualty N") via a project grant marker.
     # ADR-0027: saddle_matters migrated to the Card IR — served structurally from
     # phase's `saddle` effect category (_DOER_EFFECT_KEYS; a "becomes saddled" /
     # "you saddle" grant phase folds into an animate/restriction/target_only carrier
@@ -2699,6 +2696,14 @@ _VOLTRON_KEYWORDS = frozenset(
 # suit up), and conditional self-protection is a resilient-beater tell (Thrun). A real
 # engine (attack/graveyard/tokens/spellcast) still suppresses; voltron isn't its plan.
 _VOLTRON_COMPAT_KEYS = frozenset({"partner_background", "conditional_self_protection"})
+# ADR-0027: a HAS-OTHER-PLAN mirror for the migrated sacrifice_matters key (its regex
+# producer is deleted, so it no longer rides the ``out`` signal set the voltron gate
+# reads). A you-sacrifice plan still silences the commander-damage voltron fallback —
+# this matches the old broad detector + casualty regex exactly, but only feeds the
+# gate (it emits no signal; the real lane is served from the IR). See ADR-0027.
+_SACRIFICE_PLAN_MIRROR = re.compile(
+    r"sacrifice (?:a|an|another|two|three|x|\d)|\bcasualty\b", re.IGNORECASE
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3734,12 +3739,17 @@ def extract_signals(
     # the voltron fallback below; only a real engine does. Backgrounds-only commanders
     # (Wilson) and self-protecting beaters (Thrun) then read as the vanilla voltron
     # bodies they are, instead of being silenced by an orthogonal signal.
+    # ADR-0027: sacrifice_matters migrated to the IR, so its regex producer no longer
+    # appears in ``out`` here — but a card with a sacrifice plan is still NOT a vanilla
+    # voltron beater. Mirror just the gate (not an emission) so the commander-damage
+    # membership fallback below stays silenced on aristocrats commanders, matching the
+    # pre-migration behavior. The serve/IR side emits the real signal.
     has_other_plan = any(
         s.confidence == "high"
         and s.key not in _GENERIC_KEYS
         and s.key not in _VOLTRON_COMPAT_KEYS
         for s in out
-    )
+    ) or _SACRIFICE_PLAN_MIRROR.search(card.get("oracle_text") or "")
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
     # Hexproof / indestructible / shroud creatures are PRIME voltron targets — un-
@@ -6151,6 +6161,21 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # NOT in _IR_FLOOR_LANES; gap=0, over=36 (all genuine paylife-cost recall).
         # NO-FLOOD held (only this key grew, +7). See ADR-0027.
         "life_payment_insurance",
+        # sacrifice_matters ← a you-sacrifice EFFECT (scope not opp/each OR a "you"
+        # subject controller; a non-land subject; not a forced-opponent edict raw),
+        # a "sacrificed" trigger payoff, the Casualty keyword, a subject-less / modal
+        # raw fallback, and the project markers (additional-cost incl. Choice/Kicker,
+        # granted/quoted outlet, casualty grant, free-spell pitch, keyworded-cost sac,
+        # pay-or-die, discard+sac, bullet, cumulative-upkeep). NOT in _IR_FLOOR_LANES;
+        # floor-mirror-dep == 0 (floor-ON 1279 == floor-OFF 1279). The deleted broad
+        # regex over-fired on land-sac, edicts, "controller may sacrifice",
+        # Ward—Sacrifice, and reanimation engines with NO sacrifice; the floor-disabled
+        # residual re-adjudicates to all over-fire bar one card (Phyrexian Soulgorger,
+        # a cumulative-upkeep cost phase parses as a SelfRef "sacrifice it"). NO-FLOOD
+        # held (only sacrifice_matters / edict_matters grew; edict_matters +107 is the
+        # recovered-from-mis-scope recall, plus 3 typed-sac-subject recall gains on
+        # food/legends/type_matters — all correct). See ADR-0027.
+        "sacrifice_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -6198,6 +6223,25 @@ def extract_signals_hybrid(
             continue
         seen.add(ident)
         out.append(sig)
+    # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
+    # voltron MEMBERSHIP fallback against its OWN signal set, which no longer carries
+    # the migrated sacrifice_matters plan. The _SACRIFICE_PLAN_MIRROR re-silences it on
+    # the oracle text, but a DFC's empty top-level oracle_text leaves it blind — so a
+    # transform aristocrat (Ravenous Demon) can leak the low-confidence membership
+    # signal. When the IR supplies a sacrifice_matters plan the regex set lacked, drop
+    # that spurious membership voltron tell (a real engine isn't a vanilla beater).
+    if include_membership and any(s.key == "sacrifice_matters" for s in out):
+        regex_had_sac = any(s.key == "sacrifice_matters" for s in regex_signals)
+        if not regex_had_sac:
+            out = [
+                s
+                for s in out
+                if not (
+                    s.key == "voltron_matters"
+                    and s.confidence == "low"
+                    and s.text == "commander damage (CR 903.10a)"
+                )
+            ]
     return out
 
 

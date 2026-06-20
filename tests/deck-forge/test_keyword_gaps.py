@@ -664,12 +664,30 @@ class TestCasualtyRouting:
     commander/granter (Anhelo) should surface the sacrifice-fodder avenue."""
 
     def test_casualty_grant_emits_sacrifice_matters(self):
+        # ADR-0027: sacrifice_matters is IR-served. Anhelo's "has casualty 2" grant is
+        # keyword-less, so the projection appends a `sacrifice` grant marker (a
+        # non-land Permanent subject) the hybrid reads.
         anhelo = {
             "name": "Anhelo, the Painter",
             "type_line": "Legendary Creature — Vampire Assassin",
             "oracle_text": "Deathtouch\nThe first instant or sorcery spell you cast each turn has casualty 2. (As you cast that spell, you may sacrifice a creature with power 2 or greater. When you do, copy the spell and you may choose new targets for the copy.)",
         }
-        assert "sacrifice_matters" in _keys(anhelo)
+        ir = _ir_with(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="you",
+                        subject=Filter(card_types=("Permanent",), controller="you"),
+                        raw="granted/dropped sacrifice outlet",
+                    ),
+                ),
+            )
+        )
+        assert "sacrifice_matters" in _keys_hybrid(anhelo, ir)
+        # and the legacy regex path no longer emits it
+        assert "sacrifice_matters" not in _keys(anhelo)
 
 
 class TestStationDetection:
