@@ -1127,25 +1127,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Tapped-creatures-matter (Masako lets tapped creatures block; Saryth grants them
-    # deathtouch; Throne of the God-Pharaoh / Dragonscale General scale with the
-    # "number of tapped creatures you control"). The deck taps its team freely and
-    # cashes in the count. Distinct from tap_untap_matters (becomes-tapped triggers)
-    # and from convoke, which taps UNtapped creatures as a cost — the \btapped word
-    # boundary keeps "untapped creatures you control" out (no boundary inside the word).
-    (
-        "tapped_matters",
-        re.compile(
-            r"number of tapped creatures you control"
-            r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
-            # Threshold gate ("if you control two or more tapped creatures, <payoff>" —
-            # Sami and the EOE tap cluster) and the "for each tapped creature you
-            # control" count form. "or more tapped" never matches "or more untapped".
-            r"|or more tapped creatures|for each tapped creature you control",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: tapped_matters migrated to the Card IR — the Tapped(controller='you')
+    # Filter predicate read in three slots: the effect subject (Saryth's grant), the
+    # amount.subject COUNT (Throne of the God-Pharaoh / Dragonscale General), and the
+    # threshold-gate condition.subject (Vaultguard Trooper, Sami Ship's Engineer), plus
+    # a `_TAPPED_GRANT` dropped-static face marker for the subject phase strips (Masako
+    # "tapped creatures you control can block") and the count predicate phase drops
+    # (Harvest Season). Removed from _IR_FLOOR_LANES; serve stays hand-registered in
+    # signal_specs.
     # Legends-matter: a commander that TUTORS legends (Captain Sisay "search your
     # library for a legendary card"), BUFFS them (Dihada "target legendary creature
     # gains"), counts/cost-reduces them, or triggers off them (Yomiji "whenever a
@@ -4145,7 +4134,6 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         "multicolor_matters",
         "lands_matter",
         "superfriends_matters",
-        "tapped_matters",
         "modified_matters",
         "low_power_matters",
         "power_matters",
@@ -4179,14 +4167,21 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # ring_tempt effect, including the event='other' tempt trigger + the
         # Ring-bearer raw-scan), so it no longer needs the regex floor (its
         # _HAND_FLOOR detector is deleted).
-        "convoke_matters",
+        # convoke_matters removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # convoke keyword + cast_with_keyword counter_kind='convoke' granters +
+        # grant_spell_ability/cast-trigger convoke-raw markers), so it no longer needs
+        # the regex floor (its SWEEP_DETECTORS row is deleted).
         # affinity_type removed — ADR-0027 migrated it to the Card IR (the Scryfall
         # affinity keyword + an `affinity` marker effect for the conferred "spells you
         # cast have affinity for X" granters), so it no longer needs the regex floor
         # (its SWEEP_DETECTORS row is deleted).
         "cascade_matters",
         "undying_persist_matters",
-        "myriad_grant",
+        # myriad_grant removed — ADR-0027 migrated it to the Card IR (the Scryfall
+        # myriad keyword + grant_keyword counter_kind='myriad' granters + a copy-
+        # exception conferred marker), so it no longer needs the regex floor (its
+        # SWEEP_DETECTORS row is deleted; the "\bmyriad\b" floor over-fired on the
+        # "The Myriad Pools" card NAME, which the IR correctly drops).
         "suspend_matters",
         # monarch_matters removed — ADR-0027 migrated it to the Card IR (structural
         # monarch effect + ismonarch condition), so it no longer needs the regex
@@ -4600,6 +4595,23 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
 # (raw has "…or land…") and excludes Sharkey (no gain_control effect at all).
 _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECASE)
 
+# convoke_matters (ADR-0027): the keyword-LESS convoke GRANTERS + PAYOFFS phase keeps
+# only in a carrier raw — Wand of the Worldsoul's grant_spell_ability ("the next spell
+# you cast this turn has convoke", counter_kind dropped) and the "spell that has
+# convoke" payoff trigger (Saint Traft, Joyful Stormsculptor). The structured static
+# granters ("<type> spells you cast have convoke") carry counter_kind='convoke' and
+# need no raw scan. The card's OWN printed convoke rides the keyword array.
+_CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
+
+# typed_anthem_multi (ADR-0027): phase drops the typed subject entirely on some pump
+# anthems (subject=None), so neither the AnyOf nor the 2+-subtypes structural guard
+# can see the disjunction. Recover from the pump effect's raw: "that's a X[, a Y]…,?
+# or a Z" — 2+ comma/"or"-separated subtype tokens (single-type stays type_matters).
+# Requires the leading "that's a/an" so a single-target pump can't match.
+_TYPED_ANTHEM_MULTI_RAW = re.compile(
+    r"that's (?:an? )?[A-Z][a-z]+(?:,? (?:an? )?[A-Z][a-z]+)*,? or (?:an? )?[A-Z][a-z]+"
+)
+
 # Batch E — made artifact-token subtype → (signal key, scope).
 _TOKEN_SUBTYPE_KEYS: dict[str, tuple[str, str]] = {
     "treasure": ("treasure_matters", "you"),
@@ -4970,13 +4982,29 @@ def extract_signals_ir(
                 # creatures get …" is the payoff; "destroy target ATTACKING creature"
                 # (controller any) is removal, not an aggro lane.
                 if esub.controller == "you":
-                    if "Tapped" in esub.predicates:
+                    # Gate tapped to a creature (or untyped generic) subject — "return
+                    # a tapped LAND you control" (Living Twister) is a mana-bounce, not
+                    # a tapped-creatures aggro payoff.
+                    if "Tapped" in esub.predicates and (
+                        "Creature" in esub.card_types or not esub.card_types
+                    ):
                         add("tapped_matters", "you", "", e.raw)
                     if "Attacking" in esub.predicates:
                         add("attack_matters", "you", "", e.raw)
                 # "a creature with a +1/+1 counter" payoff isn't controller-bound.
                 if esub.controller != "opp" and "Counters" in esub.predicates:
                     add("counters_matter", "you", "", e.raw)
+            # ADR-0027 — the COUNT-FORM tapped payoff: an effect whose VALUE counts
+            # your tapped creatures ("each opponent loses life equal to the number of
+            # tapped creatures you control" — Throne of the God-Pharaoh; Crash the
+            # Party / Dragonscale General / Harvest Season). The Tapped filter rides
+            # amount.subject, not e.subject, so the predicate read above misses it.
+            if (
+                amount_subject is not None
+                and amount_subject.controller == "you"
+                and "Tapped" in amount_subject.predicates
+            ):
+                add("tapped_matters", "you", "", e.raw)
             # ADR-0027 — a FORETOLD-card reference: an effect (or its count operand)
             # acting on / scaling with foretold cards you own is a foretell PAYOFF
             # (Niko Defies Destiny — "2 life for each foretold card you own in
@@ -5044,6 +5072,15 @@ def extract_signals_ir(
                         add("protection_grant", "you", "", e.raw)
                 elif _is_all_creatures_grant(e.subject):
                     add("all_creatures_kw_grant", "any", "", e.raw)
+                # ADR-0027 — myriad_grant: a card that GRANTS myriad (CR 702.115) to a
+                # creature/team (Blade of Selves, Legion Loyalty, Duke Ulder, Corporeal
+                # Projection) or confers it via a copy-exception (Muddle's project.py
+                # marker). phase stamps counter_kind='myriad' on the grant_keyword
+                # effect — the discriminator that separates a GRANTER (no `myriad` in
+                # the keyword array) from a card that prints myriad itself
+                # (_IR_KEYWORD_MAP['myriad'], the makers).
+                if e.counter_kind == "myriad":
+                    add("myriad_grant", "you", "", e.raw)
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
@@ -5111,11 +5148,29 @@ def extract_signals_ir(
             # Batch 12 — typed_anthem_multi: a pump over creatures of MULTIPLE named
             # types ("each creature that's an Assassin, Mercenary, or Pirate gets ...")
             # — an AnyOf-of-subtypes on a creature filter (single-type is type_matters).
+            # ADR-0027: phase parses some disjunctions as a FLAT subtypes tuple instead
+            # of an AnyOf node (Brenard Food/Golem, Howlpack Resurgence Wolf/Werewolf,
+            # Auriok Steelshaper Soldier/Knight), so also fire when the Filter names 2+
+            # subtypes — a structurally clean discriminator (single-subtype anthem stays
+            # type_matters at len==1). The pump-only gate excludes Paladin Danse (a
+            # one-shot keyword GRANT via grant_keyword, not a +X/+X anthem).
             if (
                 cat == "pump"
                 and "Creature" in ftypes
                 and isinstance(e.subject, Filter)
-                and any(p.startswith("AnyOf:") for p in e.subject.predicates)
+                and (
+                    any(p.startswith("AnyOf:") for p in e.subject.predicates)
+                    or len(e.subject.subtypes) >= 2
+                )
+            ):
+                add("typed_anthem_multi", "you", "", e.raw)
+            # CAUSE 1 (ADR-0027): phase dropped the typed subject (subject=None) — the
+            # multi-type disjunction survives only in the pump raw (Kaheera, Immerwolf,
+            # Lovisa, Sporecrown). Recover from "that's a X … or a Y" (2+ subtypes).
+            if (
+                cat == "pump"
+                and e.subject is None
+                and _TYPED_ANTHEM_MULTI_RAW.search(e.raw or "")
             ):
                 add("typed_anthem_multi", "you", "", e.raw)
             if amount_subject is not None and "Land" in _ftypes(amount_subject):
@@ -5186,6 +5241,15 @@ def extract_signals_ir(
             # spells as though they had flash — Teferi, Yeva, Alchemist's Refuge).
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
                 add("flash_grant", "you", "", e.raw)
+            # ADR-0027 — convoke_matters GRANTER: "<type> spells you cast have convoke"
+            # (CR 702.51, Fallaji Wayfarer, Chief Engineer) carries counter_kind=
+            # 'convoke' on the cast_with_keyword effect — a pure structured read. The
+            # activated "next spell … has convoke" granter (Wand of the Worldsoul)
+            # lands in grant_spell_ability with the keyword only in raw.
+            if cat == "cast_with_keyword" and e.counter_kind == "convoke":
+                add("convoke_matters", "you", "", e.raw)
+            if cat == "grant_spell_ability" and _CONVOKE_RAW.search(e.raw or ""):
+                add("convoke_matters", "you", "", e.raw)
             # Doubling replacements (v0.1.60's `replacements`), split by event —
             # a token doubler and a counter doubler are different archetypes.
             if cat == "token_doubling":
@@ -5225,6 +5289,14 @@ def extract_signals_ir(
                     add("superfriends_matters", "you", "", "")
                 for st in _kindred_subjects(csub, vocab):
                     add(signal_keys.TYPE_MATTERS, "you", st, "")
+                # ADR-0027 — the THRESHOLD-GATE tapped payoff: "if you control two or
+                # more tapped creatures, …" (Vaultguard Trooper, Sami Ship's Engineer).
+                # The Tapped filter rides the condition subject, read here off the same
+                # in-hand csub the type gates use. Gated to a Creature subject — a
+                # "no tapped LANDS" negative gate (Nantuko Shaman, Martyr's Soul) is a
+                # mana check, not a tapped-creatures aggro payoff.
+                if "Tapped" in csub.predicates and "Creature" in cft:
+                    add("tapped_matters", "you", "", "")
             # Gate on a COUNTER kind ("if ~ has a +1/+1 counter", oil/ki/m1m1/…) →
             # the counter lane (mirrors the place_counter counter_kind dispatch).
             if cond.kind == "hascounters":
@@ -5387,6 +5459,13 @@ def extract_signals_ir(
                     add("opponent_cast_matters", "opponents", "", "")
                 if "Creature" in tsubs:
                     add("creature_cast_trigger", "any", "", "")
+                # ADR-0027 — convoke_matters PAYOFF: "Whenever you cast a spell that
+                # has convoke, …" (Saint Traft, Joyful Stormsculptor). The "that has
+                # convoke" qualifier survives only in the consequence effect raw (phase
+                # tags a bare cast_spell trigger), so anchor on it rather than firing on
+                # every spellcast trigger.
+                if any(_CONVOKE_RAW.search(e.raw or "") for e in ab.effects):
+                    add("convoke_matters", "you", "", "")
                 # DEFERRED: noncreature_cast_punish. The NotType:Creature projection is
                 # accurate, but phase tags BOTH a prowess self-cast ("whenever you cast
                 # a noncreature spell") AND a symmetric/opponent punisher ("whenever a
@@ -5757,6 +5836,39 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "counter_control",
         "cant_block_grant",
         "land_exchange",
+        # Group "tail-supplement 3" (ADR-0027 projection deepening) — five more
+        # synthesis-tail keys. Three (myriad_grant, convoke_matters, tapped_matters)
+        # were REMOVED from _IR_FLOOR_LANES and now fire from the STRUCTURAL IR alone;
+        # floor-mirror-dependency == 0 for each (the floor-dependent gap cards now bind
+        # structurally). The other two (typed_anthem_multi, life_total_set) were never
+        # floored. NO-FLOOD held (only the target keys grew; no non-target key moved —
+        # the Masako tapped-grant marker uses category="tap" so it never trips the
+        # creatures_matter team-anthem read). Each key's oracle-regex producer is
+        # deleted; serve specs stay hand-registered. See ADR-0027.
+        #   myriad_grant ← `myriad` keyword (makers) + grant_keyword counter_kind=
+        #                'myriad' (granters) + a copy-exception conferred marker
+        #                (Muddle). The "\bmyriad\b" floor over-fired on the "The Myriad
+        #                Pools" card NAME — the IR correctly drops it.
+        #   convoke_matters ← `convoke` keyword (makers) + cast_with_keyword counter_
+        #                kind='convoke' granters + grant_spell_ability/cast-trigger
+        #                convoke-raw payoff markers.
+        #   tapped_matters ← a Tapped(controller='you') Filter predicate read in the
+        #                effect subject / amount.subject COUNT / condition.subject
+        #                threshold slots, plus a `_TAPPED_GRANT` marker (Masako's
+        #                dropped subject + Harvest Season's dropped count predicate).
+        #   typed_anthem_multi ← a pump over a creature Filter naming 2+ subtypes (AnyOf
+        #                node OR flat subtypes tuple) + a "that's a X … or a Y" raw
+        #                fallback. The pump-only gate drops Paladin Danse (a keyword
+        #                grant, not a +X/+X anthem), the regex's over-fire.
+        #   life_total_set ← phase's set_life effect + the exchange/redistribute
+        #                _NAMED_MECHANICS recategorizations + a `_LIFE_TOTAL_SET` marker
+        #                for "life total becomes <X>" + "double … life total". The IR
+        #                drops Heartless Hidetsugu (a damage effect), the over-fire.
+        "myriad_grant",
+        "convoke_matters",
+        "tapped_matters",
+        "typed_anthem_multi",
+        "life_total_set",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -18,7 +18,15 @@ from mtg_utils._deck_forge.signals import (
     extract_signals,
     extract_signals_hybrid,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
+from mtg_utils.card_ir import (
+    Ability,
+    Card,
+    Condition,
+    Effect,
+    Face,
+    Filter,
+    Trigger,
+)
 
 
 def _ksub(card):
@@ -4563,11 +4571,11 @@ def test_lands_matter_serves_creature_pump_by_basic():
 
 
 def test_tapped_creatures_matter_opens_and_serves():
-    # A "tapped creatures you control" commander (Masako lets them block as though
-    # untapped; Saryth grants them deathtouch) is the tapped-matters archetype — it
-    # taps its team freely and runs the count payoffs (Throne of the God-Pharaoh,
-    # Dragonscale General). Distinct from tap_untap_matters (becomes-tapped triggers)
-    # and from convoke (which taps UNtapped creatures as a cost). Real cards.
+    # ADR-0027: tapped_matters migrated to the Card IR — Masako's dropped "tapped
+    # creatures you control" grant is recovered by a `_TAPPED_GRANT` marker (a tap
+    # effect with a Tapped-creature subject), read through the hybrid IR path. The
+    # serve pool stays oracle-defined (the hand spec). Distinct from tap_untap_matters
+    # (becomes-tapped triggers) and convoke (taps UNtapped creatures as a cost).
     masako = {
         "name": "Masako the Humorless",
         "type_line": "Legendary Creature — Human Advisor",
@@ -4576,7 +4584,34 @@ def test_tapped_creatures_matter_opens_and_serves():
             "Tapped creatures you control can block as though they were untapped."
         ),
     }
-    assert "tapped_matters" in _keys(masako)
+    masako_ir = Card(
+        oracle_id="x",
+        name="Masako the Humorless",
+        faces=(
+            Face(
+                name="Masako the Humorless",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="tap",
+                                scope="you",
+                                subject=Filter(
+                                    card_types=("Creature",),
+                                    controller="you",
+                                    predicates=("Tapped",),
+                                ),
+                                raw="tapped creatures you control can",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("tapped_matters", "you") in _ks_hybrid_card(masako, masako_ir)
+    assert "tapped_matters" not in _keys(masako)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -4626,7 +4661,41 @@ def test_tapped_threshold_and_count_open_and_serve():
             "creatures, create a tapped 2/2 colorless Robot artifact creature token."
         ),
     }
-    assert "tapped_matters" in _keys(sami)
+    # ADR-0027: the THRESHOLD-GATE form is read off the condition subject's Tapped
+    # predicate through the hybrid IR path (the regex no longer produces it).
+    sami_ir = Card(
+        oracle_id="x",
+        name="Sami, Ship's Engineer",
+        faces=(
+            Face(
+                name="Sami, Ship's Engineer",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="end_step", scope="you"),
+                        condition=Condition(
+                            kind="quantitycomparison",
+                            comparator="ge",
+                            subject=Filter(
+                                card_types=("Creature",),
+                                controller="you",
+                                predicates=("Tapped", "InZone"),
+                            ),
+                        ),
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                raw="create a tapped 2/2 colorless Robot",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("tapped_matters", "you") in _ks_hybrid_card(sami, sami_ir)
+    assert "tapped_matters" not in _keys(sami)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal

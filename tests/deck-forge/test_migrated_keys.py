@@ -1254,6 +1254,156 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Myriad granter (Legion Loyalty) — "Creatures you control have myriad" carries
+    # counter_kind='myriad' on a grant_keyword effect (the granter discriminator;
+    # makers ride the keyword array, granters don't).
+    "myriad_grant": (
+        {
+            "name": "Legion Loyalty",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creatures you control have myriad. (Whenever a creature with "
+                "myriad attacks, for each opponent other than defending player, "
+                "you may create a token copy that's tapped and attacking that "
+                "player or a planeswalker they control. Exile the tokens at end "
+                "of combat.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="you",
+                        counter_kind="myriad",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw="Creatures you control have myriad.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Convoke granter (Chief Engineer) — "Artifact spells you cast have convoke"
+    # carries counter_kind='convoke' on a cast_with_keyword effect (the keyword-less
+    # granter; makers ride the keyword array).
+    "convoke_matters": (
+        {
+            "name": "Chief Engineer",
+            "type_line": "Creature — Vedalken Artificer",
+            "oracle_text": (
+                "Artifact spells you cast have convoke. (Your creatures can help "
+                "cast those spells. Each creature you tap while casting an artifact "
+                "spell pays for {1} or one mana of that creature's color.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cast_with_keyword",
+                        scope="you",
+                        counter_kind="convoke",
+                        raw="Artifact spells you cast have convoke.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Tapped-count payoff (Throne of the God-Pharaoh) — the effect VALUE counts your
+    # tapped creatures (a Tapped predicate on amount.subject, controller='you').
+    "tapped_matters": (
+        {
+            "name": "Throne of the God-Pharaoh",
+            "type_line": "Legendary Artifact",
+            "oracle_text": (
+                "At the beginning of your end step, each opponent loses life equal "
+                "to the number of tapped creatures you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="end_step", scope="you"),
+                effects=(
+                    Effect(
+                        category="lose_life",
+                        scope="opp",
+                        amount=Quantity(
+                            op="count",
+                            subject=Filter(
+                                card_types=("Creature",),
+                                controller="you",
+                                predicates=("Tapped",),
+                            ),
+                        ),
+                        raw=(
+                            "each opponent loses life equal to the number of "
+                            "tapped creatures you control"
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Multi-type anthem (Howlpack Resurgence) — a pump over a creature Filter naming
+    # 2+ subtypes (a flat subtypes tuple, the phase shape the >=2 guard covers).
+    "typed_anthem_multi": (
+        {
+            "name": "Howlpack Resurgence",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Flash\nEach creature you control that's a Wolf or a Werewolf "
+                "gets +1/+1 and has trample."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            subtypes=("Wolf", "Werewolf"),
+                            controller="you",
+                        ),
+                        raw=(
+                            "Each creature you control that's a Wolf or a "
+                            "Werewolf gets +1/+1 and has trample."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Life doubling (Beacon of Immortality) — "double target player's life total"
+    # routes to a `set_life` dropped-static face marker (the lane wants life
+    # set/exchange/double; phase's bare `double` category isn't crosswalked).
+    "life_total_set": (
+        {
+            "name": "Beacon of Immortality",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Double target player's life total. Shuffle Beacon of "
+                "Immortality into its owner's library."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="set_life",
+                        scope="any",
+                        raw="Double target player's life total",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

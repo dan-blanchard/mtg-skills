@@ -15,7 +15,7 @@ def test_sweep_detectors_loaded():
     # (boast/exhaust/explore/phasing/end_the_turn/extra_end_step/trigger_doubling +
     # earlier batches migrated to the Card IR); it still guards "a substantial set
     # loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 130
+    assert len(SWEEP_DETECTORS) >= 125
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

@@ -157,12 +157,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bfights? (?:up to (?:one|two|\\d+) )?(?:other |another )?target\\b|\\bfights? (?:up to (?:one|two) )?(?:other )?creature|\\bfight each other\\b|\\bfights? it\\b|\\bfights? (?:another|each)",
     },
-    {
-        "key": "life_total_set",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "life total (?:becomes|equal to)|equal to half (?:that|your|a) (?:player'?s? )?life|exchange (?:your )?life total|exchange life totals?|set your life total to|double target player's life total",
-    },
+    # ADR-0027: life_total_set migrated to the Card IR — phase's `set_life` effect
+    # category (_DOER_EFFECT_KEYS), the exchange/redistribute-life recategorizations in
+    # supplement._NAMED_MECHANICS, plus a `_LIFE_TOTAL_SET` dropped-static face marker
+    # for "life total becomes <X>" (phase mis-tags as animate/shuffle/lose_game or
+    # drops on a modal bullet/replacement — Touch of the Eternal, Lich's Mirror,
+    # Captive Audience, Exquisite Archangel) and life DOUBLING ("double … life total" —
+    # Beacon, Enduring Angel). NOT in _IR_FLOOR_LANES; serve hand-registered in
+    # signal_specs. The IR correctly drops Heartless Hidetsugu ("damage equal to half …
+    # life total" is a damage effect, not a set/exchange), the regex's lone over-fire.
     {
         "key": "animate_artifact",
         "scope": "you",
@@ -493,12 +496,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "creature you control with a \\+1/\\+1 counter on it (?:has|have) (?:haste|flying|trample|menace|vigilance|lifelink)",
     },
-    {
-        "key": "typed_anthem_multi",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "each (?:other )?creature (?:you control )?that's (?:a |an )\\w+[^.]*(?:gets?|have|has|gains?)",
-    },
+    # ADR-0027: typed_anthem_multi migrated to the Card IR — a pump effect over a
+    # creature Filter naming 2+ subtypes (an AnyOf-of-subtypes node OR a flat
+    # subtypes tuple of length >=2 — Brenard, Howlpack Resurgence, Auriok Steelshaper),
+    # plus a raw fallback for the disjunction phase drops the subject on ("that's a X …
+    # or a Y" — Kaheera, Immerwolf, Lovisa, Sporecrown). NOT in _IR_FLOOR_LANES; serve
+    # hand-registered in signal_specs. The structural pump-only gate excludes Paladin
+    # Danse (a one-shot keyword GRANT via grant_keyword, not a +X/+X anthem), the
+    # regex's lone over-fire.
     {
         "key": "unspent_mana",
         "scope": "you",
@@ -582,12 +587,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle",
     },
-    {
-        "key": "convoke_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bconvoke\\b",
-    },
+    # ADR-0027: convoke_matters migrated to the Card IR — the MAKERS ride the Scryfall
+    # `convoke` keyword (_IR_KEYWORD_MAP); the keyword-less GRANTERS + PAYOFFS read
+    # structurally: cast_with_keyword counter_kind='convoke' (static "<type> spells you
+    # cast have convoke" — Fallaji Wayfarer, Chief Engineer), grant_spell_ability with
+    # convoke in raw (Wand of the Worldsoul), and the "spell that has convoke" cast
+    # trigger payoff (Saint Traft, Joyful Stormsculptor). Removed from _IR_FLOOR_LANES;
+    # serve hand-registered in signal_specs reusing the deleted regex.
     # ADR-0027: explore_matters migrated to the Card IR — served structurally from
     # the Scryfall `explore` keyword (_IR_KEYWORD_MAP, the authoritative path: 53 ⊇
     # the 44 regex hits, covering Map-token grants / granted-ability / replacement-
@@ -783,12 +789,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "power-up —",
     },
-    {
-        "key": "myriad_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "gains? myriad|\\bmyriad\\b",
-    },
+    # ADR-0027: myriad_grant migrated to the Card IR — phase stamps counter_kind=
+    # 'myriad' on the grant_keyword effect of the GRANTERS ("<class> have myriad" —
+    # Blade of Selves, Legion Loyalty, Duke Ulder, Corporeal Projection) plus a
+    # copy-exception conferred-keyword marker (Muddle), and the MAKERS ride the
+    # Scryfall `myriad` keyword (_IR_KEYWORD_MAP). Removed from _IR_FLOOR_LANES; serve
+    # hand-registered in signal_specs. The bare "\bmyriad\b" over-fired on the card
+    # NAME "The Myriad Pools" (The Everflowing Well // The Myriad Pools), which the
+    # structural IR correctly drops (no myriad effect or keyword).
     # ADR-0027: phasing_matters migrated to the Card IR — served structurally from
     # the Scryfall `phasing` keyword (_IR_KEYWORD_MAP) + phase's `phasing` effect
     # category (the phase-out/in DOER markers, _narrow_mechanic_refs) plus a

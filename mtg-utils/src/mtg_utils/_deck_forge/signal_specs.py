@@ -3339,6 +3339,51 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"target creature can't block"},
         r"target creature can't block",
     ),
+    # ADR-0027: convoke_matters / myriad_grant / typed_anthem_multi / life_total_set
+    # each had their oracle-regex SWEEP_DETECTORS row deleted (detection moved to the
+    # Card IR — keyword array + effect-category + supplement markers). The SERVE pool
+    # stays oracle-defined, so hand-register the spec the sweep auto-register loop used
+    # to build, reusing each deleted regex.
+    ("convoke_matters", "you"): _spec(
+        *SWEEP_LABELS["convoke_matters"],
+        {"oracle": r"\bconvoke\b"},
+        r"\bconvoke\b",
+    ),
+    ("myriad_grant", "you"): _spec(
+        *SWEEP_LABELS["myriad_grant"],
+        {"oracle": r"gains? myriad|\bmyriad\b"},
+        r"gains? myriad|\bmyriad\b",
+    ),
+    ("typed_anthem_multi", "you"): _spec(
+        *SWEEP_LABELS["typed_anthem_multi"],
+        {
+            "oracle": (
+                r"each (?:other )?creature (?:you control )?that's (?:a |an )\w+"
+                r"[^.]*(?:gets?|have|has|gains?)"
+            )
+        },
+        (
+            r"each (?:other )?creature (?:you control )?that's (?:a |an )\w+"
+            r"[^.]*(?:gets?|have|has|gains?)"
+        ),
+    ),
+    ("life_total_set", "any"): _spec(
+        *SWEEP_LABELS["life_total_set"],
+        {
+            "oracle": (
+                r"life total (?:becomes|equal to)|equal to half (?:that|your|a) "
+                r"(?:player'?s? )?life|exchange (?:your )?life total"
+                r"|exchange life totals?|set your life total to"
+                r"|double target player's life total"
+            )
+        },
+        (
+            r"life total (?:becomes|equal to)|equal to half (?:that|your|a) "
+            r"(?:player'?s? )?life|exchange (?:your )?life total"
+            r"|exchange life totals?|set your life total to"
+            r"|double target player's life total"
+        ),
+    ),
     # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word
