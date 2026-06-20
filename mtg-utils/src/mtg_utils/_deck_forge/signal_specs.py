@@ -3397,6 +3397,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\boil counters?\b"},
         r"\boil counters?\b",
     ),
+    # ADR-0027: fight_matters had its oracle-regex SWEEP_DETECTORS row deleted (moved to
+    # the Card IR — phase's fight effect + a granted/quoted/modal fight marker). Serve
+    # hand-registered reusing the deleted regex (the lane wants big creatures to fight
+    # with — surface fatties via power_min, plus the gear/buffs that suit them up).
+    ("fight_matters", "you"): _sweep_spec_with_extras(
+        "fight_matters",
+        serve_power_min=4,
+        regex=(
+            r"\bfights? (?:up to (?:one|two|\d+) )?(?:other |another )?target\b"
+            r"|\bfights? (?:up to (?:one|two) )?(?:other )?creature|\bfight each "
+            r"other\b|\bfights? it\b|\bfights? (?:another|each)"
+        ),
+    ),
     # ADR-0027: changeling_matters had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall changeling keyword + a "changeling"
     # / "is every creature type" all-tribes marker). Serve hand-registered reusing the

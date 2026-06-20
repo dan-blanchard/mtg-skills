@@ -6532,6 +6532,15 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "regenerate_matters",
         "undying_persist_matters",
         "creature_cast_trigger",
+        # fight_matters ← phase's `fight` effect + a `_FIGHT_REF` dropped-static marker
+        # (granted "it fights" / quoted-token / modal "Fight!" / emblem / symmetric
+        # "fight each other") + a `_FIGHT_RAW` face-level fallback (the Aftermath DFC
+        # phase doesn't project — Prepare // Fight). NOT in _IR_FLOOR_LANES;
+        # floor-mirror-dep == 0 (132 == 132). NO-FLOOD held. The migration is broader-
+        # and-correct recall (+5: Grothama, Ezuri's Predation, Time to Feed, Kraul
+        # Harpooner, Skophos Maze-Warden — granted/token fights the narrow regex
+        # missed). Its SWEEP_DETECTORS row is deleted; serve hand-spec'd. CR 701.12.
+        "fight_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

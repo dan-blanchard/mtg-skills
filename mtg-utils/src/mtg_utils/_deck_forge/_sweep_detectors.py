@@ -151,12 +151,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "secretly (?:write|choose|name)|before the game begins[^.]*(?:write|name|choose)|from outside the game|your sideboard",
     },
-    {
-        "key": "fight_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bfights? (?:up to (?:one|two|\\d+) )?(?:other |another )?target\\b|\\bfights? (?:up to (?:one|two) )?(?:other )?creature|\\bfight each other\\b|\\bfights? it\\b|\\bfights? (?:another|each)",
-    },
+    # ADR-0027: fight_matters migrated to the Card IR — phase's `fight` effect + a
+    # `_FIGHT_REF` dropped-static marker (granted/quoted/modal/symmetric fights) and a
+    # `_FIGHT_RAW` face-level fallback (the Aftermath DFC phase doesn't project, Prepare
+    # // Fight). This SWEEP_DETECTORS row is deleted; the serve hand-spec keeps its regex.
     # ADR-0027: life_total_set migrated to the Card IR — phase's `set_life` effect
     # category (_DOER_EFFECT_KEYS), the exchange/redistribute-life recategorizations in
     # supplement._NAMED_MECHANICS, plus a `_LIFE_TOTAL_SET` dropped-static face marker

@@ -1942,6 +1942,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Fight (Tolsimir, Friend to Wolves) — the granted "that creature fights" in the
+    # Wolf-ETB trigger is recovered as a `fight` dropped-static marker.
+    "fight_matters": (
+        {
+            "name": "Tolsimir, Friend to Wolves",
+            "type_line": "Legendary Creature — Elf Scout",
+            "oracle_text": (
+                "When Tolsimir enters, create Voja, Friend to Elves, a legendary "
+                "3/3 green and white Wolf creature token.\nWhenever a Wolf you "
+                "control enters, you gain 3 life and that creature fights up to "
+                "one target creature you don't control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="fight",
+                        scope="you",
+                        raw="that creature fights up to one target creature",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
