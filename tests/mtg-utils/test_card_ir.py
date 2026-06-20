@@ -1311,6 +1311,71 @@ def test_parameterized_keyword_grant_over_artifact_set_is_board_grant():
     assert "grant_keyword" not in cats
 
 
+# ── mass zone-move tell (ADR-0027 type-payoff recursion) ──────────────────────
+
+
+def test_changezoneall_graveyard_recursion_marks_mass():
+    """Crystal Chimes: "Return ALL enchantment cards from your graveyard" is a
+    ChangeZoneAll — counter_kind='all' marks the non-targeted go-wide form (CR 115.10)
+    so the recursion payoff lane fires; the marker survives the supplement's
+    category rewrite (ChangeZoneAll graveyard→hand re-parses to 'bounce')."""
+    rec = {
+        "name": "Crystal Chimes",
+        "scryfall_oracle_id": "id-chimes",
+        "card_type": {"core_types": ["Artifact"]},
+        "oracle_text": "Return all enchantment cards from your graveyard to your hand.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "ChangeZoneAll",
+                    "origin": "Graveyard",
+                    "destination": "Hand",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Enchantment"],
+                        "controller": "You",
+                        "properties": [{"type": "InZone", "zone": "Graveyard"}],
+                    },
+                },
+                "description": "Return all enchantment cards from your graveyard "
+                "to your hand.",
+            }
+        ],
+    }
+    eff = next(e for e in _effects(project_card([rec])) if e.category == "bounce")
+    assert eff.counter_kind == "all"
+
+
+def test_single_target_bounce_has_no_mass_tell():
+    """Skull of Orm: "Return TARGET enchantment card" is a single-target Bounce
+    (CR 115.1) — no mass tell, so the recursion payoff lane stays out."""
+    rec = {
+        "name": "Skull of Orm",
+        "scryfall_oracle_id": "id-skull",
+        "card_type": {"core_types": ["Artifact"]},
+        "oracle_text": "Return target enchantment card from your graveyard to your "
+        "hand.",
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "Bounce",
+                    "target": {
+                        "type": "Typed",
+                        "type_filters": ["Enchantment"],
+                        "controller": "You",
+                        "properties": [{"type": "InZone", "zone": "Graveyard"}],
+                    },
+                    "destination": None,
+                },
+            }
+        ],
+    }
+    eff = next(e for e in _effects(project_card([rec])) if e.category == "bounce")
+    assert eff.counter_kind == ""
+
+
 # ── round-trip ────────────────────────────────────────────────────────────────
 
 

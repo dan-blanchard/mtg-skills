@@ -260,6 +260,16 @@ _EFFECT_CATEGORY: dict[str, str] = {
     "goadall": "goad_all",  # Batch 14 — mass goad
 }
 
+# Mass (go-wide / non-targeted) bounce whose category collapses with the single-target
+# Bounce in _EFFECT_CATEGORY (bounceall→bounce). It carries the non-interchangeable mass
+# tell in counter_kind="all" (the SetTapState idiom) so a downstream type-payoff
+# recursion lane (CR 115.10) can fire on a "return ALL <type>" form while a single
+# target bounce stays out (CR 115.1, fixed magnitude 1 = generic value). Kept to
+# bounce alone — pumpall / the tap variants are read by the creatures go-wide arm via
+# its generic-set gate, not counter_kind, so marking them here would be inert noise.
+# ChangeZoneAll is marked in _changezone_effect (its own zone-routing handler).
+_MASS_EFFECT_TYPES = frozenset({"bounceall"})
+
 # Batch 14 — AdditionalPhase.phase → the extra-phase category (distinct lanes).
 _EXTRA_PHASE: dict[str, str] = {
     "begincombat": "extra_combat",
@@ -1250,7 +1260,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             out.append(Effect(category="other", scope=_effect_scope(eff), raw=raw))
         return out
     if etype in ("changezone", "changezoneall"):
-        return [_changezone_effect(eff, raw)]
+        return [_changezone_effect(eff, raw, mass=etype == "changezoneall")]
     if etype == "copytokenof":
         return [_copy_token_effect(eff, raw)]
     if etype == "additionalphase":
@@ -1306,6 +1316,9 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
     ck = eff.get("counter_type")
+    counter_kind = _norm(ck) if isinstance(ck, str) else ""
+    if etype in _MASS_EFFECT_TYPES:
+        counter_kind = "all"
     return [
         Effect(
             category=category,
@@ -1313,7 +1326,7 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
             scope=_effect_scope(eff),
             subject=_effect_subject(eff),
             raw=raw,
-            counter_kind=_norm(ck) if isinstance(ck, str) else "",
+            counter_kind=counter_kind,
             zones=_zone_tags(eff),
         )
     ]
@@ -1660,12 +1673,21 @@ def _library_position_effect(eff: dict, raw: str) -> Effect:
     )
 
 
-def _changezone_effect(eff: dict, raw: str) -> Effect:
+def _changezone_effect(eff: dict, raw: str, *, mass: bool = False) -> Effect:
     """A ChangeZone effect → category by its origin/destination zones.
 
     Graveyard → Battlefield is reanimation; → Exile of your own permanent is a
     blink (ETB-value flicker); → Exile of others' is exile removal; the rest stay
-    'other'. The ``target`` (a Typed filter of what's moved) is the subject."""
+    'other'. The ``target`` (a Typed filter of what's moved) is the subject.
+
+    ``mass`` is True for ``ChangeZoneAll`` ("return ALL <type> cards" — Crystal
+    Chimes, Open the Vaults) vs the single-target ``ChangeZone`` / ``Bounce`` form
+    ("return TARGET <type> card" — Skull of Orm). The non-interchangeable mass tell
+    rides in ``counter_kind="all"`` (the same idiom SetTapState uses for a mass
+    untap), so a downstream type-payoff recursion lane can fire on the go-wide form
+    (CR 115.10) while gating out single-target recursion (CR 115.1, fixed
+    magnitude 1 = generic value). It survives the supplement's verb-phrase
+    category rewrite, which preserves every field but ``category``."""
     origin = _norm(eff.get("origin"))
     dest = _norm(eff.get("destination"))
     target = _filter(eff.get("target"))
@@ -1696,6 +1718,7 @@ def _changezone_effect(eff: dict, raw: str) -> Effect:
         scope=_effect_scope(eff),
         subject=target,
         raw=raw,
+        counter_kind="all" if mass else "",
         zones=_zone_tags(eff),
     )
 

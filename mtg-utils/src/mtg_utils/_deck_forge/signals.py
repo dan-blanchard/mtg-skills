@@ -4400,6 +4400,77 @@ def _typed_matters_lanes(f: object) -> list[str]:
     ]
 
 
+# ── Generalized type-payoff shapes (ADR-0027) ─────────────────────────────────
+# A FAMILY of effect-shape detectors that, given an effect over a card-type-filtered
+# subject, return the matters-lane(s) the effect is a PAYOFF for. They read only the
+# subject's card_types (via _typed_matters_lanes) plus the effect's category/marker,
+# so they are type-parameterized — the same shapes transfer to a future
+# graveyard/counters/spellcast matters lane by extending _TYPE_MATTERS_LANE. Each
+# encodes one settled rules discriminator (see ADR-0027).
+
+
+def _type_tutor_lanes(e: object) -> list[str]:
+    """A TUTOR / DIG of a card-type (CR 701.23) → that type's matters-lane(s).
+
+    A search/dig whose target FILTER is the card type ("search your library for an
+    enchantment/artifact card" — Idyllic Tutor, Fabricate; "look at the top N, you may
+    put an artifact into your hand" — Glint-Nest Crane) is a build-around enabler for
+    that permanent type, so it fires the lane. A COMPOSITE filter ("an artifact OR
+    enchantment card" — Enlightened Tutor) fires BOTH lanes.
+
+    GATE (the over-fire boundary): the target filter's ``subtypes == ()``. A SUBTYPE
+    tutor ("search for an Aura/Equipment card" — Three Dreams, Steelshaper's Gift,
+    Stoneforge Mystic) carries ``subtypes=('Aura'/'Equipment',)`` — that is a NARROWER
+    voltron/aura care, not the broad type lane, so it is excluded. A CMC-restricted
+    any-of-type tutor (Trophy/Treasure/Tribute Mage — ``subtypes=()`` with a Cmc
+    predicate) is STILL an any-artifact tutor, so it fires (correctly — it fetches the
+    deck's artifacts). A generic-permanent tutor (Wargate — card_types ('Permanent',))
+    carries neither Artifact nor Enchantment, so _typed_matters_lanes returns []."""
+    if not isinstance(e, Effect) or e.category not in ("tutor", "topdeck_select"):
+        return []
+    sub = e.subject
+    if not isinstance(sub, Filter) or sub.subtypes:
+        return []
+    return _typed_matters_lanes(Filter(card_types=sub.card_types, controller="you"))
+
+
+def _type_recursion_lanes(e: object) -> list[str]:
+    """A MASS recursion of a card-type from a graveyard → that type's matters-lane(s).
+
+    A reanimate / graveyard-recursion / graveyard→hand bounce of YOUR <type> cards
+    ("return ALL enchantment cards from your graveyard" — Crystal Chimes; Replenish),
+    OR a COMPOSITE one at any controller ("return all artifact and enchantment cards"
+    — Open the Vaults, Dance of the Manse, Second Sunrise), values that type's cards as
+    a recurrable resource, so it fires the lane(s). A composite fires BOTH lanes.
+
+    GATE (the over-fire boundary — CR 115.10 mass vs CR 115.1 single-target): ONLY the
+    MASS / non-targeted form fires, and the SOLE mass tell is ``counter_kind == "all"``
+    (set in project._changezone_effect / _MASS_EFFECT_TYPES for ChangeZoneAll /
+    BounceAll). A single-target "return TARGET enchantment card" (Skull of Orm) is
+    GATED OUT — and so is a single-target COMPOSITE ("return target artifact OR
+    enchantment card" — Argivian Find, fixed magnitude 1 = generic recursion value):
+    being composite is NOT a mass proxy. The mass form returns "from ALL graveyards"
+    (Open the Vaults — controller 'any'), so an any-controller mass spell still fires
+    its own-board lanes. Removal/reset (destroy/exile/counter) is a different category
+    and never reaches here."""
+    if not isinstance(e, Effect):
+        return []
+    if e.category not in ("reanimate", "graveyard_recursion", "bounce"):
+        return []
+    sub = e.subject
+    if not isinstance(sub, Filter) or sub.controller == "opp":
+        return []
+    # graveyard-sourced only: a battlefield mass bounce (BounceAll board wipe) or a
+    # hand/library move is not graveyard recursion of the type as a resource.
+    if "from:graveyard" not in e.zones and "in:graveyard" not in e.zones:
+        return []
+    if e.counter_kind != "all":  # the sole mass tell (CR 115.10)
+        return []
+    # YOUR cards, or a mass spell over all graveyards (Open the Vaults — controller
+    # 'any'); an opp-only mass recursion was already excluded above.
+    return _typed_matters_lanes(Filter(card_types=sub.card_types, controller="you"))
+
+
 # Batch 6 — grant_keyword lanes. The granted keyword rides in Effect.counter_kind.
 # Evasion abilities per CR (702.9a flying / 702.13a intimidate / 702.28a shadow /
 # 702.31a horsemanship / 702.36a fear / 702.111a menace / 702.118a skulk; landwalk
@@ -4708,6 +4779,16 @@ def extract_signals_ir(
             # Nettlecyst, Shambling Suit) fires BOTH lanes (each population is a care).
             for typed_lane in _typed_matters_lanes(amount_subject):
                 add(typed_lane, "you", "", e.raw)
+            # artifacts_matter / enchantments_matter TUTOR/DIG DOER (CR 701.23): a
+            # search/dig whose target filter IS the card type — "search your library for
+            # an enchantment/artifact card" (Idyllic Tutor, Fabricate), "look at the top
+            # N, you may put an artifact into your hand" (Glint-Nest Crane), composite
+            # "an artifact OR enchantment card" (Enlightened Tutor → both). A SUBTYPE
+            # tutor (Aura/Equipment — Steelshaper's Gift) is gated out (narrower care);
+            # a generic-permanent tutor (Wargate) carries neither type. See
+            # _type_tutor_lanes for the settled discriminator.
+            for tutor_lane in _type_tutor_lanes(e):
+                add(tutor_lane, "you", "", e.raw)
             # artifacts_matter / enchantments_matter STATIC anthem/grant DOER: a mass
             # buff or keyword/type/ability grant over the GENERIC own-board artifact or
             # enchantment set ("Artifacts you control have hexproof" — Padeem; "Artifact
@@ -4734,34 +4815,15 @@ def extract_signals_ir(
                 and e.scope in ("you", "any")
             ):
                 add("enchantments_matter", "you", "", e.raw)
-            # artifacts_matter / enchantments_matter MASS-RECURSION DOER (Replenish,
-            # Open the Vaults, Dance of the Manse — return ALL / up-to-X artifact and/or
-            # enchantment cards from the graveyard). A reanimate of YOUR artifact /
-            # enchantment cards values that type's cards as a recurrable resource; a
-            # COMPOSITE (Artifact AND Enchantment) reanimate is a mass-recursion build-
-            # around regardless of whose graveyard (only Open the Vaults / Dance of the
-            # Manse / Second Sunrise carry it — all "return all/up-to-X", never a single
-            # target), so it fires both lanes at any controller. A single-target
-            # bounce / tutor of one enchantment card (Argivian Find, Idyllic Tutor)
-            # is NOT here
-            # (it stays out — the over-fire boundary: a single-target tutor ≠ caring).
-            # Removal (destroy / exile / counter) is a different category, never hit.
-            if (
-                isinstance(esub, Filter)
-                and e.category in ("reanimate", "graveyard_recursion")
-                and esub.controller in ("you", "any")
-            ):
-                composite = (
-                    "Artifact" in esub.card_types and "Enchantment" in esub.card_types
-                )
-                if esub.controller == "you" or composite:
-                    for rec_lane in _typed_matters_lanes(
-                        Filter(
-                            card_types=esub.card_types,
-                            controller="you",
-                        )
-                    ):
-                        add(rec_lane, "you", "", e.raw)
+            # artifacts_matter / enchantments_matter MASS-RECURSION DOER (Crystal
+            # Chimes, Replenish, Open the Vaults — return ALL / up-to-X artifact and/or
+            # enchantment cards from a graveyard). ONLY the MASS form fires (CR 115.10):
+            # a reanimate / graveyard-recursion / graveyard→hand bounce marked
+            # counter_kind="all", OR a composite at any controller. A single-target
+            # "return TARGET enchantment card" (Skull of Orm, Argivian Find — CR 115.1)
+            # is gated out by _type_recursion_lanes. Removal is a different category.
+            for rec_lane in _type_recursion_lanes(e):
+                add(rec_lane, "you", "", e.raw)
             if e.category == "gain_life" and e.scope in ("you", "any"):
                 add("lifegain_matters", "you", "", e.raw)
             # graveyard_recursion (soulshift, GY→hand per CR 702.46) is a graveyard

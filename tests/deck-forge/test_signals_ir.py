@@ -1011,6 +1011,200 @@ def test_voltron_payoff_attachment_predicate_in_condition():
     assert _voltron(ir)
 
 
+# ── type-payoff shapes: tutor / mass-recursion (ADR-0027) ─────────────────────
+# Generalized, type-parameterized: a search/dig of a card-type fires that type's
+# matters lane (gated on subtypes==() — a subtype tutor is the narrower voltron/aura
+# care); a MASS graveyard recursion of the type fires (gated out single-target).
+
+
+def _matter_keys(ir: Card) -> set[tuple[str, str]]:
+    return {
+        (s.key, s.subject)
+        for s in extract_signals_ir(CARD, ir)
+        if s.key in ("artifacts_matter", "enchantments_matter")
+    }
+
+
+def test_type_tutor_fires_matters_lane():
+    # Idyllic Tutor — "search your library for an enchantment card" (subtypes empty).
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="tutor",
+                    subject=Filter(card_types=("Enchantment",), controller="any"),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("enchantments_matter", "")}
+
+
+def test_type_dig_fires_matters_lane():
+    # Glint-Nest Crane — "look at the top four cards, put an artifact into your hand".
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you"),
+            effects=(
+                Effect(
+                    category="topdeck_select",
+                    subject=Filter(card_types=("Artifact",), controller="any"),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("artifacts_matter", "")}
+
+
+def test_composite_tutor_fires_both_lanes():
+    # Enlightened Tutor — "an artifact or enchantment card" fires BOTH lanes.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="tutor",
+                    subject=Filter(
+                        card_types=("Artifact", "Enchantment"), controller="any"
+                    ),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {
+        ("artifacts_matter", ""),
+        ("enchantments_matter", ""),
+    }
+
+
+def test_subtype_tutor_does_not_fire_matters_lane():
+    # Steelshaper's Gift — "search for an Equipment card" is the narrower voltron care,
+    # NOT artifacts_matter (the subtypes==() gate excludes it).
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="tutor",
+                    subject=Filter(
+                        card_types=("Artifact",),
+                        subtypes=("Equipment",),
+                        controller="any",
+                    ),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == set()
+
+
+def test_generic_permanent_tutor_does_not_fire_matters_lane():
+    # Wargate — "a permanent card" is neither Artifact nor Enchantment.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="tutor",
+                    subject=Filter(card_types=("Permanent",), controller="any"),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == set()
+
+
+def test_mass_recursion_fires_matters_lane():
+    # Crystal Chimes — "return ALL enchantment cards from your graveyard" (mass tell
+    # counter_kind='all', graveyard-sourced, controller you).
+    ir = _ir(
+        Ability(
+            kind="activated",
+            cost="mana,sacself,tap",
+            effects=(
+                Effect(
+                    category="bounce",
+                    counter_kind="all",
+                    subject=Filter(
+                        card_types=("Enchantment",),
+                        controller="you",
+                        predicates=("InZone",),
+                    ),
+                    zones=("from:graveyard", "to:hand", "in:graveyard"),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {("enchantments_matter", "")}
+
+
+def test_single_target_recursion_does_not_fire_matters_lane():
+    # Skull of Orm — "return TARGET enchantment card" (no mass tell, fixed magnitude 1
+    # = generic recursion value, CR 115.1). Argivian Find (composite single-target) is
+    # likewise gated out — only "all/up-to-X" mass spells carry both types.
+    skull = _ir(
+        Ability(
+            kind="activated",
+            cost="mana,tap",
+            effects=(
+                Effect(
+                    category="bounce",
+                    subject=Filter(
+                        card_types=("Enchantment",),
+                        controller="you",
+                        predicates=("InZone",),
+                    ),
+                    zones=("in:graveyard",),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(skull) == set()
+    argivian = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="bounce",
+                    subject=Filter(
+                        card_types=("Artifact", "Enchantment"),
+                        controller="you",
+                        predicates=("InZone",),
+                    ),
+                    zones=("in:graveyard",),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(argivian) == set()
+
+
+def test_composite_mass_recursion_fires_both_lanes_any_controller():
+    # Open the Vaults — "return all artifact and enchantment cards from all graveyards"
+    # (composite, controller any) fires both lanes.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="reanimate",
+                    counter_kind="all",
+                    subject=Filter(
+                        card_types=("Artifact", "Enchantment"), controller="any"
+                    ),
+                    zones=("from:graveyard", "to:battlefield"),
+                ),
+            ),
+        )
+    )
+    assert _matter_keys(ir) == {
+        ("artifacts_matter", ""),
+        ("enchantments_matter", ""),
+    }
+
+
 # ── include_membership threading (ADR-0027 membership-reuse pattern) ───────────
 # extract_signals_ir gates the signals derived from what a card IS (own card-type,
 # own-subtype tribal) on include_membership, mirroring extract_signals — so the
