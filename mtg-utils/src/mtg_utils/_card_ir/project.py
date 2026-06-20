@@ -3141,6 +3141,42 @@ _LIFE_TOTAL_SET = re.compile(
 # one") never says "do so" or "must be blocked … if able", so it can't match.
 _LURE_ABLE = re.compile(r"\bable to block\b[^.]*\bdo so\b", re.IGNORECASE)
 _LURE_MUST = re.compile(r"\bmust be blocked\b[^.]*?\bif able\b", re.IGNORECASE)
+# Combat-forcing disentanglement (CR 508.1g / 701.38). Two structurally distinct
+# compulsions phase DROPS to raw (the self/team static carries no abilities; the
+# reward-payoff trigger flattens to event=None with the redirect condition in raw):
+#
+#   • FORCED ATTACK (self-force) — "~ attacks each/every combat if able", "attacks
+#     that player this combat if able", a granted "creatures you control attack each
+#     combat if able" (Dauthi Slayer, Battle-Mad Ronin, Goblin Spymaster's token
+#     grant). A COMPULSION to swing — the forced_attack lane (an aggro/symmetric-force
+#     theme), NOT goad. phase emits a `MustAttack` mode only for the ACTIVATED single-
+#     target form (Basandra); the static self/team force is dropped.
+#   • GOAD REWARD (redirect-payoff) — "attacks one of your opponents", "attacks a
+#     player other than you", "whenever a(nother) player attacks (one of your
+#     opponents)", the defending-player payoff (Gahiji, Breena, Frontier Warmonger,
+#     Kazuul). The card REWARDS opponents' creatures being redirected at another player
+#     — the goad mechanic's payoff (CR 701.38b: a goaded creature attacks a player
+#     other than its controller), so it wants goad effects. NOT a self-force.
+#
+# The two patterns are mutually exclusive by construction: "each combat if able" is
+# the self-compulsion; "one of your opponents" / "a player other than you" / "a player
+# attacks" is the redirect-reward. A single-target "target creature attacks … if able"
+# (Basandra) keeps phase's force_attack effect and is NOT matched here (no "each/every
+# combat", no opponent-redirect) — it stays forced_attack-adjacent without leaking goad.
+_FORCE_ATTACK_REF = re.compile(
+    r"attacks? (?:each|every) combat if able"
+    r"|attacks? that player this combat if able"
+    r"|may attack only the nearest opponent",
+    re.IGNORECASE,
+)
+_GOAD_REWARD_REF = re.compile(
+    r"attacks? one of your opponents"
+    r"|attacks? a player other than (?:you|its controller)"
+    r"|whenever a(?:nother)? player attacks"
+    r"|creature an opponent controls attacks[^.]*"
+    r"(?:you're|you are) the defending player",
+    re.IGNORECASE,
+)
 # Energy ({E}, CR 122.1) phase loses on a SINK ("pay {E}", "Replicate—Pay {E}{E}{E}",
 # "unless you pay {E}"), a "Whenever you get one or more {E}" PAYOFF trigger (flattened
 # to event='other'), or a replacement/doubler ("get that many plus one {E} instead").
@@ -3973,6 +4009,20 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
         m = _LURE_ABLE.search(text) or _LURE_MUST.search(text)
         if m is not None:
             markers.append(Effect(category="lure", scope="you", raw=m.group(0)))
+    # Forced-attack SELF/TEAM static (CR 508.1g) phase dropped → a force_attack marker
+    # (read into forced_attack), gated to faces with no structural force_attack. The
+    # ACTIVATED single-target form (Basandra) keeps phase's effect and so is gated out.
+    has_force_attack = any(
+        e.category == "force_attack" for a in abilities for e in a.effects
+    )
+    if not has_force_attack and (m := _FORCE_ATTACK_REF.search(text)) is not None:
+        markers.append(Effect(category="force_attack", scope="any", raw=m.group(0)))
+    # Goad REWARD payoff (CR 701.38b) phase flattened to event=None with the redirect
+    # condition in raw → a goad_all marker (read into goad_matters via
+    # _DOER_EFFECT_KEYS). Distinct from the self-force above: this REWARDS opponents
+    # being redirected at another player, so it wants goad effects, not a self-swing.
+    if (m := _GOAD_REWARD_REF.search(text)) is not None:
+        markers.append(Effect(category="goad_all", scope="opp", raw=m.group(0)))
     # Energy sink / payoff / replacement phase loses → an energy marker, gated to faces
     # with no structural energy effect.
     has_energy = any(e.category == "energy" for a in abilities for e in a.effects)

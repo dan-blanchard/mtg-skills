@@ -2014,6 +2014,43 @@ def test_dropped_static_damage_doubling_marker_gated():
     )
 
 
+def test_dropped_static_force_attack_self_static_marker():
+    """A self/team "attacks each combat if able" static phase drops entirely (Dauthi
+    Slayer — no abilities) recovers a force_attack marker, gated to faces with no
+    structural force_attack; the goad-reward redirect never matches it."""
+    dauthi = {
+        "oracle_text": "Shadow\nThis creature attacks each combat if able.",
+    }
+    cats = {e.category for e in _dropped_static_markers(dauthi, [])}
+    assert "force_attack" in cats
+    assert "goad_all" not in cats
+    structural = [Ability(kind="static", effects=(Effect(category="force_attack"),))]
+    assert all(
+        e.category != "force_attack"
+        for e in _dropped_static_markers(dauthi, structural)
+    )
+
+
+def test_dropped_static_goad_reward_marker():
+    """A goad-REWARD payoff phase flattens to raw (Gahiji's "attacks one of your
+    opponents", Kazuul's defending-player) recovers a goad_all marker (read into
+    goad_matters); a self-force "each combat" never matches the reward pattern."""
+    gahiji = {
+        "oracle_text": "Whenever a creature attacks one of your opponents, that "
+        "creature gets +2/+0 until end of turn.",
+    }
+    assert "goad_all" in {e.category for e in _dropped_static_markers(gahiji, [])}
+    kazuul = {
+        "oracle_text": "Whenever a creature an opponent controls attacks, if you're "
+        "the defending player, create a 3/3 red Ogre creature token.",
+    }
+    assert "goad_all" in {e.category for e in _dropped_static_markers(kazuul, [])}
+    self_force = {"oracle_text": "~ attacks each combat if able."}
+    assert "goad_all" not in {
+        e.category for e in _dropped_static_markers(self_force, [])
+    }
+
+
 def test_dropped_static_scavenge_not_ability_word():
     """Anchored on "has scavenge" (the grant), so Malanthrope's "Scavenge the Dead"
     ability WORD (CR 207.2c — no rules meaning) recovers nothing."""
