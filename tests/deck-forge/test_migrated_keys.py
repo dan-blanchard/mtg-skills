@@ -300,6 +300,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    "damage_doubling": (
+        {
+            "name": "Fiery Emancipation",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "If a source you control would deal damage to a permanent or "
+                "player, it deals triple that damage to that permanent or player "
+                "instead."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="damage_doubling",
+                        scope="you",
+                        raw="it deals triple that damage instead",
+                    ),
+                ),
+            )
+        ),
+    ),
     "counter_move": (
         {
             "name": "Scrounging Bandar",

@@ -251,7 +251,30 @@ def test_keyword_counter_still_fires_on_real_keyword():
 # #14 all-damage doublers/triplers (Furnace of Rath, Fiery Emancipation) are
 # replacement effects that fire on COMBAT damage too — they belong on damage_doubling,
 # not the "noncombat damage" lane (CR 510 combat vs 702.19a noncombat).
+def _damage_doubling_ir(raw: str) -> Card:
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(category="damage_doubling", scope="you", raw=raw),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
 def test_all_damage_doubler_is_damage_doubling_not_noncombat():
+    # ADR-0027: damage_doubling migrated to the Card IR — the regex path no longer
+    # emits it (and no longer over-fires noncombat_damage_payoff); the hybrid path
+    # serves it from phase's damage_doubling replacement category.
     c = {
         "name": "Furnace of Rath",
         "type_line": "Enchantment",
@@ -260,12 +283,17 @@ def test_all_damage_doubler_is_damage_doubling_not_noncombat():
             "double that damage to that permanent or player instead."
         ),
     }
-    k = _keys(c)
+    assert "damage_doubling" not in _keys(c)
+    assert "noncombat_damage_payoff" not in _keys(c)
+    ir = _damage_doubling_ir("it deals double that damage instead")
+    k = {s.key for s in extract_signals_hybrid(c, ir)}
     assert "damage_doubling" in k
     assert "noncombat_damage_payoff" not in k
 
 
 def test_triple_damage_is_damage_doubling():
+    # The Triple multiplier (Fiery Emancipation, City on Fire) is structured by the
+    # deepened replacement projection — fires from the IR, not the regex.
     c = {
         "name": "Fiery Emancipation",
         "type_line": "Enchantment",
@@ -274,7 +302,9 @@ def test_triple_damage_is_damage_doubling():
             "it deals triple that damage to that permanent or player instead."
         ),
     }
-    assert "damage_doubling" in _keys(c)
+    assert "damage_doubling" not in _keys(c)
+    ir = _damage_doubling_ir("it deals triple that damage instead")
+    assert "damage_doubling" in {s.key for s in extract_signals_hybrid(c, ir)}
 
 
 # MV-scaling burn (Kaervek) is the genuine noncombat payoff and must still open it.

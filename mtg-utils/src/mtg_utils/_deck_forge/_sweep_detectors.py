@@ -417,14 +417,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "the next (?:\\d+|x) damage [^.]*would be dealt[^.]*(?:is )?dealt to [^.]*instead|that damage is dealt to [^.]*instead|deal that damage to [^.]*instead",
     },
-    {
-        "key": "damage_doubling",
-        "scope": "you",
-        "is_widen_of": "",
-        # Covers double AND triple (Fiery Emancipation) all-damage replacement
-        # effects, which were previously only caught by noncombat_damage_payoff.
-        "regex": "deals? (?:double|triple) that damage|deals? twice that (?:much|damage)|prevent half that damage|double the (?:next )?damage|deals that much damage plus",
-    },
+    # ADR-0027: damage_doubling migrated to the Card IR — detected structurally from
+    # phase's `damage_doubling` DamageDone-replacement category (now covering Double,
+    # Triple, Plus, and the nested AddTargetReplacement / CreateDamageReplacement
+    # amplifiers), plus a `damage_doubling` face marker for the modification phase
+    # dropped (Neriv/Jeska/Borborygmos). The structural IR is strictly broader-and-
+    # correct ("double all damage … would deal" — Collective Inferno, Raphael,
+    # Wolverine) and EXCLUDES the regex's "prevent half that damage" halving over-fire
+    # (Dark Sphere). Its SWEEP_DETECTORS row is deleted; the serve spec is hand-
+    # registered in signal_specs.py (SWEEP_LABELS still carries the human label).
     {
         "key": "symmetric_damage_each",
         "scope": "each",

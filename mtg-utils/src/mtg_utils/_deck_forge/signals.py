@@ -6968,6 +6968,28 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "lands_matter",
         "poison_matters",
         "suspend_matters",
+        # Group "damage cluster" (ADR-0027 projection deepening) — the damage-doubling
+        # half of the direct_damage <-> damage_doubling decoupling. damage_doubling
+        # fires from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-
+        # dep == 0): phase's `damage_doubling` DamageDone-replacement category, now
+        # deepened to cover Triple (Fiery Emancipation, City on Fire) and the nested
+        # AddTargetReplacement / CreateDamageReplacement amplifiers (Goblin Goliath,
+        # Isengard Unleashed, Desperate Gambit), plus a `damage_doubling` face marker
+        # for the modification phase dropped entirely (Neriv's entered-this-turn
+        # condition, Jeska's Unimplemented loyalty mode, Borborygmos/Surtland's "deals
+        # twice that much" riders). The IR is strictly broader-and-correct ("double all
+        # damage … would deal" — Collective Inferno, Raphael, Wolverine — regex
+        # missed) and EXCLUDES the regex's "prevent half that damage" HALVING over-fire
+        # (Dark Sphere, CR 615 prevention — the opposite of a doubler, the lone regex-
+        # only residual the structural IR correctly drops). The projection fix ALSO
+        # nets out the coupling's other direction: the doublers (Furnace of Rath,
+        # Gratuitous Violence, Neriv, Goblin Goliath) no longer carry the spurious
+        # direct_damage the deleted synthesized `damage` effect over-fired in the IR.
+        # direct_damage ITSELF stays on regex — its 52 burn gaps (Keranos, Koth,
+        # Tibalt — damage buried in a reveal/loyalty/Unimplemented body) need a deeper
+        # damage-recovery pass, not a clean over-fire migration. Its SWEEP_DETECTORS
+        # row is deleted; the serve spec is hand-registered. See ADR-0027.
+        "damage_doubling",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

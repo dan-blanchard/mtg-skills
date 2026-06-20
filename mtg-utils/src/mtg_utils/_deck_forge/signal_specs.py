@@ -3538,6 +3538,28 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"can be blocked as though (?:it|they) didn't have"},
         r"can be blocked as though (?:it|they) didn't have",
     ),
+    # ADR-0027: damage_doubling had its SWEEP_DETECTORS row deleted (detection moved
+    # to the Card IR — the damage_doubling DamageDone-replacement category, now
+    # covering triple + the nested AddTargetReplacement / CreateDamageReplacement
+    # amplifiers, plus a face marker for the dropped modification). The auto-register
+    # sweep loop used to build its serve spec from the now-gone row, so hand-register
+    # it reusing the deleted regex as the serve pattern (minus the halving over-fire —
+    # the serve still wants double/triple doublers, not Dark Sphere's prevention).
+    ("damage_doubling", "you"): _spec(
+        *SWEEP_LABELS["damage_doubling"],
+        {
+            "oracle": (
+                r"deals? (?:double|triple) that damage"
+                r"|deals? twice that (?:much|damage)"
+                r"|double (?:all damage|the (?:next )?damage)"
+                r"|deals that much damage plus"
+            )
+        },
+        r"deals? (?:double|triple) that damage"
+        r"|deals? twice that (?:much|damage)"
+        r"|double (?:all damage|the (?:next )?damage)"
+        r"|deals that much damage plus",
+    ),
     # ADR-0027: commander_matters / hand_disruption / opponent_exile_matters had their
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # predicate/trigger bind + a kept word mirror per key). The auto-register sweep loop
