@@ -3909,6 +3909,16 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "starting_life": ("starting_life_matters", "you"),
     "mass_death": ("mass_death_payoff", "you"),
     "cycling_payoff": ("cycling_matters", "you"),
+    # ADR-0027 sweep batch 2 conferred/dropped-static markers — the keyword-less
+    # granter / anthem / reference phase folds into a carrier raw or drops onto the
+    # face oracle. The card's OWN printed cascade/undying/persist/changeling rides the
+    # Scryfall keyword array (_IR_KEYWORD_MAP); these add the keyword-LESS form.
+    "cascade": ("cascade_matters", "you"),
+    "undying_persist": ("undying_persist_matters", "you"),
+    "changeling": ("changeling_matters", "you"),
+    # creature_cast ← the face-only-drop creature-cast reference (Blink's quoted token
+    # ability, Glimpse of Nature's delayed trigger); scope "any" mirrors the regex.
+    "creature_cast": ("creature_cast_trigger", "any"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
     "extra_combat": ("extra_combats", "you"),
     "extra_upkeep": ("extra_upkeep", "you"),
@@ -4700,6 +4710,22 @@ _SAC_OUTLET_RAW = re.compile(
 # granters ("<type> spells you cast have convoke") carry counter_kind='convoke' and
 # need no raw scan. The card's OWN printed convoke rides the keyword array.
 _CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
+
+# creature_cast_trigger (ADR-0027): phase parses "Whenever you cast a creature spell"
+# into a cast_spell trigger but DROPS the spell-type subject (subject=None), OR keeps
+# only a `place_counter`/`emblem`/granted-token effect whose raw carries the trigger
+# (Wildgrowth Archaic's enters-with replacement, Garruk's emblem, Volo's Journal /
+# Blink granted token, Glimpse of Nature's delayed trigger). The "creature spell"
+# cast reference survives only in some effect's raw, so a face-level scan over EVERY
+# effect raw catches them. Mirrors the regex (scope "any" — a creatures-being-cast
+# lane regardless of who casts). The qualifier is unambiguous (a real creature-cast
+# payoff), and the typed-subject trigger path still binds what phase DID structure.
+_CREATURE_SPELL_RAW = re.compile(
+    r"\bwhen(?:ever)? (?:you|a player|an opponent|each opponent|another player)"
+    r" casts? (?:a|an|another)\b[^.]*?\bcreature spell\b"
+    r"|\bwhen(?:ever)? (?:a|another) creature spell is cast\b",
+    re.IGNORECASE,
+)
 
 # group_mana (ADR-0027): symmetric/shared mana added to players OTHER than just the
 # controller. The Effect dataclass has no recipient field — phase flattens every
@@ -5960,6 +5986,19 @@ def extract_signals_ir(
         s.key == signal_keys.TOKEN_MAKER and s.subject for s in out
     ):
         add("creatures_matter", "you", "", "", "low")
+
+    # ADR-0027 creature_cast_trigger (face-level): a "casts a creature spell" reference
+    # phase keeps only in some effect raw — a cast_spell trigger whose spell-type
+    # subject was dropped (subject=None), an enters-with replacement place_counter, an
+    # emblem / granted-token quoted ability. The lane is a creatures-being-cast payoff
+    # (scope "any"), so one scan over every effect raw recovers them (the typed-subject
+    # trigger path above already binds what phase structured).
+    if not any(s.key == "creature_cast_trigger" for s in out) and any(
+        _CREATURE_SPELL_RAW.search(e.raw or "")
+        for ab in ir.all_abilities()
+        for e in ab.effects
+    ):
+        add("creature_cast_trigger", "any", "", "")
 
     # Keyword-array signals (Batch 2a): authoritative Scryfall keyword lookups,
     # NOT oracle regex — they already survive into the IR-native world, so reuse

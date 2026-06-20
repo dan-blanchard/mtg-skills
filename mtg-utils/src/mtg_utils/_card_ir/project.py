@@ -1011,6 +1011,30 @@ _DAMAGE_REFLECT_DEALS = re.compile(r"\bdeals that much damage\b", re.IGNORECASE)
 # clone-exception conferral phase folds away. Anchored on "has/with myriad", never
 # the bare keyword (the card's own printed myriad rides the keyword array).
 _MYRIAD_GRANT = re.compile(r"\b(?:has|with) myriad\b", re.IGNORECASE)
+# Cascade (CR 702.85) CONFERRED / referenced — phase rides the Scryfall `cascade`
+# keyword for an INTRINSIC cascade spell, but the GRANTERS are keyword-less: "spells
+# you cast have cascade" (Maelstrom Nexus, Yidris), "the next spell you cast … has
+# cascade" (Maelstrom Nexus, the Doctor Who cascade-granters), "gain cascade" (Yidris),
+# "with cascade" (Zhulodok's "Cascade, cascade"), and the cares-about "as you cascade"
+# (Averna) / "cast a spell with cascade" (The First Doctor) payoff. Anchored on the
+# conferring/reference phrase — "(have|has|gain[s]|with) cascade" / "as you cascade" /
+# "spell with cascade" — NOT the bare keyword the card's own array already carries.
+_CASCADE_GRANT = re.compile(
+    r"\b(?:have|has|gains?|with) cascade\b|\bas you cascade\b"
+    r"|\bspells? with cascade\b|\bcascade, cascade\b",
+    re.IGNORECASE,
+)
+# Undying (CR 702.92) / Persist (CR 702.78) GRANTED to a class of creatures — phase
+# rides the Scryfall keyword for an INTRINSIC undying/persist creature, but the
+# GRANTERS are keyword-less: "creatures you control … have undying" (Mikaeus),
+# "gains persist until end of turn" (Cauldron of Souls, Rhys, the persist-granters),
+# "has persist as long as …" (the Scarecrows), a granted/quoted "gain undying"
+# (Haunted One). Anchored on the GRANT VERB ("(gains?|have|has) undying/persist"),
+# NOT the reminder text "(When a creature WITH undying dies …)" nor the bare keyword
+# (the card's own array). The undying/persist counters mechanic stays its own lane.
+_UNDYING_PERSIST_GRANT = re.compile(
+    r"\b(?:gains?|have|has) (?:undying|persist)\b", re.IGNORECASE
+)
 
 
 def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
@@ -1034,6 +1058,10 @@ def _narrow_conferred_keyword_refs(ability: Ability) -> Ability:
             markers.append(Effect(category="madness", scope="you", raw=raw))
         if want("foretell") and _FORETELL_REF.search(raw):
             markers.append(Effect(category="foretell", scope="you", raw=raw))
+        if want("cascade") and _CASCADE_GRANT.search(raw):
+            markers.append(Effect(category="cascade", scope="you", raw=raw))
+        if want("undying_persist") and _UNDYING_PERSIST_GRANT.search(raw):
+            markers.append(Effect(category="undying_persist", scope="you", raw=raw))
         # Devour rides ONLY a make_token carrier's token profile (a "token with
         # devour N"), never a bare devour mention elsewhere.
         if e.category == "make_token" and want("devour") and _DEVOUR_TOKEN.search(raw):
@@ -3100,6 +3128,39 @@ _OIL_REF = re.compile(r"\boil counters?\b", re.IGNORECASE)
 # arm, which over-fires on unrelated life thresholds ("if your life total is less
 # than 7" — Elderscale Wurm), which the structural IR correctly drops.
 _STARTING_LIFE_REF = re.compile(r"\bstarting life total\b", re.IGNORECASE)
+# Creature-cast trigger (CR 601) phase drops ENTIRELY (the quoted token ability —
+# Blink's "create a token with 'Whenever an opponent casts a creature spell …'" — or a
+# spell's delayed trigger — Glimpse of Nature's "Whenever you cast a creature spell this
+# turn, draw") survives only on the face oracle text. Anchored on the "casts a creature
+# spell" / "creature spell is cast" phrase — a real creature-cast payoff (the typed
+# trigger + effect-raw scan in extract_signals_ir bind what phase structured/kept).
+_CREATURE_CAST_REF = re.compile(
+    r"\bwhen(?:ever)? (?:you|a player|an opponent|each opponent|another player)"
+    r" casts? (?:a|an|another)\b[^.]*?\bcreature spell\b"
+    r"|\bwhen(?:ever)? (?:a|another) creature spell is cast\b",
+    re.IGNORECASE,
+)
+# Regenerate (CR 701.15) GRANTED / QUOTED / replacement phase drops: a granted
+# "{B}: Regenerate this creature" (quoted ability on a token / Aura / kicker-conferred
+# "with 'Pay 3 life: Regenerate this creature'" — Degavolver, Anavolver, Tribal Golem,
+# Skeletonize's token), or the "If this creature would be destroyed, regenerate it"
+# REPLACEMENT phase drops off a creature whose other clause it parsed (Mossbridge
+# Troll, Clergy / Knight of the Holy Nimbus). phase emits a `regenerate` effect for a
+# plain top-level regenerate; this recovers the granted/quoted/replacement residual.
+# Anchored on the "regenerate" verb (it appears only on real regenerate cards).
+_REGENERATE_REF = re.compile(r"\bregenerate\b", re.IGNORECASE)
+# Changeling (CR 702.73) / "is every creature type" — the all-tribes lane. phase
+# rides the Scryfall `changeling` keyword for an INTRINSIC changeling, but DROPS the
+# subtype on a "create a … Shapeshifter token WITH changeling" maker (the changeling
+# lives in the token profile raw — Maskwood Nexus, Birthing Boughs), folds an
+# "is/are every creature type" anthem/grant into a grant_keyword/pump carrier raw
+# (Arachnoform, Amorphous Axe), or types the self-static as `type_set` / a place_
+# counter (Mistform Ultimus, Omo's everything counter). Anchored on the literal
+# "changeling" keyword OR the "(is|are|becomes) every creature type" phrase — both
+# appear only on real all-tribes cards (no flavor/name collision).
+_CHANGELING_REF = re.compile(
+    r"\bchangeling\b|\b(?:is|are|becomes) every creature type\b", re.IGNORECASE
+)
 # Mass-death count operand (CR 700.4) payoff — a value/effect that SCALES with the
 # number of creatures that died this turn ("a +1/+1 counter for each creature that
 # died this turn", "a Treasure for each nontoken creature that died this turn",
@@ -3881,6 +3942,36 @@ def _dropped_static_markers(record: dict, abilities: list[Ability]) -> list[Effe
     # _DOER_EFFECT_KEYS (CR 700.4).
     if (m := _MASS_DEATH_REF.search(text)) is not None:
         markers.append(Effect(category="mass_death", scope="you", raw=m.group(0)))
+    # Changeling / "is every creature type" phase drops onto a token-profile raw, a
+    # grant carrier, or a type_set/place_counter self-static → a changeling marker.
+    # Read via _DOER_EFFECT_KEYS (CR 702.73). The card's OWN intrinsic changeling rides
+    # the Scryfall keyword (_IR_KEYWORD_MAP); this is the keyword-less maker / anthem.
+    if (m := _CHANGELING_REF.search(text)) is not None:
+        markers.append(Effect(category="changeling", scope="you", raw=m.group(0)))
+    # Regenerate GRANTED / QUOTED / replacement phase drops → a regenerate marker,
+    # gated to faces with no structural regenerate effect already present (the plain
+    # top-level regenerate binds natively). Read via _DOER_EFFECT_KEYS (CR 701.15).
+    has_regen = any(e.category == "regenerate" for a in abilities for e in a.effects)
+    if not has_regen and (m := _REGENERATE_REF.search(text)) is not None:
+        markers.append(Effect(category="regenerate", scope="you", raw=m.group(0)))
+    # Cascade reference phase keeps only in a non-grant-carrier raw (a "cast a spell
+    # with cascade" PAYOFF trigger — The First Doctor — whose consequence is a
+    # place_counter outside _GRANT_CARRIERS) → a cascade marker, gated to faces with no
+    # structural cascade marker (the conferred-keyword pass binds the grant carriers).
+    # An intrinsic cascade card's own text (keyword + stripped reminder) never matches
+    # _CASCADE_GRANT's grant/reference phrasing, so the array-bearer isn't re-tagged.
+    has_cascade = any(e.category == "cascade" for a in abilities for e in a.effects)
+    if not has_cascade and (m := _CASCADE_GRANT.search(text)) is not None:
+        markers.append(Effect(category="cascade", scope="you", raw=m.group(0)))
+    # Creature-cast trigger phase dropped onto the face oracle (a quoted token ability
+    # or a spell's delayed trigger — Blink, Glimpse of Nature) → a creature_cast marker.
+    # Gated to faces with no structural creature_cast marker. The extract_signals_ir
+    # face-scan covers the effect-raw survivors; this is the face-only-drop residual.
+    has_creature_cast = any(
+        e.category == "creature_cast" for a in abilities for e in a.effects
+    )
+    if not has_creature_cast and (m := _CREATURE_CAST_REF.search(text)) is not None:
+        markers.append(Effect(category="creature_cast", scope="any", raw=m.group(0)))
     # Cycling "cycle or discard" PAYOFF trigger phase dropped ENTIRELY (the trigger
     # phrase truncated off both the trigger and the effect raw — Pitiless Vizier,
     # Zenith Seeker keep only "gain indestructible"/"gain flying") → a cycling marker.

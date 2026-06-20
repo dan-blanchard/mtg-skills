@@ -293,6 +293,20 @@ CATEGORIES: frozenset[str] = frozenset(
         "starting_life",
         "mass_death",
         "cycling_payoff",
+        # ADR-0027 sweep batch 2 conferred/dropped-static markers — the keyword-less
+        # GRANTERS / anthems / references phase folds into a carrier raw or drops onto
+        # the face oracle. cascade ← "(have|has|gain) cascade" conferral (Maelstrom
+        # Nexus, Yidris); undying_persist ← "(gains|have|has) undying/persist" grant
+        # (Mikaeus, the persist-granters); changeling ← "changeling" / "is every
+        # creature type" all-tribes maker/anthem (Maskwood Nexus, Mistform Ultimus).
+        # CR 702.85 / 702.92 / 702.78 / 702.73.
+        "cascade",
+        "undying_persist",
+        "changeling",
+        # creature_cast ← a "casts a creature spell" reference phase dropped onto the
+        # face oracle (a quoted token ability — Blink — or a spell's delayed trigger —
+        # Glimpse of Nature). CR 601 (a creatures-being-cast payoff, scope "any").
+        "creature_cast",
         # ADR-0027 go-wide marker — a count-over-your-own-board operand (creatures /
         # artifacts / enchantments you control) the structured projection dropped to a
         # subjectless characteristic_pt / ModifyCost / damage / gate condition;
