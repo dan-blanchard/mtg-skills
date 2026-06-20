@@ -1612,14 +1612,31 @@ def test_singular_tribal_lord_gets_opens_type_matters():
 def test_reward_for_attacking_opponents_opens_goad():
     # Gahiji / Frontier Warmonger reward any creature that attacks your opponents. Goad
     # forces opponents' creatures to attack a player other than their controller — i.e.
-    # one of your OTHER opponents — firing the reward (CR 701.39).
+    # one of your OTHER opponents — firing the reward (CR 701.38b). ADR-0027: migrated
+    # to the IR — the regex path no longer emits it; the hybrid path serves it from the
+    # _GOAD_REWARD_REF marker (here mirrored as a goad_all effect).
     gahiji = {
         "name": "Gahiji, Honored One",
         "type_line": "Legendary Creature — Beast",
         "oracle_text": "Whenever a creature attacks one of your opponents or a "
         "planeswalker an opponent controls, that creature gets +2/+0 until end of turn.",
     }
-    assert ("goad_matters", "opponents") in _keys(gahiji)
+    assert ("goad_matters", "opponents") not in _keys(gahiji)
+    ir = _ir_with(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="goad_all",
+                    scope="opp",
+                    raw="attacks one of your opponents",
+                ),
+            ),
+        )
+    )
+    assert ("goad_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(gahiji, ir)
+    }
 
 
 # ── Long-tail coverage clusters (workflow-diagnosed, verify-before-add) ────────

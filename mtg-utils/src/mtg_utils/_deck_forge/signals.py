@@ -316,15 +316,14 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Force-attack incentive (Kratos): "creatures that didn't attack this turn" punishes
     # not attacking — a goad/aggro commander that wants everyone swinging.
     ("forced_attack", _re(r"didn't attack this turn|that attacked this turn"), "you"),
-    # Rewards-for-attacking-opponents (Gahiji, Frontier Warmonger): a creature that
-    # attacks "one of your opponents" earns a buff. Goad forces opponents' creatures to
-    # attack a player other than the goader (you) — i.e. one of your OTHER opponents —
-    # which fires the reward (CR 701.15b). So such a commander wants goad effects.
-    (
-        "goad_matters",
-        _re(r"attacks? one of your opponents|attacks? a player other than you"),
-        "opponents",
-    ),
+    # ADR-0027: goad_matters migrated to the Card IR — detected structurally from the
+    # Scryfall `goad` keyword + phase's `goad_all` effect + a `_GOAD_REWARD_REF` face
+    # marker (the "attacks one of your opponents" / "a player other than you" /
+    # "whenever a player attacks" / defending-player reward conditions phase flattens
+    # to raw, project._dropped_static_markers) + the goad-style single-target political
+    # force ("target creature … attacks … if able" — phase's force_attack effect
+    # lifted to goad via _GOAD_STYLE_FORCE). The two _DETECTORS / _HAND_FLOOR producers
+    # are deleted; the hand-written serve spec (signal_specs.py) is independent.
     # ADR-0027: outlaw_matters migrated to the Card IR — detected from the kept
     # word-detector mirror (signals._IR_KEPT_DETECTORS: \boutlaws?\b; outlaw is a
     # creature-type GROUP phase doesn't model as one tag). Its broad _DETECTORS
@@ -964,29 +963,13 @@ class Detector:
 # don't misfire. Hand-written source stays as (key, compiled-pattern, scope) tuples;
 # the assembly below adapts both these and the mined sweep into Detector records.
 _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
-    # Goad archetype (CR 701.15): two commander shapes that want goad cards (Disrupt
-    # Decorum) but carry no goad KEYWORD, so the keyword preset misses them. (1) FORCING
-    # OTHER creatures to attack — "target/another target/each other creature ... attacks
-    # ... if able" (Basandra, Thantis) is the goad mechanic itself. (2) Rewarding ANY
-    # player's attack — "whenever a(nother) player attacks" (Aurelia, Breena, Jolene) —
-    # goad sends opponents' creatures into the payoff. EXCLUDES self forced-attack
-    # ("Zurgo attacks each combat if able" — an aggressive beater, not goad) by
-    # anchoring on target/other/each-other creatures, never "this creature" / the name.
-    (
-        "goad_matters",
-        re.compile(
-            r"(?:target creature|another target creature|each other creature)"
-            r"[^.]*attacks?[^.]*\bif able\b"
-            r"|whenever (?:a|another) player attacks"
-            # (3) DEFENDING-player payoff (Kazuul): "whenever a creature an opponent
-            # controls attacks ... you're the defending player, <reward>" rewards
-            # opponents swinging at YOU, so it wants force-attack / goad to feed it.
-            r"|creature an opponent controls attacks[^.]*"
-            r"(?:you're|you are) the defending player",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027: goad_matters migrated to the Card IR — this second goad producer (the
+    # force-OTHER-creatures-to-attack form + the "whenever a player attacks" / Kazuul
+    # defending-player reward) is deleted. The IR recovers all three structurally: the
+    # single-target political force via _GOAD_STYLE_FORCE over phase's force_attack
+    # effect; the reward conditions via the _GOAD_REWARD_REF face marker
+    # (project._dropped_static_markers). Floor-mirror-dep == 0 (goad_matters is NOT in
+    # _IR_FLOOR_LANES). The hand-written serve spec (signal_specs.py) survives.
     # A commander that rewards a creature whose "power [is] greater than its base power"
     # (Kutzil, Baird) is a pump / +1/+1-counters payoff — the only way a creature's
     # power exceeds its BASE power is a counter or a pump (CR 613.4c puts BOTH in
@@ -5034,6 +5017,19 @@ _GROUP_MANA_RAW = re.compile(
 # trigger_doubling (Panharmonicon is NOT a venture card).
 _DUNGEON_RAW = re.compile(r"\broom abilit|\bdungeon", re.IGNORECASE)
 
+# Goad-style political force (CR 701.38): a SINGLE-TARGET "target creature … attacks
+# … if able" (Boiling Blood, Incite, Basandra, Alluring Siren) is the goad mechanic's
+# doer — it forces ONE creature (usually an opponent's) to attack, the political
+# redirect engine that wants goad payoffs. phase types these as a `force_attack`
+# effect (the same category as the self/team "attacks each combat" compulsion), so the
+# IR routes the force_attack effect to forced_attack by default; this raw anchor lifts
+# the TARGETED form to goad_matters too. The self/team "each combat if able" static
+# (the forced_attack lane proper) never says "target creature", so it stays
+# forced_attack-only.
+_GOAD_STYLE_FORCE = re.compile(
+    r"target creature[^.]*attacks?[^.]*\bif able\b", re.IGNORECASE
+)
+
 # typed_anthem_multi (ADR-0027): phase drops the typed subject entirely on some pump
 # anthems (subject=None), so neither the AnyOf nor the 2+-subtypes structural guard
 # can see the disjunction. Recover from the pump effect's raw: "that's a X[, a Y]…,?
@@ -5906,6 +5902,12 @@ def extract_signals_ir(
             # force, not a you-only payoff).
             if cat == "force_attack":
                 add("forced_attack", "any", "", e.raw)
+                # Goad-style single-target political force (CR 701.38): "target
+                # creature … attacks … if able" wants goad payoffs, so it also opens
+                # the goad lane. The self/team "each combat" force never names a
+                # target, so it stays forced_attack-only.
+                if _GOAD_STYLE_FORCE.search(e.raw or ""):
+                    add("goad_matters", "opponents", "", e.raw)
             if cat == "cant_block":
                 add("cant_block_grant", "you", "", e.raw)
             if cat == "lure":
@@ -6990,6 +6992,28 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # damage-recovery pass, not a clean over-fire migration. Its SWEEP_DETECTORS
         # row is deleted; the serve spec is hand-registered. See ADR-0027.
         "damage_doubling",
+        # Group "combat-forcing" (ADR-0027 projection deepening) — the goad half of
+        # the goad_matters <-> forced_attack disentanglement (CR 701.38 goad redirect-
+        # payoff vs CR 508.1g self-force). goad_matters fires from the STRUCTURAL IR
+        # alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0): the Scryfall `goad`
+        # keyword + phase's `goad_all` effect + a `_GOAD_REWARD_REF` face marker (the
+        # redirect-reward conditions phase flattens to raw — "attacks one of your
+        # opponents", "a player other than you", "whenever a player attacks", Kazuul's
+        # defending-player payoff) + the goad-style single-target political force
+        # (`_GOAD_STYLE_FORCE` lifting phase's force_attack effect on "target creature
+        # … attacks … if able" — Boiling Blood, Incite, Basandra, Alluring Siren). The
+        # disentanglement is structural: the self/team "attacks each combat if able"
+        # static stays on forced_attack (its own lane); the single-target / redirect-
+        # reward forms open goad. regex-only residual 45 -> 2 (Boros Battleshaper's
+        # attack-OR-block manipulation → cant_block, Tower Above's "blocks if able" →
+        # force_block/lure — both correct IR exclusions). forced_attack ITSELF stays on
+        # regex — its 23 "didn't attack this turn" PUNISHER-incentive gaps (Erg
+        # Raiders, Kratos, Angel's Trumpet) are a distinct sub-concept the IR doesn't
+        # bind, not a clean over-fire migration; the coupling's over-fire direction
+        # (regex goad over-firing on self-force / blocks) is resolved structurally. The
+        # two goad _DETECTORS / _HAND_FLOOR producers are deleted; the serve spec is
+        # registered. See ADR-0027.
+        "goad_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

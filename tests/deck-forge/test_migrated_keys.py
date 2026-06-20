@@ -300,6 +300,27 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    "goad_matters": (
+        {
+            "name": "Disrupt Decorum",
+            "type_line": "Sorcery",
+            "oracle_text": "Goad all creatures your opponents control. (Until your "
+            "next turn, those creatures attack each combat if able and attack a "
+            "player other than you if able.)",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="goad_all",
+                        scope="opp",
+                        raw="Goad all creatures your opponents control.",
+                    ),
+                ),
+            )
+        ),
+    ),
     "damage_doubling": (
         {
             "name": "Fiery Emancipation",

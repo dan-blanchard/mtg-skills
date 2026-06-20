@@ -3425,10 +3425,62 @@ def test_forced_combat_and_any_player_attack_open_goad():
             "creatures, you draw a card. This ability triggers only once each turn."
         ),
     }
-    assert ("goad_matters", "opponents") in _ks(basandra)
-    assert ("goad_matters", "opponents") in _ks(aurelia)
+    # ADR-0027: goad_matters migrated to the IR — the regex path no longer emits it;
+    # the hybrid path serves it (Basandra via the goad-style single-target force_attack
+    # effect; Aurelia via the _GOAD_REWARD_REF marker, mirrored as a goad_all effect).
+    assert ("goad_matters", "opponents") not in _ks(basandra)
+    assert ("goad_matters", "opponents") not in _ks(aurelia)
+    basandra_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        effects=(
+                            Effect(
+                                category="force_attack",
+                                scope="any",
+                                raw="Target creature attacks this turn if able.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    aurelia_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(
+                            Effect(
+                                category="goad_all",
+                                scope="opp",
+                                raw="Whenever a player attacks",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("goad_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(basandra, basandra_ir)
+    }
+    assert ("goad_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(aurelia, aurelia_ir)
+    }
     # Over-fire guard: a SELF forced-attacker (Zurgo) is an aggressive beater, not a
-    # goad commander — it forces only ITSELF to attack.
+    # goad commander — it forces only ITSELF to attack each combat. The goad-style
+    # force lift requires a "target creature" force, which Zurgo's self-force lacks.
     zurgo = {
         "name": "Zurgo Helmsmasher",
         "type_line": "Legendary Creature — Orc Warrior",
@@ -3437,7 +3489,31 @@ def test_forced_combat_and_any_player_attack_open_goad():
             "gets +3/+3 as long as it's your turn."
         ),
     }
+    zurgo_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="force_attack",
+                                scope="any",
+                                raw="~ attacks each combat if able.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
     assert ("goad_matters", "opponents") not in _ks(zurgo)
+    assert ("goad_matters", "opponents") not in {
+        (s.key, s.scope) for s in extract_signals_hybrid(zurgo, zurgo_ir)
+    }
 
 
 def test_gain_control_commander_also_opens_theft_matters():
@@ -4260,7 +4336,33 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
             "controller pays {3}."
         ),
     }
-    assert "goad_matters" in _keys(kazuul)
+    # ADR-0027: goad_matters migrated to the IR — the regex path no longer emits it;
+    # the hybrid path serves it from the _GOAD_REWARD_REF defending-player marker
+    # (mirrored as a goad_all effect).
+    assert "goad_matters" not in _keys(kazuul)
+    kazuul_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="goad_all",
+                                scope="opp",
+                                raw="creature an opponent controls attacks ... "
+                                "you're the defending player",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "goad_matters" in _keys_hybrid_ir(kazuul, kazuul_ir)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
