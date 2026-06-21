@@ -530,13 +530,15 @@ def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
 def test_recast_etb_opens_on_sneak():
     # Oroku Saki's Sneak (return an unblocked attacker, recast cheaply) replays a
     # creature's ETB, so he wants cheap aggressive-ETB creatures (recast = repeat the
-    # bleed). The "Sneak" keyword survives reminder-stripping. Real oracle.
+    # bleed). ADR-0027: recast_etb migrated to the Card IR — the regex path no longer
+    # emits it; the hybrid serves it from the Scryfall `Sneak` keyword. Real oracle.
     oroku_saki = {
         "name": "Oroku Saki, Shredder Rising",
         "type_line": "Legendary Creature — Human Ninja",
         "mana_cost": "{2}{B}",
         "power": "3",
         "toughness": "1",
+        "keywords": ["Sneak"],
         "oracle_text": (
             "Sneak {1}{B} (You may cast this spell for {1}{B} if you also return an "
             "unblocked attacker you control to hand during the declare blockers step. He "
@@ -544,7 +546,8 @@ def test_recast_etb_opens_on_sneak():
             "player, you draw a card and lose 1 life."
         ),
     }
-    assert ("recast_etb", "you") in _ks(oroku_saki)
+    assert "recast_etb" not in _keys(oroku_saki)
+    assert ("recast_etb", "you") in _ks_hybrid_card(oroku_saki, _bare_ir())
     krenko = {
         "name": "Krenko, Mob Boss",
         "type_line": "Legendary Creature — Goblin Warrior",
@@ -556,7 +559,7 @@ def test_recast_etb_opens_on_sneak():
             "Goblins you control."
         ),
     }
-    assert "recast_etb" not in _keys(krenko)
+    assert "recast_etb" not in _keys_hybrid(krenko)
 
 
 def test_type_change_opens_on_creature_type_hoser():
@@ -596,6 +599,8 @@ def test_type_change_opens_on_creature_type_hoser():
 def test_exert_matters_opens_on_pseudo_vigilance():
     # Johan grants "attacking doesn't cause creatures you control to tap", which makes an
     # exert creature's "won't untap next turn" cost free — so he wants exert creatures.
+    # ADR-0027: exert_matters migrated to the Card IR — the regex path no longer emits
+    # it; the Johan namesake is served by a kept word mirror (oracle scan → bare IR).
     # Real oracle.
     johan = {
         "name": "Johan",
@@ -609,7 +614,8 @@ def test_exert_matters_opens_on_pseudo_vigilance():
             "creatures you control to tap this combat if Johan is untapped."
         ),
     }
-    assert ("exert_matters", "you") in _ks(johan)
+    assert "exert_matters" not in _keys(johan)
+    assert ("exert_matters", "you") in _ks_hybrid(johan)
     krenko = {
         "name": "Krenko, Mob Boss",
         "type_line": "Legendary Creature — Goblin Warrior",
@@ -621,7 +627,7 @@ def test_exert_matters_opens_on_pseudo_vigilance():
             "Goblins you control."
         ),
     }
-    assert "exert_matters" not in _keys(krenko)
+    assert "exert_matters" not in _keys_hybrid(krenko)
 
 
 def test_tap_down_blockers_opens_on_unblockable_unless_all():

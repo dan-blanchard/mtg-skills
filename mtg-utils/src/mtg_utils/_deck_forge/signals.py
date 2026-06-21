@@ -1173,30 +1173,29 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Bounce-replay / Sneak (Oroku Saki + the TMNT Sneak legends): "Sneak" / "return an
-    # unblocked attacker" recasts a cheap creature, re-firing its ETB. So the commander
-    # wants cheap creatures with an AGGRESSIVE enter-trigger ("each opponent discards /
-    # loses life") — recast = repeat the bleed. Serving the aggressive ETBs (not every
-    # ETB creature) keeps it the precise, color-filtered recast payoff, not goodstuff.
-    (
-        "recast_etb",
-        re.compile(r"\bsneak\b|return an unblocked attacker", re.IGNORECASE),
-        "you",
-    ),
-    # Exert payoff (Johan, Heliod God of the Sun): a commander that grants pseudo-
-    # vigilance ("attacking doesn't cause creatures you control to tap" / "creatures you
-    # control have vigilance") turns EXERT into a no-downside ability: exert's only cost
-    # ("won't untap next turn") is moot when attacking never taps them. So it wants
-    # exert creatures.
-    (
-        "exert_matters",
-        re.compile(
-            r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap"
-            r"|(?:other )?creatures you control have vigilance",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: recast_etb migrated to the Card IR. DETECTOR (the bounce-replay
+    # engine): the Scryfall `Sneak` keyword (_IR_KEYWORD_MAP, 28 cards — the TMNT/
+    # Marvel ninjutsu-on-a-spell variant) drops the four `\bsneak\b`-regex over-fires
+    # (Cheatyface "you may sneak", Lightfoot Rogue "Sneak Attack" ability word,
+    # Fraternal Exaltation, empty-keyword Ninja Teen). Ninjutsu proper / "return an
+    # unblocked attacker" is ALREADY ninjutsu_matters, so recast_etb keys on Sneak
+    # specifically. SERVE (the aggressive-ETB payoff): an etb Trigger plus a
+    # discard/lose_life/sacrifice effect whose raw names "each opponent" (the
+    # aggressive enter-bleed the recast repeats — Liliana's Specter, Skirmish Rhino),
+    # wired in the trigger loop of extract_signals_ir. This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
+    # ADR-0027: exert_matters migrated to the Card IR. The team-VIGILANCE enabler
+    # (Heliod, Always Watching, Brave the Sands — team vigilance neutralizes exert's
+    # only downside, "won't untap next turn") is served STRUCTURALLY from a
+    # grant_keyword effect with counter_kind=='vigilance' over a generic-creature-you-
+    # control subject (the exert arm in the grant_keyword block of extract_signals_ir;
+    # _is_generic_creature_filter admits Heliod's `Another` / Always Watching's
+    # `NonToken` predicate but excludes the subtype-scoped Golem/Sliver/Warrior grants
+    # and the single-target Kytheon's Tactics). The Johan namesake — "attacking
+    # doesn't cause creatures you control to tap" — projects to a restriction whose
+    # clause survives only in raw, so it is served by a kept word mirror
+    # (_IR_KEPT_DETECTORS). This _HAND_FLOOR producer is deleted; the serve spec
+    # (signal_specs.py, serve_keywords=("exert",)) stays hand-registered.
     # "Can't be blocked unless ALL block" (Tromokratis): the commander connects only if
     # the defender CAN'T field enough blockers, so it wants to TAP DOWN opponents'
     # creatures (Sleep, Blustersquall) before combat — fewer untapped blockers means
@@ -2619,6 +2618,32 @@ _LIFELOSS_PLAN_MIRROR = re.compile(
     r"|you lose life equal to|you may pay (?:\d+|x) life",
     re.IGNORECASE,
 )
+# ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
+# tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
+# recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
+# so counted toward `has_other_plan`, silencing the spurious commander-damage voltron
+# tell on a firebreathing sink / tapper / count-anthem / vigilance-enabler / sneak-
+# recast body. Their regex producers are deleted, so this mirror (the OR of the exact
+# deleted patterns) feeds the gate directly in extract_signals — reproducing the
+# pre-migration `has_other_plan` for ALL cards (IR or not) so voltron_matters is
+# unchanged. It emits no signal; the real lanes are served from the IR. NO-FLOOD.
+_TRANCHE2C_PLAN_MIRROR = re.compile(
+    r"\{[^}]*\}(?:, \{t\})?: [^.]* gets \+[0-9x]/\+[0-9x] until end of turn"
+    r"|\{[wubrgc]\}: [^.:]*gets \+\d+/\+\d+ until end of turn"
+    r"|\{[^}]*\}(?:, \{t\})?: put a \+1/\+1 counter on (?:it|this creature|[A-Z][a-z]+)"
+    r"|:\s*tap (?:target|up to (?:one|two|\d+) target|all|each|two target|x target)"
+    r"|(?:at the beginning of|whenever)[^.:]*,[^.]*\btap "
+    r"(?:up to (?:one|two|\d+) target|target)"
+    r"|\btap up to (?:one|two|\d+) target (?:creature|permanent)\b"
+    r"|when [^.]* enters, tap (?:up to )?(?:one|two|\d+|target)"
+    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
+    r"|(?:creatures you control get|each creature you control gets) "
+    r"[+]\d+/[+]\d+ for each"
+    r"|attacking doesn'?t cause (?:creatures|them)[^.]*to tap"
+    r"|(?:other )?creatures you control have vigilance"
+    r"|\bsneak\b|return an unblocked attacker",
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3686,6 +3711,12 @@ def extract_signals(
         # keyword grant). Byte-identical to the old _HAND_FLOOR regex; required once
         # tranche2-A also deletes the anthem_static regex that previously masked it.
         or _TEAM_BUFF_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-C: mirror the OR of the five deleted self_pump / tapper /
+        # count_anthem / exert / recast regexes (their high-confidence regex producers
+        # silenced voltron). Byte-identical to pre-migration; the IR re-supply is
+        # broader and would over-silence legit engine bodies (Aetherling,
+        # Angel's Trumpet).
+        or _TRANCHE2C_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -4023,6 +4054,13 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "myriad": (("myriad_grant", "you"),),
     "ninjutsu": (("ninjutsu_matters", "you"),),
     "commander ninjutsu": (("ninjutsu_matters", "you"),),
+    # Sneak (the TMNT/Marvel ninjutsu-on-a-spell variant — Karai's Technique, Elektra,
+    # New Generation's Technique) — the bounce-replay engine that recasts a cheap
+    # creature to re-fire its ETB. ADR-0027: the Scryfall `sneak` keyword (28 cards)
+    # is the structured detector for recast_etb, dropping the four `\bsneak\b`-regex
+    # over-fires (Cheatyface, Lightfoot Rogue, etc.). Ninjutsu proper is the distinct
+    # ninjutsu_matters lane above, so recast_etb keys on Sneak specifically.
+    "sneak": (("recast_etb", "you"),),
     "infect": (("poison_matters", "opponents"),),
     "toxic": (("poison_matters", "opponents"),),
     "poisonous": (("poison_matters", "opponents"),),
@@ -4380,6 +4418,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(
             r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
             re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ADR-0027 — exert_matters (the Johan namesake): "attacking doesn't cause
+    # creatures you control to tap" neutralizes exert's "won't untap" downside, but
+    # phase projects it to a restriction whose clause survives only in raw (no mode
+    # token on the Effect), so a kept word mirror covers this single card. The TEAM-
+    # vigilance enablers (Heliod, Brave the Sands, Always Watching) are served
+    # STRUCTURALLY by the grant_keyword/vigilance arm in extract_signals_ir.
+    (
+        "exert_matters",
+        re.compile(
+            r"attacking doesn'?t cause (?:creatures|them)[^.]*to tap", re.IGNORECASE
         ),
         "you",
     ),
@@ -4755,6 +4806,20 @@ IR_SLICE_KEYS: frozenset[str] = (
             "copy_permanent",
             # Spell-copy (Twincast/Fork) — separate from clone:
             "spell_copy_matters",
+            # ADR-0027 tranche2-C — structural IR-arm lanes (recast_etb also rides
+            # the Scryfall `sneak` keyword via _IR_KEYWORD_KEYS):
+            #   exert_matters   ← grant_keyword/vigilance over a generic creature board
+            #                     (the team-vigilance enabler) + the Johan kept mirror.
+            #   self_pump       ← an ACTIVATED pump_target / place_counter(p1p1) on the
+            #                     self (firebreathing / Walking Ballista mana sink).
+            #   tapper_engine   ← a tap Effect with a target subject + a "doesn't
+            #                     untap" restriction raw (the repeatable tapper).
+            #   count_anthem    ← a team +N/+N anthem scaling with a board count
+            #                     (Hold the Gates / Commander's Insignia).
+            "exert_matters",
+            "self_pump",
+            "tapper_engine",
+            "count_anthem",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5926,6 +5991,28 @@ def extract_signals_ir(
             # ── Batch E — effect-category lanes ──
             cat = e.category
             ftypes = _ftypes(e.subject)
+            # ADR-0027 — self_pump: a firebreathing mana-sink — an ACTIVATED pump or
+            # +1/+1-counter placement on the SELF ("{R}: ~ gets +1/+0" — Shivan Dragon;
+            # "{4}: Put a +1/+1 counter on ~" — Walking Ballista, Crystalline Crawler).
+            # phase maps single-target pump to category 'pump_target' and leaves
+            # subject=None when the pump targets the source; the activated-counter
+            # branch (place_counter/p1p1/subjNone) is the same self shape. The ab.kind==
+            # 'activated' gate is the regex's anchor (the activation prefix that
+            # separates a mana-sink from a static anthem or a one-shot spell pump), and
+            # it excludes manlands (animate/ramp categories) whose {cost}: prefix the
+            # regex matched. subject is None (self) — a granter ("target creature
+            # gets…", Pia Nalaar / Kjeldoran Elite Guard) carries a subject and is
+            # counter_distribute / keyword_grant_target, NOT self_pump. Serve pairs
+            # self_pump with _POWER_FLING_EXTRA (firebreathing → fling), hand-spec'd.
+            if (
+                ab.kind == "activated"
+                and e.subject is None
+                and (
+                    cat == "pump_target"
+                    or (cat == "place_counter" and e.counter_kind == "p1p1")
+                )
+            ):
+                add("self_pump", "you", "", e.raw)
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
@@ -6052,6 +6139,22 @@ def extract_signals_ir(
                 # (_IR_KEYWORD_MAP['myriad'], the makers).
                 if e.counter_kind == "myriad":
                     add("myriad_grant", "you", "", e.raw)
+                # ADR-0027 — exert_matters: a TEAM-VIGILANCE enabler grants vigilance
+                # to your generic creature board (Heliod, Always Watching, Brave the
+                # Sands). Team vigilance neutralizes exert's only downside ("won't
+                # untap next turn"), so the deck wants exert creatures. counter_kind==
+                # 'vigilance' is the structured discriminator; _is_generic_creature_
+                # filter (controller you, no subtypes — but predicate-tolerant, so
+                # Heliod's `Another` / Always Watching's `NonToken` board still counts)
+                # excludes the subtype-scoped Golem/Sliver/Warrior grants (which carry
+                # the subtype on this vigilance effect) and the single-target self-
+                # grant. Two grant_keyword effects appear per card (one real
+                # 'vigilance', one duplicate 'mass_grant'); this reads the 'vigilance'
+                # one. The serve pool is the Scryfall `exert` keyword (hand-spec).
+                if e.counter_kind == "vigilance" and _is_generic_creature_filter(
+                    e.subject
+                ):
+                    add("exert_matters", "you", "", e.raw)
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
@@ -6326,6 +6429,23 @@ def extract_signals_ir(
                 add("color_hoser", "you", "", e.raw)
             if cat == "tap" and e.scope == "opp":
                 add("tap_down", "opponents", "", e.raw)
+            # ADR-0027 — tapper_engine: a repeatable TAPPER (Icy Manipulator,
+            # Opposition, Master Decoy) — a tap Effect with a real TARGET/all/each
+            # subject (a Filter). Every tap effect carrying a subject is a target tap;
+            # tap-AS-COST lives in Ability.cost=='tap' and emits no tap Effect, so
+            # `e.subject is not None` excludes pure-cost taps and self-untaps without
+            # leaking. Scope 'any' (the lane wants the broad any-controller target tap
+            # — do NOT reuse the tap_down opp-gate, which would massively under-fire
+            # here). tap_down can co-fire on the same card (different lane/scope) — OK.
+            if cat == "tap" and e.subject is not None:
+                add("tapper_engine", "any", "", e.raw)
+            # ADR-0027 — tapper_engine "doesn't untap" branch: a Frost-Titan / Kismet-
+            # style can't-untap static projects to a restriction whose untap text
+            # survives only in raw (no mode token on the Effect), so a raw /untap/
+            # substring on a restriction opens the lane. Raw-gated so a generic stax
+            # restriction (can't attack / can't cast) stays out.
+            if cat == "restriction" and re.search(r"untap", e.raw or "", re.IGNORECASE):
+                add("tapper_engine", "any", "", e.raw)
             # untap_engine (ADR-0027): a DELIBERATE untap engine — a mass untap
             # (counter_kind=='all', the structured "untap all creatures/permanents"),
             # a raw "untap target/all/each/two/up to <permanent>", OR a modal-split
@@ -6389,6 +6509,23 @@ def extract_signals_ir(
                     and "counter" in (e.raw or "").lower()
                 ):
                     add("counters_matter", "you", "", e.raw)
+                # ADR-0027 — count_anthem: a TEAM anthem whose +N/+N SCALES with a
+                # board count ("Creatures you control get +0/+1 for each Gate you
+                # control" — Hold the Gates; Commander's Insignia; Boon of the Spirit
+                # Realm). The team-subject discriminator (a generic creature Filter you
+                # control) separates this from single-target firebreathing scaling_pump
+                # (subject single/None) and from Coat-of-Arms-style "EACH creature
+                # gets" (subject controller='any', a symmetric global). _is_scaling_
+                # count keeps bare "gets +X/+X" X-pumps out — only a real board-count
+                # scale qualifies. count_anthem is the team-subject subset of the
+                # scaling_pump superset; a card may legitimately open both (add()
+                # dedups). The serve pool is hand-registered in signal_specs.py.
+                if (
+                    e.amount.op in ("count", "multiply", "counters")
+                    and _is_scaling_count(e.amount, e.raw or "")
+                    and _is_generic_creature_filter(e.subject)
+                ):
+                    add("count_anthem", "you", "", e.raw)
             # power_double (ADR-0027): a P/T-DOUBLING effect. phase does NOT set a
             # multiply quantity for power doubling (Unleash Fury / Mr. Orfeo /
             # Unnatural Growth all carry amount=None), so the raw word-mirror "double
@@ -6830,6 +6967,20 @@ def extract_signals_ir(
                 and _filter_controller(trig.subject) == "you"
             ):
                 add("permanent_etb", "you", "", "")
+            # ADR-0027 — recast_etb SERVE (the aggressive-ETB payoff a Sneak engine
+            # recasts): an etb trigger whose consequence BLEEDS each opponent — a
+            # discard / lose_life / sacrifice effect whose raw names "each opponent"
+            # (Liliana's Specter "each opponent discards", Skirmish Rhino "each
+            # opponent loses 2 life"). phase tags the controller scope, not the
+            # recipient, so "each opponent" is recovered from raw. The raw-mirror
+            # inside an etb-bleed effect distinguishes the recast payoff from any
+            # random etb creature (the lane's whole point — not goodstuff).
+            if ev == "etb" and any(
+                e.category in ("discard", "lose_life", "sacrifice")
+                and "each opponent" in (e.raw or "").lower()
+                for e in ab.effects
+            ):
+                add("recast_etb", "you", "", "")
             # Batch 14 — landfall: a land ENTERING (etb trigger w/ Land subject) is
             # the bulk of landfall; the LandPlayed "play a land" trigger (_PAYOFF)
             # catches the rest.
@@ -7801,6 +7952,52 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "anthem_static",
         "aoe_ping",
         "mass_removal",
+        # Group "tranche2-C" (ADR-0027) — five combat/engine lanes, each fires from a
+        # STRUCTURAL IR arm (none is in _IR_FLOOR_LANES; floor-mirror-dep == 0 by
+        # construction — extract_signals_ir reads no floor detector for any of them).
+        # NO-FLOOD held (only the target keys' counts moved). Each key's oracle-regex
+        # producer is deleted; serve specs stay hand-registered. See ADR-0027.
+        #   exert_matters ← a grant_keyword effect with counter_kind=='vigilance' over
+        #                a generic-creature-you-control subject (the team-vigilance
+        #                enabler that neutralizes exert's "won't untap" downside —
+        #                Heliod, Always Watching, Brave the Sands; _is_generic_creature_
+        #                filter is predicate-tolerant so Heliod's `Another` / Always
+        #                Watching's `NonToken` board counts, but the subtype-scoped
+        #                Golem/Sliver/Warrior grants and Kytheon's single-target are
+        #                excluded) + a Johan "attacking doesn't cause … to tap" kept
+        #                word mirror. Its _HAND_FLOOR producer is deleted.
+        #   self_pump ← an ACTIVATED pump_target / place_counter(p1p1) effect on the
+        #                SELF (subject=None) — the firebreathing mana-sink (Shivan
+        #                Dragon) and the activated +1/+1-counter body (Walking Ballista,
+        #                Crystalline Crawler). The ab.kind=='activated' gate excludes
+        #                manlands (animate/ramp) and one-shot spell pumps; subject=None
+        #                excludes granters ("target creature gets…"). Its SWEEP row is
+        #                deleted; its existing serve spec is repointed via regex=.
+        #   tapper_engine ← a `tap` Effect with a target subject Filter (the repeatable
+        #                tapper — Icy Manipulator, Opposition, Master Decoy; tap-as-cost
+        #                lives in Ability.cost and emits no tap Effect, so subject!=None
+        #                never leaks cost taps) + a "doesn't untap" restriction-raw
+        #                branch (Frost Titan). Scope 'any' (broad target tap; tap_down
+        #                may co-fire, OK). Its SWEEP row is deleted; serve hand-spec'd.
+        #   recast_etb ← DETECTOR: the Scryfall `sneak` keyword (_IR_KEYWORD_MAP, the
+        #                bounce-replay engine; drops the `\bsneak\b`-regex over-fires).
+        #                SERVE: an etb Trigger + a discard/lose_life/sacrifice effect
+        #                whose raw names "each opponent" (the aggressive enter-bleed the
+        #                recast repeats — Liliana's Specter, Skirmish Rhino). Its
+        #                _HAND_FLOOR producer is deleted; serve hand-spec'd.
+        #   count_anthem ← a team +N/+N pump whose amount SCALES with a board count
+        #                (_is_scaling_count) over a generic creature Filter you control
+        #                (Hold the Gates, Commander's Insignia, Boon of the Spirit
+        #                Realm). The team-subject discriminator separates it from
+        #                single-target firebreathing scaling_pump and the symmetric
+        #                Coat-of-Arms global; it is the team-subject subset of
+        #                scaling_pump (both may open — add() dedups). Its SWEEP row is
+        #                deleted; serve hand-spec'd.
+        "exert_matters",
+        "self_pump",
+        "tapper_engine",
+        "recast_etb",
+        "count_anthem",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -8018,6 +8215,16 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # they catch DFC back-face bodies (Archangel Avacyn, Fang Dragon) byte-
         # identically — no silencing-set entry needed. activated_draw is a draw engine
         # that never rode the per-card voltron membership gate at all.
+        # NB (ADR-0027 tranche2-C): the five tranche2-C keys (self_pump / tapper_engine
+        # / count_anthem / exert_matters / recast_etb) are NOT added here. They also
+        # silenced voltron pre-migration (high-conf plans), but their IR recall is
+        # BROADER than the deleted regex (self_pump 567->725, tapper 474->784 on the
+        # commander-legal IR corpus), so the IR-supply reconciliation here would
+        # OVER-silence (-117 on Aetherling / Angel's Trumpet / vigilance-granter
+        # bodies the narrow regex missed). Instead they re-silence via the regex-path
+        # _TRANCHE2C_PLAN_MIRROR fed into `has_other_plan`, which reproduces the exact
+        # pre-migration silence set (the deleted regex patterns) for ALL cards — so
+        # voltron_matters is byte-identical to pre-migration. NO-FLOOD.
     }
 )
 

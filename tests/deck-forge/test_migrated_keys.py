@@ -2682,6 +2682,129 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ── ADR-0027 tranche2-C ───────────────────────────────────────────────────
+    # exert_matters ← a team-VIGILANCE grant_keyword effect (counter_kind='vigilance')
+    # over a generic creature board (Brave the Sands — team vigilance neutralizes
+    # exert's "won't untap" downside). Read by the grant_keyword/vigilance/generic arm.
+    "exert_matters": (
+        {
+            "name": "Brave the Sands",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creatures you control have vigilance.\nEach creature you control "
+                "can block an additional creature each combat."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        counter_kind="vigilance",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw="Creatures you control have vigilance.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # self_pump ← an ACTIVATED pump_target on the SELF (subject=None) — the
+    # firebreathing mana sink (Shivan Dragon). The ab.kind=='activated' gate + the
+    # subject=None self shape is the discriminator.
+    "self_pump": (
+        {
+            "name": "Shivan Dragon",
+            "type_line": "Creature — Dragon",
+            "oracle_text": "Flying\n{R}: Shivan Dragon gets +1/+0 until end of turn.",
+            "keywords": ["Flying"],
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana",
+                effects=(
+                    Effect(
+                        category="pump_target",
+                        scope="any",
+                        subject=None,
+                        raw="{R}: ~ gets +1/+0 until end of turn.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # tapper_engine ← a `tap` Effect with a TARGET subject Filter — the repeatable
+    # tapper (Icy Manipulator). subject is not None separates it from tap-as-cost.
+    "tapper_engine": (
+        {
+            "name": "Icy Manipulator",
+            "type_line": "Artifact",
+            "oracle_text": ("{1}, {T}: Tap target artifact, creature, or land."),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana,tap",
+                effects=(
+                    Effect(
+                        category="tap",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Artifact", "Creature", "Land"),
+                            controller="any",
+                        ),
+                        raw="{1}, {T}: Tap target artifact, creature, or land.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # recast_etb ← the Scryfall `Sneak` keyword (the bounce-replay engine, read off
+    # the keyword array → a bare non-None IR routes the hybrid to the IR path).
+    "recast_etb": (
+        {
+            "name": "Karai's Technique",
+            "type_line": "Instant — Ninjutsu",
+            "oracle_text": (
+                "Sneak {1}{U} (You may cast this spell for {1}{U} if you also return "
+                "an unblocked attacker you control to hand.)\nUp to two target "
+                "creatures get +2/+0 until end of turn."
+            ),
+            "keywords": ["Sneak"],
+        },
+        _ir(),
+    ),
+    # count_anthem ← a team +N/+N pump whose amount SCALES with a board count over a
+    # generic creature Filter you control (Hold the Gates — "+0/+1 for each Gate").
+    "count_anthem": (
+        {
+            "name": "Hold the Gates",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creatures you control get +0/+1 for each Gate you control.\nYou "
+                "may play lands from your graveyard."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        amount=Quantity(
+                            op="count",
+                            subject=Filter(subtypes=("Gate",), controller="you"),
+                        ),
+                        raw="Creatures you control get +0/+1 for each Gate you control.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

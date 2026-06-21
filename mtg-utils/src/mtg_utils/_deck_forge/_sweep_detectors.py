@@ -38,18 +38,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "gets [+\\-][0-9x]/[+\\-][0-9x] for (?:each|every)",
     },
-    {
-        "key": "count_anthem",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:creatures you control get|each creature you control gets) [+]\\d+/[+]\\d+ for each",
-    },
-    {
-        "key": "tapper_engine",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": ":\\s*tap (?:target|up to (?:one|two|\\d+) target|all|each|two target|x target)|(?:at the beginning of|whenever)[^.:]*,[^.]*\\btap (?:up to (?:one|two|\\d+) target|target)|\\btap up to (?:one|two|\\d+) target (?:creature|permanent)\\b|when [^.]* enters, tap (?:up to )?(?:one|two|\\d+|target)|(?:doesn't|don't|does not) untap during (?:its|their|the)",
-    },
+    # ADR-0027: count_anthem migrated to the Card IR — served from a team +N/+N pump
+    # whose amount SCALES with a board count (_is_scaling_count) over a generic
+    # creature Filter you control (Hold the Gates, Commander's Insignia, Boon of the
+    # Spirit Realm). Its SWEEP_DETECTORS row is deleted; the serve spec is
+    # hand-registered in signal_specs.py reusing this deleted regex.
+    # ADR-0027: tapper_engine migrated to the Card IR — served from a `tap` Effect
+    # carrying a target subject Filter + a "doesn't untap" restriction-raw branch
+    # (Icy Manipulator, Opposition, Master Decoy, Frost Titan). Its SWEEP_DETECTORS
+    # row is deleted; the serve spec is hand-registered in signal_specs.py reusing
+    # this deleted regex.
     {
         "key": "tap_down",
         "scope": "opponents",
@@ -547,12 +545,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]",
     },
-    {
-        "key": "self_pump",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\{[^}]*\\}(?:, \\{t\\})?: [^.]* gets \\+[0-9x]/\\+[0-9x] until end of turn|\\{[wubrgc]\\}: [^.:]*gets \\+\\d+/\\+\\d+ until end of turn|\\{[^}]*\\}(?:, \\{t\\})?: put a \\+1/\\+1 counter on (?:it|this creature|[A-Z][a-z]+)",
-    },
+    # ADR-0027: self_pump migrated to the Card IR — served from an ACTIVATED
+    # pump_target / place_counter(p1p1) effect on the SELF (subject=None) — the
+    # firebreathing mana-sink (Shivan Dragon) and the activated +1/+1-counter body
+    # (Walking Ballista, Crystalline Crawler). Its SWEEP_DETECTORS row is deleted; the
+    # existing _sweep_spec_with_extras("self_pump", …) serve spec in signal_specs.py
+    # is repointed to this deleted regex via the `regex=` arg.
     {
         "key": "base_pt_set",
         "scope": "any",

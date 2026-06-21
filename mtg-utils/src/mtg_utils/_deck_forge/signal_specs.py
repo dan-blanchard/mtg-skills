@@ -1377,6 +1377,28 @@ _THEFT_SWEEP_REGEX = next(
 _DISCARD_OUTLET_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "discard_outlet"
 )
+# ADR-0027 (tranche2-C): the SWEEP_DETECTORS rows for self_pump / tapper_engine /
+# count_anthem are deleted (detection moved to the Card IR). Their SERVE pools stay
+# oracle-defined, so the regexes are pinned here verbatim and the specs below reuse
+# them (self_pump via _sweep_spec_with_extras(regex=…); tapper_engine / count_anthem
+# hand-registered, since the sweep auto-register loop no longer builds them).
+_SELF_PUMP_SWEEP_REGEX = (
+    r"\{[^}]*\}(?:, \{t\})?: [^.]* gets \+[0-9x]/\+[0-9x] until end of turn"
+    r"|\{[wubrgc]\}: [^.:]*gets \+\d+/\+\d+ until end of turn"
+    r"|\{[^}]*\}(?:, \{t\})?: put a \+1/\+1 counter on (?:it|this creature|[A-Z][a-z]+)"
+)
+_TAPPER_ENGINE_SWEEP_REGEX = (
+    r":\s*tap (?:target|up to (?:one|two|\d+) target|all|each|two target|x target)"
+    r"|(?:at the beginning of|whenever)[^.:]*,[^.]*\btap "
+    r"(?:up to (?:one|two|\d+) target|target)"
+    r"|\btap up to (?:one|two|\d+) target (?:creature|permanent)\b"
+    r"|when [^.]* enters, tap (?:up to )?(?:one|two|\d+|target)"
+    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
+)
+_COUNT_ANTHEM_SWEEP_REGEX = (
+    r"(?:creatures you control get|each creature you control gets) "
+    r"[+]\d+/[+]\d+ for each"
+)
 # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than your hand"
 # payoffs (Vega, Iraxxa, Keeper of Secrets). Shared by cast_from_exile AND
 # impulse_top_play: an impulse deck casts its exiled cards, which IS "from anywhere
@@ -2344,7 +2366,29 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         ),
     ),
     # Firebreathing / variable-P/T decks pump power, then fling it for damage.
-    ("self_pump", "you"): _sweep_spec_with_extras("self_pump", (_POWER_FLING_EXTRA,)),
+    # ADR-0027: self_pump migrated to the Card IR (its SWEEP_DETECTORS row is deleted);
+    # the serve keeps the old regex via the `regex=` arg.
+    ("self_pump", "you"): _sweep_spec_with_extras(
+        "self_pump", (_POWER_FLING_EXTRA,), regex=_SELF_PUMP_SWEEP_REGEX
+    ),
+    # ADR-0027: tapper_engine migrated to the Card IR — its SWEEP_DETECTORS row is
+    # deleted (detection moved to a `tap` Effect with a target subject + a "doesn't
+    # untap" restriction raw), so hand-register the spec the sweep loop used to build,
+    # reusing the deleted regex as both search and serve.
+    ("tapper_engine", "any"): _spec(
+        *SWEEP_LABELS["tapper_engine"],
+        {"oracle": _TAPPER_ENGINE_SWEEP_REGEX},
+        _TAPPER_ENGINE_SWEEP_REGEX,
+    ),
+    # ADR-0027: count_anthem migrated to the Card IR — its SWEEP_DETECTORS row is
+    # deleted (detection moved to a team +N/+N pump scaling with a board count over a
+    # generic creature Filter you control), so hand-register the spec the sweep loop
+    # used to build, reusing the deleted regex.
+    ("count_anthem", "you"): _spec(
+        *SWEEP_LABELS["count_anthem"],
+        {"oracle": _COUNT_ANTHEM_SWEEP_REGEX},
+        _COUNT_ANTHEM_SWEEP_REGEX,
+    ),
     # Force-attack / goad commander (Kratos) wants extra combats to swing again.
     ("forced_attack", "you"): _sweep_spec_with_extras(
         "forced_attack", (_EXTRA_COMBAT_EXTRA, _COMBAT_SUPPORT_EXTRA)
