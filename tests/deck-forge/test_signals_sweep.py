@@ -31,9 +31,10 @@ def test_sweep_detectors_loaded():
     # destroy_legendary/team_buff + tranche2-A activated_draw/anthem_static/mass_removal
     # + tranche2-C self_pump/tapper_engine/count_anthem + tranche2-batch-4's
     # damage_to_you_punish/excess_damage/self_blink + t2b4a-A's tribal_etb_multi/
-    # typed_enters_punish + earlier batches migrated to the Card IR); it still guards
-    # "a substantial set loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 77
+    # typed_enters_punish + t2b4a-B's win_lose_game/xspell_matters + earlier batches
+    # migrated to the Card IR); it still guards "a substantial set loads", not an exact
+    # count.
+    assert len(SWEEP_DETECTORS) >= 70
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

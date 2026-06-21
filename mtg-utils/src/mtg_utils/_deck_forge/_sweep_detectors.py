@@ -306,12 +306,20 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # marker for the keyword-less payoff ("activate an exhaust ability", including
     # Pit Automaton's delayed-trigger-inside-activated-ability shape). The serve spec
     # is hand-registered in signal_specs reusing the deleted regex.
-    {
-        "key": "partner_background",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "choose a background|partner with|\\bpartner\\b(?! with)|\\bfriends forever\\b|\\bdoctor's companion\\b",
-    },
+    # ADR-0027 t2b4a-B: partner_background migrated to the Card IR — the Scryfall
+    # keyword array (partner / partner with / choose a background / doctor's companion
+    # / friends [Scryfall truncates "Friends forever" to "Friends"], via
+    # signals._IR_KEYWORD_MAP). The keyword array is MORE precise than this regex,
+    # which over-fired on card-name self-references with a comma ("Lava, Axe", "Gather,
+    # the Townsfolk") via its \bpartner\b / friend arms, and on cards that merely
+    # REFERENCE the keyword ("a card with doctor's companion" — An Unearthly Child); it
+    # also recovers real Friends-forever partners the regex missed (Astarion). The
+    # partner-commander COLOR-WIDENING avenue (ADR-0019, engine.py) consumes this key:
+    # in production every partner card carries the keyword, so the avenue still flags
+    # `widening` and the find ranker sorts by color widening. `companion` (Lutri) is
+    # the SEPARATE companion_keyword lane and is deliberately NOT mapped. This
+    # SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the label, and the serve spec
+    # is hand-registered in signal_specs.py. CR 702.124 / 702.123.
     # ADR-0027: companion_keyword migrated to the Card IR — detected from the
     # Scryfall `companion` keyword (signals._IR_KEYWORD_MAP, a structured-field
     # lookup). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps the human
@@ -348,17 +356,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # payoff, anchored on the stripped oracle so a vanilla Saga's reminder-only lore
     # mention doesn't fire — exactly mirroring this regex). This SWEEP_DETECTORS row is
     # deleted; the serve hand-spec survives.
-    {
-        # Scope is "any": the row matches both self-wins ("you win the game") and
-        # opponent-losses ("that player loses the game"), so a single forced scope can't
-        # be correct — "any" avoids the old "opponents" mislabel of self-wincons. A true
-        # per-branch scope split would need clause-scope extraction (the sweep table's
-        # unique-key invariant forbids two win_lose_game rows).
-        "key": "win_lose_game",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "you win the game|(?:that player|each opponent|target (?:player|opponent)) loses the game",
-    },
+    # ADR-0027 t2b4a-B: win_lose_game migrated to the Card IR — the win_game / lose_game
+    # Effect categories (the broad terminal-outcome pool, 54+43 cards — Thassa's Oracle,
+    # Lab Maniac, the Pacts, Lich, Phyrexian Unlife, Felidar Sovereign, Door to
+    # Nothingness, Triskaidekaphobia), far past this narrow regex. A kept word mirror
+    # (_IR_KEPT_DETECTORS, byte-identical to this deleted regex, scope 'any') recovers
+    # the conferred/quoted-ability tail phase folds into a grant carrier (Vraska's
+    # token "that player loses the game"; Frodo's granted loss). Scope stays 'any' (the
+    # behavior-neutral choice — the row matched both self-wins and player-losses). This
+    # SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the label, and the serve spec
+    # is hand-registered in signal_specs.py. CR 104.2.
     # ADR-0027 tranche2-B-3: target_player_draws migrated to the Card IR — detected
     # from a `draw` effect with scope=='any' (a directed/forced draw; a self-cantrip
     # parses scope=='you', "each player draws" scope=='each' → group_hug_draw) in
@@ -600,12 +607,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ("changeling" / "is every creature type") dropped-static marker for the keyword-
     # less makers/anthems (Maskwood Nexus, Mistform Ultimus, Arachnoform). Removed from
     # _IR_FLOOR_LANES; serve hand-registered reusing the deleted regex.
-    {
-        "key": "alt_cost_keyword",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bweb-slinging\\b|\\bsneak\\b|\\bmayhem\\b",
-    },
+    # ADR-0027 t2b4a-B: alt_cost_keyword migrated to the Card IR — the Scryfall
+    # keyword array (web-slinging / sneak / mayhem via signals._IR_KEYWORD_MAP, a
+    # structured-field lookup). The keyword-array membership is exact (no over-fire,
+    # vs this regex which over-fired on flavor "Sneak Attack" and keyword-GRANTING
+    # text — "cards have mayhem/sneak/web-slinging"). This SWEEP_DETECTORS row is
+    # deleted; SWEEP_LABELS keeps the human label, and the serve spec is hand-
+    # registered in signal_specs.py. CR 118.9.
     {
         # Flip (CR 710) — a single card that self-transforms in place on its own
         # condition; self-contained, so no cross-card payoff. Split from meld (which is

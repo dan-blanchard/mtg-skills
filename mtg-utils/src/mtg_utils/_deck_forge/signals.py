@@ -216,11 +216,11 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # the joined oracle (clause-safe). This _DETECTORS row is deleted; the clause helper
     # stays (the IR path reuses it); the serve stays hand-registered.
     ("spellcast_matters", lambda c: _IS_BUILDAROUND_RE.search(c) is not None, "you"),
-    (
-        "xspell_matters",
-        lambda c: bool(_XSPELL_HOOK_RE.search(c)) and not _XSPELL_VETO_RE.search(c),
-        "you",
-    ),
+    # ADR-0027 t2b4a-B: xspell_matters ({X}-spells payoff) migrated to the Card IR —
+    # the `HasXInManaCost` predicate on a `cast_spell` trigger subject (Zaxara, Nev,
+    # Zimone …) + a kept effect-raw word mirror (_XSPELL_HOOK_RE minus _XSPELL_VETO_RE)
+    # for the predicate-dropped tail (Unbound Flourishing, Rosheen Meanderer). This
+    # _DETECTORS row is deleted; the serve spec stays hand-registered. CR 202.1/107.3.
     (
         "creature_etb",
         lambda c: (
@@ -1849,19 +1849,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # them) wants the villainous-choice card pool. A named mechanic, so a self-contained
     # open==serve lane like venture / specialize.
     ("villainous_choice", re.compile(r"villainous choice", re.IGNORECASE), "you"),
-    # Curses (Aura — Curse, enchant player): a commander built around recurring /
-    # attaching / casting Curses (Lynde, Cheerful Tormentor) wants the Curse subtype.
-    # Anchored on Curse-as-a-card mechanic ("a/target/your Curse", "Curse spells",
-    # "Curse card") so the bare card NAME ("Connors's Curse") doesn't qualify.
-    (
-        "curse_matters",
-        re.compile(
-            r"curse spells?|curses? you (?:cast|control|own)"
-            r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 t2b4a-B: curse_matters (Aura — Curse cares-about) migrated to the Card
+    # IR — a trigger/effect subject Filter with subtypes=='Curse' (Lynde, Bitterheart
+    # Witch, Witchbane Orb) + a kept word mirror (_IR_KEPT_DETECTORS, byte-identical to
+    # this deleted regex) for the under-parsed "search for a Curse card …" tail (Curse
+    # of Misfortunes). The membership half (a card that IS a Curse) stays REGEX-ONLY at
+    # A4 like TYPE_MATTERS membership. This _HAND_FLOOR producer is deleted; the serve
+    # spec stays hand-registered. CR 205.3 / 702.39.
     # ADR-0027: dice_matters migrated to the Card IR — phase's native `roll_die` effect
     # + a `roll_die` marker (project._narrow_trigger_other_refs for the "whenever you
     # roll" payoff trigger + _dropped_static_markers for the "Roll two d6 and choose"
@@ -2743,6 +2737,32 @@ _TRANCHE2B4A_PLAN_MIRROR = re.compile(
     r"|whenever another (?:outlaw|ally|\w+) you control enters, "
     r"[^.]*deals \d+ damage to (?:target opponent|each opponent|any target)"
     r"|creatures? (?:card )?with no abilities",
+    re.IGNORECASE,
+)
+# ADR-0027 tranche2-batch-4a (t2b4a-B) voltron reconciliation — FOUR of the five
+# deleted regex producers (win_lose_game / xspell_matters / alt_cost_keyword /
+# curse_matters) each fired HIGH-confidence in the regex path and counted toward
+# has_other_plan, silencing the spurious commander-damage voltron tell on a body whose
+# only "plan" was one of these (a win-the-game wincon — Azor's Elocutors, Lab Maniac,
+# Biovisionary; an alt-cost creature — the Mayhem / Web-slinging beaters; an {X}-spell
+# payoff; a Curse referencer). Their IR re-supply rides the hybrid path, not the
+# regex-path gate, so a mirror (the UNION of the three boolean-OR deleted regexes, read
+# against the joined-face `_oracle`) re-supplies the silence byte-identically. NB:
+# partner_background is DELIBERATELY EXCLUDED — it is a _VOLTRON_COMPAT_KEY (a partner
+# commander can ALSO be a voltron beater — Wilson, Eligeth, Peri Brown), so its old
+# producer never counted toward has_other_plan and must not silence here. The {X}-spell
+# arm carries its own VETO (Gaddock Teeg's "spells with {X} … can't be cast" fired NO
+# producer, so it must NOT silence) — handled by the _XSPELL_HOOK/_XSPELL_VETO check
+# OR'd in separately at the has_other_plan site. CR 104.2 / 118.9 / 202.1.
+_T2B4A_PLAN_MIRROR = re.compile(
+    # win_lose_game
+    r"you win the game|(?:that player|each opponent"
+    r"|target (?:player|opponent)) loses the game"
+    # alt_cost_keyword
+    r"|\bweb-slinging\b|\bsneak\b|\bmayhem\b"
+    # curse_matters (cares-about)
+    r"|curse spells?|curses? you (?:cast|control|own)"
+    r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
     re.IGNORECASE,
 )
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
@@ -3821,6 +3841,16 @@ def extract_signals(
         # typed_enters_punish / vanilla_matters (deleted regex producers fed this gate;
         # the broader IR re-supply doesn't reach it). Goblin Assassin leaked without it.
         or _TRANCHE2B4A_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2 batch-4a: re-silence win_lose_game / alt_cost_keyword /
+        # curse_matters (UNION mirror) + xspell_matters (its own hook-minus-veto,
+        # matching the deleted _DETECTORS predicate exactly). partner_background is
+        # excluded (a _VOLTRON_COMPAT_KEY). Deleted regex producers fed this gate; the
+        # broader IR re-supply rides the hybrid path.
+        or _T2B4A_PLAN_MIRROR.search(_oracle)
+        or (
+            bool(_XSPELL_HOOK_RE.search(_oracle))
+            and not _XSPELL_VETO_RE.search(_oracle)
+        )
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -4164,7 +4194,31 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # is the structured detector for recast_etb, dropping the four `\bsneak\b`-regex
     # over-fires (Cheatyface, Lightfoot Rogue, etc.). Ninjutsu proper is the distinct
     # ninjutsu_matters lane above, so recast_etb keys on Sneak specifically.
-    "sneak": (("recast_etb", "you"),),
+    # ADR-0027 t2b4a-B: Sneak ALSO anchors the alt_cost_keyword lane (it pays an
+    # alternative cost), alongside web-slinging and mayhem below — all three are
+    # Scryfall keyword abilities that carry the alternative-cost ability, so the
+    # keyword-array membership is exact (no over-fire vs the old `\bsneak\b`-style
+    # regex, which risked reminder/flavor false positives). CR 118.9.
+    "sneak": (("recast_etb", "you"), ("alt_cost_keyword", "you")),
+    # web-slinging (Marvel) / mayhem (alt-cast-from-graveyard) — the other two
+    # alternative-cost Scryfall keywords. Spellings match the lowercased Scryfall
+    # array ("Web-slinging", "Mayhem"). ADR-0027 t2b4a-B.
+    "web-slinging": (("alt_cost_keyword", "you"),),
+    "mayhem": (("alt_cost_keyword", "you"),),
+    # Partner family (CR 702.124 partner / partner with, 702.123 background,
+    # Doctor's companion, Friends forever) — a commander built around a SECOND
+    # commander wants the partner-card pool (drives the color-widening avenue,
+    # ADR-0019). ADR-0027 t2b4a-B: the Scryfall keyword array carries the whole
+    # family cleanly and is MORE precise than the old regex, which over-fired on
+    # card-name self-references with a comma ("Lava, Axe", "Gather, the Townsfolk")
+    # via its `\bpartner\b`/"friend" arms. Scryfall truncates "Friends forever" to
+    # the keyword "Friends". `companion` is the SEPARATE companion_keyword lane (a
+    # deckbuild constraint, not partner) — deliberately NOT mapped here.
+    "partner": (("partner_background", "you"),),
+    "partner with": (("partner_background", "you"),),
+    "choose a background": (("partner_background", "you"),),
+    "doctor's companion": (("partner_background", "you"),),
+    "friends": (("partner_background", "you"),),
     "infect": (("poison_matters", "opponents"),),
     "toxic": (("poison_matters", "opponents"),),
     "poisonous": (("poison_matters", "opponents"),),
@@ -4719,6 +4773,43 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"can'?t be blocked unless all", re.IGNORECASE),
         "you",
     ),
+    # win_lose_game (ADR-0027 t2b4a-B) — the IR arm reads Effect.category in
+    # {win_game, lose_game} (the broad terminal-outcome pool — 54+43 cards, far past
+    # the narrow deleted regex). phase loses the outcome on a GRANTED / quoted ability
+    # ("create tokens with 'that player loses the game'" — Vraska the Unseen / Vraska,
+    # Golgari Queen; Frodo's granted "loses the game if the Ring tempted you"), folding
+    # the quote into the grant carrier so no own-card win_game/lose_game Effect
+    # survives. This mirror reproduces the deleted SWEEP regex EXACTLY (scope 'any', the
+    # row's behavior-neutral choice — it matched both self-wins and player-losses)
+    # so those conferred-ability cards keep firing. CR 104.2.
+    (
+        "win_lose_game",
+        re.compile(
+            r"you win the game|(?:that player|each opponent"
+            r"|target (?:player|opponent)) loses the game",
+            re.IGNORECASE,
+        ),
+        "any",
+    ),
+    # curse_matters cares-about (ADR-0027 t2b4a-B) — the IR arm reads Filter.subtypes
+    # =='Curse' on a trigger/effect subject (Lynde, Bitterheart Witch, Witchbane Orb),
+    # but phase under-parses a "search your library for a Curse card that doesn't have
+    # the same name as …" subject (Curse of Misfortunes) so no Curse Filter survives.
+    # This mirror reproduces the deleted cares-about regex EXACTLY (anchored on Curse-
+    # as-a-mechanic — "a/target/each/another/your Curse", "Curse spells/cards",
+    # "Curses you cast/control/own" — so a bare card NAME "Connors's Curse" never
+    # qualifies; CR 205.3 / 702.39 Aura — Curse). The membership half (a card that IS
+    # a Curse) stays REGEX-ONLY at A4 like TYPE_MATTERS membership — the regex never
+    # fired it, so the type_line subtype read is deferred to avoid a 42-card flood.
+    (
+        "curse_matters",
+        re.compile(
+            r"curse spells?|curses? you (?:cast|control|own)"
+            r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -5219,6 +5310,18 @@ IR_SLICE_KEYS: frozenset[str] = (
             "tribal_etb_multi",
             "typed_enters_punish",
             "vanilla_matters",
+            # ADR-0027 tranche2-batch-4a (t2b4a-B) — two structural keys
+            # (alt_cost_keyword + partner_background ride _IR_KEYWORD_KEYS below):
+            #   win_lose_game  ← win_game/lose_game Effect categories + a kept regex
+            #     mirror (scope 'any') for the conferred/quoted-ability tail.
+            #   xspell_matters ← HasXInManaCost predicate on a cast_spell trigger
+            #     subject + a kept effect-raw hook mirror for the dropped-predicate
+            #     tail.
+            #   curse_matters  ← a trigger/effect subject Filter subtypes=='Curse' +
+            #     a kept regex mirror for the "search for a Curse card" under-parse.
+            "win_lose_game",
+            "xspell_matters",
+            "curse_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6296,6 +6399,48 @@ def extract_signals_ir(
         add("exile_until_leaves", "you", "", "")
 
     for ab in ir.all_abilities():
+        # curse_matters cares-about half (ADR-0027 t2b4a-B) — a card that REFERENCES
+        # the Curse subtype: a trigger narrowed to Curses (Lynde, Cheerful Tormentor:
+        # Trigger(event='dies', subject=Filter(subtypes=('Curse',)))) or an effect
+        # acting on a Curse subject (a "return target Curse" recursion). The literal
+        # 'Curse' subtype string is the precise anchor — inherently name-immune (a card
+        # NAMED "...Curse" that is not an Aura — Curse and references no Curse subtype
+        # carries no 'Curse' in any Filter.subtypes), strictly cleaner than the regex.
+        # Curse is an Aura subtype that enchants a player (CR 205.3 / 702.39), NOT a
+        # creature subtype, so the CREATURE_SUBTYPES vocab gate does NOT apply. Scope:
+        # controller you/any (Lynde's is 'you'; a "target Curse" removal is 'any').
+        if (
+            ab.trigger is not None
+            and ab.trigger.subject is not None
+            and "Curse" in ab.trigger.subject.subtypes
+        ):
+            add("curse_matters", "you", "", "")
+        for e in ab.effects:
+            if e.subject is not None and "Curse" in getattr(e.subject, "subtypes", ()):
+                add("curse_matters", "you", "", e.raw or "")
+        # xspell_matters (ADR-0027 t2b4a-B) — the {X}-spells payoff lane. PRIMARY:
+        # phase encodes printed-{X}-in-cost (CR 202.1) as the `HasXInManaCost`
+        # predicate on a `cast_spell` trigger's subject Filter (Zaxara, Nev, Zimone,
+        # Anina, …, 9 clean payoffs). A precise structured predicate — no over-fire.
+        # KEPT MIRROR: phase DROPS the predicate on a couple forms (Unbound
+        # Flourishing's permanent-spell cast trigger; Rosheen Meanderer's "costs that
+        # contain {X}" mana-enabler folded to a bare ramp effect), so scan the effect
+        # raw with the same hook the deleted _DETECTORS row used, MINUS the hoser veto
+        # ("can't be cast" — Gaddock Teeg, naturally already excluded from the
+        # predicate arm since a ban is a restriction effect, not a payoff trigger).
+        if (
+            ab.trigger is not None
+            and ab.trigger.event == "cast_spell"
+            and (
+                ab.trigger.subject is not None
+                and "HasXInManaCost" in ab.trigger.subject.predicates
+            )
+        ):
+            add("xspell_matters", "you", "", "")
+        for e in ab.effects:
+            r = e.raw or ""
+            if _XSPELL_HOOK_RE.search(r) and not _XSPELL_VETO_RE.search(r):
+                add("xspell_matters", "you", "", r)
         # keyword_soup (ADR-0027): a keyword-stacking granter — Odric / Akroma's
         # Memorial / Rayami emit one grant_keyword Effect PER keyword from a single
         # ability (the counter_kind carries each). >=5 DISTINCT evergreen keywords in
@@ -6350,6 +6495,19 @@ def extract_signals_ir(
             stun_via_tap = e.counter_kind == "stun" and _opp_tap_here
             if recip_opp or stun_via_tap:
                 add("opponent_counter_grant", "opponents", "", "")
+        # win_lose_game (ADR-0027 t2b4a-B) — the terminal-outcome lane: a win_game or
+        # lose_game Effect category (Thassa's Oracle / Laboratory Maniac win_game,
+        # Door to Nothingness / Triskaidekaphobia lose_game, Felidar Sovereign's
+        # upkeep-conditional win). These are precise alt-win/loss categories with no
+        # over-fire surface (CR 104.2). Scope 'any' to match the deleted SWEEP row,
+        # which matched BOTH self-wins ("you win the game", e.scope=='you') and
+        # opponent-losses ("that player loses the game") under one forced scope — the
+        # behavior-neutral choice. "Don't lose for having 0 life" (Phyrexian Unlife)
+        # is correctly cat=='lose_game' too (a lose-prevention combo enabler IN the
+        # lane). The per-effect e.scope is available if a future split is wanted.
+        for e in ab.effects:
+            if e.category in ("win_game", "lose_game"):
+                add("win_lose_game", "any", "", e.raw or "")
         for e in ab.effects:
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
@@ -9349,6 +9507,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "tribal_etb_multi",
         "typed_enters_punish",
         "vanilla_matters",
+        # ADR-0027 tranche2-batch-4a (t2b4a-B) — two structural IR keys + three
+        # field-lookup keyword-array keys:
+        #   win_lose_game  ← Effect.category in {win_game, lose_game} (the broad
+        #     terminal-outcome pool) + a kept regex mirror (scope 'any') for the
+        #     conferred/quoted-ability tail (Vraska tokens, Frodo). SWEEP row deleted.
+        #   xspell_matters ← the HasXInManaCost predicate on a cast_spell trigger
+        #     subject (Zaxara …) + a kept effect-raw hook mirror (minus the hoser veto)
+        #     for the predicate-dropped tail (Unbound Flourishing, Rosheen). _DETECTORS
+        #     row deleted.
+        #   alt_cost_keyword ← Scryfall web-slinging / sneak / mayhem keyword array
+        #     (_IR_KEYWORD_MAP). SWEEP row deleted; drops the regex's flavor/grant
+        #     over-fires.
+        #   curse_matters ← a trigger/effect subject Filter subtypes=='Curse' +
+        #     a kept regex mirror (the deleted cares-about regex) for the under-parsed
+        #     "search for a Curse card …" tail. _HAND_FLOOR row deleted. Membership
+        #     stays REGEX-ONLY at A4.
+        #   partner_background ← Scryfall partner-family keyword array (_IR_KEYWORD_MAP;
+        #     partner / partner with / choose a background / doctor's companion /
+        #     friends). SWEEP row deleted; drops the regex's name-comma over-fires,
+        #     recovers Friends-forever partners. Feeds the ADR-0019 color-widening
+        #     avenue (production cards carry the keyword). companion NOT mapped.
+        "win_lose_game",
+        "xspell_matters",
+        "alt_cost_keyword",
+        "curse_matters",
+        "partner_background",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

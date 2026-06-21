@@ -45,8 +45,15 @@ def test_companion_is_its_own_key_not_partner():
 
 
 def test_partner_still_fires():
-    c = {"name": "Tymna-like", "oracle_text": "Partner with Thrasios, Triton Hero"}
-    assert "partner_background" in _keys(c)
+    # ADR-0027 t2b4a-B: partner_background is IR-served from the Scryfall partner-family
+    # keyword array, so it comes through the hybrid path, not pure regex.
+    c = {
+        "name": "Tymna-like",
+        "oracle_text": "Partner with Thrasios, Triton Hero",
+        "keywords": ["Partner with"],
+    }
+    assert "partner_background" in _keys_hybrid(c)
+    assert "partner_background" not in _keys(c)
 
 
 # #2 keyword_counter is the CR 122.1b closed set — ward/training are not counters.

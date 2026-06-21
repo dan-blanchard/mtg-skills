@@ -3677,6 +3677,50 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bconvoke\b"},
         r"\bconvoke\b",
     ),
+    # ADR-0027 t2b4a-B: win_lose_game / alt_cost_keyword / partner_background each had
+    # their oracle-regex SWEEP_DETECTORS row deleted (detection moved to the Card IR —
+    # win/lose Effect categories; the alt-cost & partner-family Scryfall keyword
+    # arrays). The SERVE pool stays oracle-defined, so hand-register the spec the sweep
+    # auto-register loop used to build, reusing each deleted regex. (SWEEP_LABELS still
+    # carries each human label.)
+    ("win_lose_game", "any"): _spec(
+        *SWEEP_LABELS["win_lose_game"],
+        {
+            "oracle": (
+                r"you win the game|(?:that player|each opponent"
+                r"|target (?:player|opponent)) loses the game"
+            )
+        },
+        r"you win the game|(?:that player|each opponent"
+        r"|target (?:player|opponent)) loses the game",
+    ),
+    ("alt_cost_keyword", "you"): _spec(
+        *SWEEP_LABELS["alt_cost_keyword"],
+        {"oracle": r"\bweb-slinging\b|\bsneak\b|\bmayhem\b"},
+        r"\bweb-slinging\b|\bsneak\b|\bmayhem\b",
+        serve_keywords=("web-slinging", "sneak", "mayhem"),
+    ),
+    # partner_background's avenue REPLACES this serve with a partner-legality search
+    # (engine.partner_search + the ADR-0019 color-widening flag); this spec is the
+    # fallback pool — the cards that carry a partner-family keyword.
+    ("partner_background", "you"): _spec(
+        *SWEEP_LABELS["partner_background"],
+        {
+            "oracle": (
+                r"choose a background|partner with|\bpartner\b(?! with)"
+                r"|\bfriends forever\b|\bdoctor's companion\b"
+            )
+        },
+        r"choose a background|partner with|\bpartner\b(?! with)"
+        r"|\bfriends forever\b|\bdoctor's companion\b",
+        serve_keywords=(
+            "partner",
+            "partner with",
+            "choose a background",
+            "doctor's companion",
+            "friends",
+        ),
+    ),
     # ADR-0027: rad_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's `rad_counter` effect / rad place_counter
     # + a "rad counter(s)" face marker). The IR fires scope "opponents" (rad counters go

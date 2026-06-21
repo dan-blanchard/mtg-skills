@@ -4769,16 +4769,49 @@ class TestMediumBatch8:
         }
 
     def test_win_lose_game_self_win_not_mislabeled_opponents(self):
-        from mtg_utils._deck_forge.signals import extract_signals
+        # ADR-0027 t2b4a-B: win_lose_game is IR-served from the win_game / lose_game
+        # Effect categories (scope 'any', the behavior-neutral row scope — never
+        # 'opponents', so a self-wincon is not mislabeled). Regex path no longer fires.
+        from mtg_utils._deck_forge.signals import (
+            extract_signals,
+            extract_signals_hybrid,
+        )
+        from mtg_utils.card_ir import Ability, Card, Effect, Face
 
         felidar = {
             "name": "Felidar Sovereign",
             "type_line": "Creature — Cat Beast",
             "oracle_text": "Vigilance (Attacking doesn't cause this creature to tap.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
         }
-        sigs = [s for s in extract_signals(felidar) if s.key == "win_lose_game"]
+        felidar_ir = Card(
+            oracle_id="x",
+            name="X",
+            faces=(
+                Face(
+                    name="X",
+                    abilities=(
+                        Ability(
+                            kind="triggered",
+                            effects=(
+                                Effect(
+                                    category="win_game",
+                                    scope="you",
+                                    raw="you win the game",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        sigs = [
+            s
+            for s in extract_signals_hybrid(felidar, felidar_ir)
+            if s.key == "win_lose_game"
+        ]
         assert sigs
         assert all(s.scope != "opponents" for s in sigs)
+        assert "win_lose_game" not in {s.key for s in extract_signals(felidar)}
 
 
 class TestMediumBatch9:
@@ -6932,7 +6965,12 @@ def test_unspent_mana_serves_mana_amplification():
 def test_curse_matters_is_a_named_archetype_lane():
     # Lynde recurs/attaches Curses ("Whenever a Curse is put into your graveyard ...
     # attach a Curse ...") — it wants the Curse subtype. A named-archetype lane served
-    # by the Curse TYPE (not oracle prose). Real oracle.
+    # by the Curse TYPE (not oracle prose). ADR-0027 t2b4a-B: IR-served from a
+    # trigger/effect subject Filter subtypes=='Curse' (the cares-about half) + a kept
+    # word mirror; the regex path no longer fires it. Real oracle.
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils.card_ir import Ability, Card, Face, Filter, Trigger
+
     lynde = {
         "name": "Lynde, Cheerful Tormentor",
         "type_line": "Legendary Creature — Human Warlock",
@@ -6944,7 +6982,27 @@ def test_curse_matters_is_a_named_archetype_lane():
             "two cards."
         ),
     }
-    assert "curse_matters" in {s.key for s in extract_signals(lynde)}
+    lynde_ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="dies",
+                            scope="you",
+                            subject=Filter(subtypes=("Curse",), controller="you"),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "curse_matters" in {s.key for s in extract_signals_hybrid(lynde, lynde_ir)}
+    assert "curse_matters" not in {s.key for s in extract_signals(lynde)}
     sig = _sig("curse_matters", "you")
     curse_of_misfortunes = {
         "name": "Curse of Misfortunes",

@@ -2156,8 +2156,10 @@ def test_self_etb_modal_choose_requires_enters_not_dies():
 def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
     # A commander that rewards/enables casting spells whose PRINTED mana cost contains
     # {X} (CR 107.3 / 202.1) opens xspell_matters — it wants the universe of X-spells +
-    # X-doublers. Clause-scoped with a "can't be cast" veto so an X-spell HOSER never
-    # reads as wanting them. Real oracle.
+    # X-doublers. ADR-0027 t2b4a-B: IR-served — the HasXInManaCost predicate on a
+    # cast_spell trigger subject (Zaxara) + a kept effect-raw hook mirror minus the
+    # "can't be cast" veto (Rosheen's mana-enabler) so an X-spell HOSER never reads as
+    # wanting them. Real oracle; the regex path no longer fires it.
     zaxara = {
         "name": "Zaxara, the Exemplary",
         "type_line": "Legendary Creature — Nightmare Hydra",
@@ -2167,7 +2169,25 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
             "token, then put X +1/+1 counters on it."
         ),
     }
-    assert "xspell_matters" in _keys(zaxara)
+    zaxara_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(
+                event="cast_spell",
+                scope="you",
+                subject=Filter(predicates=("HasXInManaCost",)),
+            ),
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    raw="create a 0/0 green Hydra creature token",
+                ),
+            ),
+        )
+    )
+    assert "xspell_matters" in _keys_hybrid_ir(zaxara, zaxara_ir)
+    assert "xspell_matters" not in _keys(zaxara)
     rosheen = {
         "name": "Rosheen Meanderer",
         "type_line": "Legendary Creature — Giant Shaman",
@@ -2175,9 +2195,26 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
             "{T}: Add {C}{C}{C}{C}. Spend this mana only on costs that contain {X}."
         ),
     }
-    assert "xspell_matters" in _keys(rosheen)
-    # Hoser: Gaddock Teeg BANS X-spells ("can't be cast") — it does NOT want them, so
-    # the clause-scoped veto must keep the avenue closed.
+    # phase drops the {X}-in-cost predicate here (folds to a bare ramp effect); the
+    # kept effect-raw hook mirror recovers it.
+    rosheen_ir = _ir_with(
+        Ability(
+            kind="activated",
+            cost="{T}",
+            effects=(
+                Effect(
+                    category="ramp",
+                    scope="you",
+                    raw="Add {C}{C}{C}{C}. Spend this mana only on costs that "
+                    "contain {X}.",
+                ),
+            ),
+        )
+    )
+    assert "xspell_matters" in _keys_hybrid_ir(rosheen, rosheen_ir)
+    # Hoser: Gaddock Teeg BANS X-spells ("can't be cast") — it does NOT want them. The
+    # ban is a restriction effect (no payoff trigger predicate), and the kept hook
+    # mirror's veto keeps the avenue closed even on the effect raw.
     gaddock = {
         "name": "Gaddock Teeg",
         "type_line": "Legendary Creature — Kithkin Advisor",
@@ -2186,6 +2223,21 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
             "Noncreature spells with {X} in their mana costs can't be cast."
         ),
     }
+    gaddock_ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="restriction",
+                    scope="any",
+                    subject=Filter(predicates=("Cmc:4", "NotType:Creature")),
+                    raw="Noncreature spells with {X} in their mana costs can't be "
+                    "cast.",
+                ),
+            ),
+        )
+    )
+    assert "xspell_matters" not in _keys_hybrid_ir(gaddock, gaddock_ir)
     assert "xspell_matters" not in _keys(gaddock)
 
 

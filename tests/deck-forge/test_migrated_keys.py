@@ -3605,6 +3605,122 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 tranche2-batch-4a (t2b4a-B):
+    #   win_lose_game     ← Effect(category="win_game")            [structural]
+    #   xspell_matters    ← HasXInManaCost predicate on a cast_spell trigger subject
+    #   alt_cost_keyword  ← Scryfall "Mayhem" keyword              [_IR_KEYWORD_MAP]
+    #   curse_matters     ← trigger subject Filter subtypes=("Curse",)
+    #   partner_background← Scryfall "Friends" (Friends-forever) keyword
+    "win_lose_game": (
+        {
+            "name": "Thassa's Oracle",
+            "type_line": "Creature — Merfolk Wizard",
+            "oracle_text": (
+                "When this creature enters, look at the top X cards of your library, "
+                "where X is your devotion to blue. Put up to one of them on top of "
+                "your library and the rest on the bottom of your library in a random "
+                "order. If X is greater than or equal to the number of cards in your "
+                "library, you win the game. (Each {U} in the mana costs of permanents "
+                "you control counts toward your devotion to blue.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="win_game",
+                        scope="you",
+                        raw="you win the game",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "xspell_matters": (
+        {
+            "name": "Zaxara, the Exemplary",
+            "type_line": "Legendary Creature — Nightmare Hydra",
+            "oracle_text": (
+                "Deathtouch\n{T}: Add two mana of any one color.\nWhenever you cast a "
+                "spell with {X} in its mana cost, create a 0/0 green Hydra creature "
+                "token, then put X +1/+1 counters on it."
+            ),
+            "keywords": ["Deathtouch"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="cast_spell",
+                    scope="you",
+                    subject=Filter(predicates=("HasXInManaCost",)),
+                ),
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        raw="create a 0/0 green Hydra creature token",
+                    ),
+                ),
+            )
+        ),
+    ),
+    "alt_cost_keyword": (
+        {
+            "name": "Chameleon, Master of Disguise",
+            "type_line": "Legendary Creature — Human Shapeshifter Villain",
+            "oracle_text": (
+                "You may have Chameleon enter as a copy of a creature you control, "
+                "except his name is Chameleon, Master of Disguise.\nMayhem {2}{U} "
+                "(You may cast this card from your graveyard for {2}{U} if you "
+                "discarded it this turn. Timing rules still apply.)"
+            ),
+            "keywords": ["Mayhem"],
+        },
+        # alt_cost_keyword is read off the Scryfall keyword array → bare non-None IR.
+        _ir(),
+    ),
+    "curse_matters": (
+        {
+            "name": "Lynde, Cheerful Tormentor",
+            "type_line": "Legendary Creature — Human Warlock",
+            "oracle_text": (
+                "Deathtouch\nWhenever a Curse is put into your graveyard from the "
+                "battlefield, return it to the battlefield attached to you at the "
+                "beginning of the next end step.\nAt the beginning of your upkeep, "
+                "you may attach a Curse attached to you to one of your opponents. If "
+                "you do, draw two cards."
+            ),
+            "keywords": ["Deathtouch"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="dies",
+                    scope="you",
+                    subject=Filter(subtypes=("Curse",), controller="you"),
+                ),
+            )
+        ),
+    ),
+    "partner_background": (
+        {
+            "name": "Astarion, the Decadent",
+            "type_line": "Legendary Creature — Vampire Elf Rogue",
+            "oracle_text": (
+                "Deathtouch, lifelink\nAt the beginning of your end step, choose "
+                "one —\n• Feed — Target opponent loses life equal to the amount of "
+                "life they lost this turn.\n• Friends — You gain life equal to the "
+                "amount of life you gained this turn."
+            ),
+            "keywords": ["Lifelink", "Feed", "Friends", "Deathtouch"],
+        },
+        # partner_background is read off the Scryfall keyword array (Friends-forever
+        # → "Friends") → bare non-None IR.
+        _ir(),
+    ),
 }
 
 

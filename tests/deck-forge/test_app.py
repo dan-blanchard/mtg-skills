@@ -2,9 +2,11 @@
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.card_ir import Card, Face
 
 LLANOWAR = {
     "name": "Llanowar Elves",
@@ -58,12 +60,16 @@ PLANESWALKER = {
 
 ISHAI = {
     "name": "Ishai, Ojutai Dragonspeaker",
+    # ADR-0027 t2b4a-B: partner_background is IR-served from the Scryfall `Partner`
+    # keyword array, so the partner fixture carries the keyword + an oracle_id.
+    "oracle_id": "oid-ishai",
     "type_line": "Legendary Creature — Bird Monk",
     "mana_cost": "{W}{U}",
     "cmc": 2.0,
     "color_identity": ["W", "U"],
     "oracle_text": "Flying\nWhenever an opponent casts a spell, put a +1/+1 counter on Ishai.\nPartner (You can have two commanders if both have partner.)",
     "legalities": {"commander": "legal"},
+    "keywords": ["Flying", "Partner"],
 }
 
 INDEX = {c["name"]: c for c in (LLANOWAR, FOREST, ATRAXA, PLANESWALKER, ISHAI)}
@@ -141,9 +147,22 @@ def test_set_format_changes_format_and_rejects_unknown():
     assert bad.status_code == 400
 
 
-def test_partner_avenue_filters_to_valid_partners():
+def test_partner_avenue_filters_to_valid_partners(monkeypatch):
     # One commander with plain Partner → the avenue searches for legal partners
     # (color-agnostic), not the generic "any partner/background card".
+    # ADR-0027 t2b4a-B: partner_background is IR-served, so wire a non-None IR for
+    # Ishai's oracle_id (the hybrid path reads the record's keywords + needs an IR).
+    monkeypatch.setattr(
+        engine,
+        "_ir_index",
+        lambda: {
+            "oid-ishai": Card(
+                oracle_id="oid-ishai",
+                name="Ishai",
+                faces=(Face(name="Ishai", abilities=()),),
+            )
+        },
+    )
     session = DeckSession("commander")
     session.add("Ishai, Ojutai Dragonspeaker", zone="commanders")
     client = make_client(session=session)

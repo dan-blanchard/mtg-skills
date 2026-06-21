@@ -5,8 +5,10 @@ broadest color-openers surface first."""
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.card_ir import Card, Face
 
 PARTNER_ORACLE = "Partner (You can have two commanders if both have partner.)"
 
@@ -14,6 +16,10 @@ PARTNER_ORACLE = "Partner (You can have two commanders if both have partner.)"
 def _legend(name, ci, oracle):
     return {
         "name": name,
+        # ADR-0027 t2b4a-B: partner_background is IR-served from the Scryfall `Partner`
+        # keyword array (the record's keywords + a non-None IR routes the hybrid to the
+        # IR path), so the partner fixtures carry the keyword + an oracle_id.
+        "oracle_id": f"oid-{name.lower().replace(' ', '-')}",
         "type_line": "Legendary Creature — Human",
         "cmc": 3.0,
         "color_identity": ci,
@@ -21,7 +27,7 @@ def _legend(name, ci, oracle):
         "mana_cost": "{2}{W}",
         "prices": {"usd": "1"},
         "legalities": {"commander": "legal"},
-        "keywords": [],
+        "keywords": ["Partner"],
         "power": "3",
         "toughness": "3",
     }
@@ -34,26 +40,41 @@ WIDE = _legend("Wide Partner", ["U", "B", "R", "G"], PARTNER_ORACLE)
 MONO = _legend("Mono Partner", ["W"], PARTNER_ORACLE)
 
 
-def _state():
+def _bare_ir(oid: str) -> Card:
+    return Card(oracle_id=oid, name=oid, faces=(Face(name=oid, abilities=()),))
+
+
+def _client(monkeypatch):
+    # Wire a non-None IR per fixture oracle_id so the hybrid path serves the migrated
+    # partner_background key (it reads the record's `keywords`, but needs ir is not None
+    # to take the IR arm). ADR-0027 hybrid dispatch, joined by oracle_id.
+    monkeypatch.setattr(
+        engine,
+        "_ir_index",
+        lambda: {
+            c["oracle_id"]: _bare_ir(c["oracle_id"]) for c in (PAIR_LORD, WIDE, MONO)
+        },
+    )
     session = DeckSession("commander")
     session.add("Pair Lord", zone="commanders")
-    return ForgeState(
+    state = ForgeState(
         by_name={c["name"]: c for c in (PAIR_LORD, WIDE, MONO)},
         search_fn=lambda **_: [WIDE, MONO],
         session=session,
         bulk_available=True,
     )
+    return TestClient(build_app(state))
 
 
-def test_partner_avenue_is_flagged_for_widening():
-    snap = TestClient(build_app(_state())).get("/api/snapshot").json()
+def test_partner_avenue_is_flagged_for_widening(monkeypatch):
+    snap = _client(monkeypatch).get("/api/snapshot").json()
     partner = [a for a in snap["avenues"] if a.get("widening")]
     assert len(partner) == 1
     assert partner[0]["label"] == "Partner / Background"
 
 
-def test_find_sorts_partners_by_color_widening_first():
-    client = TestClient(build_app(_state()))
+def test_find_sorts_partners_by_color_widening_first(monkeypatch):
+    client = _client(monkeypatch)
     snap = client.get("/api/snapshot").json()
     partner_id = next(a["id"] for a in snap["avenues"] if a.get("widening"))
     client.post(f"/api/avenues/{partner_id}/focus")
