@@ -164,12 +164,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ("each/that/the active/chosen player … adds {"), which separates symmetric group
     # ramp from your-own ramp. NOT in _IR_FLOOR_LANES; serve hand-registered in
     # signal_specs reusing the deleted regex + the symmetric-mana extra.
-    {
-        "key": "secret_writedown",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "secretly (?:write|choose|name)|before the game begins[^.]*(?:write|name|choose)|from outside the game|your sideboard",
-    },
+    # ADR-0027 (t2b5-B): secret_writedown migrated to the Card IR (kept_detector) — the
+    # out-of-game zone (CR 408.1 Wish: "from outside the game") + pre-game secret
+    # name/choose has no IR shape (phase's in-game battlefield IR models neither). The
+    # IR path detects it from an _IR_KEPT_DETECTORS word mirror that INTENTIONALLY drops
+    # this regex's "|your sideboard" arm — companion reminder text (Lurrus, Yorion, …)
+    # owned by companion_keyword, NOT a wishboard build-around. SWEEP_LABELS keeps the
+    # human label; the serve is hand-registered in signal_specs.py reusing the narrowed
+    # regex.
     # ADR-0027: fight_matters migrated to the Card IR — phase's `fight` effect + a
     # `_FIGHT_REF` dropped-static marker (granted/quoted/modal/symmetric fights) and a
     # `_FIGHT_RAW` face-level fallback (the Aftermath DFC phase doesn't project, Prepare
@@ -819,18 +821,21 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # failed-parse "end the turn" supplement recovery, now reconciled to the same
     # category string the _DOER_EFFECT_KEYS key reads — Obeka). The serve spec is
     # hand-registered in signal_specs reusing the deleted regex.
-    {
-        "key": "sacrifice_protection",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "can't cause you to sacrifice|can't be sacrificed",
-    },
     # ADR-0027 t2b5-A: draft_spellbook migrated to the Card IR — Arena/Alchemy digital
     # mechanics (draft-a-card / spellbook) NOT in the CR with NO phase effect category
     # (phase leaves them category='other'), so the lane fires from a
     # signals._IR_KEPT_DETECTORS word mirror (the exact regex; the literal phrasing is
     # the only signal). This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human
     # label, and the serve is hand-registered in signal_specs.py reusing the regex.
+    # ADR-0027 (t2b5-B): sacrifice_protection migrated to the Card IR (kept_detector).
+    # phase parses only ~21/39 hits as a generic restriction (subject=None), which it
+    # cannot tell from a STAX restriction (Ghostly Prison is also restriction) — the
+    # protective-vs-taxing split lives only in the raw — and drops ~18/39 buried in a
+    # quoted/granted ability (Assault Suit) or a make_token/sacrifice carrier (Zurgo).
+    # The two literal protective phrases ("can't be sacrificed" / "can't cause you to
+    # sacrifice") are the only full-coverage tell, so the IR path detects it from a
+    # byte-identical _IR_KEPT_DETECTORS word mirror (CR 701.16). SWEEP_LABELS keeps the
+    # human label; the serve is hand-registered in signal_specs.py reusing the regex.
     {
         "key": "stax_taxes",
         "scope": "opponents",

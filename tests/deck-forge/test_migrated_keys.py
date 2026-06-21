@@ -3793,6 +3793,71 @@ _CASES: dict[str, tuple[dict, Card]] = {
         # → "Friends") → bare non-None IR.
         _ir(),
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-B) — five kept_detector keys phase v0.1.60
+    # CANNOT structure (the discriminant is DROPPED in the parse), each served from a
+    # byte-identical _IR_KEPT_DETECTORS word mirror over the joined-face oracle. The
+    # kept-detector loop reads get_oracle_text(card), so a bare _ir() suffices.
+    "per_target_payoff": (
+        {
+            "name": "Hinata, Dawn-Crowned",
+            "type_line": "Legendary Creature — Kirin Spirit",
+            "oracle_text": (
+                "Flying, trample\nSpells you cast cost {1} less to cast for each "
+                "target.\nSpells your opponents cast cost {1} more to cast for each "
+                "target."
+            ),
+            "keywords": ["Flying", "Trample"],
+        },
+        _ir(),
+    ),
+    "sacrifice_protection": (
+        {
+            "name": "Sigarda, Host of Herons",
+            "type_line": "Legendary Creature — Angel",
+            "oracle_text": (
+                "Flying, hexproof\nSpells and abilities your opponents control "
+                "can't cause you to sacrifice permanents."
+            ),
+            "keywords": ["Flying", "Hexproof"],
+        },
+        _ir(),
+    ),
+    "secret_writedown": (
+        {
+            "name": "Burning Wish",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "You may reveal a sorcery card you own from outside the game and "
+                "put it into your hand. Exile Burning Wish."
+            ),
+        },
+        _ir(),
+    ),
+    "target_own_payoff": (
+        {
+            "name": "Monk Gyatso",
+            "type_line": "Legendary Creature — Human Monk",
+            "oracle_text": (
+                "Whenever another creature you control becomes the target of a "
+                "spell or ability, you may airbend that creature. (Exile it. While "
+                "it's exiled, its owner may cast it for {2} rather than its mana "
+                "cost.)"
+            ),
+        },
+        _ir(),
+    ),
+    "target_redirect": (
+        {
+            "name": "Rayne, Academy Chancellor",
+            "type_line": "Legendary Creature — Human Wizard",
+            "oracle_text": (
+                "Whenever you or a permanent you control becomes the target of a "
+                "spell or ability an opponent controls, you may draw a card. You "
+                "may draw an additional card if Rayne is enchanted."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

@@ -1155,18 +1155,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # (project._dropped_static_markers), keyed on the AGGREGATE board-wipe shape and
     # EXCLUDING the single-death conditional ("if a creature died this turn", morbid —
     # plain death_matters). This _HAND_FLOOR producer is deleted; the serve spec stays.
-    # Per-target payoff (Hinata: "Spells you cast cost {1} less to cast for each
-    # target"): a commander whose spells get CHEAPER per target wants spells whose
-    # target COUNT scales — X-target / "any number of targets" — so the discount
-    # compounds. A unique mechanic (only Hinata in the commander pool), so the lane is
-    # exact. Keyed on "less ... for each target": flat cost reduction ("cost {1} less to
-    # cast", Goblin Electromancer) is excluded, as is the opponent-tax "more ... per
-    # target" half (we want the discount, scoped to YOU).
-    (
-        "per_target_payoff",
-        re.compile(r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 (t2b5-B): per_target_payoff migrated to the Card IR (kept_detector).
+    # Hinata's YOUR-arm ("Spells you cast cost {1} less to cast for each target") has no
+    # IR shape — the IR has no mana_cost / cost-reduction model and no per-spell target-
+    # count operand, so the arm is DROPPED from the parse entirely. The IR path detects
+    # it from a byte-identical _IR_KEPT_DETECTORS word mirror; this _HAND_FLOOR producer
+    # is deleted; the hand-written serve spec (signal_specs.py, X-/multi-target spells)
+    # is independent of this regex and survives.
     # Arcane tribal (The Unspeakable, the Kirins, Kodama — Kamigawa Spiritcraft): a
     # commander that cares about ARCANE spells ("cast a Spirit or Arcane spell", "return
     # target Arcane card") wants Arcane-subtype spells (CR 205.3k) + splice-onto-Arcane.
@@ -1307,16 +1302,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _IR_KEPT_DETECTORS word mirror for the "cast a multicolored spell" trigger / "for
     # each color pair" refs that aren't a structured subject. This _HAND_FLOOR producer
     # is deleted; the serve spec stays hand-registered.
-    # Target-your-own payoff (Monk Gyatso): airbends a creature you control when it's
-    # targeted, so it wants FREE ways to target your own creatures (the en-Kor "{0}:
-    # target a creature you control" cycle, {0}-equip like Shuko).
-    (
-        "target_own_payoff",
-        re.compile(
-            r"creature you control becomes the target[^.]*you may", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027 (t2b5-B): target_own_payoff migrated to the Card IR (kept_detector).
+    # Monk Gyatso's becomes-target may-reaction on YOUR creatures: phase parses the
+    # becomes-target trigger as event='other' (no becomestarget trigger mode), so the
+    # may-clause + own-creature restriction survive only in raw. The IR path detects it
+    # from a byte-identical _IR_KEPT_DETECTORS word mirror; this _HAND_FLOOR producer is
+    # deleted; the hand-written serve spec (signal_specs.py, en-Kor / {0}-equip
+    # enablers) is independent of this regex and survives.
     # ADR-0027: life_payment_insurance migrated to the Card IR — a repeatable "Pay N
     # life:" ACTIVATION COST ("paylife" in Ability.cost; Selenia, Beledros, the
     # fetchlands — genuine recall the narrow regex missed) + a `life_payment` marker for
@@ -1349,18 +1341,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Draw-when-targeted (Rayne: "whenever you or a permanent you control becomes the
-    # target of a spell or ability an opponent controls, draw"): wants target-REDIRECT
-    # (Spellskite, Misdirection) to shunt an opponent's spell onto a cheap permanent,
-    # still triggering the draw while protecting the real target.
-    (
-        "target_redirect",
-        re.compile(
-            r"becomes? the target of a spell or ability an opponent controls[^.]*draw",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 (t2b5-B): target_redirect migrated to the Card IR (kept_detector).
+    # Rayne's becomes-target-of-opponent → draw payoff: phase flattens the becomes-
+    # target trigger to event='other' (no becomestarget mode), so DETECTION (which
+    # commanders open the lane) survives only in raw. The IR path detects it from a
+    # byte-identical _IR_KEPT_DETECTORS word mirror; this _HAND_FLOOR producer is
+    # deleted. The hand-written serve spec (signal_specs.py, redirect spells) is
+    # independent of this regex and survives — the redirect SERVE pool is itself
+    # structural via category=='redirect' should anyone tighten it later.
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
     # creatures (ramp_matters) and dork support (mana_amplifier).
@@ -2763,6 +2751,40 @@ _T2B4A_PLAN_MIRROR = re.compile(
     r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
     re.IGNORECASE,
 )
+# ADR-0027 tranche2-batch-5 (t2b5-B) voltron reconciliation — the deleted
+# per_target_payoff / sacrifice_protection / secret_writedown / target_own_payoff /
+# target_redirect regex producers each fired HIGH-confidence (scope='you') in the regex
+# path and counted toward has_other_plan, silencing the spurious commander-damage
+# voltron tell on a creature whose only "plan" was one of these (a wishboard ETB body —
+# Legion Angel, North Wind Avatar "from outside the game"; a secret-choose body —
+# Emissary of Grudges "secretly choose an opponent"; a sac-protection body — Tajuru
+# Preserver "can't cause you to sacrifice permanents"). Their IR re-supply rides the
+# hybrid path, NOT the regex-path gate, so this mirror (the UNION of the five EXACT
+# deleted regexes) re-supplies the silence byte-identically — voltron 0 leaked AND 0
+# lost vs the FILE-SWAP base. (A mirror — not _VOLTRON_SILENCING_PLAN_KEYS — because the
+# IR is broader, so re-supply via the silencing-keys path would over-silence.) The gate
+# is matched against the reminder-STRIPPED `text` (NOT `_oracle`), because the deleted
+# producers were floor Detectors over reminder-stripped clauses — a "from outside the
+# game" inside a Learn keyword's reminder (Professor of Symbology, Gnarled Professor,
+# Eyetwitch, Dream Strix) never fired them, so the gate must not silence those bodies.
+# The secret_writedown arm KEEPS the companion "your sideboard" clause (it was in the
+# pre-migration regex run over `text`, so it silenced companions then and must now). CR
+# 408.1 / 701.16 / 603 / 118.
+_T2B5_PLAN_MIRROR = re.compile(
+    # per_target_payoff
+    r"less (?:to cast )?for each (?:of those )?target"
+    # sacrifice_protection
+    r"|can't cause you to sacrifice|can't be sacrificed"
+    # secret_writedown (gate keeps the companion arm the detector mirror drops)
+    r"|secretly (?:write|choose|name)"
+    r"|before the game begins[^.]*(?:write|name|choose)"
+    r"|from outside the game|your sideboard"
+    # target_own_payoff
+    r"|creature you control becomes the target[^.]*you may"
+    # target_redirect
+    r"|becomes? the target of a spell or ability an opponent controls[^.]*draw",
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3845,6 +3867,16 @@ def extract_signals(
         # excluded (a _VOLTRON_COMPAT_KEY). Deleted regex producers fed this gate; the
         # broader IR re-supply rides the hybrid path.
         or _T2B4A_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-batch-5: re-silence the five deleted regex producers
+        # (per_target_payoff / sacrifice_protection / secret_writedown /
+        # target_own_payoff / target_redirect). Their high-confidence producers fed this
+        # gate; the IR re-supply rides the hybrid path, so a mirror — not the silencing-
+        # keys set — restores the byte-identical silence (voltron 0 leaked). Matched
+        # against ``text`` (reminder-STRIPPED), NOT ``_oracle``: the deleted producers
+        # were floor Detectors over reminder-stripped clauses, so a "from outside the
+        # game" buried in a Learn keyword's reminder (Professor of Symbology, Eyetwitch)
+        # never fired them — keeping reminders here would over-silence those bodies.
+        or _T2B5_PLAN_MIRROR.search(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)
@@ -4860,6 +4892,66 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-B) — five kept_detector lanes phase v0.1.60
+    # CANNOT structure (spec / rules-lawyer verified: the discriminant is DROPPED in
+    # the parse — a cost-reduction-per-target operand, a protective-vs-stax restriction
+    # split, the out-of-game zone, or a becomes-target trigger flattened to
+    # event='other'). Each fires from a dedicated IR-path word mirror reproducing the
+    # deleted _HAND_FLOOR / SWEEP regex (the secret_writedown mirror INTENTIONALLY
+    # drops the deleted regex's "|your sideboard" arm — companion reminder text owned
+    # by companion_keyword, not a wishboard build-around — so it is a NARROWER, correct
+    # A-B, not a regression). floor-mirror-dep == 0 by construction (none is a floor
+    # detector). All scope 'you'.
+    #   • per_target_payoff   ← Hinata's YOUR-arm cost reduction scaling with target
+    #     count; the IR has no mana_cost / cost-reduction model and no per-spell
+    #     target-count operand, so the arm is dropped entirely (CR 601 / 118).
+    #   • sacrifice_protection ← phase parses only ~21/39 as a generic restriction
+    #     (indistinguishable from a STAX restriction — Ghostly Prison) and drops ~18/39
+    #     buried in a quoted/granted ability; the two literal protective phrases are
+    #     the only full-coverage tell (CR 701.16).
+    #   • secret_writedown    ← the out-of-game zone (CR 408.1 Wish) + pre-game secret
+    #     name/choose; phase's in-game battlefield IR models neither.
+    #   • target_own_payoff   ← Monk Gyatso's becomes-target may-reaction on YOUR
+    #     creatures; the becomes-target event flattens to event='other' (no
+    #     becomestarget trigger mode), so the may-clause survives only in raw.
+    #   • target_redirect     ← Rayne's becomes-target-of-opponent → draw payoff;
+    #     same event='other' flattening (the redirect SERVE pool is structural via
+    #     category=='redirect' but the DETECTION payoff is not). CR 603.
+    (
+        "per_target_payoff",
+        re.compile(r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "sacrifice_protection",
+        re.compile(r"can't cause you to sacrifice|can't be sacrificed", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "secret_writedown",
+        re.compile(
+            r"secretly (?:write|choose|name)"
+            r"|before the game begins[^.]*(?:write|name|choose)"
+            r"|from outside the game",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    (
+        "target_own_payoff",
+        re.compile(
+            r"creature you control becomes the target[^.]*you may", re.IGNORECASE
+        ),
+        "you",
+    ),
+    (
+        "target_redirect",
+        re.compile(
+            r"becomes? the target of a spell or ability an opponent controls[^.]*draw",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker). Needs a narrower payoff/keyword source.
@@ -5386,6 +5478,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             "flip_self",
             "free_plot",
             "miracle_grant",
+            # ADR-0027 tranche2-batch-5 (t2b5-B) — kept_detector lanes phase v0.1.60
+            # cannot structure; each fires from a dedicated _IR_KEPT_DETECTORS word
+            # mirror (the exact deleted regex; secret_writedown drops the companion
+            # "your sideboard" arm):
+            #   per_target_payoff / sacrifice_protection / secret_writedown /
+            #   target_own_payoff / target_redirect.
+            "per_target_payoff",
+            "sacrifice_protection",
+            "secret_writedown",
+            "target_own_payoff",
+            "target_redirect",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -9623,6 +9726,28 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "flip_self",
         "free_plot",
         "miracle_grant",
+        # ADR-0027 tranche2-batch-5 (t2b5-B) — five kept_detector lanes phase v0.1.60
+        # CANNOT structure (the discriminant is DROPPED in the parse), each firing from
+        # a dedicated IR-path word mirror (_IR_KEPT_DETECTORS) reproducing the deleted
+        # _HAND_FLOOR / SWEEP regex. All NON-floor IR sources; floor-mirror-dep == 0;
+        # A-B == 0 by construction (the secret_writedown mirror is INTENTIONALLY
+        # narrower — it drops the deleted regex's companion-reminder "your sideboard"
+        # arm, owned by companion_keyword). Their oracle-regex producers are deleted;
+        # the serve specs stay hand-registered in signal_specs.py. See ADR-0027.
+        #   per_target_payoff    ← Hinata's per-target cost-reduction arm (no IR
+        #     mana-cost / target-count operand; CR 601 / 118).
+        #   sacrifice_protection ← protective-vs-stax restriction split + the
+        #     quoted/granted forms phase drops (CR 701.16).
+        #   secret_writedown     ← out-of-game zone + pre-game secret name (CR 408.1).
+        #   target_own_payoff    ← Monk Gyatso's becomes-target may-reaction (the
+        #     trigger flattens to event='other'; CR 603).
+        #   target_redirect      ← Rayne's becomes-target-of-opponent → draw (same
+        #     event='other' flattening; CR 603).
+        "per_target_payoff",
+        "sacrifice_protection",
+        "secret_writedown",
+        "target_own_payoff",
+        "target_redirect",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

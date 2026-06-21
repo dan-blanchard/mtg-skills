@@ -2326,6 +2326,32 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": TARGET_PLAYER_DRAWS_REGEX},
         TARGET_PLAYER_DRAWS_REGEX,
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-B): sacrifice_protection / secret_writedown had
+    # their SWEEP_DETECTORS rows deleted (detection moved to the Card IR — kept_detector
+    # word mirrors), so the sweep auto-register loop no longer builds their serve. Hand-
+    # register each at scope "you", reusing the deleted regex as both search and serve
+    # so the SERVE pool never drifts. SWEEP_LABELS still carries the human label.
+    # secret_writedown reuses the NARROWED mirror (without the companion "your
+    # sideboard" arm) so its serve no longer surfaces the companion-reminder cards
+    # companion_keyword owns.
+    ("sacrifice_protection", "you"): _spec(
+        *SWEEP_LABELS["sacrifice_protection"],
+        {"oracle": r"can't cause you to sacrifice|can't be sacrificed"},
+        r"can't cause you to sacrifice|can't be sacrificed",
+    ),
+    ("secret_writedown", "you"): _spec(
+        *SWEEP_LABELS["secret_writedown"],
+        {
+            "oracle": (
+                r"secretly (?:write|choose|name)"
+                r"|before the game begins[^.]*(?:write|name|choose)"
+                r"|from outside the game"
+            )
+        },
+        r"secretly (?:write|choose|name)"
+        r"|before the game begins[^.]*(?:write|name|choose)"
+        r"|from outside the game",
+    ),
     # ADR-0027 tranche2-B (t2b3-B): opponent_counter_grant's SWEEP_DETECTORS row is
     # deleted (detection moved to the Card IR — a detrimental bounty/stun counter on an
     # opponent's permanent). Hand-register the serve at the "opponents" scope it fires

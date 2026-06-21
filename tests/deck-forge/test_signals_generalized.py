@@ -462,7 +462,9 @@ def test_per_target_payoff_opens_on_cost_less_per_target():
             "Spells your opponents cast cost {1} more to cast for each target."
         ),
     }
-    assert ("per_target_payoff", "you") in _ks(hinata)
+    # ADR-0027 t2b5-B: migrated to the Card IR (kept_detector) — assert on the
+    # production hybrid path (the regex path no longer emits it).
+    assert ("per_target_payoff", "you") in _ks_hybrid(hinata)
     # Flat cost reduction (Goblin Electromancer: "cost {1} less to cast", no per-target
     # scaling) is NOT this — it doesn't reward casting one spell at many targets. Real
     # oracle.
@@ -474,7 +476,7 @@ def test_per_target_payoff_opens_on_cost_less_per_target():
         "toughness": "2",
         "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.",
     }
-    assert "per_target_payoff" not in _keys(electromancer)
+    assert "per_target_payoff" not in _keys_hybrid(electromancer)
 
 
 def test_ability_strip_payoff_opens_on_strip_and_buff():
@@ -970,7 +972,8 @@ def test_target_own_payoff_opens_on_targeted_your_creature():
             "owner may cast it for {2} rather than its mana cost.)"
         ),
     }
-    assert ("target_own_payoff", "you") in _ks(gyatso)
+    # ADR-0027 t2b5-B: migrated to the Card IR (kept_detector) — assert on hybrid.
+    assert ("target_own_payoff", "you") in _ks_hybrid(gyatso)
 
 
 def test_life_payment_insurance_opens_on_repeatable_pay_life():
@@ -1145,7 +1148,8 @@ def test_target_redirect_opens_on_draw_when_targeted():
             "additional card if Rayne is enchanted."
         ),
     }
-    assert ("target_redirect", "you") in _ks(rayne)
+    # ADR-0027 t2b5-B: migrated to the Card IR (kept_detector) — assert on hybrid.
+    assert ("target_redirect", "you") in _ks_hybrid(rayne)
 
 
 def test_artifacts_matter_opens_on_investigate():
