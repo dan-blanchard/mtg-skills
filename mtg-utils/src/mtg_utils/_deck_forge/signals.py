@@ -2672,6 +2672,29 @@ _TRANCHE2B_PLAN_MIRROR = re.compile(
     r"|exile [^.]*until [^.]*leaves the battlefield",
     re.IGNORECASE,
 )
+# ADR-0027 tranche2 batch-2 voltron reconciliation — bounce_tempo (t2b2-A) and
+# keyword_counter (t2b2-C) each had a high-confidence regex producer that fed
+# has_other_plan, silencing the spurious commander-damage voltron tell on a bounce-
+# tempo creature (Man-o'-War, Reflector Mage, Brazen Borrower) or a keyword-counter
+# creature (Wingfold Pteron, Void Beckoner). Those producers are deleted and the IR
+# re-supply doesn't reach the regex-path has_other_plan, so this mirror (the deleted
+# bounce_tempo SWEEP regex — broad enough to subsume its narrow _DETECTORS twin — OR
+# the shared keyword_counter KEYWORD_COUNTER_REGEX) reproduces the silence on the
+# joined-face oracle. The IR is BROADER than these regexes, so a mirror (not the
+# _VOLTRON_SILENCING_PLAN_KEYS set) is the byte-identical gate. NB: the per-branch solo
+# no-flood missed this (it toggled MIGRATED_KEYS with the regex already deleted, so both
+# sides leaked equally and the delta read 0); the post-merge global re-validation caught
+# the +40. CR 115.10 (bounce) / 122.1b (keyword counter).
+_TRANCHE2B2_PLAN_MIRROR = re.compile(
+    r"return (?:x )?target (?:creatures?|permanents?|nonland permanents?)[^.]*"
+    r"to (?:its|their) owner.?s.? hands?"
+    r"|return target (?:spell or permanent|permanent or spell)"
+    r"|return [^.]*to (?:its|their) owners?.? hands?"
+    r"|return up to (?:one|two|\w+) target (?:nonland )?(?:creature|permanent)[^.]*"
+    r"to (?:its|their) owner.?s.? hands?"
+    "|" + KEYWORD_COUNTER_REGEX,
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3706,6 +3729,9 @@ def extract_signals(
         # broader (Graft moves, linked-return O-Rings) and would over-silence via
         # _VOLTRON_SILENCING_PLAN_KEYS.
         or _TRANCHE2B_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2 batch-2: re-silence bounce_tempo / keyword_counter (their
+        # deleted regex producers fed this gate; IR re-supply doesn't reach it).
+        or _TRANCHE2B2_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
