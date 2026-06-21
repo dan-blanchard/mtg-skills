@@ -2257,20 +2257,51 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("self_counter_grow", "you"): _sweep_spec_with_extras(
         "self_counter_grow", _COUNTERS_PACKAGE
     ),
+    # ADR-0027 tranche2-B: counter_manipulation's SWEEP_DETECTORS row was deleted
+    # (detection moved to the Card IR — counter_move/remove_counter effects + a kept
+    # cost mirror). The serve keeps the old regex via regex= (strangler pattern).
     ("counter_manipulation", "you"): _sweep_spec_with_extras(
-        "counter_manipulation", _COUNTERS_PACKAGE
+        "counter_manipulation",
+        _COUNTERS_PACKAGE,
+        regex=(
+            r"(?:remove|move) (?:a|one|any number of|x|\d+) "
+            r"(?:\+1/\+1|-1/-1) counters?|(?:remove|move) "
+            r"(?:a|one|any number of|x|\d+) [^.]{0,20}?"
+            r"(?:\+1/\+1|-1/-1) counters?"
+        ),
     ),
     ("counter_distribute", "you"): _sweep_spec_with_extras(
         "counter_distribute", _COUNTERS_PACKAGE
     ),
+    # ADR-0027 tranche2-B: counter_place_trigger's SWEEP_DETECTORS row was deleted
+    # (detection moved to the Card IR — the counter_added trigger event). The serve
+    # keeps the old regex via regex= (strangler pattern).
     ("counter_place_trigger", "you"): _sweep_spec_with_extras(
-        "counter_place_trigger", _COUNTERS_PACKAGE
+        "counter_place_trigger",
+        _COUNTERS_PACKAGE,
+        regex=(
+            r"whenever (?:you put|.*put) (?:one or more )?\+1/\+1 counters? on"
+            r"|whenever one or more \+1/\+1 counters? (?:are|is) put on"
+            r"|whenever you put (?:a|one or more|two|\d+) [^.]*counters? on"
+            r"|whenever (?:a|one or more) [^.]*counters? (?:is|are) put on"
+        ),
     ),
     ("keyword_counter", "you"): _sweep_spec_with_extras(
         "keyword_counter", _COUNTERS_PACKAGE
     ),
+    # ADR-0027 tranche2-B: counter_replace_bonus's SWEEP_DETECTORS row was deleted
+    # (detection moved to the Card IR — the counter_doubling replacement category).
+    # The serve keeps the old regex via regex= (strangler pattern).
     ("counter_replace_bonus", "you"): _sweep_spec_with_extras(
-        "counter_replace_bonus", _COUNTERS_PACKAGE
+        "counter_replace_bonus",
+        _COUNTERS_PACKAGE,
+        regex=(
+            r"that many plus (?:one|two|\d+) [^.]*counters? are put"
+            r"|put that many plus"
+            r"|if (?:one or more )?\+1/\+1 counters? would be put on"
+            r"|one or more counters? would be (?:put|placed)"
+            r"[^.]*(?:that many plus|twice that many)"
+        ),
     ),
     # ADR-0027: counter_move's SWEEP_DETECTORS row was deleted (detection moved to
     # the Card IR — phase's MoveCounters effect). _sweep_spec_with_extras read that
@@ -3852,6 +3883,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"exile target (?:creature|permanent|artifact|enchantment|nonland)",
         serve_not=r"return (?:it|them|that card|those cards|that permanent)"
         r"[^.]*battlefield",
+    ),
+    # ADR-0027 tranche2-B: exile_until_leaves's SWEEP_DETECTORS row was deleted
+    # (detection moved to the Card IR — _is_exile_until_leaves). It used to be
+    # auto-registered from that row (the SWEEP→SPECS fallback below), so hand-register
+    # it now, keeping the old regex as the serve pattern.
+    ("exile_until_leaves", "you"): _spec(
+        *SWEEP_LABELS["exile_until_leaves"],
+        {"oracle": r"exile [^.]*until [^.]*leaves the battlefield"},
+        r"exile [^.]*until [^.]*leaves the battlefield",
     ),
     ("counter_control", "you"): _spec(
         "Counterspells / control",

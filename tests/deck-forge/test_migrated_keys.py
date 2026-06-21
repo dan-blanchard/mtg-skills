@@ -2967,6 +2967,128 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ── ADR-0027 tranche2-B (counters / O-Ring lanes) ──
+    # counter_manipulation ← a remove_counter Effect of a +1/+1 or -1/-1 counter (the
+    # remove-as-EFFECT half; the move half rides counter_move and the cost half a kept
+    # word mirror). Carnifex Demon removes -1/-1 counters as an activated effect.
+    "counter_manipulation": (
+        {
+            "name": "Carnifex Demon",
+            "type_line": "Artifact Creature — Demon",
+            "oracle_text": (
+                "This creature enters with four -1/-1 counters on it.\n{B}, Remove a "
+                "-1/-1 counter from this creature: Put a -1/-1 counter on each other "
+                "creature."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="remove_counter",
+                        counter_kind="m1m1",
+                        scope="you",
+                        raw="Remove a -1/-1 counter from ~",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # counter_place_trigger ← a counter_added TRIGGER (scope!='opp', non-Saga).
+    # Flourishing Defenses triggers on a -1/-1 counter being put on a creature.
+    "counter_place_trigger": (
+        {
+            "name": "Flourishing Defenses",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever a -1/-1 counter is put on a creature, you may create a 1/1 "
+                "green Elf Warrior creature token."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="counter_added",
+                    scope="any",
+                    subject=Filter(card_types=("Creature",), controller="any"),
+                ),
+                effects=(
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        raw="create a 1/1 green Elf Warrior creature token",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # counter_replace_bonus ← the counter_doubling replacement category (is_widen_of
+    # counter_doubling, the same IR population). Hardened Scales adds one extra +1/+1.
+    "counter_replace_bonus": (
+        {
+            "name": "Hardened Scales",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "If one or more +1/+1 counters would be put on a creature you control, "
+                "that many plus one +1/+1 counters are put on it instead."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="counter_doubling",
+                        counter_kind="p1p1",
+                        scope="you",
+                        raw="that many plus one +1/+1 counters are put on it instead",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # exile_until_leaves ← the TWO-ABILITY O-Ring shape: an exile Effect sending
+    # to:exile + a SECOND ability whose dies/leaves trigger reanimates to:battlefield
+    # (the linked return). Oblivion Ring is the canonical card.
+    "exile_until_leaves": (
+        {
+            "name": "Oblivion Ring",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "When Oblivion Ring enters, exile another target nonland permanent.\n"
+                "When Oblivion Ring leaves the battlefield, return the exiled card to "
+                "the battlefield under its owner's control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you"),
+                effects=(
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        zones=("to:exile",),
+                        raw="exile another target nonland permanent",
+                    ),
+                ),
+            ),
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="dies", scope="you"),
+                effects=(
+                    Effect(
+                        category="reanimate",
+                        scope="any",
+                        zones=("to:battlefield",),
+                        raw="return the exiled card to the battlefield",
+                    ),
+                ),
+            ),
+        ),
+    ),
 }
 
 

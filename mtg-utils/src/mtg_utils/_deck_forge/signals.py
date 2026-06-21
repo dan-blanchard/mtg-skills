@@ -2636,6 +2636,40 @@ _TRANCHE2C_PLAN_MIRROR = re.compile(
     r"|\bsneak\b|return an unblocked attacker",
     re.IGNORECASE,
 )
+# ADR-0027 (tranche2-B): the same HAS-OTHER-PLAN mirror for the four migrated
+# tranche2-B keys (counter_manipulation / counter_place_trigger /
+# counter_replace_bonus / exile_until_leaves). Each fired HIGH-confidence in the
+# deleted SWEEP path (non-generic, non-voltron-compat) and so counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a counter
+# / O-Ring engine that is NOT a vanilla beater (Corpsejack Menace, Aragorn Company
+# Leader, Dusk Legion Duelist, Kitesail Freebooter — 14 cards verified to leak the
+# tell post-deletion). The IR re-supply is BROADER than the deleted regex
+# (counter_manipulation +24 Graft moves, exile_until_leaves +33 linked-return O-Rings,
+# counter_replace_bonus +9), so adding these keys to _VOLTRON_SILENCING_PLAN_KEYS
+# would OVER-silence the IR-only bodies the regex never caught. Instead this mirror
+# (the OR of the EXACT deleted patterns, read against the joined-face `_oracle` so it
+# catches DFC back faces) feeds the gate directly in extract_signals, reproducing the
+# pre-migration `has_other_plan` for ALL cards. It emits no signal; the real lanes are
+# served from the IR. NO-FLOOD (voltron byte-identical to pre-migration).
+_TRANCHE2B_PLAN_MIRROR = re.compile(
+    # counter_manipulation
+    r"(?:remove|move) (?:a|one|any number of|x|\d+) (?:\+1/\+1|-1/-1) counters?"
+    r"|(?:remove|move) (?:a|one|any number of|x|\d+) [^.]{0,20}?"
+    r"(?:\+1/\+1|-1/-1) counters?"
+    # counter_place_trigger
+    r"|whenever (?:you put|.*put) (?:one or more )?\+1/\+1 counters? on"
+    r"|whenever one or more \+1/\+1 counters? (?:are|is) put on"
+    r"|whenever you put (?:a|one or more|two|\d+) [^.]*counters? on"
+    r"|whenever (?:a|one or more) [^.]*counters? (?:is|are) put on"
+    # counter_replace_bonus
+    r"|that many plus (?:one|two|\d+) [^.]*counters? are put|put that many plus"
+    r"|if (?:one or more )?\+1/\+1 counters? would be put on"
+    r"|one or more counters? would be (?:put|placed)"
+    r"[^.]*(?:that many plus|twice that many)"
+    # exile_until_leaves
+    r"|exile [^.]*until [^.]*leaves the battlefield",
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3664,6 +3698,12 @@ def extract_signals(
         # broader and would over-silence legit engine bodies (Aetherling,
         # Angel's Trumpet).
         or _TRANCHE2C_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-B: mirror the OR of the four deleted counter / O-Ring
+        # regexes (counter_manipulation / counter_place_trigger / counter_replace_bonus
+        # / exile_until_leaves). Byte-identical to pre-migration; the IR re-supply is
+        # broader (Graft moves, linked-return O-Rings) and would over-silence via
+        # _VOLTRON_SILENCING_PLAN_KEYS.
+        or _TRANCHE2B_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -4381,6 +4421,36 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 counter_manipulation cost tail — the IR recovers the +1/+1/-1/-1
+    # MOVE (counter_move) and remove-as-EFFECT (remove_counter) halves structurally,
+    # but the remove-as-COST form ("Remove a +1/+1 counter from ~:" — Walking
+    # Ballista, Fertilid, Quillspike, Devoted Druid) is an Ability.cost phase leaves
+    # in raw, unreachable from the structured IR. This mirror is byte-identical to
+    # the deleted SWEEP_DETECTORS row so the hybrid reproduces its firings exactly
+    # (A-B==0; the IR additionally catches Graft's counter MOVE). CR 122.1 / 122.6.
+    (
+        "counter_manipulation",
+        re.compile(
+            r"(?:remove|move) (?:a|one|any number of|x|\d+) (?:\+1/\+1|-1/-1) "
+            r"counters?|(?:remove|move) (?:a|one|any number of|x|\d+) "
+            r"[^.]{0,20}?(?:\+1/\+1|-1/-1) counters?",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ADR-0027 exile_until_leaves Saga tail — _is_exile_until_leaves recovers the
+    # one-ability inline form (raw phrase) and the two-ability O-Ring form
+    # structurally, but a SAGA CHAPTER exile collapses its per-effect raw to a
+    # "Chapter N" stub (Trial of a Time Lord, Summon: Ixion), losing the inline
+    # "until ~ leaves" phrase. The joined-face oracle text still carries it, so this
+    # mirror (byte-identical to the deleted SWEEP_DETECTORS row) recovers the tail
+    # (A-B==0; the IR additionally catches the linked-return O-Rings — Oblivion Ring,
+    # Detention Sphere — the inline regex missed). CR 714.2.
+    (
+        "exile_until_leaves",
+        re.compile(r"exile [^.]*until [^.]*leaves the battlefield", re.IGNORECASE),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -4786,6 +4856,18 @@ IR_SLICE_KEYS: frozenset[str] = (
             "conditional_self_protection",
             "control_exchange",
             "bounce_tempo",
+            # ADR-0027 tranche2-B (counters / O-Ring lanes):
+            #   counter_manipulation ← counter_move/remove_counter effect (p1p1/m1m1)
+            #                          + a kept cost-clause word mirror.
+            #   counter_place_trigger ← a counter_added TRIGGER (scope!=opp, non-Saga).
+            #   counter_replace_bonus ← the counter_doubling replacement category
+            #                           (+ the place_counter(plus) temporary tail).
+            #   exile_until_leaves   ← _is_exile_until_leaves (inline phrase OR the
+            #                          two-ability linked-return shape) + Saga mirror.
+            "counter_manipulation",
+            "counter_place_trigger",
+            "counter_replace_bonus",
+            "exile_until_leaves",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5627,6 +5709,46 @@ def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
     return ""
 
 
+# exile_until_leaves (ADR-0027) — the "exile until ~ leaves the battlefield"
+# bounce-removal idiom (Oblivion Ring, Fiend Hunter, Banisher Priest, Glorious
+# Protector). A plain exile-removal (Path to Exile, Swords to Plowshares) has no
+# linked return and no "until ~ leaves" phrase, so it does not fire — that phrase
+# / the linked return IS the discriminator vs permanent exile.
+_EXILE_UNTIL_LEAVES_RAW = re.compile(
+    r"until [^.]*leaves the battlefield", re.IGNORECASE
+)
+
+
+def _is_exile_until_leaves(ir: Card) -> bool:
+    """True for either O-Ring shape: (A) a TWO-ABILITY card — an `exile` effect
+    sending to:exile co-occurring with a SECOND ability whose trigger is dies/leaves
+    and whose effect is a `reanimate` to:battlefield (the linked return); or (B) a
+    ONE-ABILITY INLINE card — an `exile`/`blink` effect whose raw carries the
+    "until ~ leaves the battlefield" phrase (the return is textual, not structured).
+    phase coerces O-Ring's "leaves" trigger to event=='dies', so both events count."""
+    has_exile_to_exile = False
+    has_linked_return = False
+    for ab in ir.all_abilities():
+        trig = ab.trigger
+        for e in ab.effects:
+            # Branch B — inline "exile/blink … until ~ leaves the battlefield".
+            if e.category in ("exile", "blink") and _EXILE_UNTIL_LEAVES_RAW.search(
+                e.raw or ""
+            ):
+                return True
+            # Branch A — collect the two halves across abilities.
+            if e.category == "exile" and "to:exile" in e.zones:
+                has_exile_to_exile = True
+            if (
+                trig is not None
+                and trig.event in ("dies", "leaves")
+                and e.category == "reanimate"
+                and "to:battlefield" in e.zones
+            ):
+                has_linked_return = True
+    return has_exile_to_exile and has_linked_return
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -5669,6 +5791,18 @@ def extract_signals_ir(
     # phase types those COST[paylife,tap]→ramp identically. Mirror the regex's land
     # VETO so a paylife mana-source never opens the lane.
     card_is_land = "land" in (card.get("type_line") or "").lower()
+    # A Saga / lore-counter card: phase types its chapter trigger as the same
+    # counter_added event a +1/+1-counter payoff carries (ADR-0027 — see
+    # counter_place_trigger below). CR 714.2.
+    _is_lore_counter_card = (
+        "saga" in (card.get("type_line") or "").lower()
+        or "lore counter" in (card.get("oracle_text") or "").lower()
+    )
+
+    # exile_until_leaves (ADR-0027) — a card-level shape (the two-ability O-Ring
+    # form spans abilities), so it is decided once over the whole IR.
+    if _is_exile_until_leaves(ir):
+        add("exile_until_leaves", "you", "", "")
 
     for ab in ir.all_abilities():
         for e in ab.effects:
@@ -6071,6 +6205,18 @@ def extract_signals_ir(
             # non-+1/+1 move out (CR 122.1; minus_counters stays its own lane).
             if cat == "counter_move" and e.counter_kind == "p1p1":
                 add("counters_matter", "you", "", e.raw)
+            # counter_manipulation (ADR-0027) — +1/+1 or -1/-1 counter MOVE or
+            # remove-as-EFFECT (The Ozolith, Power Conduit, Nesting Grounds move;
+            # Carnifex Demon, Retribution of the Ancients, Festercreep remove). The
+            # counter_kind gate ({p1p1,m1m1}) is the +1/+1-vs-charge/oil/loyalty
+            # discriminator. The remove-as-COST tail ("Remove a +1/+1 counter from
+            # ~:" — Walking Ballista, Fertilid, Quillspike, Devoted Druid) is an
+            # Ability.cost the IR does not structure, so it stays on a kept word
+            # mirror (_IR_KEPT_DETECTORS). CR 122.1 / 122.6.
+            if (cat == "counter_move" and e.counter_kind in ("p1p1", "m1m1")) or (
+                cat == "remove_counter" and e.counter_kind in ("p1p1", "m1m1")
+            ):
+                add("counter_manipulation", "you", "", e.raw)
             if cat == "counter_spell":
                 add("counter_control", "you", "", e.raw)
             if cat == "fight":
@@ -6761,6 +6907,23 @@ def extract_signals_ir(
                 add("token_doubling", "you", "", e.raw)
             if cat == "counter_doubling":
                 add("counter_doubling", "you", "", e.raw)
+                # counter_replace_bonus (ADR-0027) — is_widen_of counter_doubling,
+                # FULLY SUBSUMED by it: a counter-placement REPLACEMENT that
+                # INCREASES the count (Hardened Scales "that many plus one",
+                # Branching Evolution "twice that many", Conclave / Winding
+                # Constrictor "plus one") is exactly phase's counter_doubling
+                # category (project: event=='addcounter' + qmod in _INCREASE_MODS).
+                # A counter-REDUCING replacement is excluded by the increase gate,
+                # so neither lane over-fires. Co-fires (a doubler is both lanes).
+                add("counter_replace_bonus", "you", "", e.raw)
+            # counter_replace_bonus tail (ADR-0027) — a TEMPORARY activated
+            # replacement ("until end of turn, if you would put … put that many plus
+            # one instead" — Prairie Dog) phase types as place_counter(kind='plus')
+            # rather than a static counter_doubling, since it is not a permanent
+            # replacement. The 'plus' kind is exact (1 card corpus-wide), so it
+            # recovers the tail with zero over-fire. CR 614 (replacement effects).
+            if cat == "place_counter" and e.counter_kind == "plus":
+                add("counter_replace_bonus", "you", "", e.raw)
             if cat == "damage_doubling":  # Batch 10 — DamageDone replacement doubler
                 add("damage_doubling", "you", "", e.raw)
             # hand_disruption only when an OPPONENT reveals (a self-reveal — "reveal
@@ -6980,6 +7143,28 @@ def extract_signals_ir(
             if payoff is not None:
                 key, fixed_scope = payoff
                 add(key, fixed_scope or _ir_scope(trig.scope), "", "")
+            # counter_place_trigger (ADR-0027) — is_widen_of counters_matter, but a
+            # DISTINCT lane: a "whenever one or more counters are put on …" TRIGGER
+            # (Shalai and Hallar, Generous Pup, Scurry Oak, Flourishing Defenses,
+            # Nest of Scarabs). phase types these as event=='counter_added'. The
+            # _PAYOFF_TRIGGER_KEYS row above co-opens counters_matter; this opens the
+            # place-trigger lane too (both correct). Gate scope!='opp' so an opponent-
+            # side punisher ("counters on a creature you DON'T control" — Kros,
+            # Generous Patron, scope='opp') does not open a YOUR-counters build-around.
+            # EXCLUDE Sagas / lore-counter cards: phase types a Saga CHAPTER trigger
+            # ("add a lore counter", CR 714.2) as the SAME counter_added(scope='you',
+            # subj=None) event a legit +1/+1 payoff (Scurry Oak, Generous Pup) carries
+            # — 202 Sagas would over-fire otherwise. The Saga supertype / lore-counter
+            # reminder is the only discriminator (the trigger carries no kind). NOTE:
+            # the TRIGGER form — distinct from the place_counter EFFECT doers
+            # (counter_distribute / self_counter_grow); Cathars' Crusade / Experiment
+            # Twelve (an effect that PLACES counters) must NOT fire here.
+            if (
+                trig.event == "counter_added"
+                and trig.scope != "opp"
+                and not _is_lore_counter_card
+            ):
+                add("counter_place_trigger", "you", "", "")
             # Batch 1 — cycling_matters: a "whenever you cycle a card" payoff (valid
             # card null → scope "any"), NOT a SelfRef "when you cycle THIS" bonus
             # (scope "you" — having cycling ≠ a cycling-theme payoff).
@@ -8122,6 +8307,47 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "conditional_self_protection",
         "control_exchange",
         "bounce_tempo",
+        # Group "tranche2-B (counters / O-Ring)" (ADR-0027) — four lanes, each fires
+        # from a STRUCTURAL IR arm (NONE in _IR_FLOOR_LANES; floor-mirror-dep == 0 by
+        # construction — extract_signals_ir reads no floor detector for any of them).
+        # Floor-disabled IR-vs-regex residual on the commander-legal corpus:
+        # counter_manipulation / counter_replace_bonus / exile_until_leaves A-B==0;
+        # counter_place_trigger A-B==6, all 100% adjudicated (opp-side scope, a
+        # CONFERRED trigger phase can't attribute — Danny Pink, Cursed Wombat — a
+        # turn-face-up place_counter EFFECT not a counter_added trigger — Experiment
+        # Twelve — and a lore-counter manipulation — Sigurd). Each key's oracle-regex
+        # SWEEP_DETECTORS producer is deleted; serve specs stay hand-registered.
+        # damage_to_opp_matters is DEFERRED (needs_projection — phase types the
+        # "deals damage to a player" trigger as scope='any' indistinguishable from a
+        # generic combat-damage connect trigger; widening to scope='any' floods 771
+        # over-fires, a genuine recall gap). See ADR-0027.
+        #   counter_manipulation ← (counter_move|remove_counter) Effect with
+        #                counter_kind in {p1p1,m1m1} (the +1/+1-vs-charge/oil
+        #                discriminator) + a kept word mirror for the remove-as-COST
+        #                tail (Walking Ballista, Quillspike — an Ability.cost phase
+        #                leaves in raw). The IR also catches Graft's counter MOVE the
+        #                narrow regex missed.
+        #   counter_place_trigger ← a counter_added TRIGGER (scope!='opp', non-Saga).
+        #                EXCLUDES Saga CHAPTERS (phase types the lore-counter chapter
+        #                trigger as the SAME counter_added(scope='you',subj=None) a
+        #                +1/+1 payoff carries — 202 Sagas would flood otherwise; the
+        #                Saga supertype / lore-counter reminder is the only
+        #                discriminator). is_widen_of counters_matter (co-fires).
+        #   counter_replace_bonus ← the counter_doubling replacement category (same
+        #                population as counter_doubling, is_widen_of it) + a
+        #                place_counter(kind='plus') tail for the temporary activated
+        #                form (Prairie Dog, 1 card, zero over-fire).
+        #   exile_until_leaves ← _is_exile_until_leaves: the inline "exile/blink …
+        #                until ~ leaves" raw phrase OR the two-ability linked-return
+        #                O-Ring shape (exile to:exile + a dies/leaves trigger whose
+        #                reanimate returns to:battlefield — Oblivion Ring, Fiend
+        #                Hunter the inline regex missed) + a Saga-chapter mirror
+        #                (Trial of a Time Lord collapses its per-effect raw to a
+        #                "Chapter N" stub, losing the phrase).
+        "counter_manipulation",
+        "counter_place_trigger",
+        "counter_replace_bonus",
+        "exile_until_leaves",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -213,12 +213,9 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         # so they were removed.
         "regex": "put a (?:bounty|stun) counter on target (?:creature|permanent) (?:an opponent controls|that opponent controls)|target creature an opponent controls[^.]*it has \\\"|creatures with [^.]*counters on them can't attack",
     },
-    {
-        "key": "counter_place_trigger",
-        "scope": "you",
-        "is_widen_of": "counters_matter",
-        "regex": "whenever (?:you put|.*put) (?:one or more )?\\+1/\\+1 counters? on|whenever one or more \\+1/\\+1 counters? (?:are|is) put on|whenever you put (?:a|one or more|two|\\d+) [^.]*counters? on|whenever (?:a|one or more) [^.]*counters? (?:is|are) put on",
-    },
+    # ADR-0027 tranche2-B: counter_place_trigger migrated to the Card IR — detected
+    # from the counter_added TRIGGER event (scope!='opp', Saga-excluded). SWEEP_LABELS
+    # keeps the label; the serve spec is re-homed in signal_specs.py.
     {
         "key": "counter_distribute",
         "scope": "you",
@@ -235,24 +232,19 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter",
     },
-    {
-        "key": "counter_replace_bonus",
-        "scope": "you",
-        "is_widen_of": "counter_doubling",
-        "regex": "that many plus (?:one|two|\\d+) [^.]*counters? are put|put that many plus|if (?:one or more )?\\+1/\\+1 counters? would be put on|one or more counters? would be (?:put|placed)[^.]*(?:that many plus|twice that many)",
-    },
+    # ADR-0027 tranche2-B: counter_replace_bonus migrated to the Card IR — detected
+    # from the counter_doubling replacement category (+ a place_counter(plus) tail).
+    # SWEEP_LABELS keeps the label; the serve spec is re-homed in signal_specs.py.
     # ADR-0027: counter_move migrated to the Card IR — detected structurally from
     # the MoveCounters effect (phase's `counter_move` effect category,
     # _DOER_EFFECT_KEYS). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps
     # the label, and the serve spec (which fanned out the counter-doubler package
     # via _sweep_spec_with_extras) is re-homed in signal_specs.py to a literal spec
     # reusing this regex, since the sweep row it read is gone.
-    {
-        "key": "counter_manipulation",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:remove|move) (?:a|one|any number of|x|\\d+) (?:\\+1/\\+1|-1/-1) counters?|(?:remove|move) (?:a|one|any number of|x|\\d+) [^.]{0,20}?(?:\\+1/\\+1|-1/-1) counters?",
-    },
+    # ADR-0027 tranche2-B: counter_manipulation migrated to the Card IR — detected
+    # from (counter_move|remove_counter) effects with counter_kind in {p1p1,m1m1} +
+    # a kept cost-clause word mirror (signals._IR_KEPT_DETECTORS). SWEEP_LABELS keeps
+    # the label; the serve spec is re-homed in signal_specs.py.
     {
         "key": "self_counter_grow",
         "scope": "you",
@@ -398,12 +390,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "whenever [^.]*becomes blocked|\\bwhenever \\w[^.]*\\bblocks\\b",
     },
-    {
-        "key": "exile_until_leaves",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "exile [^.]*until [^.]*leaves the battlefield",
-    },
+    # ADR-0027 tranche2-B: exile_until_leaves migrated to the Card IR — detected from
+    # signals._is_exile_until_leaves (inline raw phrase OR the two-ability linked-
+    # return O-Ring shape) + a kept Saga-chapter word mirror. SWEEP_LABELS keeps the
+    # label; the serve spec is re-homed in signal_specs.py.
     {
         "key": "damage_prevention",
         "scope": "you",
