@@ -3993,6 +3993,64 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 (q2-D3). flash_matters ← the GRANT half is the cast_with_keyword{flash}
+    # static (the same node flash_grant reads). Leyline of Anticipation.
+    "flash_matters": (
+        {
+            "name": "Leyline of Anticipation",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "If this card is in your opening hand, you may begin the game with "
+                "it on the battlefield.\nYou may cast spells as though they had "
+                "flash."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cast_with_keyword",
+                        counter_kind="flash",
+                        scope="you",
+                        raw="You may cast spells as though they had flash.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # ADR-0027 (q2-D3). noncreature_cast_punish ← the OPPONENT-punisher half is a
+    # cast_spell trigger scope=='opp' over a NotType:Creature subject. Kambal.
+    "noncreature_cast_punish": (
+        {
+            "name": "Kambal, Consul of Allocation",
+            "type_line": "Legendary Creature — Human Advisor",
+            "oracle_text": (
+                "Whenever an opponent casts a noncreature spell, that player loses "
+                "2 life and you gain 2 life."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="cast_spell",
+                    scope="opp",
+                    subject=Filter(
+                        card_types=("Card",),
+                        predicates=("NotType:Creature",),
+                    ),
+                ),
+                effects=(
+                    Effect(
+                        category="lose_life",
+                        amount=Quantity(op="fixed", factor=2),
+                        raw="that player loses 2 life and you gain 2 life.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

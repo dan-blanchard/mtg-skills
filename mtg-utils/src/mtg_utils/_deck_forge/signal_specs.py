@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
+    NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
@@ -2330,6 +2331,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["target_player_draws"],
         {"oracle": TARGET_PLAYER_DRAWS_REGEX},
         TARGET_PLAYER_DRAWS_REGEX,
+    ),
+    # ADR-0027 (q2-D3): noncreature_cast_punish's SWEEP_DETECTORS row is deleted
+    # (detection moved to the Card IR — a cast_spell trigger scope=='opp' over a
+    # noncreature subject, plus a kept word mirror for the symmetric "a player casts"
+    # half). The SERVE pool stays oracle-defined, so hand-register the spec the sweep
+    # auto-register loop used to build, reusing the deleted regex so the serve pool
+    # never drifts. SWEEP_LABELS still carries the human label.
+    ("noncreature_cast_punish", "any"): _spec(
+        *SWEEP_LABELS["noncreature_cast_punish"],
+        {"oracle": NONCREATURE_CAST_PUNISH_REGEX},
+        NONCREATURE_CAST_PUNISH_REGEX,
     ),
     # ADR-0027 tranche2-batch-5 (t2b5-B): sacrifice_protection / secret_writedown had
     # their SWEEP_DETECTORS rows deleted (detection moved to the Card IR — kept_detector

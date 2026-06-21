@@ -34,6 +34,13 @@ TARGET_PLAYER_DRAWS_REGEX = "target player draws a card|target opponent draws"
 # (bounty/stun); the open `[a-z]+` that caught beneficial +1/+1 grants to opponents was
 # removed.
 OPPONENT_COUNTER_GRANT_REGEX = "put a (?:bounty|stun) counter on target (?:creature|permanent) (?:an opponent controls|that opponent controls)|target creature an opponent controls[^.]*it has \\\"|creatures with [^.]*counters on them can't attack"
+# ADR-0027 (q2-D3) — noncreature_cast_punish migrated to the Card IR. Its
+# SWEEP_DETECTORS row is deleted (the OPPONENT-punisher half binds structurally; the
+# symmetric "a player casts" half rides signals._IR_KEPT_DETECTORS). This mined regex
+# survives as a shared constant so signal_specs hand-registers the serve pool reusing
+# it, and signals reuses it for both the kept word mirror and the voltron PLAN mirror —
+# so serve / detector / silence never drift.
+NONCREATURE_CAST_PUNISH_REGEX = "whenever a player casts a noncreature spell|whenever an opponent casts a noncreature|whenever a player casts an (?:artifact|instant|sorcery)"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -208,12 +215,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # multiply quantity for P/T doubling, so the category + raw is the discriminator).
     # This SWEEP_DETECTORS row is deleted; the hand-spec serve in signal_specs reuses
     # the deleted regex.
-    {
-        "key": "noncreature_cast_punish",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "whenever a player casts a noncreature spell|whenever an opponent casts a noncreature|whenever a player casts an (?:artifact|instant|sorcery)",
-    },
+    # ADR-0027 (q2-D3): noncreature_cast_punish migrated to the Card IR — the
+    # OPPONENT-punisher half binds structurally (extract_signals_ir: a cast_spell
+    # trigger scope=='opp' over a noncreature subject — Kambal, Mystic Remora, Esper
+    # Sentinel). The SYMMETRIC "a player casts a noncreature spell" half (Niv-Mizzet
+    # Parun, Mirrorwing) collapses to scope=='any' (indistinguishable from prowess in
+    # phase v0.1.19), so it rides an _IR_KEPT_DETECTORS word mirror anchored on "a
+    # player"/"an opponent". This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the
+    # label and the serve spec stays hand-registered in signal_specs.py.
     {
         "key": "combat_buff_engine",
         "scope": "you",

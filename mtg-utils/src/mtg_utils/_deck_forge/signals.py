@@ -50,6 +50,7 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
+    NONCREATURE_CAST_PUNISH_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
@@ -2102,20 +2103,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _IR_KEPT_DETECTORS word mirror for the attacks-alone payoff triggers + "X have
     # exalted" grants phase leaves textual (CR 702.83). Moved floor->kept (floor-mirror-
     # dep -> 0); this _HAND_FLOOR producer is deleted; the serve spec stays.
-    # Flash (CR 702.8): flash-GRANTING enablers ("cast … spells … as though they had
-    # flash" — class grant, NOT the one-shot "as though IT had flash") + opponent-turn
-    # cast payoffs. spellslinger's serve is instant/sorcery + prowess/magecraft and
-    # excludes creatures, so it never surfaces a flash wantlist (creatures/granters).
-    (
-        "flash_matters",
-        re.compile(
-            r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash"
-            r"|whenever you cast (?:a |your first )?spells? "
-            r"during (?:an|each|any) opponent",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 (q2-D3): flash_matters migrated to the Card IR — the GRANT half binds
+    # structurally (extract_signals_ir: an Effect category=='cast_with_keyword' with
+    # counter_kind=='flash' — the same node flash_grant reads; Leyline of Anticipation,
+    # Vivien Champion of the Wilds, Teferi Mage of Zhalfir). phase folds the ACTIVATED
+    # flash-grant (Winding Canyons {2}{T}, Teferi Time Raveler +1) into grant_keyword
+    # with an EMPTY counter_kind, and leaves the opponent-turn cast payoff ("whenever
+    # you cast a spell during an opponent's turn") textual — so the FULL deleted regex
+    # is kept byte-identically as the _IR_KEPT_DETECTORS mirror to recover both forms.
+    # The structural arm is broader-and-correct (adds Teferi Mage of Zhalfir, whose
+    # "have flash" grant the regex's phrasing missed). This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered. CR 702.8.
     # ADR-0027: team_evasion_grant migrated to the Card IR — phase's grant_keyword on a
     # generic creatures-you-control subject (the structural team grant) + a kept word
     # mirror for the subtype/color-scoped grants ("Sliver creatures you control have
@@ -2778,6 +2776,20 @@ _T2B5_PLAN_MIRROR = re.compile(
     # target_redirect
     r"|becomes? the target of a spell or ability an opponent controls[^.]*draw",
     re.IGNORECASE,
+)
+# ADR-0027 (q2-D3) voltron reconciliation — the deleted noncreature_cast_punish SWEEP
+# regex producer fired high-confidence (scope='any') in the regex path and counted
+# toward has_other_plan, silencing the spurious commander-damage voltron tell on a
+# symmetric-cast creature body (Ink-Treader Nephilim, Heartwood Storyteller,
+# Mirrorwing Dragon — 3 cards verified to leak the tell post-deletion). The migrated IR
+# opp-arm is MORE precise (it covers only scope=='opp' opponent punishers, NOT these
+# symmetric "a player casts" bodies), so the IR re-supply does NOT reach the regex-path
+# gate — this mirror (the EXACT deleted SWEEP regex, read against the joined-face
+# `_oracle`) reproduces the silence byte-identically. (A mirror — not
+# _VOLTRON_SILENCING_PLAN_KEYS — because the IR is more precise and would under-cover
+# the symmetric cards via the silencing-keys path.) CR 603.2.
+_NONCREATURE_CAST_PUNISH_PLAN_MIRROR = re.compile(
+    NONCREATURE_CAST_PUNISH_REGEX, re.IGNORECASE
 )
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
@@ -3848,6 +3860,12 @@ def extract_signals(
         # regex (its high-confidence producer fed this gate; the more-precise IR drops
         # the bare-arm cards, so a mirror — not the silencing-keys set — is required).
         or _OPP_CAST_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 (q2-D3): re-silence the deleted noncreature_cast_punish SWEEP regex —
+        # its high-confidence producer fed this gate on symmetric "a player casts a
+        # noncreature spell" bodies (Ink-Treader Nephilim, Heartwood Storyteller,
+        # Mirrorwing Dragon). The migrated IR opp-arm is more precise and doesn't reach
+        # these, so the byte-identical mirror restores the silence. CR 603.2.
+        or _NONCREATURE_CAST_PUNISH_PLAN_MIRROR.search(_oracle)
         # ADR-0027 tranche2 batch-3: re-silence keyword_soup / land_creatures_matter
         # (deleted regex producers fed this gate; cross-branch composition exposed 2).
         or _TRANCHE2B3A_PLAN_MIRROR.search(_oracle)
@@ -4386,6 +4404,36 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
             re.IGNORECASE,
         ),
         "you",
+    ),
+    # ADR-0027 (q2-D3) — flash_matters: the GRANT half binds structurally in
+    # extract_signals_ir (cast_with_keyword{flash}); this mirror is the FULL deleted
+    # _HAND_FLOOR regex (both branches), recovering (a) the ACTIVATED flash-grant phase
+    # folds into grant_keyword with an EMPTY counter_kind (Winding Canyons {2}{T},
+    # Teferi Time Raveler +1) and (b) the opponent-turn cast payoff phase leaves textual
+    # ("whenever you cast a spell during an opponent's turn"). add() dedups the overlap
+    # with the structural arm. CR 702.8.
+    (
+        "flash_matters",
+        re.compile(
+            r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash"
+            r"|whenever you cast (?:a |your first )?spells? "
+            r"during (?:an|each|any) opponent",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ADR-0027 (q2-D3) — noncreature_cast_punish SYMMETRIC half: the opponent-punisher
+    # half binds structurally in extract_signals_ir (a cast_spell trigger scope=='opp'
+    # with a noncreature subject). This mirror is the SYMMETRIC "a player casts a
+    # noncreature spell" branch of the deleted SWEEP regex (Niv-Mizzet Parun,
+    # Mirrorwing Dragon, Eye of the Storm, Hive Mind) — phase collapses these to
+    # scope=='any', indistinguishable from prowess, so the regex (anchored on "a
+    # player"/"an opponent", which prowess "you cast" never matches) is the precise
+    # recall here. add() dedups with the opp structural arm. CR 603.2.
+    (
+        "noncreature_cast_punish",
+        re.compile(NONCREATURE_CAST_PUNISH_REGEX, re.IGNORECASE),
+        "any",
     ),
     # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
     # (rules-lawyer-verified: no card-property reference shape in the parse), moved
@@ -5614,6 +5662,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             # under-parses (Circu scope=='any'; Scrib Nibblers; granted clauses). The
             # deleted _HAND_FLOOR producer fired scope 'you'.
             "opp_top_exile",
+            # ADR-0027 (q2-D3) half-migrations: the GRANT half of flash_matters
+            # (cast_with_keyword{flash}) + the OPPONENT-punisher half of
+            # noncreature_cast_punish (cast_spell trig scope=='opp' + noncreature
+            # subject) bind structurally; the remaining halves ride _IR_KEPT mirrors.
+            "flash_matters",
+            "noncreature_cast_punish",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6382,6 +6436,15 @@ _TOKEN_SUBTYPE_KEYS: dict[str, tuple[str, str]] = {
     "food": ("food_matters", "you"),
     "blood": ("blood_matters", "you"),
 }
+
+
+# ADR-0027 (q2-D3) noncreature_cast_punish — the card-type set a "noncreature spell"
+# cast-trigger subject may carry (phase encodes "noncreature spell" either as the
+# NotType:Creature predicate or as the explicit type list "an artifact, instant, or
+# sorcery spell"). Creature must be ABSENT for the noncreature gate. CR 603.2.
+_NONCREATURE_SPELL_TYPES: frozenset[str] = frozenset(
+    {"Instant", "Sorcery", "Artifact", "Enchantment", "Planeswalker", "Battle"}
+)
 
 
 def _ftypes(f: object) -> frozenset[str]:
@@ -8094,8 +8157,14 @@ def extract_signals_ir(
                     add("venture_matters", "you", "", e.raw)
             # Batch 6 (flash_grant) — CastWithKeyword{Flash}: a flash ENABLER (cast
             # spells as though they had flash — Teferi, Yeva, Alchemist's Refuge).
+            # ADR-0027 (q2-D3): flash_matters rides the SAME node — the GRANT half of
+            # the lane is exactly this cast_with_keyword{flash} static (Leyline of
+            # Anticipation, Vivien). The opponent-turn cast payoff + the activated
+            # flash-grant (empty counter_kind) are recovered by the kept _IR_KEPT
+            # mirror. CR 702.8.
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
                 add("flash_grant", "you", "", e.raw)
+                add("flash_matters", "you", "", e.raw)
             # ADR-0027 — convoke_matters GRANTER: "<type> spells you cast have convoke"
             # (CR 702.51, Fallaji Wayfarer, Chief Engineer) carries counter_kind=
             # 'convoke' on the cast_with_keyword effect — a pure structured read. The
@@ -8608,12 +8677,28 @@ def extract_signals_ir(
                 # every spellcast trigger.
                 if any(_CONVOKE_RAW.search(e.raw or "") for e in ab.effects):
                     add("convoke_matters", "you", "", "")
-                # DEFERRED: noncreature_cast_punish. The NotType:Creature projection is
-                # accurate, but phase tags BOTH a prowess self-cast ("whenever you cast
-                # a noncreature spell") AND a symmetric/opponent punisher ("whenever a
-                # player casts a noncreature spell") as scope "any", so the lane can't
-                # be separated from spellcast_matters — firing it conflated 103 prowess
-                # cards (Kykar, Esper Sentinel). See deferrals.md.
+                # ADR-0027 (q2-D3) — noncreature_cast_punish OPPONENT-punisher half: a
+                # cast_spell trigger scope=='opp' over a NONCREATURE subject (Kambal,
+                # Mystic Remora, Esper Sentinel, Citanul Druid). The discriminator is
+                # the subject Filter — a NotType:Creature predicate OR card_types
+                # intersecting the noncreature set with Creature absent. Clean and
+                # migratable (verified 0 over-fire on scope=='opp'). The SYMMETRIC "a
+                # player casts a noncreature spell" half (Niv-Mizzet Parun, Mirrorwing)
+                # collapses to scope=='any' and is INDISTINGUISHABLE from prowess in
+                # phase v0.1.19, so it stays on the kept _IR_KEPT mirror (anchored on
+                # "a player"/"an opponent" prowess "you cast" never matches). CR 603.2.
+                if (
+                    trig.scope == "opp"
+                    and isinstance(trig.subject, Filter)
+                    and (
+                        "NotType:Creature" in trig.subject.predicates
+                        or (
+                            (set(trig.subject.card_types) & _NONCREATURE_SPELL_TYPES)
+                            and "Creature" not in trig.subject.card_types
+                        )
+                    )
+                ):
+                    add("noncreature_cast_punish", "any", "", "")
                 for sub in _kindred_subjects(trig.subject, vocab):
                     add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
                 # artifacts_matter / enchantments_matter cast-trigger DOER:
@@ -9978,6 +10063,25 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # mirror recovers the 6 residuals byte-identically; the structural arm adds 50
         # steal-and-cast cards the regex never reached). _HAND_FLOOR producer deleted.
         "opp_top_exile",
+        # ADR-0027 (q2-D3) — two half-migrations (clean IR arm + kept word mirror):
+        #   flash_matters ← the GRANT half binds via cast_with_keyword{flash} (the same
+        #     node flash_grant reads; Leyline, Vivien). The FULL deleted _HAND_FLOOR
+        #     regex is kept byte-identically as an _IR_KEPT mirror to recover the
+        #     ACTIVATED flash-grant (phase folds to grant_keyword with empty ck —
+        #     Winding Canyons, Teferi Time Raveler) + the opponent-turn cast payoff
+        #     (textual). Broader-and-correct (+1: Teferi Mage of Zhalfir). floor-mirror-
+        #     dep == 0 (not a floor lane). NO-FLOOD held (voltron 0 leaked). CR 702.8.
+        #   noncreature_cast_punish ← the OPPONENT-punisher half binds via a cast_spell
+        #     trigger scope=='opp' over a noncreature subject (NotType:Creature or a
+        #     noncreature card-type set; Kambal, Mystic Remora, Esper Sentinel — +13
+        #     genuine recall the regex missed, 0 over-fire on scope=='opp'). The
+        #     SYMMETRIC "a player casts a noncreature spell" half collapses to
+        #     scope=='any' (indistinguishable from prowess in phase v0.1.19), so its
+        #     deleted SWEEP branch rides an _IR_KEPT mirror anchored on "a player"/"an
+        #     opponent". floor-mirror-dep == 0. NO-FLOOD held (the _OPP_CAST / new
+        #     mirror re-supply keeps voltron byte-identical). CR 603.2.
+        "flash_matters",
+        "noncreature_cast_punish",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

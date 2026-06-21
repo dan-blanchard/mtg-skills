@@ -475,7 +475,12 @@ class TestFlashMatters:
     }
 
     def test_flash_enabler_commander_emits_and_served(self):
-        assert "flash_matters" in _keys(self.YEVA)
+        # ADR-0027 (q2-D3): flash_matters migrated to the IR — the GRANT half binds via
+        # cast_with_keyword{flash} + a kept word mirror for the activated / opponent-
+        # turn forms. Yeva's "cast … spells … as though they had flash" rides the kept
+        # mirror, so a bare IR fires it on the hybrid path.
+        assert "flash_matters" in _keys_hybrid(self.YEVA)
+        assert "flash_matters" not in _keys(self.YEVA)
         assert serves(self.YEVA, _sig("flash_matters", "you"))
 
     def test_flash_creature_served_but_not_spellslinger(self):
@@ -489,12 +494,15 @@ class TestFlashMatters:
         assert not serves(viper, _sig("spellcast_matters", "you"))
 
     def test_self_only_flash_grant_not_an_enabler_signal(self):
+        # ADR-0027 (q2-D3): a one-shot "as though IT had flash" (singular pronoun) is
+        # NOT a flash ENABLER — the kept mirror anchors on "as though THEY had flash"
+        # (the class grant), so it must not fire on Quicken via the hybrid path either.
         quicken = {
             "name": "Quicken",
             "type_line": "Instant",
             "oracle_text": "The next sorcery spell you cast this turn can be cast as though it had flash. (It can be cast any time you could cast an instant.)\nDraw a card.",
         }
-        assert "flash_matters" not in _keys(quicken)
+        assert "flash_matters" not in _keys_hybrid(quicken)
 
 
 class TestTeamEvasionGrant:
