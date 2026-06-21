@@ -317,9 +317,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "opponents",
     ),
-    # Vanilla matters (Ruxa, Muraganda Petroglyphs): a commander rewarding "creatures
-    # with no abilities" wants vanilla beaters.
-    ("vanilla_matters", _re(r"creatures? (?:card )?with no abilities"), "you"),
+    # ADR-0027: vanilla_matters migrated to the Card IR — the HasNoAbilities
+    # subject-Filter predicate (read in _predicate_build_around_lanes). The predicate
+    # is its own discriminator (a card merely BEING vanilla never carries it), so the
+    # IR drops the regex's lone incidental-mention over-fire (Rise from the Wreck — a
+    # multi-target Mount/Vehicle recursion spell that enumerates "creature card with
+    # no abilities" as one of four targets, not a vanilla build-around) and ADDS the
+    # "Creatures you control with no abilities" anthem the contiguous regex missed
+    # (Jasmine Boreal). This _DETECTORS producer is deleted; the serve spec
+    # (serve_vanilla=True) stays hand-registered in signal_specs.
     # Force-attack incentive (Kratos): "creatures that didn't attack this turn" punishes
     # not attacking — a goad/aggro commander that wants everyone swinging.
     ("forced_attack", _re(r"didn't attack this turn|that attacked this turn"), "you"),
@@ -2720,6 +2726,25 @@ _TRANCHE2B3A_PLAN_MIRROR = re.compile(
     r"|(?:it's|becomes?) a forest land",
     re.IGNORECASE,
 )
+# ADR-0027 tranche2-batch-4 (t2b4a-A) voltron reconciliation — the deleted
+# tribal_etb_multi / typed_enters_punish / vanilla_matters regex producers each fired
+# high-confidence (scope='you') and so counted toward has_other_plan, silencing the
+# spurious commander-damage voltron tell on a creature body (Goblin Assassin — "this or
+# another Goblin enters → each player flips a coin, sacrifices" — silenced by the
+# tribal_etb_multi regex). The producers are deleted and the broader IR re-supply
+# doesn't reach the regex-path gate, so this mirror (the OR of the THREE EXACT deleted
+# regexes, read against the joined-face `_oracle`) reproduces the silence byte-
+# identically. (A mirror — not _VOLTRON_SILENCING_PLAN_KEYS — because the IR is broader
+# than the narrow deleted regexes and would over-silence legit engine bodies via the
+# silencing-keys path.) CR 603 (ETB triggers) / 113.3 (vanilla).
+_TRANCHE2B4A_PLAN_MIRROR = re.compile(
+    r"whenever [^.]*or another [A-Z][a-z]+(?:, [A-Z][a-z]+)*,? "
+    r"(?:or [A-Z][a-z]+ )?enters"
+    r"|whenever another (?:outlaw|ally|\w+) you control enters, "
+    r"[^.]*deals \d+ damage to (?:target opponent|each opponent|any target)"
+    r"|creatures? (?:card )?with no abilities",
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3792,6 +3817,10 @@ def extract_signals(
         # ADR-0027 tranche2 batch-3: re-silence keyword_soup / land_creatures_matter
         # (deleted regex producers fed this gate; cross-branch composition exposed 2).
         or _TRANCHE2B3A_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-batch-4 (t2b4a-A): re-silence tribal_etb_multi /
+        # typed_enters_punish / vanilla_matters (deleted regex producers fed this gate;
+        # the broader IR re-supply doesn't reach it). Goblin Assassin leaked without it.
+        or _TRANCHE2B4A_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -5183,6 +5212,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             "self_blink",
             "tap_down_blockers",
             "type_change",
+            # ADR-0027 tranche2-batch-4 (t2b4a-A) — structural ETB / predicate arms:
+            #   tribal_etb_multi ← an etb trigger with a creature-subtype subject.
+            #   typed_enters_punish ← an etb trigger whose consequence burns opponents.
+            #   vanilla_matters ← the HasNoAbilities subject-Filter predicate.
+            "tribal_etb_multi",
+            "typed_enters_punish",
+            "vanilla_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5901,6 +5937,15 @@ _UNTAP_ENGINE_RAW = re.compile(
 )
 
 
+# typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
+# Purphoros / Witty Roastmaster's damage effect 'any' (the "each opponent" recipient
+# survives only in raw), so the lane reads the raw for an opponent recipient when the
+# structural scope / subject controller doesn't already mark it.
+_TYPED_ENTERS_OPP_RAW = re.compile(
+    r"each opponent|target opponent|your opponents|any target", re.IGNORECASE
+)
+
+
 # ADR-0027 power_double — the word-mirror discriminator. phase does NOT set
 # Quantity(op='multiply') for P/T DOUBLING (Unleash Fury / Mr. Orfeo / Unnatural
 # Growth all have amount=None on the pump), so a x2 power-double is category-
@@ -6092,6 +6137,15 @@ def _predicate_build_around_lanes(f: object) -> list[str]:
             and p.startswith(("PtComparison:Power:LE:", "PtComparison:Power:LT:"))
         ):
             out.append("low_power_matters")
+        # vanilla_matters (ADR-0027): the HasNoAbilities subject-Filter predicate —
+        # a payoff that pumps / triggers off creatures with no abilities (Ruxa,
+        # Muraganda Petroglyphs). The predicate is its own discriminator (a card
+        # merely BEING vanilla never carries it — it's a property of OTHER cards'
+        # Filters), so only true vanilla payoffs fire. Gate to controller in
+        # {'you','any'} (a shared-board static like Muraganda is 'any'); an
+        # opponent-side "destroy a creature with no abilities" stays out. CR 113.3.
+        elif p == "HasNoAbilities" and f.controller in ("you", "any"):
+            out.append("vanilla_matters")
     return out
 
 
@@ -6665,6 +6719,14 @@ def extract_signals_ir(
             # ── Batch E — effect-category lanes ──
             cat = e.category
             ftypes = _ftypes(e.subject)
+            # variable_pt is DEFERRED (ADR-0027 t2b4a-A, needs-projection): the
+            # candidate IR shapes (a `characteristic_pt` effect + a `board_count`
+            # effect anchored on "power and toughness … equal to") cover only ~83 of
+            # the lane; phase DROPS the "power and toughness equal to …" CDA clause
+            # entirely on ~154 genuine */* bodies (Nightmare, Pack Rat, Consuming
+            # Aberration, Serra Avatar, Cultivator Colossus), a deep supplement
+            # parse-gap. So the lane stays on its SWEEP_DETECTORS regex; no IR arm is
+            # wired here. CR 604.3.
             # ADR-0027 — self_pump: a firebreathing mana-sink — an ACTIVATED pump or
             # +1/+1-counter placement on the SELF ("{R}: ~ gets +1/+0" — Shivan Dragon;
             # "{4}: Put a +1/+1 counter on ~" — Walking Ballista, Crystalline Crawler).
@@ -7900,6 +7962,42 @@ def extract_signals_ir(
                     "",
                     "",
                 )
+            # tribal_etb_multi (ADR-0027): a tribal ETB-chain payoff — an `etb`
+            # trigger whose subject Filter names a CREATURE SUBTYPE ("whenever this or
+            # another Zombie you control enters" — Noxious Ghoul, Goblin Assassin,
+            # Fludge). The vocab-gated subtype is the discriminator vs a generic
+            # creature/permanent ETB (Serum Tank's Artifact subject, River Kelpie's
+            # "permanent from a graveyard" carry no creature subtype → excluded). The
+            # broad read (any tribal-ETB trigger) is the lane's intent — it surfaces
+            # every tribal-ETB chain, overlapping creature_etb + type_matters (which
+            # the trigger-subject _kindred_subjects pass already opens). CR 603.
+            if ev == "etb" and _kindred_subjects(trig.subject, vocab):
+                add("tribal_etb_multi", "you", "", "")
+            # typed_enters_punish (ADR-0027): a per-ability co-occurrence — an `etb`
+            # trigger on a YOUR-controlled creature/typed-thing ("another <X> you
+            # control enters") whose consequence BURNS the opponents (Purphoros, Witty
+            # Roastmaster, Vial Smasher). The discriminator vs plain creature_etb
+            # (ETB-value) is the damage-to-OPPONENT payoff: a damage Effect whose
+            # recipient is an opponent — subject Filter controller=='opp' (Vial
+            # Smasher), scope in ('opp','each'), OR raw naming "each/target/your
+            # opponent(s)" / "any target" (Purphoros / Witty — phase scopes the effect
+            # 'any' but the raw says "each opponent"). NOT subtype-gated — the lane is
+            # "another creature/typed-thing enters → burn", the damage payoff IS the
+            # tell. CR 603.
+            if (
+                ev == "etb"
+                and _filter_controller(trig.subject) == "you"
+                and any(
+                    e.category == "damage"
+                    and (
+                        _filter_controller(e.subject) == "opp"
+                        or e.scope in ("opp", "each")
+                        or _TYPED_ENTERS_OPP_RAW.search(e.raw or "")
+                    )
+                    for e in ab.effects
+                )
+            ):
+                add("typed_enters_punish", "you", "", "")
             # permanent_etb (ADR-0027): the GENERIC permanent-ETB value engine —
             # "whenever a/another permanent you control enters" (Amareth, Cloudstone
             # Curio, Kodama of the East Tree, Yoshimaru, Builder's Talent). The
@@ -9204,6 +9302,53 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "self_blink",
         "tap_down_blockers",
         "type_change",
+        # ADR-0027 tranche2-batch-4 (t2b4a-A) — 3 of 5 keys migrated; each fires from a
+        # STRUCTURAL IR arm (NONE in _IR_FLOOR_LANES; floor-mirror-dep == 0 by
+        # construction — extract_signals_ir reads no floor detector for any of them, and
+        # the floor-ON firing set is byte-identical to the floor-OFF one). NO-FLOOD held
+        # via the file-swap baseline (only the target keys' counts moved; voltron
+        # membership unchanged — none of the 3 fed has_other_plan). Each migrated key's
+        # oracle-regex producer is deleted; serve specs stay hand-registered.
+        #   tribal_etb_multi ← an `etb` Trigger whose subject Filter names a creature
+        #     SUBTYPE (vocab-gated _kindred_subjects — "this or another <Tribe> you
+        #     control enters"). The broad structural read is the lane's intent (every
+        #     tribal-ETB chain — Miirym, Lathliss, Righteous Valkyrie, Hada Freeblade),
+        #     far wider than the artificially-narrow multi-tribe self-inclusion regex.
+        #     The vocab gate drops the deleted regex's non-tribal over-fires (Serum
+        #     Tank's Artifact ETB, River Kelpie / Flayer's graveyard-permanent ETB — no
+        #     creature subtype). regex-only residual 3, 100% over-fire. CR 603.
+        #   typed_enters_punish ← an `etb` Trigger on a YOUR-controlled creature/typed-
+        #     thing whose consequence is a `damage` Effect with an OPPONENT recipient
+        #     (subject controller=='opp', scope in opp/each, OR an "each/target
+        #     opponent" / "any target" raw — _TYPED_ENTERS_OPP_RAW recovers Purphoros
+        #     / Witty Roastmaster, whose damage phase scopes 'any'). The damage-to-
+        #     opponent payoff is the discriminator vs plain creature_etb value.
+        #     regex-only residual 0; ir_only is broader-and-correct recall (Dread
+        #     Presence, Terror of the Peaks, Impact Tremors, landfall burn). CR 603.
+        #   vanilla_matters ← the HasNoAbilities subject-Filter predicate (read in
+        #     _predicate_build_around_lanes, gate controller in {'you','any'}). The
+        #     predicate is its own discriminator (a card merely BEING vanilla never
+        #     carries it). The IR drops the regex's lone over-fire (Rise from the Wreck,
+        #     a multi-target Mount/Vehicle recursion spell enumerating "creature card
+        #     with no abilities" — incidental mention, not a vanilla build-around) and
+        #     ADDS the "Creatures you control with no abilities" anthem the contiguous
+        #     regex missed (Jasmine Boreal). regex-only residual 1, over-fire. CR 113.3.
+        # DEFERRED (needs-projection — genuine recall gap, NOT clean over-fire):
+        #   untap_engine ← the IR arm (already wired) misses 11 genuine untap engines
+        #     the regex catches (modal "tap or untap target" — Captain of the Mists,
+        #     Tideforce Elemental; "tap-all OR untap-all" choose — Turnabout, Faces of
+        #     the Past; mass-untap-of-own-board — All-Out Assault, Ohabi Caleria; the
+        #     creatures-are-lands synergy — Ashaya). phase routes their untap text into
+        #     `choose` / `bounce` / cost / SelfRef shapes, not a `cat=='untap'` effect.
+        #     Its two _HAND_FLOOR producers stay on the regex path.
+        #   variable_pt ← the IR arm misses ~154 genuine */* CDAs (Nightmare, Pack Rat,
+        #     Consuming Aberration, Serra Avatar, Cultivator Colossus): phase DROPS the
+        #     "power and toughness equal to …" clause entirely on most CDA bodies (the
+        #     IR carries only the keyword/other abilities). A deep supplement parse-gap,
+        #     not an over-fire migration. Its SWEEP_DETECTORS row stays on regex.
+        "tribal_etb_multi",
+        "typed_enters_punish",
+        "vanilla_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

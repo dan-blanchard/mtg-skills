@@ -776,13 +776,37 @@ def test_class_type_commander_does_not_open_class_tribe():
 
 
 def test_vanilla_matters_opens_for_no_abilities_commander():
-    # Ruxa: "return target creature card with no abilities" — a vanilla-matters payoff.
+    # ADR-0027: vanilla_matters migrated to the Card IR (the HasNoAbilities subject-
+    # Filter predicate). Ruxa pumps "creatures you control with no abilities" — phase
+    # carries the predicate on the pump effect's subject Filter, so the hybrid (IR)
+    # path opens the lane; the regex producer is deleted.
     ruxa = {
         "name": "Ruxa, Patient Professor",
         "type_line": "Legendary Creature — Bear Druid",
         "oracle_text": "Whenever Ruxa enters or attacks, return target creature card with no abilities from your graveyard to your hand.\nCreatures you control with no abilities get +1/+1.\nFor each creature you control with no abilities, you may have that creature assign its combat damage as though it weren't blocked.",
     }
-    assert ("vanilla_matters", "you") in _keys(ruxa)
+    ruxa_ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        controller="you",
+                        predicates=("HasNoAbilities",),
+                    ),
+                    raw="Creatures you control with no abilities get +1/+1.",
+                ),
+            ),
+        )
+    )
+    assert ("vanilla_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(ruxa, ruxa_ir)
+    }
+    # The legacy regex path no longer emits the migrated key.
+    assert ("vanilla_matters", "you") not in _keys(ruxa)
 
 
 # ── Toughness payoffs beyond "assigns combat damage equal to toughness" (Geralf) ──

@@ -1406,6 +1406,19 @@ _COUNT_ANTHEM_SWEEP_REGEX = (
     r"(?:creatures you control get|each creature you control gets) "
     r"[+]\d+/[+]\d+ for each"
 )
+# ADR-0027: the SWEEP_DETECTORS rows for tribal_etb_multi / typed_enters_punish are
+# deleted (detection moved to the Card IR — an etb trigger with a creature-subtype
+# subject / an etb trigger whose consequence burns the opponents). Their SERVE pools
+# stay oracle-defined, so the regexes are pinned here verbatim and hand-registered
+# below (the sweep auto-register loop no longer builds them).
+_TRIBAL_ETB_MULTI_SWEEP_REGEX = (
+    r"whenever [^.]*or another [A-Z][a-z]+(?:, [A-Z][a-z]+)*,? "
+    r"(?:or [A-Z][a-z]+ )?enters"
+)
+_TYPED_ENTERS_PUNISH_SWEEP_REGEX = (
+    r"whenever another (?:outlaw|ally|\w+) you control enters, "
+    r"[^.]*deals \d+ damage to (?:target opponent|each opponent|any target)"
+)
 # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than your hand"
 # payoffs (Vega, Iraxxa, Keeper of Secrets). Shared by cast_from_exile AND
 # impulse_top_play: an impulse deck casts its exiled cards, which IS "from anywhere
@@ -2453,6 +2466,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["count_anthem"],
         {"oracle": _COUNT_ANTHEM_SWEEP_REGEX},
         _COUNT_ANTHEM_SWEEP_REGEX,
+    ),
+    # ADR-0027: tribal_etb_multi migrated to the Card IR — its SWEEP_DETECTORS row is
+    # deleted (detection moved to an etb trigger with a creature-subtype subject), so
+    # hand-register the spec the sweep loop used to build, reusing the deleted regex as
+    # both search and serve.
+    ("tribal_etb_multi", "you"): _spec(
+        *SWEEP_LABELS["tribal_etb_multi"],
+        {"oracle": _TRIBAL_ETB_MULTI_SWEEP_REGEX},
+        _TRIBAL_ETB_MULTI_SWEEP_REGEX,
+    ),
+    # ADR-0027: typed_enters_punish migrated to the Card IR — its SWEEP_DETECTORS row
+    # is deleted (detection moved to an etb trigger whose consequence burns the
+    # opponents), so hand-register the spec the sweep loop used to build, reusing the
+    # deleted regex.
+    ("typed_enters_punish", "you"): _spec(
+        *SWEEP_LABELS["typed_enters_punish"],
+        {"oracle": _TYPED_ENTERS_PUNISH_SWEEP_REGEX},
+        _TYPED_ENTERS_PUNISH_SWEEP_REGEX,
     ),
     # Force-attack / goad commander (Kratos) wants extra combats to swing again.
     ("forced_attack", "you"): _sweep_spec_with_extras(

@@ -646,18 +646,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "may attack only the nearest opponent|attacks? that player this combat if able|attacks? (?:each|every) combat if able",
     },
-    {
-        "key": "tribal_etb_multi",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "whenever [^.]*or another [A-Z][a-z]+(?:, [A-Z][a-z]+)*,? (?:or [A-Z][a-z]+ )?enters",
-    },
-    {
-        "key": "typed_enters_punish",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "whenever another (?:outlaw|ally|\\w+) you control enters, [^.]*deals \\d+ damage to (?:target opponent|each opponent|any target)",
-    },
+    # ADR-0027: tribal_etb_multi + typed_enters_punish migrated to the Card IR (their
+    # SWEEP_DETECTORS rows deleted). tribal_etb_multi detects an `etb` trigger whose
+    # subject Filter names a creature subtype (vocab-gated _kindred_subjects); the
+    # broad structural read is the lane's intent (every tribal-ETB chain), far wider
+    # than the artificially-narrow "this or another <Tribe>" multi-tribe regex.
+    # typed_enters_punish detects an `etb` trigger on a YOUR creature/typed-thing whose
+    # consequence is a damage Effect with an opponent recipient (the burn payoff).
+    # Their serve pools stay oracle-defined — the deleted regexes are pinned in
+    # signal_specs.py and the specs hand-registered (the auto-sweep loop no longer
+    # builds them). SWEEP_LABELS keeps each human label.
     {
         "key": "topdeck_stack",
         "scope": "you",

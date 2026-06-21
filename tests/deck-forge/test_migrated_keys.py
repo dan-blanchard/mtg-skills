@@ -3515,6 +3515,96 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 tranche2-batch-4 (t2b4a-A) structural ETB / predicate arms.
+    # tribal_etb_multi ← an `etb` Trigger whose subject Filter names a creature
+    # SUBTYPE (vocab-gated _kindred_subjects). Goblin Assassin: a Goblin-ETB chain.
+    "tribal_etb_multi": (
+        {
+            "name": "Goblin Assassin",
+            "type_line": "Creature — Goblin Assassin",
+            "oracle_text": (
+                "Whenever this creature or another Goblin enters, each player flips "
+                "a coin. Each player whose coin comes up tails sacrifices a creature "
+                "of their choice."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="etb",
+                    subject=Filter(subtypes=("Goblin",), controller="you"),
+                ),
+            )
+        ),
+    ),
+    # typed_enters_punish ← an `etb` Trigger on a YOUR creature/typed-thing whose
+    # consequence is a `damage` Effect with an OPPONENT recipient. Purphoros: phase
+    # scopes the damage 'any', the "each opponent" recipient survives in raw.
+    "typed_enters_punish": (
+        {
+            "name": "Purphoros, God of the Forge",
+            "type_line": "Legendary Enchantment Creature — God",
+            "oracle_text": (
+                "As long as your devotion to red is less than five, Purphoros isn't "
+                "a creature.\nWhenever another creature you control enters, Purphoros "
+                "deals 2 damage to each opponent.\n{2}{R}: Creatures you control get "
+                "+1/+0 until end of turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="etb",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        controller="you",
+                        predicates=("Another",),
+                    ),
+                ),
+                effects=(
+                    Effect(
+                        category="damage",
+                        scope="any",
+                        amount=Quantity(op="fixed", factor=2),
+                        raw="~ deals 2 damage to each opponent.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # vanilla_matters ← the HasNoAbilities subject-Filter predicate (read in
+    # _predicate_build_around_lanes). Muraganda Petroglyphs: a shared-board anthem
+    # over creatures with no abilities (controller 'any').
+    "vanilla_matters": (
+        {
+            "name": "Muraganda Petroglyphs",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creatures with no abilities get +2/+2. (A creature has no "
+                "abilities if it has no keywords or printed rules text and no "
+                "abilities have been granted to it.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="any",
+                            predicates=("HasNoAbilities",),
+                        ),
+                        raw="Creatures with no abilities get +2/+2.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
