@@ -25,6 +25,8 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    CREATURE_PING_REGEX,
+    DAMAGE_EQUAL_POWER_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
@@ -3087,6 +3089,19 @@ _EDICT_PLAN_MIRROR = re.compile(
     r"|that player sacrifices|controller sacrifices",
     re.IGNORECASE,
 )
+# ADR-0027 β — creature_ping + damage_equal_power voltron PLAN mirrors. Both deleted
+# SWEEP producers fired high-confidence (forced scope 'you'), non-generic / non-voltron-
+# compat, so they counted toward has_other_plan, silencing the spurious commander-damage
+# voltron membership tell on a power-as-damage body that is NOT a vanilla beater
+# (Spikeshot Goblin, Vein Drinker, Leafkin Avenger). The migrated IR arms are BROADER
+# than the deleted regexes (creature_ping +84, damage_equal_power +17), so re-supplying
+# via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence (an extra power-as-damage beater
+# the IR newly opens that IS a vanilla voltron threat). These byte-identical mirrors of
+# the EXACT deleted regexes restore ONLY the old regex's silence set. Their `[^.]`-
+# bounded arms never cross a sentence, so full-text over _oracle == per-clause (matching
+# the deleted floor-detector path; verified diff=0 on the FILE-SWAP voltron diff).
+_CREATURE_PING_PLAN_MIRROR = re.compile(CREATURE_PING_REGEX, re.IGNORECASE)
+_DAMAGE_EQUAL_POWER_PLAN_MIRROR = re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE)
 
 
 # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
@@ -3937,6 +3952,16 @@ def extract_signals(
         # regex's silence set. Full-text over _oracle == per-clause (arms never cross a
         # sentence; reminder text adds no edict match — both verified diff=0).
         or _EDICT_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted creature_ping / damage_equal_power SWEEP
+        # producers. Both fired high-confidence scope 'you' and counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on a
+        # power-as-damage body (Spikeshot Goblin, Vein Drinker, Leafkin Avenger). The
+        # migrated IR arms are BROADER, so _VOLTRON_SILENCING_PLAN_KEYS would over-
+        # silence; these byte-identical mirrors (the EXACT deleted regexes) restore only
+        # the old regex's silence set. Full-text over _oracle == per-clause (`[^.]`-
+        # bounded arms). CR 119.3 / 120.6.
+        or _CREATURE_PING_PLAN_MIRROR.search(_oracle)
+        or _DAMAGE_EQUAL_POWER_PLAN_MIRROR.search(_oracle)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

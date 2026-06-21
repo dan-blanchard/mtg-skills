@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
+    CREATURE_PING_REGEX,
+    DAMAGE_EQUAL_POWER_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
@@ -2682,8 +2684,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ("variable_pt", "you"): _sweep_spec_with_extras(
         "variable_pt", (_POWER_FLING_EXTRA,)
     ),
+    # ADR-0027 β: creature_ping migrated to the Card IR (SWEEP row deleted); the serve
+    # keeps the deleted regex via the pinned CREATURE_PING_REGEX constant.
     ("creature_ping", "you"): _sweep_spec_with_extras(
-        "creature_ping", (_DEATHTOUCH_GEAR_EXTRA,), serve_power_min=5
+        "creature_ping",
+        (_DEATHTOUCH_GEAR_EXTRA,),
+        serve_power_min=5,
+        regex=CREATURE_PING_REGEX,
     ),
     # Extra upkeep STEPS (Obeka, The Ninth Doctor): each added upkeep step is another
     # instance every "at the beginning of your/each upkeep" ability triggers in (CR
@@ -2722,10 +2729,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Power-as-damage / fling commander (Brion Stoutarm) wants big bodies as fling
     # fodder (power_min) plus the power-fling payoffs and deathtouch gear.
+    # ADR-0027 β: damage_equal_power migrated to the Card IR (SWEEP row deleted); the
+    # serve keeps the deleted regex via the pinned DAMAGE_EQUAL_POWER_REGEX constant.
     ("damage_equal_power", "you"): _sweep_spec_with_extras(
         "damage_equal_power",
         (_DEATHTOUCH_GEAR_EXTRA, _POWER_FLING_EXTRA),
         serve_power_min=6,
+        regex=DAMAGE_EQUAL_POWER_REGEX,
     ),
     # Repeatable "deals N damage to each creature" board pinger (Tibor, Pestilence,
     # Pyrohemia): deathtouch on the source makes each ping lethal (CR 702.2b) -- a

@@ -51,6 +51,18 @@ NONCREATURE_CAST_PUNISH_REGEX = "whenever a player casts a noncreature spell|whe
 # reuses it for the kept mirror and signal_specs hand-registers the serve reusing it —
 # so serve / mirror never drift. SWEEP_LABELS still carries the human label.
 TRIBE_DAMAGE_TRIGGER_REGEX = "whenever (?:one or more|a|another) [A-Z][a-z]+s? you control deal[s]? (?:combat )?damage to (?:a player|an opponent|one of your opponents|each opponent)"
+# ADR-0027 β — the power-as-damage cluster (creature_ping + damage_equal_power)
+# migrated to the Card IR. Both SWEEP_DETECTORS rows are deleted: every power-scaling
+# damage card now carries a cat=="damage" Effect with amount.op=="power" (the d6620ac
+# projection unlock), so each key fires from a STRUCTURAL recipient/doer arm in
+# extract_signals_ir PLUS a byte-identical _IR_KEPT_DETECTORS mirror of its exact
+# deleted regex (the mirror recovers the projection-gap tail phase can't reach). These
+# mined regexes survive as shared constants so signals reuses each for BOTH the kept
+# word mirror and the voltron PLAN mirror, and signal_specs hand-registers the serve
+# pool reusing it — so serve / detector / silence never drift. SWEEP_LABELS still
+# carries the human label rows.
+CREATURE_PING_REGEX = "(?:target |another target )?[A-Z][a-z]+ you control deals damage equal to its power to|deals damage equal to its power to (?:another )?target|deals damage to itself equal to its power|target creature deals damage [^.]*equal to its power"
+DAMAGE_EQUAL_POWER_REGEX = "deals? damage[^.]*equal to (?:its|that creature.s|[^.]*) power[^.]*to (?:any target|target|each opponent|that player|target player)"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -208,18 +220,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "(?:target |each )?(?:noncreature )?artifact(?:s)? (?:you control )?(?:becomes?|are|become) (?:an? )?(?:artifact )?creature|becomes? an artifact creature|(?:artifact or land|target artifact|noncreature artifact|artifact you control)[^.]*becomes? a[^.]*creature",
     },
-    {
-        "key": "creature_ping",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:target |another target )?[A-Z][a-z]+ you control deals damage equal to its power to|deals damage equal to its power to (?:another )?target|deals damage to itself equal to its power|target creature deals damage [^.]*equal to its power",
-    },
-    {
-        "key": "damage_equal_power",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "deals? damage[^.]*equal to (?:its|that creature.s|[^.]*) power[^.]*to (?:any target|target|each opponent|that player|target player)",
-    },
+    # ADR-0027 β: creature_ping + damage_equal_power (the power-as-damage cluster)
+    # migrated to the Card IR. Both SWEEP rows are deleted — each key fires from a
+    # STRUCTURAL recipient/doer arm in extract_signals_ir (the op="power" damage anchor)
+    # PLUS a byte-identical _IR_KEPT_DETECTORS mirror of its exact deleted regex
+    # (CREATURE_PING_REGEX / DAMAGE_EQUAL_POWER_REGEX, pinned above). SWEEP_LABELS keeps
+    # both human label rows; the serve specs are hand-registered in signal_specs reusing
+    # the pinned constants.
     # ADR-0027: power_double migrated to the Card IR — a pump/pump_target Effect whose
     # raw carries the "double … power" / "power … doubled" word-mirror (phase sets no
     # multiply quantity for P/T doubling, so the category + raw is the discriminator).

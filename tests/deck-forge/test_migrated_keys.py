@@ -4178,6 +4178,87 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 β power-as-damage cluster. The damage Effect carries the op="power"
+    # anchor (the d6620ac projection unlock). Soul's Fire = a creature_ping: a
+    # SEPARATE target_only Effect names the you-controller Creature DOER, so the arm
+    # fires creature_ping (it ALSO fires damage_equal_power via the "to any target"
+    # player-reach raw — matching the deleted regexes' overlap — but the assert only
+    # checks creature_ping is served).
+    "creature_ping": (
+        {
+            "name": "Soul's Fire",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Target creature you control deals damage equal to its power to "
+                "any target."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="target_only",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw=(
+                            "Target creature you control deals damage equal to "
+                            "its power to any target."
+                        ),
+                    ),
+                    Effect(
+                        category="damage",
+                        amount=Quantity(op="power"),
+                        raw=(
+                            "Target creature you control deals damage equal to "
+                            "its power to any target."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    # Fling = a damage_equal_power: the op="power" damage reaches "any target" (a
+    # player), and there is NO you-controller Creature DOER sibling — the source is
+    # the spell / sacrificed creature ("the sacrificed creature's power"), so the
+    # creature_ping doer test fails (the raw names a DIFFERENT object's power, not
+    # "its power"). The additional-cost sacrifice is a separate static Effect.
+    "damage_equal_power": (
+        {
+            "name": "Fling",
+            "type_line": "Instant",
+            "oracle_text": (
+                "As an additional cost to cast this spell, sacrifice a "
+                "creature.\nFling deals damage equal to the sacrificed "
+                "creature's power to any target."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="damage",
+                        amount=Quantity(op="power"),
+                        raw=(
+                            "~ deals damage equal to the sacrificed creature's "
+                            "power to any target."
+                        ),
+                    ),
+                ),
+            ),
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="additional cost: sacrifice a permanent",
+                    ),
+                ),
+            ),
+        ),
+    ),
 }
 
 

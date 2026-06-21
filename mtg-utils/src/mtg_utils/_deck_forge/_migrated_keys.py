@@ -1263,6 +1263,48 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # CR 704.5j / 117.1a.
         "legend_rule_off",
         "timing_control",
+        # ADR-0027 β — power-as-damage cluster (creature_ping + damage_equal_power).
+        # The projection unlock (d6620ac: op="power" recovery in project._quantity)
+        # made the power-scaling damage effect a STRUCTURAL anchor: every power-as-
+        # damage card now carries a cat=="damage" Effect with amount.op=="power".
+        # Each key fires from a STRUCTURAL arm in extract_signals_ir PLUS a byte-
+        # identical _IR_KEPT_DETECTORS mirror of its EXACT deleted SWEEP regex (the
+        # mirror reproduces the regex firing set byte-identically over the commander-
+        # legal corpus — regex_only == 0 for both — recovering the projection-gap tail
+        # phase can't reach: emblem-quoted grants, dungeon-room rows, "Chapter 3" /
+        # empty-raw effects, cards with no op="power" projected at all). The structural
+        # arm adds genuine recall the narrow regexes missed (creature_ping +84,
+        # damage_equal_power +17 — all verified vs Scryfall oracle text as real power-
+        # as-damage cards). floor-mirror-dep == 0 for both (the structural arm + the
+        # unconditional _IR_KEPT_DETECTORS mirror never read _IR_FLOOR_LANES).
+        #
+        # The empirical Effect.subject↔recipient mapping (verified on Fling / Soul's
+        # Fire / Rabid Bite and 250 power-damage effect rows): the damage Effect's
+        # subject IS the RECIPIENT — a Creature Filter for a creature recipient (Rabid
+        # Bite: c=opp), None for "any target" / a player (Fling, Soul's Fire). The DOER
+        # ("target creature you control deals …") is a SEPARATE target_only Effect with
+        # a you-controller Creature subject. The structural split:
+        #   creature_ping ← a creature is the doer of ITS OWN power: recipient is a
+        #     creature (subject has 'Creature'), OR a self-ping ("to itself"), OR a
+        #     creature-doer sibling target_only/fight, OR raw "<actor> deals damage
+        #     equal to its power" (its OWN power, NOT a fling source's). Soul's Fire
+        #     (your creature → any target) fires BOTH keys, matching the regex overlap.
+        #   damage_equal_power ← the recipient reaches a PLAYER / any target (subject is
+        #     a Player Filter, OR raw player-reach: "to any target", "to (target)
+        #     player", "to each opponent", "to its controller", "to you", "any other
+        #     target", "player or planeswalker"). Fling-style sac-to-power ("the
+        #     sacrificed creature's power to any target") fires this, NOT creature_ping
+        #     (the spell/sacrificed creature is the source, not a controlled-creature
+        #     doer).
+        # Each deleted SWEEP producer fired high-confidence scope 'you' and counted
+        # toward has_other_plan, so a byte-identical PLAN_MIRROR re-supplies it (the
+        # structural arms are broader than the regex, so _VOLTRON_SILENCING_PLAN_KEYS
+        # would over-silence — a mirror restores only the old regex's silence set;
+        # NO-FLOOD: voltron 0 leaked on the FILE-SWAP). The two SWEEP_DETECTORS rows are
+        # deleted (SWEEP_LABELS kept); the serve specs survive via pinned regex
+        # constants in signal_specs. CR 119.3 / 120.6.
+        "creature_ping",
+        "damage_equal_power",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

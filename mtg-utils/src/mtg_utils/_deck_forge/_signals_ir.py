@@ -42,6 +42,8 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    CREATURE_PING_REGEX,
+    DAMAGE_EQUAL_POWER_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
@@ -1259,6 +1261,27 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
             re.IGNORECASE,
         ),
         "any",
+    ),
+    # ADR-0027 β — creature_ping + damage_equal_power kept mirrors. The structural
+    # recipient/doer arm in extract_signals_ir (the op="power" damage anchor) is the
+    # broader-and-correct producer; these byte-identical mirrors of the EXACT deleted
+    # SWEEP regexes recover the projection-gap tail phase can't reach (emblem-quoted
+    # grants, dungeon-room rows, "Chapter 3" / empty-raw effects, cards with no
+    # op="power" projected). Verified byte-identical over the commander-legal corpus:
+    # the mirror (full-text over kept_oracle) reproduces the regex path's firing set
+    # exactly (creature_ping 120==120, damage_equal_power 173==173, full-only==0,
+    # regex-only==0; per-clause is also exact, the regexes' `[^.]*` arms never cross a
+    # sentence). scope "you" matches the deleted SWEEP rows so the firing identity is
+    # byte-identical. add() dedups the overlap with the structural arm. CR 119.3.
+    (
+        "creature_ping",
+        re.compile(CREATURE_PING_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    (
+        "damage_equal_power",
+        re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE),
+        "you",
     ),
 )
 
@@ -2511,6 +2534,34 @@ _POWER_SCALING_RAW = re.compile(
     r"(?:equal to|where x is|x is)[^.]*\bpower\b|greatest power", re.IGNORECASE
 )
 
+# ADR-0027 β — power-as-damage cluster discriminators (creature_ping vs
+# damage_equal_power), applied to a cat=="damage" Effect whose amount.op=="power" (the
+# d6620ac projection unlock). The empirical Effect.subject↔recipient mapping (verified
+# on Fling / Soul's Fire / Rabid Bite and 250 effect rows): the damage Effect's subject
+# IS the RECIPIENT (Rabid Bite c=opp Creature; None for "any target"/player), and the
+# DOER lives in a SEPARATE target_only Effect (you-controller Creature subject). When
+# phase drops the recipient subject to None, these raw mirrors disambiguate.
+#
+# _POWER_PLAYER_RECIP — the recipient reaches a PLAYER / any target (damage_equal_power,
+# the burn/finisher half, incl. Fling's "sacrificed creature's power to any target").
+_POWER_PLAYER_RECIP = re.compile(
+    r"to (?:any target|target player|each opponent|that player|target opponent"
+    r"|target player or planeswalker|each of your opponents"
+    r"|that player or planeswalker|you\b|its controller|any other target"
+    r"|defending player|target battle)|its controller",
+    re.IGNORECASE,
+)
+# _POWER_SELF_RECIP — a self-fight ("deals damage to itself equal to its power" —
+# Justice Strike, Wave of Reckoning) is a creature_ping (a creature dealing its own
+# power).
+_POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECASE)
+# _POWER_ITS_OWN_DOER — an actor dealing ITS OWN power ("deals damage equal to its
+# power"), the creature_ping doer tell. Deliberately requires "its power" (the doer's
+# own), so a fling source ("the sacrificed/exiled creature's power", "that spell's
+# power") naming a DIFFERENT object never matches — those are damage_equal_power, where
+# the spell / sacrificed creature is the source, not a controlled-creature ping.
+_POWER_ITS_OWN_DOER = re.compile(r"deals damage equal to its power", re.IGNORECASE)
+
 # creature_cast_trigger (ADR-0027): phase parses "Whenever you cast a creature spell"
 # into a cast_spell trigger but DROPS the spell-type subject (subject=None), OR keeps
 # only a `place_counter`/`emblem`/granted-token effect whose raw carries the trigger
@@ -3170,6 +3221,56 @@ def extract_signals_ir(
         for e in ab.effects:
             if e.category in ("win_game", "lose_game"):
                 add("win_lose_game", "any", "", e.raw or "")
+        # ADR-0027 β — power-as-damage cluster (creature_ping + damage_equal_power).
+        # The d6620ac projection unlock (op="power" recovery in project._quantity)
+        # makes a power-scaling damage effect a STRUCTURAL anchor: a cat=="damage"
+        # Effect with amount.op=="power". The damage Effect's subject IS the RECIPIENT
+        # (verified on Fling / Soul's Fire / Rabid Bite: a Creature Filter for a
+        # creature recipient — Rabid Bite c=opp; None for "any target"/player). The DOER
+        # ("target creature you control deals …") lives in a SEPARATE target_only Effect
+        # (you-controller Creature subject). The split (both may fire — Soul's Fire's
+        # "your creature → any target" is BOTH a ping and a power-burn, matching the
+        # deleted regexes' overlap):
+        #   creature_ping ← a creature is the doer of ITS OWN power: recipient subject
+        #     is a Creature, OR a self-fight ("to itself"), OR a creature-doer sibling
+        #     target_only/fight, OR raw "deals damage equal to its power" (the doer's
+        #     OWN power; a fling source naming the "sacrificed/exiled creature's power"
+        #     is EXCLUDED by requiring "its power").
+        #   damage_equal_power ← the recipient reaches a PLAYER / any target (subject
+        #     is a Player Filter, OR raw player-reach — "to any target", "to (target)
+        #     player", "to each opponent", "to its controller", "to you", "any other
+        #     target", "player or planeswalker"). Fling-style sac-to-power fires this,
+        #     not creature_ping. The byte-identical _IR_KEPT_DETECTORS mirror recovers
+        #     the projection-gap tail (emblems, dungeon rooms, empty raw, no-op cards).
+        # CR 119.3 (damage) / 120.6 (life loss) / 701.12 (fight).
+        _has_creature_doer_sibling = any(
+            e2.category in ("target_only", "fight")
+            and isinstance(e2.subject, Filter)
+            and "Creature" in e2.subject.card_types
+            for e2 in ab.effects
+        )
+        for e in ab.effects:
+            if not (
+                e.category == "damage"
+                and e.amount is not None
+                and e.amount.op == "power"
+            ):
+                continue
+            raw = e.raw or ""
+            recip = e.subject
+            recip_creature = (
+                isinstance(recip, Filter) and "Creature" in recip.card_types
+            )
+            recip_player = isinstance(recip, Filter) and "Player" in recip.card_types
+            if (
+                recip_creature
+                or _POWER_SELF_RECIP.search(raw)
+                or _has_creature_doer_sibling
+                or _POWER_ITS_OWN_DOER.search(raw)
+            ):
+                add("creature_ping", "you", "", raw)
+            if recip_player or _POWER_PLAYER_RECIP.search(raw):
+                add("damage_equal_power", "you", "", raw)
         for e in ab.effects:
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
@@ -3185,8 +3286,11 @@ def extract_signals_ir(
                 elif e.amount.op == "domain":
                     add("domain_matters", "you", "", e.raw)
                 # Batch 3 — "for each +1/+1 counter on ~" → counters payoff. (The
-                # Power operand is intentionally NOT a lane: "equal to its power" is
-                # ubiquitous one-off scaling, not a power build-around.)
+                # Power operand is a lane ONLY for the power-as-damage cluster handled
+                # above — a cat=="damage" Effect with amount.op=="power" opens
+                # creature_ping / damage_equal_power, ADR-0027 β. For every OTHER
+                # category, "equal to its power" stays ubiquitous one-off scaling, not a
+                # power build-around, so it is intentionally NOT a lane here.)
                 elif e.amount.op == "counters":
                     add("counters_matter", "you", "", e.raw)
                 # ADR-0027 — "for each experience counter you have" → experience
