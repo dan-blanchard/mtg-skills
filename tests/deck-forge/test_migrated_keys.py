@@ -4051,6 +4051,47 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β. impulse_top_play ← the structural arm: a NON-static cast_from_zone
+    # Effect carrying the recovered 'from:library' zone (project._recover_library_zones,
+    # SIDECAR_VERSION 4). Light Up the Stage's real IR is a `spell` ability whose
+    # cast_from_zone effect plays the exiled top cards — the ab.kind!='static' gate keeps
+    # it in this lane (vs the static play_from_top permission, which stays DEFERRED).
+    "impulse_top_play": (
+        {
+            "name": "Light Up the Stage",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Spectacle {R} (You may cast this spell for its spectacle cost "
+                "rather than its mana cost if an opponent lost life this turn.)\n"
+                "Exile the top two cards of your library. Until the end of your "
+                "next turn, you may play those cards."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        raw=(
+                            "Exile the top two cards of your library. Until the "
+                            "end of your next turn, you may play those cards."
+                        ),
+                    ),
+                    Effect(
+                        category="cast_from_zone",
+                        scope="any",
+                        zones=("from:library",),
+                        raw=(
+                            "Exile the top two cards of your library. Until the "
+                            "end of your next turn, you may play those cards."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

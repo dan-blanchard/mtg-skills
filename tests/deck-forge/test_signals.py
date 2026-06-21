@@ -1853,7 +1853,11 @@ def test_two_tribe_trigger_emits_both_subjects():
 
 def test_impulse_look_at_and_play_opens_lane():
     # Headliner Scarlett — "You may look at and play that card this turn" is an
-    # impulse engine the existing regex misses ("look at and" splits "you may"/"play").
+    # impulse engine ("look at and" splits "you may"/"play"). ADR-0027 β: impulse_top_play
+    # migrated to the Card IR, so the regex path no longer fires it; the hybrid serves it
+    # (here via the per-clause kept mirror's "you may look at and play" arm — a bare IR
+    # routes to the IR path, and the structural cast_from_zone arm also fires on the real
+    # card's IR).
     card = {
         "name": "Headliner Scarlett",
         "type_line": "Legendary Creature — Human Warlock",
@@ -1865,7 +1869,8 @@ def test_impulse_look_at_and_play_opens_lane():
             "face down. You may look at and play that card this turn."
         ),
     }
-    assert ("impulse_top_play", "you") in _keys(card)
+    assert ("impulse_top_play", "you") not in _keys(card)
+    assert ("impulse_top_play", "you") in _keys_hybrid(card)
 
 
 def test_extra_upkeep_lane_opens():

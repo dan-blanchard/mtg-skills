@@ -3060,6 +3060,38 @@ _SELF_BLINK_SWEEP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# impulse_top_play (ADR-0027 β) — the impulse exile-then-play SWEEP regex, kept as a
+# byte-identical PER-CLAUSE mirror. The structural IR arm (a NON-static cast_from_zone
+# Effect carrying a recovered 'from:library' zone) catches the temporary exile-and-play
+# engine broadly (Light Up the Stage, Ragavan, Etali, Narset, Collected Conjuring — 105
+# real impulse cards the narrow regex never reached, all verified to exile-top-then-
+# cast: legitimate breadth, not over-fire). phase under-parses a tail (the "you may play
+# that card this turn" follow-through it folds into a generic effect with no from-zone
+# category, the modal "from among" clause) so this mirror recovers it. Its `[^.]*\.?\s*`
+# arms span a sentence over the WHOLE oracle (+39 over-fire flat), so — like self_blink
+# — it MUST run PER-CLAUSE via _clauses (matching the deleted SWEEP path), NOT as a flat
+# _IR_KEPT_DETECTORS full-text row. This is the EXACT deleted SWEEP_DETECTORS row
+# (byte-identical). The static play-from-library permission (Future Sight, Bolas's
+# Citadel) is the SIBLING play_from_top lane, NOT this — it stays on regex (DEFERRED:
+# phase's supplement creates that cast_from_zone effect AFTER the from:library recovery
+# pass runs, so the zone never lands on the static shape). CR 116 / 601.3b.
+_IMPULSE_TOP_PLAY_SWEEP_RE = re.compile(
+    r"exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))"
+    r"|until (?:your next end step|end of turn|the end of your next turn)"
+    r"[^.]*you may play"
+    r"|exile the top [^.]*card[^.]*your library[^.]*\.?\s*you may (?:play|cast)"
+    r"|you may play (?:that|the exiled|those|that card) cards?"
+    r"|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn"
+    r"|top [^.]*card[^.]*of your library\.?[^.]*you may (?:cast|play) "
+    r"(?:it|them|that card)[^.]*this turn"
+    r"|you may play (?:that card|those cards?|them) (?:this turn|until)"
+    r"|cast (?:up to two |a )?spells? from among"
+    r"|top card of your library is[^.]*you may[^.]*(?:cast|play)"
+    r"|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled"
+    r"|you may look at (?:it )?and (?:play|cast)",
+    re.IGNORECASE,
+)
+
 
 # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
 # "when ~ dies, <value>" trigger is the engine, so the deck wants to re-trigger that
@@ -3889,6 +3921,19 @@ def extract_signals(
         # game" buried in a Learn keyword's reminder (Professor of Symbology, Eyetwitch)
         # never fired them — keeping reminders here would over-silence those bodies.
         or _T2B5_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted impulse_top_play SWEEP producer. It fired
+        # high-confidence (forced scope 'you') and counted toward has_other_plan,
+        # silencing the spurious commander-damage voltron tell on an impulse engine that
+        # is NOT a vanilla beater (Opposition Agent, Laughing Jasper Flint, Eruth — 11
+        # leaked on the file-swap without this). The migrated IR arm is BROADER than the
+        # deleted regex (+105 cards), so the _VOLTRON_SILENCING_PLAN_KEYS IR-re-supply
+        # path would OVER-silence; instead this byte-identical mirror (the EXACT deleted
+        # SWEEP regex) restores only the old regex's silence set. Run PER-CLAUSE over
+        # ``text`` (reminder-STRIPPED, like _T2B5): the deleted producer was a floor
+        # Detector over reminder-stripped clauses, and the regex's `[^.]*\.?\s*` arms
+        # span a sentence over the whole oracle (+39 over-silence flat), so per-clause
+        # is the byte-identical reproduction (voltron back to base; A-B==0).
+        or any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(text))
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)
@@ -5668,6 +5713,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             # subject) bind structurally; the remaining halves ride _IR_KEPT mirrors.
             "flash_matters",
             "noncreature_cast_punish",
+            # ADR-0027 β — impulse_top_play: a TEMPORARY exile-the-top-then-play engine.
+            # The structural arm (a NON-static cast_from_zone Effect carrying the
+            # recovered 'from:library' zone) adds 105 real impulse cards the deleted
+            # SWEEP regex never reached (legitimate breadth); a per-clause
+            # _IMPULSE_TOP_PLAY_SWEEP_RE mirror (the exact deleted regex) covers the
+            # follow-through tail phase folds into a categoryless effect. The ab.kind!=
+            # 'static' gate splits it from the SIBLING play_from_top (the static ongoing
+            # permission — Future Sight, Bolas's Citadel — which stays DEFERRED on
+            # regex: phase's supplement creates that cast_from_zone AFTER the zone-
+            # recovery pass, so from:library never lands on the static shape).
+            "impulse_top_play",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6881,6 +6937,32 @@ def extract_signals_ir(
                 _cfz_opp = True
         if _exile_opp_lib or (_exile_opp and _cfz_opp):
             add("opp_top_exile", "you", "", "")
+        # impulse_top_play (ADR-0027 β) — ability-level: a TEMPORARY exile-the-top-then-
+        # play engine that casts from the top of YOUR library. The structural anchor is
+        # a NON-static cast_from_zone Effect carrying the recovered 'from:library' zone
+        # (project._recover_library_zones, SIDECAR_VERSION 4): a spell / triggered /
+        # activated ability — Light Up the Stage (spell), Ragavan (triggered), Chandra,
+        # Torch of Defiance (activated), Etali, Narset, Collected Conjuring. The ab.kind
+        # split is the discriminator vs the SIBLING play_from_top lane: a STATIC
+        # cast_from_zone+from:library is an ONGOING top-play permission (Future Sight,
+        # Bolas's Citadel) and belongs to play_from_top, NOT here — so this arm gates on
+        # ab.kind != 'static'. (Today phase's supplement creates the static-permission
+        # cast_from_zone AFTER the zone-recovery pass, so the static shape never carries
+        # from:library and play_from_top stays DEFERRED on regex; the non-static gate
+        # here is the correct, future-proof split regardless.) The 105 cards this arm
+        # adds over the deleted regex are all real impulse engines (legitimate breadth).
+        # The tail phase under-parses (the "you may play it this turn" follow-through
+        # folded into a categoryless effect, the modal "from among" clause) rides the
+        # per-clause _IMPULSE_TOP_PLAY_SWEEP_RE mirror below (the EXACT deleted regex).
+        # CR 601.3b.
+        for e in ab.effects:
+            if (
+                e.category == "cast_from_zone"
+                and "from:library" in e.zones
+                and ab.kind != "static"
+            ):
+                add("impulse_top_play", "you", "", e.raw or "")
+                break
         # opponent_counter_grant (ADR-0027) — ability-level: a DETRIMENTAL counter
         # (CR 122.1d) placed on an OPPONENT's permanent (the tap-down / detrimental-mark
         # punish lane). Two recipient shapes: (A) a place_counter whose own
@@ -8806,6 +8888,16 @@ def extract_signals_ir(
         _SELF_BLINK_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)
     ):
         add("self_blink", "you", "", "")
+    # ADR-0027 β — impulse_top_play kept mirror. The structural cast_from_zone+
+    # from:library arm above is broader-and-correct, but phase under-parses a tail (the
+    # "you may play it this turn" follow-through it folds into a categoryless effect,
+    # the modal "from among" clause). Recover it from the EXACT deleted SWEEP regex run
+    # PER-CLAUSE — its `[^.]*\.?\s*` arms span a sentence over the whole oracle (+39
+    # over-fire flat), so it must scan _clauses, not flat kept_oracle (matching the
+    # deleted SWEEP path byte-identically; un-lowered clauses + IGNORECASE == clause.
+    # lower(), so A-B==0). The add() dedup unions this with the structural arm.
+    if any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+        add("impulse_top_play", "you", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the
@@ -10082,6 +10174,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     mirror re-supply keeps voltron byte-identical). CR 603.2.
         "flash_matters",
         "noncreature_cast_punish",
+        # ADR-0027 β — impulse_top_play: the structural arm (a NON-static cast_from_zone
+        # Effect carrying the recovered 'from:library' zone) plus a per-clause
+        # _IMPULSE_TOP_PLAY_SWEEP_RE mirror (the EXACT deleted SWEEP regex). The
+        # structural arm adds 105 real impulse engines the regex never reached
+        # (legitimate breadth, verified vs oracle text); the mirror recovers the
+        # follow-through tail phase folds into a categoryless effect (recall ≥ regex).
+        # floor-mirror-dep == 0 (neither source reads _IR_FLOOR_LANES). The ab.kind!=
+        # 'static' gate prevents double-firing the SIBLING play_from_top (DEFERRED — its
+        # static cast_from_zone never carries from:library under the current supplement
+        # ordering, so the structural arm reproduces 0/66 of its regex set). The deleted
+        # SWEEP producer fired high-confidence scope 'you', so an
+        # _IMPULSE_TOP_PLAY_PLAN_MIRROR re-supplies has_other_plan (NO-FLOOD: voltron
+        # byte-identical). CR 601.3b.
+        "impulse_top_play",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -882,14 +882,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "cost_reduction",
         "regex": "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{w\\}, \\{u\\}, \\{b\\}, \\{r\\}, or \\{g\\} less|cost \\{[wubrgc\\d]\\}+ less to cast|cost \\{?\\d+\\}? less to activate|(?:cards you drew this turn|abilities you activate)[^.]{0,40}?cost \\{?\\d|costs? \\{?\\d+\\}? less to cast for each|cost \\{?\\d+\\}? less for each",
     },
-    {
-        "key": "impulse_top_play",
-        "scope": "you",
-        # Its own avenue ("Impulse draw (top)") — no longer folded into cast-from-exile,
-        # which is now the distinct cast/play-from-exile payoff lane.
-        "is_widen_of": "",
-        "regex": "exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))|until (?:your next end step|end of turn|the end of your next turn)[^.]*you may play|exile the top [^.]*card[^.]*your library[^.]*\\.?\\s*you may (?:play|cast)|you may play (?:that|the exiled|those|that card) cards?|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn|top [^.]*card[^.]*of your library\\.?[^.]*you may (?:cast|play) (?:it|them|that card)[^.]*this turn|you may play (?:that card|those cards?|them) (?:this turn|until)|cast (?:up to two |a )?spells? from among|top card of your library is[^.]*you may[^.]*(?:cast|play)|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled|you may look at (?:it )?and (?:play|cast)",
-    },
+    # ADR-0027 β: impulse_top_play migrated to the Card IR — the structural arm (a
+    # NON-static cast_from_zone Effect carrying the recovered 'from:library' zone, gated
+    # ab.kind!='static' to split it from the sibling play_from_top) plus a per-clause
+    # _IMPULSE_TOP_PLAY_SWEEP_RE mirror (the EXACT regex this row carried). Its
+    # SWEEP_DETECTORS row is deleted; the serve is hand-registered in signal_specs.py
+    # reusing the deleted regex (SWEEP_LABELS still carries the human label). The
+    # high-confidence producer fed has_other_plan, so an _IMPULSE_TOP_PLAY_PLAN_MIRROR
+    # in signals.py re-supplies the voltron silence byte-identically (NO-FLOOD).
     # ADR-0027: extra_upkeep + extra_draw_step migrated to the Card IR — phase's
     # `extra_upkeep`/`extra_draw` effect categories (Obeka, Paradox Haze, The Ninth
     # Doctor) plus an `_EXTRA_BEGINNING_PHASE_GRANT` dropped-static face marker that

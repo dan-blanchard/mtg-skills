@@ -1381,8 +1381,25 @@ _OPP_LIBRARY_THEFT_ORACLE = (
     r"(?:top (?:\w+|\d+) cards?|the top card) of "
     r"(?:target |an |each )?(?:opponent's|that player's) library"
 )
-_IMPULSE_SWEEP_REGEX = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "impulse_top_play"
+# ADR-0027 β: the SWEEP_DETECTORS row for impulse_top_play is deleted (detection moved
+# to the Card IR — a non-static cast_from_zone Effect carrying from:library + a
+# per-clause mirror). Its SERVE pool stays oracle-defined, so the exact deleted regex is
+# pinned here verbatim and the hand-registered spec below reuses it (the sweep auto-
+# register loop no longer builds it; byte-identical to the signals.py mirror regex).
+_IMPULSE_SWEEP_REGEX = (
+    r"exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))"
+    r"|until (?:your next end step|end of turn|the end of your next turn)"
+    r"[^.]*you may play"
+    r"|exile the top [^.]*card[^.]*your library[^.]*\.?\s*you may (?:play|cast)"
+    r"|you may play (?:that|the exiled|those|that card) cards?"
+    r"|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn"
+    r"|top [^.]*card[^.]*of your library\.?[^.]*you may (?:cast|play) "
+    r"(?:it|them|that card)[^.]*this turn"
+    r"|you may play (?:that card|those cards?|them) (?:this turn|until)"
+    r"|cast (?:up to two |a )?spells? from among"
+    r"|top card of your library is[^.]*you may[^.]*(?:cast|play)"
+    r"|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled"
+    r"|you may look at (?:it )?and (?:play|cast)"
 )
 _THEFT_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "theft_matters"
