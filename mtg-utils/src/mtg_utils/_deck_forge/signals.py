@@ -3038,51 +3038,6 @@ def _self_etb_value(text: str, name: str) -> str | None:
     return None
 
 
-def _detect_self_counter_payoff(text: str, name: str) -> bool:
-    """True if the commander puts +1/+1 counters on ITSELF and CARES about its counter
-    count (Sab-Sunen, Qala, Kyler) — a +1/+1-counters commander. The two-condition gate
-    (accumulate AND count-care) excludes incidental self-counter creatures that just get
-    a counter on attack/sacrifice without caring about the total (Thraximundar)."""
-    alts = "|".join(["this creature", "~", *_self_name_alts(name)])
-    accumulate = re.compile(rf"put a \+1/\+1 counter on (?:{alts})\b", re.IGNORECASE)
-    count_care = re.compile(
-        rf"(?:number of|for each) (?:\+1/\+1 )?counters? on (?:it|itself|{alts})",
-        re.IGNORECASE,
-    )
-    return accumulate.search(text) is not None and count_care.search(text) is not None
-
-
-# +1/+1-counters PAYOFF that rewards creatures which HAVE counters ("each creature you
-# control WITH A COUNTER ON IT …", "unless he HAS A +1/+1 COUNTER ON HIM"). Full-text,
-# because the payoff clause and the +1/+1 reference are usually in separate sentences
-# (Baxter: "with a counter on it" / "put a +1/+1 counter on Baxter") — the per-clause
-# counters_matter detector sees neither clause as complete. Gated on the card mentioning
-# "+1/+1 counter" SOMEWHERE, so -1/-1 / charge / named-counter commanders (Volrath,
-# Immard) — which never say "+1/+1" — stay out.
-_COUNTER_HAVE_PAYOFF = re.compile(
-    r"with (?:a |an |one or more )?(?:\+1/\+1 )?counters? on (?:it|them|him|her)"
-    r"|has (?:a |an )?\+1/\+1 counter on (?:it|him|her)",
-    re.IGNORECASE,
-)
-_PLUS_ONE_COUNTER = re.compile(r"\+1/\+1 counter", re.IGNORECASE)
-# "Double the damage of creatures you control WITH COUNTERS on them" (Raphael, Tidus) is
-# a +1/+1-counters DAMAGE payoff — the damage-doubling context implies POSITIVE counters
-# (you'd never double the damage of -1/-1 creatures), so no literal "+1/+1" is required;
-# this avoids the gate that otherwise needs "+1/+1" and would miss Raphael ("counters").
-_COUNTER_DAMAGE_PAYOFF = re.compile(
-    r"double [^.]*damage [^.]*creatures? you control with counters?", re.IGNORECASE
-)
-
-
-def _detect_counter_have_payoff(text: str) -> bool:
-    """True if a +1/+1-counters commander's payoff rewards creatures that HAVE counters
-    (Rishkar, Baxter, Pipsqueak), or doubles counter-creatures' damage (Raphael)."""
-    return bool(
-        (_PLUS_ONE_COUNTER.search(text) and _COUNTER_HAVE_PAYOFF.search(text))
-        or _COUNTER_DAMAGE_PAYOFF.search(text)
-    )
-
-
 # Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE BATTLEFIELD
 # from library/hand (Jalira, Atla Palani, Eladamri) — a library/hand cheat (they want
 # big fatties), not graveyard reanimation. Full-text (DOTALL) because the "reveal … a
@@ -3600,8 +3555,8 @@ def extract_signals(
     # ADR-0027: counters_matter migrated to the Card IR — the self-counter-payoff and
     # counter-HAVE-payoff add() producers are deleted (the +1/+1 placement / "has a
     # +1/+1 counter" reference fires from place_counter(p1p1) + the counters_have_ref
-    # marker via the IR path). _detect_self_counter_payoff / _detect_counter_have_
-    # payoff are retained for any non-migrated reader but no longer feed the regex path.
+    # marker via the IR path). Their orphaned regex helpers were removed with this
+    # cleanup.
     if _detect_polymorph_cheat(text):
         add("cheat_into_play", "you", "", text[:160])
     # ADR-0027: reanimator migrated to the Card IR — a creature whose `reanimate`
