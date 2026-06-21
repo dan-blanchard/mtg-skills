@@ -32,6 +32,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COST_REDUCTION_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_TO_OPP_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
     GAIN_CONTROL_REGEX,
@@ -1936,19 +1937,23 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
-    # "deals damage to an opponent" — ANY damage (not the literal "combat damage" the
-    # combat_* keys require, per the rules-lawyer audit). The connect-trigger axis for
-    # self-source pingers/evasion (Lu Xun, Zhang Liao) the tribe/combat keys miss.
-    (
-        "damage_to_opp_matters",
-        re.compile(
-            r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
-            r"(?:a player|an opponent|one of your opponents|each opponent"
-            r"|target opponent|that player|a player or planeswalker)\b",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027 β: damage_to_opp_matters migrated to the Card IR. This HAND_FLOOR
+    # producer (a "whenever ~ deals (noncombat) damage to a PLAYER / opponent"
+    # connect-payoff — ANY damage, not the literal "combat damage" the combat_* keys
+    # require) is deleted. The lane now fires from a STRUCTURAL IR arm reading project's
+    # DamageToPlayer recipient marker (SIDECAR v13 — the player recipient phase keeps on
+    # the DamageDone trigger's valid_target but the projected Trigger drops) PLUS a
+    # byte-identical kept mirror (_signals_ir) for the granted-ability / ETB-burst /
+    # "another player" textual tail phase can't structure as a DamageDone trigger. The
+    # IR path is BROADER (+recall: "deals 6 or more damage to an opponent", plural "deal
+    # damage to a player", "deals damage to another player" the word-order regex
+    # missed), so a byte-identical _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR below re-supplies
+    # the deleted high-confidence producer's voltron silence — NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS (that would over-silence the ir_only recall-gain
+    # bodies). The exact regex is pinned as DAMAGE_TO_OPP_MATTERS_REGEX
+    # (_sweep_detectors), shared by the mirror, the plan-mirror, and the hand-registered
+    # serve. Distinct from combat_damage_to_opp (already migrated 42f6d81 — the literal
+    # "combat damage to a player" recipient). CR 119.3.
     # ADR-0027: permanent_etb migrated to the Card IR — an `etb` Trigger whose subject
     # Filter carries the 'Permanent' card_type and controller=='you' (Amareth, the
     # canonical card). The structural IR is BROADER-and-correct: it catches the
@@ -2627,6 +2632,24 @@ _DEBUFF_MATTERS_PLAN_MIRROR = re.compile(
 _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR = re.compile(
     COMBAT_DAMAGE_TO_CREATURE_REGEX + "|" + COMBAT_DAMAGE_TO_OPP_REGEX,
     re.IGNORECASE,
+)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated damage_to_opp_matters key. The
+# deleted HAND_FLOOR producer fired HIGH-confidence (forced scope 'opponents') and
+# counted toward `has_other_plan`, silencing the spurious commander-damage voltron tell
+# on a "deals damage to a player/opponent" connect-payoff body (Hypnotic Specter,
+# Looter il-Kor, Thieving Magpie — an evasive card-advantage engine whose plan IS the
+# connect-trigger, not vanilla beatdown). The migrated IR path is BROADER (+recall: the
+# "6 or more"/plural-"deal"/"another player" structural triggers the word-order regex
+# missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those
+# ir_only recall-gain bodies. This is the byte-identical deleted regex; it feeds ONLY
+# the gate (emits no signal — the lane is served from the IR), reproducing the pre-
+# migration `has_other_plan` for ALL cards. Matched against the reminder-STRIPPED
+# joined-face `text` (NOT `_oracle`): the deleted HAND_FLOOR producer ran per-clause
+# over reminder-stripped clauses, so a "deals damage to a player" in a reminder
+# never fired it. The `[^.]*?` arm never crosses a sentence, so full-text ==
+# per-clause (FILE-SWAP NO-FLOOD: voltron byte-identical, 0/0). CR 903.10a / 119.3.
+_DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR = re.compile(
+    DAMAGE_TO_OPP_MATTERS_REGEX, re.IGNORECASE
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated variable_pt key. The deleted
 # SWEEP producer fired HIGH-confidence (scope 'any') and counted toward
@@ -4163,6 +4186,17 @@ def extract_signals(
         # silence those Devoid beaters either. `text` is itself joined-face
         # (get_oracle_text), so DFC back faces are covered. CR 903.10a.
         or _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted damage_to_opp_matters HAND_FLOOR producer
+        # (it fired HIGH-confidence forced scope 'opponents', feeding has_other_plan).
+        # The migrated IR path (structural DamageToPlayer-marker arm + byte-identical
+        # kept mirror) is BROADER (+recall: the "6 or more"/plural-"deal"/"another
+        # player" structural triggers the word-order regex missed), so re-supplying via
+        # _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those ir_only bodies. This
+        # byte-identical mirror restores the old regex's exact silence set. Matched
+        # against the reminder-STRIPPED joined-face `text` (the deleted HAND_FLOOR
+        # producer ran per-clause over stripped clauses); `[^.]*?` never crosses a
+        # sentence, so full-text == per-clause. CR 903.10a / 119.3.
+        or _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted variable_pt SWEEP producer (it fired
         # HIGH-confidence scope 'any', feeding has_other_plan). The migrated IR arm +
         # narrowed mirror are BROADER (+22 ir_only), so this byte-identical mirror —

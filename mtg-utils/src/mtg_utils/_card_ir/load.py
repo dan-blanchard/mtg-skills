@@ -59,7 +59,19 @@ from mtg_utils.card_ir import Card
 #     REPLACEMENT form re-checks the replacement's valid_card so the OTHER-creature
 #     "each other creature enters with …" grant (Master Biomancer, Giada) is NOT marked
 #     self. ADR-0027 β. CR 122.1 / 614.12.
-SIDECAR_VERSION = 12
+# v13: a NON-COMBAT "deals damage to a PLAYER / opponent" DamageDone trigger carries a
+#     DamageToPlayer recipient marker (Filter predicate "DamageToPlayer") on its
+#     Trigger.subject. phase keeps the player recipient on the trigger's valid_target
+#     ({type:Player} or {type:Typed,controller:Opponent}) but _project_trigger reads
+#     only valid_card (the source — null on all 69 such trigs) for the subject and
+#     _trigger_scope reads valid_target only for its CONTROLLER, so a {type:Player,
+#     controller:null} recipient collapses to scope='any', subject=None — like a
+#     generic "deals damage to any target" trigger (the 771-flood this lane was
+#     DEFERRED on). The damage_to_opp_matters lane reads the marker so it fires on the
+#     recipient TYPE (Hypnotic Specter, Curiosity, Goblin Lackey, Fungal Shambler), not
+#     the lossy scope. combat-ONLY recipients are EXCLUDED — combat_damage_to_opp
+#     (already migrated 42f6d81). ADR-0027 β. CR 119.3.
+SIDECAR_VERSION = 13
 
 
 def card_ir_dir() -> Path:

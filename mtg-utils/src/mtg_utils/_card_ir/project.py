@@ -86,6 +86,37 @@ def _is_selfref(node: object) -> bool:
     return isinstance(node, dict) and _norm(node.get("type")) == "selfref"
 
 
+# ADR-0027 β — the recipient marker for a NON-COMBAT "deals damage to a PLAYER /
+# opponent" trigger (Hypnotic Specter, Curiosity, Goblin Lackey, Fungal Shambler —
+# the "whenever ~ deals damage to a player/opponent, …" connect-payoff). phase carries
+# the player recipient on the DamageDone trigger's ``valid_target`` ({type:Player} or
+# {type:Typed, controller:Opponent}) but ``_project_trigger`` reads only ``valid_card``
+# (the SOURCE — always null on these 69 trigs) for the subject and ``_trigger_scope``
+# reads ``valid_target`` only for its CONTROLLER. So a {type:Player, controller:null}
+# recipient projects to scope='any', subject=None — BYTE-IDENTICAL to a generic "deals
+# damage to any target" trigger (the 771-flood this lane was DEFERRED on: 733 player-
+# typed DamageDone trigs, 704 of them combat-only = combat_damage_to_opp). We re-surface
+# the player recipient as a Filter predicate so the damage_to_opp_matters lane fires on
+# the recipient TYPE, not the (lossy) scope. combat-ONLY recipients are EXCLUDED — those
+# are combat_damage_to_opp, already migrated (42f6d81). CR 119.3.
+_DAMAGE_TO_PLAYER_MARKER = Filter(predicates=("DamageToPlayer",))
+
+
+def _damage_recipient_is_player(tr: dict) -> bool:
+    """True when a DamageDone trigger's recipient (``valid_target``) is a PLAYER /
+    opponent — a {type:Player} target or an opponent-controlled {type:Typed} target.
+    This is the recipient phase keeps on ``valid_target`` but the projected Trigger
+    drops (scope reads only the controller; subject reads only ``valid_card``). The
+    generic "deals damage to any target / a creature" recipients ({type:None | Typed
+    with no opponent controller | Controller | Or}) are NOT players, so excluded."""
+    vt = tr.get("valid_target")
+    if not isinstance(vt, dict):
+        return False
+    if _norm(vt.get("type")) == "player":
+        return True
+    return _controller(vt.get("controller")) == "opp"
+
+
 def _str_tuple(value: object) -> tuple[str, ...]:
     """A JSON list field → tuple of its string items (() if absent/not a list)."""
     if not isinstance(value, list):
@@ -1754,9 +1785,21 @@ def _project_spell_or_activated(ab: dict) -> Ability:
 
 
 def _project_trigger(tr: dict) -> Ability:
+    event = _trigger_event(tr)
+    subject = _filter(tr.get("valid_card"))
+    # ADR-0027 β damage_to_opp_matters anchor: a NON-COMBAT "deals damage to a player/
+    # opponent" trigger carries its player recipient on valid_target, which the Trigger
+    # otherwise drops (subject reads valid_card — null here — and scope reads only the
+    # controller, collapsing a {type:Player,controller:null} recipient to scope='any').
+    # Re-surface the recipient as the DamageToPlayer marker so the lane fires on the
+    # recipient TYPE. Only `deals_damage` (combat_damage is the already-migrated
+    # combat_damage_to_opp); only when the source subject is None (all 69 such trigs
+    # have valid_card=null, so this never clobbers a real source filter). CR 119.3.
+    if event == "deals_damage" and subject is None and _damage_recipient_is_player(tr):
+        subject = _DAMAGE_TO_PLAYER_MARKER
     trigger = Trigger(
-        event=_trigger_event(tr),
-        subject=_filter(tr.get("valid_card")),
+        event=event,
+        subject=subject,
         scope=_trigger_scope(tr),
         zones=_zone_tags(tr),
     )

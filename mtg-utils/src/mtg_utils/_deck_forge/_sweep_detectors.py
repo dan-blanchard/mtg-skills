@@ -325,6 +325,23 @@ SELF_COUNTER_GROW_SWEEP_REGEX = (
     "|put that many \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)"
 )
 
+# ADR-0027 β — damage_to_opp_matters migrated to the Card IR. The exact deleted
+# _DETECTORS regex (a "whenever ~ deals (noncombat) damage to a PLAYER / opponent"
+# connect-payoff — ANY damage, NOT the literal "combat damage" the combat_* keys
+# require, per the rules-lawyer audit: the connect-trigger axis for self-source
+# pingers / evasion the tribe/combat keys miss). Pinned here as a shared constant so
+# signals._IR_KEPT_DETECTORS reuses it for the kept mirror (the granted-ability / ETB-
+# burst tail phase can't structure as a DamageDone trigger), the voltron PLAN mirror in
+# _signals_regex reuses it, and signal_specs hand-registers the serve reusing it — so
+# serve / mirror / silence never drift. The structural projection (SIDECAR v13's
+# DamageToPlayer recipient marker) fires the lane on the phase-typed DamageDone
+# triggers; this regex covers the textual tail. CR 119.3 / 510.1c.
+DAMAGE_TO_OPP_MATTERS_REGEX = (
+    r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
+    r"(?:a player|an opponent|one of your opponents|each opponent"
+    r"|target opponent|that player|a player or planeswalker)\b"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",

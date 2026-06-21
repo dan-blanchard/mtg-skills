@@ -844,10 +844,8 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # turn-face-up place_counter EFFECT not a counter_added trigger — Experiment
         # Twelve — and a lore-counter manipulation — Sigurd). Each key's oracle-regex
         # SWEEP_DETECTORS producer is deleted; serve specs stay hand-registered.
-        # damage_to_opp_matters is DEFERRED (needs_projection — phase types the
-        # "deals damage to a player" trigger as scope='any' indistinguishable from a
-        # generic combat-damage connect trigger; widening to scope='any' floods 771
-        # over-fires, a genuine recall gap). See ADR-0027.
+        # (damage_to_opp_matters — formerly DEFERRED here — is now migrated via the
+        # SIDECAR v13 DamageToPlayer recipient projection; see its block below.)
         #   counter_manipulation ← (counter_move|remove_counter) Effect with
         #                counter_kind in {p1p1,m1m1} (the +1/+1-vs-charge/oil
         #                discriminator) + a kept word mirror for the remove-as-COST
@@ -1283,6 +1281,62 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # edits(190): drift_cards == 0, voltron 0 gained / 0 lost. CR 510.1c.
         "combat_damage_to_creature",
         "combat_damage_to_opp",
+        # ADR-0027 β — damage_to_opp_matters (is_widen_of combat_damage_matters): the
+        # GENERAL (any-source, ANY damage — NOT the literal "combat damage" the combat_*
+        # keys require) "deals damage to a PLAYER / opponent" connect-payoff (Hypnotic
+        # Specter, Curiosity, Goblin Lackey, Fungal Shambler). Boundary vs the already-
+        # migrated combat_damage_to_opp (42f6d81): that lane is the LITERAL "deals
+        # COMBAT damage to a player" recipient; this lane is the broader any-damage
+        # connect-trigger (the regex's `deals (?:noncombat )?damage` never matches
+        # "deals combat damage", so the two firing sets are DISJOINT by construction).
+        # PROJECTION (SIDECAR v12→v13). phase keeps the player recipient on the
+        # DamageDone trigger's valid_target ({type:Player} or {type:Typed,controller:
+        # Opponent}) but _project_trigger reads only valid_card (the SOURCE — null on
+        # all 69 such trigs) for the subject and _trigger_scope reads valid_target only
+        # for its CONTROLLER, so a {type:Player,controller:null} recipient collapsed to
+        # scope='any', subject=None — BYTE-IDENTICAL to a generic "deals damage to any
+        # target" trigger (the 771-flood this lane was DEFERRED on: 733 player-typed
+        # DamageDone trigs, 704 of them combat-only = combat_damage_to_opp). project's
+        # _DAMAGE_TO_PLAYER_MARKER re-surfaces the recipient as a Filter predicate
+        # ("DamageToPlayer") on the deals_damage trigger subject. combat-ONLY recipients
+        # are EXCLUDED (event=='combat_damage', not 'deals_damage'). BEHAVIOR-NEUTRAL
+        # until wired: two-sidecar global no-flood (v12 vs v13, same UNWIRED signals.py,
+        # 30969 commander-legal): drift_cards == 0. parse_confidence unchanged (98.7%
+        # full both sides: 34118/34562).
+        # STRUCTURAL ARM (recall-GAINING). A deals_damage trigger carrying the
+        # DamageToPlayer marker fires damage_to_opp_matters scope 'opponents'. The old
+        # arm fired only on trig.scope=='opp' (Typed/Opponent recipients), MISSING every
+        # {type:Player,controller:null} recipient (Hypnotic Specter, Goblin Lackey,
+        # Abyssal Specter). +recall over the deleted word-order regex: structural
+        # placement catches "deals 6 or more damage to an opponent" (Deus of Calamity),
+        # "deal damage to a player" plural (Francisco, Dragonborn Champion, The Thing),
+        # "deals damage to another player" (Night Dealings) — the regex's `deals damage
+        # to (a player|...)` missed the count-qualifier / plural-verb / "another" forms.
+        # BYTE-IDENTICAL KEPT MIRROR (_IR_KEPT_DETECTORS row reusing the pinned
+        # DAMAGE_TO_OPP_MATTERS_REGEX). The structural arm only sees DamageDone
+        # TRIGGERS; phase can't structure the trigger when it's QUOTED inside a
+        # GrantAbility ("…gain 'whenever this creature deals damage to an opponent,
+        # draw' " — Snake Umbra, Helm of the Ghastlord, Serpent Generator, Arm with
+        # Aether, the Vraska / Sorcerer-Class grants) or when it's an ETB /
+        # set-in-motion BURST ("when ~ enters, it deals
+        # damage to each opponent" — Fanatic of Mogis, Meria's Outrider, Gruesome
+        # Scourger, Sycorax) or another-event consequence (Magebane Lizard). The mirror
+        # recovers all of those byte-identically (the `[^.]*?` arm never crosses a
+        # sentence, so flat-over-kept_oracle == per-clause). add() dedups vs the arm.
+        # GATES. Floor-disabled residual (commander-legal, _IR_FLOOR_LANES=frozenset(),
+        # arm + mirror vs the deleted regex): regex_only == 0 (the byte-identical mirror
+        # reproduces every regex firing), ir_only is pure recall gain (the structural
+        # count-qualifier/plural/another-player triggers, all verified real vs Scryfall
+        # oracle — Deus of Calamity, Dragonborn Champion, Francisco, Night Dealings). 0
+        # over-fire: every regex hit names a player/opponent damage recipient. floor-
+        # mirror-dep == 0 (NOT an _IR_FLOOR_LANE — it was a HAND_FLOOR regex). FILE-SWAP
+        # NO-FLOOD (base 49a17a2 v12 vs edits v13, commander-legal): only damage_to_opp_
+        # matters moves (+recall, 0 lost), combat_damage_to_opp UNCHANGED, voltron delta
+        # 0. The deleted HAND_FLOOR producer fired HIGH-confidence (forced scope
+        # 'opponents') and counted toward has_other_plan, so a byte-identical
+        # _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER. CR 119.3 / 903.10a.
+        "damage_to_opp_matters",
         # ADR-0027 β kept-mirror — legend_rule_off + timing_control: phase emits
         # NOTHING structural for either (legend_exempt covers only 2 of 8; the
         # cast-timing statics are dropped wholesale), so each rides a byte-identical

@@ -50,6 +50,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_TO_OPP_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
     GAIN_CONTROL_REGEX,
@@ -674,6 +675,30 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Blade Historian, Berserkers' Onslaught — power-2 voltron-eligible bodies) at
     # HIGH would spuriously SILENCE their commander-damage voltron tell. The inline
     # mirror preserves the LOW confidence.
+    # ADR-0027 β — damage_to_opp_matters (is_widen_of combat_damage_matters): the
+    # GENERAL (any-source, ANY damage — not the literal "combat damage") "deals damage
+    # to a PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity, Goblin
+    # Lackey, Fungal Shambler). The STRUCTURAL arm in extract_signals_ir already fires
+    # the 69 phase-typed DamageDone player-recipient triggers (via the SIDECAR v13
+    # DamageToPlayer marker). This BYTE-IDENTICAL kept mirror of the deleted HAND_FLOOR
+    # regex recovers the textual tail phase can't structure as a DamageDone trigger: a
+    # trigger QUOTED inside a GrantAbility ("creatures you control gain 'whenever this
+    # creature deals damage to an opponent, draw' " — Snake Umbra, Helm of the
+    # Ghastlord, Serpent Generator, Arm with Aether), an ETB / set-in-motion BURST
+    # ("when ~ enters, it deals damage to each opponent" — Fanatic of Mogis, Meria's
+    # Outrider), and other-event consequences (Magebane Lizard's spellcast-punish). The
+    # deleted regex matched single clauses (`[^.]*?` never crosses `.`), so the flat
+    # mirror over reminder-stripped kept_oracle reproduces the per-clause regex firing
+    # set exactly. add() dedups vs the structural arm; the union is +recall over the
+    # deleted regex. Same HIGH confidence the deleted HAND_FLOOR producer fired (scope
+    # 'opponents'). Distinct from combat_damage_to_opp (the literal-"combat" recipient —
+    # this regex's `deals (?:noncombat )?damage` never matches "deals combat damage").
+    # CR 119.3.
+    (
+        "damage_to_opp_matters",
+        re.compile(DAMAGE_TO_OPP_MATTERS_REGEX, re.IGNORECASE),
+        "opponents",
+    ),
     # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
     # (rules-lawyer-verified: no card-property reference shape in the parse), moved
     # here from _IR_FLOOR_LANES so the lane fires from a dedicated IR-path word mirror
@@ -1744,6 +1769,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             # phase drops valid_target's recipient TYPE onto the combat_damage trigger.
             "combat_damage_to_creature",
             "combat_damage_to_opp",
+            # ADR-0027 β — damage_to_opp_matters (is_widen_of combat_damage_matters):
+            # the GENERAL (any-source, ANY damage) "deals damage to a player/opponent"
+            # connect-payoff. A STRUCTURAL arm reads project's DamageToPlayer recipient
+            # marker (SIDECAR v13) PLUS a byte-identical _IR_KEPT_DETECTORS mirror of
+            # the deleted HAND_FLOOR regex for the granted-ability / ETB-burst tail.
+            "damage_to_opp_matters",
             "creature_cast_trigger",
             signal_keys.TYPED_SPELLCAST,
             # Batch P (phase-native mechanic effects):
@@ -5668,7 +5699,25 @@ def extract_signals_ir(
                     add(abil_lane, "you", "", "")
             if ev in ("combat_damage", "deals_damage"):
                 add("combat_damage_matters", "opponents", "", "")
-                if trig.scope == "opp":
+                # ADR-0027 β damage_to_opp_matters — a NON-COMBAT "deals damage to a
+                # PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity,
+                # Goblin Lackey, Fungal Shambler). project._project_trigger stamps the
+                # DamageToPlayer recipient marker on the trigger subject (the player
+                # recipient phase keeps on valid_target but the Trigger otherwise drops
+                # — scope reads only the controller, collapsing a {type:Player,
+                # controller:null} recipient to scope='any'). Fire on the marker, not on
+                # the lossy scope, so the player-typed recipients the old scope=='opp'
+                # arm missed (Hypnotic Specter's {type:Player,null}) now fire. combat-
+                # ONLY recipients never carry the marker (combat_damage_to_opp, already
+                # migrated 42f6d81). +recall over the deleted regex: structural
+                # placement catches "deals 6 or more damage to an opponent" (Deus of
+                # Calamity), "deal damage to a player" plural (Francisco / Dragonborn
+                # Champion), "another player" (Night Dealings) — the word-order/pronoun
+                # regex missed. The granted-ability / ETB-burst tail phase can't
+                # structure rides the narrowed _DAMAGE_TO_OPP_MATTERS_MIRROR. CR 119.3.
+                if trig.subject is not None and (
+                    "DamageToPlayer" in trig.subject.predicates
+                ):
                     add("damage_to_opp_matters", "opponents", "", "")
                 # ADR-0027 β — tribe_damage_trigger's dead `if tsub_kinds:` arm is
                 # removed: phase leaves a combat_damage trigger's subject = None, so

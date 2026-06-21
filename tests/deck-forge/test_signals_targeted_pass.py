@@ -66,6 +66,12 @@ def test_oring_removal_is_not_flicker():
 
 
 # ── 2. "Deals damage to an opponent" (any damage) — distinct from the combat axis ──
+# ADR-0027 β: damage_to_opp_matters migrated regex→Card IR. The regex path NO LONGER
+# emits it (the HAND_FLOOR producer is deleted); the lane fires from the hybrid IR path —
+# a STRUCTURAL deals_damage trigger carrying project's DamageToPlayer recipient marker
+# (Lu Xun's "deals damage to an opponent" → valid_target Typed/Opponent), with a byte-
+# identical kept mirror covering the textual tail. opponent_discard (Zhang Liao) is a
+# SEPARATE regex lane that still fires from the regex path.
 LU_XUN = (
     "Horsemanship\nWhenever Lu Xun deals damage to an opponent, you may draw a card."
 )
@@ -74,28 +80,73 @@ ZHANG = (
 )
 
 
-def test_damage_to_opp_fires_for_lu_xun():
-    assert "damage_to_opp_matters" in _keys(LU_XUN, name="Lu Xun")
+def _damage_to_opp_ir(scope="opp"):
+    """An IR carrying the structural deals_damage player-recipient trigger phase
+    projects (the DamageToPlayer marker), as project._project_trigger stamps it."""
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="deals_damage",
+                            scope=scope,
+                            subject=Filter(predicates=("DamageToPlayer",)),
+                        ),
+                        effects=(Effect(category="other", raw="you may draw a card"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+def _lu_xun_card():
+    return {
+        "name": "Lu Xun",
+        "oracle_text": LU_XUN,
+        "type_line": "Legendary Creature — Human Advisor",
+    }
+
+
+def test_damage_to_opp_migrated_off_regex_onto_ir():
+    # The regex path no longer emits it; the hybrid IR path does (structural marker).
+    card = _lu_xun_card()
+    assert "damage_to_opp_matters" not in _keys(LU_XUN, name="Lu Xun")
+    hyb = {s.key for s in extract_signals_hybrid(card, _damage_to_opp_ir())}
+    assert "damage_to_opp_matters" in hyb
 
 
 def test_lu_xun_damage_scope_is_opponents():
     sig = next(
-        s for s in _sigs(LU_XUN, name="Lu Xun") if s.key == "damage_to_opp_matters"
+        s
+        for s in extract_signals_hybrid(_lu_xun_card(), _damage_to_opp_ir())
+        if s.key == "damage_to_opp_matters"
     )
     assert sig.scope == "opponents"
 
 
 def test_zhang_liao_damage_and_discard():
-    k = _keys(ZHANG, name="Zhang Liao")
-    assert "damage_to_opp_matters" in k
-    assert "opponent_discard" in k
+    # damage_to_opp_matters is now IR-served; opponent_discard stays a regex lane.
+    card = {
+        "name": "Zhang Liao",
+        "oracle_text": ZHANG,
+        "type_line": "Legendary Creature — Human Soldier",
+    }
+    hyb = {s.key for s in extract_signals_hybrid(card, _damage_to_opp_ir())}
+    assert "damage_to_opp_matters" in hyb
+    assert "opponent_discard" in _keys(ZHANG, name="Zhang Liao")
 
 
 def test_noncombat_damage_does_not_fire_combat_axis():
     # rules-lawyer audit: combat keys require the literal word "combat".
-    k = _keys(LU_XUN, name="Lu Xun")
-    assert "combat_damage_matters" not in k
-    assert "combat_damage_to_opp" not in k
+    hyb = {s.key for s in extract_signals_hybrid(_lu_xun_card(), _damage_to_opp_ir())}
+    assert "combat_damage_matters" not in hyb
+    assert "combat_damage_to_opp" not in hyb
 
 
 def test_combat_damage_audit_preserved():

@@ -4490,6 +4490,44 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 β projection — damage_to_opp_matters: the GENERAL (any-source, ANY
+    # damage) "deals damage to a PLAYER / opponent" connect-payoff. Deus of Calamity is
+    # the STRUCTURAL-ONLY case that proves the projection is load-bearing: its "deals 6
+    # OR MORE damage to an opponent" never matches the deleted word-order regex (so the
+    # byte-identical kept mirror does NOT fire it), yet phase keeps the player recipient
+    # on the DamageDone trigger's valid_target — which project re-surfaces as the
+    # DamageToPlayer marker on the deals_damage trigger subject (SIDECAR v13). The
+    # structural arm fires the lane on the marker. (combat-only recipients carry
+    # event=='combat_damage', not 'deals_damage', so combat_damage_to_opp stays silent.)
+    "damage_to_opp_matters": (
+        {
+            "name": "Deus of Calamity",
+            "type_line": "Creature — Spirit Avatar",
+            "oracle_text": (
+                "Trample\nWhenever this creature deals 6 or more damage to an "
+                "opponent, destroy target land that player controls."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="deals_damage",
+                    scope="opp",
+                    subject=Filter(predicates=("DamageToPlayer",)),
+                ),
+                effects=(
+                    Effect(
+                        category="destroy",
+                        raw=(
+                            "Whenever this creature deals 6 or more damage to an "
+                            "opponent, destroy target land that player controls."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # ADR-0027 β kept-mirror: phase's legend_exempt drops the BOUNDED variant
     # ("doesn't apply to permanents you control"), so Mirror Box has no structural
     # form — the byte-identical _IR_KEPT_DETECTORS mirror is what recovers it. Bare IR.
