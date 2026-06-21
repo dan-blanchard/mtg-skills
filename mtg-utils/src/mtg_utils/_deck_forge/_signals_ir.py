@@ -42,6 +42,9 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    COMBAT_DAMAGE_TO_CREATURE_REGEX,
+    COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
+    COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_MAHA_REGEX,
@@ -220,7 +223,17 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
 # "payoff" set: a card that CARES when X happens, keyed off the trigger.
 _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
     "cast_spell": ("spellcast_matters", "you"),
-    "combat_damage": ("combat_damage_to_opp", "opponents"),
+    # ADR-0027 β — `combat_damage` is INTENTIONALLY absent: it used to map to
+    # combat_damage_to_opp here, but that fired UNCONDITIONALLY on every
+    # combat_damage trigger, including the "deals combat damage to a CREATURE"
+    # recipient (Ohran Viper's destroy-at-end-of-combat trigger). phase drops
+    # valid_target's recipient TYPE onto the Trigger, so the structural payoff
+    # arm cannot tell creature- from player-recipient; combat_damage_to_opp
+    # (player recipient) and combat_damage_to_creature (creature recipient) are
+    # both served by the byte-identical _IR_KEPT_DETECTORS mirrors below
+    # (anchored on "to a player/opponent" vs "to a creature"), which DO
+    # discriminate. combat_damage_matters (the base lane, NOT migrated) still
+    # fires from the unconditional `ev in ("combat_damage","deals_damage")` arm.
     "attacks": ("attack_matters", "you"),
     "counter_added": ("counters_matter", "you"),
     # Batch 1 — payoff trigger events newly projected in _trigger_event.
@@ -620,6 +633,39 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(TRIBE_DAMAGE_TRIGGER_REGEX, re.IGNORECASE),
         "you",
     ),
+    # ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp (both
+    # is_widen_of combat_damage_matters). phase DOES structure the combat_damage
+    # trigger event but NOT the RECIPIENT TYPE: Ohran Viper's two DamageDone
+    # triggers differ in raw card-data (valid_target Typed[Creature] vs Player),
+    # yet project.py uses valid_target only for its `controller` (scope), dropping
+    # its TYPE — so both project to scope='any', subject=None, byte-identical. The
+    # recipient discriminator survives in the joined-face oracle ("to a creature"
+    # vs "to a player/an opponent/each opponent"), which is exactly what these
+    # byte-identical KEPT MIRRORS of the deleted SWEEP regexes anchor on — so they
+    # DO split the two lanes the structural payoff arm cannot. The deleted regexes
+    # only ever matched single clauses (the connect phrase never holds `.`/`;`/
+    # `\n`), so the flat-text mirror reproduces the per-clause regex firing set
+    # exactly (commander-legal corpus: regex==mirror, 0 lost, 0 over-fire;
+    # creature=33 / opp=757 + 3 double-strike-grant; the 2 cards with BOTH a
+    # creature- and a player-recipient trigger — Ohran Viper, Phage the
+    # Untouchable — fire BOTH lanes). CR 510.1c / 510.2.
+    (
+        "combat_damage_to_creature",
+        re.compile(COMBAT_DAMAGE_TO_CREATURE_REGEX, re.IGNORECASE),
+        "any",
+    ),
+    (
+        "combat_damage_to_opp",
+        re.compile(COMBAT_DAMAGE_TO_OPP_REGEX, re.IGNORECASE),
+        "opponents",
+    ),
+    # NB: the LOW-confidence double-strike-grant producer of combat_damage_to_opp
+    # is handled as a dedicated inline mirror in extract_signals_ir (NOT a row
+    # here): the kept-detector loop emits HIGH confidence, but the deleted producer
+    # fired LOW and so never fed has_other_plan — firing its 3 cards (Raphael,
+    # Blade Historian, Berserkers' Onslaught — power-2 voltron-eligible bodies) at
+    # HIGH would spuriously SILENCE their commander-damage voltron tell. The inline
+    # mirror preserves the LOW confidence.
     # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
     # (rules-lawyer-verified: no card-property reference shape in the parse), moved
     # here from _IR_FLOOR_LANES so the lane fires from a dedicated IR-path word mirror
@@ -1666,6 +1712,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP regex
             # ("your creatures connect for combat damage → reward").
             "tribe_damage_trigger",
+            # ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp (both
+            # is_widen_of combat_damage_matters): byte-identical _IR_KEPT_DETECTORS
+            # mirrors of the deleted SWEEP regexes, recipient-discriminated by the
+            # joined-face oracle ("to a creature" vs "to a player/opponent") since
+            # phase drops valid_target's recipient TYPE onto the combat_damage trigger.
+            "combat_damage_to_creature",
+            "combat_damage_to_opp",
             "creature_cast_trigger",
             signal_keys.TYPED_SPELLCAST,
             # Batch P (phase-native mechanic effects):
@@ -2685,6 +2738,14 @@ _CREATURE_SPELL_RAW = re.compile(
     r" casts? (?:a|an|another)\b[^.]*?\bcreature spell\b"
     r"|\bwhen(?:ever)? (?:a|another) creature spell is cast\b",
     re.IGNORECASE,
+)
+
+# ADR-0027 β — combat_damage_to_opp LOW-confidence double-strike-grant mirror
+# (Raphael, Blade Historian, Berserkers' Onslaught). Fired separately from the
+# _IR_KEPT_DETECTORS loop because that loop emits HIGH confidence; the deleted regex
+# producer fired LOW (never feeding has_other_plan), so the inline mirror keeps it LOW.
+_COMBAT_DAMAGE_TO_OPP_DS_GRANT = re.compile(
+    COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX, re.IGNORECASE
 )
 
 # fight_matters (ADR-0027): a face-level fallback for an Aftermath DFC whose "Fight"
@@ -5398,6 +5459,12 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
+    # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
+    # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep
+    # their commander-damage voltron tell). add() dedups vs the main opp mirror.
+    if _COMBAT_DAMAGE_TO_OPP_DS_GRANT.search(kept_oracle):
+        add("combat_damage_to_opp", "opponents", "", "", "low")
     # ADR-0027 t2b4-C — self_blink kept detector. No clean structural IR form (the
     # `~`-substituted exile raw can't be told from cost-exile / other-target exile), so
     # reproduce BOTH regex-path producers byte-identically: the name-aware cross-

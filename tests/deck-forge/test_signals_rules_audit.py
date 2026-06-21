@@ -133,12 +133,15 @@ def test_cant_be_blocked_is_evasion():
 
 
 # #7 combat damage to a creature must be COMBAT damage (CR 510 / 120.2a).
+# ADR-0027 β: combat_damage_to_creature migrated to the Card IR, so it is served
+# from the hybrid (IR) path — the byte-identical _IR_KEPT_DETECTORS mirror still
+# requires the "combat" word, so noncombat damage stays excluded.
 def test_noncombat_damage_to_creature_excluded():
     c = {
         "name": "X",
         "oracle_text": "Whenever this creature deals damage to a creature, draw a card.",
     }
-    assert "combat_damage_to_creature" not in _keys(c)
+    assert "combat_damage_to_creature" not in _keys_hybrid(c)
 
 
 def test_combat_damage_to_creature_fires():
@@ -146,16 +149,18 @@ def test_combat_damage_to_creature_fires():
         "name": "X",
         "oracle_text": "Whenever this creature deals combat damage to a creature, draw a card.",
     }
-    assert "combat_damage_to_creature" in _keys(c)
+    assert "combat_damage_to_creature" in _keys_hybrid(c)
 
 
 # #8 combat damage to opponents must be COMBAT damage, not any damage (burn/drain).
+# ADR-0027 β: combat_damage_to_opp migrated to the Card IR (hybrid path); the mirror
+# requires the "combat" word, so noncombat damage to a player stays excluded.
 def test_noncombat_damage_to_opponent_excluded():
     c = {
         "name": "X",
         "oracle_text": "Whenever you cast a spell, this deals damage to an opponent.",
     }
-    assert "combat_damage_to_opp" not in _keys(c)
+    assert "combat_damage_to_opp" not in _keys_hybrid(c)
 
 
 # #12 Food keys on the Food-token mechanic, not the bare word.

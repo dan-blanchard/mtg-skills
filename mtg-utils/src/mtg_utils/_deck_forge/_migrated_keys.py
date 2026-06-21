@@ -1251,6 +1251,42 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # voltron 0 leaked (the kept mirror re-supplies has_other_plan via
         # _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply is safe). CR 510.1c.
         "tribe_damage_trigger",
+        # ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp (both
+        # is_widen_of combat_damage_matters). The RECIPIENT-TYPE split phase
+        # can't make structurally: phase carries the damage recipient on the
+        # combat_damage trigger's `valid_target` (Ohran Viper's two DamageDone
+        # triggers differ — Typed[Creature] vs Player), but project.py uses
+        # valid_target only for its `controller` (scope), dropping its TYPE, so
+        # both project to scope='any', subject=None (byte-identical). The
+        # recipient discriminator survives byte-identically in the joined-face
+        # oracle ("to a creature" vs "to a player/an opponent/each opponent"),
+        # so each lane rides a byte-identical _IR_KEPT_DETECTORS mirror of its
+        # EXACT deleted SWEEP regex — a kept mirror, NOT a projection (no
+        # SIDECAR_VERSION bump). The deleted regexes only ever matched single
+        # clauses, so the flat mirror reproduces the per-clause regex firing set
+        # EXACTLY (commander-legal corpus: creature 33==33, opp 760==760 incl. 3
+        # low-confidence double-strike-grant; the 2 cards with BOTH recipients —
+        # Ohran Viper, Phage the Untouchable — fire both lanes; regex_only == 0,
+        # ir_only == 0; 0 over-fire — every creature-hit deals to a creature,
+        # every opp-hit to a player). Also REMOVED the dead unconditional
+        # combat_damage→combat_damage_to_opp row from _PAYOFF_TRIGGER_KEYS (it
+        # fired the opp lane on EVERY combat_damage trigger incl. creature-
+        # recipients — an over-fire the regex never had; the mirror is now the
+        # sole, recipient-correct producer). The double-strike-grant tail
+        # (Raphael, Blade Historian, Berserkers' Onslaught) is a dedicated
+        # LOW-confidence inline mirror so it never feeds has_other_plan (those
+        # power-2 voltron bodies keep their tell). floor-mirror-dep == 0 (neither
+        # reads _IR_FLOOR_LANES). NO-FLOOD: both deleted HIGH-confidence regex
+        # producers silenced voltron — creature on 6 connect-with-creatures bodies
+        # (Serpentine Basilisk, Toxin Sliver, Voracious Cobra, Creepy Doll,
+        # Charging Tuskodon, Dripping Dead), opp on 1 more (Charging Tuskodon's
+        # "would deal combat damage to a player … double" replacement, which the
+        # combat_damage_matters regex misses, so opp is its only HIGH plan). Both
+        # are re-supplied by the byte-identical _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR
+        # (the OR of the two deleted regexes). FILE-SWAP base-hybrid(188) vs
+        # edits(190): drift_cards == 0, voltron 0 gained / 0 lost. CR 510.1c.
+        "combat_damage_to_creature",
+        "combat_damage_to_opp",
         # ADR-0027 β kept-mirror — legend_rule_off + timing_control: phase emits
         # NOTHING structural for either (legend_exempt covers only 2 of 8; the
         # cast-timing statics are dropped wholesale), so each rides a byte-identical

@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
+    COMBAT_DAMAGE_TO_CREATURE_REGEX,
+    COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_SWEEP_REGEX,
@@ -2805,6 +2807,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # combats to multiply the trigger (Neheb -> Relentless Assault, Seize the Day).
         extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
+    # ADR-0027 β: combat_damage_to_opp migrated to the Card IR; its
+    # SWEEP_DETECTORS row is deleted, so the serve hand-spec passes the pinned
+    # COMBAT_DAMAGE_TO_OPP_REGEX (the EXACT deleted regex) so serve / mirror
+    # never drift.
     ("combat_damage_to_opp", "opponents"): _sweep_spec_with_extras(
         "combat_damage_to_opp",
         (
@@ -2813,6 +2819,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _DAMAGE_AMPLIFIER_EXTRA,
             _EXTRA_COMBAT_EXTRA,
         ),
+        regex=COMBAT_DAMAGE_TO_OPP_REGEX,
+    ),
+    # ADR-0027 β: combat_damage_to_creature migrated to the Card IR; its
+    # SWEEP_DETECTORS row is deleted (the auto-loop used to register a plain spec —
+    # search == serve == its regex, no extras). Hand-register the byte-identical
+    # plain spec reusing the pinned regex so the avenue resolves exactly as before
+    # (connect-with-creatures payoffs — Ohran Viper, the basilisks, Toxin Sliver).
+    ("combat_damage_to_creature", "any"): _spec(
+        *SWEEP_LABELS["combat_damage_to_creature"],
+        {"oracle": COMBAT_DAMAGE_TO_CREATURE_REGEX},
+        COMBAT_DAMAGE_TO_CREATURE_REGEX,
     ),
     # Group-mana commanders (Shizuko, Yurlok) want symmetric mana-doublers / punishers +
     # join-forces ramp beyond the bare "each player adds {" the sweep regex credits.

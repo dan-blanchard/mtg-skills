@@ -59,6 +59,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _VOLTRON_EQUIP_RE,
     Signal,
     _clauses,
+    _fold_referenced_objects,
     _tinybones_scope,
     _voltron_double_strike_beater,
     _voltron_land_scaler,
@@ -144,8 +145,19 @@ def extract_signals_hybrid(
         return regex_signals
     out: list[Signal] = [s for s in regex_signals if s.key not in MIGRATED_KEYS]
     seen = {(s.key, s.scope, s.subject) for s in out}
+    # ADR-0027 β: fold referenced objects (ADR-0025 — a ventured dungeon / meld result
+    # / the Ring) into the record the IR path reads, so a migrated kept-mirror key whose
+    # plan lives on a FOLDED object (e.g. combat_damage_to_opp from the Ring-bearer's
+    # "deals combat damage to a player" level) still fires from the IR path. The regex
+    # path folds internally above; the IR path takes the pre-folded record. No-op when
+    # no resolver / nothing folds.
+    ir_record = (
+        _fold_referenced_objects(record, resolve_object)
+        if resolve_object is not None
+        else record
+    )
     for sig in extract_signals_ir(
-        record, ir, vocab=vocab, include_membership=include_membership
+        ir_record, ir, vocab=vocab, include_membership=include_membership
     ):
         if sig.key not in MIGRATED_KEYS:
             continue

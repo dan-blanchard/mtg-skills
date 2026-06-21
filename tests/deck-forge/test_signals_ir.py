@@ -757,11 +757,22 @@ def test_attacks_trigger_fires_attack_matters():
     assert ("attack_matters", "you", "") in _sigs(ir)
 
 
-def test_combat_damage_trigger_fires_combat_damage_to_opp():
+def test_combat_damage_trigger_fires_combat_damage_matters_not_opp():
+    """ADR-0027 β: a bare combat_damage trigger fires the base combat_damage_matters
+    lane (and damage_to_opp_matters for scope opp), but NOT the recipient-specific
+    combat_damage_to_opp widen lane. phase drops the recipient TYPE off the trigger
+    (valid_target Typed[Creature] vs Player both project to subject=None), so firing
+    combat_damage_to_opp from the bare trigger would over-fire on creature-recipients
+    (Ohran Viper's destroy-at-end-of-combat trigger). The widen lanes are recipient-
+    discriminated by the joined-face oracle via the _IR_KEPT_DETECTORS mirrors, so a
+    structureless IR with no oracle correctly opens neither widen lane."""
     ir = _ir(
         Ability(kind="triggered", trigger=Trigger(event="combat_damage", scope="opp"))
     )
-    assert ("combat_damage_to_opp", "opponents", "") in _sigs(ir)
+    sigs = _sigs(ir)
+    assert ("combat_damage_matters", "opponents", "") in sigs
+    assert ("combat_damage_to_opp", "opponents", "") not in sigs
+    assert ("combat_damage_to_creature", "any", "") not in sigs
 
 
 # ── Batch 3: tribal type_matters from Filter subtypes ─────────────────────────

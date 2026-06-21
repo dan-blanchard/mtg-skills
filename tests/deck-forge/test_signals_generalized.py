@@ -4717,6 +4717,8 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
 
     # (D) Mirri grows herself on combat damage — opens voltron despite also opening
     # combat_damage_to_creature (the named bug: the old fallback was suppressed).
+    # ADR-0027 β: combat_damage_to_creature migrated to the Card IR, so it is served
+    # from the hybrid (IR) path; the voltron self-pump override still opens voltron.
     mirri = {
         "name": "Mirri the Cursed",
         "type_line": "Legendary Creature — Vampire Cat",
@@ -4727,7 +4729,7 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
             "Mirri."
         ),
     }
-    mk = {s.key for s in extract_signals(mirri, include_membership=True)}
+    mk = {s.key for s in extract_signals_hybrid(mirri, _bare_ir())}
     assert "voltron_matters" in mk
     assert "combat_damage_to_creature" in mk  # both — the override no longer suppresses
     # (C) Sram rewards casting Auras & Equipment (comma-list phrasing).
@@ -6349,6 +6351,8 @@ def test_attacking_team_double_strike_opens_combat_damage():
     # deal combat damage to a player" payoffs. Tight to "attacking creatures you control
     # have double strike" so go-wide/tribal/conditional double-strike granters (Kwende,
     # Jetmir) — which aren't combat-damage-payoff decks — stay out. Real cards.
+    # ADR-0027 β: combat_damage_to_opp migrated to the Card IR, so the double-strike-
+    # grant tail is served from the hybrid (IR) path via a LOW-confidence inline mirror.
     raphael = {
         "name": "Raphael, the Nightwatcher",
         "type_line": "Legendary Creature — Mutant Ninja Turtle",
@@ -6356,7 +6360,8 @@ def test_attacking_team_double_strike_opens_combat_damage():
             "Sneak {1}{R}{R}\nAttacking creatures you control have double strike."
         ),
     }
-    assert ("combat_damage_to_opp", "opponents") in _ks(raphael)
+    rsigs = {(s.key, s.scope) for s in extract_signals_hybrid(raphael, _bare_ir())}
+    assert ("combat_damage_to_opp", "opponents") in rsigs
     # Over-fire guard: a conditional/non-attacking double-strike grant is not this lane.
     kwende = {
         "name": "Kwende, Pride of Femeref",
@@ -6365,7 +6370,8 @@ def test_attacking_team_double_strike_opens_combat_damage():
             "Double strike\nCreatures you control with first strike have double strike."
         ),
     }
-    assert ("combat_damage_to_opp", "opponents") not in _ks(kwende)
+    ksigs = {(s.key, s.scope) for s in extract_signals_hybrid(kwende, _bare_ir())}
+    assert ("combat_damage_to_opp", "opponents") not in ksigs
 
 
 def test_remove_counter_to_activate_opens_proliferate():
@@ -6620,11 +6626,18 @@ def test_ring_bearer_commander_folds_the_ring():
             "those kinds of counters on up to one other target creature."
         ),
     }
-    without = _keys(aragorn)
-    withfold = {s.key for s in extract_signals(aragorn, resolve_object=resolver)}
+    # ADR-0027 β: combat_damage_to_opp migrated to the Card IR, so it is served from the
+    # hybrid (IR) path. The hybrid folds the referenced object (the Ring) into the record
+    # the IR mirror reads, so the folded combat-damage drain still opens the lane.
+    without = {s.key for s in extract_signals_hybrid(aragorn, _bare_ir())}
+    withfold = {
+        s.key
+        for s in extract_signals_hybrid(aragorn, _bare_ir(), resolve_object=resolver)
+    }
     # The folded Ring's combat-damage drain opens combat_damage_to_opp.
     assert ("combat_damage_to_opp", "opponents") in {
-        (s.key, s.scope) for s in extract_signals(aragorn, resolve_object=resolver)
+        (s.key, s.scope)
+        for s in extract_signals_hybrid(aragorn, _bare_ir(), resolve_object=resolver)
     }
     assert "combat_damage_to_opp" in withfold
     assert "combat_damage_to_opp" not in without
@@ -6635,7 +6648,8 @@ def test_ring_bearer_commander_folds_the_ring():
         "oracle_text": "Vigilance",
     }
     assert "combat_damage_to_opp" not in {
-        s.key for s in extract_signals(plain, resolve_object=resolver)
+        s.key
+        for s in extract_signals_hybrid(plain, _bare_ir(), resolve_object=resolver)
     }
 
 

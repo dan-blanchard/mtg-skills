@@ -4231,6 +4231,41 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 β kept-mirror — combat_damage_to_creature: the RECIPIENT-TYPE split phase
+    # can't make structurally (it drops valid_target's TYPE onto the combat_damage
+    # trigger, so a creature- and a player-recipient trigger project byte-identically).
+    # The discriminator survives in the joined-face oracle ("to a creature"), so this is a
+    # byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP regex. Voracious Cobra
+    # is a CLEAN creature-recipient ("deals combat damage to a creature, destroy that
+    # creature") — its oracle never says "to a player", so the sibling combat_damage_to_opp
+    # lane stays silent. Bare IR (the mirror scans the record's oracle_text).
+    "combat_damage_to_creature": (
+        {
+            "name": "Voracious Cobra",
+            "type_line": "Creature — Snake",
+            "oracle_text": (
+                "First strike\nWhenever this creature deals combat damage to a "
+                "creature, destroy that creature."
+            ),
+        },
+        _ir(),
+    ),
+    # ADR-0027 β kept-mirror — combat_damage_to_opp: the player-recipient half of the
+    # same split. Cold-Eyed Selkie is a CLEAN player-recipient ("deals combat damage to a
+    # player"); its oracle never says "to a creature", so the sibling
+    # combat_damage_to_creature lane stays silent. Bare IR.
+    "combat_damage_to_opp": (
+        {
+            "name": "Cold-Eyed Selkie",
+            "type_line": "Creature — Merfolk Rogue",
+            "oracle_text": (
+                "Islandwalk (This creature can't be blocked as long as "
+                "defending player controls an Island.)\nWhenever this creature "
+                "deals combat damage to a player, you may draw that many cards."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 β kept-mirror: phase's legend_exempt drops the BOUNDED variant
     # ("doesn't apply to permanents you control"), so Mirror Box has no structural
     # form — the byte-identical _IR_KEPT_DETECTORS mirror is what recovers it. Bare IR.

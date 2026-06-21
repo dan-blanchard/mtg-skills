@@ -25,6 +25,8 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    COMBAT_DAMAGE_TO_CREATURE_REGEX,
+    COMBAT_DAMAGE_TO_OPP_REGEX,
     COST_REDUCTION_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
@@ -2589,6 +2591,28 @@ _GLOBAL_ABILITY_GRANT_PLAN_MIRROR = re.compile(
 _DEBUFF_MATTERS_PLAN_MIRROR = re.compile(
     DEBUFF_SWEEP_REGEX + "|" + DEBUFF_MAHA_REGEX, re.IGNORECASE
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated combat_damage_to_creature +
+# combat_damage_to_opp keys. Each deleted SWEEP producer fired HIGH-confidence and
+# counted toward `has_other_plan`, silencing the spurious commander-damage voltron tell
+# on a connect-payoff body that is NOT a vanilla beater. The creature lane silenced 6
+# bodies (Serpentine Basilisk, Toxin Sliver, Voracious Cobra, Creepy Doll, Charging
+# Tuskodon, Dripping Dead — power-≥2 deathtouch/destroy-on-connect creatures); the opp
+# lane silenced 1 more (Charging Tuskodon's "If this creature would deal combat damage
+# to a player, it deals double … to that player" replacement — which the
+# combat_damage_matters _DETECTORS regex misses because it isn't a "whenever … deals"
+# trigger, so opp is its only HIGH-confidence plan). Both migrated lanes ride byte-
+# identical _IR_KEPT_DETECTORS mirrors, so this gate mirror — the OR of the EXACT two
+# deleted regexes — re-supplies the silence. Matched against the reminder-STRIPPED
+# joined-face `text` (NOT `_oracle`), because the deleted producers were SWEEP detectors
+# over reminder-stripped clauses: an INGEST keyword's "deals combat damage to a
+# player" reminder (Culling Drone, Mist Intruder) never fired them, so the gate must
+# not silence those Devoid beaters. `text` is itself joined-face, so DFC back faces
+# stay covered; the `[^.]`-bounded "whenever" arm never crosses a sentence, so full-text
+# == the SWEEP's per-clause path. NO-FLOOD: voltron byte-identical (0/0). CR 903.10a.
+_COMBAT_DAMAGE_CONNECT_PLAN_MIRROR = re.compile(
+    COMBAT_DAMAGE_TO_CREATURE_REGEX + "|" + COMBAT_DAMAGE_TO_OPP_REGEX,
+    re.IGNORECASE,
+)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -3675,17 +3699,13 @@ def extract_signals(
             re.IGNORECASE,
         ):
             add("lifegain_matters", "you", "", text[:160], "low")
-        # Double strike granted to your ATTACKING team (Raphael) makes attackers deal
-        # combat damage to players TWICE — it wants the "whenever creatures you control
-        # deal combat damage to a player" payoffs. Tight to "attacking creatures you
-        # control have double strike" so go-wide/tribal/conditional double-strike
-        # granters (Kwende, Jetmir, Raksha) — not combat-damage-payoff decks — stay out.
-        if re.search(
-            r"attacking creatures you control have[^.]*double strike",
-            text,
-            re.IGNORECASE,
-        ):
-            add("combat_damage_to_opp", "opponents", "", text[:160], "low")
+        # ADR-0027 β — combat_damage_to_opp migrated to the Card IR. Its narrow
+        # double-strike-grant producer (Raphael, Blade Historian, Berserkers' Onslaught:
+        # "attacking creatures you control have double strike" → attackers connect with
+        # players TWICE) is deleted here; the key is now served by the byte-identical
+        # _IR_KEPT_DETECTORS mirror of COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX (same low
+        # confidence). It fired LOW confidence, so it never fed has_other_plan — no
+        # voltron PLAN mirror is needed for it.
         # SPENDING a counter as an activation cost ("remove a counter from <permanent>:
         # <effect>") means the deck wants MORE counters — i.e. proliferate (Migloz/oil,
         # Rasputin/dream, Tayam/Fain/O'aka/Duchess/The Duke counter-spend engines, plus
@@ -3959,6 +3979,16 @@ def extract_signals(
         # reminder (Chaos Spewer) never fired them, so the gate must not silence that
         # body. CR 903.10a.
         or _DEBUFF_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted combat_damage_to_creature +
+        # combat_damage_to_opp SWEEP producers (both fired HIGH-confidence, feeding
+        # has_other_plan). Byte-identical OR of the two deleted regexes — matched
+        # against the reminder-STRIPPED joined-face `text` (NOT `_oracle`), because
+        # the deleted producers were SWEEP detectors over reminder-stripped clauses:
+        # "deals combat damage to a player" inside an INGEST keyword's reminder
+        # (Culling Drone, Mist Intruder) never fired them, so this mirror must not
+        # silence those Devoid beaters either. `text` is itself joined-face
+        # (get_oracle_text), so DFC back faces are covered. CR 903.10a.
+        or _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

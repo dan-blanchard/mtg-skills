@@ -51,6 +51,36 @@ NONCREATURE_CAST_PUNISH_REGEX = "whenever a player casts a noncreature spell|whe
 # reuses it for the kept mirror and signal_specs hand-registers the serve reusing it —
 # so serve / mirror never drift. SWEEP_LABELS still carries the human label.
 TRIBE_DAMAGE_TRIGGER_REGEX = "whenever (?:one or more|a|another) [A-Z][a-z]+s? you control deal[s]? (?:combat )?damage to (?:a player|an opponent|one of your opponents|each opponent)"
+# ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp (both is_widen_of
+# combat_damage_matters) migrated to the Card IR via the KEPT-DETECTOR pattern. Their
+# SWEEP_DETECTORS rows are deleted: phase DOES carry the damage RECIPIENT class on the
+# combat_damage trigger (Ohran Viper's two DamageDone triggers differ structurally —
+# valid_target Typed[Creature] vs Player), but project.py drops valid_target's TYPE
+# onto the Trigger today, so the two recipients are indistinguishable in the projected
+# IR (both scope='any', subject=None). The recipient discriminator survives byte-
+# identically in the joined-face oracle ("to a creature" vs "to a player/an opponent/
+# each opponent"), and the deleted regexes only ever matched single clauses (no `.`/`;`/
+# `\n` inside the connect phrase), so a FLAT-text mirror reproduces the per-clause regex
+# firing set exactly (commander-legal corpus: regex==mirror, 0 lost, 0 over-fire). These
+# mined regexes survive as shared constants so signals._IR_KEPT_DETECTORS reuses each for
+# the kept mirror, signal_specs hand-registers the serve reusing it, and the voltron PLAN
+# mirror in _signals_regex reuses the OR of both — so serve / mirror / silence never
+# drift. SWEEP_LABELS still carries the human label rows. CR 510.1c / 510.2.
+COMBAT_DAMAGE_TO_CREATURE_REGEX = r"deals combat damage to (?:a|another|one or more) creatures?\b|whenever [^.]*deals combat damage to (?:a|another) creature"
+COMBAT_DAMAGE_TO_OPP_REGEX = (
+    "deals? combat damage to (?:a player|each opponent|an opponent|that player)"
+)
+# The NARROW second producer of combat_damage_to_opp the regex path carried alongside
+# the SWEEP row (it lived in _signals_regex, not a SWEEP_DETECTORS row): a double-strike
+# grant to your ATTACKING team (Raphael, Blade Historian, Berserkers' Onslaught) makes
+# attackers connect with players TWICE — a combat-damage-to-player payoff whose oracle
+# never says "deals combat damage to a player". It fired LOW confidence (it does NOT feed
+# has_other_plan), and its 3 cards are disjoint from the COMBAT_DAMAGE_TO_OPP_REGEX set,
+# so the kept mirror reproduces it as a third byte-identical _IR_KEPT_DETECTORS row (same
+# low confidence) to keep the migration loss-free. Pinned here so mirror / serve reuse it.
+COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX = (
+    "attacking creatures you control have[^.]*double strike"
+)
 # ADR-0027 β — the power-as-damage cluster (creature_ping + damage_equal_power)
 # migrated to the Card IR. Both SWEEP_DETECTORS rows are deleted: every power-scaling
 # damage card now carries a cat=="damage" Effect with amount.op=="power" (the d6620ac
@@ -961,18 +991,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # the Card IR via the KEPT-DETECTOR pattern: signals._IR_KEPT_DETECTORS reuses the
     # shared TRIBE_DAMAGE_TRIGGER_REGEX above, byte-identically). SWEEP_LABELS still
     # carries the human label; signal_specs hand-registers the serve.
-    {
-        "key": "combat_damage_to_creature",
-        "scope": "any",
-        "is_widen_of": "combat_damage_matters",
-        "regex": "deals combat damage to (?:a|another|one or more) creatures?\\b|whenever [^.]*deals combat damage to (?:a|another) creature",
-    },
-    {
-        "key": "combat_damage_to_opp",
-        "scope": "opponents",
-        "is_widen_of": "combat_damage_matters",
-        "regex": "deals? combat damage to (?:a player|each opponent|an opponent|that player)",
-    },
+    # ADR-0027 β — combat_damage_to_creature + combat_damage_to_opp's SWEEP_DETECTORS
+    # rows are deleted (migrated to the Card IR via the KEPT-DETECTOR pattern:
+    # signals._IR_KEPT_DETECTORS reuses the shared COMBAT_DAMAGE_TO_CREATURE_REGEX /
+    # COMBAT_DAMAGE_TO_OPP_REGEX above, byte-identically). SWEEP_LABELS still carries the
+    # human labels; signal_specs hand-registers each serve.
     # ADR-0027: creature_cast_trigger migrated to the Card IR — a cast_spell trigger with
     # a Creature subject + an effect-raw / face-oracle "whenever/when [player] casts a …
     # creature spell" scan (recovers the qualified-subject triggers the bare regex
