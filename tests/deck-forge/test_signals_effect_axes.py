@@ -27,7 +27,9 @@ CASES = [
         "you",
         "{T}: Search your library for a basic land card, then shuffle.",
     ),
-    ("untap_engine", "you", "{T}: Untap another target permanent."),
+    # ADR-0027 β: untap_engine migrated to the Card IR (a refined `cat=='untap'`
+    # structural arm + a narrowed kept mirror), so it no longer fires on the regex path
+    # tested here — its IR path is proven in test_migrated_keys.
     ("gain_control", "you", "{3}{U}: Gain control of target creature."),
     (
         "opponent_discard",

@@ -78,6 +78,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # untap_engine ← an `untap` Effect whose raw matches the engine anchor "untap
+    # target/all/each/two/up to" (Seedborn Muse's "Untap all permanents you control"
+    # projects cat="untap", subject=None — phase drops the broad subject — so the raw
+    # branch carries it). The structural arm in extract_signals_ir fires scope "you",
+    # gated against the opponent-untap / provoke / single-attach over-fires. ADR-0027 β.
+    "untap_engine": (
+        {
+            "name": "Seedborn Muse",
+            "type_line": "Creature — Spirit",
+            "oracle_text": (
+                "Untap all permanents you control during each other player's "
+                "untap step."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="untap",
+                        scope="any",
+                        raw=(
+                            "Untap all permanents you control during each other "
+                            "player's untap step"
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.

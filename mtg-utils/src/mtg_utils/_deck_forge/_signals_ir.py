@@ -2756,7 +2756,7 @@ _FOR_EACH_RAW = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORE
 _NAMED_SCALE_OPS = frozenset({"counters", "domain", "devotion", "party", "experience"})
 
 
-# untap_engine discriminator (ADR-0027): the lane wants a DELIBERATE untap engine —
+# untap_engine discriminator (ADR-0027 β): the lane wants a DELIBERATE untap engine —
 # "untap target/another target/all/each/two/up to <permanent>" (Seedborn Muse,
 # Kiora, Murkfiend Liege) — NOT an incidental "untap it/this/that" rider (Act of
 # Treason's threaten, Abduction, Amulet of Vigor) nor the "doesn't untap" INVERSION
@@ -2764,6 +2764,34 @@ _NAMED_SCALE_OPS = frozenset({"counters", "domain", "devotion", "party", "experi
 # =='all', the structured "untap all") also opens it even when the raw is empty.
 _UNTAP_ENGINE_RAW = re.compile(
     r"\buntap (?:target|another target|all|each|two|up to)", re.IGNORECASE
+)
+# Single-permanent untap RIDER veto (ADR-0027 β): "untap enchanted/equipped <thing>"
+# is a one-off Aura/Equipment untap (Crab Umbra, Pemmin's Aura, Freed from the Real),
+# the incidental "untap it/this/that" rider the lane explicitly excludes — not the
+# deliberate target/mass engine. Vetoes the structural subject-Filter branch only.
+_UNTAP_ATTACH_VETO = re.compile(r"untap (?:enchanted|equipped)\b", re.IGNORECASE)
+# Opponent-untap over-fire veto (ADR-0027 β): "Untap target creature you don't control"
+# is an incidental untap of an ENEMY permanent for combat/theft (Provoke the card,
+# Spinal Embrace, provoke-keyword combat) — anti-synergy with an untap engine, NOT one.
+# The deleted regex over-fired on both; the IR (structural arm + mirror) correctly
+# drops them. Used to veto the mirror and the structural raw branch (the subject branch
+# already gates on controller!='opp').
+_UNTAP_ENGINE_OPP_VETO = re.compile(
+    r"untap target creature you don't control", re.IGNORECASE
+)
+# untap_engine mirror (ADR-0027 β): the EXACT deleted _HAND_FLOOR regexes (the
+# target/all/each/two/up-to engine + the Ashaya creatures-are-lands synergy) the
+# structural arm misses because phase routes their untap into a choose / target_only /
+# cost / type_set carrier, not a `cat=='untap'` Effect (Captain of the Mists, Turnabout,
+# Faces of the Past, All-Out Assault, Teferi Who Slows the Sunset, Crackleburr, Halo
+# Fountain, Ohabi Caleria, Zariel, Tideforce Elemental, Ashaya). Run reminder-stripped
+# (kept_oracle) like the deleted floor Detectors, with the opp-untap veto so it drops
+# the same Provoke / Spinal Embrace over-fires the structural arm does.
+_UNTAP_ENGINE_MIRROR_RAW = re.compile(
+    r"\buntap (?:target|another target|all|each|two|up to)\b", re.IGNORECASE
+)
+_UNTAP_ENGINE_MIRROR_LANDS = re.compile(
+    r"(?:nontoken )?creatures you control are[^.]*\blands\b", re.IGNORECASE
 )
 
 
@@ -4491,20 +4519,41 @@ def extract_signals_ir(
             # restriction (can't attack / can't cast) stays out.
             if cat == "restriction" and re.search(r"untap", e.raw or "", re.IGNORECASE):
                 add("tapper_engine", "any", "", e.raw)
-            # untap_engine (ADR-0027): a DELIBERATE untap engine — a mass untap
-            # (counter_kind=='all', the structured "untap all creatures/permanents"),
-            # a raw "untap target/all/each/two/up to <permanent>", OR a modal-split
-            # untap whose subject is a real TARGET permanent (Dream's Grip's "• Untap
-            # target permanent" — phase structures the effect but drops the bullet
-            # raw). Gated off the incidental "untap it/this/that" rider and the
-            # "doesn't untap" inversion (no target subject, no engine raw).
-            if cat == "untap" and (
-                e.counter_kind == "all"
-                or _UNTAP_ENGINE_RAW.search(e.raw or "")
-                or (
-                    isinstance(e.subject, Filter)
-                    and bool(e.subject.card_types)
-                    and e.subject.controller != "opp"
+            # untap_engine (ADR-0027 β): a DELIBERATE untap engine — a mass untap
+            # (counter_kind=='all', the structured "untap all creatures/permanents" —
+            # Seedborn Muse, Early Harvest, Sands of Time, Godo), a raw "untap target/
+            # all/each/two/up to <permanent>" (Kiora, Murkfiend Liege), OR a multi/X-
+            # target untap whose subject is a real permanent TYPE you can control
+            # (Candelabra "Untap X target lands", Synod Artificer "Untap X target
+            # noncreature artifacts", Reality Spasm "Untap X target permanents" — phase
+            # structures the effect but drops the "X target" engine raw). Gated against
+            # three over-fires: (1) an opponent-untap (subject controller=='opp' OR a
+            # "you don't control" raw — Provoke/Spinal Embrace untap an ENEMY permanent
+            # for combat/theft, anti-synergy with an untap engine, NOT one); (2) a
+            # PROVOKE combat keyword (a `force_block` sibling effect in the same ability
+            # — provoke's "untap target creature defending player controls" rides the
+            # de-reminded raw, but it untaps the blocker, not your board); (3) the
+            # single-permanent "untap enchanted/equipped <thing>" RIDER (Crab Umbra,
+            # Pemmin's Aura — the incidental rider the lane excludes). The deleted regex
+            # over-fired on (1) (it ran reminder-stripped but couldn't read "you don't
+            # control"); the structural arm + the kept mirror both correctly drop it.
+            _opp_untap = (
+                isinstance(e.subject, Filter) and e.subject.controller == "opp"
+            ) or _UNTAP_ENGINE_OPP_VETO.search(e.raw or "")
+            _is_provoke = any(s.category == "force_block" for s in ab.effects)
+            if (
+                cat == "untap"
+                and not _opp_untap
+                and not _is_provoke
+                and (
+                    e.counter_kind == "all"
+                    or _UNTAP_ENGINE_RAW.search(e.raw or "")
+                    or (
+                        isinstance(e.subject, Filter)
+                        and bool(e.subject.card_types)
+                        and e.subject.controller != "opp"
+                        and not _UNTAP_ATTACH_VETO.search(e.raw or "")
+                    )
                 )
             ):
                 add("untap_engine", "you", "", e.raw)
@@ -5369,6 +5418,29 @@ def extract_signals_ir(
     # lower(), so A-B==0). The add() dedup unions this with the structural arm.
     if any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("impulse_top_play", "you", "", "")
+    # ADR-0027 β — untap_engine NARROWED kept mirror. The structural arm above reads
+    # `cat=='untap'` Effects, but phase routes ~11 genuine engines into a choose /
+    # target_only / cost / type_set carrier with NO cat=='untap' Effect (Captain of the
+    # Mists & Tideforce Elemental — modal "tap or untap target"; Turnabout & Faces of
+    # the Past — "tap-all OR untap-all" choose; All-Out Assault — mass-untap-own-board
+    # folded into extra_combat; Teferi Who Slows the Sunset & Zariel — emblem untap in
+    # an effect raw; Crackleburr & Halo Fountain — "untap two tapped … you control" as a
+    # COST; Ohabi Caleria — "untap all Archers you control" static phase drops; Ashaya —
+    # the creatures-are-lands synergy). Recover them with the EXACT deleted _HAND_FLOOR
+    # regexes (the target/all/each/two/up-to engine + the creatures-are-lands marker)
+    # over the reminder-stripped kept_oracle, byte-identical to the deleted floor
+    # Detectors — BUT vetoed by the opp-untap anti-pattern so it drops the same
+    # incidental enemy-untap over-fires the structural arm does (Provoke / Spinal
+    # Embrace "Untap target creature you don't control", which the deleted regex
+    # incorrectly caught because it ran reminder-stripped and couldn't read "you don't
+    # control").
+    # Net residual vs the deleted regex: regex_only == {Provoke, Spinal Embrace}, 100%
+    # over-fire (CR 701.16 / 903.10a). add() dedups the overlap with the structural arm.
+    if not _UNTAP_ENGINE_OPP_VETO.search(kept_oracle) and (
+        _UNTAP_ENGINE_MIRROR_RAW.search(kept_oracle)
+        or _UNTAP_ENGINE_MIRROR_LANDS.search(kept_oracle)
+    ):
+        add("untap_engine", "you", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the

@@ -2356,7 +2356,10 @@ def test_self_recurring_commander_opens_voltron():
 def test_creatures_are_lands_opens_untap_engine():
     # Ashaya's nontoken creatures ARE Forest lands, so untap-lands effects (Quirion
     # Ranger, Argothian Elder, Ley Weaver) untap its creature-lands for mana and re-use.
-    # Opens untap_engine. Real oracle.
+    # Opens untap_engine. Real oracle. ADR-0027 β: untap_engine migrated to the Card IR,
+    # so the creatures-are-lands marker now fires from the IR kept mirror (the hybrid
+    # path with any non-None IR — the mirror scans the card's oracle text), not the
+    # deleted regex producer.
     ashaya = {
         "name": "Ashaya, Soul of the Wild",
         "type_line": "Legendary Creature — Elemental",
@@ -2366,7 +2369,8 @@ def test_creatures_are_lands_opens_untap_engine():
             "their other types. (They're still affected by summoning sickness.)"
         ),
     }
-    assert "untap_engine" in _keys(ashaya)
+    assert "untap_engine" not in _keys(ashaya)
+    assert "untap_engine" in _keys_hybrid(ashaya)
 
 
 def test_rampage_keyword_opens_blocked_matters():

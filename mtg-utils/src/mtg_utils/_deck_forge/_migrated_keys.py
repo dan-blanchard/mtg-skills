@@ -1417,6 +1417,49 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (SWEEP_LABELS kept); the serve is hand-registered in signal_specs.py reusing
         # the EXACT deleted regex (pinned as DEBUFF_SWEEP_REGEX). CR 122.1b / CR 613.
         "debuff_matters",
+        # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
+        # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
+        # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass
+        # untap (counter_kind=='all' — Early Harvest, Sands of Time, Godo), a raw "untap
+        # target/all/each/two/up to" (the deleted regex's anchor), and a multi/X-target
+        # untap of a permanent TYPE you can control (Candelabra "Untap X target lands",
+        # Synod Artificer, Reality Spasm — phase drops the "X target" engine raw). The
+        # arm is gated against three over-fires the previous broad subject branch
+        # leaked: (1) an opponent-untap (subject controller=='opp' OR a "you don't
+        # control" raw — Provoke the card, Spinal Embrace, the provoke combat keyword
+        # untap an ENEMY permanent for combat/theft, anti-synergy with an untap engine);
+        # (2) a PROVOKE keyword (a `force_block` sibling effect rides the de-reminded
+        # raw); (3) the single-permanent "untap enchanted/equipped <thing>" rider (Crab
+        # Umbra, Pemmin's Aura).
+        #
+        # phase routes ~11 genuine engines into a choose / target_only / cost / type_set
+        # carrier with NO cat=='untap' Effect (Captain of the Mists & Tideforce
+        # Elemental — modal "tap or untap target"; Turnabout & Faces of the Past —
+        # "tap-all OR untap-all" choose; All-Out Assault — mass-untap-own-board folded
+        # into extra_combat; Teferi Who Slows the Sunset & Zariel — emblem untap in an
+        # effect raw; Crackleburr & Halo Fountain — "untap two tapped … you control" as
+        # a COST; Ohabi Caleria — "untap all Archers you control"; Ashaya — the
+        # creatures-are-lands synergy). A NARROWED _IR_KEPT_DETECTORS-style mirror
+        # recovers them with the EXACT two deleted _HAND_FLOOR regexes over the
+        # reminder-stripped kept_oracle, vetoed by the opp-untap anti-pattern so it
+        # drops the same incidental enemy-untap over-fires the structural arm does.
+        #
+        # Net residual vs the deleted regex (commander-legal, floor lanes disabled):
+        # both == 339, ir_only == 12 (broader-and-correct recall — Candelabra, Synod
+        # Artificer, Sands of Time, all Scryfall-verified engines), regex_only ==
+        # {Provoke, Spinal Embrace} == 100% over-fire (both "Untap target creature you
+        # don't control" — untap an ENEMY permanent for combat/theft, not a deliberate
+        # engine — which the deleted regex over-fired on because it ran reminder-
+        # stripped and couldn't read "you don't control"; the IR correctly drops both).
+        # floor-mirror-dep == 0 (untap_engine is NOT in _IR_FLOOR_LANES; neither source
+        # reads it). Both deleted producers fired high-confidence scope 'you', counting
+        # toward has_other_plan, so an _UNTAP_ENGINE_PLAN_MIRROR (the byte-identical OR
+        # of both deleted regexes over the reminder-stripped joined-face `text`) re-
+        # supplies that voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, since the IR
+        # arm is broader and would over-silence the ir_only bodies (NO-FLOOD: voltron 0
+        # leaked). Both _HAND_FLOOR producers deleted; the standalone _spec serve in
+        # signal_specs.py survives. CR 701.16 / 903.10a.
+        "untap_engine",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

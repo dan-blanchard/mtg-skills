@@ -1889,13 +1889,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "untap_engine",
-        re.compile(
-            r"untap (?:target|another target|all|each|two|up to)", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027 β: untap_engine migrated to the Card IR — this _HAND_FLOOR producer
+    # (the "untap target/all/each/two/up to" engine anchor) and the creatures-are-lands
+    # producer below are deleted. The lane fires from a refined structural arm in
+    # extract_signals_ir (mass untap counter_kind=='all' + raw "untap target/.." + a
+    # multi/X-target untap of a permanent type you can control, all gated against the
+    # opponent-untap / provoke / single-attach over-fires) PLUS a NARROWED
+    # _IR_KEPT_DETECTORS-style mirror for the ~11 engines phase routes into a choose /
+    # target_only / cost / type_set carrier. The two producers fired HIGH-confidence
+    # (forced scope 'you') and counted toward has_other_plan, so an
+    # _UNTAP_ENGINE_PLAN_MIRROR (the byte-identical OR of both deleted regexes over the
+    # reminder-stripped joined-face `text`) re-supplies that voltron silence — NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (+12 ir_only) and would
+    # over-silence those recall-gain bodies. The serve spec (signal_specs.py, a
+    # standalone _spec on untap effects) survives. CR 701.16 / 903.10a.
     ("gain_control", re.compile(r"gain control of", re.IGNORECASE), "you"),
     (
         "opponent_discard",
@@ -2039,16 +2046,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # creatures you control" anchors) and the count-form payoff (amount.subject with
     # the Counters predicate). This _HAND_FLOOR producer is deleted; the serve spec
     # stays hand-registered.
-    # Creatures-are-lands (Ashaya): "nontoken creatures you control are Forest lands" —
-    # its creatures ARE lands, so untap-lands effects (Quirion Ranger, Argothian Elder,
-    # Seedborn Muse) untap its creature-lands for mana and re-use -> the untap engine.
-    (
-        "untap_engine",
-        re.compile(
-            r"(?:nontoken )?creatures you control are[^.]*\blands\b", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027 β: the untap_engine creatures-are-lands producer (Ashaya — "nontoken
+    # creatures you control are Forest lands", whose creature-lands untap for mana via a
+    # Seedborn/Quirion Ranger engine) is deleted alongside the engine-anchor producer
+    # above. It survives byte-identically as _UNTAP_ENGINE_MIRROR_LANDS in the IR kept
+    # mirror and in the _UNTAP_ENGINE_PLAN_MIRROR voltron re-supply below. CR 701.16.
     # ADR-0027: cycling_matters migrated to the Card IR — phase's `cycled` trigger +
     # a `cycling_payoff` marker (project._narrow_trigger_other_refs for the "cycle or
     # discard" payoff phase flattens to event='other', + _dropped_static_markers for
@@ -3152,6 +3154,25 @@ _EDICT_PLAN_MIRROR = re.compile(
 # the deleted floor-detector path; verified diff=0 on the FILE-SWAP voltron diff).
 _CREATURE_PING_PLAN_MIRROR = re.compile(CREATURE_PING_REGEX, re.IGNORECASE)
 _DAMAGE_EQUAL_POWER_PLAN_MIRROR = re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE)
+# ADR-0027 β — untap_engine voltron PLAN mirror. Both deleted _HAND_FLOOR producers
+# (the engine anchor + the creatures-are-lands marker) fired high-confidence (forced
+# scope 'you') and counted toward has_other_plan, silencing the spurious commander-
+# damage voltron membership tell on an untap engine that is NOT a vanilla beater
+# (Seedborn Muse, Murkfiend Liege, Ashaya). The migrated IR arm is BROADER (+12
+# ir_only — Candelabra, Synod Artificer, Sands of Time), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence (an extra untap engine the IR newly
+# opens that IS a vanilla voltron threat). This byte-identical OR of the EXACT two
+# deleted regexes restores ONLY the old regex's silence set — including the Provoke /
+# Spinal Embrace over-fires the old path also silenced (NO-FLOOD: voltron 0 leaked).
+# Read against the reminder-stripped joined-face `text` (NOT `_oracle`): the deleted
+# producers were floor Detectors over reminder-stripped clauses, so a "Provoke (…untap
+# target creature…)" reminder never fired them. Both arms are within-sentence
+# (`[^.]`-bounded), so full-text over `text` == per-clause. CR 701.16 / 903.10a.
+_UNTAP_ENGINE_PLAN_MIRROR = re.compile(
+    r"untap (?:target|another target|all|each|two|up to)"
+    r"|(?:nontoken )?creatures you control are[^.]*\blands\b",
+    re.IGNORECASE,
+)
 
 
 # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
@@ -4034,6 +4055,17 @@ def extract_signals(
         # bounded arms). CR 119.3 / 120.6.
         or _CREATURE_PING_PLAN_MIRROR.search(_oracle)
         or _DAMAGE_EQUAL_POWER_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted untap_engine _HAND_FLOOR producers. Both
+        # fired high-confidence scope 'you' and counted toward has_other_plan, silencing
+        # the spurious commander-damage voltron tell on an untap engine (Seedborn Muse,
+        # Murkfiend Liege). The migrated IR arm is BROADER (+12 ir_only), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence; this byte-identical mirror
+        # (the OR of both deleted regexes) restores only the old regex's silence set.
+        # Matched against the reminder-STRIPPED `text` (NOT `_oracle`): the deleted
+        # producers were floor Detectors over reminder-stripped clauses, so a provoke
+        # creature's "(…untap target creature…)" reminder never fired them — keeping
+        # reminders here would over-silence those bodies. CR 903.10a.
+        or _UNTAP_ENGINE_PLAN_MIRROR.search(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)
