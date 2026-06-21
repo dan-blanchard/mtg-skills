@@ -5017,6 +5017,23 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # cmdzone_ability (ADR-0027) — the STATIC-Eminence half phase drops the
+    # condition for (The Ur-Dragon: "As long as ~ is in the command zone … cost {1}
+    # less"). The triggered/activated halves fire structurally in extract_signals_ir
+    # (the 'command' ability-zone / condition-zone arm); this mirror reproduces the
+    # exact deleted SWEEP regex over the joined face so the static cost-reducer/
+    # anthem still opens the lane. The struct arm plus this mirror is byte-identical
+    # to the deleted regex on the commander-legal corpus (0 gap, 0 over-fire).
+    # CR 702.107.
+    (
+        "cmdzone_ability",
+        re.compile(
+            r"is (?:on the battlefield or )?in the command zone"
+            r"|activate this ability only if[^.]*command zone",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker). Needs a narrower payoff/keyword source.
@@ -5568,6 +5585,12 @@ IR_SLICE_KEYS: frozenset[str] = (
             "theft_protection",
             "villainous_choice",
             "named_counter_misc",
+            # ADR-0027 cmdzone — an Eminence / command-zone-gated ability. The
+            # triggered/activated halves fire from the structural 'command'
+            # ability-zone / condition-zone arm; the static cost-reducer half (The
+            # Ur-Dragon) rides the byte-identical _IR_KEPT_DETECTORS word mirror.
+            # struct plus mirror == the deleted SWEEP regex (0 residual). CR 702.107.
+            "cmdzone_ability",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6589,6 +6612,18 @@ def _condition_has_kind(cond: object, kind: str) -> bool:
     return any(_condition_has_kind(n, kind) for n in cond.nested)
 
 
+def _condition_has_zone(cond: object, zone: str) -> bool:
+    """True if ``cond`` (or any node in its nested And/Or/Not tree) references
+    ``zone``. phase nests a sourceinzone('command') under a wrapper 'or' alongside
+    a sourceinzone('battlefield') for the on-battlefield-OR-command-zone eminence
+    gate (Edgar Markov, Arahbo), so the recursion is required. (ADR-0027 cmdzone.)"""
+    if not isinstance(cond, Condition):
+        return False
+    if zone in cond.zones:
+        return True
+    return any(_condition_has_zone(n, zone) for n in cond.nested)
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -6645,6 +6680,21 @@ def extract_signals_ir(
         add("exile_until_leaves", "you", "", "")
 
     for ab in ir.all_abilities():
+        # cmdzone_ability (ADR-0027) — an ability that functions FROM the command
+        # zone (Eminence) or gates on the source being there: phase exposes the
+        # command-zone permission either as a zone the ability operates in
+        # (``ab.zones`` carries 'command' for an activate-from-CZ ability) or as a
+        # Condition whose recursive zone set contains 'command' (the triggered-
+        # Eminence build-arounds — Oloro's sourceinzone('command'); Edgar/Arahbo's
+        # 'or'-wrapped sourceinzone('command') + sourceinzone('battlefield')). The
+        # 'command' zone in the condition tree is the unambiguous discriminator —
+        # command-zone references are rare and always intentional build-arounds, so
+        # there is no over-fire (commander-legal IR-vs-regex over-fire == 0). The
+        # STATIC-Eminence half (The Ur-Dragon's cost-reducer) drops the condition in
+        # phase's parse, so it rides the byte-identical _IR_KEPT_DETECTORS word
+        # mirror (the exact deleted SWEEP regex) instead. CR 702.107 / 903.6.
+        if "command" in ab.zones or _condition_has_zone(ab.condition, "command"):
+            add("cmdzone_ability", "you", "", "")
         # curse_matters cares-about half (ADR-0027 t2b4a-B) — a card that REFERENCES
         # the Curse subtype: a trigger narrowed to Curses (Lynde, Cheerful Tormentor:
         # Trigger(event='dies', subject=Filter(subtypes=('Curse',)))) or an effect
@@ -9852,6 +9902,19 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "villainous_choice",
         "named_counter_misc",
         "powerup_matters",
+        # ADR-0027 cmdzone_ability — an Eminence / command-zone-gated ability. The
+        # triggered+activated halves (Oloro, Edgar, Arahbo, Inalla, Sidar Jabari)
+        # fire from a STRUCTURAL arm in extract_signals_ir: 'command' in the ability
+        # zones OR in the recursive Condition zone tree (phase models the command-
+        # zone gate as Condition(kind='sourceinzone', zones=('command',)), nested
+        # under an 'or' for the on-battlefield-OR-command form). The STATIC-Eminence
+        # half (The Ur-Dragon's cost-reducer) drops the condition in phase's parse,
+        # so it rides a byte-identical _IR_KEPT_DETECTORS word mirror (the exact
+        # deleted SWEEP regex). struct plus mirror == the regex set on the commander-
+        # legal corpus (0 gap, 0 over-fire); floor-mirror-dep == 0 (not a floor
+        # lane). Its SWEEP_DETECTORS row is deleted; the serve is hand-registered in
+        # signal_specs (reusing the deleted regex). CR 702.107 / 903.6.
+        "cmdzone_ability",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -630,12 +630,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "the .legend rule. doesn't apply",
     },
-    {
-        "key": "cmdzone_ability",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "is (?:on the battlefield or )?in the command zone|activate this ability only if[^.]*command zone",
-    },
+    # ADR-0027: cmdzone_ability migrated to the Card IR — an Eminence / command-zone-
+    # gated ability fires from a STRUCTURAL arm (extract_signals_ir): 'command' in the
+    # ability zones OR in the recursive Condition zone tree (phase models the gate as
+    # Condition(kind='sourceinzone', zones=('command',))). The STATIC-Eminence half
+    # (The Ur-Dragon) drops the condition, so it rides a byte-identical
+    # _IR_KEPT_DETECTORS word mirror (the exact regex below). This SWEEP_DETECTORS row
+    # is deleted; the serve is hand-registered in signal_specs (reusing the regex).
     # ADR-0027: mass_bounce migrated to the Card IR — a `bounce` Effect with
     # counter_kind=='all' (the mass discriminator) on a generic Creature/Permanent
     # subject (_is_mass_bounce_subject), excluding graveyard recursion. This

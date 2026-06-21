@@ -4961,6 +4961,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bsuspect\b|\bsuspected\b"},
         r"\bsuspects?\b|\bsuspected\b",
     ),
+    # ADR-0027: cmdzone_ability had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — a 'command' ability-zone / condition-zone
+    # structural arm + a kept word mirror for the static-Eminence cost-reducer). The
+    # SERVE pool stays oracle-defined, so hand-register the spec the sweep auto-
+    # register loop used to build, reusing the deleted regex.
+    ("cmdzone_ability", "you"): _spec(
+        *SWEEP_LABELS["cmdzone_ability"],
+        {
+            "oracle": (
+                r"is (?:on the battlefield or )?in the command zone"
+                r"|activate this ability only if[^.]*command zone"
+            )
+        },
+        (
+            r"is (?:on the battlefield or )?in the command zone"
+            r"|activate this ability only if[^.]*command zone"
+        ),
+    ),
 }
 
 # Subject-bearing signal keys: their spec is built dynamically from the captured

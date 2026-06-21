@@ -3928,6 +3928,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(keywords=("Power-up",)),
     ),
+    # cmdzone_ability ← an Eminence ability gated on the source being in the command
+    # zone: phase models the gate as Condition(kind="sourceinzone",
+    # zones=("command",)) (Oloro's triggered Eminence). extract_signals_ir fires the
+    # lane when "command" is in the ability's recursive condition-zone tree (or in
+    # ab.zones for an activate-from-CZ ability). The STATIC-Eminence cost-reducer
+    # half (The Ur-Dragon), whose condition phase drops, rides the kept word mirror.
+    "cmdzone_ability": (
+        {
+            "name": "Oloro, Ageless Ascetic",
+            "type_line": "Legendary Creature — Giant Soldier",
+            "oracle_text": (
+                "At the beginning of your upkeep, you gain 2 life.\nWhenever you gain "
+                "life, you may pay {1}. If you do, draw a card and each opponent "
+                "loses 1 life.\nAt the beginning of your upkeep, if Oloro, Ageless "
+                "Ascetic is in the command zone, you gain 2 life."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="upkeep"),
+                condition=Condition(kind="sourceinzone", zones=("command",)),
+                effects=(
+                    Effect(
+                        category="gain_life",
+                        scope="you",
+                        raw="if ~ is in the command zone, you gain 2 life",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
