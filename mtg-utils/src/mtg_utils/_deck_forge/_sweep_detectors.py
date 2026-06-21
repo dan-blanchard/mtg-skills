@@ -266,6 +266,32 @@ TOUGHNESS_COMBAT_REGEX = (
     r"|\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
     r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
 )
+# ADR-0027 β: ltb_matters (leaves-the-battlefield payoffs — sacrifice/blink/bounce
+# fodder to trigger a permanent leaving) migrated to the Card IR. The deleted
+# SWEEP_DETECTORS row's EXACT regex is pinned here so the migrated lane's narrowed
+# kept-mirror (_LTB_MATTERS_MIRROR in _signals_ir), the has-other-plan voltron gate
+# (_LTB_MATTERS_PLAN_MIRROR in _signals_regex), and the serve spec all share ONE
+# source. The lane fires from a STRUCTURAL arm (a `leaves` trigger — phase's
+# `LeavesBattlefield` mode, projected event=='leaves' @ SIDECAR v11 — with a real
+# OTHER-permanent subject leaving the battlefield, a +9 recall gain over this regex:
+# DFC back faces Luminous Phantom / Aang at the Crossroads, bounce payoffs Azorius
+# Aethermage / Warped Devotion / Tameshi the front-face-only regex missed) PLUS this
+# regex run PER-CLAUSE as the narrowed mirror for the Revolt "a permanent left the
+# battlefield this turn" conditions + the self-LTB payoffs phase leaves as a SelfRef
+# trigger / static condition. The mirror is VETOED per-clause by the O-Ring self-LTB-
+# EXILE form ("exile … until ~ leaves the battlefield" — Banishing Light / Static
+# Prison / Assimilation Aegis): that "until ~ leaves" is the END of a removal LOCK, not
+# a leaves-MATTERS payoff (it already routes to exile_until_leaves), so the 93 O-Ring
+# over-fires this regex caught are DROPPED (100% over-fire vs Scryfall oracle, 0 genuine
+# payoff lost). SWEEP_LABELS keeps the human label; the serve is hand-registered in
+# signal_specs.py reusing this constant (with its own O-Ring serve_not veto). CR
+# 603.6e / 700.4 (leaves the battlefield ⊃ dies).
+LTB_MATTERS_SWEEP_REGEX = (
+    "a permanent (?:you controlled )?left the battlefield "
+    "(?:under your control )?this turn"
+    "|whenever [^.]*(?:leaves the battlefield|leave the battlefield)"
+    "|when [^.]* leaves the battlefield"
+)
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -614,12 +640,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # signals.extract_signals_ir. Its SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps
     # the label, and the serve spec is hand-registered in signal_specs.py reusing
     # TARGET_PLAYER_DRAWS_REGEX.
-    {
-        "key": "ltb_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "a permanent (?:you controlled )?left the battlefield (?:under your control )?this turn|whenever [^.]*(?:leaves the battlefield|leave the battlefield)|when [^.]* leaves the battlefield",
-    },
+    # ADR-0027 β: ltb_matters migrated to the Card IR — a leaves-the-battlefield payoff
+    # fires from a STRUCTURAL `leaves`-trigger arm (phase's LeavesBattlefield mode,
+    # event=='leaves' @ SIDECAR v11, OTHER-permanent subject) + the NARROWED
+    # _LTB_MATTERS_MIRROR (this regex run per-clause, vetoed against the O-Ring self-LTB-
+    # exile over-fire). Its SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as
+    # LTB_MATTERS_SWEEP_REGEX above and the serve is hand-registered in signal_specs.py
+    # reusing it (SWEEP_LABELS keeps the human label). CR 603.6e / 700.4.
     # ADR-0027 t2b5-A: each_mode_player migrated to the Card IR — phase captures the
     # modal head (Effect.category=='choose') but has NO field for the spread-the-modes
     # CONSTRAINT, so the lane fires from a signals._IR_KEPT_DETECTORS word mirror (the

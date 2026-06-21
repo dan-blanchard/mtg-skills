@@ -5471,8 +5471,22 @@ def _trigger_event(tr: dict) -> str:
         return "life_gained"
     if mode in ("lifelost", "lifelostall", "paylife"):
         return "life_lost"
-    if mode in ("destroyed", "leavesbattlefield"):
+    # ADR-0027 β — leaves-the-battlefield is BROADER than dying (CR 603.6e / 700.4):
+    # a `dies` event is battlefield→GRAVEYARD specifically, but a `LeavesBattlefield`
+    # trigger fires on ANY battlefield→elsewhere movement (bounce, exile, blink).
+    # phase's `LeavesBattlefield` mode IS exactly that broad event, so it projects to
+    # `leaves`, NOT `dies` — the ltb_matters lane reads it, and a "leaves the
+    # battlefield" payoff is NOT a death payoff (death_matters reads only `dies`).
+    # `Destroyed` IS battlefield→graveyard (CR 701.7), so it stays `dies` (defensive —
+    # no Destroyed-mode trigger exists in the v0.1.19 corpus). The `ChangesZone` arm
+    # above already splits leaves vs dies on the explicit origin/destination zones
+    # (battlefield→graveyard → dies; battlefield→exile/hand → leaves); this only
+    # re-classifies the zone-less LeavesBattlefield mode phase emits when it knows the
+    # trigger is "leaves the battlefield" but not the exact destination. SIDECAR v11.
+    if mode == "destroyed":
         return "dies"
+    if mode == "leavesbattlefield":
+        return "leaves"
     if mode in ("sacrificed", "sacrificedonce"):
         return "sacrificed"
     if mode in ("taps", "tapsformana"):

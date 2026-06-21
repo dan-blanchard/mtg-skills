@@ -4954,6 +4954,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
     # already routes to exile_until_leaves, so excluding it here is lossless.
+    # ADR-0027 β: ltb_matters migrated to the Card IR (a structural `leaves`-trigger arm
+    # + a narrowed _LTB_MATTERS_MIRROR, SIDECAR v11). This serve spec was always hand-
+    # registered with its own curated SEARCH regex + serve_not O-Ring veto, independent
+    # of the deleted SWEEP detector, so it survives unchanged. CR 603.6e.
     ("ltb_matters", "you"): _spec(
         "Leaves-the-battlefield",
         "sacrifice and blink fodder to trigger LTB",

@@ -223,6 +223,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ltb_matters ← a STRUCTURAL `leaves` trigger (phase's LeavesBattlefield mode, or a
+    # ChangesZone battlefield→elsewhere — here battlefield→hand). Azorius Aethermage's
+    # "whenever a permanent is returned to your hand" is a BOUNCE leave (from:battlefield,
+    # to:hand), an OTHER-permanent subject → the structural arm in extract_signals_ir
+    # fires ltb_matters scope "you". Its oracle has NO "leaves the battlefield" text, so
+    # the deleted regex never matched it AND the narrowed kept-mirror stays silent — this
+    # is the structural arm's +9 recall (a bounce payoff the front-face-only regex
+    # missed). ADR-0027 β. CR 603.6e (leaves the battlefield ⊃ dies).
+    "ltb_matters": (
+        {
+            "name": "Azorius Aethermage",
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": (
+                "Whenever a permanent is returned to your hand, you may pay {1}. "
+                "If you do, draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="leaves",
+                    scope="you",
+                    subject=Filter(card_types=("Permanent",), controller="you"),
+                    zones=("from:battlefield", "to:hand"),
+                ),
+                effects=(
+                    Effect(category="pay_cost", scope="you", raw="you may pay {1}"),
+                    Effect(category="draw", scope="you", raw="draw a card"),
+                ),
+            )
+        ),
+    ),
     # toughness_combat ← a BYTE-IDENTICAL kept mirror (_TOUGHNESS_COMBAT_MIRROR over the
     # reminder-stripped oracle: "Each creature you control assigns combat damage equal to
     # its toughness rather than its power"). TWO deleted regex producers (the SWEEP

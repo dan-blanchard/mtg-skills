@@ -53,6 +53,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
+    LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
@@ -2116,6 +2117,22 @@ IR_SLICE_KEYS: frozenset[str] = (
             # reconciles the 13 LOW-conf "don't own" cross-opens. NOT in _IR_FLOOR_LANES
             # (floor-mirror-dep == 0). CR 800.4a / 720.1.
             "gain_control",
+            # ADR-0027 β — ltb_matters (leaves-the-battlefield payoffs — sac/blink/
+            # bounce fodder). A STRUCTURAL `leaves`-trigger arm below (phase's
+            # LeavesBattlefield mode, projected event=='leaves' @ SIDECAR v11, with an
+            # OTHER-permanent subject leaving the battlefield) is a +9 recall gain over
+            # the deleted regex (DFC back faces Luminous Phantom / Aang at the
+            # Crossroads; bounce payoffs Azorius Aethermage / Warped Devotion / Tameshi
+            # the front-face-only regex missed), PLUS a NARROWED _LTB_MATTERS_MIRROR
+            # (the exact regex run per-clause for the Revolt "a permanent left the
+            # battlefield this turn" conditions + self-LTB payoffs phase leaves as a
+            # SelfRef trigger / static condition), VETOED per-clause by the O-Ring
+            # self-LTB-EXILE form
+            # ("exile … until ~ leaves the battlefield" — Banishing Light / Static
+            # Prison, 93 over-fires dropped, already routed to exile_until_leaves). NOT
+            # in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 603.6e / 700.4 (leaves ⊃
+            # dies).
+            "ltb_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3041,6 +3058,29 @@ _GAIN_CONTROL_MIRROR_VETO = re.compile(
     r"|gain control of (?:all |each )?[^.]*\byou own\b"
     r"|(?:a|that|each|another|target) player gains control",
     re.IGNORECASE,
+)
+# ltb_matters NARROWED kept mirror (ADR-0027 β): the structural `leaves`-trigger arm
+# below catches phase's structured "whenever ANOTHER permanent leaves the battlefield"
+# payoffs (+9 recall: DFC back faces, bounce payoffs), but phase leaves the bulk of
+# the lane textual — the Revolt "a permanent left the battlefield this turn" condition
+# is a static check (no trigger), and the self-LTB payoff ("when ~ leaves the
+# battlefield, create a token" — Walker of the Grove, Sengir Autocrat, Skyclave
+# Apparition) is a SelfRef trigger (subject=None, gated out of the structural arm).
+# Recover them with the deleted producer's exact regex (pinned LTB_MATTERS_SWEEP_REGEX)
+# over the reminder-stripped kept_oracle, run PER-CLAUSE and VETOED per-clause by the
+# O-Ring self-LTB-EXILE form ("exile … until ~ leaves the battlefield" — Banishing
+# Light / Static Prison / Assimilation Aegis): that clause's "until ~ leaves" is the
+# END of a removal LOCK, NOT a leaves-MATTERS payoff (it already routes to
+# exile_until_leaves). PER-CLAUSE (not flat) so the veto on the "exile … until ~
+# leaves" clause can't kill a co-printed genuine leave payoff (Skyclave Apparition
+# keeps its "when ~ leaves … create a token" sentence). The regex's `when [^.]* leaves
+# the battlefield` arm spans a whole "When ~ enters, exile … until ~ leaves" clause, so
+# the veto and the match share one clause and the 93 O-Ring over-fires drop (100%
+# over-fire vs Scryfall, 0 genuine payoff lost). A byte-identical full-text mirror would
+# re-introduce them, so this is narrowed. CR 603.6e / 700.4.
+_LTB_MATTERS_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
+_LTB_MATTERS_MIRROR_VETO = re.compile(
+    r"exile [^.]*until [^.]*leaves the battlefield", re.IGNORECASE
 )
 
 
@@ -5289,6 +5329,27 @@ def extract_signals_ir(
                 and any(e.category != "other" for e in ab.effects)
             ):
                 add("self_death_payoff", "you", "", "")
+            # ADR-0027 β — ltb_matters STRUCTURAL arm. A `leaves` trigger (phase's
+            # LeavesBattlefield mode, projected event=='leaves' @ SIDECAR v11 — broader
+            # than `dies`: any battlefield→elsewhere, CR 603.6e) on an OTHER permanent
+            # leaving the battlefield is the leaves-MATTERS payoff (the aristocrats /
+            # blink / bounce engine — Luminous Phantom, Dour Port-Mage, Nadier's
+            # Nightblade; bounce payoffs Azorius Aethermage / Warped Devotion). Gate on
+            # (a) a real subject (subject=None is a SelfRef self-LTB — the card's OWN
+            # leave — which rides the narrowed mirror, not here, mirroring the
+            # death/self_death split) and (b) a BATTLEFIELD-leave: from:battlefield in
+            # zones, OR no directional from/to zone (the bare LeavesBattlefield mode
+            # phase emits without an explicit destination). This EXCLUDES the graveyard-
+            # arrival "put into a graveyard from anywhere" ChangesZone triggers the
+            # projection also tags `leaves` (to:graveyard with no from:battlefield —
+            # Compost, Countryside Crusher; those are graveyard_matters, not leaves-the-
+            # battlefield). scope per the trigger. CR 603.6e / 700.4.
+            if trig.event == "leaves" and trig.subject is not None:
+                _z = set(trig.zones)
+                _from_bf = "from:battlefield" in _z
+                _has_dir = any(t.startswith(("from:", "to:")) for t in _z)
+                if _from_bf or not _has_dir:
+                    add("ltb_matters", _ir_scope(trig.scope), "", "")
             if trig.event == "life_gained":
                 add("lifegain_matters", "you", "", "")
             # ADR-0027 lifeloss_matters — the pure life-loss PAYOFF: a trigger that
@@ -5712,6 +5773,24 @@ def extract_signals_ir(
         for cl in _clauses(kept_oracle)
     ):
         add("gain_control", "you", "", "")
+    # ADR-0027 β — ltb_matters NARROWED kept mirror. The structural `leaves`-trigger
+    # arm above catches phase's "whenever ANOTHER permanent leaves the battlefield"
+    # payoffs, but phase leaves the bulk textual: the Revolt "a permanent left the
+    # battlefield this turn" condition is a static check (no trigger), and the self-LTB
+    # payoff ("when ~ leaves the battlefield, …" — Walker of the Grove, Sengir Autocrat,
+    # Skyclave Apparition) is a SelfRef trigger (subject=None, gated out of the
+    # structural arm). Recover them with the deleted producer's exact regex run
+    # PER-CLAUSE, VETOED per-clause by the O-Ring self-LTB-EXILE form ("exile … until ~
+    # leaves the battlefield" — Banishing Light / Static Prison) so the 93 over-fires
+    # drop (already exile_until_leaves; 100% over-fire vs Scryfall, 0 genuine payoff
+    # lost). PER-CLAUSE so the veto on the "exile … until ~ leaves" clause can't kill a
+    # co-printed genuine leave payoff. scope 'you' (the deleted producer's forced
+    # scope). add() dedups vs the structural arm. CR 603.6e / 700.4.
+    if any(
+        _LTB_MATTERS_MIRROR.search(cl) and not _LTB_MATTERS_MIRROR_VETO.search(cl)
+        for cl in _clauses(kept_oracle)
+    ):
+        add("ltb_matters", "you", "", "")
     # ADR-0027 β — untap_engine NARROWED kept mirror. The structural arm above reads
     # `cat=='untap'` Effects, but phase routes ~11 genuine engines into a choose /
     # target_only / cost / type_set carrier with NO cat=='untap' Effect (Captain of the

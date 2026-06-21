@@ -1823,6 +1823,63 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # silencing-keys path would over-silence the recall-gain bodies. CR 800.4a /
         # 720.1 (one player controls a permanent at a time) / 903.10a (voltron).
         "gain_control",
+        # ADR-0027 β — ltb_matters (LEAVES THE BATTLEFIELD: sac / blink / bounce fodder
+        # to trigger a permanent leaving — broader than DYING, CR 603.6e/700.4: any
+        # battlefield→elsewhere movement, where `dies` is the battlefield→graveyard
+        # subset). MIGRATED VIA A PROJECTION (SIDECAR v10→v11) + a STRUCTURAL IR ARM + a
+        # NARROWED kept-mirror.
+        #
+        # PROJECTION. phase's `LeavesBattlefield` trigger mode was projected to
+        # event=='dies' — WRONG (leaves ≠ dies). project._trigger_event now maps it to
+        # event=='leaves' (the `ChangesZone` arm already split leaves vs dies on the
+        # explicit origin/destination zones; this fixes the zone-less LeavesBattlefield
+        # mode). `Destroyed` stays `dies` (CR 701.7 — destroy IS battlefield→graveyard).
+        # This touches NO migrated lane (death_matters is REGEX-served, keyed on the
+        # word "dies", not the trigger event; the two-sidecar global no-flood is
+        # drift==0). parse_confidence unchanged (98.7% full both sides).
+        #
+        # STRUCTURAL ARM (recall-GAINING). A `leaves` trigger with a real OTHER-
+        # permanent subject + a BATTLEFIELD-leave (from:battlefield, or no directional
+        # zone — the bare LeavesBattlefield mode) fires ltb_matters. Excludes the
+        # graveyard-arrival "put into a graveyard from anywhere" ChangesZone triggers
+        # the projection also tags `leaves` (to:graveyard with no from:battlefield —
+        # Compost / Countryside Crusher; those are graveyard_matters). +12 recall over
+        # the deleted regex: DFC back faces (Luminous Phantom, Aang at the Crossroads,
+        # Zenos / Shinryu) the front-face-only regex missed, and bounce payoffs (Azorius
+        # Aethermage, Warped Devotion, Tameshi — "a permanent is returned to hand", a
+        # battlefield→hand leave).
+        #
+        # NARROWED KEPT-MIRROR (_LTB_MATTERS_MIRROR in _signals_ir). phase leaves the
+        # bulk of the lane textual — the Revolt "a permanent left the battlefield this
+        # turn" condition is a static check (no trigger), and the self-LTB payoff ("when
+        # ~ leaves the battlefield, …" — Walker of the Grove, Sengir Autocrat, Skyclave
+        # Apparition) is a SelfRef trigger (subject=None, gated out of the structural
+        # arm, mirroring the death_matters / self_death_payoff split). Recover them with
+        # the deleted producer's EXACT regex (pinned LTB_MATTERS_SWEEP_REGEX) over the
+        # reminder-stripped kept_oracle PER-CLAUSE, VETOED per-clause by the O-Ring
+        # self-LTB-EXILE form ("exile … until ~ leaves the battlefield" — Banishing
+        # Light / Static Prison / Assimilation Aegis): that "until ~ leaves" is the END
+        # of a removal LOCK, NOT a leaves-MATTERS payoff (it already routes to
+        # exile_until_leaves). PER-CLAUSE so the veto can't kill a co-printed genuine
+        # leave payoff (Skyclave keeps its "when ~ leaves … create a token").
+        #
+        # Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), structural arm + mirror vs the regex): both==252,
+        # ir_only==12 (all genuine recall: DFC back faces + bounce payoffs),
+        # regex_only==93 — ALL O-Ring self-LTB-exile over-fires the deleted regex's
+        # "when ~ enters … until ~ leaves" span caught (100% over-fire vs Scryfall,
+        # already routed to exile_until_leaves, 0 genuine payoff lost). floor-mirror-dep
+        # == 0 (ltb_matters is NOT an _IR_FLOOR_LANE — it was a SWEEP_DETECTORS key).
+        # The deleted producer fired HIGH-confidence (scope 'you') and counted toward
+        # has_other_plan, so a byte-identical _LTB_MATTERS_PLAN_MIRROR in _signals_regex
+        # re-supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, because
+        # the IR arm is BROADER (+12) and the silencing-keys path would under-silence
+        # the recall-gain bodies. FILE-SWAP no-flood (base 3525463 v10 vs edits v11,
+        # 30969 commander-legal): drift==110, ONLY ltb_matters moves (gained 15 / lost
+        # 95 by (key,scope); 7 cards gained, 95 dropped O-Ring), voltron delta 0, 0
+        # other lane drift, 0 death_matters change. CR 603.6e / 700.4 (leaves ⊃ dies) /
+        # 903.10a (voltron).
+        "ltb_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

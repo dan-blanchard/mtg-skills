@@ -37,6 +37,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
+    LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
@@ -2732,6 +2733,22 @@ _PUMP_MATTERS_PLAN_MIRROR = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
 # reminder-stripped clauses), byte-identical to its per-clause input (`gain control of`
 # never crosses a sentence, so full-text == per-clause). CR 903.10a / 800.4a.
 _GAIN_CONTROL_PLAN_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated ltb_matters key. The deleted
+# SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a leaves-
+# the-battlefield engine body (an aristocrats / blink / bounce commander is no vanilla
+# beater — a leave payoff IS a plan). The migrated lane rides a BROADER structural arm
+# (+9 ir_only: DFC back faces, bounce payoffs), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would UNDER-silence the bodies whose plan now lives only
+# in the IR. So this BYTE-IDENTICAL gate mirror (the deleted SWEEP regex, pinned
+# LTB_MATTERS_SWEEP_REGEX) restores the OLD producer's exact silence set — including the
+# 93 O-Ring over-fires the narrowed signal mirror drops, which are overwhelmingly
+# enchantments/artifacts (Banishing Light, Static Prison), not legendary creatures
+# subject to the voltron tell, so re-silencing them costs nothing (FILE-SWAP voltron
+# delta 0). Matched against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
+# per-clause over reminder-stripped clauses; the regex arms are clause-local, so
+# full-text == per-clause). CR 903.10a / 603.6e.
+_LTB_MATTERS_PLAN_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -4167,6 +4184,16 @@ def extract_signals(
         # STRIPPED `text` (the deleted producer ran per-clause over stripped clauses).
         # CR 903.10a.
         or _GAIN_CONTROL_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted ltb_matters SWEEP producer (HIGH-
+        # confidence scope 'you', feeding has_other_plan — a leaves-the-battlefield
+        # engine is no vanilla beater). The migrated lane rides a BROADER structural arm
+        # (+9 ir_only), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old producer's exact silence set
+        # without over-silencing the recall-gain bodies. Matched against the reminder-
+        # STRIPPED `text` (the deleted SWEEP Detector ran per-clause over stripped
+        # clauses; the regex arms are clause-local, so full-text == per-clause). CR
+        # 903.10a / 603.6e.
+        or _LTB_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

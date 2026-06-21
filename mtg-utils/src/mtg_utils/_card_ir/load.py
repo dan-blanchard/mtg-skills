@@ -42,7 +42,14 @@ from mtg_utils.card_ir import Card
 #     supplement._CDA_PT structures into a `characteristic_pt` marker; the variable_pt
 #     lane reads it (Nightmare/Pack Rat/Serra Avatar/Cultivator Colossus — phase
 #     fully consumed the clause, so base_pt_set dropped it). ADR-0027 β. CR 604.3.
-SIDECAR_VERSION = 10
+# v11: a `LeavesBattlefield` trigger mode projects to event=='leaves' (NOT 'dies').
+#     "Leaves the battlefield" is BROADER than dying (any battlefield→elsewhere
+#     movement — bounce/exile/blink, CR 603.6e/700.4) where `dies` is the
+#     battlefield→graveyard subset (CR 700.4); the ltb_matters lane reads the broad
+#     `leaves` event. The `ChangesZone` arm already split leaves vs dies on explicit
+#     origin/destination zones; this re-classifies the zone-less LeavesBattlefield mode.
+#     `Destroyed` stays `dies` (CR 701.7). ADR-0027 β. CR 603.6e.
+SIDECAR_VERSION = 11
 
 
 def card_ir_dir() -> Path:
