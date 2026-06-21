@@ -558,11 +558,13 @@ def test_poison_scoped_to_opponents():
 
 
 def test_token_copy_engine():
+    # ADR-0027 β: token_copy_matters is IR-served (a byte-identical kept-mirror over the
+    # reminder-stripped oracle), so it comes through the hybrid path, not pure regex.
     c = {
         "name": "Orthion-like",
         "oracle_text": "{1}{R}, {T}: Create a token that's a copy of another target creature you control.",
     }
-    assert ("token_copy_matters", "you") in _ks(c)
+    assert ("token_copy_matters", "you") in _ks_hybrid(c)
 
 
 def test_specialize():

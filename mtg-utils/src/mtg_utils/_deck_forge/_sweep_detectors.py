@@ -127,6 +127,19 @@ DEBUFF_MAHA_REGEX = (
 # with). CR 604.3.
 VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total )?number of)?|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?the (?:total )?number of|equal to (?:twice )?the (?:total )?number of cards in (?:your|their|the|all) [^.]*hand|change [^.]*base power and toughness"
 
+# ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
+# deleted _HAND_FLOOR producer is pinned here byte-identically so the serve spec, the
+# _TOKEN_COPY_MATTERS_MIRROR kept detector (_signals_ir), and the
+# _TOKEN_COPY_MATTERS_PLAN_MIRROR voltron gate (_signals_regex) all share ONE source.
+# Matched reminder-STRIPPED: a token-COPY maker / populate / token-DOUBLER payoff.
+# The `\bpopulate\b` arm covers CR 702.95 (populate IS a token copy); the "twice that
+# many … tokens" arm credits token DOUBLERS (Adrix and Nev, Mondrak — they fork
+# token-copy spells). NOT a structural CopyTokenOf/Populate arm: phase structures those
+# (421 cards) but the 80-card struct-only delta is 100% reminder-text SELF-copies
+# (Embalm/Eternalize/Offspring/Double-team) the reminder-stripped regex excludes.
+# CR 702.95 / 707.
+TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",

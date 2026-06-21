@@ -3588,6 +3588,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"(?:second|third) spell you cast|cast your (?:second|third) spell",
     ),
     # ── Mechanics recovered from the "rejected" families ────────────────────────
+    # ADR-0027 β: token_copy_matters migrated to the Card IR via a byte-identical kept-
+    # mirror (the lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir). This serve
+    # spec was always hand-registered and independent of the deleted _HAND_FLOOR
+    # producer, so it survives unchanged — its curated SEARCH regex is intentionally
+    # narrower than the detector (it omits the "twice that many … tokens" doubler arm,
+    # which the _TOKEN_DOUBLER_EXTRA below already supplies as a separate avenue).
     ("token_copy_matters", "you"): _spec(
         "Token copies",
         "strong creatures to copy plus token-copy and populate engines",

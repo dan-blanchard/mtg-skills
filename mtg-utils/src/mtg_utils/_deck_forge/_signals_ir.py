@@ -51,6 +51,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
+    TOKEN_COPY_MATTERS_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text, is_creature
@@ -1888,12 +1889,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             #                          over flash_grant / convoke_matters).
             #   target_player_draws  ← a draw effect with scope=='any' (directed/forced
             #                          draw, not a self-cantrip).
-            # (self_counter_grow / timing_control / token_copy_matters were DEFERRED —
-            # each has a genuine floor-disabled IR-vs-regex recall gap, not 100%
-            # over-fire: self_counter_grow drops 14 subjNone p1p1 placements whose raw
-            # lacks the self-anchor (Saga chapters, adapt/monstrosity); timing_control
-            # drops the 2 Teferi cast-timing statics phase doesn't parse; token_copy_
-            # matters drops 54 populate/copy cards phase rewrites without "copy of".)
+            # (self_counter_grow was DEFERRED — a genuine floor-disabled IR-vs-regex
+            # recall gap, not 100% over-fire: it drops 14 subjNone p1p1 placements whose
+            # raw lacks the self-anchor — Saga chapters, adapt/monstrosity.
+            # timing_control and token_copy_matters later MIGRATED via byte-identical
+            # kept-mirrors: phase drops the 2 Teferi cast-timing statics wholesale, and
+            # its structural CopyTokenOf/Populate effect 100%-over-fires the token-copy
+            # lane with reminder-text self-copies (Embalm/Eternalize/Offspring/Double-
+            # team) the reminder-stripped regex excludes, so both ride the exact deleted
+            # regex.)
             "spell_keyword_grant",
             "target_player_draws",
             # ADR-0027 tranche2-B (t2b3-B) — structural IR-arm lanes:
@@ -2037,6 +2041,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (floor-mirror-dep == 0). CR 704.5j / 117.1a.
             "legend_rule_off",
             "timing_control",
+            # ADR-0027 β — token_copy_matters: phase structures CopyTokenOf/Populate
+            # (421 cards) but the 80-card struct-only delta is 100% reminder-text SELF-
+            # copies (Embalm/Eternalize/Offspring/Double-team) the reminder-stripped
+            # regex excludes, so the lane rides a byte-identical _TOKEN_COPY_MATTERS_
+            # MIRROR of the exact deleted _HAND_FLOOR regex (commander-legal corpus:
+            # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-
+            # dep == 0). CR 702.95 / 707.
+            "token_copy_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -2881,6 +2893,17 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
     r"|change the base power and toughness of (?:all|each|other|target|up to|the)",
     re.IGNORECASE,
 )
+# token_copy_matters BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
+# EXACT deleted _HAND_FLOOR regex (pinned as TOKEN_COPY_MATTERS_REGEX) over the
+# reminder-stripped kept_oracle — a token-COPY maker ("create a token that's a copy of
+# …"), populate (CR 702.95, a token copy), or a token DOUBLER ("twice that many …
+# tokens" — Adrix and Nev, Mondrak, which fork token-copy spells). NOT a structural
+# CopyTokenOf/Populate arm: phase structures those (421 cards) but the 80-card struct-
+# only delta is 100% reminder-text SELF-copies (Embalm/Eternalize/Offspring/Double-
+# team) this reminder-stripped regex deliberately excludes. No veto needed (the regex
+# is precise — it never fired on the reminder-text self-copies because they live inside
+# parens). CR 702.95.
+_TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -3859,11 +3882,19 @@ def extract_signals_ir(
                 subject = _token_kindred_subject(e.subject, vocab)
                 if subject is not None:
                     add(signal_keys.TOKEN_MAKER, "you", subject, e.raw)
-            # ADR-0027 tranche2-B-3: token_copy_matters DEFERRED — the make_token +
-            # (populate|copy-of) raw guard has a genuine floor-disabled recall gap of 54
-            # cards: phase rewrites the make_token raw without "copy of" (modal/choice
-            # "Command" cards, Saga chapters, "create X tokens that are copies of …"
-            # where the raw is truncated). Not migrated; the _DETECTORS row stays.
+            # ADR-0027 β: token_copy_matters MIGRATED via a kept-mirror, NOT a
+            # structural arm here. phase DOES structure the copy detail — `CopyTokenOf`
+            # (394 cards) and `Populate` (27) effect types — but
+            # project._copy_token_effect / _EFFECT_CATEGORY['populate'] both collapse
+            # them to a plain make_token Effect (the cat=='make_token' arm above, the
+            # vanilla-token lane). A structural CopyTokenOf/Populate arm was REJECTED:
+            # the 80-card struct-only delta over the deleted reminder-stripped regex is
+            # 100% OVER-FIRE — reminder-text SELF-copies (Embalm/Eternalize "(…create a
+            # token that's a copy of it…)", Offspring "(…a 1/1 token copy of it…)",
+            # Double-team — phase even mis-structures "conjure a duplicate into your
+            # hand" as CopyTokenOf), none a genuine token-copy payoff. So the lane rides
+            # _TOKEN_COPY_MATTERS_MIRROR (the EXACT deleted regex over
+            # reminder-stripped kept_oracle) in the kept-detector pass below. CR 702.95.
             # reanimator (the ARCHETYPE) is a creature that actively returns
             # creatures from a graveyard to the battlefield — a commander, not a
             # one-shot spell (those stay enablers the avenue finds).
@@ -5557,6 +5588,15 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("variable_pt", "any", "", "")
+    # ADR-0027 β — token_copy_matters BYTE-IDENTICAL kept mirror. The structural arm
+    # (cat=='make_token') is the vanilla-token lane; phase DOES carry the copy detail
+    # (CopyTokenOf/Populate) but the projection collapses both to make_token AND a
+    # structural copy-arm would 100%-over-fire with reminder-text SELF-copies (Embalm/
+    # Eternalize/Offspring/Double-team). So recover the lane with the EXACT deleted
+    # _HAND_FLOOR regex over the reminder-stripped kept_oracle (scope 'you', matching
+    # the deleted producer). add() dedups. CR 702.95 / 707.
+    if _TOKEN_COPY_MATTERS_MIRROR.search(kept_oracle):
+        add("token_copy_matters", "you", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the

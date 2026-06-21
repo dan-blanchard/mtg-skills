@@ -142,6 +142,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # token_copy_matters ← a BYTE-IDENTICAL kept mirror (_TOKEN_COPY_MATTERS_MIRROR over
+    # the reminder-stripped oracle: "create a token that's a copy of equipped creature").
+    # phase structures CopyTokenOf/Populate but the projection collapses them to a plain
+    # make_token AND a structural arm would 100%-over-fire with reminder-text self-copies
+    # (Embalm/Offspring), so the lane rides the exact deleted regex (empty IR — the mirror
+    # reads the dict oracle). ADR-0027 β.
+    "token_copy_matters": (
+        {
+            "name": "Helm of the Host",
+            "type_line": "Legendary Artifact — Equipment",
+            "oracle_text": (
+                "At the beginning of combat on your turn, create a token that's "
+                "a copy of equipped creature, except the token isn't legendary. "
+                "That token gains haste.\nEquip {5}"
+            ),
+        },
+        _ir(),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.

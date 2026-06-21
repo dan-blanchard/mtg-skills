@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
+    TOKEN_COPY_MATTERS_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text
@@ -1778,23 +1779,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "opponents",
     ),
     # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
-    (
-        "token_copy_matters",
-        re.compile(
-            r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of"
-            r"|create a token that's a copy"
-            # Populate (CR 702.95) IS "create a token that's a copy of a creature token
-            # you control" — a token-copy commander (Ghired, Trostani). The serve
-            # already credits \bpopulate\b; the detector missed the keyword.
-            r"|\bpopulate\b"
-            # A token DOUBLER (Adrix and Nev, Mondrak: "twice that many … tokens are
-            # created") is a token-copy commander — it doubles token-copy spells (Rite
-            # of Replication, Esix), so route it the copy effects it wants to fork.
-            r"|twice that many[^.]*tokens?",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
+    # lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir (the EXACT deleted
+    # regex, pinned as TOKEN_COPY_MATTERS_REGEX, over the reminder-stripped oracle),
+    # NOT a structural CopyTokenOf/Populate arm (phase structures those but the 80-card
+    # struct-only delta is 100% reminder-text SELF-copies — Embalm/Eternalize/Offspring/
+    # Double-team — the regex excludes). This _HAND_FLOOR producer fired HIGH-confidence
+    # (scope 'you') and fed has_other_plan, so a byte-identical
+    # _TOKEN_COPY_MATTERS_PLAN_MIRROR below re-supplies the commander-damage voltron
+    # silence. The serve spec stays hand-registered in signal_specs.py reusing
+    # TOKEN_COPY_MATTERS_REGEX. CR 702.95 / 707.
     # ADR-0027: specialize_matters migrated to the Card IR (served structurally
     # from the Scryfall `specialize` keyword — _IR_KEYWORD_MAP['specialize']
     # below); both its oracle-regex sources (this _HAND_FLOOR detector and the
@@ -2628,6 +2622,22 @@ _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR = re.compile(
 # reminder-stripped `text` == the deleted per-clause SWEEP path (FILE-SWAP NO-FLOOD:
 # voltron byte-identical, 0 gained / 0 lost). CR 903.10a / 604.3.
 _VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated token_copy_matters key. The
+# deleted _HAND_FLOOR producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a token-
+# copy / populate / token-doubler ENGINE (Trostani, Helm of the Host, Adrix and Nev —
+# the board-flood plan IS its plan, not a vanilla beater). The migrated lane rides a
+# BYTE-IDENTICAL kept mirror (no recall change vs the deleted regex), so this byte-
+# identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence
+# for ALL cards (matching the variable_pt / cost_reduction byte-identical-mirror
+# pattern: a *_PLAN_MIRROR reproduces has_other_plan in the regex-path computation
+# regardless of IR/regex mode). Matched against reminder-STRIPPED joined-face `text`:
+# the deleted _HAND_FLOOR Detector ran per-clause over reminder-stripped text, so a
+# "create a token that's a copy of it" inside an Embalm/Offspring keyword's reminder
+# never fired it and must not silence those self-recursion bodies. The `[^.]`-bounded
+# "twice that many … tokens" arm never crosses a sentence, so full-text == per-clause.
+# FILE-SWAP NO-FLOOD: voltron byte-identical (0 gained / 0 lost). CR 903.10a / 702.95.
+_TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -4012,6 +4022,15 @@ def extract_signals(
         # `text` (the deleted SWEEP detector ran per-clause over stripped text), so a
         # */* CDA in a keyword's reminder never silenced and still doesn't. CR 903.10a.
         or _VARIABLE_PT_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted token_copy_matters _HAND_FLOOR producer (it
+        # fired HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane
+        # rides a byte-identical kept mirror, so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards. Matched
+        # against the reminder-STRIPPED `text` (the deleted _HAND_FLOOR Detector ran
+        # per-clause over stripped text), so a "create a token that's a copy of it"
+        # inside an Embalm/Offspring keyword reminder never silenced and still doesn't.
+        # CR 903.10a.
+        or _TOKEN_COPY_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

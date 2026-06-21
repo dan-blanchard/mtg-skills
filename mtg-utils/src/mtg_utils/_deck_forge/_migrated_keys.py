@@ -931,10 +931,14 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "land_protection",
         # Group "tranche2-B-3" (ADR-0027) — 2 of 5 batch keys migrated structurally;
         # timing_control later migrated via an ADR-0027 β kept-mirror (phase emits
-        # nothing structural for the cast-timing statics — see the entry above). The
-        # remaining 2 (self_counter_grow / token_copy_matters) stay DEFERRED for a
-        # genuine floor-disabled IR-vs-regex recall gap (NOT 100% over-fire), see the
-        # deferral comments at their arms / producers.
+        # nothing structural for the cast-timing statics — see the entry above), and
+        # token_copy_matters via an ADR-0027 β kept-mirror too (the structural
+        # CopyTokenOf/Populate effect 100%-over-fires the lane with reminder-text
+        # SELF-copies — Embalm/Eternalize/Offspring/Double-team — that the
+        # reminder-stripped regex deliberately excludes; see the entry below). The
+        # remaining 1 (self_counter_grow) stays DEFERRED for a genuine floor-disabled
+        # IR-vs-regex recall gap (NOT 100% over-fire), see the deferral comment at its
+        # arm / producer.
         #   spell_keyword_grant ← the WHOLE `cast_with_keyword` effect category (the
         #     umbrella over flash_grant / convoke_matters — it co-fires with them on
         #     those subsets, e.g. Chief Engineer). Floor-mirror-dep == 0. The floor-
@@ -1486,6 +1490,49 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # so NOT in _VOLTRON_SILENCING_PLAN_KEYS (voltron delta 0). floor-mirror-dep
         # == 0 (variable_pt is not an _IR_FLOOR_LANE). CR 604.3.
         "variable_pt",
+        # ADR-0027 β — token_copy_matters (a card that makes TOKEN COPIES / populates:
+        # "create a token that's a copy of …" — Helm of the Host, Rite of Replication;
+        # populate — Trostani, Ghired; token DOUBLERS — Doubling Season, Adrix and Nev,
+        # Mondrak, Parallel Lives, Primal Vigor; the modal/Unimplemented copy spells —
+        # Mirror March, Esix, Fractured Identity). MIGRATED VIA A KEPT-MIRROR (signals-
+        # only, NO sidecar bump), NOT a structural CopyTokenOf/Populate arm.
+        #
+        # DISCRIMINATOR FOUND (structured, but UNUSABLE): phase DOES carry a structured
+        # copy/populate signal the projection drops — `CopyTokenOf` (394 cards) and
+        # `Populate` (27) effect types both collapse to a plain `make_token` Effect in
+        # project._copy_token_effect / _EFFECT_CATEGORY['populate'], indistinguishable
+        # from a vanilla token maker. A structural arm reading those was REJECTED: the
+        # structural set is 421 cards vs the deleted reminder-STRIPPED regex's 375, and
+        # the 80-card struct_only delta is 100% OVER-FIRE — every one is a reminder-text
+        # SELF-copy the regex deliberately excludes by running reminder-stripped:
+        # Embalm/Eternalize (41 — "(…Create a token that's a copy of it…)" in the
+        # keyword's reminder, a graveyard self-recursion, NOT a copy payoff), Offspring
+        # (~25 — "(…create a 1/1 token copy of it.)"), and Double-team (~14 — phase
+        # MIS-structures "conjure a duplicate into your hand" as CopyTokenOf, not even a
+        # token at all). None is a genuine token-copy payoff. So the structural marker
+        # would 100%-over-fire the lane.
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane fires from a NARROWED
+        # _IR_KEPT_DETECTORS-style mirror — _TOKEN_COPY_MATTERS_MIRROR in _signals_ir —
+        # that runs the EXACT deleted _HAND_FLOOR regex over the reminder-STRIPPED
+        # kept_oracle, byte-identical to the deleted floor Detector. No structural arm
+        # is wired (cat=='make_token' is the vanilla-token lane; reading CopyTokenOf
+        # would over-fire as above). The serve spec stays hand-registered in
+        # signal_specs.py reusing the EXACT regex (pinned as TOKEN_COPY_MATTERS_REGEX).
+        #
+        # Floor-disabled residual vs the deleted _HAND_FLOOR regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 306, ir_only == 0, regex_only == 0 — the
+        # mirror is byte-identical to the deleted regex over the same reminder-stripped
+        # input, so the served set is UNCHANGED (a true behavior-neutral re-home, no
+        # recall gain, no over-fire). floor-mirror-dep == 0 (token_copy_matters is NOT
+        # an _IR_FLOOR_LANE). The deleted producer fired HIGH-confidence (forced scope
+        # 'you') and counted toward has_other_plan (a token-copy ENGINE is a real plan,
+        # not a vanilla voltron beater), so a byte-identical _TOKEN_COPY_MATTERS_PLAN_
+        # MIRROR in _signals_regex re-supplies that voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, matching the variable_pt/cost_reduction byte-
+        # identical-mirror pattern (restores has_other_plan for ALL cards regardless of
+        # IR/regex mode). CR 702.95 (populate) / 707 (copies).
+        "token_copy_matters",
         # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
         # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
         # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass

@@ -1219,9 +1219,11 @@ def test_token_copy_matters_opens_on_token_doubling():
             "Goblins you control."
         ),
     }
-    assert "token_copy_matters" in _keys(adrix)
-    assert "token_copy_matters" in _keys(mondrak)
-    assert "token_copy_matters" not in _keys(krenko)
+    # ADR-0027 β: token_copy_matters migrated to the Card IR (a byte-identical kept-
+    # mirror over the reminder-stripped oracle), so it serves from the hybrid path.
+    assert "token_copy_matters" in _keys_hybrid(adrix)
+    assert "token_copy_matters" in _keys_hybrid(mondrak)
+    assert "token_copy_matters" not in _keys_hybrid(krenko)
 
 
 def test_clone_matters_opens_for_recurring_value_legendary():
@@ -4396,8 +4398,10 @@ def test_populate_opens_token_copy_matters():
             "token you control.)"
         ),
     }
-    assert "token_copy_matters" in _keys(ghired)
-    assert "token_copy_matters" in _keys(trostani)
+    # ADR-0027 β: token_copy_matters serves from the hybrid path (the kept-mirror fires
+    # on the reminder-STRIPPED oracle, where `Populate.` survives outside the parens).
+    assert "token_copy_matters" in _keys_hybrid(ghired)
+    assert "token_copy_matters" in _keys_hybrid(trostani)
 
 
 def test_self_death_payoff_opens_for_own_death_trigger():

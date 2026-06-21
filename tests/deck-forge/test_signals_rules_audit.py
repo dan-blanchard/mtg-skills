@@ -108,9 +108,11 @@ def test_exile_removal_separate_from_destroy():
 # #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing.
 def test_token_copy_does_not_fire_clone():
     c = {"name": "X", "oracle_text": "Create a token that's a copy of target creature."}
-    k = _keys(c)
-    assert "token_copy_matters" in k
-    assert "clone_matters" not in k
+    # ADR-0027 β: token_copy_matters is IR-served (a byte-identical kept-mirror), so it
+    # comes through the hybrid path; clone_matters stays regex-served and must NOT fire
+    # on token-copy phrasing.
+    assert "token_copy_matters" in _keys_hybrid(c)
+    assert "clone_matters" not in _keys(c)
 
 
 def test_clone_still_fires():
