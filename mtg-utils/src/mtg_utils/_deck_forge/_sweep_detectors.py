@@ -63,6 +63,12 @@ TRIBE_DAMAGE_TRIGGER_REGEX = "whenever (?:one or more|a|another) [A-Z][a-z]+s? y
 # carries the human label rows.
 CREATURE_PING_REGEX = "(?:target |another target )?[A-Z][a-z]+ you control deals damage equal to its power to|deals damage equal to its power to (?:another )?target|deals damage to itself equal to its power|target creature deals damage [^.]*equal to its power"
 DAMAGE_EQUAL_POWER_REGEX = "deals? damage[^.]*equal to (?:its|that creature.s|[^.]*) power[^.]*to (?:any target|target|each opponent|that player|target player)"
+# ADR-0027 β — cost_reduction migrated to the Card IR; its SWEEP_DETECTORS row is
+# deleted but the EXACT mined regex survives here so signal_specs hand-registers the
+# serve pool reusing it (SWEEP_LABELS keeps the human label). The serve only needs a
+# discount-EXPLOITING search anchor; the lane's firing now comes from the IR arm +
+# _COST_REDUCER_MIRROR (in _signals_ir), not this regex.
+COST_REDUCTION_REGEX = "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{w\\}, \\{u\\}, \\{b\\}, \\{r\\}, or \\{g\\} less|cost \\{[wubrgc\\d]\\}+ less to cast|cost \\{?\\d+\\}? less to activate|(?:cards you drew this turn|abilities you activate)[^.]{0,40}?cost \\{?\\d|costs? \\{?\\d+\\}? less to cast for each|cost \\{?\\d+\\}? less for each"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -898,12 +904,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "clone_matters",
         "regex": "enter (?:the battlefield )?as a copy of|may have [^.]*enter as a copy|create a copy of the card|is a copy of (?:that|the chosen) card",
     },
-    {
-        "key": "cost_reduction",
-        "scope": "you",
-        "is_widen_of": "cost_reduction",
-        "regex": "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{w\\}, \\{u\\}, \\{b\\}, \\{r\\}, or \\{g\\} less|cost \\{[wubrgc\\d]\\}+ less to cast|cost \\{?\\d+\\}? less to activate|(?:cards you drew this turn|abilities you activate)[^.]{0,40}?cost \\{?\\d|costs? \\{?\\d+\\}? less to cast for each|cost \\{?\\d+\\}? less for each",
-    },
+    # ADR-0027 β: cost_reduction migrated to the Card IR — the structural arm in
+    # _signals_ir.extract_signals_ir (the projection's static ModifyCost{Reduce} +
+    # screened named `reducenextspellcost` Effects) plus a NARROWED _COST_REDUCER_MIRROR
+    # _IR_KEPT_DETECTORS row (recovering the genuine reducers the projection drops).
+    # Its SWEEP_DETECTORS row is deleted; the serve is hand-registered in signal_specs.py
+    # reusing the EXACT deleted regex (pinned above as COST_REDUCTION_REGEX). SWEEP_LABELS
+    # still carries the human label. The deleted high-confidence producer fed
+    # has_other_plan, but the IR arm+mirror are NARROWER (they drop the 92 self-discounts
+    # the regex over-caught), so _VOLTRON_SILENCING_PLAN_KEYS re-supplies the silence
+    # soundly — NO-FLOOD held (voltron membership byte-identical on the FILE-SWAP).
     # ADR-0027 β: impulse_top_play migrated to the Card IR — the structural arm (a
     # NON-static cast_from_zone Effect carrying the recovered 'from:library' zone, gated
     # ab.kind!='static' to split it from the sibling play_from_top) plus a per-clause

@@ -1305,6 +1305,42 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # constants in signal_specs. CR 119.3 / 120.6.
         "creature_ping",
         "damage_equal_power",
+        # ADR-0027 β — cost_reduction (a BUILD-AROUND reducer: an effect that makes a
+        # CLASS of OTHER spells/abilities you cast cheaper — Goblin Electromancer, Ruby
+        # Medallion, Helm of Awakening, Urza's Incubator; a SELF-discount "this spell
+        # costs {X} less" is NOT in the lane, CR 601.2f/118.7). project.py's d45df65/
+        # 6747de2 projection carries two cat=="cost_reduction" Effect forms: the static
+        # ModifyCost{Reduce} (subject = the spell_filter, direction-correct + SelfRef-
+        # gated) and the named `reducenextspellcost` effect (subject None), which is NOT
+        # direction- or SelfRef-gated — phase mis-routes BOTH cost-INCREASE text and
+        # "this spell costs ... less" self-discounts into it. The structural arm in
+        # extract_signals_ir trusts a non-None subject and screens the named effects
+        # (genuine "cost ... less", not a self-discount, not a cost-increase), firing
+        # scope 'you'. A NARROWED _IR_KEPT_DETECTORS mirror (_COST_REDUCER_MIRROR — NOT
+        # byte-identical, since the deleted regex over-fired) recovers the genuine
+        # build-around reducers the projection drops (ability-cost reducers, the Defiler
+        # conditional cycle, granted/donor reducers, named special-cost reducers, the
+        # Chapter-3 / empty-raw tail). floor-mirror-dep == 0 (the arm + mirror never
+        # read _IR_FLOOR_LANES).
+        #
+        # The deleted regex was DIRECTION-AGNOSTIC and SELF-BLIND. The floor-disabled
+        # IR-vs-regex residual over the commander-legal corpus: regex_only == 92 = 100%
+        # "this spell costs ... less" self-discount over-fire (SelfRef, rules-excluded —
+        # correctly dropped, 0 genuine miss); ir_only == 7 genuine recall GAIN (ability-
+        # cost + foretell/flashback special-cost reducers — Professor Hojo, Tezzeret,
+        # Ghostfire Blade, Agatha, Cosmos Charger, Catalyst Stone, Momo). Net hybrid
+        # firing 331 → 246 (≈85 self-discount over-fires removed, 7 recall gained).
+        #
+        # The deleted producer fired high-confidence scope 'you' and counted toward
+        # has_other_plan; the IR arm+mirror are NARROWER than the deleted regex (it
+        # caught the 92 self-discounts the lane drops), so re-supplying voltron silence
+        # via _VOLTRON_SILENCING_PLAN_KEYS is SOUND only because every card the IR fires
+        # also fired the regex (no NEW voltron silence is added — NO-FLOOD held: voltron
+        # membership byte-identical, 0 gained / 0 lost on the FILE-SWAP). The two
+        # cost_reduction regex producers (_HAND_FLOOR row + SWEEP_DETECTORS row) are
+        # deleted; the serve survives via a pinned regex constant in signal_specs
+        # (SWEEP_LABELS kept). CR 601.2f / 118.7.
+        "cost_reduction",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

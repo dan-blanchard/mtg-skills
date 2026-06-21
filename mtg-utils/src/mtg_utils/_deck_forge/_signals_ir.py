@@ -439,6 +439,79 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "power-up": (("powerup_matters", "you"),),
 }
 
+# ADR-0027 β — cost_reduction structural-arm gates (a BUILD-AROUND reducer = an effect
+# that makes a CLASS of OTHER spells/abilities you cast cheaper — Goblin Electromancer,
+# Ruby Medallion, Helm of Awakening, Urza's Incubator; a SELF-discount "this spell costs
+# {X} less" is NOT in the lane, CR 601.2f/118.7). project.py carries two cat==
+# "cost_reduction" forms: the static ModifyCost{Reduce} (subject = the spell_filter,
+# scope "you", already SelfRef-gated + direction-correct) and the named
+# `reducenextspellcost` effect (subject None, scope from the effect) which is NOT
+# direction- or SelfRef-gated — phase mis-routes BOTH cost-INCREASE text ("cost {1}
+# more", "cost an additional", a mana-floor) AND "this spell costs ... less" self-
+# discounts into it. The arm trusts a non-None subject (static, gated) and screens the
+# subject-None named effects: each must carry a genuine "cost(s) ... less" reduction and
+# neither a self-discount nor a cost-increase tell.
+#
+# _COST_SELF_DISCOUNT — "this spell/ability/this costs ... less", the SelfRef the named
+# path leaks (Cavern-Hoard Dragon / Marshmist Titan / the Avatars). Rules-excluded.
+_COST_SELF_DISCOUNT = re.compile(
+    r"\bthis spell costs\b|\bthis ability costs\b|\bthis costs\b", re.IGNORECASE
+)
+# _COST_LESS_REDUCER — a genuine "cost(s) ... less" reduction clause (the in-lane tell).
+_COST_LESS_REDUCER = re.compile(r'\bcosts?\b[^."]{0,40}?\bless\b', re.IGNORECASE)
+# _COST_INCREASE — a cost-INCREASE the named path mis-tags as cost_reduction: "cost ...
+# more", "cost an additional", or Trinisphere's "would cost less than N ... costs N".
+_COST_INCREASE = re.compile(
+    r"\bcost(?:s)?[^.\"]{0,30}?\b(?:more|an additional)\b|would cost less than",
+    re.IGNORECASE,
+)
+
+# ADR-0027 β — cost_reduction kept-mirror (a NARROWED, NOT byte-identical, mirror of the
+# deleted regex). The structural arm in extract_signals_ir fires from the projection's
+# static + named cost_reduction Effects; this mirror recovers the genuine build-around
+# reducers the projection drops because they're not a static ModifyCost{Reduce} and not
+# a clean named `reducenextspellcost`: ability-cost reducers ("Activated abilities of
+# creatures you control cost {2} less to activate" — Biomancer's Familiar, Power
+# Artifact, Training Grounds; equip/boast/ninjutsu/loyalty ability costs), conditional
+# spell reducers ("Those spells cost {C} less" — the Defiler cycle), granted/property-
+# filtered spell reducers ("Spells with the chosen name cost {1} less" — Cheering
+# Fanatic), donor reducers ("spells that player casts cost {2} less" — Will Kenrith),
+# named special-cost reducers ("Blitz costs you pay cost {2} less" — Henzie / Catalyst
+# Stone), and the Chapter-3 / empty-raw projection tail ("The next Giant spell you cast
+# ... costs {2} less" — Invasion of the Giants, whose IR effect raw is just
+# "Chapter 3"). NARROWED (vs the byte-identical mirrors of clean migrations): the
+# deleted regex was
+# direction-AGNOSTIC and self-blind, so a byte-identical copy would re-introduce the 14
+# cost-increase + 92 self-discount over-fires the lane correctly drops. Every arm
+# requires a "cost(s) ... less" reduction of OTHER spells/abilities and structurally
+# excludes "this spell costs" (self) and "... more"/"an additional" (increase). Verified
+# over the commander-legal corpus: as a plain .search over the reminder-stripped oracle
+# it has ZERO cost-increase-only false positives, and the floor-disabled IR-vs-regex
+# residual is regex_only == 92 = 100% self-discount over-fire (correctly dropped), 0
+# genuine miss. add() dedups the overlap with the structural arm. CR 601.2f / 118.7.
+_COST_REDUCER_MIRROR = re.compile(
+    # A. ability-cost reducers: "<class of> abilities ... cost {N} less to activate".
+    r"\babilities[^.]{0,70}?\bcost\b[^.]{0,30}?\bless\b[^.]{0,12}?to activate"
+    # B. conditional spell reducer: "those spells cost {C} less" (the Defiler cycle).
+    r"|\bthose spells cost \{[wubrgc0-9x]+\}[^.]{0,20}?less to cast"
+    # C. a spell CLASS (NOT "this spell") you cast made cheaper. Allows a tribal/type
+    # adjective between "spell" and "you cast" (Invasion's "next Giant spell you cast",
+    # Momo's "creature spell with flying you cast"); the (?<!this ) guard keeps a self-
+    # discount out.
+    r"|(?<!this )\bspells?\b[^.]{0,40}?\byou cast\b[^.]{0,40}?"
+    r"\bcosts? \{?[wubrgc0-9x]+\}?[^.]{0,20}?less to cast"
+    # D. a donor reducer: "spells <a player> casts cost {N} less" (Will Kenrith).
+    r"|\bspells (?:that player|those players|that opponent|each player)[^.]{0,30}?"
+    r"casts? cost \{[wubrgcx0-9]+\}[^.]{0,15}?less to cast"
+    # E. a named special cost: "Blitz costs you pay cost {N} less" (Henzie / Catalyst).
+    r"|\b(?:blitz|cycling|kicker|flashback|escape|ninjutsu) costs[^.]{0,30}?"
+    r"cost \{[wubrgcx0-9]+\}[^.]{0,15}?less"
+    # F. a granted/property-filtered spell class made cheaper, no "you cast" ("Spells
+    # with the chosen name cost {1} less to cast" — Cheering Fanatic).
+    r"|\bspells with [^.]{0,40}?\bcost \{?[wubrgc0-9x]+\}?[^.]{0,15}?less to cast",
+    re.IGNORECASE,
+)
+
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
 # voting CR 701.38, firebending CR 702.189, …) that phase v0.1.19 doesn't yet
 # STRUCTURE (too recent/niche → Unimplemented). These are narrow keyword-WORD
@@ -1281,6 +1354,21 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "damage_equal_power",
         re.compile(DAMAGE_EQUAL_POWER_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 β — cost_reduction NARROWED kept-mirror (see _COST_REDUCER_MIRROR above).
+    # The structural arm fires from the projection's cost_reduction Effects; this mirror
+    # recovers the genuine build-around reducers project.py drops (ability-cost
+    # reducers, the Defiler conditional cycle, granted/donor reducers, named special-
+    # cost reducers, and the Chapter-3 / empty-raw tail). NOT byte-identical: the
+    # deleted regex was
+    # direction-agnostic + self-blind, so the mirror is narrowed to only genuine "cost
+    # ... less" reducers of OTHER spells/abilities (0 cost-increase false positives; the
+    # 92 "this spell costs ... less" self-discounts stay correctly dropped). scope "you"
+    # matches the deleted producer; add() dedups the overlap with the structural arm.
+    (
+        "cost_reduction",
+        _COST_REDUCER_MIRROR,
         "you",
     ),
 )
@@ -3221,6 +3309,35 @@ def extract_signals_ir(
         for e in ab.effects:
             if e.category in ("win_game", "lose_game"):
                 add("win_lose_game", "any", "", e.raw or "")
+        # ADR-0027 β — cost_reduction (a BUILD-AROUND reducer: an effect that makes a
+        # CLASS of OTHER spells/abilities you cast cheaper — Goblin Electromancer, Ruby
+        # Medallion, Helm of Awakening, Urza's Incubator). project.py carries two cat==
+        # "cost_reduction" Effect forms (see the _COST_* discriminators above):
+        #   • static ModifyCost{Reduce} (subject = the spell_filter) — already
+        #     direction-correct + SelfRef-gated in project.py, so a non-None subject
+        #     is trusted.
+        #   • the named `reducenextspellcost` effect (subject None) — NOT direction- or
+        #     SelfRef-gated, so phase mis-routes BOTH cost-INCREASE text ("cost {1}
+        #     more" / "cost an additional" / a mana-floor) AND "this spell costs ...
+        #     less" self-discounts (Cavern-Hoard Dragon / the Avatars) into it. Screen
+        #     those: keep only a genuine "cost(s) ... less" reduction that is not a
+        #     self-discount and not a cost-increase. The lane fires scope "you" (the
+        #     build-around's owner), matching the deleted regex's firing identity.
+        #     CR 601.2f / 118.7.
+        for e in ab.effects:
+            if e.category != "cost_reduction":
+                continue
+            if e.subject is not None:
+                add("cost_reduction", "you", "", e.raw or "")
+                continue
+            raw = e.raw or ""
+            if _COST_SELF_DISCOUNT.search(raw):
+                continue
+            if not _COST_LESS_REDUCER.search(raw):
+                continue
+            if _COST_INCREASE.search(raw):
+                continue
+            add("cost_reduction", "you", "", raw)
         # ADR-0027 β — power-as-damage cluster (creature_ping + damage_equal_power).
         # The d6620ac projection unlock (op="power" recovery in project._quantity)
         # makes a power-scaling damage effect a STRUCTURAL anchor: a cat=="damage"

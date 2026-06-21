@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    COST_REDUCTION_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     KEYWORD_COUNTER_REGEX,
@@ -1461,15 +1462,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
-    (
-        "cost_reduction",
-        re.compile(
-            r"\b(?:spells?|each spell) you cast\b[^.]{0,80}?"
-            r"\bcosts?\b[^.]{0,40}?\bless\b",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 β: cost_reduction migrated to the Card IR — this _HAND_FLOOR producer
+    # (and the SWEEP_DETECTORS row) are deleted. The lane fires from the IR arm +
+    # _COST_REDUCER_MIRROR in _signals_ir; the deleted regex's voltron silence is
+    # restored by _COST_REDUCTION_PLAN_MIRROR above (its high-confidence producer fed
+    # has_other_plan). The serve survives via the pinned COST_REDUCTION_REGEX constant.
     # Cast-from-exile MATTERS: payoffs and enablers that cast/play cards FROM EXILE
     # (plot, suspend, "whenever you cast a spell from exile", paradox). Two neighbours
     # are deliberately NOT here: impulse draw (exile-top + temporary play) is its own
@@ -2535,6 +2532,28 @@ _LIFELOSS_PLAN_MIRROR = re.compile(
     r"|opponent lost \d+ or more life this turn"
     r"|pay \d+ life|you lose \d+ life|you lose (?:x|that much) life"
     r"|you lose life equal to|you may pay (?:\d+|x) life",
+    re.IGNORECASE,
+)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated cost_reduction key. Its two
+# deleted regex producers (the _HAND_FLOOR "spells you cast … cost … less" pattern below
+# + the SWEEP COST_REDUCTION_REGEX) fired HIGH-confidence scope 'you' and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a cost-
+# reducer body that is NOT a vanilla beater (Morophon, Warden of Evos Isle, Cunning
+# Nightbonder — and, because the deleted regex was self-blind, the "This spell costs {1}
+# less for each …" cost-discounted finishers too: Avatar of Growth, Hollow One, Sea Gate
+# Colossus). The migrated IR arm + _COST_REDUCER_MIRROR are NARROWER (they correctly
+# drop the 92 self-discounts the lane excludes), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would UNDER-silence those self-discount bodies (the IR
+# fires no cost_reduction signal to key off). This mirror is the byte-identical OR of
+# the EXACT two deleted regexes; it feeds ONLY the gate (emits no signal — the real lane
+# is
+# served from the IR), reproducing the pre-migration `has_other_plan` for ALL cards.
+# FILE-SWAP NO-FLOOD: with this mirror, voltron membership is byte-identical (0 gained /
+# 0 lost). The `[^.]`-bounded HAND arm never crosses a sentence, so full-text over
+# _oracle == the deleted floor-detector's per-clause path. CR 903.10a.
+_COST_REDUCTION_PLAN_MIRROR = re.compile(
+    r"\b(?:spells?|each spell) you cast\b[^.]{0,80}?\bcosts?\b[^.]{0,40}?\bless\b"
+    r"|" + COST_REDUCTION_REGEX,
     re.IGNORECASE,
 )
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
@@ -3866,6 +3885,12 @@ def extract_signals(
         )
         or _SACRIFICE_PLAN_MIRROR.search(_oracle)
         or _LIFELOSS_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted cost_reduction SWEEP + _HAND_FLOOR
+        # producers. Both fired high-confidence scope 'you', feeding has_other_plan; the
+        # migrated IR arm is narrower (drops the 92 self-discounts), so this byte-
+        # identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's
+        # full silence set (incl. the self-discounted finishers). CR 903.10a.
+        or _COST_REDUCTION_PLAN_MIRROR.search(_oracle)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

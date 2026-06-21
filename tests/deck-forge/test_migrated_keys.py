@@ -50,6 +50,31 @@ def _ir(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
 #   seek_matters        ← Effect(category="seek")                   [_DOER_EFFECT_KEYS]
 #   specialize_matters  ← Scryfall "Specialize" keyword             [_IR_KEYWORD_MAP]
 _CASES: dict[str, tuple[dict, Card]] = {
+    # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
+    # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
+    # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.
+    "cost_reduction": (
+        {
+            "name": "Goblin Electromancer",
+            "type_line": "Creature — Goblin Wizard",
+            "oracle_text": (
+                "Instant and sorcery spells you cast cost {1} less to cast."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cost_reduction",
+                        scope="you",
+                        subject=Filter(card_types=("Instant", "Sorcery")),
+                        raw="Instant and sorcery spells you cast cost {1} less to cast.",
+                    ),
+                ),
+            )
+        ),
+    ),
     "ki_counter_matters": (
         {
             "name": "Skullmane Baku",

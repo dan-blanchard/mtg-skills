@@ -5261,6 +5261,7 @@ def test_cost_reduction_serves_stacking_reducers():
     # {X} less" (Ghalta) and the cost-increase taxes. Real oracle.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
+    from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
 
     stenn = {
         "name": "Stenn, Paranoid Partisan",
@@ -5272,7 +5273,35 @@ def test_cost_reduction_serves_stacking_reducers():
             "control at the beginning of the next end step."
         ),
     }
-    assert "cost_reduction" in _keys(stenn)
+    # ADR-0027 β: cost_reduction is IR-served — a static ModifyCost{Reduce} Effect with a
+    # non-None spell_filter subject. The legacy regex path no longer emits it.
+    stenn_ir = Card(
+        oracle_id="x",
+        name="Stenn, Paranoid Partisan",
+        faces=(
+            Face(
+                name="Stenn, Paranoid Partisan",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="cost_reduction",
+                                scope="you",
+                                subject=Filter(card_types=("Card",)),
+                                raw=(
+                                    "Spells you cast of the chosen type cost "
+                                    "{1} less to cast."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "cost_reduction" not in _keys(stenn)
+    assert "cost_reduction" in {s.key for s in extract_signals_hybrid(stenn, stenn_ir)}
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))

@@ -32,11 +32,46 @@ def test_combat_damage_does_not_fire_on_plain_attack():
 
 
 def test_cost_reduction():
+    # ADR-0027 β: cost_reduction is IR-served — a static ModifyCost{Reduce} Effect whose
+    # subject is the spell_filter (here Aura/Equipment). The structural arm fires on the
+    # non-None subject; the legacy regex path no longer emits it.
     c = {
         "name": "Danitha Capashen, Paragon",
-        "oracle_text": "First strike, vigilance, lifelink\nAura and Equipment spells you cast cost {1} less to cast.",
+        "type_line": "Legendary Creature — Human Knight",
+        "oracle_text": (
+            "First strike, vigilance, lifelink\n"
+            "Aura and Equipment spells you cast cost {1} less to cast."
+        ),
     }
-    assert ("cost_reduction", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Danitha Capashen, Paragon",
+        faces=(
+            Face(
+                name="Danitha Capashen, Paragon",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="cost_reduction",
+                                scope="you",
+                                subject=Filter(subtypes=("Aura", "Equipment")),
+                                raw=(
+                                    "Aura and Equipment spells you cast cost "
+                                    "{1} less to cast."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "cost_reduction" not in _keys(c)
+    assert ("cost_reduction", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
 
 
 def test_play_from_top_of_library_is_its_own_signal():
