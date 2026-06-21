@@ -28,7 +28,9 @@ from mtg_utils.card_ir import Card
 #     phase dropped the sacrificer scoping to a null controller (edict_matters).
 # v6: _quantity recovers op="power" on a Ref→Power amount (phase folded it to a bare
 #     op="count"); read by the damage_equal_power / creature_ping lanes (ADR-0027 β).
-SIDECAR_VERSION = 6
+# v7: ModifyCost{Reduce} static → a category="cost_reduction" Effect (Goblin
+#     Electromancer / Ruby Medallion); the cost_reduction lane reads it (ADR-0027 β).
+SIDECAR_VERSION = 7
 
 
 def card_ir_dir() -> Path:

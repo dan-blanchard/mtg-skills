@@ -2168,6 +2168,20 @@ def _modifycost_raise(mode: object) -> bool:
     return False
 
 
+def _modifycost_reduce(mode: object) -> dict | None:
+    """The inner payload of a v0.1.60 ``ModifyCost{mode: Reduce}`` static — a cost
+    REDUCER (Goblin Electromancer, Ruby Medallion, Urza's Incubator, Helm of
+    Awakening). The symmetric direction of :func:`_modifycost_raise`. Returns the
+    inner ModifyCost dict (carrying ``spell_filter`` = which spells get cheaper) so
+    the cost_reduction lane reads a direction-CORRECT structural form (never the
+    cost-INCREASE text the regex also caught), or ``None``."""
+    if isinstance(mode, dict) and len(mode) == 1:
+        inner = next(iter(mode.values()))
+        if isinstance(inner, dict) and _norm(inner.get("mode")) == "reduce":
+            return inner
+    return None
+
+
 def _has_devotion_condition(st: dict) -> bool:
     """A static GATED on your devotion (a ``DevotionGE``, possibly wrapped in ``Not``
     for the 'less than N' form) — the Theros gods' "as long as your devotion to X is
@@ -2379,6 +2393,24 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             out.append(
                 Effect(category="restriction", scope="each", subject=affected, raw=desc)
             )
+        return out
+    # A cost REDUCER (v0.1.60 ModifyCost{Reduce}): Goblin Electromancer / Ruby
+    # Medallion / Urza's Incubator / Helm of Awakening make YOUR (or everyone's)
+    # spells cheaper — a cost_reduction build-around payoff. The spell_filter
+    # (instant/sorcery, chosen tribe, artifact, by color, or null = all) is what gets
+    # cheaper; carry it as subject so the lane reads the build-around. scope="you":
+    # the reducer's controller is the payoff's owner, whether the reducer is
+    # You-affected or symmetric. (ADR-0027 β — direction-correct vs the regex.)
+    _cost_reduce = _modifycost_reduce(st.get("mode"))
+    if _cost_reduce is not None:
+        out.append(
+            Effect(
+                category="cost_reduction",
+                scope="you",
+                subject=_filter(_cost_reduce.get("spell_filter")),
+                raw=desc,
+            )
+        )
         return out
     # Batch 13 — a combat-FORCING static (must attack / must be blocked / can't
     # block): its own category, not stax. The scope tracks whom it hobbles so the lane
