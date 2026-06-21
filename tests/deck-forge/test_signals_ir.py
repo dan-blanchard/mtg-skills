@@ -1817,3 +1817,71 @@ def test_devour_keyword_opens_counters_matter():
     keys = {s.key for s in extract_signals_ir(card, _ir())}
     assert "devour_matters" in keys
     assert "counters_matter" in keys
+
+
+# ── opp_top_exile (ADR-0027 q2-D2 — name-lock / impulse-cast steal) ────────────
+
+
+def test_opp_top_exile_from_impulse_cast_co_occurrence():
+    # Sub-shape A: an exile Effect scope='opp' co-occurring (same ability) with a
+    # cast_from_zone Effect scope='opp' — the "you may cast them" follow-through
+    # (Villainous Wealth, Ragavan, Wrexial). Scope is the engine controller 'you'.
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="exile",
+                    scope="opp",
+                    raw="Target opponent exiles the top X cards of their library.",
+                ),
+                Effect(
+                    category="cast_from_zone",
+                    scope="opp",
+                    raw="You may cast any number of spells from among them.",
+                ),
+            ),
+        )
+    )
+    assert ("opp_top_exile", "you", "") in _sigs(ir)
+
+
+def test_opp_top_exile_from_library_tag():
+    # Sub-shape B: an exile Effect scope='opp' carrying an 'in:library' zone tag
+    # (Brainstealer Dragon, Ulamog the Defiler) — phase tagged the library origin
+    # directly, so no cast_from_zone co-occurrence is required.
+    ir = _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="end_step", scope="any"),
+            effects=(
+                Effect(
+                    category="exile",
+                    scope="opp",
+                    zones=("to:exile", "in:library"),
+                    raw="exile the top card of each opponent's library",
+                ),
+            ),
+        )
+    )
+    assert ("opp_top_exile", "you", "") in _sigs(ir)
+
+
+def test_opp_top_exile_does_not_fire_on_bare_opponent_exile_removal():
+    # Precision: opponent-targeted exile-as-REMOVAL (Path to Exile, Agonizing
+    # Remorse) is exile scope='opp' with NO cast_from_zone and NO 'in:library' — it
+    # must never open the steal lane (CR 406 — exile is public, but only the play-it
+    # follow-through is this lane).
+    ir = _ir(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="exile",
+                    scope="opp",
+                    raw="Exile target creature an opponent controls.",
+                ),
+            ),
+        )
+    )
+    assert not any(k == "opp_top_exile" for k, _, _ in _sigs(ir))

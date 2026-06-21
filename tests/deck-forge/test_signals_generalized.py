@@ -1924,7 +1924,9 @@ def test_opp_top_exile_opens_for_library_predators():
     # Circu (and Ragavan, Grenzo) exile/take the top card of a TARGET player's library,
     # so seeing opponents' tops (Field of Dreams) lets them exile/steal the BEST card and
     # target the right player. A commander with no opponent-library-top interaction
-    # (Llanowar Elves) never opens it.
+    # (Llanowar Elves) never opens it. ADR-0027 q2-D2: opp_top_exile is now IR-served —
+    # Circu's exile scope phase reads as 'any' (no structural arm), so it fires from the
+    # _IR_KEPT_DETECTORS word mirror (oracle scan → a bare IR routes to the IR path).
     circu = {
         "name": "Circu, Dimir Lobotomist",
         "type_line": "Legendary Creature — Human Wizard",
@@ -1943,8 +1945,8 @@ def test_opp_top_exile_opens_for_library_predators():
         "keywords": [],
         "oracle_text": "{T}: Add {G}.",
     }
-    assert any(k == "opp_top_exile" for k, _, _ in _ksub(circu))
-    assert not any(k == "opp_top_exile" for k, _, _ in _ksub(elf))
+    assert any(k == "opp_top_exile" for k, _, _ in _ksub_hybrid(circu, _bare_ir()))
+    assert not any(k == "opp_top_exile" for k, _, _ in _ksub_hybrid(elf, _bare_ir()))
 
 
 def test_fblthp_free_plot_opens_for_zero_cost():

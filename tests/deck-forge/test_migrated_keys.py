@@ -3960,6 +3960,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # opp_top_exile ← the impulse-cast structural arm: an exile Effect scope=='opp' co-
+    # occurring (same ability) with a cast_from_zone Effect scope=='opp' (the "you may
+    # cast them" follow-through). Villainous Wealth's "Target opponent exiles the top X
+    # cards" does NOT match the kept word mirror (it's "exile the top card OF an
+    # opponent", not "target opponent exiles"), so this is a pure structural-arm proof.
+    "opp_top_exile": (
+        {
+            "name": "Villainous Wealth",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Target opponent exiles the top X cards of their library. You may "
+                "cast any number of spells with mana value X or less from among them "
+                "without paying their mana costs."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="exile",
+                        scope="opp",
+                        raw="Target opponent exiles the top X cards of their library.",
+                    ),
+                    Effect(
+                        category="cast_from_zone",
+                        scope="opp",
+                        raw="You may cast any number of spells from among them.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

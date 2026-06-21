@@ -1272,19 +1272,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # carrier + a counter_spell effect but does NOT structure the once-per-turn becomes-
     # target gate, so the phrasing survives only on the oracle. This _HAND_FLOOR
     # producer is deleted; the serve spec stays hand-registered in signal_specs.py.
-    # A commander that exiles/takes the top card of a TARGET player's library (Circu's
-    # name-lock; Ragavan/Grenzo/Vaan impulse-cast) wants to SEE opponents' tops so it
-    # exiles/steals the best card and targets the right player. Tell: "exile the top
-    # card of (target player/an opponent/...)".
-    (
-        "opp_top_exile",
-        re.compile(
-            r"exile the top card of (?:target player|each opponent|that player"
-            r"|an opponent|target opponent)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 q2-D2: opp_top_exile migrated to the Card IR — a name-lock /
+    # impulse-cast engine that exiles from an opponent's zone AND lets a card be
+    # PLAYED from there (Circu, Ragavan, Gonti, Villainous Wealth). Fires from the
+    # structural extract_signals_ir arm (exile scope=='opp' + cast_from_zone
+    # scope=='opp', OR exile scope=='opp' carrying 'in:library') — which adds 50
+    # steal-and-cast cards this regex never reached — plus an _IR_KEPT_DETECTORS word
+    # mirror reproducing this exact regex for the name-lock / peek subset phase
+    # under-parses (Circu's exile scope=='any'; Scrib Nibblers; granted "exile the top
+    # card" on Predators' Hour). This _HAND_FLOOR producer is deleted; the serve spec
+    # stays hand-registered in signal_specs.py.
     # ADR-0027 t2b5-A: free_plot migrated to the Card IR — Fblthp makes the top card's
     # plot cost = its mana cost (the cEDH artifact-combo / storm engine), but no IR
     # structure exists for the Plot alt-cost rewrite (phase routes the clause to a
@@ -4552,6 +4549,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    # opp_top_exile (ADR-0027 q2-D2) — the name-lock / peek subset phase under-parses:
+    # phase scopes Circu's "exile the top card of target player's library" as
+    # scope=='any' (no opp), Scrib Nibblers likewise, and Predators' Hour grants the
+    # clause to other creatures (no own exile effect). These never reach the structural
+    # extract_signals_ir arm (exile scope=='opp' + cast_from_zone/in:library), so the
+    # lane fires from this byte-identical mirror of the deleted "exile the top card of
+    # <opponent>" regex producer (regex-only residual == 0; mirror flood beyond the
+    # deleted producer == 0). Scope 'you' (the engine controller), matching the deleted
+    # producer. The structural arm adds the 50 broader steal-and-cast cards the regex
+    # never reached (CR 406 — exile is a public zone these commanders mine).
+    (
+        "opp_top_exile",
+        re.compile(
+            r"exile the top card of (?:target player|each opponent|that player"
+            r"|an opponent|target opponent)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # ADR-0027 SWEEP batch — Group B cares-about lanes that phase v0.1.19 leaves
     # TEXTUAL (rules-lawyer + oracle verified): each had a load-bearing floor mirror
     # (floor-mirror-dep > 0 in the commander-legal corpus), so it MOVES from
@@ -5591,6 +5607,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Ur-Dragon) rides the byte-identical _IR_KEPT_DETECTORS word mirror.
             # struct plus mirror == the deleted SWEEP regex (0 residual). CR 702.107.
             "cmdzone_ability",
+            # ADR-0027 q2-D2 — opp_top_exile: the structural arm (exile scope=='opp' +
+            # cast_from_zone scope=='opp', OR exile scope=='opp' + 'in:library') adds 50
+            # steal-and-cast cards the regex never reached; a _IR_KEPT_DETECTORS word
+            # mirror (the exact deleted regex) covers the name-lock / peek subset phase
+            # under-parses (Circu scope=='any'; Scrib Nibblers; granted clauses). The
+            # deleted _HAND_FLOOR producer fired scope 'you'.
+            "opp_top_exile",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6762,6 +6785,39 @@ def extract_signals_ir(
             and any(_POWER_SCALING_RAW.search(e.raw or "") for e in ab.effects)
         ):
             add("power_tap_engine", "you", "", "")
+        # opp_top_exile (ADR-0027 q2-D2) — ability-level: a name-lock / impulse-cast
+        # engine that exiles from an OPPONENT's zone AND lets a card be PLAYED from
+        # there (the commander wants to SEE/steal opponents' tops). Two structural
+        # sub-shapes:
+        #   (A) impulse-cast — an exile Effect scope=='opp' co-occurring (same ability)
+        #       with a cast_from_zone Effect scope=='opp' (the "you may cast it" /
+        #       "they may play it" follow-through) — Ragavan, Gonti, Villainous Wealth,
+        #       Wrexial, Diluvian Primordial (combat-damage / ninjutsu / graveyard-cast
+        #       steal). 50 of these the deleted "exile the top card of <opponent>"
+        #       regex never reached — legitimate breadth, not over-fire (each carries
+        #       the cast_from_zone play-it clause; none is bare exile-as-removal).
+        #   (B) library-tag — an exile Effect scope=='opp' carrying an 'in:library'
+        #       zone (Brainstealer Dragon, Ulamog the Defiler) — phase tagged the
+        #       library origin directly.
+        # The cast_from_zone / in:library anchor is what separates this from opponent-
+        # targeted exile-as-REMOVAL (Path to Exile, Agonizing Remorse): a bare exile
+        # scope=='opp' NEVER fires here. Scope is the engine controller 'you' (matching
+        # the deleted regex), NOT the opp scope of the exiled object. The name-lock /
+        # peek subset phase under-parses (Circu's exile scope=='any'; Scrib Nibblers; a
+        # GRANTED "exile the top card" on Predators' Hour) rides the _IR_KEPT_DETECTORS
+        # word mirror below (the exact deleted regex), so net recall ≥ regex.
+        _exile_opp = False
+        _exile_opp_lib = False
+        _cfz_opp = False
+        for e in ab.effects:
+            if e.category == "exile" and e.scope == "opp":
+                _exile_opp = True
+                if "in:library" in e.zones:
+                    _exile_opp_lib = True
+            elif e.category == "cast_from_zone" and e.scope == "opp":
+                _cfz_opp = True
+        if _exile_opp_lib or (_exile_opp and _cfz_opp):
+            add("opp_top_exile", "you", "", "")
         # opponent_counter_grant (ADR-0027) — ability-level: a DETRIMENTAL counter
         # (CR 122.1d) placed on an OPPONENT's permanent (the tap-down / detrimental-mark
         # punish lane). Two recipient shapes: (A) a place_counter whose own
@@ -9915,6 +9971,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # lane). Its SWEEP_DETECTORS row is deleted; the serve is hand-registered in
         # signal_specs (reusing the deleted regex). CR 702.107 / 903.6.
         "cmdzone_ability",
+        # ADR-0027 q2-D2 — opp_top_exile: the structural extract_signals_ir arm (exile
+        # scope=='opp' + cast_from_zone scope=='opp', OR exile scope=='opp' carrying
+        # 'in:library') plus an _IR_KEPT_DETECTORS word mirror (the exact deleted regex)
+        # for the name-lock / peek subset phase under-parses. Net recall ≥ regex (the
+        # mirror recovers the 6 residuals byte-identically; the structural arm adds 50
+        # steal-and-cast cards the regex never reached). _HAND_FLOOR producer deleted.
+        "opp_top_exile",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
