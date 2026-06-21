@@ -1387,6 +1387,10 @@ def _project_face(record: dict) -> Face:
     # dropped (World Breaker's SelfRef return, Dakkon's hand-or-graveyard cheat,
     # Atris/Marchesa's "the other into your graveyard" self-mill).
     abilities = [_recover_graveyard_zones(a) for a in abilities]
+    # Library-source recovery (ADR-0027 impulse_top_play / play_from_top): append
+    # from:library to a cast_from_zone effect that plays from the top of a library but
+    # lost the origin zone (Light Up the Stage, Ragavan, Future Sight, Bolas's Citadel).
+    abilities = [_recover_library_zones(a) for a in abilities]
     # Removal target-subject recovery (ADR-0027 removal_matters shape 3): a damage /
     # destroy effect whose creature/permanent TARGET phase dropped to subject=None,
     # but the effect raw still names it ("deals N damage to target creature", "destroy
@@ -3950,6 +3954,48 @@ def _recover_graveyard_zones(ability: Ability) -> Ability:
         if zones != before or scope != before_scope:
             changed = True
             new_effects.append(replace(e, zones=tuple(sorted(zones)), scope=scope))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
+# Library-source recovery (ADR-0027 impulse_top_play / play_from_top) — a
+# `cast_from_zone` effect whose raw plays/casts FROM THE TOP OF A LIBRARY but whose
+# `from:library` zone phase did not populate on the origin field. Two shapes: an
+# impulse exile-then-play ("exile the top N cards of your library … you may play/cast
+# them" — Light Up the Stage, Ragavan) and an ongoing top-play permission ("you may
+# play lands/cards from the top of your library", "play with the top card of your
+# library revealed" — Future Sight, Bolas's Citadel, Vizier of the Menagerie). Gated
+# on category=='cast_from_zone' (phase already classified it a from-zone cast) so the
+# library reference can't false-fire on a scry / surveil / topdeck_select. Append-only
+# and behavior-neutral until a lane reads from:library (impulse_top_play /
+# play_from_top); no existing migrated key consumes it. CR 116 / 601.3b.
+_LIBRARY_CAST_REF = re.compile(
+    r"top (?:card|cards|\w+ cards?) of (?:your|their|his or her|that player's) "
+    r"library"
+    r"|from the top of (?:your|their) library"
+    r"|play with the top card of (?:your|their) library",
+    re.IGNORECASE,
+)
+
+
+def _recover_library_zones(ability: Ability) -> Ability:
+    """Append from:library to a cast_from_zone effect whose raw plays from the top of
+    a library but lost the origin zone (impulse exile-cast + ongoing top-play)."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        if (
+            e.category == "cast_from_zone"
+            and "from:library" not in e.zones
+            and _LIBRARY_CAST_REF.search(e.raw or "")
+        ):
+            changed = True
+            new_effects.append(
+                replace(e, zones=tuple(sorted(set(e.zones) | {"from:library"})))
+            )
         else:
             new_effects.append(e)
     if not changed:

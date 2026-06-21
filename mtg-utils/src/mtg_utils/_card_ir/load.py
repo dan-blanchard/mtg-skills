@@ -17,10 +17,14 @@ from pathlib import Path
 
 from mtg_utils.card_ir import Card
 
-# Bump when the sidecar payload shape changes so old sidecars are rebuilt.
+# Bump when the sidecar payload shape OR projection CONTENT changes so old cached
+# sidecars are rebuilt (production gates the rebuild on this version — a project.py
+# projection change that doesn't bump it would be served stale; ADR-0027 β phase).
 # v2: Effect.zones (directional zone refs) + Ability.condition (Condition node).
 # v3: Trigger.zones (directional zone refs of a ChangeZone trigger).
-SIDECAR_VERSION = 3
+# v4: _recover_library_zones — from:library on top-of-library cast_from_zone effects
+#     (impulse_top_play / play_from_top).
+SIDECAR_VERSION = 4
 
 
 def card_ir_dir() -> Path:
