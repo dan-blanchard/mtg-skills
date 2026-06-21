@@ -1391,6 +1391,10 @@ def _project_face(record: dict) -> Face:
     # from:library to a cast_from_zone effect that plays from the top of a library but
     # lost the origin zone (Light Up the Stage, Ragavan, Future Sight, Bolas's Citadel).
     abilities = [_recover_library_zones(a) for a in abilities]
+    # Edict-scope recovery (ADR-0027 edict_matters): promote a scope=='any' sacrifice
+    # to each/opp from its raw when phase dropped the sacrificer scoping to a null
+    # controller (Plaguecrafter, Fleshbag Marauder, Barter in Blood).
+    abilities = [_recover_edict_scope(a) for a in abilities]
     # Removal target-subject recovery (ADR-0027 removal_matters shape 3): a damage /
     # destroy effect whose creature/permanent TARGET phase dropped to subject=None,
     # but the effect raw still names it ("deals N damage to target creature", "destroy
@@ -3998,6 +4002,49 @@ def _recover_library_zones(ability: Ability) -> Ability:
             )
         else:
             new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
+# Edict-scope recovery (ADR-0027 edict_matters) — a `sacrifice` effect whose
+# SACRIFICER scope phase dropped to "any" because the structural target.controller
+# was null (an Or-of-Typed filter with the player scoping lost — Plaguecrafter,
+# Fleshbag Marauder, Barter in Blood). The raw still names who sacrifices: "each
+# player sacrifices" → scope each (a symmetric edict, the deck still runs it as an
+# edict — it was in the regex hit set), and "(each|target|an|that) opponent / target
+# player sacrifices" → scope opp (a one-sided edict). A YOU-sacrifice ("you
+# sacrifice") is NOT promoted (it stays a you-sac, scope any — sacrifice_matters, not
+# edict). Gated on scope=='any' so a structural opp/each from _sacrifice_player_scope
+# is never overwritten. CR 701.16 / 601.
+_EDICT_EACH_RAW = re.compile(
+    r"\beach player sacrifices?\b|\ball players sacrifice\b", re.IGNORECASE
+)
+_EDICT_OPP_RAW = re.compile(
+    r"\b(?:each|target|an|that) opponent(?:'s)? sacrifices?\b"
+    r"|\btarget player sacrifices?\b",
+    re.IGNORECASE,
+)
+
+
+def _recover_edict_scope(ability: Ability) -> Ability:
+    """Promote a scope=='any' sacrifice effect to each/opp from its raw when the
+    structural sacrificer-controller was null (edict whose player scoping phase
+    dropped)."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        if e.category == "sacrifice" and e.scope == "any":
+            raw = e.raw or ""
+            if _EDICT_OPP_RAW.search(raw):
+                changed = True
+                new_effects.append(replace(e, scope="opp"))
+                continue
+            if _EDICT_EACH_RAW.search(raw):
+                changed = True
+                new_effects.append(replace(e, scope="each"))
+                continue
+        new_effects.append(e)
     if not changed:
         return ability
     return replace(ability, effects=tuple(new_effects))

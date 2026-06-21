@@ -24,7 +24,9 @@ from mtg_utils.card_ir import Card
 # v3: Trigger.zones (directional zone refs of a ChangeZone trigger).
 # v4: _recover_library_zones — from:library on top-of-library cast_from_zone effects
 #     (impulse_top_play / play_from_top).
-SIDECAR_VERSION = 4
+# v5: _recover_edict_scope — promote scope=='any' sacrifice → each/opp from raw when
+#     phase dropped the sacrificer scoping to a null controller (edict_matters).
+SIDECAR_VERSION = 5
 
 
 def card_ir_dir() -> Path:
