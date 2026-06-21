@@ -2395,14 +2395,19 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
             )
         return out
     # A cost REDUCER (v0.1.60 ModifyCost{Reduce}): Goblin Electromancer / Ruby
-    # Medallion / Urza's Incubator / Helm of Awakening make YOUR (or everyone's)
-    # spells cheaper — a cost_reduction build-around payoff. The spell_filter
-    # (instant/sorcery, chosen tribe, artifact, by color, or null = all) is what gets
-    # cheaper; carry it as subject so the lane reads the build-around. scope="you":
-    # the reducer's controller is the payoff's owner, whether the reducer is
-    # You-affected or symmetric. (ADR-0027 β — direction-correct vs the regex.)
+    # Medallion / Urza's Incubator / Helm of Awakening make a CLASS OF YOUR (or
+    # everyone's) spells cheaper — a cost_reduction build-around payoff. The
+    # spell_filter (instant/sorcery, chosen tribe, artifact, by color, or null = all)
+    # is what gets cheaper; carry it as subject so the lane reads the build-around.
+    # scope="you": the reducer's controller is the payoff's owner, You-affected or
+    # symmetric. EXCLUDE affected==SelfRef (Cavern-Hoard Dragon "this spell costs less"
+    # — a one-off SELF discount that cheapens no OTHER spell in the deck; same CR
+    # 601.2f operation, but not the build-around enabler the lane keys on — rules-
+    # adjudicated, CR 601.2f/118.7). (ADR-0027 β — direction-correct vs the regex.)
+    _aff = st.get("affected")
+    _is_self = isinstance(_aff, dict) and _norm(_aff.get("type")) == "selfref"
     _cost_reduce = _modifycost_reduce(st.get("mode"))
-    if _cost_reduce is not None:
+    if _cost_reduce is not None and not _is_self:
         out.append(
             Effect(
                 category="cost_reduction",

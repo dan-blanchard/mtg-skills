@@ -30,7 +30,10 @@ from mtg_utils.card_ir import Card
 #     op="count"); read by the damage_equal_power / creature_ping lanes (ADR-0027 β).
 # v7: ModifyCost{Reduce} static → a category="cost_reduction" Effect (Goblin
 #     Electromancer / Ruby Medallion); the cost_reduction lane reads it (ADR-0027 β).
-SIDECAR_VERSION = 7
+# v8: exclude affected==SelfRef from the v7 cost_reduction projection (Cavern-Hoard
+#     Dragon "this spell costs less" is a self-discount, not a build-around enabler;
+#     rules-adjudicated CR 601.2f/118.7).
+SIDECAR_VERSION = 8
 
 
 def card_ir_dir() -> Path:
