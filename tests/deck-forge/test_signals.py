@@ -1171,22 +1171,25 @@ def test_source_deals_damage_opens_burn():
 def test_self_power_scaling_opens_counters():
     # Mona Lisa: "{T}: Add X mana, where X is Mona Lisa's power" — her value scales with
     # her OWN power, so she wants to pump it with +1/+1 counters (Stony Strength).
+    # ADR-0027 β: self_counter_grow migrated to the Card IR — this self-power-scaling
+    # cross-open is now served from the narrowed _SELF_COUNTER_GROW_MIRROR (hybrid path).
     mona = {
         "name": "Mona Lisa, Science Geek",
         "type_line": "Legendary Creature — Lizard Mutant",
         "oracle_text": "Reach\n{T}: Add X mana of any one color, where X is Mona Lisa's "
         "power.",
     }
-    assert any(k == "self_counter_grow" for k, _ in _keys(mona))
+    assert any(k == "self_counter_grow" for k, _ in _keys_hybrid(mona))
 
 
 def test_fling_target_power_does_not_open_self_counters():
     # Precision: "X is TARGET creature's power" (fling) isn't self-scaling.
+    # ADR-0027 β: served from the IR path now (hybrid), so check there.
     card = {
         "name": "Fling",
         "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nFling deals damage equal to the sacrificed creature's power to any target.",
     }
-    assert not any(k == "self_counter_grow" for k, _ in _keys(card))
+    assert not any(k == "self_counter_grow" for k, _ in _keys_hybrid(card))
 
 
 def test_punish_non_attackers_opens_forced_attack():

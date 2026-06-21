@@ -256,6 +256,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # self_counter_grow ← a STRUCTURAL place_counter carrying the SelfRef self-anchor
+    # marker (project @ SIDECAR v12 — phase's PutCounter target=={type:SelfRef}, dropped
+    # by _effect_subject, re-surfaced as Filter(predicates=("SelfRef",))). Adaptive
+    # Snapjaw's adapt trigger "put a +1/+1 counter on this creature" is a self-grow: the
+    # marker makes the structural arm in extract_signals_ir fire self_counter_grow scope
+    # "you" (and counters_matter co-fires on the p1p1 placement). The marker is the
+    # discriminator vs a "+1/+1 counter on TARGET / another creature" doer (subject=None
+    # there). ADR-0027 β. CR 122.1 / 614.12 / 701.43 (adapt).
+    "self_counter_grow": (
+        {
+            "name": "Adaptive Snapjaw",
+            "type_line": "Creature — Dinosaur",
+            "oracle_text": (
+                "{4}{G}: Adapt 4. (If this creature has no +1/+1 counters on it, "
+                "put four +1/+1 counters on it.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="other", scope="you"),
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="you",
+                        subject=Filter(predicates=("SelfRef",)),
+                        counter_kind="p1p1",
+                        raw="Put a +1/+1 counter on this creature",
+                    ),
+                ),
+            )
+        ),
+    ),
     # toughness_combat ← a BYTE-IDENTICAL kept mirror (_TOUGHNESS_COMBAT_MIRROR over the
     # reminder-stripped oracle: "Each creature you control assigns combat damage equal to
     # its toughness rather than its power"). TWO deleted regex producers (the SWEEP

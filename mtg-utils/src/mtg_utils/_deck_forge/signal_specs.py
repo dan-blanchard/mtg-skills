@@ -29,6 +29,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
+    SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
@@ -2318,8 +2319,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Hand-promote EVERY mined +1/+1-counter lane with the shared counters package so a
     # counters commander surfaces sources (Forgotten Ancient), doublers (Hardened
     # Scales), keyword counters, and proliferate no matter which fragmented lane opened.
+    # ADR-0027 β: self_counter_grow migrated to the Card IR (its SWEEP_DETECTORS row is
+    # deleted — a structural SelfRef-marker arm + a narrowed mirror), so the serve keeps
+    # the old regex via the pinned SELF_COUNTER_GROW_SWEEP_REGEX (strangler pattern).
     ("self_counter_grow", "you"): _sweep_spec_with_extras(
-        "self_counter_grow", _COUNTERS_PACKAGE
+        "self_counter_grow", _COUNTERS_PACKAGE, regex=SELF_COUNTER_GROW_SWEEP_REGEX
     ),
     # ADR-0027 tranche2-B: counter_manipulation's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — counter_move/remove_counter effects + a kept

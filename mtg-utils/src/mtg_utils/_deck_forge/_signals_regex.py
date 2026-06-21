@@ -40,6 +40,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
+    SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
@@ -2749,6 +2750,25 @@ _GAIN_CONTROL_PLAN_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
 # per-clause over reminder-stripped clauses; the regex arms are clause-local, so
 # full-text == per-clause). CR 903.10a / 603.6e.
 _LTB_MATTERS_PLAN_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated self_counter_grow key. The
+# deleted SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted
+# toward `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+# self-growth engine body (a creature that grows itself with +1/+1 counters is no
+# vanilla beater — the self-grow IS a plan). The migrated lane rides a BROADER
+# structural
+# arm (+503 ir_only: by-name self-grow the pronoun-only regex missed), so re-supplying
+# via _VOLTRON_SILENCING_PLAN_KEYS would UNDER-silence the bodies whose plan now lives
+# only in the IR. So this BYTE-IDENTICAL gate mirror (the deleted SWEEP regex, pinned
+# SELF_COUNTER_GROW_SWEEP_REGEX) restores the OLD producer's exact silence set —
+# including the 103 "on it" over-fires the narrowed signal mirror drops (overwhelmingly
+# anthems/enchantments/payoffs — Ordeal of Purphoros, Defy Death, The Great Henge — not
+# legendary self-grow creatures subject to the voltron tell, so re-silencing them costs
+# nothing). Matched against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
+# per-clause over reminder-stripped clauses; the regex arms are clause-local, so
+# full-text == per-clause). CR 903.10a / 122.1.
+_SELF_COUNTER_GROW_PLAN_MIRROR = re.compile(
+    SELF_COUNTER_GROW_SWEEP_REGEX, re.IGNORECASE
+)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -3467,6 +3487,26 @@ def _self_name_alts(name: str) -> list[str]:
     return alts
 
 
+def self_power_scale_match(text: str, name: str) -> bool:
+    """True for the self-power-scaling cross-open tell ADR-0027 β re-homed from the
+    deleted self_counter_grow _DETECTORS add: an effect whose value scales with the
+    SOURCE's OWN power ("X is ~'s power", "equal to this creature's power" — Mona Lisa,
+    Esper Sentinel, Velomachus Lorehold). Such a commander wants +1/+1 counter sources
+    to pump its own power, so it opens self_counter_grow as a low-confidence cross-open.
+    Name-aware (the card's own name + "this creature", NOT "its") so a fling's "target
+    creature's power" stays out. Reused by the narrowed _SELF_COUNTER_GROW_MIRROR in
+    _signals_ir so the migration keeps this cross-open out of extract_signals. CR
+    122.1."""
+    _self = "|".join(["this creature", "this permanent", *_self_name_alts(name)])
+    return bool(
+        re.search(
+            rf"(?:equal to|x is|x equals?|where x is) [^.]*?(?:{_self})[^.]*?\bpower\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _self_etb_value(text: str, name: str) -> str | None:
     """Grounding clause if the card has a self enters-the-battlefield VALUE trigger."""
     alts = "|".join(["this creature", "this permanent", "~", *_self_name_alts(name)])
@@ -4030,16 +4070,14 @@ def extract_signals(
         # the commander-damage plan is a suggestion for the commander itself).
         if include_membership:
             add("voltron_matters", "you", "", text[:160], "low")
-    # Self-power-scaling commander (Mona Lisa: "X is Mona Lisa's power") wants to pump
-    # its OWN power with +1/+1 counters — open the self-counter-growth lane. Name-aware
-    # (name + "this creature", not "its") so a fling's "target creature's power" is out.
-    _self = "|".join(["this creature", "this permanent", *_self_name_alts(name)])
-    if re.search(
-        rf"(?:equal to|x is|x equals?|where x is) [^.]*?(?:{_self})[^.]*?\bpower\b",
-        text,
-        re.IGNORECASE,
-    ):
-        add("self_counter_grow", "you", "", text[:160], "low")
+    # ADR-0027 β: self_counter_grow migrated to the Card IR. The self-power-scaling
+    # commander cross-open ("X is ~'s power" → a self-power-scaler wants +1/+1 sources
+    # to
+    # pump its OWN power — Mona Lisa, Esper Sentinel, Velomachus) was a low-confidence
+    # _DETECTORS add here; it is RE-HOMED to the narrowed _SELF_COUNTER_GROW_MIRROR in
+    # _signals_ir (reusing _self_power_scale_re below), alongside the SWEEP self-anchor
+    # arms, so extract_signals no longer emits the key (the migration invariant) while
+    # the cross-open survives in the IR path. CR 122.1 / 614.12.
 
     # Self-ETB value commander → open the (existing, precise) blink/flicker avenue so
     # Ephemerate/Cloudshift/Conjurer's Closet get surfaced to re-use the commander's
@@ -4194,6 +4232,16 @@ def extract_signals(
         # clauses; the regex arms are clause-local, so full-text == per-clause). CR
         # 903.10a / 603.6e.
         or _LTB_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted self_counter_grow SWEEP producer (HIGH-
+        # confidence scope 'you', feeding has_other_plan — a self-growth engine is no
+        # vanilla beater). The migrated lane rides a BROADER structural arm (+503
+        # ir_only), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS
+        # — restores the old producer's exact silence set without under-silencing the
+        # recall-gain bodies. Matched against the reminder-STRIPPED `text` (the deleted
+        # SWEEP Detector ran per-clause over stripped clauses; the regex arms are
+        # clause-local, so full-text == per-clause). CR 903.10a / 122.1.
+        or _SELF_COUNTER_GROW_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

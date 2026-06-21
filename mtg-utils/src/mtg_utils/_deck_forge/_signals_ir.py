@@ -35,6 +35,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_voltron_payoff_ir,
     _resolve_subject,
     _type_hoser_clause,
+    self_power_scale_match,
 )
 from mtg_utils._deck_forge._subtypes import (
     CLASS_TRIBES,
@@ -2133,6 +2134,20 @@ IR_SLICE_KEYS: frozenset[str] = (
             # in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 603.6e / 700.4 (leaves ⊃
             # dies).
             "ltb_matters",
+            # ADR-0027 β — self_counter_grow (a creature that puts +1/+1 counters on
+            # ITSELF to grow). A STRUCTURAL arm below (a place_counter carrying the
+            # SelfRef self-anchor marker project recovers @ SIDECAR v12 — adapt/
+            # monstrosity/renown + "put a +1/+1 counter on ~/this creature/it") is a
+            # +503 recall gain over the deleted pronoun-only regex (it catches by-name
+            # self-grow — "put a +1/+1 counter on Lazav / Garza Zol"), PLUS a NARROWED
+            # _SELF_COUNTER_GROW_MIRROR (the deleted regex's self-anchored arms MINUS
+            # the
+            # loose "on it" arm that over-fired onto OTHER-creature placements — 103
+            # over-fires dropped: Ordeal of Purphoros, Defy Death, The Great Henge; the
+            # SelfRef gate excludes them) for the 14 phase-parse-gap self-growers + the
+            # self-power-scaling commander cross-open. NOT in _IR_FLOOR_LANES (floor-
+            # mirror-dep == 0). CR 122.1 / 614.12.
+            "self_counter_grow",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3082,6 +3097,38 @@ _LTB_MATTERS_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
 _LTB_MATTERS_MIRROR_VETO = re.compile(
     r"exile [^.]*until [^.]*leaves the battlefield", re.IGNORECASE
 )
+# self_counter_grow NARROWED kept mirror (ADR-0027 β): the structural arm above fires on
+# a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR v12), a
+# +503
+# recall gain over the deleted regex (it catches by-name self-grow — "put a +1/+1
+# counter
+# on Lazav / Garza Zol / Kyler" — the pronoun-only regex missed). But phase drops the
+# self-anchor on a small structural tail (the Adversary multi-pay "put that many on this
+# creature", Stormwild Capridor's damage-prevention static, Scarlet Spider's
+# ParentTarget
+# branch) — 14 self-growers the regex caught via its SELF-ANCHORED text arms. Recover
+# them
+# with a NARROWED version of the deleted regex: the EXACT self-anchored arms (on him /
+# her
+# / itself / this creature) MINUS the loose "on it" arm, which the deleted regex used
+# and
+# which 100%-over-fired onto OTHER-creature counter placements ("enchanted creature
+# attacks, put a +1/+1 on it" — Ordeal of Purphoros; "if it's an Angel, put two +1/+1 on
+# it" — Defy Death; the go-wide counter anthems The Great Henge / Railway Brawler;
+# combat
+# payoffs Necropolis Regent / Stensia Masquerade — 103 over-fires, the SelfRef IR gate
+# correctly excludes them). Run PER-CLAUSE over the reminder-stripped kept_oracle. A
+# byte-identical full-text mirror would re-introduce the 103 over-fires, so this is
+# narrowed. The self-power-scaling commander cross-open ("X is ~'s power") rides
+# self_power_scale_match (re-homed from the deleted _DETECTORS add). CR 122.1 / 614.12.
+_SELF_COUNTER_GROW_MIRROR = re.compile(
+    "enters with (?:x|\\d+|a|an|one|two|three) \\+1/\\+1 counters? on "
+    "(?:him|her|itself|this)"
+    "|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on "
+    "(?:him|her|itself|this creature)\\b"
+    "|put that many \\+1/\\+1 counters? on (?:him|her|itself|this creature)",
+    re.IGNORECASE,
+)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -3147,6 +3194,17 @@ _NONCREATURE_SPELL_TYPES: frozenset[str] = frozenset(
 
 def _ftypes(f: object) -> frozenset[str]:
     return frozenset(f.card_types) if isinstance(f, Filter) else frozenset()
+
+
+def _is_self_counter_marker(f: object) -> bool:
+    """True for the ADR-0027 β self-anchor marker project.py stamps on a +1/+1 counter
+    PLACEMENT a creature puts on ITSELF (adapt/monstrosity/renown + "put a +1/+1
+    counter on ~/this creature/it" — project._SELF_COUNTER_MARKER, a Filter carrying
+    only the ``SelfRef`` predicate). The self_counter_grow lane reads this to split
+    self-grow from a "+1/+1 counter on TARGET / another creature" doer; self_pump treats
+    it as the self shape it already fired on (subject=None at the regex base). CR
+    122.1 / 614.12."""
+    return isinstance(f, Filter) and f.predicates == ("SelfRef",)
 
 
 def _is_permanent_subtype_destroy(f: object) -> bool:
@@ -4188,9 +4246,15 @@ def extract_signals_ir(
             # gets…", Pia Nalaar / Kjeldoran Elite Guard) carries a subject and is
             # counter_distribute / keyword_grant_target, NOT self_pump. Serve pairs
             # self_pump with _POWER_FLING_EXTRA (firebreathing → fling), hand-spec'd.
+            # ADR-0027 β: a self-targeted p1p1 placement now carries the SelfRef
+            # self-anchor marker (project @ SIDECAR v12) instead of subject=None, so
+            # accept it here too — it IS the self shape this arm fires on (Walking
+            # Ballista's "{4}: Put a +1/+1 counter on ~" is the canonical self_pump
+            # mana-sink). Treating the marker as self keeps self_pump byte-identical to
+            # the regex base. CR 122.1.
             if (
                 ab.kind == "activated"
-                and e.subject is None
+                and (e.subject is None or _is_self_counter_marker(e.subject))
                 and (
                     cat == "pump_target"
                     or (cat == "place_counter" and e.counter_kind == "p1p1")
@@ -4248,13 +4312,37 @@ def extract_signals_ir(
                 or (not e.counter_kind and "+1/+1 counter" in (e.raw or ""))
             ):
                 add("counters_matter", "you", "", e.raw)
-            # ADR-0027 tranche2-B-3: self_counter_grow DEFERRED — the structural arm
-            # (place_counter(p1p1, subject=None) + a self-anchor raw) has a genuine
-            # floor-disabled recall gap (14 subjNone p1p1 placements whose raw lacks the
-            # self-anchor: Saga chapter placements, adapt/monstrosity, empty-raw modal),
-            # plus an "on it" over-fire on counter-replacement doublers (Hardened
-            # Scales). Not migrated; both regex producers stay (the self-power-scaling
-            # _DETECTORS add + the SWEEP_DETECTORS row).
+            # ADR-0027 β — self_counter_grow STRUCTURAL arm. A +1/+1 counter PLACEMENT a
+            # creature puts on ITSELF to GROW (adapt CR 701.43 / monstrosity 701.13 /
+            # renown 702.111 / Saga chapter "put N +1/+1 on ~" / "enters with / put a
+            # +1/+1 counter on this creature" / empty-raw modal self-pump). phase emits
+            # a
+            # place_counter with target=={type:SelfRef} (or implies it for the keyworded
+            # adapt/monstrosity/renown nodes), which the projection re-surfaces as the
+            # SelfRef self-anchor marker (project._SELF_COUNTER_MARKER @ SIDECAR v12).
+            # The
+            # MARKER is the discriminator: a generic place_counter(p1p1, subject=None)
+            # would conflate self-grow with "put a +1/+1 counter on TARGET / another
+            # creature" (counter_distribute / a doubler's "on it"), the exact ambiguity
+            # that DEFERRED this lane — the raw dropped the anchor on ~14 bodies. The
+            # enters-with REPLACEMENT form is gated at projection time on the
+            # replacement's valid_card so the OTHER-creature "each other creature enters
+            # with …" grant (Master Biomancer, Giada) is NOT marked self. counter_kind
+            # is
+            # '' for the adapt/monstrosity/renown keyword nodes (their +1/+1 lives in
+            # the
+            # mechanic, not a counter_type), so the marker — not the kind — gates here.
+            # NB: counters_matter (the broad lane above) still co-fires on the p1p1
+            # placements; self_counter_grow is the NARROWER self-grow build-around
+            # (is_widen_of counters_matter). A NARROWED _SELF_COUNTER_GROW_MIRROR below
+            # recovers the TriggeringSource heroic self-grow (Sage of Hours / Fabled
+            # Hero
+            # — phase's "put a +1/+1 on it" with target=TriggeringSource, ambiguous at
+            # the
+            # corpus level so NOT marked) + the self-power-scaling commander tell. scope
+            # 'you'. CR 122.1 / 614.12.
+            if cat == "place_counter" and _is_self_counter_marker(e.subject):
+                add("self_counter_grow", "you", "", e.raw)
             # counters_matter (ADR-0027 pass 2) — a "has/with a +1/+1 counter"
             # PAYOFF reference phase dropped to a restriction / draw / damage /
             # cost_reduction carrier, recovered as a counters_have_ref marker
@@ -5791,6 +5879,28 @@ def extract_signals_ir(
         for cl in _clauses(kept_oracle)
     ):
         add("ltb_matters", "you", "", "")
+    # ADR-0027 β — self_counter_grow NARROWED kept mirror. The structural arm above
+    # fires
+    # on a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR
+    # v12),
+    # but phase drops the anchor on a small structural tail (the Adversary multi-pay
+    # "put
+    # that many +1/+1 counters on this creature", Stormwild Capridor's damage-prevention
+    # static, Scarlet Spider's ParentTarget branch — 14 self-growers the deleted regex
+    # caught via its SELF-ANCHORED text arms). Recover them with the NARROWED regex (the
+    # self-anchored arms only — "on him/her/itself/this creature", MINUS the loose "on
+    # it"
+    # arm that 100%-over-fired onto OTHER-creature placements; the SelfRef IR gate
+    # already
+    # excludes those, and a byte-identical full-text mirror would re-introduce the 103
+    # over-fires). PLUS the self-power-scaling commander cross-open ("X is ~'s power" →
+    # wants +1/+1 sources — Mona Lisa, Esper Sentinel, Velomachus), re-homed from the
+    # deleted low-confidence _DETECTORS add. scope 'you' (the deleted producer's forced
+    # scope). add() dedups vs the structural arm. CR 122.1 / 614.12.
+    if any(
+        _SELF_COUNTER_GROW_MIRROR.search(cl) for cl in _clauses(kept_oracle)
+    ) or self_power_scale_match(kept_oracle, name):
+        add("self_counter_grow", "you", "", "")
     # ADR-0027 β — untap_engine NARROWED kept mirror. The structural arm above reads
     # `cat=='untap'` Effects, but phase routes ~11 genuine engines into a choose /
     # target_only / cost / type_set carrier with NO cat=='untap' Effect (Captain of the

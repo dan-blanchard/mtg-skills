@@ -49,7 +49,17 @@ from mtg_utils.card_ir import Card
 #     `leaves` event. The `ChangesZone` arm already split leaves vs dies on explicit
 #     origin/destination zones; this re-classifies the zone-less LeavesBattlefield mode.
 #     `Destroyed` stays `dies` (CR 701.7). ADR-0027 β. CR 603.6e.
-SIDECAR_VERSION = 11
+# v12: a +1/+1 counter PLACEMENT a creature puts on ITSELF carries a SelfRef self-anchor
+#     marker (Filter predicate "SelfRef") on the place_counter Effect. phase carries the
+#     anchor as the PutCounter target=={type:SelfRef} (or implies it for the keyworded
+#     adapt/monstrosity/renown nodes, CR 701.43/701.13/702.111) but _effect_subject
+#     DROPPED the bare SelfRef; the self_counter_grow lane reads the marker to split
+#     self-grow (Adaptive Snapjaw, Champion of Lambholt, Servant of the Scale, Endless
+#     One) from a "+1/+1 counter on TARGET / another creature" doer. The enters-with
+#     REPLACEMENT form re-checks the replacement's valid_card so the OTHER-creature
+#     "each other creature enters with …" grant (Master Biomancer, Giada) is NOT marked
+#     self. ADR-0027 β. CR 122.1 / 614.12.
+SIDECAR_VERSION = 12
 
 
 def card_ir_dir() -> Path:

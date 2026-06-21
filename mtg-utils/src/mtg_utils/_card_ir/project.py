@@ -59,6 +59,33 @@ def _norm_counter_kind(raw: object) -> str:
     return _norm(raw) if isinstance(raw, str) else ""
 
 
+# ADR-0027 β — the self-anchor marker for a +1/+1 counter PLACEMENT a creature puts
+# on ITSELF (adapt / monstrosity / renown / Saga "put N +1/+1 on ~" / "enters with /
+# put a +1/+1 counter on this creature"). phase carries the anchor as the PutCounter
+# effect's ``target={type:SelfRef}`` (or implies it for the keyworded adapt/monstrosity/
+# renown nodes, CR 701.43/701.13/702.111), but ``_effect_subject`` DROPS it — a bare
+# ``{type:SelfRef}`` has no card_types/subtypes/controller/predicates, so ``_filter``
+# returns None and the placement lands subject=None, indistinguishable from a "put a
+# +1/+1 counter on TARGET / another creature" doer. We re-surface it as a Filter
+# carrying the ``SelfRef`` predicate so the self_counter_grow lane can split self-grow
+# from target-other (the lane reads ``"SelfRef" in subject.predicates``). One closed
+# predicate string, no card-type/subtype noise. CR 122.1 / 614.12.
+_SELF_COUNTER_MARKER = Filter(predicates=("SelfRef",))
+
+# Keyword +1/+1 self-grow mechanics phase emits as a bare node with NO PutCounter
+# target — they are DEFINITIONALLY self (the source grows itself): adapt (CR 701.43),
+# monstrosity (CR 701.13), renown (CR 702.111). Project them with the self-anchor
+# marker + counter_kind p1p1 (their counter is a +1/+1, but phase carries no
+# counter_type field). bolster is EXCLUDED — it puts the counters on the WEAKEST
+# OTHER creature (CR 701.36), not the source.
+_SELF_GROW_KEYWORD_TYPES = frozenset({"adapt", "monstrosity", "renown"})
+
+
+def _is_selfref(node: object) -> bool:
+    """True for a bare phase ``{type: SelfRef}`` reference (the source itself)."""
+    return isinstance(node, dict) and _norm(node.get("type")) == "selfref"
+
+
 def _str_tuple(value: object) -> tuple[str, ...]:
     """A JSON list field → tuple of its string items (() if absent/not a list)."""
     if not isinstance(value, list):
@@ -1819,9 +1846,25 @@ def _project_replacement(rep: dict) -> Ability | None:
             "addpendingetbcounters",
         ):
             effs = _collect_effects(execute, raw or rep.get("description") or "")
-            place = [
-                replace(e, scope="you") for e in effs if e.category == "place_counter"
-            ]
+            # ADR-0027 β self_counter_grow anchor: an enters-with replacement is a
+            # SELF-grow ("~ enters with N +1/+1 counters on it" — Servant of the Scale,
+            # Endless One, Walking Ballista) ONLY when the replaced object IS the source
+            # (valid_card=={type:SelfRef}). The OTHER form ("each other creature you
+            # control enters with …" — Master Biomancer, Giada) carries the SAME
+            # template-relative target=={type:SelfRef} on the inner PutCounter (it
+            # means the ENTERING creature), so _project_effect stamps the self-anchor
+            # marker on both. Clear it for the other-creature form here — valid_card is
+            # the
+            # discriminator phase keeps (Typed/Another vs SelfRef). CR 614.13.
+            self_enters = _is_selfref(rep.get("valid_card"))
+            place = []
+            for eff_p in effs:
+                if eff_p.category != "place_counter":
+                    continue
+                scoped = replace(eff_p, scope="you")
+                if not self_enters and scoped.subject == _SELF_COUNTER_MARKER:
+                    scoped = replace(scoped, subject=None)
+                place.append(scoped)
             if place:
                 return Ability(kind="static", effects=tuple(place))
     return None
@@ -2085,6 +2128,25 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     category = _EFFECT_CATEGORY.get(etype)
     if category is None or etype in _OTHER:
         return [Effect(category="other", scope=_effect_scope(eff), raw=raw)]
+    # ADR-0027 β — the keyworded self-grow mechanics (adapt/monstrosity/renown) map to
+    # place_counter but carry NO counter_type and NO target: they are definitionally a
+    # +1/+1 placement on the SOURCE itself (CR 701.43/701.13/702.111). Stamp the SelfRef
+    # self-anchor marker so the self_counter_grow lane reads them. counter_kind stays ''
+    # (phase carries no counter_type for the keyword node, and its raw — "Adapt 3." —
+    # names no "+1/+1 counter"): the self_counter_grow lane keys on the MARKER, not the
+    # kind, and leaving the kind '' keeps counters_matter / self_pump exactly as they
+    # were at the regex base (those gate on counter_kind=='p1p1'), so the projection is
+    # behavior-neutral until self_counter_grow is wired. CR 701.43 / 701.13 / 702.111.
+    if etype in _SELF_GROW_KEYWORD_TYPES:
+        return [
+            Effect(
+                category="place_counter",
+                amount=_amount(eff),
+                scope="you",
+                subject=_SELF_COUNTER_MARKER,
+                raw=raw,
+            )
+        ]
     ck = eff.get("counter_type")
     counter_kind = _norm_counter_kind(ck) if isinstance(ck, str) else ""
     if etype in _MASS_EFFECT_TYPES:
@@ -2100,12 +2162,31 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # edict_matters) out of the you-sac sacrifice_matters lane (CR 701.16).
     if category == "sacrifice":
         scope = _sacrifice_player_scope(eff, scope)
+    subject = _effect_subject(eff)
+    # ADR-0027 β — a +1/+1 counter PLACEMENT that targets the SOURCE itself ("put a
+    # +1/+1 counter on ~ / this creature / it") is the self_counter_grow self-anchor.
+    # phase carries it as target=={type:SelfRef}, which _effect_subject DROPS (a bare
+    # SelfRef has no type/controller/predicates, so _filter returns None). Re-surface
+    # the anchor as the SelfRef-predicate marker. Gated to p1p1 so a SelfRef placement
+    # of a NON-+1/+1 counter (a self-charge/oil/page card) is unaffected — those route
+    # by counter_kind to their own lanes. For an enters-with REPLACEMENT the inner
+    # PutCounter's SelfRef is template-relative (it means the ENTERING object, which can
+    # be ANOTHER creature — Master Biomancer), so _project_replacement re-checks the
+    # replacement's own valid_card and clears this marker when the entering set isn't
+    # the source. CR 122.1 / 614.12.
+    if (
+        category == "place_counter"
+        and counter_kind == "p1p1"
+        and subject is None
+        and _is_selfref(eff.get("target"))
+    ):
+        subject = _SELF_COUNTER_MARKER
     return [
         Effect(
             category=category,
             amount=_amount(eff),
             scope=scope,
-            subject=_effect_subject(eff),
+            subject=subject,
             raw=raw,
             counter_kind=counter_kind,
             zones=_zone_tags(eff),

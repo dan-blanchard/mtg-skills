@@ -292,6 +292,38 @@ LTB_MATTERS_SWEEP_REGEX = (
     "|whenever [^.]*(?:leaves the battlefield|leave the battlefield)"
     "|when [^.]* leaves the battlefield"
 )
+# ADR-0027 β: self_counter_grow (a creature that puts +1/+1 counters on ITSELF to grow
+# — adapt/monstrosity/renown, Saga chapter "put N +1/+1 on ~", "enters with / put a
+# +1/+1 counter on this creature", multi-pay self-pump) migrated to the Card IR. The
+# deleted SWEEP_DETECTORS row's EXACT regex is pinned here so the migrated lane's
+# narrowed kept-mirror (_SELF_COUNTER_GROW_MIRROR in _signals_ir) and the has-other-plan
+# voltron gate (_SELF_COUNTER_GROW_PLAN_MIRROR in _signals_regex) share ONE source. The
+# lane fires from a STRUCTURAL arm (a place_counter carrying the SelfRef self-anchor
+# marker project.py recovers @ SIDECAR v12 — phase carries the anchor as the PutCounter
+# target=={type:SelfRef}, or implies it for adapt/monstrosity/renown — a +503 ir_only
+# recall gain over this regex: the regex only matched the pronouns "on him/her/it/this",
+# so it MISSED every body that names itself ("put a +1/+1 counter on Lazav / Garza Zol /
+# Kyler", the by-name self-grow). The regex's loose "on it" arm 100%-over-fires onto
+# OTHER-creature counter placements ("enchanted creature attacks, put a +1/+1 on it" —
+# Ordeal of Purphoros; "if it's an Angel, put two +1/+1 on it" — Defy Death; the go-wide
+# counter anthems The Great Henge / Railway Brawler; combat payoffs Necropolis Regent /
+# Stensia Masquerade), the doer the IR's SelfRef gate correctly excludes — so the mirror
+# is NARROWED to the SELF-ANCHORED arms only (`on (?:him|her|itself|this creature)` +
+# multi-pay "put that many on this creature"), recovering the 14 phase-parse-gap self-
+# growers (the Adversary multi-pay cycle Spectral/Primal/Bloodthirsty, Stormwild
+# Capridor's damage-prevention static, Scarlet Spider's ParentTarget branch) while
+# DROPPING the 103 "on it" over-fires. The self-power-scaling commander cross-open ("X
+# is ~'s power" → a self-power-scaler wants +1/+1 sources, Esper Sentinel / Velomachus)
+# rode a low-confidence _DETECTORS add, also re-homed to the narrowed mirror. SWEEP_LABELS
+# keeps the human label; the serve is hand-registered in signal_specs.py. CR 122.1 /
+# 614.12 / 701.43 (adapt) / 701.13 (monstrosity) / 702.111 (renown).
+SELF_COUNTER_GROW_SWEEP_REGEX = (
+    "enters with (?:x|\\d+|a|an|one|two|three) \\+1/\\+1 counters? on "
+    "(?:him|her|it|itself|this)"
+    "|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on "
+    "(?:him|her|it|itself|this creature)\\b"
+    "|put that many \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)"
+)
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -530,12 +562,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # from (counter_move|remove_counter) effects with counter_kind in {p1p1,m1m1} +
     # a kept cost-clause word mirror (signals._IR_KEPT_DETECTORS). SWEEP_LABELS keeps
     # the label; the serve spec is re-homed in signal_specs.py.
-    {
-        "key": "self_counter_grow",
-        "scope": "you",
-        "is_widen_of": "counters_matter",
-        "regex": "enters with (?:x|\\d+|a|an|one|two|three) \\+1/\\+1 counters? on (?:him|her|it|itself|this)|put (?:a|one|two|three|x|\\d+) \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)\\b|put that many \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)",
-    },
+    # ADR-0027 β: self_counter_grow migrated to the Card IR — a creature that puts +1/+1
+    # counters on ITSELF fires from a STRUCTURAL arm (a place_counter carrying the SelfRef
+    # self-anchor marker project.py recovers @ SIDECAR v12, +503 ir_only over this regex's
+    # pronoun-only "on him/her/it/this" — it catches by-name self-grow the regex missed)
+    # + the NARROWED _SELF_COUNTER_GROW_MIRROR (the self-anchored arms of this regex, run
+    # per-clause, recovering the 14 phase-parse-gap self-growers; the loose "on it" arm is
+    # DROPPED — 103 over-fires onto OTHER-creature counter placements). Its SWEEP_DETECTORS
+    # row is deleted; the EXACT regex is pinned as SELF_COUNTER_GROW_SWEEP_REGEX above and
+    # the serve is hand-registered in signal_specs.py (SWEEP_LABELS keeps the human label).
+    # CR 122.1 / 614.12.
     # ADR-0027: facedown_matters migrated to the Card IR — detected from the
     # manifest/cloak/turn_face_up effect categories (_DOER_EFFECT_KEYS) PLUS the
     # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the morph/disguise/

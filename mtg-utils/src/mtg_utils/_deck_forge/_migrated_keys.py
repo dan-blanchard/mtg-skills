@@ -1880,6 +1880,68 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # other lane drift, 0 death_matters change. CR 603.6e / 700.4 (leaves ⊃ dies) /
         # 903.10a (voltron).
         "ltb_matters",
+        # ADR-0027 β — self_counter_grow (a creature that puts +1/+1 counters on ITSELF
+        # to GROW: adapt CR 701.43 / monstrosity 701.13 / renown 702.111, Saga chapter
+        # "put N +1/+1 on ~", "enters with / put a +1/+1 counter on this creature",
+        # multi-
+        # pay self-pump). MIGRATED VIA A PROJECTION (SIDECAR v11→v12) + a STRUCTURAL IR
+        # ARM + a NARROWED kept-mirror.
+        #
+        # PROJECTION. phase emits a place_counter with target=={type:SelfRef} (the
+        # self-anchor — "on ~ / this creature / it" / SelfRef), or implies it for the
+        # keyworded adapt/monstrosity/renown nodes, but _effect_subject DROPPED the bare
+        # SelfRef (it has no type/controller/predicates, so _filter → None) — leaving
+        # the
+        # placement subject=None, indistinguishable from "put a +1/+1 counter on TARGET
+        # /
+        # another creature" (the exact ambiguity that DEFERRED this lane). project.py
+        # re-surfaces the anchor as a SelfRef-predicate Filter marker (_SELF_COUNTER_
+        # MARKER). The enters-with REPLACEMENT form re-checks the replacement's
+        # valid_card
+        # (SelfRef = self enters → marked; Typed/Another = "each other creature enters
+        # with …" → NOT marked: Master Biomancer, Giada). The projection is BEHAVIOR-
+        # NEUTRAL until the lane is wired — self_pump treats the marker as the self
+        # shape
+        # it already fired on, and adapt/monstrosity keep counter_kind='' so they don't
+        # newly open counters_matter (two-sidecar global no-flood v11 vs v12: drift==0).
+        # parse_confidence unchanged (98.7% full both sides).
+        #
+        # STRUCTURAL ARM (recall-GAINING). A place_counter carrying the SelfRef marker
+        # fires self_counter_grow scope 'you'. +503 recall over the deleted regex (which
+        # matched only the PRONOUNS "on him/her/it/this"): it catches every body that
+        # names ITSELF — "put a +1/+1 counter on Lazav / Garza Zol / Kyler" — the
+        # pronoun-
+        # only regex missed.
+        #
+        # NARROWED KEPT-MIRROR (_SELF_COUNTER_GROW_MIRROR in _signals_ir). phase drops
+        # the
+        # self-anchor on a structural tail (the Adversary multi-pay "put that many +1/+1
+        # counters on this creature", Stormwild Capridor's damage-prevention static,
+        # Scarlet Spider's ParentTarget branch — 14 self-growers). Recover them with the
+        # deleted regex's SELF-ANCHORED arms only (MINUS the loose "on it" arm, which
+        # 100%-over-fired onto OTHER-creature placements — Ordeal of Purphoros, Defy
+        # Death, the counter anthems The Great Henge / Railway Brawler, combat payoffs
+        # Necropolis Regent / Stensia Masquerade: 103 over-fires, the SelfRef IR gate
+        # correctly excludes them). PLUS the self-power-scaling commander cross-open ("X
+        # is ~'s power" → wants +1/+1 sources — Esper Sentinel, Velomachus), re-homed
+        # from
+        # the deleted low-confidence _DETECTORS add.
+        #
+        # GATES. Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), structural arm + mirror vs the regex): both==898,
+        # ir_only==503 (genuine recall: by-name self-grow + adapt/monstrosity/enters-
+        # with
+        # the pronoun regex missed), regex_only==103 — ALL the loose-"on it" OTHER-
+        # creature
+        # placements (100% over-fire vs Scryfall oracle, the SelfRef gate's exclusion is
+        # correct). floor-mirror-dep == 0 (self_counter_grow is NOT an _IR_FLOOR_LANE —
+        # it
+        # was a SWEEP_DETECTORS key). The deleted SWEEP producer fired HIGH-confidence
+        # (scope 'you') and counted toward has_other_plan, so a byte-identical
+        # _SELF_COUNTER_GROW_PLAN_MIRROR re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, because the IR arm is BROADER (+503). CR 122.1 /
+        # 614.12 / 701.43 / 701.13 / 702.111.
+        "self_counter_grow",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
