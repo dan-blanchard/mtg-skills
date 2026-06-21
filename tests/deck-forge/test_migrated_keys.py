@@ -3515,6 +3515,78 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-A) — 5 kept_detector keys phase v0.1.60 cannot
+    # structure. Each fires from a dedicated IR-path WORD MIRROR reading the record's
+    # oracle_text (the exact deleted SWEEP / _HAND_FLOOR regex), so a bare `_ir()` Card
+    # routes the hybrid to the IR path; the mirror does the rest. (free_plot's flip-side
+    # is read on the joined-face oracle, so the two-face Kamigawa flip creature's "flip
+    # this creature" survives even though its top-level oracle_text is empty.)
+    "draft_spellbook": (
+        {
+            "name": "Cogwork Librarian",
+            "type_line": "Artifact Creature — Construct",
+            "oracle_text": (
+                "Draft this card face up.\nAs you draft a card, you may draft an "
+                "additional card from that booster pack. If you do, put this card "
+                "into that booster pack."
+            ),
+        },
+        _ir(),
+    ),
+    "each_mode_player": (
+        {
+            "name": "Vindictive Lich",
+            "type_line": "Creature — Zombie Wizard",
+            "oracle_text": (
+                "When this creature dies, choose one or more. Each mode must target "
+                "a different player.\n• Target opponent sacrifices a creature of "
+                "their choice.\n• Target opponent discards two cards.\n• Target "
+                "opponent loses 5 life."
+            ),
+        },
+        _ir(),
+    ),
+    "flip_self": (
+        {
+            "name": "Nezumi Graverobber // Nighteyes the Desecrator",
+            "type_line": ("Creature — Rat Rogue // Legendary Creature — Rat Wizard"),
+            "oracle_text": (
+                "{1}{B}: Exile target card from an opponent's graveyard. If no "
+                "cards are in that graveyard, flip this creature.\n// \n{4}{B}: "
+                "Put target creature card from a graveyard onto the battlefield "
+                "under your control."
+            ),
+        },
+        _ir(),
+    ),
+    "free_plot": (
+        {
+            "name": "Fblthp, Lost on the Range",
+            "type_line": "Legendary Creature — Homunculus",
+            "oracle_text": (
+                "Ward {2}\nYou may look at the top card of your library any time.\n"
+                "The top card of your library has plot. The plot cost is equal to "
+                "its mana cost.\nYou may plot nonland cards from the top of your "
+                "library."
+            ),
+        },
+        _ir(),
+    ),
+    "miracle_grant": (
+        {
+            "name": "Lorehold, the Historian",
+            "type_line": "Legendary Creature — Elder Dragon",
+            "oracle_text": (
+                "Flying, haste\nEach instant and sorcery card in your hand has "
+                "miracle {2}. (You may cast a card for its miracle cost when you "
+                "draw it if it's the first card you drew this turn.)\nAt the "
+                "beginning of each opponent's upkeep, you may discard a card. If "
+                "you do, draw a card."
+            ),
+            "keywords": ["Flying", "Haste"],
+        },
+        _ir(),
+    ),
     # ADR-0027 tranche2-batch-4 (t2b4a-A) structural ETB / predicate arms.
     # tribal_etb_multi ← an `etb` Trigger whose subject Filter names a creature
     # SUBTYPE (vocab-gated _kindred_subjects). Goblin Assassin: a Goblin-ETB chain.

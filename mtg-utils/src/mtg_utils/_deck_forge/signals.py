@@ -1294,15 +1294,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Fblthp makes the top card's plot cost = its mana cost, so 0-cost cards are free to
-    # plot off the top -- the cEDH artifact-combo / storm engine (Hullbreaker + two
-    # 0-cost permanents, Sai/Displacer chains). So he wants 0-cost cards. The "plot cost
-    # is equal to its mana cost" phrasing is unique to him.
-    (
-        "free_plot",
-        re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 t2b5-A: free_plot migrated to the Card IR — Fblthp makes the top card's
+    # plot cost = its mana cost (the cEDH artifact-combo / storm engine), but no IR
+    # structure exists for the Plot alt-cost rewrite (phase routes the clause to a
+    # subjectless topdeck_select). The lane fires from a signals._IR_KEPT_DETECTORS word
+    # mirror (the exact "plot cost is equal to its mana cost" phrase — literally unique
+    # to one card, zero over-fire). This _HAND_FLOOR producer is deleted; the serve spec
+    # (the 0-cost-cards serve) stays hand-registered in signal_specs.py.
     # ADR-0027: multicolor_matters migrated to the Card IR — served from the
     # multicolor ColorCount subject-Filter predicate (the "multicolored <permanent> you
     # control" / "multicolored card" build-arounds — Niv-Mizzet Reborn, Rienne) + a
@@ -4810,10 +4808,61 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-A) — 5 kept_detector lanes phase v0.1.60 CANNOT
+    # structure (rules-lawyer / spec verified: the discriminant is un-CR digital
+    # vocabulary, a per-mode target-legality constraint, an inconsistently-parsed
+    # Kamigawa flip, a cost-rewrite phase doesn't model, or a grant-direction phase
+    # folds into a carrier). Each fires from a dedicated IR-path WORD MIRROR
+    # reproducing the deleted SWEEP / _HAND_FLOOR regex EXACTLY (the mirror reads the
+    # joined-face oracle, so it is byte-identical — A-B==0). floor-mirror-dep == 0 by
+    # construction (none is a floor detector).
+    #   • draft_spellbook ← Arena/Alchemy digital mechanics (draft-a-card / spellbook)
+    #     NOT in the CR with NO phase effect category (phase leaves them
+    #     category='other'). The literal phrasing is the only signal; all matching
+    #     cards are games:['arena'], so the lane is correctly inert in paper formats.
+    #   • each_mode_player ← phase captures the modal head (Effect.category=='choose')
+    #     but has NO field for the spread-the-modes CONSTRAINT; a bare 'choose' marker
+    #     over-fires 1364:8 (every modal card). The literal phrase is the discriminator.
+    #   • flip_self ← phase parses the Kamigawa flip (CR 710) INCONSISTENTLY (transform
+    #     / reanimate / buried in raw), so no single structured category is reliable;
+    #     "flip this creature" is a coined term on exactly the 7 flip creatures.
+    #   • free_plot ← no IR structure for the Plot alt-cost rewrite (phase routes
+    #     Fblthp's plot-cost clause to a subjectless topdeck_select). The phrase is
+    #     literally unique to one card (Fblthp, Lost on the Range) — zero over-fire.
+    #     (NB: the broad "\bplot\b" the old DEFERRED note warned against is NOT this
+    #     producer — the _HAND_FLOOR regex was already the tight unique-phrase form.)
+    #   • miracle_grant ← a card that GRANTS miracle to OTHER cards in hand; phase folds
+    #     the grant into a carrier (category grant_keyword/other). The "cards/spells in
+    #     your hand have/has miracle" phrasing is the granting DIRECTION (an intrinsic
+    #     miracle card carries a "Miracle {cost}" keyword line, so the mirror excludes
+    #     it). CR 702.94.
+    (
+        "draft_spellbook",
+        re.compile(r"\bdraft a card\b|spellbook", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "each_mode_player",
+        re.compile(r"each mode must target a different player", re.IGNORECASE),
+        "each",
+    ),
+    ("flip_self", re.compile(r"\bflip this creature\b", re.IGNORECASE), "you"),
+    (
+        "free_plot",
+        re.compile(r"plot cost is equal to its mana cost", re.IGNORECASE),
+        "you",
+    ),
+    (
+        "miracle_grant",
+        re.compile(
+            r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
-    # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
-    # the word). Both need a narrower payoff/keyword source.
+    # kicker). Needs a narrower payoff/keyword source.
     # DEFERRED: legend_rule_off — phase's `legend_exempt` Effect is a strict SUBSET
     # of the regex (2 of 8: only the unbounded "the legend rule doesn't apply" —
     # Mirror Gallery, Brothers Yamazaki). The bounded-scope variant ("doesn't apply
@@ -5322,6 +5371,21 @@ IR_SLICE_KEYS: frozenset[str] = (
             "win_lose_game",
             "xspell_matters",
             "curse_matters",
+            # ADR-0027 tranche2-batch-5 (t2b5-A) — 5 kept_detector lanes phase v0.1.60
+            # cannot structure, each fired from a dedicated IR-path word mirror (the
+            # exact deleted SWEEP / _HAND_FLOOR regex; the mirror reads the joined-face
+            # oracle, so it is byte-identical — A-B==0):
+            #   draft_spellbook ← un-CR digital mechanics (draft-a-card / spellbook).
+            #   each_mode_player ← the spread-the-modes target-legality constraint phase
+            #     drops (a bare 'choose' marker over-fires 1364:8).
+            #   flip_self ← the Kamigawa flip phase parses inconsistently.
+            #   free_plot ← the Plot alt-cost rewrite (phrase unique to Fblthp).
+            #   miracle_grant ← a card that GRANTS miracle to other cards in hand.
+            "draft_spellbook",
+            "each_mode_player",
+            "flip_self",
+            "free_plot",
+            "miracle_grant",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -9533,6 +9597,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "alt_cost_keyword",
         "curse_matters",
         "partner_background",
+        # ADR-0027 tranche2-batch-5 (t2b5-A) — 5 kept_detector keys phase v0.1.60
+        # CANNOT structure, each fires from a dedicated IR-path WORD MIRROR (the EXACT
+        # deleted regex) in extract_signals_ir, the sanctioned home for mechanics with
+        # no structural IR form. Each mirror reads the joined-face oracle, so it is
+        # byte-identical to the deleted regex (NO-FLOOD via file-swap baseline: each
+        # key's count UNCHANGED, A-B==0). floor-mirror-dep == 0 by construction (none
+        # is a floor detector). Voltron: each fired high-confidence in the regex path,
+        # so all 5 are added to _VOLTRON_SILENCING_PLAN_KEYS to preserve the commander-
+        # damage tell silencing the IR re-supply now carries (0 voltron leaked — the
+        # kept mirror is byte-identical, so the IR re-supply is the same set). ADR-0027.
+        #   draft_spellbook ← Arena/Alchemy digital mechanics (draft-a-card / spellbook)
+        #     not in the CR, no phase effect category. SWEEP row deleted; serve hand-
+        #     spec'd.
+        #   each_mode_player ← phase captures the modal head but has no field for the
+        #     spread-the-modes constraint. SWEEP row deleted; serve hand-spec'd.
+        #   flip_self ← phase parses the Kamigawa flip inconsistently; "flip this
+        #     creature" is the tell. SWEEP row deleted; serve hand-spec'd.
+        #   free_plot ← no IR structure for the Plot alt-cost rewrite; the phrase is
+        #     unique to Fblthp. _HAND_FLOOR row deleted; serve stays hand-spec'd.
+        #   miracle_grant ← phase folds the grant into a carrier; the granting-direction
+        #     phrase is the tell. SWEEP row deleted; serve hand-spec'd.
+        "draft_spellbook",
+        "each_mode_player",
+        "flip_self",
+        "free_plot",
+        "miracle_grant",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -9800,6 +9890,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "self_blink",
         "tap_down_blockers",
         "type_change",
+        # ADR-0027 tranche2-batch-5 (t2b5-A): the 5 kept_detector keys each fired
+        # high-confidence (forced/default scope) in the regex path and so counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell. Their
+        # regex producers are deleted, so the hybrid re-silences from the IR re-supply.
+        # These are kept WORD MIRRORS — the IR re-supply reads the SAME joined oracle as
+        # the deleted regex, so it is BYTE-IDENTICAL (no broadening, no over-silence).
+        # File-swap: 0 voltron leaked, A-B==0.
+        "draft_spellbook",
+        "each_mode_player",
+        "flip_self",
+        "free_plot",
+        "miracle_grant",
     }
 )
 

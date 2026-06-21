@@ -552,9 +552,11 @@ def test_meld_pair_excluded_from_static_gate():
 
 
 # #19 Flip (CR 710) is a self-contained single-card mechanic, split from meld.
+# ADR-0027 t2b5-A: flip_self migrated to the Card IR (a kept word mirror), so it now
+# fires from the hybrid path, not the deleted regex producer.
 def test_flip_self_fires_and_is_not_meld():
     flip = {"name": "X", "oracle_text": "{T}: Do a thing. Then flip this creature."}
-    k = _keys(flip)
+    k = _keys_hybrid(flip)
     assert "flip_self" in k
     assert "meld_pair" not in k
     assert "flip_meld_matters" not in k  # old fused key is gone

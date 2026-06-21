@@ -2516,6 +2516,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"(?:combat )?damage to you"
         ),
     ),
+    # ADR-0027 t2b5-A: the SWEEP_DETECTORS rows for draft_spellbook / each_mode_player
+    # / flip_self / miracle_grant were deleted (detection moved to the Card IR — each is
+    # a signals._IR_KEPT_DETECTORS word mirror). Their serves were auto-registered from
+    # the SWEEP rows, so hand-register each with the old regex + scope so the
+    # auto-register loop's missing-row lookup never runs and the serve never drifts.
+    ("draft_spellbook", "you"): _sweep_spec_with_extras(
+        "draft_spellbook", regex=r"\bdraft a card\b|spellbook"
+    ),
+    ("each_mode_player", "each"): _sweep_spec_with_extras(
+        "each_mode_player", regex=r"each mode must target a different player"
+    ),
+    ("flip_self", "you"): _sweep_spec_with_extras(
+        "flip_self", regex=r"\bflip this creature\b"
+    ),
+    ("miracle_grant", "you"): _sweep_spec_with_extras(
+        "miracle_grant",
+        regex=r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle",
+    ),
     # Legend-rule-off commander (Brothers Yamazaki) wants self-copy effects to run
     # multiple copies of itself.
     ("legend_rule_off", "you"): _sweep_spec_with_extras(

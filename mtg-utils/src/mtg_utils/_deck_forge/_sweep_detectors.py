@@ -378,12 +378,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "a permanent (?:you controlled )?left the battlefield (?:under your control )?this turn|whenever [^.]*(?:leaves the battlefield|leave the battlefield)|when [^.]* leaves the battlefield",
     },
-    {
-        "key": "each_mode_player",
-        "scope": "each",
-        "is_widen_of": "",
-        "regex": "each mode must target a different player",
-    },
+    # ADR-0027 t2b5-A: each_mode_player migrated to the Card IR — phase captures the
+    # modal head (Effect.category=='choose') but has NO field for the spread-the-modes
+    # CONSTRAINT, so the lane fires from a signals._IR_KEPT_DETECTORS word mirror (the
+    # exact regex). This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human
+    # label, and the serve is hand-registered in signal_specs.py reusing the regex.
     {
         "key": "toughness_combat",
         "scope": "you",
@@ -583,12 +582,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ("N life more than your starting life total", "becomes half your starting life
     # total" — Righteous Valkyrie, Torgaar). Removed from _IR_FLOOR_LANES; serve
     # hand-registered reusing the deleted regex.
-    {
-        "key": "miracle_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle",
-    },
+    # ADR-0027 t2b5-A: miracle_grant migrated to the Card IR — a card that GRANTS
+    # miracle to OTHER cards in hand; phase folds the grant into a carrier (category
+    # grant_keyword/other), so the lane fires from a signals._IR_KEPT_DETECTORS word
+    # mirror (the exact regex — the granting DIRECTION, excluding intrinsic-miracle
+    # makers). This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label,
+    # and the serve is hand-registered in signal_specs.py reusing the regex.
     # ADR-0027: convoke_matters migrated to the Card IR — the MAKERS ride the Scryfall
     # `convoke` keyword (_IR_KEYWORD_MAP); the keyword-less GRANTERS + PAYOFFS read
     # structurally: cast_with_keyword counter_kind='convoke' (static "<type> spells you
@@ -614,15 +613,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # text — "cards have mayhem/sneak/web-slinging"). This SWEEP_DETECTORS row is
     # deleted; SWEEP_LABELS keeps the human label, and the serve spec is hand-
     # registered in signal_specs.py. CR 118.9.
-    {
-        # Flip (CR 710) — a single card that self-transforms in place on its own
-        # condition; self-contained, so no cross-card payoff. Split from meld (which is
-        # a two-card pair, now the subject-bearing meld_pair detector in signals.py).
-        "key": "flip_self",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bflip this creature\\b",
-    },
+    # ADR-0027 t2b5-A: flip_self migrated to the Card IR — the Kamigawa flip (CR 710) is
+    # a single card that self-transforms in place on its own condition (self-contained,
+    # no cross-card payoff; split from meld, the two-card subject-bearing meld_pair
+    # detector). phase parses the flip INCONSISTENTLY (transform / reanimate / buried in
+    # raw), so no single structured category is reliable; the lane fires from a
+    # signals._IR_KEPT_DETECTORS word mirror (the exact "flip this creature" regex, a
+    # coined term on exactly the 7 flip creatures). This SWEEP_DETECTORS row is deleted;
+    # SWEEP_LABELS keeps the human label, and the serve is hand-registered in
+    # signal_specs.py reusing the regex.
     {
         "key": "legend_rule_off",
         "scope": "you",
@@ -826,12 +825,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "can't cause you to sacrifice|can't be sacrificed",
     },
-    {
-        "key": "draft_spellbook",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bdraft a card\\b|spellbook",
-    },
+    # ADR-0027 t2b5-A: draft_spellbook migrated to the Card IR — Arena/Alchemy digital
+    # mechanics (draft-a-card / spellbook) NOT in the CR with NO phase effect category
+    # (phase leaves them category='other'), so the lane fires from a
+    # signals._IR_KEPT_DETECTORS word mirror (the exact regex; the literal phrasing is
+    # the only signal). This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human
+    # label, and the serve is hand-registered in signal_specs.py reusing the regex.
     {
         "key": "stax_taxes",
         "scope": "opponents",

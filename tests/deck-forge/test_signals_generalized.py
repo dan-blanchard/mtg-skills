@@ -1962,8 +1962,10 @@ def test_fblthp_free_plot_opens_for_zero_cost():
         "keywords": [],
         "oracle_text": "{T}: Add {G}.",
     }
-    assert any(k == "free_plot" for k, _, _ in _ksub(fblthp))
-    assert not any(k == "free_plot" for k, _, _ in _ksub(elf))
+    # ADR-0027 t2b5-A: free_plot migrated to the Card IR (a kept word mirror), so it now
+    # fires from the hybrid path, not the deleted _HAND_FLOOR producer.
+    assert any(k == "free_plot" for k, _, _ in _ksub_hybrid(fblthp, _bare_ir()))
+    assert not any(k == "free_plot" for k, _, _ in _ksub_hybrid(elf, _bare_ir()))
 
 
 # --- structural-anchored floor detectors (whole archetypes the baseline missed) -
