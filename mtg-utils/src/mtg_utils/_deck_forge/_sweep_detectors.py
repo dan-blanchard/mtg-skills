@@ -993,12 +993,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # GY-recursion and self-bounce blink). Its SWEEP row (an is_widen_of base) is
     # deleted; the serve spec is hand-registered in signal_specs.py reusing the deleted
     # regex.
-    {
-        "key": "edict_matters",
-        "scope": "each",
-        "is_widen_of": "sacrifice_matters",
-        "regex": "each opponent sacrifices|whenever an opponent sacrifices|target opponent sacrifices|each player sacrifices|(?:each player|that player|each opponent|target player|target opponent) sacrifices? (?:a|an|two|\\d+|half)|that player sacrifices|controller sacrifices",
-    },
+    # ADR-0027 β: edict_matters migrated to the Card IR — the structural opp/each
+    # `sacrifice` Effect arm (gated by signals._ir_effect_is_edict to drop leaked-scope
+    # self/you-sac over-fires) plus a byte-identical signals._IR_KEPT_DETECTORS mirror of
+    # this exact regex (the tail phase folds into a categoryless / mis-scoped effect).
+    # This SWEEP row is deleted; the serve spec is hand-registered in signal_specs.py
+    # reusing the deleted regex (inlined as _EDICT_SWEEP_REGEX there). CR 701.16.
     {
         "key": "artifacts_matter",
         "scope": "you",

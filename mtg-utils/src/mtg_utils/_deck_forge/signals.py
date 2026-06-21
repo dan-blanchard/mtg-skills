@@ -3092,6 +3092,26 @@ _IMPULSE_TOP_PLAY_SWEEP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# edict_matters (ADR-0027 β) voltron plan mirror — the EXACT deleted SWEEP regex. The
+# regex producer fired high-confidence (forced scope 'each'), counting toward
+# has_other_plan: an edict commander (Plaguecrafter, Butcher of Malakir, Dictate of
+# Erebos) is a sacrifice-removal engine, NOT a vanilla commander-damage beater, so its
+# regex producer silenced the spurious voltron membership tell. The migrated IR arm is
+# BROADER (+28 — Annihilator beaters, modal "those players sacrifice"), so re-supplying
+# via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence (an Annihilator voltron threat —
+# Kozilek, Ulamog — is exactly the vanilla-beater tell voltron should keep). This
+# byte-identical mirror restores ONLY the deleted regex's silence set. Its arms never
+# cross a sentence (`[^.]`-only), so full-text == per-clause (verified diff=0); read
+# against the joined-face _oracle (reminder text adds no edict match — verified).
+_EDICT_PLAN_MIRROR = re.compile(
+    r"each opponent sacrifices|whenever an opponent sacrifices"
+    r"|target opponent sacrifices|each player sacrifices"
+    r"|(?:each player|that player|each opponent|target player"
+    r"|target opponent) sacrifices? (?:a|an|two|\d+|half)"
+    r"|that player sacrifices|controller sacrifices",
+    re.IGNORECASE,
+)
+
 
 # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
 # "when ~ dies, <value>" trigger is the engine, so the deck wants to re-trigger that
@@ -3934,6 +3954,13 @@ def extract_signals(
         # span a sentence over the whole oracle (+39 over-silence flat), so per-clause
         # is the byte-identical reproduction (voltron back to base; A-B==0).
         or any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(text))
+        # ADR-0027 β: re-silence the deleted edict_matters SWEEP producer (forced scope
+        # 'each', high-confidence — it counted toward has_other_plan). The migrated IR
+        # arm is BROADER (+28), so _VOLTRON_SILENCING_PLAN_KEYS would over-silence an
+        # Annihilator voltron beater; this byte-identical mirror restores only the old
+        # regex's silence set. Full-text over _oracle == per-clause (arms never cross a
+        # sentence; reminder text adds no edict match — both verified diff=0).
+        or _EDICT_PLAN_MIRROR.search(_oracle)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)
@@ -5143,6 +5170,27 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 β — edict_matters. The structural opp/each `sacrifice` arm in
+    # extract_signals_ir is broader-and-correct (it reads Annihilator's reminder-only
+    # "defending player sacrifices" and the modal "those players sacrifice", +28 over
+    # the regex), but phase under-parses a 76-card tail (a sacrifice clause it folds
+    # into a categoryless / mis-scoped effect, a DFC back face). Recover it from the
+    # EXACT deleted SWEEP regex over the joined-face oracle. The arms never cross a
+    # sentence (`[^.]`-only), so full-text search == per-clause (verified diff=0 vs the
+    # deleted floor path); the add() dedup unions this with the structural arm. scope
+    # "each" matches the deleted SWEEP row so the firing identity is byte-identical.
+    (
+        "edict_matters",
+        re.compile(
+            r"each opponent sacrifices|whenever an opponent sacrifices"
+            r"|target opponent sacrifices|each player sacrifices"
+            r"|(?:each player|that player|each opponent|target player"
+            r"|target opponent) sacrifices? (?:a|an|two|\d+|half)"
+            r"|that player sacrifices|controller sacrifices",
+            re.IGNORECASE,
+        ),
+        "each",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker). Needs a narrower payoff/keyword source.
@@ -5724,6 +5772,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             # regex: phase's supplement creates that cast_from_zone AFTER the zone-
             # recovery pass, so from:library never lands on the static shape).
             "impulse_top_play",
+            # ADR-0027 β — edict_matters: a FORCED player sacrifice (CR 701.16). The
+            # structural opp/each `sacrifice` arm (gated by _ir_effect_is_edict to drop
+            # 6 leaked-scope self/you-sac over-fires) adds 28 real edicts the deleted
+            # SWEEP regex never reached (Annihilator's reminder-only "defending player
+            # sacrifices", the modal "those players sacrifice", empty-raw modes); a flat
+            # _IR_KEPT_DETECTORS mirror (the exact deleted regex) covers the tail phase
+            # folds into a categoryless / mis-scoped effect. struct + mirror reproduces
+            # the regex firing set byte-identically (regex_only == 0).
+            "edict_matters",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6309,6 +6366,43 @@ _SAC_EDICT_RAW = re.compile(
     r"|opponents?)\b[^.]{0,70}?\bsacrifices?\b",
     re.IGNORECASE,
 )
+
+# edict_matters IR-arm discriminators (ADR-0027 β). The structural opp/each sacrifice
+# split over-fires when phase leaks scope='opp'/'each' onto a sacrifice from a SIBLING
+# clause: a self-permanent sac ("sacrifice ~ and target opponent discards" — Brink of
+# Madness, Helm of Obedience, Thought Dissector) or a you-sac ("you may sacrifice a
+# creature … target player reveals" — Cabal Therapist, Reno and Rude; "Sacrifice it at
+# the beginning of the next end step" after a steal — Treacherous Urge). An edict is a
+# FORCED 3rd-person PLAYER sacrifice (CR 701.16). _EDICT_PLAYER_SAC is the affirmative
+# tell — a player-noun anywhere before "sacrifice(s)" in the same sentence (broader gap
+# than _SAC_EDICT_RAW so "Each player … then sacrifices half their creatures" — Pox,
+# Fraying Omnipotence — and "those players sacrifice" — Vaevictis — still match).
+_EDICT_PLAYER_SAC = re.compile(
+    r"\b(?:each opponent|each player|each of your opponents|target opponent"
+    r"|target player|that player|those players|an opponent|any opponent"
+    r"|defending player|enchanted player|opponents?|players?)\b"
+    r"[^.]*?\bsacrifices?\b",
+    re.IGNORECASE,
+)
+# The leaked-scope over-fire tell: a self-permanent sac ("sacrifice ~/it/this/that" —
+# the ~ is the SelfRef substitution, no trailing \b since it is followed by punctuation)
+# or a you-sac ("you (may/do/then) sacrifice"). When neither a player-sac nor this tell
+# names the actor (an empty / amount-only raw — Will of the Abzan), the structural
+# opp/each scope alone is trusted (it is a real forced sacrifice).
+_EDICT_LEAKED_SAC = re.compile(
+    r"\bsacrifice (?:~|it\b|this\b|that\b)|\byou (?:may |do |then )?sacrifice\b",
+    re.IGNORECASE,
+)
+
+
+def _ir_effect_is_edict(e: Effect) -> bool:
+    """True if a structural opp/each ``sacrifice`` Effect is a genuine edict (a forced
+    PLAYER sacrifice), not a self/you-sac whose scope leaked from a sibling clause."""
+    raw = e.raw or ""
+    if _EDICT_PLAYER_SAC.search(raw):
+        return True
+    return not _EDICT_LEAKED_SAC.search(raw)
+
 
 # sacrifice_matters subject-less / modal fallback (ADR-0027): a YOU-sacrifice of a
 # NON-land permanent surviving only in a sacrifice/choose effect raw phase left
@@ -7746,8 +7840,16 @@ def extract_signals_ir(
             # An edict forces OPPONENTS / each player to sacrifice — gate on an
             # explicit opp/each scope (an unscoped sacrifice effect is ambiguous,
             # often a self-sac inside a larger effect, so don't call it an edict).
-            # A sac OUTLET is a COST (handled per-ability below).
-            if cat == "sacrifice" and e.scope in ("opp", "each"):
+            # _ir_effect_is_edict additionally drops the 6 leaked-scope over-fires
+            # (a self/you-sac phase mis-scoped opp from a sibling target-opponent
+            # clause — Brink of Madness, Cabal Therapist, Helm of Obedience, Reno and
+            # Rude, Thought Dissector, Treacherous Urge). A sac OUTLET is a COST
+            # (handled per-ability below).
+            if (
+                cat == "sacrifice"
+                and e.scope in ("opp", "each")
+                and _ir_effect_is_edict(e)
+            ):
                 add("edict_matters", _ir_scope(e.scope), "", e.raw)
             # ADR-0027 sacrifice_matters — a YOU-sacrifice effect (the dominant gap):
             # "you may sacrifice a creature/artifact", "sacrifice another creature",
@@ -10188,6 +10290,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _IMPULSE_TOP_PLAY_PLAN_MIRROR re-supplies has_other_plan (NO-FLOOD: voltron
         # byte-identical). CR 601.3b.
         "impulse_top_play",
+        # ADR-0027 β — edict_matters: the structural opp/each `sacrifice` arm (gated by
+        # _ir_effect_is_edict against 6 leaked-scope self/you-sac over-fires) plus a
+        # flat _IR_KEPT_DETECTORS mirror (the EXACT deleted SWEEP regex over the joined-
+        # face oracle, scope 'each'). struct + mirror reproduces the regex firing set
+        # byte-identically (regex_only == 0) and adds 28 real edicts the regex missed
+        # (verified vs oracle text: Annihilator reminder-only sacs, modal "those
+        # players sacrifice", empty-raw modes). floor-mirror-dep == 0. The deleted SWEEP
+        # producer fired high-confidence scope 'each', so _EDICT_PLAN_MIRROR re-supplies
+        # has_other_plan (the IR is +28 broader, so a mirror — not
+        # _VOLTRON_SILENCING_PLAN_KEYS — keeps an Annihilator voltron beater from over-
+        # silencing; NO-FLOOD: voltron 0 leaked). CR 701.16.
+        "edict_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

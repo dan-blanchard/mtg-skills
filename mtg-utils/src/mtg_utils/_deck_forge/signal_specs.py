@@ -1348,8 +1348,16 @@ _MANA_AMP_EXTRA = SubAvenue(
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
 # survive blocks — reuses the mined pump_matters regex so it never drifts.
 _PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
-_EDICT_SWEEP_REGEX = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "edict_matters"
+# ADR-0027 β: edict_matters migrated to the Card IR — its SWEEP_DETECTORS row is
+# deleted (detection moved to the structural arm + a kept _IR_KEPT_DETECTORS mirror).
+# The SERVE pool stays oracle-defined, so the deleted regex is inlined here (byte-
+# identical to the old sweep row, so the served fodder/payoff pool never drifts).
+_EDICT_SWEEP_REGEX = (
+    "each opponent sacrifices|whenever an opponent sacrifices"
+    "|target opponent sacrifices|each player sacrifices"
+    "|(?:each player|that player|each opponent|target player"
+    "|target opponent) sacrifices? (?:a|an|two|\\d+|half)"
+    "|that player sacrifices|controller sacrifices"
 )
 # Basic-land-TYPE fetches (Skyshroud Claim, Nature's Lore, Farseek) search for
 # "Forest/Plains/… cards" — no "land" in the text, so the bare "search … land" missed

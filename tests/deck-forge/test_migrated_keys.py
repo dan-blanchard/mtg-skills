@@ -4092,6 +4092,42 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β. edict_matters ← the structural opp/each `sacrifice` arm: a forced
+    # PLAYER sacrifice (CR 701.16). Plaguecrafter's ETB makes each player sacrifice a
+    # creature or planeswalker — phase emits scope "each" with the sacrificed subject's
+    # controller "any". _ir_effect_is_edict KEEPs it (the raw names "each player
+    # sacrifices", the affirmative edict tell), so the IR arm emits edict_matters at
+    # scope "each"; the deleted SWEEP regex no longer fires on the regex path.
+    "edict_matters": (
+        {
+            "name": "Plaguecrafter",
+            "type_line": "Creature — Human Shaman",
+            "oracle_text": (
+                "When this creature enters, each player sacrifices a creature or "
+                "planeswalker of their choice. Each player who can't discards a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="each",
+                        subject=Filter(
+                            card_types=("Creature", "Planeswalker"),
+                            controller="any",
+                        ),
+                        raw=(
+                            "When ~ enters, each player sacrifices a creature or "
+                            "planeswalker of their choice. Each player who can't "
+                            "discards a card."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
