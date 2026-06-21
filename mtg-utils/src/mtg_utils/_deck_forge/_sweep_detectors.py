@@ -157,6 +157,36 @@ COLOR_CHANGE_REGEX = (
     "becomes the color of your choice|becomes? (?:the color|all colors)"
 )
 
+# ADR-0027 β: toughness_combat migrated to the Card IR via a byte-identical kept-mirror.
+# TWO deleted producers feed the key, joined here into ONE pinned source the
+# _TOUGHNESS_COMBAT_MIRROR kept detector (_signals_ir), the
+# _TOUGHNESS_COMBAT_PLAN_MIRROR voltron gate (_signals_regex), and the serve spec
+# (signal_specs) all reuse: (1) the deleted SWEEP detector — the Doran / Assault
+# Formation / High Alert / Huatli combat-redirect "assigns combat damage equal to its
+# toughness/mana value rather than its power | deals damage equal to its toughness"
+# (22 commander-legal); (2) the deleted inline _signals_regex _DETECTORS producer — the
+# broader toughness-as-VALUE payoff "X is/equals … toughness | equal to … toughness"
+# (gain life / deal damage / draw / X/X token / lose life keyed on a creature's
+# toughness — Geralf, Last March of the Ents, Angelic Chorus; a SUPERSET, lane == 133
+# commander-legal). NOT a structural arm: phase parses the Doran clause as an
+# AssignDamageFromToughness modification but project._project_static_mods has no arm,
+# so it DROPS the static on every multi-ability face (Assault Formation / High Alert /
+# Huatli / Arcades) — the structural `combat_damage_mod` category fires on only 21,
+# MISSES 129/133 of the lane (no structural form for the 111 value-payoffs), AND
+# OVER-FIRES 17/21 (81%) on "deal damage equal to its POWER" combat redirects /
+# punches (Laccolith *, Farrel's *, Master of Cruelties). The deleted regexes are
+# precise (133/133 genuine, 0 over-fire), so the lane rides their OR byte-identically.
+# Both arms are clause-local (no `[^.]` crossing a sentence), so the full-text mirror ==
+# the deleted per-clause union (commander-legal: regex==mirror, 0 lost, 0 over-fire).
+# The serve stays hand-registered in signal_specs.py (high-toughness / Defender bodies).
+# CR 510.1c / 122 / 604.3.
+TOUGHNESS_COMBAT_REGEX = (
+    r"assigns? combat damage equal to its (?:toughness|mana value) "
+    r"rather than its power|deals damage equal to its toughness"
+    r"|\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
+    r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",
@@ -510,12 +540,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # CONSTRAINT, so the lane fires from a signals._IR_KEPT_DETECTORS word mirror (the
     # exact regex). This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human
     # label, and the serve is hand-registered in signal_specs.py reusing the regex.
-    {
-        "key": "toughness_combat",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "assigns? combat damage equal to its (?:toughness|mana value) rather than its power|deals damage equal to its toughness",
-    },
+    # ADR-0027 β: toughness_combat migrated to the Card IR via a byte-identical kept-
+    # mirror. This SWEEP_DETECTORS row (the Doran combat-redirect half) is deleted; it
+    # is joined with the deleted inline _signals_regex _DETECTORS value-payoff producer
+    # into the pinned TOUGHNESS_COMBAT_REGEX above. The lane's firing now comes from the
+    # _TOUGHNESS_COMBAT_MIRROR (_signals_ir) full-text scan of that OR over the reminder-
+    # stripped kept_oracle (commander-legal: regex==mirror, 0 lost, 0 over-fire), NOT a
+    # structural `combat_damage_mod` arm (it MISSES 129/133 and over-fires 81% — see the
+    # _migrated_keys.py rationale). SWEEP_LABELS keeps the human label; the serve is
+    # hand-registered in signal_specs.py reusing the pinned regex. CR 510.1c / 122.
     # ADR-0027: donate_matters migrated to the Card IR — a `gain_control` effect whose
     # raw names another-player RECIPIENT (you GIVE a permanent you control away; phase
     # drops the recipient to scope='any', so the lane reads the effect raw — the

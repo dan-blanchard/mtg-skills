@@ -31,6 +31,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SWEEP_DETECTORS,
     SWEEP_LABELS,
     TARGET_PLAYER_DRAWS_REGEX,
+    TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
 )
@@ -2530,11 +2531,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # Toughness-as-power (Doran, Arcades) and damage-reflection (Boros Reckoner) decks
     # want big-TOUGHNESS bodies and Walls — credit them by toughness>=4 and Defender.
+    # ADR-0027 β: toughness_combat migrated to the Card IR (both regex producers' rows
+    # are deleted); the serve keeps the deleted regexes via the pinned
+    # TOUGHNESS_COMBAT_REGEX constant, so the high-toughness / Defender serve pool is
+    # unchanged.
     ("toughness_combat", "you"): _sweep_spec_with_extras(
         "toughness_combat",
         serve_toughness_min=4,
         serve_toughness_over_power=True,
         serve_keywords=("defender",),
+        regex=TOUGHNESS_COMBAT_REGEX,
     ),
     # ADR-0027: damage_reflect's SWEEP_DETECTORS row was deleted (detection moved to
     # the Card IR — the on-card damage_received+damage co-occurrence + a damage_reflect

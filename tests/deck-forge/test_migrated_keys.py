@@ -177,6 +177,28 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # toughness_combat ← a BYTE-IDENTICAL kept mirror (_TOUGHNESS_COMBAT_MIRROR over the
+    # reminder-stripped oracle: "Each creature you control assigns combat damage equal to
+    # its toughness rather than its power"). TWO deleted regex producers (the SWEEP
+    # combat-redirect + the inline value-payoff "X is … toughness") are joined into the
+    # pinned TOUGHNESS_COMBAT_REGEX; phase parses the Doran clause as an
+    # AssignDamageFromToughness modification but project drops it on every multi-ability
+    # face (the structural category fires on only 21, MISSES 129/133, over-fires 81%), so
+    # the lane rides the exact deleted regexes (empty IR — the mirror reads the dict
+    # oracle). ADR-0027 β.
+    "toughness_combat": (
+        {
+            "name": "Assault Formation",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Each creature you control assigns combat damage equal to its "
+                "toughness rather than its power.\n{G}: Target creature with "
+                "defender can attack this turn as though it didn't have defender.\n"
+                "{2}{G}: Creatures you control get +0/+1 until end of turn."
+            ),
+        },
+        _ir(),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.

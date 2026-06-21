@@ -53,6 +53,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
+    TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text, is_creature
@@ -2058,6 +2059,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             # corpus: regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES
             # (floor-mirror-dep == 0). CR 105 / 613.
             "color_change",
+            # ADR-0027 β — toughness_combat: TOUGHNESS matters for combat (the Doran
+            # combat-redirect) + as a value (the broader payoff half). phase parses the
+            # Doran clause as an AssignDamageFromToughness modification but project
+            # drops it on every multi-ability face, so the `combat_damage_mod` category
+            # fires on only 21 (MISSES 129/133, no form for the 111 value-payoffs) and
+            # over-fires 81% on "deal damage equal to its POWER" punches. So the lane
+            # rides a byte-identical _TOUGHNESS_COMBAT_MIRROR — the EXACT OR
+            # of the two deleted producers (commander-legal corpus: regex==mirror, 0
+            # lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+            # CR 510.1c / 122 / 604.3.
+            "toughness_combat",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -2924,6 +2936,24 @@ _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
 # precise (24/24 genuine), so the lane rides it byte-identically. No veto needed (the
 # phrase "becomes the color/all colors" is unambiguous). CR 105 / 613.
 _COLOR_CHANGE_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
+# toughness_combat BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
+# EXACT OR of two deleted producers (pinned TOUGHNESS_COMBAT_REGEX) over the reminder-
+# stripped kept_oracle — the Doran / Assault Formation / High Alert combat
+# redirect ("assigns combat damage equal to its toughness rather than power"), PLUS
+# the broader toughness-as-VALUE payoff half ("X is … toughness", "equal to … toughness"
+# — gain life / deal damage / draw / X/X token / lose life keyed on a creature's
+# toughness; Geralf, Last March of the Ents, Angelic Chorus). NOT a structural
+# `combat_damage_mod` arm: phase parses the Doran clause as an AssignDamageFromToughness
+# modification but project._project_static_mods drops it on every multi-ability face, so
+# the category fires on only 21 commander-legal (MISSES 129/133, no structural form for
+# the 111 value-payoffs) and over-fires 81% on "deal damage equal to its POWER" combat
+# punches (Laccolith *, Master of Cruelties). The deleted regexes are precise (133/133
+# genuine), so the lane rides their OR byte-identically. Both arms are clause-local (no
+# `[^.]` crossing a sentence), so this full-text scan == the deleted per-clause union
+# (commander-legal: regex==mirror, 0 lost, 0 over-fire). The value-payoff arm's
+# `(?! are each)` veto keeps a set-base */* ("power and toughness are each equal to …" —
+# variable_pt) off the lane. CR 510.1c / 122 / 604.3.
+_TOUGHNESS_COMBAT_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -5626,6 +5656,20 @@ def extract_signals_ir(
     # deleted producer). add() dedups. CR 105 / 613.
     if _COLOR_CHANGE_MIRROR.search(kept_oracle):
         add("color_change", "you", "", "")
+    # ADR-0027 β — toughness_combat BYTE-IDENTICAL kept mirror. TWO deleted producers
+    # feed the key — the SWEEP combat-redirect ("assigns combat damage equal to its
+    # toughness rather than its power" — Doran / Assault Formation / High Alert) and
+    # the inline _DETECTORS value-payoff ("X is … toughness", "equal to … toughness"
+    # — Geralf, Last March of the Ents). phase parses the Doran clause as an
+    # AssignDamageFromToughness modification but project drops it on every multi-ability
+    # face, so the structural `combat_damage_mod` category fires on only 21 commander-
+    # legal (MISSES 129/133, no form for the 111 value-payoffs) and over-fires 81% on
+    # "deal damage equal to its POWER" punches. So recover the lane with the EXACT OR of
+    # the two deleted regexes over the reminder-stripped kept_oracle (scope 'you',
+    # matching the deleted producers). The `(?! are each)` veto keeps set-base */*
+    # (variable_pt) off. add() dedups. CR 510.1c / 122 / 604.3.
+    if _TOUGHNESS_COMBAT_MIRROR.search(kept_oracle):
+        add("toughness_combat", "you", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the

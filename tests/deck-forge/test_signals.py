@@ -810,6 +810,9 @@ def test_vanilla_matters_opens_for_no_abilities_commander():
 
 
 # ── Toughness payoffs beyond "assigns combat damage equal to toughness" (Geralf) ──
+# ADR-0027 β: toughness_combat migrated to the Card IR (both regex producers deleted),
+# so it no longer fires from the pure-regex _keys() path — assert via the hybrid, which
+# serves it from the byte-identical _TOUGHNESS_COMBAT_MIRROR over the kept_oracle.
 def test_toughness_value_payoff_opens_toughness_lane():
     geralf = {
         "name": "Geralf, Visionary Stitcher",
@@ -818,18 +821,20 @@ def test_toughness_value_payoff_opens_toughness_lane():
         "nontoken creature: Create an X/X blue Zombie creature token, where X is the "
         "sacrificed creature's toughness.",
     }
-    assert ("toughness_combat", "you") in _keys(geralf)
+    assert ("toughness_combat", "you") in _keys_hybrid(geralf)
+    # The migrated key no longer rides the legacy regex path.
+    assert ("toughness_combat", "you") not in _keys(geralf)
 
 
 def test_set_base_pt_does_not_open_toughness_lane():
     # Precision: "power and toughness are each equal to the number of X" is set-base-P/T,
-    # not a toughness-as-value payoff.
+    # not a toughness-as-value payoff. The migrated mirror keeps the "(?! are each)" veto.
     card = {
         "name": "Abominable Treefolk",
         "type_line": "Snow Creature — Treefolk",
         "oracle_text": "Trample\nAbominable Treefolk's power and toughness are each equal to the number of snow permanents you control.\nWhen this creature enters, tap target creature an opponent controls. That creature doesn't untap during its controller's next untap step.",
     }
-    assert ("toughness_combat", "you") not in _keys(card)
+    assert ("toughness_combat", "you") not in _keys_hybrid(card)
 
 
 # ── Pariah combo: a commander that prevents/redirects damage to ITSELF (Cho-Manno,

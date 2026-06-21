@@ -1618,6 +1618,63 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # leaked). Both _HAND_FLOOR producers deleted; the standalone _spec serve in
         # signal_specs.py survives. CR 701.16 / 903.10a.
         "untap_engine",
+        # ADR-0027 β — toughness_combat (TOUGHNESS matters for combat / as a value):
+        # the Doran / Assault Formation / High Alert / Belligerent Brontodon / Huatli /
+        # Arcades combat-redirect ("each creature assigns combat damage equal to its
+        # TOUGHNESS rather than its power") PLUS the broader toughness-as-VALUE payoff
+        # half (gain life / deal damage / draw / make an X/X / lose life "equal to …
+        # toughness", "X is … toughness" — Geralf, Last March of the Ents, Death's
+        # Caress, Angelic Chorus, Phthisis). MIGRATED VIA A BYTE-IDENTICAL KEPT-MIRROR
+        # (signals-only, NO sidecar bump), NOT a structural arm.
+        #
+        # TWO deleted regex producers feed this key (BOTH dropped from the hybrid when
+        # the key migrates, so BOTH must be reproduced): (1) the SWEEP detector
+        # "assigns combat damage equal to its toughness/mana value rather than its
+        # power | deals damage equal to its toughness" (the Doran combat-redirect half,
+        # 22 commander-legal), and (2) an inline _signals_regex _DETECTORS producer
+        # "\bx (is|equals) …toughness | equal to …toughness(?! are each)" (the value-
+        # payoff half, a SUPERSET — the lane's true firing set is 133 commander-legal,
+        # of which 111 are value-only).
+        #
+        # STRUCTURAL ARM REJECTED. phase parses the Doran clause cleanly as an
+        # `AssignDamageFromToughness` modification on a Continuous static, but
+        # project.py's _project_static_mods has NO arm for it: on a SINGLE-static body
+        # (Doran, Belligerent Brontodon) the face falls through to supplement, which
+        # text-recovers a `combat_damage_mod` Effect; on a MULTI-ability body the static
+        # is silently DROPPED (Assault Formation / High Alert / Huatli / Arcades all
+        # lose it). So the structural `combat_damage_mod` category fires on only 21
+        # commander-legal cards while MISSING 129 of the 133-card lane (it can't reach
+        # the 111 value-payoffs at all — they're a Ref/Aggregate `toughness` quantity
+        # spread across gain_life/damage/draw/make_token/lose_life, no single category),
+        # AND it OVER-FIRES on 17 of its 21 (= 81%): supplement's _ASSIGN_DAMAGE also
+        # catches "deal damage equal to its POWER" combat redirects / punches
+        # (Laccolith *, Farrel's *, Master of Cruelties, Defensive Formation, Pygmy
+        # Hippo) — NOT toughness-as-power. 81% over-fire + 97% recall-miss → rejected
+        # (cf. color_change's animate arm 256-vs-24).
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane rides a byte-identical
+        # _TOUGHNESS_COMBAT_MIRROR in _signals_ir — the EXACT OR of the two deleted
+        # producers (pinned as TOUGHNESS_COMBAT_REGEX in _sweep_detectors) over the
+        # reminder-stripped kept_oracle. Both producers' arms are clause-local (no
+        # `[^.]` crossing a sentence), so a full-text scan == the per-clause union.
+        # The inline _DETECTORS producer was compiled WITHOUT re.IGNORECASE and matched
+        # against the LOWERCASED clause; the mirror compiles with re.IGNORECASE over the
+        # mixed-case kept_oracle, reproducing it exactly.
+        #
+        # Floor-disabled residual vs the two deleted regexes (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 133, ir_only == 0, regex_only == 0 — a
+        # true behavior-neutral re-home (no recall gain, no over-fire; all 133 are
+        # genuine toughness-matters). floor-mirror-dep == 0 (toughness_combat is NOT an
+        # _IR_FLOOR_LANE — it was a SWEEP / _DETECTORS key, never a floor lane). Both
+        # deleted producers fired HIGH-confidence (scope 'you') and counted toward
+        # has_other_plan, so a byte-identical _TOUGHNESS_COMBAT_PLAN_MIRROR in
+        # _signals_regex re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, matching the color_change / token_copy_matters /
+        # variable_pt byte-identical-mirror pattern (FILE-SWAP voltron delta == 0). The
+        # serve spec stays hand-registered in signal_specs.py (_sweep_spec_with_extras
+        # over the pinned regex, crediting high-toughness/Defender bodies), independent
+        # of the deleted producers. CR 510.1c (combat-damage assignment) / 122 / 604.3.
+        "toughness_combat",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
