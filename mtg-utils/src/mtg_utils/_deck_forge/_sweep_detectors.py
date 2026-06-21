@@ -116,6 +116,16 @@ DEBUFF_SWEEP_REGEX = "(?:other [a-z]+ creatures|nonblack creatures|all creatures
 DEBUFF_MAHA_REGEX = (
     "creatures your opponents control (?:have base (?:power|toughness)|get -)"
 )
+# ADR-0027 β — variable_pt migrated to the Card IR; its SWEEP_DETECTORS row is deleted
+# but the EXACT mined regex survives here so signal_specs hand-registers the serve pool
+# reusing it (SWEEP_LABELS keeps the human label). The lane's firing now comes from the
+# IR arm (a `characteristic_pt` Effect — phase's dropped self-CDA static re-surfaced by
+# project._self_cda_marker, SIDECAR v10, PLUS the oracle-text CDAs supplement._CDA_PT
+# already caught) and the NARROWED _VARIABLE_PT_MIRROR (the token-borne */* + change-
+# base-self tail phase can't structure as a self-CDA), NOT this full regex. The serve
+# only needs a build-around search anchor (cards that FILL the resource a */* scales
+# with). CR 604.3.
+VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total )?number of)?|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?the (?:total )?number of|equal to (?:twice )?the (?:total )?number of cards in (?:your|their|the|all) [^.]*hand|change [^.]*base power and toughness"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -130,12 +140,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # leaves textual. Its SWEEP_DETECTORS row is deleted; the serve is hand-registered
     # in signal_specs.py reusing the deleted regex (SWEEP_LABELS still carries the
     # human label).
-    {
-        "key": "variable_pt",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "power and toughness are each equal to(?: the (?:total )?number of)?|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?the (?:total )?number of|equal to (?:twice )?the (?:total )?number of cards in (?:your|their|the|all) [^.]*hand|change [^.]*base power and toughness",
-    },
+    # ADR-0027 β: variable_pt migrated to the Card IR — a */* characteristic-defining
+    # P/T fires from a `characteristic_pt` Effect (phase's dropped self-CDA static
+    # re-surfaced by project._self_cda_marker @ SIDECAR v10, plus the oracle-text CDAs
+    # supplement._CDA_PT already caught) + the NARROWED _VARIABLE_PT_MIRROR (the token-
+    # borne */* / change-base-self tail phase can't structure as a self-CDA). Its
+    # SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as VARIABLE_PT_SWEEP_REGEX
+    # above and the serve is hand-registered in signal_specs.py reusing it (SWEEP_LABELS
+    # keeps the human label). CR 604.3.
     {
         "key": "scaling_pump",
         "scope": "you",

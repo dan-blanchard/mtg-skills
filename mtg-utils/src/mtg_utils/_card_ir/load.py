@@ -37,7 +37,12 @@ from mtg_utils.card_ir import Card
 #     all-permanents/all-creatures set (controller any) → a board_grant Effect with
 #     counter_kind="grant_ability"; the global_ability_grant lane reads it (the
 #     QUOTED-ability discriminator, not a keyword anthem). ADR-0027 β. CR 113.3/604.3.
-SIDECAR_VERSION = 9
+# v10: a characteristic-defining */* self-CDA static (SetDynamicPower/Toughness over
+#     SelfRef, characteristic_defining=true) is re-surfaced as an `other` Effect that
+#     supplement._CDA_PT structures into a `characteristic_pt` marker; the variable_pt
+#     lane reads it (Nightmare/Pack Rat/Serra Avatar/Cultivator Colossus — phase
+#     fully consumed the clause, so base_pt_set dropped it). ADR-0027 β. CR 604.3.
+SIDECAR_VERSION = 10
 
 
 def card_ir_dir() -> Path:

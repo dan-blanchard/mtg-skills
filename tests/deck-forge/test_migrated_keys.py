@@ -108,6 +108,40 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # variable_pt ← a `characteristic_pt` Effect (a */* characteristic-defining P/T —
+    # Nightmare's "power and toughness are each equal to the number of Swamps you
+    # control"). phase fully structures the clause into a SetDynamicPower/Toughness
+    # self-CDA static then drops it (the base_pt_set arm excludes the CDA flag +
+    # SelfRef); project._self_cda_marker re-surfaces it via supplement._CDA_PT (SIDECAR
+    # v10). The structural arm in extract_signals_ir reads cat=="characteristic_pt",
+    # scope "any". ADR-0027 β.
+    "variable_pt": (
+        {
+            "name": "Nightmare",
+            "type_line": "Creature — Nightmare Horse",
+            "oracle_text": (
+                "Flying (This creature can't be blocked except by creatures with "
+                "flying or reach.)\nNightmare's power and toughness are each equal "
+                "to the number of Swamps you control."
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="characteristic_pt",
+                        scope="any",
+                        raw=(
+                            "~'s power and toughness are each equal to the number "
+                            "of Swamps you control."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.

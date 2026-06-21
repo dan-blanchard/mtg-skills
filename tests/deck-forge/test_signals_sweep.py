@@ -56,11 +56,12 @@ def test_representative_sweep_keys_fire_from_oracle():
         ),
         ("topdeck_selection", "Look at the top three cards of your library."),
         # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
-        # (tranche2-A) / debuff_matters (β) migrated to the Card IR (their
-        # SWEEP_DETECTORS rows are deleted), so they no longer fire from the regex path —
-        # swapped for still-regex sweep keys to keep this check. ("All creatures get
-        # -1/-1 until end of turn." now routes through the IR debuff_matters arm in the
-        # hybrid, asserted in test_migrated_keys.)
+        # (tranche2-A) / debuff_matters (β) / variable_pt (β) migrated to the Card IR
+        # (their SWEEP_DETECTORS rows are deleted), so they no longer fire from the regex
+        # path — swapped for still-regex sweep keys to keep this check. ("All creatures
+        # get -1/-1 until end of turn." now routes through the IR debuff_matters arm; a
+        # "*/* power and toughness are each equal to …" CDA routes through the IR
+        # variable_pt arm — both asserted in test_migrated_keys.)
         (
             "protection_grant",
             "Target creature gains protection from red until end of turn.",
@@ -70,8 +71,8 @@ def test_representative_sweep_keys_fire_from_oracle():
             "Whenever you attach an Equipment to a creature, draw a card.",
         ),
         (
-            "variable_pt",
-            "Its power and toughness are each equal to the number of cards in your hand.",
+            "scaling_pump",
+            "Tarmogoyf gets +1/+1 for each creature card in your graveyard.",
         ),
     ]
     for key, oracle in cases:

@@ -1065,11 +1065,6 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     creatures-are-lands synergy — Ashaya). phase routes their untap text into
         #     `choose` / `bounce` / cost / SelfRef shapes, not a `cat=='untap'` effect.
         #     Its two _HAND_FLOOR producers stay on the regex path.
-        #   variable_pt ← the IR arm misses ~154 genuine */* CDAs (Nightmare, Pack Rat,
-        #     Consuming Aberration, Serra Avatar, Cultivator Colossus): phase DROPS the
-        #     "power and toughness equal to …" clause entirely on most CDA bodies (the
-        #     IR carries only the keyword/other abilities). A deep supplement parse-gap,
-        #     not an over-fire migration. Its SWEEP_DETECTORS row stays on regex.
         "tribal_etb_multi",
         "typed_enters_punish",
         "vanilla_matters",
@@ -1453,6 +1448,44 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (SWEEP_LABELS kept); the serve is hand-registered in signal_specs.py reusing
         # the EXACT deleted regex (pinned as DEBUFF_SWEEP_REGEX). CR 122.1b / CR 613.
         "debuff_matters",
+        # ADR-0027 β — variable_pt (a */* characteristic-defining P/T creature whose
+        # power and/or toughness is "equal to <something>": Nightmare = */* equal to
+        # Swamps; Pack Rat; Serra Avatar = */* equal to your life; Cultivator Colossus;
+        # Tarmogoyf; Lhurgoyf). The IR arm in extract_signals_ir reads a
+        # `characteristic_pt` Effect (scope 'any', matching the sweep). phase carries
+        # the clause two ways: an oracle-text CDA it left as `other` (Tarmogoyf —
+        # supplement._CDA_PT promotes it) AND a fully-structured SetDynamicPower/
+        # Toughness self-CDA static it then DROPPED (Nightmare — the base_pt_set arm
+        # excludes the characteristic_defining flag + SelfRef). The PROJECTION fix
+        # (SIDECAR v10) re-surfaces the dropped static as a `characteristic_pt` marker
+        # via project._self_cda_marker, structured through supplement's _CDA_PT (the
+        # gamma structuring layer); +168 characteristic_pt cards over the corpus. Plus
+        # a NARROWED kept
+        # mirror (_VARIABLE_PT_MIRROR in _signals_ir) for the */* tail phase can't
+        # structure as a self-CDA — the TOKEN-borne */* ("This token's power and
+        # toughness are each equal to" — Seize the Storm, Ajani Goldmane's Avatar) and
+        # the triggered "change <Name>'s base power and toughness" self-set (Halfdane,
+        # Eldrazi Mimic, Shape Stealer).
+        #
+        # Floor-disabled residual vs the deleted SWEEP regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 222, ir_only == 22 (broader-and-correct
+        # recall — Tymaret/Daxos/Renata "toughness is equal to your devotion", An-Havva
+        # Constable "toughness is equal to 1 plus …", Nighthawk Scavenger — true */*
+        # CDAs the regex's narrow "number of" phrasing missed), regex_only == 26 — ALL
+        # over-fire: the deleted regex's "equal to … number of cards in … hand|library"
+        # arm caught draw/damage/destroy effects that scale with hand size but have NO
+        # */* body (Spiraling Embers, Enter the Infinite, Sword of War and Peace, Castle
+        # Locthwain, The Royal Scions), and its "change … base power and toughness OF
+        # all/each/other … creatures" arm caught mass-debuffs (Brine Hag, Exuberant
+        # Wolfbear). Both are correctly DROPPED (the mirror vetoes them). The lone
+        # near-miss is Tarmogoyf Nest (the token CDA lives in REMINDER text the IR
+        # strips) — its synergy rides the Tarmogoyf TOKEN card, which carries the real
+        # characteristic_pt itself. SWEEP_DETECTORS row deleted (SWEEP_LABELS kept);
+        # the serve is hand-registered in signal_specs.py reusing the EXACT deleted
+        # regex (pinned as VARIABLE_PT_SWEEP_REGEX). A */* CDA is not a voltron plan,
+        # so NOT in _VOLTRON_SILENCING_PLAN_KEYS (voltron delta 0). floor-mirror-dep
+        # == 0 (variable_pt is not an _IR_FLOOR_LANE). CR 604.3.
+        "variable_pt",
         # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
         # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
         # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass

@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
+    VARIABLE_PT_SWEEP_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text
 from mtg_utils.card_ir import Card, Effect, Filter
@@ -2613,6 +2614,20 @@ _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR = re.compile(
     COMBAT_DAMAGE_TO_CREATURE_REGEX + "|" + COMBAT_DAMAGE_TO_OPP_REGEX,
     re.IGNORECASE,
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated variable_pt key. The deleted
+# SWEEP producer fired HIGH-confidence (scope 'any') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a */*
+# characteristic-defining body (Nightmare, Pack Rat, Serra Avatar, Consuming Aberration
+# — a CDA creature whose stat-line IS its plan, not a vanilla beater). The migrated IR
+# arm + narrowed mirror are BROADER (+22 ir_only — the devotion / "1 plus number of"
+# CDAs the regex missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would
+# OVER-silence those ir_only bodies. This mirror is the byte-identical deleted regex; it
+# feeds ONLY the gate (emits no signal — the lane is served from the IR), reproducing
+# the pre-migration `has_other_plan` for ALL cards. The arms are clause-local (no `[^.]`
+# crossing a sentence boundary into another effect), so a full-text search over the
+# reminder-stripped `text` == the deleted per-clause SWEEP path (FILE-SWAP NO-FLOOD:
+# voltron byte-identical, 0 gained / 0 lost). CR 903.10a / 604.3.
+_VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -3989,6 +4004,14 @@ def extract_signals(
         # silence those Devoid beaters either. `text` is itself joined-face
         # (get_oracle_text), so DFC back faces are covered. CR 903.10a.
         or _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted variable_pt SWEEP producer (it fired
+        # HIGH-confidence scope 'any', feeding has_other_plan). The migrated IR arm +
+        # narrowed mirror are BROADER (+22 ir_only), so this byte-identical mirror —
+        # NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's silence without
+        # over-silencing the ir_only bodies. Matched against the reminder-STRIPPED
+        # `text` (the deleted SWEEP detector ran per-clause over stripped text), so a
+        # */* CDA in a keyword's reminder never silenced and still doesn't. CR 903.10a.
+        or _VARIABLE_PT_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

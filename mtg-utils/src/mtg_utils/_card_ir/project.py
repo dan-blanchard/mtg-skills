@@ -1418,6 +1418,18 @@ def _project_face(record: dict) -> Face:
     board_markers = _board_count_markers(record)
     if board_markers:
         abilities.append(Ability(kind="static", effects=tuple(board_markers)))
+    # */* self-CDA marker (ADR-0027 β): a creature that defines its OWN power/toughness
+    # via a characteristic_defining SetDynamic{Power,Toughness} static over SelfRef
+    # (Nightmare, Pack Rat, Serra Avatar). The base_pt_set arm DROPS this (it excludes
+    # the CDA flag + SelfRef), so re-surface it as the `characteristic_pt` marker the
+    # variable_pt lane reads. Appended AFTER the synthesize gate (so it never flips a
+    # phase-abilityless face away from _synthesize_from_oracle), and gated to faces with
+    # no structural characteristic_pt (the oracle-synthesis path — Tarmogoyf — already
+    # made one; this recovers only the fully-structured-then-dropped tail). CR 604.3.
+    if not any(e.category == "characteristic_pt" for a in abilities for e in a.effects):
+        cda_marker = _self_cda_marker(record)
+        if cda_marker is not None:
+            abilities.append(Ability(kind="static", effects=(cda_marker,)))
     # Affinity / Improvise keyword count operands (ADR-0027 go-wide): the affinity
     # subject's type the projection drops to a bare keyword (CR 702.41a / 702.126a —
     # the cost scales with that type's own-board population). artifacts/enchantments
@@ -2989,6 +3001,54 @@ def _board_count_markers(record: dict) -> list[Effect]:
                 )
                 break  # one marker per permanent type
     return out
+
+
+# ADR-0027 β — the */* characteristic-defining self-CDA modification types phase
+# emits when a creature defines its OWN power and/or toughness (CR 604.3): a
+# SetDynamicPower/SetDynamicToughness (the Ref-scaled */* — Nightmare, Pack Rat,
+# Serra Avatar), or a plain SetPower/SetToughness over SelfRef under a
+# characteristic_defining static. Closed set so a +X/+X pump or an OTHER-permanent
+# base-set (Lignify) never matches.
+_SELF_CDA_SET_MODS = frozenset(
+    {
+        "setdynamicpower",
+        "setdynamictoughness",
+        "setpowerdynamic",
+        "settoughnessdynamic",
+        "setpower",
+        "settoughness",
+    }
+)
+
+
+def _self_cda_marker(record: dict) -> Effect | None:
+    """A `characteristic_pt` marker for a */* self-CDA phase FULLY structured (and so
+    the base_pt_set arm DROPPED — it excludes both the characteristic_defining flag and
+    a SelfRef affected set). phase models the clause as a SetDynamicPower/Toughness
+    (or SetPower/Toughness) modification over SelfRef on a characteristic_defining
+    continuous static (Nightmare, Pack Rat, Serra Avatar, Cultivator Colossus,
+    Consuming Aberration — ~112 bodies). The structuring is done by supplement's
+    `_CDA_PT` rule via `recover_effect_from_text` over the static's description (the
+    gamma structuring layer), so the marker shares the `characteristic_pt` shape the
+    oracle-text CDAs (Tarmogoyf) already make. The `characteristic_pt` category is
+    read by no MIGRATED lane (behavior-neutral until the variable_pt arm is wired).
+    One marker per card. CR 604.3."""
+    for st in record.get("static_abilities") or []:
+        if not st.get("characteristic_defining"):
+            continue
+        aff = st.get("affected")
+        if not (isinstance(aff, dict) and _norm(aff.get("type")) == "selfref"):
+            continue
+        mods = st.get("modifications") or []
+        if not any(_norm(m.get("type")) in _SELF_CDA_SET_MODS for m in mods):
+            continue
+        desc = st.get("description") or st.get("oracle_text") or ""
+        if not isinstance(desc, str) or not desc.strip():
+            continue
+        eff = recover_effect_from_text(desc)
+        if eff.category == "characteristic_pt":
+            return eff
+    return None
 
 
 # The artifact/enchantment "matters" types the affinity-keyword marker fires for —

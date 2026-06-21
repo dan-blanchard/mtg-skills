@@ -32,6 +32,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SWEEP_LABELS,
     TARGET_PLAYER_DRAWS_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
+    VARIABLE_PT_SWEEP_REGEX,
 )
 from mtg_utils.card_classify import (
     card_pt_int,
@@ -2707,8 +2708,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             "|destroy all [^.]*creatures except|destroy all other creatures"
         ),
     ),
+    # ADR-0027 β: variable_pt migrated to the Card IR (SWEEP row deleted); the serve
+    # keeps the deleted regex via the pinned VARIABLE_PT_SWEEP_REGEX constant.
     ("variable_pt", "you"): _sweep_spec_with_extras(
-        "variable_pt", (_POWER_FLING_EXTRA,)
+        "variable_pt", (_POWER_FLING_EXTRA,), regex=VARIABLE_PT_SWEEP_REGEX
     ),
     # ADR-0027 β: creature_ping migrated to the Card IR (SWEEP row deleted); the serve
     # keeps the deleted regex via the pinned CREATURE_PING_REGEX constant.

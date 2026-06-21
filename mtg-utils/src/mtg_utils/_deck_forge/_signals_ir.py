@@ -2854,6 +2854,33 @@ _UNTAP_ENGINE_MIRROR_RAW = re.compile(
 _UNTAP_ENGINE_MIRROR_LANDS = re.compile(
     r"(?:nontoken )?creatures you control are[^.]*\blands\b", re.IGNORECASE
 )
+# variable_pt NARROWED mirror (ADR-0027 β): the */* characteristic-defining tail phase
+# CANNOT structure as a self-CDA static — a TOKEN-borne */* ("This token's power and
+# toughness are each equal to …" — Seize the Storm, Elephant Resurgence, Vernal
+# Sovereign, Bonny Pall, Hallowed Haunting, Ajani Goldmane's Avatar, Mordenkainen's
+# Construct), and the TRIGGERED "change <Name>'s/this creature's base power and
+# toughness" self-set phase routes through a non-CDA shape (Halfdane, Eldrazi Mimic,
+# Shape Stealer). The core CDA phrase + a NAMED-self change-base, MINUS the over-firing
+# reach the deleted SWEEP regex had: a draw/damage scaling with "cards in your/their
+# hand|library" (Spiraling Embers, Enter the Infinite, Sword of War and Peace — a burn/
+# draw lane, NOT a */* body) and a "change the base power and toughness OF all/each/
+# other/target/the … creatures" mass-debuff (Brine Hag, Exuberant Wolfbear). Run on the
+# reminder-stripped kept_oracle; vetoed so it drops the same over-fires the structural
+# arm does. CR 604.3.
+_VARIABLE_PT_MIRROR = re.compile(
+    r"power and toughness are each equal to"
+    r"|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?"
+    r"the (?:total )?number of"
+    r"|change (?:this creature's|[a-z' ]{1,20}'s) base power and toughness",
+    re.IGNORECASE,
+)
+_VARIABLE_PT_MIRROR_VETO = re.compile(
+    r"\bdeals? [^.]*damage[^.]*equal to[^.]*number of cards in (?:your|their) "
+    r"(?:hand|library)"
+    r"|\bdraws? cards? equal to[^.]*number of cards in"
+    r"|change the base power and toughness of (?:all|each|other|target|up to|the)",
+    re.IGNORECASE,
+)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -3924,14 +3951,21 @@ def extract_signals_ir(
             # ── Batch E — effect-category lanes ──
             cat = e.category
             ftypes = _ftypes(e.subject)
-            # variable_pt is DEFERRED (ADR-0027 t2b4a-A, needs-projection): the
-            # candidate IR shapes (a `characteristic_pt` effect + a `board_count`
-            # effect anchored on "power and toughness … equal to") cover only ~83 of
-            # the lane; phase DROPS the "power and toughness equal to …" CDA clause
-            # entirely on ~154 genuine */* bodies (Nightmare, Pack Rat, Consuming
-            # Aberration, Serra Avatar, Cultivator Colossus), a deep supplement
-            # parse-gap. So the lane stays on its SWEEP_DETECTORS regex; no IR arm is
-            # wired here. CR 604.3.
+            # variable_pt (ADR-0027 β) — a */* characteristic-defining P/T: a creature
+            # whose power and/or toughness is "equal to <something>" (Nightmare = */*
+            # equal to Swamps; Pack Rat; Serra Avatar = */* equal to your life;
+            # Cultivator Colossus; Tarmogoyf; Lhurgoyf). phase carries the clause two
+            # ways: an oracle-text CDA it left as `other` (Tarmogoyf —
+            # supplement._CDA_PT → characteristic_pt) AND a fully-structured self-CDA
+            # static it then dropped (Nightmare — re-surfaced as a characteristic_pt
+            # marker by project._self_cda_marker, SIDECAR v10). Both land here as a
+            # `characteristic_pt` Effect; this arm reads it (scope 'any', matching the
+            # sweep). The */* tail phase can't structure as a self-CDA — the TOKEN-borne
+            # */* ("This token's power and toughness are each equal to"), the "change
+            # Halfdane's base power and toughness" self-set — rides the narrowed
+            # _VARIABLE_PT_MIRROR below. CR 604.3.
+            if cat == "characteristic_pt":
+                add("variable_pt", "any", "", e.raw)
             # ADR-0027 — self_pump: a firebreathing mana-sink — an ACTIVATED pump or
             # +1/+1-counter placement on the SELF ("{R}: ~ gets +1/+0" — Shivan Dragon;
             # "{4}: Put a +1/+1 counter on ~" — Walking Ballista, Crystalline Crawler).
@@ -5508,6 +5542,21 @@ def extract_signals_ir(
         or _UNTAP_ENGINE_MIRROR_LANDS.search(kept_oracle)
     ):
         add("untap_engine", "you", "", "")
+    # ADR-0027 β — variable_pt NARROWED kept mirror. The structural arm above reads a
+    # `characteristic_pt` Effect (the self-CDA — Nightmare — and the oracle-text CDA —
+    # Tarmogoyf), but phase can't structure the TOKEN-borne */* ("This token's power and
+    # toughness are each equal to" — Seize the Storm, Ajani Goldmane's Avatar) or the
+    # TRIGGERED "change <Name>'s base power and toughness" self-set (Halfdane, Eldrazi
+    # Mimic, Shape Stealer) as a self-CDA static. Recover them with the core CDA phrase
+    # over the reminder-stripped kept_oracle, vetoed by the burn/draw "cards in hand|
+    # library" and "change … of all/each/other … creatures" over-fires the deleted SWEEP
+    # regex had (Spiraling Embers / Enter the Infinite / Sword of War and Peace — burn/
+    # draw, not a */* body; Brine Hag / Exuberant Wolfbear — a mass-debuff on OTHERS).
+    # add() dedups vs the structural arm. CR 604.3.
+    if _VARIABLE_PT_MIRROR.search(kept_oracle) and not _VARIABLE_PT_MIRROR_VETO.search(
+        kept_oracle
+    ):
+        add("variable_pt", "any", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the
