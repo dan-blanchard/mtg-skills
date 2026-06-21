@@ -140,6 +140,23 @@ VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total
 # CR 702.95 / 707.
 TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
 
+# ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror —
+# the deleted SWEEP producer is pinned here so the _COLOR_CHANGE_MIRROR kept detector
+# (_signals_ir) and the _COLOR_CHANGE_PLAN_MIRROR voltron gate (_signals_regex) share
+# ONE source. NOT a structural arm: phase parses the clause INCONSISTENTLY (20 cards as
+# a deeply-nested AddChosenColor modification under a Choose sub_ability/GenericEffect,
+# 4 as a bare Unimplemented "become" — Mondo Gecko/Scrapbasket/Tam/Wild Mongrel), and
+# the projection re-categorizes them inconsistently as animate/restriction/grant_keyword
+# /choose. The only structural anchor — cat=='animate' — fires on 256 commander-legal
+# cards (man-lands, animate-land anthems) vs the 24 genuine color-changers, a ~90%
+# over-fire. The deleted oracle regex is precise (24/24 genuine, 0 over-fire), so the
+# lane rides it byte-identically. CR 105 / 613 (color is a continuously-checked layer-5
+# characteristic). The serve spec stays hand-registered in signal_specs.py with its own
+# (broader) curated search regex, independent of this detector.
+COLOR_CHANGE_REGEX = (
+    "becomes the color of your choice|becomes? (?:the color|all colors)"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",
@@ -920,12 +937,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # `phasing` payoff-trigger marker for the event='other' "permanents phase out"
     # payoff phase keeps only in a place_counter raw (The War Doctor). It is removed
     # from _IR_FLOOR_LANES; the serve spec is hand-registered in signal_specs.
-    {
-        "key": "color_change",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "becomes the color of your choice|becomes? (?:the color|all colors)",
-    },
+    # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror —
+    # phase parses the "becomes the color of your choice / all colors" clause
+    # INCONSISTENTLY (20 AddChosenColor mods + 4 Unimplemented "become"s) and the only
+    # structural anchor (cat=='animate') 90%-over-fires (256 vs 24), so the lane rides a
+    # _COLOR_CHANGE_MIRROR (_signals_ir) of the exact deleted regex over the reminder-
+    # stripped oracle. Its SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as
+    # COLOR_CHANGE_REGEX above, SWEEP_LABELS keeps the human label, and the serve stays
+    # hand-registered in signal_specs.py (its own curated search regex). CR 105 / 613.
     # ADR-0027 β (kept-mirror): timing_control migrated to the Card IR. phase drops
     # the cast-timing statics entirely (it keeps only the flash-grant), so there is
     # no structural form — a byte-identical _IR_KEPT_DETECTORS word mirror (the exact

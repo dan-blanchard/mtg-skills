@@ -42,6 +42,7 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -2049,6 +2050,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 702.95 / 707.
             "token_copy_matters",
+            # ADR-0027 β — color_change: phase parses the "becomes the color of your
+            # choice / all colors" clause INCONSISTENTLY (20 AddChosenColor mods + 4
+            # Unimplemented "become"s) and the only shared IR category (animate)
+            # 90%-over-fires (256 vs 24), so the lane rides a byte-identical
+            # _COLOR_CHANGE_MIRROR of the exact deleted SWEEP regex (commander-legal
+            # corpus: regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 105 / 613.
+            "color_change",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -2904,6 +2913,17 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
 # is precise — it never fired on the reminder-text self-copies because they live inside
 # parens). CR 702.95.
 _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# color_change BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the EXACT
+# deleted SWEEP regex (pinned as COLOR_CHANGE_REGEX) over the reminder-stripped
+# kept_oracle — a card that CHANGES a permanent's/spell's COLOR ("becomes the color of
+# your choice", "becomes the color", "becomes all colors"). NOT a structural arm: phase
+# parses these 24 INCONSISTENTLY (20 as a nested AddChosenColor modification, 4 as a
+# bare Unimplemented "become"), and the only IR category they share — cat=='animate' —
+# fires on 256 commander-legal cards (every man-land / animate-land anthem / "becomes a
+# 4/4") vs the 24 genuine color-changers, a ~90% over-fire. The deleted oracle regex is
+# precise (24/24 genuine), so the lane rides it byte-identically. No veto needed (the
+# phrase "becomes the color/all colors" is unambiguous). CR 105 / 613.
+_COLOR_CHANGE_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -5597,6 +5617,15 @@ def extract_signals_ir(
     # the deleted producer). add() dedups. CR 702.95 / 707.
     if _TOKEN_COPY_MATTERS_MIRROR.search(kept_oracle):
         add("token_copy_matters", "you", "", "")
+    # ADR-0027 β — color_change BYTE-IDENTICAL kept mirror. phase parses the "becomes
+    # the color of your choice / all colors" clause INCONSISTENTLY (20 cards as a nested
+    # AddChosenColor modification, 4 as a bare Unimplemented "become"), and the only IR
+    # category they share — cat=='animate' — 90%-over-fires (256 commander-legal cards
+    # vs the 24 genuine color-changers). So recover the lane with the EXACT deleted
+    # SWEEP regex over the reminder-stripped kept_oracle (scope 'you', matching the
+    # deleted producer). add() dedups. CR 105 / 613.
+    if _COLOR_CHANGE_MIRROR.search(kept_oracle):
+        add("color_change", "you", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the

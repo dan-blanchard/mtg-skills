@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     COST_REDUCTION_REGEX,
@@ -2638,6 +2639,20 @@ _VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
 # "twice that many … tokens" arm never crosses a sentence, so full-text == per-clause.
 # FILE-SWAP NO-FLOOD: voltron byte-identical (0 gained / 0 lost). CR 903.10a / 702.95.
 _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated color_change key. The deleted
+# SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
+# plan is changing colors (a Painter-style color-fixer / color-conditional enabler —
+# Scuttlemutt, Tidal Visionary — not a vanilla beater). The migrated lane rides a
+# BYTE-IDENTICAL kept mirror (no recall change vs the deleted regex), so this byte-
+# identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence
+# for ALL cards (matching the token_copy_matters / variable_pt byte-identical-mirror
+# pattern). Matched against reminder-STRIPPED joined-face `text`, byte-identical to the
+# deleted SWEEP detector's per-clause reminder-stripped input. The arms have no `[^.]`
+# spanning a sentence, so full-text == per-clause. (color-change is rarely the only
+# plan, so this leaks nothing in practice — FILE-SWAP NO-FLOOD: voltron delta 0.)
+# CR 903.10a / 105.
+_COLOR_CHANGE_PLAN_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -4031,6 +4046,13 @@ def extract_signals(
         # inside an Embalm/Offspring keyword reminder never silenced and still doesn't.
         # CR 903.10a.
         or _TOKEN_COPY_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted color_change SWEEP producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
+        # a byte-identical kept mirror, so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards. Matched
+        # against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
+        # per-clause over stripped text). CR 903.10a.
+        or _COLOR_CHANGE_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

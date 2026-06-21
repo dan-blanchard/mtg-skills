@@ -3480,6 +3480,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": _TYPE_CHANGER_ORACLE},
         _TYPE_CHANGER_ORACLE,
     ),
+    # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror
+    # (the lane fires from _COLOR_CHANGE_MIRROR in _signals_ir). This serve spec was
+    # always hand-registered with its own curated SEARCH regex (broader than the
+    # detector — it also credits color GRANTERS / fixers and color-conditional PAYOFFS),
+    # independent of the deleted SWEEP producer, so it survives unchanged.
     ("color_change", "you"): _spec(
         "Color change",
         "effects that add or change colors — fixing plus color-matters enablers",

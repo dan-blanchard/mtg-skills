@@ -160,6 +160,23 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # color_change ← a BYTE-IDENTICAL kept mirror (_COLOR_CHANGE_MIRROR over the reminder-
+    # stripped oracle: "Target permanent becomes the color or colors of your choice").
+    # phase parses the clause inconsistently (AddChosenColor mods / Unimplemented
+    # "become"s) and the only shared IR category (animate) 90%-over-fires, so the lane
+    # rides the exact deleted SWEEP regex (empty IR — the mirror reads the dict oracle).
+    # ADR-0027 β.
+    "color_change": (
+        {
+            "name": "Prismatic Lace",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Target permanent becomes the color or colors of your choice. "
+                "(This effect lasts indefinitely.)"
+            ),
+        },
+        _ir(),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.

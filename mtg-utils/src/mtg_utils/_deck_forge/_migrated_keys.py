@@ -1533,6 +1533,48 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # identical-mirror pattern (restores has_other_plan for ALL cards regardless of
         # IR/regex mode). CR 702.95 (populate) / 707 (copies).
         "token_copy_matters",
+        # ADR-0027 β — color_change (a card that CHANGES a permanent's/spell's COLOR:
+        # "becomes the color of your choice" — Prismatic Lace, Tidal Visionary, Blind
+        # Seer; "becomes the color" / "becomes all colors" — Scrapbasket, Tam; the
+        # Painter-style color-fixer Scuttlemutt). MIGRATED VIA A BYTE-IDENTICAL KEPT-
+        # MIRROR (signals-only, NO sidecar bump), NOT a structural arm.
+        #
+        # INCONSISTENT PARSE (structured, but UNUSABLE): phase parses the 24 color-
+        # changers three different ways — 20 carry a deeply-nested `AddChosenColor`
+        # modification (under a Choose sub_ability → GenericEffect → static_abilities),
+        # and 4 are a bare `Unimplemented` "become" (Mondo Gecko "become the color of
+        # your choice and gains hexproof", Scrapbasket / Tam "become all colors", Wild
+        # Mongrel). The projection then re-categorizes them INCONSISTENTLY: 17 land as
+        # cat=='animate', but Dream Coat → restriction (the "Activate only once" clause
+        # won), Mondo Gecko / Shyft → grant_keyword (the "gains hexproof" clause won),
+        # Sisay's Ingenuity → only choose (AddChosenColor is inside a GrantAbility). A
+        # STRUCTURAL arm reading the one shared category, cat=='animate', was REJECTED:
+        # it fires on 256 commander-legal cards (every man-land, animate-land anthem,
+        # "becomes a 4/4") vs the 24 genuine color-changers — a ~90% OVER-FIRE.
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane fires from _COLOR_CHANGE_MIRROR in
+        # _signals_ir — the EXACT deleted SWEEP regex (pinned as COLOR_CHANGE_REGEX in
+        # _sweep_detectors) over the reminder-stripped kept_oracle, byte-identical to
+        # the deleted SWEEP Detector. No structural arm is wired (reading cat=='animate'
+        # would over-fire as above). The serve spec stays hand-registered in
+        # signal_specs.py with its own (broader) curated search regex, independent of
+        # the deleted producer.
+        #
+        # Floor-disabled residual vs the deleted SWEEP regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 24, ir_only == 0, regex_only == 0 — the
+        # mirror is byte-identical to the deleted regex over the same reminder-stripped
+        # input, so the served set is UNCHANGED (a true behavior-neutral re-home, no
+        # recall gain, no over-fire). All 24 are genuine color-changers (no over-fire to
+        # drop). floor-mirror-dep == 0 (color_change is NOT an _IR_FLOOR_LANE). The
+        # deleted producer fired HIGH-confidence (scope 'you') and counted toward
+        # has_other_plan, so a byte-identical _COLOR_CHANGE_PLAN_MIRROR in
+        # _signals_regex re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, matching
+        # the token_copy_matters/variable_pt byte-identical-mirror pattern (a color-
+        # change body is rarely a vanilla beater; FILE-SWAP voltron delta == 0). CR 105
+        # / 613 (color is a continuously-checked layer-5 characteristic, verified via
+        # rules-lawyer).
+        "color_change",
         # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
         # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
         # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass
