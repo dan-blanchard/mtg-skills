@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COST_REDUCTION_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
@@ -2556,6 +2557,23 @@ _COST_REDUCTION_PLAN_MIRROR = re.compile(
     r"|" + COST_REDUCTION_REGEX,
     re.IGNORECASE,
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated global_ability_grant key. Its
+# deleted SWEEP producer (GLOBAL_ABILITY_GRANT_REGEX) fired HIGH-confidence scope 'any'
+# and counted toward `has_other_plan`, silencing the spurious commander-damage voltron
+# tell on a quoted-ability granter that is NOT a vanilla beater (Etrata, Ghired, Kira,
+# Phenax — and, because the regex matched the QUOTE around a keyword, the bands/Ward
+# bodies too: Mountain Stronghold, Hexing Squelcher). The migrated IR arm is NARROWER
+# (it drops the 6 keyword over-fires the lane excludes — bands x5 + Ward x1), so
+# re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would UNDER-silence those bodies (the IR
+# fires no global_ability_grant signal to key off) AND over-silence the 33 ir_only
+# recall gains the regex never matched. This mirror is the byte-identical OR of the
+# EXACT deleted regex; it feeds ONLY the gate (emits no signal — the real lane is from
+# the IR), reproducing the pre-migration `has_other_plan` for ALL cards. FILE-SWAP
+# NO-FLOOD: with this mirror, voltron membership is byte-identical (0 gained / 0 lost).
+# CR 903.10a.
+_GLOBAL_ABILITY_GRANT_PLAN_MIRROR = re.compile(
+    GLOBAL_ABILITY_GRANT_REGEX, re.IGNORECASE
+)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -3891,6 +3909,12 @@ def extract_signals(
         # identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's
         # full silence set (incl. the self-discounted finishers). CR 903.10a.
         or _COST_REDUCTION_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
+        # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
+        # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-
+        # identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's
+        # full silence set. CR 903.10a.
+        or _GLOBAL_ABILITY_GRANT_PLAN_MIRROR.search(_oracle)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

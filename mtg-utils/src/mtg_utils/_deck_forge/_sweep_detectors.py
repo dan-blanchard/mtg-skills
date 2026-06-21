@@ -69,6 +69,12 @@ DAMAGE_EQUAL_POWER_REGEX = "deals? damage[^.]*equal to (?:its|that creature.s|[^
 # discount-EXPLOITING search anchor; the lane's firing now comes from the IR arm +
 # _COST_REDUCER_MIRROR (in _signals_ir), not this regex.
 COST_REDUCTION_REGEX = "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{w\\}, \\{u\\}, \\{b\\}, \\{r\\}, or \\{g\\} less|cost \\{[wubrgc\\d]\\}+ less to cast|cost \\{?\\d+\\}? less to activate|(?:cards you drew this turn|abilities you activate)[^.]{0,40}?cost \\{?\\d|costs? \\{?\\d+\\}? less to cast for each|cost \\{?\\d+\\}? less for each"
+# ADR-0027 β — global_ability_grant migrated to the Card IR; its SWEEP_DETECTORS row
+# is deleted but the EXACT mined regex survives here so signal_specs hand-registers the
+# serve pool reusing it (SWEEP_LABELS keeps the human label). The serve only needs a
+# grant-EXPLOITING search anchor; the lane's firing now comes from the IR arm (the
+# board_grant + counter_kind="grant_ability" marker in _signals_ir), not this regex.
+GLOBAL_ABILITY_GRANT_REGEX = 'all (?:artifacts|creatures|lands|permanents) have \\"|creatures? you (?:own|control) have \\"'
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -517,12 +523,17 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (extract_signals_ir's grant_keyword branch + _is_all_creatures_grant). Its
     # oracle-regex sweep row is deleted; SWEEP_LABELS keeps the label, and the serve
     # spec is hand-registered in signal_specs.py.
-    {
-        "key": "global_ability_grant",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": 'all (?:artifacts|creatures|lands|permanents) have \\"|creatures? you (?:own|control) have \\"',
-    },
+    # ADR-0027 β: global_ability_grant migrated to the Card IR — the structural arm in
+    # _signals_ir.extract_signals_ir reads the v9 board_grant + counter_kind=
+    # "grant_ability" marker (a GrantAbility/GrantTrigger/GrantStaticAbility static over
+    # a creature board or a bare all-permanents set — project._global_ability_grant_
+    # markers; the QUOTE is the tell vs a bare keyword anthem). Its SWEEP_DETECTORS row
+    # is deleted; SWEEP_LABELS keeps the human label; the serve spec is hand-registered
+    # in signal_specs.py reusing the EXACT deleted regex (pinned above as
+    # GLOBAL_ABILITY_GRANT_REGEX). The deleted high-confidence scope-"any" producer fed
+    # has_other_plan, so a byte-identical _GLOBAL_ABILITY_GRANT_PLAN_MIRROR re-supplies
+    # the voltron silence in the regex path (the IR arm is narrower on the 6 bands/Ward
+    # keyword over-fires, so _VOLTRON_SILENCING_PLAN_KEYS would under-silence).
     # ADR-0027 (t2b2-A): aura_equip_kw_grant migrated to the Card IR — a grant_keyword
     # of an evergreen keyword (counter_kind in _AURA_EQUIP_GRANT_KW) over a YOUR
     # Aura/Equipment subgroup subject (_is_aura_equip_grant). Its SWEEP row is deleted;

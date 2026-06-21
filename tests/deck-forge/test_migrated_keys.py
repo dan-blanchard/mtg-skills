@@ -4284,6 +4284,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
             ),
         ),
     ),
+    # global_ability_grant ← a board_grant Effect carrying counter_kind="grant_ability"
+    # (project._global_ability_grant_markers), the v9 marker the extract_signals_ir arm
+    # reads. Cryptolith Rite grants a QUOTED activated ability ("{T}: Add one mana of any
+    # color.") to your whole creature board — the QUOTE is the tell that splits it from a
+    # bare keyword anthem (grant_keyword). The arm fires scope "any", the deleted SWEEP
+    # detector's firing identity. ADR-0027 β.
+    "global_ability_grant": (
+        {
+            "name": "Cryptolith Rite",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                'Creatures you control have "{T}: Add one mana of any color."'
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="board_grant",
+                        scope="you",
+                        counter_kind="grant_ability",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw='Creatures you control have "{T}: Add one mana of any color."',
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

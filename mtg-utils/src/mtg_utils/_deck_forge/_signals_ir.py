@@ -3338,6 +3338,21 @@ def extract_signals_ir(
             if _COST_INCREASE.search(raw):
                 continue
             add("cost_reduction", "you", "", raw)
+        # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
+        # triggered / static ability to your whole CREATURE board or to an
+        # ALL-permanents set — "Creatures you control have '{T}: …'", "All artifacts
+        # have '…'"; the QUOTE is the tell that splits it from a bare keyword anthem,
+        # which is grant_keyword). The v9 projection emits the structural marker as a
+        # board_grant Effect carrying counter_kind=="grant_ability" (a GrantAbility /
+        # GrantTrigger / GrantStaticAbility static over a creature board controller you
+        # or a bare all-permanents set controller any; opponent-only and single-
+        # permanent Aura/Equipment grants excluded — see project._global_ability_grant_
+        # markers). Fire scope "any" — the deleted SWEEP detector hard-fired scope "any"
+        # for ALL matches (its firing identity), so the migrated arm matches it exactly.
+        # CR 113.3 / 604.3.
+        for e in ab.effects:
+            if e.category == "board_grant" and e.counter_kind == "grant_ability":
+                add("global_ability_grant", "any", "", e.raw or "")
         # ADR-0027 β — power-as-damage cluster (creature_ping + damage_equal_power).
         # The d6620ac projection unlock (op="power" recovery in project._quantity)
         # makes a power-scaling damage effect a STRUCTURAL anchor: a cat=="damage"
@@ -3512,7 +3527,15 @@ def extract_signals_ir(
             # Gated to YOUR generic set (no subtype, controller you) — a single-target
             # buff/removal has a different subject shape and never reaches here. A
             # composite (Artifact AND Enchantment) subject fires BOTH lanes.
-            if e.category in ("grant_keyword", "pump", "base_pt_set", "board_grant"):
+            # ADR-0027 β: the global_ability_grant marker (a board_grant carrying
+            # counter_kind=="grant_ability") is a quoted-ability grant over a creature /
+            # all-permanents board — its OWN lane, not an artifacts/enchantments anthem;
+            # exclude it so an "Artifact creatures you control have '<quoted>'" grant
+            # (carrying Artifact in card_types) never leaks here off the new marker.
+            if (
+                e.category in ("grant_keyword", "pump", "base_pt_set", "board_grant")
+                and e.counter_kind != "grant_ability"
+            ):
                 gsub = _generic_board_subject(e.subject)
                 for grant_lane in _typed_matters_lanes(gsub):
                     add(grant_lane, "you", "", e.raw)

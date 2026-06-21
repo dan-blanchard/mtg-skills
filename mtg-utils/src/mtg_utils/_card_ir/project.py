@@ -1469,6 +1469,17 @@ def _project_face(record: dict) -> Face:
     dropped_markers = _dropped_static_markers(record, abilities)
     if dropped_markers:
         abilities.append(Ability(kind="static", effects=tuple(dropped_markers)))
+    # Global ability grant (ADR-0027 β): a QUOTED activated/triggered ability granted
+    # to your whole CREATURE board or to an ALL-permanents/all-creatures set ("Creatures
+    # you control have '{T}: …'", "All artifacts have '…'"). A board_grant +
+    # counter_kind="grant_ability" marker, appended as a FACE-level pass (after
+    # _synthesize_from_oracle / _dropped_static_markers run) so it never suppresses the
+    # synthesis fallback that recovers an Unimplemented granted body (Dungeon Delver's
+    # dungeon-doubling → venture_matters). The QUOTED ability is the discriminator that
+    # separates this lane from a bare keyword anthem (grant_keyword). CR 113.3 / 604.3.
+    gag_markers = _global_ability_grant_markers(record)
+    if gag_markers:
+        abilities.append(Ability(kind="static", effects=tuple(gag_markers)))
     # Face-level +1/+1 fallback (ADR-0027 counters_matter pass 2): a +1/+1 placement
     # or "has/with a +1/+1 counter" reference phase dropped ENTIRELY (a trimmed grant
     # clause, a devour/enters-with-copy/cast-from-GY placement, a dropped damage-
@@ -3342,6 +3353,99 @@ def _for_each_creature_marker(record: dict) -> Effect | None:
         amount=Quantity(op="count", factor=1, subject=f),
         raw=m.group(0),
     )
+
+
+# ADR-0027 β — predicates that narrow a grant to a SINGLE permanent (an Aura's
+# enchanted creature / an Equipment's equipped creature), NOT a board. A grant carrying
+# one of these is "Enchanted/Equipped creature has '<quoted>'" — single-target, NOT a
+# global ability grant — so it never fires the lane (the regex never matched a single
+# Aura/Equipment grant either). CR 303 / 301.
+_SINGLE_PERMANENT_GRANT_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
+
+
+def _global_ability_grant_markers(record: dict) -> list[Effect]:
+    """`board_grant`+counter_kind="grant_ability" markers for a QUOTED-ability grant
+    (ADR-0027 β — global_ability_grant). phase parses "Creatures you control have
+    '<quoted ability>'" / "All artifacts have '<quoted ability>'" as a static_ability
+    with a GrantAbility / GrantTrigger modification (the QUOTE = a structured
+    definition/trigger node). The QUOTED ability is the discriminator that separates a
+    GLOBAL ABILITY GRANT from a bare keyword anthem ("creatures you control have flying"
+    is AddKeyword → grant_keyword, a DIFFERENT lane).
+
+    Fires for the two affected shapes — the regex's two arms — that the existing
+    board_grant (the own-board Artifact/Enchantment set) does NOT reach:
+      • YOUR creature board ("Creatures you control have '…'" — Cryptolith Rite, Phenax;
+        and the regex's substring catch on any leading narrowing: "Sliver creatures you
+        control have '…'", "blue creatures you control have '…'", "Commander creatures
+        you own have '…'" — the last is controller-null + an Owned predicate). Gate:
+        "Creature" in card_types AND (controller=="you" OR an "Owned" predicate). Plus
+        the recall gains the brittle regex anchor missed: "Each creature you control
+        has '…'" (Tyvar, Inga), "Creatures you control have vigilance and '…'" (the
+        grant not directly adjacent to the quote).
+      • an ALL-permanents / all-creatures set ("All artifacts have '…'" — Energy Flux,
+        Kataki; "All creatures have '…'" — The Tabernacle; "All lands have '…'" —
+        Toxicrene). Gate: controller=="any", a BARE permanent type (NO subtypes, NO
+        predicates) — so a SUBTYPE all-set ("All Slivers have '…'" — Magma Sliver,
+        which the regex's "all (artifacts|creatures|lands|permanents)" arm never
+        matched) and a single-permanent Aura/Equipment stay out.
+
+    EXCLUDES an opponent-only grant (controller=='opp') and a single-permanent
+    Aura/Equipment grant (an EnchantedBy/EquippedBy predicate) — same single-target /
+    not-a-care-of-yours boundary the regex respected. The subject carries the affected
+    Filter (faithful scope you/any); the lane's signal arm collapses it to scope "any"
+    (the deleted regex's firing identity). counter_kind="grant_ability" is the dedicated
+    tag so ONLY the global_ability_grant arm reads it (the artifacts/enchantments_matter
+    board_grant reader excludes it). CR 113.3 / 604.3."""
+    out: list[Effect] = []
+    for st in record.get("static_abilities") or []:
+        if not isinstance(st, dict):
+            continue
+        mods = st.get("modifications") or []
+        # GrantAbility (a quoted activated/spell ability), GrantTrigger (a quoted
+        # triggered ability), and GrantStaticAbility (a quoted STATIC ability — a
+        # nested anthem "Creature tokens you control get +2/+2" or cost-reducer "The
+        # first Dragon spell you cast … costs {2} less" — Inspiring Leader, Acolyte of
+        # Bahamut) are all the QUOTED-ability tell. A bare AddKeyword grant ("…have
+        # flying" / "…have ward—pay 2 life" / "…have bands") is NOT here — that is
+        # grant_keyword's lane.
+        if not any(
+            _norm(m.get("type"))
+            in ("grantability", "granttrigger", "grantstaticability")
+            for m in mods
+            if isinstance(m, dict)
+        ):
+            continue
+        affected = _filter(st.get("affected"))
+        if affected is None or affected.controller == "opp":
+            continue
+        preds = set(affected.predicates)
+        # A single-permanent Aura/Equipment grant ("Enchanted/Equipped creature has
+        # '…'") is never a board grant.
+        if preds & _SINGLE_PERMANENT_GRANT_PREDS:
+            continue
+        owned = any(p == "Owned" or p.startswith("Owned:") for p in preds)
+        is_creature_board = "Creature" in affected.card_types and (
+            affected.controller == "you" or owned
+        )
+        # An ALL-permanents set: a BARE permanent type, controller "any", no narrowing
+        # predicate or subtype (so "All Slivers have", "Other creatures have", a color/
+        # supertype-filtered all-set — none of which the regex's "all <type>" arm caught
+        # — stay out).
+        is_all_permanents = (
+            affected.controller == "any" and not affected.subtypes and not preds
+        )
+        if not (is_creature_board or is_all_permanents):
+            continue
+        out.append(
+            Effect(
+                category="board_grant",
+                scope=affected.controller,
+                subject=affected,
+                raw=st.get("description") or "",
+                counter_kind="grant_ability",
+            )
+        )
+    return out
 
 
 def _mass_creature_grant_marker(record: dict) -> Effect | None:

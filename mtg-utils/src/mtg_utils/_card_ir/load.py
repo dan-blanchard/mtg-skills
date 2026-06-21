@@ -33,7 +33,11 @@ from mtg_utils.card_ir import Card
 # v8: exclude affected==SelfRef from the v7 cost_reduction projection (Cavern-Hoard
 #     Dragon "this spell costs less" is a self-discount, not a build-around enabler;
 #     rules-adjudicated CR 601.2f/118.7).
-SIDECAR_VERSION = 8
+# v9: GrantAbility/GrantTrigger static over a creature board (controller you) or an
+#     all-permanents/all-creatures set (controller any) → a board_grant Effect with
+#     counter_kind="grant_ability"; the global_ability_grant lane reads it (the
+#     QUOTED-ability discriminator, not a keyword anthem). ADR-0027 β. CR 113.3/604.3.
+SIDECAR_VERSION = 9
 
 
 def card_ir_dir() -> Path:

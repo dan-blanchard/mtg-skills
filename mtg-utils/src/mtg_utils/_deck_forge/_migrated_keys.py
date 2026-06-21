@@ -1341,6 +1341,48 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # deleted; the serve survives via a pinned regex constant in signal_specs
         # (SWEEP_LABELS kept). CR 601.2f / 118.7.
         "cost_reduction",
+        # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
+        # triggered / static ability to YOUR whole creature board OR to an
+        # ALL-permanents set: "Creatures you control have '{T}: …'" — Cryptolith Rite,
+        # Phenax; "All artifacts have '…'" — Energy Flux, Kataki; "All creatures have
+        # '…'" — The Tabernacle). The QUOTE is the tell — a bare keyword anthem
+        # ("creatures you control have flying") is grant_keyword, a DIFFERENT lane, so
+        # the IR cleanly separates them (no keyword-anthem flood). The v9 projection
+        # emits a board_grant + counter_kind="grant_ability" marker from a
+        # GrantAbility / GrantTrigger / GrantStaticAbility static over a creature board
+        # (controller you, incl. subtyped/owned) or a bare all-permanents set
+        # (controller any, no subtype/predicate); opponent-only and single-permanent
+        # Aura/Equipment grants are excluded. extract_signals_ir reads the marker →
+        # Signal("global_ability_grant","any",…) — scope "any" matches the deleted
+        # SWEEP detector's firing identity (it hard-fired scope "any" for ALL matches).
+        #
+        # Floor-disabled IR-vs-regex residual over the commander-legal corpus:
+        # regex_only == 6 = 100% over-fire (the regex matched the quote around a
+        # KEYWORD — bands x5 + Ward x1: Cathedral of Serra / Mountain Stronghold /
+        # Adventurers' Guildhouse / Unholy Citadel / Seafarer's Quay / Hexing
+        # Squelcher — which is grant_keyword's lane, not a quoted activated/triggered/
+        # static ability; 0 genuine miss). ir_only == 33 genuine recall GAIN the
+        # brittle regex anchor missed: "Each creature you control has '…'" (Tazri,
+        # Tyvar the Bellicose, Endless Whispers), "Creatures you control have <kw> and
+        # '…'" (Inga, Tocasia), tribal/typed grants ("Elves you control have '…'" —
+        # Joraga, Dionus; "Squirrels you control have '…'"), token grants ("Tokens you
+        # control have '…'" — Jaheira, Insidious Roots), nested static-ability grants
+        # ("…have 'Creature tokens you control get +2/+2'" — Inspiring Leader; "…have
+        # 'The first Dragon spell … costs {2} less'" — Acolyte of Bahamut), and
+        # "Permanents you control have '…'" (Cursed Wombat); the lone borderline
+        # over-fire is Essence Leak (a conditional Aura whose Enchant relationship
+        # phase folded into a condition, projecting a bare-Permanent affected).
+        #
+        # The deleted SWEEP producer fired high-confidence scope "any" and counted
+        # toward has_other_plan (a quoted-ability granter is NOT a vanilla voltron
+        # beater), so a byte-identical _GLOBAL_ABILITY_GRANT_PLAN_MIRROR (the OR of the
+        # deleted regex over the joined-face oracle) re-supplies that voltron silence in
+        # the regex path — NOT _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is
+        # NARROWER on the 6 keyword over-fires (it would UNDER-silence the bands/Ward
+        # bodies the IR drops). The SWEEP_DETECTORS row is deleted (SWEEP_LABELS kept);
+        # the serve spec is hand-registered in signal_specs.py reusing the EXACT deleted
+        # regex (pinned as GLOBAL_ABILITY_GRANT_REGEX). CR 113.3 / 604.3.
+        "global_ability_grant",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
