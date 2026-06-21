@@ -692,6 +692,8 @@ def test_type_change_opens_on_creature_type_hoser():
     # tokens — so he wants creature-type CHANGERS to turn the rest of their board into
     # Salamanders, which his protection then blanks (creature type is continuously
     # checked, CR 205.3 / 702.16). Real oracle.
+    # ADR-0027 t2b4-C: type_change migrated to the Card IR — the regex path no longer
+    # emits it; it fires from the _type_hoser_clause subtype-gated mirror (bare IR).
     gor_muldrak = {
         "name": "Gor Muldrak, Amphinologist",
         "type_line": "Legendary Creature — Human Scout",
@@ -704,7 +706,8 @@ def test_type_change_opens_on_creature_type_hoser():
             "creates a 4/3 blue Salamander Warrior creature token."
         ),
     }
-    assert ("type_change", "you") in _ks(gor_muldrak)
+    assert "type_change" not in _keys(gor_muldrak)
+    assert ("type_change", "you") in _ks_hybrid(gor_muldrak)
     # The captured word is validated against the subtype vocab, so a plain
     # "protection from black" (a color, not a creature type) is not a type hoser.
     krenko = {
@@ -718,7 +721,7 @@ def test_type_change_opens_on_creature_type_hoser():
             "Goblins you control."
         ),
     }
-    assert "type_change" not in _keys(krenko)
+    assert "type_change" not in _keys_hybrid(krenko)
 
 
 def test_exert_matters_opens_on_pseudo_vigilance():
@@ -758,6 +761,8 @@ def test_exert_matters_opens_on_pseudo_vigilance():
 def test_tap_down_blockers_opens_on_unblockable_unless_all():
     # Tromokratis connects only if the defender can't field enough blockers, so it wants
     # to tap their creatures down. Real oracle.
+    # ADR-0027 t2b4-C: tap_down_blockers migrated to the Card IR — the regex path no
+    # longer emits it; it fires from a kept word mirror (bare IR routes to the IR path).
     tromokratis = {
         "name": "Tromokratis",
         "type_line": "Legendary Creature — Kraken",
@@ -771,7 +776,8 @@ def test_tap_down_blockers_opens_on_unblockable_unless_all():
             "be blocked.)"
         ),
     }
-    assert ("tap_down_blockers", "you") in _ks(tromokratis)
+    assert "tap_down_blockers" not in _keys(tromokratis)
+    assert ("tap_down_blockers", "you") in _ks_hybrid(tromokratis)
 
 
 def test_island_matters_opens_on_island_attack_restriction():

@@ -209,7 +209,12 @@ _XSPELL_VETO_RE = re.compile(r"can'?t be cast|can'?t cast", re.IGNORECASE)
 
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     ("color_hoser", lambda c: _COLOR_HOSER_RE.search(c) is not None, "you"),
-    ("type_change", _type_hoser_clause, "you"),
+    # ADR-0027 t2b4-C: type_change ("protection from <subtype>" — Gor Muldrak) migrated
+    # to the Card IR (kept_detector). phase DROPS the protection ARGUMENT (the subtype),
+    # and Gor Muldrak's own static is dropped entirely, so there is no structural form.
+    # extract_signals_ir mirrors the _type_hoser_clause subtype-gated word detector over
+    # the joined oracle (clause-safe). This _DETECTORS row is deleted; the clause helper
+    # stays (the IR path reuses it); the serve stays hand-registered.
     ("spellcast_matters", lambda c: _IS_BUILDAROUND_RE.search(c) is not None, "you"),
     (
         "xspell_matters",
@@ -1193,15 +1198,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # clause survives only in raw, so it is served by a kept word mirror
     # (_IR_KEPT_DETECTORS). This _HAND_FLOOR producer is deleted; the serve spec
     # (signal_specs.py, serve_keywords=("exert",)) stays hand-registered.
-    # "Can't be blocked unless ALL block" (Tromokratis): the commander connects only if
-    # the defender CAN'T field enough blockers, so it wants to TAP DOWN opponents'
-    # creatures (Sleep, Blustersquall) before combat — fewer untapped blockers means
-    # it's unblockable.
-    (
-        "tap_down_blockers",
-        re.compile(r"can'?t be blocked unless all", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 t2b4-C: tap_down_blockers ("Can't be blocked unless ALL block" —
+    # Tromokratis) migrated to the Card IR (kept_detector). phase DROPS the conditional-
+    # evasion clause entirely (only the hexproof grant survives), so there is no
+    # structural shape to read — the literal phrase is the only signal. It fires from an
+    # _IR_KEPT_DETECTORS word mirror (the exact regex). This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     # Island matters (Zhou Yu "can't attack unless defending player controls an Island";
     # islandwalk commanders Thada Adel, Wrexial): wants effects that turn opponents'
     # lands into Islands (Quicksilver Fountain, Stormtide Leviathan) so the attack
@@ -2966,6 +2968,28 @@ def _detect_self_blink_fulltext(text: str, name: str) -> str | None:
     return text[:160]
 
 
+# ADR-0027 tranche2-batch-4 (t2b4-C) — self_blink kept-detector mirror. phase parses a
+# self-exile+return as two Effect(category='exile', subject=None) whose `~`-substituted
+# raw can't tell "exile this creature (self-blink)" from "exile ~ as a cost" / other-
+# target exiles (a raw 'exile ~'+to:battlefield over-fires to ~176 cards). So self_blink
+# has NO clean structural IR form. The regex path produced it from TWO disjoint sources
+# (zero overlap over the commander-legal corpus): the name-aware cross-sentence
+# _detect_self_blink_fulltext (Norin-style, 34 cards) AND this single-target SWEEP regex
+# run PER-CLAUSE (Ephemerate / Soulherder, 35 cards). The IR path mirrors BOTH to stay
+# byte-identical (union 69; A-B==0). NB the SWEEP regex's `[^.]*\.?\s*` arms span a
+# sentence over the WHOLE oracle (+24 over-fire), so it MUST be run per-clause via
+# _clauses (matching the regex path), not as a flat _IR_KEPT_DETECTORS full-text row.
+# This is the EXACT deleted SWEEP_DETECTORS["self_blink"] regex (byte-identical mirror).
+_SELF_BLINK_SWEEP_RE = re.compile(
+    r"exile (?:up to one |another |a |target )?(?:other )?target "
+    r"(?:creature|permanent)[^.]*\.?\s*return (?:that|those|it|the[^.]*)"
+    r"[^.]*to the battlefield"
+    r"|exile (?:any number of|all|each)[^.]*creatures[^.]*return"
+    r"|exile [A-Z][a-z']+\.\s*return (?:it|that card|them)[^.]*to the battlefield",
+    re.IGNORECASE,
+)
+
+
 # Self-death PAYOFF (Kokusho / Junji / Ryusei / Lord Xander): the commander's OWN
 # "when ~ dies, <value>" trigger is the engine, so the deck wants to re-trigger that
 # death — dies-recursion to bring it back after the trigger, sac outlets to kill it on
@@ -3614,9 +3638,11 @@ def extract_signals(
     blink_clause = _detect_blink_fulltext(text)
     if blink_clause is not None:
         add("blink_flicker", "you", "", blink_clause)
-    self_blink_clause = _detect_self_blink_fulltext(text, name)
-    if self_blink_clause is not None:
-        add("self_blink", "you", "", self_blink_clause)
+    # ADR-0027 t2b4-C: self_blink migrated to the Card IR (kept_detector). The regex
+    # path's emission (the name-aware fulltext detector + the SWEEP per-clause regex) is
+    # deleted here; extract_signals_ir reproduces BOTH byte-identically. The
+    # _detect_self_blink_fulltext / _SELF_BLINK_SWEEP_RE definitions stay — the IR path
+    # reuses them.
     self_death_clause = _detect_self_death_payoff(text, name)
     if self_death_clause is not None:
         add("self_death_payoff", "you", "", self_death_clause)
@@ -4628,6 +4654,42 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "opponents",
     ),
+    # ADR-0027 tranche2-batch-4 (t2b4-C) — three kept_detector lanes phase v0.1.60
+    # CANNOT structure (rules-lawyer / spec verified: the discriminant is DROPPED in
+    # the parse), so each fires from a dedicated IR-path word mirror reproducing the
+    # deleted SWEEP / _HAND_FLOOR regex EXACTLY (full-text == per-clause over the
+    # commander-legal corpus — each regex is clause-safe, A-B==0). floor-mirror-dep == 0
+    # by construction (the kept mirror is not a floor detector).
+    #   • damage_to_you_punish ← phase captures the deals_damage event but DROPS both
+    #     discriminants: the source filter (subject=None, not 'opp') and the player-
+    #     recipient ("to you" has no IR field) — event='deals_damage'/scope='any' can't
+    #     be told from any "whenever ~ deals damage" trigger. The literal "deals
+    #     (combat) damage to you" from an opponent-controlled source is the only tell.
+    #   • excess_damage ← the 4 clean "is dealt excess damage" payoffs bind structurally
+    #     (a Trigger event=='excess_damage'), but 29/33 references ride an intervening
+    #     "if ~ was dealt excess damage" clause on a regular trigger or live in spell
+    #     text — phase inlines that into Effect.raw, NOT a structured Condition. This
+    #     residual word mirror recovers them. Serve stays serve_keywords=("trample",)
+    #     (CR 702.19 enablers).
+    #   • tap_down_blockers ← the "can't be blocked unless all creatures defending
+    #     player controls block it" clause is 100% DROPPED by phase (Tromokratis's IR
+    #     carries only the hexproof grant). No structural shape; the phrase is the tell.
+    (
+        "damage_to_you_punish",
+        re.compile(
+            r"whenever a source an opponent controls deals damage to you"
+            r"|whenever (?:a|an) (?:opponent|source[^.]*opponent)[^.]*deals "
+            r"(?:combat )?damage to you",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
+    ("excess_damage", re.compile(r"\bexcess damage\b", re.IGNORECASE), "you"),
+    (
+        "tap_down_blockers",
+        re.compile(r"can'?t be blocked unless all", re.IGNORECASE),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -5106,6 +5168,21 @@ IR_SLICE_KEYS: frozenset[str] = (
             "opponent_cast_matters",
             "opponent_counter_grant",
             "power_tap_engine",
+            # ADR-0027 tranche2-batch-4 (t2b4-C) — kept_detector lanes phase v0.1.60
+            # cannot structure, each fired from a dedicated IR-path word mirror (the
+            # exact deleted regex):
+            #   damage_to_you_punish / excess_damage / tap_down_blockers ← flat
+            #     _IR_KEPT_DETECTORS rows (clause-safe full-text mirrors).
+            #   self_blink ← name-aware _detect_self_blink_fulltext + the
+            #     _SELF_BLINK_SWEEP_RE single-target regex run per-clause (both
+            #     reproduced byte-identically; no clean structural IR form).
+            #   type_change ← the _type_hoser_clause subtype-gated word detector over
+            #     the joined oracle (phase drops the protection subtype argument).
+            "damage_to_you_punish",
+            "excess_damage",
+            "self_blink",
+            "tap_down_blockers",
+            "type_change",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -8026,6 +8103,24 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 t2b4-C — self_blink kept detector. No clean structural IR form (the
+    # `~`-substituted exile raw can't be told from cost-exile / other-target exile), so
+    # reproduce BOTH regex-path producers byte-identically: the name-aware cross-
+    # sentence fulltext detector + the single-target SWEEP regex run per-clause (its
+    # `[^.]*\.?\s*` arms span sentences over the whole oracle, so it must scan _clauses,
+    # not flat text).
+    if _detect_self_blink_fulltext(kept_oracle, name) is not None or any(
+        _SELF_BLINK_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)
+    ):
+        add("self_blink", "you", "", "")
+    # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
+    # (the subtype): "protection from Salamanders" survives only as a bare keyword with
+    # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the
+    # _type_hoser_clause word detector (re `protection from (\w+)` gated against the
+    # lowercase CREATURE_SUBTYPES vocab) over the joined oracle — clause-safe (full-text
+    # == per-clause). LOWERCASED to match the regex path, which feeds it clause.lower().
+    if _type_hoser_clause(kept_oracle.lower()):
+        add("type_change", "you", "", "")
     # Cares-about floor lanes (synergy payoffs with no structural IR form) — reuse
     # the production floor Detector objects for the curated cares-about subset.
     for det in _FLOOR_DETECTORS:
@@ -9080,6 +9175,35 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "opponent_cast_matters",
         "opponent_counter_grant",
         "power_tap_engine",
+        # ADR-0027 tranche2-batch-4 (t2b4-C) — 5 kept_detector keys phase v0.1.60
+        # CANNOT structure (the discriminant is DROPPED in the parse), so each fires
+        # from a dedicated IR-path WORD MIRROR (the EXACT deleted regex) in
+        # extract_signals_ir — the sanctioned home for mechanics with no structural IR
+        # form. Each mirror reads the joined-face oracle, so it is byte-identical to the
+        # deleted regex (NO-FLOOD via file-swap baseline: each key's count UNCHANGED,
+        # A-B==0). floor-mirror-dep == 0 by construction (none is a floor detector).
+        # Voltron: each fired high-confidence in the regex path, so all 5 are added to
+        # _VOLTRON_SILENCING_PLAN_KEYS to preserve the commander-damage tell silencing
+        # the IR re-supply now carries (0 voltron leaked). See ADR-0027.
+        #   damage_to_you_punish ← phase keeps deals_damage but drops the opp-source
+        #     filter AND the "to you" recipient. SWEEP row deleted; serve hand-spec'd.
+        #   excess_damage ← clean payoffs bind structurally (Trigger event), but the
+        #     intervening-condition / spell-text refs ride Effect.raw — recovered by a
+        #     `\bexcess damage\b` mirror. SWEEP row deleted; serve hand-spec'd.
+        #   self_blink ← no clean IR form (the `~`-substituted exile raw is ambiguous);
+        #     reproduce BOTH regex producers byte-identically (the name-aware fulltext
+        #     detector + the per-clause _SELF_BLINK_SWEEP_RE). SWEEP row + the regex-
+        #     path emission deleted; serve hand-spec'd.
+        #   tap_down_blockers ← the "can't be blocked unless all … block it" clause is
+        #     100% dropped by phase. _HAND_FLOOR row deleted; serve hand-spec'd.
+        #   type_change ← phase drops the protection subtype argument; mirror the
+        #     _type_hoser_clause subtype-gated detector. _DETECTORS row deleted; serve
+        #     hand-spec'd.
+        "damage_to_you_punish",
+        "excess_damage",
+        "self_blink",
+        "tap_down_blockers",
+        "type_change",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -9335,6 +9459,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # _TRANCHE2C_PLAN_MIRROR fed into `has_other_plan`, which reproduces the exact
         # pre-migration silence set (the deleted regex patterns) for ALL cards — so
         # voltron_matters is byte-identical to pre-migration. NO-FLOOD.
+        # ADR-0027 tranche2-batch-4 (t2b4-C): the 5 kept_detector keys each fired
+        # high-confidence (forced/default scope) in the regex path and so counted
+        # toward has_other_plan, silencing the spurious commander-damage voltron tell.
+        # Their regex producers are deleted, so the hybrid re-silences from the IR
+        # re-supply. Unlike tranche2-C, these are kept WORD MIRRORS — the IR re-supply
+        # reads the SAME joined oracle as the deleted regex, so it is BYTE-IDENTICAL (no
+        # broadening, no over-silence). File-swap: 0 voltron leaked, A-B==0.
+        "damage_to_you_punish",
+        "excess_damage",
+        "self_blink",
+        "tap_down_blockers",
+        "type_change",
     }
 )
 

@@ -2473,6 +2473,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"gains control of"
         ),
     ),
+    # ADR-0027 t2b4-C: damage_to_you_punish's SWEEP_DETECTORS row was deleted
+    # (detection moved to the Card IR — an _IR_KEPT_DETECTORS word mirror; phase drops
+    # the opp-source filter and the "to you" recipient). The serve was auto-registered
+    # from the SWEEP row (scope "opponents"), so hand-register it with the old regex.
+    ("damage_to_you_punish", "opponents"): _sweep_spec_with_extras(
+        "damage_to_you_punish",
+        regex=(
+            r"whenever a source an opponent controls deals damage to you"
+            r"|whenever (?:a|an) (?:opponent|source[^.]*opponent)[^.]*deals "
+            r"(?:combat )?damage to you"
+        ),
+    ),
     # Legend-rule-off commander (Brothers Yamazaki) wants self-copy effects to run
     # multiple copies of itself.
     ("legend_rule_off", "you"): _sweep_spec_with_extras(
@@ -2480,8 +2492,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # A self-blinking commander (Norin) re-enters constantly, firing "whenever a
     # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).
+    # ADR-0027 t2b4-C: self_blink's SWEEP_DETECTORS row was deleted (detection moved to
+    # the Card IR — the name-aware fulltext detector + the per-clause
+    # _SELF_BLINK_SWEEP_RE mirror). The serve pool stays oracle-defined, so pass the
+    # deleted regex explicitly.
     ("self_blink", "you"): _sweep_spec_with_extras(
-        "self_blink", (_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA)
+        "self_blink",
+        (_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
+        regex=(
+            r"exile (?:up to one |another |a |target )?(?:other )?target "
+            r"(?:creature|permanent)[^.]*\.?\s*return (?:that|those|it|the[^.]*)"
+            r"[^.]*to the battlefield"
+            r"|exile (?:any number of|all|each)[^.]*creatures[^.]*return"
+            r"|exile [A-Z][a-z']+\.\s*return (?:it|that card|them)[^.]*"
+            r"to the battlefield"
+        ),
     ),
     # A repeatable-wrath commander (Mageta) wants to rebuild after the sweep:
     # reanimation (Breath of Life) plus indestructible bombs (Zetalpa) that survive it.

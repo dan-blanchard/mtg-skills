@@ -438,12 +438,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "deals \\d+ damage to each (?:player|opponent and|creature and each player)|deals \\d+ damage to each opponent|deals \\d+ damage to each player",
     },
-    {
-        "key": "damage_to_you_punish",
-        "scope": "opponents",
-        "is_widen_of": "",
-        "regex": "whenever a source an opponent controls deals damage to you|whenever (?:a|an) (?:opponent|source[^.]*opponent)[^.]*deals (?:combat )?damage to you",
-    },
+    # ADR-0027 t2b4-C: damage_to_you_punish migrated to the Card IR (kept_detector) —
+    # phase captures the deals_damage event but DROPS both discriminants (the opponent-
+    # controlled source filter and the "to you" recipient), so it fires from an
+    # _IR_KEPT_DETECTORS word mirror (the exact regex below). This SWEEP_DETECTORS row is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027: damage_reflect migrated to the Card IR — served structurally from the
     # on-card co-occurrence (a damage_received trigger + a damage effect, in
     # extract_signals_ir) plus a `damage_reflect` marker effect for the GRANTED/QUOTED
@@ -451,12 +450,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # deals that much damage to ..."' — Spiteful Sliver), appended by
     # project._narrow_conferred_keyword_refs. Its oracle-regex SWEEP_DETECTORS row is
     # deleted; the serve spec stays hand-registered in signal_specs.py.
-    {
-        "key": "excess_damage",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bexcess damage\\b",
-    },
+    # ADR-0027 t2b4-C: excess_damage migrated to the Card IR (kept_detector) — the clean
+    # "is dealt excess damage" payoffs bind structurally (Trigger event=='excess_damage'),
+    # but the 29/33 intervening-condition / spell-text references ride Effect.raw (phase
+    # inlines the condition, not a structured node), so they fire from an
+    # _IR_KEPT_DETECTORS `\bexcess damage\b` word mirror. This SWEEP_DETECTORS row is
+    # deleted; the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027: destroy_legendary migrated to the Card IR — a `destroy` Effect whose
     # subject Filter carries the exact HasSupertype:Legendary predicate (the mass
     # "destroy each legendary" form rides counter_kind=='all' with the same predicate).
@@ -986,12 +985,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "artifacts_matter",
         "regex": "if you control an artifact|if you control (?:a|an|one or more) artifacts?",
     },
-    {
-        "key": "self_blink",
-        "scope": "you",
-        "is_widen_of": "blink_flicker",
-        "regex": "exile (?:up to one |another |a |target )?(?:other )?target (?:creature|permanent)[^.]*\\.?\\s*return (?:that|those|it|the[^.]*)[^.]*to the battlefield|exile (?:any number of|all|each)[^.]*creatures[^.]*return|exile [A-Z][a-z']+\\.\\s*return (?:it|that card|them)[^.]*to the battlefield",
-    },
+    # ADR-0027 t2b4-C: self_blink migrated to the Card IR (kept_detector) — the
+    # `~`-substituted exile raw can't be told from cost-exile / other-target exile, so
+    # there is no clean structural IR form. The regex path produced it from two disjoint
+    # sources; both are reproduced byte-identically in extract_signals_ir (the name-aware
+    # _detect_self_blink_fulltext + the _SELF_BLINK_SWEEP_RE single-target regex run
+    # per-clause). This SWEEP_DETECTORS row is deleted (its regex now lives as the
+    # _SELF_BLINK_SWEEP_RE constant in signals.py); the serve spec stays hand-registered.
     # type_matters_anthem deleted: its `\b(\w+?) creatures get [+]` was subject-LESS and
     # redundant — real typed anthems ("Goblins you control get +1/+1") are produced as
     # subject-bearing type_matters by the parametric detector, and its junk captures

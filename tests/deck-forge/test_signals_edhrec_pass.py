@@ -118,14 +118,21 @@ NORIN = (
 
 
 def test_norin_self_blink():
-    assert "self_blink" in _keys(NORIN, name="Norin the Wary")
+    # ADR-0027 t2b4-C: self_blink migrated to the Card IR — the regex path no longer
+    # emits it; the name-aware fulltext detector + the per-clause SWEEP mirror run in the
+    # IR path (any non-None IR routes there; both read the record's oracle_text + name).
+    assert "self_blink" not in _keys(NORIN, name="Norin the Wary")
+    assert "self_blink" in {s.key for s in _hybrid_sigs(NORIN, name="Norin the Wary")}
 
 
 def test_no_blink_without_exile_return():
     # a self-referential trigger that isn't an exile-and-return is not a blink.
-    assert "self_blink" not in _keys(
-        "When Norin attacks, you draw a card.", name="Norin the Wary"
-    )
+    assert "self_blink" not in {
+        s.key
+        for s in _hybrid_sigs(
+            "When Norin attacks, you draw a card.", name="Norin the Wary"
+        )
+    }
 
 
 # ── Aurelia: beginning-of-combat single-target pump (full text, spans period) ──

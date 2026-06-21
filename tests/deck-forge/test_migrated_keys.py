@@ -3446,6 +3446,75 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 tranche2-batch-4 (t2b4-C) — 5 kept_detector keys phase v0.1.60 cannot
+    # structure. Each fires from a dedicated IR-path WORD MIRROR reading the record's
+    # oracle_text (the exact deleted regex), so a bare `_ir()` Card routes the hybrid to
+    # the IR path; the mirror does the rest. (self_blink also reuses the name-aware
+    # fulltext detector; type_change the subtype-gated _type_hoser_clause — both read the
+    # record, not structured IR.)
+    "damage_to_you_punish": (
+        {
+            "name": "Flameblade Angel",
+            "type_line": "Creature — Angel",
+            "oracle_text": (
+                "Flying\nWhenever a source an opponent controls deals damage to "
+                "you or a permanent you control, you may have this creature deal 1 "
+                "damage to that source's controller."
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(),
+    ),
+    "excess_damage": (
+        {
+            "name": "Aegar, the Freezing Flame",
+            "type_line": "Legendary Creature — Giant Wizard",
+            "oracle_text": (
+                "Whenever a creature or planeswalker an opponent controls is dealt "
+                "excess damage, if a Giant, Wizard, or spell you controlled dealt "
+                "damage to it this turn, draw a card."
+            ),
+        },
+        _ir(),
+    ),
+    "self_blink": (
+        {
+            "name": "Norin the Wary",
+            "type_line": "Legendary Creature — Human Warrior",
+            "oracle_text": (
+                "When a player casts a spell or a creature attacks, exile Norin. "
+                "Return it to the battlefield under its owner's control at the "
+                "beginning of the next end step."
+            ),
+        },
+        _ir(),
+    ),
+    "tap_down_blockers": (
+        {
+            "name": "Tromokratis",
+            "type_line": "Legendary Creature — Kraken",
+            "oracle_text": (
+                "Tromokratis has hexproof unless it's attacking or blocking.\n"
+                "Tromokratis can't be blocked unless all creatures defending player "
+                "controls block it. (If any creature that player controls doesn't "
+                "block this creature, it can't be blocked.)"
+            ),
+        },
+        _ir(),
+    ),
+    "type_change": (
+        {
+            "name": "Gor Muldrak, Amphinologist",
+            "type_line": "Legendary Creature — Human Scout",
+            "oracle_text": (
+                "You and permanents you control have protection from Salamanders.\n"
+                "At the beginning of your end step, each player who controls the "
+                "fewest creatures creates a 4/3 blue Salamander Warrior creature "
+                "token."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

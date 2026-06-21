@@ -29,9 +29,10 @@ def test_sweep_detectors_loaded():
     # changeling/creature_cast/fight + the SWEEP batch commander/tap_untap/hand_disruption
     # /opponent_exile/domain/donate + tranche2-B's mass_bounce/power_double/
     # destroy_legendary/team_buff + tranche2-A activated_draw/anthem_static/mass_removal
-    # + tranche2-C self_pump/tapper_engine/count_anthem + earlier batches migrated to
-    # the Card IR); it still guards "a substantial set loads", not an exact count.
-    assert len(SWEEP_DETECTORS) >= 80
+    # + tranche2-C self_pump/tapper_engine/count_anthem + tranche2-batch-4's
+    # damage_to_you_punish/excess_damage/self_blink + earlier batches migrated to the
+    # Card IR); it still guards "a substantial set loads", not an exact count.
+    assert len(SWEEP_DETECTORS) >= 79
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
