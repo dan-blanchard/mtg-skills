@@ -199,6 +199,27 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ability_copy ← a BYTE-IDENTICAL kept mirror (_ABILITY_COPY_MIRROR over the
+    # reminder-stripped oracle: "Copy target triggered ability you control"). The ONE
+    # deleted SWEEP regex producer (copy an activated/triggered ability | "you may copy
+    # it" | "has all activated abilities of") is pinned as ABILITY_COPY_REGEX; phase emits
+    # ONE undifferentiated `spell_copy` category for spell-copy AND ability-copy alike, so
+    # a structural arm over-fires 90% (303 vs 51, Twincast/Reverberate) and still misses
+    # the granters (grant_keyword) — splitting needs a forbidden projection. So the lane
+    # rides the exact deleted regex (empty IR — the mirror reads the dict oracle).
+    # ADR-0027 β.
+    "ability_copy": (
+        {
+            "name": "Strionic Resonator",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "{2}, {T}: Copy target triggered ability you control. You may "
+                "choose new targets for the copy. (A triggered ability uses the "
+                'words "when," "whenever," or "at.")'
+            ),
+        },
+        _ir(),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
+    ABILITY_COPY_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
@@ -2541,6 +2542,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         serve_toughness_over_power=True,
         serve_keywords=("defender",),
         regex=TOUGHNESS_COMBAT_REGEX,
+    ),
+    # ADR-0027 β: ability_copy migrated to the Card IR (its SWEEP_DETECTORS row is
+    # deleted, so the sweep auto-register loop no longer builds its serve).
+    # Hand-register the same serve the loop used to build, reusing the pinned
+    # ABILITY_COPY_REGEX constant (no extra serve dimensions — byte-identical to the
+    # auto-built spec), so the ability-copy serve pool is unchanged. SWEEP_LABELS still
+    # carries the label.
+    ("ability_copy", "you"): _sweep_spec_with_extras(
+        "ability_copy",
+        regex=ABILITY_COPY_REGEX,
     ),
     # ADR-0027: damage_reflect's SWEEP_DETECTORS row was deleted (detection moved to
     # the Card IR — the on-card damage_received+damage co-occurrence + a damage_reflect

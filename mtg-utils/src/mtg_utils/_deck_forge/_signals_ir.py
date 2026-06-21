@@ -42,6 +42,7 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    ABILITY_COPY_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
@@ -2070,6 +2071,18 @@ IR_SLICE_KEYS: frozenset[str] = (
             # lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
             # CR 510.1c / 122 / 604.3.
             "toughness_combat",
+            # ADR-0027 β — ability_copy: the "Ability copy" build-around (copy an
+            # activated/triggered ability — Strionic, Lithoform, Rings, Bracers — plus
+            # the "has all activated abilities of" granters — Necrotic Ooze, Experiment
+            # Kraj, Mairsil). phase emits ONE undifferentiated `spell_copy` Effect
+            # category for spell-copy AND ability-copy alike (no copy-target tag), so a
+            # `spell_copy` arm over-fires 90% (303 vs the 51-card lane — Twincast/
+            # Reverberate/Fork) and still MISSES the granters (grant_keyword). Splitting
+            # needs a phase projection this parallel batch can't make, so the lane rides
+            # a byte-identical _ABILITY_COPY_MIRROR of the exact deleted SWEEP regex
+            # (commander-legal corpus: regex==mirror, 51==51, 0 lost, 0 over-fire). NOT
+            # in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 706.10 / 113.2 / 706.2.
+            "ability_copy",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -2954,6 +2967,23 @@ _COLOR_CHANGE_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # `(?! are each)` veto keeps a set-base */* ("power and toughness are each equal to …" —
 # variable_pt) off the lane. CR 510.1c / 122 / 604.3.
 _TOUGHNESS_COMBAT_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
+# ability_copy BYTE-IDENTICAL kept mirror (ADR-0027 β): the "Ability copy" build-around
+# fires from the EXACT deleted SWEEP regex (pinned ABILITY_COPY_REGEX) over the
+# reminder- stripped kept_oracle — copy an activated/triggered ability (Strionic
+# Resonator, Lithoform Engine, Rings of Brighthearth, Illusionist's/Battlemage's
+# Bracers, Kurkesh) or a "you may copy it" spell/adventure self-copy (Chancellor of
+# Tales, Tawnos), PLUS the ability-GRANTERS that import another permanent's whole
+# activated suite ("has all/the activated abilities of …" — Necrotic Ooze, Experiment
+# Kraj, Mairsil, Myr Welder). NOT a structural `spell_copy` arm: phase emits ONE
+# undifferentiated `spell_copy` category for spell-copy AND ability-copy alike (the copy
+# target — spell vs ability — is dropped), so the arm fires on 303 commander-legal —
+# over-firing 90% on the spell-copy half NOT in this lane (Twincast, Reverberate, Fork)
+# — and STILL misses the granters (phase parses them grant_keyword/board_grant). The
+# deleted regex is precise (51/51 genuine), so the lane rides it byte-identically. Every
+# arm is clause-local (no `[^.]` crossing a sentence), so this full-text scan == the
+# deleted per-clause SWEEP union (commander-legal: regex==mirror, 51==51, 0 lost, 0
+# over-fire). CR 706.10 / 113.2 / 706.2.
+_ABILITY_COPY_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -5670,6 +5700,19 @@ def extract_signals_ir(
     # (variable_pt) off. add() dedups. CR 510.1c / 122 / 604.3.
     if _TOUGHNESS_COMBAT_MIRROR.search(kept_oracle):
         add("toughness_combat", "you", "", "")
+    # ADR-0027 β — ability_copy BYTE-IDENTICAL kept mirror. The "Ability copy" build-
+    # around — copy an activated/triggered ability (Strionic, Lithoform, Rings, Bracers,
+    # Kurkesh) or a "you may copy it" self-copy (Chancellor of Tales, Tawnos), plus the
+    # "has all activated abilities of" granters (Necrotic Ooze, Experiment Kraj,
+    # Mairsil, Myr Welder). phase emits ONE undifferentiated `spell_copy` category for
+    # spell-copy AND ability-copy alike (no copy-target tag), so a `spell_copy` arm
+    # over-fires 90% (303 vs 51 — Twincast/Reverberate) and STILL misses the granters
+    # (grant_keyword); splitting needs a phase projection this batch can't make. So
+    # recover the lane with the EXACT deleted SWEEP regex over the reminder-stripped
+    # kept_oracle (scope 'you', matching the deleted producer). add() dedups. CR 706.10
+    # / 113.2 / 706.2.
+    if _ABILITY_COPY_MIRROR.search(kept_oracle):
+        add("ability_copy", "you", "", "")
     # ADR-0027 t2b4-C — type_change kept detector. phase DROPS the protection ARGUMENT
     # (the subtype): "protection from Salamanders" survives only as a bare keyword with
     # no argument, and Gor Muldrak's own static is dropped entirely. So mirror the

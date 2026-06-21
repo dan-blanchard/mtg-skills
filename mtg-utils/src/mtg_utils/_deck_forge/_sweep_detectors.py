@@ -157,6 +157,49 @@ COLOR_CHANGE_REGEX = (
     "becomes the color of your choice|becomes? (?:the color|all colors)"
 )
 
+# ADR-0027 β: ability_copy migrated to the Card IR via a byte-identical kept-mirror.
+# ONE pinned source the _ABILITY_COPY_MIRROR kept detector (_signals_ir), the
+# _ABILITY_COPY_PLAN_MIRROR voltron gate (_signals_regex), and the serve spec
+# (signal_specs) all reuse — the EXACT deleted SWEEP_DETECTORS regex. The lane is the
+# "Ability copy" build-around: a card that COPIES an activated/triggered ability
+# (Strionic Resonator, Lithoform Engine, Rings of Brighthearth, Illusionist's/
+# Battlemage's Bracers, Kurkesh, Riku-ability arm) OR a "you may copy it" spell/
+# adventure self-copy (Chancellor of Tales, Tawnos the Toymaker, Donal), PLUS the
+# ability-GRANTERS that import another permanent's whole activated-ability suite
+# ("has all/the activated abilities of …" — Necrotic Ooze, Experiment Kraj, Mairsil,
+# Myr Welder, Marvin, Skill Borrower, Conspicuous Snoop). 51 commander-legal.
+#
+# STRUCTURAL ARM REJECTED — needs a projection change this batch is forbidden to make.
+# phase parses every copy effect to ONE undifferentiated `spell_copy` Effect category:
+# Strionic's "Copy target triggered ability", Lithoform's "Copy target instant or
+# sorcery spell", and Twincast's "Copy target spell" all flatten to `spell_copy` with
+# no spell-vs-ability discriminator in the Effect (the copy TARGET is dropped). So a
+# `category == "spell_copy"` arm fires on 303 commander-legal — OVER-FIRING 272 (90%)
+# on the spell-copy half NOT in this lane (Twincast, Reverberate, Fork, Reiterate,
+# Dual Casting, the Casualty/Conspire/Replicate keyword cards, Kalamax-spell) — and it
+# STILL MISSES the 20 ability-GRANTERS (Necrotic Ooze / Experiment Kraj / Mairsil:
+# phase parses "has all activated abilities of" as grant_keyword/board_grant, NOT
+# spell_copy). The only way to split the lane structurally is a phase projection that
+# tags the copy target (spell vs ability) — DEFERRED (FORBIDDEN to touch _card_ir/ in
+# this parallel batch; re-reading e.raw to discriminate is regex-by-another-name, not a
+# structural arm: it stays leaky, 27 regex-miss + 11 spurious). 90% over-fire + a hard
+# projection blocker → rejected (cf. color_change's animate arm 256-vs-24).
+#
+# CHOSEN PATH 2 (kept-mirror). The deleted regex is precise (51/51 genuine, 0
+# over-fire), so the lane rides it byte-identically via _ABILITY_COPY_MIRROR
+# (_signals_ir) over the reminder-stripped kept_oracle. Every arm is clause-local (no
+# `[^.]` crossing a sentence), so the full-text mirror == the deleted per-clause SWEEP
+# union (commander-legal: regex==mirror, 51==51, 0 lost, 0 over-fire — a behavior-
+# neutral re-home). The serve stays hand-registered in signal_specs.py reusing this
+# pinned regex (SWEEP_LABELS keeps the human label). CR 706.10 (copying an ability) /
+# 113.2 (granted abilities) / 706.2.
+ABILITY_COPY_REGEX = (
+    "copy (?:that|this|the|target) "
+    "(?:activated |triggered |activated or triggered )?ability"
+    "|you may copy (?:it|that ability)"
+    "|has all activated abilities of|has the activated abilities of"
+)
+
 # ADR-0027 β: toughness_combat migrated to the Card IR via a byte-identical kept-mirror.
 # TWO deleted producers feed the key, joined here into ONE pinned source the
 # _TOUGHNESS_COMBAT_MIRROR kept detector (_signals_ir), the
@@ -235,12 +278,17 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (signals._IR_KEPT_DETECTORS) for the Inspired trigger phase flattens to
     # event='other'. Its SWEEP_DETECTORS row is deleted; the serve is hand-registered in
     # signal_specs.py reusing the deleted regex.
-    {
-        "key": "ability_copy",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "copy (?:that|this|the|target) (?:activated |triggered |activated or triggered )?ability|you may copy (?:it|that ability)|has all activated abilities of|has the activated abilities of",
-    },
+    # ADR-0027 β: ability_copy migrated to the Card IR via a byte-identical kept-mirror.
+    # This SWEEP_DETECTORS row is deleted; its regex is pinned as ABILITY_COPY_REGEX
+    # above. The lane's firing now comes from the _ABILITY_COPY_MIRROR (_signals_ir)
+    # full-text scan of that regex over the reminder-stripped kept_oracle (commander-
+    # legal: regex==mirror, 51==51, 0 lost, 0 over-fire), NOT a structural `spell_copy`
+    # arm — phase emits ONE undifferentiated `spell_copy` category for spell-copy AND
+    # ability-copy alike, so the arm OVER-FIRES 90% on the spell-copy half (Twincast/
+    # Reverberate) and still MISSES the "has all activated abilities of" granters
+    # (grant_keyword); splitting needs a phase projection this batch can't make (see the
+    # _migrated_keys.py rationale). SWEEP_LABELS keeps the human label; the serve is
+    # hand-registered in signal_specs.py reusing the pinned regex. CR 706.10 / 113.2.
     # ADR-0027: affinity_type migrated to the Card IR — served structurally from the
     # Scryfall `affinity` keyword (_IR_KEYWORD_MAP) plus an `affinity` marker effect
     # for the keyword-less CONFERRED granters ("spells you cast have affinity for X" /

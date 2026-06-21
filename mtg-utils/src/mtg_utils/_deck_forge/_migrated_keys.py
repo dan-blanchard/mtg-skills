@@ -1675,6 +1675,61 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # over the pinned regex, crediting high-toughness/Defender bodies), independent
         # of the deleted producers. CR 510.1c (combat-damage assignment) / 122 / 604.3.
         "toughness_combat",
+        # ADR-0027 β — ability_copy (the "Ability copy" build-around): a card that
+        # COPIES an activated/triggered ability (Strionic Resonator, Lithoform Engine,
+        # Rings of Brighthearth, Illusionist's/Battlemage's Bracers, Kurkesh, the Riku-
+        # ability arm) OR a "you may copy it" spell/adventure self-copy (Chancellor of
+        # Tales, Tawnos the Toymaker, Donal), PLUS the ability-GRANTERS that import
+        # another permanent's whole activated-ability suite ("has all/the activated
+        # abilities of …" — Necrotic Ooze, Experiment Kraj, Mairsil, Myr Welder, Marvin,
+        # Skill Borrower, Conspicuous Snoop). MIGRATED VIA A BYTE-IDENTICAL KEPT-MIRROR
+        # (signals-only, NO sidecar bump), NOT a structural arm. 51 commander-legal.
+        #
+        # ONE deleted regex producer feeds this key (the SWEEP detector "copy
+        # that/this/the/target …ability | you may copy it/that ability | has all/the
+        # activated abilities of"). Migrating the key drops it from the hybrid, so it is
+        # reproduced byte-for-byte as the pinned ABILITY_COPY_REGEX (_sweep_detectors).
+        #
+        # STRUCTURAL ARM REJECTED — needs a phase projection this parallel batch is
+        # FORBIDDEN to make. phase parses every copy effect to ONE undifferentiated
+        # `spell_copy` Effect category: Strionic's "Copy target triggered ability",
+        # Lithoform's "Copy target instant or sorcery spell", and Twincast's "Copy
+        # target spell" all flatten to `spell_copy` with NO spell-vs-ability
+        # discriminator (the copy TARGET is dropped). So a `category == "spell_copy"`
+        # arm fires on 303 commander-legal — OVER-FIRING 272 (90%) on the spell-copy
+        # half NOT in this lane (Twincast, Reverberate, Fork, Reiterate, Dual Casting,
+        # the Casualty/Conspire/ Replicate keyword cards, Kalamax-spell) — AND it STILL
+        # MISSES the 20 ability- GRANTERS (Necrotic Ooze / Experiment Kraj / Mairsil:
+        # phase parses "has all activated abilities of" as grant_keyword/board_grant,
+        # NOT spell_copy). Splitting the lane structurally requires a projection that
+        # tags the copy target (spell vs ability) — DEFERRED (FORBIDDEN to touch
+        # _card_ir/ in this parallel batch). Re-reading e.raw to discriminate is
+        # regex-by-another-name, not a structural arm, and it stays leaky (27 regex-miss
+        # + 11 spurious). 90% over-fire + a hard projection blocker → rejected (cf.
+        # color_change's animate arm 256-vs-24).
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane rides a byte-identical _ABILITY_COPY_
+        # MIRROR in _signals_ir — the EXACT deleted SWEEP regex (pinned
+        # ABILITY_COPY_REGEX in _sweep_detectors) over the reminder-stripped
+        # kept_oracle. Every arm is clause-local (no `[^.]` crossing a sentence), so a
+        # full-text scan == the deleted per-clause SWEEP union; the deleted SWEEP
+        # detector compiled with re.IGNORECASE over reminder-stripped clauses, so the
+        # mirror compiles the same way, reproducing it exactly.
+        #
+        # Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 51, ir_only == 0, regex_only == 0 — a
+        # true behavior-neutral re-home (no recall gain, no over-fire; all 51 are
+        # genuine ability-copy / ability-import bodies). floor-mirror-dep == 0
+        # (ability_copy is NOT an _IR_FLOOR_LANE — it was a SWEEP key, never a floor
+        # lane). The deleted producer fired HIGH-confidence (scope 'you') and counted
+        # toward has_other_plan, so a byte-identical _ABILITY_COPY_PLAN_MIRROR in
+        # _signals_regex re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, matching the color_change / token_copy_matters /
+        # toughness_combat byte-identical-mirror pattern (FILE-SWAP voltron delta == 0).
+        # The serve spec stays hand-registered in signal_specs.py
+        # (_sweep_spec_with_extras over the pinned regex), independent of the deleted
+        # producer. CR 706.10 (copying an ability) / 113.2 (granted abilities) / 706.2.
+        "ability_copy",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

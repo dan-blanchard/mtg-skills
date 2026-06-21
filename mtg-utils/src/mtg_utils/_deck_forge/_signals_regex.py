@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._subtypes import (
     TRIBAL_SUBTYPES,
 )
 from mtg_utils._deck_forge._sweep_detectors import (
+    ABILITY_COPY_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -2667,6 +2668,20 @@ _COLOR_CHANGE_PLAN_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # sentence), so full-text == per-clause. FILE-SWAP NO-FLOOD: voltron delta 0.
 # CR 903.10a / 510.1c.
 _TOUGHNESS_COMBAT_PLAN_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated ability_copy key. The deleted
+# SWEEP producer (scope 'you') fired HIGH-confidence and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
+# plan is an ability-copy engine (Strionic / Rings / Kurkesh / Riku) or an
+# ability-import body (Necrotic Ooze, Experiment Kraj, Mairsil) — not a vanilla beater;
+# copying/importing abilities IS a plan. The migrated lane rides a BYTE-IDENTICAL kept
+# mirror (no recall change vs the deleted regex), so this byte-identical gate mirror —
+# NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards (matching
+# the color_change / token_copy_matters / toughness_combat byte-identical-mirror
+# pattern). Matched against reminder-STRIPPED joined-face `text`, byte-identical to the
+# deleted producer's per-clause reminder-stripped input. The arms are clause-local (no
+# `[^.]` crossing a sentence), so full-text == per-clause. FILE-SWAP NO-FLOOD: voltron
+# delta 0. CR 903.10a / 706.10.
+_ABILITY_COPY_PLAN_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -4075,6 +4090,14 @@ def extract_signals(
         # STRIPPED `text` (the deleted producers ran per-clause over stripped text).
         # CR 903.10a.
         or _TOUGHNESS_COMBAT_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted ability_copy SWEEP producer
+        # (HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
+        # a byte-identical kept mirror, so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_ KEYS — restores the old silence for ALL cards (an
+        # ability-copy engine / an ability-import body is a plan, not a vanilla beater).
+        # Matched against the reminder-STRIPPED `text` (the deleted producer ran
+        # per-clause over stripped text). CR 903.10a.
+        or _ABILITY_COPY_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping
