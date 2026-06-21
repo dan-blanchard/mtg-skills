@@ -992,11 +992,9 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     structured ab.cost catches "{T}, Sacrifice …" engines the contiguous
         #     "{t}:" regex missed — Brion Stoutarm, Ghitu Fire-Eater). Its _HAND_FLOOR
         #     producer is deleted; serve hand-spec'd.
-        # pump_matters is DEFERRED (needs-projection): the IR pump/pump_target
-        # categories flood ~1600 floor-disabled residual with -1/-1 DEBUFFS, activated
-        # SELF firebreathing, and conditional self-buffs the narrow positive-single-
-        # target regex never caught — not adjudicable as clean over-fire. It stays on
-        # its SWEEP_DETECTORS regex. See ADR-0027.
+        # pump_matters (a POSITIVE single-target combat-trick buff) migrated below as a
+        # byte-identical kept-mirror — it is genuinely UNSTRUCTURABLE as a positive
+        # discriminator (see its entry near the end of this set). See ADR-0027.
         "lose_unless_hand",
         "opponent_cast_matters",
         "opponent_counter_grant",
@@ -1730,6 +1728,43 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (_sweep_spec_with_extras over the pinned regex), independent of the deleted
         # producer. CR 706.10 (copying an ability) / 113.2 (granted abilities) / 706.2.
         "ability_copy",
+        # ADR-0027 β — pump_matters (a POSITIVE single-target combat-trick buff:
+        # "target creature gets +N/+N", the instant-speed pump that wins combat). Unlike
+        # its sign-discriminated sibling debuff_matters (a `pump` Effect with
+        # amount.factor < 0), pump_matters is genuinely UNSTRUCTURABLE as a positive
+        # discriminator: the v9 projection drops the value of EVERY target-creature pump
+        # to amount==None (the +N/+N lives only in the raw — Giant Growth, Titanic
+        # Growth, Brute Force all project pump_target / subj=Creature / amt=None) and
+        # carries no temporal marker, so a +3/+3 combat trick is structurally
+        # indistinguishable from Festering Goblin's -1/-1 (identical shape) and from a
+        # permanent buff. The ONLY clean positive-single-target structural form phase
+        # DOES carry — a positive-factor `pump` on an EnchantedBy/EquippedBy subject
+        # (auras/equipment, factor>0: Serra's Embrace, Rancor, Vulshok Gauntlets) — is
+        # the SEPARATE voltron/suit-up lane (signal_specs' "equipment/auras … suit
+        # up and buff your attackers" avenue), so a structural arm firing on those
+        # 409+ aura/equipment bodies would be SCOPE CREEP, not pump_matters recall.
+        #
+        # So the migration is a byte-identical _IR_KEPT_DETECTORS mirror of the EXACT
+        # deleted regex (pinned as PUMP_MATTERS_REGEX): the regex itself IS the
+        # positive-single-target discriminator. As a full-text .search over the
+        # reminder-stripped joined-face `text` the mirror fires on the IDENTICAL
+        # commander-legal set the deleted per-clause SWEEP path did (the regex arms are
+        # all clause-local, so full-text == per-clause; 0 drift both directions →
+        # ir_only == 0, regex_only == 0). No structural arm is added (it would be 100%
+        # over-fire on the aura/equipment superset). floor-mirror-dep == 0 (pump_matters
+        # was a SWEEP key, never an _IR_FLOOR_LANE).
+        #
+        # The deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted
+        # toward has_other_plan (a combat-trick body is NOT a vanilla beater), so a
+        # byte-identical _PUMP_MATTERS_PLAN_MIRROR in _signals_regex re-supplies the
+        # voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (which the mirror equals
+        # here since the IR set == the regex set exactly, but the byte-identical-mirror
+        # pattern also covers the ir-is-None regex-path computation, matching the
+        # toughness_combat / debuff_matters / variable_pt siblings). The serve spec is
+        # hand-registered in signal_specs.py reusing PUMP_MATTERS_REGEX (the sweep
+        # auto-register loop no longer builds it); the _PUMP_EXTRA combat-support
+        # SubAvenue reuses the same pinned regex. CR 122.1b / 903.10a.
+        "pump_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

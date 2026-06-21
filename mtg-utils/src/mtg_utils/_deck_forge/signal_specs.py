@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
+    PUMP_MATTERS_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
@@ -1356,8 +1357,10 @@ _MANA_AMP_EXTRA = SubAvenue(
     serve=Serve(oracle=re.compile(_MANA_AMP_ORACLE, _IC)),
 )
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
-# survive blocks — reuses the mined pump_matters regex so it never drifts.
-_PUMP_ORACLE = next(d["regex"] for d in SWEEP_DETECTORS if d["key"] == "pump_matters")
+# survive blocks — reuses the pinned pump_matters regex so it never drifts. ADR-0027 β:
+# pump_matters migrated to the Card IR (its SWEEP_DETECTORS row is deleted), so the
+# constant comes from PUMP_MATTERS_REGEX, not the (now-absent) sweep row.
+_PUMP_ORACLE = PUMP_MATTERS_REGEX
 # ADR-0027 β: edict_matters migrated to the Card IR — its SWEEP_DETECTORS row is
 # deleted (detection moved to the structural arm + a kept _IR_KEPT_DETECTORS mirror).
 # The SERVE pool stays oracle-defined, so the deleted regex is inlined here (byte-
@@ -2399,6 +2402,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["debuff_matters"],
         {"oracle": DEBUFF_SWEEP_REGEX},
         DEBUFF_SWEEP_REGEX,
+    ),
+    # ADR-0027 β: pump_matters's SWEEP_DETECTORS row is deleted (detection moved to the
+    # Card IR — a byte-identical _IR_KEPT_DETECTORS mirror; the lane is unstructurable,
+    # so no structural arm). The SERVE pool stays oracle-defined, so hand-register the
+    # spec the sweep auto-register loop used to build (scope "you", the deleted SWEEP
+    # row's scope), reusing the EXACT deleted regex (pinned as PUMP_MATTERS_REGEX, ==
+    # _PUMP_ORACLE the _PUMP_EXTRA SubAvenue reuses) so the serve pool never drifts.
+    # SWEEP_LABELS keeps the label.
+    ("pump_matters", "you"): _spec(
+        *SWEEP_LABELS["pump_matters"],
+        {"oracle": PUMP_MATTERS_REGEX},
+        PUMP_MATTERS_REGEX,
     ),
     # ADR-0027 β: tribe_damage_trigger's SWEEP_DETECTORS row is deleted (detection moved
     # to the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool

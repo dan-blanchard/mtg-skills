@@ -116,6 +116,24 @@ DEBUFF_SWEEP_REGEX = "(?:other [a-z]+ creatures|nonblack creatures|all creatures
 DEBUFF_MAHA_REGEX = (
     "creatures your opponents control (?:have base (?:power|toughness)|get -)"
 )
+# ADR-0027 β — pump_matters migrated to the Card IR; its SWEEP_DETECTORS row is
+# deleted but the EXACT mined regex survives here as a shared constant. This is a
+# DISCRIMINATOR lane (a POSITIVE single-target combat-trick buff: "target creature
+# gets +N/+N"), but the v9 projection cannot structure it: phase drops the value of
+# every target-creature pump to amount==None (the +N/+N lives only in the raw), and
+# it carries no temporal marker, so a combat trick (Giant Growth's "+3/+3 until end
+# of turn") is structurally indistinguishable from a -1/-1 debuff (Festering Goblin,
+# same pump_target/subj=Creature/amt=None shape) and from a permanent buff. The only
+# clean positive-single-target structural form phase DOES carry — a positive-factor
+# pump on an EnchantedBy/EquippedBy subject (auras/equipment, factor>0) — is the
+# SEPARATE voltron/suit-up lane (signal_specs' "equipment/auras … suit up and buff
+# your attackers" avenue), so firing it here would be scope creep, not recall. So
+# this lane is genuinely UNSTRUCTURABLE as a positive discriminator: the regex itself
+# IS the discriminator, and the lane rides a byte-identical _IR_KEPT_DETECTORS mirror
+# of this exact regex (the mirror, the voltron PLAN mirror, and the hand-registered
+# serve / _PUMP_EXTRA SubAvenue in signal_specs all reuse it — so serve / detector /
+# silence never drift). SWEEP_LABELS keeps the human label. CR 122.1b / 903.10a.
+PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]"
 # ADR-0027 β — variable_pt migrated to the Card IR; its SWEEP_DETECTORS row is deleted
 # but the EXACT mined regex survives here so signal_specs hand-registers the serve pool
 # reusing it (SWEEP_LABELS keeps the human label). The lane's firing now comes from the
@@ -757,12 +775,21 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # `soulbond` effect category, read via _DOER_EFFECT_KEYS). Its oracle-regex
     # detector row is deleted; the serve spec is hand-registered in signal_specs.py
     # (SWEEP_LABELS still carries the human label).
-    {
-        "key": "pump_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]",
-    },
+    # ADR-0027 β: pump_matters migrated to the Card IR — a POSITIVE single-target
+    # combat-trick buff ("target creature gets +N/+N"). The lane is UNSTRUCTURABLE as a
+    # positive discriminator: phase drops the value of every target-creature pump to
+    # amount==None (the +N/+N lives only in the raw) and carries no temporal marker, so
+    # a combat trick is structurally indistinguishable from a -1/-1 debuff (same
+    # pump_target/subj=Creature/amt=None shape) or a permanent buff. The one clean
+    # positive-single-target structural form phase carries (a positive-factor pump on an
+    # EnchantedBy/EquippedBy subject — auras/equipment) is the SEPARATE voltron/suit-up
+    # lane, so a structural arm would be scope creep, not recall. So this row is deleted
+    # and the lane rides a byte-identical _IR_KEPT_DETECTORS mirror of the exact deleted
+    # regex (pinned as PUMP_MATTERS_REGEX above; full-text over reminder-stripped text ==
+    # the deleted per-clause SWEEP path, 0 drift both directions). The serve spec is
+    # hand-registered in signal_specs.py reusing PUMP_MATTERS_REGEX (the sweep
+    # auto-register loop no longer builds it; SWEEP_LABELS keeps the human label).
+    # CR 122.1b / 903.10a.
     # ADR-0027: self_pump migrated to the Card IR — served from an ACTIVATED
     # pump_target / place_counter(p1p1) effect on the SELF (subject=None) — the
     # firebreathing mana-sink (Shivan Dragon) and the activated +1/+1-counter body

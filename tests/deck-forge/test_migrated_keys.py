@@ -78,6 +78,23 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # pump_matters ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted regex
+    # ("target creature gets +N/+N"). UNLIKE debuff_matters there is NO structural arm:
+    # the projection drops the +N/+N value to amount==None and carries no temporal
+    # marker, so a positive combat trick can't be told apart from a -1/-1 debuff or a
+    # permanent buff structurally; the one clean positive form (EnchantedBy/EquippedBy
+    # auras/equipment) is the separate voltron/suit-up lane. So the lane fires from the
+    # kept mirror over the card's oracle_text (Giant Growth's "Target creature gets
+    # +3/+3 until end of turn"); the paired IR is vanilla — the mirror reads the record,
+    # not the IR structure. ADR-0027 β.
+    "pump_matters": (
+        {
+            "name": "Giant Growth",
+            "type_line": "Instant",
+            "oracle_text": "Target creature gets +3/+3 until end of turn.",
+        },
+        _ir(),
+    ),
     # untap_engine ← an `untap` Effect whose raw matches the engine anchor "untap
     # target/all/each/two/up to" (Seedborn Muse's "Untap all permanents you control"
     # projects cat="untap", subject=None — phase drops the broad subject — so the raw
