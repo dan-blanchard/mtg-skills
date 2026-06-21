@@ -3089,6 +3089,86 @@ _CASES: dict[str, tuple[dict, Card]] = {
             ),
         ),
     ),
+    # ── ADR-0027 tranche2-C (batch C) ──
+    # extra_land_drop ← Effect(cheat_play) with a Land subject you control (Burgeoning
+    # "put a land card from your hand onto the battlefield").
+    "extra_land_drop": (
+        {
+            "name": "Burgeoning",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever an opponent plays a land, you may put a land card from "
+                "your hand onto the battlefield."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="cheat_play",
+                        scope="you",
+                        subject=Filter(card_types=("Land",), controller="you"),
+                        raw="you may put a land card from your hand onto the battlefield",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # free_creature_payoff ← an ETB trigger whose condition tree carries a
+    # manaspentcondition (Satoru the Infiltrator). The etb gate excludes the
+    # cast_spell-triggered anti-free-spell punishers.
+    "free_creature_payoff": (
+        {
+            "name": "Satoru, the Infiltrator",
+            "type_line": "Legendary Creature — Human Ninja Rogue",
+            "oracle_text": (
+                "Menace\nWhenever Satoru, the Infiltrator and/or one or more other "
+                "nontoken creatures you control enter, if none of them were cast or "
+                "no mana was spent to cast them, draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you"),
+                condition=Condition(
+                    kind="or",
+                    nested=(
+                        Condition(kind="not", nested=(Condition(kind="wascast"),)),
+                        Condition(kind="manaspentcondition"),
+                    ),
+                ),
+                effects=(Effect(category="draw", scope="you"),),
+            )
+        ),
+    ),
+    # keyword_counter ← a place_counter whose counter_kind is in the CR-122.1b keyword
+    # set (Luminous Broodmoth — returns with a flying counter).
+    "keyword_counter": (
+        {
+            "name": "Luminous Broodmoth",
+            "type_line": "Creature — Insect",
+            "oracle_text": (
+                "Flying\nWhenever a creature you control without a flying counter "
+                "on it dies, return that card to the battlefield under your control "
+                "with a flying counter on it."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        counter_kind="flying",
+                        scope="any",
+                        raw="return that card ... with a flying counter on it",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

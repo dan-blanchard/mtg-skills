@@ -17,7 +17,11 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS, SWEEP_LABELS
+from mtg_utils._deck_forge._sweep_detectors import (
+    KEYWORD_COUNTER_REGEX,
+    SWEEP_DETECTORS,
+    SWEEP_LABELS,
+)
 from mtg_utils.card_classify import (
     card_pt_int,
     classifying_type_line,
@@ -985,10 +989,10 @@ _COUNTER_PLACE_EXTRA = SubAvenue(
 )
 # Keyword counters (flying/trample/deathtouch/lifelink/indestructible/…) are counters
 # too: a counters commander wants them for proliferate fuel and voltron protection, even
-# with no +1/+1. Reuse the mined keyword_counter regex so it never drifts.
-_KEYWORD_COUNTER_ORACLE = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "keyword_counter"
-)
+# with no +1/+1. ADR-0027 tranche2-C: keyword_counter migrated to the Card IR and its
+# SWEEP_DETECTORS row is deleted, so reuse the shared KEYWORD_COUNTER_REGEX constant
+# (still the single source of truth — the IR kept mirror reads it too, so no drift).
+_KEYWORD_COUNTER_ORACLE = KEYWORD_COUNTER_REGEX
 _KEYWORD_COUNTER_EXTRA = SubAvenue(
     "Keyword counters",
     "cards that place keyword counters (flying / trample / deathtouch / lifelink / …) "
@@ -2286,8 +2290,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"|whenever (?:a|one or more) [^.]*counters? (?:is|are) put on"
         ),
     ),
+    # ADR-0027 tranche2-C: keyword_counter's SWEEP_DETECTORS row is deleted (detection
+    # moved to the Card IR); reuse the shared KEYWORD_COUNTER_REGEX for the serve pool.
     ("keyword_counter", "you"): _sweep_spec_with_extras(
-        "keyword_counter", _COUNTERS_PACKAGE
+        "keyword_counter", _COUNTERS_PACKAGE, regex=KEYWORD_COUNTER_REGEX
     ),
     # ADR-0027 tranche2-B: counter_replace_bonus's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the counter_doubling replacement category).
@@ -3477,6 +3483,22 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["attractions_matter"],
         {"oracle": r"\battraction\b|open an attraction"},
         r"\battraction\b|open an attraction",
+    ),
+    # ADR-0027 tranche2-C: extra_land_drop had its oracle-regex SWEEP_DETECTORS row
+    # deleted (detection moved to the Card IR — cheat_play / topdeck_select with a Land
+    # subject + a kept word mirror). The SERVE pool (the put-a-land-into-play effects)
+    # stays oracle-defined, so hand-register the spec the sweep auto-register loop used
+    # to build, reusing the deleted regex.
+    ("extra_land_drop", "you"): _spec(
+        *SWEEP_LABELS["extra_land_drop"],
+        {
+            "oracle": (
+                r"put a land(?: card)? from your hand onto the battlefield"
+                r"|you may put a land [^.]*onto the battlefield"
+            )
+        },
+        r"put a land(?: card)? from your hand onto the battlefield"
+        r"|you may put a land [^.]*onto the battlefield",
     ),
     # ADR-0027: companion_keyword had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Scryfall `companion` keyword). The SERVE pool stays

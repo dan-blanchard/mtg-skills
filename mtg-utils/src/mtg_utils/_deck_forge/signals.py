@@ -48,9 +48,12 @@ from mtg_utils._deck_forge._subtypes import (
     NON_SUBJECT_WORDS,
     TRIBAL_SUBTYPES,
 )
-from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
+from mtg_utils._deck_forge._sweep_detectors import (
+    KEYWORD_COUNTER_REGEX,
+    SWEEP_DETECTORS,
+)
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
-from mtg_utils.card_ir import Card, Effect, Filter, Quantity
+from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
 from mtg_utils.theme_presets import get_preset
 
 
@@ -1129,15 +1132,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Free-creature payoff (Satoru): a commander that rewards creatures entering with
-    # "no mana was spent to cast them" wants 0-cost creatures (Ornithopter, Memnite,
-    # Phyrexian Walker). "wasn't cast" alone (Preston) is blink/reanimate — NOT this: a
-    # 0-cost creature IS cast, just for no mana, so we key on "no mana spent" only.
-    (
-        "free_creature_payoff",
-        re.compile(r"no mana (?:was|is) spent to cast", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 tranche2-C: free_creature_payoff migrated to the Card IR — an ETB
+    # trigger whose condition tree carries a manaspentcondition (Satoru the
+    # Infiltrator), read structurally in extract_signals_ir. The deleted "no mana …
+    # spent to cast" regex 100% over-fired on anti-free-spell PUNISHERS (Nix, Roiling
+    # Vortex, Vexing Bauble, Lavinia, Boromir — counter/tax opponents' free spells) and
+    # self-punish/self-bonus forms (Primeval Spawn, Freestrider Commando); the
+    # etb-trigger gate correctly excludes all of them. The serve spec stays in
+    # signal_specs (all_of(creature, mana_cost ^{0}$), independent of this regex).
     # ADR-0027: mass_death_payoff migrated to the Card IR — a `_MASS_DEATH_REF`
     # ("for each|number of … creature … died this turn") count-operand marker
     # (project._dropped_static_markers), keyed on the AGGREGATE board-wipe shape and
@@ -4438,6 +4440,26 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 tranche2-C — extra_land_drop tail. The structural arms (cheat_play /
+    # topdeck_select with a Land subject) cover the bulk; this YOUR-anchored mirror
+    # recovers the cards phase leaves textual: an empty-raw modal Confluence
+    # (Riveteers), a cascade-from-exile put (Averna), a library/exile dig phase
+    # mis-zoned to to:hand (Aminatou's Augury, Planar Genesis, Journey to the Lost
+    # City), and a hand-put phase dropped entirely (Contaminant Grafter). The
+    # "from your hand|among them|among those/the exiled cards" source clause EXCLUDES
+    # the graveyard-source put (Wreck and Rebuild, Soul of Windgrace), which phase
+    # correctly routes to reanimate (a graveyard-lands engine, a different shape) —
+    # the deleted regex's broad arm over-matched into that graveyard source. CR 305.9.
+    (
+        "extra_land_drop",
+        re.compile(
+            r"you may put (?:a |up to \w+ )?lands? cards? "
+            r"from (?:your hand|among them|among those cards"
+            r"|among the exiled cards)[^.]*onto the battlefield",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # ADR-0027 exile_until_leaves Saga tail — _is_exile_until_leaves recovers the
     # one-ability inline form (raw phrase) and the two-ability O-Ring form
     # structurally, but a SAGA CHAPTER exile collapses its per-effect raw to a
@@ -4451,6 +4473,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"exile [^.]*until [^.]*leaves the battlefield", re.IGNORECASE),
         "you",
     ),
+    # ADR-0027 tranche2-C — keyword_counter tail. The structural arm (place_counter /
+    # remove_counter with a CR-122.1b keyword counter_kind) covers the bulk; this kept
+    # mirror reuses the shared KEYWORD_COUNTER_REGEX to recover the choice/multi/quoted-
+    # grant cards phase drops counter_kind on ("your choice of a flying OR a hexproof
+    # counter" — Wingfold Pteron, T-45 Power Armor, Vivien). scope 'any' (these counter
+    # sources appear on either side). CR 122.1b.
+    ("keyword_counter", re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE), "any"),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -4868,6 +4897,16 @@ IR_SLICE_KEYS: frozenset[str] = (
             "counter_place_trigger",
             "counter_replace_bonus",
             "exile_until_leaves",
+            # ADR-0027 tranche2-C (batch C) — structural IR-arm lanes:
+            #   extra_land_drop      ← cheat_play / topdeck_select with a Land subject
+            #                          + a YOUR-anchored kept word mirror.
+            #   free_creature_payoff ← an ETB trigger whose condition tree carries a
+            #                          manaspentcondition (Satoru the Infiltrator).
+            #   keyword_counter      ← a place/remove of a CR-122.1b keyword counter
+            #                          + a kept word mirror for the choice/multi tail.
+            "extra_land_drop",
+            "free_creature_payoff",
+            "keyword_counter",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5249,6 +5288,31 @@ _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     # regex).
 }
 
+# keyword_counter (ADR-0027 tranche2-C) — the CLOSED CR-122.1b keyword-counter set:
+# a counter that grants a keyword ability via layer 6 (CR 613.1f). phase tags the
+# granted keyword KIND directly in Effect.counter_kind on a place_counter /
+# remove_counter (verified across the corpus). Distinct from the p1p1/m1m1/charge/oil/
+# shield/rad/ki standard counters (those are stat/resource counters, not ability
+# grants). DELIBERATELY excludes stun (CR 122.1d) and shield (122.1c) — they create
+# REPLACEMENT effects and grant NO keyword — and aegis (not a CR counter). The
+# no-space form is phase's emission ('firststrike', 'doublestrike').
+_KEYWORD_COUNTER_KINDS: frozenset[str] = frozenset(
+    {
+        "flying",
+        "menace",
+        "trample",
+        "reach",
+        "haste",
+        "deathtouch",
+        "hexproof",
+        "indestructible",
+        "lifelink",
+        "vigilance",
+        "firststrike",
+        "doublestrike",
+    }
+)
+
 _PERMANENT_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
 )
@@ -5287,6 +5351,22 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
 # detector and serve stay consistent. Covers Gauntlets' "artifact, creature, or land"
 # (raw has "…or land…") and excludes Sharkey (no gain_control effect at all).
 _LAND_EXCHANGE_RAW = re.compile(r"exchange control of[^.]*\bland\b", re.IGNORECASE)
+
+# extra_land_drop controller='any' recovery (ADR-0027 tranche2-C): a "from your hand
+# OR graveyard" put-into-play (Bonny Pall, Riveteers Confluence, Dread Tiller) makes
+# phase drop the source to controller='any' (the disjunction defeats the YOUR pin),
+# so the structural controller=='you' gate misses it. Mirror the deleted regex's
+# YOUR-anchor on the effect raw — "you may put a land … onto the battlefield" — and
+# EXCLUDE the symmetric group-hug forms (Show and Tell / Braids / Kynaios /
+# Hypergenesis / Tempting Wurm: "each player / that player / each opponent may put"),
+# which the YOUR-anchored deleted regex never matched (they are group ramp, not your
+# extra land drop). CR 305.9.
+_EXTRA_LAND_DROP_YOU_RAW = re.compile(
+    r"you may put (?:a |any number of )?lands? card", re.IGNORECASE
+)
+_EXTRA_LAND_DROP_GROUP_RAW = re.compile(
+    r"each player|that player|each opponent|their hands?", re.IGNORECASE
+)
 
 # mass_removal (ADR-0027): a BOARD WIPE — the counter_kind=='all' "each/all"
 # discriminator on a destroy/exile/damage of a battlefield permanent type, or a
@@ -5749,6 +5829,18 @@ def _is_exile_until_leaves(ir: Card) -> bool:
     return has_exile_to_exile and has_linked_return
 
 
+def _condition_has_kind(cond: object, kind: str) -> bool:
+    """True if ``cond`` (or any node in its nested And/Or/Not tree) has ``kind``.
+    phase nests a manaspentcondition under wrapper kinds (Satoru the Infiltrator's
+    'or' wraps it alongside a 'not'>'wascast'), so the recursion is required. (ADR-0027
+    tranche2-C free_creature_payoff.)"""
+    if not isinstance(cond, Condition):
+        return False
+    if cond.kind == kind:
+        return True
+    return any(_condition_has_kind(n, kind) for n in cond.nested)
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -6163,6 +6255,21 @@ def extract_signals_ir(
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
+            # keyword_counter (ADR-0027 tranche2-C) — a place/remove of a CR-122.1b
+            # keyword counter (a counter that grants a keyword ability via CR 613.1f).
+            # phase tags the granted keyword in counter_kind on a place_counter /
+            # remove_counter; membership in the closed _KEYWORD_COUNTER_KINDS set is the
+            # discriminator vs the p1p1/m1m1/oil/shield/rad/ki stat-and-resource
+            # counters. scope 'any' (these counter sources appear on either side),
+            # matching the sweep. The choice/multi/quoted-grant tail (Wingfold Pteron's
+            # "a flying OR a hexproof counter", Oozeavite's concatenated kinds,
+            # Klement's quoted enter-with grant) — where phase drops counter_kind to
+            # '' — is caught by the kept word mirror (signal_specs reuses the regex).
+            if (
+                cat in ("place_counter", "remove_counter")
+                and e.counter_kind in _KEYWORD_COUNTER_KINDS
+            ):
+                add("keyword_counter", "any", "", e.raw)
             # counters_matter (ADR-0027 shape 1+2a) — a +1/+1 counter PLACEMENT is the
             # lane's core engine (Forgotten Ancient, Hardened Scales, every etb /
             # upkeep / combat / activated / spell +1/+1 source). place_counter with
@@ -6354,9 +6461,65 @@ def extract_signals_ir(
                     and e.counter_kind in _SELF_PROTECTION_GRANT_KW
                 ):
                     add("conditional_self_protection", "you", "", e.raw)
+            # ADR-0027 tranche2-C — keyword_grant_target DEFERRED (needs-projection):
+            # the lane's bulk is the single-target SPELL grant ("target creature gains
+            # menace" — Accelerate, Adamant Will, Madcap Skills, ~531 cards). phase
+            # collapses that to grant_keyword(subject=None) with the raw TRUNCATED to
+            # just "gain menace", erasing the "target creature" anchor the deleted regex
+            # keyed on — making it INDISTINGUISHABLE from a self-grant ("~ gains haste")
+            # and a subject-dropped go-wide grant (Otepec Huntmaster "Dinosaurs you
+            # control have haste", also subject=None). The Aura/Equipment grants
+            # (EnchantedBy/EquippedBy) parse cleanly (~458), but firing on subject=None
+            # floods +2236 self/go-wide grants. No structural discriminator survives, so
+            # this stays on the regex pending a phase projection that keeps the
+            # single-target subject/raw. See the keyword_grant_target SWEEP row.
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
+            # extra_land_drop (ADR-0027 tranche2-C) — "put a land card from your hand
+            # onto the battlefield" (Burgeoning, Gretchen Titchwillow, Exploration-
+            # adjacent put-into-play). phase emits cat=='cheat_play' with a Land-typed
+            # YOUR subject (the InZone predicate confirms a hand/library origin, not a
+            # generic permanent drop). The Land subject discriminates from a generic
+            # cheat-into-play (Sneak Attack / reanimator put a creature) — those carry
+            # 'Creature' and fire cheat_into_play above. A land TUTOR to hand
+            # (cat=='tutor', to:hand) is a different shape and never reaches here. The
+            # extra-land STATIC (Azusa/Exploration "play N additional lands") is a
+            # separate cat=='extra_land' mechanic the deleted regex did NOT target, so
+            # it's intentionally out of this faithful put-onto-battlefield migration.
+            if (
+                cat == "cheat_play"
+                and isinstance(e.subject, Filter)
+                and "Land" in e.subject.card_types
+                and (
+                    e.subject.controller == "you"
+                    # controller='any' recovery: the "from hand OR graveyard"
+                    # disjunction defeats phase's YOUR pin — recover via the deleted
+                    # regex's YOUR-anchored raw, excluding the symmetric group forms.
+                    or (
+                        e.subject.controller == "any"
+                        and _EXTRA_LAND_DROP_YOU_RAW.search(e.raw or "")
+                        and not _EXTRA_LAND_DROP_GROUP_RAW.search(e.raw or "")
+                    )
+                )
+            ):
+                add("extra_land_drop", "you", "", e.raw)
+            # extra_land_drop (ADR-0027 tranche2-C, dig-into-play) — "look at the top N,
+            # put a land card onto the battlefield" (Elvish Rejuvenator, Cavalier of
+            # Thorns, Animist's Awakening, Cartographer's Survey). phase types these
+            # cat=='topdeck_select' with a Land subject and a to:battlefield zone — the
+            # land lands in play, not in hand. The to:battlefield gate excludes the
+            # dig-to-HAND form (Planar Genesis: zones=('to:hand',)), which is card
+            # selection, not a land drop. This is the dig variant of the same put-into-
+            # play engine the deleted regex's "you may put a land … onto the
+            # battlefield" arm captured. CR 305.9.
+            if (
+                cat == "topdeck_select"
+                and isinstance(e.subject, Filter)
+                and "Land" in e.subject.card_types
+                and "to:battlefield" in (e.zones or ())
+            ):
+                add("extra_land_drop", "you", "", e.raw)
             # Batch 2 (per-lane) — topdeck_stack: stack the TOP of YOUR library to
             # control draws (Brainstorm; graveyard-/hand-to-top recursion). Gate out
             # Bottom puts (cleanup) AND bounce-to-top removal (a targeted permanent,
@@ -6933,6 +7096,23 @@ def extract_signals_ir(
         # ── Condition-gated lanes (the conditions projection) ──
         cond = ab.condition
         if cond is not None:
+            # free_creature_payoff (ADR-0027 tranche2-C) — an ETB-triggered ability
+            # conditioned on "no mana was spent to cast it/them" rewards creatures that
+            # enter for free, so the deck wants 0-cost creatures (Ornithopter, Memnite).
+            # phase exposes the condition as a manaspentcondition nested in the
+            # condition tree (Satoru the Infiltrator nests it under an 'or' alongside a
+            # 'not'>'wascast'); recurse to find it. The Trigger.event=='etb' gate is the
+            # discriminator that excludes the 4 cast_spell-triggered manaspentcondition
+            # cards — Lavinia / Boromir / Roiling Vortex / Vexing Bauble — which COUNTER
+            # or TAX opponents' free spells (an anti-free-spell punisher, the opposite
+            # lane). 'wascast' alone is NOT the tell (a 0-cost creature IS cast for no
+            # mana — the mana-spent half is the discriminator). CR 712 / 601.2h.
+            if (
+                ab.trigger is not None
+                and ab.trigger.event == "etb"
+                and _condition_has_kind(cond, "manaspentcondition")
+            ):
+                add("free_creature_payoff", "you", "", "")
             # Graveyard gate — "if a creature card is in your graveyard"
             # (threshold/delirium), "if ~ is in your graveyard", a graveyard count.
             if "graveyard" in cond.zones:
@@ -8348,6 +8528,39 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "counter_place_trigger",
         "counter_replace_bonus",
         "exile_until_leaves",
+        # ADR-0027 tranche2-C (batch C) — three structural migrations:
+        #   extra_land_drop ← cheat_play / topdeck_select with a Land subject (put a
+        #     land from hand/library onto the battlefield) + a YOUR-anchored kept word
+        #     mirror for the empty-raw modal / cascade / phase-mis-zoned tail. The
+        #     deleted regex's broad arm over-matched into graveyard sources (Wreck and
+        #     Rebuild / Soul of Windgrace), which phase correctly routes to reanimate
+        #     (a graveyard-lands engine, a different shape) — residual 2, both o/fire.
+        #     Floor-mirror-dep == 0; IR is a recall-gaining superset (+19). SWEEP row
+        #     deleted; serve hand-spec'd.
+        #   free_creature_payoff ← an ETB trigger whose condition tree carries a
+        #     manaspentcondition (Satoru the Infiltrator). The etb-trigger gate excludes
+        #     the 4 cast_spell-triggered manaspentcondition anti-free-spell punishers
+        #     (Lavinia / Boromir / Roiling Vortex / Vexing Bauble); the deleted regex
+        #     100% over-fired on those + self-punish/self-bonus forms (Primeval Spawn,
+        #     Freestrider Commando). Floor-mirror-dep == 0; residual 7, all over-fire.
+        #     Its _DETECTORS regex producer is deleted; the serve spec stays.
+        #   keyword_counter ← a place_counter / remove_counter whose counter_kind is in
+        #     the closed CR-122.1b keyword set (_KEYWORD_COUNTER_KINDS) + a kept word
+        #     mirror (KEYWORD_COUNTER_REGEX) for the choice/multi/quoted-grant tail
+        #     phase drops counter_kind on ("your choice of a flying OR hexproof").
+        #     Floor-mirror-dep == 0; IR is a strict superset of the regex (regex_only 0,
+        #     +6 recall). SWEEP row deleted; serve reuses the shared regex constant.
+        # NOT migrated (deferred, needs-projection): gain_control (a low-confidence
+        # include_membership theft-archetype cross-open fires on 13 "you control but
+        # don't own" commanders — Gonti, Tasha, Vaan, … — with no structural IR form;
+        # migrating would silently drop them) and keyword_grant_target (phase collapses
+        # the single-target "target creature gains menace" spell grant to subject=None
+        # with a TRUNCATED raw, erasing the anchor — indistinguishable from self/go-wide
+        # grants; firing on subject=None floods +2236). See the deferral comments at the
+        # respective arms / producers.
+        "extra_land_drop",
+        "free_creature_payoff",
+        "keyword_counter",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

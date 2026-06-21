@@ -276,9 +276,9 @@ def test_direct_damage_opens_on_target_first_variable_damage():
 
 def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
     # Satoru draws when creatures enter with "no mana was spent to cast them" — the
-    # 0-cost creatures (Ornithopter / Memnite / Phyrexian Walker). No lane opened for
-    # those, so they stayed uncovered. Only this "no mana spent" clause makes 0-cost
-    # creatures relevant ("weren't cast" alone wants blink/reanimate). Real oracle.
+    # 0-cost creatures (Ornithopter / Memnite / Phyrexian Walker). ADR-0027 tranche2-C:
+    # migrated to the Card IR — an ETB trigger whose condition tree carries a
+    # manaspentcondition (phase nests it under an 'or' alongside 'not'>'wascast').
     satoru = {
         "name": "Satoru, the Infiltrator",
         "type_line": "Legendary Creature — Human Ninja Rogue",
@@ -291,22 +291,79 @@ def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
             "them, draw a card."
         ),
     }
-    assert ("free_creature_payoff", "you") in _ks(satoru)
-    # "wasn't cast" alone (Preston's blink/token payoff) is NOT the 0-cost "no mana
-    # spent" hook — it wants reanimate/blink, not free creatures.
-    preston = {
-        "name": "Preston, the Vanisher",
-        "type_line": "Legendary Creature — Rabbit Wizard",
-        "mana_cost": "{3}{W}",
-        "power": "2",
-        "toughness": "5",
-        "oracle_text": (
-            "Whenever another nontoken creature you control enters, if it wasn't cast, "
-            "create a token that's a copy of that creature, except it's a 0/1 white "
-            "Illusion.\n{1}{W}, Sacrifice five Illusions: Exile target nonland permanent."
+    satoru_ir = Card(
+        oracle_id="x",
+        name="Satoru, the Infiltrator",
+        faces=(
+            Face(
+                name="Satoru, the Infiltrator",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="etb", scope="you"),
+                        condition=Condition(
+                            kind="or",
+                            nested=(
+                                Condition(
+                                    kind="not",
+                                    nested=(Condition(kind="wascast"),),
+                                ),
+                                Condition(kind="manaspentcondition"),
+                            ),
+                        ),
+                        effects=(Effect(category="draw", scope="you"),),
+                    ),
+                ),
+            ),
         ),
-    }
-    assert "free_creature_payoff" not in _keys(preston)
+    )
+    assert "free_creature_payoff" in _keys_hybrid_ir(satoru, satoru_ir)
+    # The 4 cast_spell-triggered manaspentcondition cards (Lavinia / Boromir / Roiling
+    # Vortex / Vexing Bauble) TAX or COUNTER opponents' free spells — the etb-trigger
+    # gate excludes them. Same manaspentcondition, wrong trigger event → no fire.
+    boromir = {"name": "Boromir, Warden of the Tower", "oracle_text": ""}
+    boromir_ir = Card(
+        oracle_id="y",
+        name="Boromir, Warden of the Tower",
+        faces=(
+            Face(
+                name="Boromir, Warden of the Tower",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="cast_spell", scope="opp"),
+                        condition=Condition(kind="manaspentcondition"),
+                        effects=(Effect(category="counter_spell", scope="opp"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "free_creature_payoff" not in _keys_hybrid_ir(boromir, boromir_ir)
+    # "wasn't cast" alone (Preston's blink/token payoff) is NOT the 0-cost "no mana
+    # spent" hook — an ETB trigger gated on a bare wascast (no manaspentcondition) wants
+    # reanimate/blink, not free creatures.
+    preston = {"name": "Preston, the Vanisher", "oracle_text": ""}
+    preston_ir = Card(
+        oracle_id="z",
+        name="Preston, the Vanisher",
+        faces=(
+            Face(
+                name="Preston, the Vanisher",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="etb", scope="you"),
+                        condition=Condition(
+                            kind="not", nested=(Condition(kind="wascast"),)
+                        ),
+                        effects=(Effect(category="make_token", scope="you"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "free_creature_payoff" not in _keys_hybrid_ir(preston, preston_ir)
 
 
 def test_mass_death_payoff_opens_on_aggregate_death_count():

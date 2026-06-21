@@ -50,12 +50,15 @@ def test_partner_still_fires():
 
 
 # #2 keyword_counter is the CR 122.1b closed set — ward/training are not counters.
+# ADR-0027 tranche2-C: keyword_counter migrated to the Card IR (place/remove of a
+# CR-122.1b keyword counter + a kept word mirror for the choice/multi tail), so the
+# regex path no longer fires it — assert via the hybrid IR path.
 def test_flying_counter_is_keyword_counter():
     c = {
         "name": "X",
         "oracle_text": "This creature enters with a flying counter on it.",
     }
-    assert "keyword_counter" in _keys(c)
+    assert "keyword_counter" in _keys_hybrid(c)
 
 
 # #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/
@@ -224,7 +227,7 @@ def test_stun_counter_is_not_keyword_counter():
             "{1}{U}: Untap this creature."
         ),
     }
-    assert "keyword_counter" not in _keys(c)
+    assert "keyword_counter" not in _keys_hybrid(c)
 
 
 def test_shield_counter_is_not_keyword_counter():
@@ -239,13 +242,14 @@ def test_shield_counter_is_not_keyword_counter():
             "battlefield under your control this turn."
         ),
     }
-    assert "keyword_counter" not in _keys(c)
+    assert "keyword_counter" not in _keys_hybrid(c)
 
 
 def test_keyword_counter_still_fires_on_real_keyword():
-    # The CR 122.1b members (flying/deathtouch/…) still register.
+    # The CR 122.1b members (flying/deathtouch/…) still register (ADR-0027: via the
+    # hybrid IR path — a place_counter with a keyword counter_kind / the kept mirror).
     c = {"name": "X", "oracle_text": "Put a deathtouch counter on target creature."}
-    assert "keyword_counter" in _keys(c)
+    assert "keyword_counter" in _keys_hybrid(c)
 
 
 # #14 all-damage doublers/triplers (Furnace of Rath, Fiery Emancipation) are

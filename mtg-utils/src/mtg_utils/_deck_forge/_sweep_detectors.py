@@ -13,6 +13,14 @@ originals keep clause scope.
 # ruff: noqa: E501 — generated data module of long, bulk-validated regex literals
 from __future__ import annotations
 
+# ADR-0027 tranche2-C — keyword_counter migrated to the Card IR. Its SWEEP_DETECTORS
+# row is deleted (the structural read is place_counter/remove_counter with a CR-122.1b
+# keyword counter_kind, in signals.extract_signals_ir). This mined regex survives as a
+# shared constant: signals._IR_KEPT_DETECTORS reuses it for the choice/multi/quoted-
+# grant tail phase drops counter_kind on ("your choice of a flying or hexproof
+# counter"), and signal_specs reuses it for the serve pool — so the two never drift.
+KEYWORD_COUNTER_REGEX = "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter"
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",
@@ -222,16 +230,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "counters_matter",
         "regex": "put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each (?:other )?creature you control|distribute \\+1/\\+1 counters|put (?:a |one or more |the same number[^.]*?)\\+1/\\+1 counters? on each of|enters with (?:a|an|one|two|three|x|\\d+)(?: additional)? \\+1/\\+1 counters? on|enters with that many additional",
     },
-    {
-        "key": "keyword_counter",
-        # CR 122.1b is a CLOSED list of keyword counters that grant an ability via
-        # layer 6 (613.1f). "stun" (122.1d) and "shield" (122.1c) counters create
-        # replacement effects and grant NO keyword; "aegis" is not a CR counter at
-        # all — so they don't belong on a keyword-grant lane. They were removed.
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter",
-    },
+    # ADR-0027 tranche2-C: keyword_counter migrated to the Card IR — detected
+    # structurally from a place_counter/remove_counter whose counter_kind is in the
+    # closed CR-122.1b keyword set (signals._KEYWORD_COUNTER_KINDS), PLUS a kept word
+    # mirror (signals._IR_KEPT_DETECTORS reusing KEYWORD_COUNTER_REGEX above) for the
+    # choice/multi/quoted-grant tail phase drops counter_kind on. This SWEEP_DETECTORS
+    # row is deleted; SWEEP_LABELS keeps the human label, and the serve spec in
+    # signal_specs.py reuses KEYWORD_COUNTER_REGEX (the auto-register loop no longer
+    # reaches it).
     # ADR-0027 tranche2-B: counter_replace_bonus migrated to the Card IR — detected
     # from the counter_doubling replacement category (+ a place_counter(plus) tail).
     # SWEEP_LABELS keeps the label; the serve spec is re-homed in signal_specs.py.
@@ -378,12 +384,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # "\battraction\b|open an attraction" _IR_KEPT_DETECTORS word mirror (phase v0.1.19
     # doesn't structure the CR 717 Attraction designation). This SWEEP_DETECTORS row is
     # deleted; the serve label below survives.
-    {
-        "key": "extra_land_drop",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "put a land(?: card)? from your hand onto the battlefield|you may put a land [^.]*onto the battlefield",
-    },
+    # ADR-0027 tranche2-C: extra_land_drop migrated to the Card IR — detected
+    # structurally from a cheat_play / topdeck_select with a Land subject (put a land
+    # from hand/library onto the battlefield), plus a YOUR-anchored kept word mirror
+    # (signals._IR_KEPT_DETECTORS) for the empty-raw modal / cascade / phase-mis-zoned
+    # tail. This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label, and
+    # the serve spec is hand-registered in signal_specs.py reusing the deleted regex
+    # (the auto-register loop no longer reaches it).
     {
         "key": "blocked_matters",
         "scope": "you",
