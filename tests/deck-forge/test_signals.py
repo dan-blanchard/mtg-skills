@@ -1470,7 +1470,10 @@ def test_ability_words_open_their_lane():
             "type_line": "Legendary Creature — Test",
             "oracle_text": oracle,
         }
-        assert key in {s.key for s in extract_signals(card)}, aw
+        # ADR-0027 t2b5-C: targeting_matters (heroic) migrated to the Card IR (the kept
+        # word mirror), so the regex path no longer emits it — assert via the hybrid (IR)
+        # path, which serves migrated keys from the IR and non-migrated keys from regex.
+        assert key in {s.key for s in extract_signals_hybrid(card, _bare_ir())}, aw
 
 
 def test_triggered_counter_placement_opens_counters():

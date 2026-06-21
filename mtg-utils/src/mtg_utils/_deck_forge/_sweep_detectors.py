@@ -276,12 +276,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # face-down-payoff text phase doesn't structure). Its oracle-regex sweep row is
     # deleted; SWEEP_LABELS keeps the label, and the serve spec is hand-registered
     # in signal_specs.py.
-    {
-        "key": "targeting_matters",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "becomes the target of a spell or ability|whenever [^.]{0,60}?becomes? the target of|\\bheroic\\b|whenever you cast (?:an instant or sorcery spell |a spell )?that targets",
-    },
+    # ADR-0027 t2b5-C: targeting_matters migrated to the Card IR — detected from the
+    # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the exact deleted regex;
+    # phase structures the heroic / cast-that-targets half as a Targets predicate but
+    # flattens the becomes-target trigger to event='other'). Its oracle-regex sweep row
+    # is deleted; SWEEP_LABELS keeps the label, and the serve spec is hand-registered in
+    # signal_specs.py.
     {
         "key": "protection_grant",
         "scope": "you",
@@ -771,22 +771,22 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bshield counters?\\b",
     },
-    {
-        "key": "named_counter_misc",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge|silver|gold|fate|incubation) counters?\\b",
-    },
+    # ADR-0027 t2b5-C: named_counter_misc migrated to the Card IR — detected from the
+    # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the exact deleted regex).
+    # phase's structured counter_kind field covers 32 of 34 cards, but a place/remove-as-
+    # COST or replacement form (Mazemind Tome, Pursuit of Knowledge) drops counter_kind,
+    # a 2-card recall gap — so the byte-identical word mirror is the migratable home, not
+    # the partial structural field. Its oracle-regex sweep row is deleted; SWEEP_LABELS
+    # keeps the label, and the serve spec is hand-registered in signal_specs.py.
     # ADR-0027: seek_matters migrated to the Card IR (served structurally from
     # phase's `seek` effect category — _DOER_EFFECT_KEYS['seek'] in signals.py);
     # its oracle-regex detector row is deleted. The SWEEP_LABELS entry survives to
     # feed the serve spec (signal_specs.py hand-registers it).
-    {
-        "key": "powerup_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "power-up —",
-    },
+    # ADR-0027 t2b5-C: powerup_matters migrated to the Card IR — detected from the
+    # Scryfall `Power-up` keyword array (_IR_KEYWORD_MAP['power-up'], a structured-field
+    # lookup, exact 1:1 with the deleted `power-up —` regex: 37 keyword carriers == 37
+    # regex hits, 0 residual). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps
+    # the label, and the serve spec is hand-registered in signal_specs.py.
     # ADR-0027: myriad_grant migrated to the Card IR — phase stamps counter_kind=
     # 'myriad' on the grant_keyword effect of the GRANTERS ("<class> have myriad" —
     # Blade of Selves, Legion Loyalty, Duke Ulder, Corporeal Projection) plus a

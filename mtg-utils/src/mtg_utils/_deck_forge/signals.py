@@ -1266,16 +1266,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Aminatou). The inverse of the exile_removal Owned-exclusion. This _HAND_FLOOR
     # producer is deleted; the hand-written serve spec (signal_specs.py, "Control
     # swaps") is independent of this regex and survives.
-    # Kira-style targeting shield: your creatures COUNTER the first spell/ability that
-    # targets them ("for the first time each turn, counter"). That makes a CONTINGENT
-    # steal (Sower: lost if the thief dies) un-removable and keeps a theft ENGINE alive,
-    # the sticky-theft lock. The exact "first time each turn, counter" phrasing is the
-    # gate: plain Ward ("counter unless ... pays") is a different per-creature shield.
-    (
-        "theft_protection",
-        re.compile(r"for the first time each turn, counter", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 t2b5-C: theft_protection migrated to the Card IR — detected from the
+    # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the exact "for the first
+    # time each turn, counter" regex). phase parses Kira's granted shield as a grant
+    # carrier + a counter_spell effect but does NOT structure the once-per-turn becomes-
+    # target gate, so the phrasing survives only on the oracle. This _HAND_FLOOR
+    # producer is deleted; the serve spec stays hand-registered in signal_specs.py.
     # A commander that exiles/takes the top card of a TARGET player's library (Circu's
     # name-lock; Ragavan/Grenzo/Vaan impulse-cast) wants to SEE opponents' tops so it
     # exiles/steals the best card and targets the right player. Tell: "exile the top
@@ -1830,11 +1826,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # from the Scryfall `specialize` keyword — _IR_KEYWORD_MAP['specialize']
     # below); both its oracle-regex sources (this _HAND_FLOOR detector and the
     # SWEEP_DETECTORS row) are deleted. The keyword survivor is the IR backing.
-    # Villainous choice (AFR/WHO/Marvel): a commander built around making opponents face
-    # villainous choices (The Valeyard doubles them; Davros/Missy/Dr. Eggman present
-    # them) wants the villainous-choice card pool. A named mechanic, so a self-contained
-    # open==serve lane like venture / specialize.
-    ("villainous_choice", re.compile(r"villainous choice", re.IGNORECASE), "you"),
+    # ADR-0027 t2b5-C: villainous_choice migrated to the Card IR — detected from the
+    # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the exact "villainous
+    # choice" literal). phase routes the keyword action to a GENERIC 'choose' Effect
+    # (too broad to key on), so the literal phrase is the only clean discriminator. The
+    # Valeyard doubles them; Davros/Missy/Dr. Eggman present them. This _HAND_FLOOR
+    # producer is deleted; the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027 t2b4a-B: curse_matters (Aura — Curse cares-about) migrated to the Card
     # IR — a trigger/effect subject Filter with subtypes=='Curse' (Lynde, Bitterheart
     # Witch, Witchbane Orb) + a kept word mirror (_IR_KEPT_DETECTORS, byte-identical to
@@ -4316,6 +4313,18 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "storm": (("spell_copy_matters", "you"),),
     "replicate": (("spell_copy_matters", "you"),),
     "conspire": (("spell_copy_matters", "you"),),
+    # Power-up (Marvel Universes Beyond) — a REAL ability word on expansion/commander
+    # cards (Extremis Elite, Thanos, Abomination — set_type expansion/commander, NOT
+    # funny; CR 207.2c). ADR-0027 t2b5-C: the Scryfall `Power-up` keyword array is exact
+    # and 1:1 with the deleted `power-up —` ability-word regex (37 keyword carriers ==
+    # 37 regex hits, 0 residual either direction over the full corpus). phase DROPS the
+    # Power-up keyword from IR Face.keywords (Extremis Elite IR has keywords=()), so
+    # this MUST read the Scryfall card['keywords'] array via _IR_KEYWORD_MAP — the same
+    # keyword-array lookup path — not IR Face.keywords. The payoff granter (Wonder Man,
+    # "each power-up ability … can be activated an additional time") also carries the
+    # keyword, so it is captured too. These cards currently show commander:not_legal
+    # only because the recent set's legalities have not propagated in the bulk.
+    "power-up": (("powerup_matters", "you"),),
 }
 
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
@@ -4952,6 +4961,62 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector lanes phase v0.1.19
+    # CANNOT structure (spec / rules-lawyer verified: the discriminant is DROPPED or
+    # only partially structured), so each fires from a dedicated IR-path word mirror
+    # reproducing the deleted regex EXACTLY (full-text == per-clause over the commander-
+    # legal corpus — each regex is clause-safe, A-B==0). floor-mirror-dep == 0 by
+    # construction (the kept mirror is not a floor detector).
+    #   • targeting_matters ← phase structures the HEROIC / cast-that-targets half as a
+    #     Targets predicate on the cast_spell trigger subject, but the BECOMES-TARGET
+    #     trigger flattens to event='other' (no becomestarget mode). Mirroring the whole
+    #     deleted SWEEP regex (heroic + becomes-target + cast-that-targets) is byte-
+    #     identical (A-B==0) and simplest; the becomes-target half is the irreducible
+    #     part. CR 702.83 (heroic) / 115.6 (targeting). Serve hand-registered.
+    #   • theft_protection ← Kira's granted "for the first time each turn, counter" ride
+    #     phase parses as a grant carrier + a counter_spell effect, but the once-per-
+    #     turn becomes-target gate is NOT structured. The exact phrasing survives only
+    #     on the oracle. Single/dual-card sticky-theft shield. CR 702.x.
+    #   • villainous_choice ← a real, printed keyword action (AFR/WHO/Marvel) phase
+    #     routes to a GENERIC 'choose' Effect (too broad to key on); the literal phrase
+    #     is the only clean discriminator. The Valeyard DOUBLES them; Davros/Missy
+    #     present them. Scanning oracle text (not just effect.raw) covers the dropped-
+    #     parse tail (Genesis of the Daleks). CR 701.x.
+    #   • named_counter_misc ← the closed named-counter set (egg/divinity/prey/bounty/
+    #     bribery/page/study/knowledge/silver/gold/fate/incubation). phase's structured
+    #     counter_kind field covers 32 of 34 cards, but a place/remove-as-COST or
+    #     replacement form (Mazemind Tome's "Put a page counter" cost, Pursuit of
+    #     Knowledge's "Remove three study counters" cost / "may put a study counter
+    #     instead" replacement) folds the counter into the consuming ability and DROPS
+    #     counter_kind — a genuine 2-card recall gap. So mirror the exact deleted regex
+    #     (byte-identical, no recall gap) rather than ride the partial structural field.
+    #     CR 122.1 (same-NAME counters interchange — the kind IS the discriminant).
+    (
+        "targeting_matters",
+        re.compile(
+            r"becomes the target of a spell or ability"
+            r"|whenever [^.]{0,60}?becomes? the target of|\bheroic\b"
+            r"|whenever you cast (?:an instant or sorcery spell |a spell )?"
+            r"that targets",
+            re.IGNORECASE,
+        ),
+        "any",
+    ),
+    (
+        "theft_protection",
+        re.compile(r"for the first time each turn, counter", re.IGNORECASE),
+        "you",
+    ),
+    ("villainous_choice", re.compile(r"villainous choice", re.IGNORECASE), "you"),
+    (
+        "named_counter_misc",
+        re.compile(
+            r"\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge"
+            r"|silver|gold|fate|incubation) counters?\b",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker). Needs a narrower payoff/keyword source.
@@ -5489,6 +5554,20 @@ IR_SLICE_KEYS: frozenset[str] = (
             "secret_writedown",
             "target_own_payoff",
             "target_redirect",
+            # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector lanes phase
+            # v0.1.19 cannot structure, each fired from a dedicated IR-path word mirror
+            # (the exact deleted regex; clause-safe full-text mirrors, A-B==0):
+            #   targeting_matters / theft_protection / villainous_choice ← flat
+            #     _IR_KEPT_DETECTORS rows.
+            #   named_counter_misc ← a flat _IR_KEPT_DETECTORS row (the structural
+            #     counter_kind field has a 2-card place/remove-as-cost recall gap, so
+            #     the byte-identical word mirror is the migratable home).
+            # (powerup_matters rides _IR_KEYWORD_KEYS below — the Scryfall Power-up
+            # keyword array, _IR_KEYWORD_MAP['power-up'].)
+            "targeting_matters",
+            "theft_protection",
+            "villainous_choice",
+            "named_counter_misc",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -9748,6 +9827,31 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "secret_writedown",
         "target_own_payoff",
         "target_redirect",
+        # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector keys + one
+        # field-lookup keyword-array key:
+        #   targeting_matters ← a kept regex mirror (the exact deleted SWEEP regex:
+        #     heroic + becomes-target + cast-that-targets; phase structures the heroic /
+        #     cast-that-targets half but flattens the becomes-target trigger to
+        #     event='other'). SWEEP row deleted; clause-safe (A-B==0).
+        #   theft_protection ← a kept regex mirror ("for the first time each turn,
+        #     counter"; phase parses Kira's grant as a carrier + counter_spell but drops
+        #     the once-per-turn becomes-target gate). _HAND_FLOOR row deleted.
+        #   villainous_choice ← a kept regex mirror (the "villainous choice" literal;
+        #     phase routes the keyword action to a generic 'choose' Effect). _HAND_FLOOR
+        #     row deleted.
+        #   named_counter_misc ← a kept regex mirror (the closed named-counter set).
+        #     phase's structured counter_kind covers 32/34, but a place/remove-as-cost
+        #     or replacement form (Mazemind Tome, Pursuit of Knowledge) drops
+        #     counter_kind — a 2-card recall gap — so the byte-identical word mirror is
+        #     the migratable home, not the partial structural field. SWEEP row deleted.
+        #   powerup_matters ← the Scryfall Power-up keyword array (_IR_KEYWORD_MAP[
+        #     'power-up'], a field lookup, 37 keyword carriers == 37 regex hits, 0
+        #     residual). SWEEP row deleted. (Rides _IR_KEYWORD_KEYS in IR_SLICE_KEYS.)
+        "targeting_matters",
+        "theft_protection",
+        "villainous_choice",
+        "named_counter_misc",
+        "powerup_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -10027,6 +10131,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "flip_self",
         "free_plot",
         "miracle_grant",
+        # ADR-0027 tranche2-batch-5 (t2b5-C): the four kept_detector keys each fired
+        # high-confidence (forced/default scope) in the regex path and so counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on a
+        # becomes-target / sticky-theft / villainous-choice / named-counter body that is
+        # NOT a vanilla beater (Reality Smasher, Horobi, The Valeyard, Tetzimoc — 34
+        # cards verified to leak the tell post-deletion). Their regex producers are
+        # deleted, so the hybrid re-silences from the IR re-supply. These are kept WORD
+        # MIRRORS — the IR re-supply reads the SAME joined oracle as the deleted regex,
+        # so it is BYTE-IDENTICAL (no broadening, no over-silence). File-swap: 34
+        # voltron leaked without this, 0 with it; A-B==0. (powerup_matters is a keyword-
+        # array field lookup with 0 commander-legal cards, so it leaks nothing here.)
+        "targeting_matters",
+        "theft_protection",
+        "villainous_choice",
+        "named_counter_misc",
     }
 )
 

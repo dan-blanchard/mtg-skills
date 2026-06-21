@@ -7071,7 +7071,15 @@ def test_villainous_choice_is_a_named_mechanic_lane():
             "voting, you may vote an additional time."
         ),
     }
-    assert "villainous_choice" in {s.key for s in extract_signals(valeyard)}
+    # ADR-0027 t2b5-C: villainous_choice migrated to the Card IR (the kept word mirror),
+    # so the regex path no longer emits it — assert via the hybrid (IR) path.
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils.card_ir import Card, Face
+
+    _bare = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    assert "villainous_choice" in {
+        s.key for s in extract_signals_hybrid(valeyard, _bare)
+    }
     sig = _sig("villainous_choice", "you")
     this_is_how_it_ends = {
         "name": "This Is How It Ends",

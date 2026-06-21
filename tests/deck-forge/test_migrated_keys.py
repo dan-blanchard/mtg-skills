@@ -3858,6 +3858,76 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector keys read by the
+    # _IR_KEPT_DETECTORS word mirror (which scans the oracle text directly), so a bare
+    # non-None IR routes the hybrid to the IR path; plus one keyword-array field lookup.
+    "targeting_matters": (
+        {
+            "name": "Reality Smasher",
+            "type_line": "Creature — Eldrazi",
+            "oracle_text": (
+                "({C} represents colorless mana.)\nTrample, haste\nWhenever this "
+                "creature becomes the target of a spell an opponent controls, counter "
+                "that spell unless its controller discards a card."
+            ),
+            "keywords": ["Haste", "Trample"],
+        },
+        _ir(),
+    ),
+    "theft_protection": (
+        {
+            "name": "Kira, Great Glass-Spinner",
+            "type_line": "Legendary Creature — Spirit",
+            "oracle_text": (
+                'Flying\nCreatures you control have "Whenever this creature becomes '
+                "the target of a spell or ability for the first time each turn, "
+                'counter that spell or ability."'
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(),
+    ),
+    "villainous_choice": (
+        {
+            "name": "The Valeyard",
+            "type_line": "Legendary Creature — Time Lord Noble",
+            "oracle_text": (
+                "If an opponent would face a villainous choice, they face that choice "
+                "an additional time. (They can make the same or different choices.)\n"
+                "While voting, you may vote an additional time."
+            ),
+        },
+        _ir(),
+    ),
+    "named_counter_misc": (
+        {
+            "name": "Tetzimoc, Primal Death",
+            "type_line": "Legendary Creature — Elder Dinosaur",
+            "oracle_text": (
+                "Deathtouch\n{B}, Reveal this card from your hand: Put a prey counter "
+                "on target creature. Activate only during your turn.\nWhen Tetzimoc "
+                "enters, destroy each creature your opponents control with a prey "
+                "counter on it."
+            ),
+            "keywords": ["Deathtouch"],
+        },
+        _ir(),
+    ),
+    # powerup_matters is read off the Scryfall "Power-up" keyword array
+    # (_IR_KEYWORD_MAP['power-up']) → bare non-None IR.
+    "powerup_matters": (
+        {
+            "name": "Extremis Elite",
+            "type_line": "Creature — Human Mercenary Villain",
+            "oracle_text": (
+                "Power-up — {4}{R}: Put two +1/+1 counters on this creature. It deals "
+                "1 damage to any target. (Activate each power-up ability only once. "
+                "Reduce the cost by its mana cost if it entered this turn.)"
+            ),
+            "keywords": ["Power-up"],
+        },
+        _ir(keywords=("Power-up",)),
+    ),
 }
 
 

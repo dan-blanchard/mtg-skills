@@ -1875,8 +1875,12 @@ def test_kira_targeting_shield_opens_protected_theft():
         "keywords": ["Reach", "Trample", "Ward"],
         "oracle_text": "Reach, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)",
     }
-    assert any(k == "theft_protection" for k, _, _ in _ksub(kira))
-    assert not any(k == "theft_protection" for k, _, _ in _ksub(spider_rex))
+    # ADR-0027 t2b5-C: theft_protection migrated to the Card IR (the kept word mirror),
+    # so the regex path no longer emits it — assert via the hybrid (IR) path.
+    assert any(k == "theft_protection" for k, _, _ in _ksub_hybrid(kira, _bare_ir()))
+    assert not any(
+        k == "theft_protection" for k, _, _ in _ksub_hybrid(spider_rex, _bare_ir())
+    )
 
 
 def test_big_mana_generator_opens_x_spell_sink():

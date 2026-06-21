@@ -1356,8 +1356,13 @@ _EDICT_SWEEP_REGEX = next(
 _BASIC_LAND_FETCH = (
     r"search your library for [^.]*\b(?:forest|plains|island|swamp|mountain)s?\b"
 )
-_TARGETING_SWEEP_REGEX = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "targeting_matters"
+# ADR-0027 t2b5-C: targeting_matters migrated to the Card IR — its SWEEP_DETECTORS row
+# is deleted (detection moved to the kept word mirror). The SERVE pool stays oracle-
+# defined, so the deleted regex is inlined here (byte-identical to the old sweep row).
+_TARGETING_SWEEP_REGEX = (
+    "becomes the target of a spell or ability"
+    "|whenever [^.]{0,60}?becomes? the target of|\\bheroic\\b"
+    "|whenever you cast (?:an instant or sorcery spell |a spell )?that targets"
 )
 # "Exile a card, then you may cast/play it for as long as it remains exiled" — the
 # impulse / cast-from-exile / steal-and-cast engine (Gonti, Hostage Taker, Thief of
@@ -3764,6 +3769,28 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             "doctor's companion",
             "friends",
         ),
+    ),
+    # ADR-0027 t2b5-C: named_counter_misc / powerup_matters each had their oracle-regex
+    # SWEEP_DETECTORS row deleted (detection moved to the Card IR — named_counter_misc
+    # to the kept word mirror; powerup_matters to the Scryfall Power-up keyword array).
+    # Each had no hand spec, so the sweep auto-register loop built its serve; reproduce
+    # that spec here, reusing SWEEP_LABELS + the deleted regex (byte-identical pool).
+    ("named_counter_misc", "you"): _spec(
+        *SWEEP_LABELS["named_counter_misc"],
+        {
+            "oracle": (
+                r"\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge"
+                r"|silver|gold|fate|incubation) counters?\b"
+            )
+        },
+        r"\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge"
+        r"|silver|gold|fate|incubation) counters?\b",
+    ),
+    ("powerup_matters", "you"): _spec(
+        *SWEEP_LABELS["powerup_matters"],
+        {"oracle": r"power-up —"},
+        r"power-up —",
+        serve_keywords=("power-up",),
     ),
     # ADR-0027: rad_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's `rad_counter` effect / rad place_counter
