@@ -2697,6 +2697,27 @@ _OPP_CAST_PLAN_MIRROR = re.compile(
     r"(?:loses?|discards?|sacrifices?)|deals? \d+ damage to that player)",
     re.IGNORECASE,
 )
+# ADR-0027 tranche2 batch-3 voltron reconciliation — keyword_soup (t2b3-A) and
+# land_creatures_matter (t2b3-A) each had a high-confidence regex producer that fed
+# has_other_plan, silencing the spurious commander-damage voltron tell on a keyword-
+# soup body (Soulflayer "the same is true for first strike, double strike") or a
+# land-creatures body (Earth Rumble Wrestlers "as long as you control a land
+# creature"). Those producers are deleted and the IR re-supply (broader than the regex,
+# so a mirror — not the silencing-keys set) doesn't reach the regex-path gate. This
+# mirror (the OR of the two EXACT deleted regexes, read against the joined-face
+# `_oracle`) reproduces the silence. The agents self-reconciled their other keys, but
+# the cross-branch composition exposed these 2; the post-merge global diff caught them.
+# CR 702 (keyword soup) / 305 (land creatures).
+_TRANCHE2B3A_PLAN_MIRROR = re.compile(
+    r"if it has flying[^.]*first strike"
+    r"|the same is true for first strike, double strike"
+    r"|has flying[^.]*\+1/\+1"
+    r"|\bland creatures?\b|lands? you control (?:are|become)\b"
+    r"|all lands[^.]*become[^.]*creature"
+    r"|target land[^.]*becomes? a[^.]*creature"
+    r"|(?:it's|becomes?) a forest land",
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3742,6 +3763,9 @@ def extract_signals(
         # regex (its high-confidence producer fed this gate; the more-precise IR drops
         # the bare-arm cards, so a mirror — not the silencing-keys set — is required).
         or _OPP_CAST_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2 batch-3: re-silence keyword_soup / land_creatures_matter
+        # (deleted regex producers fed this gate; cross-branch composition exposed 2).
+        or _TRANCHE2B3A_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
