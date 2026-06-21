@@ -2743,6 +2743,14 @@ def _quantity(node: object) -> Quantity | None:
             # lane reads, rather than collapsing to a bare op="count".
             if qt == "playercounter" and _norm(qty.get("kind")) == "experience":
                 return Quantity(op="experience", factor=1)
+            # "deals damage equal to its power" / Fling / Soul's Fire — a Ref over a
+            # Power operand. phase folds this to a bare op="count" (subject=None);
+            # recover op="power" so the damage_equal_power / creature_ping lanes can
+            # read the power-scaling discriminator (ADR-0027 β; b-triage1). Broad by
+            # design — only the DealDamage-gated damage arms read it; op="power" is
+            # inert metadata on any other effect ("draw equal to its power", etc.).
+            if qt == "power":
+                return Quantity(op="power", factor=1)
             # a Ref over an Aggregate (Sum of total power/toughness over a filter —
             # Ghalta, Orysa's gate): the operand IS that population. Lift the filter
             # so a count-over-own-board lane reads it (CR 604.3). NB: this is still
@@ -2797,10 +2805,10 @@ _SCALING_OPERANDS: dict[str, str] = {
     "devotionge": "devotion",
     "partysize": "party",
     "basiclandtypecount": "domain",
-    # (Power is NOT here: "equal to its power" is ubiquitous and mostly a one-off
-    # damage/draw scale, not a power build-around — no clean lane. CountersOn is
-    # handled in _quantity, gated to +1/+1 counters; charge/oil/lore/time scaling
-    # is not +1/+1-counters synergy.)
+    # (Power is handled directly in _quantity's Ref handler as op="power", read only
+    # by the DealDamage-gated damage_equal_power / creature_ping lanes — NOT a generic
+    # scaling operand here. CountersOn is handled in _quantity, gated to +1/+1
+    # counters; charge/oil/lore/time scaling is not +1/+1-counters synergy.)
 }
 
 
