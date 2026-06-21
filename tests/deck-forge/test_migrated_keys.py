@@ -2805,6 +2805,168 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ── ADR-0027 tranche2 (t2b2-A) batch ─────────────────────────────────────
+    # aura_equip_kw_grant ← a grant_keyword of an evergreen keyword over a YOUR
+    # Aura/Equipment subgroup subject (Rashel: "Auras you control have exalted").
+    "aura_equip_kw_grant": (
+        {
+            "name": "Rashel, Fist of Torm",
+            "type_line": "Legendary Creature — Human Cleric",
+            "oracle_text": (
+                "Double strike\nAuras you control have exalted. (Whenever a "
+                "creature you control attacks alone, it gets +1/+1 until end of "
+                "turn for each instance of exalted among permanents you control.)"
+            ),
+            "keywords": ["Double strike"],
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="you",
+                        counter_kind="exalted",
+                        subject=Filter(
+                            card_types=("Enchantment",),
+                            subtypes=("Aura",),
+                            controller="you",
+                        ),
+                        raw="Auras you control have exalted.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # counter_grants_kw ← a grant_keyword over a YOUR-creature subject carrying the
+    # `Counters` predicate ("creatures you control with a +1/+1 counter have trample").
+    "counter_grants_kw": (
+        {
+            "name": "Bramblewood Paragon",
+            "type_line": "Creature — Elf Warrior",
+            "oracle_text": (
+                "Each other Warrior creature you control enters with an additional "
+                "+1/+1 counter on it.\nEach creature you control with a +1/+1 "
+                "counter on it has trample."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="you",
+                        counter_kind="trample",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="you",
+                            predicates=("Counters",),
+                        ),
+                        raw=(
+                            "Each creature you control with a +1/+1 counter on it "
+                            "has trample."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    # conditional_self_protection ← a STATIC ability with a condition granting a
+    # protective keyword to ITSELF (subject None = SelfRef). Zurgo: "during your
+    # turn, ~ has indestructible" → Condition(duringyourturn) + grant_keyword.
+    "conditional_self_protection": (
+        {
+            "name": "Zurgo Helmsmasher",
+            "type_line": "Legendary Creature — Orc Warrior",
+            "oracle_text": (
+                "Haste\nZurgo Helmsmasher attacks each combat if able.\nZurgo "
+                "Helmsmasher can't be blocked by creatures with power 2 or less.\n"
+                "As long as it's your turn, Zurgo Helmsmasher has indestructible.\n"
+                "Whenever a creature dealt damage by Zurgo Helmsmasher this turn "
+                "dies, put a +1/+1 counter on Zurgo Helmsmasher."
+            ),
+            "keywords": ["Haste"],
+        },
+        _ir(
+            Ability(
+                kind="static",
+                condition=Condition(kind="duringyourturn"),
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="any",
+                        counter_kind="indestructible",
+                        subject=None,
+                        raw="As long as it's your turn, ~ has indestructible.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # control_exchange ← an `exile` Effect whose subject carries the `Owned`
+    # predicate, PAIRED with a to:battlefield return in the same ability (Meneldor).
+    "control_exchange": (
+        {
+            "name": "Meneldor, Swift Savior",
+            "type_line": "Legendary Creature — Bird",
+            "oracle_text": (
+                "Flying, haste\nWhenever Meneldor, Swift Savior attacks, exile up "
+                "to one target creature you own, then return it to the battlefield "
+                "under your control tapped and attacking. Sacrifice it at the "
+                "beginning of the next end step."
+            ),
+            "keywords": ["Flying", "Haste"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="attacks", scope="you"),
+                effects=(
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        zones=("to:exile",),
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="any",
+                            predicates=("Owned",),
+                        ),
+                        raw="exile up to one target creature you own",
+                    ),
+                    Effect(
+                        category="exile",
+                        scope="any",
+                        zones=("to:battlefield",),
+                        subject=None,
+                        raw="return it to the battlefield under your control",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # bounce_tempo ← a first-class `bounce` Effect, no graveyard zone, subject not
+    # controller='you' (Boomerang: "return target permanent to its owner's hand").
+    "bounce_tempo": (
+        {
+            "name": "Boomerang",
+            "type_line": "Instant",
+            "oracle_text": "Return target permanent to its owner's hand.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="bounce",
+                        scope="any",
+                        subject=Filter(card_types=("Permanent",), controller="any"),
+                        raw="Return target permanent to its owner's hand.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

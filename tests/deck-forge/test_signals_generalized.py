@@ -1538,9 +1538,94 @@ def test_reclaim_owned_commander_opens_control_exchange():
         "keywords": ["Flying", "Flash"],
         "oracle_text": "Flash\nFlying\nWhen this creature enters, you may exile target non-Angel creature you control, then return that card to the battlefield under your control.",
     }
-    assert any(k == "control_exchange" for k, _, _ in _ksub(meneldor))
-    assert any(k == "control_exchange" for k, _, _ in _ksub(neutrinos))
-    assert not any(k == "control_exchange" for k, _, _ in _ksub(resto))
+
+    # ADR-0027 (t2b2-A): control_exchange migrated to the Card IR, so it no longer
+    # fires from the regex path — assert via the hybrid (IR) path. The IR mirror is an
+    # `exile` Effect whose subject carries the `Owned` predicate ("you OWN") PAIRED with
+    # a to:battlefield return; Restoration Angel exiles a creature you CONTROL (no Owned
+    # predicate), so it stays out.
+    def _exchange_ir() -> Card:
+        return Card(
+            oracle_id="x",
+            name="X",
+            faces=(
+                Face(
+                    name="X",
+                    abilities=(
+                        Ability(
+                            kind="triggered",
+                            trigger=Trigger(event="attacks", scope="you"),
+                            effects=(
+                                Effect(
+                                    category="exile",
+                                    scope="any",
+                                    zones=("to:exile",),
+                                    subject=Filter(
+                                        card_types=("Creature",),
+                                        controller="any",
+                                        predicates=("Owned",),
+                                    ),
+                                    raw="exile up to one target creature you own",
+                                ),
+                                Effect(
+                                    category="exile",
+                                    scope="any",
+                                    zones=("to:battlefield",),
+                                    subject=None,
+                                    raw="return it to the battlefield",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    def _blink_control_ir() -> Card:
+        return Card(
+            oracle_id="x",
+            name="X",
+            faces=(
+                Face(
+                    name="X",
+                    abilities=(
+                        Ability(
+                            kind="triggered",
+                            trigger=Trigger(event="etb", scope="you"),
+                            effects=(
+                                Effect(
+                                    category="exile",
+                                    scope="any",
+                                    zones=("to:exile",),
+                                    subject=Filter(
+                                        card_types=("Creature",),
+                                        controller="you",
+                                    ),
+                                    raw="exile target creature you control",
+                                ),
+                                Effect(
+                                    category="exile",
+                                    scope="any",
+                                    zones=("to:battlefield",),
+                                    subject=None,
+                                    raw="return that card to the battlefield",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    assert any(
+        k == "control_exchange" for k, _, _ in _ksub_hybrid(meneldor, _exchange_ir())
+    )
+    assert any(
+        k == "control_exchange" for k, _, _ in _ksub_hybrid(neutrinos, _exchange_ir())
+    )
+    assert not any(
+        k == "control_exchange" for k, _, _ in _ksub_hybrid(resto, _blink_control_ir())
+    )
 
 
 def test_kira_targeting_shield_opens_protected_theft():

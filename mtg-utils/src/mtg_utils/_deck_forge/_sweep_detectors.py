@@ -277,12 +277,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "gains? protection from|gains? (?:hexproof|shroud)\\b|target [^.]*gains? protection|can't be the target of (?:spells?|abilities)[^.]*your opponents control",
     },
-    {
-        "key": "conditional_self_protection",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "has hexproof (?:if|while|as long as|during)|during your turn,[^.]*has (?:hexproof|indestructible|protection)|has (?:hexproof|indestructible) if",
-    },
+    # ADR-0027 (t2b2-A): conditional_self_protection migrated to the Card IR — a STATIC
+    # Ability with a condition granting a protective keyword to ITSELF (grant_keyword,
+    # subject None, counter_kind in _SELF_PROTECTION_GRANT_KW). Its SWEEP row is deleted;
+    # the serve spec is hand-registered in signal_specs.py reusing the deleted regex.
     {
         "key": "keyword_grant_target",
         "scope": "you",
@@ -479,18 +477,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": 'all (?:artifacts|creatures|lands|permanents) have \\"|creatures? you (?:own|control) have \\"',
     },
-    {
-        "key": "aura_equip_kw_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:auras?|equipment) you control have (?:exalted|flying|trample|deathtouch|lifelink|vigilance|haste|first strike|double strike|hexproof|ward|menace|reach|indestructible)",
-    },
-    {
-        "key": "counter_grants_kw",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "creature you control with a \\+1/\\+1 counter on it (?:has|have) (?:haste|flying|trample|menace|vigilance|lifelink)",
-    },
+    # ADR-0027 (t2b2-A): aura_equip_kw_grant migrated to the Card IR — a grant_keyword
+    # of an evergreen keyword (counter_kind in _AURA_EQUIP_GRANT_KW) over a YOUR
+    # Aura/Equipment subgroup subject (_is_aura_equip_grant). Its SWEEP row is deleted;
+    # the serve spec is hand-registered in signal_specs.py reusing the deleted regex.
+    # ADR-0027 (t2b2-A): counter_grants_kw migrated to the Card IR — a grant_keyword over
+    # a YOUR-creature subject carrying the `Counters` predicate (Bramblewood Paragon).
+    # Its SWEEP row is deleted; the serve spec is hand-registered in signal_specs.py
+    # reusing the deleted regex.
     # ADR-0027: typed_anthem_multi migrated to the Card IR — a pump effect over a
     # creature Filter naming 2+ subtypes (an AnyOf-of-subtypes node OR a flat
     # subtypes tuple of length >=2 — Brenard, Howlpack Resurgence, Auriok Steelshaper),
@@ -969,12 +963,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "voltron_matters",
         "regex": "create [^.]*\\bequipment\\b[^.]* token|create [^.]*\\bequipment\\b artifact",
     },
-    {
-        "key": "bounce_tempo",
-        "scope": "you",
-        "is_widen_of": "bounce_tempo",
-        "regex": "return (?:x )?target (?:creatures?|permanents?|nonland permanents?)[^.]*to (?:its|their) owner.?s.? hands?|return target (?:spell or permanent|permanent or spell)|return [^.]*to (?:its|their) owners?.? hands?|return up to (?:one|two|\\w+) target (?:nonland )?(?:creature|permanent)[^.]*to (?:its|their) owner.?s.? hands?",
-    },
+    # ADR-0027 (t2b2-A): bounce_tempo migrated to the Card IR — a first-class `bounce`
+    # Effect with no graveyard zone tag and a subject not controlled by you (excludes
+    # GY-recursion and self-bounce blink). Its SWEEP row (an is_widen_of base) is
+    # deleted; the serve spec is hand-registered in signal_specs.py reusing the deleted
+    # regex.
     {
         "key": "edict_matters",
         "scope": "each",

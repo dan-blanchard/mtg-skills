@@ -3388,6 +3388,56 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bfirebend(?:ing|s)?\b"},
         r"\bfirebend(?:ing|s)?\b",
     ),
+    # ADR-0027 (t2b2-A): aura_equip_kw_grant / counter_grants_kw /
+    # conditional_self_protection had their oracle-regex SWEEP_DETECTORS rows deleted
+    # (detection moved to the Card IR — the grant_keyword effect shape gated on the
+    # subject Filter + the granted keyword). The SERVE pool (the cards that ARE the
+    # thing) stays oracle-defined, so hand-register the spec the sweep auto-register
+    # loop used to build, reusing each deleted regex as the serve pattern.
+    # (SWEEP_LABELS still carries each human label.)
+    ("aura_equip_kw_grant", "you"): _spec(
+        *SWEEP_LABELS["aura_equip_kw_grant"],
+        {
+            "oracle": (
+                r"(?:auras?|equipment) you control have (?:exalted|flying|trample"
+                r"|deathtouch|lifelink|vigilance|haste|first strike|double strike"
+                r"|hexproof|ward|menace|reach|indestructible)"
+            )
+        },
+        (
+            r"(?:auras?|equipment) you control have (?:exalted|flying|trample"
+            r"|deathtouch|lifelink|vigilance|haste|first strike|double strike"
+            r"|hexproof|ward|menace|reach|indestructible)"
+        ),
+    ),
+    ("counter_grants_kw", "you"): _spec(
+        *SWEEP_LABELS["counter_grants_kw"],
+        {
+            "oracle": (
+                r"creature you control with a \+1/\+1 counter on it (?:has|have) "
+                r"(?:haste|flying|trample|menace|vigilance|lifelink)"
+            )
+        },
+        (
+            r"creature you control with a \+1/\+1 counter on it (?:has|have) "
+            r"(?:haste|flying|trample|menace|vigilance|lifelink)"
+        ),
+    ),
+    ("conditional_self_protection", "you"): _spec(
+        *SWEEP_LABELS["conditional_self_protection"],
+        {
+            "oracle": (
+                r"has hexproof (?:if|while|as long as|during)"
+                r"|during your turn,[^.]*has (?:hexproof|indestructible|protection)"
+                r"|has (?:hexproof|indestructible) if"
+            )
+        },
+        (
+            r"has hexproof (?:if|while|as long as|during)"
+            r"|during your turn,[^.]*has (?:hexproof|indestructible|protection)"
+            r"|has (?:hexproof|indestructible) if"
+        ),
+    ),
     # ADR-0027: attractions_matter had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to an _IR_KEPT_DETECTORS word mirror). The SERVE pool stays
     # oracle-defined (Attraction openers / visit payoffs), so hand-register the spec

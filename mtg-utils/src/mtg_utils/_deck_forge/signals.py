@@ -1278,16 +1278,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # "you"-controller (the dedicated branch in extract_signals_ir). This _HAND_FLOOR
     # producer is deleted; the hand-written serve spec (signal_specs.py, fliers that
     # connect) is independent of this regex and survives.
-    # A commander that exiles a creature YOU OWN and returns it under your control
-    # (Meneldor, The Neutrinos -- note "you own", not the usual blink "you control")
-    # can reclaim a creature you own but don't control. So it wants control-EXCHANGE
-    # (donate a dud via Puca's Mischief, keep their bomb, then reclaim your dud). The
-    # "you own" + exile-return is the precision gate (a normal blink says "control").
-    (
-        "control_exchange",
-        re.compile(r"exile [^.]*creature you own[^.]*return", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 (t2b2-A): control_exchange migrated to the Card IR — an `exile` Effect
+    # whose subject carries the `Owned` predicate ("creature/permanent you OWN"), PAIRED
+    # with a to:battlefield return in the same ability (Meneldor, The Neutrinos,
+    # Aminatou). The inverse of the exile_removal Owned-exclusion. This _HAND_FLOOR
+    # producer is deleted; the hand-written serve spec (signal_specs.py, "Control
+    # swaps") is independent of this regex and survives.
     # Kira-style targeting shield: your creatures COUNTER the first spell/ability that
     # targets them ("for the first time each turn, counter"). That makes a CONTINGENT
     # steal (Sower: lost if the thief dies) un-removable and keeps a theft ENGINE alive,
@@ -2053,15 +2049,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "bounce_tempo",
-        re.compile(
-            r"return target (?:creature|permanent|nonland)[^.]*"
-            r"to (?:its|their) owner's hand",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 (t2b2-A): bounce_tempo migrated to the Card IR — a first-class `bounce`
+    # Effect with no graveyard zone tag and a subject not controlled by you (excludes
+    # GY-recursion and self-bounce blink). This _HAND_FLOOR producer is deleted; the
+    # hand-written serve spec (signal_specs.py, "Bounce / tempo") is independent of this
+    # regex and survives.
     # ADR-0027: cascade_matters migrated to the Card IR — the Scryfall `cascade`
     # keyword (_IR_KEYWORD_MAP, the intrinsic cascaders) + a `_CASCADE_GRANT` marker for
     # the keyword-less granters/references ("spells you cast have cascade", "as you
@@ -4775,6 +4767,25 @@ IR_SLICE_KEYS: frozenset[str] = (
             "self_pump",
             "tapper_engine",
             "count_anthem",
+            # ADR-0027 tranche2 (t2b2-A) — structural grant/bounce/exile IR arms:
+            #   aura_equip_kw_grant   ← grant_keyword of an evergreen kw over a YOUR
+            #                           Aura/Equipment subgroup subject (Rashel).
+            #   counter_grants_kw     ← grant_keyword over a YOUR-creature subject with
+            #                           the `Counters` predicate (Bramblewood Paragon).
+            #   conditional_self_protection ← a STATIC ability with a condition
+            #                           granting a protective kw to ITSELF (Ojutai,
+            #                           Zurgo, Kaito).
+            #   control_exchange      ← exile a YOU-OWN subject paired with a
+            #                           to:battlefield return (Meneldor, Neutrinos,
+            #                           Aminatou) — inverse of the exile_removal Owned
+            #                           exclusion.
+            #   bounce_tempo          ← a `bounce` Effect, no graveyard zone, subject
+            #                           not controller='you' (Boomerang…Cyclonic Rift).
+            "aura_equip_kw_grant",
+            "counter_grants_kw",
+            "conditional_self_protection",
+            "control_exchange",
+            "bounce_tempo",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5090,6 +5101,53 @@ def _is_team_buff_grant(f: object) -> bool:
         and not f.subtypes
         and set(f.predicates) <= _TEAM_BUFF_OK_PREDS
     )
+
+
+# ADR-0027 aura_equip_kw_grant — the evergreen keyword set the deleted regex
+# enumerated, normalized to phase's spaceless counter_kind spelling (firststrike /
+# doublestrike). The allowlist is the over-fire boundary: it excludes "equip {0}" /
+# "crew 1" grants (Syr Gwyn, Puresteel Paladin, Astor), which phase emits as a
+# different cost/effect, never grant_keyword of an evergreen keyword. (See ADR-0027.)
+_AURA_EQUIP_GRANT_KW: frozenset[str] = frozenset(
+    {
+        "exalted",
+        "flying",
+        "trample",
+        "deathtouch",
+        "lifelink",
+        "vigilance",
+        "haste",
+        "firststrike",
+        "doublestrike",
+        "hexproof",
+        "ward",
+        "menace",
+        "reach",
+        "indestructible",
+    }
+)
+
+
+def _is_aura_equip_grant(f: object) -> bool:
+    """The aura/equipment anthem shape: a grant subject that is YOUR Aura or
+    Equipment subgroup ("Auras you control have flying", "Equipment you control have
+    deathtouch" — Rashel). The subtype tells it apart from a generic team grant
+    (_is_team_creature_grant requires NO subtypes, so there's no double-fire), and
+    controller=='you' keeps it the player's own subgroup, not a symmetric grant."""
+    return (
+        isinstance(f, Filter)
+        and f.controller == "you"
+        and any(st.lower() in ("aura", "equipment") for st in f.subtypes)
+    )
+
+
+# ADR-0027 conditional_self_protection — the PROTECTIVE keyword subset a conditional
+# self-grant confers ("during your turn ~ has indestructible", "has hexproof unless
+# tapped"). This subset is the over-fire boundary vs an ordinary conditional self
+# anthem (a "during your turn ~ has flying/trample" combat buff is NOT protection).
+_SELF_PROTECTION_GRANT_KW: frozenset[str] = frozenset(
+    {"hexproof", "indestructible", "protection", "shroud", "ward"}
+)
 
 
 # Batch E — counter KIND → (signal key, scope). NB: p1p1 is deliberately ABSENT
@@ -6110,6 +6168,46 @@ def extract_signals_ir(
                     e.subject
                 ):
                     add("exert_matters", "you", "", e.raw)
+                # ADR-0027 — aura_equip_kw_grant: an evergreen keyword granted to YOUR
+                # Aura/Equipment subgroup ("Auras you control have flying", "Equipment
+                # you control have deathtouch" — Rashel). The subtyped subject Filter
+                # (Aura/Equipment, controller you) is the discriminator vs a generic
+                # team grant; the _AURA_EQUIP_GRANT_KW allowlist excludes equip{0}/crew
+                # cost grants (phase emits those as a different effect, not an evergreen
+                # grant_keyword). Broader-and-correct over the 1-card literal regex.
+                if e.counter_kind in _AURA_EQUIP_GRANT_KW and _is_aura_equip_grant(
+                    e.subject
+                ):
+                    add("aura_equip_kw_grant", "you", "", e.raw)
+                # ADR-0027 — counter_grants_kw: a keyword granted to YOUR creatures that
+                # HAVE A COUNTER ("creatures you control with a +1/+1 counter have
+                # trample" — Bramblewood Paragon). The `Counters` predicate on the grant
+                # subject (phase collapses counters={type:P1P1} to bare 'Counters'; in
+                # practice every counter-conditioned keyword grant is the +1/+1 case) is
+                # the discriminator vs an ordinary team keyword grant; controller=='you'
+                # excludes opponent-creature grants. Broader than the closed-kw regex.
+                if (
+                    isinstance(e.subject, Filter)
+                    and "Counters" in e.subject.predicates
+                    and e.subject.controller == "you"
+                ):
+                    add("counter_grants_kw", "you", "", e.raw)
+                # ADR-0027 — conditional_self_protection: a STATIC ability with a
+                # condition (during your turn / unless tapped / as-long-as) granting a
+                # PROTECTIVE keyword to ITSELF (subj None = SelfRef) — Dragonlord Ojutai
+                # (not tapped → hexproof), Zurgo (during your turn → indestructible),
+                # Kaito (during your turn + loyalty → hexproof). TWO discriminators: (1)
+                # ab.condition is not None (the conditional gate vs an unconditional
+                # anthem); (2) subj None (SelfRef) excludes team/aura/equipment grants.
+                # The protective subset keeps a conditional combat buff (flying/trample)
+                # out. Intrinsic hexproof rides the keyword array, never grant_keyword.
+                if (
+                    ab.kind == "static"
+                    and ab.condition is not None
+                    and e.subject is None
+                    and e.counter_kind in _SELF_PROTECTION_GRANT_KW
+                ):
+                    add("conditional_self_protection", "you", "", e.raw)
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)
@@ -6284,6 +6382,23 @@ def extract_signals_ir(
                 and not any("graveyard" in z or "library" in z for z in e.zones)
             ):
                 add("mass_bounce", "any", "", e.raw)
+            # bounce_tempo (ADR-0027): a battlefield→hand bounce as tempo (Boomerang,
+            # Unsummon, Man-o'-War, Cyclonic Rift). TWO discriminators turn the raw
+            # bounce category into the tempo lane: (1) EXCLUDE bounces touching a
+            # graveyard zone — those are GY→hand recursion already routed to
+            # graveyard_matters above (CR 404); (2) EXCLUDE subject.controller=='you'
+            # (self-bounce for value/blink — Aviary Mechanic, karoo lands — is NOT
+            # tempo). The breadth over the narrow regex (mass + flexible bounce) is
+            # legitimate bounce signal, not over-fire. A mass bounce can co-fire its own
+            # each-scope mass_bounce lane above — both are real bounce signals.
+            if (
+                cat == "bounce"
+                and not any("graveyard" in z for z in e.zones)
+                and not (
+                    isinstance(e.subject, Filter) and e.subject.controller == "you"
+                )
+            ):
+                add("bounce_tempo", "you", "", e.raw)
             # removal_matters (ADR-0027): a SINGLE-TARGET DAMAGE effect to a creature /
             # permanent (cat=='damage', subject a creature or other permanent type, or
             # a permanent subtype) is removal — Flame Slash, Crossbow Infantry, Nin
@@ -6306,6 +6421,22 @@ def extract_signals_ir(
                 )
             ):
                 add("removal_matters", "you", "", e.raw)
+            # control_exchange (ADR-0027): exile a permanent/creature YOU OWN, then
+            # return it to the battlefield (under your control) — Meneldor, The
+            # Neutrinos, Aminatou's -1. This is the INVERSE of the exile_removal Owned-
+            # exclusion below: the `Owned` predicate ("you own", not "you control") is
+            # the control-exchange tell (donate a dud, keep their bomb, reclaim your
+            # own — Puca's Mischief loop). Requiring the to:battlefield return in the
+            # SAME ability keeps a bare exile-you-own from leaking. Distinct from a
+            # plain blink (which says "you control" → no Owned predicate) and from
+            # gain_control theft (a sibling lane).
+            if (
+                cat == "exile"
+                and isinstance(e.subject, Filter)
+                and "Owned" in e.subject.predicates
+                and any("to:battlefield" in z for sib in ab.effects for z in sib.zones)
+            ):
+                add("control_exchange", "you", "", e.raw)
             # exile_removal = genuine targeted EXILE of a permanent (CR 406). EXCLUDE
             # (ADR-0027): (1) BLINK — exiling YOUR OWN permanent to flicker it ("Exile
             # another target creature you own. Return it" — Charming Prince, Aminatou,
@@ -7953,6 +8084,44 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "tapper_engine",
         "recast_etb",
         "count_anthem",
+        # Group "tranche2 (t2b2-A)" — structural grant / bounce / exile IR arms whose
+        # original `needs_projection` mappings were STALE (grant_keyword now carries the
+        # granted keyword in counter_kind; Ability.condition carries the gate; the
+        # `Owned` subject predicate captures "you own"; bounce is a first-class
+        # category). All NON-floor (floor-mirror-dep == 0 — none is in _IR_FLOOR_LANES);
+        # the floor-disabled IR-vs-regex residual is empty or 100% over-fire (the IR is
+        # broader-and-correct). See ADR-0027.
+        #   aura_equip_kw_grant ← grant_keyword of an _AURA_EQUIP_GRANT_KW evergreen kw
+        #                over a YOUR Aura/Equipment subgroup subject (Rashel + 2 the
+        #                literal regex alternation missed). Its SWEEP row is deleted;
+        #                serve repointed via regex=.
+        #   counter_grants_kw ← grant_keyword over a YOUR-creature subject carrying the
+        #                `Counters` predicate (Bramblewood Paragon, Abzan Falconer,
+        #                Tuskguard Captain). Broader than the closed-keyword regex
+        #                (which named only haste/flying/trample/menace/vigilance/
+        #                lifelink). Its SWEEP row is deleted; serve via regex=.
+        #   conditional_self_protection ← a STATIC ability with a condition granting
+        #                a _SELF_PROTECTION_GRANT_KW keyword to ITSELF (subject None =
+        #                SelfRef) — Dragonlord Ojutai, Zurgo, Kaito. Broader-and-correct
+        #                (catches every "during your turn has indestructible" the narrow
+        #                regex missed). voltron-relevant (_VOLTRON_COMPAT_KEYS). Its
+        #                SWEEP row is deleted; serve repointed via regex=.
+        #   control_exchange ← an `exile` Effect whose subject carries the `Owned`
+        #                predicate, PAIRED with a to:battlefield return in the same
+        #                ability (Meneldor, The Neutrinos, Aminatou). The inverse of the
+        #                exile_removal Owned-exclusion. Its SWEEP + _HAND_FLOOR
+        #                producers are deleted; serve repointed via regex=.
+        #   bounce_tempo ← a `bounce` Effect (first-class category) with no graveyard
+        #                zone tag and subject not controller='you' (excludes self-bounce
+        #                blink/karoo) — Boomerang, Unsummon, Man-o'-War, Cyclonic Rift.
+        #                Broader than the narrow regex (mass + flexible bounce);
+        #                breadth, not over-fire. Its SWEEP + _DETECTORS producers are
+        #                deleted; serve repointed via regex=.
+        "aura_equip_kw_grant",
+        "counter_grants_kw",
+        "conditional_self_protection",
+        "control_exchange",
+        "bounce_tempo",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

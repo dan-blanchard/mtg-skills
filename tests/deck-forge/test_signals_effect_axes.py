@@ -45,7 +45,10 @@ CASES = [
         "you",
         "Look at the top five cards of your library. Put a creature card from among them onto the battlefield.",
     ),
-    ("bounce_tempo", "you", "{1}{U}: Return target creature to its owner's hand."),
+    # ADR-0027 (t2b2-A): bounce_tempo migrated to the Card IR (phase's first-class
+    # `bounce` effect category, gated on no-graveyard-zone + subject not controller=you),
+    # so it no longer fires on the regex path tested here — its IR path is proven in
+    # test_migrated_keys.
     # ADR-0027: cascade_matters (Scryfall cascade keyword + _CASCADE_GRANT marker) and
     # regenerate_matters (phase's regenerate effect + _REGENERATE_REF marker) migrated to
     # the Card IR, so they no longer fire on the regex path tested here — their IR paths
