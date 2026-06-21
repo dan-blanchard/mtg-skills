@@ -217,6 +217,25 @@ ABILITY_COPY_REGEX = (
     "|you may copy (?:it|that ability)"
     "|has all activated abilities of|has the activated abilities of"
 )
+# ADR-0027 β: gain_control migrated to the Card IR. The deleted _DETECTORS producer (an
+# inline `gain control of` literal in _signals_regex, NOT a SWEEP row) is pinned here so
+# the NARROWED _GAIN_CONTROL_MIRROR kept detector (_signals_ir) and the
+# _GAIN_CONTROL_PLAN_MIRROR voltron gate (_signals_regex) share ONE source. UNLIKE the
+# byte-identical color_change/toughness_combat re-homes, gain_control rides a recall-
+# GAINING structural arm (cat=='gain_control' excl donate / Owned-return / give-away):
+# +85 commander-legal theft cards the bare regex MISSED ("you control enchanted creature"
+# Auras — Control Magic / Mind Control / Confiscate / Enslave / Treachery; "control
+# target player" — Mindslaver / Worst Fears; "exchange control" — Political Trickery /
+# Juxtapose), while DROPPING 4 the bare regex over-fired (a you-own reset — Gruul Charm /
+# Brand; a can't-gain protection — Guardian Beast; an own-recovery — Coveted Falcon). The
+# 9 genuine theft cards phase emits NO gain_control category for (Seize the Spotlight,
+# Power of Persuasion, Invert Polarity, Wake the Dragon, Expropriate, Midnight Crusader
+# Shuttle, Captivating Glance, Herald of Leshrac, Risky Move) ride the narrowed mirror
+# (this regex run PER-CLAUSE, vetoed per-clause by those same 3 over-fire forms). CR
+# 800.4a / 720.1 (one player controls a permanent at a time). The serve spec stays
+# hand-registered in signal_specs.py with its own curated search regex, independent of
+# this detector.
+GAIN_CONTROL_REGEX = "gain control of"
 
 # ADR-0027 β: toughness_combat migrated to the Card IR via a byte-identical kept-mirror.
 # TWO deleted producers feed the key, joined here into ONE pinned source the

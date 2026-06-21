@@ -27,10 +27,10 @@ CASES = [
         "you",
         "{T}: Search your library for a basic land card, then shuffle.",
     ),
-    # ADR-0027 β: untap_engine migrated to the Card IR (a refined `cat=='untap'`
-    # structural arm + a narrowed kept mirror), so it no longer fires on the regex path
-    # tested here — its IR path is proven in test_migrated_keys.
-    ("gain_control", "you", "{3}{U}: Gain control of target creature."),
+    # ADR-0027 β: gain_control migrated to the Card IR (a gated `cat=='gain_control'`
+    # structural arm + a narrowed kept mirror + a facade cross-open reconciliation), so
+    # it no longer fires on the regex path tested here — its IR path is proven in
+    # test_migrated_keys and test_signals_generalized.
     (
         "opponent_discard",
         "opponents",

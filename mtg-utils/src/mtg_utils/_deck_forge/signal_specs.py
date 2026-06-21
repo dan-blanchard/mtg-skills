@@ -4358,6 +4358,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
     # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
+    # ADR-0027 β: gain_control migrated to the Card IR (the lane fires from a gated
+    # structural arm in extract_signals_ir + a narrowed _GAIN_CONTROL_MIRROR + a facade
+    # cross-open reconciliation). This serve spec was always hand-registered with its
+    # own curated SEARCH regex (broader than the deleted `gain control of` detector — it
+    # also
+    # credits "you control enchanted permanent" Auras and Bribery/Acquire library-
+    # seizes), independent of the deleted producer, so it survives unchanged.
     ("gain_control", "you"): _spec(
         "Theft",
         "steal effects and ways to keep or sacrifice what you take",

@@ -34,6 +34,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
@@ -1902,7 +1903,22 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (+12 ir_only) and would
     # over-silence those recall-gain bodies. The serve spec (signal_specs.py, a
     # standalone _spec on untap effects) survives. CR 701.16 / 903.10a.
-    ("gain_control", re.compile(r"gain control of", re.IGNORECASE), "you"),
+    # ADR-0027 β: gain_control migrated to the Card IR — this _DETECTORS producer (the
+    # bare `gain control of` literal, pinned now as GAIN_CONTROL_REGEX in
+    # _sweep_detectors) is deleted. The lane fires from a GATED structural arm in
+    # extract_signals_ir (cat=='gain_control' excl donate / Owned-return / give-away — a
+    # +85 recall-gaining superset that catches the "you control enchanted creature" /
+    # "control target player" / "exchange control" theft the bare regex MISSED and drops
+    # the you-own-reset / can't-gain-protection / own-recovery over-fires it caught)
+    # PLUS
+    # a NARROWED _GAIN_CONTROL_MIRROR (the 9 genuine theft phase emits no category for,
+    # vetoed per-clause). The deleted producer fired HIGH-confidence (scope 'you')
+    # and counted toward has_other_plan, so a _GAIN_CONTROL_PLAN_MIRROR (below) re-
+    # supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm
+    # is BROADER (+85) and the silencing-keys path would over-silence those recall-gain
+    # bodies. The LOW-conf `dont_own` cross-open below + the theft_matters sibling are
+    # reconciled in signals.py against the MERGED key set. The serve spec (signal_specs)
+    # survives. CR 800.4a / 720.1 / 903.10a.
     (
         "opponent_discard",
         re.compile(
@@ -2700,6 +2716,22 @@ _ABILITY_COPY_PLAN_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
 # regex arms are all clause-local, so full-text == per-clause. FILE-SWAP NO-FLOOD:
 # voltron delta 0. CR 903.10a / 122.1b.
 _PUMP_MATTERS_PLAN_MIRROR = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated gain_control key. The deleted
+# _DETECTORS producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a theft
+# body (a steal commander — Memnarch, Dragonlord Silumgar, Nihiloor, Empress Galina — is
+# no vanilla beater; theft IS a plan). UNLIKE the byte-identical re-homes, the migrated
+# gain_control lane rides a BROADER structural arm (+85 ir_only), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would UNDER-silence the steal bodies whose plan now lives
+# only in the IR. So this BYTE-IDENTICAL gate mirror (the deleted bare `gain control
+# of`, pinned GAIN_CONTROL_REGEX) restores the OLD producer's exact silence set without
+# over-
+# silencing the +85 recall-gain bodies (overwhelmingly spells/auras, not legendary-
+# creature commanders subject to the voltron tell — FILE-SWAP voltron delta 0). Matched
+# against reminder-STRIPPED `text` (the deleted _DETECTORS producer ran per-clause over
+# reminder-stripped clauses), byte-identical to its per-clause input (`gain control of`
+# never crosses a sentence, so full-text == per-clause). CR 903.10a / 800.4a.
+_GAIN_CONTROL_PLAN_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -4126,6 +4158,15 @@ def extract_signals(
         # per-clause over stripped text; the regex arms are clause-local, so full-text
         # == per-clause). CR 903.10a / 122.1b.
         or _PUMP_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted gain_control _DETECTORS producer (HIGH-
+        # confidence scope 'you', feeding has_other_plan). The migrated lane rides a
+        # BROADER structural arm (+85 ir_only), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old producer's exact silence set
+        # without over-silencing the recall-gain bodies (a theft body — Memnarch,
+        # Dragonlord Silumgar — is no vanilla beater). Matched against the reminder-
+        # STRIPPED `text` (the deleted producer ran per-clause over stripped clauses).
+        # CR 903.10a.
+        or _GAIN_CONTROL_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

@@ -897,14 +897,13 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     phase drops counter_kind on ("your choice of a flying OR hexproof").
         #     Floor-mirror-dep == 0; IR is a strict superset of the regex (regex_only 0,
         #     +6 recall). SWEEP row deleted; serve reuses the shared regex constant.
-        # NOT migrated (deferred, needs-projection): gain_control (a low-confidence
-        # include_membership theft-archetype cross-open fires on 13 "you control but
-        # don't own" commanders — Gonti, Tasha, Vaan, … — with no structural IR form;
-        # migrating would silently drop them) and keyword_grant_target (phase collapses
-        # the single-target "target creature gains menace" spell grant to subject=None
-        # with a TRUNCATED raw, erasing the anchor — indistinguishable from self/go-wide
-        # grants; firing on subject=None floods +2236). See the deferral comments at the
-        # respective arms / producers.
+        # NOT migrated (deferred, needs-projection): keyword_grant_target (phase
+        # collapses the single-target "target creature gains menace" spell grant to
+        # subject=None with a TRUNCATED raw, erasing the anchor — indistinguishable from
+        # self/go-wide grants; firing on subject=None floods +2236). See the deferral
+        # comment at the producer. (gain_control was deferred for the cross-open shape;
+        # NOW MIGRATED below via the IR arm + a narrowed kept-mirror + a facade
+        # cross-open reconciliation — see the gain_control entry near the end.)
         "extra_land_drop",
         "free_creature_payoff",
         "keyword_counter",
@@ -1765,6 +1764,65 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # auto-register loop no longer builds it); the _PUMP_EXTRA combat-support
         # SubAvenue reuses the same pinned regex. CR 122.1b / 903.10a.
         "pump_matters",
+        # ADR-0027 β — gain_control (THEFT: you take control of an opponent's / any
+        # permanent — Control Magic, Mind Control, Confiscate, Treachery; temp-steal —
+        # Act of Treason, Threaten, Mark of Mutiny, Zealous Conscripts). MIGRATED VIA A
+        # STRUCTURAL IR ARM (already present pre-migration) + a NARROWED kept-mirror +
+        # a facade cross-open reconciliation. NO sidecar bump (the v10 projection
+        # already emits the gain_control category).
+        #
+        # STRUCTURAL ARM (recall-GAINING superset). project._project_static_mods emits
+        # a `cat=='gain_control'` Effect for a ChangeController static, and phase also
+        # emits it for the temp-steal "gain control … until end of turn" effects. The
+        # GATED arm in extract_signals_ir (cat=='gain_control', EXCLUDING donate /
+        # Owned-subject return / give-away) fires on 314 commander-legal cards vs the
+        # deleted regex's 256 — a +85 recall gain (Control Magic / Mind Control /
+        # Confiscate / Enslave / Treachery "you control enchanted creature", Mindslaver
+        # / Worst Fears "control target player", Political Trickery / Juxtapose
+        # "exchange control" — genuine theft the bare `gain control of` regex MISSED).
+        # It drops
+        # 4 regex over-fires the bare regex caught: Gruul Charm / Brand "gain control of
+        # all permanents you OWN" (a reset-to-self, NOT theft), Guardian Beast "others
+        # can't gain control" (a protection), Coveted Falcon "you own but don't control"
+        # (own-recovery). All 4 verified non-theft against Scryfall oracle.
+        #
+        # NARROWED KEPT-MIRROR (_GAIN_CONTROL_MIRROR in _signals_ir). phase does NOT
+        # emit a gain_control category for 9 genuine theft cards (Seize the Spotlight,
+        # Power of Persuasion, Invert Polarity steal-a-spell, Wake the Dragon token,
+        # Expropriate, Midnight Crusader Shuttle, Captivating Glance, Herald of Leshrac,
+        # Risky Move). Recover them with `gain control of` over the reminder-stripped
+        # kept_oracle PER-CLAUSE, vetoed PER-CLAUSE by the give-away/reset/protection
+        # over-fires (you-own reset, "<player> gains control" give-away, "can't gain
+        # control" protection) so the 4 dropped over-fires stay dropped. (Byte-identical
+        # full-text would re-introduce them and a flat scan would let one clause's veto
+        # kill another's genuine theft — Captivating Glance / Herald.)
+        #
+        # CROSS-OPEN RECONCILIATION (facade). The regex include_membership cross-open
+        # fired a LOW-confidence gain_control on 13 "you control but DON'T OWN" theft-
+        # payoff commanders with NO structural form (Gonti Canny, Tasha, Vaan, Don
+        # Andres, Arvinox, Nita, Laughing Jasper Flint, Nathan Drake, Thieving Amalgam,
+        # Thieving Varmint, Tinybones Bauble Burglar, Sentinel of Lost Lore, Staff of
+        # Eden). The hybrid drops ALL regex gain_control (migrated), so signals.py re-
+        # supplies the LOW `dont_own` cross-open AND re-opens the theft_matters sibling
+        # against the MERGED key set (the structural-theft commanders — Memnarch,
+        # Dragonlord Silumgar, Nihiloor, Empress Galina — that opened theft_matters via
+        # gain_control-in-regex-keys now open it from the IR set). Matches the
+        # spell_copy cross-open reconciliation pattern already in the facade.
+        #
+        # Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), IR arm + mirror vs regex base+cross-open):
+        # ir_only == 85 (all genuine theft recall gain), regex_only == 4 (all genuine
+        # over-fire dropped: Gruul Charm/Brand reset, Guardian Beast protection, Coveted
+        # Falcon own-recovery) — NO genuine theft lost (the 9 phase-misses ride the
+        # mirror; the 13 cross-opens ride the facade). floor-mirror-dep == 0
+        # (gain_control is NOT an _IR_FLOOR_LANE — it was a _DETECTORS key). The deleted
+        # producer fired HIGH-confidence (scope 'you') and counted toward
+        # has_other_plan, so a
+        # _GAIN_CONTROL_PLAN_MIRROR in _signals_regex re-supplies the voltron silence —
+        # NOT _VOLTRON_SILENCING_PLAN_KEYS, because the IR arm is BROADER (+85) and the
+        # silencing-keys path would over-silence the recall-gain bodies. CR 800.4a /
+        # 720.1 (one player controls a permanent at a time) / 903.10a (voltron).
+        "gain_control",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

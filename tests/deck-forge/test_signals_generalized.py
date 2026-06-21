@@ -4086,7 +4086,10 @@ def test_gain_control_commander_also_opens_theft_matters():
     # archetype — a steal deck runs the borrow-and-cast package (Gonti, Hostage Taker,
     # Thief of Sanity), which lives in theft_matters. The card classification stays
     # split (battlefield control change vs play-what-you-don't-own); only the COMMANDER
-    # cross-opens both sibling lanes. Real oracle.
+    # cross-opens both sibling lanes. ADR-0027 β: gain_control migrated to the Card IR
+    # (the gated cat=='gain_control' arm), so it now fires from the hybrid IR path, and
+    # the facade re-opens the theft_matters sibling against the merged key set. Real
+    # oracle; the IR mirrors phase's ETB gain_control Effect.
     silumgar = {
         "name": "Dragonlord Silumgar",
         "type_line": "Legendary Creature — Elder Dragon",
@@ -4096,7 +4099,20 @@ def test_gain_control_commander_also_opens_theft_matters():
             "Silumgar."
         ),
     }
-    ks = _ks(silumgar)
+    silumgar_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="gain_control",
+                    scope="you",
+                    subject=Filter(card_types=("Creature", "Planeswalker")),
+                    raw="gain control of target creature or planeswalker",
+                ),
+            ),
+        )
+    )
+    ks = _ks_hybrid_ir(silumgar, silumgar_ir)
     assert ("gain_control", "you") in ks
     assert ("theft_matters", "opponents") in ks
     # Over-fire guard: a commander with no steal/theft text opens neither.
@@ -4105,7 +4121,7 @@ def test_gain_control_commander_also_opens_theft_matters():
         "type_line": "Legendary Creature — Bear",
         "oracle_text": "Trample\nWhenever this creature attacks, it gets +1/+1.",
     }
-    assert ("theft_matters", "opponents") not in _ks(plain)
+    assert ("theft_matters", "opponents") not in _ks_hybrid(plain)
 
 
 def test_player_burn_source_opens_direct_damage():

@@ -51,6 +51,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
@@ -2104,6 +2105,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (commander-legal corpus: regex==mirror, 51==51, 0 lost, 0 over-fire). NOT
             # in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 706.10 / 113.2 / 706.2.
             "ability_copy",
+            # ADR-0027 β — gain_control (THEFT). The gated structural arm below
+            # (cat=='gain_control', excl donate / Owned-return / give-away) is a
+            # recall-GAINING superset of the deleted `gain control of` regex (+85
+            # commander-legal: Control Magic / Mind Control / Enslave "you control
+            # enchanted creature", Mindslaver "control target player", exchange-control)
+            # while dropping 4 regex over-fires (you-own reset, can't-gain protection,
+            # own-recovery). A NARROWED _GAIN_CONTROL_MIRROR recovers the 9 genuine
+            # theft cards phase emits no gain_control category for; signals.py
+            # reconciles the 13 LOW-conf "don't own" cross-opens. NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 800.4a / 720.1.
+            "gain_control",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3005,6 +3017,31 @@ _TOUGHNESS_COMBAT_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
 # deleted per-clause SWEEP union (commander-legal: regex==mirror, 51==51, 0 lost, 0
 # over-fire). CR 706.10 / 113.2 / 706.2.
 _ABILITY_COPY_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
+# gain_control NARROWED kept mirror (ADR-0027 β): the structural arm below
+# (cat=='gain_control', excl donate / Owned-return / give-away) is broad and correct,
+# but phase emits NO gain_control category for 9 genuine theft cards — Seize the
+# Spotlight, Power of Persuasion, Invert Polarity (steal a SPELL on the stack), Wake the
+# Dragon (the granted token's "gain control" trigger), Expropriate, Midnight Crusader
+# Shuttle, Captivating Glance, Herald of Leshrac, Risky Move. Recover them with the
+# deleted producer's `gain control of` (pinned GAIN_CONTROL_REGEX) over the reminder-
+# stripped kept_oracle, run PER-CLAUSE and VETOED per-clause by the give-away / reset /
+# protection over-fires the structural arm correctly drops: a reset-to-self ("gain
+# control of all permanents you OWN" — Gruul Charm, Brand), a give-away ("<a/that/each/
+# another/target> player gains control" — Risky Move's symmetric clause, Herald's leave-
+# reset), and a protection ("can't / cannot gain control" — Guardian Beast). PER-CLAUSE
+# (not flat) so one clause's veto can't kill another clause's genuine theft —
+# Captivating Glance ("if you win, gain control …" / "Otherwise, that player gains
+# control …") and
+# Herald (upkeep theft / leave-reset) each keep their theft sentence. A byte-identical
+# full-text mirror would re-introduce the 4 over-fires the structural arm dropped, so
+# this is narrowed rather than byte-identical. CR 800.4a / 720.1.
+_GAIN_CONTROL_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
+_GAIN_CONTROL_MIRROR_VETO = re.compile(
+    r"can(?:'t|not) gain control"
+    r"|gain control of (?:all |each )?[^.]*\byou own\b"
+    r"|(?:a|that|each|another|target) player gains control",
+    re.IGNORECASE,
+)
 
 
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
@@ -5657,6 +5694,24 @@ def extract_signals_ir(
     # lower(), so A-B==0). The add() dedup unions this with the structural arm.
     if any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("impulse_top_play", "you", "", "")
+    # ADR-0027 β — gain_control NARROWED kept mirror. The gated structural arm above
+    # (cat=='gain_control', excl donate / Owned-return / give-away) is a recall-gaining
+    # superset of the deleted `gain control of` regex, but phase emits NO gain_control
+    # category for 9 genuine theft cards (Seize the Spotlight, Power of Persuasion,
+    # Invert Polarity steal-a-spell, Wake the Dragon token, Expropriate, Midnight
+    # Crusader Shuttle, Captivating Glance, Herald of Leshrac, Risky Move). Recover them
+    # with the deleted producer's `gain control of` run PER-CLAUSE, vetoed per-clause by
+    # the give-away / reset / protection forms the structural arm drops (you-own reset,
+    # "<player> gains control" give-away, "can't gain control" protection). PER-CLAUSE
+    # (not flat) so one clause's veto can't kill another clause's genuine theft —
+    # Captivating Glance / Herald each keep their theft sentence. scope 'you' (the
+    # deleted producer's forced scope). add() dedups vs the structural arm. CR 800.4a /
+    # 720.1.
+    if any(
+        _GAIN_CONTROL_MIRROR.search(cl) and not _GAIN_CONTROL_MIRROR_VETO.search(cl)
+        for cl in _clauses(kept_oracle)
+    ):
+        add("gain_control", "you", "", "")
     # ADR-0027 β — untap_engine NARROWED kept mirror. The structural arm above reads
     # `cat=='untap'` Effects, but phase routes ~11 genuine engines into a choose /
     # target_only / cost / type_set carrier with NO cat=='untap' Effect (Captain of the

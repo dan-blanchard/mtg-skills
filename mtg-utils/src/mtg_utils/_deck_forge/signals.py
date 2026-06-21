@@ -182,6 +182,46 @@ def extract_signals_hybrid(
         out.append(
             Signal("spellcast_matters", "you", "", "", record.get("name", ""), "low")
         )
+    # ADR-0027 β gain_control cross-open reconciliation. The regex include_membership
+    # cross-open ties two LOW-confidence theft-archetype tells to gain_control: (1) it
+    # opens the theft_matters sibling when a body has gain_control OR rewards permanents
+    # "you control but DON'T OWN"; (2) it opens a LOW gain_control on a theft-PAYOFF
+    # commander that only says "don't own" with no structural form (Gonti Canny, Tasha,
+    # Vaan, Don Andres, Arvinox, Nita, Laughing Jasper Flint, Nathan Drake, Thieving
+    # Amalgam / Varmint, Tinybones Bauble Burglar, Sentinel of Lost Lore, Staff of Eden
+    # — 13 commanders). gain_control now migrates, so the hybrid DROPS every regex
+    # gain_control (the LOW cross-open included) and the regex cross-open's
+    # `gain_control in keys_now` test sees the deleted producer's absence — re-run both
+    # tells against
+    # the MERGED key set, gated on include_membership (the regex cross-open's gate).
+    # theft_matters is NOT migrated, so a regex firing already survives; re-open it only
+    # when the IR supplies gain_control and the merged set lacks it (a structural-theft
+    # commander — Memnarch, Dragonlord Silumgar, Nihiloor, Empress Galina — whose
+    # theft_matters depended on the deleted regex gain_control). Re-add the LOW
+    # gain_control for the 13 "don't own" payoff commanders the hybrid dropped (no
+    # structural form). Matches the spell_copy reconciliation pattern above. CR 800.4a.
+    if include_membership:
+        regex_keys = {s.key for s in regex_signals}
+        gc_now = "gain_control" in out_keys
+        dont_own = re.search(
+            r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own",
+            get_oracle_text(record) or "",
+            re.IGNORECASE,
+        )
+        if (
+            gc_now
+            and "gain_control" not in regex_keys
+            and "theft_matters" not in out_keys
+        ):
+            out.append(
+                Signal(
+                    "theft_matters", "opponents", "", "", record.get("name", ""), "low"
+                )
+            )
+        if dont_own and not gc_now:
+            out.append(
+                Signal("gain_control", "you", "", "", record.get("name", ""), "low")
+            )
     # ADR-0027 voltron reconciliation: the regex path computes the commander-damage
     # voltron MEMBERSHIP fallback against its OWN signal set (gated on
     # ``not has_other_plan``), which no longer carries a migrated PLAN key — when a key

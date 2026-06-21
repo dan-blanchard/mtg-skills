@@ -194,6 +194,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # gain_control ← a `gain_control` Effect (Control Magic's ChangeController static
+    # projects cat="gain_control", subject=the enchanted creature, scope="you"). The
+    # GATED structural arm in extract_signals_ir fires scope "you" (excl donate /
+    # Owned-return / give-away). The bare `gain control of` literal is gone from the
+    # regex path (Control Magic says "You control enchanted creature", not "gain control
+    # of", and has no "don't own", so the regex cross-open stays silent too). ADR-0027 β.
+    "gain_control": (
+        {
+            "name": "Control Magic",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": "Enchant creature\nYou control enchanted creature.",
+            "keywords": ["Enchant"],
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="gain_control",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",), predicates=("EnchantedBy",)
+                        ),
+                        raw="You control enchanted creature.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # toughness_combat ← a BYTE-IDENTICAL kept mirror (_TOUGHNESS_COMBAT_MIRROR over the
     # reminder-stripped oracle: "Each creature you control assigns combat damage equal to
     # its toughness rather than its power"). TWO deleted regex producers (the SWEEP
