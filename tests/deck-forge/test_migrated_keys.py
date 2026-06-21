@@ -3169,6 +3169,119 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 tranche2-batch-3-A — land-animation + keyword-soup lanes.
+    # keyword_soup ← >=5 DISTINCT evergreen grant_keyword counter_kinds in ONE
+    # ability (Odric grants 13). The "the same is true for …" idiom phase parses
+    # inconsistently; the kept oracle mirror covers the under-parsed tail, but this
+    # case proves the per-ability structural count arm.
+    "keyword_soup": (
+        {
+            "name": "Odric, Lunarch Marshal",
+            "type_line": "Legendary Creature — Human Soldier",
+            "oracle_text": (
+                "At the beginning of each combat, creatures you control gain "
+                "first strike until end of turn if a creature you control has "
+                "first strike. The same is true for flying, deathtouch, double "
+                "strike, haste, hexproof, indestructible, lifelink, menace, "
+                "reach, skulk, trample, and vigilance."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=tuple(
+                    Effect(
+                        category="grant_keyword",
+                        counter_kind=ck,
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        raw="creatures you control gain first strike",
+                    )
+                    for ck in (
+                        "firststrike",
+                        "flying",
+                        "deathtouch",
+                        "doublestrike",
+                        "haste",
+                    )
+                ),
+            )
+        ),
+    ),
+    # land_creatures_matter ← a pump over a Land+Creature dual-type subject (Sylvan
+    # Advocate buffs "this creature and land creatures you control").
+    "land_creatures_matter": (
+        {
+            "name": "Sylvan Advocate",
+            "type_line": "Creature — Elf Druid Ally",
+            "oracle_text": (
+                "Vigilance\nAs long as you control six or more lands, this "
+                "creature and land creatures you control get +2/+2."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature", "Land"), controller="you"
+                        ),
+                        raw="~ and land creatures you control get +2/+2",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # land_protection ← the shared land-animator predicate: a base_pt_set over a Land
+    # subject (Living Plane: "All lands are 1/1 creatures that are still lands.").
+    "land_protection": (
+        {
+            "name": "Living Plane",
+            "type_line": "World Enchantment",
+            "oracle_text": "All lands are 1/1 creatures that are still lands.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="base_pt_set",
+                        scope="any",
+                        subject=Filter(card_types=("Land",), controller="any"),
+                        raw="All lands are 1/1 creatures that are still lands.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # land_denial ← a phasing Effect on a controller=='you' Land subject (Taniwha
+    # phases its own lands out — the self-land-phasing stax tell).
+    "land_denial": (
+        {
+            "name": "Taniwha",
+            "type_line": "Legendary Creature — Serpent",
+            "oracle_text": (
+                "Trample\nPhasing\nAt the beginning of your upkeep, all lands "
+                "you control phase out."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="phasing",
+                        scope="you",
+                        subject=Filter(card_types=("Land",), controller="you"),
+                        raw="all lands you control phase out",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

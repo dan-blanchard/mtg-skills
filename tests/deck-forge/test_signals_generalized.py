@@ -52,6 +52,16 @@ def _bare_ir() -> Card:
     return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
+def _ir_with(*abilities: Ability) -> Card:
+    """A Card IR carrying the given abilities — the structural marker an ADR-0027-
+    migrated effect-based key reads."""
+    return Card(
+        oracle_id="x",
+        name="X",
+        faces=(Face(name="X", abilities=tuple(abilities)),),
+    )
+
+
 def _ks_hybrid(card):
     return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
 
@@ -62,6 +72,10 @@ def _keys_hybrid(card):
 
 def _keys_hybrid_ir(card, ir):
     return {s.key for s in extract_signals_hybrid(card, ir)}
+
+
+def _ks_hybrid_ir(card, ir):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card, ir)}
 
 
 # --- parametric subject capture (the core generalization) ----------------------
@@ -752,7 +766,29 @@ def test_land_protection_opens_on_land_animation():
             "Elemental creature with haste that's still a land."
         ),
     }
-    assert ("land_protection", "you") in _ks(noyan_dar)
+    # ADR-0027: land_protection migrated to the Card IR — the land-animator predicate
+    # (a base_pt_set with subject=None whose ability-level raw says "land … becomes a
+    # creature"). Assert via the hybrid path.
+    noyan_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="place_counter",
+                    counter_kind="p1p1",
+                    scope="you",
+                    subject=Filter(card_types=("Land",), controller="you"),
+                    raw="put three +1/+1 counters on target land you control",
+                ),
+                Effect(
+                    category="base_pt_set",
+                    scope="you",
+                    raw="that land becomes a 0/0 Elemental creature that's still a land",
+                ),
+            ),
+        )
+    )
+    assert ("land_protection", "you") in _ks_hybrid_ir(noyan_dar, noyan_ir)
 
 
 def test_lose_unless_hand_opens_on_cast_from_hand_drawback():
@@ -790,7 +826,22 @@ def test_land_denial_opens_on_phasing_lands():
             "(They phase in before you untap during your next untap step.)"
         ),
     }
-    assert ("land_denial", "you") in _ks(taniwha)
+    # ADR-0027: land_denial migrated to the Card IR — a `phasing` Effect on a Land
+    # subject with controller=='you'. Assert via the hybrid path.
+    taniwha_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="phasing",
+                    scope="you",
+                    subject=Filter(card_types=("Land",), controller="you"),
+                    raw="all lands you control phase out",
+                ),
+            ),
+        )
+    )
+    assert ("land_denial", "you") in _ks_hybrid_ir(taniwha, taniwha_ir)
 
 
 def test_multicolor_matters_opens_on_color_pair_payoff():
@@ -1222,12 +1273,31 @@ def test_clone_yields_no_subject_signal():
 
 def test_plant_token_maker_keeps_subject_but_not_land_creatures():
     # Avenger makes Plant tokens — token_maker/Plant is CORRECT; it must not be
-    # mistaken for the land-creatures theme.
+    # mistaken for the land-creatures theme. ADR-0027: both token_maker and
+    # land_creatures_matter are IR-served, so assert via the hybrid path with a
+    # Plant (not Land) token subject.
     c = {
         "name": "Avenger of Zendikar",
         "oracle_text": "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.",
     }
-    s = _ksub(c)
+    avenger_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        subtypes=("Plant",),
+                        controller="you",
+                    ),
+                    raw="create a 0/1 green Plant creature token",
+                ),
+            ),
+        )
+    )
+    s = _ksub_hybrid(c, avenger_ir)
     assert ("token_maker", "you", "Plant") in s
     assert not any(k == "land_creatures_matter" for k, _, _ in s)
 
@@ -1246,7 +1316,10 @@ def test_yedora_forest_land_maker_opens_land_creatures():
         "keywords": [],
         "oracle_text": "Whenever another nontoken creature you control dies, you may return it to the battlefield face down under its owner's control. It's a Forest land. (It has no other types or abilities.)",
     }
-    assert any(k == "land_creatures_matter" for k, _, _ in _ksub(c))
+    # ADR-0027: the "(it's|becomes) a forest land" maker tail rides the kept oracle
+    # mirror (phase parses Yedora as a reanimate, dropping the Forest-land tell), so
+    # assert via the hybrid path — any non-None IR routes to the mirror-bearing path.
+    assert any(k == "land_creatures_matter" for k, _, _ in _ksub_hybrid(c, _bare_ir()))
 
 
 def test_repeatable_aoe_ping_opens_for_deathtouch_combo():

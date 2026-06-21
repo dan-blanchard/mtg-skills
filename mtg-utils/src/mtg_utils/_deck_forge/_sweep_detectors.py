@@ -496,12 +496,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bunspent mana\\b|don't lose unspent|lose unspent mana|\\bmana burn\\b|loses? (?:one or more )?unspent mana|don't lose (?:this |unspent )?(?:\\w+ )?mana as (?:steps|phases|those steps)",
     },
-    {
-        "key": "keyword_soup",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "if it has flying[^.]*first strike|the same is true for first strike, double strike|has flying[^.]*\\+1/\\+1",
-    },
+    # ADR-0027: keyword_soup migrated to the Card IR — fired structurally from >=5
+    # distinct evergreen grant_keyword counter_kinds in one ability (Odric class) plus
+    # a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the "the same is true for …"
+    # keyword-absorb idiom phase under-parses on a few cards. This SWEEP_DETECTORS row
+    # is deleted; the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027: trigger_doubling migrated to the Card IR — served structurally from
     # phase's `trigger_doubling` effect category (Panharmonicon/Yarok class) plus a
     # `trigger_doubling` dropped-static face marker for the granted/quoted form

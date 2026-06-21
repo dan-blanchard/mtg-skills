@@ -108,7 +108,35 @@ JYOTI = {
 
 
 def test_land_creatures_matter_detected_on_jyoti():
-    keys = _keys(JYOTI)
+    # ADR-0027: land_creatures_matter migrated to the Card IR — assert via the hybrid
+    # path. Jyoti makes a Land+Creature token (the maker arm) and anthems land
+    # creatures (a pump over the same dual-type subject); the generic-creature anthem
+    # below carries the creatures_matter regression guard.
+    jyoti_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(card_types=("Creature", "Land"), controller="you"),
+                    raw="create a 1/1 green Forest Dryad land creature token",
+                ),
+            ),
+        ),
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",), controller="you"),
+                    raw="creatures you control get +X/+X",
+                ),
+            ),
+        ),
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(JYOTI, jyoti_ir)}
     # The defining theme of the commander — must be its own signal, not collapsed
     # into generic "creatures matter".
     assert ("land_creatures_matter", "you") in keys
@@ -117,6 +145,7 @@ def test_land_creatures_matter_detected_on_jyoti():
 
 
 def test_land_creatures_matter_from_anthem_payoff():
+    # ADR-0027: served from a pump over a Land+Creature dual-type subject.
     sylvan = {
         "name": "Sylvan Advocate",
         "oracle_text": (
@@ -124,19 +153,52 @@ def test_land_creatures_matter_from_anthem_payoff():
             "and land creatures you control get +2/+2."
         ),
     }
-    assert ("land_creatures_matter", "you") in _keys(sylvan)
+    sylvan_ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="pump",
+                    scope="you",
+                    subject=Filter(card_types=("Creature", "Land"), controller="you"),
+                    raw="~ and land creatures you control get +2/+2",
+                ),
+            ),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(sylvan, sylvan_ir)}
+    assert ("land_creatures_matter", "you") in keys
 
 
 def test_plant_token_maker_is_not_a_land_creatures_signal():
     # Avenger makes *Plant* creature tokens — never "land creatures". The whole
     # point of the scoped vocabulary: this must NOT register as land-creatures.
+    # ADR-0027: assert via the hybrid path with a Plant (not Land) token subject —
+    # neither the structural maker arm nor the kept oracle mirror fires.
     avenger = {
         "name": "Avenger of Zendikar",
         "oracle_text": (
             "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control."
         ),
     }
-    keys = _keys(avenger)
+    avenger_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        subtypes=("Plant",),
+                        controller="you",
+                    ),
+                    raw="create a 0/1 green Plant creature token",
+                ),
+            ),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(avenger, avenger_ir)}
     assert ("land_creatures_matter", "you") not in keys
     assert ("land_creatures_matter", "any") not in keys
 

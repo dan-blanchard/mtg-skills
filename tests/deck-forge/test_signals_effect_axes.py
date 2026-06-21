@@ -77,11 +77,17 @@ def test_landfall_widened_for_extra_land_drops():
 
 
 def test_land_creatures_widened_for_animation():
+    # ADR-0027: land_creatures_matter migrated to the Card IR — the mass-animation
+    # "all lands … become … creatures" tell rides the kept oracle mirror, so assert
+    # via the hybrid path (any non-None IR routes to the mirror-bearing path).
     c = {
         "name": "Jolrael-like",
         "oracle_text": "{2}{G}: All lands target player controls become 3/3 creatures until end of turn.",
     }
-    assert any(s.key == "land_creatures_matter" for s in extract_signals(c))
+    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    assert any(
+        s.key == "land_creatures_matter" for s in extract_signals_hybrid(c, bare_ir)
+    )
 
 
 def test_attack_matters_widened_for_isshin():

@@ -40,6 +40,7 @@ from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
+from mtg_utils.card_ir import Card
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.format_config import FORMAT_CONFIGS
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -801,10 +802,19 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     """Deck signals deduped by (key, scope, subject) and ranked by relevance.
 
     Thin ForgeState wrapper over the shared ``signals.rank_deck_signals`` core that the
-    deterministic tuner also calls (ADR-0023)."""
+    deterministic tuner also calls (ADR-0023). Wires the Card-IR index (ADR-0027) so
+    migrated keys — served only from the IR — surface in the deck's avenues."""
     commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
+    index = _ir_index()
+
+    def _ir_for(record: dict) -> Card | None:
+        return index.get(record.get("oracle_id") or "") if index else None
+
     return rank_deck_signals(
-        hydrated, commander_names, resolve_object=state.object_resolver
+        hydrated,
+        commander_names,
+        resolve_object=state.object_resolver,
+        ir_for=_ir_for,
     )
 
 

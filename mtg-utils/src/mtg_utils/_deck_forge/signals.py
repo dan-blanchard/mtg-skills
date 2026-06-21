@@ -101,6 +101,12 @@ _EVERGREEN_KW_WORDS = (
 _EVERGREEN_KW_RE = tuple(
     re.compile(r"\b" + kw + r"\b", re.IGNORECASE) for kw in _EVERGREEN_KW_WORDS
 )
+# ADR-0027 keyword_soup: phase's grant_keyword counter_kind is spaceless
+# ("firststrike"/"doublestrike"), so normalize the evergreen word set the same way
+# for the per-ability distinct-keyword count.
+_EVERGREEN_CK: frozenset[str] = frozenset(
+    kw.replace(" ", "") for kw in _EVERGREEN_KW_WORDS
+)
 
 
 # creature_etb scope tracks who controls the ENTERING creature, never the payoff
@@ -252,21 +258,12 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "you",
     ),
-    # Type-matters: "land creature(s)" as a phrase. \b before "land" so "nonland
-    # creature" / "Plant creature" / "island creature" do NOT register — only a
-    # genuine land-creature reference (the Jyoti / Sylvan Advocate theme). The
-    # "it's/becomes a forest land" tail catches the maker side (Yedora turns dead
-    # creatures into Forest lands that animate-your-lands payoffs then re-animate).
-    (
-        "land_creatures_matter",
-        _re(
-            r"\bland creatures?\b|lands? you control (?:are|become)\b"
-            r"|all lands[^.]*become[^.]*creature"
-            r"|target land[^.]*becomes? a[^.]*creature"
-            r"|(?:it's|becomes?) a forest land"
-        ),
-        None,
-    ),
+    # ADR-0027: land_creatures_matter migrated to the Card IR — fired from the shared
+    # land-animator predicate (animate/base_pt_set/type_set over a Land subject) +
+    # Land+Creature dual-type anthem/maker subjects (Sylvan Advocate, Timber Protector,
+    # Jyoti) + a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the self-animate
+    # manlands phase drops. This _DETECTORS producer is deleted; the serve spec stays
+    # hand-registered in signal_specs.py.
     (
         # Lifegain payoff ("whenever you gain life") OR the act of gaining life OR a
         # payoff that gates on HAVING gained life this turn ("if you gained life this
@@ -1233,19 +1230,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Land-animation (Noyan Dar, Kamahl, the Tophs): a commander that turns your lands
-    # into creatures makes them vulnerable to creature removal AND land destruction, so
-    # it wants land PROTECTION (Terra Eternal indestructible-lands, Tomik untargetable-
-    # lands, Sacred Ground recursion) to keep the animated lands alive.
-    (
-        "land_protection",
-        re.compile(
-            r"land[^.]*becomes? a[^.]*creature|lands? you control are[^.]*creatures"
-            r"|that land becomes",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: land_protection migrated to the Card IR — fired from the shared
+    # land-animator predicate (animate/base_pt_set/type_set over a you/any Land subject)
+    # + a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the self-animate manlands
+    # phase drops. This _HAND_FLOOR producer is deleted; the serve spec stays
+    # hand-registered in signal_specs.py.
     # Cast-from-hand-or-lose drawback (Phage): a commander that makes you LOSE unless
     # cast from hand wants to negate it — command-zone-to-hand tutors (Netherborn Altar,
     # Command Beacon) so it's cast normally, "you can't lose the game" backstops, and
@@ -1257,14 +1246,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Phasing-lands (Taniwha "all lands you control phase out"): your lands phase back
-    # each turn but symmetric land-denial stax hits opponents permanently, so it wants
-    # the land-bounce/sac punishers (Mana Breach, Overburden) — asymmetric land denial.
-    (
-        "land_denial",
-        re.compile(r"lands? you control phase", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: land_denial migrated to the Card IR — fired structurally from a
+    # `phasing` Effect on a Land subject with controller=='you' (Taniwha). This
+    # _HAND_FLOOR producer is deleted; the serve spec (the LD-punisher serve) stays
+    # hand-registered in signal_specs.py and is unaffected.
     # ADR-0027: aoe_ping migrated to the Card IR — a REPEATABLE "damage to each
     # creature" board ping (Tibor, Pestilence, Pyrohemia) is structurally an Effect
     # (category=='damage', counter_kind=='all', Creature subject) carried by a
@@ -4506,10 +4491,66 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # counter" — Wingfold Pteron, T-45 Power Armor, Vivien). scope 'any' (these counter
     # sources appear on either side). CR 122.1b.
     ("keyword_counter", re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE), "any"),
+    # ADR-0027 keyword_soup tail. The structural arm (>=5 distinct evergreen
+    # grant_keyword counter_kinds in one ability) catches the genuine granters
+    # (Odric, Akroma's Memorial, Cairn Wanderer). phase parses the "the same is true
+    # for X, Y, …" keyword-absorb idiom INCONSISTENTLY — it expands some cards
+    # (Cairn Wanderer -> 9 grants) but collapses others to a single flying grant
+    # (Indominus Rex, Urborg Scavengers), so this mirror (byte-identical to the
+    # deleted SWEEP row) recovers that under-parse tail. A-B==0. CR 702.
+    (
+        "keyword_soup",
+        re.compile(
+            r"if it has flying[^.]*first strike"
+            r"|the same is true for first strike, double strike"
+            r"|has flying[^.]*\+1/\+1",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ADR-0027 land_creatures_matter tail. The structural arms (Land+Creature
+    # subject anthems/makers + the animate/base_pt_set/type_set animator) catch the
+    # bulk (174 cards, +127 manlands the regex missed), but phase drops some
+    # self-animate manland clauses ({cost}: this land becomes a creature) entirely
+    # and routes a few animators through non-animate categories (Druid Class's
+    # characteristic_pt, Sage of the Maze's restriction). This mirror (byte-identical
+    # to the deleted _HAND_FLOOR row) recovers that tail. A-B==0. CR 305 + CR 110.1.
+    (
+        "land_creatures_matter",
+        re.compile(
+            r"\bland creatures?\b|lands? you control (?:are|become)\b"
+            r"|all lands[^.]*become[^.]*creature"
+            r"|target land[^.]*becomes? a[^.]*creature"
+            r"|(?:it's|becomes?) a forest land",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
+    # ADR-0027 land_protection tail. The structural animator arm catches the
+    # mass land-animation commanders, but phase drops the self-animate clause on most
+    # manlands (Creeping Tar Pit / Raging Ravine / the Restless lands), so this mirror
+    # (byte-identical to the deleted _HAND_FLOOR row) recovers those 17 manlands the
+    # structural read misses. A-B==0. CR 305 + CR 110.1.
+    (
+        "land_protection",
+        re.compile(
+            r"land[^.]*becomes? a[^.]*creature|lands? you control are[^.]*creatures"
+            r"|that land becomes",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
     # the word). Both need a narrower payoff/keyword source.
+    # DEFERRED: legend_rule_off — phase's `legend_exempt` Effect is a strict SUBSET
+    # of the regex (2 of 8: only the unbounded "the legend rule doesn't apply" —
+    # Mirror Gallery, Brothers Yamazaki). The bounded-scope variant ("doesn't apply
+    # to permanents/tokens/Slivers/Spiders you control" — Mirror Box, Cadric, Sliver
+    # Gravemother, Spider-Verse, The Master, Sakashima) is DROPPED by phase, so 6 of 8
+    # cards' recall lives only in the regex. Needs a supplement.py extension anchoring
+    # the "doesn't apply to … you control" form before this can migrate. CR 704.5j.
 )
 
 # Cares-about floor lanes the IR path also runs. A `<mechanic>_matters` lane means
@@ -4933,6 +4974,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             "extra_land_drop",
             "free_creature_payoff",
             "keyword_counter",
+            # ADR-0027 tranche2-batch-3-A — land-animation + keyword-soup lanes:
+            #   land_denial          ← phasing Effect, Land/you subject (Taniwha).
+            #   keyword_soup         ← >=5 distinct evergreen grant_keyword cks/ability
+            #                          + a kept oracle mirror for the under-parse tail.
+            #   land_creatures_matter / land_protection ← the shared land-animator
+            #                          predicate + Land+Creature anthem/maker subjects
+            #                          + a kept oracle mirror for the dropped manlands.
+            "land_denial",
+            "keyword_soup",
+            "land_creatures_matter",
+            "land_protection",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -4993,6 +5045,51 @@ def _is_generic_creature_filter(f: object) -> bool:
         and "Creature" in f.card_types
         and not f.subtypes
         and f.controller == "you"
+    )
+
+
+# ADR-0027 land-animation lanes (land_creatures_matter / land_protection): one
+# shared predicate. A Land+Creature dual-type subject is the anthem/maker side
+# (Sylvan Advocate's pump, Timber Protector's grant, Jyoti's land-creature token);
+# a Land subject under an animate/base_pt_set/type_set effect is the animator side
+# (Living Plane, Life and Limb, manlands). phase frequently drops the animate
+# subject to None and splits "target land becomes a 0/0 creature" across effects, so
+# the subject=None case checks the WHOLE ability's joined raw for a land reference
+# (Noyan Dar, Llanowar Loamspeaker) while this effect's raw must say creature/becomes
+# (CR 305 land + CR 110.1 creature). Phase outright drops many self-animate manland
+# clauses ({cost}: this land becomes a creature) — those ride the kept oracle mirror.
+def _has_land_creature_types(f: object) -> bool:
+    """A Land+Creature dual-type own-board subject (the anthem/maker shape)."""
+    return (
+        isinstance(f, Filter) and "Land" in f.card_types and "Creature" in f.card_types
+    )
+
+
+def _is_land_subject(f: object, controllers: tuple[str, ...]) -> bool:
+    """A Land subject controlled by one of ``controllers`` (the animator shape)."""
+    return (
+        isinstance(f, Filter) and "Land" in f.card_types and f.controller in controllers
+    )
+
+
+def _none_animate_land(ab: object, e: object) -> bool:
+    """A subject=None animate whose own raw says creature/becomes AND whose ABILITY-
+    level raw mentions a land (phase splits the land subject off the animate clause)."""
+    if getattr(e, "subject", "") is not None:
+        return False
+    er = (getattr(e, "raw", "") or "").lower()
+    if "becomes" not in er and "creature" not in er:
+        return False
+    ab_raw = " ".join((x.raw or "") for x in getattr(ab, "effects", ())).lower()
+    return bool(re.search(r"\bland", ab_raw))
+
+
+def _is_land_animator(ab: object, e: object, controllers: tuple[str, ...]) -> bool:
+    """An animate/base_pt_set/type_set effect that turns a land into a creature —
+    either a Land subject (controllers-gated) or the subject=None raw fallback."""
+    return getattr(e, "category", "") in ("animate", "base_pt_set", "type_set") and (
+        _is_land_subject(getattr(e, "subject", None), controllers)
+        or _none_animate_land(ab, e)
     )
 
 
@@ -5923,6 +6020,22 @@ def extract_signals_ir(
         add("exile_until_leaves", "you", "", "")
 
     for ab in ir.all_abilities():
+        # keyword_soup (ADR-0027): a keyword-stacking granter — Odric / Akroma's
+        # Memorial / Rayami emit one grant_keyword Effect PER keyword from a single
+        # ability (the counter_kind carries each). >=5 DISTINCT evergreen keywords in
+        # ONE ability isolates the genuine team-share/absorb soup (Odric, Concerted
+        # Effort, Cairn Wanderer) from a single-creature 3-4-keyword bundle (Sword of
+        # Vengeance). Per-ability (not per-card) so two separate 3-keyword grants don't
+        # falsely sum to 6. The "the same is true for X, Y, …" idiom phase under-parses
+        # to a single grant on a few cards (Indominus Rex, Urborg Scavengers) rides the
+        # kept oracle mirror below. CR 702 evergreen keywords.
+        _soup_cks = {
+            (e.counter_kind or "").replace(" ", "").lower()
+            for e in ab.effects
+            if e.category == "grant_keyword"
+        }
+        if len(_soup_cks & _EVERGREEN_CK) >= 5:
+            add("keyword_soup", "you", "", "")
         for e in ab.effects:
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
@@ -5984,6 +6097,37 @@ def extract_signals_ir(
                 )
             ):
                 add("creatures_matter", "you", "", e.raw)
+            # land_creatures_matter (ADR-0027): a land-creatures build wants its lands
+            # turned into / counted as creatures. The PAYOFF/anthem side is a pump /
+            # keyword-grant / base-P/T over a Land+Creature dual-type subject (Sylvan
+            # Advocate, Timber Protector, Jyoti); the MAKER side is a make_token of a
+            # land-creature (Jyoti's Forest Dryad); the ANIMATOR side turns your lands
+            # into creatures (Living Plane, Noyan Dar). The kept oracle mirror below
+            # recovers the self-animate manlands phase drops. land_protection rides the
+            # SAME animator (you/any lands becoming creatures need keeping alive vs
+            # removal); add() dedups the co-fire. CR 305 + CR 110.1.
+            if (
+                e.category in ("pump", "grant_keyword", "base_pt_set")
+                and _has_land_creature_types(e.subject)
+            ) or (e.category == "make_token" and _has_land_creature_types(e.subject)):
+                add("land_creatures_matter", "you", "", e.raw)
+            if _is_land_animator(ab, e, ("you",)):
+                add("land_creatures_matter", "you", "", e.raw)
+            # land_protection (ADR-0027): a commander that animates MANY of your lands
+            # (you- OR any-controlled) wants them kept alive — indestructible / hexproof
+            # lands / land recursion. Shares the animator predicate with
+            # land_creatures_matter (full regex parity = fire on any land-animate); the
+            # kept oracle mirror recovers the self-animate manlands phase drops.
+            if _is_land_animator(ab, e, ("you", "any")):
+                add("land_protection", "you", "", e.raw)
+            # land_denial (ADR-0027): a self-land-phasing commander (Taniwha: "all lands
+            # you control phase out") wants asymmetric land-bounce/sac stax punishers —
+            # its own lands phase back while opponents' stay gone. phase v0.1.19 emits a
+            # dedicated `phasing` Effect; the controller=='you' Land subject is the
+            # narrow tell (Reality Ripple's one-shot any-controller phase-out is
+            # excluded). CR 702.26.
+            if e.category == "phasing" and _is_land_subject(e.subject, ("you",)):
+                add("land_denial", "you", "", e.raw)
             # artifacts_matter / enchantments_matter go-wide DOER: a COUNT operand
             # over YOUR artifacts/enchantments (affinity CR 702.41, "for each artifact
             # you control" — Nim Lasher, Storm-Kiln, Tuvasa). The value scales with
@@ -8587,6 +8731,26 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "extra_land_drop",
         "free_creature_payoff",
         "keyword_counter",
+        # ADR-0027 tranche2-batch-3-A — land-animation + keyword-soup lanes.
+        #   land_denial          ← phasing Effect, Land subject, controller=='you'
+        #     (Taniwha). Pure-structural; regex==IR==1, residual 0; floor-mirror-dep 0.
+        #   keyword_soup         ← >=5 distinct evergreen grant_keyword counter_kinds in
+        #     one ability (Odric class) + a kept oracle mirror for the "same is true
+        #     for …" idiom phase under-parses (Indominus Rex). Combined residual 0;
+        #     +8 genuine keyword-stackers the regex missed. Floor-mirror-dep 0.
+        #   land_creatures_matter / land_protection ← the SHARED land-animator predicate
+        #     (animate/base_pt_set/type_set over a Land subject, you- vs you/any-gated)
+        #     + Land+Creature anthem/maker subjects + a kept oracle mirror for the
+        #     self-animate manlands phase drops. Combined residual 0; +127 / +97
+        #     manlands the regex missed. Floor-mirror-dep 0; the co-fire on one
+        #     land-animator is correct (the deck wants both lanes).
+        # legend_rule_off is DEFERRED — phase's legend_exempt is a strict SUBSET of the
+        # regex (2 of 8; the bounded-scope variant is dropped). Needs a supplement
+        # projection; left on the regex path. See the _IR_KEPT_DETECTORS tail note.
+        "land_denial",
+        "keyword_soup",
+        "land_creatures_matter",
+        "land_protection",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -8699,6 +8863,7 @@ def rank_deck_signals(
     commander_names: set[str],
     *,
     resolve_object: Callable[[str], dict | None] | None = None,
+    ir_for: Callable[[dict], Card | None] | None = None,
 ) -> list[Signal]:
     """Deck signals deduped by (key, scope, subject) and ranked by relevance.
 
@@ -8706,7 +8871,14 @@ def rank_deck_signals(
     COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
     signal's *support* (how many cards feed it) drives the ranking. Kept ForgeState-free
     so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
-    tuner share one ranking (ADR-0023)."""
+    tuner share one ranking (ADR-0023).
+
+    ``ir_for`` (ADR-0027): a per-record Card-IR resolver. When supplied, each card
+    runs through ``extract_signals_hybrid`` so migrated keys (served only from the IR)
+    surface in the deck's ranked signals / avenues — the engine wires its index here.
+    When ``None`` (the deterministic tuner's no-sidecar path), falls back to the pure
+    regex ``extract_signals`` (a migrated key whose regex producer is deleted simply
+    won't surface — graceful degradation, matching the hybrid's ``ir is None`` arm)."""
     support: dict[tuple[str, str, str], int] = {}
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
@@ -8716,11 +8888,20 @@ def rank_deck_signals(
         is_cmd = card.get("name") in commander_names
         # Folded objects (a ventured dungeon — ADR-0025) belong to the COMMANDER's plan,
         # so only fold for the commander, never the 99.
-        for sig in extract_signals(
-            card,
-            include_membership=is_cmd,
-            resolve_object=resolve_object if is_cmd else None,
-        ):
+        if ir_for is not None:
+            sigs = extract_signals_hybrid(
+                card,
+                ir_for(card),
+                include_membership=is_cmd,
+                resolve_object=resolve_object if is_cmd else None,
+            )
+        else:
+            sigs = extract_signals(
+                card,
+                include_membership=is_cmd,
+                resolve_object=resolve_object if is_cmd else None,
+            )
+        for sig in sigs:
             ident = (sig.key, sig.scope, sig.subject)
             support[ident] = support.get(ident, 0) + 1
             if is_cmd:
@@ -8793,6 +8974,17 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "mass_bounce",
         "permanent_etb",
         "power_double",
+        # ADR-0027 tranche2-batch-3-A: land_denial fired high-confidence in the regex
+        # path (the _HAND_FLOOR producer, now deleted) and counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on
+        # Taniwha (a Trample Serpent that is a land-phasing stax commander, not a
+        # vanilla beater). The IR re-supplies land_denial on the SAME single card
+        # (IR==regex==1: phasing+Land+you isolates Taniwha exactly), so this is
+        # byte-identical re-silencing — not a broadening, so no over-silence. The other
+        # three migrated keys (keyword_soup / land_creatures_matter / land_protection)
+        # leaked NO voltron on the file-swap (their cards already carry another plan),
+        # so they are NOT added here.
+        "land_denial",
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping / mass_removal keys
         # silenced the spurious commander-damage voltron membership tell when their
         # (now-deleted) regex producers fired. The silencing is done on the regex side
