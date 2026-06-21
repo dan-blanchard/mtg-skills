@@ -4148,6 +4148,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 β kept-mirror: phase's legend_exempt drops the BOUNDED variant
+    # ("doesn't apply to permanents you control"), so Mirror Box has no structural
+    # form — the byte-identical _IR_KEPT_DETECTORS mirror is what recovers it. Bare IR.
+    "legend_rule_off": (
+        {
+            "name": "Mirror Box",
+            "type_line": "Artifact",
+            "oracle_text": (
+                'The "legend rule" doesn\'t apply to permanents you control.\n'
+                "Each legendary creature you control gets +1/+1.\nEach nontoken "
+                "creature you control gets +1/+1 for each other creature you "
+                "control with the same name as that creature."
+            ),
+        },
+        _ir(),
+    ),
+    # ADR-0027 β kept-mirror: phase drops the cast-timing static entirely, so City of
+    # Solitude has no structural form — the byte-identical _IR_KEPT_DETECTORS mirror is
+    # what recovers it. Bare IR.
+    "timing_control": (
+        {
+            "name": "City of Solitude",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Players can cast spells and activate abilities only during "
+                "their own turns."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

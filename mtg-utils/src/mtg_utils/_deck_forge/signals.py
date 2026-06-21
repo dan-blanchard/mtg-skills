@@ -5208,13 +5208,36 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker). Needs a narrower payoff/keyword source.
-    # DEFERRED: legend_rule_off — phase's `legend_exempt` Effect is a strict SUBSET
+    # ADR-0027 β — legend_rule_off: phase's `legend_exempt` Effect is a strict SUBSET
     # of the regex (2 of 8: only the unbounded "the legend rule doesn't apply" —
     # Mirror Gallery, Brothers Yamazaki). The bounded-scope variant ("doesn't apply
     # to permanents/tokens/Slivers/Spiders you control" — Mirror Box, Cadric, Sliver
-    # Gravemother, Spider-Verse, The Master, Sakashima) is DROPPED by phase, so 6 of 8
-    # cards' recall lives only in the regex. Needs a supplement.py extension anchoring
-    # the "doesn't apply to … you control" form before this can migrate. CR 704.5j.
+    # Gravemother, Spider-Verse, The Master, Sakashima) is DROPPED by phase entirely,
+    # so there is NO structural form to read. A byte-identical kept mirror of the
+    # exact deleted SWEEP regex recovers all 8 (commander-legal corpus: regex==mirror
+    # ==8, 0 lost, 0 over-fire). CR 704.5j.
+    (
+        "legend_rule_off",
+        re.compile(r"the .legend rule. doesn't apply", re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 β — timing_control: phase drops the cast-timing statics ("cast spells
+    # only any time they could cast a sorcery" — Teferi; "cast spells only during
+    # their own turns" — City of Solitude; Fires of Invention) entirely (it keeps
+    # only the flash-grant), so there is NO structural form to read. A byte-identical
+    # kept mirror of the exact deleted SWEEP regex recovers all 5 (commander-legal
+    # corpus: regex==mirror==5, 0 lost, 0 over-fire). scope "any" matches the deleted
+    # SWEEP row so the firing identity is byte-identical. CR 117.1a / 307.1.
+    (
+        "timing_control",
+        re.compile(
+            r"cast spells (?:and activate abilities )?only during their own"
+            r"|spells? only any time they could cast a sorcery"
+            r"|can cast spells only",
+            re.IGNORECASE,
+        ),
+        "any",
+    ),
 )
 
 # Cares-about floor lanes the IR path also runs. A `<mechanic>_matters` lane means
@@ -5799,6 +5822,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # folds into a categoryless / mis-scoped effect. struct + mirror reproduces
             # the regex firing set byte-identically (regex_only == 0).
             "edict_matters",
+            # ADR-0027 β — legend_rule_off + timing_control: phase emits NOTHING
+            # structural for either (legend_exempt covers only 2 of 8; the cast-timing
+            # statics are dropped wholesale), so each rides a byte-identical
+            # _IR_KEPT_DETECTORS mirror of the exact deleted regex (commander-legal
+            # corpus: regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 704.5j / 117.1a.
+            "legend_rule_off",
+            "timing_control",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -10009,15 +10040,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     self-animate manlands phase drops. Combined residual 0; +127 / +97
         #     manlands the regex missed. Floor-mirror-dep 0; the co-fire on one
         #     land-animator is correct (the deck wants both lanes).
-        # legend_rule_off is DEFERRED — phase's legend_exempt is a strict SUBSET of the
-        # regex (2 of 8; the bounded-scope variant is dropped). Needs a supplement
-        # projection; left on the regex path. See the _IR_KEPT_DETECTORS tail note.
+        # legend_rule_off MIGRATED (ADR-0027 β kept-mirror) — phase's legend_exempt is a
+        # strict SUBSET of the regex (2 of 8; the bounded-scope variant is dropped), so
+        # it rides a byte-identical _IR_KEPT_DETECTORS mirror of the deleted regex (all
+        # 8; see the entry above). It is NO LONGER on the regex path.
         "land_denial",
         "keyword_soup",
         "land_creatures_matter",
         "land_protection",
-        # Group "tranche2-B-3" (ADR-0027) — 2 of 5 batch keys migrated; the other 3
-        # (self_counter_grow / timing_control / token_copy_matters) DEFERRED for a
+        # Group "tranche2-B-3" (ADR-0027) — 2 of 5 batch keys migrated structurally;
+        # timing_control later migrated via an ADR-0027 β kept-mirror (phase emits
+        # nothing structural for the cast-timing statics — see the entry above). The
+        # remaining 2 (self_counter_grow / token_copy_matters) stay DEFERRED for a
         # genuine floor-disabled IR-vs-regex recall gap (NOT 100% over-fire), see the
         # deferral comments at their arms / producers.
         #   spell_keyword_grant ← the WHOLE `cast_with_keyword` effect category (the
@@ -10336,6 +10370,18 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # voltron 0 leaked (the kept mirror re-supplies has_other_plan via
         # _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply is safe). CR 510.1c.
         "tribe_damage_trigger",
+        # ADR-0027 β kept-mirror — legend_rule_off + timing_control: phase emits
+        # NOTHING structural for either (legend_exempt covers only 2 of 8; the
+        # cast-timing statics are dropped wholesale), so each rides a byte-identical
+        # _IR_KEPT_DETECTORS mirror of the EXACT deleted regex. The mirror reproduces
+        # the regex firing set byte-identically (commander-legal corpus: regex==mirror,
+        # 0 lost, 0 over-fire — legend_rule_off 8==8, timing_control 5==5). floor-
+        # mirror-dep == 0 (neither reads _IR_FLOOR_LANES). NO-FLOOD: voltron 0 leaked
+        # on the FILE-SWAP even without a _VOLTRON_SILENCING_PLAN_KEYS entry (their
+        # creature bodies already carry another plan), so neither is added there.
+        # CR 704.5j / 117.1a.
+        "legend_rule_off",
+        "timing_control",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -10640,6 +10686,14 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # joined oracle as the deleted regex, so it is BYTE-IDENTICAL (no broadening, no
         # over-silence). File-swap: 1 voltron leaked without this, 0 with it; A-B==0.
         "tribe_damage_trigger",
+        # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
+        # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
+        # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an
+        # entry (their creature bodies — Cadric, Brothers Yamazaki, Sakashima, The
+        # Master, Sliver Gravemother, Teferi Mage of Zhalfir, Dosan — already carry
+        # another plan signal, e.g. legends_matter / self-copy). Adding them would be
+        # dead over-silencing, so they stay out (matching the keyword_soup /
+        # land_creatures_matter precedent above).
     }
 )
 

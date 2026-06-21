@@ -643,12 +643,17 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # coined term on exactly the 7 flip creatures). This SWEEP_DETECTORS row is deleted;
     # SWEEP_LABELS keeps the human label, and the serve is hand-registered in
     # signal_specs.py reusing the regex.
-    {
-        "key": "legend_rule_off",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "the .legend rule. doesn't apply",
-    },
+    # ADR-0027 β (kept-mirror): legend_rule_off migrated to the Card IR. phase's
+    # `legend_exempt` Effect is a strict SUBSET of the regex (2 of 8: only the
+    # unbounded "the legend rule doesn't apply" — Mirror Gallery, Brothers
+    # Yamazaki). The bounded-scope variant ("doesn't apply to
+    # permanents/tokens/<Subtype> you control" — Mirror Box, Cadric, Sliver
+    # Gravemother, Spider-Verse, The Master, Sakashima) is DROPPED by phase, so
+    # a byte-identical _IR_KEPT_DETECTORS word mirror (the exact regex below)
+    # recovers all 8 — the only honest resolution while phase emits no structural
+    # form for the bounded variant. This SWEEP_DETECTORS row is deleted;
+    # SWEEP_LABELS keeps the human label, and the serve is hand-registered in
+    # signal_specs.py reusing the regex. CR 704.5j.
     # ADR-0027: cmdzone_ability migrated to the Card IR — an Eminence / command-zone-
     # gated ability fires from a STRUCTURAL arm (extract_signals_ir): 'command' in the
     # ability zones OR in the recursive Condition zone tree (phase models the gate as
@@ -827,15 +832,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "becomes the color of your choice|becomes? (?:the color|all colors)",
     },
-    {
-        "key": "timing_control",
-        # scope "any": the restriction arms span opponents-only (Teferi), symmetric
-        # (City of Solitude), and self (Fires of Invention) — no single side is right,
-        # so this reads honestly as "restricts WHEN spells can be cast", not a punish.
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "cast spells (?:and activate abilities )?only during their own|spells? only any time they could cast a sorcery|can cast spells only",
-    },
+    # ADR-0027 β (kept-mirror): timing_control migrated to the Card IR. phase drops
+    # the cast-timing statics entirely (it keeps only the flash-grant), so there is
+    # no structural form — a byte-identical _IR_KEPT_DETECTORS word mirror (the exact
+    # regex below, scope "any") is the only honest resolution. The restriction arms
+    # span opponents-only (Teferi), symmetric (City of Solitude), and self (Fires of
+    # Invention) — no single side is right, so scope "any" reads honestly as
+    # "restricts WHEN spells can be cast", not a punish. This SWEEP_DETECTORS row is
+    # deleted; SWEEP_LABELS keeps the human label, and the serve is hand-registered
+    # in signal_specs.py reusing the regex. CR 117.1a / 307.1.
     # ADR-0027: end_the_turn migrated to the Card IR — served structurally from
     # phase's `end_the_turn` effect category (CR 724; the EndTheTurn effect + the
     # failed-parse "end the turn" supplement recovery, now reconciled to the same

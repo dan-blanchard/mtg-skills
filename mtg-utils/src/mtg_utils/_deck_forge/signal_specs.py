@@ -2380,6 +2380,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": TRIBE_DAMAGE_TRIGGER_REGEX},
         TRIBE_DAMAGE_TRIGGER_REGEX,
     ),
+    # ADR-0027 β: timing_control's SWEEP_DETECTORS row is deleted (detection moved to
+    # the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool stays
+    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
+    # build (scope "any", the deleted SWEEP row's scope), reusing the deleted regex so
+    # the serve pool never drifts. SWEEP_LABELS still carries the human label.
+    ("timing_control", "any"): _spec(
+        *SWEEP_LABELS["timing_control"],
+        {
+            "oracle": (
+                r"cast spells (?:and activate abilities )?only during their own"
+                r"|spells? only any time they could cast a sorcery"
+                r"|can cast spells only"
+            )
+        },
+        r"cast spells (?:and activate abilities )?only during their own"
+        r"|spells? only any time they could cast a sorcery"
+        r"|can cast spells only",
+    ),
     # ADR-0027 tranche2-batch-5 (t2b5-B): sacrifice_protection / secret_writedown had
     # their SWEEP_DETECTORS rows deleted (detection moved to the Card IR — kept_detector
     # word mirrors), so the sweep auto-register loop no longer builds their serve. Hand-
@@ -2615,9 +2633,14 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         regex=r"(?:cards?|spells?) (?:in your hand )?ha(?:s|ve) miracle",
     ),
     # Legend-rule-off commander (Brothers Yamazaki) wants self-copy effects to run
-    # multiple copies of itself.
+    # multiple copies of itself. ADR-0027 β: legend_rule_off's SWEEP_DETECTORS row is
+    # deleted (detection moved to the Card IR via a byte-identical _IR_KEPT_DETECTORS
+    # mirror), so pass the deleted regex explicitly (the serve pool stays oracle-
+    # defined and never drifts from the deleted SWEEP row).
     ("legend_rule_off", "you"): _sweep_spec_with_extras(
-        "legend_rule_off", (_COPY_EXTRA,)
+        "legend_rule_off",
+        (_COPY_EXTRA,),
+        regex=r"the .legend rule. doesn't apply",
     ),
     # A self-blinking commander (Norin) re-enters constantly, firing "whenever a
     # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).

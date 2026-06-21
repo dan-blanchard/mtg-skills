@@ -408,8 +408,10 @@ def test_named_counters_are_separate_lanes():
 # the opponents/any-scoped timing-restriction lane.
 def test_end_the_turn_split_from_timing_restriction():
     # ADR-0027: end_the_turn migrated to the Card IR — phase's `end_the_turn` effect
-    # category opens it via the hybrid (Obeka); timing_control stays on regex. The
-    # split (end_the_turn ≠ the opponents-scoped timing restriction) still holds.
+    # category opens it via the hybrid (Obeka). ADR-0027 β: timing_control ALSO migrated
+    # (a byte-identical _IR_KEPT_DETECTORS mirror — phase emits nothing structural for
+    # the cast-timing static), so it now rides the hybrid path too. The split
+    # (end_the_turn ≠ the opponents/any-scoped timing restriction) still holds.
     obeka = {
         "name": "X",
         "oracle_text": "{T}: The player whose turn it is may end the turn.",
@@ -444,8 +446,9 @@ def test_end_the_turn_split_from_timing_restriction():
         "name": "Y",
         "oracle_text": "Each opponent can cast spells only any time they could cast a sorcery.",
     }
-    assert "timing_control" in _keys(teferi)
-    assert "end_the_turn" not in _keys(teferi)
+    assert "timing_control" not in _keys(teferi)  # ADR-0027 β: regex path drops it
+    assert "timing_control" in _keys_hybrid(teferi)  # the IR kept-mirror serves it
+    assert "end_the_turn" not in _keys_hybrid(teferi)
 
 
 # #17 Donate = a control change (CR 701.12). A group-hug "target opponent draws/creates"
