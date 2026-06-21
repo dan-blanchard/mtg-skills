@@ -41,6 +41,16 @@ OPPONENT_COUNTER_GRANT_REGEX = "put a (?:bounty|stun) counter on target (?:creat
 # it, and signals reuses it for both the kept word mirror and the voltron PLAN mirror —
 # so serve / detector / silence never drift.
 NONCREATURE_CAST_PUNISH_REGEX = "whenever a player casts a noncreature spell|whenever an opponent casts a noncreature|whenever a player casts an (?:artifact|instant|sorcery)"
+# ADR-0027 β — tribe_damage_trigger migrated to the Card IR via the KEPT-DETECTOR
+# pattern. Its SWEEP_DETECTORS row is deleted: phase leaves the combat_damage trigger
+# subject = None (no structure to read), so this is a byte-identical kept mirror, not a
+# projection. Compiled with re.IGNORECASE, `[A-Z][a-z]+` also matches a generic
+# "creature", so the lane is really "your creatures connect for combat damage → reward"
+# (Toski, Reconnaissance Mission, Coastal Piracy, Bident of Thassa), not strictly
+# tribal. This mined regex survives as a shared constant so signals._IR_KEPT_DETECTORS
+# reuses it for the kept mirror and signal_specs hand-registers the serve reusing it —
+# so serve / mirror never drift. SWEEP_LABELS still carries the human label.
+TRIBE_DAMAGE_TRIGGER_REGEX = "whenever (?:one or more|a|another) [A-Z][a-z]+s? you control deal[s]? (?:combat )?damage to (?:a player|an opponent|one of your opponents|each opponent)"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -899,12 +909,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # entirely (Cyclonus). Neither is in _IR_FLOOR_LANES; their serve specs are
     # hand-registered in signal_specs (reusing the deleted "additional beginning
     # phase" regex). extra_end_step (CR 513) migrated earlier the same way.
-    {
-        "key": "tribe_damage_trigger",
-        "scope": "you",
-        "is_widen_of": "combat_damage_matters",
-        "regex": "whenever (?:one or more|a|another) [A-Z][a-z]+s? you control deal[s]? (?:combat )?damage to (?:a player|an opponent|one of your opponents|each opponent)",
-    },
+    # ADR-0027 β — tribe_damage_trigger's SWEEP_DETECTORS row is deleted (migrated to
+    # the Card IR via the KEPT-DETECTOR pattern: signals._IR_KEPT_DETECTORS reuses the
+    # shared TRIBE_DAMAGE_TRIGGER_REGEX above, byte-identically). SWEEP_LABELS still
+    # carries the human label; signal_specs hand-registers the serve.
     {
         "key": "combat_damage_to_creature",
         "scope": "any",

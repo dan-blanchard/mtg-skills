@@ -54,6 +54,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
+    TRIBE_DAMAGE_TRIGGER_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
 from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
@@ -4507,6 +4508,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(NONCREATURE_CAST_PUNISH_REGEX, re.IGNORECASE),
         "any",
     ),
+    # ADR-0027 β — tribe_damage_trigger: phase leaves the combat_damage trigger subject
+    # = None (no structure to read — the `tsub_kinds` arm in extract_signals_ir was DEAD
+    # CODE, never firing on a combat-damage trigger), so this is a byte-identical KEPT
+    # MIRROR of the deleted SWEEP regex, not a projection. Under re.IGNORECASE the
+    # `[A-Z][a-z]+` ALSO matches a generic "creature", so the lane is really "your
+    # creatures connect for combat damage → reward" (Toski, Reconnaissance Mission,
+    # Coastal Piracy, Bident of Thassa), not strictly tribal. Scope 'you' (the deleted
+    # SWEEP row's scope). Reuses the shared regex so serve / mirror never drift.
+    (
+        "tribe_damage_trigger",
+        re.compile(TRIBE_DAMAGE_TRIGGER_REGEX, re.IGNORECASE),
+        "you",
+    ),
     # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
     # (rules-lawyer-verified: no card-property reference shape in the parse), moved
     # here from _IR_FLOOR_LANES so the lane fires from a dedicated IR-path word mirror
@@ -5471,6 +5485,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "draw_matters",
             "creature_etb",
             "combat_damage_matters",
+            # ADR-0027 β — tribe_damage_trigger (is_widen_of combat_damage_matters):
+            # a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP regex
+            # ("your creatures connect for combat damage → reward").
+            "tribe_damage_trigger",
             "creature_cast_trigger",
             signal_keys.TYPED_SPELLCAST,
             # Batch P (phase-native mechanic effects):
@@ -8835,8 +8853,10 @@ def extract_signals_ir(
                 add("combat_damage_matters", "opponents", "", "")
                 if trig.scope == "opp":
                     add("damage_to_opp_matters", "opponents", "", "")
-                if tsub_kinds:
-                    add("tribe_damage_trigger", "you", "", "")
+                # ADR-0027 β — tribe_damage_trigger's dead `if tsub_kinds:` arm is
+                # removed: phase leaves a combat_damage trigger's subject = None, so
+                # tsub_kinds is always empty here and the arm never fired. The lane is
+                # now served by the byte-identical _IR_KEPT_DETECTORS mirror.
             if ev == "cast_spell":
                 # ADR-0027 opponent_cast_matters — the explicit scope=opp half
                 # ("whenever an opponent casts a spell" — Lavinia, Nekusar). The
@@ -10302,6 +10322,20 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _VOLTRON_SILENCING_PLAN_KEYS — keeps an Annihilator voltron beater from over-
         # silencing; NO-FLOOD: voltron 0 leaked). CR 701.16.
         "edict_matters",
+        # ADR-0027 β — tribe_damage_trigger: a byte-identical KEPT MIRROR (the EXACT
+        # deleted SWEEP regex via _IR_KEPT_DETECTORS over the joined-face oracle, scope
+        # 'you'). phase leaves the combat_damage trigger subject = None, so there is no
+        # structure to read — the old `tsub_kinds` arm in extract_signals_ir was DEAD
+        # CODE (never fired) and is removed. Under re.IGNORECASE the regex's
+        # `[A-Z][a-z]+` also matches a generic "creature", so the lane is "your
+        # creatures connect for combat damage → reward" (Toski, Reconnaissance Mission,
+        # Coastal Piracy, Bident of Thassa), not strictly tribal — a kept mirror, NOT a
+        # projection. The mirror reproduces the regex firing set byte-identically
+        # (regex_only == 0, A-B == 0).
+        # floor-mirror-dep == 0 (the mirror never reads _IR_FLOOR_LANES). NO-FLOOD held:
+        # voltron 0 leaked (the kept mirror re-supplies has_other_plan via
+        # _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply is safe). CR 510.1c.
+        "tribe_damage_trigger",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
@@ -10596,6 +10630,16 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         "theft_protection",
         "villainous_choice",
         "named_counter_misc",
+        # ADR-0027 β: tribe_damage_trigger fired high-confidence (forced scope 'you') in
+        # the regex path and so counted toward has_other_plan, silencing the spurious
+        # commander-damage voltron tell on a connect-for-damage engine that is NOT a
+        # vanilla beater (Francisco, Fowl Marauder — a Flying/can't-block Partner Pirate
+        # whose plan is "Pirates connect → explore", verified to leak the tell post-
+        # deletion). Its regex producer is deleted, so the hybrid re-silences from the
+        # IR re-supply. This is a kept WORD MIRROR — the IR re-supply reads the SAME
+        # joined oracle as the deleted regex, so it is BYTE-IDENTICAL (no broadening, no
+        # over-silence). File-swap: 1 voltron leaked without this, 0 with it; A-B==0.
+        "tribe_damage_trigger",
     }
 )
 

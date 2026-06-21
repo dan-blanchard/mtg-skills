@@ -4128,6 +4128,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β. tribe_damage_trigger ← a byte-identical _IR_KEPT_DETECTORS mirror of
+    # the deleted SWEEP regex. phase leaves the combat_damage trigger subject = None (no
+    # structure to read), so the kept mirror scans the record's oracle_text directly and
+    # any non-None IR routes the hybrid to the IR path. Under re.IGNORECASE the regex's
+    # `[A-Z][a-z]+` also matches a generic "creature", so the lane fires on Toski's
+    # "Whenever a creature you control deals combat damage to a player" — the lane is
+    # really "your creatures connect for combat damage → reward", not strictly tribal.
+    "tribe_damage_trigger": (
+        {
+            "name": "Toski, Bearer of Secrets",
+            "type_line": "Legendary Creature — Squirrel",
+            "oracle_text": (
+                "Toski, Bearer of Secrets can't be countered.\nWhenever a "
+                "creature you control deals combat damage to a player, draw a "
+                "card.\nToski can't be blocked.\nOther Squirrels you control "
+                "have haste."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

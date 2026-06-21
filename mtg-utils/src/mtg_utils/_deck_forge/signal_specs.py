@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SWEEP_DETECTORS,
     SWEEP_LABELS,
     TARGET_PLAYER_DRAWS_REGEX,
+    TRIBE_DAMAGE_TRIGGER_REGEX,
 )
 from mtg_utils.card_classify import (
     card_pt_int,
@@ -2367,6 +2368,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["noncreature_cast_punish"],
         {"oracle": NONCREATURE_CAST_PUNISH_REGEX},
         NONCREATURE_CAST_PUNISH_REGEX,
+    ),
+    # ADR-0027 β: tribe_damage_trigger's SWEEP_DETECTORS row is deleted (detection moved
+    # to the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool
+    # stays oracle-defined, so hand-register the spec the sweep auto-register loop used
+    # to build (scope "you", the deleted SWEEP row's scope), reusing the shared
+    # TRIBE_DAMAGE_TRIGGER_REGEX so the serve pool never drifts. SWEEP_LABELS still
+    # carries the human label.
+    ("tribe_damage_trigger", "you"): _spec(
+        *SWEEP_LABELS["tribe_damage_trigger"],
+        {"oracle": TRIBE_DAMAGE_TRIGGER_REGEX},
+        TRIBE_DAMAGE_TRIGGER_REGEX,
     ),
     # ADR-0027 tranche2-batch-5 (t2b5-B): sacrifice_protection / secret_writedown had
     # their SWEEP_DETECTORS rows deleted (detection moved to the Card IR — kept_detector
