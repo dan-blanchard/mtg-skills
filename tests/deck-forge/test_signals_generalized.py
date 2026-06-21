@@ -573,6 +573,8 @@ def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
     # Mona Lisa's "{T}: Add X mana, where X is Mona Lisa's power" wants UNTAP effects
     # (re-tap for more mana) and power pumps. A {T} ability that scales with a creature's
     # power is the tell; Krenko's {T} scales with Goblin count, not power. Real oracle.
+    # ADR-0027: power_tap_engine migrated to the Card IR (an ACTIVATED ability cost~'tap'
+    # + a power-scaling effect raw), so it is served via the hybrid path, not pure regex.
     mona_lisa = {
         "name": "Mona Lisa, Science Geek",
         "type_line": "Legendary Creature — Lizard Mutant",
@@ -583,7 +585,32 @@ def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
             "Reach\n{T}: Add X mana of any one color, where X is Mona Lisa's power."
         ),
     }
-    assert ("power_tap_engine", "you") in _ks(mona_lisa)
+    mona_ir = Card(
+        oracle_id="x",
+        name="Mona Lisa, Science Geek",
+        faces=(
+            Face(
+                name="Mona Lisa, Science Geek",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="tap",
+                        effects=(
+                            Effect(
+                                category="ramp",
+                                scope="any",
+                                raw="{T}: Add X mana, where X is ~'s power.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("power_tap_engine", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(mona_lisa, mona_ir)
+    }
+    assert "power_tap_engine" not in {s.key for s in extract_signals(mona_lisa)}
     krenko = {
         "name": "Krenko, Mob Boss",
         "type_line": "Legendary Creature — Goblin Warrior",
@@ -595,7 +622,34 @@ def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
             "Goblins you control."
         ),
     }
-    assert "power_tap_engine" not in _keys(krenko)
+    krenko_ir = Card(
+        oracle_id="y",
+        name="Krenko, Mob Boss",
+        faces=(
+            Face(
+                name="Krenko, Mob Boss",
+                abilities=(
+                    Ability(
+                        kind="activated",
+                        cost="tap",
+                        effects=(
+                            Effect(
+                                category="make_token",
+                                scope="you",
+                                raw=(
+                                    "{T}: Create X 1/1 red Goblin creature tokens, "
+                                    "where X is the number of Goblins you control."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "power_tap_engine" not in {
+        s.key for s in extract_signals_hybrid(krenko, krenko_ir)
+    }
 
 
 def test_recast_etb_opens_on_sneak():
@@ -793,7 +847,8 @@ def test_land_protection_opens_on_land_animation():
 
 def test_lose_unless_hand_opens_on_cast_from_hand_drawback():
     # Phage loses you the game if not cast from hand, so she wants to negate that. Real
-    # oracle.
+    # oracle. ADR-0027: lose_unless_hand migrated to the Card IR (an ETB trigger scoped
+    # YOU + a lose_game effect), so it is served via the hybrid path, not pure regex.
     phage = {
         "name": "Phage the Untouchable",
         "type_line": "Legendary Creature — Avatar Minion",
@@ -807,7 +862,35 @@ def test_lose_unless_hand_opens_on_cast_from_hand_drawback():
             "a player, that player loses the game."
         ),
     }
-    assert ("lose_unless_hand", "you") in _ks(phage)
+    phage_ir = Card(
+        oracle_id="x",
+        name="Phage the Untouchable",
+        faces=(
+            Face(
+                name="Phage the Untouchable",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="etb", scope="you"),
+                        effects=(
+                            Effect(
+                                category="lose_game",
+                                scope="you",
+                                raw=(
+                                    "When ~ enters, if you didn't cast it from your "
+                                    "hand, you lose the game."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("lose_unless_hand", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(phage, phage_ir)
+    }
+    assert "lose_unless_hand" not in {s.key for s in extract_signals(phage)}
 
 
 def test_land_denial_opens_on_phasing_lands():
@@ -5660,8 +5743,12 @@ def test_symmetric_cast_punisher_opens_opponent_cast_matters():
     # A symmetric cast-PUNISHER with an adjective ("whenever a player casts a NONCREATURE
     # spell, they lose 2 life" — Mai; "… deals 6 damage to that player" — Ruric Thar)
     # slipped past the "casts a spell" branch, so it missed the punish-opponents'-spells
-    # lane and its payoffs (Soot Imp, Painful Quandary). Gated on the punish effect so
-    # benefit-on-cast commanders stay out. Real oracle, full text.
+    # lane and its payoffs (Soot Imp, Painful Quandary). Gated on the "that player" /
+    # "they lose/discard/sacrifice" punish anchor so benefit-on-cast commanders stay out.
+    # ADR-0027: opponent_cast_matters migrated to the Card IR — the symmetric-punisher
+    # tail is served by a kept word mirror (phase collapses "whenever a player casts" to
+    # scope='any', indistinguishable from a self-cast spellslinger payoff), so it is
+    # served via the hybrid path, not pure regex. Real oracle, full text.
     mai = {
         "name": "Mai, Scornful Striker",
         "type_line": "Legendary Creature — Human Noble Ally",
@@ -5679,8 +5766,10 @@ def test_symmetric_cast_punisher_opens_opponent_cast_matters():
             "that player."
         ),
     }
-    assert "opponent_cast_matters" in _keys(mai)
-    assert "opponent_cast_matters" in _keys(ruric)
+    assert "opponent_cast_matters" in _keys_hybrid(mai)
+    assert "opponent_cast_matters" in _keys_hybrid(ruric)
+    assert "opponent_cast_matters" not in _keys(mai)
+    assert "opponent_cast_matters" not in _keys(ruric)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal

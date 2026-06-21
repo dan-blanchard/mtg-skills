@@ -1164,16 +1164,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # `enlist` keyword (signals._IR_KEYWORD_MAP, a structured-field lookup). This
     # _HAND_FLOOR producer is deleted; the hand-written serve spec (signal_specs.py,
     # serve_keywords=("enlist",)) is independent of this regex and survives.
-    # Power-scaling TAP engine (Mona Lisa "{T}: Add X = power"; Marwyn, Selvala, Alena):
-    # a {T} ability whose output scales with a creature's power wants UNTAP effects (tap
-    # the engine again for more) and power pumps (a bigger payoff each tap).
-    (
-        "power_tap_engine",
-        re.compile(
-            r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: power_tap_engine migrated to the Card IR — an ACTIVATED ability whose
+    # cost contains 'tap' plus a power-scaling effect raw (the structural arm in
+    # extract_signals_ir's ability loop), plus an _IR_KEPT_DETECTORS mirror (byte-
+    # identical to this deleted regex) for the conferred/quoted "{T}: … equal to its
+    # power" grant phase folds into a grant carrier. This _HAND_FLOOR producer is
+    # deleted; the hand-written serve spec (signal_specs.py, untap effects) survives.
     # ADR-0027: recast_etb migrated to the Card IR. DETECTOR (the bounce-replay
     # engine): the Scryfall `Sneak` keyword (_IR_KEYWORD_MAP, 28 cards — the TMNT/
     # Marvel ninjutsu-on-a-spell variant) drops the four `\bsneak\b`-regex over-fires
@@ -1237,17 +1233,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # + a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the self-animate manlands
     # phase drops. This _HAND_FLOOR producer is deleted; the serve spec stays
     # hand-registered in signal_specs.py.
-    # Cast-from-hand-or-lose drawback (Phage): a commander that makes you LOSE unless
-    # cast from hand wants to negate it — command-zone-to-hand tutors (Netherborn Altar,
-    # Command Beacon) so it's cast normally, "you can't lose the game" backstops, and
-    # Torpor Orb-style "ETBs don't trigger" to silence the lose-trigger when cheated.
-    (
-        "lose_unless_hand",
-        re.compile(
-            r"didn'?t cast (?:it|this) from your hand, you lose the game", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: lose_unless_hand migrated to the Card IR — an ETB trigger scoped to YOU
+    # whose consequence is a lose_game effect (Phage the Untouchable; the etb +
+    # scope=you + lose_game shape is structurally unique, in extract_signals_ir's
+    # trigger loop). This _HAND_FLOOR producer is deleted; the hand-written serve spec
+    # (signal_specs.py, drawback negation) survives.
     # ADR-0027: land_denial migrated to the Card IR — fired structurally from a
     # `phasing` Effect on a Land subject with controller=='you' (Taniwha). This
     # _HAND_FLOOR producer is deleted; the serve spec (the LD-punisher serve) stays
@@ -1799,23 +1789,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "opponent_cast_matters",
-        re.compile(
-            r"whenever an opponent casts|whenever (?:a|another) player casts a spell"
-            r"|whenever an opponent cast"
-            # Symmetric cast-PUNISHER with an adjective the "casts a spell" branch
-            # misses: "whenever a player casts a NONCREATURE spell, they lose 2 life"
-            # (Mai) / "… deals 6 damage to that player" (Ruric Thar). Gated on a PUNISH
-            # effect (they/that player loses/discards/sacrifices, or damage to that
-            # player) so benefit-on-cast commanders (Niv-Mizzet draws, April makes a
-            # token) stay out of the punish lane.
-            r"|whenever (?:a|another) player casts[^.]*(?:(?:they|that player) "
-            r"(?:loses?|discards?|sacrifices?)|deals? \d+ damage to that player)",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027: opponent_cast_matters migrated to the Card IR — the structural
+    # cast_spell-trigger scope=opp arm (Lavinia, Nekusar) plus an _IR_KEPT_DETECTORS
+    # mirror that DROPS this regex's over-broad bare "whenever a player casts a spell"
+    # arm (the IR is more precise — symmetric-benefit / self-drawback over-fires are
+    # excluded) and keeps only the explicit-opponent + symmetric-PUNISH ("that player"
+    # anchor) branches. This _HAND_FLOOR producer is deleted; the serve spec stays
+    # hand-registered in signal_specs.py.
     # ADR-0027: opponent_draw_matters migrated to the Card IR — detected
     # structurally from a "drawn" trigger event whose subject scope is an opponent
     # (the `ev == "drawn"` + `trig.scope == "opp"` branch in extract_signals_ir).
@@ -2698,6 +2678,23 @@ _TRANCHE2B2_PLAN_MIRROR = re.compile(
 # pre-migration). CR 601.3e (cast with keyword) / 120.2 (draw).
 _TRANCHE2B3_PLAN_MIRROR = re.compile(
     SPELL_KEYWORD_GRANT_REGEX + "|" + TARGET_PLAYER_DRAWS_REGEX,
+    re.IGNORECASE,
+)
+# ADR-0027 tranche2-B (t2b3-B): mirror the FULL deleted opponent_cast_matters regex —
+# INCLUDING its over-broad bare "whenever a player casts a spell" arm. The migrated IR
+# is MORE precise than that bare arm (it drops the symmetric-benefit / self-drawback
+# over-fires), so the IR re-supply does NOT cover those cards — but in the regex path
+# they fired high-confidence and counted toward has_other_plan, silencing the spurious
+# commander-damage voltron tell on a cast-trigger creature (Ivy, Kraum, Scytheclaw
+# Raptor, Glademuse, Ogre Recluse, Perplexing Chimera, Chancellor of the Annex). Mirror
+# (not _VOLTRON_SILENCING_PLAN_KEYS — the IR is broader, so re-supply would under-cover
+# the bare-arm cards) reproduces the silence byte-identically on the joined-face oracle.
+# CR 603.2.
+_OPP_CAST_PLAN_MIRROR = re.compile(
+    r"whenever an opponent casts|whenever (?:a|another) player casts a spell"
+    r"|whenever an opponent cast"
+    r"|whenever (?:a|another) player casts[^.]*(?:(?:they|that player) "
+    r"(?:loses?|discards?|sacrifices?)|deals? \d+ damage to that player)",
     re.IGNORECASE,
 )
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
@@ -3741,6 +3738,10 @@ def extract_signals(
         # (deleted SWEEP producers fed this gate; the broader IR re-supply doesn't reach
         # it). Byte-identical to pre-migration on the 5 leaked creature bodies.
         or _TRANCHE2B3_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-B (t2b3-B): re-silence the deleted opponent_cast_matters
+        # regex (its high-confidence producer fed this gate; the more-precise IR drops
+        # the bare-arm cards, so a mirror — not the silencing-keys set — is required).
+        or _OPP_CAST_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -4564,6 +4565,45 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 tranche2-B (t2b3-B) — power_tap_engine tail. The structural arm (an
+    # ACTIVATED ability cost~'tap' + a power-scaling effect raw) covers the card's OWN
+    # engine (Marwyn, Selvala, Staff of Domination). This kept mirror — byte-identical
+    # to the deleted _HAND_FLOOR regex — recovers the CONFERRED form, where the
+    # power-scaling "{T}: … equal to its power" engine is GRANTED to a creature via a
+    # quoted Aura / equipment / one-turn grant (Predatory Urge, Burning Anger, Dragon
+    # Throne of Tarkir, Gruesome Slaughter) or rides a DFC back face (Arlinn, Hadana's
+    # Climb) — phase folds the granted ability into a grant carrier, losing the
+    # Ability.cost='tap' anchor, so it survives only in the joined-face oracle. CR 602.
+    (
+        "power_tap_engine",
+        re.compile(
+            r"\{t\}:[^.]*(?:equal to|where x is|x is)[^.]*\bpower\b", re.IGNORECASE
+        ),
+        "you",
+    ),
+    # ADR-0027 tranche2-B (t2b3-B) — opponent_cast_matters symmetric-punish tail. The
+    # structural arm (a cast_spell trigger scope='opp') covers the explicit "whenever an
+    # opponent casts" half (Lavinia, Nekusar). This kept mirror — the deleted
+    # _HAND_FLOOR regex with its OVER-BROAD bare "whenever a player casts a spell" arm
+    # DROPPED (the IR is more precise than the regex here) — recovers the SYMMETRIC-
+    # PUNISHER half, where phase collapses "whenever a player casts" to scope='any'
+    # indistinguishable from a self-cast spellslinger payoff. The "that player" / "they
+    # lose/discard/sacrifice" punish anchor (the spell's caster punished as a third
+    # party — Ruric Thar "6 damage to that player", Mai, Eidolon of the Great Revel,
+    # Ash Zealot) is the discriminator that excludes the spellslinger over-fire (Kessig
+    # Flamebreather "damage to each opponent", Extort) the bare arm caused. The
+    # explicit-opponent arm is kept too for joined-face DFC robustness (add() dedups vs
+    # the structural scope='opp' arm). CR 603.2.
+    (
+        "opponent_cast_matters",
+        re.compile(
+            r"whenever an opponent casts|whenever an opponent cast"
+            r"|whenever (?:a|another) player casts[^.]*(?:(?:they|that player) "
+            r"(?:loses?|discards?|sacrifices?)|deals? \d+ damage to that player)",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
     # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
     # kicker) and free_plot (\bplot\b too broad, +39 — needs the Plot keyword, not
@@ -5022,6 +5062,26 @@ IR_SLICE_KEYS: frozenset[str] = (
             # matters drops 54 populate/copy cards phase rewrites without "copy of".)
             "spell_keyword_grant",
             "target_player_draws",
+            # ADR-0027 tranche2-B (t2b3-B) — structural IR-arm lanes:
+            #   lose_unless_hand       ← an etb trigger scope=you + a lose_game effect
+            #                            (Phage the Untouchable).
+            #   opponent_cast_matters  ← a cast_spell trigger scope=opp OR a symmetric
+            #                            scope=any/each cast trigger with a punish
+            #                            co-effect (Ruric Thar, Mai, Lavinia).
+            #   opponent_counter_grant ← a place_counter(bounty/stun) on an opponent's
+            #                            permanent — direct opp subject or a co-tap
+            #                            effect carrying the opp filter (Mathas, Freeze
+            #                            in Place).
+            #   power_tap_engine       ← an ACTIVATED ability cost~'tap' + a power-
+            #                            scaling effect raw (Marwyn, Selvala, Staff of
+            #                            Domination).
+            # pump_matters is DEFERRED (needs-projection — the IR pump/pump_target
+            # categories flood with -1/-1 debuffs, self-firebreathing, and conditional
+            # self-buffs the narrow positive-single-target regex never caught).
+            "lose_unless_hand",
+            "opponent_cast_matters",
+            "opponent_counter_grant",
+            "power_tap_engine",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5473,6 +5533,17 @@ _KEYWORD_COUNTER_KINDS: frozenset[str] = frozenset(
     }
 )
 
+# opponent_counter_grant (ADR-0027): counter kinds that BENEFIT the recipient, so a
+# placement on an opponent's permanent is the WRONG direction for the detrimental-mark
+# punish lane — exclude them. p1p1 (a +1/+1 buff — Hunter of Eyeblights places one to
+# enable its own counter-removal, not to punish), shield (a damage-soak), and every
+# keyword counter (flying/indestructible/… — CR 122.1b grants an ability) all help the
+# opponent. Everything else placed on an opponent (bounty/stun/m1m1/slime/bribery/
+# rejection/…) is a detrimental mark. CR 122.1d.
+_OPP_COUNTER_BENEFICIAL: frozenset[str] = (
+    frozenset({"p1p1", "shield"}) | _KEYWORD_COUNTER_KINDS
+)
+
 _PERMANENT_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
 )
@@ -5619,6 +5690,19 @@ _SAC_OUTLET_RAW = re.compile(
 # granters ("<type> spells you cast have convoke") carry counter_kind='convoke' and
 # need no raw scan. The card's OWN printed convoke rides the keyword array.
 _CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
+
+# power_tap_engine (ADR-0027): a {T}-activated ability whose output SCALES with a
+# creature's power (Marwyn "{T}: Add {G} equal to ~'s power"; Selvala "where X is the
+# greatest power"; Staff of Domination). The discriminator is the CONJUNCTION of the
+# structured tap activation cost (Ability.cost ~ 'tap') and this power-scaling output
+# phrase in an effect raw — a bare "equal to its power" damage/draw with NO tap cost
+# (Soul's Majesty, Berserk) is one-off power-scaling, not a repeatable {T} engine. The
+# power numeric need not be a Quantity; the word-mirror on the activated ability's
+# effect raw is the precise tell. Byte-identical to the deleted _HAND_FLOOR regex's
+# "(?:equal to|where x is|x is)[^.]*power" clause. CR 602.
+_POWER_SCALING_RAW = re.compile(
+    r"(?:equal to|where x is|x is)[^.]*\bpower\b|greatest power", re.IGNORECASE
+)
 
 # creature_cast_trigger (ADR-0027): phase parses "Whenever you cast a creature spell"
 # into a cast_spell trigger but DROPS the spell-type subject (subject=None), OR keeps
@@ -6073,6 +6157,44 @@ def extract_signals_ir(
         }
         if len(_soup_cks & _EVERGREEN_CK) >= 5:
             add("keyword_soup", "you", "", "")
+        # power_tap_engine (ADR-0027) — ability-level: an ACTIVATED ability whose cost
+        # contains 'tap' AND some effect's raw scales with a creature's power. The
+        # repeatable {T} power-scaling engine (Marwyn, Selvala, Staff of Domination).
+        if (
+            ab.kind == "activated"
+            and "tap" in (ab.cost or "")
+            and any(_POWER_SCALING_RAW.search(e.raw or "") for e in ab.effects)
+        ):
+            add("power_tap_engine", "you", "", "")
+        # opponent_counter_grant (ADR-0027) — ability-level: a DETRIMENTAL counter
+        # (CR 122.1d) placed on an OPPONENT's permanent (the tap-down / detrimental-mark
+        # punish lane). Two recipient shapes: (A) a place_counter whose own
+        # subject.controller=='opp' — bounty (Mathas, Chevill), stun (Referee Squad),
+        # plus the custom detrimental marks (bribery — Gwafa Hazid, slime — Toxrill,
+        # rejection — Tolarian Contempt, m1m1 — Ifnir Deadlands); (B) the "tap target
+        # ... and put a stun counter on IT" shape (Freeze in Place), where phase loses
+        # the place_counter subject to the "it" pronoun — recovered by a co-occurring
+        # tap Effect in the SAME ability whose subject.controller=='opp'. The
+        # counter_kind must be DETRIMENTAL: exclude beneficial +1/+1 grants (p1p1 —
+        # Hunter of Eyeblights places one to enable its own counter-removal, the wrong
+        # direction) and beneficial keyword/shield counters, which would help the
+        # opponent. Self-stun drawbacks (Pugnacious Hammerskull "stun counter on it" =
+        # on itself) have no opp recipient and no co-tap, so they never fire. Breadth
+        # over the bounty/stun regex is legitimate gain (CR 122.1d — these are all real
+        # opponent-detrimental-counter cards), not over-fire.
+        _opp_tap_here = any(
+            e.category == "tap" and _filter_controller(e.subject) == "opp"
+            for e in ab.effects
+        )
+        for e in ab.effects:
+            if e.category != "place_counter":
+                continue
+            if e.counter_kind in _OPP_COUNTER_BENEFICIAL:
+                continue
+            recip_opp = _filter_controller(e.subject) == "opp"
+            stun_via_tap = e.counter_kind == "stun" and _opp_tap_here
+            if recip_opp or stun_via_tap:
+                add("opponent_counter_grant", "opponents", "", "")
         for e in ab.effects:
             # creatures_matter = a go-wide/scaling lane: a count operand over your
             # creatures (any effect), OR an anthem buffing them (a pump's affected
@@ -6464,6 +6586,16 @@ def extract_signals_ir(
                 )
             ):
                 add("self_pump", "you", "", e.raw)
+            # ADR-0027: pump_matters DEFERRED (needs-projection). The IR's pump_target /
+            # pump categories do NOT cleanly map to this lane's "positive single-target
+            # combat-trick BUFF of another creature" shape: pump_target fires on every
+            # -1/-1 DEBUFF (Afflict, Festering Goblin, Flanking), every activated SELF
+            # firebreathing (Granite Gargoyle, Drifting Shade — already self_pump), and
+            # every conditional self-buff (Chandra's Spitfire), flooding 1600+ residual
+            # past the regex's narrow positive "target creature gets +N/+N".
+            # Distinguishing buff-direction (+ vs -) and target-vs-self needs projection
+            # (a typed pump-direction / a stable single-OTHER-target subject), so the
+            # lane stays on its SWEEP_DETECTORS regex pending that. See ADR-0027.
             if cat == "place_counter" and e.counter_kind in _COUNTER_KIND_KEYS:
                 ck_key, ck_scope = _COUNTER_KIND_KEYS[e.counter_kind]
                 add(ck_key, ck_scope, "", e.raw)
@@ -7560,6 +7692,22 @@ def extract_signals_ir(
                     "",
                     "",
                 )
+            # ADR-0027 lose_unless_hand — the cast-from-hand-or-lose drawback (Phage
+            # the Untouchable): an ETB trigger scoped to YOU whose consequence is a
+            # lose_game effect ("when ~ enters, if you didn't cast it from your hand,
+            # you lose the game"). The etb + scope=you + lose_game shape is unique to
+            # Phage out of 41 lose_game cards — it cleanly excludes the extra-turn
+            # self-lose drawbacks (Final Fortune, Glorious End — lose_game on an
+            # end-step / delayed trigger), the opponent-lose payoffs (Door to Nothing —
+            # scope any/opp), and the static lose-prevention engines (Lich, Lab Maniac).
+            # phase emits a dedicated lose_game category, so the cast-zone CONDITION
+            # need not be separately structured. CR 104.3a.
+            if (
+                trig.event == "etb"
+                and trig.scope == "you"
+                and any(e.category == "lose_game" for e in ab.effects)
+            ):
+                add("lose_unless_hand", "you", "", "")
             # ADR-0027 sacrifice_matters — the pure SAC PAYOFF: a trigger that fires
             # on the act of sacrificing ("whenever you sacrifice a creature/artifact"
             # → reward; Gleaming Geardrake's "sacrificed" trigger → +1/+1 counter).
@@ -7728,6 +7876,18 @@ def extract_signals_ir(
                 if tsub_kinds:
                     add("tribe_damage_trigger", "you", "", "")
             if ev == "cast_spell":
+                # ADR-0027 opponent_cast_matters — the explicit scope=opp half
+                # ("whenever an opponent casts a spell" — Lavinia, Nekusar). The
+                # SYMMETRIC-PUNISH half (Ruric Thar, Mai, Eidolon of the Great Revel)
+                # is NOT structurally separable here: phase reports BOTH "whenever a
+                # player casts" (a punisher) AND "whenever YOU cast" (a self-cast
+                # spellslinger payoff — Kessig Flamebreather, Thief of Hope, Extort) as
+                # scope='any', so an effect-category punish gate would over-fire every
+                # spellslinger that drains/burns each opponent. The symmetric-punisher's
+                # discriminator survives only in raw ("…deals N damage to THAT PLAYER" /
+                # "THAT PLAYER loses/discards/sacrifices" — the caster punished as a
+                # third party), so it is recovered by an _IR_KEPT_DETECTORS word mirror
+                # over the joined face, NOT a scope='any' structural arm. CR 603.2.
                 if trig.scope == "opp":
                     add("opponent_cast_matters", "opponents", "", "")
                 if "Creature" in tsubs:
@@ -8857,6 +9017,45 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     deleted; serve reuses the shared TARGET_PLAYER_DRAWS_REGEX. CR 120.2.
         "spell_keyword_grant",
         "target_player_draws",
+        # ADR-0027 tranche2-B (t2b3-B) — four structural migrations. NONE is in
+        # _IR_FLOOR_LANES (floor-mirror-dep == 0 — each fires from a NON-floor
+        # structural IR source with the floor disabled). Floor-disabled IR-vs-regex
+        # residual on the commander-legal corpus, all adjudicated:
+        #   lose_unless_hand       ← an etb trigger scope=you + a lose_game effect
+        #     (Phage the Untouchable). A-B==0 — single-card archetype, structurally
+        #     unique. Its _HAND_FLOOR producer is deleted; serve hand-spec'd.
+        #   opponent_cast_matters  ← the structural cast_spell scope=opp arm + an
+        #     _IR_KEPT_DETECTORS mirror (the deleted regex MINUS its bare "whenever a
+        #     player casts" arm — the symmetric-punisher's "that player" anchor excludes
+        #     the scope='any' spellslinger over-fire phase can't separate). regex_only
+        #     is 100% over-fire (symmetric-benefit / self-drawback
+        #     cards the bare arm wrongly opened — Forgotten Ancient, Chalice, Ebon
+        #     Drake — plus emblem-buried Jace / odd-parse); the IR is MORE precise. Its
+        #     _HAND_FLOOR producer is deleted; serve hand-spec'd.
+        #   opponent_counter_grant ← a place_counter of a DETRIMENTAL counter (CR
+        #     122.1d) on an opponent's permanent — direct opp subject (bounty/stun/m1m1/
+        #     slime/bribery/rejection) or a co-tap-opp recovery for the "tap … and stun
+        #     it" pronoun shape; beneficial p1p1/shield/keyword counters excluded.
+        #     regex_only==0 (the bribery recall gap — Gwafa Hazid — is closed); ir_only
+        #     is legitimate breadth (all real opponent-detrimental-counter cards). Its
+        #     SWEEP_DETECTORS row is deleted; serve hand-spec'd.
+        #   power_tap_engine       ← an ACTIVATED ability cost~'tap' + a power-scaling
+        #     effect raw (Marwyn, Selvala, Staff of Domination) + an _IR_KEPT_DETECTORS
+        #     mirror for the granted/quoted "{T}: … equal to its power" form phase folds
+        #     into a grant carrier (Predatory Urge,
+        #     Dragon Throne, Arlinn back face). regex_only==0; ir_only is breadth (the
+        #     structured ab.cost catches "{T}, Sacrifice …" engines the contiguous
+        #     "{t}:" regex missed — Brion Stoutarm, Ghitu Fire-Eater). Its _HAND_FLOOR
+        #     producer is deleted; serve hand-spec'd.
+        # pump_matters is DEFERRED (needs-projection): the IR pump/pump_target
+        # categories flood ~1600 floor-disabled residual with -1/-1 DEBUFFS, activated
+        # SELF firebreathing, and conditional self-buffs the narrow positive-single-
+        # target regex never caught — not adjudicable as clean over-fire. It stays on
+        # its SWEEP_DETECTORS regex. See ADR-0027.
+        "lose_unless_hand",
+        "opponent_cast_matters",
+        "opponent_counter_grant",
+        "power_tap_engine",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

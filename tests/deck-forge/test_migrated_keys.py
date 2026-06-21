@@ -3171,9 +3171,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
     ),
     # ADR-0027 tranche2-batch-3-A — land-animation + keyword-soup lanes.
     # keyword_soup ← >=5 DISTINCT evergreen grant_keyword counter_kinds in ONE
-    # ability (Odric grants 13). The "the same is true for …" idiom phase parses
-    # inconsistently; the kept oracle mirror covers the under-parsed tail, but this
-    # case proves the per-ability structural count arm.
+    # ability (Odric grants 13).
     "keyword_soup": (
         {
             "name": "Odric, Lunarch Marshal",
@@ -3283,8 +3281,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
         ),
     ),
     # ADR-0027 tranche2-B-3. spell_keyword_grant ← the WHOLE cast_with_keyword effect
-    # category (the umbrella over flash_grant / convoke_matters). Thrumming Stone grants
-    # ripple to your spells — a blank counter_kind cast_with_keyword effect.
+    # category. Thrumming Stone grants ripple to your spells.
     "spell_keyword_grant": (
         {
             "name": "Thrumming Stone",
@@ -3310,8 +3307,7 @@ _CASES: dict[str, tuple[dict, Card]] = {
         ),
     ),
     # target_player_draws ← a `draw` effect with scope=='any' (the directed/forced
-    # draw). Dictate of Kruphix's "that player draws an additional card" parses
-    # scope=='any' (the affected player carries no controller).
+    # draw). Dictate of Kruphix's "that player draws an additional card".
     "target_player_draws": (
         {
             "name": "Dictate of Kruphix",
@@ -3331,6 +3327,120 @@ _CASES: dict[str, tuple[dict, Card]] = {
                         category="draw",
                         scope="any",
                         raw="that player draws an additional card",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # ── ADR-0027 tranche2-B (t2b3-B) ─────────────────────────────────────────
+    # lose_unless_hand ← an ETB trigger scoped YOU whose effect is a lose_game
+    # (Phage the Untouchable — "if you didn't cast it from your hand, you lose").
+    "lose_unless_hand": (
+        {
+            "name": "Phage the Untouchable",
+            "type_line": "Legendary Creature — Avatar Minion",
+            "oracle_text": (
+                "When Phage the Untouchable enters, if you didn't cast it from "
+                "your hand, you lose the game.\nWhenever Phage the Untouchable "
+                "deals combat damage to a creature, destroy that creature. It "
+                "can't be regenerated.\nWhenever Phage the Untouchable deals "
+                "combat damage to a player, that player loses the game."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you"),
+                effects=(
+                    Effect(
+                        category="lose_game",
+                        scope="you",
+                        raw=(
+                            "When ~ enters, if you didn't cast it from your "
+                            "hand, you lose the game."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    # opponent_cast_matters ← a cast_spell trigger scoped opp (Lavinia — "Whenever
+    # an opponent casts a spell" punisher).
+    "opponent_cast_matters": (
+        {
+            "name": "Lavinia, Azorius Renegade",
+            "type_line": "Legendary Creature — Human Soldier",
+            "oracle_text": (
+                "Each opponent can't cast noncreature spells with mana value "
+                "greater than the number of lands that player controls.\nWhenever "
+                "an opponent casts a spell, if no mana was spent to cast it, "
+                "counter that spell."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="cast_spell", scope="opp"),
+                effects=(
+                    Effect(
+                        category="counter_spell",
+                        scope="any",
+                        raw="counter that spell",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # opponent_counter_grant ← a place_counter of a DETRIMENTAL bounty counter on
+    # an opponent's permanent (Mathas, Fiend Seeker).
+    "opponent_counter_grant": (
+        {
+            "name": "Mathas, Fiend Seeker",
+            "type_line": "Legendary Creature — Human Cleric",
+            "oracle_text": (
+                "Menace\nAt the beginning of your end step, put a bounty counter "
+                "on target creature an opponent controls. For as long as that "
+                'creature has a bounty counter on it, it has "When this creature '
+                'dies, each opponent draws a card and gains 2 life."'
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="end_step"),
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        counter_kind="bounty",
+                        subject=Filter(card_types=("Creature",), controller="opp"),
+                        raw="put a bounty counter on target creature an opponent "
+                        "controls",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # power_tap_engine ← an ACTIVATED ability cost~'tap' whose effect raw scales
+    # with a creature's power (Marwyn, the Nurturer).
+    "power_tap_engine": (
+        {
+            "name": "Marwyn, the Nurturer",
+            "type_line": "Legendary Creature — Elf Druid",
+            "oracle_text": (
+                "Whenever another Elf you control enters, put a +1/+1 counter on "
+                "Marwyn, the Nurturer.\n{T}: Add an amount of {G} equal to "
+                "Marwyn, the Nurturer's power."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="tap",
+                effects=(
+                    Effect(
+                        category="ramp",
+                        scope="any",
+                        raw="{T}: Add an amount of {G} equal to ~'s power.",
                     ),
                 ),
             )

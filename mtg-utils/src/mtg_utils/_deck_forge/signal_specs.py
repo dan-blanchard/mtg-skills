@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
+    OPPONENT_COUNTER_GRANT_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
@@ -2311,6 +2312,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["target_player_draws"],
         {"oracle": TARGET_PLAYER_DRAWS_REGEX},
         TARGET_PLAYER_DRAWS_REGEX,
+    ),
+    # ADR-0027 tranche2-B (t2b3-B): opponent_counter_grant's SWEEP_DETECTORS row is
+    # deleted (detection moved to the Card IR — a detrimental bounty/stun counter on an
+    # opponent's permanent). Hand-register the serve at the "opponents" scope it fires
+    # at, reusing the shared OPPONENT_COUNTER_GRANT_REGEX so the serve pool never drifts
+    # (the sweep auto-register loop no longer builds it).
+    ("opponent_counter_grant", "opponents"): _spec(
+        *SWEEP_LABELS["opponent_counter_grant"],
+        {"oracle": OPPONENT_COUNTER_GRANT_REGEX},
+        OPPONENT_COUNTER_GRANT_REGEX,
     ),
     # ADR-0027 tranche2-B: counter_replace_bonus's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the counter_doubling replacement category).

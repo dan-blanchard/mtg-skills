@@ -27,6 +27,13 @@ KEYWORD_COUNTER_REGEX = "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|
 # them for the serve pool — keeping serve and the (now-deleted) detector from drifting.
 SPELL_KEYWORD_GRANT_REGEX = "spells you cast have (?:convoke|affinity|cascade|flash|trample|deathtouch|delve|undaunted|haste|lifelink|menace|ward|improvise|demonstrate|casualty|flashback)|(?:noncreature spells|creature spells|spells) you cast have (?:improvise|demonstrate|casualty|convoke|affinity|cascade|flashback)|spell you cast(?: each turn)? has casualty|creature spells you cast have"
 TARGET_PLAYER_DRAWS_REGEX = "target player draws a card|target opponent draws"
+# ADR-0027 tranche2-B (t2b3-B) — opponent_counter_grant migrated to the Card IR. Its
+# SWEEP_DETECTORS row is deleted (structural read: a detrimental bounty/stun counter on
+# an opponent's permanent). This mined regex survives as a shared constant so
+# signal_specs hand-registers the serve pool reusing it — DETRIMENTAL marks only
+# (bounty/stun); the open `[a-z]+` that caught beneficial +1/+1 grants to opponents was
+# removed.
+OPPONENT_COUNTER_GRANT_REGEX = "put a (?:bounty|stun) counter on target (?:creature|permanent) (?:an opponent controls|that opponent controls)|target creature an opponent controls[^.]*it has \\\"|creatures with [^.]*counters on them can't attack"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -218,16 +225,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # cat='pump'). The old permanent-exile structural arm mis-fired on Path-to-Exile
     # removal and is removed. Its SWEEP_DETECTORS row is deleted; the serve is hand-
     # registered in signal_specs.py reusing the deleted regex.
-    {
-        "key": "opponent_counter_grant",
-        "scope": "opponents",
-        "is_widen_of": "",
-        # This lane is for DETRIMENTAL marks-to-punish (bounty/stun). The open `[a-z]+`
-        # and the trailing "put a <any> counter on a creature you don't control" also
-        # caught BENEFICIAL +1/+1 grants to opponents' creatures — the wrong direction —
-        # so they were removed.
-        "regex": "put a (?:bounty|stun) counter on target (?:creature|permanent) (?:an opponent controls|that opponent controls)|target creature an opponent controls[^.]*it has \\\"|creatures with [^.]*counters on them can't attack",
-    },
+    # ADR-0027 tranche2-B (t2b3-B): opponent_counter_grant migrated to the Card IR — a
+    # place_counter of a DETRIMENTAL counter (CR 122.1d) on an opponent's permanent
+    # (direct opp subject or a co-tap-opp recovery for the "tap … and stun it" pronoun
+    # shape; beneficial p1p1/shield/keyword counters excluded), in extract_signals_ir's
+    # ability loop. Its SWEEP_DETECTORS row is deleted (the structural read replaces it);
+    # this mined regex survives as the shared OPPONENT_COUNTER_GRANT_REGEX constant so
+    # signal_specs hand-registers the serve pool reusing it (the two never drift).
     # ADR-0027 tranche2-B: counter_place_trigger migrated to the Card IR — detected
     # from the counter_added TRIGGER event (scope!='opp', Saga-excluded). SWEEP_LABELS
     # keeps the label; the serve spec is re-homed in signal_specs.py.

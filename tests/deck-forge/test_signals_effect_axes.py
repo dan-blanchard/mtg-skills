@@ -139,11 +139,35 @@ def test_type_matters_activated_tribal():
 
 
 def test_opponent_cast_matters():
+    # ADR-0027: opponent_cast_matters migrated to the Card IR (the cast_spell trigger
+    # scope=opp arm + a kept word mirror for the symmetric-punisher tail), so it is
+    # served via the hybrid path, not pure regex.
     c = {
-        "name": "Ishai",
-        "oracle_text": "Whenever an opponent casts a spell, put a +1/+1 counter on this creature.",
+        "name": "Ishai, Ojutai Dragonspeaker",
+        "oracle_text": (
+            "Flying\nWhenever an opponent casts a spell, put a +1/+1 counter on "
+            "Ishai, Ojutai Dragonspeaker."
+        ),
     }
-    assert ("opponent_cast_matters", "opponents") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Ishai, Ojutai Dragonspeaker",
+        faces=(
+            Face(
+                name="Ishai, Ojutai Dragonspeaker",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="cast_spell", scope="opp"),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("opponent_cast_matters", "opponents") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, ir)
+    }
+    assert "opponent_cast_matters" not in {s.key for s in extract_signals(c)}
 
 
 def test_spell_count_storm_widen():
