@@ -19,8 +19,10 @@ from typing import TYPE_CHECKING
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
+    SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
+    TARGET_PLAYER_DRAWS_REGEX,
 )
 from mtg_utils.card_classify import (
     card_pt_int,
@@ -2294,6 +2296,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # moved to the Card IR); reuse the shared KEYWORD_COUNTER_REGEX for the serve pool.
     ("keyword_counter", "you"): _sweep_spec_with_extras(
         "keyword_counter", _COUNTERS_PACKAGE, regex=KEYWORD_COUNTER_REGEX
+    ),
+    # ADR-0027 tranche2-B-3: spell_keyword_grant / target_player_draws had their
+    # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — the whole
+    # cast_with_keyword category, and a draw effect with scope=='any'). The SERVE pool
+    # stays oracle-defined, so hand-register the spec the sweep auto-register loop used
+    # to build, reusing each deleted regex (now a shared _sweep_detectors constant).
+    ("spell_keyword_grant", "you"): _spec(
+        *SWEEP_LABELS["spell_keyword_grant"],
+        {"oracle": SPELL_KEYWORD_GRANT_REGEX},
+        SPELL_KEYWORD_GRANT_REGEX,
+    ),
+    ("target_player_draws", "any"): _spec(
+        *SWEEP_LABELS["target_player_draws"],
+        {"oracle": TARGET_PLAYER_DRAWS_REGEX},
+        TARGET_PLAYER_DRAWS_REGEX,
     ),
     # ADR-0027 tranche2-B: counter_replace_bonus's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the counter_doubling replacement category).

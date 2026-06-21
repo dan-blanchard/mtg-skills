@@ -362,11 +362,13 @@ def test_death_matters_from_other_creatures_dying():
 def test_self_death_trigger_with_payoff_is_self_death_payoff():
     """A 'when this dies, do X' self-death trigger (no subject + an effect) is
     self_death_payoff (Kokusho, Solemn), not aristocrats death_matters."""
+    # scope="you" (the controller draws on its own death) so the incidental draw is a
+    # self-cantrip, not a directed target_player_draws (which fires on scope="any").
     ir = _ir(
         Ability(
             kind="triggered",
             trigger=Trigger(event="dies", scope="you"),
-            effects=(Effect(category="draw"),),
+            effects=(Effect(category="draw", scope="you"),),
         )
     )
     assert _sigs(ir) == [("self_death_payoff", "you", "")]
@@ -381,11 +383,13 @@ def test_bare_self_death_trigger_emits_nothing():
 def test_attached_creature_death_is_not_self_death_payoff():
     """'Whenever equipped creature dies' (Skullclamp: AttachedTo → scope 'any',
     no subject filter) is not a SELF-death — fires neither death lane here."""
+    # scope="you" on the draw (Skullclamp's controller draws) so it stays a self-cantrip,
+    # not a directed target_player_draws (scope="any").
     ir = _ir(
         Ability(
             kind="triggered",
             trigger=Trigger(event="dies", scope="any"),
-            effects=(Effect(category="draw"),),
+            effects=(Effect(category="draw", scope="you"),),
         )
     )
     assert _sigs(ir) == []

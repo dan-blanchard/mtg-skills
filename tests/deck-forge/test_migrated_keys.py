@@ -3282,6 +3282,60 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 tranche2-B-3. spell_keyword_grant ← the WHOLE cast_with_keyword effect
+    # category (the umbrella over flash_grant / convoke_matters). Thrumming Stone grants
+    # ripple to your spells — a blank counter_kind cast_with_keyword effect.
+    "spell_keyword_grant": (
+        {
+            "name": "Thrumming Stone",
+            "type_line": "Legendary Artifact",
+            "oracle_text": (
+                "Spells you cast have ripple 4. (Whenever you cast a spell, you may "
+                "reveal the top four cards of your library. You may cast spells with "
+                "the same name as that spell from among the revealed cards without "
+                "paying their mana costs. Put the rest on the bottom of your library.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cast_with_keyword",
+                        scope="you",
+                        raw="Spells you cast have ripple 4.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # target_player_draws ← a `draw` effect with scope=='any' (the directed/forced
+    # draw). Dictate of Kruphix's "that player draws an additional card" parses
+    # scope=='any' (the affected player carries no controller).
+    "target_player_draws": (
+        {
+            "name": "Dictate of Kruphix",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Flash (You may cast this spell any time you could cast an "
+                "instant.)\nAt the beginning of each player's draw step, that player "
+                "draws an additional card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="draw_step", scope="each"),
+                effects=(
+                    Effect(
+                        category="draw",
+                        scope="any",
+                        raw="that player draws an additional card",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

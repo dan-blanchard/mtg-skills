@@ -21,6 +21,13 @@ from __future__ import annotations
 # counter"), and signal_specs reuses it for the serve pool — so the two never drift.
 KEYWORD_COUNTER_REGEX = "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter"
 
+# ADR-0027 tranche2-B-3: spell_keyword_grant / target_player_draws migrated to the
+# Card IR (detection moved to signals.extract_signals_ir). Their SWEEP_DETECTORS rows
+# are deleted; these mined regexes survive as shared constants so signal_specs reuses
+# them for the serve pool — keeping serve and the (now-deleted) detector from drifting.
+SPELL_KEYWORD_GRANT_REGEX = "spells you cast have (?:convoke|affinity|cascade|flash|trample|deathtouch|delve|undaunted|haste|lifelink|menace|ward|improvise|demonstrate|casualty|flashback)|(?:noncreature spells|creature spells|spells) you cast have (?:improvise|demonstrate|casualty|convoke|affinity|cascade|flashback)|spell you cast(?: each turn)? has casualty|creature spells you cast have"
+TARGET_PLAYER_DRAWS_REGEX = "target player draws a card|target opponent draws"
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",
@@ -285,12 +292,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "target creature (?:you control )?(?:gains?|gets [+\\-][0-9x]/[+\\-][0-9x] and gains?) (?:deathtouch|trample|flying|menace|vigilance|double strike|first strike|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)",
     },
-    {
-        "key": "spell_keyword_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "spells you cast have (?:convoke|affinity|cascade|flash|trample|deathtouch|delve|undaunted|haste|lifelink|menace|ward|improvise|demonstrate|casualty|flashback)|(?:noncreature spells|creature spells|spells) you cast have (?:improvise|demonstrate|casualty|convoke|affinity|cascade|flashback)|spell you cast(?: each turn)? has casualty|creature spells you cast have",
-    },
+    # ADR-0027 tranche2-B-3: spell_keyword_grant migrated to the Card IR — detected
+    # from the whole `cast_with_keyword` effect category (the umbrella over
+    # flash_grant / convoke_matters) in signals.extract_signals_ir. Its SWEEP_DETECTORS
+    # row is deleted; SWEEP_LABELS keeps the label, and the serve spec is hand-registered
+    # in signal_specs.py reusing SPELL_KEYWORD_GRANT_REGEX.
     # ADR-0027: exhaust_matters migrated to the Card IR — served structurally from
     # the Scryfall `exhaust` keyword (_IR_KEYWORD_MAP) plus an `exhaust` effect
     # marker for the keyword-less payoff ("activate an exhaust ability", including
@@ -349,12 +355,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "you win the game|(?:that player|each opponent|target (?:player|opponent)) loses the game",
     },
-    {
-        "key": "target_player_draws",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "target player draws a card|target opponent draws",
-    },
+    # ADR-0027 tranche2-B-3: target_player_draws migrated to the Card IR — detected
+    # from a `draw` effect with scope=='any' (a directed/forced draw; a self-cantrip
+    # parses scope=='you', "each player draws" scope=='each' → group_hug_draw) in
+    # signals.extract_signals_ir. Its SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps
+    # the label, and the serve spec is hand-registered in signal_specs.py reusing
+    # TARGET_PLAYER_DRAWS_REGEX.
     {
         "key": "ltb_matters",
         "scope": "you",

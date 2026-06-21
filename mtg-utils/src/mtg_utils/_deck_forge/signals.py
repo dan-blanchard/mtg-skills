@@ -50,7 +50,9 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
+    SPELL_KEYWORD_GRANT_REGEX,
     SWEEP_DETECTORS,
+    TARGET_PLAYER_DRAWS_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
 from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
@@ -2680,6 +2682,24 @@ _TRANCHE2B2_PLAN_MIRROR = re.compile(
     "|" + KEYWORD_COUNTER_REGEX,
     re.IGNORECASE,
 )
+# ADR-0027 tranche2-B-3: the migrated spell_keyword_grant / target_player_draws keys
+# each had a high-confidence (non-generic, non-voltron-compat) SWEEP_DETECTORS producer
+# that fed has_other_plan, silencing the spurious commander-damage voltron tell on a
+# spell-keyword-granting / give-draw creature body (Silverquill Lecturer, Fallaji
+# Wayfarer, Flamekin Herald, Sphinx of Enlightenment, Limestone Golem — 5 cards verified
+# to leak the tell post-deletion). The IR re-supply is BROADER than the deleted regex
+# (spell_keyword_grant +51 — the "as though they had flash" enablers; target_player_
+# draws +232 — N-card / "that player" / "its controller" draws), so the IR-supply
+# reconciliation (_VOLTRON_SILENCING_PLAN_KEYS) would OVER-silence the IR-only bodies
+# the regex never caught. Instead this mirror — the OR of the two EXACT deleted regexes,
+# read against the joined-face `_oracle` so it catches DFC back faces — feeds the gate
+# directly, reproducing the pre-migration has_other_plan for ALL cards. It emits no
+# signal; the real lanes are served from the IR. NO-FLOOD (voltron byte-identical to
+# pre-migration). CR 601.3e (cast with keyword) / 120.2 (draw).
+_TRANCHE2B3_PLAN_MIRROR = re.compile(
+    SPELL_KEYWORD_GRANT_REGEX + "|" + TARGET_PLAYER_DRAWS_REGEX,
+    re.IGNORECASE,
+)
 # LIKELY-VOLTRON override signals (open the equipment/aura avenue even when another
 # signal already fired — the single-big-threat plan co-exists with combat/counter
 # engines). Calibrated against EDHREC: base rate "wants the equipment package" = 21.6%.
@@ -3717,6 +3737,10 @@ def extract_signals(
         # ADR-0027 tranche2 batch-2: re-silence bounce_tempo / keyword_counter (their
         # deleted regex producers fed this gate; IR re-supply doesn't reach it).
         or _TRANCHE2B2_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 tranche2-B-3: re-silence spell_keyword_grant / target_player_draws
+        # (deleted SWEEP producers fed this gate; the broader IR re-supply doesn't reach
+        # it). Byte-identical to pre-migration on the 5 leaked creature bodies.
+        or _TRANCHE2B3_PLAN_MIRROR.search(_oracle)
     )
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
@@ -4985,6 +5009,19 @@ IR_SLICE_KEYS: frozenset[str] = (
             "keyword_soup",
             "land_creatures_matter",
             "land_protection",
+            # ADR-0027 tranche2-B-3 (batch C) — structural IR-arm lanes:
+            #   spell_keyword_grant  ← the whole cast_with_keyword category (umbrella
+            #                          over flash_grant / convoke_matters).
+            #   target_player_draws  ← a draw effect with scope=='any' (directed/forced
+            #                          draw, not a self-cantrip).
+            # (self_counter_grow / timing_control / token_copy_matters were DEFERRED —
+            # each has a genuine floor-disabled IR-vs-regex recall gap, not 100%
+            # over-fire: self_counter_grow drops 14 subjNone p1p1 placements whose raw
+            # lacks the self-anchor (Saga chapters, adapt/monstrosity); timing_control
+            # drops the 2 Teferi cast-timing statics phase doesn't parse; token_copy_
+            # matters drops 54 populate/copy cards phase rewrites without "copy of".)
+            "spell_keyword_grant",
+            "target_player_draws",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -6313,6 +6350,11 @@ def extract_signals_ir(
                 subject = _token_kindred_subject(e.subject, vocab)
                 if subject is not None:
                     add(signal_keys.TOKEN_MAKER, "you", subject, e.raw)
+            # ADR-0027 tranche2-B-3: token_copy_matters DEFERRED — the make_token +
+            # (populate|copy-of) raw guard has a genuine floor-disabled recall gap of 54
+            # cards: phase rewrites the make_token raw without "copy of" (modal/choice
+            # "Command" cards, Saga chapters, "create X tokens that are copies of …"
+            # where the raw is truncated). Not migrated; the _DETECTORS row stays.
             # reanimator (the ARCHETYPE) is a creature that actively returns
             # creatures from a graveyard to the battlefield — a commander, not a
             # one-shot spell (those stay enablers the avenue finds).
@@ -6457,6 +6499,13 @@ def extract_signals_ir(
                 or (not e.counter_kind and "+1/+1 counter" in (e.raw or ""))
             ):
                 add("counters_matter", "you", "", e.raw)
+            # ADR-0027 tranche2-B-3: self_counter_grow DEFERRED — the structural arm
+            # (place_counter(p1p1, subject=None) + a self-anchor raw) has a genuine
+            # floor-disabled recall gap (14 subjNone p1p1 placements whose raw lacks the
+            # self-anchor: Saga chapter placements, adapt/monstrosity, empty-raw modal),
+            # plus an "on it" over-fire on counter-replacement doublers (Hardened
+            # Scales). Not migrated; both regex producers stay (the self-power-scaling
+            # _DETECTORS add + the SWEEP_DETECTORS row).
             # counters_matter (ADR-0027 pass 2) — a "has/with a +1/+1 counter"
             # PAYOFF reference phase dropped to a restriction / draw / damage /
             # cost_reduction carrier, recovered as a counters_have_ref marker
@@ -6708,6 +6757,18 @@ def extract_signals_ir(
                     add("draw_for_each", "you", "", e.raw)
                 if e.scope == "each":
                     add("group_hug_draw", "each", "", e.raw)
+                # target_player_draws (ADR-0027 tranche2-B-3) — a DIRECTED / forced
+                # draw ("target player draws", "target opponent draws", "that player
+                # draws") parses scope=='any' (the affected player carries no
+                # controller); a self-cantrip and the symmetric "each player draws"
+                # both parse scope=='you'/'each' (group_hug_draw takes 'each'). So
+                # scope=='any' cleanly isolates the player-directed draw from the
+                # self-cantrip — Ancestral Recall, Dimir Guildmage, Bloodgift Demon,
+                # Howling Mine, Font of Mythos, Sphinx of Enlightenment (the latter's
+                # 'target opponent' subset also carries subject controller='opp', still
+                # scope='any'). CR 120.2 (draw is a player action).
+                if e.scope == "any":
+                    add("target_player_draws", "any", "", e.raw)
             if cat == "damage" and e.scope == "each":
                 add("symmetric_damage_each", "each", "", e.raw)
             if cat == "discard" and e.scope == "opp":
@@ -7187,6 +7248,11 @@ def extract_signals_ir(
                     add("stax_taxes", "opponents", "", e.raw)
                 elif e.scope == "each":
                     add("symmetric_stax", "each", "", e.raw)
+                # ADR-0027 tranche2-B-3: timing_control DEFERRED — phase drops the
+                # Teferi-style "cast spells only any time they could cast a sorcery"
+                # cast-timing static entirely (it keeps only the flash-grant), a genuine
+                # 2-card recall gap, not 100% over-fire. Not migrated; the
+                # SWEEP_DETECTORS row stays as the producer.
             # Batch 13 — combat-forcing statics (split out of stax): force the table
             # to attack (Fumiko), force a path by denying blocks, or lure blockers (a
             # creature that must be blocked). All scope "you" (you wield the engine).
@@ -7234,6 +7300,19 @@ def extract_signals_ir(
                 add("convoke_matters", "you", "", e.raw)
             if cat == "grant_spell_ability" and _CONVOKE_RAW.search(e.raw or ""):
                 add("convoke_matters", "you", "", e.raw)
+            # spell_keyword_grant (ADR-0027 tranche2-B-3) — the UMBRELLA lane: a card
+            # that grants ANY keyword to the spells you cast ("spells you cast have
+            # convoke/cascade/improvise/delve/demonstrate/flash", a casualty granter
+            # with a BLANK counter_kind — Anhelo). The cast_with_keyword category is a
+            # precise structured read (no over-fire), so fire for the WHOLE category
+            # regardless of counter_kind — it co-fires with flash_grant /
+            # convoke_matters on those subsets (Chief Engineer is both). Ordered AFTER
+            # the flash/convoke special-cases so all the lanes fire. Cost-reduction
+            # granters (Goblin Electromancer → cost_reduction) and spell-COPY (Galvanic
+            # Iteration → spell_copy) are different categories and correctly excluded.
+            # CR 702 (keyword abilities) / 601.3e (cast with an added keyword).
+            if cat == "cast_with_keyword":
+                add("spell_keyword_grant", "you", "", e.raw)
             # Doubling replacements (v0.1.60's `replacements`), split by event —
             # a token doubler and a counter doubler are different archetypes.
             if cat == "token_doubling":
@@ -8751,6 +8830,33 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "keyword_soup",
         "land_creatures_matter",
         "land_protection",
+        # Group "tranche2-B-3" (ADR-0027) — 2 of 5 batch keys migrated; the other 3
+        # (self_counter_grow / timing_control / token_copy_matters) DEFERRED for a
+        # genuine floor-disabled IR-vs-regex recall gap (NOT 100% over-fire), see the
+        # deferral comments at their arms / producers.
+        #   spell_keyword_grant ← the WHOLE `cast_with_keyword` effect category (the
+        #     umbrella over flash_grant / convoke_matters — it co-fires with them on
+        #     those subsets, e.g. Chief Engineer). Floor-mirror-dep == 0. The floor-
+        #     disabled regex-only residual is 1 card (Wicker Picker, a "sticker kicker"
+        #     non-keyword grant phase routes to grant_keyword) — 100% over-fire of the
+        #     deleted regex's bare "creature spells you cast have" arm. The IR adds 52
+        #     genuine granters the narrow keyword-list regex missed ("cast spells as
+        #     though they had flash" enablers — Vedalken Orrery, Leyline, Yeva; ripple/
+        #     cascade granters). Its SWEEP_DETECTORS row is deleted; serve reuses the
+        #     shared SPELL_KEYWORD_GRANT_REGEX. CR 702 / 601.3e.
+        #   target_player_draws ← a `draw` effect with scope=='any' (the directed /
+        #     forced draw; a self-cantrip parses scope=='you', "each player draws"
+        #     scope=='each' → group_hug_draw, so the gate isolates the directed draw).
+        #     Floor-mirror-dep == 0. The floor-disabled regex-only residual is 1 card
+        #     (Arcane Artisan, whose "Target player draws … then exiles" draw phase
+        #     scopes 'opp' for the downstream forced discard — the card stays covered by
+        #     activated_draw + token_copy_matters, no coverage loss). The IR adds 233
+        #     genuine directed/forced draws the narrow "draws a card|target opponent
+        #     draws" regex missed ("Target player draws seven cards", "that player
+        #     draws", Edric's "its controller may draw"). Its SWEEP_DETECTORS row is
+        #     deleted; serve reuses the shared TARGET_PLAYER_DRAWS_REGEX. CR 120.2.
+        "spell_keyword_grant",
+        "target_player_draws",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
