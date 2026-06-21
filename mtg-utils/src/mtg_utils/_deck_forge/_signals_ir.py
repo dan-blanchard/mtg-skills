@@ -44,6 +44,8 @@ from mtg_utils._deck_forge._subtypes import (
 from mtg_utils._deck_forge._sweep_detectors import (
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DEBUFF_MAHA_REGEX,
+    DEBUFF_SWEEP_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
@@ -1369,6 +1371,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "cost_reduction",
         _COST_REDUCER_MIRROR,
+        "you",
+    ),
+    # ADR-0027 β — debuff_matters byte-identical kept-mirror (two rows, one per deleted
+    # producer). The structural arm fires from the projection's negative-pump / m1m1
+    # Effects (recall GAIN), but the big "gets -N/-N until end of turn" / "-X/-X" tail
+    # projects as a pump / pump_target Effect with amount==None (the value only in raw),
+    # so there is no structural number to read. These two mirrors reproduce the deleted
+    # regex path EXACTLY: as a full-text .search over the reminder-stripped joined-face
+    # oracle they fire on the identical 613-card commander-legal set the per-clause
+    # regex path did (0 drift both directions). scope matches each deleted producer
+    # (SWEEP "any", Maha "you"); add() dedups the overlap with the structural arm.
+    (
+        "debuff_matters",
+        re.compile(DEBUFF_SWEEP_REGEX, re.IGNORECASE),
+        "any",
+    ),
+    (
+        "debuff_matters",
+        re.compile(DEBUFF_MAHA_REGEX, re.IGNORECASE),
         "you",
     ),
 )
@@ -3338,6 +3359,37 @@ def extract_signals_ir(
             if _COST_INCREASE.search(raw):
                 continue
             add("cost_reduction", "you", "", raw)
+        # ADR-0027 β — debuff_matters structural arm (a -1/-1 / toughness-shrink
+        # removal-and-payoff lane). Two projected Effect forms anchor it:
+        #   • a `pump` Effect with amount.factor < 0 — the NEGATIVE factor IS the
+        #     debuff signal. phase folds a static -N/-N onto an extracted Quantity
+        #     (Dead Weight → pump, factor=-2; Weakness → factor=-2), so a self-
+        #     shrinking creature ("This creature gets -1/-1 for each card in your
+        #     hand" — Dread Slag) and an aura ("Enchanted creature gets -2/-2") both
+        #     read structurally. A mixed-sign combat trick (Nameless Inversion's
+        #     +3/-3) projects factor=+3 (the POWER side), so factor<0 correctly leaves
+        #     it OUT — it's a trick, not a pure debuff.
+        #   • a `place_counter` Effect with counter_kind=="m1m1" that is NOT a self-
+        #     enter-with drawback. A real debuff puts -1/-1 counters on OTHER/target
+        #     creatures (Skinrender, Blight Rot, the scope=="any"/"opp" placements);
+        #     the 62-card self-drawback tail (persist/undying riders + "~ enters with
+        #     N -1/-1 counters" — Kitchen Finks, Carnifex Demon) projects scope=="you"
+        #     and is gated out. CR 122.1b / CR 613.
+        for e in ab.effects:
+            amt = e.amount
+            is_neg_pump = (
+                e.category == "pump"
+                and amt is not None
+                and isinstance(getattr(amt, "factor", None), int | float)
+                and amt.factor < 0
+            )
+            is_other_m1m1 = (
+                e.category == "place_counter"
+                and e.counter_kind == "m1m1"
+                and e.scope != "you"
+            )
+            if is_neg_pump or is_other_m1m1:
+                add("debuff_matters", "any", "", e.raw or "")
         # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
         # triggered / static ability to your whole CREATURE board or to an
         # ALL-permanents set — "Creatures you control have '{T}: …'", "All artifacts

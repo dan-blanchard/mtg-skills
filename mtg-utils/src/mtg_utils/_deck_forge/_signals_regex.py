@@ -28,6 +28,8 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COST_REDUCTION_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DEBUFF_MAHA_REGEX,
+    DEBUFF_SWEEP_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
@@ -1085,17 +1087,11 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "any",
     ),
-    # Opponent-SHRINK (Maha: "Creatures your opponents control have base toughness 1") —
-    # shrinking opponents' creatures combos with -1/-1 effects (toughness 1 + any -1/-1
-    # = dead), so it's a debuff commander wanting -1/-1 anthems and wipes.
-    (
-        "debuff_matters",
-        re.compile(
-            r"creatures your opponents control (?:have base (?:power|toughness)|get -)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 β: debuff_matters migrated to the Card IR. This Maha opponent-SHRINK
+    # _DETECTORS row (scope "you") is deleted; it survives byte-identically as the
+    # _DEBUFF_MAHA_REGEX _IR_KEPT_DETECTORS mirror, and feeds the regex-path
+    # has_other_plan gate via _DEBUFF_MATTERS_PLAN_MIRROR below (it fired high-
+    # confidence forced scope, silencing the spurious commander-damage voltron tell).
     # Player-BURN source (Syr Konrad, Mogis, Go-Shintai, Nekusar) — a commander that
     # deals N/X damage to a player/opponent is a burn deck wanting burn payoffs and
     # damage doublers (direct_damage serves them). Distinct from damage_to_opp_matters,
@@ -2574,6 +2570,23 @@ _COST_REDUCTION_PLAN_MIRROR = re.compile(
 _GLOBAL_ABILITY_GRANT_PLAN_MIRROR = re.compile(
     GLOBAL_ABILITY_GRANT_REGEX, re.IGNORECASE
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated debuff_matters key. Its two
+# deleted regex producers (the SWEEP DEBUFF_SWEEP_REGEX, scope 'any' + the Maha
+# DEBUFF_MAHA_REGEX opponent-shrink _DETECTORS row, scope 'you') both fired HIGH-
+# confidence and counted toward `has_other_plan`, silencing the spurious commander-
+# damage voltron tell on a -1/-1 / shrink body that is NOT a vanilla beater (Maha,
+# Phyrexian Obliterator-style anthems, the -X/-X wraths). The migrated IR arm +
+# kept-mirror are BROADER (+94 ir_only recall gains — auras + self-shrinkers + put-N-
+# counters-on-target the narrow regex never matched), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those ir_only bodies. This mirror is
+# the byte-identical OR of the EXACT two deleted regexes; it feeds ONLY the gate (emits
+# no signal — the real lane is served from the IR), reproducing the pre-migration
+# `has_other_plan` for ALL cards. The `[^.]`-bounded arms never cross a sentence, so
+# full-text over _oracle == the deleted per-clause path (FILE-SWAP NO-FLOOD: voltron
+# byte-identical, 0 gained / 0 lost). CR 903.10a / 122.1b.
+_DEBUFF_MATTERS_PLAN_MIRROR = re.compile(
+    DEBUFF_SWEEP_REGEX + "|" + DEBUFF_MAHA_REGEX, re.IGNORECASE
+)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -3915,6 +3928,16 @@ def extract_signals(
         # identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's
         # full silence set. CR 903.10a.
         or _GLOBAL_ABILITY_GRANT_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted debuff_matters SWEEP + Maha producers (both
+        # fired high-confidence, feeding has_other_plan). The migrated IR arm is BROADER
+        # (+94 ir_only), so this byte-identical mirror — NOT the silencing-keys set —
+        # restores the old regex's exact silence set without over-silencing the ir_only
+        # bodies. Matched against the reminder-STRIPPED `text` (NOT `_oracle`), because
+        # the deleted producers were floor Detectors over reminder-stripped clauses — a
+        # "put two -1/-1 counters on a creature you control" inside a Blight keyword's
+        # reminder (Chaos Spewer) never fired them, so the gate must not silence that
+        # body. CR 903.10a.
+        or _DEBUFF_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

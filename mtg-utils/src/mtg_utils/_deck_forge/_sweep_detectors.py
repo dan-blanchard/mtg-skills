@@ -75,6 +75,17 @@ COST_REDUCTION_REGEX = "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{
 # grant-EXPLOITING search anchor; the lane's firing now comes from the IR arm (the
 # board_grant + counter_kind="grant_ability" marker in _signals_ir), not this regex.
 GLOBAL_ABILITY_GRANT_REGEX = 'all (?:artifacts|creatures|lands|permanents) have \\"|creatures? you (?:own|control) have \\"'
+# ADR-0027 β — debuff_matters migrated to the Card IR; both deleted regex producers
+# (the SWEEP row + the Maha opponent-shrink _DETECTORS row) survive here as shared
+# constants. The structural arm fires from the projection's negative-pump (factor<0) /
+# non-self m1m1 Effects; these regexes back the byte-identical _IR_KEPT_DETECTORS
+# mirror (the "gets -N/-N until end of turn" / "-X/-X" tail that projects amount==None),
+# the voltron PLAN mirror, and the hand-registered serve in signal_specs — so serve /
+# detector / silence never drift. SWEEP_LABELS keeps the human label.
+DEBUFF_SWEEP_REGEX = "(?:other [a-z]+ creatures|nonblack creatures|all creatures|creatures) get -\\d/-\\d|gets? -\\d/-\\d until end of turn|gets -0/-x|gets -x/-x|creatures? (?:[^.]{0,40})?get -[0-9x]/-[0-9x]|put a -1/-1 counter on target|put (?:a|one|two|x|\\d+) -1/-1 counters? on|creatures? (?:target player|an opponent|your opponents|each opponent)[^.]*controls?[^.]*base power and toughness [0-2]/[0-2]"
+DEBUFF_MAHA_REGEX = (
+    "creatures your opponents control (?:have base (?:power|toughness)|get -)"
+)
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
@@ -164,12 +175,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (Living Death) are excluded by the battlefield-type + graveyard-zone gates. This
     # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered in
     # signal_specs.py (the rebuild-after-wrath package + indestructible serve keyword).
-    {
-        "key": "debuff_matters",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "(?:other [a-z]+ creatures|nonblack creatures|all creatures|creatures) get -\\d/-\\d|gets? -\\d/-\\d until end of turn|gets -0/-x|gets -x/-x|creatures? (?:[^.]{0,40})?get -[0-9x]/-[0-9x]|put a -1/-1 counter on target|put (?:a|one|two|x|\\d+) -1/-1 counters? on|creatures? (?:target player|an opponent|your opponents|each opponent)[^.]*controls?[^.]*base power and toughness [0-2]/[0-2]",
-    },
+    # ADR-0027 β: debuff_matters migrated to the Card IR — a -1/-1 / toughness-shrink
+    # removal-and-payoff lane. The structural arm in extract_signals_ir fires from the
+    # projection's negative-pump (amount.factor<0) and non-self -1/-1-counter (m1m1)
+    # Effects (recall GAIN over this narrow regex). The big "gets -N/-N until end of
+    # turn" / "-X/-X" tail projects with amount==None (the value only in raw), so it is
+    # recovered by a byte-identical _IR_KEPT_DETECTORS mirror of this exact regex (plus
+    # the Maha opponent-shrink _DETECTORS row). This SWEEP_DETECTORS row is deleted
+    # (SWEEP_LABELS kept); the serve spec is hand-registered in signal_specs.py reusing
+    # the pinned _DEBUFF_SWEEP_REGEX (the sweep auto-register loop no longer builds it).
+    # CR 122.1b / CR 613.
     # ADR-0027: coin_flip migrated to the Card IR — the doers land in phase's
     # coin_flip EFFECT category (_DOER_EFFECT_KEYS), and the "Whenever you win/lose
     # a coin flip" PAYOFF trigger phase flattened to event='other' is appended as a

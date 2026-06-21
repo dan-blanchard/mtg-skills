@@ -20,6 +20,7 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DEBUFF_SWEEP_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
@@ -2382,6 +2383,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["global_ability_grant"],
         {"oracle": GLOBAL_ABILITY_GRANT_REGEX},
         GLOBAL_ABILITY_GRANT_REGEX,
+    ),
+    # ADR-0027 β: debuff_matters's SWEEP_DETECTORS row is deleted (detection moved to
+    # the Card IR — the negative-pump (factor<0) / non-self m1m1 structural arm + a
+    # byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool stays oracle-defined,
+    # so hand-register the spec the sweep auto-register loop used to build (scope "any",
+    # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
+    # DEBUFF_SWEEP_REGEX) so the serve pool never drifts. SWEEP_LABELS keeps the label.
+    ("debuff_matters", "any"): _spec(
+        *SWEEP_LABELS["debuff_matters"],
+        {"oracle": DEBUFF_SWEEP_REGEX},
+        DEBUFF_SWEEP_REGEX,
     ),
     # ADR-0027 β: tribe_damage_trigger's SWEEP_DETECTORS row is deleted (detection moved
     # to the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool

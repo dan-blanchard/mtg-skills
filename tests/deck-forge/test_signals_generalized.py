@@ -3619,14 +3619,19 @@ def test_opponent_shrink_opens_debuff():
             "Creatures your opponents control have base toughness 1."
         ),
     }
-    assert ("debuff_matters", "you") in _ks(maha)
+    # ADR-0027 β: debuff_matters is IR-served. The Maha opponent-shrink fires via the
+    # DEBUFF_MAHA_REGEX kept-mirror (scope "you"), which scans the oracle directly, so a
+    # bare non-None IR routes the hybrid to the IR path. The legacy regex path no longer
+    # emits it.
+    assert ("debuff_matters", "you") not in _ks(maha)
+    assert ("debuff_matters", "you") in _ks_hybrid(maha)
     # Over-fire guard: a commander that buffs YOUR creatures is not a debuff commander.
     buffer_cmd = {
         "name": "Team Buffer",
         "type_line": "Legendary Creature — Soldier",
         "oracle_text": "Creatures you control get +1/+1.",
     }
-    assert ("debuff_matters", "you") not in _ks(buffer_cmd)
+    assert ("debuff_matters", "you") not in _ks_hybrid(buffer_cmd)
 
 
 def test_treasure_care_opens_treasure_matters():

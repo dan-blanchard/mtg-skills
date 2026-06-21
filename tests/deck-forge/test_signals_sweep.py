@@ -56,11 +56,15 @@ def test_representative_sweep_keys_fire_from_oracle():
         ),
         ("topdeck_selection", "Look at the top three cards of your library."),
         # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
-        # (tranche2-A) migrated to the Card IR (their SWEEP_DETECTORS rows are deleted),
-        # so they no longer fire from the regex path — swapped for still-regex sweep
-        # keys to keep this check. ("Destroy all creatures." now routes through the IR
-        # mass_removal arm in the hybrid, asserted in test_migrated_keys.)
-        ("debuff_matters", "All creatures get -1/-1 until end of turn."),
+        # (tranche2-A) / debuff_matters (β) migrated to the Card IR (their
+        # SWEEP_DETECTORS rows are deleted), so they no longer fire from the regex path —
+        # swapped for still-regex sweep keys to keep this check. ("All creatures get
+        # -1/-1 until end of turn." now routes through the IR debuff_matters arm in the
+        # hybrid, asserted in test_migrated_keys.)
+        (
+            "protection_grant",
+            "Target creature gains protection from red until end of turn.",
+        ),
         (
             "voltron_matters",
             "Whenever you attach an Equipment to a creature, draw a card.",

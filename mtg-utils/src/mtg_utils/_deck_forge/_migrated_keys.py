@@ -1383,6 +1383,40 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # the serve spec is hand-registered in signal_specs.py reusing the EXACT deleted
         # regex (pinned as GLOBAL_ABILITY_GRANT_REGEX). CR 113.3 / 604.3.
         "global_ability_grant",
+        # ADR-0027 β — debuff_matters (a -1/-1 / toughness-shrink removal-and-payoff
+        # lane). The v9 projection carries the debuff structure directly: a -N/-N giver
+        # is a `pump` Effect with amount.factor < 0 (Dead Weight / Weakness → factor=-2;
+        # the NEGATIVE factor IS the signal), and a -1/-1-counter giver is a
+        # `place_counter` Effect with counter_kind=="m1m1". The structural arm in
+        # extract_signals_ir fires scope "any" on a pump factor<0 OR a non-self m1m1
+        # placement — gating OUT the 62-card self-enter-with drawback tail (persist/
+        # undying riders + "~ enters with N -1/-1 counters", which project scope=="you")
+        # and a mixed-sign combat trick (Nameless Inversion's +3/-3 projects factor=+3,
+        # the POWER side, so factor<0 leaves it out — it's a trick, not a pure debuff).
+        #
+        # The structural arm is recall GAIN (+94 ir_only, all Scryfall-verified: static
+        # auras "Enchanted creature gets -2/-2", self-shrinkers "This creature gets
+        # -1/-1 for each card in your hand", and put-N-counters-on-target the narrow
+        # regex missed), but the big "gets -N/-N until end of turn" / "-X/-X" tail
+        # projects as a pump / pump_target Effect with amount==None (the value lives
+        # only in the raw), so there is NO structural number to read. That tail is
+        # recovered by a byte-identical _IR_KEPT_DETECTORS mirror of BOTH deleted
+        # regexes (the SWEEP scope-"any" pattern + the Maha opponent-shrink scope-"you"
+        # _DETECTORS row): as a full-text .search over the reminder-stripped joined-face
+        # oracle the mirror fires on the IDENTICAL 613-card commander-legal set the
+        # deleted per-clause regex path did (0 drift both directions → regex_only == 0
+        # after the mirror).
+        #
+        # Both deleted producers fired high-confidence and counted toward has_other_plan
+        # (a -1/-1 / shrink body is NOT a vanilla voltron beater), so a byte-identical
+        # _DEBUFF_MATTERS_PLAN_MIRROR (the OR of the two deleted regexes over the
+        # reminder-stripped joined-face oracle) re-supplies that voltron silence in the
+        # regex path — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (+94 ir_only) and
+        # would OVER-silence those recall-gain bodies. SWEEP_DETECTORS row deleted
+        # (SWEEP_LABELS kept); the serve is hand-registered in signal_specs.py reusing
+        # the EXACT deleted regex (pinned as DEBUFF_SWEEP_REGEX). CR 122.1b / CR 613.
+        "debuff_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

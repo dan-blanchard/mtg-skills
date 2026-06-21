@@ -50,6 +50,34 @@ def _ir(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
 #   seek_matters        ← Effect(category="seek")                   [_DOER_EFFECT_KEYS]
 #   specialize_matters  ← Scryfall "Specialize" keyword             [_IR_KEYWORD_MAP]
 _CASES: dict[str, tuple[dict, Card]] = {
+    # debuff_matters ← a `pump` Effect with amount.factor < 0 (Dead Weight's static
+    # "Enchanted creature gets -2/-2" projects pump, factor=-2). The NEGATIVE factor IS
+    # the debuff signal; the structural arm in extract_signals_ir fires scope "any".
+    # ADR-0027 β.
+    "debuff_matters": (
+        {
+            "name": "Dead Weight",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": "Enchant creature\nEnchanted creature gets -2/-2.",
+            "keywords": ["Enchant"],
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Creature",), predicates=("EnchantedBy",)
+                        ),
+                        amount=Quantity(op="fixed", factor=-2),
+                        raw="Enchanted creature gets -2/-2.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # cost_reduction ← a static ModifyCost{Reduce} Effect (subject = the spell_filter)
     # projected from "Instant and sorcery spells you cast cost {1} less to cast." The
     # structural arm in extract_signals_ir fires on the non-None subject. ADR-0027 β.
