@@ -32,10 +32,11 @@ def test_sweep_detectors_loaded():
     # + tranche2-C self_pump/tapper_engine/count_anthem + tranche2-batch-4's
     # damage_to_you_punish/excess_damage/self_blink + t2b4a-A's tribal_etb_multi/
     # typed_enters_punish + t2b4a-B's win_lose_game/xspell_matters + tranche2-batch-5's
-    # kept-detector sweep deletions + earlier batches migrated to the Card IR); it still
-    # guards "a non-empty set loads", not an exact count. This floor is removed at A4
-    # when the strangler empties SWEEP_DETECTORS entirely.
-    assert len(SWEEP_DETECTORS) >= 40
+    # kept-detector sweep deletions + play_from_top (ADR-0027 β) + earlier batches
+    # migrated to the Card IR); it still guards "a non-empty set loads", not an exact
+    # count. This floor is removed at A4 when the strangler empties SWEEP_DETECTORS
+    # entirely.
+    assert len(SWEEP_DETECTORS) >= 39
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

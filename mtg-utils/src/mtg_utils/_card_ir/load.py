@@ -94,7 +94,15 @@ from mtg_utils.card_ir import Card
 #     firebreathing ({R}: +1/+0, {G/W}:, {S}:), which the regex excluded (firebreathing
 #     has its own pump lane). Additive (every existing `mana`-substring check is
 #     unaffected). ADR-0027 β. CR 602.1a.
-SIDECAR_VERSION = 15
+# v16: phase's `TopOfLibraryCastPermission` static mode (the ongoing play-from-top
+#     permission — Future Sight, Bolas's Citadel, Mystic Forge, Vizier, Garruk's Horde)
+#     is dropped by _project_static_mods (no `mode` handling), so project.
+#     _top_play_permission_marker re-surfaces it as a `cast_from_zone`+`from:library`
+#     STATIC Effect (description structured through supplement's grammar as the
+#     precision gate). The play_from_top lane reads it; the static kind keeps it
+#     disjoint from the sibling impulse_top_play arm (which gates ab.kind != 'static').
+#     ADR-0027 β. CR 116 / 601.3b.
+SIDECAR_VERSION = 16
 
 
 def card_ir_dir() -> Path:

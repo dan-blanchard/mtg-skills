@@ -23,6 +23,8 @@ from mtg_utils._deck_forge._signals_regex import (
     _EVERGREEN_CK,
     _FLOOR_DETECTORS,
     _IMPULSE_TOP_PLAY_SWEEP_RE,
+    _PLAY_FROM_TOP_FLOOR_MIRROR,
+    _PLAY_FROM_TOP_MIRROR,
     _PRESET_KEYWORD_SIGNALS,
     _SELF_BLINK_SWEEP_RE,
     _XSPELL_HOOK_RE,
@@ -2117,10 +2119,23 @@ IR_SLICE_KEYS: frozenset[str] = (
             # _IMPULSE_TOP_PLAY_SWEEP_RE mirror (the exact deleted regex) covers the
             # follow-through tail phase folds into a categoryless effect. The ab.kind!=
             # 'static' gate splits it from the SIBLING play_from_top (the static ongoing
-            # permission — Future Sight, Bolas's Citadel — which stays DEFERRED on
-            # regex: phase's supplement creates that cast_from_zone AFTER the zone-
-            # recovery pass, so from:library never lands on the static shape).
+            # permission — Future Sight, Bolas's Citadel — now MIGRATED via a dedicated
+            # kind='static' marker over phase's TopOfLibraryCastPermission mode, so the
+            # ab.kind != 'static' gate keeps the two disjoint by construction).
             "impulse_top_play",
+            # ADR-0027 β — play_from_top: the ONGOING permission to play/cast from the
+            # top
+            # of YOUR library (Future Sight, Bolas's Citadel, Mystic Forge, Vizier,
+            # Garruk's Horde). The structural arm reads a STATIC cast_from_zone+from:
+            # library Effect (project._top_play_permission_marker over phase's
+            # TopOfLibraryCastPermission static mode, SIDECAR v16; gated `"exile" not in
+            # raw` to drop 2 granted-impulse statics) — the clean 45-card spine. A
+            # per-clause _PLAY_FROM_TOP_MIRROR + _PLAY_FROM_TOP_FLOOR_MIRROR (the EXACT
+            # deleted SWEEP + _HAND_FLOOR regexes) recovers the reveal-only / once-each-
+            # turn / triggered tail phase doesn't model as a cast-permission static. The
+            # ab.kind=='static' gate is the EXACT mirror of impulse_top_play's
+            # ab.kind!='static' split — zero double-fire.
+            "play_from_top",
             # ADR-0027 β — edict_matters: a FORCED player sacrifice (CR 701.16). The
             # structural opp/each `sacrifice` arm (gated by _ir_effect_is_edict to drop
             # 6 leaked-scope self/you-sac over-fires) adds 28 real edicts the deleted
@@ -3833,15 +3848,21 @@ def extract_signals_ir(
         # split is the discriminator vs the SIBLING play_from_top lane: a STATIC
         # cast_from_zone+from:library is an ONGOING top-play permission (Future Sight,
         # Bolas's Citadel) and belongs to play_from_top, NOT here — so this arm gates on
-        # ab.kind != 'static'. (Today phase's supplement creates the static-permission
-        # cast_from_zone AFTER the zone-recovery pass, so the static shape never carries
-        # from:library and play_from_top stays DEFERRED on regex; the non-static gate
-        # here is the correct, future-proof split regardless.) The 105 cards this arm
-        # adds over the deleted regex are all real impulse engines (legitimate breadth).
-        # The tail phase under-parses (the "you may play it this turn" follow-through
-        # folded into a categoryless effect, the modal "from among" clause) rides the
-        # per-clause _IMPULSE_TOP_PLAY_SWEEP_RE mirror below (the EXACT deleted regex).
-        # CR 601.3b.
+        # ab.kind != 'static'. play_from_top is now MIGRATED (SIDECAR v16): its
+        # permission rides a DEDICATED kind='static' marker (project.
+        # _top_play_permission_marker over phase's TopOfLibraryCastPermission mode), so
+        # the ab.kind != 'static' gate here keeps the two lanes disjoint by
+        # construction —
+        # the static marker is invisible to this arm, and the spell-synthesized
+        # cast_from_zone effects phase leaves on Future Sight/Magus/Oracle stay zones=()
+        # (the post-projection _recover_library_zones ran before the supplement created
+        # them), so they never trip this arm either. The 105 cards this arm adds over
+        # the
+        # deleted regex are all real impulse engines (legitimate breadth). The tail
+        # phase
+        # under-parses (the "you may play it this turn" follow-through folded into a
+        # categoryless effect, the modal "from among" clause) rides the per-clause
+        # _IMPULSE_TOP_PLAY_SWEEP_RE mirror below (the EXACT deleted regex). CR 601.3b.
         for e in ab.effects:
             if (
                 e.category == "cast_from_zone"
@@ -3849,6 +3870,39 @@ def extract_signals_ir(
                 and ab.kind != "static"
             ):
                 add("impulse_top_play", "you", "", e.raw or "")
+                break
+        # play_from_top (ADR-0027 β) — ability-level: the ONGOING permission to
+        # play/cast
+        # cards from the top of YOUR library (Future Sight, Bolas's Citadel, Mystic
+        # Forge, Vizier of the Menagerie, Experimental Frenzy, Magus of the Future,
+        # Garruk's Horde, Oracle of Mul Daya, Courser of Kruphix). The structural anchor
+        # is a STATIC cast_from_zone Effect carrying the recovered 'from:library' zone —
+        # the project._top_play_permission_marker re-surface of phase's
+        # TopOfLibraryCastPermission static mode (SIDECAR v16). The ab.kind == 'static'
+        # gate is the EXACT mirror of the impulse_top_play arm's ab.kind != 'static'
+        # split: a continuous permission is static, a one-shot impulse-draw is not, so
+        # the
+        # two lanes are disjoint by construction (zero double-fire). The
+        # `"exile" not in raw` gate excludes the 2 GRANTED-impulse statics phase's
+        # _recover_library_zones also tags from:library on a static (Capricious Sliver,
+        # Tavern Brawler — "creatures you control HAVE 'exile the top card … you may
+        # play
+        # that card this turn'"): a granted one-shot impulse, NOT a continuous top-play
+        # permission. None of the 45 TopOfLibraryCastPermission marker cards say
+        # "exile";
+        # both grant-impulse over-fires do — a byte-clean split. The reveal-only / once-
+        # each-turn / triggered tail phase doesn't model as a cast-permission static
+        # (Vampire Nocturnus, Goblin Spy, Johann, Gwenom, The Belligerent) rides the
+        # narrowed _PLAY_FROM_TOP_MIRROR below (the EXACT deleted SWEEP + floor regexes,
+        # which already required a play/cast/look/reveal verb). CR 116 / 601.3b.
+        for e in ab.effects:
+            if (
+                e.category == "cast_from_zone"
+                and "from:library" in e.zones
+                and ab.kind == "static"
+                and "exile" not in (e.raw or "").lower()
+            ):
+                add("play_from_top", "you", "", e.raw or "")
                 break
         # opponent_counter_grant (ADR-0027) — ability-level: a DETRIMENTAL counter
         # (CR 122.1d) placed on an OPPONENT's permanent (the tap-down / detrimental-mark
@@ -6110,6 +6164,27 @@ def extract_signals_ir(
     # lower(), so A-B==0). The add() dedup unions this with the structural arm.
     if any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("impulse_top_play", "you", "", "")
+    # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
+    # from:library arm above is the clean 45-card spine, but phase does NOT model as a
+    # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin
+    # Spy, Mul Daya Channelers, Vampire Nocturnus; "look at the top any time" — Sphinx
+    # of
+    # Jwar Isle), the ONCE-EACH-TURN restricted casts (Johann, Cemetery Illuminator),
+    # nor
+    # the TRIGGERED/temporary permissions (Gwenom, The Belligerent, Xanathar). Recover
+    # those 25 from the EXACT deleted SWEEP + _HAND_FLOOR regexes run PER-CLAUSE — both
+    # producers ran per-clause over reminder-stripped clauses, and their `[^.]*` arms
+    # can
+    # span a `;`/`\n` over the whole oracle, so per-clause over kept_oracle is the
+    # byte-identical reproduction (un-lowered clauses + IGNORECASE == clause.lower(), so
+    # A-B == 0; net recall == regex, no-flood). add() dedups vs the structural arm. The
+    # dig-until over-fire the FLOOR arm pre-existingly catches (Amped Raptor, Codie) is
+    # reproduced byte-identically, not introduced. CR 116 / 601.3b.
+    if any(
+        _PLAY_FROM_TOP_MIRROR.search(cl) or _PLAY_FROM_TOP_FLOOR_MIRROR.search(cl)
+        for cl in _clauses(kept_oracle)
+    ):
+        add("play_from_top", "you", "", "")
     # ADR-0027 β — entered_attacker BYTE-IDENTICAL kept mirror. The freshly-
     # entered-attacker payoff ("entered this turn" + attacks / deals combat damage —
     # Samut, Redoubled Stormsinger, Hixus). phase does NOT project the "entered (the

@@ -610,12 +610,29 @@ class TestPlayFromTopAlreadyCovered:
     stale-vocab false gap). Pin that it covers the cited card so we don't re-add it."""
 
     def test_existing_play_from_top_covers_oracle_of_mul_daya(self):
+        # ADR-0027 β: play_from_top migrated to the Card IR — served from the hybrid via
+        # the structural STATIC cast_from_zone+from:library arm (project.
+        # _top_play_permission_marker over phase's TopOfLibraryCastPermission mode). The
+        # serve pool stays oracle-defined, so `serves` is unchanged.
         oracle = {
             "name": "Oracle of Mul Daya",
             "type_line": "Creature — Elf Shaman",
             "oracle_text": "You may play an additional land on each of your turns.\nPlay with the top card of your library revealed.\nYou may play lands from the top of your library.",
         }
-        assert "play_from_top" in _keys(oracle)
+        ir = _ir_with(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cast_from_zone",
+                        scope="you",
+                        zones=("from:library",),
+                        raw="You may play lands from the top of your library.",
+                    ),
+                ),
+            )
+        )
+        assert "play_from_top" in _keys_hybrid(oracle, ir)
         assert serves(oracle, _sig("play_from_top", "you"))
 
 

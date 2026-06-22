@@ -1511,18 +1511,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Play from the TOP OF YOUR LIBRARY (Future Sight, Bolas's Citadel, Oracle of Mul
-    # Daya). Casts from the LIBRARY zone — not exile — so it's neither impulse nor
-    # cast-from-exile. Requires a play/cast verb so look/scry/surveil/mill ("look at ...
-    # from the top of your library", Stargaze) don't match.
-    (
-        "play_from_top",
-        re.compile(
-            r"(?:play|cast)\b[^.]*?\bfrom the top of your library",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 β: play_from_top migrated to the Card IR — this _HAND_FLOOR producer
+    # (and the SWEEP_DETECTORS row) are deleted. The lane fires from the IR structural
+    # arm (a STATIC cast_from_zone+from:library Effect over phase's
+    # TopOfLibraryCastPermission mode) + the per-clause _PLAY_FROM_TOP_MIRROR /
+    # _PLAY_FROM_TOP_FLOOR_MIRROR (the EXACT deleted SWEEP + this FLOOR regex). The
+    # deleted regex's voltron silence is restored by _PLAY_FROM_TOP_PLAN_MIRROR below
+    # (its high-confidence producer fed has_other_plan). The serve survives via the
+    # pinned PLAY_FROM_TOP_REGEX constant in signal_specs.py. CR 116 / 601.3b.
     # ADR-0027: lands_matter migrated to the Card IR — served from the
     # amount.subject=Land count operand (the structured scalers) + a kept word mirror
     # (_IR_KEPT_DETECTORS) for the "P/T equal to the number of lands you control" and
@@ -3412,6 +3408,40 @@ _IMPULSE_TOP_PLAY_SWEEP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# play_from_top (ADR-0027 β) — the EXACT deleted SWEEP + _HAND_FLOOR regexes for the
+# ongoing top-of-library play permission, kept as a byte-identical PER-CLAUSE mirror.
+# The structural IR arm (a STATIC cast_from_zone+from:library Effect — project.
+# _top_play_permission_marker over phase's TopOfLibraryCastPermission static mode)
+# catches the 45-card clean spine (Future Sight, Bolas's Citadel, Mystic Forge, Vizier,
+# Garruk's Horde, Oracle of Mul Daya, Courser of Kruphix — minus 2 granted-impulse
+# statics excluded by the `"exile" not in raw` gate). But phase does NOT model as a
+# cast-permission static the REVEAL-only forms ("Play with the top card revealed" —
+# Goblin Spy, Crown of Convergence, Mul Daya Channelers, Skill Borrower, Vampire
+# Nocturnus; "look at the top card any time" — Sphinx of Jwar Isle, Vesuvan Drifter,
+# Glowcap Lantern), the ONCE-EACH-TURN restricted casts (Johann, Cemetery Illuminator,
+# Assemble the Players, The Fourth Doctor), nor the TRIGGERED/temporary permissions
+# (Gwenom, The Belligerent, The Lunar Whale, Xanathar, Ziatora's Envoy, Temporal
+# Aperture, Fblthp, Radha). Those 25 ride this mirror — the EXACT deleted producers, so
+# net recall == regex (no-flood). Both producers ran PER-CLAUSE over reminder-stripped
+# clauses (split on .;\n), so the mirror runs the same way over kept_oracle's _clauses
+# (un-lowered clauses + IGNORECASE == clause.lower(), so A-B == 0). The dig-until
+# over-fire the FLOOR's broad `(?:play|cast)…from the top` arm catches (Amped Raptor,
+# Codie, Jodah, Old Stickfingers — "exile/reveal cards from the top … until you exile/
+# reveal", an impulse/dig engine NOT continuous top-play) is PRE-EXISTING production
+# behavior reproduced byte-identically here, not a new over-fire. CR 116 / 601.3b.
+_PLAY_FROM_TOP_MIRROR = re.compile(
+    r"(?:may )?play (?:the )?top card of (?:your|their) library"
+    r"|you may look at the top card of your library (?:any time|at any time)"
+    r"|play with the top card of your library revealed"
+    r"|(?:play|cast) (?:lands?|spells?|creature spells?)[^.]*from the top of your "
+    r"library",
+    re.IGNORECASE,
+)
+_PLAY_FROM_TOP_FLOOR_MIRROR = re.compile(
+    r"(?:play|cast)\b[^.]*?\bfrom the top of your library",
+    re.IGNORECASE,
+)
+
 # edict_matters (ADR-0027 β) voltron plan mirror — the EXACT deleted SWEEP regex. The
 # regex producer fired high-confidence (forced scope 'each'), counting toward
 # has_other_plan: an edict commander (Plaguecrafter, Butcher of Malakir, Dictate of
@@ -3918,8 +3948,16 @@ def extract_signals(
         # Play-from-top engine (Gwenom, Glarb, Reality Chip) curates its top — it wants
         # surveil/scry and top-stacking to set up what it plays. Cross-open the sibling
         # top-of-library lanes (topdeck_selection serves surveil/scry; topdeck_stack the
-        # rearrange/put-on-top effects).
-        if "play_from_top" in keys_now:
+        # rearrange/put-on-top effects). ADR-0027 β: play_from_top is migrated to the
+        # IR,
+        # so it no longer rides this regex path's keys_now; key the cross-open off the
+        # byte-identical _PLAY_FROM_TOP_MIRROR / _PLAY_FROM_TOP_FLOOR_MIRROR (the EXACT
+        # deleted producers, run per-clause) so the sibling membership stays byte-
+        # identical to base (topdeck_selection / topdeck_stack drift 0). CR 116.
+        if "play_from_top" in keys_now or any(
+            _PLAY_FROM_TOP_MIRROR.search(cl) or _PLAY_FROM_TOP_FLOOR_MIRROR.search(cl)
+            for cl in _clauses(text)
+        ):
             add("topdeck_selection", "you", "", text[:160], "low")
             add("topdeck_stack", "you", "", text[:160], "low")
         # A token_maker that makes CREATURE tokens (a captured subject: Darien makes
@@ -4489,6 +4527,29 @@ def extract_signals(
         # span a sentence over the whole oracle (+39 over-silence flat), so per-clause
         # is the byte-identical reproduction (voltron back to base; A-B==0).
         or any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(text))
+        # ADR-0027 β: re-silence the deleted play_from_top SWEEP + _HAND_FLOOR
+        # producers.
+        # Both fired high-confidence (forced scope 'you') and counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on a
+        # play-from-top engine that is NOT a vanilla beater (Magus of the Future, Vizier
+        # of the Menagerie, Augur of Autumn, Garruk's Horde, Realmwalker — 7 leaked on
+        # the
+        # file-swap without this; a top-of-library engine IS a plan). The migrated IR
+        # arm
+        # reproduces the regex set exactly (ir_only == 0), so
+        # _VOLTRON_SILENCING_PLAN_KEYS
+        # would also work, but this byte-identical mirror (the EXACT deleted SWEEP +
+        # _HAND_FLOOR regexes) restores the silence on the REGEX side regardless of the
+        # IR
+        # — robust and matching impulse_top_play. Run PER-CLAUSE over ``text``
+        # (reminder-
+        # STRIPPED, like _T2B5): the deleted producers were floor Detectors over
+        # reminder-
+        # stripped clauses (voltron back to base; A-B == 0). CR 116 / 903.10a.
+        or any(
+            _PLAY_FROM_TOP_MIRROR.search(cl) or _PLAY_FROM_TOP_FLOOR_MIRROR.search(cl)
+            for cl in _clauses(text)
+        )
         # ADR-0027 β: re-silence the deleted edict_matters SWEEP producer (forced scope
         # 'each', high-confidence — it counted toward has_other_plan). The migrated IR
         # arm is BROADER (+28), so _VOLTRON_SILENCING_PLAN_KEYS would over-silence an

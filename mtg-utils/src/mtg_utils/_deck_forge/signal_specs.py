@@ -3025,7 +3025,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
     # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct
     # from cast-from-exile and impulse. Needs a play/cast verb so look/scry/mill don't
-    # match.
+    # match. ADR-0027 β: detection moved to the Card IR (a STATIC cast_from_zone+from:
+    # library Effect over phase's TopOfLibraryCastPermission mode + a per-clause
+    # mirror);
+    # this SERVE pool stays oracle-defined, so the regex is pinned inline here (the
+    # sweep
+    # auto-register no longer builds it — its SWEEP_DETECTORS row is deleted).
     ("play_from_top", "you"): _spec(
         "Play from the top of your library",
         "engines that let you play or cast off the top of your library (Future Sight, "

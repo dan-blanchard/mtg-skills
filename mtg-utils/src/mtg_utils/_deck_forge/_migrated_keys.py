@@ -1210,13 +1210,62 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (legitimate breadth, verified vs oracle text); the mirror recovers the
         # follow-through tail phase folds into a categoryless effect (recall ≥ regex).
         # floor-mirror-dep == 0 (neither source reads _IR_FLOOR_LANES). The ab.kind!=
-        # 'static' gate prevents double-firing the SIBLING play_from_top (DEFERRED — its
-        # static cast_from_zone never carries from:library under the current supplement
-        # ordering, so the structural arm reproduces 0/66 of its regex set). The deleted
-        # SWEEP producer fired high-confidence scope 'you', so an
-        # _IMPULSE_TOP_PLAY_PLAN_MIRROR re-supplies has_other_plan (NO-FLOOD: voltron
-        # byte-identical). CR 601.3b.
+        # 'static' gate prevents double-firing the SIBLING play_from_top (now MIGRATED
+        # via
+        # a dedicated kind='static' marker — phase's TopOfLibraryCastPermission mode —
+        # so
+        # the two lanes are disjoint by construction). The deleted SWEEP producer fired
+        # high-confidence scope 'you', so an _IMPULSE_TOP_PLAY_PLAN_MIRROR re-supplies
+        # has_other_plan (NO-FLOOD: voltron byte-identical). CR 601.3b.
         "impulse_top_play",
+        # ADR-0027 β — play_from_top: the ONGOING permission to play/cast cards from the
+        # top of YOUR library (Future Sight, Bolas's Citadel, Mystic Forge, Vizier of
+        # the
+        # Menagerie, Experimental Frenzy, Magus of the Future, Garruk's Horde, Oracle of
+        # Mul Daya, Courser of Kruphix). The structural arm reads a STATIC
+        # cast_from_zone
+        # Effect carrying 'from:library' — project._top_play_permission_marker's
+        # re-surface of phase's dropped TopOfLibraryCastPermission static mode (SIDECAR
+        # v16), structured through supplement's grammar (recover_effect_from_text) as
+        # the
+        # precision gate. The ab.kind=='static' gate + the `"exile" not in raw` gate
+        # make
+        # it the clean 45-card spine (the 2 granted-impulse statics phase's
+        # _recover_library_zones also tags — Capricious Sliver, Tavern Brawler — say
+        # "exile the top card" and are excluded). The boundary vs the sibling
+        # impulse_top_play (ab.kind != 'static') is disjoint BY CONSTRUCTION: a
+        # continuous
+        # permission is static, a one-shot impulse-draw is not.
+        #
+        # The migration does NOT fully structuralize — phase models a 25-card tail as a
+        # NON-cast-permission shape: REVEAL-only ("Play with the top card revealed" —
+        # Goblin Spy, Crown of Convergence, Mul Daya Channelers, Skill Borrower, Vampire
+        # Nocturnus; "look at the top card any time" — Sphinx of Jwar Isle, Vesuvan
+        # Drifter, Glowcap Lantern), ONCE-EACH-TURN restricted casts (Johann, Cemetery
+        # Illuminator, Assemble the Players, The Fourth Doctor), and TRIGGERED/temporary
+        # permissions (Gwenom, The Belligerent, The Lunar Whale, Xanathar, Ziatora's
+        # Envoy, Temporal Aperture, Fblthp, Radha). Those ride a per-clause
+        # _PLAY_FROM_TOP_MIRROR + _PLAY_FROM_TOP_FLOOR_MIRROR (the EXACT deleted SWEEP +
+        # _HAND_FLOOR regexes) so net recall == regex (no-flood).
+        #
+        # Floor-disabled residual vs the deleted regexes (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 41, ir_only == 0 (the structural arm is
+        # a
+        # clean subset of the union regex — no recall the regex misses, the value is the
+        # structured spine + documented mirror tail), regex_only == 25 — the tail above,
+        # ALL recovered by the byte-identical mirror so production behavior is
+        # preserved.
+        # The deleted FLOOR's broad `(?:play|cast)…from the top` arm pre-existingly
+        # over-fires on 4 dig-until impulse engines (Amped Raptor, Codie, Jodah, Old
+        # Stickfingers — "exile/reveal cards from the top … until you exile/reveal"):
+        # this
+        # is REPRODUCED byte-identically (no-flood), not a new over-fire.
+        # SWEEP_DETECTORS
+        # row + _HAND_FLOOR producer deleted (SWEEP_LABELS kept); the serve is
+        # hand-registered in signal_specs.py reusing the pinned PLAY_FROM_TOP_REGEX.
+        # floor-mirror-dep == 0 (play_from_top is not an _IR_FLOOR_LANE). CR 116 /
+        # 601.3b.
+        "play_from_top",
         # ADR-0027 β — edict_matters: the structural opp/each `sacrifice` arm (gated by
         # _ir_effect_is_edict against 6 leaked-scope self/you-sac over-fires) plus a
         # flat _IR_KEPT_DETECTORS mirror (the EXACT deleted SWEEP regex over the joined-

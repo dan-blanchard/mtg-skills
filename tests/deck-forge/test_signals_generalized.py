@@ -3422,7 +3422,12 @@ def test_creature_token_maker_cross_opens_creatures_matter():
 def test_play_from_top_cross_opens_topdeck_selection():
     # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
     # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It
-    # opened play_from_top but not the sibling topdeck_selection/stack lanes. Real oracle.
+    # opens play_from_top and the sibling topdeck_selection/stack lanes. Real oracle.
+    # ADR-0027 β: play_from_top migrated to the Card IR, so the hybrid serves it (here
+    # via the per-clause kept mirror — Gwenom's permission is a TRIGGERED/temporary form
+    # phase doesn't model as a cast-permission static). The topdeck_selection cross-open
+    # now keys off the byte-identical _PLAY_FROM_TOP_MIRROR in the regex path, so it
+    # fires on both the regex and hybrid paths.
     gwenom = {
         "name": "Gwenom, Remorseless",
         "type_line": "Legendary Creature — Symbiote Villain",
@@ -3432,7 +3437,7 @@ def test_play_from_top_cross_opens_topdeck_selection():
             "the top of your library."
         ),
     }
-    ks = _ks(gwenom)
+    ks = _ks_hybrid(gwenom)
     assert ("play_from_top", "you") in ks
     assert ("topdeck_selection", "you") in ks
     # Over-fire guard: a commander that doesn't play from the top opens neither.
@@ -3441,7 +3446,7 @@ def test_play_from_top_cross_opens_topdeck_selection():
         "type_line": "Legendary Creature — Bear",
         "oracle_text": "Trample",
     }
-    assert ("topdeck_selection", "you") not in _ks(plain)
+    assert ("topdeck_selection", "you") not in _ks_hybrid(plain)
 
 
 def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():

@@ -4468,6 +4468,40 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β. play_from_top ← the structural arm: a STATIC cast_from_zone Effect
+    # carrying the recovered 'from:library' zone (project._top_play_permission_marker over
+    # phase's TopOfLibraryCastPermission static mode, SIDECAR v16). Future Sight's real IR
+    # is a kind='static' ability whose cast_from_zone effect plays from the top of the
+    # library — the ab.kind=='static' gate keeps it in this lane (vs the non-static
+    # impulse_top_play). The deleted SWEEP + _HAND_FLOOR regexes no longer fire on the
+    # regex path; the `"exile" not in raw` gate (the permission text has no "exile")
+    # admits it.
+    "play_from_top": (
+        {
+            "name": "Future Sight",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Play with the top card of your library revealed.\n"
+                "You may play lands and cast spells from the top of your library."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cast_from_zone",
+                        scope="you",
+                        zones=("from:library",),
+                        raw=(
+                            "You may play lands and cast spells from the top of "
+                            "your library."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # ADR-0027 β. edict_matters ← the structural opp/each `sacrifice` arm: a forced
     # PLAYER sacrifice (CR 701.16). Plaguecrafter's ETB makes each player sacrifice a
     # creature or planeswalker — phase emits scope "each" with the sacrificed subject's

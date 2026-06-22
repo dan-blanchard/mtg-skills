@@ -76,12 +76,40 @@ def test_cost_reduction():
 
 def test_play_from_top_of_library_is_its_own_signal():
     # Playing off the top of the LIBRARY (Future Sight / Glarb) is play_from_top — a
-    # different zone than exile, so it is NOT cast_from_exile.
+    # different zone than exile, so it is NOT cast_from_exile. ADR-0027 β: play_from_top
+    # migrated to the Card IR, so it is served from the hybrid — here via the structural
+    # STATIC cast_from_zone+from:library arm (project._top_play_permission_marker over
+    # phase's TopOfLibraryCastPermission mode). cast_from_exile stays out on both paths.
     c = {
         "name": "Glarb, Calamity's Augur",
         "oracle_text": "Deathtouch\nYou may look at the top card of your library any time.\nYou may play lands and cast spells with mana value 4 or greater from the top of your library.\n{T}: Surveil 2.",
     }
-    keys = _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Glarb, Calamity's Augur",
+        faces=(
+            Face(
+                name="Glarb, Calamity's Augur",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="cast_from_zone",
+                                scope="you",
+                                zones=("from:library",),
+                                raw=(
+                                    "You may play lands and cast spells with mana "
+                                    "value 4 or greater from the top of your library."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
     assert ("play_from_top", "you") in keys
     assert ("cast_from_exile", "you") not in keys
 

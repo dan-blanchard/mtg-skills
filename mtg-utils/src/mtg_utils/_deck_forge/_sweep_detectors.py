@@ -551,12 +551,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "look at the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal cards from the top of your library until|put [^.]*from among them onto the battlefield",
     },
-    {
-        "key": "play_from_top",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:may )?play (?:the )?top card of (?:your|their) library|you may look at the top card of your library (?:any time|at any time)|play with the top card of your library revealed|(?:play|cast) (?:lands?|spells?|creature spells?)[^.]*from the top of your library",
-    },
+    # ADR-0027 β: play_from_top migrated to the Card IR — the structural arm (a STATIC
+    # cast_from_zone+from:library Effect, project._top_play_permission_marker over phase's
+    # TopOfLibraryCastPermission static mode, gated `"exile" not in raw` to split granted
+    # impulse) plus a per-clause _PLAY_FROM_TOP_MIRROR + _PLAY_FROM_TOP_FLOOR_MIRROR (the
+    # EXACT deleted SWEEP + _HAND_FLOOR regexes) for the reveal-only / once-each-turn /
+    # triggered tail phase doesn't model as a cast-permission static. Its SWEEP_DETECTORS
+    # row + _HAND_FLOOR producer are deleted; the serve is hand-registered in
+    # signal_specs.py reusing the deleted regex (SWEEP_LABELS still carries the human
+    # label). The ab.kind=='static' gate keeps it disjoint from the sibling
+    # impulse_top_play arm (ab.kind!='static'). CR 116 / 601.3b.
     {
         "key": "dig_until",
         "scope": "you",

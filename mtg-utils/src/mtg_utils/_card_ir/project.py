@@ -1488,6 +1488,17 @@ def _project_face(record: dict) -> Face:
         cda_marker = _self_cda_marker(record)
         if cda_marker is not None:
             abilities.append(Ability(kind="static", effects=(cda_marker,)))
+    # Play-from-top permission marker (ADR-0027 β play_from_top): phase's
+    # `TopOfLibraryCastPermission` static mode is dropped by _project_static_mods (it
+    # recognizes no `mode`), so re-surface it as a `cast_from_zone`+`from:library`
+    # STATIC effect the play_from_top lane reads (Future Sight, Bolas's Citadel, Mystic
+    # Forge, Vizier, Garruk's Horde). The static kind is the disjointness boundary vs
+    # the sibling impulse_top_play lane (which gates ab.kind != 'static'). The
+    # description is structured through supplement's grammar (recover_effect_from_text)
+    # as a precision gate — only a real cast-from-library permission emits. CR 116.
+    top_play_marker = _top_play_permission_marker(record)
+    if top_play_marker is not None:
+        abilities.append(Ability(kind="static", effects=(top_play_marker,)))
     # Affinity / Improvise keyword count operands (ADR-0027 go-wide): the affinity
     # subject's type the projection drops to a bare keyword (CR 702.41a / 702.126a —
     # the cost scales with that type's own-board population). artifacts/enchantments
@@ -3205,6 +3216,54 @@ def _self_cda_marker(record: dict) -> Effect | None:
         eff = recover_effect_from_text(desc)
         if eff.category == "characteristic_pt":
             return eff
+    return None
+
+
+def _top_play_permission_marker(record: dict) -> Effect | None:
+    """A `cast_from_zone`+`from:library` STATIC marker for the ongoing play-from-top
+    permission (ADR-0027 β play_from_top) — Future Sight, Bolas's Citadel, Mystic
+    Forge, Vizier of the Menagerie, Experimental Frenzy, Magus of the Future, Garruk's
+    Horde, Oracle of Mul Daya, Courser of Kruphix.
+
+    phase models the static permission as a `TopOfLibraryCastPermission` static-ability
+    mode ({"TopOfLibraryCastPermission": {"play_mode": "Play"|"Cast", ...}}), but
+    `_project_static_mods` recognizes no `mode` (only `modifications`), so the whole
+    static is DROPPED at projection (`_project_top_static` -> None). phase ALSO mangles
+    the SAME card a dozen different ways on the side (Future Sight -> spell/
+    cast_from_zone with NO zone; Bolas's Citadel -> lose_life; Mystic Forge -> exile;
+    Vizier -> mana_filter; Experimental Frenzy -> destroy; Courser -> gain_life;
+    Garruk's Horde -> nothing) — there is no reliable `cast_from_zone`+`from:library` on
+    the OTHER abilities, and it is NOT a single static-kind. So this marker reads
+    phase's ONE reliable structural signal — the dropped `TopOfLibraryCastPermission`
+    static mode — and routes its `description` through supplement's grammar
+    (`recover_effect_from_text`, the gamma structuring layer) as the precision gate:
+    only when the description structures to `cast_from_zone` do we emit. (The reveal
+    sibling
+    "You may look at the top card of your library any time." structures to
+    `topdeck_select`, and Oracle of Mul Daya's "You may play an additional land" to
+    `extra_land` — neither emits here.)
+
+    The emitted Effect is forced `category='cast_from_zone'` + `zones=('from:library',)`
+    + `scope='you'`, and the CALLER appends it on a DEDICATED `kind='static'` ability —
+    the static kind is the disjointness boundary against the SIBLING impulse_top_play
+    lane (012884a), whose IR arm gates `ab.kind != 'static'`. The impulse lane is the
+    one-shot exile-the-top-then-play engine (Light Up the Stage, Ragavan); this is the
+    continuous permission. They never double-fire: this marker lands ONLY on static, so
+    impulse never reads it; and the spell-synthesized `cast_from_zone` effects phase
+    leaves on Future Sight/Magus/Oracle stay `zones=()` (the post-projection
+    `_recover_library_zones` ran before the supplement created them), so impulse never
+    reads those either. One marker per card. CR 116 / 601.3b."""
+    for st in record.get("static_abilities") or []:
+        mode = st.get("mode")
+        if not (isinstance(mode, dict) and "TopOfLibraryCastPermission" in mode):
+            continue
+        desc = st.get("description") or st.get("oracle_text") or ""
+        if not isinstance(desc, str) or not desc.strip():
+            continue
+        eff = recover_effect_from_text(desc)
+        if eff.category != "cast_from_zone":
+            continue
+        return replace(eff, scope="you", zones=("from:library",))
     return None
 
 
