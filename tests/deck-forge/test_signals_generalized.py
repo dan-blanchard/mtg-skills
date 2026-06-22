@@ -6716,7 +6716,10 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
             "indestructible, lifelink, menace, reach, skulk, trample, and vigilance."
         ),
     }
-    assert "keyword_soup_matters" in _keys(odric)
+    # ADR-0027: keyword_soup_matters migrated to the Card IR — assert via the hybrid
+    # path (the include_membership-gated kept mirror reads oracle_text off the record;
+    # _bare_ir routes the hybrid to the IR path). The regex path no longer emits it.
+    assert "keyword_soup_matters" in _keys_hybrid(odric)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -6743,7 +6746,7 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
         "type_line": "Legendary Creature — Human Avatar",
         "oracle_text": "Flying\nVigilance\nOther creatures you control have vigilance.",
     }
-    assert "keyword_soup_matters" not in _keys(aang)
+    assert "keyword_soup_matters" not in _keys_hybrid(aang)
     # Over-fire guard: a one-keyword creature is not a multi-keyword body.
     sprite = {
         "name": "Scryb Sprite",

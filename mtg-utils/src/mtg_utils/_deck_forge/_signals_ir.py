@@ -25,8 +25,10 @@ from mtg_utils._deck_forge._signals_regex import (
     _DIRECT_KEYWORD_SIGNALS,
     _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
+    _EVERGREEN_KW_RE,
     _FLOOR_DETECTORS,
     _IMPULSE_TOP_PLAY_SWEEP_RE,
+    _KEYWORD_SOUP_CONTEXT_RE,
     _PLAY_FROM_TOP_FLOOR_MIRROR,
     _PLAY_FROM_TOP_MIRROR,
     _PRESET_KEYWORD_SIGNALS,
@@ -3303,6 +3305,19 @@ IR_SLICE_KEYS: frozenset[str] = (
             # no mirror (3010 -> 3010). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
             # CR 903.10a.
             "one_punch",
+            # ADR-0027 — keyword_soup_matters (a commander that GRANTS/SHARES many
+            # evergreen keywords across the team — Odric, Akroma Vision, Akroma's
+            # Memorial/Will, Concerted Effort, Bleeding Effect — wants creatures
+            # STACKED with keywords). MIRROR-ONLY: the structural
+            # grant_keyword-counter_kind arm (the sibling `keyword_soup` lane's shape)
+            # LOSES Akroma's Will (modal grants split across abilities) and over-fires
+            # onto 11 single-creature keyword-ABSORBERS that belong to `keyword_soup`,
+            # so the lane rides the byte-identical _KEYWORD_SOUP_CONTEXT_RE + >=5
+            # _EVERGREEN_KW_RE mirror over kept_oracle (include_membership-gated). scope
+            # 'you', LOW conf (the deleted producer's identity — never fed
+            # has_other_plan, so no voltron mirror is needed). NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 702.
+            "keyword_soup_matters",
             # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
             # payoff): a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
             # regex. phase carries a `StepEndUnspentMana` static for the 11 pure statics
@@ -8697,6 +8712,29 @@ def extract_signals_ir(
             cmc = card.get("cmc") or 0
             if power >= 8 and power >= 2 * cmc:
                 add("one_punch", "you", "", "extreme power-for-cost beater", "low")
+        # ADR-0027 — keyword_soup_matters BYTE-IDENTICAL membership-gated kept mirror.
+        # A keyword-soup commander (Odric Lunarch Marshal, Akroma Vision, Akroma's
+        # Memorial/Will, Concerted Effort, Bleeding Effect) GRANTS/SHARES many evergreen
+        # keywords across the team, so it wants creatures STACKED with keywords.
+        # MIRROR-ONLY: the structural grant_keyword-counter_kind arm (the sibling
+        # `keyword_soup` lane's shape) LOSES Akroma's Will — phase splits its modal
+        # "Choose one" grants across abilities so neither ability alone reaches >=5 cks
+        # — and over-fires onto 11 single-creature keyword-ABSORBERS (Cairn Wanderer,
+        # Rayami, Soulflayer, …) that belong to `keyword_soup`, a different archetype.
+        # So the lane rides the EXACT deleted producer (the team-grant
+        # _KEYWORD_SOUP_CONTEXT_RE AND >=5 distinct evergreen keyword WORDS) flat over
+        # the reminder-stripped kept_oracle — same input as the deleted `text`, and with
+        # no per-clause `[^.]` span the whole-text count is byte-identical
+        # (commander-legal: regex == mirror, 6 -> 6, 0 miss / 0 extra). scope 'you', LOW
+        # conf (the deleted producer's identity — it never fed has_other_plan, so no
+        # voltron mirror is needed, matching the land_destruction / big_mana /
+        # cheat_from_top precedent). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+        # CR 702.
+        if (
+            _KEYWORD_SOUP_CONTEXT_RE.search(kept_oracle)
+            and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(kept_oracle)) >= 5
+        ):
+            add("keyword_soup_matters", "you", "", kept_oracle[:160], "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

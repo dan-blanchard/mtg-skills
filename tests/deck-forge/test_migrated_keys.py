@@ -6249,6 +6249,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # keyword_soup_matters ← the include_membership-gated byte-identical mirror in
+    # extract_signals_ir (the team-grant _KEYWORD_SOUP_CONTEXT_RE AND >=5 distinct
+    # evergreen keyword WORDS over the reminder-stripped kept_oracle). A structural
+    # grant_keyword-counter_kind arm both MISSES Akroma's Will (modal grants split
+    # across abilities) AND over-fires onto the sibling `keyword_soup` lane's single-
+    # creature keyword-absorbers, so the lane is mirror-only — the IR's structure is
+    # irrelevant (the mirror reads oracle_text off the record dict), hence a bare _ir().
+    # Odric, Lunarch Marshal is the canonical keyword-soup commander (it shares every
+    # evergreen keyword any of your creatures has across the whole team). The regex path
+    # no longer emits the key (the membership-block producer is deleted). scope "you",
+    # LOW conf. CR 702.
+    "keyword_soup_matters": (
+        {
+            "name": "Odric, Lunarch Marshal",
+            "type_line": "Legendary Creature — Human Soldier",
+            "oracle_text": (
+                "At the beginning of each combat, creatures you control gain "
+                "first strike until end of turn if a creature you control has "
+                "first strike. The same is true for flying, deathtouch, double "
+                "strike, haste, hexproof, indestructible, lifelink, menace, "
+                "reach, skulk, trample, and vigilance."
+            ),
+        },
+        _ir(),
+    ),
     # arcane_matters ← the byte-identical `\barcane\b` kept WORD MIRROR in
     # _IR_KEPT_DETECTORS for the Kamigawa Arcane / Splice-onto-Arcane / Spiritcraft
     # archetype (CR 205.3k spell type, CR 702.47 Splice). phase v0.1.19 doesn't structure

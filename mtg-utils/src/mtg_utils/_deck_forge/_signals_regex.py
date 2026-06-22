@@ -118,6 +118,17 @@ _EVERGREEN_KW_WORDS = (
 _EVERGREEN_KW_RE = tuple(
     re.compile(r"\b" + kw + r"\b", re.IGNORECASE) for kw in _EVERGREEN_KW_WORDS
 )
+# keyword_soup_matters team-grant context (ADR-0027 — pinned for the byte-identical
+# _signals_ir kept mirror): a commander that GRANTS/SHARES keywords across the team
+# ("creatures you control gain/have …", Odric's "each other creature you control",
+# Akroma Vision's "+1/+1 if it has <keyword>" enumeration). The >=5-distinct-evergreen
+# gate (counted with _EVERGREEN_KW_RE over the same reminder-stripped text) isolates the
+# soup-sharer from a single-keyword anthem.
+_KEYWORD_SOUP_CONTEXT_RE = re.compile(
+    r"creatures you control (?:gain|have)|each other creature you control"
+    r"|if it has",
+    re.IGNORECASE,
+)
 # ADR-0027 keyword_soup: phase's grant_keyword counter_kind is spaceless
 # ("firststrike"/"doublestrike"), so normalize the evergreen word set the same way
 # for the per-ability distinct-keyword count.
@@ -4711,23 +4722,22 @@ def extract_signals(
         # extract_signals_ir. It fired LOW confidence, so it never fed
         # has_other_plan — no voltron PLAN mirror term is needed for it (the 55
         # countdown-resource cards with no other plan keep their voltron tell).
-        # Keyword-soup commander (Odric Lunarch Marshal, Akroma Vision): grants/shares
-        # MANY evergreen keywords across the team ("creatures you control gain … if it
-        # has …"; Akroma's "+1/+1 if it has <keyword>" enumeration), so it wants
-        # creatures STACKED with keywords. >=5 distinct evergreen keywords in a team-
-        # grant/"if it has" context isolates the soup-sharer from a single-keyword
-        # anthem (Aang's lone vigilance). Reminder text is already stripped from `text`,
-        # so a keyword's reminder can't inflate the count.
-        if (
-            re.search(
-                r"creatures you control (?:gain|have)|each other creature you control"
-                r"|if it has",
-                text,
-                re.IGNORECASE,
-            )
-            and sum(1 for rx in _EVERGREEN_KW_RE if rx.search(text)) >= 5
-        ):
-            add("keyword_soup_matters", "you", "", text[:160], "low")
+        # ADR-0027: keyword_soup_matters migrated to the Card IR. The keyword-soup
+        # commander (Odric Lunarch Marshal, Akroma Vision, Akroma's Memorial/Will,
+        # Concerted Effort, Bleeding Effect) grants/shares MANY evergreen keywords
+        # across the team, so it wants creatures STACKED with keywords. This inline
+        # producer (a team-grant context AND >=5 distinct evergreen keyword WORDS over
+        # the reminder-stripped whole-text — no per-clause `[^.]` span) is DELETED; it
+        # survives BYTE-IDENTICALLY as the include_membership-gated, LOW-confidence
+        # _KEYWORD_SOUP_CONTEXT_RE + _EVERGREEN_KW_RE mirror in extract_signals_ir, run
+        # flat over the same reminder-stripped kept_oracle (commander-legal: regex ==
+        # mirror, 6 -> 6, 0 miss / 0 extra). A STRUCTURAL grant_keyword-counter_kind
+        # arm was REJECTED — it LOSES Akroma's Will (its modal grants split across
+        # abilities, so neither ability alone hits >=5 cks) and over-fires onto the
+        # sibling `keyword_soup` lane's 11 single-creature keyword-ABSORBERS (Cairn
+        # Wanderer, Rayami, Soulflayer, …), a different archetype. It fired LOW
+        # confidence, so it never fed has_other_plan — no voltron PLAN mirror is needed.
+        # CR 702 evergreen keywords.
 
     # Own-subtype tribal (membership): a creature's own creature type is a deterministic
     # characteristic (CR 109.3) that tribal cards key off (CR 205.3 / 702.38a), so a

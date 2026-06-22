@@ -4748,6 +4748,30 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # detector floor stays at 33. The serve spec stays hand-registered in
         # signal_specs.py. CR 401 / 701.20a.
         "cheat_from_top",
+        # ADR-0027 keyword_soup_matters — a commander that GRANTS/SHARES many evergreen
+        # keywords across the team (Odric Lunarch Marshal, Akroma Vision, Akroma's
+        # Memorial/Will, Concerted Effort, Bleeding Effect) wants creatures STACKED with
+        # keywords. MIRROR-ONLY: a structural grant_keyword-counter_kind arm (the
+        # sibling `keyword_soup` lane's shape) both MISSES Akroma's Will (its modal
+        # "Choose one" grants split across abilities, so neither ability alone reaches
+        # >=5 cks) AND over-fires onto 11 single-creature keyword-ABSORBERS (Cairn
+        # Wanderer, Rayami, Soulflayer, Majestic Myriarch, …) that belong to the
+        # DIFFERENT `keyword_soup` lane. So the WHOLE lane rides the BYTE-IDENTICAL
+        # membership-gated mirror in extract_signals_ir: the team-grant
+        # _KEYWORD_SOUP_CONTEXT_RE AND >=5 distinct evergreen keyword WORDS
+        # (_EVERGREEN_KW_RE) over the reminder-stripped kept_oracle == the regex path's
+        # `text`. The producer counts over the WHOLE text (no per-clause `[^.]` span),
+        # so flat-over-kept_oracle == the deleted producer EXACTLY. Commander-legal,
+        # floor-disabled, by oracle_id: both==6, regex_only==0, ir_only==0 (perfect
+        # parity — Akroma's Will/Memorial, Odric, Akroma Vision, Concerted Effort,
+        # Bleeding Effect). SCOPE PARITY: deleted producer + mirror both fire scope
+        # 'you', LOW conf. NO VOLTRON entry: it fired LOW confidence and so never fed
+        # has_other_plan (the silence gate is confidence=='high') — matching the
+        # land_destruction / big_mana / cheat_from_top precedent, no _PLAN_MIRROR
+        # needed. NOT a SWEEP_DETECTORS row (a hand-written add() inside
+        # extract_signals' membership block), so the detector floor is unchanged. The
+        # serve spec stays hand-registered in signal_specs.py. CR 702.
+        "keyword_soup_matters",
         # ADR-0027 arcane_matters — the Kamigawa Arcane / Splice-onto-Arcane /
         # Spiritcraft archetype (a commander caring about ARCANE spells: "cast a Spirit
         # or Arcane spell" — Tallowisp; "Splice onto Arcane" — the Kamigawa I/S spells;
