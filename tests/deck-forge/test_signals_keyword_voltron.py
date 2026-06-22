@@ -80,7 +80,23 @@ def test_training_and_evolve_are_counters():
 
 
 def test_battle_cry_is_go_wide_attack():
-    assert "attack_matters" in _keys(keywords=["Battle cry"])
+    # ADR-0027: attack_matters is migrated. Battle cry (CR 702.91) carries its "whenever
+    # this creature attacks" trigger in stripped reminder text, so the lane fires from the
+    # Battle cry keyword in _IR_KEYWORD_MAP via the hybrid — not the regex keyword path.
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils.card_ir import Card, Face
+
+    card = {
+        "name": "X",
+        "oracle_text": "",
+        "type_line": "Legendary Creature — Test",
+        "keywords": ["Battle cry"],
+    }
+    ir = Card(
+        oracle_id="x", name="X", faces=(Face(name="X", keywords=("Battle cry",)),)
+    )
+    assert "attack_matters" not in {s.key for s in extract_signals(card)}
+    assert "attack_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 def test_exalted_is_voltron():

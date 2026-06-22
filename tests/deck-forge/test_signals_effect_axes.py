@@ -96,11 +96,16 @@ def test_land_creatures_widened_for_animation():
 
 
 def test_attack_matters_widened_for_isshin():
+    # ADR-0027: attack_matters migrated — the "attacking causes" static (Isshin) has no
+    # structural shape phase carries, so it fires from the _ATTACK_MATTERS_MIRROR over
+    # the dict oracle via the hybrid (empty IR), NOT the deleted regex producer.
     c = {
         "name": "Isshin-like",
         "oracle_text": "If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
     }
-    assert any(s.key == "attack_matters" for s in extract_signals(c))
+    bare = Card(oracle_id="x", name="X", faces=(Face(name="X"),))
+    assert not any(s.key == "attack_matters" for s in extract_signals(c))
+    assert any(s.key == "attack_matters" for s in extract_signals_hybrid(c, bare))
 
 
 def test_lifegain_widened_for_activated_gain():

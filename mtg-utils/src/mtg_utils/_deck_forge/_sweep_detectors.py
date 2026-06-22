@@ -536,6 +536,38 @@ DEATH_MATTERS_REGEX = (
     r"|creatures? (?:that )?died this turn"
     r"|creature[^.]*\bdied\b[^.]*this turn"
 )
+# ADR-0027 — attack_matters (the COMBAT-trigger / attacked-this-turn payoff axis: a
+# card that CARES when a creature attacks — "whenever ~ attacks" triggers, the Raid /
+# "attacked this turn" combat-count condition, the "attacking causes" Isshin form, and
+# the team combat-keyword anthems) migrated to the Card IR via a STRUCTURAL arm + a
+# BYTE-IDENTICAL kept-mirror. The structural `attacks`-TRIGGER arm + the `Attacking`
+# filter-predicate arm in extract_signals_ir ADD +135 ir_only recall: the reminder-only
+# attack triggers (Training / Mentor / Exalted / Mobilize creatures, whose "whenever ~
+# attacks" lives ONLY in stripped reminder text) and the "Attacking creatures you
+# control get …" anthems (Gruul War Chant, Goblin Oriflamme, Nobilis of War) the bare
+# substring regex MISSED — all genuine attack payoffs. But phase carries NO clean
+# `attacks` shape for the DOMINANT family: the DISJUNCTIVE "enters or attacks" /
+# "attacks or blocks" trigger (Elder Gargaroth, Sun Titan, Grave Titan, Doran — phase
+# collapses these to event='other'), the Raid "if you attacked this turn" CONDITION
+# (Searslicer Goblin, Bloodsoaked Champion — no trigger at all), the `AttackedThisTurn`
+# effect predicate ("untap all creatures that attacked this turn" — Relentless Assault,
+# World at War), and "attacking causes" (Isshin). A structural-only migration would LOSE
+# 394 genuine cards, so the lane ALSO rides this byte-identical regex (commander-legal
+# corpus: post-IR ⊇ original-regex, 0 lost, +135 gained) run PER-CLAUSE, PLUS the one
+# SUBSTRING-AND branch the deleted lambda ran on the lower-cased clause ("whenever" &
+# "attack" — no single regex expresses a substring-AND), checked inline in
+# extract_signals_ir. The two regex-expressible substring branches ("attacking causes",
+# "attacked this turn") are pinned here. The 10 combat KEYWORDS the deleted
+# _DIRECT_KEYWORD_SIGNALS rows mapped (battle cry / battalion / melee / boast / exert /
+# myriad / bushido / annihilator / flanking / frenzy — whose attack condition lives in
+# stripped reminder text, so neither the mirror nor the structural arm fires) move to
+# the IR-only _IR_KEYWORD_MAP so the IR path still opens the lane for them. attack_matters
+# was NEVER a SWEEP key, so no SWEEP row is touched (len stays >=36). NO sidecar bump
+# (the v20 projection already emits the `attacks` trigger event + the Attacking filter
+# predicate). NOT a voltron plan (an attacker IS the commander-damage plan), but the
+# deleted producer fed has_other_plan when it fired HIGH, so a faithful reproduction (not
+# a key add) restores the voltron silence in _signals_regex. CR 508 / 702.10.
+ATTACK_MATTERS_REGEX = r"attacking causes|attacked this turn"
 # ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
 # mirror (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). The deleted regex producers — the
 # `_DETECTORS` registry row (the "whenever you gain life" payoff / "gain N life" source

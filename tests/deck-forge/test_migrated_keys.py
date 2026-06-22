@@ -284,6 +284,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # attack_matters ← the BYTE-IDENTICAL kept mirror (_ATTACK_MATTERS_MIRROR + the inline
+    # "whenever"&"attack" substring-AND). Relentless Assault carries the "attacked this
+    # turn" combat-count payoff (CR 508) that phase types as an effect predicate, not an
+    # attacks trigger — so it rides the mirror over the dict oracle (empty IR). The
+    # structural `attacks`-trigger arm + the 10 combat keywords are exercised in
+    # test_signals.py. ADR-0027.
+    "attack_matters": (
+        {
+            "name": "Relentless Assault",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Untap all creatures that attacked this turn. After this main "
+                "phase, there is an additional combat phase followed by an "
+                "additional main phase."
+            ),
+        },
+        _ir(),
+    ),
     # color_change ← a BYTE-IDENTICAL kept mirror (_COLOR_CHANGE_MIRROR over the reminder-
     # stripped oracle: "Target permanent becomes the color or colors of your choice").
     # phase parses the clause inconsistently (AddChosenColor mods / Unimplemented

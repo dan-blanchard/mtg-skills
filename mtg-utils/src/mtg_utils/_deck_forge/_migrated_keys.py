@@ -1975,6 +1975,69 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # byte-identical-mirror pattern (restores has_other_plan for ALL cards
         # regardless of IR/regex mode). CR 603.6.
         "creature_etb",
+        # ADR-0027 — attack_matters (the COMBAT-trigger / attacked-this-turn payoff
+        # axis: a card that CARES when a creature attacks — "whenever ~ attacks"
+        # triggers (Hellrider, Adeline), the Raid / "attacked this turn" combat-count
+        # condition (Relentless Assault, Bloodsoaked Champion), the "attacking causes"
+        # Isshin form, and the team combat-keyword anthems). MIGRATED VIA A STRUCTURAL
+        # ARM + A BYTE- IDENTICAL KEPT-MIRROR (signals-only, NO sidecar bump).
+        #
+        # STRUCTURAL ARM (recall GAIN). phase DOES carry the `attacks` TRIGGER event
+        # (_PAYOFF_TRIGGER_KEYS → attack_matters) and the `Attacking` filter PREDICATE
+        # (the e.subject / amount.subject Attacking read), and the structural arm fires
+        # them. That arm ADDS +135 ir_only recall the bare substring regex MISSED: the
+        # reminder-only attack triggers (Training / Mentor / Exalted / Mobilize
+        # creatures, whose "whenever ~ attacks" lives ONLY in the stripped reminder text
+        # — Noble Hierarch, Tajic, Voice of Victory) and the "Attacking creatures you
+        # control get …" anthems (Gruul War Chant, Goblin Oriflamme, Nobilis of War) —
+        # all genuine attack payoffs. So this is NOT a structural-only NOR a mirror-only
+        # migration.
+        #
+        # WHY THE MIRROR (recall the structural arm cannot reach). phase carries NO
+        # clean `attacks` shape for the DOMINANT family: the DISJUNCTIVE "enters or
+        # attacks" / "attacks or blocks" trigger collapses to event='other' (Elder
+        # Gargaroth, Sun Titan, Grave Titan, Frost Titan, Doran), the Raid "if you
+        # attacked this turn" is a CONDITION with no trigger (Searslicer Goblin,
+        # Bloodsoaked Champion), the `AttackedThisTurn` shows only on an EFFECT
+        # predicate the lane doesn't read as a payoff ("untap all creatures that
+        # attacked this turn" — Relentless Assault, World at War), and "attacking
+        # causes" (Isshin) is a static. A structural-only migration would LOSE 394
+        # genuine cards, so the lane ALSO rides _ATTACK_MATTERS_MIRROR in _signals_ir —
+        # the EXACT deleted _DETECTORS lambda (the two regex-expressible branches pinned
+        # as ATTACK_MATTERS_REGEX in _sweep_detectors: "attacking causes" / "attacked
+        # this turn", PLUS the "whenever"&"attack" SUBSTRING-AND checked inline, which
+        # no single regex expresses) run PER-CLAUSE over the reminder-stripped
+        # kept_oracle, add()-deduped with the structural arm.
+        #
+        # The 10 combat KEYWORDS the deleted _DIRECT_KEYWORD_SIGNALS rows mapped (battle
+        # cry / battalion / melee / boast / exert / myriad / bushido / annihilator /
+        # flanking / frenzy) MOVED to the IR-only _IR_KEYWORD_MAP (the saddle/lifelink-
+        # style move): their attack condition lives in stripped reminder text, so
+        # neither the mirror nor the structural arm fires for a vanilla-keyword body —
+        # the keyword array is the only structured anchor. boast / myriad keep their OWN
+        # lanes (boast_matters / myriad_grant) too — attack_matters is merged in, not
+        # replaced. The deleted _DETECTORS producer + the 10 keyword rows are gone; the
+        # serve spec stays hand-registered in signal_specs.py (its curated search regex
+        # was always independent of the producer).
+        #
+        # Floor-disabled residual vs the deleted producers (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): the STRUCTURAL-ONLY arm vs the deleted regex was
+        # both==1598, ir_only==135, regex_only==394 — the 394 regex_only are ALL genuine
+        # (the disjunctive-trigger / Raid-condition / attacked-this-turn family phase
+        # has no shape for), so the mirror recovers them. Post-migration IR (structural
+        # + mirror + 10 keywords) ⊇ original-regex over the corpus: 0 lost, +135 gained.
+        # floor- mirror-dep == 0 (attack_matters is NOT an _IR_FLOOR_LANE — floor-ON ==
+        # floor-OFF).
+        #
+        # VOLTRON: NOT a plan that silences the commander-damage tell — an ATTACKER is
+        # the commander-damage plan, so attack_matters never fed has_other_plan in a
+        # silencing role and is NOT in _VOLTRON_SILENCING_PLAN_KEYS (no
+        # _ATTACK_MATTERS_PLAN_MIRROR; voltron delta 0, verified over the full
+        # commander-legal corpus). The class-tribe go-wide GATE (which read regex
+        # attack_matters) keeps parity via the _attack_go_wide oracle mirror in
+        # _signals_regex (the IR gate sees the real signal). CR 508 (declare attackers)
+        # / 702.10 (battle cry et al.).
+        "attack_matters",
         # ADR-0027 β — entered_attacker (the freshly-entered-attacker payoff: a
         # creature that ENTERED this turn paired with attacks / deals combat damage —
         # Samut "if that creature entered this turn, draw a card" on combat damage;

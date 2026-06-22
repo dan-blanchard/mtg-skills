@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ACTIVATED_ABILITY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
+    ATTACK_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -472,17 +473,20 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Ward—Sacrifice, and reanimation engines with no sacrifice. NOT in
     # _IR_FLOOR_LANES; this _DETECTORS producer is deleted; the serve spec stays
     # hand-registered. (CR 701.16.)
-    (
-        "attack_matters",
-        # Past-tense "attacked this turn" is a combat-count payoff (Relentless Assault,
-        # Alesha) the present-tense "whenever … attack" trigger missed.
-        lambda c: (
-            ("whenever" in c and "attack" in c)
-            or "attacking causes" in c
-            or "attacked this turn" in c
-        ),
-        None,
-    ),
+    # ADR-0027: attack_matters migrated to the Card IR — the COMBAT-trigger / attacked-
+    # this-turn payoff axis. The lane fires from the STRUCTURAL `attacks`-trigger arm
+    # (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm in the IR path (+135
+    # ir_only recall — the reminder-only Training/Mentor/Exalted/Mobilize attack
+    # triggers + the "Attacking creatures you control get …" anthems the bare substring
+    # missed) PLUS a byte-identical _ATTACK_MATTERS_MIRROR (the two regex-expressible
+    # substring branches pinned as ATTACK_MATTERS_REGEX — "attacking causes" / "attacked
+    # this turn" — plus the inline "whenever"&"attack" substring-AND the deleted lambda
+    # ran) run per-clause, recovering the disjunctive "enters or attacks" / "attacks or
+    # blocks" triggers + the Raid condition family phase has no structural shape for.
+    # This _DETECTORS producer is deleted; the 10 combat KEYWORDS move to the IR-only
+    # _IR_KEYWORD_MAP; the serve spec stays hand-registered. The deleted producer fed
+    # has_other_plan when it fired HIGH, so a faithful reproduction restores the voltron
+    # silence below. (CR 508 / 702.10.)
     # ADR-0027 β: draw_matters migrated to the Card IR — a scope-gated `drawn`-trigger
     # structural arm (scope != "opp", excluding the opponent_draw_matters punisher lane)
     # PLUS a byte-identical draw_matters row in signals._IR_KEPT_DETECTORS for the
@@ -2298,9 +2302,12 @@ _DIRECT_KEYWORD_SIGNALS = {
     # keyword projects a place_counter via phase's effect mapping), verified 0-miss
     # over the commander-legal corpus. The regex `extract_signals` must no longer emit
     # the migrated key.
-    "battle cry": ("attack_matters", "you"),
-    "battalion": ("attack_matters", "you"),
-    "melee": ("attack_matters", "you"),
+    # ADR-0027: the combat-keyword block (battle cry / battalion / melee here, and boast
+    # / exert / myriad / bushido / annihilator / flanking / frenzy below) moved to the
+    # IR-only _IR_KEYWORD_MAP with the attack_matters migration — their attack condition
+    # lives in stripped reminder text, so neither the byte-mirror nor the structural arm
+    # fires for a vanilla-keyword body; the IR keyword route opens the migrated lane for
+    # them (saddle/lifelink-style). The regex `extract_signals` must no longer emit it.
     "exalted": ("voltron_matters", "you"),
     # ADR-0027: extort / afflict / spectacle (→ lifeloss_matters) removed from the
     # regex keyword path with the lifeloss_matters migration — all their keyword cards
@@ -2319,20 +2326,14 @@ _DIRECT_KEYWORD_SIGNALS = {
     # Banding (CR 702.21): a commander with banding wants other banding creatures to
     # form attacking/blocking bands (Ayesha Tanaka, General Jarkeld's pile).
     "banding": ("banding_matters", "you"),
-    # Boast (CR 702.135) activates "only if this creature attacked this turn"; Exert
-    # (702.107) is "as it attacks"; Myriad (702.116) makes attacking copies — all three
-    # carry their attack condition in reminder text (stripped before detection), so a
-    # commander with the keyword reads as attack-matters via the keyword, not oracle.
-    "boast": ("attack_matters", "you"),
-    "exert": ("attack_matters", "you"),
-    "myriad": ("attack_matters", "you"),
+    # ADR-0027: boast (CR 702.135) / exert (702.107) / myriad (702.116) / bushido /
+    # annihilator / flanking / frenzy → attack_matters MOVED to _IR_KEYWORD_MAP (each
+    # carries its attack condition in stripped reminder text, so the keyword array is
+    # the only structured anchor). Keeping them here would let the regex path keep
+    # emitting the migrated key.
     # Archetype-defining keyword abilities (CR §702): the mechanic is reminder text
     # (stripped), so a commander WITH the keyword reads as that archetype via keyword.
     "prowess": ("spellcast_matters", "you"),  # cast a noncreature spell → +1/+1
-    "bushido": ("attack_matters", "you"),  # combat pump on block/blocked
-    "annihilator": ("attack_matters", "you"),  # attacks → defending player sacrifices
-    "flanking": ("attack_matters", "you"),  # combat (blockers get -1/-1)
-    "frenzy": ("attack_matters", "you"),  # attacks unblocked → +N/+0
     # Rampage (702.23): "whenever this becomes BLOCKED, +X/+X per extra blocker" — the
     # block trigger is reminder text, so a Rampage commander (Marhault) reads as
     # blocked-matters via the keyword (wants rampage payoffs / lure to force blocks).
@@ -2505,6 +2506,46 @@ _ANTHEM_GO_WIDE_MIRROR = re.compile(
     r"|nonblack creatures|other creatures) get \+\d/\+\d",
     re.IGNORECASE,
 )
+# ADR-0027: a go-wide GATE reproduction for the migrated attack_matters key — the
+# deleted producers' form (the _DETECTORS lambda over the reminder-stripped JOINED-face
+# oracle: the "whenever"&"attack" substring-AND + the two pinned branches "attacking
+# causes"/"attacked this turn"; PLUS the 10 combat keywords the _DIRECT_KEYWORD_SIGNALS
+# rows read off the keyword array), so an aggro lord's own CLASS tribe (Soldier/Cleric)
+# still opens on the pure-regex path now that the regex no longer emits attack_matters
+# into ``keys_now``. In base the go-wide gate read attack_matters at ANY confidence (it
+# reads ``keys_now``, not has_other_plan), so this is unconditioned by scope. Per-clause
+# (the substring-AND must hold WITHIN one clause) and over joined faces (a DFC back-face
+# attack payoff — Kefka, Tamiyo — must still open). The IR go_wide gate sees the real
+# signal; this preserves parity for the regex path.
+_ATTACK_MATTERS_GATE_RE = re.compile(ATTACK_MATTERS_REGEX, re.IGNORECASE)
+_ATTACK_GO_WIDE_KEYWORDS = frozenset(
+    {
+        "battle cry",
+        "battalion",
+        "melee",
+        "boast",
+        "exert",
+        "myriad",
+        "bushido",
+        "annihilator",
+        "flanking",
+        "frenzy",
+    }
+)
+
+
+def _attack_go_wide(card: dict) -> bool:
+    """The deleted attack_matters producers' form, for the class-tribe go-wide gate."""
+    text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")
+    for clause in _clauses(text):
+        cl = clause.lower()
+        if ("whenever" in cl and "attack" in cl) or _ATTACK_MATTERS_GATE_RE.search(cl):
+            return True
+    return bool(
+        {k.lower() for k in (card.get("keywords") or [])} & _ATTACK_GO_WIDE_KEYWORDS
+    )
+
+
 # ADR-0027 tranche2-A: a HAS-OTHER-PLAN mirror for the migrated aoe_ping key — a
 # "deals N damage to each creature" body (one-shot or repeatable) is a board-ping plan,
 # NOT a vanilla voltron beater, so it silenced the commander-damage voltron tell.
@@ -3015,6 +3056,42 @@ _DEATH_MATTERS_PLAN_MIRROR = re.compile(
     DEATH_MATTERS_REGEX + r"|whenever [^.]*\bdies\b" + r"|\bdying\b[^.]*\btrigger",
     re.IGNORECASE,
 )
+
+
+# ADR-0027: the HAS-OTHER-PLAN reproduction for the migrated attack_matters key. The
+# deleted _DETECTORS producer counted toward `has_other_plan` ONLY when it fired HIGH-
+# confidence (an attack-trigger engine that wants the go-wide combat package, not a
+# vanilla equip-up beater — Hellrider, Isshin, Accorder Paladin), but it fired LOW on a
+# opponents-scoped "whenever ~ attacks, defending player <does X to their library/hand>"
+# body (Goblin Guide, Robber of the Rich), which is itself a VOLTRON beater and so must
+# NOT be silenced. A flat regex mirror cannot tell HIGH from LOW (both share the
+# "whenever ~ attacks" shape), so a byte-faithful re-silence re-runs the deleted
+# producer's EXACT per-clause logic (the lambda match AND the scope/confidence
+# resolution) and silences only on a HIGH non-generic firing (_attack_matters_is_plan).
+# The 10 combat keywords that fired HIGH scope 'you' are re-silenced from the keyword
+# array (the shared _ATTACK_GO_WIDE_KEYWORDS set / _ATTACK_MATTERS_GATE_RE compile
+# above). NOT _VOLTRON_SILENCING_PLAN_KEYS (a faithful reproduction). CR 903.10a.
+def _attack_matters_is_plan(text: str, name: str) -> bool:
+    """True iff the deleted attack_matters producer would have fired HIGH (non-generic),
+    feeding has_other_plan. Re-runs its per-clause loop: the lambda match + the same
+    _resolve_scope HIGH gate (forced_scope was None, so confidence == resolved_conf; the
+    narrow Tinybones rescope also forces HIGH). Reproduces the pre-migration silence set
+    byte-faithfully — the LOW opponents-scoped "defending player" attacker body (Goblin
+    Guide) is NOT silenced. Matched over the reminder-STRIPPED joined text."""
+    for clause in _clauses(text):
+        cl = clause.lower()
+        if not (
+            ("whenever" in cl and "attack" in cl) or _ATTACK_MATTERS_GATE_RE.search(cl)
+        ):
+            continue
+        if _tinybones_scope(clause):  # narrow Tinybones rule — HIGH
+            return True
+        _, conf = _resolve_scope(clause, cl, _scope(cl), name)
+        if conf == "high":
+            return True
+    return False
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated self_counter_grow key. The
 # deleted SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted
 # toward `has_other_plan`, silencing the spurious commander-damage voltron tell on a
@@ -4231,13 +4308,18 @@ def extract_signals(
         # commander ALSO rewards a board of creatures, so its own class is gated on a
         # go-wide signal; race tribes (Dragon/Kraken) open unconditionally. (CR 205.3.)
         keys_now = {s.key for s in out}
-        # anthem_static's regex producer is deleted (ADR-0027 tranche2-A migration), so
-        # it never rides ``keys_now`` here — the oracle mirror keeps the go_wide gate
-        # aware of a static team-buff so an anthem lord's own class type still opens
-        # (the IR path's go_wide sees the real anthem_static signal; preserves parity).
+        # anthem_static's regex producer is deleted (ADR-0027 tranche2-A migration) and
+        # attack_matters's is deleted too (this migration), so neither rides keys_now
+        # — the oracle mirrors keep the go_wide gate aware of a static team-buff /
+        # attack-trigger payoff so an anthem / aggro lord's own class type still opens
+        # (the IR go_wide sees the real signal; the mirrors preserve parity on the pure-
+        # regex path). _attack_go_wide is the deleted producers' form (the per-clause
+        # substring-AND + the two pinned branches + the combat-keyword array).
         _gate = {"creatures_matter", "attack_matters", "anthem_static"}
-        go_wide = bool(keys_now & _gate) or bool(
-            _ANTHEM_GO_WIDE_MIRROR.search(card.get("oracle_text") or "")
+        go_wide = (
+            bool(keys_now & _gate)
+            or bool(_ANTHEM_GO_WIDE_MIRROR.search(card.get("oracle_text") or ""))
+            or _attack_go_wide(card)
         )
         for tok in type_line.split("—", 1)[1].split():
             sub = tok.strip().lower()
@@ -4678,6 +4760,18 @@ def extract_signals(
         # mirror is the byte-identical OR of the deleted producers; matched against the
         # reminder-STRIPPED `text`. CR 903.10a / 700.4.
         or _DEATH_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted attack_matters producers ONLY where they
+        # fired HIGH-confidence non-generic (feeding has_other_plan — an attack-trigger
+        # engine wants the go-wide combat package, not a vanilla equip-up beater). The
+        # lambda's HIGH subset is reproduced byte-faithfully by re-running its per-
+        # clause scope/confidence resolution (so the LOW opponents-scoped "defending
+        # player" attacker bodies — Goblin Guide, Robber of the Rich — stay voltron,
+        # matching base); the 10 combat keywords that fired HIGH scope 'you' are re-
+        # silenced from the keyword array. NOT _VOLTRON_SILENCING_PLAN_KEYS. CR 903.10a.
+        or _attack_matters_is_plan(text, name)
+        or bool(
+            {k.lower() for k in (card.get("keywords") or [])} & _ATTACK_GO_WIDE_KEYWORDS
+        )
         # ADR-0027 β: re-silence the deleted self_counter_grow SWEEP producer (HIGH-
         # confidence scope 'you', feeding has_other_plan — a self-growth engine is no
         # vanilla beater). The migrated lane rides a BROADER structural arm (+503

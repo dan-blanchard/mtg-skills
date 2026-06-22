@@ -49,6 +49,7 @@ from mtg_utils._deck_forge._subtypes import (
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
+    ATTACK_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
@@ -272,7 +273,27 @@ _PAYOFF_TRIGGER_KEYS: dict[str, tuple[str, str | None]] = {
 # into the IR-native world. One keyword may open several lanes; several keywords
 # may open one (poison ← infect/toxic/poisonous; evasion ← menace/fear/…).
 _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
-    "boast": (("boast_matters", "you"),),
+    # ADR-0027 attack_matters migration: the combat-keyword block (battle cry /
+    # battalion / melee / boast / exert / myriad / bushido / annihilator / flanking /
+    # frenzy) MOVED here from _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword
+    # path). attack_matters is migrated, so it must leave the regex-readable
+    # _DIRECT_KEYWORD_SIGNALS; but the IR path STILL needs the keyword because each
+    # carries its attack condition in stripped reminder text (CR 702.10 battle cry "as
+    # it attacks", 702.135 boast "only if this creature attacked this turn", 702.107
+    # exert "as it attacks", 702.116 myriad makes attacking copies, etc.), so neither
+    # the byte-mirror nor the structural `attacks`- trigger arm fires for a
+    # vanilla-keyword body. The keyword array is the structured anchor (the
+    # saddle/lifelink-style move). boast / myriad keep their OWN existing lanes
+    # (boast_matters / myriad_grant) too — attack_matters is merged in, not replaced.
+    "battle cry": (("attack_matters", "you"),),
+    "battalion": (("attack_matters", "you"),),
+    "melee": (("attack_matters", "you"),),
+    "exert": (("attack_matters", "you"),),
+    "bushido": (("attack_matters", "you"),),
+    "annihilator": (("attack_matters", "you"),),
+    "flanking": (("attack_matters", "you"),),
+    "frenzy": (("attack_matters", "you"),),
+    "boast": (("boast_matters", "you"), ("attack_matters", "you")),
     "cascade": (("cascade_matters", "you"),),
     # Casualty (CR 702.153) sacrifices a creature as a cost to copy the spell — the
     # printed KEYWORD is the structural anchor for the sac cost phase folds into the
@@ -360,7 +381,10 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "dredge": (("graveyard_matters", "you"),),
     "delve": (("graveyard_matters", "you"),),
     "mutate": (("mutate_matters", "you"),),
-    "myriad": (("myriad_grant", "you"),),
+    # myriad (CR 702.116) keeps its myriad_grant lane; attack_matters is merged in for
+    # the ADR-0027 migration (its attacking-copies trigger lives in stripped reminder
+    # text).
+    "myriad": (("myriad_grant", "you"), ("attack_matters", "you")),
     "ninjutsu": (("ninjutsu_matters", "you"),),
     "commander ninjutsu": (("ninjutsu_matters", "you"),),
     # Sneak (the TMNT/Marvel ninjutsu-on-a-spell variant — Karai's Technique, Elektra,
@@ -3478,6 +3502,26 @@ _LTB_MATTERS_MIRROR_VETO = re.compile(
 # identical: commander-legal corpus regex==mirror, 0 lost, 0 over-fire). CR 700.4 /
 # 603.6e.
 _DEATH_MATTERS_MIRROR = re.compile(DEATH_MATTERS_REGEX, re.IGNORECASE)
+# attack_matters BYTE-IDENTICAL kept mirror (ADR-0027): the structural `attacks`-trigger
+# arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm above catch phase's
+# combat payoffs (+135 ir_only recall — the reminder-only
+# Training/Mentor/Exalted/Mobilize attack triggers + the "Attacking creatures you
+# control get …" anthems the bare substring regex missed), but phase carries NO clean
+# `attacks` shape for the DOMINANT family: the DISJUNCTIVE "enters or attacks" /
+# "attacks or blocks" trigger (phase collapses these to event='other' — Elder Gargaroth,
+# Sun Titan, Grave Titan, Doran), the Raid "if you attacked this turn" CONDITION (no
+# trigger at all — Searslicer Goblin, Bloodsoaked Champion), the `AttackedThisTurn`
+# effect predicate ("untap all creatures that attacked this turn" — Relentless Assault,
+# World at War), and "attacking causes" (Isshin). Recover them with the EXACT deleted
+# producer run PER-CLAUSE over the reminder-stripped kept_oracle: the two
+# regex-expressible branches via _ATTACK_MATTERS_MIRROR ("attacking causes" / "attacked
+# this turn", pinned ATTACK_MATTERS_REGEX), plus the one SUBSTRING-AND branch the
+# deleted lambda ran on the lower-cased clause ("whenever" & "attack" — no single regex
+# expresses a substring-AND), checked inline in extract_signals_ir. scope 'you' (the IR
+# structural arm's + the serve spec's scope; the deleted producer resolved to 'you' on
+# this corpus). add() dedups vs the structural arm. Byte-faithful (commander- legal
+# corpus: post-IR ⊇ original-regex, 0 lost, +135 gained). CR 508 / 702.10.
+_ATTACK_MATTERS_MIRROR = re.compile(ATTACK_MATTERS_REGEX, re.IGNORECASE)
 # self_counter_grow NARROWED kept mirror (ADR-0027 β): the structural arm above fires on
 # a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR v12), a
 # +503
@@ -6633,6 +6677,23 @@ def extract_signals_ir(
         for cl in _clauses(kept_oracle)
     ):
         add("death_matters", "any", "", "")
+    # ADR-0027 — attack_matters BYTE-IDENTICAL kept mirror. The structural `attacks`-
+    # trigger arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm catch
+    # phase's combat payoffs (+135 ir_only recall), but phase carries NO clean `attacks`
+    # shape for the disjunctive "enters or attacks"/"attacks or blocks" triggers (phase
+    # → event='other'), the Raid "attacked this turn" CONDITION, the AttackedThisTurn
+    # effect predicate, or "attacking causes" (Isshin). Recover them with the EXACT
+    # deleted producer run PER-CLAUSE over the reminder-stripped kept_oracle: the two
+    # regex- expressible branches via _ATTACK_MATTERS_MIRROR, plus the one SUBSTRING-AND
+    # branch the deleted lambda ran ("whenever" & "attack" on the lower-cased clause —
+    # no single regex expresses a substring-AND). scope 'you' (the structural arm's +
+    # serve spec's scope). add() dedups vs the structural arm. CR 508 / 702.10.
+    if any(
+        _ATTACK_MATTERS_MIRROR.search(cl)
+        or ("whenever" in (lc := cl.lower()) and "attack" in lc)
+        for cl in _clauses(kept_oracle)
+    ):
+        add("attack_matters", "you", "", "")
     # ADR-0027 β — self_counter_grow NARROWED kept mirror. The structural arm above
     # fires
     # on a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR

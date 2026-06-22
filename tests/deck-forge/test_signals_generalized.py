@@ -9,6 +9,7 @@ design review flagged (clones, "Plant"/"nonland creature", instant/sorcery spell
 leakage, stax self-restrictions) must stay clean.
 """
 
+from mtg_utils._deck_forge._signals_regex import _resolve_scope, _scope
 from mtg_utils._deck_forge.signals import (
     _voltron_double_strike_beater,
     _voltron_land_scaler,
@@ -4366,15 +4367,20 @@ def test_confidence_defaults_high():
 
 
 def test_self_reference_resolves_any_scope_to_you_high_confidence():
-    # "its power" has no scope marker → baseline "any"; the self-reference to the
-    # card's own name resolves it to "you" with high confidence (Krenko Tin Street).
-    c = {
-        "name": "Krenko, Tin Street Kingpin",
-        "oracle_text": "Whenever Krenko attacks, put a +1/+1 counter on it, then create a number of 1/1 red Goblin creature tokens equal to Krenko's power.",
-    }
-    s = _by_key(c, "attack_matters")
-    assert s.scope == "you"
-    assert s.confidence == "high"
+    # A clause with no scope marker → baseline "any"; the self-reference to the card's
+    # own name resolves it to "you" with high confidence (Krenko Tin Street). ADR-0027:
+    # attack_matters migrated to the Card IR, so its emission no longer carries the
+    # resolved scope — but `_resolve_scope` (which `_attack_matters_is_plan` and every
+    # surviving baseline detector still use) is exercised directly here.
+    clause = (
+        "Whenever Krenko attacks, put a +1/+1 counter on it, then create a number "
+        "of 1/1 red Goblin creature tokens equal to Krenko's power."
+    )
+    scope, conf = _resolve_scope(
+        clause, clause.lower(), _scope(clause.lower()), "Krenko, Tin Street Kingpin"
+    )
+    assert scope == "you"
+    assert conf == "high"
 
 
 def test_self_reference_skips_leading_article():
@@ -4420,12 +4426,12 @@ def test_narrow_tinybones_rule_is_high_confidence():
 
 def test_granted_ability_marks_signal_low_confidence():
     # A baseline signal pulled from a GRANTED ability (have "...") is scope-uncertain
-    # (outer "you control" vs inner effect), so it is marked low confidence.
-    c = {
-        "name": "Grantor",
-        "oracle_text": 'Creatures you control have "Whenever this creature attacks, draw a card."',
-    }
-    assert _by_key(c, "attack_matters").confidence == "low"
+    # (outer "you control" vs inner effect), so it is marked low confidence. ADR-0027:
+    # attack_matters migrated, so `_resolve_scope` (still used by `_attack_matters_is_plan`
+    # and every surviving baseline detector) is exercised directly here.
+    clause = 'Creatures you control have "Whenever this creature attacks, draw a card."'
+    _, conf = _resolve_scope(clause, clause.lower(), _scope(clause.lower()), "Grantor")
+    assert conf == "low"
 
 
 def test_coverage_gate_flags_low_confidence_only():

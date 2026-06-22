@@ -1523,15 +1523,25 @@ def test_unkillable_self_prevention_opens_voltron():
 def test_boast_keyword_opens_attack_matters():
     # Boast (CR 702.135) can only be activated "if this creature attacked this turn", so
     # a Boast commander is an attack-matters deck. The condition lives in reminder text
-    # (stripped before detection), so match the KEYWORD (Dan's point).
+    # (stripped before detection), so match the KEYWORD (Dan's point). ADR-0027:
+    # attack_matters migrated to the Card IR, so the lane fires from the Boast keyword in
+    # _IR_KEYWORD_MAP via the hybrid path — NOT the deleted regex keyword row.
     card = {
         "name": "Varragoth, Bloodsky Sire",
         "type_line": "Legendary Creature — Demon Rogue",
         "keywords": ["Boast", "Deathtouch"],
         "oracle_text": "Deathtouch\nBoast — {1}{B}: Target player searches their library for a card, then shuffles and puts that card on top. (Activate only if this creature attacked this turn and only once each turn.)",
     }
-    assert ("attack_matters", "you") in {
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(Face(name="X", keywords=("Boast", "Deathtouch")),),
+    )
+    assert ("attack_matters", "you") not in {
         (s.key, s.scope) for s in extract_signals(card)
+    }
+    assert ("attack_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
     }
 
 
@@ -1703,21 +1713,34 @@ def test_counter_keyword_commander_opens_counters():
 
 def test_archetype_keywords_open_their_lane():
     # CR-keyword audit (Dan): an archetype-defining keyword ability on the COMMANDER
-    # opens that lane via the keyword (the mechanic is reminder text, stripped). The
-    # non-migrated keywords still read from the regex keyword path.
-    cases = [
-        ("Prowess", ("spellcast_matters", "you")),
-        ("Bushido", ("attack_matters", "you")),
-        ("Annihilator", ("attack_matters", "you")),
-    ]
-    for kw, expect in cases:
+    # opens that lane via the keyword (the mechanic is reminder text, stripped). Prowess
+    # (spellcast_matters) is NOT migrated, so it still reads from the regex keyword path.
+    card = {
+        "name": "Prowess Lord",
+        "type_line": "Legendary Creature — Test",
+        "keywords": ["Prowess"],
+        "oracle_text": "Some ability.",
+    }
+    assert ("spellcast_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals(card)
+    }
+    # ADR-0027: Bushido / Annihilator (attack_matters) are migrated — their attack
+    # condition is reminder text, so the lane fires from the keyword in _IR_KEYWORD_MAP
+    # via the hybrid, NOT the deleted regex keyword row.
+    for kw in ["Bushido", "Annihilator"]:
         card = {
             "name": f"{kw} Lord",
             "type_line": "Legendary Creature — Test",
             "keywords": [kw],
             "oracle_text": "Some ability.",
         }
-        assert expect in {(s.key, s.scope) for s in extract_signals(card)}, kw
+        ir = Card(oracle_id="x", name="X", faces=(Face(name="X", keywords=(kw,)),))
+        assert ("attack_matters", "you") not in {
+            (s.key, s.scope) for s in extract_signals(card)
+        }, kw
+        assert ("attack_matters", "you") in {
+            (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
+        }, kw
     # ADR-0027: Exploit (sacrifice_matters) and Afflict (lifeloss_matters) are migrated
     # — phase models both as a STRUCTURAL effect (exploit's sacrifice, afflict's
     # lose_life), so they fire from the IR, not the regex keyword path.
@@ -1741,7 +1764,8 @@ def test_archetype_keywords_open_their_lane():
 def test_attack_conditional_keywords_open_attack_matters():
     # Same class as Boast: keywords whose "as it attacks" / "attacked this turn"
     # condition lives in stripped reminder text — Exert (CR 702.107) and Myriad
-    # (CR 702.116, attacking copies). Match the keyword.
+    # (CR 702.116, attacking copies). ADR-0027: attack_matters migrated, so the lane
+    # fires from the keyword in _IR_KEYWORD_MAP via the hybrid, NOT the regex keyword row.
     for kw in ["Exert", "Myriad"]:
         card = {
             "name": f"{kw} Boss",
@@ -1749,8 +1773,12 @@ def test_attack_conditional_keywords_open_attack_matters():
             "keywords": [kw],
             "oracle_text": "Some ability.",
         }
-        assert ("attack_matters", "you") in {
+        ir = Card(oracle_id="x", name="X", faces=(Face(name="X", keywords=(kw,)),))
+        assert ("attack_matters", "you") not in {
             (s.key, s.scope) for s in extract_signals(card)
+        }, kw
+        assert ("attack_matters", "you") in {
+            (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
         }, kw
 
 
@@ -1758,25 +1786,26 @@ def test_past_tense_count_payoffs_open_their_lane():
     # Tense audit (Dan): past-tense "this turn" COUNT payoffs are a class, like
     # "died this turn". Each rewards an accumulated count and should open the present-
     # tense lane. Verified real templating + commanders via bulk.
-    cases = [
-        # Varragoth / Relentless Assault: combat-count payoff
-        (
-            "attack_matters",
-            "Draw a card for each creature you control that attacked this turn.",
-        ),
-        # Gnostro / Rionya: "for each spell you've cast this turn"
-        (
-            "spellcast_matters",
-            "Scry X, where X is the number of spells you've cast this turn.",
-        ),
-    ]
-    for key, oracle in cases:
-        card = {
-            "name": "X",
-            "type_line": "Legendary Creature — Test",
-            "oracle_text": oracle,
-        }
-        assert key in {s.key for s in extract_signals(card)}, (key, oracle)
+    # Gnostro / Rionya: "for each spell you've cast this turn" — spellcast_matters is NOT
+    # migrated, so it still fires from the regex path.
+    spellcast = {
+        "name": "X",
+        "type_line": "Legendary Creature — Test",
+        "oracle_text": "Scry X, where X is the number of spells you've cast this turn.",
+    }
+    assert "spellcast_matters" in {s.key for s in extract_signals(spellcast)}
+    # ADR-0027: attack_matters migrated — the combat-count "attacked this turn" payoff
+    # (Varragoth / Relentless Assault) fires from the _ATTACK_MATTERS_MIRROR over the
+    # dict oracle via the hybrid (empty IR), NOT the deleted regex producer.
+    attack = {
+        "name": "X",
+        "type_line": "Legendary Creature — Test",
+        "oracle_text": "Draw a card for each creature you control that attacked this turn.",
+    }
+    assert "attack_matters" not in {s.key for s in extract_signals(attack)}
+    assert "attack_matters" in {
+        s.key for s in extract_signals_hybrid(attack, _bare_ir())
+    }
     # ADR-0027: lifeloss_matters is migrated — Neheb / Rakdos "for each 1 life your
     # opponents have lost this turn" fires from the IR's _LOST_LIFE_TURN drain marker.
     neheb = {
