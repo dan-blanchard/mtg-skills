@@ -191,11 +191,17 @@ def test_opponent_cast_matters():
 
 
 def test_spell_count_storm_widen():
+    # ADR-0027: second_spell_matters migrated to the Card IR (the byte-identical
+    # _SECOND_SPELL_MIRROR kept word detector — phase parses "fourth spell of a turn"
+    # as a bare cast_spell trigger with no count qualifier), so it fires via the
+    # hybrid path, not pure regex.
     c = {
         "name": "Erayo",
         "oracle_text": "Whenever the fourth spell of a turn is cast, flip this creature.",
     }
-    assert any(s.key == "second_spell_matters" for s in extract_signals(c))
+    bare = Card(oracle_id="x", name="Erayo", faces=(Face(name="Erayo"),))
+    assert not any(s.key == "second_spell_matters" for s in extract_signals(c))
+    assert any(s.key == "second_spell_matters" for s in extract_signals_hybrid(c, bare))
 
 
 def test_legends_matter_for_cast_legendary():

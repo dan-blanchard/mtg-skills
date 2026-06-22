@@ -732,6 +732,36 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 — second_spell_matters (the SPECIFIC "whenever you cast your second
+    # spell each turn" payoff / the Dualcast "second spell ... costs {2} less"
+    # discount / the Erayo-family "(second|third|fourth|fifth) spell of a turn"
+    # count trigger). This is the NARROW second-spell-counter trigger — DISTINCT
+    # from the broad spellcast_matters (the magecraft / "whenever you cast a spell"
+    # lane, DEFERRED, NOT conflated). phase v0.1.19 under-structures it: "Whenever
+    # you cast your second spell each turn" parses to a bare `cast_spell` trigger
+    # (event=cast_spell, scope=you, raw='') with NO "second spell" qualifier —
+    # identical to a plain magecraft trigger — so a structural cast_spell arm cannot
+    # discriminate the second-spell payoff from the broad spellcast payoff. The
+    # qualifier survives ONLY in the oracle text, so this _SECOND_SPELL_MIRROR is a
+    # byte-identical mirror of the deleted _FLOOR_DETECTORS producer, run as a flat
+    # .search over the reminder-STRIPPED kept_oracle (the floor producer's exact
+    # per-clause reminder-stripped input — no `[^.]` cross-sentence span, so
+    # full-text == per-clause). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-
+    # mirror-dep -> 0). Floor-disabled residual vs the deleted floor regex
+    # (commander-legal, dedupe oracle_id): both == 92, regex_only == 0, ir_only == 0
+    # (byte-identical). Scope "you" matches the floor producer's forced scope. The
+    # siblings (spellcast_matters / magecraft_matters / typed_spellcast /
+    # storm_matters) key on different producers and do NOT drift. CR 601.
+    (
+        "second_spell_matters",
+        re.compile(
+            r"second spell you cast (?:each|this) turn|cast your second spell"
+            r"|(?:second|third|fourth|fifth) spell (?:you cast|of (?:a|each|that) turn)"
+            r"|cast two or more spells",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real CARD,
     # not a token" mechanic, CR 701.66a). phase carries a structural `Conjure` effect
     # type but the projection folds it to make_token AND that structural set is
@@ -1910,7 +1940,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # `regenerate` effect + a `_REGENERATE_REF` granted/quoted/replacement marker).
         # Its _HAND_FLOOR detector is deleted.
         # spell-pattern / count payoffs
-        "second_spell_matters",
+        # second_spell_matters removed — ADR-0027 migrated it to the Card IR (a
+        # byte-identical _SECOND_SPELL_MIRROR in _IR_KEPT_DETECTORS for the "second
+        # spell each turn" / Dualcast-discount / Erayo-count trigger phase
+        # under-structures — a bare `cast_spell` trigger drops the "second spell"
+        # qualifier). Moved floor->kept (floor-mirror-dep -> 0); the _FLOOR_DETECTORS
+        # source row is deleted. The hand-written serve spec (signal_specs.py)
+        # survives.
         "kicked_spell_matters",
         "big_hand_matters",
         "cast_from_exile",

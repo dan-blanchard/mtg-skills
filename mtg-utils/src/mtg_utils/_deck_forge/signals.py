@@ -476,6 +476,17 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # counters_matter / suspend_matters / poison_matters precedent. CR 903.10a /
         # 111.1.
         "tokens_matter",
+        # ADR-0027: second_spell_matters fired high-confidence (forced scope 'you')
+        # in the regex path — via the _HAND_FLOOR floor producer (it was an
+        # _IR_FLOOR_LANE) — and so counted toward has_other_plan, silencing the
+        # spurious commander-damage voltron tell on a second-spell Storm-lite engine
+        # that is NOT a vanilla beater. The floor producer is deleted, so the hybrid
+        # re-silences from the IR re-supply. The IR firing is BYTE-IDENTICAL to the
+        # deleted floor regex (commander-legal: regex == hybrid == 92, 0 broadening,
+        # 0 ir_only), so this set entry re-silences exactly without over-silence —
+        # matching the byte-identical kept-mirror precedent (counters_matter /
+        # tokens_matter). CR 601 / 903.10a.
+        "second_spell_matters",
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an

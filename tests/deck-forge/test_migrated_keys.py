@@ -5370,6 +5370,28 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # second_spell_matters ← a byte-identical _SECOND_SPELL_MIRROR in
+    # _IR_KEPT_DETECTORS for the SPECIFIC "whenever you cast your second spell each
+    # turn" payoff (distinct from the broad spellcast_matters — phase parses the
+    # second-spell trigger as a bare `cast_spell` with no "second spell" qualifier,
+    # so there's no structural arm). The mirror reads the record's oracle_text, so a
+    # bare non-None IR routes the hybrid to the IR path. scope "you". ADR-0027.
+    "second_spell_matters": (
+        {
+            "name": "Saruman of Many Colors",
+            "type_line": "Legendary Creature — Avatar Wizard",
+            "oracle_text": (
+                "Ward {3}\nWhenever you cast your second spell each turn, each "
+                "opponent mills two cards. When one or more cards are milled this "
+                "way, exile target enchantment, instant, or sorcery card with "
+                "equal or lesser mana value than that spell from an opponent's "
+                "graveyard. Copy the exiled card. You may cast the copy without "
+                "paying its mana cost."
+            ),
+            "keywords": ["Ward"],
+        },
+        _ir(),
+    ),
 }
 
 

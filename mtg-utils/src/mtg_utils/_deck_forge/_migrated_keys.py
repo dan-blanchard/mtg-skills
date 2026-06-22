@@ -3438,6 +3438,56 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # cards regardless of IR/regex mode (FILE-SWAP voltron delta 0). CR 702.35
         # (madness) / 120.1 (draw) / 903.10a (voltron).
         "discard_matters",
+        # ADR-0027 — second_spell_matters (the SPECIFIC "whenever you cast your
+        # second spell each turn" payoff — Saruman of Many Colors, Aria-of-Flame-
+        # adjacent Storm-lite; the Dualcast "second spell ... costs {2} less"
+        # discount; the "third/fourth spell of a turn" Erayo-family count trigger,
+        # CR 601 cast events) now fires from the Card IR instead of its oracle-regex
+        # producer. NO sidecar bump (the kept-mirror reads the Scryfall oracle the
+        # sidecar already carries; no new projection field).
+        #
+        # KEPT-MIRROR, NOT A STRUCTURAL ARM. This is a SPECIFIC trigger — the
+        # "second spell EACH turn" counter — distinct from the broad
+        # spellcast_matters (the magecraft / "whenever you cast a spell" lane, which
+        # is DEFERRED, NOT conflated). phase v0.1.19 parses "Whenever you cast your
+        # second spell each turn" as a bare `cast_spell` trigger (event=cast_spell,
+        # scope=you, raw='') — IDENTICAL to a plain magecraft trigger, with NO
+        # "second spell" qualifier in the structure (verified on Saruman: the
+        # ability's Trigger.event=='cast_spell', no count). So a structural
+        # cast_spell arm CANNOT tell the second-spell payoff from the broad
+        # spellcast payoff — it would either flood spellcast bodies into this narrow
+        # lane or vice-versa. The qualifier lives ONLY in the oracle text phase
+        # under-structures, so the lane fires from a byte-identical
+        # _SECOND_SPELL_MIRROR in signals._IR_KEPT_DETECTORS reproducing the EXACT
+        # deleted _FLOOR_DETECTORS regex ("second spell you cast (each|this) turn" |
+        # "cast your second spell" | "(second|third|fourth|fifth) spell (you cast|of
+        # (a|each|that) turn)" | "cast two or more spells") over the reminder-
+        # STRIPPED kept_oracle (byte-identical to the deleted floor producer's
+        # per-clause reminder-stripped input — no `[^.]` cross-sentence span, so
+        # full-text == per-clause). The serve spec stays hand-registered in
+        # signal_specs.py (("second_spell_matters","you")).
+        #
+        # FLOOR→KEPT. second_spell_matters WAS an _IR_FLOOR_LANE (the IR path reused
+        # the production floor Detector); it is REMOVED from _IR_FLOOR_LANES and the
+        # _FLOOR_DETECTORS source tuple is deleted — floor-mirror-dep -> 0. FLOOR-
+        # DISABLED residual vs the deleted regex (commander-legal, dedupe oracle_id,
+        # _IR_FLOOR_LANES=frozenset()): both == 92, regex_only == 0, ir_only == 0 —
+        # BYTE-IDENTICAL, no recall lost, no over-fire. SCOPE PARITY: all 92 fire
+        # scope "you" (the floor producer's forced scope), 0 mismatch. The sibling
+        # lanes (spellcast_matters / magecraft_matters / typed_spellcast /
+        # storm_matters) are DISJOINT — they key on different producers (the
+        # cast_spell payoff trigger / typed_spellcast subject detector / a separate
+        # storm regex) — so they do NOT drift.
+        #
+        # VOLTRON. The deleted floor producer fired HIGH-confidence (scope 'you') and
+        # fed has_other_plan (second_spell_matters is not in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS; a second-spell Storm-lite engine is no vanilla
+        # beater). Because the kept-mirror is BYTE-IDENTICAL (IR == regex == 92, no
+        # broadening), second_spell_matters is added to _VOLTRON_SILENCING_PLAN_KEYS
+        # so the hybrid re-silences the spurious commander-damage membership tell
+        # from the IR re-supply — restoring pre-migration behavior. FILE-SWAP voltron
+        # delta 0. CR 601 (cast) / 903.10a (voltron).
+        "second_spell_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

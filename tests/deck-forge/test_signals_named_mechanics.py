@@ -95,11 +95,10 @@ CASES = [
         "you",
         "Double the number of each kind of counter on target creature.",
     ),
-    (
-        "second_spell_matters",
-        "you",
-        "Whenever you cast your second spell each turn, draw a card.",
-    ),
+    # ADR-0027: second_spell_matters migrated to the Card IR (a byte-identical
+    # _SECOND_SPELL_MIRROR in _IR_KEPT_DETECTORS for the "second spell each turn"
+    # payoff phase under-structures — a bare cast_spell trigger drops the qualifier),
+    # so it is asserted via the hybrid path below, not this regex CASES loop.
 ]
 
 
@@ -118,6 +117,18 @@ def test_coven_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
     assert ("coven_matters", "you") in _ks_hybrid(c)
     assert ("coven_matters", "you") not in _ks(c)
+
+
+def test_second_spell_matters_is_ir_served():
+    # ADR-0027: second_spell_matters is IR-served from the byte-identical
+    # _SECOND_SPELL_MIRROR kept word detector (the "second spell each turn" payoff
+    # phase under-structures), so it comes through the hybrid path, not pure regex.
+    c = {
+        "name": "X",
+        "oracle_text": "Whenever you cast your second spell each turn, draw a card.",
+    }
+    assert ("second_spell_matters", "you") in _ks_hybrid(c)
+    assert ("second_spell_matters", "you") not in _ks(c)
 
 
 def test_voting_matters_is_ir_served():

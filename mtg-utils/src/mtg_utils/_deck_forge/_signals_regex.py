@@ -1720,16 +1720,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "second_spell_matters",
-        re.compile(
-            r"second spell you cast (?:each|this) turn|cast your second spell"
-            r"|(?:second|third|fourth|fifth) spell (?:you cast|of (?:a|each|that) turn)"
-            r"|cast two or more spells",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: second_spell_matters migrated to the Card IR — detected from a
+    # byte-identical _SECOND_SPELL_MIRROR in signals._IR_KEPT_DETECTORS (the "second
+    # spell each turn" / Dualcast-discount / Erayo-count payoff phase
+    # under-structures: a bare `cast_spell` trigger drops the "second spell"
+    # qualifier, identical to plain magecraft — so no structural arm can tell the
+    # narrow second-spell payoff from the broad spellcast_matters lane). This
+    # _HAND_FLOOR producer (formerly an _IR_FLOOR_LANE; moved floor->kept,
+    # floor-mirror-dep -> 0) is deleted; the hand-written serve spec
+    # (signal_specs.py) survives. The producer fired high-confidence scope 'you' and
+    # fed has_other_plan, so second_spell_matters is added to
+    # _VOLTRON_SILENCING_PLAN_KEYS (the IR re-supply is byte-identical, IR == regex
+    # == 92, so the silencing-keys path re-silences exactly without over-silence).
     # ADR-0027: opponent_cast_matters migrated to the Card IR — the structural
     # cast_spell-trigger scope=opp arm (Lavinia, Nekusar) plus an _IR_KEPT_DETECTORS
     # mirror that DROPS this regex's over-broad bare "whenever a player casts a spell"
