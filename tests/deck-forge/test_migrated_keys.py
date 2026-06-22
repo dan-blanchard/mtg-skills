@@ -5211,6 +5211,44 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(keywords=("Proliferate",)),
     ),
+    # ADR-0027 — artifacts_matter: a COUNT operand over YOUR artifacts (the
+    # `_TYPE_MATTERS_LANE` go-wide DOER, affinity CR 702.41 / CR 604.3). Storm-Kiln
+    # Artist's static "This creature gets +1/+0 for each artifact you control" projects a
+    # `pump` Effect whose amount.subject IS the Artifact-typed own-board filter; the
+    # structural arm in extract_signals_ir reads that subject through _typed_matters_lanes
+    # and fires artifacts_matter scope "you" — NO oracle regex needed (the mirror is the
+    # fallback, not this case's proof). The regex path no longer fires the lane (the
+    # _HAND_FLOOR producer is deleted; this card has no "if you control an artifact" SWEEP
+    # match — its Treasure-maker branch lived in the deleted producer). CR 702.41 / 604.3.
+    "artifacts_matter": (
+        {
+            "name": "Storm-Kiln Artist",
+            "type_line": "Creature — Dwarf Shaman",
+            "oracle_text": (
+                "This creature gets +1/+0 for each artifact you control.\n"
+                "Magecraft — Whenever you cast or copy an instant or sorcery "
+                "spell, create a Treasure token. (It's an artifact with \"{T}, "
+                'Sacrifice this token: Add one mana of any color.")'
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="you",
+                        amount=Quantity(
+                            op="multiply",
+                            factor=1,
+                            subject=Filter(card_types=("Artifact",), controller="you"),
+                        ),
+                        raw="This creature gets +1/+0 for each artifact you control.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

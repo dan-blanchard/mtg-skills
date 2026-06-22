@@ -561,6 +561,58 @@ DEATH_MATTERS_REGEX = (
     r"|creatures? (?:that )?died this turn"
     r"|creature[^.]*\bdied\b[^.]*this turn"
 )
+# ADR-0027 — artifacts_matter (the ARTIFACTS go-wide / matters axis: a card that cares
+# about your artifact population — "artifacts you control" anthems, "for each artifact
+# you control" count payoffs, affinity / metalcraft / improvise, artifact ETB / cast
+# triggers, artifact tutors / recursion / sac-outlets / token-makers — affinity per
+# CR 702.41, metalcraft CR 207.2c, artifact tokens CR 205.3g). MIGRATED to the Card IR
+# via the STRUCTURAL arms (the `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the
+# `_ARTIFACT_TOKEN_SUBTYPES` maker/sac arm, the type-gate condition arm, and the
+# type_line membership arm — all already present in extract_signals_ir) PLUS a NARROWED
+# kept-mirror of the deleted oracle-regex producer. NO sidecar bump (the v20 projection
+# already structures the artifact filters / triggers / token subtypes these arms read).
+#
+# NARROWED (signals-only over-fire fix): the deleted producer's bare `\baffinity\b`
+# branch over-fired on EVERY affinity-for-NON-artifact card ("Affinity for snow lands"
+# Icebreaker Kraken, "Affinity for creatures" Argivian Phalanx, "Affinity for Birds"
+# Bartz and Boko, "Affinity for Slivers" Thrumming Hivepool — 22 commander-legal
+# over-fires verified vs Scryfall oracle, NONE an artifacts deck). The narrowed branch
+# `affinity for artifacts` keeps the real affinity-matters bodies (conferred "spells you
+# cast have affinity for artifacts" — Sami; the Golems whose Artifact type_line still
+# opens the lane via membership) while dropping the 22. The structural IR arm
+# add()-dedups its +325 ir_only recall GAIN (the Food/Clue/Treasure-subtype sac payoffs
+# and DFC back-face artifact-recursion the brittle oracle regex MISSED).
+#
+# Floor-disabled residual after the swap (commander-legal, _IR_FLOOR_LANES=frozenset()):
+# regex_only==22 (ALL the affinity-for-other over-fire, 0 genuine recall lost),
+# ir_only==325 (genuine gain). SCOPE PARITY holds (both fire scope 'you' only). The
+# SWEEP_DETECTORS "if you control an artifact" row is KEPT (len stays >=36); the mirror
+# UNIONs it (the deleted _HAND_FLOOR producer + the kept SWEEP regex run together
+# per-clause). artifacts_matter is NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+ARTIFACTS_MATTER_REGEX = (
+    r"\bartifacts? you control\b"
+    r"|artifact creatures? you control"
+    r"|for each artifact you control"
+    r"|whenever an? artifact (?:you control )?enters"
+    r"|whenever you cast an artifact|affinity for artifacts"
+    r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard"
+    r"|search [^.]*\bfor [^.]*artifact[^.]*card|noncreature artifact card"
+    r"|put (?:an?|that|up to \w+) artifact cards?[^.]*"
+    r"(?:into your hand|onto the battlefield)"
+    r"|\bimprovise\b"
+    r"|sacrifices? (?:an?|another|two|three|x|\d+) artifacts?\b"
+    r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
+    r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
+    r"|becomes? an? artifact\b"
+    r"|create[^.]*\b(?:treasure|food|clue|blood|gold|map|powerstone"
+    r"|junk|incubator|lander|mutagen)\b[^.]*token"
+    r"|\binvestigate\b"
+    r"|\bmetalcraft\b"
+    r"|search (?:your library )?for an?[^.]*artifact card"
+    r"|reveal an artifact card"
+    r"|if an artifact entered the battlefield under your control"
+    r"|artifact,? instant,? and sorcery spells"
+)
 # ADR-0027 — attack_matters (the COMBAT-trigger / attacked-this-turn payoff axis: a
 # card that CARES when a creature attacks — "whenever ~ attacks" triggers, the Raid /
 # "attacked this turn" combat-count condition, the "attacking causes" Isshin form, and

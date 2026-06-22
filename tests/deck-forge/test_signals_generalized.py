@@ -1204,7 +1204,9 @@ def test_artifacts_matter_opens_on_investigate():
             "ability.)"
         ),
     }
-    keys = _keys(sophina)
+    # ADR-0027: artifacts_matter migrated to the Card IR (the kept oracle mirror catches
+    # \binvestigate\b); clue_matters is NOT migrated. The hybrid path emits both.
+    keys = _keys_hybrid(sophina)
     assert "artifacts_matter" in keys  # Clue tokens are artifacts
     assert "clue_matters" in keys  # still a Clue commander too
 
@@ -2055,8 +2057,10 @@ def test_treasure_matters():
 
 
 def test_artifacts_matter():
+    # ADR-0027: artifacts_matter migrated to the Card IR — "Artifacts you control have
+    # ward" rides the kept oracle mirror on the hybrid path.
     c = {"name": "Artificer", "oracle_text": "Artifacts you control have ward {2}."}
-    assert ("artifacts_matter", "you") in _ks(c)
+    assert ("artifacts_matter", "you") in _ks_hybrid(c)
 
 
 def test_tokens_matter_payoff():
@@ -3959,15 +3963,18 @@ def test_artifact_dig_and_improvise_open_artifacts():
             "X is the number of ingenuity counters on Jhoira."
         ),
     }
-    assert "artifacts_matter" in _keys(doctor)
-    assert "artifacts_matter" in _keys(jhoira)
+    # ADR-0027: artifacts_matter migrated to the Card IR — the "put an artifact card …
+    # into your hand / onto the battlefield" dig + \bimprovise\b ride the kept oracle
+    # mirror on the hybrid path.
+    assert "artifacts_matter" in _keys_hybrid(doctor)
+    assert "artifacts_matter" in _keys_hybrid(jhoira)
     # Over-fire guard: a vanilla creature is not an artifact commander.
     bear = {
         "name": "Grizzly Bears",
         "type_line": "Creature — Bear",
         "oracle_text": "",
     }
-    assert "artifacts_matter" not in _keys(bear)
+    assert "artifacts_matter" not in _keys_hybrid(bear)
 
 
 def test_power_greater_than_base_power_opens_counters():
@@ -4560,14 +4567,16 @@ def test_artifacts_matter_opens_for_artifact_tutor():
             "the battlefield, then shuffle."
         ),
     }
-    assert "artifacts_matter" in _keys(arcum)
+    # ADR-0027: artifacts_matter migrated to the Card IR — the "search … for a
+    # noncreature artifact card" tutor rides the kept oracle mirror on the hybrid path.
+    assert "artifacts_matter" in _keys_hybrid(arcum)
     # Over-fire guard: a generic creature-tutor is not an artifact commander.
     diabolic_tutor = {
         "name": "Tutor Test",
         "type_line": "Legendary Creature — Wizard",
         "oracle_text": "When this creature enters, search your library for a creature card, reveal it, put it into your hand, then shuffle.",
     }
-    assert "artifacts_matter" not in _keys(diabolic_tutor)
+    assert "artifacts_matter" not in _keys_hybrid(diabolic_tutor)
 
 
 def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
@@ -5249,7 +5258,9 @@ def test_mutagen_token_maker_opens_artifacts_matter():
             'Put a +1/+1 counter on target creature. Activate only as a sorcery.")'
         ),
     }
-    assert "artifacts_matter" in _keys(april)
+    # ADR-0027: artifacts_matter migrated to the Card IR — the Mutagen artifact-token
+    # maker rides the kept oracle mirror on the hybrid path.
+    assert "artifacts_matter" in _keys_hybrid(april)
     # Over-fire guard: a "create a <subtype> artifact CREATURE token" go-wide maker is a
     # tokens deck, not an artifacts deck — the addition is resource-token-subtype-only,
     # never the bare parent word "artifact", so a Servo maker stays out.
@@ -5258,7 +5269,7 @@ def test_mutagen_token_maker_opens_artifacts_matter():
         "type_line": "Creature — Artificer",
         "oracle_text": "{T}: Create a 1/1 colorless Servo artifact creature token.",
     }
-    assert "artifacts_matter" not in _keys(servo)
+    assert "artifacts_matter" not in _keys_hybrid(servo)
 
 
 def test_gowide_package_creature_scoped_and_count_scaler_opens_it():

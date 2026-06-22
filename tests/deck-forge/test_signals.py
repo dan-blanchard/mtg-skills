@@ -382,13 +382,16 @@ def test_affinity_and_artifact_cast_open_artifacts_lane():
         "type_line": "Legendary Creature — Merfolk Wizard",
         "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nWhen Emry enters, mill four cards.\n{T}: Choose target artifact card in your graveyard. You may cast that card this turn. (You still pay its costs. Timing rules still apply.)",
     }
-    assert ("artifacts_matter", "you") in _keys(emry)
+    # ADR-0027: artifacts_matter migrated to the Card IR — it serves from the hybrid path
+    # (the kept oracle mirror over "affinity for artifacts" / artifact-cast / graveyard
+    # recursion), not pure regex.
+    assert ("artifacts_matter", "you") in _keys_hybrid(emry)
     sai = {
         "name": "Sai, Master Thopterist",
         "type_line": "Legendary Creature — Human Artificer",
         "oracle_text": "Whenever you cast an artifact spell, create a 1/1 colorless Thopter artifact creature token with flying.\n{1}{U}, Sacrifice two artifacts: Draw a card.",
     }
-    assert ("artifacts_matter", "you") in _keys(sai)
+    assert ("artifacts_matter", "you") in _keys_hybrid(sai)
 
 
 def test_token_doubler_opens_tokens_lane():
@@ -582,7 +585,7 @@ def test_artifact_sac_outlet_opens_artifacts_lane():
         "type_line": "Legendary Artifact Creature — Golem",
         "oracle_text": "Trample\n{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the sacrificed artifact's mana value to any target.",
     }
-    assert ("artifacts_matter", "you") in _keys(bosh)
+    assert ("artifacts_matter", "you") in _keys_hybrid(bosh)
 
 
 def test_artifact_ability_payoff_opens_artifacts_lane():
@@ -591,7 +594,7 @@ def test_artifact_ability_payoff_opens_artifacts_lane():
         "type_line": "Legendary Creature — Ogre Spirit",
         "oracle_text": "Whenever you activate an ability of an artifact, if it isn't a mana ability, you may pay {R}. If you do, copy that ability. You may choose new targets for the copy.",
     }
-    assert ("artifacts_matter", "you") in _keys(kurkesh)
+    assert ("artifacts_matter", "you") in _keys_hybrid(kurkesh)
 
 
 def test_artifact_type_granter_opens_artifacts_lane():
@@ -600,7 +603,7 @@ def test_artifact_type_granter_opens_artifacts_lane():
         "type_line": "Legendary Artifact Creature — Wizard",
         "oracle_text": "{1}{U}{U}: Target permanent becomes an artifact in addition to its other types. (This effect lasts indefinitely.)\n{3}{U}: Gain control of target artifact. (This effect lasts indefinitely.)",
     }
-    assert ("artifacts_matter", "you") in _keys(memnarch)
+    assert ("artifacts_matter", "you") in _keys_hybrid(memnarch)
 
 
 def test_artifact_removal_does_not_open_artifacts_lane():
@@ -609,7 +612,7 @@ def test_artifact_removal_does_not_open_artifacts_lane():
         "name": "Disenchanter",
         "oracle_text": "When this creature enters, destroy target artifact or enchantment.",
     }
-    assert ("artifacts_matter", "you") not in _keys(card)
+    assert ("artifacts_matter", "you") not in _keys_hybrid(card)
 
 
 # ── creature_etb scope tracks the ENTERING creature's controller, not the payoff ──
@@ -658,7 +661,7 @@ def test_treasure_maker_opens_artifacts_lane():
         "type_line": "Creature — Dragon",
         "oracle_text": 'Flying, haste\nWhenever this creature attacks or becomes the target of a spell, create a Treasure token.\nTreasures you control have "{T}, Sacrifice this artifact: Add two mana of any one color."',
     }
-    assert ("artifacts_matter", "you") in _keys(goldspan)
+    assert ("artifacts_matter", "you") in _keys_hybrid(goldspan)
 
 
 def test_food_maker_opens_artifacts_lane():
@@ -667,7 +670,7 @@ def test_food_maker_opens_artifacts_lane():
         "type_line": "Legendary Creature — Troll Warlock",
         "oracle_text": "Trample\nAt the beginning of your end step, create a number of Food tokens equal to the number of nontoken creatures you had enter the battlefield under your control this turn.\n{1}, Sacrifice a Food: Target creature gains indestructible until end of turn. Tap it.",
     }
-    assert ("artifacts_matter", "you") in _keys(gyome)
+    assert ("artifacts_matter", "you") in _keys_hybrid(gyome)
 
 
 def test_creature_token_maker_does_not_open_artifacts_lane():
@@ -678,7 +681,7 @@ def test_creature_token_maker_does_not_open_artifacts_lane():
         "oracle_text": "At the beginning of your end step, create two 1/1 white "
         "Soldier creature tokens.",
     }
-    assert ("artifacts_matter", "you") not in _keys(card)
+    assert ("artifacts_matter", "you") not in _keys_hybrid(card)
 
 
 # ── Activated-ability commanders want the untap / copy / cost-reduction package ──
@@ -1473,8 +1476,11 @@ def test_artifact_type_commander_opens_artifacts():
         "type_line": "Legendary Artifact Creature — Robot",
         "oracle_text": "Flying\nED-E My Love — Whenever you attack, if the number of attacking creatures is greater than the number of quest counters on ED-E, put a quest counter on it.\n{2}, Sacrifice ED-E: Draw a card, then draw an additional card for each quest counter on ED-E.",
     }
+    # ADR-0027: artifacts_matter migrated to the Card IR — the type_line membership arm
+    # ("if 'artifact' in type_line") is reproduced byte-identically in extract_signals_ir,
+    # so this serves from the hybrid path now (the regex membership producer is deleted).
     assert ("artifacts_matter", "you") in {
-        (s.key, s.scope) for s in extract_signals(ede)
+        (s.key, s.scope) for s in extract_signals_hybrid(ede, _bare_ir())
     }
     # A plain (non-artifact) creature commander does NOT open the artifacts lane.
     human = {
@@ -1483,7 +1489,7 @@ def test_artifact_type_commander_opens_artifacts():
         "oracle_text": "Vigilance",
     }
     assert ("artifacts_matter", "you") not in {
-        (s.key, s.scope) for s in extract_signals(human)
+        (s.key, s.scope) for s in extract_signals_hybrid(human, _bare_ir())
     }
     # Same for enchantment-type commanders (Anikthea, Arasta) → enchantments_matter.
     anikthea = {
@@ -2241,7 +2247,9 @@ def test_artifact_entered_condition_opens_artifacts():
             "into your graveyard."
         ),
     }
-    assert ("artifacts_matter", "you") in _keys(card)
+    # ADR-0027: artifacts_matter migrated to the Card IR — the "if an artifact entered …"
+    # condition rides the kept oracle mirror on the hybrid path now.
+    assert ("artifacts_matter", "you") in _keys_hybrid(card)
 
 
 def test_heist_opens_theft():

@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ACTIVATED_ABILITY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
+    ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
@@ -1376,64 +1377,26 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # recall (the make_token-SUBJECT Treasure makers the "create … treasure token" regex
     # missed — Old Gnawbone, Prismari Command, Wanted Scoundrels). This _HAND_FLOOR
     # producer is deleted; the hand-written serve spec survives.
-    (
-        "artifacts_matter",
-        re.compile(
-            r"\bartifacts? you control\b"
-            r"|artifact creatures? you control"
-            r"|for each artifact you control"
-            r"|whenever an? artifact (?:you control )?enters"
-            # Artifact-cast / affinity / artifact-recursion commanders are artifact
-            # decks (Sai, Emry); affinity's reminder is stripped, so key on the keyword.
-            r"|whenever you cast an artifact|\baffinity\b"
-            r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard"
-            # Artifact TUTORS/theft (Arcum, Thada Adel): "search … for a(n)
-            # [noncreature] artifact card …" — fetch/steal artifacts to play.
-            r"|search [^.]*\bfor [^.]*artifact[^.]*card|noncreature artifact card"
-            # Artifact DIG/cheat (Fifteenth Doctor, Jhoira, Muzzio): "put an artifact
-            # card … into your hand / onto the battlefield" — and IMPROVISE, an
-            # artifact-tap cost mechanic like affinity (reminder stripped → key it).
-            r"|put (?:an?|that|up to \w+) artifact cards?[^.]*"
-            r"(?:into your hand|onto the battlefield)"
-            r"|\bimprovise\b"
-            # Sac outlets (Bosh), artifact-ability payoffs (Kurkesh), and type-granters
-            # (Memnarch: "becomes an artifact") are artifact commanders too. The sac
-            # lookahead drops the generic any-permanent list ("sacrifice an artifact,
-            # creature, enchantment …" — Braids), which is an aristocrats outlet.
-            r"|sacrifices? (?:an?|another|two|three|x|\d+) artifacts?\b"
-            r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
-            r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
-            r"|becomes? an? artifact\b"
-            # Artifact-TOKEN makers are artifact commanders: Treasure / Food / Clue /
-            # Blood / Gold / etc. are artifact tokens (CR 205.3g), so a maker feeds
-            # affinity / metalcraft / Academy Manufactor (Goldspan, Gyome, Korvold).
-            r"|create[^.]*\b(?:treasure|food|clue|blood|gold|map|powerstone"
-            # Mutagen (TMNT) is a resource artifact token — sac for a +1/+1 counter,
-            # like Food/Clue — so its makers (April O'Neil, Donatello, the Mutant
-            # commanders) are artifact decks. NOT the bare parent word "artifact": a
-            # "create a Servo/Thopter artifact CREATURE token" go-wide maker is a tokens
-            # deck, not an artifacts deck, so only the resource-token subtypes belong.
-            r"|junk|incubator|lander|mutagen)\b[^.]*token"
-            # "Investigate" IS "create a Clue token" (a colorless artifact, the keyword
-            # action) — so an investigate commander (Sophina, Lonis) is an artifact deck
-            # whose Clues feed artifact-ETB / affinity payoffs.
-            r"|\binvestigate\b"
-            # Metalcraft (CR 207.2c ability word: "control three or more artifacts") is
-            # an artifacts deck; the italic word prints in the oracle, so match it.
-            r"|\bmetalcraft\b"
-            # Artifact tutors / digs that reference artifact CARDS (Arcum: "search …
-            # for a noncreature artifact card"; Casey/Ashe: "reveal an artifact card")
-            # and an artifact-ETB CONDITION (Akal Pakal: "if an artifact entered the
-            # battlefield under your control this turn"), plus artifact-spell cost
-            # reducers (Urza, Lord Protector).
-            r"|search (?:your library )?for an?[^.]*artifact card"
-            r"|reveal an artifact card"
-            r"|if an artifact entered the battlefield under your control"
-            r"|artifact,? instant,? and sorcery spells",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: artifacts_matter migrated to the Card IR — the ARTIFACTS go-wide /
+    # matters axis (artifact-population anthems / counts, affinity / metalcraft /
+    # improvise, artifact ETB / cast triggers, tutors / recursion / sac-outlets / token-
+    # makers). The lane fires from the STRUCTURAL arms in extract_signals_ir (the
+    # `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the `_ARTIFACT_TOKEN_SUBTYPES`
+    # maker/sac arm, the type-gate condition arm, and the type_line membership arm —
+    # +325 ir_only recall the brittle oracle regex missed: Food/Clue/Treasure subtype
+    # sac payoffs + DFC back-face recursion) PLUS the NARROWED _ARTIFACTS_MATTER_MIRROR
+    # (the deleted _HAND_FLOOR producer UNIONed with the kept "if you control an
+    # artifact" SWEEP row) run per-clause for the oracle-idiom family no structural
+    # shape covers.
+    # NARROWED: the bare `\baffinity\b` branch became `affinity for artifacts`,
+    # dropping the 22 affinity-for-non-artifact over-fires (Icebreaker Kraken's snow
+    # affinity, Argivian Phalanx's creature affinity — none an artifacts deck). BOTH
+    # this clause-
+    # scoped _HAND_FLOOR producer AND the line-4349 type_line membership producer are
+    # deleted (the IR membership arm reproduces the latter byte-identically); the kept
+    # SWEEP row stays (len(SWEEP_DETECTORS) >=36). The serve spec stays hand-registered;
+    # _ARTIFACTS_MATTER_PLAN_MIRROR re-supplies the has_other_plan voltron silence.
+    # (CR 702.41 / 207.2c / 205.3g.)
     (
         "enchantments_matter",
         re.compile(
@@ -2661,6 +2624,29 @@ _RAMP_MATTERS_PLAN_MIRROR = re.compile(
     r"\{t\}[^.]*:\s*add \{|add (?:one|two|three|four|five|x|\d+) mana"
     r"|add \{[wubrgc]\}"
     r"|creatures?[^.]*\bwith (?:a )?mana abilit",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated artifacts_matter key. Its two
+# deleted HIGH-confidence producers — the _HAND_FLOOR oracle regex (scope 'you') and the
+# kept "if you control an artifact" SWEEP row (scope 'you') — counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on an artifacts
+# body that is NOT a vanilla beater (Sai, Emry, Urza, Slobad — an artifact engine IS a
+# plan). The migrated IR arm is BROADER (+325 ir_only) AND narrower (the 22
+# affinity-for-non-artifact over-fires dropped), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would mis-silence. This mirror is BYTE-IDENTICAL to the
+# EXACT two deleted regexes — it INTENTIONALLY keeps the bare `\baffinity\b` branch (the
+# narrowed lane mirror dropped it, but the voltron gate must reproduce the pre-migration
+# silence EXACTLY so the
+# file-swap shows voltron delta 0). It feeds ONLY the gate (no signal — the lane is
+# served from the IR), reproducing pre-migration `has_other_plan` for ALL cards. Matched
+# against the reminder-STRIPPED `text` (NOT `_oracle`): the deleted producers were floor
+# Detectors over reminder-stripped clauses. CR 702.41 / 207.2c / 903.10a.
+_ARTIFACTS_MATTER_PLAN_MIRROR = re.compile(
+    r"(?:"
+    + ARTIFACTS_MATTER_REGEX
+    + r")|\baffinity\b"
+    + r"|if you control an artifact"
+    + r"|if you control (?:a|an|one or more) artifacts?",
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated global_ability_grant key. Its
@@ -4355,8 +4341,10 @@ def extract_signals(
     # is an artifact / enchantment deck — it wants that type's support (affinity & cost
     # reducers; constellation & cheap enchantments), just as a creature is a member of
     # its own tribe. Membership-only, low confidence.
-    if include_membership and "artifact" in type_line.lower():
-        add("artifacts_matter", "you", "", type_line, "low")
+    # ADR-0027: the artifacts_matter membership producer is deleted — it survives byte-
+    # identically as the type_line membership arm in extract_signals_ir ("if 'artifact'
+    # in type_line: add artifacts_matter you low"). enchantments_matter is NOT migrated,
+    # so its membership producer stays here.
     if include_membership and "enchantment" in type_line.lower():
         add("enchantments_matter", "you", "", type_line, "low")
     # A creature commander whose own ability destroys lands (Numot) is a land-
@@ -4554,6 +4542,19 @@ def extract_signals(
         # producers were floor Detectors over stripped clauses — a basic land's reminder
         # "({T}: Add {G}.)" never fired them). CR 106.4 / 605 / 903.10a.
         or _RAMP_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted artifacts_matter producers (the _HAND_FLOOR
+        # oracle regex + the kept "if you control an artifact" SWEEP row, both HIGH-
+        # confidence scope 'you', feeding has_other_plan — an artifact engine IS a plan,
+        # not a vanilla beater: Sai, Emry, Urza, Slobad). The migrated IR arm is BOTH
+        # broader (+325 ir_only) and narrower (the 22 affinity-for-non-artifact
+        # over-fires dropped), so _VOLTRON_SILENCING_PLAN_KEYS would mis-silence; this
+        # BYTE-IDENTICAL mirror (keeping the bare `\baffinity\b` branch the narrowed
+        # lane mirror dropped) restores the old regex's exact silence set, so the
+        # file-swap
+        # shows voltron delta 0. Matched against the reminder-STRIPPED `text` (the
+        # deleted producers were floor Detectors over stripped clauses).
+        # CR 702.41 / 207.2c / 903.10a.
+        or _ARTIFACTS_MATTER_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
         # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
         # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-

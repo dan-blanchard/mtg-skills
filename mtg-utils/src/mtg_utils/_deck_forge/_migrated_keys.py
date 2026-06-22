@@ -3069,6 +3069,78 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # counter_distribute / counter_manipulation / minus_counters_matter drift 0,
         # voltron_matters delta 0 (gained 0 / lost 0). CR 701.27 / 702.184 / 903.10a.
         "proliferate_matters",
+        # ADR-0027 — artifacts_matter (the ARTIFACTS go-wide / matters axis: a card
+        # that cares about your artifact population — "artifacts you control" anthems,
+        # "for each artifact you control" count payoffs, affinity / metalcraft /
+        # improvise, artifact ETB / cast triggers, artifact tutors / recursion /
+        # sac-outlets / token-makers — affinity CR 702.41, metalcraft CR 207.2c,
+        # artifact tokens CR 205.3g). MIGRATED VIA the STRUCTURAL IR arms + a NARROWED
+        # kept-mirror (NO sidecar bump — the v20 projection already structures the
+        # artifact filters / triggers / token subtypes the arms read).
+        #
+        # STRUCTURAL ARMS (already present in extract_signals_ir, the recall-GAINING
+        # half): the `_TYPE_MATTERS_LANE` count/grant/trigger DOERs ("for each artifact
+        # you control" / "artifacts you control have …" / "whenever an artifact
+        # enters"), the `_ARTIFACT_TOKEN_SUBTYPES` maker/sac arm (Treasure/Clue/Food/…
+        # are artifact tokens per CR 205.3g — a maker or "sacrifice a Food" payoff feeds
+        # the lane), the type-gate condition arm ("if you control three or more
+        # artifacts" = metalcraft), and the type_line membership arm ("if 'artifact' in
+        # type_line" — byte-identical to the deleted line-4349 regex membership
+        # producer). These ADD +325 ir_only recall the brittle oracle regex MISSED — the
+        # subtype sac payoffs (Cauldron Familiar, Wicked Wolf, Bog Naughty) + the DFC
+        # back-face artifact-recursion (Open the Vaults variants, Crystal Dragon // Rob
+        # the Hoard) — every one a real artifact-population care.
+        #
+        # NARROWED KEPT-MIRROR. phase carries NO clean shape for the oracle-idiom family
+        # the deleted _HAND_FLOOR regex read (artifact tutors / recursion-from-graveyard
+        # / "abilities of artifacts" / "becomes an artifact" / improvise / metalcraft /
+        # investigate / "artifact, instant, and sorcery spells"), so a structural-only
+        # migration would LOSE 109 genuine artifact-deck cards (Retract, Meria, Vedalken
+        # Certarch, Goblin Welder, Drafna, Urza Lord Protector).
+        # _ARTIFACTS_MATTER_MIRROR
+        # (the deleted _HAND_FLOOR producer UNIONed with the KEPT "if you control an
+        # artifact" SWEEP row — NOT deleted, len(SWEEP_DETECTORS) stays >=36) runs
+        # PER-CLAUSE over the reminder-stripped kept_oracle, the EXACT union of the
+        # regex-path producers, recovering all 109 byte-identically. add() dedups vs the
+        # structural arm.
+        #
+        # NARROWED (signals-only over-fire fix, "no dismissal without the hook"): the
+        # deleted producer's bare `\baffinity\b` branch over-fired on EVERY
+        # affinity-for-NON-artifact card — the hook is the keyword "affinity" without
+        # its object, so the mirror requires `affinity for artifacts`. This drops 22
+        # commander-legal over-fires (Icebreaker Kraken's snow affinity, Argivian
+        # Phalanx's creature affinity, Bartz and Boko's bird affinity, Thrumming
+        # Hivepool's sliver affinity — verified vs Scryfall oracle, NONE an artifacts
+        # deck). The real affinity-matters bodies survive: conferred "spells you cast
+        # have affinity for artifacts" (Sami), and the artifact-typed Golems keep the
+        # lane via the membership arm.
+        #
+        # FLOOR-DISABLED RESIDUAL (commander-legal, _IR_FLOOR_LANES=frozenset(), the
+        # structural arms + the narrowed mirror vs the deleted regex base): both==4554,
+        # ir_only==325 (pure recall GAIN, all genuine), regex_only==22 (ALL the
+        # affinity-for-other over-fire — 100% over-fire, 0 genuine recall lost). SCOPE
+        # PARITY holds — IR and regex both fire scope 'you' ONLY (no scope regression).
+        # floor-mirror-dep == 0 (artifacts_matter is NOT an _IR_FLOOR_LANE — a
+        # structural type-matters lane).
+        #
+        # VOLTRON. The two deleted HIGH-confidence producers (the _HAND_FLOOR oracle
+        # regex + the kept SWEEP row, both scope 'you') counted toward `has_other_plan`,
+        # silencing the spurious commander-damage voltron tell on an artifacts body that
+        # is NOT a vanilla beater (Sai, Emry, Urza, Slobad). The migrated IR arm is BOTH
+        # broader (+325) and narrower (the 22 affinity over-fires dropped), so a
+        # BYTE-IDENTICAL _ARTIFACTS_MATTER_PLAN_MIRROR in _signals_regex (keeping the
+        # bare `\baffinity\b` branch the lane mirror dropped) re-supplies the regex-path
+        # voltron silence EXACTLY. FILE-SWAP voltron delta == 0.
+        #
+        # FILE-SWAP no-flood (base ee50c00 vs edits, commander-legal): ONLY
+        # artifacts_matter moves (4576 → 4879, +303 net = +325 recall gain / -22
+        # over-fire drop), 0 type_matters / clue_matters / vehicles_matter drift,
+        # voltron delta 0. SWEEP_DETECTORS stays at 36 (the "if you control an
+        # artifact" row is KEPT). artifacts_matter added to MIGRATED_KEYS; both regex
+        # producers deleted (the _HAND_FLOOR oracle regex + the line-4349 type_line
+        # membership, the latter reproduced by the IR membership arm); the serve spec
+        # stays hand-registered. CR 702.41 / 207.2c / 205.3g / 903.10a.
+        "artifacts_matter",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

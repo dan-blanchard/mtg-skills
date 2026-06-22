@@ -49,6 +49,7 @@ from mtg_utils._deck_forge._subtypes import (
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
+    ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
@@ -3603,6 +3604,32 @@ _LTB_MATTERS_MIRROR_VETO = re.compile(
 # identical: commander-legal corpus regex==mirror, 0 lost, 0 over-fire). CR 700.4 /
 # 603.6e.
 _DEATH_MATTERS_MIRROR = re.compile(DEATH_MATTERS_REGEX, re.IGNORECASE)
+# artifacts_matter NARROWED kept mirror (ADR-0027): the structural arms above (the
+# `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the `_ARTIFACT_TOKEN_SUBTYPES`
+# maker/sac arm, the type-gate condition arm, and the type_line membership arm) catch
+# phase's structured artifact payoffs (+325 ir_only recall — the Food/Clue/Treasure
+# subtype sac payoffs + DFC back-face artifact-recursion the brittle oracle regex
+# missed), but phase carries NO clean shape for the oracle-idiom family the regex read
+# (artifact tutors / recursion-from-graveyard / "abilities of artifacts" / "becomes an
+# artifact" / improvise / metalcraft / investigate). Recover them with the deleted
+# _HAND_FLOOR producer UNIONed with the KEPT "if you control an artifact" SWEEP row
+# (NOT deleted — len(SWEEP_DETECTORS) stays >=36), run PER-CLAUSE over reminder-stripped
+# kept_oracle, matching the deleted floor Detector's clause loop. NARROWED: the bare
+# `\baffinity\b` branch is `affinity for artifacts` here, dropping the 22
+# commander-legal affinity-for-NON-artifact over-fires (Icebreaker Kraken's snow
+# affinity, Argivian Phalanx's creature affinity — none an artifacts deck) the regex
+# wrongly fired. The
+# structural arm add()-dedups its recall gain; scope 'you' (the deleted producer's
+# scope, and the serve spec's). 0 genuine recall lost (regex_only==22, all over-fire).
+# The SWEEP alternation is inlined here (it duplicates the kept SWEEP_DETECTORS row, the
+# regex-path source for the same lane). CR 702.41 / 207.2c / 205.3g.
+_ARTIFACTS_MATTER_MIRROR = re.compile(
+    r"(?:"
+    + ARTIFACTS_MATTER_REGEX
+    + r")|(?:if you control an artifact"
+    + r"|if you control (?:a|an|one or more) artifacts?)",
+    re.IGNORECASE,
+)
 # attack_matters BYTE-IDENTICAL kept mirror (ADR-0027): the structural `attacks`-trigger
 # arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm above catch phase's
 # combat payoffs (+135 ir_only recall — the reminder-only
@@ -6662,6 +6689,23 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("ramp_matters", "you", "", "")
+    # ADR-0027 — artifacts_matter NARROWED kept mirror. The structural arms above (the
+    # `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the `_ARTIFACT_TOKEN_SUBTYPES`
+    # maker/sac arm, the type-gate condition arm, the type_line membership arm) ADD +325
+    # ir_only recall (the Food/Clue/Treasure subtype sac payoffs + DFC back-face
+    # artifact-recursion the brittle oracle regex missed), but phase carries NO clean
+    # shape for the oracle-idiom family the deleted regex read (artifact tutors /
+    # recursion-from-graveyard / "abilities of artifacts" / "becomes an artifact" /
+    # improvise / metalcraft / investigate). Recover them with
+    # _ARTIFACTS_MATTER_MIRROR (the deleted _HAND_FLOOR producer UNIONed with the kept
+    # "if you control an artifact" SWEEP row), run PER-CLAUSE over the reminder-stripped
+    # kept_oracle to match the deleted floor Detector's clause loop. NARROWED:
+    # `affinity for artifacts` (not bare `\baffinity\b`) drops the 22
+    # affinity-for-non-artifact over-fires. scope 'you' (the deleted producer's scope,
+    # and the serve spec's). add() dedups vs the structural
+    # arm. 0 genuine recall lost (regex_only==22, all over-fire). CR 702.41 / 207.2c.
+    if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("artifacts_matter", "you", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
     # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep
