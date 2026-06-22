@@ -5939,6 +5939,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # banding_matters ← the Scryfall `Banding` keyword array via _IR_KEYWORD_MAP[
+    # 'banding'] (byte-identical to the deleted _DIRECT_KEYWORD_SIGNALS['banding'] row;
+    # the mill / magecraft / lifelink keyword-array precedent). Timber Wolves is a pure-
+    # banding creature — its entire oracle body is the Banding keyword + reminder text,
+    # so the band-forming ability is stripped and the IR path reads the keyword array,
+    # not the IR structure (a bare non-None IR routes the hybrid to the IR path). scope
+    # "you". ADR-0027, CR 702.22.
+    "banding_matters": (
+        {
+            "name": "Timber Wolves",
+            "type_line": "Creature — Wolf",
+            "oracle_text": (
+                "Banding (Any creatures with banding, and up to one without, can "
+                "attack in a band. Bands are blocked as a group. If any creatures "
+                "with banding you control are blocking or being blocked by a "
+                "creature, you divide that creature's combat damage, not its "
+                "controller, among any of the creatures it's being blocked by or "
+                "is blocking.)"
+            ),
+            "keywords": ["Banding"],
+        },
+        _ir(),
+    ),
     # land_destruction ← the membership-gated _LAND_DESTRUCTION_MIRROR arm (CR 305.6).
     # Numot is the canonical LD COMMANDER — a CREATURE whose own ability says "destroy
     # up to two target lands" (a repeatable LD engine). The mirror reads type_line +

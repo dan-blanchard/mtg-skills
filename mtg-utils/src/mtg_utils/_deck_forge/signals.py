@@ -658,6 +658,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # convention and to future-proof a hypothetical plan-less vanilla magecraft
         # creature. A NO-FLOOD voltron entry. CR 207.2c / 903.10a.
         "magecraft_matters",
+        # ADR-0027: banding_matters fired high-confidence (the default add() confidence,
+        # scope 'you') in the regex path via the _DIRECT_KEYWORD_SIGNALS `banding` row
+        # and so counted toward has_other_plan (it is NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage voltron
+        # membership tell on a banding creature whose ONLY high plan is banding (most of
+        # the 24 are vanilla-bodied banders — Timber Wolves, Benalish Hero, the
+        # Kjeldoran/Icatian cycles, whose band-forming ability is stripped reminder
+        # text). The producer is deleted, so the hybrid re-silences from the IR
+        # re-supply — _IR_KEYWORD_MAP['banding'] reading the SAME Scryfall `Banding`
+        # keyword array, so it is BYTE-IDENTICAL (commander-legal: IR == regex == 24, 0
+        # broadening, 0 ir_only), matching the mill / magecraft / lifelink keyword-array
+        # precedent. File-swap: voltron_matters 3010 → 3010, only banding_matters moves
+        # (24 → 24), all 297 sibling keys drift 0. A NO-FLOOD voltron entry. CR 702.22 /
+        # 903.10a.
+        "banding_matters",
         # NB (ADR-0027): theft_matters is NOT added here. Its HIGH SWEEP producer fed
         # has_other_plan pre-migration, BUT this silencing set is too COARSE for it: the
         # hybrid carries LOW-confidence theft_matters cross-opens (the gain_control /

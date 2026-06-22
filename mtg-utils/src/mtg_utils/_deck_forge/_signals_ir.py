@@ -515,6 +515,20 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # (phase-out/in actions, project._narrow_mechanic_refs) opens the lane via
     # _DOER_EFFECT_KEYS; this opens it from the keyword the card actually carries.
     "phasing": (("phasing_matters", "you"),),
+    # ADR-0027 banding_matters migration: Banding (CR 702.22) MOVED here from
+    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). banding_matters is
+    # migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; the IR
+    # path STILL needs the keyword because banding's band-forming combat ability lives
+    # entirely in stripped reminder text (a banding creature's oracle body is otherwise
+    # vanilla — Timber Wolves, Benalish Hero, the Kjeldoran/Icatian cycles), so neither
+    # a byte-mirror nor a structural arm fires for a vanilla-keyword body. The Scryfall
+    # `Banding` keyword array is the structured anchor (the saddle / lifelink / mill
+    # precedent) and is byte-identical to the deleted _DIRECT_KEYWORD_SIGNALS['banding']
+    # row (commander-legal, floor-disabled, by oracle_id: both==24, ir_only==0,
+    # regex_only==0 — every banding card carries the keyword, 0 keyword-less; no mirror
+    # / doer arm needed). scope "you" matches the deleted producer. A banding commander
+    # (Ayesha Tanaka) wants other banding creatures to form attacking/blocking bands.
+    "banding": (("banding_matters", "you"),),
     # Graveyard-cast + graveyard-payoff keyword family — a card with any of these
     # uses ITS OWN / your graveyard as a resource (cast-from-GY: flashback/escape/
     # disturb/embalm/eternalize/encore/aftermath/retrace/jump-start/recover/unearth;

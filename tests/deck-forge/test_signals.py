@@ -1371,13 +1371,16 @@ def test_pacify_control_commander_opens_pillowfort():
 
 def test_banding_commander_opens_banding_lane():
     # Ayesha Tanaka has Banding — she wants other banding creatures to form bands.
+    # ADR-0027: banding_matters migrated to the Card IR (the byte-identical
+    # _IR_KEYWORD_MAP['banding'] keyword-array route), so it serves from the hybrid
+    # path, not pure regex — the regex extract_signals no longer emits the migrated key.
     ayesha = {
         "name": "Ayesha Tanaka",
         "type_line": "Legendary Creature — Human Artificer",
         "keywords": ["Banding"],
         "oracle_text": "Banding (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)\n{T}: Counter target activated ability from an artifact source unless that ability's controller pays {W}. (Mana abilities can't be targeted.)",
     }
-    assert ("banding_matters", "you") in _keys(ayesha)
+    assert ("banding_matters", "you") in _keys_hybrid(ayesha)
 
 
 def test_counter_on_another_opens_counters():

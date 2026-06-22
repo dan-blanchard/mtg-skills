@@ -4025,6 +4025,40 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # ("magecraft_matters","you")) is independent of the deleted preset and
         # survives. CR 207.2c / 903.10a.
         "magecraft_matters",
+        # ADR-0027 banding_matters — migrated to the Card IR via a BYTE-IDENTICAL
+        # keyword-array route (the saddle / lifelink / mill / magecraft precedent),
+        # signals-only, NO sidecar bump. STRUCTURAL ANCHOR: the Scryfall `Banding`
+        # keyword array via _IR_KEYWORD_MAP['banding'] — the SAME field the deleted
+        # _DIRECT_KEYWORD_SIGNALS['banding'] row read (`"banding" in card.keywords`).
+        # Banding (CR 702.22) is an evergreen-era combat keyword whose band-forming
+        # ability lives ENTIRELY in stripped reminder text, so a banding creature's
+        # oracle body is otherwise vanilla (Timber Wolves, Benalish Hero, the Kjeldoran/
+        # Icatian cycles) — the keyword array is the only clean anchor (no mirror, no
+        # doer arm needed). NO RESIDUAL: commander-legal, floor-disabled, by oracle_id —
+        # both == 24, ir_only == 0, regex_only == 0 (every banding card carries the
+        # keyword; 0 keyword-less; all 24 are projected, so none falls back to regex).
+        # All 24 are genuine banding payoffs (the Banding mechanic itself — a band-
+        # matters commander like Ayesha Tanaka wants other banders to form attacking/
+        # blocking bands). SCOPE PARITY: deleted producer forced scope "you"; the
+        # keyword route fires scope "you" — 0 mismatches.
+        #
+        # VOLTRON. The deleted _DIRECT_KEYWORD_SIGNALS row fired HIGH-confidence (the
+        # default add() confidence, scope "you") and so counted toward has_other_plan
+        # (banding_matters is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron membership tell on a banding creature
+        # whose ONLY high plan is banding (most of the 24 are vanilla-bodied banders —
+        # Timber Wolves, Benalish Hero, the Kjeldoran/Icatian cycles). Its producer is
+        # deleted, so the hybrid re-silences from the IR re-supply via _VOLTRON_
+        # SILENCING_PLAN_KEYS — _IR_KEYWORD_MAP['banding'] reads the SAME `Banding`
+        # keyword array, so it is BYTE-IDENTICAL (commander-legal: IR == regex == 24, 0
+        # ir_only), matching the mill / magecraft / lifelink keyword-array precedent.
+        # File-swap (base 6dd4ec7 vs edits, baked sidecar over 30969 commander-legal,
+        # hybrid path): only banding_matters moves (24 → 24 — byte-identical), all 297
+        # sibling keys drift 0, voltron_matters 3010 → 3010 (identical set). The banding
+        # serve spec in signal_specs.py (("banding_matters","you") → serve_keywords=
+        # ("banding",)) is independent of the deleted producer and survives. CR 702.22 /
+        # 903.10a.
+        "banding_matters",
         # ADR-0027 — land_destruction (the LD-support build-around axis: the Armageddon/
         # Numot stax-LD plan — own-land recursion to survive symmetric LD, land-loss
         # punishers; CR 305.6). MIGRATED VIA A BYTE-IDENTICAL MEMBERSHIP-GATED KEPT-

@@ -2359,9 +2359,14 @@ _DIRECT_KEYWORD_SIGNALS = {
     # ADR-0027: the `saddle` keyword (CR 702.171) moved to _IR_KEYWORD_MAP (the
     # IR-only keyword path) because saddle_matters is migrated — keeping it here
     # would let the regex `extract_signals` path keep emitting a migrated key.
-    # Banding (CR 702.21): a commander with banding wants other banding creatures to
-    # form attacking/blocking bands (Ayesha Tanaka, General Jarkeld's pile).
-    "banding": ("banding_matters", "you"),
+    # ADR-0027: the `banding` keyword (CR 702.22) moved to _IR_KEYWORD_MAP (the
+    # IR-only keyword path) because banding_matters is migrated — keeping it here
+    # would let the regex `extract_signals` path keep emitting a migrated key. The
+    # IR keyword route reads the SAME Scryfall `Banding` keyword array (byte-
+    # identical: commander-legal both==24, ir_only==0, regex_only==0 — every banding
+    # card carries the keyword, 0 keyword-less). The has_other_plan voltron silence
+    # is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS (byte-identical re-supply, the
+    # mill / magecraft / lifelink keyword-array precedent).
     # ADR-0027: boast (CR 702.135) / exert (702.107) / myriad (702.116) / bushido /
     # annihilator / flanking / frenzy → attack_matters MOVED to _IR_KEYWORD_MAP (each
     # carries its attack condition in stripped reminder text, so the keyword array is
