@@ -95,6 +95,23 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # keyword_tribe ← a SUBJECT-CARRYING byte-identical kept mirror of the deleted
+    # producer (_detect_keyword_tribe), run PER-CLAUSE over the card's oracle_text. The
+    # lane groups creatures by an ABILITY KEYWORD (CR 109.3) and emits the keyword as
+    # the Signal SUBJECT (Flying), which the per-subject serve spec interpolates. phase
+    # DOES carry a `WithKeyword:Flying` predicate on the pump subject Filter here, but
+    # ~19 of the 87 commander-legal firings are phase-folded keyword-LESS (tutors,
+    # play-from-top, granted-fly), so the byte-mirror (not a structural arm) is the
+    # clean shape that loses nothing. The paired IR is vanilla — the mirror reads the
+    # record's oracle_text, not the IR structure. ADR-0027.
+    "keyword_tribe": (
+        {
+            "name": "Favorable Winds",
+            "type_line": "Enchantment",
+            "oracle_text": "Creatures you control with flying get +1/+1.",
+        },
+        _ir(),
+    ),
     # unspent_mana ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
     # regex ("you don't lose unspent <color> mana as steps and phases end"). phase
     # carries a StepEndUnspentMana static for the pure statics but the v17 projection

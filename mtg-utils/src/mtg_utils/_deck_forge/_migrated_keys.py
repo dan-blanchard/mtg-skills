@@ -3789,6 +3789,43 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # the IR membership arm); the serve spec stays hand-registered. CR 205.2 / 303 /
         # 303.7 / 207.2c.
         "enchantments_matter",
+        # ADR-0027 — keyword_tribe (the KEYWORD-as-tribe axis, CR 109.3): a card that
+        # groups creatures by an ABILITY KEYWORD rather than a subtype — "Flying
+        # creatures you control get +1/+1", "creatures with deathtouch gain wither",
+        # the flier/deathtouch TUTOR (Isperia, Fynn). SUBJECT-CARRYING: the lane emits
+        # the keyword (Flying/Deathtouch/…) as the Signal.subject, which the per-subject
+        # serve spec (_subject_spec → \bflying\b) interpolates — the subject is
+        # LOAD-BEARING, so a subjectless mirror would break the serve.
+        #
+        # SHAPE: SUBJECT-CARRYING BYTE-IDENTICAL KEPT MIRROR (signals-only, NO sidecar
+        # bump). phase DOES carry a `WithKeyword:<Kw>` predicate on the anthem/grant
+        # subject Filter (Gravitational Shift's pump subject predicates=
+        # ('WithKeyword:Flying',); Sephara's grant_keyword subject; ~70 of the 87
+        # commander-legal firings), so a structural arm is POSSIBLE — but it LOSES ~19
+        # tail cards phase folds keyword-LESS: the keyword-tribe TUTOR (Isperia's
+        # "creature card with flying" search subject is a plain Creature filter),
+        # play-from-top gated on a keyword (Errant and Giada), a keyword-count sweep
+        # (Flame Sweep), GRANTED-fly riders, and the bare-keyword self-gain bodies
+        # (Fynn, Vraska Swarm's Eminence). Since genuine cards would be LOST with no
+        # structural form, the clean shape is the BYTE-IDENTICAL re-run of the EXACT
+        # deleted producer (_detect_keyword_tribe, kept pinned in _signals_regex) run
+        # PER-CLAUSE over the reminder-stripped kept_oracle — the deleted floor producer
+        # ran the same per-clause loop, and flat-over-kept_oracle == per-clause (the
+        # patterns' bounded `[^.]{0,N}` arms never cross a clause: 0 divergences on the
+        # corpus). Commander-legal residual joined by oracle_id, floor-disabled:
+        # both==87, ir_only==0, regex_only==0, 0 (scope,subject) pair mismatch.
+        #
+        # VOLTRON: the deleted producer fired HIGH-confidence (scope 'you'/'any') and
+        # fed has_other_plan (keyword_tribe is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_
+        # KEYS) — deleting it would un-silence the spurious commander-damage voltron
+        # tell on a flier/deathtouch lord whose plan is the tribe. The IR re-supply is
+        # SAME breadth (byte-identical), so keyword_tribe is added to
+        # signals._VOLTRON_SILENCING_PLAN_KEYS (the byte-identical re-silence path, NOT
+        # a broader _PLAN_MIRROR). voltron_matters oracle_id set 3010 -> 3010 identical.
+        # The serve spec (signal_specs._subject_spec keyword-tribe branch) is hand-
+        # written and independent of the deleted regex, so it survives unchanged.
+        # CR 109.3 / 702 / 903.10a.
+        "keyword_tribe",
         # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
         # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS
         # "whenever a land you control enters" trigger, the extra-land STATIC ("play N

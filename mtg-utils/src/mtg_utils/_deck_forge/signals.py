@@ -720,6 +720,19 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # theft_matters / land_sacrifice_matters kept-mirror precedent. A NO-FLOOD
         # voltron entry. CR 207.2c / 702.185 / 903.10a.
         "void_warp_matters",
+        # ADR-0027: keyword_tribe fired high-confidence (scope 'you'/'any') in the
+        # regex path via the _detect_keyword_tribe producer and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron tell on a keyword-tribe lord whose plan
+        # is the tribe, not its own stat-line (a fliers / deathtouch anthem — Empyrean
+        # Eagle, Hooded Blightfang). Its regex producer is no longer invoked, so the
+        # hybrid re-silences from the IR re-supply — a SUBJECT-CARRYING byte-identical
+        # KEPT MIRROR re-running the SAME _detect_keyword_tribe PER-CLAUSE over the
+        # reminder-stripped kept_oracle, so it is BYTE-IDENTICAL (commander-legal: IR ==
+        # regex == 87, 0 broadening, 0 ir_only), matching the dies_recursion /
+        # tokens_matter kept-mirror precedent. A NO-FLOOD voltron entry. CR 109.3 /
+        # 903.10a.
+        "keyword_tribe",
     }
 )
 

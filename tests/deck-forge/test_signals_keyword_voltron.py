@@ -10,7 +10,12 @@
    (an evasion/resilience keyword or power ≥2), surface a low-confidence voltron avenue.
 """
 
-from mtg_utils._deck_forge.signals import coverage_gate, extract_signals
+from mtg_utils._deck_forge.signals import (
+    coverage_gate,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
 
 
 def _sigs(name="X", oracle="", type_line="Legendary Creature — Test", **kw):
@@ -25,6 +30,17 @@ def _keys(**kw):
 
 def _subjects(key, **kw):
     return {s.subject for s in _sigs(**kw) if s.key == key}
+
+
+def _hybrid_subjects(key, name="X", oracle="", type_line="Enchantment", **kw):
+    """Subjects from the HYBRID (IR) path. ADR-0027 migrated keyword_tribe to the
+    Card IR as a subject-carrying kept mirror that reads the card's oracle_text, so a
+    vanilla IR (the mirror reads the record, not the IR structure) is enough to run
+    the IR path."""
+    card = {"name": name, "oracle_text": oracle, "type_line": type_line}
+    card.update(kw)
+    ir = Card(oracle_id="x", name=name, faces=(Face(name=name),))
+    return {s.subject for s in extract_signals_hybrid(card, ir) if s.key == key}
 
 
 # ── 1. build-around keyword → signal ──
@@ -170,22 +186,23 @@ def test_plain_flying_keyword_is_not_a_buildaround_signal():
     assert "attack_matters" not in k
 
 
-# ── 2. keyword-tribes ──
+# ── 2. keyword-tribes ── (ADR-0027: keyword_tribe migrated to the Card IR via a
+# subject-carrying kept mirror; these assert against the HYBRID/IR path now.)
 def test_flying_creatures_you_control_is_keyword_tribe():
-    assert "Flying" in _subjects(
+    assert "Flying" in _hybrid_subjects(
         "keyword_tribe", oracle="Flying creatures you control get +1/+1."
     )
 
 
 def test_creatures_with_deathtouch_is_keyword_tribe():
-    assert "Deathtouch" in _subjects(
+    assert "Deathtouch" in _hybrid_subjects(
         "keyword_tribe", oracle="All creatures with deathtouch gain wither."
     )
 
 
 def test_subtype_is_not_a_keyword_tribe():
     # "Goblin creatures you control" is subtype tribal, not a keyword tribe.
-    subs = _subjects(
+    subs = _hybrid_subjects(
         "keyword_tribe", oracle="Other Goblin creatures you control get +1/+1."
     )
     assert "Goblin" not in subs

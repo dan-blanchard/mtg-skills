@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _creature_etb_clauses,
     _detect_direct_keywords,
     _detect_keyword_presets,
+    _detect_keyword_tribe,
     _detect_self_blink_fulltext,
     _detect_self_damage_prevention,
     _detect_self_death_payoff,
@@ -8095,6 +8096,31 @@ def extract_signals_ir(
     # EMPTY after the mirror). CR 205.2 / 303 / 303.7.
     if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
         add("enchantments_matter", "you", "", "")
+    # ADR-0027 — keyword_tribe SUBJECT-CARRYING byte-identical kept mirror. The lane
+    # groups creatures by an ABILITY KEYWORD (CR 109.3) — "Flying creatures you
+    # control get +1/+1", "creatures with deathtouch …" — and emits the keyword as the
+    # Signal SUBJECT (Flying/Deathtouch/…), which the per-subject serve spec
+    # (_subject_spec → \bflying\b) interpolates: the subject is LOAD-BEARING, so a
+    # subjectless mirror is not viable. phase DOES carry a `WithKeyword:<Kw>` predicate
+    # on the anthem/grant subject Filter (Gravitational Shift, Sephara, Akroma's
+    # Memorial), covering ~70 of the 87 commander-legal firings — but a structural arm
+    # LOSES ~19 tail cards phase folds keyword-less: the keyword-tribe TUTOR (Isperia:
+    # the "creature card with flying" search subject is a plain Creature filter),
+    # play-from-top gated on a keyword (Errant and Giada), a sweep that scales off a
+    # keyword count (Flame Sweep), the GRANTED-fly riders, and the bare-keyword self-
+    # gain bodies (Fynn, Vraska). So the clean shape is the BYTE-IDENTICAL re-run of
+    # the EXACT deleted producer (_detect_keyword_tribe, pinned in _signals_regex)
+    # PER-CLAUSE over the reminder-stripped kept_oracle — the deleted floor producer
+    # ran the same per-clause loop, and flat-over-kept_oracle == per-clause (the
+    # patterns' bounded `[^.]{0,N}` arms never cross a clause: verified 0 divergences
+    # on the corpus). Commander-legal residual joined by oracle_id, floor-disabled:
+    # both==87, ir_only==0, regex_only==0, 0 (scope,subject) pair mismatch. The deleted
+    # producer fired HIGH and fed has_other_plan; the IR re-supply is the SAME breadth,
+    # so keyword_tribe is added to signals._VOLTRON_SILENCING_PLAN_KEYS (byte-identical
+    # re-silence). CR 109.3 / 702.
+    for clause in _clauses(kept_oracle):
+        for key, scope, subject in _detect_keyword_tribe(clause):
+            add(key, scope, subject, clause)
     # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
     # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
     # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean

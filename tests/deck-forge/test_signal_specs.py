@@ -4835,8 +4835,16 @@ class TestMediumBatch9:
         assert serves(venerable, sig) is False
 
     def test_keyword_tribe_requires_payoff_anchor(self):
-        from mtg_utils._deck_forge.signals import extract_signals, signal_keys
+        # ADR-0027: keyword_tribe migrated to the Card IR (a subject-carrying kept
+        # mirror over the record's oracle_text), so assert against the HYBRID path with
+        # a bare IR — the mirror reads the record, not the IR structure.
+        from mtg_utils._deck_forge.signals import (
+            extract_signals_hybrid,
+            signal_keys,
+        )
+        from mtg_utils.card_ir import Card, Face
 
+        bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X"),))
         praetors = {
             "name": "Hand of the Praetors",
             "type_line": "Creature — Phyrexian Zombie",
@@ -4849,12 +4857,12 @@ class TestMediumBatch9:
         }
         praetor_kw = {
             s.subject
-            for s in extract_signals(praetors)
+            for s in extract_signals_hybrid(praetors, bare_ir)
             if s.key == signal_keys.KEYWORD_TRIBE
         }
         whip_kw = {
             s.subject
-            for s in extract_signals(whiptongue)
+            for s in extract_signals_hybrid(whiptongue, bare_ir)
             if s.key == signal_keys.KEYWORD_TRIBE
         }
         assert "Infect" in praetor_kw  # a real keyword-tribe anthem

@@ -2463,6 +2463,15 @@ _KEYWORD_TRIBE_PATTERNS = (
 
 
 def _detect_keyword_tribe(clause: str) -> list[tuple[str, str, str]]:
+    # ADR-0027: keyword_tribe is migrated to the Card IR. extract_signals no longer
+    # calls this (the regex path must not emit the migrated key); it is now imported
+    # by _signals_ir and run PER-CLAUSE over the reminder-stripped kept_oracle as a
+    # byte-identical KEPT MIRROR. The mirror preserves the keyword subject (Flying,
+    # Deathtouch, …) the per-subject serve spec interpolates — phase's WithKeyword
+    # predicate covers ~70 of the 87 but a structural arm loses ~19 tail cards phase
+    # folds keyword-less (tutors, P/T-scaling, granted-fly), so the byte-mirror (not
+    # a structural arm) is the clean shape: commander-legal residual both==87,
+    # ir_only==0, regex_only==0; flat-over-kept_oracle == per-clause (0 divergences).
     out: list[tuple[str, str, str]] = []
     for pat, scope in _KEYWORD_TRIBE_PATTERNS:
         for m in pat.finditer(clause):
@@ -4576,8 +4585,12 @@ def extract_signals(
             add(key, "you", subject, stripped)
         for key, subject in _detect_multi_tribe_anthem(clause, vocab):
             add(key, "you", subject, stripped)
-        for key, scope, subject in _detect_keyword_tribe(clause):
-            add(key, scope, subject, stripped)
+        # ADR-0027: keyword_tribe migrated to the Card IR. Its producer
+        # (_detect_keyword_tribe) is no longer invoked here — the regex path must
+        # not emit the migrated key. The producer + its constants stay pinned (the
+        # IR path imports _detect_keyword_tribe for a byte-identical KEPT MIRROR run
+        # per-clause over the reminder-stripped kept_oracle, preserving the keyword
+        # subject the per-subject serve spec interpolates).
         for key, subject in _detect_typed_spellcast(clause, vocab):
             add(key, "you", subject, stripped)
         for key, subject in _detect_token_maker(clause, vocab):

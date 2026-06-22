@@ -181,7 +181,9 @@ def test_keyword_tribe_opens_on_flier_tutor():
     # payoff (CR 109.3 groups by the keyword characteristic). The keyword-tribe patterns
     # matched "creatures you control with flying" / "creature spell with flying" but not
     # the tutor's "creature CARD with flying", so a flying-tribal commander whose only
-    # hook is the fetch stayed blind. Real oracle.
+    # hook is the fetch stayed blind. Real oracle. ADR-0027: keyword_tribe migrated to
+    # the Card IR (a subject-carrying kept mirror), so assert against the HYBRID path
+    # with a bare IR (the mirror reads the record's oracle_text, not the IR structure).
     isperia = {
         "name": "Isperia the Inscrutable",
         "type_line": "Legendary Creature — Sphinx",
@@ -195,7 +197,7 @@ def test_keyword_tribe_opens_on_flier_tutor():
             "reveal it, put it into your hand, then shuffle."
         ),
     }
-    assert ("keyword_tribe", "you", "Flying") in _ksub(isperia)
+    assert ("keyword_tribe", "you", "Flying") in _ksub_hybrid(isperia, _bare_ir())
     # The fetch verb is REQUIRED: a card that merely GAINS flying while "a creature card
     # with flying is in a graveyard" (Cairn Wanderer) is not a fliers-matter payoff — it
     # buffs itself off any graveyard, yours or not — so it must NOT open the tribe. Real
@@ -213,7 +215,7 @@ def test_keyword_tribe_opens_on_flier_tutor():
             "lifelink, protection, reach, trample, shroud, and vigilance."
         ),
     }
-    assert ("keyword_tribe", "you", "Flying") not in _ksub(cairn)
+    assert ("keyword_tribe", "you", "Flying") not in _ksub_hybrid(cairn, _bare_ir())
 
 
 def test_direct_damage_opens_on_damage_to_a_creatures_controller():

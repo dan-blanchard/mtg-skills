@@ -1699,7 +1699,13 @@ def test_fliers_matter_commander_opens_flying_keyword_tribe():
         "type_line": "Legendary Creature — Lemur Bat Ally",
         "oracle_text": "Flying\nThe first non-Lemur creature spell with flying you cast during each of your turns costs {1} less to cast.\nWhenever another creature you control with flying enters, Momo gets +1/+1 until end of turn.",
     }
-    subs = {s.subject for s in extract_signals(momo) if s.key == "keyword_tribe"}
+    # ADR-0027: keyword_tribe migrated to the Card IR (a subject-carrying kept mirror
+    # over the record's oracle_text), so assert against the HYBRID path with a bare IR.
+    subs = {
+        s.subject
+        for s in extract_signals_hybrid(momo, _bare_ir())
+        if s.key == "keyword_tribe"
+    }
     assert "Flying" in subs
     # Precision: a commander that merely HAS flying (no "creature with flying" payoff)
     # is NOT a fliers-matter deck.
@@ -1709,7 +1715,9 @@ def test_fliers_matter_commander_opens_flying_keyword_tribe():
         "keywords": ["Flying"],
         "oracle_text": "Flying\nWhenever a creature attacks you or a planeswalker you control, you may draw a card.",
     }
-    assert "keyword_tribe" not in {s.key for s in extract_signals(isperia)}
+    assert "keyword_tribe" not in {
+        s.key for s in extract_signals_hybrid(isperia, _bare_ir())
+    }
 
 
 def test_lifelink_commander_opens_lifegain():
@@ -2023,6 +2031,12 @@ def _subjects(card, key):
     return {s.subject for s in extract_signals(card) if s.key == key}
 
 
+def _subjects_hybrid(card, key):
+    # ADR-0027: subjects from the HYBRID/IR path (for migrated subject-bearing keys
+    # like keyword_tribe, whose kept mirror reads the record's oracle_text).
+    return {s.subject for s in extract_signals_hybrid(card, _bare_ir()) if s.key == key}
+
+
 def test_tribal_capture_cant_be_blocked():
     # Rocksteady, Crash Courser is a Rhino Mutant — NOT a Boar — yet it buffs
     # "Boars you control can't be blocked". A commander that buffs a tribe isn't
@@ -2210,7 +2224,9 @@ def test_extra_beginning_phase_decomposes_to_upkeep_and_draw():
 
 def test_flying_from_top_opens_keyword_tribe():
     # Errant and Giada — "cast spells with flash or flying from the top" rewards
-    # fliers; open the Flying keyword-tribe lane.
+    # fliers; open the Flying keyword-tribe lane. ADR-0027: keyword_tribe migrated to
+    # the Card IR (a subject-carrying kept mirror over the record's oracle_text), so
+    # assert against the HYBRID path with a bare IR.
     card = {
         "name": "Errant and Giada",
         "type_line": "Legendary Creature — Human Angel",
@@ -2220,8 +2236,8 @@ def test_flying_from_top_opens_keyword_tribe():
             "You may cast spells with flash or flying from the top of your library."
         ),
     }
-    assert ("keyword_tribe", "you") in _keys(card)
-    assert "Flying" in _subjects(card, "keyword_tribe")
+    assert ("keyword_tribe", "you") in _keys_hybrid(card)
+    assert "Flying" in _subjects_hybrid(card, "keyword_tribe")
 
 
 def test_yasharn_opens_stax_taxes():
