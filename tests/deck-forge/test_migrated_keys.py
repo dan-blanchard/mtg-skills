@@ -228,6 +228,27 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # animate_artifact ← a BYTE-IDENTICAL kept mirror (_ANIMATE_ARTIFACT_MIRROR over the
+    # reminder-stripped oracle: "Target noncreature artifact becomes an artifact creature
+    # …"). phase parses "artifacts become creatures" inconsistently (base_pt_set /
+    # board_grant over an Artifact subject / a becomes_type{Artifact} grant / a
+    # base_pt_set with subject=None) and none is cleanly separable from generic become /
+    # type-conferral (the dead cat=='animate' arm fires 0 cards; a base_pt_set-over-
+    # Artifact arm 90%-over-fires or, narrowed, loses 48 animators), so the lane rides the
+    # exact deleted SWEEP regex (empty IR — the mirror reads the dict oracle). ADR-0027 β.
+    "animate_artifact": (
+        {
+            "name": "Karn, Silver Golem",
+            "type_line": "Legendary Artifact Creature — Golem",
+            "oracle_text": (
+                "Whenever Karn, Silver Golem blocks or becomes blocked, it gets "
+                "-4/+4 until end of turn.\n"
+                "{1}: Target noncreature artifact becomes an artifact creature with "
+                "power and toughness each equal to its mana value until end of turn."
+            ),
+        },
+        _ir(),
+    ),
     # gain_control ← a `gain_control` Effect (Control Magic's ChangeController static
     # projects cat="gain_control", subject=the enchanted creature, scope="you"). The
     # GATED structural arm in extract_signals_ir fires scope "you" (excl donate /

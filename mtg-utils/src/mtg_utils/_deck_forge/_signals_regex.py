@@ -27,6 +27,7 @@ from mtg_utils._deck_forge._subtypes import (
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ACTIVATED_ABILITY_REGEX,
+    ANIMATE_ARTIFACT_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -2755,6 +2756,20 @@ _COLOR_CHANGE_PLAN_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # _detect_self_damage_prevention helper in the gate chain below (it can't be a static
 # regex — it's name-aware). FILE-SWAP NO-FLOOD: voltron delta 0. CR 903.10a / 614.9.
 _DAMAGE_REDIRECT_PLAN_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated animate_artifact key. The
+# deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
+# plan is animating artifacts (Karn Silver Golem, Tezzeret the Seeker, Sydri — an
+# artifact-animator engine, not a vanilla beater). The migrated lane rides a BYTE-
+# IDENTICAL kept mirror (no recall change vs the deleted regex), so this byte-identical
+# gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL
+# cards (matching the color_change / token_copy_matters / variable_pt byte-identical-
+# mirror pattern). Matched against reminder-STRIPPED joined-face `text`, byte-identical
+# to the
+# deleted SWEEP detector's per-clause reminder-stripped input. The arms' `[^.]*` never
+# spans a sentence, so full-text == per-clause. (FILE-SWAP NO-FLOOD: voltron delta 0.)
+# CR 903.10a / 110.1.
+_ANIMATE_ARTIFACT_PLAN_MIRROR = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated toughness_combat key. BOTH
 # deleted producers (the SWEEP combat-redirect, scope 'you', + the inline _DETECTORS
 # value-payoff, scope 'you') fired HIGH-confidence and counted toward `has_other_plan`,
@@ -4315,6 +4330,14 @@ def extract_signals(
         # damage tell survives regardless of this silence. CR 903.10a / 614.9 / 615.
         or _detect_self_damage_prevention(text, name)
         or _DAMAGE_REDIRECT_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted animate_artifact SWEEP producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — an artifact-animator
+        # engine is a plan, not a vanilla beater). The migrated lane rides a byte-
+        # identical kept mirror, so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards. Matched
+        # against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
+        # per-clause over stripped text). CR 903.10a.
+        or _ANIMATE_ARTIFACT_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted toughness_combat producers (the SWEEP
         # combat-redirect + the inline _DETECTORS value-payoff, both HIGH-confidence
         # scope 'you', feeding has_other_plan). The migrated lane rides a byte-identical

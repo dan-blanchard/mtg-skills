@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
+    ANIMATE_ARTIFACT_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
@@ -2430,6 +2431,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["pump_matters"],
         {"oracle": PUMP_MATTERS_REGEX},
         PUMP_MATTERS_REGEX,
+    ),
+    # ADR-0027 β: animate_artifact's SWEEP_DETECTORS row is deleted (detection moved to
+    # the Card IR via a byte-identical _ANIMATE_ARTIFACT_MIRROR; no clean structural arm
+    # — phase parses "artifacts become creatures" inconsistently as base_pt_set /
+    # board_grant / becomes_type, none separable from generic become / type-conferral).
+    # The SERVE pool stays oracle-defined, so hand-register the spec the sweep auto-
+    # register loop used to build (scope "you", the deleted SWEEP row's scope), reusing
+    # the EXACT deleted regex (pinned as ANIMATE_ARTIFACT_REGEX) so the serve pool never
+    # drifts. SWEEP_LABELS keeps the label.
+    ("animate_artifact", "you"): _spec(
+        *SWEEP_LABELS["animate_artifact"],
+        {"oracle": ANIMATE_ARTIFACT_REGEX},
+        ANIMATE_ARTIFACT_REGEX,
     ),
     # ADR-0027 β: tribe_damage_trigger's SWEEP_DETECTORS row is deleted (detection moved
     # to the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool

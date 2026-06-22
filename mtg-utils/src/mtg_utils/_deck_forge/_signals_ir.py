@@ -45,6 +45,7 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
+    ANIMATE_ARTIFACT_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
@@ -2170,6 +2171,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             # 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 614.9 /
             # 615.
             "damage_redirect",
+            # ADR-0027 β — animate_artifact: phase parses "artifacts become creatures"
+            # three INCONSISTENT ways (base_pt_set/board_grant over an Artifact subject,
+            # a becomes_type{Artifact} grant, or a base_pt_set with subject=None), none
+            # cleanly separable from generic become / type-conferral — the dead cat==
+            # 'animate' arm fires 0 cards, a base_pt_set-over-Artifact arm either
+            # 90%-over-fires or, narrowed, loses 48 core animators. So the lane rides a
+            # byte-identical _ANIMATE_ARTIFACT_MIRROR of the exact deleted SWEEP regex
+            # (commander-legal corpus: regex==mirror, 67/67 genuine, 0 lost, 0 over-
+            # fire). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 110.1 / 305.7 /
+            # 613.
+            "animate_artifact",
             # ADR-0027 β — toughness_combat: TOUGHNESS matters for combat (the Doran
             # combat-redirect) + as a value (the broader payoff half). phase parses the
             # Doran clause as an AssignDamageFromToughness modification but project
@@ -3126,6 +3138,23 @@ _COLOR_CHANGE_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # _detect_self_damage_prevention helper inline in extract_signals_ir, not this mirror.
 # CR 614.9 (redirection replacement).
 _DAMAGE_REDIRECT_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
+# animate_artifact BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
+# EXACT deleted SWEEP regex (pinned as ANIMATE_ARTIFACT_REGEX) over the reminder-
+# stripped kept_oracle — "artifacts become creatures" (Karn Silver Golem, March of the
+# Machines, Ensoul Artifact, Tezzeret the Seeker, every Vehicle-crew "becomes an
+# artifact creature"). NOT a structural arm: phase parses these three INCONSISTENT ways
+# (base_pt_set/board_grant over an Artifact subject, a becomes_type{Artifact} grant, or
+# a base_pt_set with subject=None when phase drops the target). The pre-existing cat==
+# 'animate' & 'Artifact'-subject arm fired on ZERO commander-legal cards (phase never
+# tags artifact-animation `animate`, so it was dead — REMOVED below); a base_pt_set/
+# board_grant-over-Artifact arm either 90%-over-fires (47 ir_only: "becomes an artifact"
+# type-conferral — Liquimetal Coating/Memnarch; artifact-creature ANTHEMS — Galazeth/
+# Food Fight; "Artifacts are Foods/Clues/Equipment" — Ragost/Senator Peacock) or,
+# narrowed to drop those, loses 48 core animators. The deleted oracle regex is precise
+# (67/67 genuine commander-legal, 0 over-fire), so the lane rides it byte-identically.
+# No veto needed (every match animates an artifact — Vehicles are artifacts, CR 301.7).
+# CR 110.1 / 305.7 / 613.
+_ANIMATE_ARTIFACT_MIRROR = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
 # toughness_combat BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
 # EXACT OR of two deleted producers (pinned TOUGHNESS_COMBAT_REGEX) over the reminder-
 # stripped kept_oracle — the Doran / Assault Formation / High Alert combat
@@ -5254,8 +5283,15 @@ def extract_signals_ir(
                 add("counters_matter", "any", "", e.raw)
             if cat == "reanimate" and "Creature" in ftypes:
                 add("creature_recursion", "you", "", e.raw)
-            if cat == "animate" and "Artifact" in ftypes:
-                add("animate_artifact", "you", "", e.raw)
+            # ADR-0027 β — animate_artifact migrated to the Card IR via a
+            # byte-identical kept-mirror (_ANIMATE_ARTIFACT_MIRROR, in the kept-detector
+            # section below), NOT this structural arm. This `cat=='animate' &
+            # 'Artifact'-subject` form fired on ZERO commander-legal cards (phase never
+            # tags artifact-animation `animate` — it parses it as base_pt_set /
+            # board_grant / becomes_type, neither cleanly separable from generic become
+            # / type-conferral), so it was dead code and is removed. The lane now rides
+            # the precise deleted regex byte-identically (67/67 genuine, 0 over-fire).
+            # CR 110.1 / 305.7 / 613.
             # Stax: a static restriction hobbling OPPONENTS (stax_taxes) or
             # everyone symmetrically (symmetric_stax).
             if cat == "restriction":
@@ -6205,6 +6241,19 @@ def extract_signals_ir(
         add("damage_redirect", "you", "", "")
     if _DAMAGE_REDIRECT_MIRROR.search(kept_oracle):
         add("damage_redirect", "you", "", "")
+    # ADR-0027 β — animate_artifact BYTE-IDENTICAL kept mirror. phase parses "artifacts
+    # become creatures" three INCONSISTENT ways (base_pt_set/board_grant over an
+    # Artifact subject, a becomes_type{Artifact} grant, or base_pt_set subject=None),
+    # none cleanly separable from generic become / type-conferral: the dead cat==
+    # 'animate' arm fired 0 cards, and a base_pt_set/board_grant-over-Artifact arm
+    # either 90%-over-fires (type-conferral + artifact-creature anthems) or, narrowed,
+    # loses 48 core animators. So recover the lane with the EXACT deleted SWEEP regex
+    # over the reminder-stripped kept_oracle (scope 'you', matching the deleted
+    # producer); its
+    # `[^.]*` arms never cross a sentence, so flat-text == the per-clause SWEEP firing
+    # set (67/67 genuine, 0 over-fire). add() dedups. CR 110.1 / 305.7 / 613.
+    if _ANIMATE_ARTIFACT_MIRROR.search(kept_oracle):
+        add("animate_artifact", "you", "", "")
     # ADR-0027 β — toughness_combat BYTE-IDENTICAL kept mirror. TWO deleted producers
     # feed the key — the SWEEP combat-redirect ("assigns combat damage equal to its
     # toughness rather than its power" — Doran / Assault Formation / High Alert) and

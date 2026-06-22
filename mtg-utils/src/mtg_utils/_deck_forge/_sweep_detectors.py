@@ -210,6 +210,32 @@ COLOR_CHANGE_REGEX = (
     "becomes the color of your choice|becomes? (?:the color|all colors)"
 )
 
+# ADR-0027 β: animate_artifact migrated to the Card IR via a byte-identical kept-mirror —
+# the deleted SWEEP producer is pinned here so the _ANIMATE_ARTIFACT_MIRROR kept detector
+# (_signals_ir), the _ANIMATE_ARTIFACT_PLAN_MIRROR voltron gate (_signals_regex), and the
+# hand-registered serve (signal_specs) share ONE source. NOT a structural arm: the lane
+# is "artifacts become creatures" (Karn Silver Golem, March of the Machines, Ensoul
+# Artifact, Tezzeret the Seeker, Vehicle-crew animation), and phase parses it three
+# INCONSISTENT ways — base_pt_set/board_grant over an Artifact subject (March/Ensoul/
+# Tezzeret the Seeker), a becomes_type{Artifact} grant (Karn Silver Golem/Karn's Touch),
+# or a base_pt_set with subject=None (Karn's Touch's spell clause, every "target artifact
+# becomes a N/N artifact creature" whose subject phase drops). The pre-existing
+# cat=='animate' & 'Artifact'-subject arm fires on ZERO commander-legal cards (phase
+# never tags artifact-animation `animate`); a base_pt_set/board_grant/becomes_type-over-
+# Artifact arm either 90%-OVER-FIRES (47 ir_only: "becomes an artifact" type-conferral —
+# Liquimetal Coating/Memnarch/Argent Mutation; artifact-creature ANTHEMS — Galazeth/Food
+# Fight/Fountain Watch; "Artifacts are Foods/Clues/Equipment" — Ragost/Senator Peacock/
+# Dan Lewis) or, narrowed to drop those, LOSES 48 core animators (every Vehicle-crew
+# "becomes an artifact creature" + the subject=None spells). The artifact-animation is
+# NOT structurally separable from generic become / type-conferral, so the lane rides a
+# byte-identical mirror of this exact regex (commander-legal corpus: regex==mirror, 67/67
+# genuine vs Scryfall oracle, 0 over-fire). CR 110.1 / 305.7 (Vehicles / noncreature
+# artifacts gaining the creature type) / 613 (layer-4 type-changing). The lane's `[^.]*`
+# arms never cross a sentence, so the flat-text mirror == the per-clause SWEEP firing set.
+# SWEEP_LABELS keeps the human label; the serve stays hand-registered in signal_specs
+# reusing this constant.
+ANIMATE_ARTIFACT_REGEX = "(?:target |each )?(?:noncreature )?artifact(?:s)? (?:you control )?(?:becomes?|are|become) (?:an? )?(?:artifact )?creature|becomes? an artifact creature|(?:artifact or land|target artifact|noncreature artifact|artifact you control)[^.]*becomes? a[^.]*creature"
+
 # ADR-0027 β: ability_copy migrated to the Card IR via a byte-identical kept-mirror.
 # ONE pinned source the _ABILITY_COPY_MIRROR kept detector (_signals_ir), the
 # _ABILITY_COPY_PLAN_MIRROR voltron gate (_signals_regex), and the serve spec
@@ -569,12 +595,18 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Beacon, Enduring Angel). NOT in _IR_FLOOR_LANES; serve hand-registered in
     # signal_specs. The IR correctly drops Heartless Hidetsugu ("damage equal to half …
     # life total" is a damage effect, not a set/exchange), the regex's lone over-fire.
-    {
-        "key": "animate_artifact",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:target |each )?(?:noncreature )?artifact(?:s)? (?:you control )?(?:becomes?|are|become) (?:an? )?(?:artifact )?creature|becomes? an artifact creature|(?:artifact or land|target artifact|noncreature artifact|artifact you control)[^.]*becomes? a[^.]*creature",
-    },
+    # ADR-0027 β: animate_artifact migrated to the Card IR via a byte-identical kept-
+    # mirror — phase parses "artifacts become creatures" three INCONSISTENT ways
+    # (base_pt_set/board_grant over an Artifact subject, a becomes_type{Artifact} grant,
+    # or a base_pt_set with subject=None), and no structural arm is clean: the dead
+    # cat=='animate' arm fires 0 cards, while a base_pt_set/board_grant-over-Artifact arm
+    # 90%-over-fires (type-conferral + artifact-creature anthems) or, narrowed, loses the
+    # 48 Vehicle-crew + subject=None animators. So the lane rides a _ANIMATE_ARTIFACT_
+    # MIRROR (_signals_ir) of the exact deleted regex over the reminder-stripped oracle
+    # (commander-legal: regex==mirror, 67/67 genuine, 0 over-fire). Its SWEEP_DETECTORS
+    # row is deleted; the EXACT regex is pinned as ANIMATE_ARTIFACT_REGEX above,
+    # SWEEP_LABELS keeps the human label, and the serve is hand-registered in
+    # signal_specs.py reusing the pinned constant. CR 110.1 / 305.7 / 613.
     # ADR-0027 β: creature_ping + damage_equal_power (the power-as-damage cluster)
     # migrated to the Card IR. Both SWEEP rows are deleted — each key fires from a
     # STRUCTURAL recipient/doer arm in extract_signals_ir (the op="power" damage anchor)

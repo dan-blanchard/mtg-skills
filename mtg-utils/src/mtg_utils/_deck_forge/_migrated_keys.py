@@ -1859,6 +1859,61 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (FILE-SWAP voltron delta == 0). CR 614.9 (redirection replacement) / 615
         # (prevention).
         "damage_redirect",
+        # ADR-0027 β — animate_artifact (a card that makes ARTIFACTS BECOME CREATURES:
+        # Karn Silver Golem, March of the Machines, Ensoul Artifact, Tezzeret the
+        # Seeker, Sydri, every Vehicle-crew "becomes an artifact creature"). MIGRATED
+        # VIA A BYTE-IDENTICAL KEPT-MIRROR (signals-only, NO sidecar bump), NOT a
+        # structural arm.
+        #
+        # INCONSISTENT PARSE (structured, but UNUSABLE): phase parses the animation
+        # three different ways — base_pt_set + board_grant over an Artifact subject
+        # (March of the Machines, Ensoul Artifact, Tezzeret the Seeker), a
+        # becomes_type{Artifact} grant ("grant: becomes a artifact" — Karn Silver Golem,
+        # Karn's Touch static half), or a base_pt_set with subject=None (Karn's Touch's
+        # spell clause + every "target artifact becomes a N/N artifact creature" whose
+        # target phase drops). The PRE-EXISTING structural arm (cat=='animate' &
+        # 'Artifact'-subject) fires on ZERO commander-legal cards — phase never tags
+        # artifact-animation `animate` — so it was DEAD CODE (now removed from
+        # extract_signals_ir). A base_pt_set / board_grant / becomes_type-over-Artifact
+        # arm was REJECTED two ways: the broad form 90%-OVER-FIRES (95 ir, 47 ir_only —
+        # "becomes an artifact" type-conferral like Liquimetal Coating / Memnarch /
+        # Argent Mutation; artifact-creature ANTHEMS like Galazeth / Food Fight /
+        # Fountain Watch; "Artifacts are Foods/Clues/Equipment" like Ragost / Senator
+        # Peacock / Dan Lewis — all verified non-animation vs Scryfall), and the narrow
+        # form (excl already-Creature subjects, require the creature word in the raw)
+        # LOSES 48 core animators (every Vehicle-crew "becomes an artifact creature" +
+        # the subject=None spells — Alloy Animist, Fleetwheel Cruiser, Tezzeret the
+        # Seeker, Karn's Touch, Xenic Poltergeist). The artifact-animation is NOT
+        # structurally separable from generic become / type-conferral (rules-lawyer:
+        # animating an artifact is a CR 613 layer-4 type addition — the SAME machinery
+        # as making it an artifact or an Equipment, no separate IR category), so a
+        # structural arm cannot cleanly hit the gate.
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane fires from _ANIMATE_ARTIFACT_MIRROR in
+        # _signals_ir — the EXACT deleted SWEEP regex (pinned as ANIMATE_ARTIFACT_REGEX
+        # in _sweep_detectors) over the reminder-stripped kept_oracle, byte-identical to
+        # the deleted SWEEP Detector. The serve spec is hand-registered in signal_specs
+        # reusing the pinned constant (SWEEP_LABELS keeps the label), so the served pool
+        # is unchanged.
+        #
+        # Floor-disabled residual vs the deleted SWEEP regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 67, ir_only == 0, regex_only == 0 — the
+        # mirror is byte-identical to the deleted regex over the same reminder-stripped
+        # input, so the served set is UNCHANGED (a true behavior-neutral re-home, no
+        # recall gain, no over-fire). All 67 are genuine animators (Vehicles are
+        # artifacts — CR 301.7 — so "this Vehicle becomes an artifact creature" IS the
+        # lane; the copy / Elk / Angel forms — True Polymorph, Oko, Majestic
+        # Metamorphosis — all turn an artifact into a creature; 0 over-fire to drop).
+        # floor-mirror-dep == 0 (animate_artifact is NOT an _IR_FLOOR_LANE — it was a
+        # SWEEP_DETECTORS key).
+        # The deleted producer fired HIGH-confidence (scope 'you') and counted toward
+        # has_other_plan, so a byte-identical _ANIMATE_ARTIFACT_PLAN_MIRROR in
+        # _signals_regex re-supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_
+        # KEYS, matching the color_change / token_copy_matters / variable_pt byte-
+        # identical-mirror pattern (FILE-SWAP voltron delta == 0). CR 110.1 / 305.7 /
+        # 613 (animating an artifact is a layer-4 type addition; Vehicles / noncreature
+        # artifacts gain the creature type — verified via rules-lawyer).
+        "animate_artifact",
         # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
         # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
         # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass
