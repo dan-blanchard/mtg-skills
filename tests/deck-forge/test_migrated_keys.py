@@ -5672,6 +5672,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 — direct_damage: a source that CAN deal damage to a PLAYER (CR 120.1 /
+    # 115.4). Sizzle is the CLEAN player-burn case — "deals 3 damage to each opponent"
+    # projects a `damage` Effect scope=='opp' (the v22 recipient scope), which always
+    # reaches a player, so the structural arm in extract_signals_ir fires direct_damage
+    # scope "you" with NO creature subject in play (it can't be misread as removal). Its
+    # oracle never says "each player", so the sibling symmetric_damage_each stays
+    # silent.
+    "direct_damage": (
+        {
+            "name": "Sizzle",
+            "type_line": "Sorcery",
+            "oracle_text": "Sizzle deals 3 damage to each opponent.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="damage",
+                        scope="opp",
+                        raw="~ deals 3 damage to each opponent.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # ADR-0027 — symmetric_stax: a controller-NEUTRAL lock affecting EVERYONE. The
     # structural arm fires on a `restriction` Effect whose v22 scope=='each'. Cursed
     # Totem's symmetric ability-shutoff is GENUINE ir_only recall (the SYMMETRIC_STAX
@@ -5692,6 +5718,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
                         category="restriction",
                         scope="each",
                         raw="Activated abilities of creatures can't be activated.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # ADR-0027 — symmetric_damage_each: damage dealt to EACH player (CR 102.2 — an
+    # opponent is not you, so "each opponent" is direct_damage, not this). Pestilence is
+    # the canonical case — "deals 1 damage to each creature and each player" projects a
+    # `damage` Effect scope=='each' (the v22 each-player recipient scope), which the
+    # structural arm in extract_signals_ir reads directly. The subject Filter(Creature)
+    # is the each-creature half; the scope=='each' is the each-PLAYER half that opens
+    # this lane.
+    "symmetric_damage_each": (
+        {
+            "name": "Pestilence",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "At the beginning of the end step, if no creatures are on the "
+                "battlefield, sacrifice this enchantment.\n{B}: This enchantment "
+                "deals 1 damage to each creature and each player."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="{B}",
+                effects=(
+                    Effect(
+                        category="damage",
+                        scope="each",
+                        counter_kind="all",
+                        subject=Filter(card_types=("Creature",)),
+                        raw=("{B}: ~ deals 1 damage to each creature and each player."),
                     ),
                 ),
             )

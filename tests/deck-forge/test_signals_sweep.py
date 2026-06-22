@@ -42,8 +42,10 @@ def test_sweep_detectors_loaded():
     # `\bconjure\b` kept word mirror in signals._IR_KEPT_DETECTORS), then 36→35 as
     # group_hug_draw's row was deleted (ADR-0027 — migrated to a `draw` Effect
     # scope=='each' structural arm + a byte-identical GROUP_HUG_DRAW_REGEX kept word
-    # mirror in signals._IR_KEPT_DETECTORS).
-    assert len(SWEEP_DETECTORS) >= 35
+    # mirror in signals._IR_KEPT_DETECTORS), then 35→34 as symmetric_damage_each's row
+    # was deleted (ADR-0027 — migrated to the v22 damage Effect scope=='each'
+    # structural arm + each-player kept mirror in _signals_ir).
+    assert len(SWEEP_DETECTORS) >= 34
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

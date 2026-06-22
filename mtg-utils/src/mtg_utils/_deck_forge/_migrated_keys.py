@@ -4034,6 +4034,70 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # 0; 0 other-key drift across all 298 keys. CR 604.1 / 118.9 / 903.10a.
         "stax_taxes",
         "symmetric_stax",
+        # ADR-0027 — direct_damage + symmetric_damage_each (the two sibling lanes that
+        # SHARE the v22 damage Effect, migrated atomically). The v22 projection scopes
+        # the damage recipient — 'opp' ("deals N to each/target opponent" — Sizzle),
+        # 'each' ("deals N to each player" — Pestilence), 'any' for creature-only bite
+        # (subject=Filter(Creature) — Flame Slash) AND "any target"/player burn
+        # (subject=None — Lightning Bolt) — so the shared `damage` arm can now route
+        # player-reachable / each-player / creature-only THREE ways (CR 120.1 / 115.4 /
+        # 102.2; rules-lawyer-verified). The old shared IR arm over-fired direct_damage
+        # on ALL non-'you' damage (ir_only 1196, all creature-bite); the v22 scope gate
+        # fixes it.
+        #
+        # direct_damage = a source that CAN deal damage to a PLAYER (a burn-them-out
+        # deck). STRUCTURAL: scope 'opp'/'each' always reaches a player; scope 'any'
+        # fires ONLY when the recipient is NOT creature/permanent-restricted AND the raw
+        # names a player (or an "any target") — so creature-only removal (Flame Slash,
+        # Pyroclasm, Star of Extinction) and the modal "deals N instead" recipient-
+        # dropped clause (Fiery Impulse) and the bare "to you" drawback (Erg Raiders)
+        # stay OUT. MIRROR: the byte-identical _DIRECT_DAMAGE_MIRROR (the OR of the two
+        # deleted _HAND_FLOOR producers) recovers the under-structured player-reaching
+        # tail phase can't read as a `damage` Effect — the damage DOUBLERS (replacement
+        # effects — Furnace of Rath, Torbran), the damage-MATTERS payoffs ("whenever a
+        # source you control deals damage" — The Red Terror, Tamanoa), the controller-
+        # rider (Searing Blood), and the DFC/coin-flip burst burn. Commander-legal,
+        # floor-disabled, by oracle_id: both == 1497 (== the exact regex total, 0 regex
+        # firing lost), ir_only == 139 (ALL verified player-reachable per "no dismissal
+        # without the hook" — each-player sweepers, each-opponent burn, any-target/
+        # controller/them recipients, empty-Filter "to target opponent"), regex_only ==
+        # 0. The flat mirror == the per-clause regex byte-identically (0 over-fire).
+        # SCOPE PARITY: the deleted producers + the structural arm + the mirror all fire
+        # scope 'you' (you control the source) — uniform.
+        #
+        # symmetric_damage_each = damage dealt to EACH player (the Pestilence / Star of
+        # Extinction / Sulfurous Blast symmetric-board family). STRUCTURAL: the
+        # scope=='each' arm (strictly broader-and-correct vs the deleted regex, which
+        # required a literal \d+ amount — the IR catches the X-/equal-to forms it
+        # missed: Earthquake, Price of Progress, Heartless Hidetsugu). MIRROR: the byte-
+        # identical _SYMMETRIC_DAMAGE_EACH_MIRROR (the each-PLAYER subset of the deleted
+        # SWEEP regex) recovers the coin-flip-branch tail phase drops (Volatile Rig,
+        # Winter Sky). The deleted SWEEP lane's "each opponent" arm is INTENTIONALLY
+        # dropped — one-sided damage is NOT symmetric (CR 102.2 — an opponent is not
+        # you), so the ADR-0027 split routes those 168 each-opponent cards to
+        # direct_damage (scope 'opp') instead, where their synergy is correctly re-homed
+        # (verified: all 168 fire direct_damage; 0 genuine each-player card lost —
+        # each_player_leak == 0). Commander-legal, floor-disabled, by oracle_id: both ==
+        # 46, ir_only == 40 (ALL have "each player" text — genuine symmetric the regex's
+        # \d+ gate missed), regex_only == 183 (ALL "each opponent", the intentional
+        # split, re-homed to direct_damage). The flat mirror == per-clause byte-
+        # identically (0 over-fire). SCOPE PARITY: deleted producer + structural arm +
+        # mirror all fire scope 'each'.
+        #
+        # VOLTRON. Both deleted producers fired HIGH-confidence (scope 'you' / 'each')
+        # and fed has_other_plan (neither is _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS — a
+        # burn / symmetric-board engine is no vanilla beater). The migrated IR paths are
+        # BROADER (direct +139; symmetric +40 each-player but -168 each-opponent), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would mis-silence — instead the byte-identical
+        # _DIRECT_DAMAGE_PLAN_MIRROR (the OR of the two deleted direct producers) and
+        # _SYMMETRIC_DAMAGE_EACH_PLAN_MIRROR (the FULL deleted SWEEP regex, incl. each-
+        # opponent) re-supply has_other_plan over the reminder-stripped joined-face
+        # `text`, reproducing the exact pre-migration silence set. The serve specs stay
+        # hand-registered in signal_specs.py (direct_damage's was already independent;
+        # symmetric_damage_each's keeps the old regex via _sweep_spec_with_extras(
+        # regex=) since its SWEEP row was deleted). CR 120.1 / 115.4 / 102.2 / 903.10a.
+        "direct_damage",
+        "symmetric_damage_each",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

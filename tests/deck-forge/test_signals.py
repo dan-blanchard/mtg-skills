@@ -1272,18 +1272,24 @@ def test_land_enter_punisher_opens_burn_lane():
         "type_line": "Legendary Creature — Goblin Warrior",
         "oracle_text": "Whenever a land enters, Zo-Zu deals 2 damage to that land's controller.",
     }
-    assert ("direct_damage", "you") in _keys(zozu)
+    # ADR-0027: direct_damage migrated to the Card IR; the "to that land's controller"
+    # recipient collapses to a subject-less scope='any' damage Effect, so the lane fires
+    # from the byte-identical _DIRECT_DAMAGE_MIRROR (hybrid path), not the deleted regex.
+    assert ("direct_damage", "you") in _keys_hybrid(zozu)
 
 
 def test_source_deals_damage_opens_burn():
     # The Red Terror: "whenever a red source you control deals damage …" — a damage-
-    # matters commander who wants to deal lots of damage (burn).
+    # matters commander who wants to deal lots of damage (burn). ADR-0027: direct_damage
+    # migrated to the Card IR; "source you control deals damage" is a damage-matters
+    # payoff (not a `damage` Effect), so it fires from the byte-identical
+    # _DIRECT_DAMAGE_MIRROR (hybrid path), not the deleted regex.
     terror = {
         "name": "The Red Terror",
         "type_line": "Legendary Creature — Tyranid",
         "oracle_text": "Advanced Species — Whenever a red source you control deals damage to one or more permanents and/or players, put a +1/+1 counter on The Red Terror.",
     }
-    assert ("direct_damage", "you") in _keys(terror)
+    assert ("direct_damage", "you") in _keys_hybrid(terror)
 
 
 def test_self_power_scaling_opens_counters():
@@ -1421,14 +1427,17 @@ def test_if_you_would_gain_life_opens_lifegain():
 
 def test_tap_deals_damage_opens_burn():
     # Heartless Hidetsugu: "{T}: deals damage to each player equal to half …" — a pinger
-    # the digit-keyed branch missed (no literal number).
+    # the digit-keyed branch missed (no literal number). ADR-0027: direct_damage
+    # migrated to the Card IR; "each player" is scope='each' (reaches every player, so
+    # it's player-reachable AND symmetric), served from the structural scope arm via the
+    # bare-IR hybrid path's oracle-fed kept detectors / mirror.
     hidetsugu = {
         "name": "Heartless Hidetsugu",
         "type_line": "Legendary Creature — Ogre Shaman",
         "oracle_text": "{T}: Heartless Hidetsugu deals damage to each player equal to "
         "half that player's life total, rounded down.",
     }
-    assert ("direct_damage", "you") in _keys(hidetsugu)
+    assert ("direct_damage", "you") in _keys_hybrid(hidetsugu)
 
 
 def test_aura_equipment_cost_reducer_opens_voltron():

@@ -217,9 +217,10 @@ def test_keyword_tribe_opens_on_flier_tutor():
 
 def test_direct_damage_opens_on_damage_to_a_creatures_controller():
     # Shocker deals "2 damage to target creature and 2 damage to that creature's
-    # controller" — the second clause burns a PLAYER, but the direct_damage player-anchor
-    # list lacked "that creature's controller", so a burn pinger never opened the lane and
-    # lost its damage doublers (Furnace of Rath / Dictate / Repercussion). Real oracle.
+    # controller" — the second clause burns a PLAYER (CR 102 — a controller is a
+    # player). ADR-0027: direct_damage migrated to the Card IR; phase collapses the
+    # "to that creature's controller" rider to a Creature subject, so the lane fires
+    # from the byte-identical _DIRECT_DAMAGE_MIRROR (hybrid path), not the deleted regex.
     shocker = {
         "name": "Shocker, Unshakable",
         "type_line": "Legendary Creature — Human Rogue Villain",
@@ -232,15 +233,18 @@ def test_direct_damage_opens_on_damage_to_a_creatures_controller():
             "creature and 2 damage to that creature's controller."
         ),
     }
-    assert "direct_damage" in _keys(shocker)
-    # A pure creature-only removal ping (no player/controller damage) stays out.
+    assert "direct_damage" in _keys_hybrid(shocker)
+    # A pure creature-only removal ping (no player/controller damage) stays out — on
+    # BOTH the regex path (producer deleted) and the hybrid path (the scope='any' damage
+    # Effect is creature-restricted → removal_matters, and the mirror doesn't match
+    # "to target creature").
     flame_slash = {
         "name": "Flame Slash",
         "type_line": "Sorcery",
         "mana_cost": "{R}",
         "oracle_text": "Flame Slash deals 4 damage to target creature.",
     }
-    assert "direct_damage" not in _keys(flame_slash)
+    assert "direct_damage" not in _keys_hybrid(flame_slash)
 
 
 def test_direct_damage_opens_on_target_first_variable_damage():
@@ -274,8 +278,12 @@ def test_direct_damage_opens_on_target_first_variable_damage():
             "counts toward your devotion to red.)"
         ),
     }
-    assert "direct_damage" in _keys(anathemancer)  # to target player equal to N
-    assert "direct_damage" in _keys(fanatic_of_mogis)  # to each opponent equal to N
+    # ADR-0027: direct_damage migrated to the Card IR. Anathemancer's "to target
+    # player" parses a subject-less scope='any' damage Effect (player-reach) and Fanatic
+    # of Mogis's "to each opponent" parses scope='opp' — both fire the structural arm;
+    # the bare-IR hybrid path also re-supplies them via the byte-identical mirror.
+    assert "direct_damage" in _keys_hybrid(anathemancer)  # to target player equal to N
+    assert "direct_damage" in _keys_hybrid(fanatic_of_mogis)  # to each opponent equal N
     # creature-only variable damage (to target CREATURE) must stay out — not player burn.
     rockslide_ambush = {
         "name": "Rockslide Ambush",
@@ -286,7 +294,7 @@ def test_direct_damage_opens_on_target_first_variable_damage():
             "Mountains you control."
         ),
     }
-    assert "direct_damage" not in _keys(rockslide_ambush)
+    assert "direct_damage" not in _keys_hybrid(rockslide_ambush)
 
 
 def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
@@ -4296,16 +4304,21 @@ def test_player_burn_source_opens_direct_damage():
             "planeswalker, where X is the number of Shrines you control."
         ),
     }
-    assert ("direct_damage", "you") in _ks(syr_konrad)
-    assert ("direct_damage", "you") in _ks(mogis)
-    assert ("direct_damage", "you") in _ks(go_shintai)
+    # ADR-0027: direct_damage migrated to the Card IR. "each opponent" (Syr Konrad) is
+    # scope='opp'; "to that player" (Mogis) and "to target player or planeswalker"
+    # (Go-Shintai) parse a subject-less scope='any' damage Effect with a player
+    # recipient — all player-reachable, served from the structural arm; the bare-IR
+    # hybrid path re-supplies them via the byte-identical mirror too.
+    assert ("direct_damage", "you") in _ks_hybrid(syr_konrad)
+    assert ("direct_damage", "you") in _ks_hybrid(mogis)
+    assert ("direct_damage", "you") in _ks_hybrid(go_shintai)
     # Over-fire guard: a commander that deals no damage at all does not open the lane.
     healer = {
         "name": "Healer Commander",
         "type_line": "Legendary Creature — Cleric",
         "oracle_text": "Whenever you gain life, draw a card.",
     }
-    assert ("direct_damage", "you") not in _ks(healer)
+    assert ("direct_damage", "you") not in _ks_hybrid(healer)
 
 
 def test_donate_via_that_player_opens_donate():

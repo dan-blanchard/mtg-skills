@@ -254,11 +254,18 @@ def test_card_draw_engine_each_player_wheel_scoped_each():
 
 
 def test_direct_damage_pinger():
+    # ADR-0027: direct_damage migrated to the Card IR. "{T}: deals 3 damage to any
+    # target" is repeatable player-reach burn (CR 115.4 — any target can be a player);
+    # served from the bare-IR hybrid path via the byte-identical _DIRECT_DAMAGE_MIRROR
+    # over the oracle, not the deleted regex.
     c = {
         "name": "Kamahl, Pit Fighter",
         "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{T}: Kamahl deals 3 damage to any target.",
     }
-    assert ("direct_damage", "you") in _ks(c)
+    bare = Card(oracle_id="x", name="Kamahl", faces=(Face(name="Kamahl"),))
+    assert ("direct_damage", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(c, bare)
+    }
 
 
 def test_mana_amplifier():

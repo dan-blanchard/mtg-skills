@@ -2278,6 +2278,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"players? can't|enters?(?: the battlefield)? tapped|can't be"},
         _STAX_SERVE_ORACLE,
     ),
+    # ADR-0027: symmetric_damage_each's SWEEP_DETECTORS row was deleted (detection
+    # moved to the Card IR — the v22 damage Effect scope=='each' arm + each-player
+    # mirror). The serve keeps a board-wide each-everyone regex via regex= (the
+    # strangler pattern) so the "sweepers and pingers that hit everyone" pool still
+    # surfaces; serve is a SEARCH (find symmetric sweepers/pingers to run alongside),
+    # so it intentionally keeps the each-opponent/each-creature reach the DETECTOR
+    # split dropped — a Pestilence deck wants Pyrohemia AND Sizzle-style group burn.
+    ("symmetric_damage_each", "each"): _sweep_spec_with_extras(
+        "symmetric_damage_each",
+        regex=(
+            r"deals \d+ damage to each (?:player|opponent and|"
+            r"creature and each player)"
+            r"|deals \d+ damage to each opponent"
+            r"|deals \d+ damage to each player"
+            r"|deals (?:\d+|x) damage to each (?:creature|nonartifact creature)"
+            r"[^.]*and each player"
+        ),
+    ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",
         "exile-and-return effects, the high-ETB creatures worth re-using, and the "

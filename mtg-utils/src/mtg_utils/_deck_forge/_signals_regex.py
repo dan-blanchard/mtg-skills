@@ -1130,33 +1130,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _DEBUFF_MAHA_REGEX _IR_KEPT_DETECTORS mirror, and feeds the regex-path
     # has_other_plan gate via _DEBUFF_MATTERS_PLAN_MIRROR below (it fired high-
     # confidence forced scope, silencing the spurious commander-damage voltron tell).
-    # Player-BURN source (Syr Konrad, Mogis, Go-Shintai, Nekusar) — a commander that
-    # deals N/X damage to a player/opponent is a burn deck wanting burn payoffs and
-    # damage doublers (direct_damage serves them). Distinct from damage_to_opp_matters,
-    # which keys on a "whenever ~ deals COMBAT damage" connect-TRIGGER. Anchored to a
-    # PLAYER/opponent target, so creature-only pings (removal) stay out.
-    (
-        "direct_damage",
-        re.compile(
-            r"deals (?:\d+|x|that much) damage to "
-            r"(?:target player|target opponent|each opponent|that player|any target"
-            r"|target player or planeswalker)"
-            r"|deals damage equal to [^.]*to "
-            r"(?:each opponent|target player|that player|any target)"
-            # Target-FIRST variable burn: "deals damage to <player> equal to N"
-            # (Anathemancer, Fanatic of Mogis, Corrupt) — the amount-first branch above
-            # missed this word order. Player-scoped, so creature bite stays out.
-            r"|deals damage to (?:target player|target opponent|each opponent"
-            r"|that player|any target|target player or planeswalker) equal to"
-            # "<N> damage to that creature's controller" (Shocker, Gimli) — burns the
-            # PLAYER even when the "deals" sits a clause away ("deals N to a creature
-            # AND N to that creature's controller"). The controller is a player.
-            r"|(?:\d+|x|that much) damage to (?:that creature's|that permanent's) "
-            r"controller",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: direct_damage migrated to the Card IR. BOTH _HAND_FLOOR producers (this
+    # player-BURN source — Syr Konrad, Mogis, Anathemancer, Fanatic of Mogis — and the
+    # any-target/tap-ping/doubler/source-deals-damage producer below) are deleted. The
+    # lane fires from the v22 damage Effect SCOPE arm in _signals_ir (scope 'opp'/'each'
+    # always reaches a player; scope 'any' fires ONLY when the recipient is NOT
+    # creature/permanent-restricted AND the raw names a player — so creature-only bite
+    # stays removal_matters) PLUS the byte-identical _DIRECT_DAMAGE_MIRROR (the OR of
+    # these two deleted producers) for the under-structured player-reaching tail
+    # (doublers, damage-matters payoffs, controller-riders, DFC/coin-flip burst). The
+    # serve spec stays hand-registered in signal_specs.py. The deleted producers fired
+    # HIGH-confidence scope 'you' and fed has_other_plan; the migrated IR is BROADER
+    # (+139 ir_only), so the byte-identical _DIRECT_DAMAGE_PLAN_MIRROR below — NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS — re-supplies the exact pre-migration voltron silence
+    # set. CR 120.1 / 115.4 / 903.10a.
     # ADR-0027 tranche2-C: free_creature_payoff migrated to the Card IR — an ETB
     # trigger whose condition tree carries a manaspentcondition (Satoru the
     # Infiltrator), read structurally in extract_signals_ir. The deleted "no mana …
@@ -1495,27 +1482,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # "for each land you control" forms phase emits as characteristic_pt/pump_target
     # but DROPS the count operand. Moved floor->kept (floor-mirror-dep -> 0); this
     # _HAND_FLOOR producer is deleted.
-    (
-        "direct_damage",
-        re.compile(
-            r"deals? (?:\d+|x) damage to any target"
-            r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
-            # Tap-ping with a non-literal amount ("{T}: deals damage … equal to half …"
-            # — Heartless Hidetsugu): still a repeatable pinger.
-            r"|\{t\}[^.]*?:[^.]*?deals? damage to (?:each|any|target|that)"
-            r"|would deal damage[^.]*?(?:it deals double|it deals twice"
-            r"|deals that much damage plus)"
-            # Land/mana PUNISHER (Zo-Zu): "whenever a land enters / a player taps a land
-            # … deals N damage" — the opponents-landfall-punish side (Ankh, Manabarbs).
-            r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
-            r"[^.]*?deals? (?:\d+|x) damage"
-            # Damage-matters commander: "whenever a (red) source you control deals
-            # damage …" wants to deal lots of damage (The Red Terror, Toralf).
-            r"|whenever a (?:\w+ )?source you control deals damage",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: direct_damage migrated to the Card IR — this second _HAND_FLOOR producer
+    # (any-target burn / {T}-ping / damage doubler / "source you control deals damage"
+    # payoff) is deleted along with the player-burn producer above. It survives byte-
+    # identically inside the _DIRECT_DAMAGE_MIRROR (_signals_ir), whose tail-arms ARE
+    # these exact branches; the doublers + damage-matters payoffs phase emits as
+    # replacement / trigger effects (not a `damage` Effect), so they ride the mirror
+    # while the structural scope arm handles the player-reaching `damage` Effects. See
+    # the migration note on the deleted player-burn producer above.
     # ADR-0027 β: mana_amplifier (the DOUBLER arm) migrated to the Card IR — this
     # _HAND_FLOOR producer is deleted. The lane fires from the IR structural arm (the
     # supplement-split `mana_amplifier` category + a _MANA_AMPLIFY_RAW discriminator
@@ -2869,6 +2843,55 @@ _COMBAT_DAMAGE_CONNECT_PLAN_MIRROR = re.compile(
 # per-clause (FILE-SWAP NO-FLOOD: voltron byte-identical, 0/0). CR 903.10a / 119.3.
 _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR = re.compile(
     DAMAGE_TO_OPP_MATTERS_REGEX, re.IGNORECASE
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated direct_damage key. Both deleted
+# _HAND_FLOOR producers fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a burn /
+# pinger / doubler / damage-matters ENGINE (Syr Konrad, Mogis, Torbran, The Red Terror —
+# the burn plan IS its plan, not a vanilla beater). The migrated IR path is BROADER
+# (+139 ir_only — the any-target/controller/them-reach burn the word-order regexes
+# missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those
+# bodies. This mirror is the byte-identical OR of the two deleted producers; it feeds
+# ONLY the gate (the lane is served from the IR), reproducing the pre-migration
+# `has_other_plan` for ALL cards. Matched against the reminder-STRIPPED joined-face
+# `text` (the deleted floor Detectors ran per-clause over reminder-stripped clauses);
+# the `[^.]*?` arms never cross a sentence, so full-text == per-clause. CR 120.1 /
+# 115.4 / 903.10a.
+_DIRECT_DAMAGE_PLAN_MIRROR = re.compile(
+    r"deals (?:\d+|x|that much) damage to "
+    r"(?:target player|target opponent|each opponent|that player|any target"
+    r"|target player or planeswalker)"
+    r"|deals damage equal to [^.]*to "
+    r"(?:each opponent|target player|that player|any target)"
+    r"|deals damage to (?:target player|target opponent|each opponent"
+    r"|that player|any target|target player or planeswalker) equal to"
+    r"|(?:\d+|x|that much) damage to (?:that creature's|that permanent's) "
+    r"controller"
+    r"|deals? (?:\d+|x) damage to any target"
+    r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
+    r"|\{t\}[^.]*?:[^.]*?deals? damage to (?:each|any|target|that)"
+    r"|would deal damage[^.]*?(?:it deals double|it deals twice"
+    r"|deals that much damage plus)"
+    r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
+    r"[^.]*?deals? (?:\d+|x) damage"
+    r"|whenever a (?:\w+ )?source you control deals damage",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated symmetric_damage_each key. The
+# deleted SWEEP producer fired HIGH-confidence (scope 'each') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a Pestilence
+# / symmetric-board ENGINE (Hidetsugu, Pestilence — the board-clear plan is no vanilla
+# beater). The migrated IR is NOT byte-identical (broader on each-PLAYER +40, narrower
+# on each-OPPONENT -168), so this mirror reproduces the FULL deleted SWEEP regex (incl.
+# the "each opponent" arm) — feeding ONLY the gate — to restore the exact pre-migration
+# silence set for ALL cards. (The each-opponent cards are also re-silenced by the
+# _DIRECT_DAMAGE_PLAN_MIRROR; this keeps the each-player-only cards silenced too.)
+# Matched against the reminder-STRIPPED joined-face `text` (the deleted SWEEP Detector
+# ran per-clause over stripped clauses); the arms are clause-local. CR 102.2 / 903.10a.
+_SYMMETRIC_DAMAGE_EACH_PLAN_MIRROR = re.compile(
+    r"deals \d+ damage to each (?:player|opponent and|creature and each player)"
+    r"|deals \d+ damage to each opponent|deals \d+ damage to each player",
+    re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated variable_pt key. The deleted
 # SWEEP producer fired HIGH-confidence (scope 'any') and counted toward
@@ -4887,6 +4910,27 @@ def extract_signals(
         # producer ran per-clause over stripped clauses); `[^.]*?` never crosses a
         # sentence, so full-text == per-clause. CR 903.10a / 119.3.
         or _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted direct_damage _HAND_FLOOR producers (both
+        # fired HIGH-confidence scope 'you', feeding has_other_plan — a burn / pinger /
+        # doubler / damage-matters engine is no vanilla beater: Syr Konrad, Mogis,
+        # Torbran, The Red Terror). The migrated IR is BROADER (+139 ir_only), so this
+        # byte-identical mirror (the OR of the two deleted producers) — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's exact silence set
+        # without over-silencing the ir_only bodies. Matched against the reminder-
+        # STRIPPED joined-face `text` (the deleted floor Detectors ran per-clause over
+        # stripped clauses); `[^.]*?` never crosses a sentence, so full-text ==
+        # per-clause. CR 120.1 / 115.4 / 903.10a.
+        or _DIRECT_DAMAGE_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted symmetric_damage_each SWEEP producer (it
+        # fired HIGH-confidence scope 'each', feeding has_other_plan — a Pestilence /
+        # symmetric-board engine is no vanilla beater). The migrated IR is NOT byte-
+        # identical (broader each-PLAYER, narrower each-OPPONENT), so this mirror
+        # reproduces the FULL deleted SWEEP regex (incl. the each-opponent arm) — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — to restore the exact pre-migration silence set
+        # for ALL cards. Matched against the reminder-STRIPPED joined-face `text` (the
+        # deleted SWEEP Detector ran per-clause over stripped clauses). CR 102.2 /
+        # 903.10a.
+        or _SYMMETRIC_DAMAGE_EACH_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted variable_pt SWEEP producer (it fired
         # HIGH-confidence scope 'any', feeding has_other_plan). The migrated IR arm +
         # narrowed mirror are BROADER (+22 ir_only), so this byte-identical mirror —

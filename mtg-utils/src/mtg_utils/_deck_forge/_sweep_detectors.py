@@ -1418,12 +1418,22 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Wolverine) and EXCLUDES the regex's "prevent half that damage" halving over-fire
     # (Dark Sphere). Its SWEEP_DETECTORS row is deleted; the serve spec is hand-
     # registered in signal_specs.py (SWEEP_LABELS still carries the human label).
-    {
-        "key": "symmetric_damage_each",
-        "scope": "each",
-        "is_widen_of": "",
-        "regex": "deals \\d+ damage to each (?:player|opponent and|creature and each player)|deals \\d+ damage to each opponent|deals \\d+ damage to each player",
-    },
+    # ADR-0027: symmetric_damage_each migrated to the Card IR. The lane = damage dealt
+    # to EACH player (the Pestilence / Star of Extinction / Sulfurous Blast symmetric-
+    # board family). It fires from the v22 damage Effect scope=='each' structural arm
+    # (strictly broader-and-correct vs this regex, which required a literal \d+ amount —
+    # the IR catches the X-/equal-to forms it missed: Earthquake, Price of Progress,
+    # Heartless Hidetsugu) PLUS the byte-identical _SYMMETRIC_DAMAGE_EACH_MIRROR for the
+    # coin-flip-branch tail (Volatile Rig, Winter Sky). The deleted regex's "each
+    # opponent" arm is INTENTIONALLY dropped — one-sided damage is NOT symmetric (CR
+    # 102.2 — an opponent is not you), so those cards route to direct_damage (scope
+    # 'opp') instead (the ADR-0027 split; 0 genuine each-player card lost). This
+    # SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label and the serve
+    # spec stays hand-registered in signal_specs.py. The deleted producer fired HIGH-
+    # confidence scope 'each', feeding has_other_plan; the full-regex
+    # _SYMMETRIC_DAMAGE_EACH_PLAN_MIRROR re-supplies the exact pre-migration voltron
+    # silence set (the each-opponent cards are independently re-silenced by the
+    # direct_damage plan mirror, so no leak). CR 102.2 / 903.10a.
     # ADR-0027 t2b4-C: damage_to_you_punish migrated to the Card IR (kept_detector) —
     # phase captures the deals_damage event but DROPS both discriminants (the opponent-
     # controlled source filter and the "to you" recipient), so it fires from an

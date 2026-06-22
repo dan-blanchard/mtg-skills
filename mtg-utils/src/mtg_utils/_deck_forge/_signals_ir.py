@@ -3498,6 +3498,82 @@ _POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECAS
 # the spell / sacrificed creature is the source, not a controlled-creature ping.
 _POWER_ITS_OWN_DOER = re.compile(r"deals damage equal to its power", re.IGNORECASE)
 
+# ADR-0027 — direct_damage / symmetric_damage_each share the v22 damage Effect.
+# direct_damage = a source that CAN deal damage to a PLAYER (CR 120.1 / 115.4 — "any
+# target" reaches creatures, players, planeswalkers, or battles, so it can go face);
+# damage restricted to a CREATURE / PERMANENT is REMOVAL (removal_matters), NOT
+# direct_damage. The v22 projection scopes the damage recipient: 'opp' ("deals N to
+# each/target opponent" — Sizzle), 'each' ("deals N to each player" — Pestilence,
+# symmetric), 'any' for creature-restricted bite (subject=Filter(Creature)) AND for
+# "any target"/player burn (subject=None). The structural arm fires direct_damage on
+# scope opp/each (always reaches a player) and on scope 'any' ONLY when the recipient
+# is NOT creature/permanent-restricted AND the raw names a player recipient (or it's
+# an "any target") — the _DIRECT_DAMAGE_PLAYER_REACH gate. This excludes the modal
+# "deals N instead" clause phase emits with the recipient DROPPED (Fiery Impulse /
+# Thermal Blast / Firecannon Blast / Summary Judgment / Olivia Voldaren — pure
+# creature removal) and the bare "to you" self-damage drawback (Erg Raiders, Bind the
+# Monster — the deleted regex's deliberate "incidental SELF-damage" gate-out).
+#
+# _DIRECT_DAMAGE_PLAYER_REACH — a PLAYER recipient OTHER than the pure-self "to you"
+# drawback: "any target"/"any other target" (CR 115.4 → face), explicit
+# player/opponent recipients, and the "that creature's/permanent's/source's
+# controller" forms (a controller is a player, CR 102). Mirrors the deleted regex's
+# player words (which deliberately omit bare "to you").
+_DIRECT_DAMAGE_PLAYER_REACH = re.compile(
+    r"to (?:any target|any other target|target player|target opponent|each opponent"
+    r"|that player|each player|each other player|target player or planeswalker"
+    r"|that player or planeswalker|each of your opponents|an opponent"
+    r"|that creature's controller|that permanent's controller|that source's controller"
+    r"|defending player|target battle|them\b|that player)"
+    r"|deal (?:\d+|x) damage to them\b",
+    re.IGNORECASE,
+)
+# _DIRECT_DAMAGE_MIRROR — the BYTE-IDENTICAL OR of the two deleted _HAND_FLOOR
+# producers (signals scope 'you'). phase under-structures a player-reaching tail the
+# scope arm can't read: the modal "deals N instead" clause keeps a creature recipient
+# elsewhere (so the scope arm correctly skips it, but the regex matched "any target" /
+# "{T}: deals N"), the "to that creature's controller" rider phase collapses to a
+# Creature subject (Searing Blood), the damage DOUBLERS (Furnace of Rath, Torbran,
+# Gratuitous Violence — "would deal damage … double", a replacement, not a `damage`
+# Effect), the damage-MATTERS payoffs ("whenever a source you control deals damage" —
+# The Red Terror, Tamanoa), and the DFC back-face / granted-ability / coin-flip burst
+# burn. Run FLAT over the reminder-stripped joined-face oracle in the kept-detector
+# pass; `[^.]*?` never crosses a sentence, so flat == the per-clause regex firing set
+# byte-identically (commander-legal: both == 1497, regex_only == 0; 0 flat over-fire).
+_DIRECT_DAMAGE_MIRROR = re.compile(
+    r"deals (?:\d+|x|that much) damage to "
+    r"(?:target player|target opponent|each opponent|that player|any target"
+    r"|target player or planeswalker)"
+    r"|deals damage equal to [^.]*to "
+    r"(?:each opponent|target player|that player|any target)"
+    r"|deals damage to (?:target player|target opponent|each opponent"
+    r"|that player|any target|target player or planeswalker) equal to"
+    r"|(?:\d+|x|that much) damage to (?:that creature's|that permanent's) "
+    r"controller"
+    r"|deals? (?:\d+|x) damage to any target"
+    r"|\{t\}[^.]*?:[^.]*?deals? (?:\d+|x) damage"
+    r"|\{t\}[^.]*?:[^.]*?deals? damage to (?:each|any|target|that)"
+    r"|would deal damage[^.]*?(?:it deals double|it deals twice"
+    r"|deals that much damage plus)"
+    r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
+    r"[^.]*?deals? (?:\d+|x) damage"
+    r"|whenever a (?:\w+ )?source you control deals damage",
+    re.IGNORECASE,
+)
+# _SYMMETRIC_DAMAGE_EACH_MIRROR — the each-PLAYER subset of the deleted SWEEP regex
+# (signals scope 'each'). The deleted SWEEP lane ALSO matched "each opponent" (one-
+# sided, NOT symmetric — CR 102.2: an opponent is not you); the v22 split routes
+# those to direct_damage (scope='opp'), so this mirror keeps ONLY the genuine each-
+# PLAYER arms ("each player", "each creature and each player") the structural
+# scope='each' arm under-reads when phase drops the damage inside a coin-flip branch
+# (Volatile Rig, Winter Sky). Run FLAT over the reminder-stripped joined-face oracle;
+# flat == per-clause (no `[^.]*` to cross a sentence), 0 over-fire.
+_SYMMETRIC_DAMAGE_EACH_MIRROR = re.compile(
+    r"deals \d+ damage to each (?:player|creature and each player)"
+    r"|deals \d+ damage to each player",
+    re.IGNORECASE,
+)
+
 # creature_cast_trigger (ADR-0027): phase parses "Whenever you cast a creature spell"
 # into a cast_spell trigger but DROPS the spell-type subject (subject=None), OR keeps
 # only a `place_counter`/`emblem`/granted-token effect whose raw carries the trigger
@@ -4257,6 +4333,29 @@ def _is_permanent_subtype_destroy(f: object) -> bool:
     if not isinstance(f, Filter) or not f.subtypes:
         return False
     return any(s.lower() not in _LAND_SUBTYPES for s in f.subtypes)
+
+
+def _ir_damage_reaches_player(e: Effect) -> bool:
+    """direct_damage gate for a v22 damage Effect at scope 'any' (ADR-0027). True when
+    the recipient reaches a PLAYER (CR 120.1 / 115.4) — so creature-only bite stays
+    removal. A Player-typed subject reaches a player directly; otherwise the recipient
+    must be UNRESTRICTED (subject None / empty Filter — phase drops the recipient TYPE
+    for a player target) AND the raw must name a player (the
+    _DIRECT_DAMAGE_PLAYER_REACH words). A creature/permanent subject (Flame Slash,
+    Pyroclasm) or a subtyped subject is removal, NOT direct; the modal "deals N
+    instead" recipient-dropped clause (Fiery Impulse) has no player word, so it stays
+    out too."""
+    subject = e.subject
+    if isinstance(subject, Filter) and "Player" in subject.card_types:
+        return True
+    dftypes = _ftypes(subject)
+    if (dftypes & _PERMANENT_TYPES) or _is_permanent_subtype_destroy(subject):
+        return False
+    if subject is not None and (
+        dftypes or (isinstance(subject, Filter) and subject.subtypes)
+    ):
+        return False
+    return bool(_DIRECT_DAMAGE_PLAYER_REACH.search(e.raw or ""))
 
 
 # ADR-0027 destroy_legendary — phase stamps this exact predicate on a destroy
@@ -5280,9 +5379,34 @@ def extract_signals_ir(
             if doer is not None:
                 key, fixed_scope = doer
                 add(key, fixed_scope or _ir_scope(e.scope), "", e.raw)
-            # direct_damage is a doer (scope "you" = you control the source);
-            # gate out incidental SELF-damage (painlands, talismans target you).
-            if e.category == "damage" and e.scope != "you":
+            # direct_damage (ADR-0027) — a source that CAN deal damage to a PLAYER
+            # (a burn-them-out deck; CR 120.1 / 115.4). Gate the v22 damage Effect on
+            # the recipient scope so creature-only bite stays REMOVAL, not direct:
+            #   scope 'opp'  → "deals N to each/target opponent" (Sizzle, Fanatic of
+            #     Mogis) always reaches a player.
+            #   scope 'each' → "deals N to each player" (Pestilence, Heartless
+            #     Hidetsugu) reaches every player incl. you — player-reachable AND
+            #     symmetric (symmetric_damage_each fires too; the overlap the spec
+            #     notes). EXCLUDES incidental SELF-damage (scope 'you' — painlands).
+            #   scope 'any' → ambiguous: "any target" / "to target player" burn
+            #     (subject=None — Lightning Bolt, Anathemancer) reaches a player, but
+            #     "to target creature" (subject=Filter(Creature) — Flame Slash) and
+            #     "to each creature" (Pyroclasm, Star of Extinction) are creature-only
+            #     removal. So fire scope 'any' ONLY when the recipient is NOT
+            #     creature/permanent-restricted AND the raw names a player recipient
+            #     (or an "any target") — the _DIRECT_DAMAGE_PLAYER_REACH gate. This
+            #     excludes the modal "deals N instead" clause phase emits with the
+            #     recipient dropped (Fiery Impulse) and the bare "to you" drawback.
+            # The under-structured player-reaching tail (doublers, damage-matters
+            # payoffs, controller-riders, DFC/coin-flip burst) rides the byte-
+            # identical _DIRECT_DAMAGE_MIRROR in the kept-detector pass.
+            # scope 'opp'/'each' always reach a player; scope 'any' only when the
+            # recipient is player-reachable (not creature/permanent-restricted); scope
+            # 'you' is incidental self-damage (painlands), excluded.
+            if e.category == "damage" and (
+                e.scope in ("opp", "each")
+                or (e.scope != "you" and _ir_damage_reaches_player(e))
+            ):
                 add("direct_damage", "you", "", e.raw)
             # Batch 3 — tribal type_matters: a subtype anthem/count over YOUR
             # creatures (Goblin lord, "for each Goblin you control"). The token
@@ -5797,6 +5921,17 @@ def extract_signals_ir(
                 # scope='any'). CR 120.2 (draw is a player action).
                 if e.scope == "any":
                     add("target_player_draws", "any", "", e.raw)
+            # symmetric_damage_each (ADR-0027) — damage dealt to EACH player (the
+            # Pestilence / Star of Extinction / Sulfurous Blast symmetric-board
+            # family). The v22 projection scopes "deals N to each player" as 'each'
+            # (DamageEachPlayer/DamageAll player_filter=All); "each opponent" is
+            # scope='opp' (one-sided, NOT symmetric — CR 102.2 — it rides direct_damage
+            # instead). The structural arm is strictly broader-and-correct vs the
+            # deleted regex (which required a literal \d+ amount, missing the X-/equal-
+            # to forms — Earthquake, Price of Progress, Heartless Hidetsugu). The
+            # under-structured each-player tail phase drops inside a coin-flip branch
+            # (Volatile Rig, Winter Sky) rides the byte-identical
+            # _SYMMETRIC_DAMAGE_EACH_MIRROR in the kept-detector pass.
             if cat == "damage" and e.scope == "each":
                 add("symmetric_damage_each", "each", "", e.raw)
             # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack
@@ -7159,6 +7294,24 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 — direct_damage byte-identical mirror (the OR of the two deleted
+    # _HAND_FLOOR producers, scope 'you'). Recovers the player-reaching tail the v22
+    # scope arm can't read structurally: damage DOUBLERS (replacement effects, not a
+    # `damage` Effect), damage-MATTERS payoffs ("whenever a source you control deals
+    # damage"), the controller-rider (Searing Blood), and the DFC/coin-flip/granted
+    # burst burn. add() dedups vs the structural arm. Flat over kept_oracle == the
+    # per-clause regex firing set byte-identically (regex_only == 0, 0 over-fire).
+    # CR 120.1 / 115.4.
+    if _DIRECT_DAMAGE_MIRROR.search(kept_oracle):
+        add("direct_damage", "you", "", "")
+    # ADR-0027 — symmetric_damage_each byte-identical mirror (the each-PLAYER subset
+    # of the deleted SWEEP regex, scope 'each'). Recovers the genuine each-player tail
+    # phase drops inside a coin-flip branch (Volatile Rig, Winter Sky); the deleted
+    # lane's "each opponent" arm is INTENTIONALLY dropped (one-sided → direct_damage,
+    # the ADR-0027 split). add() dedups vs the structural arm; flat == per-clause, 0
+    # over-fire. CR 102.2.
+    if _SYMMETRIC_DAMAGE_EACH_MIRROR.search(kept_oracle):
+        add("symmetric_damage_each", "each", "", "")
     # ADR-0027 β — mana_amplifier DORK-SUPPORT arm (a payoff for mana-producing
     # CREATURES: "Each creature you control with a mana ability gets +2/+2 / … untap it"
     # — Raggadragga). phase DROPS the "with a mana ability" subject qualifier (the
