@@ -34,11 +34,10 @@ CASES = [
     # structural arm + a narrowed kept mirror + a facade cross-open reconciliation), so
     # it no longer fires on the regex path tested here — its IR path is proven in
     # test_migrated_keys and test_signals_generalized.
-    (
-        "opponent_discard",
-        "opponents",
-        "When this creature enters, each opponent discards a card.",
-    ),
+    # ADR-0027: opponent_discard migrated to the Card IR (a `discard` EFFECT scope 'opp'
+    # structural arm + a byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror), so it no
+    # longer fires on the regex path tested here — its IR path is asserted by
+    # test_opponent_discard_migrated_off_regex_onto_ir below.
     ("evasion_self", "you", "This creature can't be blocked."),
     (
         "clone_matters",
@@ -68,6 +67,23 @@ def test_effect_axis_detectors_fire():
             for s in extract_signals({"name": "X", "oracle_text": oracle})
         }
         assert (key, scope) in sigs, f"{key}/{scope} did not fire on: {oracle}"
+
+
+def test_opponent_discard_migrated_off_regex_onto_ir():
+    # ADR-0027: opponent_discard fires from the hybrid IR path, not the regex path. The
+    # forced "each opponent discards" forcer rides the byte-identical
+    # _OPPONENT_DISCARD_MIRROR kept-mirror over the oracle, so a bare IR routes the hybrid
+    # to the mirror-bearing path.
+    c = {
+        "name": "Mind Rot-like",
+        "oracle_text": "When this creature enters, each opponent discards a card.",
+    }
+    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    assert not any(s.key == "opponent_discard" for s in extract_signals(c))
+    assert any(
+        (s.key, s.scope) == ("opponent_discard", "opponents")
+        for s in extract_signals_hybrid(c, bare_ir)
+    )
 
 
 # --- widens of existing keys ---------------------------------------------------

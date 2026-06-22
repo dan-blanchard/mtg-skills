@@ -1163,6 +1163,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # opponent_discard ← a `discard` EFFECT scope "opp" (the forced-OPPONENT-discard /
+    # hand-attack lane — Mind Rot's "target player discards two cards"). DISJOINT from
+    # discard_matters: opponent_discard reads the `discard` EFFECT scope 'opp', NOT the
+    # `discarded` self-discard TRIGGER. The structural arm fires the 7 forced-opp
+    # discards phase scopes 'opp'; the directed "target player discards" (scope 'any')
+    # and "whenever an opponent discards" payoffs (a `discarded` trigger) ride the
+    # byte-identical _OPPONENT_DISCARD_MIRROR _IR_KEPT_DETECTORS row. ADR-0027.
+    "opponent_discard": (
+        {
+            "name": "Mind Rot",
+            "type_line": "Sorcery",
+            "oracle_text": "Target player discards two cards.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="discard",
+                        scope="opp",
+                        raw="target player discards two cards",
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

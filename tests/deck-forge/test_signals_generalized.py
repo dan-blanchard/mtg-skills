@@ -5988,7 +5988,10 @@ def test_discard_matters_payoff_opens_opponent_discard():
             "{4}{B}{B}: Each opponent with no cards in hand loses 10 life."
         ),
     }
-    assert "opponent_discard" in _keys(tinybones)
+    # ADR-0027: opponent_discard migrated to the Card IR; it now fires from the hybrid
+    # path (the byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror catches the "opponent
+    # discarded a card this turn" payoff over the oracle, so a bare IR suffices).
+    assert "opponent_discard" in _keys_hybrid(tinybones)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -6024,7 +6027,7 @@ def test_discard_matters_payoff_opens_opponent_discard():
         "type_line": "Creature — Wizard",
         "oracle_text": "{T}: Draw a card, then you discard a card.",
     }
-    assert "opponent_discard" not in _keys(loot)
+    assert "opponent_discard" not in _keys_hybrid(loot)
 
 
 def test_symmetric_cast_punisher_opens_opponent_cast_matters():

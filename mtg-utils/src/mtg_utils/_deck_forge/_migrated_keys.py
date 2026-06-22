@@ -3541,6 +3541,66 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # land_destruction / land_exchange / sacrifice_matters / ramp_matters drift 0; 0
         # other-key drift across all 298 keys. CR 701.16 / 903.10a.
         "land_sacrifice_matters",
+        # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack
+        # avenue — "target/each player discards" hand-attack (Mind Rot, Hymn to
+        # Tourach, Mind Twist, Stupor), the symmetric upkeep-discard forcers
+        # (Bottomless Pit, Oppression, Necrogen Mists), AND the discard-MATTERS
+        # PAYOFFS that trigger on an opponent HAVING discarded ("whenever an opponent
+        # discards" — Megrim, Liliana's Caress, Waste Not, Nath, Sangromancer; "if an
+        # opponent discarded a card this turn" — Tinybones, Bauble Burglar). scope
+        # "opponents"). This is the DISJOINT SIBLING of discard_matters: opponent_
+        # discard keys on the forced-discard EFFECT scope 'opp' (or the opp-discard
+        # PAYOFF), NOT the `discarded` self-discard TRIGGER (scope != 'opp') the
+        # discard_matters lane reads. MIGRATED VIA A STRUCTURAL ARM + a byte-identical
+        # word mirror. NO sidecar bump (the v20 projection already emits the
+        # `discard` effect scope 'opp' the structural arm reads).
+        #
+        # STRUCTURAL ARM. extract_signals_ir fires opponent_discard scope "opponents"
+        # on a `discard` EFFECT with scope == "opp" (Leshrac's Sigil, Thought-Stalker
+        # Warlock, Robber Fly, Doomsday Specter, Laquatus's Creativity — the 7 genuine
+        # forced-opp-discards the loot-only literal-regex missed, each verified vs
+        # actual Scryfall oracle). But phase UNDER-STRUCTURES the lane three ways: a
+        # directed "target player discards" parses the discard effect scope 'any' (the
+        # affected player carries no controller — Mind Rot, Hymn to Tourach, Mind
+        # Twist), a symmetric "each player discards" parses scope 'you'/'any'
+        # (Bottomless Pit), and a "whenever an opponent discards" PAYOFF parses a
+        # `discarded` TRIGGER (scope opp) with NO discard effect at all (Megrim, Waste
+        # Not, Tinybones). The structural-arm-alone catches only 76 of 433; the rest
+        # need a kept word mirror.
+        #
+        # KEPT WORD MIRROR (recall recovery, NO sidecar bump). A byte-identical
+        # _OPPONENT_DISCARD_MIRROR row in signals._IR_KEPT_DETECTORS reproduces the
+        # EXACT deleted _HAND_FLOOR regex (the "(each|target|that) player/opponent
+        # discards" forcer OR the "opponent discarded a card this turn" / "whenever an
+        # opponent/a player discards" payoff) over the reminder-STRIPPED kept_oracle —
+        # byte-identical to the deleted producer's `re.sub(r"\([^)]*\)", " ",
+        # …)`-stripped input (and joining DFC faces via get_oracle_text). The regex's
+        # `[^.]{0,20}` arm never crosses a sentence, so the flat .search == the floor
+        # detector's per-clause path. Combined (struct OR mirror) reproduces the
+        # deleted regex with regex_only==0 (NO recall lost) + 7 genuine scope-'opp'
+        # effect recall gains (the directed/forced opp-discards phase structures as a
+        # `discard` effect but the literal regex's word list missed). 0 over-fire (the
+        # mirror IS the regex). SCOPE PARITY: 0 mismatch on the 433 both-fire (all
+        # "opponents").
+        #
+        # GATES. floor-mirror-dep == 0 (opponent_discard is NOT an _IR_FLOOR_LANE — it
+        # was a hand-written _HAND_FLOOR producer; it lives in IR_SLICE_KEYS, the
+        # structural-arm slice). FLOOR-DISABLED residual vs the deleted regex
+        # (commander-legal, dedupe oracle_id, _IR_FLOOR_LANES=frozenset()): both ==
+        # 433, regex_only == 0, ir_only == 7. discard_matters (the SELF-discard lane)
+        # is DISJOINT — it reads the `discarded` TRIGGER scope != 'opp', not the
+        # `discard` EFFECT scope 'opp' — so it does NOT drift.
+        #
+        # VOLTRON. The deleted _HAND_FLOOR producer fired HIGH-confidence (scope
+        # 'opponents') and fed has_other_plan (a hand-attack engine is no vanilla
+        # beater: Nath, Tinybones, Davriel), so a byte-identical
+        # _OPPONENT_DISCARD_PLAN_MIRROR in _signals_regex re-supplies the commander-
+        # damage voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, since the combined
+        # IR arm is BROADER (+7 ir_only) and the silencing-keys path would over-silence
+        # those 7 payoff bodies. Restores has_other_plan for ALL cards regardless of
+        # IR/regex mode (FILE-SWAP voltron delta 0). CR 701.8a (discard) / 903.10a
+        # (voltron).
+        "opponent_discard",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

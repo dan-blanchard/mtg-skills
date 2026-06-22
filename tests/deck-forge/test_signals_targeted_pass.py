@@ -71,7 +71,8 @@ def test_oring_removal_is_not_flicker():
 # a STRUCTURAL deals_damage trigger carrying project's DamageToPlayer recipient marker
 # (Lu Xun's "deals damage to an opponent" → valid_target Typed/Opponent), with a byte-
 # identical kept mirror covering the textual tail. opponent_discard (Zhang Liao) is a
-# SEPARATE regex lane that still fires from the regex path.
+# SEPARATE lane ALSO migrated to the IR (ADR-0027) — it fires from the hybrid path via
+# the byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror.
 LU_XUN = (
     "Horsemanship\nWhenever Lu Xun deals damage to an opponent, you may draw a card."
 )
@@ -131,7 +132,9 @@ def test_lu_xun_damage_scope_is_opponents():
 
 
 def test_zhang_liao_damage_and_discard():
-    # damage_to_opp_matters is now IR-served; opponent_discard stays a regex lane.
+    # ADR-0027: damage_to_opp_matters AND opponent_discard are both now IR-served. Zhang
+    # Liao's "that opponent discards a card" fires opponent_discard from the hybrid path
+    # (the byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror over the oracle).
     card = {
         "name": "Zhang Liao",
         "oracle_text": ZHANG,
@@ -139,7 +142,7 @@ def test_zhang_liao_damage_and_discard():
     }
     hyb = {s.key for s in extract_signals_hybrid(card, _damage_to_opp_ir())}
     assert "damage_to_opp_matters" in hyb
-    assert "opponent_discard" in _keys(ZHANG, name="Zhang Liao")
+    assert "opponent_discard" in hyb
 
 
 def test_noncombat_damage_does_not_fire_combat_axis():

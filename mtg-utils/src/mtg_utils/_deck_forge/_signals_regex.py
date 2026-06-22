@@ -1892,21 +1892,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # bodies. The LOW-conf `dont_own` cross-open below + the theft_matters sibling are
     # reconciled in signals.py against the MERGED key set. The serve spec (signal_specs)
     # survives. CR 800.4a / 720.1 / 903.10a.
-    (
-        "opponent_discard",
-        re.compile(
-            r"(?:each opponent|target opponent|an opponent|that opponent"
-            r"|target player|that player|each player) discards"
-            # Discard-MATTERS payoffs (not just forcers): a commander that triggers on
-            # an opponent HAVING discarded — Tinybones "if an opponent discarded a card
-            # this turn", or "whenever an opponent discards" — runs the forced-discard
-            # package (Bottomless Pit, Oppression, Megrim, Liliana's Caress).
-            r"|(?:opponent|player)[^.]{0,20}discarded a card this turn"
-            r"|whenever (?:an opponent|a player|another player) discards",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027: opponent_discard migrated to the Card IR — this _HAND_FLOOR producer
+    # (the "(each|target|that) player/opponent discards" hand-attack forcer OR the
+    # "opponent discarded a card this turn" / "whenever an opponent discards" payoff)
+    # is DELETED. It fires from a structural arm (a `discard` EFFECT scope == "opp",
+    # +7 genuine recall) PLUS a byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror in
+    # signals._IR_KEPT_DETECTORS (the EXACT deleted regex) for the directed/symmetric
+    # forcers phase scopes 'any'/'you' and the "whenever an opponent discards" payoffs
+    # phase emits a `discarded` TRIGGER for. The serve spec stays hand-registered in
+    # signal_specs.py; the deleted producer fed has_other_plan (HIGH-confidence, scope
+    # 'opponents'), so its voltron silence is restored by _OPPONENT_DISCARD_PLAN_MIRROR
+    # below. DISJOINT from discard_matters (the SELF-discard `discarded`-TRIGGER scope
+    # != 'opp' lane). CR 701.8a / 903.10a.
     # ADR-0027 β: damage_to_opp_matters migrated to the Card IR. This HAND_FLOOR
     # producer (a "whenever ~ deals (noncombat) damage to a PLAYER / opponent"
     # connect-payoff — ANY damage, not the literal "combat damage" the combat_* keys
@@ -3888,6 +3885,25 @@ _DISCARD_MATTERS_PLAN_MIRROR = re.compile(
     r"(?:then )?(?:you )?(?:may )?discard",
     re.IGNORECASE,
 )
+# ADR-0027: the HAS-OTHER-PLAN voltron mirror for the migrated opponent_discard key.
+# The deleted _HAND_FLOOR producer fired HIGH-confidence (scope 'opponents') and fed
+# has_other_plan (a forced-discard / hand-attack ENGINE is a real plan — Nath,
+# Tinybones, Davriel, Liliana of the Veil — not a vanilla beater). Byte-identical OR of
+# the deleted regex (the forcer "(each|target|that) player/opponent discards" + the opp-
+# discard payoffs). The migrated lane rides the structural arm + the byte-identical
+# _OPPONENT_DISCARD_MIRROR kept-mirror that together are BROADER than the deleted regex
+# (+7 ir_only), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence
+# those 7 payoff bodies; this mirror restores the deleted producer's EXACT silence set
+# for ALL cards regardless of IR/regex mode, so the file-swap shows voltron delta 0.
+# Matched against the reminder-STRIPPED `text` (the deleted producer ran over
+# `re.sub(r"\([^)]*\)", " ", …)`-stripped text). CR 701.8a / 903.10a.
+_OPPONENT_DISCARD_PLAN_MIRROR = re.compile(
+    r"(?:each opponent|target opponent|an opponent|that opponent"
+    r"|target player|that player|each player) discards"
+    r"|(?:opponent|player)[^.]{0,20}discarded a card this turn"
+    r"|whenever (?:an opponent|a player|another player) discards",
+    re.IGNORECASE,
+)
 # Meld (CR 701.42): a meld piece either melds the pair into a result ("meld them into",
 # front) or carries the reminder "(Melds with <front>.)" (back). Either side wants its
 # ONE specific partner, so meld_pair is subject-bearing (subject = this card's name);
@@ -4763,6 +4779,17 @@ def extract_signals(
         # STRIPPED `text` (the deleted producer ran over `re.sub(r"\([^)]*\)", " ",
         # …)`-stripped text). CR 702.35 / 903.10a.
         or _DISCARD_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted opponent_discard _HAND_FLOOR producer (it
+        # fired HIGH-confidence scope 'opponents', feeding has_other_plan — a forced-
+        # discard / hand-attack ENGINE is a real plan, not a vanilla beater: Nath,
+        # Tinybones, Davriel, Liliana of the Veil). The migrated lane rides a `discard`-
+        # effect scope-'opp' structural arm + a byte-identical kept-mirror that are
+        # BROADER (+7 ir_only), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the deleted regex's exact silence set
+        # without over-silencing the ir_only gains. Matched against the reminder-
+        # STRIPPED `text` (the deleted producer ran over `re.sub(r"\([^)]*\)", " ",
+        # …)`-stripped text). CR 701.8a / 903.10a.
+        or _OPPONENT_DISCARD_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

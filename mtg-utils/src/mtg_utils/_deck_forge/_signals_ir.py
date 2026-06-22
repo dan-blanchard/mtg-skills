@@ -785,6 +785,36 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack avenue).
+    # The structural arm (a `discard` EFFECT scope == "opp") covers the 7 genuine
+    # forced-opp-discards phase structures as a scope-'opp' discard effect (Leshrac's
+    # Sigil, Thought-Stalker Warlock, Robber Fly, Doomsday Specter, Laquatus's
+    # Creativity), but phase UNDER-STRUCTURES the bulk of the lane: a directed "target
+    # player discards" parses scope 'any' (Mind Rot, Hymn to Tourach), a symmetric
+    # "each player discards" parses scope 'you'/'any' (Bottomless Pit), and a "whenever
+    # an opponent discards" PAYOFF parses a `discarded` TRIGGER scope opp with NO
+    # discard effect (Megrim, Waste Not, Tinybones — the discard-MATTERS payoffs). So
+    # this byte-identical mirror of the deleted _HAND_FLOOR producer recovers the
+    # forced-discard + opp-discard-payoff cards the structural arm alone misses. Run as
+    # a flat .search over the reminder-STRIPPED kept_oracle — byte-identical to the
+    # deleted producer's `re.sub(r"\([^)]*\)", " ", …)`-stripped input (and joining DFC
+    # faces via get_oracle_text). The `[^.]{0,20}` arm never crosses a sentence, so the
+    # flat .search == the deleted floor detector's per-clause path. Combined (struct OR
+    # mirror) reproduces the deleted regex with regex_only==0 + 7 genuine scope-'opp'
+    # recall gains and 0 over-fire (the mirror IS the regex). DISJOINT from the
+    # discard_matters lane (which reads the `discarded` self-discard TRIGGER scope !=
+    # 'opp'). CR 701.8a.
+    (
+        "opponent_discard",
+        re.compile(
+            r"(?:each opponent|target opponent|an opponent|that opponent"
+            r"|target player|that player|each player) discards"
+            r"|(?:opponent|player)[^.]{0,20}discarded a card this turn"
+            r"|whenever (?:an opponent|a player|another player) discards",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real CARD,
     # not a token" mechanic, CR 701.66a). phase carries a structural `Conjure` effect
     # type but the projection folds it to make_token AND that structural set is
@@ -5558,6 +5588,17 @@ def extract_signals_ir(
                     add("target_player_draws", "any", "", e.raw)
             if cat == "damage" and e.scope == "each":
                 add("symmetric_damage_each", "each", "", e.raw)
+            # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack
+            # avenue). A `discard` EFFECT scope == "opp" is a forced opp discard phase
+            # DID structure (Leshrac's Sigil, Thought-Stalker Warlock, Robber Fly,
+            # Doomsday Specter, Laquatus's Creativity — the 7 genuine recall gains the
+            # deleted literal regex's word list missed). phase under-structures the
+            # rest: a directed "target player discards" → scope 'any', a symmetric
+            # "each player discards" → scope 'you'/'any', and a "whenever an opponent
+            # discards" PAYOFF → a `discarded` TRIGGER scope opp with no discard effect
+            # — those ride the _OPPONENT_DISCARD_MIRROR _IR_KEPT_DETECTORS row. DISJOINT
+            # from discard_matters (the SELF-discard lane reads the `discarded` trigger
+            # scope != 'opp', not this `discard` effect scope 'opp'). CR 701.8a.
             if cat == "discard" and e.scope == "opp":
                 add("opponent_discard", "opponents", "", e.raw)
             # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
