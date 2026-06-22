@@ -4670,6 +4670,56 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # precedent). FILE-SWAP voltron delta 0 (3010 -> 3010). CR 702.184 (Station) /
         # 903.10a (voltron).
         "station_matters",
+        # ADR-0027 — tap_down (the tap-down control lane — tap an OPPONENT's
+        # permanent / "skips its next untap step" / detain to lock an opponent's
+        # board; CR 701.21 detain, CR 502 untap step). Now fires from the Card IR
+        # instead of its oracle-regex SWEEP producer. NO sidecar bump (the kept mirror
+        # reads the record's reminder-stripped oracle; no new projection field).
+        #
+        # BYTE-IDENTICAL KEPT WORD MIRROR (NOT a structural arm). phase v0.1.19 DOES
+        # carry a structural `tap` Effect, but its scope is inferred from the COST
+        # CONTEXT, not the tap TARGET — so the floor-disabled structural
+        # `cat=='tap' and e.scope=='opp'` arm caught only 13 cards (both==12,
+        # ir_only==1) and MISSED 89 regex producers (regex_only==89). The 1 ir_only
+        # over-fire is Cryptic Cruiser ("{2}{U}, Put a card an opponent owns…: Tap
+        # target creature") — a bare any-controller "target creature" tap whose scope
+        # phase inferred 'opp' from the activation cost; the deleted regex never fired
+        # it (it requires the tap TARGET to be "an opponent controls"), and
+        # tapper_engine/any already covers it. The 89 regex_only are genuine
+        # tap-down/lockdown (Frost Lynx, Icefall Regent, Dungeon Geists, Kor
+        # Hookmaster, Time of Ice, Citadel Siege, Quiet Contemplation, Brine Elemental
+        # "skips its next untap step", Spinny Ride, Faebloom Trick … — ALL "tap target
+        # … an opponent controls" / "skips next untap step" / detain; 0 over-fire),
+        # whose phase parse drops the controller predicate. So the structural
+        # `cat=='tap'/opp` arm AND the _IR_KEYWORD_MAP['detain'] entry are BOTH REMOVED
+        # and the lane MOVED to a byte-identical mirror (the EXACT deleted SWEEP regex
+        # TAP_DOWN_REGEX) over the reminder-stripped kept_oracle in
+        # _signals_ir._IR_KEPT_DETECTORS. The four arms' `[^.]*` span never crosses a
+        # clause (the splitter cuts on [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n`
+        # lands inside a span on the corpus), so flat-over-kept_oracle == the deleted
+        # per-clause SWEEP firing EXACTLY (commander-legal, by oracle_id: both==101,
+        # ir_only==0, regex_only==0; scope 'opponents' on all 101, 0 mismatch). The
+        # broad any-controller target tap (incl. Cryptic Cruiser) stays on the SEPARATE
+        # tapper_engine lane (scope 'any'), untouched.
+        #
+        # The SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as
+        # TAP_DOWN_REGEX in _sweep_detectors. The serve spec was AUTO-registered from
+        # the SWEEP row, so it is hand-registered in signal_specs.py reusing
+        # TAP_DOWN_REGEX (serve pool never drifts). Siblings key on different producers
+        # and drift 0; tapper_engine is explicitly untouched (it keys on
+        # `e.subject is not None`, scope 'any').
+        #
+        # VOLTRON. The deleted SWEEP producer fired HIGH-confidence (forced scope
+        # 'opponents') and fed has_other_plan (tap_down is NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS — a tap-down control commander is a stax/tempo plan, no
+        # vanilla beater). Because the kept mirror is BYTE-IDENTICAL (IR == regex ==
+        # 101, no broadening), tap_down is added to
+        # signals._VOLTRON_SILENCING_PLAN_KEYS so the hybrid re-silences the spurious
+        # commander-damage membership tell from the IR re-supply, restoring
+        # pre-migration behavior (the station_matters / dies_recursion kept-mirror
+        # precedent). FILE-SWAP voltron delta 0 (3010 -> 3010). CR 701.21 / 502 /
+        # 903.10a (voltron).
+        "tap_down",
         # ADR-0027 — creature_recursion (return a CREATURE card from a graveyard, to
         # HAND or BATTLEFIELD: Raise Dead, Gravedigger, Reanimate, Hua Tuo, Meren). The
         # build-around axis for "loop a single creature" engines — they want self-

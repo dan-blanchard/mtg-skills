@@ -89,8 +89,13 @@ def test_sweep_detectors_loaded():
     # signals._IR_KEPT_DETECTORS for the look-then-stack / put-from-hand forms; CR 401.4),
     # then 22→21 as lure_matters's row was deleted (ADR-0027 — migrated to a structural
     # `lure` arm UNION a byte-identical LURE_MATTERS_REGEX kept word mirror in _signals_ir
-    # for the Aftermath-DFC back face phase drops; CR 509.1c).
-    assert len(SWEEP_DETECTORS) >= 21
+    # for the Aftermath-DFC back face phase drops; CR 509.1c), then 21→20 as tap_down's row
+    # was deleted (ADR-0027 — migrated to a byte-identical TAP_DOWN_REGEX kept word mirror
+    # in signals._IR_KEPT_DETECTORS for the tap-an-opponent's-permanent / "skips next untap
+    # step" / detain lane; the structural `tap`/opp arm + _IR_KEYWORD_MAP['detain'] entry
+    # were removed because phase infers the tap scope from the cost context, not the
+    # target; CR 701.21 / 502).
+    assert len(SWEEP_DETECTORS) >= 20
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

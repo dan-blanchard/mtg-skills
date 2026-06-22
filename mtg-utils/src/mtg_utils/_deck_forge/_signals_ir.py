@@ -103,6 +103,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     SYMMETRIC_STAX_REGEX,
+    TAP_DOWN_REGEX,
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
@@ -184,7 +185,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "venture": ("venture_matters", "you"),
     "connive": ("connive_matters", "you"),
     "damage_prevention": ("damage_prevention", "you"),
-    "detain": ("tap_down", "opponents"),
+    # ADR-0027: the `detain` → tap_down keyword entry is DELETED — tap_down migrated to
+    # a BYTE-IDENTICAL kept word mirror (TAP_DOWN_REGEX in _IR_KEPT_DETECTORS, scope
+    # 'opponents'), whose `\bdetain\b` arm already opens the lane for every detain card
+    # (the keyword action is spelled out in the oracle text). Keeping this entry would
+    # have been redundant with the mirror; removing it keeps the IR re-supply == the
+    # deleted SWEEP regex EXACTLY. CR 701.21.
     "seek": ("seek_matters", "you"),  # Alchemy Seek (DD3) — phase parses it
     # Batch 0 — v0.1.60 effect types newly projected (see project.py _EFFECT_CATEGORY).
     "coin_flip": ("coin_flip", "you"),
@@ -844,6 +850,24 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # text — the exact artifact the deleted producer carried, mirrored unchanged for
     # no-flood parity. CR 700.4 / 603.6c.
     ("dies_recursion", re.compile(DIES_RECURSION_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 — tap_down BYTE-IDENTICAL kept WORD MIRROR (the tap-down control lane:
+    # tap an OPPONENT's permanent / "skips its next untap step" / detain — CR 701.21
+    # detain, CR 502 untap step; pinned as TAP_DOWN_REGEX in _sweep_detectors). phase
+    # carries a structural `tap` Effect, but its scope is inferred from the COST CONTEXT
+    # not the tap TARGET, so the deleted structural `cat=='tap' and e.scope=='opp'` arm
+    # OVER-fired on a bare "Tap target creature" whose cost names an opponent (Cryptic
+    # Cruiser) while MISSING the 89 "tap target … an opponent controls" cards whose
+    # phase parse drops the controller predicate (Frost Lynx, Icefall Regent, Dungeon
+    # Geists, Time of Ice, Kor Hookmaster, Citadel Siege …) — so that structural arm AND
+    # the _IR_KEYWORD_MAP['detain'] entry were both REMOVED and the lane MOVED here.
+    # The four arms' `[^.]*` span never crosses a clause boundary (the splitter cuts on
+    # [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n` lands inside a span on the corpus),
+    # so flat over the reminder-stripped kept_oracle == the deleted per-clause SWEEP
+    # firing EXACTLY (commander-legal, by oracle_id: both==101, ir_only==0,
+    # regex_only==0; scope 'opponents', HIGH; 0 flat/per-clause mismatch). The broad
+    # any-controller target tap stays on the SEPARATE tapper_engine lane (scope 'any'),
+    # untouched. CR 701.21 / 502.
+    ("tap_down", re.compile(TAP_DOWN_REGEX, re.IGNORECASE), "opponents"),
     # ADR-0027 — island_matters BYTE-IDENTICAL kept WORD MIRROR (the islandwalk /
     # island-attack-restriction lane; pinned as ISLAND_MATTERS_REGEX in
     # _sweep_detectors). The deleted _HAND_FLOOR producer rides here, NOT the Scryfall
@@ -7106,16 +7130,24 @@ def extract_signals_ir(
                 e.subject
             ):
                 add("color_hoser", "you", "", e.raw)
-            if cat == "tap" and e.scope == "opp":
-                add("tap_down", "opponents", "", e.raw)
+            # ADR-0027: the structural `cat=='tap' and e.scope=='opp'` → tap_down arm
+            # is DELETED. phase's tap-Effect scope is inferred from the COST CONTEXT,
+            # not the tap TARGET, so it OVER-fired on a bare "Tap target creature" whose
+            # cost names an opponent (Cryptic Cruiser — controller='any' subject, scope
+            # 'opp') while UNDER-firing on the 89 "tap target … an opponent controls"
+            # cards whose phase parse drops the controller predicate. tap_down now rides
+            # the BYTE-IDENTICAL TAP_DOWN_REGEX kept mirror (_IR_KEPT_DETECTORS, scope
+            # 'opponents') == the deleted SWEEP producer (both 101, ir_only 0,
+            # regex_only 0). The broad any-controller target tap stays on tapper_engine
+            # below (scope 'any').
             # ADR-0027 — tapper_engine: a repeatable TAPPER (Icy Manipulator,
             # Opposition, Master Decoy) — a tap Effect with a real TARGET/all/each
             # subject (a Filter). Every tap effect carrying a subject is a target tap;
             # tap-AS-COST lives in Ability.cost=='tap' and emits no tap Effect, so
             # `e.subject is not None` excludes pure-cost taps and self-untaps without
             # leaking. Scope 'any' (the lane wants the broad any-controller target tap
-            # — do NOT reuse the tap_down opp-gate, which would massively under-fire
-            # here). tap_down can co-fire on the same card (different lane/scope) — OK.
+            # — NOT an opp-gate, which would massively under-fire here). tap_down can
+            # co-fire on the same card (different lane/scope) — OK.
             if cat == "tap" and e.subject is not None:
                 add("tapper_engine", "any", "", e.raw)
             # ADR-0027 — tapper_engine "doesn't untap" branch: a Frost-Titan / Kismet-

@@ -45,6 +45,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STICKERS_MATTER_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
+    TAP_DOWN_REGEX,
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
@@ -4055,6 +4056,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["station_matters"],
         {"oracle": STATION_MATTERS_REGEX},
         STATION_MATTERS_REGEX,
+    ),
+    # ADR-0027: tap_down migrated to the Card IR (its SWEEP_DETECTORS row is deleted, so
+    # the auto-register loop no longer builds this spec). Hand-register it reusing the
+    # pinned TAP_DOWN_REGEX so the serve pool never drifts from the (now-deleted)
+    # detector. Scope 'opponents' (the deleted SWEEP row's forced scope). SWEEP_LABELS
+    # still carries the human label.
+    ("tap_down", "opponents"): _spec(
+        *SWEEP_LABELS["tap_down"],
+        {"oracle": TAP_DOWN_REGEX},
+        TAP_DOWN_REGEX,
     ),
     ("end_the_turn", "you"): _spec(
         *SWEEP_LABELS["end_the_turn"],

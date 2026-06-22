@@ -6222,6 +6222,27 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # tap_down ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP regex
+    # (tap an OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 /
+    # 502). UNLIKE a structural arm there is none used: phase carries a `tap` Effect, but
+    # its scope is inferred from the cost context (not the tap target), so it under-fires
+    # the controller-predicate cards and the structural `cat=='tap'/opp` arm + the
+    # _IR_KEYWORD_MAP['detain'] entry were both removed — the lane fires from the kept
+    # mirror over the card's reminder-stripped oracle (Frost Lynx's "tap target creature
+    # an opponent controls"). The paired IR is vanilla — the mirror reads the record, not
+    # the IR structure. ADR-0027.
+    "tap_down": (
+        {
+            "name": "Frost Lynx",
+            "type_line": "Creature — Elemental Cat",
+            "oracle_text": (
+                "When this creature enters, tap target creature an opponent "
+                "controls. That creature doesn't untap during its controller's "
+                "next untap step."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 — stax_taxes: a static RESTRICTION/TAX on OPPONENTS. The structural arm
     # fires on a `restriction` Effect whose v22 scope=='opp'. Gnat Miser's hand-size tax
     # is GENUINE ir_only recall (the deleted regex carried no "maximum hand size" branch,

@@ -112,6 +112,30 @@ STICKERS_MATTER_REGEX = "\\{tk\\}|\\bstickers?\\b"
 # never drift. SWEEP_LABELS still carries the human label. CR DD9 (heist) / 613.1b
 # (control-changing effects).
 THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|search (?:that player|target opponent|an opponent|each opponent)'?s? graveyard, hand,? and library|\\bheist\\b"
+# ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
+# OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
+# 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
+# BYTE-IDENTICAL kept WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope
+# 'opponents'). phase carries a structural `tap` Effect, but only the scope='opp'
+# subset — and that subset infers opponent-scope from the COST CONTEXT, not the tap
+# TARGET, so it fires on a bare "Tap target creature" whose cost names an opponent
+# (Cryptic Cruiser) while MISSING the 89 cards whose tap target IS "an opponent
+# controls" but whose phase parse drops the controller predicate (Frost Lynx, Icefall
+# Regent, Dungeon Geists, Time of Ice, Kor Hookmaster …). So the structural `tap`/opp
+# arm AND the _IR_KEYWORD_MAP['detain'] entry are BOTH removed for this key and replaced
+# by this mirror, making the IR re-supply == the deleted producer (the broad
+# any-controller target tap stays on the SEPARATE tapper_engine lane, scope 'any', which
+# is untouched). The four arms' `[^.]*` span never crosses a clause boundary (the
+# splitter cuts on [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n` lands inside a span on
+# the corpus), so flat-over-kept_oracle == the deleted per-clause SWEEP firing EXACTLY
+# (commander-legal, by oracle_id: both 101, ir_only 0, regex_only 0; scope parity
+# 'opponents' on all 101). This mined regex survives as a shared constant so signal_specs
+# hand-registers the serve pool reusing it AND the kept mirror reuses it — serve / mirror
+# / (now-deleted) detector never drift. SWEEP_LABELS still carries the human label. The
+# deleted producer fired HIGH-confidence scope 'opponents' and fed has_other_plan, so the
+# byte-identical re-supply adds tap_down to signals._VOLTRON_SILENCING_PLAN_KEYS. CR
+# 701.21 / 502.
+TAP_DOWN_REGEX = "(?<!un)tap target (?:permanent|creature|land|nonland permanent)[^.]*(?:an opponent|that player) controls|skips? (?:their|his or her|its) next untap step|tap (?:up to )?\\w+ target permanents? (?:an opponent|that player) controls|\\bdetain\\b"
 # ADR-0027: topdeck_stack migrated to the Card IR. Its SWEEP_DETECTORS row is deleted;
 # detection moves to a STRUCTURAL arm (extract_signals_ir — phase's `topdeck_stack`
 # put-into-library Effect, gated counter_kind in {top, topbottom} so the removal-tuck
@@ -1340,12 +1364,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (Icy Manipulator, Opposition, Master Decoy, Frost Titan). Its SWEEP_DETECTORS
     # row is deleted; the serve spec is hand-registered in signal_specs.py reusing
     # this deleted regex.
-    {
-        "key": "tap_down",
-        "scope": "opponents",
-        "is_widen_of": "",
-        "regex": "(?<!un)tap target (?:permanent|creature|land|nonland permanent)[^.]*(?:an opponent|that player) controls|skips? (?:their|his or her|its) next untap step|tap (?:up to )?\\w+ target permanents? (?:an opponent|that player) controls|\\bdetain\\b",
-    },
+    # ADR-0027: tap_down migrated to the Card IR — its SWEEP_DETECTORS row is deleted;
+    # the EXACT regex is pinned as TAP_DOWN_REGEX above and re-fired byte-identically by
+    # the _IR_KEPT_DETECTORS mirror (scope 'opponents'). The serve spec is hand-registered
+    # in signal_specs.py reusing TAP_DOWN_REGEX (SWEEP_LABELS keeps the human label).
     # ADR-0027: tap_untap_matters migrated to the Card IR — phase's `taps` (tap-for-
     # mana) trigger + a "whenever … becomes tapped/untapped" kept word mirror
     # (signals._IR_KEPT_DETECTORS) for the Inspired trigger phase flattens to
