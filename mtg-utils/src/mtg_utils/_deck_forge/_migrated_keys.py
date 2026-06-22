@@ -2627,6 +2627,61 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # ltb_matters / dies_recursion / self_death_payoff drift, voltron delta 0, 0
         # other lane drift. CR 700.4 / 603.6e (dies ⊂ leaves) / 903.10a (voltron).
         "death_matters",
+        # ADR-0027 — self_death_payoff (the SELF-death Aristocrats piece: the card
+        # rewards ITS OWN death — Kokusho, Solemn, Wurmcoil, Doomed Dissenter — wanting
+        # sac outlets to re-fire / loop the death, dies-recursion to bring it back,
+        # reanimation to recast). DISTINCT from death_matters (OTHER creatures dying, CR
+        # 700.4: "dies" = battlefield→graveyard, gated on a real trigger SUBJECT) — this
+        # lane keys on the card ITSELF dying (SelfRef → scope "you"). MIGRATED VIA THE
+        # STRUCTURAL IR ARM (already present, IR_SLICE_KEYS) + a name-aware kept mirror
+        # (NO sidecar bump — the v11 projection already emits the `dies` trigger with
+        # the SelfRef self-anchor that drops the subject Filter).
+        #
+        # STRUCTURAL ARM. extract_signals_ir fires on a `dies`-trigger that is SELF
+        # (trig.event=='dies' and trig.scope=='you' — phase's SelfRef self-death, the
+        # complement of death_matters' real-subject other-creature trigger) carrying at
+        # least one RECOGNIZED payoff (any e.category != 'other'). The SelfRef gate
+        # excludes "equipped creature dies" (Skullclamp, AttachedTo → scope "any"); the
+        # recognized-effect gate drops unparsed "other"-only death triggers.
+        #
+        # WHY NOT STRUCTURAL-ONLY. The structural arm covers the 207 both + 591 ir_only
+        # recall GAIN (the verbose "is put into a graveyard from the battlefield" self
+        # forms — Zodiac Dragon, Enigma Sphinx — and the keyword-expanded self-deaths —
+        # Modular / Persist / Undying / Afterlife / Soulshift — the literal-"dies" regex
+        # MISSED, every one a CR-700.4 SELF dies trigger with a payoff). But it MISSES
+        # 22 CONFERRED / GRANTED dies triggers — a spell or ability that GRANTS "When
+        # this creature dies, …" to ANOTHER (target) creature (Feign Death, Supernatural
+        # Stamina, Undying Malice, Showstopper, the granted-quote cycle), which phase
+        # parses as a quoted ability on the target, NOT the card's own SelfRef trigger.
+        # So a structural-only migration would LOSE those 22 (recall loss). Hence a kept
+        # mirror, NOT structural-only.
+        #
+        # NAME-AWARE KEPT MIRROR. _detect_self_death_payoff(kept_oracle, name) — the
+        # EXACT deleted producer, reused byte-identically (its `kept_oracle` == the
+        # regex path's `text`: both `re.sub(r"\([^)]*\)", " ", get_oracle_text(card))`).
+        # Name-aware is load-bearing (45 cards key on the card's own NAME — "When
+        # Kokusho … dies" — not "this creature"; the structural arm catches those, the
+        # mirror recovers the 22 "this creature"-quoted grants). With structural arm +
+        # mirror, floor-disabled residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()):
+        # both==229, ir_only==591 (all genuine SELF-death payoffs), regex_only==0 (no
+        # recall lost). scope_mismatch==0 (both paths scope "you"). self_death_payoff is
+        # NOT an _IR_FLOOR_LANE (floor-mirror-dep == 0 — it rode the name-aware fulltext
+        # detector, never a floor Detector).
+        #
+        # VOLTRON. The deleted producer fired HIGH-confidence (scope 'you') and counted
+        # toward has_other_plan, silencing the spurious commander-damage voltron tell on
+        # a body that is an aristocrats engine, not a vanilla beater (Kokusho, Lord
+        # Xander, Wurmcoil). The migrated lane rides a BROADER structural arm (+591
+        # ir_only), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence
+        # those 591 bodies; instead the pure-regex `has_other_plan` calls
+        # _detect_self_death_payoff(text, name) directly — byte-identical to the deleted
+        # producer, restoring the EXACT old silence set. FILE-SWAP no-flood (base
+        # 59b8e79 vs edits, commander-legal): ONLY self_death_payoff moves (229 → 820,
+        # +591 recall gain), 0 death_matters / reanimator / sacrifice_matters /
+        # aristocrats drift, voltron delta 0, 0 other lane drift. CR 700.4 / 603.6e /
+        # 903.10a.
+        "self_death_payoff",
         # ADR-0027 β — self_counter_grow (a creature that puts +1/+1 counters on ITSELF
         # to GROW: adapt CR 701.43 / monstrosity 701.13 / renown 702.111, Saga chapter
         # "put N +1/+1 on ~", "enters with / put a +1/+1 counter on this creature",

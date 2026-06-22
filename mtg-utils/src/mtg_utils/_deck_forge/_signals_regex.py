@@ -4553,9 +4553,17 @@ def extract_signals(
     # deleted here; extract_signals_ir reproduces BOTH byte-identically. The
     # _detect_self_blink_fulltext / _SELF_BLINK_SWEEP_RE definitions stay — the IR path
     # reuses them.
-    self_death_clause = _detect_self_death_payoff(text, name)
-    if self_death_clause is not None:
-        add("self_death_payoff", "you", "", self_death_clause)
+    # ADR-0027: self_death_payoff migrated to the Card IR — the SELF-death Aristocrats
+    # piece (the card rewards ITS OWN death — Kokusho, Solemn, Wurmcoil; SelfRef → scope
+    # "you", DISTINCT from death_matters' OTHER-creature-dying real-subject trigger).
+    # The lane fires from the STRUCTURAL `dies`-trigger SELF arm in extract_signals_ir
+    # (+591 ir_only recall — the verbose "is put into a graveyard from the battlefield"
+    # self forms + the keyword-expanded self-deaths Modular/Persist/Undying/Afterlife
+    # the literal-"dies" regex missed) PLUS a name-aware kept mirror that reuses
+    # _detect_self_death_payoff(kept_oracle, name) byte-identically to recover the 22
+    # CONFERRED "When this creature dies" grants phase leaves as a quoted ability on the
+    # target. This emission is deleted; _detect_self_death_payoff STAYS (reused by the
+    # IR mirror AND the has_other_plan voltron silence below). CR 700.4 / 603.6e.
     # Run against the RAW oracle (not the reminder-stripped `text`): a meld BACK piece
     # (Bruna) carries its meld info only in the "(Melds with …)" reminder, which the
     # per-clause path strips. subject = this card's name; the partner names it.
@@ -4672,6 +4680,15 @@ def extract_signals(
         )
         or _SACRIFICE_PLAN_MIRROR.search(_oracle)
         or _LIFELOSS_PLAN_MIRROR.search(_oracle)
+        # ADR-0027: re-silence the deleted self_death_payoff producer (it fired HIGH-
+        # confidence scope 'you', feeding has_other_plan — a SELF-death Aristocrats
+        # engine is no vanilla beater: Kokusho, Lord Xander, Wurmcoil). The migrated
+        # lane rides a BROADER structural arm (+591 ir_only), so re-supplying via
+        # _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 591 bodies; calling the
+        # deleted producer directly is byte-identical (its `text`/`name` are the exact
+        # inputs the deleted add() ran), restoring ONLY the old regex's silence set. So
+        # the file-swap shows voltron delta 0. CR 700.4 / 903.10a.
+        or _detect_self_death_payoff(text, name) is not None
         # ADR-0027 β: re-silence the deleted cost_reduction SWEEP + _HAND_FLOOR
         # producers. Both fired high-confidence scope 'you', feeding has_other_plan; the
         # migrated IR arm is narrower (drops the 92 self-discounts), so this byte-

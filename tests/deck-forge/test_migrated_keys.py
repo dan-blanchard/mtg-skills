@@ -480,6 +480,48 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # self_death_payoff ← a STRUCTURAL `dies`-trigger that is SELF (trig.event=="dies"
+    # and trig.scope=="you" — phase's SelfRef self-death, subject dropped to None — with a
+    # RECOGNIZED payoff effect, any e.category != "other"). Kokusho's "When Kokusho dies,
+    # each opponent loses 5 life …" is the canonical self-death Aristocrats engine: the
+    # structural arm in extract_signals_ir fires self_death_payoff scope "you". DISTINCT
+    # from death_matters (an OTHER-creature dies trigger with a real subject); the SelfRef
+    # gate (scope "you") is the discriminator. The 22 CONFERRED "When this creature dies"
+    # grants phase leaves textual ride the name-aware kept mirror instead (no SelfRef
+    # trigger to read). ADR-0027. CR 700.4 / 603.6e.
+    "self_death_payoff": (
+        {
+            "name": "Kokusho, the Evening Star",
+            "type_line": "Legendary Creature — Dragon Spirit",
+            "oracle_text": (
+                "Flying\nWhen Kokusho, the Evening Star dies, each opponent loses 5 "
+                "life. You gain life equal to the life lost this way."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="dies",
+                    scope="you",
+                    subject=None,
+                    zones=("from:battlefield", "to:graveyard"),
+                ),
+                effects=(
+                    Effect(
+                        category="lose_life",
+                        scope="any",
+                        raw="each opponent loses 5 life",
+                    ),
+                    Effect(
+                        category="gain_life",
+                        scope="any",
+                        raw="You gain life equal to the life lost this way.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # self_counter_grow ← a STRUCTURAL place_counter carrying the SelfRef self-anchor
     # marker (project @ SIDECAR v12 — phase's PutCounter target=={type:SelfRef}, dropped
     # by _effect_subject, re-surfaced as Filter(predicates=("SelfRef",))). Adaptive

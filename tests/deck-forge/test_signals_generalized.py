@@ -2623,7 +2623,11 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
             "among any number of targets."
         ),
     }
-    keys = {s.key for s in extract_signals(orca, include_membership=True)}
+    # ADR-0027: self_death_payoff migrated to the Card IR; the "deals damage equal to"
+    # self-death VALUE branch rides the name-aware kept mirror on the hybrid path.
+    keys = {
+        s.key for s in extract_signals_hybrid(orca, _bare_ir(), include_membership=True)
+    }
     assert "self_death_payoff" in keys
     assert "clone_matters" in keys  # cmc 7 >= 5
     # Over-fire guard: a "deals damage equal to" clause NOT on a death trigger (a combat
@@ -2639,7 +2643,8 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
         ),
     }
     assert "self_death_payoff" not in {
-        s.key for s in extract_signals(combat, include_membership=True)
+        s.key
+        for s in extract_signals_hybrid(combat, _bare_ir(), include_membership=True)
     }
 
 
@@ -3724,11 +3729,13 @@ def test_self_dies_recursion_opens_self_death_payoff():
             "beginning of the next end step."
         ),
     }
-    assert "self_death_payoff" in _keys(lucius)
-    assert "self_death_payoff" in _keys(scorpion)
+    # ADR-0027: self_death_payoff migrated to the Card IR; the self-RECURSION death
+    # branch ("return it"/"exile it") rides the name-aware kept mirror on the hybrid path.
+    assert "self_death_payoff" in _keys_hybrid(lucius)
+    assert "self_death_payoff" in _keys_hybrid(scorpion)
     # Over-fire guard: a vanilla creature has no self-death trigger.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert "self_death_payoff" not in _keys(bear)
+    assert "self_death_payoff" not in _keys_hybrid(bear)
 
 
 def test_opponent_shrink_opens_debuff():
@@ -4587,8 +4594,11 @@ def test_self_death_payoff_opens_for_own_death_trigger():
             "battlefield under your control. You lose 2 life."
         ),
     }
-    assert "self_death_payoff" in _keys(kokusho)
-    assert "self_death_payoff" in _keys(junji)
+    # ADR-0027: self_death_payoff migrated to the Card IR; a commander's OWN "when ~
+    # dies, <value>" self-death engine rides the name-aware kept mirror on the hybrid
+    # path (and the structural SelfRef `dies` arm when the IR carries the trigger).
+    assert "self_death_payoff" in _keys_hybrid(kokusho)
+    assert "self_death_payoff" in _keys_hybrid(junji)
     # Over-fire guard: aristocrats (OTHER creatures dying) is NOT a self-death payoff.
     blood_artist = {
         "name": "Blood Artist",
@@ -4598,7 +4608,7 @@ def test_self_death_payoff_opens_for_own_death_trigger():
             "life and you gain 1 life."
         ),
     }
-    assert "self_death_payoff" not in _keys(blood_artist)
+    assert "self_death_payoff" not in _keys_hybrid(blood_artist)
 
 
 def test_creature_etb_opens_on_delayed_had_enter_payoff():

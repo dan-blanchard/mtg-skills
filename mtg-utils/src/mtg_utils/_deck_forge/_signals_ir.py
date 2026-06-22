@@ -36,6 +36,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_keyword_presets,
     _detect_self_blink_fulltext,
     _detect_self_damage_prevention,
+    _detect_self_death_payoff,
     _detect_voltron_payoff_ir,
     _resolve_subject,
     _type_hoser_clause,
@@ -7273,6 +7274,27 @@ def extract_signals_ir(
         for cl in _clauses(kept_oracle)
     ):
         add("death_matters", "any", "", "")
+    # ADR-0027 — self_death_payoff NAME-AWARE kept mirror. The structural `dies`-
+    # trigger SELF arm above (trig.event=='dies' and trig.scope=='you' with a recognized
+    # payoff — phase's SelfRef self-death, the complement of death_matters' real-subject
+    # other-creature trigger) catches the card's OWN death payoffs (+591 ir_only — the
+    # verbose "is put into a graveyard from the battlefield" self forms + the
+    # keyword-expanded self-deaths Modular/Persist/Undying/Afterlife/Soulshift the
+    # literal-"dies" regex missed). But phase parses a CONFERRED dies trigger — a
+    # spell/ability that GRANTS "When this creature dies, …" to ANOTHER (target)
+    # creature (Feign Death, Supernatural Stamina, Undying Malice, the granted-quote
+    # cycle) — as a quoted ability on the target, NOT the card's own SelfRef trigger, so
+    # the structural arm misses those 22. Recover them with the EXACT deleted producer
+    # reused byte-identically: _detect_self_death_payoff(kept_oracle, name) (its
+    # kept_oracle == the regex path's reminder-stripped `text`). Name-aware is load-
+    # bearing (45 cards key on the card's own NAME, "When Kokusho … dies"; the
+    # structural arm catches those, this
+    # mirror recovers the 22 "this creature"-quoted grants). scope 'you' (the deleted
+    # producer's forced scope, and the serve spec's scope). add() dedups vs the
+    # structural arm. Floor-disabled residual (commander-legal): structural+mirror
+    # both==229, ir_only==591, regex_only==0 (0 lost). CR 700.4 / 603.6e.
+    if _detect_self_death_payoff(kept_oracle, name) is not None:
+        add("self_death_payoff", "you", "", "")
     # ADR-0027 — attack_matters BYTE-IDENTICAL kept mirror. The structural `attacks`-
     # trigger arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm catch
     # phase's combat payoffs (+135 ir_only recall), but phase carries NO clean `attacks`
