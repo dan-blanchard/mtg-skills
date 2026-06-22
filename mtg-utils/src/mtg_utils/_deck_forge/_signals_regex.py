@@ -1057,24 +1057,24 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # WOE ability word CR 207.2c phase doesn't structure). This _HAND_FLOOR
     # producer is deleted; the hand-written serve spec (signal_specs.py) is
     # independent of this regex and survives.
-    # Land-sacrifice matters (Gitrog, Titania, Slogurk): a commander that draws/grows
-    # when lands hit the graveyard ("whenever … land … put into … graveyard") or pays an
-    # ongoing land-sac cost wants repeatable "Sacrifice a land:" OUTLETS (Sylvan
-    # Safekeeper, Zuran Orb). A distinct archetype from sacrifice_matters, which
-    # deliberately EXCLUDES "sacrifice a land" (the fetchland guard) — so it's its own
-    # lane. Same regex opens (commander payoff/cost) and serves (the outlets).
-    (
-        "land_sacrifice_matters",
-        re.compile(
-            r"sacrifice a land(?: card)?:"
-            r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
-            r"put into[^.]*graveyard"
-            r"|whenever you sacrifice (?:a|one or more|another) lands?"
-            r"|unless you sacrifice a land",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: land_sacrifice_matters (Gitrog, Titania, Slogurk, Zuran Orb, Sylvan
+    # Safekeeper — a card paying an ongoing land-sac cost, drawing/growing when lands
+    # hit the graveyard, or offering a repeatable "Sacrifice a land:" outlet) migrated
+    # to the Card IR. phase carries NO structural form (the structural sacrifice arm
+    # emits this lane on 0 commander-legal cards — a land-ONLY sac subject is routed
+    # AWAY from sacrifice_matters but never re-homed), so this _HAND_FLOOR producer is
+    # deleted and survives BYTE-IDENTICALLY as the LAND_SACRIFICE_REGEX row in
+    # _IR_KEPT_DETECTORS (scope 'you', HIGH conf — the EXACT pattern run flat over the
+    # reminder-stripped kept_oracle; commander-legal: flat==per-clause==66, 0
+    # gain/loss).
+    # A distinct archetype from sacrifice_matters (which EXCLUDES "sacrifice a land" —
+    # the fetchland guard), land_destruction (DESTROY a land), land_exchange (swap land
+    # CONTROL).
+    # The hand-written serve spec (signal_specs.py) is independent and survives. The
+    # deleted producer fed has_other_plan (HIGH, scope 'you', not generic/voltron-
+    # compat); the hybrid re-silences voltron via _VOLTRON_SILENCING_PLAN_KEYS — the IR
+    # re-supply IS this byte-identical mirror (IR==regex==66), so no over-silence and NO
+    # _LAND_SACRIFICE_PLAN_MIRROR. CR 701.16 / 903.10a.
     # ADR-0027: proliferate_matters migrated to the Card IR. This divinity /
     # indestructible-counter _HAND_FLOOR producer (Myojin cycle, Arwen — enter
     # with one beneficial counter that proliferate multiplies) is DELETED; it

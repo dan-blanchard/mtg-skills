@@ -69,6 +69,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     LAND_DESTRUCTION_REGEX,
+    LAND_SACRIFICE_REGEX,
     LANDFALL_REGEX,
     LIFEGAIN_MATTERS_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
@@ -681,6 +682,28 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
     ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
     ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # ADR-0027 — land_sacrifice_matters BYTE-IDENTICAL kept WORD MIRROR (the land-
+    # SACRIFICE archetype: a card paying an ongoing land-sac cost / drawing-growing when
+    # lands hit the graveyard / offering a repeatable "Sacrifice a land:" outlet —
+    # Gitrog, Titania, Slogurk, Zuran Orb, Sylvan Safekeeper, Squandered Resources; CR
+    # 701.16). phase carries NO structural form: over the commander-legal corpus (floor-
+    # disabled, by oracle_id) the structural sacrifice arm emits this lane on ZERO cards
+    # — the you-sac arm routes a land-ONLY sac subject AWAY from sacrifice_matters but
+    # never re-homes it here, and there is no structural `add("land_sacrifice_matters")`
+    # — so the lane fired ONLY from the deleted regex (66 commander-legal, all scope
+    # 'you' HIGH). This LAND_SACRIFICE_REGEX (the EXACT deleted _HAND_FLOOR pattern) run
+    # FLAT over the reminder-stripped kept_oracle reproduces the deleted per-clause
+    # producer BYTE-IDENTICALLY (the four arms' `[^.]*` never cross a clause; flat==per-
+    # clause==66). Distinct from land_destruction (DESTROY a land) and land_exchange
+    # (swap land CONTROL). The deleted producer fed has_other_plan (HIGH, scope 'you',
+    # not generic/voltron-compat), so the hybrid re-silences voltron via
+    # _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply, no over-silence (signals.
+    # py). CR 701.16.
+    (
+        "land_sacrifice_matters",
+        re.compile(LAND_SACRIFICE_REGEX, re.IGNORECASE),
+        "you",
+    ),
     # ADR-0027 β — draw_matters (the YOU-draw payoff: "whenever you draw" engines +
     # the past-tense draw-COUNT payoff "for each card you've drawn this turn"). The
     # structural arm (a `drawn` trigger, scope != "opp") covers the "whenever you
@@ -1960,7 +1983,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # `_MASS_DEATH_REF` "creatures that died this turn" count-operand marker). Its
         # _HAND_FLOOR detector is deleted.
         "noncombat_damage_payoff",
-        "land_sacrifice_matters",
+        # land_sacrifice_matters removed — ADR-0027 migrated it to the Card IR via a
+        # BYTE-IDENTICAL kept WORD MIRROR (the LAND_SACRIFICE_REGEX row in
+        # _IR_KEPT_DETECTORS, scope 'you', HIGH conf). phase carries NO structural form
+        # (the structural sacrifice arm emits this lane on 0 commander-legal cards), so
+        # the lane fires SOLELY from the kept mirror — it no longer needs the regex
+        # floor. Its _HAND_FLOOR detector is deleted; the hand-written serve spec
+        # (signal_specs.py) is independent and survives.
     }
 )
 

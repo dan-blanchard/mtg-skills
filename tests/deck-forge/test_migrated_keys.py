@@ -5392,6 +5392,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # land_sacrifice_matters ← the byte-identical kept WORD MIRROR (the
+    # LAND_SACRIFICE_REGEX row in _IR_KEPT_DETECTORS, scope "you", HIGH conf; CR
+    # 701.16). The Gitrog Monster is the canonical land-sac COMMANDER — it pays an
+    # ongoing land-sac cost ("sacrifice The Gitrog Monster unless you sacrifice a land")
+    # AND draws when lands hit the graveyard ("whenever one or more land cards are put
+    # into your graveyard … draw a card"). The mirror reads the reminder-stripped
+    # oracle_text off the record dict (not the IR structure — phase carries NO
+    # structural form, the structural sacrifice arm emits this lane on 0 cards), so a
+    # bare non-None IR routes the hybrid to the IR path. The regex path no longer emits
+    # the key (the _HAND_FLOOR producer is deleted). scope "you". ADR-0027.
+    "land_sacrifice_matters": (
+        {
+            "name": "The Gitrog Monster",
+            "type_line": "Legendary Creature — Frog Horror",
+            "oracle_text": (
+                "Deathtouch\n"
+                "At the beginning of your upkeep, sacrifice The Gitrog Monster "
+                "unless you sacrifice a land.\n"
+                "You may play an additional land on each of your turns.\n"
+                "Whenever one or more land cards are put into your graveyard from "
+                "anywhere, draw a card."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

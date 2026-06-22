@@ -3488,6 +3488,59 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # from the IR re-supply — restoring pre-migration behavior. FILE-SWAP voltron
         # delta 0. CR 601 (cast) / 903.10a (voltron).
         "second_spell_matters",
+        # ADR-0027 — land_sacrifice_matters (the land-SACRIFICE archetype axis: a card
+        # paying an ongoing land-sac cost ("sacrifice [this] unless you sacrifice a
+        # land" — Gitrog, Mana Vortex), drawing/growing when lands hit the graveyard
+        # ("whenever one or more land cards are put into your graveyard" — Gitrog,
+        # Titania, Slogurk, Crawling Sensation), or offering a repeatable "Sacrifice a
+        # land:" OUTLET — Zuran Orb, Sylvan Safekeeper, Squandered Resources; CR
+        # 701.16). MIGRATED VIA A BYTE-IDENTICAL kept WORD MIRROR (signals-only, NO
+        # sidecar bump) — NOT a structural arm.
+        #
+        # phase carries NO STRUCTURAL FORM for this lane. FLOOR-DISABLED residual over
+        # the commander-legal corpus (by oracle_id, _IR_FLOOR_LANES=frozenset()): the
+        # structural IR emits land_sacrifice_matters on ZERO cards. There is no
+        # `add("land_sacrifice_matters", ...)` anywhere in extract_signals_ir — the
+        # you-sacrifice arm at ~line 5560 deliberately routes a land-ONLY sac SUBJECT
+        # AWAY from sacrifice_matters (`e.subject.card_types != ("Land",)`) but never
+        # re-homes it to land_sacrifice, and phase scatters the payoff/cost forms
+        # across categories it never unifies. So the lane fired SOLELY from the deleted
+        # _HAND_FLOOR regex producer (66 commander-legal cards, ALL scope 'you', HIGH
+        # confidence). It was a _IR_FLOOR_LANE (the production floor re-ran the regex on
+        # the IR path); both the floor membership and the _HAND_FLOOR producer are
+        # removed.
+        #
+        # BYTE-IDENTICAL KEPT WORD MIRROR. The deleted producer was a per-card
+        # Detector run PER-CLAUSE over the reminder-stripped, DFC-joined oracle. The
+        # EXACT pattern (LAND_SACRIFICE_REGEX, pinned in _sweep_detectors) run FLAT over
+        # the same reminder-stripped kept_oracle in extract_signals_ir's
+        # _IR_KEPT_DETECTORS loop (scope 'you', HIGH conf) reproduces the deleted
+        # producer BYTE-IDENTICALLY: the four arms' `[^.]*` anchors never cross a clause
+        # boundary and no card's match is split by a `;`/`\n` only (commander-legal:
+        # flat==per-clause==66, 0 gain, 0 loss; floor-disabled residual: both==66,
+        # regex_only==0, ir_only==0). Distinct from land_destruction (DESTROY a land —
+        # CR 305.6) and land_exchange (swap CONTROL of a land). land_sacrifice_matters
+        # was NEVER a SWEEP key, so no SWEEP row is touched (len stays 36). The serve
+        # spec stays hand-registered (("land_sacrifice_matters","you") in signal_specs)
+        # and is independent of the producer.
+        #
+        # SCOPE PARITY. The deleted producer forced scope 'you' / HIGH conf; the mirror
+        # fires scope 'you' / HIGH conf — 0 scope/confidence mismatches over the 66
+        # both-fire cards.
+        #
+        # VOLTRON. The deleted producer fed has_other_plan (HIGH, scope 'you', NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage
+        # voltron tell on a land-sac creature commander (Slogurk, Titania, Uurg, The
+        # Gitrog Monster — no vanilla beater). Because the IR re-supply IS this byte-
+        # identical mirror (IR==regex==66), the hybrid re-silences via
+        # _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no broadening, no over-silence —
+        # matching the lands_matter / draw_matters kept-mirror precedent; NO
+        # _LAND_SACRIFICE_PLAN_MIRROR. FILE-SWAP no-flood (base 6f84483 vs edits, baked
+        # sidecar over commander-legal, hybrid path): land_sacrifice_matters is BYTE-
+        # IDENTICAL (66 → 66); voltron_matters delta 0 (3010 → 3010); siblings
+        # land_destruction / land_exchange / sacrifice_matters / ramp_matters drift 0; 0
+        # other-key drift across all 298 keys. CR 701.16 / 903.10a.
+        "land_sacrifice_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

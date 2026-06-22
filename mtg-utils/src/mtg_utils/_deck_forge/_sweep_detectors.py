@@ -756,6 +756,38 @@ LANDFALL_REGEX = (
 LAND_DESTRUCTION_REGEX = (
     r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b"
 )
+# ADR-0027 — land_sacrifice_matters (the land-SACRIFICE archetype axis: a card that
+# pays an ongoing land-sac cost, draws/grows when lands hit the graveyard, or offers a
+# repeatable "Sacrifice a land:" OUTLET — Gitrog, Titania, Slogurk, Zuran Orb, Sylvan
+# Safekeeper, Squandered Resources; CR 701.16) migrated to the Card IR via a BYTE-
+# IDENTICAL kept WORD MIRROR. phase carries NO structural form for this lane — over the
+# commander-legal corpus (floor-disabled, by oracle_id) the structural sacrifice arm
+# emits land_sacrifice_matters on ZERO cards (the you-sac arm at line ~5560 deliberately
+# routes a land-ONLY sac subject AWAY from sacrifice_matters but never re-homes it to
+# land_sacrifice — there is no `add("land_sacrifice_matters", ...)` anywhere in the
+# structural IR), so the lane fired ONLY from this regex (66 commander-legal cards, all
+# scope 'you', HIGH conf). The deleted producer was a per-card `_HAND_FLOOR` Detector run
+# per-clause over the reminder-stripped, DFC-joined oracle; this constant, run FLAT over
+# the same reminder-stripped `kept_oracle` in extract_signals_ir's _IR_KEPT_DETECTORS
+# loop, is BYTE-IDENTICAL — the four arms' `[^.]*` anchors never cross a clause boundary
+# and no card's match is split by a `;`/`\n` only (commander-legal: flat==per-clause==66,
+# 0 gain, 0 loss). Distinct from land_destruction (DESTROY a land — CR 305.6) and
+# land_exchange (swap CONTROL of a land). land_sacrifice_matters was NEVER a SWEEP key, so
+# no SWEEP row is touched (len stays 36). NO sidecar bump. The deleted producer fired HIGH
+# conf scope 'you' and so counted toward has_other_plan (it is NOT in _GENERIC_KEYS /
+# _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage voltron tell on a
+# land-sac creature commander (Slogurk, Titania, Uurg, The Gitrog Monster — NOT a vanilla
+# beater). Because the IR re-supply IS this byte-identical mirror (IR==regex==66), the
+# hybrid re-silences via _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no broadening, no
+# over-silence — matching the lands_matter / draw_matters kept-mirror precedent; NO
+# _LAND_SACRIFICE_PLAN_MIRROR is needed. CR 701.16 / 903.10a.
+LAND_SACRIFICE_REGEX = (
+    r"sacrifice a land(?: card)?:"
+    r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
+    r"put into[^.]*graveyard"
+    r"|whenever you sacrifice (?:a|one or more|another) lands?"
+    r"|unless you sacrifice a land"
+)
 # ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
 # mirror (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). The deleted regex producers — the
 # `_DETECTORS` registry row (the "whenever you gain life" payoff / "gain N life" source

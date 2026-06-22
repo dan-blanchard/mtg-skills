@@ -6179,6 +6179,11 @@ def test_land_sacrifice_matters_opens_and_serves():
     # "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb) are their core engine.
     # sacrifice_matters deliberately EXCLUDES "sacrifice a land" (fetchland guard), so
     # this land-sac archetype is its own lane. Real cards, full oracle.
+    # ADR-0027: land_sacrifice_matters migrated to the Card IR (the byte-identical
+    # LAND_SACRIFICE_REGEX kept WORD MIRROR in _IR_KEPT_DETECTORS — phase carries NO
+    # structural form), so this asserts on the HYBRID path. A bare non-None IR routes
+    # the hybrid to the IR path; the mirror reads the reminder-stripped oracle off the
+    # record. The serve-spec checks (lane_covers) are producer-independent.
     gitrog = {
         "name": "The Gitrog Monster",
         "type_line": "Legendary Creature — Frog Horror",
@@ -6191,7 +6196,7 @@ def test_land_sacrifice_matters_opens_and_serves():
             "anywhere, draw a card."
         ),
     }
-    assert "land_sacrifice_matters" in _keys(gitrog)
+    assert "land_sacrifice_matters" in _keys_hybrid(gitrog)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
@@ -6216,7 +6221,7 @@ def test_land_sacrifice_matters_opens_and_serves():
         "type_line": "Creature — Vampire Wizard",
         "oracle_text": "Sacrifice a creature: Scry 1.",
     }
-    assert "land_sacrifice_matters" not in _keys(viscera)
+    assert "land_sacrifice_matters" not in _keys_hybrid(viscera)
     assert lane_covers(viscera, "land_sacrifice_matters") is False
 
 
