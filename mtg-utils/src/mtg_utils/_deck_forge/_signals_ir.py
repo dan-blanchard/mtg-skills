@@ -57,6 +57,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
     ENTERED_ATTACKER_REGEX,
+    FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
@@ -2182,6 +2183,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # fire). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 110.1 / 305.7 /
             # 613.
             "animate_artifact",
+            # ADR-0027 β — free_cast: casting spells without paying their mana cost.
+            # IR carries cast_from_zone/alt_cost but no 'free' discriminator, so the
+            # lane rides a byte-identical _FREE_CAST_MIRROR of the exact deleted SWEEP
+            # regex over kept_oracle (the "without paying its mana cost" phrase is
+            # specific + clause-local; only Qasali Ambusher of 39 flash cards fires,
+            # genuine). +14 DFC recall via joined-face. CR 601.2b / 118.9.
+            "free_cast",
             # ADR-0027 β — toughness_combat: TOUGHNESS matters for combat (the Doran
             # combat-redirect) + as a value (the broader payoff half). phase parses the
             # Doran clause as an AssignDamageFromToughness modification but project
@@ -3155,6 +3163,16 @@ _DAMAGE_REDIRECT_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
 # No veto needed (every match animates an artifact — Vehicles are artifacts, CR 301.7).
 # CR 110.1 / 305.7 / 613.
 _ANIMATE_ARTIFACT_MIRROR = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
+# free_cast BYTE-IDENTICAL kept mirror (ADR-0027 β): casting without paying the mana
+# cost (Beseech the Mirror, Baral's Expertise, As Foretold). The IR carries
+# cast_from_zone/alt_cost but no 'free' discriminator (a structural arm can't separate a
+# genuine free-cast from a flash-grant/Bargain/Prototype alt-cost without a project.py
+# flag), so the lane rides the EXACT deleted SWEEP regex (pinned FREE_CAST_REGEX) over
+# the reminder-stripped kept_oracle — the "without paying its mana cost" phrase is
+# specific + clause-local (no `[^.]` crossing a sentence), so full-text == per-clause;
+# of 39 "as though it had flash" cards only Qasali Ambusher fires (genuine: it pairs
+# without-cost + flash). CR 601.2b / 118.9.
+_FREE_CAST_MIRROR = re.compile(FREE_CAST_REGEX, re.IGNORECASE)
 # toughness_combat BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
 # EXACT OR of two deleted producers (pinned TOUGHNESS_COMBAT_REGEX) over the reminder-
 # stripped kept_oracle — the Doran / Assault Formation / High Alert combat
@@ -6254,6 +6272,12 @@ def extract_signals_ir(
     # set (67/67 genuine, 0 over-fire). add() dedups. CR 110.1 / 305.7 / 613.
     if _ANIMATE_ARTIFACT_MIRROR.search(kept_oracle):
         add("animate_artifact", "you", "", "")
+    # ADR-0027 β — free_cast BYTE-IDENTICAL kept mirror: cast without paying the mana
+    # cost (Beseech the Mirror / Baral's Expertise / As Foretold). The regex IS the
+    # discriminator (IR has no 'free' flag); clause-local, so flat kept_oracle scan ==
+    # the deleted per-clause SWEEP set. CR 601.2b / 118.9.
+    if _FREE_CAST_MIRROR.search(kept_oracle):
+        add("free_cast", "you", "", "")
     # ADR-0027 β — toughness_combat BYTE-IDENTICAL kept mirror. TWO deleted producers
     # feed the key — the SWEEP combat-redirect ("assigns combat damage equal to its
     # toughness rather than its power" — Doran / Assault Formation / High Alert) and

@@ -1914,6 +1914,19 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # 613 (animating an artifact is a layer-4 type addition; Vehicles / noncreature
         # artifacts gain the creature type — verified via rules-lawyer).
         "animate_artifact",
+        # ADR-0027 β — free_cast (cast spells WITHOUT paying their mana cost — Beseech
+        # the Mirror, Baral's Expertise, As Foretold). The IR carries cast_from_zone/
+        # alt_cost but no 'free' discriminator (a structural arm can't separate a real
+        # free-cast from a flash-grant/Bargain/Prototype alt-cost without a project.py
+        # flag), so the lane rides a BYTE-IDENTICAL _FREE_CAST_MIRROR of the exact
+        # deleted SWEEP regex (pinned FREE_CAST_REGEX) over the reminder-stripped
+        # kept_oracle. The "without paying its mana cost" phrase is specific +
+        # clause-local; both=314 (300 single-face + 14 DFC back-face recall via the
+        # joined oracle), regex_only=0, over-fire=0 (of 39 "as though it had flash"
+        # cards only Qasali Ambusher fires, genuine). floor-mirror-dep==0; voltron 0
+        # via byte-identical _FREE_CAST_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS).
+        # Serve hand-registered in signal_specs (SWEEP auto-spec gone). CR 601.2b/118.9.
+        "free_cast",
         # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
         # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
         # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass

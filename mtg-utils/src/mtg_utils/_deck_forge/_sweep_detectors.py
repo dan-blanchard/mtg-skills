@@ -434,13 +434,13 @@ DAMAGE_REDIRECT_REGEX = (
     "|that damage is dealt to [^.]*instead|deal that damage to [^.]*instead"
 )
 
+# ADR-0027 β: free_cast migrated to the Card IR via a byte-identical kept-mirror
+# (_FREE_CAST_MIRROR in _signals_ir). The SWEEP_DETECTORS row is deleted; the EXACT
+# regex is pinned here, reused by the IR mirror, the has_other_plan plan-mirror, and the
+# hand-registered serve spec (signal_specs). SWEEP_LABELS keeps the label.
+FREE_CAST_REGEX = "rather than pay (?:its|their|the) mana cost|without paying (?:its|their) mana cost|may cast (?:it|that (?:card|spell)|those cards)[^.]*without paying"
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
-    {
-        "key": "free_cast",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "rather than pay (?:its|their|the) mana cost|without paying (?:its|their) mana cost|may cast (?:it|that (?:card|spell)|those cards)[^.]*without paying",
-    },
     # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-
     # Filter predicate + a kept word mirror (signals._IR_KEPT_DETECTORS) for the
     # Background grants / "commander damage" / "your commander costs less" refs phase

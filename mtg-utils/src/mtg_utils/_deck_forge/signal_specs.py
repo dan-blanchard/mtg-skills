@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_SWEEP_REGEX,
+    FREE_CAST_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
@@ -2444,6 +2445,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["animate_artifact"],
         {"oracle": ANIMATE_ARTIFACT_REGEX},
         ANIMATE_ARTIFACT_REGEX,
+    ),
+    # ADR-0027 β: free_cast's SWEEP_DETECTORS row is deleted (detection moved to the
+    # Card IR via a byte-identical _FREE_CAST_MIRROR; the IR has no 'free' flag, so no
+    # structural arm). The SERVE pool stays oracle-defined, so hand-register the
+    # spec the sweep auto-register loop used to build (scope "you"), reusing the EXACT
+    # deleted regex (pinned as FREE_CAST_REGEX). SWEEP_LABELS keeps the label.
+    ("free_cast", "you"): _spec(
+        *SWEEP_LABELS["free_cast"],
+        {"oracle": FREE_CAST_REGEX},
+        FREE_CAST_REGEX,
     ),
     # ADR-0027 β: tribe_damage_trigger's SWEEP_DETECTORS row is deleted (detection moved
     # to the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool

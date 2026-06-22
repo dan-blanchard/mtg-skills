@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
@@ -2770,6 +2771,17 @@ _DAMAGE_REDIRECT_PLAN_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
 # spans a sentence, so full-text == per-clause. (FILE-SWAP NO-FLOOD: voltron delta 0.)
 # CR 903.10a / 110.1.
 _ANIMATE_ARTIFACT_PLAN_MIRROR = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated free_cast key. The deleted
+# SWEEP producer fired HIGH-confidence (scope 'you') and counted toward has_other_plan,
+# silencing the spurious commander-damage voltron tell on a free-cast engine (As
+# Foretold / Beseech the Mirror — cheating spells out is a plan, not a vanilla beater).
+# The migrated lane rides a byte-identical kept mirror, so this byte-identical gate
+# mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards
+# (matching the color_change / token_copy_matters / animate_artifact byte-identical-
+# mirror pattern). Matched against reminder-STRIPPED `text`, byte-identical to the
+# deleted SWEEP detector's per-clause input; the `[^.]*` arm never spans a sentence, so
+# full-text == per-clause. CR 903.10a / 601.2b.
+_FREE_CAST_PLAN_MIRROR = re.compile(FREE_CAST_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated toughness_combat key. BOTH
 # deleted producers (the SWEEP combat-redirect, scope 'you', + the inline _DETECTORS
 # value-payoff, scope 'you') fired HIGH-confidence and counted toward `has_other_plan`,
@@ -4338,6 +4350,11 @@ def extract_signals(
         # against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
         # per-clause over stripped text). CR 903.10a.
         or _ANIMATE_ARTIFACT_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted free_cast SWEEP producer (HIGH-confidence
+        # scope 'you', fed has_other_plan — a free-cast engine is a plan).
+        # Byte-identical gate mirror over reminder-stripped `text`; NOT SILENCING_KEYS.
+        # CR 903.10a / 601.2b.
+        or _FREE_CAST_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted toughness_combat producers (the SWEEP
         # combat-redirect + the inline _DETECTORS value-payoff, both HIGH-confidence
         # scope 'you', feeding has_other_plan). The migrated lane rides a byte-identical

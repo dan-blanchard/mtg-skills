@@ -249,6 +249,20 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # free_cast ← a BYTE-IDENTICAL kept mirror (_FREE_CAST_MIRROR over the reminder-
+    # stripped oracle: "...without paying their mana cost(s)"). The IR carries
+    # cast_from_zone/alt_cost but no 'free' discriminator, so the lane rides the exact
+    # deleted SWEEP regex (empty IR — the mirror reads the dict oracle). ADR-0027 β.
+    "free_cast": (
+        {
+            "name": "Omniscience",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "You may cast spells from your hand without paying their mana costs."
+            ),
+        },
+        _ir(),
+    ),
     # gain_control ← a `gain_control` Effect (Control Magic's ChangeController static
     # projects cat="gain_control", subject=the enchanted creature, scope="you"). The
     # GATED structural arm in extract_signals_ir fires scope "you" (excl donate /
