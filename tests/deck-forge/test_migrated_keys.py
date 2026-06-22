@@ -351,6 +351,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # damage_prevention ← the BROAD `damage_prevention` Effect category (the PRIMARY
+    # producer, _DOER_EFFECT_KEYS). Urza's Armor's "If a source would deal damage to
+    # you, prevent 1 of that damage" projects cat="damage_prevention" (verified vs the
+    # baked sidecar IR) — and is an ir_only card: the "prevent N of that damage" form
+    # does NOT match the deleted SWEEP regex, so this case exercises the structural arm,
+    # not the kept mirror. The structural arm fires scope "you" (matching the deleted
+    # producer). The byte-identical _DAMAGE_PREVENTION_MIRROR for the 88 fog / CoP /
+    # Aura-Equipment-ward forms phase's effect category misses is exercised separately in
+    # test_signals.py. CR 615. ADR-0027.
+    "damage_prevention": (
+        {
+            "name": "Urza's Armor",
+            "type_line": "Artifact",
+            "oracle_text": (
+                "If a source would deal damage to you, prevent 1 of that damage."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="damage_prevention",
+                        scope="any",
+                        raw="",
+                    ),
+                ),
+            )
+        ),
+    ),
     # animate_artifact ← a BYTE-IDENTICAL kept mirror (_ANIMATE_ARTIFACT_MIRROR over the
     # reminder-stripped oracle: "Target noncreature artifact becomes an artifact creature
     # …"). phase parses "artifacts become creatures" inconsistently (base_pt_set /

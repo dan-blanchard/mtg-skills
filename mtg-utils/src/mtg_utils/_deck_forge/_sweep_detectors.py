@@ -617,6 +617,19 @@ DAMAGE_REDIRECT_REGEX = (
     "|that damage is dealt to [^.]*instead|deal that damage to [^.]*instead"
 )
 
+# ADR-0027: damage_prevention's EXACT deleted SWEEP regex, pinned so ONE source feeds
+# the _DAMAGE_PREVENTION_MIRROR kept detector (_signals_ir, recovering the 88 cards
+# phase's effect category doesn't structure) AND the _DAMAGE_PREVENTION_PLAN_MIRROR
+# voltron gate (_signals_regex). Every arm uses `[^.]*` (never crosses a period), so a
+# flat scan over the reminder-stripped kept_oracle == the deleted per-clause SWEEP
+# firing set BYTE-IDENTICALLY (466==466, 0 mismatch over commander-legal). CR 615.
+DAMAGE_PREVENTION_REGEX = (
+    "prevent the next (?:\\d+|x) damage"
+    "|prevent (?:all|the next \\d+|x|all combat|all but \\d+|that) [^.]*damage"
+    "|prevent that damage|prevent all damage"
+    "|prevent [^.]*damage that would be dealt"
+)
+
 # ADR-0027 β: free_cast migrated to the Card IR via a byte-identical kept-mirror
 # (_FREE_CAST_MIRROR in _signals_ir). The SWEEP_DETECTORS row is deleted; the EXACT
 # regex is pinned here, reused by the IR mirror, the has_other_plan plan-mirror, and the
@@ -1540,12 +1553,20 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # signals._is_exile_until_leaves (inline raw phrase OR the two-ability linked-
     # return O-Ring shape) + a kept Saga-chapter word mirror. SWEEP_LABELS keeps the
     # label; the serve spec is re-homed in signal_specs.py.
-    {
-        "key": "damage_prevention",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "prevent the next (?:\\d+|x) damage|prevent (?:all|the next \\d+|x|all combat|all but \\d+|that) [^.]*damage|prevent that damage|prevent all damage|prevent [^.]*damage that would be dealt",
-    },
+    # ADR-0027: damage_prevention migrated to the Card IR (CR 615 prevention — fog /
+    # Circle of Protection / "prevent the next N damage" / "prevent all damage dealt
+    # to/by ..."). The lane fires from TWO IR producers, unioned: the BROAD
+    # `damage_prevention` effect-category arm (_DOER_EFFECT_KEYS — the primary producer,
+    # catching the 18 "prevent N of that damage" forms this regex missed) PLUS the
+    # _DAMAGE_PREVENTION_MIRROR (_signals_ir) — the EXACT deleted regex (pinned as
+    # DAMAGE_PREVENTION_REGEX below) over the reminder-stripped kept_oracle, recovering
+    # the 88 cards phase's effect category doesn't structure. Its `[^.]*` arms never
+    # cross a sentence, so a FLAT scan == the deleted per-clause SWEEP firing set BYTE-
+    # IDENTICALLY (466==466, 0 mismatch over commander-legal). This SWEEP_DETECTORS row
+    # is deleted; the EXACT regex is pinned as DAMAGE_PREVENTION_REGEX below (reused by
+    # the IR mirror AND the _DAMAGE_PREVENTION_PLAN_MIRROR has_other_plan gate in
+    # _signals_regex), SWEEP_LABELS keeps the human label, and the serve stays hand-
+    # registered in signal_specs.py. CR 615.
     # ADR-0027 β: damage_redirect migrated to the Card IR via two byte-identical kept
     # mirrors. phase types both arms INCONSISTENTLY and ~90%-over-fires either structural
     # category (redirect/damage_replace(ment) = 224 vs 25; damage_prevention = 396 vs

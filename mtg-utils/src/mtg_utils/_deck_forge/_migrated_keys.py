@@ -2475,6 +2475,50 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (FILE-SWAP voltron delta == 0). CR 614.9 (redirection replacement) / 615
         # (prevention).
         "damage_redirect",
+        # ADR-0027 — damage_prevention (a card that PREVENTS damage: the fog /
+        # Circle-of-Protection / "prevent the next N damage" / "if a source would deal
+        # damage … prevent it" family — CR 615 prevention, distinct from the CR 614.9
+        # damage_redirect lane above and from damage_reflect). MIGRATED VIA the broad
+        # `damage_prevention` effect-category arm (the PRIMARY producer) PLUS a
+        # BYTE-IDENTICAL KEPT MIRROR (signals-only, NO sidecar bump).
+        #
+        # TWO IR producers in extract_signals_ir, unioned (add() dedups, both scope
+        # 'you' to match the deleted SWEEP producer):
+        #   ARM 1 (PRIMARY, structural) — phase's `damage_prevention` effect category
+        #     via _DOER_EFFECT_KEYS, scope 'you'. This is the BROADER arm: it catches
+        #     the 18 "prevent N of that damage" / "prevent half that damage" forms the
+        #     deleted SWEEP regex MISSED (it required `prevent the next N` / `prevent
+        #     all` / `prevent … damage that would be dealt`, none of which match
+        #     "prevent 1 of that damage" — Urza's Armor, the Sphere of
+        #     Law/Grace/Duty cycle, Daunting Defender, Hedron-Field Purists,
+        #     Valkmira, Gisela's "prevent half that damage", Dark Sphere). All 18
+        #     ir_only verified genuine CR 615 prevention vs Scryfall.
+        #   ARM 2 (kept mirror) — _DAMAGE_PREVENTION_MIRROR (_signals_ir), the EXACT
+        #     deleted SWEEP regex (pinned as DAMAGE_PREVENTION_REGEX in
+        #     _sweep_detectors) over the reminder-stripped kept_oracle. phase's
+        #     effect category MISSES 88 commander-legal genuine preventers (Fog Bank,
+        #     Gaseous Form, Glacial Chasm, the Phantom/+1-counter prevention-shield
+        #     cycle — Phantom Centaur, Vigor, Polukranos, Sekki, Ugin's Conjurant;
+        #     Iroas, Energy Field, Solitary Confinement, Nine Lives, Immortal Coil,
+        #     the Aura/Equipment "prevent all damage dealt to/by enchanted/equipped
+        #     creature" wards). The regex's `[^.]*` arms never cross a sentence, so a
+        #     FLAT scan over kept_oracle == the deleted per-clause SWEEP firing set
+        #     BYTE-IDENTICALLY (466==466, 0 mismatch over all commander-legal —
+        #     verified), recovering every regex_only card.
+        #
+        # Floor-disabled residual vs the deleted producer (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): regex_only == 0 (the kept mirror is byte-
+        # identical), ir_only == 18 (the broader structural arm, all genuine).
+        # Union == 484, all 484 genuine CR 615 prevention (no over-fire to drop).
+        # floor-mirror-dep == 0 (damage_prevention is NOT an _IR_FLOOR_LANE). The
+        # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted
+        # toward has_other_plan (a prevention engine — a fog/CoP body — is no vanilla
+        # beater), so a byte-identical _DAMAGE_PREVENTION_PLAN_MIRROR in
+        # _signals_regex re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, which would OVER-silence the 18 ir_only bodies
+        # the regex never fired on (the broader-IR → plan-mirror rule). CR 615
+        # (prevention; verified via rules-lawyer).
+        "damage_prevention",
         # ADR-0027 β — animate_artifact (a card that makes ARTIFACTS BECOME CREATURES:
         # Karn Silver Golem, March of the Machines, Ensoul Artifact, Tezzeret the
         # Seeker, Sydri, every Vehicle-crew "becomes an artifact creature"). MIGRATED

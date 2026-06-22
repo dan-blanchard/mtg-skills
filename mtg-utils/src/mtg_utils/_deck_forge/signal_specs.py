@@ -25,6 +25,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COUNTER_DISTRIBUTE_SERVE_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_PREVENTION_REGEX,
     DEBUFF_SWEEP_REGEX,
     FLASH_GRANT_REGEX,
     FREE_CAST_REGEX,
@@ -2339,9 +2340,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         extras=(_PILLOWFORT_EXTRA, _FORCE_ATTACK_EXTRA),
     ),
     # Fog / damage-prevention commanders durdle defensively — pillowfort is a top
-    # EDHREC pick for them (4 commanders in the evidence). Keep the mined fog regex.
+    # EDHREC pick for them (4 commanders in the evidence). Keep the mined fog regex
+    # (ADR-0027: damage_prevention migrated, SWEEP_DETECTORS row deleted, so pass the
+    # pinned DAMAGE_PREVENTION_REGEX explicitly — the serve never drifts from the mine).
     ("damage_prevention", "you"): _sweep_spec_with_extras(
-        "damage_prevention", (_PILLOWFORT_EXTRA, _DAMAGE_SOAK_EXTRA)
+        "damage_prevention",
+        (_PILLOWFORT_EXTRA, _DAMAGE_SOAK_EXTRA),
+        regex=DAMAGE_PREVENTION_REGEX,
     ),
     ("proliferate_matters", "you"): _spec(
         "Proliferate",

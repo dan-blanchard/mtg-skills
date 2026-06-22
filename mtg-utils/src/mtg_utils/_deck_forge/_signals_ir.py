@@ -64,6 +64,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CREATURE_PING_REGEX,
     CREATURE_RECURSION_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_PREVENTION_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEATH_MATTERS_REGEX,
@@ -4228,6 +4229,17 @@ _COLOR_CHANGE_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # _detect_self_damage_prevention helper inline in extract_signals_ir, not this mirror.
 # CR 614.9 (redirection replacement).
 _DAMAGE_REDIRECT_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
+# damage_prevention BYTE-IDENTICAL kept mirror (ADR-0027): the SECONDARY producer for
+# the lane (the PRIMARY is the broad `damage_prevention` effect-category arm in
+# _DOER_EFFECT_KEYS). This recovers the 88 commander-legal genuine preventers phase's
+# effect category MISSES (Fog Bank, Gaseous Form, Glacial Chasm, the Phantom/+1-counter
+# prevention-shield cycle, Iroas, Energy Field, Solitary Confinement, the Aura/Equipment
+# "prevent all damage dealt to/by enchanted/equipped creature" wards). It runs the EXACT
+# deleted SWEEP regex (pinned as DAMAGE_PREVENTION_REGEX) over the reminder-stripped
+# kept_oracle; every arm uses `[^.]*` (never crosses a period), so a flat scan == the
+# deleted per-clause SWEEP firing set BYTE-IDENTICALLY (466==466, 0 mismatch over
+# commander-legal). add() dedups vs the effect-category arm. CR 615 (prevention).
+_DAMAGE_PREVENTION_MIRROR = re.compile(DAMAGE_PREVENTION_REGEX, re.IGNORECASE)
 # animate_artifact BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
 # EXACT deleted SWEEP regex (pinned as ANIMATE_ARTIFACT_REGEX) over the reminder-
 # stripped kept_oracle — "artifacts become creatures" (Karn Silver Golem, March of the
@@ -8199,6 +8211,20 @@ def extract_signals_ir(
         add("damage_redirect", "you", "", "")
     if _DAMAGE_REDIRECT_MIRROR.search(kept_oracle):
         add("damage_redirect", "you", "", "")
+    # ADR-0027 — damage_prevention SECONDARY kept mirror (the PRIMARY is the broad
+    # `damage_prevention` effect-category arm in _DOER_EFFECT_KEYS, which fired earlier
+    # in this function). phase's effect category MISSES 88 commander-legal genuine
+    # preventers (Fog Bank, Gaseous Form, Glacial Chasm, the Phantom/+1-counter
+    # prevention-shield cycle, Iroas, Energy Field, Solitary Confinement, the
+    # Aura/Equipment wards), so recover them with the EXACT deleted SWEEP regex
+    # (_DAMAGE_PREVENTION_MIRROR / DAMAGE_PREVENTION_REGEX) over the reminder-stripped
+    # kept_oracle. Its `[^.]*` arms never cross a period, so the flat scan == the
+    # deleted per-clause SWEEP firing set BYTE-IDENTICALLY (466==466, 0 mismatch over
+    # commander-legal). scope 'you' matches the deleted producer + the effect-category
+    # arm; add() dedups vs both. The union over the corpus (effect-cat 396 + mirror
+    # 466) == 484, all genuine CR 615 prevention (0 over-fire). CR 615.
+    if _DAMAGE_PREVENTION_MIRROR.search(kept_oracle):
+        add("damage_prevention", "you", "", "")
     # ADR-0027 β — animate_artifact BYTE-IDENTICAL kept mirror. phase parses "artifacts
     # become creatures" three INCONSISTENT ways (base_pt_set/board_grant over an
     # Artifact subject, a becomes_type{Artifact} grant, or base_pt_set subject=None),

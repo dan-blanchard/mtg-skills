@@ -57,8 +57,12 @@ def test_sweep_detectors_loaded():
     # form for), then 31→30 as counter_doubling's row was deleted (ADR-0027 — migrated
     # to the `cat == "counter_doubling"` replacement-effect structural arm + a byte-
     # identical COUNTER_DOUBLING_REGEX kept word mirror in _signals_ir for the 46
-    # one-shot doublers phase mangles to `double`/`place_counter`/`counter_distribute`).
-    assert len(SWEEP_DETECTORS) >= 30
+    # one-shot doublers phase mangles to `double`/`place_counter`/`counter_distribute`),
+    # then 30→29 as damage_prevention's row was deleted (ADR-0027 — migrated to the broad
+    # `damage_prevention` effect-category arm + a byte-identical DAMAGE_PREVENTION_REGEX
+    # kept mirror in _signals_ir for the 88 fogs / Circle-of-Protection / Aura-Equipment
+    # wards phase's effect category doesn't structure).
+    assert len(SWEEP_DETECTORS) >= 29
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

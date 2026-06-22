@@ -39,6 +39,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CREATURE_PING_REGEX,
     CREATURE_RECURSION_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_PREVENTION_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEATH_MATTERS_REGEX,
@@ -3145,6 +3146,19 @@ _COLOR_CHANGE_PLAN_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
 # _detect_self_damage_prevention helper in the gate chain below (it can't be a static
 # regex — it's name-aware). FILE-SWAP NO-FLOOD: voltron delta 0. CR 903.10a / 614.9.
 _DAMAGE_REDIRECT_PLAN_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated damage_prevention key. The
+# deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a prevention
+# engine (a fog / Circle of Protection / "prevent all damage dealt to/by enchanted
+# creature" ward — not a vanilla beater). The migrated lane is BROADER than the deleted
+# regex (+18 ir_only — phase's effect category catches the "prevent N of that damage"
+# forms the regex missed), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 18
+# ir_only bodies; this byte-identical regex re-supplies the EXACT pre-migration silence
+# set instead (the broader-IR → plan-mirror rule). Matched against the reminder-STRIPPED
+# `text` (the deleted SWEEP detector ran per-clause over the same stripped input); the
+# `[^.]*` arms have no `[^.]` spanning a sentence, so full-text == per-clause. FILE-SWAP
+# NO-FLOOD: voltron delta 0. CR 903.10a / 615.
+_DAMAGE_PREVENTION_PLAN_MIRROR = re.compile(DAMAGE_PREVENTION_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated animate_artifact key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
@@ -5226,6 +5240,18 @@ def extract_signals(
         # damage tell survives regardless of this silence. CR 903.10a / 614.9 / 615.
         or _detect_self_damage_prevention(text, name)
         or _DAMAGE_REDIRECT_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted damage_prevention SWEEP producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a fog / Circle of
+        # Protection / "prevent all damage dealt to/by enchanted creature" ward is no
+        # vanilla beater). The migrated lane is BROADER than the deleted regex (+18
+        # ir_only — the "prevent N of that damage" forms phase's effect category
+        # catches but the regex missed), so _VOLTRON_SILENCING_PLAN_KEYS would
+        # OVER-silence those 18 bodies; this byte-identical _DAMAGE_PREVENTION_PLAN_
+        # MIRROR re-supplies the EXACT pre-migration silence set instead (the
+        # broader-IR → plan-mirror rule). Matched against the reminder-STRIPPED `text`
+        # (the deleted SWEEP Detector ran per-clause over stripped text); the `[^.]*`
+        # arms never cross a sentence, so full-text == per-clause. CR 903.10a / 615.
+        or _DAMAGE_PREVENTION_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted animate_artifact SWEEP producer (it fired
         # HIGH-confidence scope 'you', feeding has_other_plan — an artifact-animator
         # engine is a plan, not a vanilla beater). The migrated lane rides a byte-
