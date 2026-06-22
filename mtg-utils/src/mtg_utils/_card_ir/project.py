@@ -86,6 +86,42 @@ def _is_selfref(node: object) -> bool:
     return isinstance(node, dict) and _norm(node.get("type")) == "selfref"
 
 
+# ADR-0027 β — the MASS marker for a +1/+1 counter PLACEMENT that spreads across a
+# WHOLE GROUP ("put a +1/+1 counter on EACH creature you control / each Vampire you
+# control / each of up to two target creatures" — Cathars' Crusade, Titania's Boon,
+# Krenko Baron of Tin Street, Avenger of Zendikar's landfall). phase carries the mass
+# distinction in the effect ``type`` itself — ``PutCounterAll`` (337 occurrences) for
+# the "on each …" board-wide form, vs the single-target ``PutCounter`` — but the
+# projection FOLDS both to category ``place_counter`` (``_EFFECT_CATEGORY`` maps
+# ``putcounterall`` → ``place_counter``), DROPPING the "All"/mass distinction. Without
+# it a mass placement is indistinguishable from "put a +1/+1 counter on TARGET creature
+# you control" (New Horizons, Snakeskin Veil — single-target, NOT board-wide; both also
+# project a ``Filter(card_types=('Creature',), controller='you')`` subject). We
+# re-surface the mass distinction as the ``MassEach`` predicate on the placement's
+# subject so the counter_distribute lane can split board-wide spread from a single
+# target. One closed predicate string, additive (nothing else reads ``MassEach``), so
+# counters_matter / self_counter_grow / debuff_matters / type_matters are byte-
+# identical. CR 122.1 / 122.6.
+_MASS_COUNTER_MARKER_PRED = "MassEach"
+
+# phase effect ``type``s that are a BOARD-WIDE "on each …" counter placement (the mass
+# distinction the ``place_counter`` category folds away). Only ``putcounterall`` — a
+# ``multiplycounter`` is a counter-DOUBLER (its own archetype), not a mass placement.
+_MASS_PLACE_TYPES = frozenset({"putcounterall"})
+
+
+def _with_mass_marker(subject: Filter | None) -> Filter:
+    """Return ``subject`` with the ``MassEach`` mass-place predicate appended (a fresh
+    ``Filter`` when phase carried no simple subject — an ``Or`` multi-tribe / a
+    ``TrackedSet`` board, which ``_effect_subject`` drops to None)."""
+    if subject is None:
+        return Filter(predicates=(_MASS_COUNTER_MARKER_PRED,))
+    if _MASS_COUNTER_MARKER_PRED in subject.predicates:
+        return subject
+    preds = (*subject.predicates, _MASS_COUNTER_MARKER_PRED)
+    return replace(subject, predicates=preds)
+
+
 # ADR-0027 β — the recipient marker for a NON-COMBAT "deals damage to a PLAYER /
 # opponent" trigger (Hypnotic Specter, Curiosity, Goblin Lackey, Fungal Shambler —
 # the "whenever ~ deals damage to a player/opponent, …" connect-payoff). phase carries
@@ -2268,6 +2304,18 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         and _is_selfref(eff.get("target"))
     ):
         subject = _SELF_COUNTER_MARKER
+    # ADR-0027 β — a BOARD-WIDE +1/+1 counter placement (phase's PutCounterAll "on each
+    # … you control") carries the MassEach marker so the counter_distribute lane can
+    # split it from a single-target PutCounter. Gated to p1p1 (a mass placement of a
+    # named/loyalty counter — "put a loyalty counter on each …" — is not a +1/+1
+    # board-spread); the place_counter/counters_matter edge is untouched (counter_kind
+    # stays p1p1). CR 122.1 / 122.6.
+    if (
+        etype in _MASS_PLACE_TYPES
+        and category == "place_counter"
+        and counter_kind == "p1p1"
+    ):
+        subject = _with_mass_marker(subject)
     return [
         Effect(
             category=category,

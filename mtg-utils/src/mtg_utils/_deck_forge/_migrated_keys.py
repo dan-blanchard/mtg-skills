@@ -2443,6 +2443,74 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # auto-register loop no longer builds it; SWEEP_LABELS keeps the human label).
         # CR 500.4 / 106.4 / 903.10a.
         "unspent_mana",
+        # ADR-0027 β — counter_distribute (a BOARD-WIDE +1/+1 counter spread — "put a
+        # +1/+1 counter on each creature you control" / "distribute N +1/+1 counters
+        # among target creatures" / "each of [up to N] target creatures" / "creatures …
+        # enter with N additional +1/+1 counters"). MIGRATED VIA PROJECTION (SIDECAR
+        # v17→v18) + a NARROWED kept-mirror.
+        #
+        # PROJECTION (v17→v18). phase carries the MASS distinction in the effect TYPE
+        # itself — `PutCounterAll` ("on each …") vs the single-target `PutCounter` — but
+        # _EFFECT_CATEGORY folds both to category `place_counter`, dropping the "All"
+        # distinction; project._with_mass_marker re-surfaces it as the `MassEach`
+        # subject predicate. The marker is the discriminator: a generic place_counter
+        # (p1p1) on a Creature/you subject would conflate board-spread with "put a +1/+1
+        # counter on TARGET creature you control" (New Horizons, Snakeskin Veil —
+        # single-target, NOT board-wide; phase emits the SAME subject for both).
+        # counter_kind stays p1p1 (additive — nothing else reads MassEach), so
+        # counters_matter / self_counter_grow / debuff_matters / type_matters are byte-
+        # identical. Two-sidecar behavior-neutral no-flood (v17 vs v18, SAME unwired
+        # signals.py, 30969 commander-legal): drift_cards == 0. parse_confidence
+        # unchanged (34118 full / 444 partial both sides).
+        #
+        # STRUCTURAL ARM (recall-GAINING). A place_counter carrying the MassEach marker
+        # fires counter_distribute scope 'you'. +84 recall over a mirror-only path: it
+        # catches every TRIBAL/restricted mass — "put a +1/+1 counter on each Vampire /
+        # Cleric / legendary creature / attacking creature you control" (Krenko Baron of
+        # Tin Street, Cordial Vampire, Minwu, Ardbert, Fangren Firstborn) — the deleted
+        # regex's literal "each creature you control" arm missed. counters_matter still
+        # co-fires on the p1p1 placement (counter_distribute is the NARROWER go-wide
+        # build-around — is_widen_of counters_matter).
+        #
+        # NARROWED KEPT-MIRROR (_COUNTER_DISTRIBUTE_MIRROR in _signals_ir). Two board-
+        # wide forms have NO PutCounterAll: the DISTRIBUTE-AMONG / "each of [up to N]
+        # target creatures" form (Verdurous Gearhulk, Thrive, Ajani Mentor, support —
+        # phase types these as a single-target PutCounter, structurally identical to "on
+        # target creature you control") and the ENTERS-WITH-ADDITIONAL group buff ("each
+        # other X you control enters with an additional +1/+1 counter" — Bramblewood
+        # Paragon, Giada, Oona's Blackguard — phase drops the replacement subject to
+        # None). Recover them with the deleted regex's mass/distribute/each-of arms PLUS
+        # an enters-with-ADDITIONAL arm, MINUS the loose plain "enters with N +1/+1
+        # counters on it" arm — that arm 100%-over-fired onto SELF-enters-with creatures
+        # (Triskelion / Endless One / Modular / Graft / Bloodthirst — the source grows
+        # ITSELF, which is self_counter_grow, NOT board spread; 329 over-fires, the lane
+        # is board-wide-only per test_counter_distribute_is_board_wide_only). The
+        # "distribute" arm is also fixed for the modern "distribute four +1/+1 counters"
+        # templating the deleted regex's number-less arm missed. Run PER-CLAUSE over
+        # reminder-stripped kept_oracle.
+        #
+        # GATES. floor-mirror-dep == 0 (counter_distribute is NOT an _IR_FLOOR_LANE — it
+        # was a SWEEP_DETECTORS key; 380 firings floor-ON == 380 floor-OFF). Floor-
+        # disabled IR-vs-regex residual (commander-legal, _IR_FLOOR_LANES=frozenset(),
+        # structural arm + mirror vs the EXACT deleted SWEEP regex over the REMINDER-
+        # STRIPPED oracle, the real producer's input): both == 229, ir_only == 151
+        # (genuine recall: distribute-N the broken number-less arm missed + tribal mass
+        # the literal-creature arm missed + support N the reminder-strip dropped + the
+        # enters-with-additional form; 0 of 151 lack a +1/+1 mention, 0 single-target
+        # over-fire — verified vs Scryfall oracle), regex_only == 258 — ALL plain self-
+        # enters-with / keyword-self-grow placements (100% over-fire vs the board-wide
+        # intent: the source grows itself, not the board; routed to self_counter_grow).
+        # FILE-SWAP no-flood (base a96a28a + v17 vs edits + v18, commander-legal): drift
+        # == 409, ONLY counter_distribute moves (gain 151 / lose 258); counters_matter /
+        # self_counter_grow / debuff_matters / type_matters / creatures_matter drift 0,
+        # voltron gain 0. The deleted SWEEP producer fired HIGH-confidence (scope 'you')
+        # and counted toward has_other_plan, so a byte-identical
+        # _COUNTER_DISTRIBUTE_PLAN_MIRROR re-supplies the voltron silence on a board
+        # engine, NOT _VOLTRON_SILENCING_PLAN_KEYS (the IR arm is broader, +151).
+        # The serve spec in signal_specs.py reuses COUNTER_DISTRIBUTE_SERVE_REGEX (a
+        # board-wide regex via the ``regex=`` arg; SWEEP_LABELS keeps the human label).
+        # CR 122.1 / 122.6 / 903.10a.
+        "counter_distribute",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -2307,6 +2307,18 @@ IR_SLICE_KEYS: frozenset[str] = (
             # sidecar bump). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
             # CR 500.4 / 106.4.
             "unspent_mana",
+            # ADR-0027 β — counter_distribute (a BOARD-WIDE +1/+1 counter spread): a
+            # STRUCTURAL arm reads the MassEach marker (phase's PutCounterAll "on each …
+            # you control", project @ SIDECAR v18 — +84 recall over a mirror-only path:
+            # every tribal/restricted mass the deleted regex's literal "each creature
+            # you control" arm missed), PLUS a NARROWED _COUNTER_DISTRIBUTE_MIRROR for
+            # distribute-among / each-of / enters-with-additional forms phase types as a
+            # single-target PutCounter or drops to None (Verdurous Gearhulk, Thrive,
+            # Bramblewood Paragon, Giada). The deleted regex's plain self-enters arm is
+            # DROPPED — 329 over-fires onto SELF-grow creatures (self_counter_grow, not
+            # board spread). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 122.1 /
+            # 122.6.
+            "counter_distribute",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3380,6 +3392,47 @@ _SELF_COUNTER_GROW_MIRROR = re.compile(
 )
 
 
+# counter_distribute NARROWED kept mirror (ADR-0027 β). The structural arm fires on a
+# place_counter carrying the MassEach marker (phase's PutCounterAll "on each … you
+# control", project @ SIDECAR v18). But two board-wide forms have NO PutCounterAll: the
+# DISTRIBUTE-AMONG and "each of [up to N] target creatures" form (Verdurous Gearhulk,
+# Thrive, Ajani Mentor, the support keyword — phase types these as a single-target
+# PutCounter, indistinguishable from "on target creature you control" by structure
+# alone), and the ENTERS-WITH-ADDITIONAL group buff ("each other X you control enters
+# with an additional +1/+1 counter" — Bramblewood Paragon, Giada, Oona's Blackguard —
+# phase drops the replacement subject to None). Recover them with a NARROWED version of
+# the deleted SWEEP regex: its mass/distribute/each-of arms PLUS an enters-with-
+# ADDITIONAL arm, but MINUS the loose plain "enters with N +1/+1 counters on it" arm —
+# that arm 100%-over-fired onto SELF-enters-with creatures (Triskelion / Endless One /
+# Modular / Graft / Bloodthirst — the source grows ITSELF, which is self_counter_grow,
+# NOT board spread; 329 over-fires, the lane is board-wide-only per
+# test_counter_distribute_is_board_wide_only). The "distribute" arm is also fixed for
+# the modern "distribute four +1/+1 counters" templating the deleted regex's number-
+# less arm missed. Run PER-CLAUSE over reminder-stripped kept_oracle. CR 122.1 / 122.6.
+_COUNTER_DISTRIBUTE_MIRROR = re.compile(
+    r"put (?:a|one|two|\d+|x) \+1/\+1 counters? on each (?:other )?creature you control"
+    # "distribute … +1/+1 counters" (CR 614.12, the distribute-among keyword): the
+    # deleted regex required a BARE "distribute +1/+1 counters" (no count), missing the
+    # modern "distribute four / X / a number of +1/+1 counters" templating. Allow any
+    # short count phrase between "distribute" and "+1/+1 counter" (Verdurous Gearhulk,
+    # Blessings of Nature, Vastwood Hydra's death-distribute, Ajani Mentor).
+    r"|distribute [^.]{0,30}?\+1/\+1 counters"
+    r"|put (?:a |one or more |the same number[^.]*?)\+1/\+1 counters? on each of"
+    r"|(?:enters? with|enter with) (?:a|an|one|two|three|x|\d+) additional "
+    r"\+1/\+1 counters? on"
+    r"|enters with that many additional"
+    # support N (CR 702.105) — "Support 2. (Put a +1/+1 counter on each of up to two
+    # target creatures.)" is the distribute-among keyword; the explanation lives in the
+    # parenthetical reminder text that kept_oracle strips, so the "on each of" arm above
+    # misses it. The keyword action survives stripping ("Support 2."), and "support N"
+    # is unambiguous — the only MTG mechanic so spelled. Recovers Expedition Raptor,
+    # Nissa's Judgment, Gladehart Cavalry — genuine board-wide distribute the stripped
+    # deleted regex itself missed (recall gain, not a regression).
+    r"|\bsupport (?:x|\d+)\b",
+    re.IGNORECASE,
+)
+
+
 # typed_enters_punish opponent-recipient discriminator (ADR-0027): phase scopes
 # Purphoros / Witty Roastmaster's damage effect 'any' (the "each opponent" recipient
 # survives only in raw), so the lane reads the raw for an opponent recipient when the
@@ -3454,6 +3507,19 @@ def _is_self_counter_marker(f: object) -> bool:
     it as the self shape it already fired on (subject=None at the regex base). CR
     122.1 / 614.12."""
     return isinstance(f, Filter) and f.predicates == ("SelfRef",)
+
+
+def _is_mass_counter_marker(f: object) -> bool:
+    """True for the ADR-0027 β MassEach marker project.py stamps on a BOARD-WIDE +1/+1
+    counter placement (phase's PutCounterAll "put a +1/+1 counter on each … you control"
+    — Cathars' Crusade, Titania's Boon, Krenko Baron of Tin Street). The
+    counter_distribute lane reads this to split board-wide spread from a single-target
+    PutCounter ("put a +1/+1 counter on TARGET creature you control" — New Horizons,
+    Snakeskin Veil — also a Creature/you subject). The marker rides ALONGSIDE any tribe/
+    predicate on the subject (a tribal mass "each Vampire you control" carries
+    subtypes=('Vampire',) + MassEach), so membership — not equality — is the gate.
+    CR 122.1 / 122.6."""
+    return isinstance(f, Filter) and "MassEach" in f.predicates
 
 
 def _is_permanent_subtype_destroy(f: object) -> bool:
@@ -4659,6 +4725,28 @@ def extract_signals_ir(
             # 'you'. CR 122.1 / 614.12.
             if cat == "place_counter" and _is_self_counter_marker(e.subject):
                 add("self_counter_grow", "you", "", e.raw)
+            # ADR-0027 β — counter_distribute STRUCTURAL arm. A BOARD-WIDE +1/+1 counter
+            # placement that spreads across a WHOLE group ("put a +1/+1 counter on each
+            # creature / each Vampire / each attacking creature you control" — Cathars'
+            # Crusade, Titania's Boon, Krenko Baron of Tin Street, Avenger of Zendikar's
+            # landfall). phase carries the mass distinction in the effect TYPE itself —
+            # PutCounterAll vs the single-target PutCounter — but _EFFECT_CATEGORY folds
+            # both to place_counter, dropping it. project._with_mass_marker re-surfaces
+            # it as the MassEach subject predicate (@ SIDECAR v18). The MARKER is the
+            # discriminator: a generic place_counter(p1p1) on a Creature/you subject
+            # would conflate board-spread with "put a +1/+1 counter on TARGET creature
+            # you control" (New Horizons, Snakeskin Veil: single-target, not board-wide;
+            # the exact ambiguity that DEFERRED the clean split — phase emits the
+            # same subject for both). +84 recall over a mirror-only path (every tribal/
+            # restricted mass ("each Merfolk/Cleric/legendary you control") the deleted
+            # regex's literal "each creature you control" arm missed). counters_matter
+            # (the broad lane above) co-fires on the p1p1 placement; counter_distribute
+            # is the NARROWER go-wide build-around (is_widen_of counters_matter). A
+            # _COUNTER_DISTRIBUTE_MIRROR below recovers the distribute-among / each-of /
+            # enters-with-additional forms phase types as a single-target PutCounter or
+            # drops to None. scope 'you'. CR 122.1 / 122.6.
+            if cat == "place_counter" and _is_mass_counter_marker(e.subject):
+                add("counter_distribute", "you", "", e.raw)
             # counters_matter (ADR-0027 pass 2) — a "has/with a +1/+1 counter"
             # PAYOFF reference phase dropped to a restriction / draw / damage /
             # cost_reduction carrier, recovered as a counters_have_ref marker
@@ -6353,6 +6441,24 @@ def extract_signals_ir(
         _SELF_COUNTER_GROW_MIRROR.search(cl) for cl in _clauses(kept_oracle)
     ) or self_power_scale_match(kept_oracle, name):
         add("self_counter_grow", "you", "", "")
+    # ADR-0027 β — counter_distribute NARROWED kept mirror. The structural arm above
+    # fires on a place_counter carrying the MassEach marker (phase's PutCounterAll "on
+    # each … you control", project @ SIDECAR v18), but two board-wide forms have NO
+    # PutCounterAll: the DISTRIBUTE-AMONG / "each of [up to N] target creatures" form
+    # (Verdurous Gearhulk, Thrive, Ajani Mentor, the support keyword — phase types them
+    # as a single-target PutCounter, structurally identical to "on target creature you
+    # control") and the ENTERS-WITH-ADDITIONAL group buff ("each other X you control
+    # enters with an additional +1/+1 counter" — Bramblewood Paragon, Giada, Oona's
+    # Blackguard — phase drops the replacement subject to None). Recover them with the
+    # NARROWED regex (the mass/distribute/each-of/enters-with-ADDITIONAL arms, MINUS the
+    # loose plain "enters with N +1/+1 counters on it" arm that 100%-over-fired onto
+    # SELF-enters-with creatures — Triskelion / Endless One / Modular / Graft — which
+    # are self_counter_grow, not board spread; the lane is board-wide-only). Run
+    # PER-CLAUSE
+    # over reminder-stripped kept_oracle. add() dedups vs the structural arm. CR 122.1 /
+    # 122.6.
+    if any(_COUNTER_DISTRIBUTE_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("counter_distribute", "you", "", "")
     # ADR-0027 β — untap_engine NARROWED kept mirror. The structural arm above reads
     # `cat=='untap'` Effects, but phase routes ~11 genuine engines into a choose /
     # target_only / cost / type_set carrier with NO cat=='untap' Effect (Captain of the

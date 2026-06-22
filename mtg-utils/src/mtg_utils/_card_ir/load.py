@@ -110,7 +110,18 @@ from mtg_utils.card_ir import Card
 #     nothing reads mana_filter, so the split is drift-free. Read in
 #     extract_signals_ir + the triggered `ramp`/`double` doublers discriminator-
 #     gated (additive — ramp_matters unchanged). ADR-0027 β. CR 106.4 / 605.
-SIDECAR_VERSION = 17
+#  - v17→v18: counter_distribute — a BOARD-WIDE +1/+1 counter placement (phase's
+#     `PutCounterAll` "put a +1/+1 counter on each … you control" — Cathars' Crusade,
+#     Titania's Boon, Krenko Baron of Tin Street, Avenger of Zendikar) carries the
+#     `MassEach` predicate on the placement's subject. _EFFECT_CATEGORY folds both
+#     `putcounterall` (mass) and `putcounter` (single) to `place_counter`, dropping the
+#     "All" distinction; project._with_mass_marker re-surfaces it so the
+#     counter_distribute lane can split board-wide spread from a single-target placement
+#     (New Horizons, Snakeskin Veil — also a Creature/you subject). counter_kind stays
+#     p1p1 (additive — nothing else reads MassEach), so counters_matter /
+#     self_counter_grow / debuff_matters / type_matters are byte-identical. ADR-0027 β.
+#     CR 122.1 / 122.6.
+SIDECAR_VERSION = 18
 
 
 def card_ir_dir() -> Path:

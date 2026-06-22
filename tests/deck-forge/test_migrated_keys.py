@@ -379,6 +379,43 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # counter_distribute ← a STRUCTURAL place_counter carrying the MassEach mass marker
+    # (project @ SIDECAR v18 — phase's PutCounterAll "on each creature you control", folded
+    # by _EFFECT_CATEGORY to place_counter, re-surfaced as the MassEach subject predicate).
+    # Cathars' Crusade's ETB trigger "put a +1/+1 counter on each creature you control" is a
+    # board-wide spread: the marker makes the structural arm in extract_signals_ir fire
+    # counter_distribute scope "you" (and counters_matter co-fires on the p1p1 placement).
+    # The marker is the discriminator vs a single-target "on target creature you control"
+    # placement (no MassEach there — New Horizons). ADR-0027 β. CR 122.1 / 122.6.
+    "counter_distribute": (
+        {
+            "name": "Cathars' Crusade",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever a creature you control enters, put a +1/+1 counter on "
+                "each creature you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you"),
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            controller="you",
+                            predicates=("MassEach",),
+                        ),
+                        counter_kind="p1p1",
+                        raw="put a +1/+1 counter on each creature you control",
+                    ),
+                ),
+            )
+        ),
+    ),
     # toughness_combat ← a BYTE-IDENTICAL kept mirror (_TOUGHNESS_COMBAT_MIRROR over the
     # reminder-stripped oracle: "Each creature you control assigns combat damage equal to
     # its toughness rather than its power"). TWO deleted regex producers (the SWEEP

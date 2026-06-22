@@ -22,6 +22,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
+    COUNTER_DISTRIBUTE_SERVE_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_SWEEP_REGEX,
@@ -2342,8 +2343,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             r"(?:\+1/\+1|-1/-1) counters?"
         ),
     ),
+    # ADR-0027 β: counter_distribute's SWEEP_DETECTORS row was deleted (detection moved
+    # to the Card IR — the MassEach structural arm + narrowed mirror). The serve keeps a
+    # board-wide regex via regex= (the strangler pattern), DROPPING the deleted regex's
+    # plain self-enters arm (a self-grower doesn't spread) and ADDING the tribal-mass
+    # "each <tribe> you control" form the structural arm catches via PutCounterAll.
     ("counter_distribute", "you"): _sweep_spec_with_extras(
-        "counter_distribute", _COUNTERS_PACKAGE
+        "counter_distribute",
+        _COUNTERS_PACKAGE,
+        regex=COUNTER_DISTRIBUTE_SERVE_REGEX,
     ),
     # ADR-0027 tranche2-B: counter_place_trigger's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the counter_added trigger event). The serve

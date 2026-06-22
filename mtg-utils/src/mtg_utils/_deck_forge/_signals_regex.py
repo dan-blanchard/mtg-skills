@@ -32,6 +32,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     COST_REDUCTION_REGEX,
+    COUNTER_DISTRIBUTE_SWEEP_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_REDIRECT_REGEX,
@@ -2907,6 +2908,23 @@ _LTB_MATTERS_PLAN_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
 _SELF_COUNTER_GROW_PLAN_MIRROR = re.compile(
     SELF_COUNTER_GROW_SWEEP_REGEX, re.IGNORECASE
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated counter_distribute key. The
+# deleted SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted
+# toward `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+# board-wide counter engine (a creature that spreads +1/+1 counters over the team is no
+# vanilla beater — the go-wide counter plan IS a plan). The migrated lane rides a broad
+# structural arm (+84 ir_only: tribal mass the literal "each creature you control" regex
+# missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would UNDER-silence the
+# bodies whose plan now lives only in the IR. So this BYTE-IDENTICAL gate mirror (the
+# EXACT deleted SWEEP regex, pinned COUNTER_DISTRIBUTE_SWEEP_REGEX) restores the OLD
+# producer's exact silence set — including the self-enters bodies the narrowed signal
+# drops (those are also silenced by self_counter_grow's own plan-mirror, so re-silencing
+# them here is a no-op overlap, never an over-silence). Matched against the reminder-
+# STRIPPED `text` (the deleted SWEEP Detector ran per-clause; the regex arms are clause-
+# local, so full-text == per-clause). CR 903.10a / 122.1.
+_COUNTER_DISTRIBUTE_PLAN_MIRROR = re.compile(
+    COUNTER_DISTRIBUTE_SWEEP_REGEX, re.IGNORECASE
+)
 # ADR-0027 (tranche2-C): the same HAS-OTHER-PLAN mirror for the five migrated
 # tranche2-C keys (self_pump / tapper_engine / count_anthem / exert_matters /
 # recast_etb). Each fired HIGH-confidence in the deleted _HAND_FLOOR / SWEEP path and
@@ -4497,6 +4515,15 @@ def extract_signals(
         # SWEEP Detector ran per-clause over stripped clauses; the regex arms are
         # clause-local, so full-text == per-clause). CR 903.10a / 122.1.
         or _SELF_COUNTER_GROW_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted counter_distribute SWEEP producer (HIGH-
+        # confidence scope 'you', feeding has_other_plan — a board-wide counter engine
+        # is no vanilla beater). The migrated lane rides a BROADER structural arm (+84
+        # ir_only tribal mass), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old producer's exact silence set
+        # without under-silencing the recall-gain bodies. Matched against the reminder-
+        # STRIPPED `text` (the deleted SWEEP Detector ran per-clause; the regex arms are
+        # clause-local, so full-text == per-clause). CR 903.10a / 122.1.
+        or _COUNTER_DISTRIBUTE_PLAN_MIRROR.search(text)
         # ADR-0027 tranche2-A: the migrated anthem_static / aoe_ping regex producers are
         # deleted, so they no longer ride ``out`` here. Their OLD oracle matches still
         # signal a NON-vanilla plan (a go-wide team-buff or a repeatable board-ping

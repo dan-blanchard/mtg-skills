@@ -413,6 +413,47 @@ SELF_COUNTER_GROW_SWEEP_REGEX = (
     "(?:him|her|it|itself|this creature)\\b"
     "|put that many \\+1/\\+1 counters? on (?:him|her|it|itself|this creature)"
 )
+# ADR-0027 β: counter_distribute (a BOARD-WIDE +1/+1 counter spread — "put a +1/+1
+# counter on each creature you control", "distribute N +1/+1 counters among target
+# creatures", "each of [up to N] target creatures", "creatures … enter with N additional
+# +1/+1 counters") migrated to the Card IR. The deleted SWEEP_DETECTORS row's EXACT
+# regex is pinned here so the has-other-plan voltron gate (_COUNTER_DISTRIBUTE_PLAN_MIRROR
+# in _signals_regex) re-supplies the silence byte-identically. The lane fires from a
+# STRUCTURAL arm (a place_counter carrying the MassEach marker project.py recovers @
+# SIDECAR v18 — phase carries the mass distinction in the effect TYPE PutCounterAll, which
+# _EFFECT_CATEGORY folds to place_counter; +84 recall over this regex's literal "each
+# creature you control" arm: it catches every tribal/restricted mass — "each Vampire /
+# Cleric / legendary creature you control" — the regex missed) + the NARROWED
+# _COUNTER_DISTRIBUTE_MIRROR (this regex's mass/distribute/each-of arms PLUS enters-with-
+# ADDITIONAL, MINUS the loose plain "enters with N +1/+1 counters on it" arm — 329 over-
+# fires onto SELF-grow creatures Triskelion / Endless One / Modular / Graft, which are
+# self_counter_grow, not board spread; the lane is board-wide-only). The serve is hand-
+# registered in signal_specs.py (a board-wide serve regex that, like the IR, catches
+# tribal mass while excluding single-target). SWEEP_LABELS keeps the human label.
+# CR 122.1 / 122.6.
+COUNTER_DISTRIBUTE_SWEEP_REGEX = (
+    "put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each (?:other )?creature you control"
+    "|distribute \\+1/\\+1 counters"
+    "|put (?:a |one or more |the same number[^.]*?)\\+1/\\+1 counters? on each of"
+    "|enters with (?:a|an|one|two|three|x|\\d+)(?: additional)? \\+1/\\+1 counters? on"
+    "|enters with that many additional"
+)
+# The board-wide SERVE regex: like the deleted detection regex but with the loose plain
+# self-enters arm DROPPED (a self-grower doesn't spread counters) and the "each <tribe>
+# you control" tribal-mass form added (the structural arm catches it via PutCounterAll;
+# the regex serve mirrors that breadth). Excludes single-target "on target creature you
+# control" (New Horizons), keeping the lane board-wide-only (test_signal_specs
+# .test_counter_distribute_is_board_wide_only).
+COUNTER_DISTRIBUTE_SERVE_REGEX = (
+    "put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each "
+    "(?:other )?(?:[a-z]+ )*creatures? (?:you|each|that opponent|an opponent) control"
+    "|put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each (?:attacking|legendary) creature"
+    "|distribute [^.]{0,30}?\\+1/\\+1 counters"
+    "|put (?:a |one or more |the same number[^.]*?)\\+1/\\+1 counters? on each of"
+    "|(?:enters?|enter) with (?:a|an|one|two|three|x|\\d+) additional \\+1/\\+1 counters? on"
+    "|enters with that many additional"
+    "|support (?:x|\\d+)"
+)
 
 # ADR-0027 β — damage_to_opp_matters migrated to the Card IR. The exact deleted
 # _DETECTORS regex (a "whenever ~ deals (noncombat) damage to a PLAYER / opponent"
@@ -682,12 +723,17 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ADR-0027 tranche2-B: counter_place_trigger migrated to the Card IR — detected
     # from the counter_added TRIGGER event (scope!='opp', Saga-excluded). SWEEP_LABELS
     # keeps the label; the serve spec is re-homed in signal_specs.py.
-    {
-        "key": "counter_distribute",
-        "scope": "you",
-        "is_widen_of": "counters_matter",
-        "regex": "put (?:a|one|two|\\d+|x) \\+1/\\+1 counters? on each (?:other )?creature you control|distribute \\+1/\\+1 counters|put (?:a |one or more |the same number[^.]*?)\\+1/\\+1 counters? on each of|enters with (?:a|an|one|two|three|x|\\d+)(?: additional)? \\+1/\\+1 counters? on|enters with that many additional",
-    },
+    # ADR-0027 β: counter_distribute migrated to the Card IR — a BOARD-WIDE +1/+1 counter
+    # spread fires from a STRUCTURAL arm (a place_counter carrying the MassEach marker
+    # project.py recovers @ SIDECAR v18 from phase's PutCounterAll, +84 recall over this
+    # regex's literal "each creature you control" arm — it catches every tribal mass) +
+    # the NARROWED _COUNTER_DISTRIBUTE_MIRROR (this regex's mass/distribute/each-of arms
+    # PLUS enters-with-ADDITIONAL, MINUS the loose plain "enters with N +1/+1 counters on
+    # it" arm — 329 over-fires onto SELF-grow creatures, which are self_counter_grow). Its
+    # SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as
+    # COUNTER_DISTRIBUTE_SWEEP_REGEX above (shared by the voltron plan-mirror) and the
+    # board-wide serve is hand-registered in signal_specs.py (SWEEP_LABELS keeps the
+    # label). CR 122.1 / 122.6.
     # ADR-0027 tranche2-C: keyword_counter migrated to the Card IR — detected
     # structurally from a place_counter/remove_counter whose counter_kind is in the
     # closed CR-122.1b keyword set (signals._KEYWORD_COUNTER_KINDS), PLUS a kept word

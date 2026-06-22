@@ -33,10 +33,12 @@ def test_sweep_detectors_loaded():
     # damage_to_you_punish/excess_damage/self_blink + t2b4a-A's tribal_etb_multi/
     # typed_enters_punish + t2b4a-B's win_lose_game/xspell_matters + tranche2-batch-5's
     # kept-detector sweep deletions + play_from_top (ADR-0027 β) + unspent_mana
-    # (ADR-0027 β, kept-mirror) + earlier batches migrated to the Card IR); it still
-    # guards "a non-empty set loads", not an exact count. This floor is removed at A4
-    # when the strangler empties SWEEP_DETECTORS entirely.
-    assert len(SWEEP_DETECTORS) >= 38
+    # (ADR-0027 β, kept-mirror) + counter_distribute (ADR-0027 β — its SWEEP row deleted,
+    # the lane now fires from the MassEach structural arm + narrowed mirror) + earlier
+    # batches migrated to the Card IR); it still guards "a non-empty set loads", not an
+    # exact count. This floor is removed at A4 when the strangler empties SWEEP_DETECTORS
+    # entirely. Floor lowered 38→37 as counter_distribute's row was deleted.
+    assert len(SWEEP_DETECTORS) >= 37
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
