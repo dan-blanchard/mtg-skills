@@ -70,6 +70,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     EXTRA_TURNS_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
+    GROUP_HUG_DRAW_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     LAND_DESTRUCTION_REGEX,
@@ -710,6 +711,26 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "each",
     ),
+    # ADR-0027 — group_hug_draw TAIL kept WORD MIRROR (the symmetric group-hug
+    # card-advantage lane: a card that draws for EVERY player — Howling Mine,
+    # Wheel of Fortune, Prosperity; CR 120.2). phase DOES carry an accurate
+    # structural form — a `draw` Effect scope=='each' fires this lane through the
+    # cat=="draw" arm in extract_signals_ir (scope 'each', HIGH), covering 42 of
+    # the 46 commander-legal regex fires PLUS 37 wheel/mass-draw cards the narrow
+    # regex `each player (?:may )?draws?\b` MISSED on word-adjacency (the wheel text
+    # is "each player discards their hand, THEN draws seven cards" — "each player"
+    # isn't immediately followed by "draws"). The 4 under-structured regex_only
+    # cards (Grothama / Mathise / Vault 11, whose variable-amount / d20-outcome /
+    # Saga-chapter draws fold to a `draw` Effect scope=='any' → target_player_draws;
+    # Winter Sky, whose coin-flip branch emits NO draw Effect) are recovered by this
+    # GROUP_HUG_DRAW_REGEX (the EXACT deleted SWEEP regex) run FLAT over the
+    # reminder-stripped kept_oracle. The two arms never cross a clause (the regex has
+    # no `[^.]*`), so flat == per-clause and the mirror set == the deleted regex's 46
+    # commander-legal cards EXACTLY (no broadening: mirror==46, the structural arm
+    # supplies the 37 wheels on top). union(struct|mirror) loses 0, over-fires 0 —
+    # the extra_combats precedent. add() dedups the 42 the structural arm already
+    # supplies. CR 120.2.
+    ("group_hug_draw", re.compile(GROUP_HUG_DRAW_REGEX, re.IGNORECASE), "each"),
     # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
     # no unifying "bending ability" rule exists, no card references the set), so
     # each gets its own lane rather than one conflated bending_matters: airbend

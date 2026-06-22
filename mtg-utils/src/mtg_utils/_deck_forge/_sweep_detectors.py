@@ -27,6 +27,16 @@ KEYWORD_COUNTER_REGEX = "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|
 # them for the serve pool — keeping serve and the (now-deleted) detector from drifting.
 SPELL_KEYWORD_GRANT_REGEX = "spells you cast have (?:convoke|affinity|cascade|flash|trample|deathtouch|delve|undaunted|haste|lifelink|menace|ward|improvise|demonstrate|casualty|flashback)|(?:noncreature spells|creature spells|spells) you cast have (?:improvise|demonstrate|casualty|convoke|affinity|cascade|flashback)|spell you cast(?: each turn)? has casualty|creature spells you cast have"
 TARGET_PLAYER_DRAWS_REGEX = "target player draws a card|target opponent draws"
+# ADR-0027 — group_hug_draw migrated to the Card IR (the symmetric group-hug draw lane:
+# a card that draws for EVERY player — Howling Mine, Wheel of Fortune, Prosperity). Its
+# SWEEP_DETECTORS row is deleted; detection moved to a STRUCTURAL arm (a `draw` Effect
+# scope=='each', signals.extract_signals_ir) UNION a BYTE-IDENTICAL kept WORD MIRROR
+# (this exact regex in signals._IR_KEPT_DETECTORS, scope 'each') for the 4 cards phase
+# under-structures (Grothama / Mathise / Vault 11 / Winter Sky fold "each player draws"
+# to scope 'any' or emit no draw Effect). This mined regex survives as a shared constant
+# so signal_specs hand-registers the serve pool reusing it — keeping serve and the
+# (now-deleted) detector from drifting.
+GROUP_HUG_DRAW_REGEX = "each player (?:may )?draws?\\b|each player who drew"
 # ADR-0027 tranche2-B (t2b3-B) — opponent_counter_grant migrated to the Card IR. Its
 # SWEEP_DETECTORS row is deleted (structural read: a detrimental bounty/stun counter on
 # an opponent's permanent). This mined regex survives as a shared constant so
@@ -1952,12 +1962,19 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # redundant — real typed anthems ("Goblins you control get +1/+1") are produced as
     # subject-bearing type_matters by the parametric detector, and its junk captures
     # ("all/attacking/color creatures get +") belong to anthem_static.
-    {
-        "key": "group_hug_draw",
-        "scope": "each",
-        "is_widen_of": "card_draw_engine",
-        "regex": "each player (?:may )?draws?\\b|each player who drew",
-    },
+    # ADR-0027: group_hug_draw migrated to the Card IR (the symmetric group-hug draw
+    # lane: a card that draws for EVERY player — Howling Mine, Wheel of Fortune,
+    # Prosperity, Timetwister, Windfall). Detected from a `draw` Effect scope=='each'
+    # (the v22 structural tell for "each player draws") in signals.extract_signals_ir,
+    # UNION a BYTE-IDENTICAL kept WORD MIRROR (GROUP_HUG_DRAW_REGEX in
+    # signals._IR_KEPT_DETECTORS, scope 'each') for the 4 cards phase under-structures
+    # (Grothama / Mathise / Vault 11 fold "each player draws" to a scope-'any' draw →
+    # target_player_draws; Winter Sky's coin-flip branch emits no draw Effect). The
+    # structural arm ALSO adds 37 wheel/mass-draw cards the narrow regex missed on
+    # word-adjacency ("each player discards their hand, THEN draws"). This
+    # SWEEP_DETECTORS row is deleted (its regex now lives as the GROUP_HUG_DRAW_REGEX
+    # constant above); SWEEP_LABELS keeps the human label and the serve spec is
+    # hand-registered in signal_specs.py reusing it. CR 120.2.
 )
 
 

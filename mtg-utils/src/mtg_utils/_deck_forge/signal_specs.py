@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     FREE_CAST_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
+    GROUP_HUG_DRAW_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
@@ -2391,6 +2392,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["target_player_draws"],
         {"oracle": TARGET_PLAYER_DRAWS_REGEX},
         TARGET_PLAYER_DRAWS_REGEX,
+    ),
+    # ADR-0027: group_hug_draw's SWEEP_DETECTORS row is deleted (detection moved to the
+    # Card IR — a `draw` effect with scope=='each', plus a byte-identical kept word
+    # mirror for the 4 cards phase under-structures). The SERVE pool stays
+    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
+    # build, reusing the deleted regex (now the shared GROUP_HUG_DRAW_REGEX constant)
+    # so the served group-hug pool never drifts.
+    ("group_hug_draw", "each"): _spec(
+        *SWEEP_LABELS["group_hug_draw"],
+        {"oracle": GROUP_HUG_DRAW_REGEX},
+        GROUP_HUG_DRAW_REGEX,
     ),
     # ADR-0027 (q2-D3): noncreature_cast_punish's SWEEP_DETECTORS row is deleted
     # (detection moved to the Card IR — a cast_spell trigger scope=='opp' over a

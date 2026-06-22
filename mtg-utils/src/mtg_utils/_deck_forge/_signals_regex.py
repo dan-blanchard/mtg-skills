@@ -48,6 +48,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
+    GROUP_HUG_DRAW_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     LANDFALL_REGEX,
@@ -2688,6 +2689,24 @@ _ARTIFACTS_MATTER_PLAN_MIRROR = re.compile(
     + r"|if you control (?:a|an|one or more) artifacts?",
     re.IGNORECASE,
 )
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated group_hug_draw key. Its deleted
+# HIGH-confidence SWEEP_DETECTORS producer (scope 'each') counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a symmetric
+# group-draw creature that is NOT a vanilla beater (Runed Servitor, Friendly Teddy,
+# Soaring Show-Off, Noggle Ransacker — "each player draws" on enter/death). The migrated
+# IR arm is BROADER than the deleted regex (+37 ir_only — the structural `draw` Effect
+# scope=='each' catches the wheel cards "each player discards their hand, THEN draws"
+# that the narrow adjacency regex missed), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence two creature wheels that WERE voltron
+# in base (Whirlpool Warrior, Azra Bladeseeker — both ir_only, never group_hug_draw in
+# the regex path, so the pre-migration regex never silenced their voltron). This mirror
+# is BYTE-IDENTICAL to the EXACT deleted SWEEP regex (GROUP_HUG_DRAW_REGEX), so it feeds
+# the gate for ONLY the deleted regex's 46-card set — reproducing pre-migration
+# `has_other_plan` exactly so the file-swap shows voltron delta 0. It feeds ONLY the
+# gate (no signal — the lane is served from the IR). Matched against the reminder-
+# STRIPPED `text`: the deleted producer was a floor Detector over reminder-stripped
+# clauses (the regex has no `[^.]*`, so flat == per-clause). CR 120.2 / 903.10a.
+_GROUP_HUG_DRAW_PLAN_MIRROR = re.compile(GROUP_HUG_DRAW_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated enchantments_matter key. Its one
 # deleted HIGH-confidence producer — the _HAND_FLOOR oracle regex (scope 'you') —
 # counted toward `has_other_plan`, silencing the spurious commander-damage voltron tell
@@ -4744,6 +4763,18 @@ def extract_signals(
         # deleted producers were floor Detectors over stripped clauses).
         # CR 702.41 / 207.2c / 903.10a.
         or _ARTIFACTS_MATTER_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted group_hug_draw producer (the SWEEP_DETECTORS
+        # row GROUP_HUG_DRAW_REGEX, HIGH-confidence scope 'each', feeding has_other_plan
+        # — a symmetric group-draw creature IS a plan, not a vanilla beater: Runed
+        # Servitor, Friendly Teddy, Soaring Show-Off, Noggle Ransacker). The migrated IR
+        # arm is BROADER (+37 ir_only — the wheel cards "each player discards … THEN
+        # draws"), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence two creature
+        # wheels that WERE voltron in base (Whirlpool Warrior, Azra Bladeseeker).
+        # This BYTE-IDENTICAL mirror restores the old regex's exact 46-card silence set,
+        # so the file-swap shows voltron delta 0. Matched against the reminder-STRIPPED
+        # `text` (the deleted producer was a floor Detector over stripped clauses; the
+        # regex has no `[^.]*`, so flat == per-clause). CR 120.2 / 903.10a.
+        or _GROUP_HUG_DRAW_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted enchantments_matter producer (the _HAND_FLOOR
         # oracle regex, HIGH-confidence scope 'you', feeding has_other_plan — a
         # constellation / enchantress / Aura engine IS a plan, not a vanilla beater:

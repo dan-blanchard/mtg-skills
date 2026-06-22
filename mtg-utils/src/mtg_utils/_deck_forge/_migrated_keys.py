@@ -957,6 +957,49 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     deleted; serve reuses the shared TARGET_PLAYER_DRAWS_REGEX. CR 120.2.
         "spell_keyword_grant",
         "target_player_draws",
+        # ADR-0027 — group_hug_draw (the symmetric group-hug card-advantage lane:
+        # a card that draws for EVERY player — Howling Mine, Wheel of Fortune,
+        # Timetwister, Windfall, Prosperity, Font of Mythos, Dictate of Kruphix).
+        # STRUCTURAL ARM (signals._signals_ir, the `draw` Effect scope=='each' —
+        # the v22 projection's structural tell for "each player draws"). DISJOINT
+        # from the YOU-draw payoff (draw_matters reads the `drawn` trigger scope
+        # 'you'), the directed/forced OPP-draw (target_player_draws reads the
+        # `draw` effect scope=='any'), and the scaling X-draw (draw_for_each reads
+        # a `draw` effect with a board-count amount). The SWEEP_DETECTORS row is
+        # deleted; the serve spec stays hand-registered (signal_specs.py).
+        # FLOOR. group_hug_draw is NOT an _IR_FLOOR_LANE (it was a SWEEP_DETECTORS
+        # producer, like draw_for_each / symmetric_damage_each), so floor-mirror-dep
+        # == 0.
+        # RESIDUAL (commander-legal, floor-disabled, by oracle_id).
+        #   both=42, ir_only=37, regex_only=4 — scope parity PERFECT (every firing,
+        #   regex and IR, is scope 'each').
+        #   ir_only (+37, ALL genuine): the WHEEL / mass-draw cards the narrow regex
+        #     `each player (?:may )?draws?\b` MISSED on word-adjacency — the wheel
+        #     text reads "each player discards their hand, THEN draws seven cards",
+        #     so "each player" is not immediately followed by "draws" and the regex
+        #     never fires; the structural `draw` Effect carries scope=='each'
+        #     regardless of the intervening discard/shuffle clause. Wheel of
+        #     Fortune, Timetwister, Windfall, Day's Undoing, Memory Jar, Reforge the
+        #     Soul, Wheel of Fate, Jace's Archivist, Molten Psyche, Time Spiral,
+        #     Whispering Madness, Magus of the Jar/Wheel, Step Between Worlds,
+        #     Sensation Gorger, Wheel of Misfortune, Rankle (modal "each player …
+        #     draws"), Tales of the Ancestors ("each player with fewer cards …
+        #     draws"), etc. — all verified vs ACTUAL Scryfall oracle to draw for
+        #     every player. A strict structural WIN over the regex's adjacency gap.
+        #   regex_only (4): Grothama, All-Devouring / Mathise, Surge Channeler /
+        #     Vault 11: Voter's Dilemma / Winter Sky — all literally say "each player
+        #     draws", but phase UNDER-STRUCTURES them: the variable-amount /
+        #     d20-outcome / Saga-chapter draws fold to a `draw` Effect scope=='any'
+        #     (the directed-draw bucket → target_player_draws), and Winter Sky's
+        #     coin-flip branch emits NO draw Effect at all. The narrow structural
+        #     arm can't reach these, so the lane keeps a BYTE-IDENTICAL kept WORD
+        #     MIRROR (GROUP_HUG_DRAW_REGEX, the EXACT deleted SWEEP regex, in
+        #     _IR_KEPT_DETECTORS, scope 'each'). Mirror set == the deleted regex's
+        #     46 commander-legal cards EXACTLY (mirror does NOT broaden: mirror==46,
+        #     struct adds the 37 wheels on top), so union(struct|mirror) loses 0 and
+        #     over-fires 0 — the extra_combats precedent (structural arm + tail
+        #     mirror). CR 120.2 (draw is a player action).
+        "group_hug_draw",
         # ADR-0027 tranche2-B (t2b3-B) — four structural migrations. NONE is in
         # _IR_FLOOR_LANES (floor-mirror-dep == 0 — each fires from a NON-floor
         # structural IR source with the floor disabled). Floor-disabled IR-vs-regex

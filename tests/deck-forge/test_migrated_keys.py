@@ -4145,6 +4145,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # group_hug_draw ← a `draw` effect with scope=='each' (the symmetric group-hug
+    # draw lane — a card that draws for EVERY player). Wheel of Fortune is the
+    # STRUCTURAL-ONLY proof: its "each player discards their hand, then draws seven
+    # cards" puts a discard clause BETWEEN "each player" and "draws", so the narrow
+    # regex `each player (?:may )?draws?\b` never matches (regex drops it), while the
+    # IR `draw` Effect carries scope=='each' regardless of the intervening clause.
+    "group_hug_draw": (
+        {
+            "name": "Wheel of Fortune",
+            "type_line": "Sorcery",
+            "oracle_text": "Each player discards their hand, then draws seven cards.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="draw",
+                        scope="each",
+                        amount=Quantity(op="fixed", factor=7),
+                        raw="Each player discards their hand, then draws seven cards.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # ── ADR-0027 tranche2-B (t2b3-B) ─────────────────────────────────────────
     # lose_unless_hand ← an ETB trigger scoped YOU whose effect is a lose_game
     # (Phage the Untouchable — "if you didn't cast it from your hand, you lose").
