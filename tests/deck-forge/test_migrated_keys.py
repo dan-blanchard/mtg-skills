@@ -4648,6 +4648,40 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β. free_spell_storm ← the structural arm: a dedicated `free_spell_storm`
+    # STATIC marker Effect (project._free_spell_storm_marker over phase's SelfRef
+    # ModifyCost{Reduce} static, SIDECAR v20). Thrasta's cost drops {3} per other spell
+    # cast this turn, so it wants free spells to chain — the marker re-surfaces the static
+    # the SelfRef cost-reducer branch drops (a self-discount is rules-excluded from the
+    # build-around cost_reduction lane). The deleted _HAND_FLOOR regex no longer fires on
+    # the regex path; the IR arm reads the dedicated category.
+    "free_spell_storm": (
+        {
+            "name": "Thrasta, Tempest's Roar",
+            "type_line": "Legendary Creature — Dinosaur",
+            "oracle_text": (
+                "This spell costs {3} less to cast for each other spell cast this "
+                "turn.\nTrample, haste\nTrample over planeswalkers (This creature can "
+                "deal excess combat damage to the controller of the planeswalker it's "
+                "attacking.)\nThrasta has hexproof as long as it entered this turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="free_spell_storm",
+                        scope="you",
+                        raw=(
+                            "This spell costs {3} less to cast for each other spell "
+                            "cast this turn."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # ADR-0027 β. edict_matters ← the structural opp/each `sacrifice` arm: a forced
     # PLAYER sacrifice (CR 701.16). Plaguecrafter's ETB makes each player sacrifice a
     # creature or planeswalker — phase emits scope "each" with the sacrificed subject's

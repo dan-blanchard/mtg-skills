@@ -1535,6 +1535,18 @@ def _project_face(record: dict) -> Face:
     top_play_marker = _top_play_permission_marker(record)
     if top_play_marker is not None:
         abilities.append(Ability(kind="static", effects=(top_play_marker,)))
+    # Free-spell storm marker (ADR-0027 β free_spell_storm): a per-spell SCALING
+    # self-discount whose cost drops for each spell cast THIS TURN (Thrasta,
+    # Demilich). phase's `ModifyCost{Reduce}` static over SelfRef is dropped by
+    # _project_static_mods (the SelfRef self-discount is NOT the build-around
+    # cost_reduction lane), so re-surface it as a dedicated `free_spell_storm`
+    # STATIC effect the migrated lane reads — gated to the "spells cast this turn"
+    # dynamic_count shape (SpellsCastThisTurn by Controller, or an ObjectCount with
+    # `Another`), so an opponent-spell tax (Delightful Discovery) and a board/zone-
+    # count discount never fire. CR 601.2f.
+    fss_marker = _free_spell_storm_marker(record)
+    if fss_marker is not None:
+        abilities.append(Ability(kind="static", effects=(fss_marker,)))
     # Affinity / Improvise keyword count operands (ADR-0027 go-wide): the affinity
     # subject's type the projection drops to a bare keyword (CR 702.41a / 702.126a —
     # the cost scales with that type's own-board population). artifacts/enchantments
@@ -3312,6 +3324,76 @@ def _top_play_permission_marker(record: dict) -> Effect | None:
         if eff.category != "cast_from_zone":
             continue
         return replace(eff, scope="you", zones=("from:library",))
+    return None
+
+
+def _free_spell_storm_marker(record: dict) -> Effect | None:
+    """A `free_spell_storm` STATIC marker for a per-spell SCALING self-discount
+    whose cost drops for each spell YOU (or anyone) cast THIS TURN — Thrasta,
+    Tempest's Roar ("This spell costs {3} less to cast for each other spell cast
+    this turn"), Demilich / A-Demilich ("... for each instant and sorcery spell
+    you've cast this turn"). A commander/spell whose cost falls as you chain casts
+    wants FREE (0-cost) spells to keep cutting it (Ornithopter, Memnite, Lotus
+    Petal, Mishra's Bauble) — a storm-style velocity payoff.
+
+    phase models the discount as a `ModifyCost{Reduce}` static over `SelfRef`, which
+    `_project_static_mods` DROPS at projection (the SelfRef cost REDUCER branch
+    excludes `affected==SelfRef` — a self-discount cheapens no OTHER spell, so it is
+    not the build-around `cost_reduction` lane; CR 601.2f/118.7). The dropped static
+    is not folded into any carrier raw, so the supplement's per-EFFECT walk can't
+    reach it — it survives only on the FACE oracle. This is the FACE-level recovery:
+    it reads the ONE reliable structural signal phase carries — the `dynamic_count`
+    scaling shape — as the precision gate, and emits a dedicated `free_spell_storm`
+    Effect (a NEW category read by no other lane, so it can never leak into / drift
+    `cost_reduction`).
+
+    The lane's NARROW intent is "scales with spells CAST THIS TURN" (the chainable
+    storm tell), which phase carries two disjoint, corpus-unique ways:
+      • `dynamic_count.type == "SpellsCastThisTurn"` with `scope == "Controller"` —
+        YOUR spells this turn (Demilich / A-Demilich). The deleted regex MISSED
+        both: their oracle reads "for each instant and sorcery spell ...", so the
+        "instant and sorcery" between "each" and "spell" defeats its
+        `for each (?:other )?spell` anchor. RECALL the structural IR recovers (+2).
+      • `dynamic_count.type == "ObjectCount"` whose filter carries an `Another`
+        property — "for each OTHER spell cast this turn" (Thrasta). It is the ONLY
+        SelfRef-Reduce ObjectCount in the whole corpus with `Another`; every other
+        (Embercleave's Attacking, Khalni Hydra's HasColor, Hamza's Counters, …) is a
+        board/zone count, and Delightful Discovery — the deleted regex's lone over-
+        fire — is `ObjectCount` with NO `Another` ("for each spell your opponents
+        have cast this turn", an opponent-tax payoff, NOT a free-spell chain for
+        YOU), correctly dropped.
+
+    One marker per card; the CALLER appends it on a dedicated `kind='static'`
+    ability. CR 601.2f / 118.7."""
+    for st in record.get("static_abilities") or []:
+        mode = st.get("mode")
+        inner = _modifycost_reduce(mode)
+        if inner is None:
+            continue
+        aff = st.get("affected")
+        if not (isinstance(aff, dict) and _norm(aff.get("type")) == "selfref"):
+            continue
+        dc = inner.get("dynamic_count")
+        if not isinstance(dc, dict):
+            continue
+        dtype = _norm(dc.get("type"))
+        in_lane = False
+        if dtype == "spellscastthisturn" and _norm(dc.get("scope")) == "controller":
+            in_lane = True
+        elif dtype == "objectcount":
+            filt = dc.get("filter")
+            props = (filt.get("properties") or []) if isinstance(filt, dict) else []
+            if any(_norm(p.get("type")) == "another" for p in props):
+                in_lane = True
+        if not in_lane:
+            continue
+        desc = st.get("description") or st.get("oracle_text") or ""
+        raw = (
+            desc
+            if isinstance(desc, str) and desc.strip()
+            else (record.get("oracle_text") or "")
+        )
+        return Effect(category="free_spell_storm", scope="you", raw=raw)
     return None
 
 

@@ -134,7 +134,20 @@ from mtg_utils.card_ir import Card
 #     composites stay `other` via the player_actions gate). Additive (nothing read
 #     `lib_search` before), so every other lane is byte-identical. ADR-0027 β.
 #     CR 701.19 / 701.23.
-SIDECAR_VERSION = 19
+#  - v19→v20: free_spell_storm — the per-spell SCALING self-discount whose cost
+#     drops for each spell CAST THIS TURN (Thrasta, Tempest's Roar; Demilich;
+#     A-Demilich). phase models it as a SelfRef `ModifyCost{Reduce}` static which
+#     `_project_static_mods` DROPS (a self-discount is rules-excluded from the
+#     build-around cost_reduction lane — it cheapens no OTHER spell, CR 601.2f/
+#     118.7) and folds into no carrier raw, so it survives only on the FACE oracle.
+#     project._free_spell_storm_marker re-surfaces it as a dedicated
+#     `free_spell_storm` STATIC Effect gated to the cast-this-turn dynamic_count
+#     shape phase carries two corpus-unique ways: SpellsCastThisTurn{scope=
+#     Controller} (Demilich) or an ObjectCount whose filter has an `Another`
+#     property (Thrasta). Additive + a NEW category read by no other lane (so
+#     cost_reduction and every other lane are byte-identical), 3 marker cards
+#     corpus-wide. ADR-0027 β. CR 601.2f / 118.7.
+SIDECAR_VERSION = 20
 
 
 def card_ir_dir() -> Path:

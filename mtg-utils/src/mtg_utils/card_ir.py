@@ -341,6 +341,15 @@ CATEGORIES: frozenset[str] = frozenset(
         # effect, read discriminator-gated there (additive — they keep firing
         # ramp_matters). CR 106.4 / 605.
         "mana_amplifier",
+        # ADR-0027 β free_spell_storm marker — a per-spell SCALING self-discount whose
+        # cost drops for each spell CAST THIS TURN (Thrasta "for each other spell cast
+        # this turn"; Demilich "for each instant and sorcery spell you've cast this
+        # turn"). phase models it as a ModifyCost{Reduce} static over SelfRef which
+        # _project_static_mods DROPS (a self-discount is not the build-around
+        # cost_reduction lane); project._free_spell_storm_marker re-surfaces it gated to
+        # the cast-this-turn dynamic_count shape. A dedicated category read by no other
+        # lane (so it never drifts cost_reduction). CR 601.2f / 118.7.
+        "free_spell_storm",
         "other",
     }
 )

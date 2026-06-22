@@ -1132,7 +1132,37 @@ def test_free_spell_storm_opens_on_cost_less_per_spell():
             "Thrasta has hexproof as long as it entered this turn."
         ),
     }
-    assert ("free_spell_storm", "you") in _ks(thrasta)
+    # ADR-0027 β: free_spell_storm migrated to the Card IR — phase's SelfRef
+    # ModifyCost{Reduce} static is dropped by project (a self-discount is excluded from
+    # the build-around cost_reduction lane), so project._free_spell_storm_marker
+    # re-surfaces it as a dedicated `free_spell_storm` STATIC Effect the hybrid reads.
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="free_spell_storm",
+                                scope="you",
+                                raw=(
+                                    "This spell costs {3} less to cast for each other "
+                                    "spell cast this turn."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(thrasta, ir)}
+    assert ("free_spell_storm", "you") in hybrid
+    assert ("free_spell_storm", "you") not in _ks(thrasta)
 
 
 def test_target_redirect_opens_on_draw_when_targeted():

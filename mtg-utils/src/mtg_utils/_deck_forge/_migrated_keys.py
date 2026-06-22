@@ -1266,6 +1266,36 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # floor-mirror-dep == 0 (play_from_top is not an _IR_FLOOR_LANE). CR 116 /
         # 601.3b.
         "play_from_top",
+        # ADR-0027 β — free_spell_storm: a per-spell SCALING self-discount whose
+        # cost drops for each spell CAST THIS TURN, so the deck wants FREE (0-cost)
+        # spells to chain and keep cutting it (Thrasta, Tempest's Roar; Demilich;
+        # A-Demilich). The structural arm reads a dedicated `free_spell_storm` STATIC
+        # marker — project._free_spell_storm_marker's re-surface of phase's SelfRef
+        # ModifyCost{Reduce} static (SIDECAR v20), which _project_static_mods DROPS
+        # as a self-discount (the SelfRef cost-reducer is NOT the build-around
+        # cost_reduction lane — it cheapens no OTHER spell, CR 601.2f/118.7). The
+        # marker is gated to the "spells cast this turn" dynamic_count shape phase
+        # carries two corpus-unique ways: SpellsCastThisTurn{scope=Controller}
+        # (Demilich) or an ObjectCount whose filter has an `Another` property
+        # (Thrasta). The dedicated category is read by NO other lane, so it never
+        # drifts cost_reduction. FULLY STRUCTURAL — no mirror: the deleted
+        # _HAND_FLOOR regex (`less to cast for each (?:other )?spell[^.]*cast this
+        # turn`) matched only 2 cards and the marker improves on it both ways:
+        # +Demilich/A-Demilich RECALL (the "for each instant and sorcery spell"
+        # wording defeats the regex's `for each spell` anchor) and drops Delightful
+        # Discovery OVER-FIRE (an opponent-spell tax, props=[] no `Another`,
+        # correctly excluded). Floor-disabled residual vs the deleted regex
+        # (commander-legal): both == 1 (Thrasta), ir_only == 1 (Demilich — recall
+        # gain; A-Demilich is Alchemy-only, out of the commander-legal corpus),
+        # regex_only == 1 (Delightful Discovery — 100% over-fire, "for each spell
+        # your opponents have cast this turn", correctly dropped). Voltron file-swap
+        # delta == 0 (the at-risk Thrasta keeps its has_other_plan silence via the
+        # pre-existing _COST_REDUCTION_PLAN_MIRROR; Demilich via its own engine
+        # plans; Delightful Discovery is power-0, no voltron candidate). floor-
+        # mirror-dep == 0 (free_spell_storm is not an _IR_FLOOR_LANE). The
+        # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered in
+        # signal_specs.py. CR 601.2f / 118.7.
+        "free_spell_storm",
         # ADR-0027 β — edict_matters: the structural opp/each `sacrifice` arm (gated by
         # _ir_effect_is_edict against 6 leaked-scope self/you-sac over-fires) plus a
         # flat _IR_KEPT_DETECTORS mirror (the EXACT deleted SWEEP regex over the joined-

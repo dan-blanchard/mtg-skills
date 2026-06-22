@@ -1327,16 +1327,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # The "\bscavenge\b" floor over-fired on the "Scavenge the Dead" ability WORD
     # (CR 207.2c — Malanthrope), which the structural IR correctly excludes. This
     # _HAND_FLOOR producer is deleted; the serve spec stays in signal_specs.
-    # Free-spell storm (Thrasta: "costs {3} less for each other spell cast this turn"):
-    # a commander whose cost drops per spell cast wants FREE (0-cost) spells to chain,
-    # each cutting its cost (Ornithopter, Memnite, Lotus Petal, Mishra's Bauble).
-    (
-        "free_spell_storm",
-        re.compile(
-            r"less to cast for each (?:other )?spell[^.]*cast this turn", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027 β: free_spell_storm migrated to the Card IR. A per-spell SCALING
+    # self-discount whose cost drops for each spell cast THIS TURN (Thrasta "for each
+    # other spell cast this turn"; Demilich / A-Demilich "for each instant and
+    # sorcery spell you've cast this turn") — the deck wants FREE (0-cost) spells to
+    # chain and keep cutting it (Ornithopter, Memnite, Lotus Petal, Mishra's Bauble).
+    # phase models the discount as a SelfRef ModifyCost{Reduce} static (DROPPED by
+    # project._project_static_mods — a self-discount is rules-excluded from the
+    # build-around cost_reduction lane, CR 601.2f); project._free_spell_storm_marker
+    # re-surfaces it as a dedicated `free_spell_storm` STATIC Effect (the migrated
+    # lane reads it in _signals_ir), gated to the cast-this-turn dynamic_count shape
+    # so an opponent-spell tax (Delightful Discovery) never fires. FULLY STRUCTURAL —
+    # no _PLAN_MIRROR needed (the deleted regex matched only 2 cards; the marker
+    # drops its lone over-fire and adds recall). This _HAND_FLOOR producer is
+    # deleted; the serve spec stays hand-registered in signal_specs.py. NOT in
+    # _IR_FLOOR_LANES (floor-mirror-dep == 0).
     # ADR-0027 (t2b5-B): target_redirect migrated to the Card IR (kept_detector).
     # Rayne's becomes-target-of-opponent → draw payoff: phase flattens the becomes-
     # target trigger to event='other' (no becomestarget mode), so DETECTION (which

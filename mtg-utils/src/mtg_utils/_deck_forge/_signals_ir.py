@@ -4065,6 +4065,25 @@ def extract_signals_ir(
             ):
                 add("play_from_top", "you", "", e.raw or "")
                 break
+        # free_spell_storm (ADR-0027 β) — ability-level: a per-spell SCALING self-
+        # discount whose cost drops for each spell CAST THIS TURN, so the deck wants
+        # FREE (0-cost) spells to chain and keep cutting the cost (Thrasta "for each
+        # other spell cast this turn"; Demilich / A-Demilich "for each instant and
+        # sorcery spell you've cast this turn"). The structural anchor is the
+        # dedicated `free_spell_storm` STATIC marker — project._free_spell_storm_
+        # marker's re-surface of phase's SelfRef ModifyCost{Reduce} static (DROPPED
+        # by _project_static_mods as a self-discount), gated to the cast-this-turn
+        # dynamic_count shape (SIDECAR v20). A dedicated category read by no other
+        # lane, so it never drifts cost_reduction (the build-around-OTHER-spells lane
+        # the SelfRef static is rules-excluded from, CR 601.2f/118.7). The deleted
+        # _HAND_FLOOR regex over-fired on Delightful Discovery (an opponent-spell
+        # tax, dropped here) and MISSED Demilich/A-Demilich (the "for each instant
+        # and sorcery spell" wording defeats its `for each spell` anchor — +2
+        # recall). No mirror needed: the structural marker IS the full firing set.
+        for e in ab.effects:
+            if e.category == "free_spell_storm":
+                add("free_spell_storm", "you", "", e.raw or "")
+                break
         # opponent_counter_grant (ADR-0027) — ability-level: a DETRIMENTAL counter
         # (CR 122.1d) placed on an OPPONENT's permanent (the tap-down / detrimental-mark
         # punish lane). Two recipient shapes: (A) a place_counter whose own
