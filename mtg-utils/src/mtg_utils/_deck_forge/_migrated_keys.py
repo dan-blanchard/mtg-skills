@@ -1316,6 +1316,22 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     mirror re-supply keeps voltron byte-identical). CR 603.2.
         "flash_matters",
         "noncreature_cast_punish",
+        # ADR-0027 — flash_grant: the GRANT-to-OTHERS flash ENABLER lane (a card that
+        # lets you cast a CLASS of OTHER spells "as though they had flash" — Vedalken
+        # Orrery, Leyline of Anticipation, Teferi, Yeva, Emergence Zone; CR 702.8).
+        # Binds via the SAME cast_with_keyword{flash} structural arm as flash_matters
+        # (the 29 cards phase parses as a cast-permission static), plus the FULL deleted
+        # SWEEP regex kept BYTE-IDENTICALLY as an _IR_KEPT mirror (FLASH_GRANT_REGEX) to
+        # recover the activated/conditional grant phase folds into an empty counter_kind
+        # (Winding Canyons, Aluren) AND the "cast THIS spell as though it had flash"
+        # self-flash tail (Rout, Necromancy). union == the deleted producer's 81
+        # commander-legal fires EXACTLY (regex_only 0, ir_only 0, scope parity 'you').
+        # The producer fired HIGH-confidence scope 'you' and fed has_other_plan, so
+        # flash_grant is added to _VOLTRON_SILENCING_PLAN_KEYS — the IR re-supply is
+        # byte-identical, so the hybrid re-silences the spurious commander-damage
+        # voltron tell EXACTLY (NO-FLOOD: voltron delta 0). SWEEP_DETECTORS row deleted;
+        # serve hand-registered. CR 702.8.
+        "flash_grant",
         # ADR-0027 β — impulse_top_play: the structural arm (a NON-static cast_from_zone
         # Effect carrying the recovered 'from:library' zone) plus a per-clause
         # _IMPULSE_TOP_PLAY_SWEEP_RE mirror (the EXACT deleted SWEEP regex). The

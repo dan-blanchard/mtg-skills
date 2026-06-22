@@ -71,6 +71,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ENTERED_ATTACKER_REGEX,
     EXTRA_COMBATS_REGEX,
     EXTRA_TURNS_REGEX,
+    FLASH_GRANT_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GROUP_HUG_DRAW_REGEX,
@@ -1065,6 +1066,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 — flash_grant: the GRANT-to-OTHERS structural form binds in
+    # extract_signals_ir (cast_with_keyword{flash}, the 29 cards phase parses as a
+    # cast-permission static — Vedalken Orrery, Leyline, Vivien). This mirror is the
+    # FULL deleted SWEEP regex (FLASH_GRANT_REGEX), recovering the activated/conditional
+    # grant phase folds into an empty counter_kind (Winding Canyons, Emergence Zone,
+    # Aluren, Teferi Time Raveler) PLUS the self-flash "cast this spell as though it had
+    # flash" tail (Rout, Necromancy, Harbinger). The deleted regex's two arms are
+    # within-clause (no `[^.]*` crossing a sentence), so a FLAT scan over the
+    # reminder-stripped, joined-face kept_oracle reproduces the deleted producer's
+    # per-clause firing set EXACTLY (commander-legal: regex==mirror, 81→81, regex_only
+    # 0, ir_only 0, scope parity 'you'). add() dedups the 29 the structural arm
+    # supplies. CR 702.8.
+    ("flash_grant", re.compile(FLASH_GRANT_REGEX, re.IGNORECASE), "you"),
     # ADR-0027 (q2-D3) — noncreature_cast_punish SYMMETRIC half: the opponent-punisher
     # half binds structurally in extract_signals_ir (a cast_spell trigger scope=='opp'
     # with a noncreature subject). This mirror is the SYMMETRIC "a player casts a
@@ -2416,7 +2430,8 @@ IR_SLICE_KEYS: frozenset[str] = (
             # (project re-types phase's SearchedLibrary/Shuffled/scry-surveil-search
             # PlayerPerformedAction modes off the generic `other`).
             "opponent_search_matters",
-            # Batch 6 — grant_keyword team-anthem lanes (gated; flash_grant deferred):
+            # Batch 6 — grant_keyword team-anthem lanes (gated; flash_grant migrated
+            # separately below — it's a cast-permission static, not an AddKeyword):
             "team_evasion_grant",
             "protection_grant",
             "all_creatures_kw_grant",
@@ -3185,8 +3200,9 @@ def _type_recursion_lanes(e: object) -> list[str]:
 # 702.31a horsemanship / 702.36a fear / 702.111a menace / 702.118a skulk; landwalk
 # is parameterized, not a bare granted keyword). Protective keywords: hexproof
 # (702.11) / shroud (702.18) / indestructible (702.12) / ward (702.21) / protection
-# (702.16). flash_grant is DEFERRED: flash-granting is CastWithKeyword (a cast-time
-# permission), not a battlefield AddKeyword — see deferrals.md.
+# (702.16). flash_grant is NOT here: flash-granting is CastWithKeyword (a cast-time
+# permission), not a battlefield AddKeyword — it binds via the cast_with_keyword{flash}
+# arm + the FLASH_GRANT_REGEX kept mirror (ADR-0027, migrated).
 _EVASION_GRANT_KW: frozenset[str] = frozenset(
     {"flying", "intimidate", "shadow", "horsemanship", "fear", "menace", "skulk"}
 )
@@ -6729,12 +6745,14 @@ def extract_signals_ir(
                 if _DUNGEON_RAW.search(e.raw or ""):
                     add("venture_matters", "you", "", e.raw)
             # Batch 6 (flash_grant) — CastWithKeyword{Flash}: a flash ENABLER (cast
-            # spells as though they had flash — Teferi, Yeva, Alchemist's Refuge).
-            # ADR-0027 (q2-D3): flash_matters rides the SAME node — the GRANT half of
-            # the lane is exactly this cast_with_keyword{flash} static (Leyline of
-            # Anticipation, Vivien). The opponent-turn cast payoff + the activated
-            # flash-grant (empty counter_kind) are recovered by the kept _IR_KEPT
-            # mirror. CR 702.8.
+            # <a class of> spells as though they had flash — Teferi, Yeva, Vedalken
+            # Orrery). ADR-0027: flash_grant AND flash_matters both ride this node —
+            # the GRANT-to-OTHERS half of each lane is exactly this cast_with_keyword
+            # {flash} static (Leyline of Anticipation, Vivien). The activated /
+            # conditional grant (empty counter_kind) + the self-flash tail are recovered
+            # by each lane's FULL deleted-regex kept _IR_KEPT mirror (flash_grant ←
+            # FLASH_GRANT_REGEX, flash_matters ← its own mirror); add() dedups the
+            # overlap. CR 702.8.
             if cat == "cast_with_keyword" and e.counter_kind == "flash":
                 add("flash_grant", "you", "", e.raw)
                 add("flash_matters", "you", "", e.raw)

@@ -50,6 +50,20 @@ TARGET_PLAYER_DRAWS_REGEX = "target player draws a card|target opponent draws"
 # so signal_specs hand-registers the serve pool reusing it — keeping serve and the
 # (now-deleted) detector from drifting.
 GROUP_HUG_DRAW_REGEX = "each player (?:may )?draws?\\b|each player who drew"
+# ADR-0027 — flash_grant migrated to the Card IR. The GRANT-to-OTHERS structural form
+# binds in extract_signals_ir (a cast_with_keyword{flash} static — "cast <a class of>
+# spells as though they had flash"; Vedalken Orrery, Leyline of Anticipation, Teferi,
+# Yeva — the 29 commander-legal cards phase parses structurally). phase folds the
+# ACTIVATED / conditional flash-grant (Winding Canyons {2}{T}, Emergence Zone, Teferi
+# Time Raveler +1) and leaves the "cast this spell as though it had flash" self-flash
+# textual, so the FULL deleted SWEEP regex is kept BYTE-IDENTICALLY as the
+# _IR_KEPT_DETECTORS mirror (signals._IR_KEPT_DETECTORS) — the union reproduces the
+# deleted producer's 81 commander-legal fires EXACTLY (regex_only 0, ir_only 0, scope
+# parity 'you'). This mined regex survives as a shared constant so signal_specs
+# hand-registers the serve pool reusing it and the kept mirror reuses it — serve /
+# mirror / (now-deleted) detector never drift. SWEEP_LABELS still carries the human
+# label. CR 702.8 (flash).
+FLASH_GRANT_REGEX = "as though (?:it|they) (?:had|have) flash|have flash\\b"
 # ADR-0027 tranche2-B (t2b3-B) — opponent_counter_grant migrated to the Card IR. Its
 # SWEEP_DETECTORS row is deleted (structural read: a detrimental bounty/stun counter on
 # an opponent's permanent). This mined regex survives as a shared constant so
@@ -1090,12 +1104,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Raph, Pearl-Ear), appended by project._narrow_conferred_keyword_refs. Its
     # oracle-regex SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered
     # in signal_specs.py (SWEEP_LABELS still carries the human label).
-    {
-        "key": "flash_grant",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "as though (?:it|they) (?:had|have) flash|have flash\\b",
-    },
+    # ADR-0027: flash_grant migrated to the Card IR — served structurally from a
+    # cast_with_keyword{flash} static (the GRANT-to-OTHERS enabler) plus a
+    # byte-identical FLASH_GRANT_REGEX kept word mirror (signals._IR_KEPT_DETECTORS)
+    # for the activated/conditional grant + the self-flash tail phase leaves textual.
+    # Its SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the human label, and the
+    # serve spec is hand-registered in signal_specs.py reusing FLASH_GRANT_REGEX. CR
+    # 702.8.
     {
         "key": "noncombat_damage_payoff",
         "scope": "you",

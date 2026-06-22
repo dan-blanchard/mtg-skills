@@ -47,8 +47,11 @@ def test_sweep_detectors_loaded():
     # structural arm + each-player kept mirror in _signals_ir), then 34→33 as
     # big_hand_matters's row was deleted (ADR-0027 — migrated to the v23
     # `no_max_handsize` Effect structural arm + a byte-identical _BIG_HAND_MATTERS_MIRROR
-    # kept word mirror in _signals_ir for the "X = cards in your hand" P/T payoffs).
-    assert len(SWEEP_DETECTORS) >= 33
+    # kept word mirror in _signals_ir for the "X = cards in your hand" P/T payoffs), then
+    # 33→32 as flash_grant's row was deleted (ADR-0027 — migrated to the
+    # cast_with_keyword{flash} structural arm + a byte-identical FLASH_GRANT_REGEX kept
+    # word mirror in _signals_ir for the activated/conditional grant + self-flash tail).
+    assert len(SWEEP_DETECTORS) >= 32
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

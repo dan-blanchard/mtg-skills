@@ -4887,6 +4887,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027. flash_grant ← the GRANT-to-OTHERS flash enabler is the
+    # cast_with_keyword{flash} static (the same node flash_matters reads). Vedalken
+    # Orrery ("You may cast spells as though they had flash").
+    "flash_grant": (
+        {
+            "name": "Vedalken Orrery",
+            "type_line": "Artifact",
+            "oracle_text": "You may cast spells as though they had flash.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="cast_with_keyword",
+                        counter_kind="flash",
+                        scope="you",
+                        raw="You may cast spells as though they had flash.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # ADR-0027 (q2-D3). noncreature_cast_punish ← the OPPONENT-punisher half is a
     # cast_spell trigger scope=='opp' over a NotType:Creature subject. Kambal.
     "noncreature_cast_punish": (

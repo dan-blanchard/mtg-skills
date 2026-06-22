@@ -26,6 +26,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DEBUFF_SWEEP_REGEX,
+    FLASH_GRANT_REGEX,
     FREE_CAST_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     GROUP_HUG_DRAW_REGEX,
@@ -2405,6 +2406,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["spell_keyword_grant"],
         {"oracle": SPELL_KEYWORD_GRANT_REGEX},
         SPELL_KEYWORD_GRANT_REGEX,
+    ),
+    # ADR-0027: flash_grant's SWEEP_DETECTORS row is deleted (detection moved to the
+    # Card IR — a cast_with_keyword{flash} static + the byte-identical FLASH_GRANT_REGEX
+    # kept mirror). The SERVE pool stays oracle-defined, so hand-register the spec the
+    # sweep auto-register loop used to build, reusing the deleted regex (now the shared
+    # FLASH_GRANT_REGEX constant) so the served flash-enabler pool never drifts.
+    ("flash_grant", "you"): _spec(
+        *SWEEP_LABELS["flash_grant"],
+        {"oracle": FLASH_GRANT_REGEX},
+        FLASH_GRANT_REGEX,
     ),
     ("target_player_draws", "any"): _spec(
         *SWEEP_LABELS["target_player_draws"],

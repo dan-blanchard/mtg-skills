@@ -545,6 +545,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # broadening, no over-silence), matching the land_sacrifice / extra_combats
         # kept-mirror precedent. A NO-FLOOD voltron entry.
         "cast_from_exile",
+        # ADR-0027: flash_grant fired high-confidence (forced scope 'you') in the regex
+        # path via the SWEEP producer and so counted toward has_other_plan (it is NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage
+        # voltron tell on a flash-enabler creature commander that is NOT a vanilla
+        # beater (Yeva, Raff Capashen, Tidal Barracuda, Teferi Mage of Zhalfir — 21
+        # commander-legal creatures verified to leak the tell post-deletion, flash_grant
+        # being their only high-confidence plan). Its regex producer is deleted, so the
+        # hybrid re-silences from the IR re-supply — phase's cast_with_keyword{flash}
+        # structural arm (29 cards) union the byte-identical FLASH_GRANT_REGEX kept word
+        # reading the SAME reminder-stripped joined oracle == the deleted SWEEP regex
+        # EXACTLY (commander-legal: regex == hybrid == 81, 0 broadening, 0 ir_only), so
+        # this set entry re-silences exactly without over-silence — matching the
+        # extra_combats byte-identical kept-mirror precedent. A NO-FLOOD voltron entry.
+        # CR 702.8 / 903.10a.
+        "flash_grant",
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an
