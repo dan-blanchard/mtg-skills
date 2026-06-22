@@ -188,7 +188,30 @@ from mtg_utils.card_ir import Card
 #     ramp Effect carries amount: a fixed factor>1 (Sol Ring {C}{C}=2, Dark Ritual
 #     {B}{B}{B}=3), a count/Variable scaler (Selvala's greatest-power). ramp_matters /
 #     group_mana / mana_amplifier read scope/raw, never amount, so drift 0. CR 106.4.
-SIDECAR_VERSION = 23
+# v23→v24: ADR-0027 reveal/dig EFFECT PROJECTION cluster — the search/reveal/dig
+#   surface is now structured so three (not-yet-wired) lanes can read it; additive,
+#   no signal arm wired, drift 0:
+#   SUB-SITE 1 tutor_matters — a SearchLibrary of the controller's OWN library (phase's
+#     `target_player` ABSENT) gets scope='you' (project._search_self_library_scope), so
+#     an opponent-/other-player-library tutor (Bribery / Praetor's Grasp target_player
+#     Opponent; Arcum Dagsson ParentTargetController; Extract bare Typed; Fertilid /
+#     Varragoth Player) is distinguishable as scope!='you'. The migrated tutor reads
+#     (tutor_matters fixed-'you' doer, type-tutor, GY-tutor from:graveyard-scope) never
+#     read this effect scope, so drift 0. CR 701.23 / 401.
+#   SUB-SITE 2 cheat_from_top — a top-of-library reveal/dig effect (Dig / ExileTop /
+#     RevealTop / RevealUntil / ExileFromTopUntil) gets a `from:top` POSITION marker
+#     (project._zone_tags / _TOP_OF_LIBRARY_EFFECT_TYPES). `from:top` avoids the
+#     substring "library" (so it never trips the mass_bounce / impulse "library in z"
+#     exclusions) and is read by no migrated lane. CR 401.
+#   SUB-SITE 3 cheat_into_play — a RevealUntil/ExileFromTopUntil whose KEPT card lands
+#     on the BATTLEFIELD (phase's `kept_destination`, which _zone_tags now reads) gets
+#     `to:battlefield`, and a NON-LAND such dig is re-categorized dig_until→cheat_play
+#     (project._recover_dig_into_play — Jalira / Atla Palani / Polymorph put a
+#     creature/permanent into play). Land digs stay dig_until (extra_land_drop drift
+#     guard); the pass runs after _recover_graveyard_zones so a rest-into-graveyard dig
+#     keeps its to:graveyard zone. cheat_into_play reads cheat_play+Creature but is not
+#     yet wired, so drift 0. CR 701.23 / 601.3b.
+SIDECAR_VERSION = 24
 
 
 def card_ir_dir() -> Path:

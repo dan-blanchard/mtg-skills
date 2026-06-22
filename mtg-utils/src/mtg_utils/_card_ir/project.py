@@ -1485,6 +1485,13 @@ def _project_face(record: dict) -> Face:
     # from:library to a cast_from_zone effect that plays from the top of a library but
     # lost the origin zone (Light Up the Stage, Ragavan, Future Sight, Bolas's Citadel).
     abilities = [_recover_library_zones(a) for a in abilities]
+    # Dig-into-play recovery (ADR-0027 cheat_into_play): re-categorize a `dig_until`
+    # whose KEPT card lands on the battlefield (the to:battlefield tag _zone_tags read
+    # off kept_destination) to `cheat_play` — Jalira, Atla Palani, Polymorph put a
+    # creature/permanent into play. RUNS AFTER _recover_graveyard_zones so a rest-into-
+    # graveyard dig keeps its recovered to:graveyard zone. Land subjects stay dig_until
+    # (extra_land_drop drift guard). See _recover_dig_into_play.
+    abilities = [_recover_dig_into_play(a) for a in abilities]
     # Edict-scope recovery (ADR-0027 edict_matters): promote a scope=='any' sacrifice
     # to each/opp from its raw when phase dropped the sacrificer scoping to a null
     # controller (Plaguecrafter, Fleshbag Marauder, Barter in Blood).
@@ -2336,6 +2343,12 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     # edict_matters) out of the you-sac sacrifice_matters lane (CR 701.16).
     if category == "sacrifice":
         scope = _sacrifice_player_scope(eff, scope)
+    # ADR-0027 tutor scope='you': a SearchLibrary of the controller's OWN library
+    # (no target_player) is a self-tutor — promote its scope to 'you' so an
+    # opponent-/other-player-library search (Bribery, Arcum, Extract — target_player
+    # present) is distinguishable as scope!='you'. See _search_self_library_scope.
+    if etype == "searchlibrary":
+        scope = _search_self_library_scope(eff, scope)
     subject = _effect_subject(eff)
     # ADR-0027 β — a +1/+1 counter PLACEMENT that targets the SOURCE itself ("put a
     # +1/+1 counter on ~ / this creature / it") is the self_counter_grow self-anchor.
@@ -2991,19 +3004,49 @@ _ZONE_NAMES = frozenset(
     {"graveyard", "exile", "library", "hand", "battlefield", "command"}
 )
 
+# ADR-0027 cheat_from_top: phase effect TYPES that look at / exile / reveal cards from
+# the TOP of a library (the impulse-from-top + dig surface). Their library-top ORIGIN
+# is intrinsic to the type — phase carries no `origin` field on them — so _zone_tags
+# stamps a `from:top` POSITION marker structurally. `from:top` deliberately avoids the
+# substring "library" (a `from:library` would trip the mass_bounce / impulse library
+# exclusions that test `"library" in z`), keeping it read by no migrated lane: the
+# cheat_from_top lane (not yet wired) reads it in a follow-up. CR 401.
+_TOP_OF_LIBRARY_EFFECT_TYPES = frozenset(
+    {"dig", "exiletop", "revealtop", "revealuntil", "exilefromtopuntil"}
+)
+
 
 def _zone_tags(eff: dict) -> tuple[str, ...]:
     """Directional zone references the effect touches: ``from:<zone>`` /
     ``to:<zone>`` from a ChangeZone's origin/destination, and ``in:<zone>`` for a
     target/filter restricted to a zone (an ``InZone`` property — "exile target card
-    from a graveyard", delve, count-in-graveyard). Lane-agnostic IR."""
+    from a graveyard", delve, count-in-graveyard). Lane-agnostic IR.
+
+    ADR-0027: a top-of-library reveal/dig effect (Dig/ExileTop/RevealTop/RevealUntil/
+    ExileFromTopUntil) gets a ``from:top`` position marker; a RevealUntil/
+    ExileFromTopUntil whose KEPT card lands on the battlefield (``kept_destination``,
+    which phase puts in a field ``_zone_tags`` would otherwise miss — it only reads
+    ``destination``) gets ``to:battlefield``."""
     tags: list[str] = []
+    etype = _norm(eff.get("type"))
+    if etype in _TOP_OF_LIBRARY_EFFECT_TYPES:
+        tags.append("from:top")
     origin = _norm(eff.get("origin"))
     if origin in _ZONE_NAMES:
         tags.append(f"from:{origin}")
     dest = _norm(eff.get("destination"))
     if dest in _ZONE_NAMES:
         tags.append(f"to:{dest}")
+    # RevealUntil/ExileFromTopUntil's kept card landing on the BATTLEFIELD → phase's
+    # `kept_destination` field (which `_zone_tags` would otherwise miss — it reads only
+    # `destination`, which these effects leave unset). Only `to:battlefield` is
+    # surfaced: it is the cheat_into_play tell (Jalira / Atla Palani put a creature onto
+    # the battlefield). A kept_destination of Graveyard/Hand/Exile is deliberately NOT
+    # surfaced here — the self-mill `to:graveyard` and the dig-to-hand `to:hand` stay
+    # owned by their existing raw-recovery / `destination` paths, so this adds no new
+    # graveyard/hand zone-matters firing. ADR-0027 cheat_into_play.
+    if _norm(eff.get("kept_destination")) == "battlefield":
+        tags.append("to:battlefield")
     for key in ("target", "filter", "affected", "target_filter"):
         node = eff.get(key)
         if isinstance(node, dict):
@@ -4859,6 +4902,41 @@ def _recover_library_zones(ability: Ability) -> Ability:
     return replace(ability, effects=tuple(new_effects))
 
 
+def _recover_dig_into_play(ability: Ability) -> Ability:
+    """Re-categorize a `dig_until` effect that puts its KEPT card onto the BATTLEFIELD
+    to `cheat_play` (ADR-0027 cheat_into_play). phase's RevealUntil/ExileFromTopUntil
+    with ``kept_destination == Battlefield`` (Jalira, Atla Palani, Aspiring Champion,
+    Polymorph) digs to the top of a library and puts a creature/permanent into play —
+    the same put-into-play shape phase's ChangeZone library→battlefield gives
+    `cheat_play`. ``_zone_tags`` already stamped ``to:battlefield`` on these (read off
+    ``kept_destination``); this pass keys on that tag to re-category.
+
+    RUNS AFTER ``_recover_graveyard_zones`` (per ``_project_face`` ordering) so a
+    rest-into-graveyard dig (Avenging Druid, Gamekeeper, Oath of Druids — its
+    ``to:graveyard`` already recovered) keeps that zone through the re-category, and the
+    zone-driven graveyard_matters arm (which gates on the zone, not the category) is
+    untouched. A LAND-subject dig (Avenging Druid, Clifftop Lookout) is DELIBERATELY
+    left as ``dig_until`` — a `cheat_play`+Land effect is the migrated extra_land_drop
+    shape, and these tops are not the "play an extra land from hand" engine that lane
+    serves; excluding Land keeps extra_land_drop drift-0. Behavior-neutral: cheat_play
+    here carries a non-Land subject, so it never reaches the cheat_play+Land
+    extra_land_drop arm, and cheat_into_play (the lane that reads cheat_play+Creature)
+    is not yet wired. CR 701.23 (search/dig) / 601.3b."""
+    new_effects: list[Effect] = []
+    changed = False
+    for e in ability.effects:
+        subj = e.subject
+        is_land = isinstance(subj, Filter) and "Land" in subj.card_types
+        if e.category == "dig_until" and "to:battlefield" in e.zones and not is_land:
+            changed = True
+            new_effects.append(replace(e, category="cheat_play"))
+        else:
+            new_effects.append(e)
+    if not changed:
+        return ability
+    return replace(ability, effects=tuple(new_effects))
+
+
 # Edict-scope recovery (ADR-0027 edict_matters) — a `sacrifice` effect whose
 # SACRIFICER scope phase dropped to "any" because the structural target.controller
 # was null (an Or-of-Typed filter with the player scoping lost — Plaguecrafter,
@@ -6076,6 +6154,32 @@ def _sacrifice_player_scope(eff: dict, fallback: str) -> str:
         return "each"
     if cn in ("you", "controller"):
         return "any"
+    return fallback
+
+
+def _search_self_library_scope(eff: dict, fallback: str) -> str:
+    """Scope for a SearchLibrary (tutor) effect, read from WHOSE library is searched.
+
+    ADR-0027 tutor scope='you' pass. phase carries the searched library's owner on the
+    effect's ``target_player`` field — ABSENT means "Search YOUR library" (the
+    controller's own library, Demonic Tutor / Diabolic Tutor / basic-land fetch); a
+    ``Typed{controller:Opponent}`` ("search target opponent's library" — Bribery,
+    Praetor's Grasp), a ``ParentTargetController`` ("that player may search their
+    library" — Arcum Dagsson, Assassin's Trophy), a bare ``Typed`` ("search target
+    player's library" — Extract, Bitter Ordeal), or a ``Player`` ("target player
+    searches their library" — Fertilid, Varragoth) all name a DIFFERENT or unfixed
+    player's library, so they are NOT the controller's own search. ``_effect_scope``
+    never reads ``target_player``, so an own-library tutor landed on the unscoped
+    fallback — indistinguishable from an opponent-library tutor (which the supplement's
+    broad third-party raw recovery promotes to 'opp'). Promote ONLY the absent-
+    target_player own-library search to 'you', so a downstream tutor_matters lane can
+    keep an opponent-library tutor (Bribery — scope!='you') out of the own-deck care
+    (CR 701.23). DORMANT: tutor_matters/dig_until are not yet wired, and the migrated
+    tutor reads (tutor_matters / type-tutor / GY-tutor) use a FIXED 'you' or the
+    from:graveyard-recovered scope — none read this effect scope — so this is
+    behavior-neutral. CR 701.23 (search) / 401 (library zone)."""
+    if eff.get("target_player") is None:
+        return "you"
     return fallback
 
 
