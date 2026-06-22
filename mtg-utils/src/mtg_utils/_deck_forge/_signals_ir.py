@@ -91,6 +91,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     STAX_TAXES_REGEX,
+    SUPERFRIENDS_MATTERS_REGEX,
     SYMMETRIC_STAX_REGEX,
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
@@ -945,6 +946,32 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "exile_matters",
         re.compile(EXILE_MATTERS_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 — superfriends_matters SUPPLEMENT kept WORD MIRROR (the PLANESWALKER-as-
+    # a-group cares-about lane: "planeswalkers you control" anthems, "loyalty counter"
+    # payoffs, "activate a loyalty ability" engines, "planeswalker type" group refs
+    # (Leori), "abilities of a planeswalker" copiers (The Chain Veil, Oath of Teferi)).
+    # The lane KEEPS its EXISTING structural arm (the Condition gated on a Planeswalker
+    # subject you control — "as long as you control a <Name> planeswalker, …"), which
+    # fires on 26 commander-legal cards the deleted regex's narrow word patterns MISS
+    # (the singular "control a <Name> planeswalker" gate). phase v0.1.19 carries NO
+    # structural form for the BROADER textual refs (anthem / loyalty-counter / activate-
+    # loyalty / planeswalker-ability-copy — they scatter into pump_target / counter /
+    # activated-ability shapes with no "references planeswalkers-as-a-group" tag), so
+    # those ride this SUPERFRIENDS_MATTERS_REGEX (the EXACT deleted _HAND_FLOOR pattern)
+    # run FLAT over the reminder-stripped kept_oracle (add() dedups against the
+    # structural arm). No branch carries a `[^.]*` cross-clause span, so flat==per-
+    # clause (commander-legal: flat-mirror==per-clause-regex==149, 0 gain, 0 loss).
+    # FLOOR→KEPT:
+    # removed from _IR_FLOOR_LANES (floor-mirror-dep -> 0). The deleted producer fed
+    # has_other_plan (HIGH, scope 'you', not generic/voltron-compat); because the IR
+    # re-supply (structural arm + this mirror) is BROADER (+26 ir_only), the hybrid re-
+    # silences voltron via the byte-identical _SUPERFRIENDS_MATTERS_PLAN_MIRROR — NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS (which would over-silence the 26). CR 306 / 606.
+    (
+        "superfriends_matters",
+        re.compile(SUPERFRIENDS_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 — extra_combats SUPPLEMENT kept WORD MIRROR (the ADDITIONAL-COMBAT-PHASE
@@ -2271,7 +2298,19 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # the number of lands you control" / "for each land you control" forms phase
         # emits as characteristic_pt/pump_target but DROPS the count operand). Moved
         # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
-        "superfriends_matters",
+        # superfriends_matters removed — ADR-0027 migrated it to the Card IR (the
+        # EXISTING structural arm: a Condition gated on a Planeswalker subject you
+        # control — "as long as you control a <Name> planeswalker, …" — that fires on 26
+        # commander-legal cards the deleted regex MISSED; PLUS a SUPERFRIENDS_MATTERS_
+        # REGEX kept word mirror for the "planeswalkers you control" anthem / "loyalty
+        # counter" payoffs / "activate a loyalty ability" engines / "abilities of a
+        # planeswalker" copiers phase leaves textual). Moved floor->kept (floor-mirror-
+        # dep -> 0; floor-disabled IR-vs-regex residual: both==0, regex_only==149 [all
+        # recovered byte-identically by the kept mirror], ir_only==26 [all genuine
+        # "control a <Name> planeswalker" payoffs]). _HAND_FLOOR producer deleted;
+        # voltron
+        # re-silenced via the byte-identical _SUPERFRIENDS_MATTERS_PLAN_MIRROR (BROADER
+        # IR re-supply). CR 306 / 606.
         # modified_matters removed — ADR-0027 migrated it to the Card IR via the UNION
         # kept WORD MIRROR (the `\bmodified\b` direct word OR the "power greater than
         # its base power" indirect anchor in _IR_KEPT_DETECTORS, scope 'you', HIGH).

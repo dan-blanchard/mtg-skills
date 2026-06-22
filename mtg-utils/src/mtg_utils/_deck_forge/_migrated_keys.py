@@ -1566,6 +1566,40 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # above (CAST/PLAY a card FROM exile), and opponent_exile_matters (GRAVEYARD
         # HATE). exile_matters was NEVER a SWEEP key (floor count stays 32). CR 406.
         "exile_matters",
+        # ADR-0027 — superfriends_matters (the PLANESWALKER-as-a-group cares-about lane:
+        # the "planeswalkers you control" anthem (Doubling Season-adjacent walkers
+        # decks), the "loyalty counter" payoffs (proliferate / Carth / Atraxa shells),
+        # the "activate a loyalty ability" engines (The Chain Veil, Teferi's ultimate),
+        # the "planeswalker type" group ref (Leori, Shape Shifter Sovereign), and the
+        # "abilities of a planeswalker" copiers (Oath of Teferi, The Chain Veil)).
+        # Served by a UNION: (1) the EXISTING structural arm in extract_signals_ir — a
+        # Condition gated on a Planeswalker subject you control ("as long as you control
+        # a <Name> planeswalker, this creature …", "if you control a Chandra
+        # planeswalker, …"),
+        # which fires on 26 commander-legal cards the deleted regex's narrow word
+        # patterns MISSED (the singular "control a <Name> planeswalker" gate — Charging
+        # War Boar, Court Cleric, Renegade Firebrand, Oath of Chandra/Liliana, the
+        # planeswalker-deck "uncommon partner" creatures); PLUS (2) a byte-identical
+        # SUPERFRIENDS_MATTERS_REGEX kept WORD MIRROR (its EXACT pattern pinned in
+        # _sweep_detectors, scope 'you', HIGH conf) for the BROADER textual refs phase
+        # leaves unstructured (the anthem / loyalty-counter / activate-loyalty / walker-
+        # ability-copy clauses scatter into pump_target / counter / activated-ability
+        # shapes with no "references planeswalkers-as-a-group" tag). The mirror run FLAT
+        # over the reminder-stripped kept_oracle reproduces the deleted per-clause
+        # producer BYTE-IDENTICALLY (flat==per-clause==149, 0 gain/loss — no branch
+        # carries a `[^.]*` cross-clause span); add() dedups it against the structural
+        # arm. FLOOR→KEPT: superfriends_matters was an _IR_FLOOR_LANE, now removed
+        # (floor-mirror-dep -> 0). The _HAND_FLOOR producer is deleted; the hand-written
+        # serve spec (signal_specs.py) is independent and survives. The deleted producer
+        # fed has_other_plan (HIGH, scope 'you', not generic/voltron-compat); because
+        # the IR re-supply is BROADER (+26 ir_only), the hybrid re-silences voltron via
+        # byte-identical _SUPERFRIENDS_MATTERS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_
+        # KEYS, which would over-silence the 26). Floor-disabled residual (IR-vs-regex,
+        # by oracle_id): both==0, regex_only==149 (all recovered by the kept mirror),
+        # ir_only==26 (all genuine "control a <Name> planeswalker" payoffs).
+        # superfriends_matters was NEVER a SWEEP key (floor count unchanged). CR 306 /
+        # 606 / 903.10a.
+        "superfriends_matters",
         # ADR-0027 β — free_spell_storm: a per-spell SCALING self-discount whose
         # cost drops for each spell CAST THIS TURN, so the deck wants FREE (0-cost)
         # spells to chain and keep cutting it (Thrasta, Tempest's Roar; Demilich;

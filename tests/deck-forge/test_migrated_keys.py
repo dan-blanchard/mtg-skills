@@ -5190,6 +5190,33 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027. superfriends_matters ← the byte-identical kept WORD MIRROR (the
+    # SUPERFRIENDS_MATTERS_REGEX row in _IR_KEPT_DETECTORS, scope "you", HIGH conf; CR
+    # 306 / 606). The Chain Veil is the canonical superfriends engine — "if you didn't
+    # activate a loyalty ability of a planeswalker" (matches the "abilities of a
+    # planeswalker" branch) and "For each planeswalker you control" (matches the
+    # "planeswalkers you control" branch). phase carries NO structural form for these
+    # group/loyalty refs (they scatter into activated-ability / count shapes with no
+    # "references planeswalkers-as-a-group" tag), so the mirror reads the reminder-
+    # stripped oracle_text off the record dict; a bare non-None IR routes the hybrid to
+    # the IR path. The regex path no longer emits the key (the _HAND_FLOOR producer is
+    # deleted). The migrated lane ALSO keeps a structural arm (a Condition gated on a
+    # Planeswalker subject you control — "as long as you control a <Name> planeswalker"),
+    # not exercised by this case. ADR-0027.
+    "superfriends_matters": (
+        {
+            "name": "The Chain Veil",
+            "type_line": "Legendary Artifact",
+            "oracle_text": (
+                "At the beginning of your end step, if you didn't activate a "
+                "loyalty ability of a planeswalker this turn, you lose 2 life.\n"
+                "{4}, {T}: For each planeswalker you control, you may activate one "
+                "of its loyalty abilities once this turn as though none of its "
+                "loyalty abilities have been activated this turn."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 β. free_spell_storm ← the structural arm: a dedicated `free_spell_storm`
     # STATIC marker Effect (project._free_spell_storm_marker over phase's SelfRef
     # ModifyCost{Reduce} static, SIDECAR v20). Thrasta's cost drops {3} per other spell

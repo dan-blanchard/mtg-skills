@@ -1023,6 +1023,42 @@ EXILE_MATTERS_REGEX = (
     r"cards? (?:you own )?(?:that are )?in exile"
     r"|for each card (?:you own )?(?:in )?exile"
 )
+# ADR-0027 — superfriends_matters (the PLANESWALKER-as-a-group cares-about lane:
+# "planeswalkers you control" anthems / loyalty-counter payoffs / "activate a loyalty
+# ability" engines / "planeswalker type" group refs (Leori) / "abilities of a
+# planeswalker" copiers (The Chain Veil, Oath of Teferi)) migrated to the Card IR. The
+# lane keeps its EXISTING structural arm in extract_signals_ir (a Condition gated on a
+# Planeswalker subject you control — "as long as you control a <Name> planeswalker, …",
+# "if you control a Chandra planeswalker, …"), which fires on 26 commander-legal cards
+# the deleted regex's narrow word patterns MISS (the singular "control a <Name>
+# planeswalker" gate: Charging War Boar, Court Cleric, Renegade Firebrand, Oath of
+# Chandra/Liliana). phase v0.1.19 carries NO structural form for the BROADER textual
+# refs (the "planeswalkers you control" anthem, the "loyalty counter" payoffs, the
+# "activate a loyalty ability" engines, the "abilities of a planeswalker" copiers —
+# these scatter into pump_target / counter / activated-ability shapes with no
+# "this references planeswalkers-as-a-group" tag), so those ride this
+# SUPERFRIENDS_MATTERS_REGEX (the EXACT deleted _HAND_FLOOR pattern) run FLAT over the
+# reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS loop. No
+# branch carries a `[^.]*` cross-clause span, so flat==per-clause (commander-legal:
+# flat-mirror==per-clause-regex==149, 0 gain, 0 loss). The lane was a regex FLOOR lane
+# (in _IR_FLOOR_LANES, so the IR path re-ran the deleted producer); the kept mirror
+# replaces that floor re-run — superfriends_matters is removed from _IR_FLOOR_LANES
+# (floor-mirror-dep -> 0). superfriends_matters was NEVER a SWEEP key, so no SWEEP row
+# is touched (len unchanged); only this CONSTANT is pinned here. NO sidecar bump. The
+# deleted producer fired HIGH conf scope 'you' and so counted toward has_other_plan (it
+# is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-
+# damage voltron tell on a superfriends engine that is NOT a vanilla beater. Because the
+# IR re-supply (structural arm + kept mirror) is BROADER than the deleted regex (+26
+# ir_only), _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 26 structural bodies;
+# instead a byte-identical _SUPERFRIENDS_MATTERS_PLAN_MIRROR (== this regex over the
+# reminder-STRIPPED `text`) OR'd into has_other_plan restores ONLY the old regex's
+# silence set (voltron 3010 -> 3010, file-swap delta 0). CR 306 / 606 / 903.10a.
+SUPERFRIENDS_MATTERS_REGEX = (
+    r"planeswalkers? you control|loyalty counters?"
+    r"|activate (?:a |one )?loyalty|one or more loyalty"
+    r"|planeswalker type"
+    r"|abilit(?:y|ies) of (?:a |target |another |each )?planeswalker"
+)
 # ADR-0027 — extra_combats (the ADDITIONAL-COMBAT-PHASE archetype axis: a card that
 # grants "after this [main] phase, there is an additional combat phase" — Aggravated
 # Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia, Scourge of the Throne,

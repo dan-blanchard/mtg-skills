@@ -60,6 +60,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     STAX_TAXES_REGEX,
+    SUPERFRIENDS_MATTERS_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
@@ -1619,20 +1620,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # <color>" _IR_KEPT_DETECTORS word mirror for the cost-reduction / counterspell-tax
     # / mana forms phase doesn't make a count operand. This _HAND_FLOOR producer is
     # deleted; the serve spec stays hand-registered in signal_specs.py.
-    (
-        "superfriends_matters",
-        re.compile(
-            r"planeswalkers? you control|loyalty counters?"
-            r"|activate (?:a |one )?loyalty|one or more loyalty"
-            # Cares about planeswalkers as a GROUP (Leori: "planeswalker type", copy
-            # abilities "of a planeswalker"). The "of a planeswalker" anchor keeps a
-            # lone planeswalker-commander's own-loyalty text out.
-            r"|planeswalker type"
-            r"|abilit(?:y|ies) of (?:a |target |another |each )?planeswalker",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: superfriends_matters migrated to the Card IR — served from the EXISTING
+    # structural arm (a Condition gated on a Planeswalker subject you control: "as long
+    # as you control a <Name> planeswalker, …", +26 commander-legal ir_only the regex
+    # missed) PLUS a byte-identical SUPERFRIENDS_MATTERS_REGEX _IR_KEPT_DETECTORS word
+    # mirror for the "planeswalkers you control" anthem / "loyalty counter" payoffs /
+    # "activate a loyalty ability" engines / "abilities of a planeswalker" copiers phase
+    # leaves textual. This _HAND_FLOOR producer is deleted and superfriends_matters is
+    # removed from _IR_FLOOR_LANES; the serve spec stays hand-registered in
+    # signal_specs.py. The BROADER IR re-supply means the has_other_plan voltron silence
+    # is restored by the byte-identical _SUPERFRIENDS_MATTERS_PLAN_MIRROR below (NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence the 26 structural bodies).
     # ADR-0027: historic_matters migrated to the Card IR — served from the "Historic"
     # subject-Filter predicate + a "\bhistoric\b" _IR_KEPT_DETECTORS word mirror for the
     # cost-reduction / "play a historic" / type-group refs phase leaves textual
@@ -2801,6 +2799,23 @@ _ENCHANTMENTS_MATTER_PLAN_MIRROR = re.compile(
 # its sole producer is the kept SWEEP row, which extract_signals still fires, so its
 # has_other_plan is intact.
 _STAX_TAXES_PLAN_MIRROR = re.compile(STAX_TAXES_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated superfriends_matters key. Its one
+# deleted `_HAND_FLOOR` producer (SUPERFRIENDS_MATTERS_REGEX, scope 'you', HIGH
+# confidence) counted toward `has_other_plan` — a superfriends ENGINE is a plan, not a
+# vanilla beater (a planeswalker-anthem / loyalty-payoff / Chain-Veil copier commander
+# wants its 'walkers, not commander-damage chip). The migrated IR path is BROADER (the
+# structural "control a <Name> planeswalker" Condition arm fires on +26 commander-legal
+# cards the regex MISSED), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-
+# SILENCE those 26 structural bodies. This mirror is BYTE-IDENTICAL to the EXACT deleted
+# producer (same SUPERFRIENDS_MATTERS_REGEX) and feeds ONLY the gate (no signal — the
+# lane is served from the IR), reproducing pre-migration `has_other_plan` for ALL cards.
+# Matched against the reminder-STRIPPED `text` (NOT `_oracle`): the deleted producer was
+# a `_HAND_FLOOR` Detector over reminder-stripped clauses; the regex has no `[^.]*`, so
+# flat == per-clause (commander-legal: flat==per-clause==149, voltron delta 0). CR 306 /
+# 606 / 903.10a.
+_SUPERFRIENDS_MATTERS_PLAN_MIRROR = re.compile(
+    SUPERFRIENDS_MATTERS_REGEX, re.IGNORECASE
+)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated creature_recursion key. Its one
 # deleted `_DETECTORS` producer (CREATURE_RECURSION_REGEX, forced scope 'you', HIGH
 # confidence) counted toward `has_other_plan` — a recursion ENGINE is a plan, not a
@@ -5614,6 +5629,18 @@ def extract_signals(
         # creature's "(…untap target creature…)" reminder never fired them — keeping
         # reminders here would over-silence those bodies. CR 903.10a.
         or _UNTAP_ENGINE_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted superfriends_matters _HAND_FLOOR producer (it
+        # fired HIGH-confidence scope 'you', feeding has_other_plan — a planeswalker-
+        # anthem / loyalty-payoff / "abilities of a planeswalker" copier engine is no
+        # vanilla beater: The Chain Veil, Oath of Teferi, Leori). The migrated IR path
+        # is BROADER (+26 ir_only — the structural "control a <Name> planeswalker"
+        # Condition arm), so _VOLTRON_SILENCING_PLAN_KEYS would over-silence those 26
+        # structural bodies; this byte-identical mirror (the EXACT deleted
+        # SUPERFRIENDS_MATTERS_REGEX) restores only the old regex's silence set. Matched
+        # against the reminder-STRIPPED `text` (the deleted _HAND_FLOOR Detector ran
+        # per-clause over stripped clauses; the regex has no `[^.]*`, so full-text ==
+        # per-clause). CR 306 / 606 / 903.10a.
+        or _SUPERFRIENDS_MATTERS_PLAN_MIRROR.search(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

@@ -57,7 +57,11 @@ CASES = [
     # Card IR (the amount.op count operands + "devotion to <color>" / "\bhistoric\b" /
     # "creatures in your party" _IR_KEPT_DETECTORS word mirrors), so they are asserted
     # via the hybrid path below, not this regex CASES loop.
-    ("superfriends_matters", "you", "Planeswalkers you control have hexproof."),
+    # ADR-0027: superfriends_matters migrated to the Card IR (the byte-identical
+    # SUPERFRIENDS_MATTERS_REGEX kept word mirror for the "planeswalkers you control" /
+    # "loyalty counter" / "activate a loyalty ability" / "abilities of a planeswalker"
+    # refs + a structural "control a <Name> planeswalker" Condition arm), so it is
+    # asserted via the hybrid path below, not this regex CASES loop.
     # ADR-0027: legends_matter migrated to the Card IR (the HasSupertype:Legendary
     # subject predicate + a kept word mirror), so it is asserted via the hybrid path
     # below, not this regex CASES loop.
@@ -120,6 +124,15 @@ def test_coven_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
     assert ("coven_matters", "you") in _ks_hybrid(c)
     assert ("coven_matters", "you") not in _ks(c)
+
+
+def test_superfriends_matters_is_ir_served():
+    # ADR-0027: superfriends_matters is IR-served from the byte-identical
+    # SUPERFRIENDS_MATTERS_REGEX kept word mirror (the "planeswalkers you control"
+    # anthem branch), so it comes through the hybrid path, not pure regex.
+    c = {"name": "X", "oracle_text": "Planeswalkers you control have hexproof."}
+    assert ("superfriends_matters", "you") in _ks_hybrid(c)
+    assert ("superfriends_matters", "you") not in _ks(c)
 
 
 def test_counter_doubling_is_ir_served():
