@@ -126,6 +126,21 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "suspect": ("suspect_matters", "you"),
     "speed": ("speed_matters", "you"),
     "station": ("station_matters", "you"),
+    # ADR-0027 — daynight_matters migrated to the Card IR. The Day/Night designation
+    # (CR 726, Innistrad: Midnight Hunt) splits into TWO arms: the daybound/nightbound
+    # KEYWORD (the 35 transforming creatures) rides _IR_KEYWORD_MAP['daybound'/
+    # 'nightbound'] below; this `day_night` effect category is the TEXTUAL transition
+    # PAYOFF arm ("it becomes day/night", "as long as it's day/night" — Brimstone
+    # Vandal, The Celestus, Vadrik, Tovolar's upkeep flip; the 12 keyword-LESS payoffs
+    # + Tovolar's both-arm card). phase v0.1.19 structures the transition as a clean
+    # `day_night` effect, so NO mirror is needed: the two structural arms reproduce the
+    # deleted _HAND_FLOOR regex BYTE-IDENTICALLY (commander-legal: both==47,
+    # ir_only==0, regex_only==0; the day_night-effect arm fires the 12 keyword-less
+    # payoffs + Tovolar, the keyword arm the other 34). scope "you" matches the floor
+    # producer's forced scope (0 scope mismatch over all 47). Moved floor->kept
+    # (floor-mirror-dep -> 0);
+    # the _HAND_FLOOR producer is deleted. CR 726.
+    "day_night": ("daynight_matters", "you"),
     "venture": ("venture_matters", "you"),
     "connive": ("connive_matters", "you"),
     "damage_prevention": ("damage_prevention", "you"),
@@ -429,6 +444,22 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # (ir_only==0, regex_only==0 — no mirror needed). scope "any" (it can self-mill or
     # mill an opponent — the deleted preset's scope). CR 701.13.
     "mill": (("mill_matters", "any"),),
+    # ADR-0027 daynight_matters migration: daybound / nightbound (CR 726, Innistrad:
+    # Midnight Hunt) as the printed Scryfall KEYWORD — the 35 day/night transforming
+    # creatures (Tovolar, the werewolf cycles, Arlinn). The keyword is the KEYWORD-only
+    # arm of the two-arm migration: a plain daybound creature carries NO `day_night`
+    # EFFECT (it doesn't itself flip the cycle — Reckless Stormseeker, the 34
+    # werewolves that fire keyword-only), so the keyword array is the structured
+    # anchor for them, byte-identical to the deleted _HAND_FLOOR
+    # `\bdaybound\b|\bnightbound\b` branch (all 35 keyword cards carry the word in
+    # their kept_oracle, 0 keyword-less keyword card). The TEXTUAL transition payoff
+    # ("it becomes day/night", "as long as it's day/night") rides the `day_night`
+    # effect-category doer (_DOER_EFFECT_KEYS) — the 12 keyword-LESS payoffs +
+    # Tovolar's both-arm upkeep flip. scope "you" matches the floor producer's forced
+    # scope. Combined the two arms == 47 == the deleted regex (ir_only==0,
+    # regex_only==0 — no mirror needed). CR 726.
+    "daybound": (("daynight_matters", "you"),),
+    "nightbound": (("daynight_matters", "you"),),
     # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
     # and reminder-only phasers (Sandbar Crocodile) whose only "phases out" sits in
     # the stripped reminder text the regex floor misses. The phasing EFFECT category
@@ -2001,7 +2032,17 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # textual). Moved floor->kept (floor-mirror-dep -> 0); SWEEP row deleted.
         # mechanic / keyword synergy
         "arcane_matters",
-        "daynight_matters",
+        # daynight_matters removed — ADR-0027 migrated it to the Card IR (TWO structural
+        # arms: the daybound/nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP for the 35
+        # transforming creatures, plus the `day_night` EFFECT-category doer via
+        # _DOER_EFFECT_KEYS for the 12 keyword-less "becomes day/night" / "as long as
+        # it's day/night" transition payoffs + Tovolar's both-arm flip; CR 726
+        # Day/Night).
+        # phase v0.1.19 structures the transition cleanly, so NO mirror is needed — the
+        # two arms reproduce the deleted _HAND_FLOOR regex byte-identically (commander-
+        # legal: both==47, ir_only==0, regex_only==0). Moved floor->kept (floor-mirror-
+        # dep -> 0); the _HAND_FLOOR producer is deleted. The hand-written serve spec
+        # (signal_specs.py) survives.
         # saga_matters removed — ADR-0027 migrated it to the Card IR (a `_SAGA_REF`
         # "lore counter" / "Saga you control" dropped-static face marker; the reminder-
         # stripped anchor excludes a vanilla Saga's intrinsic advancement, mirroring the

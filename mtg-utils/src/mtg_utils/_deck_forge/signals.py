@@ -499,6 +499,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # matching the second_spell_matters byte-identical kept-mirror precedent. CR
         # 702.33 / 903.10a.
         "kicked_spell_matters",
+        # ADR-0027: daynight_matters fired high-confidence (forced scope 'you') in the
+        # regex path — via the _HAND_FLOOR floor producer (it was an _IR_FLOOR_LANE) —
+        # and so counted toward has_other_plan, silencing the spurious commander-damage
+        # voltron tell on a Day/Night build-around (Tovolar, the werewolf cycles) that
+        # is NOT a vanilla beater. The floor producer is deleted, so the hybrid
+        # re-silences from the IR re-supply (two structural arms — the
+        # daybound/nightbound keyword + the `day_night` effect doer). The IR firing is
+        # BYTE-IDENTICAL to the deleted
+        # floor regex (commander-legal: regex == hybrid == 47, 0 broadening, 0 ir_only),
+        # so this set entry re-silences exactly without over-silence — matching the
+        # kicked_spell_matters byte-identical precedent. CR 726 / 903.10a.
+        "daynight_matters",
         # ADR-0027: land_sacrifice_matters fired high-confidence (scope 'you') in the
         # regex path via the _HAND_FLOOR producer and so counted toward has_other_plan
         # (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious

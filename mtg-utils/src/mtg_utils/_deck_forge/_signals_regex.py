@@ -1691,15 +1691,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # makers). It is removed from _IR_FLOOR_LANES (no floor mirror; floor-mirror-
     # dependency == 0). This _HAND_FLOOR producer is deleted; the hand-written serve
     # spec (signal_specs.py) survives. clue/food/treasure keep their floor for now.
-    (
-        "daynight_matters",
-        re.compile(
-            r"\bdaybound\b|\bnightbound\b|it becomes night"
-            r"|day becomes night|night becomes day|as long as it's (?:day|night)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: daynight_matters migrated to the Card IR — detected from TWO
+    # structural arms (NO mirror needed; CR 726 Day/Night): the daybound/nightbound
+    # Scryfall KEYWORD via signals._IR_KEYWORD_MAP (the 35 transforming creatures —
+    # Tovolar, the werewolf cycles, Arlinn) plus the `day_night` EFFECT-category doer
+    # via _DOER_EFFECT_KEYS (the 12 keyword-LESS "it becomes day/night" / "as long as
+    # it's day/night" transition payoffs — Brimstone Vandal, The Celestus, Vadrik — and
+    # Tovolar's both-arm upkeep flip). phase v0.1.19 structures the transition cleanly,
+    # so the two arms reproduce
+    # this deleted _HAND_FLOOR producer BYTE-IDENTICALLY (commander-legal: both==47,
+    # ir_only==0, regex_only==0). This producer (formerly an _IR_FLOOR_LANE; moved
+    # floor->kept, floor-mirror-dep -> 0) is deleted; the hand-written serve spec
+    # (signal_specs.py) survives. The producer fired high-confidence scope 'you' and fed
+    # has_other_plan, so daynight_matters is added to _VOLTRON_SILENCING_PLAN_KEYS (the
+    # IR re-supply is byte-identical, IR == regex == 47, so the silencing-keys path
+    # re-silences exactly without over-silence).
     # ADR-0027: voting_matters migrated to the Card IR — detected from the kept
     # word-detector mirror (signals._IR_KEPT_DETECTORS: a broader vote regex that
     # also catches the plural + "each player votes"; voting CR 701.38 is a real

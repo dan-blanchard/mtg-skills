@@ -82,11 +82,11 @@ CASES = [
     # ADR-0027: blood_matters migrated to the Card IR (the token-subtype synergy
     # widening reads sacrifice subjects), so it is asserted via the hybrid path
     # below, not this regex CASES loop.
-    (
-        "daynight_matters",
-        "you",
-        "Daybound (If a player casts no spells during their own turn...)",
-    ),
+    # ADR-0027: daynight_matters migrated to the Card IR (TWO structural arms — the
+    # daybound/nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP + the `day_night`
+    # effect-category doer via _DOER_EFFECT_KEYS for the "it becomes day/night"
+    # transition payoff), so it is asserted via the hybrid path below, not this regex
+    # CASES loop.
     # ADR-0027: coven_matters / voting_matters / token_doubling / blood_matters
     # migrated to the Card IR, so they are asserted via the hybrid path below, not
     # this regex CASES loop.
@@ -129,6 +129,51 @@ def test_second_spell_matters_is_ir_served():
     }
     assert ("second_spell_matters", "you") in _ks_hybrid(c)
     assert ("second_spell_matters", "you") not in _ks(c)
+
+
+def test_daynight_matters_keyword_arm_is_ir_served():
+    # ADR-0027: daynight_matters arm 1 — the daybound/nightbound Scryfall KEYWORD via
+    # _IR_KEYWORD_MAP (read off the record dict's `keywords` array, so a bare IR routes
+    # the hybrid to the IR path). A plain daybound werewolf with no transition payoff
+    # fires keyword-only. scope "you". CR 726.
+    c = {
+        "name": "X",
+        "type_line": "Creature — Human Werewolf",
+        "oracle_text": "Daybound",
+        "keywords": ["Daybound"],
+    }
+    assert ("daynight_matters", "you") in _ks_hybrid(c)
+    assert ("daynight_matters", "you") not in _ks(c)
+
+
+def test_daynight_matters_effect_arm_is_ir_served():
+    # ADR-0027: daynight_matters arm 2 — the `day_night` EFFECT-category doer via
+    # _DOER_EFFECT_KEYS (the "it becomes day/night" / "as long as it's day/night"
+    # transition payoff phase structures cleanly). A keyword-LESS payoff (The Celestus,
+    # Brimstone Vandal, Vadrik) fires this arm. scope "you". CR 726.
+    c = {
+        "name": "X",
+        "type_line": "Artifact",
+        "oracle_text": "When this artifact enters, it becomes day.",
+    }
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="spell",
+                        effects=(Effect(category="day_night", scope="any"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("daynight_matters", "you") in hybrid
+    assert ("daynight_matters", "you") not in _ks(c)
 
 
 def test_voting_matters_is_ir_served():

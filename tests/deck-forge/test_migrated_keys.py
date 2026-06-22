@@ -5516,6 +5516,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # daynight_matters ← TWO structural arms (CR 726, Day/Night): the daybound /
+    # nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP (read off the record dict's
+    # `keywords` array) PLUS the `day_night` EFFECT-category doer via _DOER_EFFECT_KEYS
+    # (the "it becomes day/night" transition payoff phase structures cleanly). Tovolar
+    # is the canonical Day/Night commander, firing BOTH arms (it carries the Daybound
+    # keyword AND an upkeep "it becomes night" flip → a `day_night` effect). NO mirror
+    # is needed — phase structures both halves, so the two arms reproduce the deleted
+    # _HAND_FLOOR regex byte-identically. The regex path no longer emits the key (the
+    # _HAND_FLOOR producer is deleted). scope "you". ADR-0027.
+    "daynight_matters": (
+        {
+            "name": "Tovolar, Dire Overlord",
+            "type_line": "Legendary Creature — Human Werewolf",
+            "oracle_text": (
+                "Whenever a Wolf or Werewolf you control deals combat damage to a "
+                "player, draw a card.\n"
+                "At the beginning of your upkeep, if you control three or more "
+                "Wolves and/or Werewolves, it becomes night. Then transform any "
+                "number of Human Werewolves you control.\n"
+                "Daybound"
+            ),
+            "keywords": ["Daybound"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="upkeep", scope="any"),
+                effects=(Effect(category="day_night", scope="any"),),
+            ),
+            keywords=("Daybound",),
+        ),
+    ),
 }
 
 

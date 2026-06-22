@@ -3767,6 +3767,45 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (("extra_turns","you") in signal_specs, independent of the producer). CR 500.7
         # / 903.10a.
         "extra_turns",
+        # ADR-0027 — daynight_matters (the Day/Night mechanic — CR 726, Innistrad:
+        # Midnight Hunt: daybound/nightbound creatures that transform on the day↔night
+        # flip, PLUS the transition payoffs — "it becomes day/night", "as long as it's
+        # day/night" — Tovolar, Brimstone Vandal, The Celestus, Vadrik). Now fires from
+        # the Card IR instead of its oracle-regex floor producer. NO sidecar bump (the
+        # keyword arm reads the Scryfall keyword array, the doer arm reads phase's
+        # `day_night` effect — both the sidecar already carries; no new projection
+        # field).
+        #
+        # TWO STRUCTURAL ARMS, NO MIRROR. The lane splits cleanly across phase's own
+        # structure: (1) the daybound / nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP
+        # (the 35 transforming creatures — every daybound/nightbound card carries the
+        # word in its kept_oracle, 0 keyword-less keyword card); (2) the `day_night`
+        # EFFECT-category doer via _DOER_EFFECT_KEYS (phase v0.1.19 structures the
+        # transition — "it becomes day/night", "as long as it's day/night" — as a clean
+        # `day_night` effect; 12 keyword-LESS payoffs fire this arm, plus Tovolar fires
+        # BOTH). Because phase structures BOTH halves, NO kept-mirror is needed — the
+        # two arms reproduce the deleted _HAND_FLOOR regex EXACTLY.
+        #
+        # FLOOR→KEPT. daynight_matters WAS an _IR_FLOOR_LANE (the IR path reused the
+        # production floor Detector); it is REMOVED from _IR_FLOOR_LANES and the
+        # _HAND_FLOOR source row is deleted — floor-mirror-dep -> 0. FLOOR-DISABLED
+        # residual vs the deleted regex (commander-legal, dedupe oracle_id,
+        # _IR_FLOOR_LANES=frozenset()): both == 47, regex_only == 0, ir_only == 0 —
+        # BYTE-IDENTICAL, no recall lost, no over-fire (no ir_only sample to adjudicate;
+        # the day_night effect-category arm fires on EXACTLY the regex set — 34 keyword-
+        # only werewolves, 12 effect-only payoffs, 1 both — Tovolar). SCOPE PARITY: all
+        # 47 fire scope "you" (the floor producer's forced scope; both arms emit "you"),
+        # 0 mismatch. The siblings key on different producers and drift 0.
+        #
+        # VOLTRON. The deleted floor producer fired HIGH-confidence (scope 'you') and
+        # fed has_other_plan (a daynight build-around — Tovolar — is no vanilla beater,
+        # not in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS). Because the two IR arms are
+        # BYTE-IDENTICAL (IR == regex == 47, no broadening), daynight_matters is added
+        # to _VOLTRON_SILENCING_PLAN_KEYS so the hybrid re-silences the spurious
+        # commander-damage membership tell from the IR re-supply, restoring
+        # pre-migration behavior (matching the kicked_spell / second_spell precedent).
+        # FILE-SWAP voltron delta 0. CR 726 (Day/Night) / 903.10a (voltron).
+        "daynight_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
