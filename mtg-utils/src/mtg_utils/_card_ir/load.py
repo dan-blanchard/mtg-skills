@@ -102,7 +102,15 @@ from mtg_utils.card_ir import Card
 #     precision gate). The play_from_top lane reads it; the static kind keeps it
 #     disjoint from the sibling impulse_top_play arm (which gates ab.kind != 'static').
 #     ADR-0027 β. CR 116 / 601.3b.
-SIDECAR_VERSION = 16
+#  - v16→v17: mana_amplifier — supplement._recover_static_pattern splits the
+#     amount-MULTIPLIER doublers ("produces twice/three times as much" — Mana
+#     Reflection, Virtue of Strength) OUT of the generic mana_filter passthrough
+#     into a dedicated `mana_amplifier` category (the color-CHANGE filters and
+#     any-color SPEND permission — Celestial Dawn, Vizier — stay mana_filter).
+#     nothing reads mana_filter, so the split is drift-free. Read in
+#     extract_signals_ir + the triggered `ramp`/`double` doublers discriminator-
+#     gated (additive — ramp_matters unchanged). ADR-0027 β. CR 106.4 / 605.
+SIDECAR_VERSION = 17
 
 
 def card_ir_dir() -> Path:

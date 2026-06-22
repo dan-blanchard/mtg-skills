@@ -330,6 +330,17 @@ CATEGORIES: frozenset[str] = frozenset(
         # a "SingleTarget" predicate, so ONLY the keyword_grant_target arm reads it (it
         # never leaks into the team/anthem grant_keyword lanes). CR 700.2.
         "single_target_grant",
+        # ADR-0027 β mana-AMPLIFY marker — a tap-for-mana doubler that multiplies
+        # the AMOUNT produced ("produces twice/three times as much" — Mana
+        # Reflection, Virtue of Strength). supplement._recover_static_pattern splits
+        # this OUT of the generic mana_filter passthrough (which conflates it with
+        # the color-CHANGE filters and the any-color SPEND permission — Celestial
+        # Dawn, Vizier — those stay mana_filter). Read in extract_signals_ir as
+        # mana_amplifier. The triggered "tap a land … add an additional" doublers
+        # (Crypt Ghast, Mirari's Wake) phase types as a triggered `ramp` Mana
+        # effect, read discriminator-gated there (additive — they keep firing
+        # ramp_matters). CR 106.4 / 605.
+        "mana_amplifier",
         "other",
     }
 )

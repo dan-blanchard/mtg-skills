@@ -241,11 +241,50 @@ def test_direct_damage_pinger():
 
 
 def test_mana_amplifier():
+    # ADR-0027 β: mana_amplifier migrated regex→IR. The doubler arm fires from a
+    # triggered `ramp` Mana effect whose raw matches the AMOUNT-INCREASE
+    # discriminator ("add one mana of any type" after a "tap a land for mana"),
+    # read additively (Vorinclex also keeps firing ramp_matters).
     c = {
         "name": "Vorinclex, Voice of Hunger",
-        "oracle_text": "Trample\nWhenever you tap a land for mana, add one mana of any type that land produced.\nWhenever an opponent taps a land for mana, that land doesn't untap during its controller's next untap step.",
+        "type_line": "Legendary Creature — Phyrexian Praetor",
+        "oracle_text": (
+            "Trample\n"
+            "Whenever you tap a land for mana, add one mana of any type that "
+            "land produced.\n"
+            "Whenever an opponent taps a land for mana, that land doesn't untap "
+            "during its controller's next untap step."
+        ),
     }
-    assert ("mana_amplifier", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Vorinclex, Voice of Hunger",
+        faces=(
+            Face(
+                name="Vorinclex, Voice of Hunger",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        effects=(
+                            Effect(
+                                category="ramp",
+                                scope="any",
+                                raw=(
+                                    "Whenever you tap a land for mana, add one "
+                                    "mana of any type that land produced."
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert "mana_amplifier" not in _keys(c)
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("mana_amplifier", "you") in hybrid
+    # read additively — the doubler stays in the generic ramp lane too.
+    assert ("ramp_matters", "you") in hybrid
 
 
 def test_keyword_granting_team_is_not_a_separate_signal():

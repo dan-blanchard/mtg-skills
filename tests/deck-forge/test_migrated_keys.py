@@ -426,6 +426,37 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # mana_amplifier ← a cat=="mana_amplifier" Effect, split OUT of the generic
+    # mana_filter passthrough by supplement._MANA_AMPLIFY ("produces twice as much").
+    # The structural arm in extract_signals_ir fires on the category directly. The
+    # triggered "tap a land … add an additional" doublers (Crypt Ghast) ride a ramp/
+    # double discriminator instead; the dork-support arm (Raggadragga) rides a kept
+    # word mirror. ADR-0027 β.
+    "mana_amplifier": (
+        {
+            "name": "Mana Reflection",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "If you tap a permanent for mana, it produces twice as much "
+                "of that mana instead."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="mana_amplifier",
+                        scope="you",
+                        raw=(
+                            "If you tap a permanent for mana, it produces twice "
+                            "as much of that mana instead"
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     "ki_counter_matters": (
         {
             "name": "Skullmane Baku",

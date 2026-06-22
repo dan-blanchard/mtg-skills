@@ -977,6 +977,23 @@ _MANA_PRODUCE = re.compile(
     r"|\bproduces .{0,20}\binstead of\b|\bproduces colorless\b",
     re.IGNORECASE,
 )
+# ADR-0027 β — the mana-AMPLIFY subset of _MANA_PRODUCE: a tap-for-mana doubler that
+# multiplies the AMOUNT produced ("it produces twice/three times as much" — Mana
+# Reflection, Virtue of Strength/Garenbrig Growth). Checked BEFORE _MANA_PRODUCE so it
+# splits the amount-MULTIPLIER doublers OUT of the generic mana_filter passthrough; the
+# color-CHANGE forms ("produces {C} instead", "produces colorless" — Damping Sphere,
+# Pale Moon, Pulse of Llanowar, Deep Water, Harvest Mage, Quarum Trench Gnomes, Mirri)
+# and the any-color SPEND permission (_MANA_FILTER — Celestial Dawn, Vizier of the
+# Menagerie) are NOT amplifiers and correctly stay mana_filter. This is the doubler arm
+# of the mana_amplifier lane; the triggered "tap a land … add an additional" doublers
+# (Crypt Ghast, Mirari's Wake) phase types as a triggered `ramp` Mana effect, read
+# discriminator-gated in extract_signals_ir (additive — they keep firing ramp_matters).
+# CR 106.4 / 605.
+_MANA_AMPLIFY = re.compile(
+    r"\bproduces (?:twice|three times)\b"
+    r"|\bfor mana, it produces (?:twice|three times)\b",
+    re.IGNORECASE,
+)
 # An activation-PERMISSION ("you may activate loyalty/equip abilities … any time/twice
 # each turn", "activate the loyalty abilities of …").
 _ACTIVATION_PERM = re.compile(
@@ -1146,6 +1163,11 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
         return replace(e, category="coin_flip")
     if _ATTACK_ONLY.search(s) or _CAST_RESTRICT.search(s):
         return replace(e, category="restriction")
+    # ADR-0027 β — the amount-MULTIPLIER doublers split OUT of mana_filter (checked
+    # first so a "produces twice/three times" amplifier never falls through to the
+    # color-change mana_filter below). CR 106.4.
+    if _MANA_AMPLIFY.search(s):
+        return replace(e, category="mana_amplifier")
     if _MANA_PRODUCE.search(s):
         return replace(e, category="mana_filter")
     if _ACTIVATION_PERM.search(s):

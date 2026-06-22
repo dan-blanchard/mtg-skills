@@ -2269,6 +2269,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             # self-power-scaling commander cross-open. NOT in _IR_FLOOR_LANES (floor-
             # mirror-dep == 0). CR 122.1 / 614.12.
             "self_counter_grow",
+            # ADR-0027 β — mana_amplifier (a mana DOUBLER): the supplement-split
+            # `mana_amplifier` category (amount-MULTIPLIER doublers — Mana Reflection,
+            # Virtue of Strength) + a _MANA_AMPLIFY_RAW discriminator over the triggered
+            # `ramp` / `double` doublers (Crypt Ghast, Mirari's Wake, Cube), read
+            # ADDITIVELY (ramp_matters unchanged) + a byte-identical
+            # _MANA_DORK_SUPPORT_MIRROR for the "creatures with a mana ability" payoff
+            # phase can't structure (Raggadragga). NOT in _IR_FLOOR_LANES (floor-mirror-
+            # dep == 0). CR 106.4 / 605.
+            "mana_amplifier",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -3008,6 +3017,43 @@ _TOKEN_SUBTYPE_RAW = re.compile(
 # Valleymaker, Tangleroot) from your-own ramp (Sol Ring, Llanowar).
 _GROUP_MANA_RAW = re.compile(
     r"(?:each|that|the active|chosen) player[^.]*adds \{", re.IGNORECASE
+)
+
+# ADR-0027 β — mana_amplifier (a mana DOUBLER: a permanent that, when you tap something
+# for mana, makes it produce MORE — Mirari's Wake, Crypt Ghast, Vorinclex, Mana
+# Reflection, Nyxbloom, Zendikar Resurgent). The amount-MULTIPLIER doublers split out of
+# mana_filter (supplement._MANA_AMPLIFY → cat=="mana_amplifier") fire on the category
+# alone. The triggered "Whenever you tap a <land> for mana, add an additional/one mana
+# of any type" doublers phase types as a triggered `ramp` Mana effect (they ride the
+# generic ramp lane shared with thousands of dorks/rocks), and Doubling Cube's "Double
+# the amount of … unspent mana" lands in `double`; both are split out by this
+# AMOUNT-INCREASE discriminator over the ramp/double effect raw — read ADDITIVELY, so
+# doublers KEEP firing ramp_matters (the category is not moved; only an EXTRA
+# mana_amplifier signal is emitted). The discriminator requires a real amount increase
+# ("add an additional / twice / that much / one mana of any", "produces twice/three
+# times", "double the amount of … mana"); a plain "produces … instead" color FILTER and
+# any-color SPEND permission are NOT amplifiers (they stay mana_filter, unread).
+# Verified
+# over the commander-legal corpus: the IR read (cat + this discriminator) is a clean
+# superset of the deleted doubler regex (regex_only==0), +2 genuine recall (Doubling
+# Cube, Virtue of Strength). CR 106.4 / 605.
+_MANA_AMPLIFY_RAW = re.compile(
+    r"tap(?:ped|s)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
+    r"add (?:an additional|one mana of any|that much|twice)"
+    r"|tap(?:ped|s)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
+    r"produces? an additional"
+    r"|\bproduces (?:twice|three times)\b"
+    r"|\bdouble the amount of [^.]*\bmana\b",
+    re.IGNORECASE,
+)
+# ADR-0027 β — mana_amplifier DORK-SUPPORT arm (a payoff for mana-producing CREATURES:
+# "Each creature you control with a mana ability gets +2/+2" / "… attacks, untap it" —
+# Raggadragga). phase DROPS the "with a mana ability" subject qualifier entirely (the
+# pump/untap effects land subject=None, indistinguishable from a vanilla team pump), so
+# there is no structural form to read — this stays a kept WORD MIRROR (the EXACT deleted
+# _HAND_FLOOR regex). Byte-identical recovery, run per the full kept oracle.
+_MANA_DORK_SUPPORT_MIRROR = re.compile(
+    r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE
 )
 
 # venture_matters (ADR-0027): a dungeon-DOUBLING payoff phase keeps as a
@@ -4632,6 +4678,21 @@ def extract_signals_ir(
                 # survives only in raw — _GROUP_MANA_RAW is the discriminator).
                 if e.scope == "each" or _GROUP_MANA_RAW.search(e.raw or ""):
                     add("group_mana", "each", "", e.raw)
+            # ADR-0027 β — mana_amplifier (a mana DOUBLER). The amount-MULTIPLIER
+            # doublers split out of mana_filter (supplement._MANA_AMPLIFY) fire on the
+            # dedicated category alone (Mana Reflection, Virtue of Strength). The
+            # triggered "tap a <land> for mana, add an additional" doublers phase types
+            # as a triggered `ramp` Mana effect (Crypt Ghast, Mirari's Wake, Vorinclex,
+            # Zendikar Resurgent), and Doubling Cube's "double the amount of … mana"
+            # lands in `double`; both are split out by the _MANA_AMPLIFY_RAW
+            # amount-increase discriminator — read ADDITIVELY (the ramp branch above
+            # already fired ramp_matters; this only ADDS mana_amplifier, so the doublers
+            # stay in the generic ramp lane too). scope "you" — the deleted regex's
+            # firing identity. CR 106.4 / 605.
+            if cat == "mana_amplifier" or (
+                cat in ("ramp", "double") and _MANA_AMPLIFY_RAW.search(e.raw or "")
+            ):
+                add("mana_amplifier", "you", "", e.raw)
             if cat == "blink":
                 add("blink_flicker", "you", "", e.raw)
             # clone_matters (creatures) + per-permanent-type copy lanes. The copied
@@ -6138,6 +6199,14 @@ def extract_signals_ir(
     for key, pat, scope in _IR_KEPT_DETECTORS:
         if pat.search(kept_oracle):
             add(key, scope, "", "")
+    # ADR-0027 β — mana_amplifier DORK-SUPPORT arm (a payoff for mana-producing
+    # CREATURES: "Each creature you control with a mana ability gets +2/+2 / … untap it"
+    # — Raggadragga). phase DROPS the "with a mana ability" subject qualifier (the
+    # pump/untap effects land subject=None), so there is no structural form — this rides
+    # the byte-identical _MANA_DORK_SUPPORT_MIRROR (the EXACT deleted regex).
+    # add() dedups vs the structural doubler arm. CR 605.1a.
+    if _MANA_DORK_SUPPORT_MIRROR.search(kept_oracle):
+        add("mana_amplifier", "you", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
     # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep

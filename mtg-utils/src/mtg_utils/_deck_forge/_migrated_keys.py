@@ -1474,6 +1474,63 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # deleted; the serve survives via a pinned regex constant in signal_specs
         # (SWEEP_LABELS kept). CR 601.2f / 118.7.
         "cost_reduction",
+        # ADR-0027 β — mana_amplifier (a mana DOUBLER: a permanent that, when you tap
+        # something for mana, makes it produce MORE — Mirari's Wake, Crypt Ghast,
+        # Vorinclex, Mana Reflection, Nyxbloom, Zendikar Resurgent, Doubling Cube —
+        # plus the DORK-SUPPORT payoff "creatures with a mana ability" — Raggadragga).
+        # The deleted regex had TWO arms (a doubler arm + a dork-support arm), and the
+        # doublers were NOT structurally isolable: phase types most as a triggered
+        # `ramp` Mana effect (shared with thousands of dorks/rocks), one as the
+        # mana_filter passthrough (Mana Reflection — which ALSO conflates the any-color
+        # SPEND permission — Celestial Dawn, Vizier — those are NOT amplifiers), and
+        # Doubling Cube as `double`.
+        #
+        # PROJECTION + SPLIT (SIDECAR v16→v17). supplement._recover_static_pattern
+        # carries a new _MANA_AMPLIFY rule (checked BEFORE _MANA_PRODUCE) that splits
+        # the amount-MULTIPLIER doublers ("produces twice/three times as much" — Mana
+        # Reflection, Virtue of Strength) OUT of the generic mana_filter passthrough
+        # into a dedicated cat=="mana_amplifier" category (card_ir.CATEGORIES). The
+        # color-CHANGE filters ("produces {C} instead" — Damping Sphere, Pale Moon,
+        # Deep Water, Harvest Mage, Pulse of Llanowar, Quarum Trench Gnomes, Mirri)
+        # and the any-color SPEND permission (_MANA_FILTER — Celestial Dawn, Vizier)
+        # stay mana_filter, which NO lane reads — so the split is drift-FREE. Two-
+        # sidecar global no-flood (v16 vs v17, SAME unwired signals.py, 30969
+        # commander-legal): drift_cards == 0. parse_confidence unchanged (full 34118 /
+        # partial 444 both sides — the clause still recovers, only its category moved).
+        #
+        # STRUCTURAL ARM (recall-GAINING). extract_signals_ir fires mana_amplifier on
+        # (a) the new mana_amplifier category alone (Mana Reflection, Virtue), and (b)
+        # a triggered `ramp` / `double` effect whose raw matches _MANA_AMPLIFY_RAW (the
+        # AMOUNT-INCREASE discriminator — "add an additional/twice/that much/one mana
+        # of any", "produces twice/three times", "double the amount of … mana"), read
+        # ADDITIVELY: the doubler ALREADY fired ramp_matters in the same loop and KEEPS
+        # firing it (the category is NOT moved out of `ramp` — that would drift
+        # ramp_matters / group_mana / activated_ability / lifeloss_matters, which all
+        # read `ramp`; instead only an EXTRA mana_amplifier signal is added). The DORK-
+        # SUPPORT arm ("creatures with a mana ability" — Raggadragga) has NO structural
+        # form (phase drops the "with a mana ability" subject), so it rides a byte-
+        # identical _MANA_DORK_SUPPORT_MIRROR (the EXACT deleted _HAND_FLOOR regex).
+        # floor-mirror-dep == 0 (mana_amplifier is NOT an _IR_FLOOR_LANE).
+        #
+        # Floor-disabled IR-vs-regex residual (commander-legal, _IR_FLOOR_LANES=
+        # frozenset()): IR 17, regex 15, regex_only == 0 (clean superset — no recall
+        # the regex caught is lost), ir_only == 2 genuine recall GAIN verified vs
+        # Scryfall oracle (Doubling Cube "Double the amount of each type of unspent
+        # mana"; Virtue of Strength "produces three times as much"). The any-color
+        # cards Celestial Dawn / Vizier do NOT fire mana_amplifier. NO over-fire.
+        #
+        # VOLTRON. The deleted doubler _HAND_FLOOR producer fired high-confidence scope
+        # 'you' and counted toward has_other_plan; a mana-doubler engine IS a plan, so
+        # a byte-identical _MANA_AMPLIFIER_PLAN_MIRROR re-supplies the silence on the
+        # regex side (the IR arm is BROADER by +2, so _VOLTRON_SILENCING_PLAN_KEYS
+        # would over-silence the 2 ir_only bodies — Doubling Cube, Virtue; the mirror
+        # keeps the silence set byte-identical to pre-migration). FILE-SWAP no-flood:
+        # ONLY mana_amplifier moves; ramp_matters / group_mana / activated_ability /
+        # lifeloss_matters / mana_filter-reading lanes drift 0; voltron delta 0. The
+        # two _HAND_FLOOR doubler/dork producers are deleted; the serve spec in
+        # signal_specs.py is a standalone _spec (never read a SWEEP regex), so no serve
+        # re-home. CR 106.4 / 605 / 903.10a.
+        "mana_amplifier",
         # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
         # triggered / static ability to YOUR whole creature board OR to an
         # ALL-permanents set: "Creatures you control have '{T}: …'" — Cryptolith Rite,

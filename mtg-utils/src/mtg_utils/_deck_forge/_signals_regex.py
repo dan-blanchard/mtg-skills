@@ -1345,14 +1345,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # structural via category=='redirect' should anyone tighten it later.
     # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
     # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
-    # creatures (ramp_matters) and dork support (mana_amplifier).
+    # creatures (ramp_matters). The dork-support mana_amplifier arm is migrated to
+    # the Card IR (ADR-0027 β): phase drops the "with a mana ability" subject, so it
+    # rides a byte-identical _MANA_DORK_SUPPORT_MIRROR in _signals_ir; this
+    # ramp_matters producer (a separate unmigrated key) stays.
     (
         "ramp_matters",
-        re.compile(r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE),
-        "you",
-    ),
-    (
-        "mana_amplifier",
         re.compile(r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE),
         "you",
     ),
@@ -1546,16 +1544,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "mana_amplifier",
-        re.compile(
-            r"tap(?:ped)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
-            r"(?:add (?:an additional|one mana of any|that much|twice)"
-            r"|produces? (?:twice|an additional))",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 β: mana_amplifier (the DOUBLER arm) migrated to the Card IR — this
+    # _HAND_FLOOR producer is deleted. The lane fires from the IR structural arm (the
+    # supplement-split `mana_amplifier` category + a _MANA_AMPLIFY_RAW discriminator
+    # over the triggered `ramp` / `double` doublers, read additively) + the per-card
+    # dork-support _MANA_DORK_SUPPORT_MIRROR, all in _signals_ir. The deleted regex's
+    # voltron silence is restored by _MANA_AMPLIFIER_PLAN_MIRROR below (its high-
+    # confidence producer fed has_other_plan — a mana-doubler engine IS a plan). The
+    # serve survives via the standalone _spec in signal_specs.py (never read this
+    # regex). CR 106.4 / 605.
     # ── Sweep survivors ─────────────────────────────────────────────────────────
     (
         "voltron_matters",
@@ -2585,6 +2582,26 @@ _LIFELOSS_PLAN_MIRROR = re.compile(
 _COST_REDUCTION_PLAN_MIRROR = re.compile(
     r"\b(?:spells?|each spell) you cast\b[^.]{0,80}?\bcosts?\b[^.]{0,40}?\bless\b"
     r"|" + COST_REDUCTION_REGEX,
+    re.IGNORECASE,
+)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated mana_amplifier key. Its two
+# deleted _HAND_FLOOR producers (the DOUBLER arm "tap … for mana … add additional/twice"
+# and the DORK-SUPPORT arm "creatures with a mana ability") fired HIGH-confidence scope
+# 'you' and counted toward `has_other_plan`, silencing the spurious commander-damage
+# voltron tell on a mana-doubler / dork-support body that is NOT a vanilla beater
+# (Vorinclex, Nirkana Revenant, Crypt Ghast, Raggadragga — a mana-doubler engine IS a
+# plan). The migrated IR arm is BROADER (+2 ir_only: Doubling Cube, Virtue of Strength),
+# so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 2 ir_only
+# bodies. This mirror is the byte-identical OR of the EXACT two deleted regexes; it
+# feeds ONLY the gate (emits no signal — the lane is served from the IR), reproducing
+# the
+# pre-migration `has_other_plan` for ALL cards. FILE-SWAP NO-FLOOD: voltron membership
+# byte-identical (0 gained / 0 lost). CR 106.4 / 605 / 903.10a.
+_MANA_AMPLIFIER_PLAN_MIRROR = re.compile(
+    r"tap(?:ped)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
+    r"(?:add (?:an additional|one mana of any|that much|twice)"
+    r"|produces? (?:twice|an additional))"
+    r"|creatures?[^.]*\bwith (?:a )?mana abilit",
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated global_ability_grant key. Its
@@ -4290,6 +4307,13 @@ def extract_signals(
         # identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's
         # full silence set (incl. the self-discounted finishers). CR 903.10a.
         or _COST_REDUCTION_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted mana_amplifier _HAND_FLOOR producers (the
+        # doubler arm + the dork-support arm). Both fired high-confidence scope 'you',
+        # feeding has_other_plan; the migrated IR arm is BROADER (+2 ir_only), so this
+        # byte-identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old
+        # regex's exact silence set without over-silencing the 2 ir_only bodies. A mana-
+        # doubler engine IS a plan. CR 106.4 / 903.10a.
+        or _MANA_AMPLIFIER_PLAN_MIRROR.search(_oracle)
         # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
         # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
         # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-
