@@ -397,6 +397,23 @@ ISLAND_MATTERS_REGEX = (
     "\\bislandwalk\\b|can'?t attack unless defending player controls an island"
 )
 
+# ADR-0027: clue_matters migrated to the Card IR via a STRUCTURAL ARM (the artifact-
+# token-subtype maker / sac payoff / token_subtype_ref marker shared with food/
+# treasure/blood) UNIONed with a byte-identical kept WORD MIRROR. The deleted
+# _HAND_FLOOR producer (`\\bclue\\b|\\binvestigate\\b`, scope 'you') is pinned here so
+# the _CLUE_MATTERS_MIRROR kept detector (_signals_ir) and the _CLUE_MATTERS_PLAN_MIRROR
+# voltron gate (_signals_regex) share ONE source. The mirror is REQUIRED, not optional:
+# the structural arm alone fires only 52 of the 163 commander-legal lane cards because
+# phase tags the Investigate keyword (→ artifacts_matter) but DROPS the Clue subtype off
+# the make_token subject (Deduce, Bygone Bishop, Thraben Inspector — make_token
+# subject=None), so the 112 pure-investigate / Clue-payoff cards survive only textually.
+# The two bare `\\b`-anchored words carry NO `[^.]*` span, so a flat scan over the
+# reminder-stripped oracle == the deleted floor Detector's per-clause scan (the regex
+# floor ran flat over kept_oracle in the IR path too). Investigate IS "create a Clue
+# artifact token" (CR 701.16); a Clue token is a colorless Clue artifact token (CR
+# 111.10f). The serve spec stays hand-registered in signal_specs.py.
+CLUE_MATTERS_REGEX = "\\bclue\\b|\\binvestigate\\b"
+
 # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror —
 # the deleted SWEEP producer is pinned here so the _COLOR_CHANGE_MIRROR kept detector
 # (_signals_ir) and the _COLOR_CHANGE_PLAN_MIRROR voltron gate (_signals_regex) share

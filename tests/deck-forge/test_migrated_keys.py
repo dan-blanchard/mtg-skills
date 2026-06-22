@@ -3044,6 +3044,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Clue sacrifice payoff (Tireless Tracker) — the STRUCTURAL arm: phase DROPS the Clue
+    # subtype off the "investigate" make_token subject (subject=None) but PRESERVES it on
+    # the "Whenever you sacrifice a Clue" trigger's sacrifice Effect, whose subject Filter
+    # carries subtypes=("Clue",) — so the make_token/sacrifice subject scan opens
+    # clue_matters via _TOKEN_SUBTYPE_KEYS, exactly like the food/blood sacrifice payoffs.
+    # (The 112 keyword-only investigate cards with NO such structural subject ride the
+    # byte-identical _CLUE_MATTERS_MIRROR instead.) CR 701.16 / 111.10f.
+    "clue_matters": (
+        {
+            "name": "Tireless Tracker",
+            "type_line": "Creature — Human Scout",
+            "oracle_text": (
+                "Landfall — Whenever a land you control enters, investigate. "
+                "(Create a Clue token. It's an artifact with \"{2}, Sacrifice "
+                'this token: Draw a card.")\nWhenever you sacrifice a Clue, put '
+                "a +1/+1 counter on this creature."
+            ),
+            "keywords": ["Investigate", "Landfall"],
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="you",
+                        subject=Filter(card_types=("Artifact",), subtypes=("Clue",)),
+                        raw="Whenever you sacrifice a Clue",
+                    ),
+                ),
+            )
+        ),
+    ),
     # Saga / lore-counter payoff (Keldon Warcaller) — the "put a lore counter on target
     # Saga you control" manipulation is recovered as a `saga` dropped-static marker.
     "saga_matters": (
@@ -6636,8 +6669,9 @@ def test_blood_matters_fires_from_a_recovered_choice_list_maker():
     )
     keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert "blood_matters" in keys
-    # the generalized recovery also opens clue/food (these stay floor-served lanes,
-    # but the structural maker recovery is general — proves the widening generalized)
+    # the generalized recovery also opens clue/food (all three are now ADR-0027-migrated,
+    # IR-served via _TOKEN_SUBTYPE_KEYS — the structural maker recovery is general, which
+    # proves the widening generalized across every artifact/blood token subtype)
     assert "clue_matters" in keys
     assert "food_matters" in keys
 

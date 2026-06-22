@@ -30,6 +30,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
+    CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -1711,7 +1712,21 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # (project._narrow_token_subtype_makers + _dropped_static_markers). Removed from
     # _IR_FLOOR_LANES; floor-mirror-dep == 0. This _HAND_FLOOR producer is deleted; the
     # hand-written serve spec survives.
-    ("clue_matters", re.compile(r"\bclue\b|\binvestigate\b", re.IGNORECASE), "you"),
+    # ADR-0027: clue_matters migrated to the Card IR — STRUCTURAL ARM (the artifact-
+    # token-subtype maker / sac payoff / token_subtype_ref marker shared with food/
+    # treasure/blood) UNIONed with a byte-identical kept WORD MIRROR
+    # (_CLUE_MATTERS_MIRROR in _signals_ir._IR_KEPT_DETECTORS, the EXACT deleted
+    # `\bclue\b|\binvestigate\b` pinned as CLUE_MATTERS_REGEX). The mirror is REQUIRED:
+    # the structural arm fires only 52 of the 163 commander-legal lane cards (phase tags
+    # the Investigate keyword -> artifacts_matter but DROPS the Clue subtype off the
+    # make_token subject — Deduce, Bygone Bishop, Thraben Inspector parse with
+    # subject=None), so the 112 pure-investigate / Clue-payoff cards survive only
+    # textually (regex_only == 0 after the mirror). The structural arm is BROADER (+1
+    # ir_only: Tangletrove Kelp, whose "other Clues you control" the singular-only
+    # `\bclue\b` missed — a genuine recall gain), so voltron is re-silenced by the byte-
+    # identical _CLUE_MATTERS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS, which would
+    # over-silence Tangletrove Kelp). Removed from _IR_FLOOR_LANES. This _HAND_FLOOR
+    # producer is deleted; the hand-written serve spec survives. CR 701.16 / 111.10f.
     # ADR-0027: blood_matters migrated to the Card IR — detected structurally from a
     # Blood-subtype maker (make_token subject), a Blood SACRIFICE PAYOFF (a sacrifice
     # Effect/Trigger whose subject Filter carries the Blood subtype — Wedding
@@ -1719,7 +1734,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # recovery (Transmutation Font, Ceremonial Knife — project._narrow_token_subtype_
     # makers). It is removed from _IR_FLOOR_LANES (no floor mirror; floor-mirror-
     # dependency == 0). This _HAND_FLOOR producer is deleted; the hand-written serve
-    # spec (signal_specs.py) survives. clue/food/treasure keep their floor for now.
+    # spec (signal_specs.py) survives. (clue/food/treasure all now migrated too.)
     # ADR-0027: daynight_matters migrated to the Card IR — detected from TWO
     # structural arms (NO mirror needed; CR 726 Day/Night): the daybound/nightbound
     # Scryfall KEYWORD via signals._IR_KEYWORD_MAP (the 35 transforming creatures —
@@ -2837,6 +2852,23 @@ _STAX_TAXES_PLAN_MIRROR = re.compile(STAX_TAXES_REGEX, re.IGNORECASE)
 _SUPERFRIENDS_MATTERS_PLAN_MIRROR = re.compile(
     SUPERFRIENDS_MATTERS_REGEX, re.IGNORECASE
 )
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated clue_matters key. Its one
+# deleted `_HAND_FLOOR` producer (CLUE_MATTERS_REGEX = `\bclue\b|\binvestigate\b`,
+# scope 'you', HIGH confidence — the default add()) counted toward `has_other_plan`: a
+# Clue / investigate ENGINE is an artifact-token card-advantage plan, not a vanilla
+# commander-damage beater (Lonis, Eloise, Tivit want to bank and crack Clues). The
+# migrated IR path is BROADER (the structural artifact-token-subtype arm fires on +1
+# commander-legal card the singular-only regex MISSED — Tangletrove Kelp's "other Clues
+# you control"), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-SILENCE
+# that body's voltron tell. This mirror is BYTE-IDENTICAL to the EXACT deleted producer
+# (same CLUE_MATTERS_REGEX) and feeds ONLY the gate (no signal — the lane is served from
+# the IR), reproducing pre-migration `has_other_plan` for ALL cards. Matched against the
+# reminder-STRIPPED `text` (NOT `_oracle`): the deleted producer was a `_HAND_FLOOR`
+# Detector over reminder-stripped clauses, so the bare `clue`/`investigate` inside an
+# Investigate keyword's reminder "(Create a Clue token. …)" never fired it; the two
+# `\b`-anchored words carry no `[^.]*` span, so flat == per-clause (commander-legal:
+# voltron delta 0). CR 701.16 / 111.10f / 903.10a.
+_CLUE_MATTERS_PLAN_MIRROR = re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated creature_recursion key. Its one
 # deleted `_DETECTORS` producer (CREATURE_RECURSION_REGEX, forced scope 'you', HIGH
 # confidence) counted toward `has_other_plan` — a recursion ENGINE is a plan, not a
@@ -5698,6 +5730,16 @@ def extract_signals(
         # STRIPPED `text` (the deleted producer ran over the reminder-stripped joined
         # oracle). CR 613.1f / 122.1b / 903.10a.
         or _ability_strip_payoff_plan(text)
+        # ADR-0027: re-silence the deleted clue_matters _HAND_FLOOR producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a Clue / investigate
+        # card-advantage engine is no vanilla beater). The migrated IR path is BROADER
+        # (+1 ir_only — Tangletrove Kelp's plural "Clues" the singular `\bclue\b`
+        # missed), so _VOLTRON_SILENCING_PLAN_KEYS would over-silence that body; this
+        # byte-identical mirror (the EXACT deleted CLUE_MATTERS_REGEX) restores only the
+        # old regex's silence set. Matched against the reminder-STRIPPED `text` (the
+        # deleted _HAND_FLOOR Detector ran per-clause over stripped clauses; the regex
+        # has no `[^.]*`, so full-text == per-clause). CR 701.16 / 111.10f / 903.10a.
+        or _CLUE_MATTERS_PLAN_MIRROR.search(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

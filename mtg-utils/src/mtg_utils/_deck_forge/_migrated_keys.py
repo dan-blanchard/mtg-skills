@@ -568,6 +568,25 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # Old Gnawbone, Prismari Command, Wanted Scoundrels). CR 111.10 / 701.16.
         "food_matters",
         "treasure_matters",
+        # clue_matters ← the SAME token-subtype structural arm (Clue-subtype make_token
+        # MAKER + "Sacrifice a Clue" SAC PAYOFF + `token_subtype_ref` "Clues you
+        # control" CARES-ABOUT marker via _TOKEN_SUBTYPE_KEYS) UNIONed with a kept
+        # WORD MIRROR (_CLUE_MATTERS_MIRROR, CLUE_MATTERS_REGEX
+        # `\bclue\b|\binvestigate\b`, scope 'you'). Unlike food/treasure, the mirror is
+        # REQUIRED: phase tags the Investigate keyword (-> artifacts_matter) but DROPS
+        # the Clue subtype off the make_token subject (Deduce, Bygone Bishop, Thraben
+        # Inspector parse subject=None), so the structural arm alone fires only 52 of
+        # the 163 commander-legal lane cards — the 112 pure-investigate / Clue-payoff
+        # cards survive only on the mirror (regex_only == 0 after it). The structural
+        # arm is BROADER (+1 ir_only: Tangletrove Kelp's plural "other Clues you
+        # control", which the singular `\bclue\b` missed — a genuine recall gain), so
+        # voltron is re-silenced by the byte-identical _CLUE_MATTERS_PLAN_MIRROR (NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence Tangletrove Kelp).
+        # REMOVED from _IR_FLOOR_LANES. Commander-legal, floor-disabled, by oracle_id:
+        # both 51, ir_only 1 (genuine), regex_only 112 (all byte-mirrored). NO-FLOOD
+        # held (only clue_matters 163->164; voltron 3010 set identical). The hand-
+        # written serve spec survives. CR 701.16 / 111.10f.
+        "clue_matters",
         # saga_matters ← a `_SAGA_REF` ("lore counter" / "Saga you control") dropped-
         # static face marker (lore-counter manipulation — Keldon Warcaller, Satsuki,
         # Garnet; chapter-scaling payoff Sagas; the Saga-payoff commander Tom Bombadil;

@@ -1267,8 +1267,8 @@ def test_artifacts_matter_opens_on_investigate():
             "ability.)"
         ),
     }
-    # ADR-0027: artifacts_matter migrated to the Card IR (the kept oracle mirror catches
-    # \binvestigate\b); clue_matters is NOT migrated. The hybrid path emits both.
+    # ADR-0027: BOTH artifacts_matter and clue_matters migrated to the Card IR — each
+    # rides a kept oracle mirror that catches \binvestigate\b. The hybrid path emits both.
     keys = _keys_hybrid(sophina)
     assert "artifacts_matter" in keys  # Clue tokens are artifacts
     assert "clue_matters" in keys  # still a Clue commander too

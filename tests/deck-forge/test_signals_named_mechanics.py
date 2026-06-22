@@ -85,10 +85,12 @@ CASES = [
     # `\bmodified\b` OR "power greater than its base power" — for the Neon Dynasty
     # "modified" archetype phase doesn't structure, CR 700.9), so it is asserted via the
     # hybrid path below, not this regex CASES loop.
-    # ADR-0027: food_matters / treasure_matters migrated to the Card IR (the token-
-    # subtype synergy widening reads make_token / sacrifice subjects), so they are
-    # asserted via the hybrid path in test_migrated_keys, not this regex CASES loop.
-    ("clue_matters", "you", "Whenever you investigate, draw a card."),
+    # ADR-0027: food_matters / treasure_matters / clue_matters migrated to the Card IR
+    # (the token-subtype synergy widening reads make_token / sacrifice subjects; clue_
+    # matters additionally rides a byte-identical \bclue\b|\binvestigate\b kept WORD
+    # MIRROR for the keyword-only investigate cards phase folds into a subject=None
+    # make_token), so they are asserted via the hybrid path in test_migrated_keys, not
+    # this regex CASES loop.
     # ADR-0027: blood_matters migrated to the Card IR (the token-subtype synergy
     # widening reads sacrifice subjects), so it is asserted via the hybrid path
     # below, not this regex CASES loop.

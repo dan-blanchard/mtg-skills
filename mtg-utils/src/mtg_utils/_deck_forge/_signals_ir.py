@@ -60,6 +60,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
     CAST_FROM_EXILE_REGEX,
+    CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
@@ -831,6 +832,26 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # per-clause mismatches). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep
     # -> 0). CR 702.14c (islandwalk evasion) / 702.14b (landwalk).
     ("island_matters", re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 — clue_matters kept WORD MIRROR (pinned as CLUE_MATTERS_REGEX in
+    # _sweep_detectors). The STRUCTURAL artifact-token-subtype arm (the make_token /
+    # sacrifice subject scan + the token_subtype_ref marker shared with food/treasure/
+    # blood) fires only 52 of the 163 commander-legal lane cards: phase tags the
+    # Investigate keyword (-> artifacts_matter) but DROPS the Clue subtype off the
+    # make_token subject — Deduce, Bygone Bishop, Thraben Inspector, the SNC "Case"
+    # cards, and the MKM "Room" lands ("{4}, {T}: Investigate.") all parse with
+    # make_token subject=None — so the 112 pure-investigate / Clue-payoff cards survive
+    # ONLY textually. The deleted _HAND_FLOOR producer (`\bclue\b|\binvestigate\b`,
+    # scope 'you') rides here to recover them; the two bare `\b`-anchored words carry NO
+    # `[^.]*` span, so flat over the reminder-stripped kept_oracle == the deleted floor
+    # Detector's per-clause scan (the floor loop also ran flat over kept_oracle). The
+    # structural arm is BROADER (+1 ir_only — Tangletrove Kelp's plural "other Clues you
+    # control", which the singular-only `\bclue\b` missed), so the union (structural U
+    # mirror) == the old floor 163 + Tangletrove Kelp == 164, a genuine recall gain.
+    # add() dedups the structural arm's overlap. FLOOR->KEPT: removed from
+    # _IR_FLOOR_LANES (floor-mirror-dep -> 0); voltron re-silenced via the byte-
+    # identical _CLUE_MATTERS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS).
+    # CR 701.16 (Investigate) / 111.10f (Clue token).
+    ("clue_matters", re.compile(CLUE_MATTERS_REGEX, re.IGNORECASE), "you"),
     # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
     # no unifying "bending ability" rule exists, no card references the set), so
     # each gets its own lane rather than one conflated bending_matters: airbend
@@ -2377,15 +2398,18 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
 _IR_FLOOR_LANES: frozenset[str] = frozenset(
     {
         # token-type synergy
-        "clue_matters",
-        # food_matters / treasure_matters removed — ADR-0027 migrated them to the Card
-        # IR (the generalized blood_matters widening: Food/Treasure-subtype make_token
-        # makers incl. the die-roll/vote/choice branch + Aftermath-DFC recovery, a
-        # "Sacrifice a Food/Treasure" SAC PAYOFF, and a `token_subtype_ref` "Foods/
-        # Treasures you control" cares-about marker). Removed from _IR_FLOOR_LANES;
-        # floor-mirror-dep == 0. Their _HAND_FLOOR detectors are deleted; serve specs
-        # survive. clue_matters keeps its floor (its "investigate" arm has no structural
-        # IR form yet).
+        # clue_matters / food_matters / treasure_matters removed — ADR-0027 migrated
+        # them to the Card IR (the generalized blood_matters widening: Clue/Food/
+        # Treasure-subtype make_token makers incl. the die-roll/vote/choice branch +
+        # Aftermath-DFC recovery, a "Sacrifice a Food/Treasure" SAC PAYOFF, and a
+        # `token_subtype_ref` "Foods/Treasures you control" cares-about marker). Removed
+        # from _IR_FLOOR_LANES; floor-mirror-dep == 0. Their _HAND_FLOOR detectors are
+        # deleted; serve specs survive. clue_matters additionally rides the byte-
+        # identical _CLUE_MATTERS_MIRROR kept WORD detector (CLUE_MATTERS_REGEX
+        # `\bclue\b|\binvestigate\b`) because phase tags the Investigate keyword (->
+        # artifacts_matter) but DROPS the Clue subtype off the make_token subject, so
+        # the 112 pure-investigate / Clue-payoff cards have no structural form — they
+        # survive only on the mirror.
         # blood_matters removed — ADR-0027 migrated it to the Card IR (Blood-subtype
         # makers + the sacrifice-Effect/Trigger subject widening + the choose-list /
         # granted-ability maker recovery), so it fires from the STRUCTURAL IR alone
