@@ -411,7 +411,9 @@ def test_token_doubler_opens_tokens_lane():
 # A commander whose payoff replays lands from the graveyard ("return … land cards from
 # your graveyard to the battlefield") is a lands-matter commander and must open the
 # landfall lane so its payoffs (Lotus Cobra / Scute Swarm) surface, even with no literal
-# "landfall" / "play an additional land".
+# "landfall" / "play an additional land". ADR-0027: landfall migrated to the Card IR —
+# the land-recursion branch has no structural shape phase carries, so it fires from the
+# _LANDFALL_MIRROR over the dict oracle via the hybrid (bare IR), NOT the regex producer.
 def test_land_recursion_commander_opens_landfall_lane():
     windgrace = {
         "name": "Lord Windgrace",
@@ -419,7 +421,8 @@ def test_land_recursion_commander_opens_landfall_lane():
             "+2: Discard a card, then draw a card. If a land card is discarded this way, draw an additional card.\n−3: Return up to two target land cards from your graveyard to the battlefield.\n−11: Destroy up to six target nonland permanents, then create six 2/2 green Cat Warrior creature tokens with forestwalk.\nLord Windgrace can be your commander."
         ),
     }
-    assert ("landfall", "you") in _keys(windgrace)
+    assert ("landfall", "you") not in _keys(windgrace)
+    assert ("landfall", "you") in _keys_hybrid(windgrace)
 
 
 # ── Lifegain payoffs that gate on HAVING gained life (Aerith / Celestine) ────────

@@ -5249,6 +5249,25 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # landfall ← the BYTE-IDENTICAL kept mirror (_LANDFALL_MIRROR + the inline
+    # "whenever a land" & "enter" substring-AND). Lotus Cobra is the canonical landfall
+    # payoff — the "Landfall —" ability word (CR 207.2c) over the dict oracle fires the
+    # mirror with an empty IR. The structural land-ETB trigger arm + the extra-land /
+    # land-recursion mirror branches are exercised in test_signals.py /
+    # test_signals_effect_axes.py. The regex path no longer emits it (the _DETECTORS
+    # producer is deleted). ADR-0027.
+    "landfall": (
+        {
+            "name": "Lotus Cobra",
+            "type_line": "Creature — Snake",
+            "oracle_text": (
+                "Landfall — Whenever a land you control enters, add one mana of "
+                "any color."
+            ),
+            "keywords": ["Landfall"],
+        },
+        _ir(),
+    ),
 }
 
 

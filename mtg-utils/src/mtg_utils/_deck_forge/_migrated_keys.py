@@ -3141,6 +3141,59 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # membership, the latter reproduced by the IR membership arm); the serve spec
         # stays hand-registered. CR 702.41 / 207.2c / 205.3g / 903.10a.
         "artifacts_matter",
+        # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
+        # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS
+        # "whenever a land you control enters" trigger, the extra-land STATIC ("play N
+        # additional lands" — Azusa, Dryad of the Ilysian Grove), and land RECURSION
+        # from the graveyard (Crucible of Worlds, Splendid Reclamation, Titania) that
+        # replays lands for repeat landfall). MIGRATED VIA A STRUCTURAL ARM + A
+        # BYTE-IDENTICAL KEPT-MIRROR (signals-only, NO sidecar bump).
+        #
+        # STRUCTURAL ARM (recall GAIN). phase DOES carry the land-ETB trigger (a
+        # Trigger whose subject is a Land — the "Batch 14 — landfall" arm fires
+        # `ev == "etb" and "Land" in tsubs`). That arm ADDS +5 ir_only recall the bare
+        # substring regex MISSED: the DISJUNCTIVE / qualified land-ETB triggers —
+        # "this land or another land you control enters" (Field of the Dead), "a land
+        # you control enters from exile" (Faldorn), "a nonbasic land an opponent
+        # controls enters" (Spectrum Sentinel), "one or more lands enter under an
+        # opponent's control" (Deep Gnome Terramancer), and the transform-on-land-ETB
+        # (Twists and Turns) — all genuine land-ETB payoffs. So this is NOT a
+        # structural-only NOR a mirror-only migration.
+        #
+        # WHY THE MIRROR (recall the structural arm cannot reach). phase carries NO
+        # structural shape for the OTHER three branches of the deleted producer: the
+        # "Landfall —" ability word as a CONDITION ("if you had a land enter this
+        # turn" — Searing Blaze, Groundswell, Quarry Beetle), the extra-land STATIC
+        # ("play N additional lands" — 30 cards), and land RECURSION ("play lands from
+        # your graveyard" / "return … lands … from your graveyard to the battlefield"
+        # — 32 cards). A structural-only migration would LOSE 78 genuine cards, so the
+        # lane ALSO rides _LANDFALL_MIRROR in _signals_ir — the EXACT deleted lambda
+        # (the three regex-expressible branches pinned as LANDFALL_REGEX in
+        # _sweep_detectors: the "landfall" ability word, "play N additional lands", and
+        # the two land-recursion forms, PLUS the "whenever a land" & "enter"
+        # SUBSTRING-AND checked inline, which no single regex expresses) run PER-CLAUSE
+        # over the reminder-stripped kept_oracle, add()-deduped with the structural arm.
+        #
+        # Floor-disabled residual vs the deleted producer (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): the STRUCTURAL-ONLY arm vs the deleted regex was
+        # both==179, ir_only==5, regex_only==78 — the 78 regex_only are ALL genuine (the
+        # ability-word-condition / extra-land / land-recursion families phase has no
+        # shape for), so the mirror recovers them byte-identically (257-card producer
+        # set reproduced EXACTLY: 0 miss, 0 extra). Post-migration IR (structural +
+        # mirror) ⊇ original-regex over the corpus: 0 lost, +5 gained (every ir_only
+        # sample verified vs ACTUAL Scryfall oracle). floor-mirror-dep == 0 (landfall is
+        # NOT an _IR_FLOOR_LANE).
+        #
+        # VOLTRON: the deleted producer FORCED scope 'you' (so every firing was HIGH-
+        # confidence), feeding has_other_plan — a landfall / extra-land / land-recursion
+        # ENGINE is a plan, not a vanilla beater. Because the producer was
+        # unconditionally HIGH, a flat byte-identical reproduction (_landfall_is_plan in
+        # _signals_regex — the LANDFALL_REGEX branches + the substring-AND, per-clause
+        # over the reminder-STRIPPED text) restores the exact silence set — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (+5) and that route
+        # would over-silence the recall-gain bodies. FILE-SWAP voltron delta == 0,
+        # verified over the full commander-legal corpus. CR 207.2c / 305 / 903.10a.
+        "landfall",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

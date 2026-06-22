@@ -645,6 +645,44 @@ ARTIFACTS_MATTER_REGEX = (
 # deleted producer fed has_other_plan when it fired HIGH, so a faithful reproduction (not
 # a key add) restores the voltron silence in _signals_regex. CR 508 / 702.10.
 ATTACK_MATTERS_REGEX = r"attacking causes|attacked this turn"
+# ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
+# enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS "whenever a
+# land you control enters" trigger, the extra-land STATIC ("play N additional
+# lands" — Azusa, Dryad of the Ilysian Grove), and land RECURSION from the graveyard
+# (Crucible of Worlds, Splendid Reclamation, Titania) that replays lands for repeat
+# landfall) migrated to the Card IR via a STRUCTURAL arm + a BYTE-IDENTICAL
+# kept-mirror. The structural `etb`-trigger arm (a Trigger whose subject is a Land)
+# in extract_signals_ir ADDS +5 ir_only recall: the DISJUNCTIVE / qualified
+# land-ETB triggers the bare "whenever a land" substring MISSED — "this land or
+# another land you control enters" (Field of the Dead), "a land you control enters
+# from exile" (Faldorn), "a nonbasic land an opponent controls enters" (Spectrum
+# Sentinel), "one or more lands enter under an opponent's control" (Deep Gnome
+# Terramancer), and the transform-on-land-ETB (Twists and Turns) — all genuine
+# land-ETB payoffs. But phase carries NO structural shape for the OTHER three
+# branches of the deleted producer: the "Landfall —" ability word as a CONDITION
+# ("if you had a land enter the battlefield this turn" — Searing Blaze, Groundswell,
+# Quarry Beetle), the extra-land STATIC ("play N additional lands" — 30 cards), and
+# land RECURSION ("play lands from your graveyard" / "return … lands … from your
+# graveyard to the battlefield" — 32 cards). A structural-only migration would LOSE
+# 78 genuine cards, so the lane ALSO rides this byte-identical regex (commander-legal
+# corpus: post-IR ⊇ original-regex, 0 lost, +5 gained) run PER-CLAUSE over the
+# reminder-stripped kept_oracle, PLUS the one SUBSTRING-AND branch the deleted lambda
+# ran on the lower-cased clause ("whenever a land" & "enter" — no single regex
+# expresses a substring-AND), checked inline in extract_signals_ir. The three
+# regex-expressible branches (the "landfall" ability word, "play N additional lands",
+# and the two land-recursion forms) are pinned here. landfall was NEVER a SWEEP key,
+# so no SWEEP row is touched (len stays >=36). NO sidecar bump (the v20 projection
+# already emits the land-ETB trigger). NOT a voltron-key add (the deleted producer
+# fed has_other_plan when it fired — forced scope 'you' → always HIGH — so a faithful
+# byte-identical reproduction, NOT _VOLTRON_SILENCING_PLAN_KEYS, restores the voltron
+# silence in _signals_regex without over-silencing the +5 ir_only recall-gain
+# bodies). CR 207.2c / 305 / 903.10a.
+LANDFALL_REGEX = (
+    r"landfall"
+    r"|play (?:an|one|two|three|\d+) additional lands?"
+    r"|play lands? from your graveyard"
+    r"|return [^.]*\blands?\b[^.]*from your graveyard to the battlefield"
+)
 # ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
 # mirror (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). The deleted regex producers — the
 # `_DETECTORS` registry row (the "whenever you gain life" payoff / "gain N life" source

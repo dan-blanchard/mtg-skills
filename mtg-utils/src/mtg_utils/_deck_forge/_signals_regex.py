@@ -47,6 +47,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
+    LANDFALL_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
@@ -497,23 +498,22 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # signal_specs.py. The deleted producer fed has_other_plan (HIGH-confidence, scope
     # 'you'), so its voltron silence is restored by _DRAW_MATTERS_PLAN_MIRROR below.
     # CR 120.1 / 903.10a.
-    (
-        # Landfall / lands-matter: the ability word, a land-enter trigger, extra land
-        # drops, OR land RECURSION from the graveyard (Lord Windgrace, Crucible) — a
-        # lands-matter commander even with no "landfall". Verified vs bulk: the
-        # recursion branch opens the lane for ~31 cards, all genuine lands-matter.
-        "landfall",
-        lambda c: (
-            "landfall" in c
-            or ("whenever a land" in c and "enter" in c)
-            or _re(r"play (?:an|one|two|three|\d+) additional lands?")(c)
-            or _re(
-                r"play lands? from your graveyard"
-                r"|return [^.]*\blands?\b[^.]*from your graveyard to the battlefield"
-            )(c)
-        ),
-        "you",
-    ),
+    # ADR-0027: landfall migrated to the Card IR — the LAND-ETB payoff axis (the
+    # "Landfall —" ability word, the keyword-LESS "whenever a land you control
+    # enters" trigger, the extra-land STATIC "play N additional lands", and land
+    # RECURSION from the graveyard). The lane fires from the STRUCTURAL `etb`-trigger
+    # arm (a Trigger whose subject is a Land) in the IR path (+5 ir_only recall — the
+    # disjunctive / qualified "this land or another land enters" / "land … enters
+    # from exile" / "nonbasic land an opponent controls enters" forms the bare
+    # substring missed) PLUS a byte-identical _LANDFALL_MIRROR (the three
+    # regex-expressible branches pinned as LANDFALL_REGEX — the "landfall" ability
+    # word, "play N additional lands", and the two land-recursion forms — plus the
+    # inline "whenever a land" & "enter" substring-AND the deleted lambda ran) run
+    # per-clause, recovering the ability-word CONDITION + extra-land + recursion
+    # families phase has no structural shape for. This _DETECTORS producer is deleted;
+    # the serve spec stays hand-registered. The deleted producer fired HIGH (forced
+    # scope 'you' → always HIGH), so it fed has_other_plan, and a byte-identical
+    # _LANDFALL_PLAN_MIRROR restores the voltron silence below. (CR 207.2c / 305.)
     # ADR-0027: counters_matter migrated to the Card IR — it fires on ANY +1/+1
     # counter PLACEMENT regardless of recipient (self / on-others / on-attacking /
     # distribute-among — all are sources, CR 122.1 / 122.6) and on a "has/with a
@@ -3095,6 +3095,39 @@ def _attack_matters_is_plan(text: str, name: str) -> bool:
     return False
 
 
+# ADR-0027: the HAS-OTHER-PLAN reproduction for the migrated landfall key. The deleted
+# _DETECTORS producer FORCED scope 'you' (so every firing was HIGH-confidence), counting
+# toward `has_other_plan` — a landfall ENGINE (a ramp / extra-land / land-recursion
+# build-around — Lotus Cobra, Tatyova, Crucible of Worlds, Azusa) IS a plan, not a
+# vanilla equip-up beater, so it silenced the spurious commander-damage voltron tell.
+# Because the producer was unconditionally HIGH, a flat byte-identical mirror of the
+# producer's lambda (NOT a scope/confidence re-resolution as attack_matters needed)
+# reproduces the silence set EXACTLY. The migrated IR arm is BROADER (+5 ir_only), so
+# this byte-identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the deleted
+# regex's exact silence set WITHOUT over-silencing the 5 recall-gain bodies (Field of
+# the Dead, Faldorn, Twists and Turns, Spectrum Sentinel, Deep Gnome Terramancer).
+# Matched per-clause over the reminder-STRIPPED joined `text` (the deleted producer ran
+# per-clause over stripped clauses): the three regex-expressible branches via
+# _LANDFALL_PLAN_MIRROR (LANDFALL_REGEX), plus the one SUBSTRING-AND branch the deleted
+# lambda ran ("whenever a land" & "enter" on the lower-cased clause — no single regex
+# expresses a substring-AND). CR 207.2c / 305 / 903.10a.
+_LANDFALL_PLAN_MIRROR = re.compile(LANDFALL_REGEX, re.IGNORECASE)
+
+
+def _landfall_is_plan(text: str) -> bool:
+    """True iff the deleted landfall producer would have fired (it forced scope 'you',
+    so every firing was HIGH, feeding has_other_plan). Re-runs its per-clause lambda:
+    the LANDFALL_REGEX match OR the "whenever a land" & "enter" substring-AND, over the
+    reminder-STRIPPED joined text. Byte-faithful to the pre-migration silence set."""
+    for clause in _clauses(text):
+        cl = clause.lower()
+        if _LANDFALL_PLAN_MIRROR.search(clause) or (
+            "whenever a land" in cl and "enter" in cl
+        ):
+            return True
+    return False
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated self_counter_grow key. The
 # deleted SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted
 # toward `has_other_plan`, silencing the spurious commander-damage voltron tell on a
@@ -4800,6 +4833,16 @@ def extract_signals(
         or bool(
             {k.lower() for k in (card.get("keywords") or [])} & _ATTACK_GO_WIDE_KEYWORDS
         )
+        # ADR-0027: re-silence the deleted landfall producer (it FORCED scope 'you', so
+        # every firing was HIGH-confidence, feeding has_other_plan — a landfall /
+        # extra-land / land-recursion ENGINE is a plan, not a vanilla beater). Because
+        # the producer was unconditionally HIGH, a flat byte-identical reproduction
+        # (_landfall_is_plan: the LANDFALL_REGEX branches + the "whenever a land" &
+        # "enter" substring-AND, per-clause over the reminder-STRIPPED `text`) restores
+        # the exact silence set — NOT _VOLTRON_SILENCING_PLAN_KEYS (the IR arm is
+        # BROADER +5, which would over-silence the recall-gain bodies). CR 207.2c /
+        # 305 / 903.10a.
+        or _landfall_is_plan(text)
         # ADR-0027 β: re-silence the deleted self_counter_grow SWEEP producer (HIGH-
         # confidence scope 'you', feeding has_other_plan — a self-growth engine is no
         # vanilla beater). The migrated lane rides a BROADER structural arm (+503

@@ -74,11 +74,16 @@ def test_effect_axis_detectors_fire():
 
 
 def test_landfall_widened_for_extra_land_drops():
+    # ADR-0027: landfall migrated — the extra-land STATIC ("play N additional lands")
+    # has no structural shape phase carries, so it fires from the _LANDFALL_MIRROR over
+    # the dict oracle via the hybrid (bare IR), NOT the deleted regex producer.
     c = {
         "name": "Azusa-like",
         "oracle_text": "You may play two additional lands on each of your turns.",
     }
-    assert any(s.key == "landfall" for s in extract_signals(c))
+    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    assert not any(s.key == "landfall" for s in extract_signals(c))
+    assert any(s.key == "landfall" for s in extract_signals_hybrid(c, bare_ir))
 
 
 def test_land_creatures_widened_for_animation():

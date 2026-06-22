@@ -67,6 +67,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
+    LANDFALL_REGEX,
     LIFEGAIN_MATTERS_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
@@ -3661,6 +3662,26 @@ _ARTIFACTS_MATTER_MIRROR = re.compile(
 # this corpus). add() dedups vs the structural arm. Byte-faithful (commander- legal
 # corpus: post-IR ⊇ original-regex, 0 lost, +135 gained). CR 508 / 702.10.
 _ATTACK_MATTERS_MIRROR = re.compile(ATTACK_MATTERS_REGEX, re.IGNORECASE)
+# landfall BYTE-IDENTICAL kept mirror (ADR-0027): the structural `etb`-trigger arm (a
+# Trigger whose subject is a Land — "Batch 14 — landfall" below) catches phase's
+# land-ETB payoffs (+5 ir_only recall — the disjunctive / qualified "this land or
+# another land enters" / "land … enters from exile" / "nonbasic land an opponent
+# controls enters" forms the bare substring regex missed), but phase carries NO
+# structural shape for the OTHER three branches of the deleted producer: the
+# "Landfall —" ability word as a CONDITION ("if you had a land enter this turn" —
+# Searing Blaze, Groundswell, Quarry Beetle), the extra-land STATIC ("play N
+# additional lands" — Azusa, Dryad of the Ilysian Grove), and land RECURSION ("play
+# lands from your graveyard" / "return … lands … from your graveyard to the
+# battlefield" — Crucible of Worlds, Splendid Reclamation, Titania). Recover them
+# with the EXACT deleted producer run PER-CLAUSE over the reminder-stripped
+# kept_oracle: the three regex-expressible branches via _LANDFALL_MIRROR (pinned
+# LANDFALL_REGEX), plus the one SUBSTRING-AND branch the deleted lambda ran on the
+# lower-cased clause ("whenever a land" & "enter" — no single regex expresses a
+# substring-AND), checked inline in extract_signals_ir. scope 'you' (the structural
+# arm's + the serve spec's scope; the deleted producer forced scope 'you'). add()
+# dedups vs the structural arm. Byte-faithful (commander-legal corpus: post-IR ⊇
+# original-regex, 0 lost, +5 gained). CR 207.2c / 305.
+_LANDFALL_MIRROR = re.compile(LANDFALL_REGEX, re.IGNORECASE)
 # self_counter_grow NARROWED kept mirror (ADR-0027 β): the structural arm above fires on
 # a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR v12), a
 # +503
@@ -6867,6 +6888,26 @@ def extract_signals_ir(
         for cl in _clauses(kept_oracle)
     ):
         add("attack_matters", "you", "", "")
+    # ADR-0027 — landfall BYTE-IDENTICAL kept mirror. The structural `etb`-trigger arm
+    # (a Trigger whose subject is a Land — "Batch 14 — landfall" above) catches phase's
+    # land-ETB payoffs (+5 ir_only recall), but phase carries NO structural shape for
+    # the OTHER three branches of the deleted producer: the "Landfall —" ability word
+    # CONDITION (Searing Blaze, Groundswell, Quarry Beetle), the extra-land STATIC
+    # ("play N additional lands" — Azusa, Dryad of the Ilysian Grove), and land
+    # RECURSION ("play lands from your graveyard" / "return … lands … from your
+    # graveyard to the battlefield" — Crucible of Worlds, Splendid Reclamation,
+    # Titania). Recover them with the EXACT deleted producer run PER-CLAUSE over the
+    # reminder-stripped kept_oracle: the three regex-expressible branches via
+    # _LANDFALL_MIRROR, plus the one SUBSTRING-AND branch the deleted lambda ran
+    # ("whenever a land" & "enter" on the lower-cased clause — no single regex
+    # expresses a substring-AND). scope 'you' (the structural arm's + serve spec's
+    # scope). add() dedups vs the structural arm. CR 207.2c / 305.
+    if any(
+        _LANDFALL_MIRROR.search(cl)
+        or ("whenever a land" in (lc := cl.lower()) and "enter" in lc)
+        for cl in _clauses(kept_oracle)
+    ):
+        add("landfall", "you", "", "")
     # ADR-0027 β — self_counter_grow NARROWED kept mirror. The structural arm above
     # fires
     # on a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR
