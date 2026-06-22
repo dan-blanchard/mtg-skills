@@ -2063,6 +2063,51 @@ def test_artifacts_matter():
     assert ("artifacts_matter", "you") in _ks_hybrid(c)
 
 
+def test_bargain_symmetric_sac_does_not_open_type_lanes():
+    # ADR-0027 (CR 702.166a): Bargain ("sacrifice an artifact, ENCHANTMENT, or token")
+    # projects a sacrifice Effect whose subject carries the catch-all 'Permanent' type
+    # (the 'token' option) alongside Artifact/Enchantment. That is a GENERIC alt-cost,
+    # NOT an artifacts/enchantments build-around (Torch the Tower / Beseech the Mirror
+    # are burn / a generic tutor). The symmetric-list gate must keep BOTH type lanes
+    # shut. Regression: the sidecar projection structures this sac, so it over-fired
+    # both lanes in production until the gate landed.
+    bargain = {"name": "Torch the Tower", "oracle_text": "Bargain ..."}
+    bargain_ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="sacrifice",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Artifact", "Enchantment", "Permanent"),
+                        controller="any",
+                    ),
+                ),
+            ),
+        )
+    )
+    keys = _keys_hybrid_ir(bargain, bargain_ir)
+    assert "artifacts_matter" not in keys
+    assert "enchantments_matter" not in keys
+    # Positive control: a SINGLE-type artifact sac outlet (Atog-style) DOES open the
+    # lane — the gate is narrow to the Permanent-containing symmetric list.
+    atog = {"name": "Atog", "oracle_text": "Sacrifice an artifact: ..."}
+    atog_ir = _ir_with(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="sacrifice",
+                    scope="you",
+                    subject=Filter(card_types=("Artifact",), controller="you"),
+                ),
+            ),
+        )
+    )
+    assert "artifacts_matter" in _keys_hybrid_ir(atog, atog_ir)
+
+
 def test_tokens_matter_payoff():
     # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror,
     # so assert against the hybrid path (the mirror reads the oracle).

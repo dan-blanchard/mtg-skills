@@ -2622,8 +2622,19 @@ def _typed_matters_lanes(f: object) -> list[str]:
     board (Nettlecyst's "for each artifact and/or enchantment you control", Open the
     Vaults, Fountain Watch) — carries BOTH card types, so it fires BOTH lanes (each
     permanent type's population is a care). Excludes Creature (its own go-wide rules)
-    and opponent-controlled sets."""
+    and opponent-controlled sets.
+
+    SYMMETRIC-LIST GATE (CR 702.166a). A filter that ALSO carries the catch-all
+    'Permanent' type alongside Artifact/Enchantment is a generic "any one of these"
+    symmetric reference — Bargain's "sacrifice an artifact, enchantment, or token"
+    (the 'token' projects as 'Permanent'), NOT a specific-type build-around. A genuine
+    artifact/enchantment payoff names the SPECIFIC type(s) only (Open the Vaults =
+    ('Artifact','Enchantment'), no 'Permanent'). Fire no type lane for these — a
+    Bargain card (Torch the Tower, Beseech the Mirror) is a generic alt-cost, not an
+    artifacts/enchantments deck."""
     if not isinstance(f, Filter) or f.controller == "opp":
+        return []
+    if "Permanent" in f.card_types:
         return []
     return [
         lane
@@ -4686,11 +4697,20 @@ def extract_signals_ir(
                     add("artifacts_matter", "you", "", e.raw)
                 if isinstance(esub, Filter) and "Enchantment" in esub.card_types:
                     add("enchantments_matter", "you", "", e.raw)
+            # SYMMETRIC-LIST GATE (CR 702.166a): Bargain's "sacrifice an artifact,
+            # enchantment, OR token" projects esub.card_types=('Artifact','Enchantment',
+            # 'Permanent') — the catch-all 'Permanent' (the 'token' option) marks a
+            # generic alt-cost, not an artifact/enchantment build-around. A real
+            # type-sac outlet names the SPECIFIC type only (Atog = ('Artifact',)). Skip
+            # the type lanes for any Permanent-containing symmetric list — drops 20
+            # commander-legal Bargain over-fires (Torch the Tower, Beseech the Mirror,
+            # Stonesplitter Bolt … none an artifacts/enchantments deck).
             if (
                 e.category == "sacrifice"
                 and isinstance(esub, Filter)
                 and esub.controller != "opp"
                 and e.scope != "opp"
+                and "Permanent" not in esub.card_types
             ):
                 if _is_artifact_subject(esub):
                     add("artifacts_matter", "you", "", e.raw)
