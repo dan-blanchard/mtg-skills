@@ -8,7 +8,18 @@ tribes — generic class types (Human/Soldier/Wizard) only matter with explicit 
 support, which already fires a high-confidence type_matters.
 """
 
-from mtg_utils._deck_forge.signals import coverage_gate, extract_signals
+from mtg_utils._deck_forge.signals import (
+    coverage_gate,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
+
+
+def _bare_ir() -> Card:
+    # A non-None IR routes the hybrid to the IR arm for ADR-0027 migrated keys whose
+    # source reads the record's oracle_text via a kept mirror (e.g. typed_spellcast).
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def _card(name, type_line, oracle=""):
@@ -120,13 +131,17 @@ def test_check_land_reference_is_not_a_creature_tribe():
 
 def test_article_is_not_a_typed_spellcast_subject():
     # Taigam: "exile the spell you cast …" captured 'the' → typed_spellcast subject='The'.
-    sigs = extract_signals(
+    # ADR-0027: typed_spellcast migrated to the IR (a kept mirror re-running the SAME
+    # _detect_typed_spellcast producer + _resolve_subject vocab gate, which drops the
+    # article), so assert against the HYBRID path to keep the guard meaningful.
+    sigs = extract_signals_hybrid(
         _card(
             "Taigam, Master Opportunist",
             "Legendary Creature — Human Wizard",
             "Whenever you cast your second spell each turn, copy that spell. Then "
             "exile the spell you cast with four time counters on it.",
-        )
+        ),
+        _bare_ir(),
     )
     assert all(s.subject != "The" for s in sigs)
 

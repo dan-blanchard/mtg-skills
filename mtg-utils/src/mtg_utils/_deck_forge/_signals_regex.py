@@ -4703,8 +4703,13 @@ def extract_signals(
         # IR path imports _detect_keyword_tribe for a byte-identical KEPT MIRROR run
         # per-clause over the reminder-stripped kept_oracle, preserving the keyword
         # subject the per-subject serve spec interpolates).
-        for key, subject in _detect_typed_spellcast(clause, vocab):
-            add(key, "you", subject, stripped)
+        # ADR-0027: typed_spellcast migrated to the Card IR. Its producer
+        # (_detect_typed_spellcast) is no longer invoked here — the regex path must
+        # not emit the migrated key. The producer + its _TYPED_SPELLCAST_PATTERN stay
+        # pinned (the IR path imports _detect_typed_spellcast for a byte-identical KEPT
+        # MIRROR run per-clause over the reminder-stripped kept_oracle, preserving the
+        # creature-subtype subject the per-subject serve spec interpolates). Mirrors the
+        # keyword_tribe SUBJECT-CARRYING migration precedent above.
         for key, subject in _detect_token_maker(clause, vocab):
             add(key, "you", subject, stripped)
         for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):

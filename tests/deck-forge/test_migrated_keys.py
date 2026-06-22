@@ -146,6 +146,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # typed_spellcast ← a SUBJECT-CARRYING UNION: the STATIC "<Subtype> spells you cast"
+    # form rides a byte-identical kept mirror of the deleted producer
+    # (_detect_typed_spellcast) run PER-CLAUSE over the card's oracle_text, emitting the
+    # creature-subtype as the Signal SUBJECT (Sliver) which the per-subject tribal serve
+    # spec interpolates; the TRIGGER "Whenever you cast a <Subtype> spell" form rides a
+    # pre-existing self-cast-gated cast_spell structural arm. This case exercises the
+    # STATIC arm — The First Sliver's "Sliver spells you cast have cascade" — so the
+    # paired IR is vanilla (the mirror reads the record's oracle_text, not the IR
+    # structure). ADR-0027 / CR 109.3 / 601.2.
+    "typed_spellcast": (
+        {
+            "name": "The First Sliver",
+            "type_line": "Legendary Creature — Sliver",
+            "oracle_text": (
+                "Cascade (When you cast this spell, exile cards from the top of "
+                "your library until you exile a nonland card that costs less. You "
+                "may cast it without paying its mana cost. Put the exiled cards on "
+                "the bottom in a random order.)\n"
+                "Sliver spells you cast have cascade."
+            ),
+        },
+        _ir(),
+    ),
     # unspent_mana ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
     # regex ("you don't lose unspent <color> mana as steps and phases end"). phase
     # carries a StepEndUnspentMana static for the pure statics but the v17 projection

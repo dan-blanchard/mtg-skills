@@ -1437,20 +1437,25 @@ def test_token_maker_prefers_creature_subtype_over_artifact_word():
 
 
 def test_typed_spellcast_captures_tribe():
+    # ADR-0027: typed_spellcast migrated to the Card IR (a SUBJECT-CARRYING kept
+    # mirror of the deleted producer for the STATIC "<Subtype> spells you cast" form),
+    # so assert against the HYBRID path. _bare_ir() routes the hybrid to the IR arm;
+    # the kept mirror reads the record's oracle_text, not the IR structure.
     c = {
         "name": "The First Sliver",
         "oracle_text": "Cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)\nSliver spells you cast have cascade.",
     }
-    assert ("typed_spellcast", "you", "Sliver") in _ksub(c)
+    assert ("typed_spellcast", "you", "Sliver") in _ksub_hybrid(c, _bare_ir())
 
 
 def test_typed_spellcast_rejects_instant_and_sorcery():
-    # "Instant and sorcery spells you cast" is spellslinger, NOT a tribe.
+    # "Instant and sorcery spells you cast" is spellslinger, NOT a tribe. ADR-0027:
+    # assert against the HYBRID path (the migrated key no longer routes through regex).
     c = {
         "name": "Mizzix of the Izmagnus",
         "oracle_text": "Whenever you cast an instant or sorcery spell with mana value greater than the number of experience counters you have, you get an experience counter.\nInstant and sorcery spells you cast cost {1} less to cast for each experience counter you have.",
     }
-    assert "typed_spellcast" not in _keys(c)
+    assert "typed_spellcast" not in _keys_hybrid(c)
 
 
 # --- false-positive guards -----------------------------------------------------
@@ -1461,7 +1466,10 @@ def test_clone_yields_no_subject_signal():
         "name": "Silent Hallcreeper",
         "oracle_text": "This creature can't be blocked.\nWhenever this creature deals combat damage to a player, choose one that hasn't been chosen —\n• Put two +1/+1 counters on this creature.\n• Draw a card.\n• This creature becomes a copy of another target creature you control.",
     }
-    assert _keys(c).isdisjoint({"type_matters", "token_maker", "typed_spellcast"})
+    # type_matters / token_maker are still regex; typed_spellcast migrated (ADR-0027),
+    # so check it on the hybrid path so the guard stays meaningful for all three.
+    assert _keys(c).isdisjoint({"type_matters", "token_maker"})
+    assert "typed_spellcast" not in _keys_hybrid(c)
 
 
 def test_plant_token_maker_keeps_subject_but_not_land_creatures():

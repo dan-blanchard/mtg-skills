@@ -3910,6 +3910,61 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # written and independent of the deleted regex, so it survives unchanged.
         # CR 109.3 / 702 / 903.10a.
         "keyword_tribe",
+        # ADR-0027 — typed_spellcast (the TRIBAL-SPELL payoff axis, CR 109.3 /
+        # 601.2): a subject-bearing extension of spellcast_matters — a card that
+        # cares when you CAST a creature-SUBTYPE spell ("Sliver spells you cast have
+        # cascade" — The First Sliver; "Dragon spells you cast cost {1} less" —
+        # Dragonlord's Servant; "Each Saga spell you cast has replicate" — Ian
+        # Chesterton; the tribal cost-reducer Bannerets / Warchiefs). SUBJECT-
+        # CARRYING: the lane emits the captured creature-subtype noun (Sliver /
+        # Dragon / Saga / …) as the Signal.subject, which the per-subject tribal
+        # serve spec interpolates to search for that tribe's spells — the subject is
+        # LOAD-BEARING, so a subjectless mirror would break the serve.
+        #
+        # SHAPE: SUBJECT-CARRYING UNION (signals-only, NO sidecar bump) of a
+        # byte-identical kept mirror + a SELF-CAST-gated pre-existing structural arm:
+        #   (a) STATIC form — "<Subtype> spells you cast cost {1} less / have
+        #       cascade" (Dragonlord's Servant, The First Sliver) — rides the
+        #       BYTE-IDENTICAL re-run of the EXACT deleted producer
+        #       (_detect_typed_spellcast, kept pinned in _signals_regex) run
+        #       PER-CLAUSE over the reminder-stripped kept_oracle, forced scope
+        #       'you'. flat-over-kept_oracle == per-clause (the
+        #       `\b([A-Za-z]+?)s? spells? you cast\b` pattern has no `[^.]*` span, 0
+        #       divergences) and kept_oracle == the regex path's reminder-stripped
+        #       `text`, so its 38-card firing set + subject are byte-identical to the
+        #       deleted producer by construction.
+        #   (b) TRIGGER form — "Whenever you cast a <Subtype> spell" (Edgar Markov,
+        #       Lys Alana, Diregraf Colossus, Rin and Seri) — the word-order the
+        #       static regex never matched — rides the PRE-EXISTING cast_spell-
+        #       subject structural arm in extract_signals_ir. phase collapses BOTH
+        #       "you cast" and the symmetric "a player casts" / opponent "an opponent
+        #       casts" hosers to a bare scope='any'/'opp' trigger with the preamble
+        #       STRIPPED from the effect raw, so the arm is SELF-CAST gated
+        #       (trig.scope != 'opp' AND the card oracle says "you cast") to drop the
+        #       5 hosers (Bog-Strider Ash, Elvish Handservant, Quill-Slinger Boggart,
+        #       Ishi-Ishi, Circle of Confinement) the deleted "you cast"-anchored
+        #       regex correctly excluded. The arm contributes the +82 genuine recall.
+        # Commander-legal residual (full IR path UNION vs the deleted producer),
+        # joined by the full (key, scope, subject) tuple per oracle_id: both==38,
+        # regex_only==0 (the kept mirror fully reproduces the deleted producer),
+        # ir_only==82 cards / 86 triples (every one a verified self-cast "you cast a
+        # <Subtype> spell" trigger — genuine BREADTH, 0 over-fire after the self-cast
+        # gate). NO-FLOOD: only typed_spellcast's hybrid count changed (38 -> 120),
+        # all siblings drift 0.
+        #
+        # VOLTRON: the deleted producer fired HIGH-confidence (forced scope 'you')
+        # and fed has_other_plan (typed_spellcast is NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS) — deleting it would un-silence the spurious commander-
+        # damage voltron tell on a tribal-spell lord whose plan is the tribe (Goblin
+        # Warchief, The Ur-Dragon). typed_spellcast is added to
+        # signals._VOLTRON_SILENCING_PLAN_KEYS; the BROADER IR re-supply does NOT
+        # over-silence (the +82 cast-trigger engines already carry another plan), so
+        # voltron_matters set is 3010 -> 3010 IDENTICAL by set equality. The serve
+        # spec (signal_specs per-subject tribal branch) is hand-written and
+        # independent of the deleted regex, so it survives unchanged. Mirrors the
+        # keyword_tribe SUBJECT-CARRYING precedent above. CR 109.3 / 601.2 / 603.2 /
+        # 903.10a.
+        "typed_spellcast",
         # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
         # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS
         # "whenever a land you control enters" trigger, the extra-land STATIC ("play N

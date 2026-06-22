@@ -803,6 +803,23 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # tokens_matter kept-mirror precedent. A NO-FLOOD voltron entry. CR 109.3 /
         # 903.10a.
         "keyword_tribe",
+        # ADR-0027: typed_spellcast fired high-confidence (forced scope 'you') in
+        # the regex path via the _detect_typed_spellcast producer and so counted
+        # toward has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS),
+        # silencing the spurious commander-damage voltron tell on a tribal-spell lord
+        # whose plan is the tribe, not its own stat-line (a Dragon / Goblin
+        # cost-reducer — Dragonlord's Servant, Goblin Warchief, The Ur-Dragon). Its
+        # regex producer is no longer invoked, so the hybrid re-silences from the IR
+        # re-supply — a SUBJECT-CARRYING UNION of the byte-identical kept mirror (the
+        # STATIC "<Subtype> spells you cast" form, IR == regex == 38) AND the
+        # self-cast-gated cast_spell structural arm (the TRIGGER "Whenever you cast a
+        # <Subtype> spell" form, +82 genuine recall). The IR re-supply is BROADER
+        # than the deleted regex, but does NOT over-silence: the +82 cast-trigger
+        # engines (Edgar Markov, Lys Alana, Diregraf Colossus) already carry another
+        # plan, so the voltron_matters set stays 3010 -> 3010 IDENTICAL by set
+        # equality (verified sym-diff == 0 over the commander-legal corpus). A
+        # NO-FLOOD voltron entry. CR 109.3 / 601.2 / 603.2 / 903.10a.
+        "typed_spellcast",
     }
 )
 

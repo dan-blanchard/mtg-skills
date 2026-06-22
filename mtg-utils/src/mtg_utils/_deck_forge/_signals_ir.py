@@ -45,6 +45,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_self_damage_prevention,
     _detect_self_death_payoff,
     _detect_typed_gy_recursion,
+    _detect_typed_spellcast,
     _detect_voltron_payoff_ir,
     _resolve_subject,
     _type_hoser_clause,
@@ -5470,6 +5471,20 @@ def extract_signals_ir(
         "saga" in (card.get("type_line") or "").lower()
         or "lore counter" in (card.get("oracle_text") or "").lower()
     )
+    # ADR-0027 typed_spellcast self-cast discriminator: phase collapses BOTH "you cast
+    # a <Subtype> spell" (a YOUR-tribe spellcast payoff — Edgar Markov, Lys Alana) AND
+    # the symmetric/opponent hoser "a player/an opponent casts a <Subtype> spell"
+    # (Bog-Strider Ash, Elvish Handservant, Quill-Slinger Boggart, Ishi-Ishi, Circle of
+    # Confinement) to a scope='any'/'opp' cast_spell trigger with controller=None and
+    # STRIPS the "you cast" / "a player casts" preamble from the effect raw — so the
+    # self-vs-symmetric discriminator survives only in the card oracle. The deleted
+    # regex producer anchored on "you cast", so the structural cast-trigger arm below
+    # must NOT open a tribe the card only PUNISHES. card-level "you cast" gate (verified
+    # 0 mixed cards on the commander-legal corpus — no card runs a "you cast a Dragon"
+    # payoff AND a "a player casts a Goblin" hoser), computed once. CR 603.2 / 109.3.
+    _self_cast_oracle = bool(
+        re.search(r"\byou cast\b", get_oracle_text(card) or "", re.IGNORECASE)
+    )
 
     # exile_until_leaves (ADR-0027) — a card-level shape (the two-ability O-Ring
     # form spans abilities), so it is decided once over the whole IR.
@@ -8057,8 +8072,22 @@ def extract_signals_ir(
                     )
                 ):
                     add("noncreature_cast_punish", "any", "", "")
-                for sub in _kindred_subjects(trig.subject, vocab):
-                    add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
+                # ADR-0027 typed_spellcast cast-trigger DOER (the TRIGGER form
+                # "Whenever you cast a <Subtype> spell" — Edgar Markov, Lys Alana,
+                # Diregraf Colossus; complements the kept mirror's STATIC "<Subtype>
+                # spells you cast" form). SELF-CAST gated: drop a cast_spell trigger
+                # that PUNISHES a tribe rather than rewarding YOUR tribal cast — the
+                # explicit-opp half (scope=='opp' — Circle of Confinement, Ishi-Ishi)
+                # plus the SYMMETRIC "a player casts a <Subtype> spell" hoser phase
+                # collapses to scope='any' (Bog-Strider Ash, Elvish Handservant,
+                # Quill-Slinger Boggart), whose "a player casts" preamble is stripped
+                # from the effect raw and survives only in the card oracle
+                # (_self_cast_oracle, "you cast"). This mirrors
+                # the deleted regex producer's "you cast" anchor exactly, so the
+                # structural arm never opens a tribe the card only hates. CR 603.2.
+                if trig.scope != "opp" and _self_cast_oracle:
+                    for sub in _kindred_subjects(trig.subject, vocab):
+                        add(signal_keys.TYPED_SPELLCAST, "you", sub, "")
                 # artifacts_matter / enchantments_matter cast-trigger DOER:
                 # "whenever you cast an artifact/enchantment spell" (Mishra, Sythis,
                 # Saheeli's "Artificer or artifact spell"). Gated on scope != "opp":
@@ -8307,6 +8336,45 @@ def extract_signals_ir(
         for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
             if key == "vehicles_matter":
                 add(key, scope, subject, clause)
+    # ADR-0027 — typed_spellcast SUBJECT-CARRYING kept mirror (the STATIC form). The
+    # lane is a subject-bearing extension of spellcast_matters: a tribal SPELL payoff
+    # that emits the captured creature-SUBTYPE noun (Sliver/Dragon/Saga/…), singularized
+    # + validated against the CREATURE_SUBTYPES vocab, as the Signal SUBJECT, which the
+    # per-subject serve spec interpolates (it searches for that tribe's spells) — the
+    # subject is LOAD-BEARING. This is a UNION migration:
+    #   (a) the STATIC / cost-reducer form "<Subtype> spells you cast cost {1} less /
+    #       have cascade" (Dragonlord's Servant, The First Sliver, Ian Chesterton's
+    #       "Each Saga spell you cast …") rides THIS byte-identical kept mirror — the
+    #       EXACT deleted producer (_detect_typed_spellcast, kept pinned in
+    #       _signals_regex) run PER-CLAUSE over the reminder-stripped kept_oracle,
+    #       forced scope 'you'; flat-over-kept_oracle == per-clause (the
+    #       `\b([A-Za-z]+?)s? spells? you cast\b` pattern has no `[^.]*` span, 0
+    #       divergences on the corpus), and kept_oracle == the regex path's reminder-
+    #       stripped `text`, so its 38-card firing set + subject are byte-identical to
+    #       the deleted producer by construction; and
+    #   (b) the TRIGGER form "Whenever you cast a <Subtype> spell" (Edgar Markov, Lys
+    #       Alana Huntmaster, Diregraf Colossus, Rin and Seri) — the word-order the
+    #       static regex never matched — rides the PRE-EXISTING cast_spell-subject
+    #       structural arm above (now SELF-CAST gated: trig.scope != 'opp' AND the card
+    #       oracle says "you cast", dropping the 5 symmetric/opponent hosers Bog-Strider
+    #       Ash, Elvish Handservant, Quill-Slinger Boggart, Ishi-Ishi, Circle of
+    #       Confinement, whose "a player casts" preamble phase strips into a bare
+    #       scope='any'/'opp' trigger). That arm contributes the +82 genuine recall.
+    # Commander-legal residual (full IR path UNION vs the deleted producer), joined by
+    # the full (key, scope, subject) tuple per oracle_id: both==38, regex_only==0 (the
+    # kept mirror fully reproduces the deleted producer), ir_only==82 cards / 86 triples
+    # (every one a verified self-cast "you cast a <Subtype> spell" trigger — genuine
+    # BREADTH, 0 over-fire). The deleted producer fired HIGH-confidence (scope 'you')
+    # and fed has_other_plan (typed_spellcast is NOT in _GENERIC_KEYS /
+    # _VOLTRON_COMPAT_KEYS), so it is added to signals._VOLTRON_SILENCING_PLAN_KEYS; the
+    # broader IR re-supply does NOT over-silence (the +82 cast-trigger engines already
+    # carry another plan, so voltron_matters set is 3010 -> 3010 IDENTICAL by set
+    # equality). The serve spec (signal_specs per-subject tribal branch) is independent
+    # of the deleted regex, so it survives unchanged. Mirrors the keyword_tribe
+    # SUBJECT-CARRYING precedent above. CR 109.3 / 601.2 / 603.2 / 903.10a.
+    for clause in _clauses(kept_oracle):
+        for key, subject in _detect_typed_spellcast(clause, vocab):
+            add(key, "you", subject, clause)
     # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
     # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
     # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean
