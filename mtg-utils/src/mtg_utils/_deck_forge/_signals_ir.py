@@ -91,6 +91,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
+    STATION_MATTERS_REGEX,
     STAX_TAXES_REGEX,
     STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
@@ -144,7 +145,17 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     "monarch": ("monarch_matters", "you"),
     "suspect": ("suspect_matters", "you"),
     "speed": ("speed_matters", "you"),
-    "station": ("station_matters", "you"),
+    # ADR-0027 — station_matters migrated to the Card IR via a BYTE-IDENTICAL kept WORD
+    # MIRROR (_STATION_MATTERS_MIRROR in _IR_KEPT_DETECTORS — the EXACT deleted SWEEP
+    # regex `\bstation\b|\bspacecraft\b` over the reminder-stripped kept_oracle). phase
+    # v0.1.19 does NOT structure the EOE Station keyword action (CR 702.184) for the
+    # carriers: the bare "Station" keyword + its charge-counter accrual live in
+    # reminder/level text, so the `station` effect-category arm caught ONLY 1 card
+    # (Tapestry Warden's "...stations permanents using its toughness") and MISSED all 44
+    # regex producers. This `station` doer entry is REMOVED — it added only that 1 card
+    # the deleted regex never produced (plural "stations" dodges the regex word
+    # boundary), a +1 broadening the no-flood gate forbids. The mirror is the lane's
+    # sole producer (commander-legal: both==44, ir_only==0, regex_only==0). CR 702.184.
     # ADR-0027 — daynight_matters migrated to the Card IR. The Day/Night designation
     # (CR 726, Innistrad: Midnight Hunt) splits into TWO arms: the daybound/nightbound
     # KEYWORD (the 35 transforming creatures) rides _IR_KEYWORD_MAP['daybound'/
@@ -847,6 +858,24 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _IR_FLOOR_LANES (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve
     # stays, reusing the same shared regex). CR 123 / 122.1.
     ("stickers_matter", re.compile(STICKERS_MATTER_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 — station_matters BYTE-IDENTICAL kept WORD MIRROR (the Edge of Eternities
+    # Station keyword action — CR 702.184: a Spacecraft/Planet permanent accrues charge
+    # counters by tapping a creature, unlocking LEVEL abilities at 2+/8+/12+). phase
+    # v0.1.19 doesn't structure Station for the carriers — the bare "Station" keyword
+    # and its charge-counter accrual live in reminder/level text, so the floor-disabled
+    # structural `station` effect-category arm (now removed from _DOER_EFFECT_KEYS)
+    # caught ONLY 1 card (Tapestry Warden's "...stations permanents using its
+    # toughness", which the regex's `\bstation\b` word boundary MISSES on the plural)
+    # and MISSED all 44 regex producers. So the lane rides this EXACT deleted SWEEP
+    # regex (pinned as STATION_MATTERS_REGEX) run FLAT over the reminder-stripped
+    # kept_oracle. No `[^.]*` cross-clause span, so flat == per-clause and the mirror
+    # set == the deleted regex's firing set EXACTLY (commander-legal, floor-disabled, by
+    # oracle_id: both==44, regex_only==0, ir_only==0). The 44 producers are genuine —
+    # the Spacecraft/Planet bodies carrying the bare "Station" keyword (Lumen-Class
+    # Frigate, Hearthhull, Adagia) PLUS the "Spacecraft"-referencing payoffs (Focus Fire
+    # counts Spacecraft, Embrace Oblivion destroys one, Loading Zone / Drill Too Deep
+    # charge them). CR 702.184.
+    ("station_matters", re.compile(STATION_MATTERS_REGEX, re.IGNORECASE), "you"),
     # ADR-0027 — arcane_matters BYTE-IDENTICAL kept WORD MIRROR (the Kamigawa Arcane /
     # Splice-onto-Arcane / Spiritcraft archetype: a commander caring about ARCANE spells
     # — "cast a Spirit or Arcane spell" / "Splice onto Arcane"; CR 205.3k spell type, CR
@@ -2428,7 +2457,16 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # `cycled` trigger + a `cycling_payoff` marker for the "cycle or discard" payoff
         # phase flattens to event='other' or truncates the trigger off entirely). Its
         # _HAND_FLOOR detector is deleted.
-        "station_matters",
+        # station_matters removed — ADR-0027 migrated it to the Card IR via a BYTE-
+        # IDENTICAL kept WORD MIRROR (STATION_MATTERS_REGEX in _IR_KEPT_DETECTORS, scope
+        # 'you'; the EOE Station keyword action, CR 702.184). phase v0.1.19 doesn't
+        # structure Station for the carriers (bare "Station" + charge-counter accrual in
+        # reminder/level text), and the floor-disabled structural `station` effect arm
+        # caught only 1 card while missing all 44 regex producers — so the `station`
+        # doer entry was REMOVED and the lane rides the byte mirror over reminder-
+        # stripped kept_oracle (both==44, regex_only==0, ir_only==0). Moved floor->kept
+        # (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve hand-
+        # registered).
         "void_warp_matters",
         # speed_matters removed — ADR-0027 migrated it to the Card IR (phase's `speed`
         # doer + a "start your engines|max speed|your speed" kept word mirror; phase

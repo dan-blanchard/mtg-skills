@@ -4384,6 +4384,54 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # pre-migration behavior (matching the kicked_spell / second_spell precedent).
         # FILE-SWAP voltron delta 0. CR 726 (Day/Night) / 903.10a (voltron).
         "daynight_matters",
+        # ADR-0027 — station_matters (the Edge of Eternities Station keyword action,
+        # CR 702.184: a Spacecraft/Planet permanent accrues charge counters by tapping a
+        # creature, then unlocks LEVEL abilities at 2+/8+/12+; the lane fires for the
+        # Spacecraft/Planet bodies AND the "Spacecraft"-referencing payoffs — Focus
+        # Fire counts Spacecraft, Embrace Oblivion destroys one, Loading Zone / Drill
+        # Too Deep charge them). Now fires from the Card IR instead of its oracle-regex
+        # SWEEP producer. NO sidecar bump (the kept mirror reads the record's reminder-
+        # stripped oracle; no new projection field).
+        #
+        # BYTE-IDENTICAL KEPT WORD MIRROR (NOT a structural arm). phase v0.1.19 does
+        # NOT structure the Station mechanic for the carriers: the bare "Station"
+        # keyword and its charge-counter accrual live in reminder/level text, so the
+        # floor-disabled structural `station` effect-category arm
+        # (_DOER_EFFECT_KEYS["station"]) caught only 1 card (Tapestry Warden's "Each
+        # creature... stations permanents using its toughness") and MISSED all 44 regex
+        # producers (both==0, ir_only==1,
+        # regex_only==44). So the structural `station` doer entry is REMOVED (it added
+        # only Tapestry Warden — a card the deleted regex never produced; the plural
+        # "stations" dodges the regex's `\bstation\b` word boundary, so keeping it would
+        # be a +1 broadening the no-flood gate forbids), and the lane rides a byte-
+        # identical _STATION_MATTERS_MIRROR (the EXACT deleted SWEEP regex
+        # `\bstation\b|\bspacecraft\b`) over the reminder-stripped kept_oracle in
+        # _signals_ir._IR_KEPT_DETECTORS. The regex has NO `[^.]*` arm, so a bare-word
+        # match never crosses a clause boundary — flat-over-kept_oracle == per-clause
+        # (commander-legal: both == 44, symdiff empty). The mirror set == the deleted
+        # regex's 44 commander-legal cards EXACTLY (regex_only == 0 once the mirror is
+        # added, 0 over-fire).
+        #
+        # FLOOR→KEPT. station_matters WAS an _IR_FLOOR_LANE (the IR path reused the
+        # production SWEEP floor Detector); it is REMOVED from _IR_FLOOR_LANES and the
+        # SWEEP_DETECTORS row is deleted — floor-mirror-dep -> 0. SCOPE PARITY: all 44
+        # fire scope "you" (the SWEEP producer's forced scope; the mirror emits "you"),
+        # 0 mismatch. The siblings key on different producers and drift 0. The serve
+        # spec was AUTO-registered from the SWEEP row, so it is hand-registered in
+        # signal_specs.py reusing the EXACT deleted regex (pinned constant — the serve
+        # pool never drifts).
+        #
+        # VOLTRON. The deleted SWEEP producer fired HIGH-confidence (scope 'you') and
+        # fed has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS — a
+        # station build-around is a charge-counter engine, no vanilla beater). Because
+        # the kept mirror is BYTE-IDENTICAL (IR == regex == 44, no broadening),
+        # station_matters is added to _VOLTRON_SILENCING_PLAN_KEYS so the hybrid re-
+        # silences the spurious commander-damage membership tell from the IR re-supply,
+        # restoring pre-migration
+        # behavior (matching the daynight_matters / dies_recursion kept-mirror
+        # precedent). FILE-SWAP voltron delta 0 (3010 -> 3010). CR 702.184 (Station) /
+        # 903.10a (voltron).
+        "station_matters",
         # ADR-0027 — creature_recursion (return a CREATURE card from a graveyard, to
         # HAND or BATTLEFIELD: Raise Dead, Gravedigger, Reanimate, Hua Tuo, Meren). The
         # build-around axis for "loop a single creature" engines — they want self-

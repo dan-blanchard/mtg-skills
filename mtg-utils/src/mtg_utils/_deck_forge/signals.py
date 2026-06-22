@@ -683,6 +683,17 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # kept-mirror precedent. File-swap: 7 voltron leaked without this, 0 with it;
         # A-B == 0. A NO-FLOOD voltron entry. CR 123 / 122.1 / 903.10a.
         "stickers_matter",
+        # ADR-0027: station_matters fired high-confidence (forced scope 'you') in the
+        # regex path via the SWEEP_DETECTORS producer and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS — a Station
+        # / Spacecraft commander is a charge-counter build-around, no vanilla beater).
+        # Its regex producer is deleted, so the hybrid re-silences the spurious
+        # commander-damage voltron tell from the IR re-supply — a BYTE-IDENTICAL kept
+        # WORD MIRROR (STATION_MATTERS_REGEX) reading the SAME reminder-stripped joined
+        # oracle as the deleted SWEEP regex, so IR == regex == 44 (0 broadening, 0
+        # ir_only), matching the daynight_matters / dies_recursion kept-mirror
+        # precedent. A NO-FLOOD voltron entry. CR 702.184 (Station) / 903.10a (voltron).
+        "station_matters",
     }
 )
 

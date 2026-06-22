@@ -62,6 +62,16 @@ GROUP_HUG_DRAW_REGEX = "each player (?:may )?draws?\\b|each player who drew"
 # the (now-deleted) detector from drifting. See the deleted-row comment below for the
 # full residual / over-fire adjudication.
 DIES_RECURSION_REGEX = "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield|\\b(?:undying|persist)\\b"
+# ADR-0027 — station_matters migrated to the Card IR (the EOE Station keyword action;
+# CR 702.184). Its SWEEP_DETECTORS row is deleted; detection moved to a BYTE-IDENTICAL
+# kept WORD MIRROR (this exact regex in _signals_ir._IR_KEPT_DETECTORS, scope 'you') —
+# phase v0.1.19 doesn't structure Station for the carriers (the bare "Station" keyword +
+# its charge-counter accrual live in reminder/level text), so the floor-disabled
+# structural `station` effect arm caught only 1 card and missed all 44 regex producers.
+# This mined regex survives as a shared constant so signal_specs hand-registers the serve
+# pool reusing it — keeping serve and the (now-deleted) detector from drifting. See the
+# deleted-row comment below for the full residual / over-fire adjudication.
+STATION_MATTERS_REGEX = "\\bstation\\b|\\bspacecraft\\b"
 # ADR-0027 — flash_grant migrated to the Card IR. The GRANT-to-OTHERS structural form
 # binds in extract_signals_ir (a cast_with_keyword{flash} static — "cast <a class of>
 # spells as though they had flash"; Vedalken Orrery, Leyline of Anticipation, Teferi,
@@ -2009,12 +2019,20 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Target creature can't block…'" — Hostile Realm, Malicious Intent) phase drops
     # (CR 509). NOT in _IR_FLOOR_LANES; the serve spec is hand-registered in
     # signal_specs reusing the deleted "target creature can't block" regex.
-    {
-        "key": "station_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bstation\\b|\\bspacecraft\\b",
-    },
+    # ADR-0027: station_matters migrated to the Card IR via a BYTE-IDENTICAL kept WORD
+    # MIRROR (STATION_MATTERS_REGEX in _signals_ir._IR_KEPT_DETECTORS, scope 'you') —
+    # the EOE Station keyword action (CR 702.184). phase v0.1.19 doesn't structure
+    # Station for the carriers (the bare "Station" keyword + charge-counter accrual live
+    # in reminder/level text), so the floor-disabled structural `station` effect-category
+    # arm caught ONLY 1 card (Tapestry Warden's "...stations permanents using its
+    # toughness", which the regex's `\bstation\b` word boundary MISSES on the plural)
+    # and MISSED all 44 regex producers — so the `station` doer entry was REMOVED (its
+    # +1 broadening violates no-flood) and the lane rides the byte mirror alone. The
+    # regex has NO `[^.]*` arm, so flat-over-kept_oracle == per-clause (commander-legal:
+    # both==44, ir_only==0, regex_only==0). Removed from _IR_FLOOR_LANES; serve hand-
+    # registered in signal_specs reusing the deleted regex (pinned STATION_MATTERS_REGEX
+    # above). The 44 producers are genuine Spacecraft/Planet bodies + Spacecraft-payoffs
+    # (Focus Fire, Embrace Oblivion, Loading Zone, Drill Too Deep) — no over-fire.
     {
         "key": "void_warp_matters",
         "scope": "you",

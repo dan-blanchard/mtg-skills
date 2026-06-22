@@ -5970,6 +5970,30 @@ _CASES: dict[str, tuple[dict, Card]] = {
             keywords=("Daybound",),
         ),
     ),
+    # station_matters ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
+    # regex (`\bstation\b|\bspacecraft\b`; the EOE Station keyword action, CR 702.184).
+    # UNLIKE a structural arm there is none: phase v0.1.19 doesn't structure Station for
+    # the carriers (the bare "Station" keyword + charge-counter accrual live in the
+    # reminder/level text the renderer strips), and the floor-disabled structural
+    # `station` effect-category arm caught only 1 card while missing all 44 regex
+    # producers — so the lane fires from the kept mirror over the card's reminder-stripped
+    # oracle (Lumen-Class Frigate's bare "Station" keyword line). The paired IR is vanilla
+    # — the mirror reads the record, not the IR structure. ADR-0027.
+    "station_matters": (
+        {
+            "name": "Lumen-Class Frigate",
+            "type_line": "Artifact — Spacecraft",
+            "oracle_text": (
+                "Station (Tap another creature you control: Put charge counters "
+                "equal to its power on this Spacecraft. Station only as a sorcery. "
+                "It's an artifact creature at 12+.)\n"
+                "2+ | Other creatures you control get +1/+1.\n"
+                "12+ | Flying, lifelink"
+            ),
+            "keywords": ["Station"],
+        },
+        _ir(),
+    ),
     # ADR-0027 — stax_taxes: a static RESTRICTION/TAX on OPPONENTS. The structural arm
     # fires on a `restriction` Effect whose v22 scope=='opp'. Gnat Miser's hand-size tax
     # is GENUINE ir_only recall (the deleted regex carried no "maximum hand size" branch,

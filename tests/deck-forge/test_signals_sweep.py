@@ -71,8 +71,11 @@ def test_sweep_detectors_loaded():
     # the structural arm), then 27→26 as stickers_matter's row was deleted (ADR-0027 —
     # migrated to a byte-identical STICKERS_MATTER_REGEX `\{tk\}|\bstickers?\b` kept word
     # mirror in signals._IR_KEPT_DETECTORS; phase v0.1.19 doesn't structure the CR 123
-    # sticker / CR 122 ticket-counter mechanic).
-    assert len(SWEEP_DETECTORS) >= 26
+    # sticker / CR 122 ticket-counter mechanic), then 26→25 as station_matters's row was
+    # deleted (ADR-0027 — migrated to a byte-identical STATION_MATTERS_REGEX kept word
+    # mirror in _signals_ir; the EOE Station keyword action, CR 702.184, which phase
+    # v0.1.19 doesn't structure for the Spacecraft/Planet carriers).
+    assert len(SWEEP_DETECTORS) >= 25
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

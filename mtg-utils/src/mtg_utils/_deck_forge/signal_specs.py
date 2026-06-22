@@ -40,6 +40,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
+    STATION_MATTERS_REGEX,
     STICKERS_MATTER_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
@@ -4021,6 +4022,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["phasing_matters"],
         {"oracle": r"phase out|phases out|phased out"},
         r"phase out|phases out|phased out",
+    ),
+    # ADR-0027: station_matters migrated to the Card IR (its SWEEP_DETECTORS row is
+    # deleted, so the auto-register loop no longer builds this spec). Hand-register it
+    # reusing the pinned STATION_MATTERS_REGEX so the serve pool never drifts from the
+    # (now-deleted) detector. SWEEP_LABELS still carries the human label.
+    ("station_matters", "you"): _spec(
+        *SWEEP_LABELS["station_matters"],
+        {"oracle": STATION_MATTERS_REGEX},
+        STATION_MATTERS_REGEX,
     ),
     ("end_the_turn", "you"): _spec(
         *SWEEP_LABELS["end_the_turn"],
