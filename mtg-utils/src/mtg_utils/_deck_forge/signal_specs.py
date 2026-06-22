@@ -3639,6 +3639,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\bcoven\b|different powers"},
         r"\bcoven\b",
     ),
+    # ADR-0027 β: conjure_matters migrated to the Card IR (its SWEEP_DETECTORS row is
+    # deleted — detection moved to a byte-identical `\bconjure\b` kept word mirror in
+    # signals._IR_KEPT_DETECTORS). The SERVE pool stays oracle-defined (Arena/Alchemy
+    # conjure makers and payoffs), so hand-register the spec the sweep auto-register
+    # loop used to build (scope "you", the deleted SWEEP row's scope), reusing the EXACT
+    # deleted regex so the serve never drifts. SWEEP_LABELS keeps the human label.
+    ("conjure_matters", "you"): _spec(
+        *SWEEP_LABELS["conjure_matters"],
+        {"oracle": r"\bconjure\b"},
+        r"\bconjure\b",
+    ),
     # Token doubling: a token doubler wants the token MAKERS it multiplies (Hornet
     # Queen), other token doublers to stack (Parallel Lives), and the go-wide / ETB
     # payoffs every doubled token feeds. Distinct from counter doubling.

@@ -198,6 +198,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # conjure_matters ← a BYTE-IDENTICAL `\bconjure\b` kept word mirror
+    # (signals._IR_KEPT_DETECTORS, scope "you", over the reminder-stripped oracle).
+    # CONJURE is digital-only (Arena/Alchemy, CR 701.66a): phase carries a structural
+    # `Conjure` effect type but the projection folds it to make_token AND the structural
+    # set is INCOMPLETE (misses conjure-via-activated/triggered/modal ability), so the
+    # lane rides the exact deleted SWEEP regex (empty IR — the mirror reads the dict
+    # oracle). Brave Meadowguard's real oracle. ADR-0027 β.
+    "conjure_matters": (
+        {
+            "name": "Brave Meadowguard",
+            "type_line": "Creature — Mouse Soldier",
+            "oracle_text": (
+                "When Brave Meadowguard enters, conjure a card named Might of the "
+                "Meek into your hand.\nValiant — Whenever Brave Meadowguard becomes "
+                "the target of a spell or ability you control for the first time each "
+                "turn, put a +1/+1 counter on it."
+            ),
+        },
+        _ir(),
+    ),
     # entered_attacker ← a BYTE-IDENTICAL kept mirror (_ENTERED_ATTACKER_MIRROR run
     # per-clause over the reminder-stripped oracle: "...deals combat damage to a player,
     # if that creature entered this turn..."). phase does NOT project the "entered this

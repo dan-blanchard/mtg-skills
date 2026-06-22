@@ -2744,6 +2744,21 @@ _VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
 # "twice that many … tokens" arm never crosses a sentence, so full-text == per-clause.
 # FILE-SWAP NO-FLOOD: voltron byte-identical (0 gained / 0 lost). CR 903.10a / 702.95.
 _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
+# deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
+# ENGINE (a card-generating Arena/Alchemy plan IS its plan, not a vanilla beater — 23
+# HB-legal conjure creatures power>=2 carry conjure_matters as their ONLY high-
+# confidence plan, e.g. Cosmic Sovereign, Darigaaz Shivan Champion, Roalesk). The
+# migrated lane rides a BYTE-IDENTICAL `\bconjure\b` kept mirror (no recall change vs
+# the deleted regex), so this byte-identical gate mirror — NOT
+# _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards (matching the
+# token_copy_matters / variable_pt byte-identical-mirror pattern: a *_PLAN_MIRROR
+# reproduces has_other_plan in the regex-path computation regardless of IR/regex mode).
+# Matched against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
+# per-clause over `re.sub(r"\([^)]*\)", " ", …)`-stripped text; `\bconjure\b` has no
+# `[^.]` span, so full-text == per-clause). CR 903.10a / 701.66a.
+_CONJURE_MATTERS_PLAN_MIRROR = re.compile(r"\bconjure\b", re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated color_change key. The deleted
 # SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
@@ -4418,6 +4433,14 @@ def extract_signals(
         # inside an Embalm/Offspring keyword reminder never silenced and still doesn't.
         # CR 903.10a.
         or _TOKEN_COPY_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted conjure_matters SWEEP producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a conjure engine is no
+        # vanilla beater; 23 HB-legal conjure creatures power>=2 had it as their only
+        # plan). The migrated lane rides a byte-identical `\bconjure\b` kept mirror, so
+        # this byte-identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores
+        # the old silence for ALL cards. Matched against the reminder-STRIPPED `text`
+        # (the deleted SWEEP Detector ran per-clause over stripped text). CR 903.10a.
+        or _CONJURE_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted color_change SWEEP producer (it fired
         # HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
         # a byte-identical kept mirror, so this byte-identical gate mirror — NOT

@@ -37,8 +37,10 @@ def test_sweep_detectors_loaded():
     # the lane now fires from the MassEach structural arm + narrowed mirror) + earlier
     # batches migrated to the Card IR); it still guards "a non-empty set loads", not an
     # exact count. This floor is removed at A4 when the strangler empties SWEEP_DETECTORS
-    # entirely. Floor lowered 38→37 as counter_distribute's row was deleted.
-    assert len(SWEEP_DETECTORS) >= 37
+    # entirely. Floor lowered 38→37 as counter_distribute's row was deleted, then 37→36
+    # as conjure_matters's row was deleted (ADR-0027 β — migrated to a byte-identical
+    # `\bconjure\b` kept word mirror in signals._IR_KEPT_DETECTORS).
+    assert len(SWEEP_DETECTORS) >= 36
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

@@ -848,12 +848,19 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # ability-word refs phase leaves textual (CR 700.3). Its SWEEP_DETECTORS row is
     # deleted; the serve is its own hand-written _spec in signal_specs.py (independent
     # of this regex).
-    {
-        "key": "conjure_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bconjure\\b",
-    },
+    # ADR-0027 β: conjure_matters migrated to the Card IR — a byte-identical
+    # `\\bconjure\\b` kept word mirror (signals._IR_KEPT_DETECTORS, scope 'you').
+    # CONJURE is digital-only (Arena/Alchemy): phase DOES carry a structural `Conjure`
+    # effect type (101 cards) but the projection folds it to make_token, AND that
+    # structural set is INCOMPLETE — it misses conjure-via-activated/triggered/modal
+    # ability (Agent of Raffine, Anina, Drover of the Swine: 65 HB-legal regex_only
+    # cards), so a structural arm would LOSE 65 cards of recall vs this exact-keyword
+    # regex with no over-fire benefit (struct_only == 0). The regex is near-exact (166
+    # of 167 stripped hits genuine conjure; the single false positive — Silvanus's
+    # Invoker "Conjure Elemental —" ability word — is the ONLY commander-legal hit), so
+    # the kept word mirror is the clean migration. Its SWEEP_DETECTORS row is deleted;
+    # the serve is its own hand-written _spec in signal_specs.py (the sweep auto-
+    # register loop no longer reaches it). CR 701.66a (conjure).
     # ADR-0027: saga_matters migrated to the Card IR — a `_SAGA_REF` ("lore counter" /
     # "Saga you control") dropped-static face marker (the lore-counter manipulation /
     # payoff, anchored on the stripped oracle so a vanilla Saga's reminder-only lore

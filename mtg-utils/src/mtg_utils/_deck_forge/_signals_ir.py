@@ -589,6 +589,17 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
     ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
     ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real CARD,
+    # not a token" mechanic, CR 701.66a). phase carries a structural `Conjure` effect
+    # type but the projection folds it to make_token AND that structural set is
+    # INCOMPLETE (101 cards; misses conjure-via-activated/triggered/modal ability — 65
+    # HB-legal regex_only cards), so a structural arm would LOSE recall. The
+    # `\bconjure\b` keyword is near-exact (1 commander-legal false positive — Silvanus's
+    # Invoker's "Conjure Elemental —" ability word), so this byte-identical kept word
+    # mirror of the deleted SWEEP regex is the clean migration (scope 'you', matching
+    # the deleted SWEEP scope). Digital-only: the served set is empty on commander, ~158
+    # HB-legal. CR 701.66a.
+    ("conjure_matters", re.compile(r"\bconjure\b", re.IGNORECASE), "you"),
     # snow is a real supertype (CR 205.4), NOT a skip — the analysis workflow
     # wrongly listed it. A snow-matters payoff cares about snow permanents/mana.
     ("snow_matters", re.compile(r"\bsnow\b", re.IGNORECASE), "you"),
@@ -1872,6 +1883,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "coven_matters",
             "outlaw_matters",
             "lessons_matter",
+            # ADR-0027 β — conjure (Arena/Alchemy, CR 701.66a): byte-identical
+            # `\bconjure\b` kept word mirror (phase's structural Conjure set is
+            # incomplete; the keyword is near-exact). Digital-only, so empty on
+            # commander; serves ~158 in Historic Brawl.
+            "conjure_matters",
             "snow_matters",  # Batch 18 — real (CR 205.4), not a skip
             # Batch 8 — named scaling-operand lanes:
             "devotion_matters",

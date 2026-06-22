@@ -2566,6 +2566,58 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # CR 701.19 (search) / 701.23 (shuffle) / 701.39 (scry) / 701.47 (surveil) /
         # 903.10a (voltron).
         "opponent_search_matters",
+        # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real
+        # CARD onto the battlefield / into a zone, NOT a token" mechanic — Key to the
+        # Archive-style spellbooks, Agent of Raffine, Drover of the Swine, the Collector
+        # cycle, the Viconia personas). MIGRATED VIA A KEPT-MIRROR (signals-only, NO
+        # sidecar bump), NOT a structural Conjure-effect arm.
+        #
+        # DISCRIMINATOR FOUND (structured, but UNUSABLE for a clean migration): phase
+        # DOES carry a structural `Conjure` EFFECT type (101 cards: `{"type":"Conjure",
+        # "cards":[…],"destination":…}`) that the projection FOLDS to make_token
+        # (project._EFFECT_CATEGORY['conjure'] == 'make_token'), indistinguishable from
+        # a vanilla token maker. A STRUCTURAL arm reading the un-folded Conjure effect
+        # was REJECTED: that set is INCOMPLETE. Over the Historic-Brawl corpus (Scryfall
+        # `brawl` key, where conjure actually lives — it is digital-only) the structural
+        # set is 93 cards, a STRICT SUBSET of the deleted regex's 158 — the 65-card
+        # regex_only delta is 100% RECALL LOSS (genuine conjure phase fails to
+        # structure: conjure on an ACTIVATED ability — Agent of Raffine; a TRIGGERED
+        # ability phase nests past — Anina, Blood Age Muster, Cosmic Sovereign; a MODE —
+        # Drover of the Swine), and struct_only == 0 (no over-fire to gain). So the
+        # structural marker would LOSE 65 cards with no benefit.
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane fires from a byte-identical
+        # `\bconjure\b` row in signals._IR_KEPT_DETECTORS (scope 'you', matching the
+        # deleted SWEEP scope), run over the reminder-STRIPPED kept_oracle — byte-
+        # identical to the deleted SWEEP Detector (which ran per-clause over the same
+        # `re.sub(r"\([^)]*\)", " ", …)`-stripped joined-face text; `\bconjure\b` has no
+        # `[^.]` span, so full-text == per-clause). The keyword is near-EXACT: 166 of
+        # 167 stripped hits are genuine conjure; the single false positive is Silvanus's
+        # Invoker's "Conjure Elemental —" ability-WORD name — and it is the ONLY
+        # commander-legal hit, so commander served-set is empty either way. The serve
+        # spec stays hand-registered in signal_specs.py (the sweep auto-register loop no
+        # longer reaches it once the SWEEP_DETECTORS row is deleted).
+        #
+        # GATES. floor-mirror-dep == 0 (conjure_matters is NOT an _IR_FLOOR_LANE — it
+        # was a SWEEP key, like the sibling celebration/coven/outlaw kept mirrors).
+        # Floor-disabled residual vs the deleted SWEEP regex over get_oracle_text
+        # (joined faces, HB-legal — the corpus where conjure lives —
+        # _IR_FLOOR_LANES=frozenset()): both == 164, ir_only == 0, regex_only == 0 (the
+        # mirror is byte-identical to the deleted regex over the same reminder-stripped
+        # input; commander-legal: both == 1, the Silvanus false positive). FILE-SWAP
+        # no-flood (base 813d507 vs edits, commander+HB, 31868 cards): drift_cards == 0
+        # — only conjure_matters re-homes, byte-identical, no other lane drifts.
+        #
+        # VOLTRON. The deleted SWEEP producer fired HIGH-confidence (scope 'you') and
+        # fed has_other_plan (a conjure ENGINE is a real value plan), so a
+        # byte-identical _CONJURE_MATTERS_PLAN_MIRROR in _signals_regex re-supplies the
+        # commander-damage voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (matching
+        # the token_copy_matters / variable_pt byte-identical-mirror pattern: restores
+        # has_other_plan for ALL cards regardless of IR/regex mode). NEEDED: 23 HB-legal
+        # conjure creatures power>=2 carry conjure_matters as their ONLY high-confidence
+        # plan (Cosmic Sovereign, Darigaaz Shivan Champion, Roalesk, …), so without the
+        # mirror they would flip to a spurious voltron tell. CR 701.66a / 903.10a.
+        "conjure_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
