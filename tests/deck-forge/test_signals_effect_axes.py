@@ -195,12 +195,33 @@ def test_legends_matter_for_cast_legendary():
 
 def test_opponent_library_manipulation_punisher():
     # River Song's Spoilers: punish opponents for scry/surveil/search (opponents
-    # scope — distinct from your own scry_surveil payoff).
+    # scope — distinct from your own scry_surveil payoff). ADR-0027 β:
+    # opponent_search_matters is IR-served from an opp-scoped `lib_search` trigger
+    # (project re-types phase's SearchedLibrary / Shuffled / scry-surveil-search
+    # PlayerPerformedAction modes off `other`), so it needs the matching IR, not pure
+    # regex.
     c = {
         "name": "River Song",
         "oracle_text": "Meet in Reverse — You draw cards from the bottom of your library rather than the top.\nSpoilers — Whenever an opponent scries, surveils, or searches their library, put a +1/+1 counter on River Song. Then River Song deals damage to that player equal to its power.",
     }
-    assert ("opponent_search_matters", "opponents") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="River Song",
+        faces=(
+            Face(
+                name="River Song",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="lib_search", scope="opp"),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("opponent_search_matters", "opponents") in hybrid
+    assert ("opponent_search_matters", "opponents") not in _ks(c)
 
 
 def test_your_scry_is_not_an_opponent_punisher():

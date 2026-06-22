@@ -416,6 +416,43 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # opponent_search_matters ← an opp-scoped `lib_search` TRIGGER (project @ SIDECAR v19
+    # re-types phase's `SearchedLibrary` / `Shuffled` / scry-surveil-search
+    # `PlayerPerformedAction` modes off the generic `other` event). Ob Nixilis
+    # Unshackled's "Whenever an opponent searches their library, …" is a SearchedLibrary
+    # trigger with valid_target.controller==Opponent → event 'lib_search', scope 'opp':
+    # the scope=='opp' gate in extract_signals_ir fires opponent_search_matters scope
+    # 'opponents'. The scope gate is the discriminator vs the YOU-scoped "whenever you
+    # search your library / scry / surveil" payoffs (Search Elemental — scope 'any').
+    # ADR-0027 β. CR 701.19.
+    "opponent_search_matters": (
+        {
+            "name": "Ob Nixilis, Unshackled",
+            "type_line": "Legendary Creature — Demon",
+            "oracle_text": (
+                "Flying, trample\nWhenever an opponent searches their library, "
+                "that player sacrifices a creature of their choice and loses 10 "
+                "life.\nWhenever another creature dies, put a +1/+1 counter on Ob "
+                "Nixilis."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="lib_search", scope="opp"),
+                effects=(
+                    Effect(
+                        category="sacrifice",
+                        scope="opp",
+                        raw=(
+                            "that player sacrifices a creature of their choice and "
+                            "loses 10 life"
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # toughness_combat ← a BYTE-IDENTICAL kept mirror (_TOUGHNESS_COMBAT_MIRROR over the
     # reminder-stripped oracle: "Each creature you control assigns combat damage equal to
     # its toughness rather than its power"). TWO deleted regex producers (the SWEEP

@@ -121,7 +121,20 @@ from mtg_utils.card_ir import Card
 #     p1p1 (additive — nothing else reads MassEach), so counters_matter /
 #     self_counter_grow / debuff_matters / type_matters are byte-identical. ADR-0027 β.
 #     CR 122.1 / 122.6.
-SIDECAR_VERSION = 18
+#  - v18→v19: opponent_search_matters — the OPPONENT-library-manipulation trigger
+#     ("whenever an opponent searches/shuffles their library / scries / surveils" — Ob
+#     Nixilis Unshackled, Psychic Surgery, River Song, Wan Shi Tong, Cosi's Trickster,
+#     Archivist of Oghma). phase carries the precise trigger mode (`SearchedLibrary` /
+#     `Shuffled` / the `PlayerPerformedAction` scry-surveil-search composite) but
+#     _trigger_event folded all of them to the generic `other`, where they collide with
+#     six OTHER opp-scoped `other` modes (LandPlayed, AbilityActivated, BecomeMonarch,
+#     LosesGame). Re-type them to a dedicated `lib_search` event so the lane arm can
+#     read it (gated trig.scope=='opp'; the YOU-scoped "whenever you scry/surveil/
+#     search" forms re-type too but scope=='any' excludes them; the Proliferate
+#     composites stay `other` via the player_actions gate). Additive (nothing read
+#     `lib_search` before), so every other lane is byte-identical. ADR-0027 β.
+#     CR 701.19 / 701.23.
+SIDECAR_VERSION = 19
 
 
 def card_ir_dir() -> Path:

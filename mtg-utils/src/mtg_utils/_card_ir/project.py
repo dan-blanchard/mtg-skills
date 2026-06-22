@@ -5903,7 +5903,53 @@ def _trigger_event(tr: dict) -> str:
         return "surveiled"
     if mode in ("excessdamageall", "excessdamage"):
         return "excess_damage"
+    # ADR-0027 β opponent_search_matters — the OPPONENT-library-manipulation trigger.
+    # phase carries the precise trigger mode (`SearchedLibrary`, `Shuffled`, or the
+    # `PlayerPerformedAction` composite whose `player_actions` are Scry/Surveil/
+    # SearchedLibrary — River Song, Ob Nixilis Unshackled, Wan Shi Tong, Psychic
+    # Surgery, Cosi's Trickster, Archivist of Oghma), but _trigger_event folded ALL of
+    # them to the generic `other`, where they are indistinguishable from six OTHER
+    # opp-scoped `other` modes (LandPlayed, AbilityActivated, BecomeMonarch, LosesGame).
+    # Re-type them to a dedicated `lib_search` event so the opponent_search_matters arm
+    # (gated trig.scope=='opp') can read the structure phase dropped — the same "phase
+    # carries a marker the projection drops → recover it" shape as scry/surveil above.
+    # The event is scope-NEUTRAL (the YOU-scoped "whenever you search your library" /
+    # "whenever you scry or surveil" forms — Search Elemental, Matoya, Planetarium —
+    # also re-type here, but their scope is `any` and the lane gate excludes them); the
+    # PlayerPerformedAction gate excludes the Proliferate composites (Ezuri, Scheming
+    # Aspirant). CR 701.19 (search) / 701.23 (shuffle) / 701.39 (scry) / 701.47
+    # (surveil).
+    if mode in ("searchedlibrary", "shuffled"):
+        return "lib_search"
+    if mode == "playerperformedaction" and _player_actions_are_lib_search(tr):
+        return "lib_search"
     return "other"
+
+
+# ADR-0027 β opponent_search_matters — the library-manipulation player actions phase
+# lists on a `PlayerPerformedAction` trigger's `player_actions` (River Song's composite
+# is ["Scry","Surveil","SearchedLibrary"]). The composite must NAME the library SEARCH
+# (`SearchedLibrary`) and contain ONLY scry-surveil-search actions — the search is the
+# discriminator that pins this to the opponent-search lane the deleted regex covered
+# ("searches their/a library"). Two carve-outs the gate deliberately leaves on `other`:
+#   • Proliferate composites (Ezuri, Scheming Aspirant) — not a library action.
+#   • SCRY/SURVEIL-only composites (Matoya, Planetarium — both YOU-scoped, no opponent
+#     punisher exists) — staying `other` keeps the `_narrow_trigger_other_refs`
+#     scry_surveil marker (gated event=='other') firing scry_surveil_matters for them,
+#     so the re-type is drift-free on that lane.
+_LIB_SEARCH_PLAYER_ACTIONS = frozenset({"scry", "surveil", "searchedlibrary"})
+
+
+def _player_actions_are_lib_search(tr: dict) -> bool:
+    """True when a ``PlayerPerformedAction`` trigger's ``player_actions`` NAME the
+    library search (``SearchedLibrary``) and are a subset of the scry/surveil/search
+    set (so the Proliferate composites — and the scry/surveil-only payoffs that keep
+    their event='other' scry_surveil marker — stay on the generic ``other`` event)."""
+    actions = tr.get("player_actions")
+    if not isinstance(actions, list) or not actions:
+        return False
+    norm = {_norm(a) for a in actions if isinstance(a, str)}
+    return "searchedlibrary" in norm and norm <= _LIB_SEARCH_PLAYER_ACTIONS
 
 
 def _trigger_scope(tr: dict) -> str:

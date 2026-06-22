@@ -1780,19 +1780,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # (the `ev == "drawn"` + `trig.scope == "opp"` branch in extract_signals_ir).
     # This _HAND_FLOOR producer is deleted; the hand-written serve spec
     # (signal_specs.py) is independent of this regex and survives.
-    # Punish opponents' library manipulation (River Song's Spoilers; Aven
-    # Mindcensor / Opposition Agent / Leovold space) — distinct from your own
-    # scry_surveil payoff, which is scoped "you".
-    (
-        "opponent_search_matters",
-        re.compile(
-            r"whenever (?:an opponent|a player|each opponent)[^.]*"
-            r"(?:scries|surveils|searches (?:their|a) library"
-            r"|shuffles (?:their|a) library)",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027 β: opponent_search_matters migrated to the Card IR — an opp-scoped
+    # `lib_search` trigger (project._trigger_event re-types phase's SearchedLibrary /
+    # Shuffled / scry-surveil-search PlayerPerformedAction modes off the generic
+    # `other`; the scope=='opp' gate in extract_signals_ir is the discriminator vs the
+    # YOU-scoped scry/surveil payoffs). This _HAND_FLOOR producer is deleted; the
+    # hand-written serve spec (signal_specs.py) is independent of this regex and
+    # survives. NO voltron _PLAN_MIRROR is needed: although the producer fired
+    # high-confidence (scope 'opponents') and fed has_other_plan, the FILE-SWAP shows
+    # voltron delta 0 even with the lane absent — the two power<2 punishers (Wan Shi
+    # Tong, Cosi's Trickster) never reach the voltron gate (power>=2 / voltron-keyword),
+    # and every power>=2 punisher (River Song, Ob Nixilis, Archivist of Oghma) carries
+    # ANOTHER high-confidence plan (direct_damage / death_matters / lifegain_matters)
+    # that keeps has_other_plan True. So no body leaks the commander-damage tell.
     # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
     # ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
     # lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir (the EXACT deleted

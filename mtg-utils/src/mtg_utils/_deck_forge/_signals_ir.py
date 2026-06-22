@@ -1879,6 +1879,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "domain_matters",
             # Batch 11 — opponent-draw punisher (player-event scope):
             "opponent_draw_matters",
+            # ADR-0027 β — opponent-search punisher: an opp-scoped `lib_search` trigger
+            # (project re-types phase's SearchedLibrary/Shuffled/scry-surveil-search
+            # PlayerPerformedAction modes off the generic `other`).
+            "opponent_search_matters",
             # Batch 6 — grant_keyword team-anthem lanes (gated; flash_grant deferred):
             "team_evasion_grant",
             "protection_grant",
@@ -6030,6 +6034,19 @@ def extract_signals_ir(
                 # Batch 11 — "whenever an OPPONENT draws" (Nekusar / Notion Thief).
                 if trig.scope == "opp":
                     add("opponent_draw_matters", "opponents", "", "")
+            # ADR-0027 β — opponent_search_matters: "whenever an opponent searches /
+            # shuffles their library / scries / surveils" (Ob Nixilis Unshackled,
+            # Psychic Surgery, River Song, Wan Shi Tong, Cosi's Trickster, Archivist of
+            # Oghma — punish opponents' tutors / library manipulation). project.
+            # _trigger_event re-types phase's `SearchedLibrary` / `Shuffled` /
+            # scry-surveil-search `PlayerPerformedAction` modes to the `lib_search`
+            # event (they previously collapsed to the generic `other`, colliding with
+            # six unrelated opp-scoped `other` modes). The scope=='opp' gate is the
+            # discriminator vs the YOU-scoped "whenever you scry/surveil/search your
+            # library" payoffs (Search Elemental — scope 'any', excluded), exactly the
+            # subject the deleted regex required. CR 701.19 / 701.23.
+            if ev == "lib_search" and trig.scope == "opp":
+                add("opponent_search_matters", "opponents", "", "")
             # creature_etb (ETB-VALUE) — cares when OTHER creatures enter (a Typed
             # subject; a self-ETB SelfRef→None is a one-shot, not this lane). Scope
             # tracks WHOSE entering creature triggers it (yours = value, an

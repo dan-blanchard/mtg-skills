@@ -2511,6 +2511,61 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # board-wide regex via the ``regex=`` arg; SWEEP_LABELS keeps the human label).
         # CR 122.1 / 122.6 / 903.10a.
         "counter_distribute",
+        # ADR-0027 β — opponent_search_matters (PUNISH opponents' tutors / library
+        # manipulation — "whenever an opponent searches / shuffles their library /
+        # scries / surveils": Ob Nixilis Unshackled, Psychic Surgery, River Song, Wan
+        # Shi Tong, Cosi's Trickster, Archivist of Oghma). MIGRATED VIA PROJECTION
+        # RE-TYPE (SIDECAR v18→v19).
+        #
+        # PROJECTION (v18→v19). phase carries the PRECISE trigger MODE —
+        # `SearchedLibrary` (Ob Nixilis, Archivist, Wan Shi Tong), `Shuffled`
+        # (Psychic Surgery, Cosi's Trickster), and the `PlayerPerformedAction`
+        # scry-surveil-search composite (River Song, player_actions ==
+        # ["Scry","Surveil","SearchedLibrary"]) — each with valid_target.controller
+        # == "Opponent". But _trigger_event FOLDED all of them to the generic `other`
+        # event, where they are indistinguishable from SIX OTHER opp-scoped `other`
+        # modes (LandPlayed -> Burgeoning, AbilityActivated -> Runic Armasaur,
+        # BecomeMonarch -> Garland, LosesGame -> Share the Spoils — a naive
+        # `ev=='other' and scope=='opp'` arm would over-fire all of them).
+        # project._trigger_event re-types the three library-manipulation modes to a
+        # dedicated `lib_search` event (the same "phase carries a marker the
+        # projection drops -> recover it" shape as the scry/surveil modes above it).
+        # The PlayerPerformedAction gate (_player_actions_are_lib_search) requires
+        # `SearchedLibrary` in the player_actions, so the Proliferate composites
+        # (Ezuri, Scheming Aspirant) AND the scry/surveil-ONLY YOU-payoffs (Matoya,
+        # Planetarium — which keep their event='other' _narrow_trigger_other_refs
+        # scry_surveil marker) stay on `other`, making the re-type DRIFT-FREE on
+        # scry_surveil_matters. The event is scope-neutral; nothing read `lib_search`
+        # before, so every other lane is byte-identical. Two-sidecar behavior-neutral
+        # no-flood (v18 vs v19, SAME unwired signals.py, 30969 commander-legal):
+        # drift_cards == 0. parse_confidence unchanged (34118 full / 444 partial both
+        # sides). Default sidecar rebuilt to v19.
+        #
+        # STRUCTURAL ARM. An opp-scoped `lib_search` trigger fires
+        # opponent_search_matters scope 'opponents'. The scope=='opp' gate (recovered
+        # from valid_target.controller by _trigger_scope) is the EXACT discriminator
+        # the deleted producer regex required ("whenever an opponent|a player|each
+        # opponent … searches/shuffles their library / scries / surveils") — it
+        # excludes the YOU-scoped "whenever you search your library / scry / surveil"
+        # payoffs (Search Elemental — scope 'any').
+        #
+        # GATES. floor-mirror-dep == 0 (NOT an _IR_FLOOR_LANE — it was a _HAND_FLOOR
+        # regex, like the sibling opponent_draw_matters / opponent_cast_matters).
+        # FILE-SWAP residual (base a626384 + v18 vs edits + v19, commander-legal,
+        # include_membership): only opponent_search_matters moves, 6 -> 6
+        # BYTE-IDENTICAL (gain 6 / lose 0 — the exact 6 commander-legal cards the
+        # deleted regex hit over the reminder-stripped oracle: Archivist of Oghma,
+        # Cosi's Trickster, Ob Nixilis Unshackled, Psychic Surgery, River Song, Wan Shi
+        # Tong; 0 ir_only, 0 regex_only). No NEW recall (the regex's producer arms —
+        # scries/surveils/searches/shuffles — all have a phase trigger mode, so the
+        # structural arm is an exact reproduction, not a widening) and no over-fire.
+        # voltron delta 0 with NO _PLAN_MIRROR: the two power<2 punishers never reach
+        # the voltron gate, and every power>=2 punisher carries another high-confidence
+        # plan keeping has_other_plan True. The _HAND_FLOOR producer is deleted; the
+        # serve spec (signal_specs.py) is independent and survives.
+        # CR 701.19 (search) / 701.23 (shuffle) / 701.39 (scry) / 701.47 (surveil) /
+        # 903.10a (voltron).
+        "opponent_search_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
