@@ -7,11 +7,23 @@ Equipment specifically, NOT generic voltron (Auras are anti-synergistic with Das
 """
 
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
+
+# ADR-0027: dash_matters migrated to the Card IR (it now rides the Scryfall `Dash`
+# keyword array via _IR_KEYWORD_MAP['dash'], not the regex _DIRECT_KEYWORD_SIGNALS
+# path), so the firing tests read the production dispatcher extract_signals_hybrid.
+# A bare non-None IR routes the hybrid to the IR path; the Batch-K keyword loop reads
+# the record's card['keywords'], so a vanilla IR suffices (mirrors test_migrated_keys).
+_BARE_IR = Card(oracle_id="x", name="X", faces=(Face(name="X"),))
 
 
 def _keys(card):
-    return {s.key for s in extract_signals(card)}
+    return {s.key for s in extract_signals_hybrid(card, _BARE_IR)}
 
 
 ZURGO = {
@@ -26,8 +38,15 @@ def test_dash_keyword_fires_dash_matters():
     assert "dash_matters" in _keys(ZURGO)
 
 
+def test_dash_regex_path_no_longer_emits_dash_matters():
+    # ADR-0027: the migrated key must leave the legacy regex path entirely.
+    assert "dash_matters" not in {s.key for s in extract_signals(ZURGO)}
+
+
 def test_dash_scope_is_you():
-    sig = next(s for s in extract_signals(ZURGO) if s.key == "dash_matters")
+    sig = next(
+        s for s in extract_signals_hybrid(ZURGO, _BARE_IR) if s.key == "dash_matters"
+    )
     assert sig.scope == "you"
 
 

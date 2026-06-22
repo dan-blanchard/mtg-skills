@@ -680,6 +680,19 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # keyword, so it is captured too. These cards currently show commander:not_legal
     # only because the recent set's legalities have not propagated in the bulk.
     "power-up": (("powerup_matters", "you"),),
+    # ADR-0027 dash_matters migration: the `dash` keyword MOVED here from
+    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). dash_matters is
+    # migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS (the regex
+    # extract_signals must no longer emit a migrated key); but the IR path STILL needs
+    # the keyword because the Dash mechanic (CR 702.109a — cast for the dash cost,
+    # gains haste, returns to hand at the next end step) lives ENTIRELY in stripped
+    # reminder text (Zurgo Bellstriker, Ragavan, Kolaghan the Storm's Fury), so no
+    # structural arm or oracle mirror fires for a vanilla-Dash body. The Scryfall
+    # keyword array is the structured anchor (the saddle/lifelink/mill keyword-array
+    # move) and is the SOLE producer of dash_matters. Commander-legal residual vs the
+    # deleted producer: both==22, ir_only==0, regex_only==0 (byte-identical — both
+    # arms read the same card['keywords']).
+    "dash": (("dash_matters", "you"),),
 }
 
 # ADR-0027 β — cost_reduction structural-arm gates (a BUILD-AROUND reducer = an effect

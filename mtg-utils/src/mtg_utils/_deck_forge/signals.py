@@ -673,6 +673,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # (24 → 24), all 297 sibling keys drift 0. A NO-FLOOD voltron entry. CR 702.22 /
         # 903.10a.
         "banding_matters",
+        # ADR-0027: dash_matters fired high-confidence (the default add() confidence,
+        # scope 'you') in the regex path via the _DIRECT_KEYWORD_SIGNALS `dash` entry
+        # and so counted toward has_other_plan (it is NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage voltron tell on
+        # a Dash aggro creature commander that is NOT a vanilla beater (Zurgo
+        # Bellstriker, Ragavan, Kolaghan the Storm's Fury — a hit-and-run hasty body
+        # whose plan IS the dash tempo). The keyword entry moved to
+        # _IR_KEYWORD_MAP['dash'] (the IR-only path), so the hybrid re-silences from the
+        # IR re-supply — reading the SAME Scryfall `Dash` keyword array, so it is
+        # BYTE-IDENTICAL (commander-legal: IR == regex == 22, 0 broadening, 0 ir_only,
+        # 0 regex_only). dash_matters is the SOLE producer (no other regex emitter), so
+        # post-migration the regex set never carries it and this set entry re-silences
+        # exactly — the cleanest case of the mill / lifelink / magecraft keyword-array
+        # precedent. A NO-FLOOD voltron entry. CR 702.109a (Dash) / 903.10a.
+        "dash_matters",
         # NB (ADR-0027): theft_matters is NOT added here. Its HIGH SWEEP producer fed
         # has_other_plan pre-migration, BUT this silencing set is too COARSE for it: the
         # hybrid carries LOW-confidence theft_matters cross-opens (the gain_control /

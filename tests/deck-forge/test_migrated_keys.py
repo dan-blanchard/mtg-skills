@@ -5962,6 +5962,28 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # dash_matters ← the Scryfall `Dash` keyword array via _IR_KEYWORD_MAP['dash']
+    # (byte-identical to the deleted _DIRECT_KEYWORD_SIGNALS['dash'] entry; the
+    # mill/proliferate/lifelink/magecraft keyword-array precedent). Zurgo Bellstriker
+    # is the canonical Dash creature — the dash mechanic ("returned from the
+    # battlefield to its owner's hand at the beginning of the next end step") lives in
+    # stripped reminder text, so the IR path reads the keyword array, not the IR
+    # structure (a bare non-None IR routes the hybrid to the IR path; the Batch-K loop
+    # reads card['keywords'], not Face.keywords). scope "you". ADR-0027, CR 702.109a.
+    "dash_matters": (
+        {
+            "name": "Zurgo Bellstriker",
+            "type_line": "Legendary Creature — Orc Warrior",
+            "oracle_text": (
+                "Zurgo can't block creatures with power 2 or greater.\n"
+                "Dash {1}{R} (You may cast this spell for its dash cost. If you do, "
+                "it gains haste, and it's returned from the battlefield to its "
+                "owner's hand at the beginning of the next end step.)"
+            ),
+            "keywords": ["Dash"],
+        },
+        _ir(),
+    ),
     # land_destruction ← the membership-gated _LAND_DESTRUCTION_MIRROR arm (CR 305.6).
     # Numot is the canonical LD COMMANDER — a CREATURE whose own ability says "destroy
     # up to two target lands" (a repeatable LD engine). The mirror reads type_line +

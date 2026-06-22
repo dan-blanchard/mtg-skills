@@ -5170,6 +5170,31 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # reusing TOPDECK_STACK_SWEEP_REGEX (the auto-sweep loop no longer builds it).
         # CR 401.4 (library ordering).
         "topdeck_stack",
+        # ADR-0027 dash_matters -- migrated to the Card IR. BYTE-IDENTICAL KEYWORD
+        # ROUTE: dash_matters had EXACTLY ONE regex producer, the
+        # _DIRECT_KEYWORD_SIGNALS['dash'] -> (dash_matters, you) entry firing whenever
+        # 'Dash' is in card['keywords']. The Dash mechanic (CR 702.109a -- cast for the
+        # dash cost, gains haste, returns to hand at the next end step) lives ENTIRELY
+        # in stripped reminder text (Zurgo Bellstriker: "Dash {1}{R} (You may cast this
+        # spell for its dash cost...)"), so neither a structural arm nor an oracle
+        # mirror can fire on the reminder-stripped body -- the Scryfall keyword array is
+        # the only structured anchor. The entry MOVED to _IR_KEYWORD_MAP['dash'] (the
+        # IR-only keyword path, read by extract_signals_ir's Batch-K keyword loop at the
+        # default HIGH add() confidence, scope 'you') -- the saddle / lifelink / mill /
+        # magecraft keyword-array precedent. Floor-disabled residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), joined by the full (key, scope, subject) tuple):
+        # both == 22, ir_only == 0, regex_only == 0 -- byte-identical (both arms read
+        # the SAME card['keywords'] and emit (dash_matters, you, '')). subject is '' on
+        # both sides (dash_matters carries no subject), so it matches byte-for-byte.
+        # VOLTRON: dash_matters is the SOLE producer (no other regex emitter), so
+        # post-migration the regex set never carries it and the IR re-supply fires on
+        # exactly the keyword bearers -- a clean _VOLTRON_SILENCING_PLAN_KEYS entry (the
+        # magecraft precedent; the deleted producer fired HIGH and is NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS, so it fed has_other_plan -- a Dash aggro
+        # engine is no vanilla commander-damage tell to re-open). NO-FLOOD: ONLY
+        # dash_matters changes count (22 -> 22, byte-identical); all siblings drift 0;
+        # voltron 3010 -> 3010 identical set. CR 702.109a (Dash) / 903.10a.
+        "dash_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

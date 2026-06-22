@@ -2322,13 +2322,20 @@ def _detect_keyword_presets(card: dict) -> list[tuple[str, str]]:
 
 # Direct card-keyword signals: keywords (not theme_presets) that anchor a build via the
 # rules — each maps to an existing signal axis, grounded in its CR 702.x definition.
-# Dash returns the creature to hand each end step (702.109a) so Equipment persists
-# (301.5c) while Auras (704.5m)/counters are lost; Mentor/Training/Evolve/… put +1/+1
-# counters; Battle cry/Battalion/Melee reward attacking as a team; Exalted rewards
-# attacking ALONE (suit up one); Extort drains each opponent (702.101a); Amass/Mobilize
-# make tokens. The keyword is authoritative, so these are high confidence.
+# Mentor/Training/Evolve/… put +1/+1 counters; Battle cry/Battalion/Melee reward
+# attacking as a team; Exalted rewards attacking ALONE (suit up one); Extort drains each
+# opponent (702.101a); Amass/Mobilize make tokens. The keyword is authoritative, so
+# these are high confidence.
 _DIRECT_KEYWORD_SIGNALS = {
-    "dash": ("dash_matters", "you"),
+    # ADR-0027: the `dash` keyword (CR 702.109a — cast for the dash cost, gains haste,
+    # returns to hand at the next end step) moved to _IR_KEYWORD_MAP (the IR-only
+    # keyword path) with the dash_matters migration. Dash's "return to hand" lives in
+    # stripped reminder text (Zurgo Bellstriker, Ragavan), so the Scryfall keyword array
+    # is the only structured anchor; keeping it here would let the regex
+    # `extract_signals` keep emitting a migrated key. dash_matters was the SOLE
+    # producer (no other regex emitter), so the IR re-supply is byte-identical
+    # (commander-legal: both==22, ir_only==0, regex_only==0). Re-silenced via
+    # _VOLTRON_SILENCING_PLAN_KEYS.
     # ADR-0027: the +1/+1-counter keyword block (mentor/training/modular/bolster/
     # evolve/outlast/renown/adapt — and dethrone/undying/graft/riot/bloodthirst/
     # fabricate/sunburst/tribute/unleash/ravenous/reinforce/scavenge below) removed
