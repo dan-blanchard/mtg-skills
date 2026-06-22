@@ -64,6 +64,18 @@ GROUP_HUG_DRAW_REGEX = "each player (?:may )?draws?\\b|each player who drew"
 # mirror / (now-deleted) detector never drift. SWEEP_LABELS still carries the human
 # label. CR 702.8 (flash).
 FLASH_GRANT_REGEX = "as though (?:it|they) (?:had|have) flash|have flash\\b"
+# ADR-0027 — theft_matters migrated to the Card IR (STEAL an OPPONENT's cards and
+# CAST/PLAY them: the impulse-from-opponent steal-and-cast engines, the heist Arena
+# keyword action, and the name-strip three-zone rifles). Its SWEEP_DETECTORS row is
+# deleted; phase carries NO structural form, so the lane rides a BYTE-IDENTICAL kept
+# WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope 'opponents') —
+# the seven arms' `[^.]*` spans never cross a clause, so flat-over-kept_oracle ==
+# per-clause == the deleted producer's 33 commander-legal fires EXACTLY. This mined
+# regex survives as a shared constant so signal_specs hand-registers the serve pool
+# reusing it AND the kept mirror reuses it — serve / mirror / (now-deleted) detector
+# never drift. SWEEP_LABELS still carries the human label. CR DD9 (heist) / 613.1b
+# (control-changing effects).
+THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|search (?:that player|target opponent|an opponent|each opponent)'?s? graveyard, hand,? and library|\\bheist\\b"
 # ADR-0027 tranche2-B (t2b3-B) — opponent_counter_grant migrated to the Card IR. Its
 # SWEEP_DETECTORS row is deleted (structural read: a detrimental bounty/stun counter on
 # an opponent's permanent). This mined regex survives as a shared constant so
@@ -1794,14 +1806,11 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "put (?:two|three|\\w+) cards? from your hand on top of your library|on top of your library in any order",
     },
-    {
-        "key": "theft_matters",
-        "scope": "opponents",
-        "is_widen_of": "gain_control",
-        # \bheist\b — the Arena keyword action that exiles cards from a target
-        # opponent's library and lets you cast them (theft / cast-what-you-don't-own).
-        "regex": "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|search (?:that player|target opponent|an opponent|each opponent)'?s? graveyard, hand,? and library|\\bheist\\b",
-    },
+    # ADR-0027: theft_matters migrated to the Card IR (its SWEEP_DETECTORS row deleted).
+    # The lane fires from a BYTE-IDENTICAL kept WORD MIRROR (THEFT_MATTERS_REGEX above,
+    # in signals._IR_KEPT_DETECTORS, scope 'opponents', HIGH) — phase carries no
+    # structural steal-and-cast form. SWEEP_LABELS keeps the human label; the serve spec
+    # stays hand-registered in signal_specs.py reusing THEFT_MATTERS_REGEX.
     {
         "key": "cast_as_named_card",
         "scope": "you",

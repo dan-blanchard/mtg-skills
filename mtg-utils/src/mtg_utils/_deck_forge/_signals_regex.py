@@ -60,6 +60,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     STAX_TAXES_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
+    THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     UNSPENT_MANA_REGEX,
@@ -3224,6 +3225,24 @@ _UNSPENT_MANA_PLAN_MIRROR = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 # reminder-stripped clauses), byte-identical to its per-clause input (`gain control of`
 # never crosses a sentence, so full-text == per-clause). CR 903.10a / 800.4a.
 _GAIN_CONTROL_PLAN_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated theft_matters key. The deleted
+# SWEEP_DETECTORS producer fired HIGH-confidence (forced scope 'opponents') and counted
+# toward `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+# steal-and-cast body (Etali, Sen Triplets, Nicol Bolas God-Pharaoh, Plargg and Nassari,
+# Strago and Relm — a steal engine is no vanilla beater; theft IS a plan). UNLIKE a
+# byte-identical _VOLTRON_SILENCING_PLAN_KEYS entry, the migrated theft_matters lane
+# ALSO carries 337 LOW-confidence sibling cross-opens (the gain_control / don't-own
+# facade) that NEVER fed has_other_plan (LOW isn't counted) — a set entry would
+# over-silence voltron on the gain_control vanilla-beater commanders riding only that
+# LOW tell (Gilded Drake, Chromeshell Crab, Wild Mammoth, Thoughtbound Primoc). So this
+# BYTE-IDENTICAL
+# gate mirror (THEFT_MATTERS_REGEX — the EXACT deleted SWEEP pattern) re-supplies the
+# has_other_plan silence for ONLY the 33 HIGH steal-and-cast bodies the deleted producer
+# caught, restoring the OLD producer's exact silence set (FILE-SWAP voltron delta 0).
+# Matched against reminder-STRIPPED `text` (the deleted SWEEP producer ran per-clause
+# over reminder-stripped clauses); the seven arms' `[^.]*` never cross a clause, so
+# full-text == per-clause == 33. CR 903.10a / DD9 (heist) / 613.1b (control-changing).
+_THEFT_MATTERS_PLAN_MIRROR = re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated ltb_matters key. The deleted
 # SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a leaves-
@@ -5222,6 +5241,17 @@ def extract_signals(
         # STRIPPED `text` (the deleted producer ran per-clause over stripped clauses).
         # CR 903.10a.
         or _GAIN_CONTROL_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted theft_matters SWEEP producer (HIGH-confidence
+        # scope 'opponents', feeding has_other_plan — a steal-and-cast engine is no
+        # vanilla beater). The migrated lane carries LOW-confidence sibling cross-opens
+        # on 337 cards that never fed has_other_plan, so this byte-identical gate mirror
+        # — NOT _VOLTRON_SILENCING_PLAN_KEYS — re-supplies the silence for ONLY the 33
+        # HIGH steal-and-cast bodies the deleted SWEEP regex caught, without over-
+        # silencing the gain_control vanilla-beater commanders (Gilded Drake) riding
+        # only the LOW theft cross-open. Matched against the reminder-STRIPPED `text`
+        # (the deleted SWEEP Detector ran per-clause over stripped clauses; the arms'
+        # `[^.]*` never cross a clause, so full-text == per-clause == 33). CR 903.10a.
+        or _THEFT_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted ltb_matters SWEEP producer (HIGH-
         # confidence scope 'you', feeding has_other_plan — a leaves-the-battlefield
         # engine is no vanilla beater). The migrated lane rides a BROADER structural arm

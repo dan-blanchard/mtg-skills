@@ -201,18 +201,22 @@ def extract_signals_hybrid(
     # gain_control for the 13 "don't own" payoff commanders the hybrid dropped (no
     # structural form). Matches the spell_copy reconciliation pattern above. CR 800.4a.
     if include_membership:
-        regex_keys = {s.key for s in regex_signals}
         gc_now = "gain_control" in out_keys
         dont_own = re.search(
             r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own",
             get_oracle_text(record) or "",
             re.IGNORECASE,
         )
-        if (
-            gc_now
-            and "gain_control" not in regex_keys
-            and "theft_matters" not in out_keys
-        ):
+        # theft_matters now ALSO migrates (the HIGH SWEEP steal-and-cast cards ride the
+        # IR kept mirror), so the hybrid drops EVERY regex theft_matters — including the
+        # LOW-confidence sibling cross-open the regex include_membership path fired
+        # whenever a body had gain_control OR rewarded permanents "you don't own". The
+        # IR re-supplies ONLY the HIGH SWEEP cards, so re-run that regex cross-open
+        # condition against the MERGED key set (gain_control in out_keys — from the IR
+        # arm or this reconciliation — OR dont_own) to restore the LOW sibling on the
+        # 337 battlefield-steal + 18 don't-own cards. Mirrors the regex producer at
+        # _signals_regex.py (`if gain_control in keys_now or dont_own: add theft LOW`).
+        if (gc_now or dont_own) and "theft_matters" not in out_keys:
             out.append(
                 Signal(
                     "theft_matters", "opponents", "", "", record.get("name", ""), "low"
@@ -585,6 +589,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # 47, 0 broadening, 0 ir_only), matching the arcane_matters / land_sacrifice_
         # matters kept-mirror precedent. A NO-FLOOD voltron entry. CR 700.9 / 903.10a.
         "modified_matters",
+        # NB (ADR-0027): theft_matters is NOT added here. Its HIGH SWEEP producer fed
+        # has_other_plan pre-migration, BUT this silencing set is too COARSE for it: the
+        # hybrid carries LOW-confidence theft_matters cross-opens (the gain_control /
+        # don't-own sibling facade) on 337 cards that never fed has_other_plan (LOW is
+        # not counted), and a _VOLTRON_SILENCING_PLAN_KEYS entry would silence voltron
+        # on ALL of them — including genuine gain_control vanilla-beater commanders
+        # whose ONLY high plan is the IR gain_control rider (Gilded Drake, Chromeshell
+        # Crab, Wild Mammoth, Thoughtbound Primoc — 4 leaked voltron with theft here).
+        # Instead the HIGH SWEEP cards re-silence via the byte-identical
+        # _THEFT_MATTERS_PLAN_MIRROR fed into has_other_plan on the regex side
+        # (signals_regex), which matches ONLY the 33 HIGH steal-and-cast bodies the
+        # deleted SWEEP regex caught — NOT the LOW cross-opens — so voltron is byte-
+        # identical (base==after; the LOW-carrying gain_control beaters keep the tell).
+        # Matches the anthem_static / aoe_ping / mass_removal *_PLAN_MIRROR precedent (a
+        # coarse set entry would over-silence). CR DD9 / 613.1b / 903.10a.
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an

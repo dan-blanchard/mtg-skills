@@ -2606,6 +2606,9 @@ def test_three_zone_opponent_search_opens_theft():
     # hand, and library ... and exile them ... you may play one of the exiled cards") —
     # unambiguous steal-and-cast theft, but the detector keyed only on top-of-library
     # forms, so Kotose missed the theft payoffs (Gonti, Praetor's Grasp). Real oracle.
+    # ADR-0027: theft_matters migrated to the Card IR (a byte-identical THEFT_MATTERS_
+    # REGEX kept mirror over the reminder-stripped oracle), so it serves from the hybrid
+    # path, not pure regex.
     kotose = {
         "name": "Kotose, the Silent Spider",
         "type_line": "Legendary Creature — Human Ninja",
@@ -2618,9 +2621,9 @@ def test_three_zone_opponent_search_opens_theft():
             "though it were mana of any color to cast it."
         ),
     }
-    assert "theft_matters" in _keys(kotose)
+    assert "theft_matters" in _keys_hybrid(kotose)
     # Over-fire guard: searching YOUR OWN library is not theft.
-    assert "theft_matters" not in _keys(
+    assert "theft_matters" not in _keys_hybrid(
         {"name": "X", "oracle_text": "Search your library for a card."}
     )
 

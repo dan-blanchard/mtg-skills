@@ -40,6 +40,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SWEEP_DETECTORS,
     SWEEP_LABELS,
     TARGET_PLAYER_DRAWS_REGEX,
+    THEFT_MATTERS_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
@@ -1430,9 +1431,11 @@ _IMPULSE_SWEEP_REGEX = (
     r"|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled"
     r"|you may look at (?:it )?and (?:play|cast)"
 )
-_THEFT_SWEEP_REGEX = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "theft_matters"
-)
+# ADR-0027: theft_matters migrated to the Card IR (its SWEEP_DETECTORS row deleted).
+# The serve pool stays oracle-defined, so it reuses the shared THEFT_MATTERS_REGEX
+# constant (the EXACT deleted detector regex) — serve and the kept-mirror detector
+# never drift.
+_THEFT_SWEEP_REGEX = THEFT_MATTERS_REGEX
 _DISCARD_OUTLET_SWEEP_REGEX = next(
     d["regex"] for d in SWEEP_DETECTORS if d["key"] == "discard_outlet"
 )

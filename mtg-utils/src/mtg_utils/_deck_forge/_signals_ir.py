@@ -87,6 +87,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     STAX_TAXES_REGEX,
     SYMMETRIC_STAX_REGEX,
+    THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
     TOUGHNESS_COMBAT_REGEX,
@@ -815,6 +816,33 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "land_sacrifice_matters",
         re.compile(LAND_SACRIFICE_REGEX, re.IGNORECASE),
         "you",
+    ),
+    # ADR-0027 — theft_matters BYTE-IDENTICAL kept WORD MIRROR (STEAL an OPPONENT's
+    # cards and CAST/PLAY them: the impulse-from-opponent steal-and-cast engines —
+    # "target/each opponent exiles cards from the top of their library … you may cast
+    # that card" (Stolen Goods, Etali, Nicol Bolas God-Pharaoh, Plargg and Nassari),
+    # the heist Arena keyword action (\bheist\b, CR DD9), the play-from-opponent's-hand
+    # forms (Sen Triplets), and the name-strip three-zone rifles — "search target
+    # opponent's graveyard, hand, and library … exile them" (Slaughter Games, Lobotomy,
+    # Unmoored Ego; CR 613.1b control-changing-effects archetype). phase carries NO
+    # structural steal-and-cast form: over the commander-legal corpus (floor-disabled,
+    # by oracle_id) the structural IR emits theft_matters on ZERO cards — there is no
+    # structural `add("theft_matters")` anywhere — so the lane fired ONLY from the
+    # deleted SWEEP regex (33 commander-legal, all scope 'opponents' HIGH). This
+    # THEFT_MATTERS_REGEX (the EXACT deleted SWEEP pattern) run FLAT over the reminder-
+    # stripped kept_oracle reproduces the deleted per-clause producer BYTE-IDENTICALLY
+    # (the seven arms' `[^.]*` never cross a clause; flat==per-clause==33, floor-
+    # disabled residual both==33 / regex_only==0 / ir_only==0). The 337 LOW-conf
+    # theft_matters in the hybrid ride the gain_control sibling cross-open (signals.py
+    # facade) + the regex `dont_own` membership — independent of this producer. The
+    # deleted producer fired HIGH (scope 'opponents', not generic/voltron-compat), so it
+    # fed has_other_plan; the hybrid re-silences voltron via the byte-identical
+    # _THEFT_MATTERS_PLAN_MIRROR (signals_regex) — NOT a coarse silencing-set entry,
+    # which would over-silence the LOW-carrying gain_control beaters. CR DD9 / 613.1b.
+    (
+        "theft_matters",
+        re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE),
+        "opponents",
     ),
     # ADR-0027 — cast_from_exile BYTE-IDENTICAL kept WORD MIRROR (the CAST/PLAY-FROM-
     # EXILE build-around: payoffs and enablers that cast or play cards FROM EXILE —
@@ -2345,7 +2373,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # `_STARTING_LIFE_REF` "starting life total" compare marker, CR 103.4). The
         # broad regex over-fired on unrelated life thresholds (Elderscale Wurm,
         # Sigarda's Splendor), which the tight IR marker drops. Its SWEEP row is gone.
-        "theft_matters",
+        # theft_matters removed — ADR-0027 migrated it to the Card IR via a BYTE-
+        # IDENTICAL kept WORD MIRROR (THEFT_MATTERS_REGEX in _IR_KEPT_DETECTORS, scope
+        # 'opponents', HIGH conf). phase carries NO structural steal-and-cast form, so
+        # the lane fires SOLELY from the kept mirror — it no longer needs the regex
+        # floor (its SWEEP_DETECTORS row is deleted; floor 32→31). The 337 LOW-conf
+        # cross-opens ride the gain_control sibling facade (signals.py), independent of
+        # this producer. CR DD9 (heist) / 613.1b.
         # mass_death_payoff removed — ADR-0027 migrated it to the Card IR (a
         # `_MASS_DEATH_REF` "creatures that died this turn" count-operand marker). Its
         # _HAND_FLOOR detector is deleted.

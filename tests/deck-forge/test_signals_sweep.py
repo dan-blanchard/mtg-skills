@@ -50,8 +50,12 @@ def test_sweep_detectors_loaded():
     # kept word mirror in _signals_ir for the "X = cards in your hand" P/T payoffs), then
     # 33→32 as flash_grant's row was deleted (ADR-0027 — migrated to the
     # cast_with_keyword{flash} structural arm + a byte-identical FLASH_GRANT_REGEX kept
-    # word mirror in _signals_ir for the activated/conditional grant + self-flash tail).
-    assert len(SWEEP_DETECTORS) >= 32
+    # word mirror in _signals_ir for the activated/conditional grant + self-flash tail),
+    # then 32→31 as theft_matters's row was deleted (ADR-0027 — migrated to a byte-
+    # identical THEFT_MATTERS_REGEX kept word mirror in _signals_ir for the steal-and-
+    # cast / heist / name-strip-three-zone steal payoffs phase carries no structural
+    # form for).
+    assert len(SWEEP_DETECTORS) >= 31
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

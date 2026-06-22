@@ -6005,6 +6005,30 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # theft_matters ← the byte-identical THEFT_MATTERS_REGEX kept WORD MIRROR in
+    # _IR_KEPT_DETECTORS for the STEAL-an-opponent's-cards-and-CAST-them archetype (the
+    # impulse-from-opponent steal-and-cast engines, the heist Arena keyword action, the
+    # name-strip three-zone rifles; CR DD9 / 613.1b). phase carries NO structural steal-
+    # and-cast form, so there's no structural arm — the mirror reads the reminder-
+    # stripped oracle_text off the record dict. Stolen Goods is the canonical clean
+    # steal-and-cast spell ("Target opponent exiles cards from the top of their library
+    # … you may cast that card"); it does NOT carry "don't own" text, so the regex
+    # path's gain_control / don't-own sibling cross-open never fires it — only the
+    # deleted SWEEP producer did. A bare non-None IR routes the hybrid to the IR path;
+    # the regex path no longer emits the key (the SWEEP_DETECTORS row is deleted). scope
+    # "opponents". ADR-0027.
+    "theft_matters": (
+        {
+            "name": "Stolen Goods",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Target opponent exiles cards from the top of their library until "
+                "they exile a nonland card. Until end of turn, you may cast that card "
+                "without paying its mana cost."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

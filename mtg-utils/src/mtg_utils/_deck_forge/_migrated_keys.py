@@ -4350,6 +4350,61 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # independent of these regexes and survives. CR 700.9 / 122 / 301.5 / 303.4 /
         # 613.4c / 903.10a.
         "modified_matters",
+        # ADR-0027 — theft_matters (STEAL an OPPONENT's cards and CAST/PLAY them: the
+        # impulse-from-opponent steal-and-cast engines (Stolen Goods, Etali, Nicol
+        # Bolas God-Pharaoh, Sen Triplets — "exiles cards from the top of their
+        # library … you may cast that card"), the heist Arena keyword action (CR DD9),
+        # and the name-strip three-zone rifles (Slaughter Games, Lobotomy, Unmoored
+        # Ego — "search target opponent's graveyard, hand, and library … exile them").
+        # MIGRATED VIA A BYTE-IDENTICAL kept WORD MIRROR (signals-only, NO sidecar
+        # bump) — NOT a structural arm.
+        #
+        # phase carries NO STRUCTURAL FORM for this lane. FLOOR-DISABLED residual over
+        # the commander-legal corpus (by oracle_id, _IR_FLOOR_LANES=frozenset()): the
+        # structural IR emits theft_matters on ZERO cards. There is no
+        # `add("theft_matters", ...)` structural arm anywhere in extract_signals_ir —
+        # the lane fired SOLELY from the deleted SWEEP producer (33 commander-legal
+        # cards, ALL scope 'opponents', HIGH confidence). It was an _IR_FLOOR_LANE (the
+        # production floor re-ran the SWEEP regex on the IR path); both the floor
+        # membership and the SWEEP_DETECTORS row are removed.
+        #
+        # BYTE-IDENTICAL KEPT WORD MIRROR. The deleted producer was a per-card Detector
+        # run PER-CLAUSE over the reminder-stripped, DFC-joined oracle. The EXACT
+        # pattern (THEFT_MATTERS_REGEX, pinned in _sweep_detectors) run FLAT over the
+        # same reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS
+        # loop (scope 'opponents', HIGH conf) reproduces the deleted producer BYTE-
+        # IDENTICALLY: the seven arms' `[^.]*` anchors never cross a clause boundary
+        # (commander-legal: flat==per-clause==33, 0 gain, 0 loss; floor-disabled
+        # residual: both==33, regex_only==0, ir_only==0). The SWEEP row is deleted
+        # (detector floor 32→31); SWEEP_LABELS["theft_matters"] and the hand-registered
+        # serve spec (signal_specs.py — _THEFT_SWEEP_REGEX, pinned verbatim) are
+        # independent of the producer and survive.
+        #
+        # CROSS-OPEN RECONCILIATION (facade). The 337 LOW-conf theft_matters firings in
+        # the hybrid are NOT this lane's producer — they ride the gain_control sibling
+        # cross-open (signals.py reconciliation: when the migrated IR supplies
+        # gain_control, open a LOW theft_matters) plus the regex `dont_own` membership
+        # path. Both are independent of the SWEEP producer and untouched here, so the
+        # 337 LOW survive byte-for-byte. Only the 33 HIGH steal-and-cast firings move
+        # from the SWEEP floor to the kept mirror.
+        #
+        # SCOPE PARITY. The deleted producer forced scope 'opponents' / HIGH conf; the
+        # mirror fires scope 'opponents' / HIGH conf — 0 scope/confidence mismatches
+        # over the 33 both-fire cards.
+        #
+        # VOLTRON. The deleted producer fired HIGH (scope 'opponents', NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), so it fed has_other_plan, silencing the
+        # spurious commander-damage voltron tell on a steal commander (Etali, Sen
+        # Triplets, Nicol Bolas, Plargg and Nassari — a steal-and-cast engine is no
+        # vanilla beater). Because the IR re-supply IS this byte-identical mirror
+        # (IR==regex==33), the hybrid re-silences via _VOLTRON_SILENCING_PLAN_KEYS
+        # (signals.py) — no broadening, no over-silence — matching the
+        # second_spell_matters / land_sacrifice_matters kept-mirror precedent. FILE-SWAP
+        # no-flood (base 24c8eb1 vs edits, baked sidecar, commander-legal, hybrid path):
+        # theft_matters BYTE-IDENTICAL (370 → 370); voltron_matters delta 0
+        # (3010 → 3010); siblings gain_control / donate_matters / clone_matters /
+        # removal_matters drift 0. CR DD9 (heist) / 613.1b (control-changing) / 903.10a.
+        "theft_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

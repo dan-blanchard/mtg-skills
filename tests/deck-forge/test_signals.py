@@ -2291,6 +2291,9 @@ def test_artifact_entered_condition_opens_artifacts():
 def test_heist_opens_theft():
     # Heist (Arena keyword) steals + casts an opponent's cards — a theft payoff
     # the detector missed. Grenzo, Crooked Jailer / Axavar / Mr. Monopoly.
+    # ADR-0027: theft_matters migrated to the Card IR (a byte-identical THEFT_MATTERS_
+    # REGEX kept mirror over the reminder-stripped oracle), so it serves from the hybrid
+    # path, not pure regex.
     card = {
         "name": "Grenzo, Crooked Jailer",
         "type_line": "Legendary Creature — Goblin Rogue",
@@ -2301,7 +2304,7 @@ def test_heist_opens_theft():
             "3 or less."
         ),
     }
-    assert ("theft_matters", "opponents") in _keys(card)
+    assert ("theft_matters", "opponents") in _keys_hybrid(card)
 
 
 # ── Long-tail batch 3 (voltron / noncombat-engine / drain) ────────────────────
