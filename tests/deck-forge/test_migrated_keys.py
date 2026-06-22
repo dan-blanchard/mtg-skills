@@ -4703,6 +4703,44 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β — activated_ability: a card whose ENGINE is a MEANINGFUL activated
+    # ability. The Scarab God is the load-bearing case for BOTH discriminators that kill
+    # the deleted regex's land/mana flood: its {2}{U}{B} cost projects to
+    # cost='genericmana,mana' (the SIDECAR-v15 genericmana token — distinct from a
+    # colored-only firebreathing {R}: cost the regex's generic branch excluded), and its
+    # effects are 'exile'+'make_token' (NON-ramp — proving the is_mana_ability gate: a
+    # {T}: Add mana ability projects ONLY 'ramp' and is dropped). The arm fires the lane
+    # scope "you" off this ability; the deleted regex's bare cost shape would also have
+    # fired on every basic land / Sol Ring / mana dork's "{T}: Add", which the arm now
+    # excludes. The regex path no longer fires activated_ability at all (row deleted).
+    "activated_ability": (
+        {
+            "name": "The Scarab God",
+            "type_line": "Legendary Creature — God",
+            "oracle_text": (
+                "At the beginning of your upkeep, each opponent loses X life "
+                "and you scry X, where X is the number of Zombies you control.\n"
+                "{2}{U}{B}: Exile target creature card from a graveyard. Create "
+                "a token that's a copy of it, except it's a 4/4 black Zombie.\n"
+                "When The Scarab God dies, return it to its owner's hand at the "
+                "beginning of the next end step."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="genericmana,mana",
+                effects=(
+                    Effect(category="exile", scope="any", raw="exile target"),
+                    Effect(
+                        category="make_token",
+                        scope="you",
+                        raw="create a token that's a copy",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

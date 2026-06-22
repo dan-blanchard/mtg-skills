@@ -1860,6 +1860,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             # creature (the v14 single_target_grant marker — project._single_target_
             # keyword_grant_markers). Distinct from the team/anthem grant lanes above.
             "keyword_grant_target",
+            # ADR-0027 β — activated_ability: a card whose engine is a MEANINGFUL
+            # activated ability (the {T}:/{Q}: or generic-mana-cost ability). The arm
+            # gates on is_mana_ability (Mana effect → 'ramp', dropped) + the SIDECAR-v15
+            # 'genericmana' cost token so the land/rock/dork flood is impossible.
+            "activated_ability",
             # Batch 2 (per-lane) — discard OUTLET cost (self-discard split out):
             "discard_outlet",
             # Batch 2 (per-lane) — top-of-library stacking (position-gated):
@@ -3469,6 +3474,34 @@ def _token_kindred_subject(f: object, vocab: frozenset[str]) -> str | None:
 # / the linked return IS the discriminator vs permanent exile.
 _EXILE_UNTIL_LEAVES_RAW = re.compile(
     r"until [^.]*leaves the battlefield", re.IGNORECASE
+)
+
+
+# ADR-0027 β — activated_ability arm tuning constants (see extract_signals_ir).
+# Effect categories that mark a NON-engine activated ability: 'ramp' (phase's Mana
+# effect — the {T}: Add / mana-dork flood — is_mana_ability, CR 605.1a) and 'attach'
+# (equip, an Attach the deleted regex never matched). An activated ability whose every
+# effect is one of these is NOT the meaningful engine the lane wants.
+_ACTIVATED_ABILITY_DROP_EFFECTS: frozenset[str] = frozenset({"ramp", "attach"})
+# Additional-cost tokens (CR 601.2g) that EXCLUDE a generic-mana-cost ability from the
+# arm's mana branch: the deleted regex's generic branch ({(?:\d+|x)\}[^.\n]{0,18}:) had
+# an 18-char window that dropped one-shots with a sac/discard/exile/etc additional cost
+# ("{3}{B}, Sacrifice this: …"). A 'tap'/'untap' anchor OVERRIDES this (the regex's
+# {T}:/{Q}: branch fired regardless of an extra cost — Arcum's {T}, Crackleburr's {Q}).
+_ACTIVATED_ABILITY_EXTRA_COSTS: frozenset[str] = frozenset(
+    {
+        "sacrifice",
+        "sacself",
+        "discard",
+        "discardself",
+        "exile",
+        "exilegrave",
+        "paylife",
+        "removecounter",
+        "mill",
+        "return",
+        "reveal",
+    }
 )
 
 
@@ -5427,6 +5460,52 @@ def extract_signals_ir(
                 card.get("oracle_text") or ""
             ):
                 add("counters_matter", "you", "", "")
+            # ADR-0027 β — activated_ability (formerly a bare-cost _DETECTORS regex):
+            # a card whose engine is a MEANINGFUL activated ability — the {T}:/{Q}:
+            # or generic-mana-cost ability ({2}{U}{B}: …, {8}:, {X}: …) a tap-engine
+            # commander deck supports with cost reducers (Training Grounds), untappers
+            # + haste-for-abilities (Thousand-Year Elixir), and ability copiers (Rings
+            # of Brighthearth). The deleted regex fired on the COST SHAPE alone, which
+            # FLOODED on every land/rock/dork's "{T}: Add {mana}" mana ability (Forest,
+            # Sol Ring, Llanowar Elves all matched `{t}:`). Two structural
+            # discriminators kill the flood WITHOUT a recall loss:
+            #   1. is_mana_ability — phase's Mana effect projects to category 'ramp',
+            #      so a mana ability has ONLY ramp/attach effects; gating on >=1
+            #      NON-ramp, NON-attach effect drops the mana flood (and equip, an
+            #      Attach the regex never matched). CR 605.1a (mana ability).
+            #   2. genericmana (SIDECAR v15) — the `mana`-only branch fires only on a
+            #      cost carrying a GENERIC numeral / {0} / {X}, never a
+            #      colored-/hybrid-/snow-ONLY firebreathing cost ({R}: +1/+0), which
+            #      the regex's generic branch ({(?:\d+|x)\}) excluded (firebreathing
+            #      has its own pump lane). An additional sac/discard/exile cost on the
+            #      mana branch is excluded too — the regex's 18-char window dropped
+            #      those one-shots ({3}{B}, Sacrifice this: …); a 'tap'/'untap' cost
+            #      overrides (the {T}:/{Q}: anchor fired regardless). CR 602.1a.
+            # Fire scope "you" — the deleted high-confidence _DETECTORS row hard-forced
+            # scope "you" for ALL matches (its firing identity). +recall over the
+            # word-order regex: generic-mana engines past the 18-char window (the
+            # Moonfolk land-bounce cycle — Meloku, Soratami/Oboro/Uyo; the Eldrazi
+            # processors — Oracle of Dust, Void Attendant; tap-untapped-creatures value
+            # — Sigil Tracer, Volrath's Gardens; Tenth District Hero, Rootha, Zareth
+            # San). NO kept mirror: a byte-identical mirror re-floods on dorks; the
+            # quoted-board-grant tail ("Creatures you control have '{T}: …'" — Magma
+            # Sliver, Ghired) is the sibling global_ability_grant lane's concern (most
+            # already fire it). CR 602.1a.
+            _aa_cost = cost_parts
+            _aa_tapish = bool(_aa_cost & {"tap", "untap"})
+            _aa_genmana = "genericmana" in _aa_cost and not (
+                _aa_cost & _ACTIVATED_ABILITY_EXTRA_COSTS
+            )
+            if (
+                ab.kind == "activated"
+                and not card_is_land
+                and (_aa_tapish or _aa_genmana)
+                and any(
+                    e.category not in _ACTIVATED_ABILITY_DROP_EFFECTS
+                    for e in ab.effects
+                )
+            ):
+                add("activated_ability", "you", "", "")
         # aoe_ping (ADR-0027): a REPEATABLE "damage to each creature" board ping — with
         # deathtouch on the source every ping is lethal (CR 702.2b), a recurring
         # one-sided wipe (Pestilence, Pyrohemia, Tibor and Lumia). The damage half is

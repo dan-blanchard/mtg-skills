@@ -83,7 +83,18 @@ from mtg_utils.card_ir import Card
 #     keyword_grant_target lane was DEFERRED on). project._single_target_keyword_grant_
 #     markers re-surfaces the target so the lane fires ONLY on single-target creature
 #     grants. ADR-0027 β. CR 700.2.
-SIDECAR_VERSION = 14
+# v15: an ACTIVATED ability whose mana cost carries a GENERIC numeral ({0}/{N}) or an
+#     {X} now surfaces a `genericmana` token on Ability.cost (alongside the bare `mana`
+#     token, which is unchanged). phase keeps the activation cost on `cost.cost` as
+#     {shards:[…], generic:N}, but _cost_string previously collapsed every mana cost to
+#     the single coarse `mana` token — erasing the generic-vs-colored distinction the
+#     deleted activated_ability regex's generic branch ({(?:\d+|x)\}) relied on. The
+#     `genericmana` token lets the activated_ability arm fire on a clean generic-mana
+#     engine ({2}{U}{B}: …, {8}:, {X}: …) while staying off colored-/hybrid-/snow-ONLY
+#     firebreathing ({R}: +1/+0, {G/W}:, {S}:), which the regex excluded (firebreathing
+#     has its own pump lane). Additive (every existing `mana`-substring check is
+#     unaffected). ADR-0027 β. CR 602.1a.
+SIDECAR_VERSION = 15
 
 
 def card_ir_dir() -> Path:

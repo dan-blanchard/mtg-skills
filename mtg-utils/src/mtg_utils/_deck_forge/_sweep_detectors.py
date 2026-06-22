@@ -113,6 +113,20 @@ GLOBAL_ABILITY_GRANT_REGEX = 'all (?:artifacts|creatures|lands|permanents) have 
 # IR arm (the single_target_grant marker in _signals_ir — project._single_target_keyword_
 # grant_markers), not this regex.
 KEYWORD_GRANT_TARGET_REGEX = "target creature (?:you control )?(?:gains?|gets [+\\-][0-9x]/[+\\-][0-9x] and gains?) (?:deathtouch|trample|flying|menace|vigilance|double strike|first strike|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)"
+# ADR-0027 β — activated_ability migrated regex→Card IR. The lane is a card whose ENGINE
+# is a MEANINGFUL activated ability (the {T}:/{Q}: or generic-mana-cost ability a tap-
+# engine commander deck supports with cost reducers / untappers / ability copiers). The
+# EXACT deleted _DETECTORS regex survives here as the byte-identical voltron PLAN mirror
+# (it fired high-confidence scope 'you', feeding has_other_plan) — see
+# _ACTIVATED_ABILITY_PLAN_MIRROR in _signals_regex. The lane's FIRING now comes from the
+# structural arm in extract_signals_ir (an Ability kind=='activated', cost shape tap/
+# untap/genericmana, >=1 NON-ramp/attach effect — the is_mana_ability + SIDECAR-v15
+# genericmana discriminators kill the land/rock/dork flood the bare cost-shape regex
+# matched). The serve spec is its OWN hand-registered curated search pool (signal_specs)
+# — independent of this regex, like gain_control. CR 602.1a / 903.10a.
+ACTIVATED_ABILITY_REGEX = (
+    "\\{t\\}\\s*[,:]|\\{q\\}\\s*[,:]|\\{(?:\\d+|x)\\}[^.\\n]{0,18}:"
+)
 # ADR-0027 β — debuff_matters migrated to the Card IR; both deleted regex producers
 # (the SWEEP row + the Maha opponent-shrink _DETECTORS row) survive here as shared
 # constants. The structural arm fires from the projection's negative-pump (factor<0) /

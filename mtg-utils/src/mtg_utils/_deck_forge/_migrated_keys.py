@@ -1545,6 +1545,84 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # registered in signal_specs.py reusing the EXACT deleted regex (pinned as
         # KEYWORD_GRANT_TARGET_REGEX). CR 700.2 / 903.10a (voltron).
         "keyword_grant_target",
+        # ADR-0027 β — activated_ability (formerly a bare-cost-shape _DETECTORS
+        # regex): a card whose ENGINE is a MEANINGFUL activated ability — the
+        # {T}:/{Q}: or generic-mana-cost ability ({2}{U}{B}: …, {8}:, {X}: …) a
+        # tap-engine commander deck supports with cost reducers (Training Grounds),
+        # untappers + haste-for-abilities (Thousand-Year Elixir), and ability
+        # copiers (Rings of Brighthearth). The deleted _DETECTORS regex
+        # (`\{t\}…|\{q\}…|\{(?:\d+|x)\}…:`) fired on the COST SHAPE alone,
+        # which FLOODED on EVERY land/rock/dork's "{T}: Add {mana}" mana ability —
+        # Forest, Sol Ring, Llanowar Elves, Birds, Gilded Lotus, Arcane Signet all
+        # matched `{t}:` (6474 commander-legal regex firings, ~half the mana flood).
+        # The lane wants MEANINGFUL activated-ability engines, NOT mana abilities.
+        #
+        # TWO STRUCTURAL DISCRIMINATORS (no recall loss):
+        #   1. is_mana_ability — phase's Mana effect projects to Effect.category
+        #      'ramp', so a mana ability has ONLY ramp/attach effects; the arm
+        #      gates on >=1 NON-ramp, NON-attach effect, dropping the mana flood
+        #      (and equip — an Attach the cost-shape regex never matched, no `:`
+        #      after "Equip {2}"). CR 605.1a.
+        #   2. genericmana (SIDECAR v14→v15) — _cost_string previously collapsed
+        #      every mana cost to one coarse 'mana' token, erasing the
+        #      generic-vs-colored distinction the regex's generic branch
+        #      ({(?:\d+|x)\}) relied on. v15 adds a 'genericmana' token (additive
+        #      — every 'mana'-substring check is unaffected; two-sidecar drift==0)
+        #      iff the cost carries a GENERIC numeral / {0} / {X}; the arm's mana
+        #      branch fires only on it, never on colored-/hybrid-/snow-ONLY
+        #      firebreathing ({R}: +1/+0, {G/W}:, {S}:), which the regex excluded
+        #      (firebreathing has its own pump lane). An additional
+        #      sac/discard/exile cost on the mana branch is excluded (the regex's
+        #      18-char window dropped those one-shots — "{3}{B}, Sacrifice this:
+        #      …"); a 'tap'/'untap' anchor overrides (the regex's {T}:/{Q}: branch
+        #      fired regardless of an extra cost). CR 602.1a.
+        # Lands are excluded (card_is_land) — the lane is the creature/permanent
+        # engine the support package suits up, not a manland's animate ability.
+        #
+        # STRUCTURAL ARM (extract_signals_ir), scope "you" — the deleted _DETECTORS
+        # row hard-forced scope "you" for ALL matches (its firing identity). NO
+        # sidecar marker category: the arm reads the EXISTING projected Ability
+        # (kind=='activated', cost tap/untap/genericmana, effect categories) — the
+        # v15 change is only the additive genericmana cost token. NO kept mirror: a
+        # byte-identical mirror re-floods on dorks (their "{T}: Add" is OUTSIDE
+        # parens, so reminder-stripping doesn't remove it), and a narrowed
+        # quoted-grant mirror leaks granted-mana via the comma-form ("{T},
+        # Sacrifice: Add mana") while adding 0 to ir_only — the quoted-board-grant
+        # tail (Magma Sliver, Sliver lords, Ghired) is the sibling
+        # global_ability_grant lane's concern (most already fire it), so the arm's
+        # "card's OWN engine ability" boundary legitimately leaves them there.
+        #
+        # GATES. Floor-disabled residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), arm vs deleted regex): both==4024,
+        # ir_only==43 (pure recall gain, verified real vs Scryfall — the Moonfolk
+        # land-bounce cycle Meloku/Soratami/Oboro/Uyo; the Eldrazi processors Oracle
+        # of Dust/Void Attendant; tap-untapped-creatures value Sigil
+        # Tracer/Volrath's Gardens/Symbiotic Deployment; Tenth District Hero,
+        # Rootha, Zareth San — all generic-mana engines past the 18-char window),
+        # 0 over-fire (no ir_only card lacks a real meaningful activated ability).
+        # regex_only==2450 is 100% over-fire/out-of-lane: reminder-text token-makers
+        # (642), lands incl. manlands (1043), and the mana/colored/sac-for-mana
+        # flood (756 — the regex fired on the MANA ability `{T}: Add`, e.g.
+        # keyrunes/Devoted Druid/Heart Warden) + the tribal/land QUOTED-board-grant
+        # tail (9, the sibling global_ability_grant lane's concern). FLOOD
+        # SPOT-CHECK: Forest / Island / Swamp / Mountain / Plains / Sol Ring /
+        # Llanowar Elves / Birds of Paradise / Arcane Signet / Gilded Lotus / Mana
+        # Vault all fire NEITHER the arm NOR a mirror — the flood is structurally
+        # impossible. floor-mirror-dep == 0 (NOT an _IR_FLOOR_LANE — it was a
+        # _DETECTORS row, firing identical floor ON/OFF). parse_confidence unchanged
+        # (98.7% full both sides, 34118/34562).
+        # The deleted _DETECTORS producer fired HIGH-confidence scope "you" feeding
+        # has_other_plan, so a byte-identical _ACTIVATED_ABILITY_PLAN_MIRROR (over
+        # the reminder-STRIPPED text) re-supplies the voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is both broader (the recall
+        # gains) and narrower (the dropped flood). FILE-SWAP NO-FLOOD (base ff4cc29
+        # v14 vs edits v15, commander-legal): ONLY activated_ability moves;
+        # voltron_matters delta 0. The _DETECTORS row is deleted; the EXACT regex is
+        # pinned as ACTIVATED_ABILITY_REGEX (_sweep_detectors) for the PLAN mirror;
+        # the serve spec stays its OWN hand-registered curated search pool
+        # (signal_specs), independent of this regex (like gain_control).
+        # CR 602.1a / 605.1a / 903.10a (voltron).
+        "activated_ability",
         # ADR-0027 β — debuff_matters (a -1/-1 / toughness-shrink removal-and-payoff
         # lane). The v9 projection carries the debuff structure directly: a -N/-N giver
         # is a `pump` Effect with amount.factor < 0 (Dead Weight / Weakness → factor=-2;

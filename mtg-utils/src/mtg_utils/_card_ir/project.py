@@ -1696,6 +1696,28 @@ def _cost_string(cost: object) -> str | None:
                     "graveyard"
                 ):
                     seen.add("exilegrave")
+            elif t == "mana":
+                # Mana activation cost (CR 602.1a). Surface the bare `mana` token
+                # (every mana cost) AND — ADR-0027 β activated_ability — a `genericmana`
+                # token iff the cost carries a GENERIC numeral ({0}/{N}) or an {X}.
+                # phase keeps the cost on `cost.cost` as {shards, generic}: a generic
+                # numeral is generic>0, an {X} is "X" in shards, and {0} is generic==0
+                # with empty shards. This is the discriminator the coarse `mana` token
+                # drops — it separates a clean generic-mana ability ({2}{U}{B}: …, {8}:,
+                # {X}: …) from a colored-/hybrid-/snow-ONLY firebreathing cost ({R}:
+                # +1/+0, {G/W}:, {S}:), which the deleted activated_ability regex's
+                # generic branch ({(?:\d+|x)\}) excluded (firebreathing has its own pump
+                # lane). The activated_ability arm gates the mana branch on this token.
+                seen.add("mana")
+                inner = node.get("cost")
+                if isinstance(inner, dict):
+                    raw_shards = inner.get("shards")
+                    shards = raw_shards if isinstance(raw_shards, list) else []
+                    raw_generic = inner.get("generic")
+                    generic = raw_generic if isinstance(raw_generic, int) else 0
+                    has_x = "X" in shards
+                    if generic > 0 or has_x or (generic == 0 and not shards):
+                        seen.add("genericmana")
             elif t in _COST_TYPES:
                 seen.add(t)
             for v in node.values():

@@ -26,6 +26,7 @@ from mtg_utils._deck_forge._subtypes import (
 )
 from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
+    ACTIVATED_ABILITY_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -365,19 +366,26 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # supertype CR 205.4 phase doesn't surface as a payoff tag). Its _DETECTORS
     # producer is deleted; the hand-written serve spec (signal_specs.py,
     # serve_types=("snow",)) is independent of this regex and survives.
-    # Activated-ability engine: a commander whose engine is a {T}: (or {Q}:) activated
-    # ability (Arcum, Captain Sisay, Ertai, Kaho, Sanctum Weaver) wants the support
-    # package — cost reducers (Training Grounds), untappers + haste-for-abilities
-    # (Thousand-Year Elixir), and ability copiers (Rings of Brighthearth). The tap
-    # symbol followed by a cost separator (":" or ",") is the activated-ability anchor.
-    # {T}:/{Q}: tap abilities, plus mana-cost activated abilities with a generic-numeral
-    # cost ("{2}{U}{B}: …" — The Scarab God, Kenrith). The generic numeral excludes
-    # cheap colored-only firebreathing ("{R}: +1/+0"), which has its own pump lane.
-    (
-        "activated_ability",
-        _re(r"\{t\}\s*[,:]|\{q\}\s*[,:]|\{(?:\d+|x)\}[^.\n]{0,18}:"),
-        "you",
-    ),
+    # ADR-0027 β — activated_ability migrated regex→Card IR. The lane is a card whose
+    # ENGINE is a MEANINGFUL activated ability (the {T}:/{Q}: or generic-mana-cost
+    # ability a tap-engine commander deck supports with cost reducers — Training
+    # Grounds, untappers + haste-for-abilities — Thousand-Year Elixir, and ability
+    # copiers — Rings of Brighthearth). This bare cost-shape _DETECTORS regex FLOODED
+    # on every land/rock
+    # /dork's "{T}: Add {mana}" mana ability (Forest, Sol Ring, Llanowar Elves all
+    # matched `{t}:`). The migrated structural arm (extract_signals_ir) gates on phase's
+    # is_mana_ability (the Mana effect projects to category 'ramp' — dropped) + the
+    # SIDECAR-v15 'genericmana' cost token (the regex's generic branch excluded colored-
+    # only firebreathing {R}: — fires the mana branch only on a generic-numeral / {0} /
+    # {X} cost), so the flood is structurally impossible. The exact deleted regex is
+    # pinned as ACTIVATED_ABILITY_REGEX (_sweep_detectors); it fired high-confidence
+    # scope 'you' feeding has_other_plan, so a byte-identical _ACTIVATED_ABILITY_PLAN_
+    # MIRROR re-supplies the voltron silence. The serve spec stays its OWN hand-
+    # registered curated search pool (signal_specs), independent of this regex. The IR
+    # arm is BROADER (+recall: generic-mana engines past the 18-char window — the
+    # Moonfolk land-bounce cycle, Eldrazi processors, tap-untapped-creatures value —
+    # Sigil Tracer, Volrath's Gardens), so the plan mirror — NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS — restores the silence set. CR 602.1a / 903.10a.
     # ADR-0027: the reanimator PAYOFF regex ("enters/cast FROM a graveyard") is deleted
     # with the reanimator migration. It CONFLATED the reanimator archetype (active
     # creature reanimation — a `reanimate` effect, the migrated IR bind) with the
@@ -2611,6 +2619,24 @@ _GLOBAL_ABILITY_GRANT_PLAN_MIRROR = re.compile(
 _KEYWORD_GRANT_TARGET_PLAN_MIRROR = re.compile(
     KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated activated_ability key. Its
+# deleted _DETECTORS producer (ACTIVATED_ABILITY_REGEX — the bare {T}:/{Q}:/generic-mana
+# cost shape) fired HIGH-confidence scope 'you' and counted toward `has_other_plan`,
+# silencing the spurious commander-damage voltron tell on a card whose plan IS its
+# activated-ability engine, not connecting with the commander. The migrated IR arm is
+# BROADER (+recall: generic-mana engines past the regex's 18-char window — the Moonfolk
+# land-bounce cycle, Eldrazi processors, tap-untapped-creatures value) AND NARROWER (it
+# drops the land/rock/dork mana-ability flood the regex matched), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would BOTH over- and under-silence. This byte-identical
+# deleted regex feeds ONLY the gate (emits no signal — the lane is served from the IR),
+# reproducing the pre-migration `has_other_plan` for ALL cards EXACTLY (incl. the dorks
+# the old regex silenced). FILE-SWAP NO-FLOOD: with this mirror, voltron membership is
+# byte-identical (0 gained / 0 lost). Matched against the reminder-STRIPPED `text` (the
+# deleted _DETECTORS producer ran per-clause over reminder-stripped clauses — a "{T}: …"
+# inside a Treasure/Food token's reminder never fired it), so the gate must not silence
+# a body whose only cost-shape sits in reminder text. The regex has no `[^.]` spanning
+# a sentence (the 18-char window never crosses), so full-text == per-clause. CR 903.10a.
+_ACTIVATED_ABILITY_PLAN_MIRROR = re.compile(ACTIVATED_ABILITY_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated debuff_matters key. Its two
 # deleted regex producers (the SWEEP DEBUFF_SWEEP_REGEX, scope 'any' + the Maha
 # DEBUFF_MAHA_REGEX opponent-shrink _DETECTORS row, scope 'you') both fired HIGH-
@@ -4190,6 +4216,16 @@ def extract_signals(
         # not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's full silence set
         # without over-silencing the ir_only gains. CR 903.10a.
         or _KEYWORD_GRANT_TARGET_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted activated_ability _DETECTORS producer (it
+        # fired high-confidence scope 'you', feeding has_other_plan). The migrated IR
+        # arm is BOTH broader (generic-mana engines past the 18-char window) and
+        # narrower (drops the land/rock/dork mana flood), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would mis-silence; this byte-identical mirror
+        # restores the old regex's exact silence set. Matched against the
+        # reminder-STRIPPED `text` (the deleted _DETECTORS producer ran per-clause over
+        # stripped clauses — a "{T}: …" in a token reminder never fired it), not
+        # `_oracle`. CR 903.10a / 602.1a.
+        or _ACTIVATED_ABILITY_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted debuff_matters SWEEP + Maha producers (both
         # fired high-confidence, feeding has_other_plan). The migrated IR arm is BROADER
         # (+94 ir_only), so this byte-identical mirror — NOT the silencing-keys set —

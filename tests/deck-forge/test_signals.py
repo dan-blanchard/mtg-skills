@@ -649,6 +649,12 @@ def test_creature_token_maker_does_not_open_artifacts_lane():
 # A commander whose engine is a {T}: activated ability (Arcum, Captain Sisay, Ertai,
 # Kaho, Sanctum Weaver) wants Training Grounds / Thousand-Year Elixir / Rings of
 # Brighthearth — none of which any existing lane surfaced.
+# ── activated_ability (ADR-0027 β: migrated regex→Card IR) ──────────────────────
+# The lane fires from the IR arm (an Ability kind=='activated', cost tap/untap/
+# genericmana, >=1 NON-ramp/attach effect — the is_mana_ability + SIDECAR-v15
+# genericmana discriminators kill the land/rock/dork flood the bare cost-shape regex
+# matched). The regex path no longer emits it (the _DETECTORS row is deleted), so the
+# positive cases assert via the hybrid (IR) path.
 def test_tap_ability_commander_opens_activated_lane():
     arcum = {
         "name": "Arcum Dagsson",
@@ -657,7 +663,21 @@ def test_tap_ability_commander_opens_activated_lane():
         "player may search their library for a noncreature artifact card, put it onto "
         "the battlefield, then shuffle.",
     }
-    assert ("activated_ability", "you") in _keys(arcum)
+    # phase projects the {T}: ability with cost='tap' and a sacrifice/tutor effect.
+    arcum_ir = _ir_with(
+        Ability(
+            kind="activated",
+            cost="tap",
+            effects=(
+                Effect(category="sacrifice", scope="any", raw="sacrifices it"),
+                Effect(category="tutor", scope="any", raw="search their library"),
+            ),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(arcum, arcum_ir)}
+    assert ("activated_ability", "you") in keys
+    # And the deleted regex no longer emits it.
+    assert ("activated_ability", "you") not in _keys(arcum)
 
 
 def test_non_tap_vanilla_no_activated_lane():
@@ -698,26 +718,55 @@ def test_multi_tribe_anthem_ignores_non_subtype_words():
 
 
 # ── Mana-cost activated abilities also want the activated-ability package ─────────
-# The {T}: anchor missed commanders whose engine is a mana-cost activated ability
-# (The Scarab God '{2}{U}{B}: reanimate', Kenrith, Varragoth). A generic-numeral cost
-# excludes cheap colored-only firebreathing ({R}:) for precision.
+# A commander whose engine is a generic-mana-cost activated ability (The Scarab God
+# '{2}{U}{B}: reanimate', Kenrith, Varragoth). The IR arm's mana branch gates on the
+# SIDECAR-v15 'genericmana' cost token, which excludes cheap colored-only firebreathing
+# ({R}:) — the regex's generic branch ({(?:\d+|x)\}) did the same.
 def test_mana_cost_activated_ability_opens_lane():
     scarab = {
         "name": "The Scarab God",
         "type_line": "Legendary Creature — God",
         "oracle_text": "At the beginning of your upkeep, each opponent loses X life and you scry X, where X is the number of Zombies you control.\n{2}{U}{B}: Exile target creature card from a graveyard. Create a token that's a copy of it, except it's a 4/4 black Zombie.\nWhen The Scarab God dies, return it to its owner's hand at the beginning of the next end step.",
     }
-    assert ("activated_ability", "you") in _keys(scarab)
+    # phase projects the {2}{U}{B}: ability with cost='genericmana,mana' and a
+    # non-ramp exile/make_token effect.
+    scarab_ir = _ir_with(
+        Ability(
+            kind="activated",
+            cost="genericmana,mana",
+            effects=(
+                Effect(category="exile", scope="any", raw="exile target"),
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    raw="create a token that's a copy",
+                ),
+            ),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(scarab, scarab_ir)}
+    assert ("activated_ability", "you") in keys
+    assert ("activated_ability", "you") not in _keys(scarab)
 
 
 def test_cheap_firebreathing_does_not_open_activated_lane():
     # Precision: a bare colored-only pump ({R}: +1/+0) is firebreathing, not an
-    # activated-ability engine — no generic numeral in the cost.
+    # activated-ability engine — no generic numeral in the cost, so phase projects
+    # cost='mana' WITHOUT the genericmana token and the arm's mana branch stays shut.
     card = {
         "name": "Firebreather",
         "type_line": "Legendary Creature — Dragon",
         "oracle_text": "Flying\n{R}: This creature gets +1/+0 until end of turn.",
     }
+    fb_ir = _ir_with(
+        Ability(
+            kind="activated",
+            cost="mana",
+            effects=(Effect(category="pump", scope="you", raw="gets +1/+0"),),
+        )
+    )
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(card, fb_ir)}
+    assert ("activated_ability", "you") not in keys
     assert ("activated_ability", "you") not in _keys(card)
 
 
