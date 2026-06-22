@@ -6407,6 +6407,44 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ability_strip_payoff ← a STRUCTURAL arm: ONE ability with a 'loses all abilities'
+    # effect-raw AND a `place_counter` effect (no `base_pt_set` shrinker). Abigale's ETB
+    # strips a target's abilities (phase's lose_life mis-type carries the raw) and buffs
+    # it with three keyword counters (place_counter), so she wants big cheap creatures
+    # whose drawback she neutralizes. Strictly cleaner than the deleted regex, which
+    # over-fired on a self-recursion creature's "-1/-1 counter on it" CONDITION. The
+    # regex path no longer emits it; the hybrid (IR) arm does. scope "you". ADR-0027.
+    "ability_strip_payoff": (
+        {
+            "name": "Abigale, Eloquent First-Year",
+            "type_line": "Legendary Creature — Bird Bard",
+            "oracle_text": (
+                "Flying, first strike, lifelink\n"
+                "When Abigale enters, up to one other target creature loses all "
+                "abilities. Put a flying counter, a first strike counter, and a "
+                "lifelink counter on that creature."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="etb", scope="you", zones=("to:battlefield",)),
+                effects=(
+                    Effect(
+                        category="lose_life",
+                        raw=(
+                            "When ~ enters, up to one other target creature loses all "
+                            "abilities. Put a flying counter, a first strike counter, "
+                            "and a lifelink counter on that creature."
+                        ),
+                    ),
+                    Effect(category="place_counter", counter_kind="flying"),
+                    Effect(category="place_counter", counter_kind="firststrike"),
+                    Effect(category="place_counter", counter_kind="lifelink"),
+                ),
+            )
+        ),
+    ),
 }
 
 

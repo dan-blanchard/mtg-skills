@@ -4259,11 +4259,33 @@ _OPPONENT_DISCARD_PLAN_MIRROR = re.compile(
 # ONE specific partner, so meld_pair is subject-bearing (subject = this card's name);
 # the partner names this card, so signal_specs serves exactly it.
 _MELD_FULLTEXT_RE = re.compile(r"\bmeld them into\b|\bmelds with\b", re.IGNORECASE)
-# Ability-strip-and-buff (Abigale): the strip ("loses all abilities") and the buff
-# ("counter on that creature") are different clauses, so this is a full-text check.
+# ADR-0027: ability_strip_payoff migrated to the Card IR (structural arm). These three
+# patterns no longer drive a signal producer — they survive ONLY as the building blocks
+# of the byte-identical _ability_strip_payoff_plan has_other_plan mirror (below), which
+# re-supplies the voltron silence the deleted HIGH-confidence producer fed (the IR re-
+# supply is narrower — Abigale only — so a _VOLTRON_SILENCING_PLAN_KEYS entry would leak
+# the Retched Wretch self-recursion the regex also silenced). The strip ("loses all
+# abilities") and the buff ("counter on that creature") are different clauses, so the
+# mirror is a full-text check over the reminder-STRIPPED text (matching the deleted
+# producer exactly).
 _ABILITY_STRIP_RE = re.compile(r"loses all abilities", re.IGNORECASE)
 _STRIP_COUNTER_RE = re.compile(r"counter on (?:that creature|it)\b", re.IGNORECASE)
 _BASE_PT_SET_RE = re.compile(r"base power and toughness", re.IGNORECASE)
+
+
+def _ability_strip_payoff_plan(text: str) -> bool:
+    """The EXACT deleted ability_strip_payoff producer condition, for has_other_plan.
+
+    Matched against the reminder-STRIPPED ``text`` (the deleted producer ran over the
+    reminder-stripped joined-face oracle): the strip + the keyword-counter buff + NOT a
+    base-P/T set. Re-supplies the voltron silence on BOTH cards the regex silenced
+    (Abigale + Retched Wretch); the IR arm re-supplies only Abigale, so this byte-
+    identical mirror keeps voltron_matters identical to pre-migration."""
+    return bool(
+        _ABILITY_STRIP_RE.search(text)
+        and _STRIP_COUNTER_RE.search(text)
+        and not _BASE_PT_SET_RE.search(text)
+    )
 
 
 # Self-ETB VALUE trigger (commander-only): a commander whose own "When ~ enters,
@@ -4907,19 +4929,20 @@ def extract_signals(
     # signal_specs.py. The deleted producer fed has_other_plan (HIGH-confidence, scope
     # 'you'), so its voltron silence is restored by _DISCARD_MATTERS_PLAN_MIRROR below.
     # CR 702.35 / 120.1 / 903.10a.
-    # Ability-strip payoff (Abigale): a commander that STRIPS a creature's abilities and
-    # KEEPS it as a beater (keyword counters buff it) wants big cheap creatures whose
-    # crippling DRAWBACK it neutralizes (Rotting Regisaur's upkeep-discard → keep the
-    # 7/6). Gated on the counter BUFF + NOT a base-P/T set, which excludes the SHRINKERS
-    # that turn the target into a small vanilla body (Lizard "becomes a 4/4", Chromium)
-    # and pure removal that strips without a buff. CR 613.1f / 122.1b: ability-removal
-    # and keyword counters both resolve in layer 6.
-    if (
-        _ABILITY_STRIP_RE.search(text)
-        and _STRIP_COUNTER_RE.search(text)
-        and not _BASE_PT_SET_RE.search(text)
-    ):
-        add("ability_strip_payoff", "you", "", text[:160])
+    # ADR-0027: ability_strip_payoff migrated to the Card IR — the strip-and-buff payoff
+    # (Abigale: ETB strips a target's abilities AND keeps it as a beater via keyword
+    # counters) fires from a STRUCTURAL arm in extract_signals_ir (one ability has a
+    # 'loses all abilities' effect-raw AND a place_counter effect, no base_pt_set
+    # shrinker). The IR arm is strictly cleaner: the deleted regex over-fired on a self-
+    # recursion creature whose "-1/-1 counter on it" CONDITION its `counter on
+    # (that creature|it)` pattern matched (Retched Wretch — the IR reads that counter as
+    # a Condition, never a place_counter buff, so the arm drops it). This regex producer
+    # is deleted. The deleted producer fired HIGH (scope 'you', NOT generic/voltron-
+    # compat) and fed has_other_plan, so a byte-identical _ABILITY_STRIP_PAYOFF_PLAN_
+    # MIRROR (below) re-supplies the voltron silence on BOTH cards (the IR re-supply is
+    # narrower — Abigale only — so _VOLTRON_SILENCING_PLAN_KEYS would leak Retched
+    # Wretch). CR 613.1f / 122.1b: ability-removal and keyword counters resolve in
+    # layer 6.
     # ADR-0027 β: damage_redirect migrated to the Card IR (ARM A — name-aware self-
     # prevention). The regex `add("damage_redirect", ...)` is DELETED here; the lane now
     # fires from extract_signals_ir, which reuses this EXACT _detect_self_damage_
@@ -5665,6 +5688,16 @@ def extract_signals(
         # per-clause over stripped clauses; the regex has no `[^.]*`, so full-text ==
         # per-clause). CR 306 / 606 / 903.10a.
         or _SUPERFRIENDS_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted ability_strip_payoff producer (it fired HIGH-
+        # confidence scope 'you', feeding has_other_plan — a strip-and-keyword-counter-
+        # buff payoff is no vanilla beater: Abigale). The migrated IR arm is NARROWER
+        # (Abigale only — it drops the Retched Wretch self-recursion over-fire the regex
+        # also silenced), so _VOLTRON_SILENCING_PLAN_KEYS would leak Retched Wretch's
+        # voltron tell; this byte-identical mirror (the EXACT deleted producer) restores
+        # the old regex's FULL silence set (both cards). Matched against the reminder-
+        # STRIPPED `text` (the deleted producer ran over the reminder-stripped joined
+        # oracle). CR 613.1f / 122.1b / 903.10a.
+        or _ability_strip_payoff_plan(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

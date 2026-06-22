@@ -492,11 +492,15 @@ def test_per_target_payoff_opens_on_cost_less_per_target():
 
 
 def test_ability_strip_payoff_opens_on_strip_and_buff():
-    # Abigale strips a creature's abilities and KEEPS it as a beater (adds keyword
-    # counters), so she wants big cheap creatures whose DRAWBACK she neutralizes — strip
-    # Rotting Regisaur's upkeep-discard, keep the 7/6. CR 613.1f (ability-removing +
-    # keyword counters share layer 6); CR 122.1b (the counters grant flying/first
-    # strike/lifelink). Gated on strip+counter so it's Abigale-specific. Real oracle.
+    # ADR-0027: migrated to the Card IR. Abigale strips a creature's abilities and KEEPS
+    # it as a beater (adds keyword counters), so she wants big cheap creatures whose
+    # DRAWBACK she neutralizes — strip Rotting Regisaur's upkeep-discard, keep the 7/6.
+    # CR 613.1f (ability-removing + keyword counters share layer 6); CR 122.1b (the
+    # counters grant flying/first strike/lifelink). The IR arm fires when one ability has
+    # a 'loses all abilities' effect-raw AND a place_counter effect, no base_pt_set
+    # shrinker — so the regex path no longer emits it but the hybrid (IR) path does. Real
+    # oracle; IR mirrors Abigale's ETB (the strip is phase's lose_life mis-type + three
+    # keyword-counter place_counter effects).
     abigale = {
         "name": "Abigale, Eloquent First-Year",
         "type_line": "Legendary Creature — Bird Bard",
@@ -509,10 +513,41 @@ def test_ability_strip_payoff_opens_on_strip_and_buff():
             "and a lifelink counter on that creature."
         ),
     }
-    assert ("ability_strip_payoff", "you") in _ks(abigale)
+    _abigale_strip_raw = (
+        "When ~ enters, up to one other target creature loses all abilities. Put a "
+        "flying counter, a first strike counter, and a lifelink counter on that creature."
+    )
+    abigale_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you", zones=("to:battlefield",)),
+            effects=(
+                Effect(category="lose_life", raw=_abigale_strip_raw),
+                Effect(
+                    category="place_counter",
+                    counter_kind="flying",
+                    raw=_abigale_strip_raw,
+                ),
+                Effect(
+                    category="place_counter",
+                    counter_kind="firststrike",
+                    raw=_abigale_strip_raw,
+                ),
+                Effect(
+                    category="place_counter",
+                    counter_kind="lifelink",
+                    raw=_abigale_strip_raw,
+                ),
+            ),
+        )
+    )
+    assert "ability_strip_payoff" not in _keys(abigale)
+    assert ("ability_strip_payoff", "you") in _ks_hybrid_ir(abigale, abigale_ir)
     # Lizard ALSO says "loses all abilities" but SETS base power/toughness to 4/4 (CR
     # 613 layer 7b) — it shrinks the target rather than keeping a big body, so it is NOT
-    # a drawback-beater payoff and must not open this lane. Real oracle.
+    # a drawback-beater payoff and must not open this lane. The IR arm's base_pt_set veto
+    # drops it: phase types the strip-and-become as base_pt_set, so the ability carries a
+    # base_pt_set effect (and no place_counter buff). Real oracle.
     lizard = {
         "name": "Lizard, Connors's Curse",
         "type_line": "Legendary Creature — Lizard Villain",
@@ -525,7 +560,19 @@ def test_ability_strip_payoff_opens_on_strip_and_buff():
             "creature with base power and toughness 4/4."
         ),
     }
+    _lizard_raw = (
+        "up to one other target creature loses all abilities and becomes a green "
+        "Lizard creature with base power and toughness 4/4."
+    )
+    lizard_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="etb", scope="you", zones=("to:battlefield",)),
+            effects=(Effect(category="base_pt_set", raw=_lizard_raw),),
+        )
+    )
     assert "ability_strip_payoff" not in _keys(lizard)
+    assert "ability_strip_payoff" not in _keys_hybrid_ir(lizard, lizard_ir)
 
 
 def test_arcane_matters_opens_on_arcane_payoff():

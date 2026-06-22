@@ -4959,6 +4959,49 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _IR_FLOOR_LANES (floor-mirror-dep == 0: a structural numeric gate, not an
         # oracle floor). CR 903.10a / 702.90 (infect) / 702.4 (double strike).
         "one_punch",
+        # ability_strip_payoff (ADR-0027) — STRUCTURAL ARM (strictly cleaner than the
+        # deleted regex). The Abigale archetype: a commander whose ETB STRIPS another
+        # creature's abilities ("loses all abilities") AND keeps it as a beater by
+        # buffing it with keyword counters (flying/first-strike/lifelink) — it wants big
+        # cheap creatures whose crippling DRAWBACK the strip neutralizes (Rotting
+        # Regisaur's upkeep-discard → keep the 7/6). The IR arm fires when ONE ability
+        # carries BOTH a 'loses all abilities' effect-raw AND a `place_counter` effect,
+        # with NO `base_pt_set` effect in that ability (the shrinker veto — a target
+        # that "becomes a 4/4" / sets base P/T is a SMALL vanilla body, not a kept
+        # beater; the deleted regex's _BASE_PT_SET_RE veto). The strip text has no clean
+        # category (it scatters: lose_life / ability_loss / base_pt_set / pump /
+        # restriction — Abigale's is the lose_life mis-type), so the raw string is the
+        # anchor, gated by the structural co-presence of place_counter. CR 613.1f /
+        # 122.1b (ability-removal + keyword counters both resolve in layer 6).
+        #
+        # RESIDUAL (floor-disabled, commander-legal, by oracle_id, IR struct arm vs the
+        # deleted regex): both == 1 (Abigale), ir_only == 0, regex_only == 1 (Retched
+        # Wretch). The single regex_only is a TRUE OVER-FIRE the IR correctly drops:
+        # Retched Wretch ("When this creature dies, if it had a -1/-1 counter on it,
+        # return it to the battlefield ... and it loses all abilities") strips ITSELF on
+        # death (self-recursion) — there is NO target-creature strip and NO keyword-
+        # counter BUFF, so it is not the keep-a-beater archetype. The regex over-fired
+        # because _STRIP_COUNTER_RE (`counter on (that creature|it)`) matched the
+        # CONDITION "-1/-1 counter on it", not a buff. The IR separates them cleanly:
+        # Retched Wretch's counter ref is a Condition(kind='hadcounters') and its strip
+        # is a `reanimate` (self-return) effect — NEVER paired with a place_counter
+        # effect. So regex_only is over-fire-only (no genuine card lost); ir_only empty.
+        #
+        # VOLTRON. The deleted producer fired HIGH (scope 'you', NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), so it fed has_other_plan, silencing the spurious
+        # commander-damage voltron tell on BOTH cards (Abigale: 1/1 with flying/first-
+        # strike/lifelink — a voltron-keyword body; Retched Wretch: a 4/4 — power >= 2).
+        # The IR re-supply is NARROWER than the deleted producer (Abigale only — the
+        # over-fire dropped), so a _VOLTRON_SILENCING_PLAN_KEYS entry would re-silence
+        # ONLY Abigale and LEAK voltron on Retched Wretch. So the byte-identical
+        # _ability_strip_payoff_plan mirror (the EXACT deleted producer, run flat over
+        # the reminder-STRIPPED text) is OR'd into has_other_plan in _signals_regex.py
+        # instead — it re-silences BOTH cards (the regex's full silence set), keeping
+        # voltron_matters byte-identical. NO-FLOOD (base 5d638e4 vs edits, baked
+        # sidecar, commander-legal, hybrid path): only ability_strip_payoff changed
+        # (2 → 1, the over-fire dropped); voltron_matters 3010 → 3010 identical set; all
+        # siblings drift 0.
+        "ability_strip_payoff",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

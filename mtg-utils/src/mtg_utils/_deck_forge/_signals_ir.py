@@ -3339,6 +3339,14 @@ IR_SLICE_KEYS: frozenset[str] = (
             # board spread). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 122.1 /
             # 122.6.
             "counter_distribute",
+            # ADR-0027 — ability_strip_payoff: a STRUCTURAL arm (one ability has a
+            # 'loses all abilities' effect-raw AND a place_counter effect, no
+            # base_pt_set shrinker) reads the Abigale strip-and-keyword-counter-buff
+            # archetype. Strictly cleaner than the deleted regex (drops the Retched
+            # Wretch self-recursion over-fire, whose -1/-1 counter is a Condition, not a
+            # buff). NOT in _IR_FLOOR_LANES (no floor dep — the arm fires structurally).
+            # CR 613.1f / 122.1b.
+            "ability_strip_payoff",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):
@@ -5427,6 +5435,28 @@ def extract_signals_ir(
         }
         if len(_soup_cks & _EVERGREEN_CK) >= 5:
             add("keyword_soup", "you", "", "")
+        # ability_strip_payoff (ADR-0027) — STRUCTURAL ARM. The Abigale archetype: ONE
+        # ability STRIPS a target creature's abilities ("loses all abilities") AND keeps
+        # it as a beater by buffing it with keyword counters (a place_counter effect),
+        # so the commander wants big cheap creatures whose crippling DRAWBACK the strip
+        # neutralizes. The strip text has no single phase category (it scatters across
+        # lose_life / ability_loss / pump / restriction — Abigale's is the lose_life
+        # mis-type), so the raw string is the anchor, gated by the structural co-
+        # presence of a place_counter effect in the SAME ability. The `base_pt_set` veto
+        # excludes the SHRINKERS that turn the target into a small body ("becomes a
+        # 4/4" / sets base P/T — Lizard, Chromium); a kept beater is the payoff, not a
+        # shrunk one (the deleted regex's _BASE_PT_SET_RE veto). Strictly cleaner than
+        # the deleted regex, which over-fired on a self-recursion creature whose
+        # "-1/-1 counter on it" CONDITION the `counter on (that creature|it)` pattern
+        # matched (Retched Wretch — here its counter ref is a Condition, never a
+        # place_counter effect, so the arm correctly drops it). CR 613.1f / 122.1b.
+        _strip_effect = any(
+            "loses all abilities" in (e.raw or "").lower() for e in ab.effects
+        )
+        _strip_counter = any(e.category == "place_counter" for e in ab.effects)
+        _strip_shrink = any(e.category == "base_pt_set" for e in ab.effects)
+        if _strip_effect and _strip_counter and not _strip_shrink:
+            add("ability_strip_payoff", "you", "", "")
         # power_tap_engine (ADR-0027) — ability-level: an ACTIVATED ability whose cost
         # contains 'tap' AND some effect's raw scales with a creature's power. The
         # repeatable {T} power-scaling engine (Marwyn, Selvala, Staff of Domination).
