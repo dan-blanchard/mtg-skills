@@ -816,6 +816,16 @@ _STATE = re.compile(
     re.IGNORECASE,
 )
 _CANT = re.compile(r"\bcan'?t\b", re.IGNORECASE)
+# ADR-0027 scope='each' symmetric pass — an OPPONENT-tax restriction phase folds into
+# a generic synthesized "other" clause (its structured CantCastFrom / cantgainlife
+# carrier never reached _restriction_scope, so the clause survives only in raw at
+# scope 'any'): "your opponents can't …" (Drannith Magistrate, Stranglehold, Silence),
+# "each opponent can't …" (Lavinia, Azorius Renegade). Promote the recovered
+# restriction's scope to 'opp' so the stax_taxes lane reads it. DORMANT until that
+# lane is wired (no migrated key reads restriction scope). CR 115.4 / 720.
+_OPP_RESTRICTION = re.compile(
+    r"\b(?:your opponents|each opponent|opponents) can'?t\b", re.IGNORECASE
+)
 # A combat cap ("No more than N creatures can attack/block …") is a RESTRICTION, not
 # a permission — checked before the can-attack/block grant below so it wins.
 _COMBAT_CAP = re.compile(r"\bno more than\b", re.IGNORECASE)
@@ -1134,7 +1144,8 @@ def _recover_static_pattern(e: Effect) -> Effect | None:
     if _COST_ALTER.search(s):
         return replace(e, category="cost_reduction")
     if _CANT.search(s) or _COMBAT_CAP.search(s):
-        return replace(e, category="restriction")
+        scope = "opp" if _OPP_RESTRICTION.search(s) else e.scope
+        return replace(e, category="restriction", scope=scope)
     if _CAN_COMBAT.search(s):
         return replace(e, category="grant_keyword")  # combat permission grant
     if _TUCK.search(s):

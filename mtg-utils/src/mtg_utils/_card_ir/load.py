@@ -155,7 +155,21 @@ from mtg_utils.card_ir import Card
 #     Blast's each-player damage half). Behavior-neutral for migrated keys (drift 0);
 #     the payoff is the 5 symmetric lanes (direct_damage / symmetric_damage_each /
 #     group_hug_draw / stax_taxes / symmetric_stax) that read scope='each'/'opp'.
-SIDECAR_VERSION = 21
+# v21→v22: scope='each' SYMMETRIC PASS pt.2 (two more projection sub-changes).
+#   GAP A (group_hug_draw): an ABILITY-level player_scope (a SIBLING of `effect`, which
+#     _effect_scope never saw) is threaded onto the DRAW effect so "each player draws"
+#     (Prosperity, Temple Bell, Folio of Fancies) reads scope='each' instead of 'you'.
+#     Restricted to Draw (the same sibling rides Sacrifice/LoseLife/Discard/Mill whose
+#     migrated lanes already read their own scope), so migrated keys are untouched.
+#   GAP B (stax_taxes / symmetric_stax): _restriction_scope now emits 'each' for a
+#     controller-NEUTRAL permanent-CLASS lock (Back to Basics, Choke, Blizzard — Typed
+#     class, controller 'any', not an Aura/Equipment host) and 'opp' for an
+#     opponent-scoped lock (who/cause Opponents — Stranglehold), while a single-target
+#     tap-down (Frost Titan, ParentTarget) and a you-only drawback (Codie) stay 'any';
+#     the supplement re-categorizer promotes "your/each opponent can't …" (Drannith,
+#     Lavinia) to 'opp'. DORMANT — restriction scope is read only by the not-yet-wired
+#     stax_taxes/symmetric_stax lanes, so migrated keys are byte-identical (drift 0).
+SIDECAR_VERSION = 22
 
 
 def card_ir_dir() -> Path:

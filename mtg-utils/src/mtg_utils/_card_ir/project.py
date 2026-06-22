@@ -2059,6 +2059,44 @@ def _static_effect(
     )
 
 
+# Effect types whose ability-level `player_scope: All` names a SYMMETRIC each-player
+# DRAW (group_hug_draw, ADR-0027 scope='each' pass). Restricted to Draw: phase files
+# `player_scope: All` as a SIBLING of `effect` (not inside it) for "each player draws
+# X" (Prosperity, Temple Bell, Folio of Fancies), while the effect's target stays
+# Controller (each player draws to their OWN hand) — so `_effect_scope`, which only
+# sees the effect dict, would short-circuit to 'you'. Threading it down ONLY for Draw
+# keeps migrated lanes (sacrifice_matters, lifeloss_matters, opponent_discard) — which
+# read the SAME sibling on Sacrifice/LoseLife/Discard effects from their own fields —
+# untouched.
+_PLAYER_SCOPE_EFFECT_TYPES = frozenset({"draw"})
+# Only the symmetric `All` is a recipient scope. `Opponent` on a draw is a
+# DECISION-MAKER scope, not a recipient — "target opponent may have YOU draw N"
+# (Combustible Gearhulk, Bane, Palantír of Orthanc) draws to OriginalController (you),
+# the opponent only chooses; merging Opponent there would mis-read a you-draw punisher
+# as an opponent draw (and drop it from target_player_draws). group_hug_draw reads only
+# scope=='each', so excluding Opponent loses no group_hug_draw coverage.
+_PLAYER_SCOPE_EACH_TYPES = frozenset({"all", "allplayers"})
+
+
+def _merge_ability_player_scope(node: dict, eff: dict) -> dict:
+    """Surface an ability-level ``player_scope: All`` (a SIBLING of ``effect``) onto a
+    DRAW effect so ``_effect_scope`` reads the symmetric 'each' (group_hug_draw,
+    ADR-0027). Only for Draw, only for the All scope, and only when the effect carries
+    no ``player_scope`` of its own; returns a shallow copy with the field merged, else
+    the effect unchanged. CR 120.2 (each player draws is a player action against their
+    own library)."""
+    ps = node.get("player_scope")
+    if not isinstance(ps, dict):
+        return eff
+    if _norm(eff.get("type")) not in _PLAYER_SCOPE_EFFECT_TYPES:
+        return eff
+    if _norm(ps.get("type")) not in _PLAYER_SCOPE_EACH_TYPES:
+        return eff
+    if isinstance(eff.get("player_scope"), dict):
+        return eff
+    return {**eff, "player_scope": ps}
+
+
 def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
     """Walk an ability node's effect + sub_ability chain into a flat effect list."""
     if not isinstance(node, dict):
@@ -2089,6 +2127,7 @@ def _collect_effects(node: dict | None, default_raw: str) -> list[Effect]:
     else:
         eff = node.get("effect")
         if isinstance(eff, dict):
+            eff = _merge_ability_player_scope(node, eff)
             out.extend(_project_effect(eff, raw))
     sub = node.get("sub_ability")
     if isinstance(sub, dict):
@@ -2379,13 +2418,44 @@ _COMBAT_FORCE_MODES: dict[str, str] = {
 }
 
 
+# Affected-set predicates that mark a SINGLE attached permanent (an Aura/Equipment
+# host — CR 303.4 / 301.5), NOT a symmetric permanent CLASS. An "enchanted creature
+# can't untap/attack" (Apathy, Bind the Monster) hobbles one permanent like a
+# single-target tap-down, so it must NOT read as a symmetric 'each' lock.
+_SELF_ATTACH_PREDICATES = frozenset({"enchantedby", "equippedby"})
+
+
 def _restriction_scope(st: dict, affected: Filter | None) -> str:
     """Whom a restriction/combat-force static hobbles → the Effect scope (opp / each /
-    any). Reads the affected set's controller and the mode's ``who`` qualifier."""
+    any). Reads the affected set's controller and the mode's ``who`` qualifier.
+
+    ADR-0027 scope='each' symmetric pass. A controller-NEUTRAL permanent-CLASS lock —
+    "Nonbasic lands don't untap" (Back to Basics), "Islands don't untap" (Choke),
+    "Creatures with flying don't untap" (Blizzard), "Legendary creatures don't untap"
+    (Arena of the Ancients) — hobbles EVERY player's matching permanents, so it is
+    symmetric ('each'). The discriminant mirrors the ModifyCost{Raise} cost-tax path
+    above: a ``Typed`` affected naming a real card-type / subtype CLASS whose
+    controller is unscoped ('any' = all players' copies), minus the single-permanent
+    attach forms. A single-target tap-down (Frost Titan — ``affected`` is
+    ``ParentTarget`` → ``_filter`` None), a you-only drawback (``controller=='you'`` —
+    Doomed Artisan, Bontu's Last Reckoning), and an Aura/Equipment host (the
+    self-attach predicates) all stay 'any'. The scope is DORMANT until the
+    symmetric_stax / stax_taxes lanes are wired — no migrated key reads it."""
     who = _mode_who(st.get("mode"))
     if (affected is not None and affected.controller == "opp") or "opponent" in who:
         return "opp"
     if "all" in who:
+        return "each"
+    affected_raw = st.get("affected")
+    raw_type = _norm(affected_raw.get("type")) if isinstance(affected_raw, dict) else ""
+    if (
+        raw_type == "typed"
+        and affected is not None
+        and affected.controller == "any"
+        and who != "controller"  # "You can't cast X" — a you-only drawback, not 'each'
+        and (affected.card_types or affected.subtypes)
+        and not any(_norm(p) in _SELF_ATTACH_PREDICATES for p in affected.predicates)
+    ):
         return "each"
     return "any"
 
@@ -2400,10 +2470,14 @@ def _mode_token(mode: object) -> str:
 
 
 def _mode_who(mode: object) -> str:
+    # The restriction's player qualifier — phase names it ``who`` (CantCast,
+    # ModifyCost) on most modes but ``cause`` on a few (CantSearchLibrary —
+    # Stranglehold "your opponents can't search"). Read whichever is present so an
+    # opponent-/all-scoped lock is recognized either way. ADR-0027 scope='each' pass.
     if isinstance(mode, dict):
         for v in mode.values():
             if isinstance(v, dict):
-                return _norm(v.get("who"))
+                return _norm(v.get("who") or v.get("cause"))
     return ""
 
 
