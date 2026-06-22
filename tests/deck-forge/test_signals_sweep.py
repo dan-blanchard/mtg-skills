@@ -68,8 +68,11 @@ def test_sweep_detectors_loaded():
     # (ADR-0027 — migrated to phase's `force_attack` Effect STRUCTURAL arm + a byte-
     # identical DET kept word mirror in signals._IR_KEPT_DETECTORS for the "didn't attack
     # this turn" punisher tail; the SWEEP regex's reminder-stripped firings are all in
-    # the structural arm).
-    assert len(SWEEP_DETECTORS) >= 27
+    # the structural arm), then 27→26 as stickers_matter's row was deleted (ADR-0027 —
+    # migrated to a byte-identical STICKERS_MATTER_REGEX `\{tk\}|\bstickers?\b` kept word
+    # mirror in signals._IR_KEPT_DETECTORS; phase v0.1.19 doesn't structure the CR 123
+    # sticker / CR 122 ticket-counter mechanic).
+    assert len(SWEEP_DETECTORS) >= 26
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

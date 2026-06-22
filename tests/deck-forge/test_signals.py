@@ -2404,9 +2404,10 @@ def test_type_you_control_entering_gerund_opens_tribe():
 
 def test_art_sticker_opens_stickers():
     # Roxi cares about art stickers (power = permanents/cards with an art sticker;
-    # ETB distributes art stickers) — the detector keyed on "put a sticker"/"stickers
-    # on" and missed "art sticker"/"distribute … stickers". Sticker is a dedicated
-    # mechanic, so any mention is on-theme.
+    # ETB distributes art stickers). The `\bstickers?\b` mirror matches any mention —
+    # sticker is a dedicated mechanic, so "art sticker"/"distribute … stickers" is
+    # on-theme. ADR-0027: stickers_matter migrated to the Card IR (a byte-identical
+    # STICKERS_MATTER_REGEX kept word mirror), so it serves from the hybrid path.
     card = {
         "name": "Roxi, Publicist to the Stars",
         "type_line": "Legendary Creature — Human Employee",
@@ -2417,4 +2418,4 @@ def test_art_sticker_opens_stickers():
             "among one or two nonland permanents you own."
         ),
     }
-    assert ("stickers_matter", "you") in _keys(card)
+    assert ("stickers_matter", "you") in _keys_hybrid(card)

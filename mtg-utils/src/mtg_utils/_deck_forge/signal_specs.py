@@ -40,6 +40,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
+    STICKERS_MATTER_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
     TARGET_PLAYER_DRAWS_REGEX,
@@ -3930,6 +3931,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["attractions_matter"],
         {"oracle": r"\battraction\b|open an attraction"},
         r"\battraction\b|open an attraction",
+    ),
+    # ADR-0027: stickers_matter had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to a byte-identical STICKERS_MATTER_REGEX _IR_KEPT_DETECTORS word
+    # mirror). The SERVE pool stays oracle-defined (the {TK}/sticker effects), so
+    # hand-register the spec the sweep auto-register loop used to build, reusing the
+    # deleted regex (now the shared STICKERS_MATTER_REGEX constant) so serve / mirror /
+    # detector never drift.
+    ("stickers_matter", "you"): _spec(
+        *SWEEP_LABELS["stickers_matter"],
+        {"oracle": STICKERS_MATTER_REGEX},
+        STICKERS_MATTER_REGEX,
     ),
     # ADR-0027 tranche2-C: extra_land_drop had its oracle-regex SWEEP_DETECTORS row
     # deleted (detection moved to the Card IR — cheat_play / topdeck_select with a Land

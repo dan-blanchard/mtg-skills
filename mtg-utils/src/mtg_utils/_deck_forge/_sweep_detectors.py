@@ -76,6 +76,20 @@ DIES_RECURSION_REGEX = "if [^.]* would die, instead exile it with [^.]*counters?
 # mirror / (now-deleted) detector never drift. SWEEP_LABELS still carries the human
 # label. CR 702.8 (flash).
 FLASH_GRANT_REGEX = "as though (?:it|they) (?:had|have) flash|have flash\\b"
+# ADR-0027 — stickers_matter migrated to the Card IR (the Unfinity sticker-sheet
+# archetype — CR 123 stickers / CR 122 ticket counters: the {TK} ability-sticker costs
+# on "Stickers"-type creatures plus the "put a sticker"/"name|art|ability sticker"
+# effects and Wicker Picker's "sticker kicker"). Stickers are a niche paper-only
+# mechanic phase v0.1.19 doesn't structure (no structural arm — floor-disabled the IR
+# fires it 0 times), so the lane MOVES from _IR_FLOOR_LANES to a byte-identical kept
+# WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope 'you'). The two
+# bare alternatives have NO `[^.]*` cross-clause span, so flat-over-kept_oracle ==
+# per-clause == the deleted producer's 92 commander-legal fires EXACTLY (both==92,
+# ir_only==0, regex_only==0; all 92 genuine sticker cards). This mined regex survives as
+# a shared constant so signal_specs hand-registers the serve pool reusing it AND the
+# kept mirror reuses it — serve / mirror / (now-deleted) detector never drift.
+# SWEEP_LABELS still carries the human label. CR 123 / 122.1.
+STICKERS_MATTER_REGEX = "\\{tk\\}|\\bstickers?\\b"
 # ADR-0027 — theft_matters migrated to the Card IR (STEAL an OPPONENT's cards and
 # CAST/PLAY them: the impulse-from-opponent steal-and-cast engines, the heist Arena
 # keyword action, and the name-strip three-zone rifles). Its SWEEP_DETECTORS row is
@@ -1815,12 +1829,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "\\bplaytest cards?\\b",
     },
-    {
-        "key": "stickers_matter",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\{tk\\}|\\bstickers?\\b",
-    },
+    # ADR-0027: stickers_matter migrated to the Card IR — served from the byte-identical
+    # STICKERS_MATTER_REGEX (`\{tk\}|\bstickers?\b`) kept word mirror
+    # (signals._IR_KEPT_DETECTORS, scope 'you'); phase v0.1.19 doesn't structure the CR
+    # 123 sticker / CR 122 ticket-counter mechanic. This SWEEP_DETECTORS row is deleted;
+    # SWEEP_LABELS keeps the human label, and the serve spec is hand-registered in
+    # signal_specs.py reusing STICKERS_MATTER_REGEX (the auto-register loop no longer
+    # reaches it).
     # ADR-0027: starting_life_matters migrated to the Card IR — a `_STARTING_LIFE_REF`
     # ("starting life total") dropped-static compare marker (CR 103.4). The broad
     # regex's second arm ("life total is greater/less") over-fired on unrelated

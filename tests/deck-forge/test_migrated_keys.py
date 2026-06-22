@@ -3130,6 +3130,21 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 floor->kept: stickers_matter fires from the byte-identical
+    # STICKERS_MATTER_REGEX (`\{tk\}|\bstickers?\b`) kept word mirror over the oracle
+    # text (empty IR — phase v0.1.19 doesn't structure the CR 123 sticker / CR 122
+    # ticket-counter mechanic). Real card, full oracle_text + type_line.
+    "stickers_matter": (
+        {
+            "name": "Aerialephant",
+            "type_line": "Creature — Elephant Performer",
+            "oracle_text": (
+                "Flying\nWhen Aerialephant enters, you get {TK}, then you may "
+                "put a sticker on a nonland permanent you own."
+            ),
+        },
+        _ir(),
+    ),
     # SWEEP batch (ADR-0027). donate / reanimator / opponent_exile read STRUCTURED IR
     # (a gain_control raw-recipient discriminator / a reanimate effect / a graveyard-
     # hate raw); the rest fire from the kept word mirror over the oracle text (empty

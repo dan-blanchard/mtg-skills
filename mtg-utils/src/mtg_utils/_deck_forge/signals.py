@@ -668,6 +668,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # 98, 0 broadening, 0 ir_only), matching the land_sacrifice_matters / extra_
         # combats kept-mirror precedent. A NO-FLOOD voltron entry. CR 700.4 / 903.10a.
         "dies_recursion",
+        # ADR-0027: stickers_matter fired high-confidence (forced scope 'you') in the
+        # regex path via the SWEEP_DETECTORS producer and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron tell on a sticker-payoff creature
+        # commander that is NOT a vanilla beater (Aerialephant, Glitterflitter, Minotaur
+        # de Force, Chicken Troupe, Stiltstrider, Carnival Carnivore, Ticketomaton — the
+        # evasive "you get {TK}, then put a sticker" engines whose plan IS the Unfinity
+        # sticker mechanic). Its regex producer is deleted, so the hybrid re-silences
+        # from the IR re-supply — a byte-identical STICKERS_MATTER_REGEX kept WORD
+        # MIRROR reading the SAME reminder-stripped joined oracle as the deleted regex
+        # (no sticker card has empty oracle_text + card_faces, so IR == regex == 92, 0
+        # broadening, 0 ir_only), matching the dies_recursion / land_sacrifice_matters
+        # kept-mirror precedent. File-swap: 7 voltron leaked without this, 0 with it;
+        # A-B == 0. A NO-FLOOD voltron entry. CR 123 / 122.1 / 903.10a.
+        "stickers_matter",
     }
 )
 

@@ -665,6 +665,29 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "lands_matter",
         "poison_matters",
         "suspend_matters",
+        # stickers_matter (ADR-0027 floor->kept, same shape as the SWEEP batch above) —
+        # the Unfinity sticker-sheet archetype: the {TK} (ticket) ability-sticker costs
+        # on "Stickers"-type creatures plus the "put a sticker"/"name|art|ability|power
+        # and toughness sticker" effects (and Wicker Picker's "sticker kicker").
+        # Stickers (CR 123, ticket counters CR 122) are a niche paper-only mechanic
+        # phase v0.1.19 doesn't structure — line 191 of _signals_ir notes ticket/unknown
+        # player counters stay lane-less, and there is NO structural stickers arm (with
+        # _IR_FLOOR_LANES disabled the IR fires it 0 times). So the lane MOVES from
+        # _IR_FLOOR_LANES to a dedicated _IR_KEPT_DETECTORS word mirror reusing the
+        # deleted SWEEP regex (STICKERS_MATTER_REGEX = `\{tk\}|\bstickers?\b`, scope
+        # 'you'). The regex has NO `[^.]*` cross-clause span, so the flat .search over
+        # the reminder-stripped kept_oracle == the deleted producer's per-clause firing
+        # set byte-identically: floor-disabled IR-vs-deleted-regex residual over the
+        # commander-legal corpus, by oracle_id, is both==92 / ir_only==0 / regex_only==0
+        # (all 92 genuine sticker cards — BREADTH, not over-fire). The deleted SWEEP
+        # producer fed has_other_plan (HIGH conf, forced scope 'you', not in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), so stickers_matter is added to
+        # _VOLTRON_SILENCING_PLAN_KEYS — the byte-identical IR re-supply re-silences the
+        # spurious commander-damage voltron tell on a sticker-payoff body (no sticker
+        # card has empty oracle_text + card_faces, so the re-supply set == the regex
+        # producer set exactly). NO-FLOOD: only stickers_matter's count moves, voltron
+        # 3010->3010. CR 123 / 122.1. See ADR-0027.
+        "stickers_matter",
         # Group "damage cluster" (ADR-0027 projection deepening) — the damage-doubling
         # half of the direct_damage <-> damage_doubling decoupling. damage_doubling
         # fires from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-

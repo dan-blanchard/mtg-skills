@@ -92,6 +92,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     STAX_TAXES_REGEX,
+    STICKERS_MATTER_REGEX,
     SUPERFRIENDS_MATTERS_REGEX,
     SYMMETRIC_STAX_REGEX,
     THEFT_MATTERS_REGEX,
@@ -830,6 +831,22 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
     ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
     ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # ADR-0027 — stickers_matter BYTE-IDENTICAL kept WORD MIRROR (the Unfinity sticker-
+    # sheet archetype — CR 123 stickers / CR 122 ticket counters: the {TK} ability-
+    # sticker costs on "Stickers"-type creatures plus the "put a sticker"/"name|art|
+    # ability sticker" effects and Wicker Picker's "sticker kicker"). Stickers are a
+    # niche paper-only mechanic phase v0.1.19 doesn't structure as a synergy subject —
+    # _signals_ir line 191 notes ticket/unknown player counters stay lane-less, and
+    # with _IR_FLOOR_LANES disabled the IR fires this lane 0 times (NO structural arm) —
+    # so the lane rides this EXACT deleted SWEEP STICKERS_MATTER_REGEX
+    # (`\{tk\}|\bstickers?\b`) run FLAT over the reminder-stripped kept_oracle. The two
+    # bare alternatives have NO `[^.]*` cross-clause span, so flat == per-clause and the
+    # mirror set == the deleted regex's firing set EXACTLY (commander-legal, floor-
+    # disabled, by oracle_id: both==92, regex_only==0, ir_only==0; all scope 'you',
+    # HIGH). FLOOR->KEPT: removed from
+    # _IR_FLOOR_LANES (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve
+    # stays, reusing the same shared regex). CR 123 / 122.1.
+    ("stickers_matter", re.compile(STICKERS_MATTER_REGEX, re.IGNORECASE), "you"),
     # ADR-0027 — arcane_matters BYTE-IDENTICAL kept WORD MIRROR (the Kamigawa Arcane /
     # Splice-onto-Arcane / Spiritcraft archetype: a commander caring about ARCANE spells
     # — "cast a Spirit or Arcane spell" / "Splice onto Arcane"; CR 205.3k spell type, CR
@@ -2417,7 +2434,12 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # doer + a "start your engines|max speed|your speed" kept word mirror; phase
         # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation). Moved
         # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
-        "stickers_matter",
+        # stickers_matter removed — ADR-0027 migrated it to the Card IR (a
+        # byte-identical STICKERS_MATTER_REGEX `\{tk\}|\bstickers?\b` kept word mirror;
+        # phase v0.1.19 doesn't structure the CR 123 sticker / CR 122 ticket-counter
+        # mechanic — no structural arm, floor-disabled the IR fires it 0 times). Moved
+        # floor->kept
+        # (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve stays).
         # attractions_matter removed — ADR-0027 migrated it to the Card IR (a
         # "\battraction\b|open an attraction" kept word mirror; phase v0.1.19 doesn't
         # structure the CR 717 Attraction designation). Moved floor->kept
