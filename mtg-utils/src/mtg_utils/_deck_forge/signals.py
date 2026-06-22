@@ -545,6 +545,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # broadening, no over-silence), matching the land_sacrifice / extra_combats
         # kept-mirror precedent. A NO-FLOOD voltron entry.
         "cast_from_exile",
+        # ADR-0027: exile_matters fired high-confidence (scope 'you') in the regex
+        # path via the _HAND_FLOOR producer and so counted toward has_other_plan (it
+        # is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
+        # commander-damage voltron tell on an exile-zone engine creature commander
+        # that is NOT a vanilla beater (Mairsil, Grolnok, Tasha, Kianne, Ketramose).
+        # Its regex producer is deleted, so the hybrid re-silences from the IR
+        # re-supply — a kept WORD MIRROR (EXILE_MATTERS_REGEX) reading the SAME
+        # reminder-stripped joined oracle as the deleted regex, so it is
+        # BYTE-IDENTICAL (IR==regex==63, no broadening, no over-silence), matching the
+        # cast_from_exile / land_sacrifice kept-mirror
+        # precedent. A NO-FLOOD voltron entry. CR 406 / 903.10a.
+        "exile_matters",
         # ADR-0027: flash_grant fired high-confidence (forced scope 'you') in the regex
         # path via the SWEEP producer and so counted toward has_other_plan (it is NOT in
         # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage

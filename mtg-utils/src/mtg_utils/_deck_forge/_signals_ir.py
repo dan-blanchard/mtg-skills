@@ -69,6 +69,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
+    EXILE_MATTERS_REGEX,
     EXTRA_COMBATS_REGEX,
     EXTRA_TURNS_REGEX,
     FLASH_GRANT_REGEX,
@@ -821,6 +822,38 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "cast_from_exile",
         re.compile(CAST_FROM_EXILE_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 — exile_matters BYTE-IDENTICAL kept WORD MIRROR (the EXILE-ZONE-AS-
+    # RESOURCE archetype: a card caring about cards STANDING IN exile — "cards you own
+    # in exile" / "card in exile with <kind> counter" P/T scalers +
+    # cast-from-the-exile-pile engines (Cosmogoyf, Crackling Drake, Mairsil, Grolnok,
+    # Tasha, Kianne, Ketramose, Ulamog), the wishboard fetch (Karn, Coax), the
+    # own-a-card-in-exile gates (Dreadlight Monstrosity, Howling Galefang, Warden of
+    # the Beyond), the "exiled with <this>" persistent-pile payoffs (Gorex, The
+    # Kenriths' Royal Funeral, Lumbering Battlement), and the "for each card exiled
+    # this way" one-shot scalers the prefix branch also reaches (the March cycle,
+    # Mizzix's Mastery, Haunting Echoes — pre-existing breadth); CR 406). phase
+    # carries NO usable structural form — it scatters the exile-zone reference across
+    # a count operand (Ulamog `zones=('in:exile',)`), a Condition (Ketramose
+    # `zones=('exile',)`), and a `characteristic_pt` Effect whose count operand drops
+    # the zone (Cosmogoyf, Crackling Drake), with no single category meaning "this
+    # card references cards standing in exile". Over the commander-legal corpus
+    # (floor-disabled, by oracle_id) the structural IR emits this lane on ZERO cards —
+    # it fired ONLY from the deleted regex (63 commander-legal, all scope 'you' HIGH).
+    # This EXILE_MATTERS_REGEX (the EXACT deleted _HAND_FLOOR pattern) run FLAT over
+    # the reminder-stripped kept_oracle reproduces the deleted per-clause producer
+    # BYTE-IDENTICALLY (neither branch carries a `[^.]*` cross-clause span; flat==per-
+    # clause==63). Distinct from exile_removal (EXILE a permanent as REMOVAL),
+    # cast_from_exile above (CAST/PLAY a card FROM exile), and opponent_exile_matters
+    # (GRAVEYARD HATE). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep ->
+    # 0). The deleted producer fed has_other_plan (HIGH, scope 'you', not generic/
+    # voltron-compat), so the hybrid re-silences voltron via _VOLTRON_SILENCING_PLAN_
+    # KEYS — byte-identical re-supply (IR==regex==63), no over-silence (signals.py).
+    # CR 406.
+    (
+        "exile_matters",
+        re.compile(EXILE_MATTERS_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 — extra_combats SUPPLEMENT kept WORD MIRROR (the ADDITIONAL-COMBAT-PHASE
@@ -2267,7 +2300,17 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # the detector firings), so the lane fires SOLELY from the kept mirror — it no
         # longer needs the regex floor. Its _HAND_FLOOR detector is deleted; the hand-
         # written serve spec (signal_specs.py) is independent and survives. CR 207.2c.
-        "exile_matters",
+        # exile_matters removed — ADR-0027 migrated it to the Card IR via a
+        # BYTE-IDENTICAL kept WORD MIRROR (the EXILE_MATTERS_REGEX row in
+        # _IR_KEPT_DETECTORS, scope 'you', HIGH conf). phase carries NO structural form
+        # (it scatters the exile-zone reference across a `zones=('in:exile',)` count
+        # operand, a `Condition(zones=('exile',))`, and a `characteristic_pt` Effect
+        # whose count operand drops the zone, with no single category meaning
+        # "references cards standing in exile"), so the lane fires SOLELY from the kept
+        # mirror — it no longer needs the regex floor (FLOOR→KEPT, floor-mirror-dep ->
+        # 0). Its _HAND_FLOOR detector is deleted; the hand-written serve spec
+        # (signal_specs.py) is independent and survives. Distinct from exile_removal /
+        # cast_from_exile / opponent_exile_matters. CR 406.
         # starting_life_matters removed — ADR-0027 migrated it to the Card IR (a
         # `_STARTING_LIFE_REF` "starting life total" compare marker, CR 103.4). The
         # broad regex over-fired on unrelated life thresholds (Elderscale Wurm,

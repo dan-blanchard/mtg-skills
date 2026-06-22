@@ -5040,6 +5040,33 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027. exile_matters ← the byte-identical kept WORD MIRROR (the
+    # EXILE_MATTERS_REGEX row in _IR_KEPT_DETECTORS, scope "you", HIGH conf; CR 406).
+    # Mairsil, the Pretender is the canonical EXILE-ZONE-AS-RESOURCE engine — "Mairsil has
+    # all activated abilities of all cards you own in exile with cage counters on them"
+    # (the cage-counter exile pile is a STANDING resource it draws abilities from). The
+    # mirror reads the reminder-stripped oracle_text off the record dict (not the IR
+    # structure — phase carries NO usable structural form: it scatters the exile-zone
+    # reference across a zones=("in:exile",) count operand, a Condition(zones=("exile",)),
+    # and a characteristic_pt Effect whose count operand drops the zone, with no single
+    # category meaning "references cards standing in exile"), so a bare non-None IR routes
+    # the hybrid to the IR path. The regex path no longer emits the key (the _HAND_FLOOR
+    # producer is deleted). scope "you". Distinct from exile_removal / cast_from_exile /
+    # opponent_exile_matters. ADR-0027.
+    "exile_matters": (
+        {
+            "name": "Mairsil, the Pretender",
+            "type_line": "Legendary Creature — Human Wizard",
+            "oracle_text": (
+                "When Mairsil enters, you may exile an artifact or creature card "
+                "from your hand or graveyard and put a cage counter on it.\n"
+                "Mairsil has all activated abilities of all cards you own in exile "
+                "with cage counters on them. You may activate each of those "
+                "abilities only once each turn."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 β. free_spell_storm ← the structural arm: a dedicated `free_spell_storm`
     # STATIC marker Effect (project._free_spell_storm_marker over phase's SelfRef
     # ModifyCost{Reduce} static, SIDECAR v20). Thrasta's cost drops {3} per other spell

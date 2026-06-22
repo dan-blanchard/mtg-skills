@@ -938,6 +938,46 @@ CAST_FROM_EXILE_REGEX = (
     r"|(?:cast a spell|play a land|play a card)[^.]*?"
     r"from anywhere other than your hand"
 )
+# ADR-0027 — exile_matters (the EXILE-ZONE-AS-RESOURCE archetype axis: a card that
+# cares about the EXILE zone as a standing resource — "cards you own in exile" /
+# "card in exile with <kind> counter on it" payoffs (Cosmogoyf / Crackling Drake P/T
+# scalers, Mairsil / Grolnok / Tasha / Kianne cast-from-the-exile-pile engines,
+# Ketramose "seven or more cards in exile", Ulamog "greatest mana value among cards in
+# exile", Karn / Coax wishboard fetch, Dreadlight Monstrosity / Howling Galefang / Warden
+# of the Beyond own-a-card-in-exile gates) plus the "exiled with <this>" persistent-pile
+# payoffs (Gorex, The Kenriths' Royal Funeral, Lumbering Battlement) and the
+# "for each card exiled this way" one-shot scalers the prefix branch also reaches
+# (the March pump/cost cycle, Mizzix's Mastery, Haunting Echoes — pre-existing breadth;
+# CR 406 exile zone) migrated to the Card IR. phase carries NO usable STRUCTURAL form:
+# it scatters the exile-zone reference across a `zones=('in:exile',)` count operand
+# (Ulamog), a `Condition(zones=('exile',))` (Ketramose), and a `characteristic_pt` Effect
+# whose count operand drops the zone (Cosmogoyf / Crackling Drake), with no single
+# category that means "this card references cards standing in exile". Over the
+# commander-legal corpus (floor-disabled, by oracle_id) the structural IR emits this lane
+# on ZERO cards — the lane fired ONLY from the deleted regex (63 commander-legal, all
+# scope 'you' HIGH). This EXILE_MATTERS_REGEX (the EXACT deleted _HAND_FLOOR pattern) run
+# FLAT over the reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS
+# loop reproduces the deleted per-clause producer BYTE-IDENTICALLY: neither branch carries
+# a `[^.]*` cross-clause span, so flat==per-clause (commander-legal: flat-mirror==per-
+# clause-regex==63, 0 gain, 0 loss). Distinct from exile_removal (EXILE a permanent as
+# REMOVAL — the deleted producer's "in exile" anchor never reaches it), cast_from_exile
+# (CAST/PLAY a card FROM exile — the build-around above, no "in exile" standing-zone ref),
+# and opponent_exile_matters (GRAVEYARD HATE — exiling an OPPONENT's graveyard). The lane
+# was a regex FLOOR lane (in _IR_FLOOR_LANES, so the IR path re-ran the deleted producer);
+# the byte-identical kept mirror replaces that floor re-run — exile_matters is removed
+# from _IR_FLOOR_LANES (floor-mirror-dep -> 0). exile_matters was NEVER a SWEEP key, so no
+# SWEEP row is touched (len stays 32); only this CONSTANT is pinned here. NO sidecar bump.
+# The deleted producer fired HIGH conf scope 'you' and so counted toward has_other_plan
+# (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-
+# damage voltron tell on an exile-zone engine commander that is NOT a vanilla beater
+# (Mairsil, Grolnok, Tasha, Kianne, Ketramose). Because the IR re-supply IS this byte-
+# identical mirror (IR==regex==63), the hybrid re-silences via _VOLTRON_SILENCING_PLAN_
+# KEYS (signals.py) — no broadening, no over-silence — matching the cast_from_exile /
+# land_sacrifice kept-mirror precedent; NO _EXILE_MATTERS_PLAN_MIRROR is needed. CR 406.
+EXILE_MATTERS_REGEX = (
+    r"cards? (?:you own )?(?:that are )?in exile"
+    r"|for each card (?:you own )?(?:in )?exile"
+)
 # ADR-0027 — extra_combats (the ADDITIONAL-COMBAT-PHASE archetype axis: a card that
 # grants "after this [main] phase, there is an additional combat phase" — Aggravated
 # Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia, Scourge of the Throne,

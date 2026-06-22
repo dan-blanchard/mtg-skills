@@ -1421,6 +1421,36 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # different zone). cast_from_exile was NEVER a SWEEP key (floor count stays 33).
         # CR 207.2c / 601.3b / 903.10a.
         "cast_from_exile",
+        # ADR-0027 — exile_matters: the EXILE-ZONE-AS-RESOURCE cares-about axis — a
+        # card caring about cards STANDING in exile. The "cards you own in exile" /
+        # "card in exile with <kind> counter" P/T scalers + cast-from-the-exile-pile
+        # engines (Cosmogoyf, Crackling Drake, Mairsil, Grolnok, Tasha, Kianne,
+        # Ketramose, Ulamog), the wishboard fetch (Karn, Coax), the
+        # own-a-card-in-exile gates (Dreadlight Monstrosity, Howling Galefang, Warden
+        # of the Beyond), the "exiled with <this>" persistent-pile payoffs (Gorex, The
+        # Kenriths' Royal Funeral, Lumbering Battlement), and the "for each card
+        # exiled this way" one-shot scalers the prefix branch also reaches (the March
+        # cycle, Mizzix's Mastery, Haunting Echoes — pre-existing breadth). Served by
+        # a BYTE-IDENTICAL kept WORD MIRROR (the EXILE_MATTERS_REGEX row in
+        # _IR_KEPT_DETECTORS, scope 'you', HIGH conf — its EXACT pattern pinned in
+        # _sweep_detectors), NOT a structural arm: phase carries NO usable structural
+        # form (it scatters the exile-zone reference across a `zones=('in:exile',)`
+        # count operand (Ulamog), a `Condition(zones=('exile',))` (Ketramose), and a
+        # `characteristic_pt` Effect whose count operand drops the zone (Cosmogoyf,
+        # Crackling Drake), with no single category meaning "references cards standing
+        # in exile"). Over the commander-legal corpus (floor-disabled) the structural
+        # IR emits this lane on ZERO cards, so the mirror run FLAT over the
+        # reminder-stripped kept_oracle is the whole lane (flat==per-clause==63, 0
+        # gain/loss — neither branch carries a `[^.]*` cross-clause span). FLOOR→KEPT:
+        # exile_matters was an _IR_FLOOR_LANE, now removed (floor-mirror-dep -> 0).
+        # The _HAND_FLOOR producer is deleted; the hand-written serve spec
+        # (signal_specs.py) is independent and survives. The deleted producer fed
+        # has_other_plan (HIGH, scope 'you'), so the hybrid re-silences voltron via
+        # _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply, no over-silence.
+        # Distinct from exile_removal (EXILE a permanent as REMOVAL), cast_from_exile
+        # above (CAST/PLAY a card FROM exile), and opponent_exile_matters (GRAVEYARD
+        # HATE). exile_matters was NEVER a SWEEP key (floor count stays 32). CR 406.
+        "exile_matters",
         # ADR-0027 β — free_spell_storm: a per-spell SCALING self-discount whose
         # cost drops for each spell CAST THIS TURN, so the deck wants FREE (0-cost)
         # spells to chain and keep cutting it (Thrasta, Tempest's Roar; Demilich;

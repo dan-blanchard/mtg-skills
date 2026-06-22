@@ -65,11 +65,11 @@ CASES = [
     # Effect structural arm + a byte-identical _BIG_HAND_MATTERS_MIRROR kept word mirror
     # for the "X = cards in your hand" P/T payoffs), so it is asserted via the hybrid
     # path below, not this regex CASES loop.
-    (
-        "exile_matters",
-        "you",
-        "This creature gets +1/+0 for each card you own in exile.",
-    ),
+    # ADR-0027: exile_matters migrated to the Card IR (the byte-identical
+    # EXILE_MATTERS_REGEX kept word mirror for the "cards you own in exile" / "for each
+    # card ... in exile" exile-zone-as-resource refs phase scatters across count
+    # operands / conditions), so it is asserted via the hybrid path below, not this
+    # regex CASES loop.
     # ADR-0027: experience_matters / mutate_matters migrated to the Card IR (the
     # GivePlayerCounter experience gainer + experience scaler operand; the mutate
     # keyword + "if it has mutate" payoff marker), so they are asserted via the
@@ -224,6 +224,22 @@ def test_legends_lands_suspend_are_ir_served():
         c = {"name": "X", "oracle_text": oracle}
         assert (key, "you") in _ks_hybrid(c), f"{key} not IR-served"
         assert (key, "you") not in _ks(c), f"{key} still regex-served"
+
+
+def test_exile_matters_is_ir_served():
+    # ADR-0027: exile_matters migrated to the Card IR via a byte-identical kept word
+    # mirror (EXILE_MATTERS_REGEX) for the EXILE-ZONE-AS-RESOURCE cares-about lane — a
+    # card referencing cards STANDING in exile ("cards you own in exile" / "for each card
+    # ... in exile"). phase scatters the exile-zone reference across count operands /
+    # conditions with no single category, so the lane rides the kept mirror — IR-served,
+    # not regex-served. Both regex branches exercised; scope "you". CR 406.
+    for oracle in (
+        "This creature gets +1/+0 for each card you own in exile.",
+        "Whenever a card you own in exile leaves exile, draw a card.",
+    ):
+        c = {"name": "X", "oracle_text": oracle}
+        assert ("exile_matters", "you") in _ks_hybrid(c), f"not IR-served: {oracle}"
+        assert ("exile_matters", "you") not in _ks(c), f"still regex-served: {oracle}"
 
 
 def test_big_hand_matters_is_ir_served():

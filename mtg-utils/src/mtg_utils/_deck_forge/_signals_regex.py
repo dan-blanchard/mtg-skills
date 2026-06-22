@@ -1637,15 +1637,26 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # amount.op=="party" count operand + a _IR_KEPT_DETECTORS word mirror for the
     # "full party" CONDITION + "creatures in your party" non-count refs. This
     # _HAND_FLOOR producer is deleted; the serve spec stays hand-registered.
-    (
-        "exile_matters",
-        re.compile(
-            r"cards? (?:you own )?(?:that are )?in exile"
-            r"|for each card (?:you own )?(?:in )?exile",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: exile_matters migrated to the Card IR — the EXILE-ZONE-AS-RESOURCE
+    # cares-about lane (cards STANDING in exile — "cards you own in exile" / "card in
+    # exile with <kind> counter" payoffs + "exiled with <this>" persistent-pile
+    # scalers + the "for each card exiled this way" one-shot scalers the prefix branch
+    # also reaches). phase carries NO usable structural form (it scatters the
+    # exile-zone reference across a `zones=('in:exile',)` count operand, a
+    # `Condition(zones= ('exile',))`, and a `characteristic_pt` Effect whose count
+    # operand drops the zone), so the lane fires from a BYTE-IDENTICAL kept WORD
+    # MIRROR — EXILE_MATTERS_REGEX (pinned in _sweep_detectors) run FLAT over the
+    # reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS loop
+    # (commander-legal: flat==per- clause==63, 0 gain/loss — neither branch carries a
+    # `[^.]*` cross-clause span). This was a regex FLOOR lane (in _IR_FLOOR_LANES);
+    # FLOOR→KEPT, floor-mirror-dep -> 0. Distinct from exile_removal (EXILE a
+    # permanent as REMOVAL), cast_from_exile (CAST/PLAY a card FROM exile), and
+    # opponent_exile_matters (GRAVEYARD HATE). The deleted producer fired HIGH (scope
+    # 'you') and fed has_other_plan, so the hybrid re-silences the spurious
+    # commander-damage voltron tell via _VOLTRON_SILENCING_PLAN_KEYS (signals.py) —
+    # byte-identical re-supply, no over- silence. The serve survives via the
+    # standalone _spec in signal_specs.py (never reads this regex). exile_matters was
+    # NEVER a SWEEP key, so no SWEEP row / floor count moves (len stays 32). CR 406.
     # ADR-0027: experience_matters migrated to the Card IR — the GivePlayerCounter
     # ->experience_counter gainers (_DOER_EFFECT_KEYS) plus the experience SCALER
     # operand (op="experience" from a Ref->PlayerCounter{Experience}, project
