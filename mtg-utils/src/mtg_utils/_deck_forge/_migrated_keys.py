@@ -2803,6 +2803,63 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # cards regardless of IR/regex mode (FILE-SWAP voltron delta 0). CR 120.1 /
         # 903.10a.
         "draw_matters",
+        # ADR-0027 β — lifegain_matters (a lifegain PAYOFF — "whenever you gain life",
+        # "if you gained life this turn" — Aerith, Celestine, Lathiel, Bilbo; a lifegain
+        # SOURCE — "you gain N life", "gain life equal to"; PLUS a self-bleed engine
+        # that WANTS lifegain to sustain — Deadpool / Gallowbraid upkeep loss, Greven
+        # "lose life equal to", Necropotence draw-and-bleed). MIGRATED VIA A STRUCTURAL
+        # IR ARM (recall-gaining, already present pre-migration) + a BYTE-IDENTICAL
+        # kept-mirror. NO sidecar bump (the v20 projection already emits the gain_life
+        # category and the life_gained trigger).
+        #
+        # STRUCTURAL ARM (recall-GAINING). extract_signals_ir already fires
+        # lifegain_matters from a `gain_life` Effect scope you/any (the gain SOURCE) and
+        # a `life_gained` Trigger (the gain PAYOFF), plus the lifelink keyword (moved
+        # from _DIRECT_KEYWORD_SIGNALS to the IR-only _IR_KEYWORD_MAP). Floor-disabled
+        # (commander-legal, _IR_FLOOR_LANES=frozenset()) it fires on +77 cards the
+        # deleted bare-"you gain" regex MISSED — the DIRECTED "target player gains N
+        # life" (Skystreamer, Tonic Peddler, Rest for the Weary, Soothing Balm) and
+        # "each opponent gains 1 life" (Grove of the Burnwillows) gains phase structures
+        # as a gain_life Effect. All 77 verified genuine lifegain sources/payoffs (every
+        # one carries a gain/life clause), zero noise.
+        #
+        # BYTE-IDENTICAL KEPT-MIRROR (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). phase
+        # has no structural form for the deleted producers' broader intent: (A) the
+        # registry-280 detector — "whenever you gain life" / "gained life this turn"
+        # gate / "gain X life" variable source / "if you would gain life" amplifier; and
+        # (B) the inline self-bleed-wants-sustain block — a SIGNIFICANT repeated self-
+        # life-LOSS engine (upkeep lose >=2, cumulative upkeep, "lose life equal to",
+        # Necropotence draw-and-bleed, symmetric "each player loses [2-9]"). These are
+        # the `_matters` "cares-about" reading (a self-bleed engine wants lifegain to
+        # stay alive — Infernal Darkness, Stinging Study, Imp's Mischief), which phase
+        # carries no signal for. So the lane rides the EXACT deleted producers (pinned
+        # as LIFEGAIN_MATTERS_REGEX) over the reminder-stripped kept_oracle. Run FULL-
+        # TEXT (not per-clause): the registry-280 arms are `[^.]`-bounded clause-local
+        # AND the deleted sustain block was an inline full-`text` `re.search`, so over
+        # the same reminder-stripped input full-text == the union of both producers.
+        #
+        # Floor-disabled residual vs the deleted regex producers (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(): IR-arm-only vs regex base): ir_only == 77
+        # (genuine directed-gain recall the IR gained), regex_only == 247 (the broader
+        # payoff / sustain intent the structural arm has no form for) — ALL 247
+        # recovered byte-identically by the mirror (247 fixed, 0 still-regex-only, 0 NEW
+        # over-fire) — NO genuine lifegain lost. floor-mirror-dep == 0 (lifegain_matters
+        # is NOT an _IR_FLOOR_LANE — it was a _DETECTORS key + an inline block).
+        #
+        # VOLTRON. Two HIGH-confidence regex sources fed has_other_plan and are re-
+        # supplied as byte-identical gate mirrors in _signals_regex (NOT the silencing-
+        # keys set, matching the token_copy_matters / conjure_matters pattern): (1) the
+        # registry-280 _DETECTORS producer (ARM A, forced scope 'you') →
+        # _LIFEGAIN_MATTERS_PLAN_MIRROR, the ARM-A-only regex (NOT the A|B union — the
+        # ARM-B sustain block fired LOW confidence and never fed has_other_plan, so
+        # silencing sustain-only bodies would CHANGE behavior); and (2) the lifelink
+        # keyword map entry (HIGH-confidence, the default add() confidence) → a
+        # `lifelink in card.keywords` term, since a vanilla-lifelink beater's gain lives
+        # only in the stripped keyword reminder the PLAN mirror can't see (69 commander-
+        # legal lifelink creatures power>=2 — Divinity of Pride, Blood Baron — would
+        # otherwise flip to a spurious voltron tell). FILE-SWAP voltron delta == 0.
+        # CR 119 / 118 / 702.15 / 903.10a.
+        "lifegain_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

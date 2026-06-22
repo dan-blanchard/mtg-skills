@@ -76,6 +76,12 @@ PILE = {"cards": [{"name": c["name"], "quantity": 1} for c in ALL]}
 # serve credits as support) depend on it, so wire a bare Card per synthetic oracle_id —
 # the mirror reads the oracle off the record, so the IR need carry no abilities. This
 # mirrors production (real commanders carry real IR).
+# ADR-0027 β: lifegain_matters migrated to the Card IR (a structural arm + a byte-
+# identical kept-mirror that reads the record's reminder-stripped oracle), so the hybrid
+# serves it ONLY from the IR path. Lifelord's "Whenever you gain life" lane (and the
+# "You gain 3 life" support its lifegain serve credits) depend on it, so wire a bare Card
+# per synthetic oracle_id — the mirror reads the oracle off the record, so the IR need
+# carry no abilities. This mirrors production (real commanders carry real IR).
 _BARE_IR_INDEX = {
     c["oracle_id"]: Card(
         oracle_id=c["oracle_id"], name=c["name"], faces=(Face(name=c["name"]),)

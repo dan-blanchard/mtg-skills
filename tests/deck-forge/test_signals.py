@@ -85,11 +85,14 @@ def test_graveyard_signal_scoped_to_you_for_reanimator():
 
 
 def test_lifegain_matters():
+    # ADR-0027 β: lifegain_matters migrated to the Card IR (a `life_gained` trigger /
+    # `gain_life` Effect structural arm + a byte-identical kept-mirror over the reminder-
+    # stripped oracle), so it serves from the hybrid path.
     card = {
         "name": "Soul Warden's Friend",
         "oracle_text": "Whenever you gain life, put a +1/+1 counter on this creature.",
     }
-    assert ("lifegain_matters", "you") in _keys(card)
+    assert ("lifegain_matters", "you") in _keys_hybrid(card)
 
 
 def test_vanilla_keyword_card_has_no_signals():
@@ -429,7 +432,9 @@ def test_lifegain_conditional_payoff_opens_lane():
             "battlefield instead."
         ),
     }
-    assert ("lifegain_matters", "you") in _keys(aerith)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — the "if you gained life
+    # this turn" payoff rides the byte-identical kept-mirror, served from the hybrid.
+    assert ("lifegain_matters", "you") in _keys_hybrid(aerith)
 
 
 def test_lifegain_amount_gained_payoff_opens_lane():
@@ -441,7 +446,9 @@ def test_lifegain_amount_gained_payoff_opens_lane():
             "to the battlefield, where X is the amount of life you gained this turn."
         ),
     }
-    assert ("lifegain_matters", "you") in _keys(celestine)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — "the amount of life you
+    # gained" rides the kept-mirror, served from the hybrid path.
+    assert ("lifegain_matters", "you") in _keys_hybrid(celestine)
 
 
 def test_combat_damage_to_player_does_not_open_lifegain():
@@ -1379,8 +1386,10 @@ def test_variable_lifegain_opens_lifegain():
         "type_line": "Legendary Creature — Kor Cleric",
         "oracle_text": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\n{1}, Sacrifice another creature: You gain life equal to the sacrificed creature's toughness.\n{1}{W}{B}, Sacrifice another creature: Exile target nonland permanent. Activate only if you have at least 10 life more than your starting life total.",
     }
-    assert ("lifegain_matters", "you") in _keys(atalya)
-    assert ("lifegain_matters", "you") in _keys(ayli)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — variable "gain X life" /
+    # "gain life equal to" rides the byte-identical kept-mirror, served from the hybrid.
+    assert ("lifegain_matters", "you") in _keys_hybrid(atalya)
+    assert ("lifegain_matters", "you") in _keys_hybrid(ayli)
 
 
 def test_if_you_would_gain_life_opens_lifegain():
@@ -1391,7 +1400,9 @@ def test_if_you_would_gain_life_opens_lifegain():
         "type_line": "Legendary Creature — Halfling Rogue",
         "oracle_text": "If you would gain life, you gain that much life plus 1 instead.\n{2}{W}{B}{G}, {T}, Exile Bilbo: Search your library for any number of creature cards, put them onto the battlefield, then shuffle. Activate only if you have 111 or more life.",
     }
-    assert ("lifegain_matters", "you") in _keys(bilbo)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — the "if you would gain
+    # life" amplifier rides the byte-identical kept-mirror, served from the hybrid.
+    assert ("lifegain_matters", "you") in _keys_hybrid(bilbo)
 
 
 def test_tap_deals_damage_opens_burn():
@@ -1646,15 +1657,22 @@ def test_fliers_matter_commander_opens_flying_keyword_tribe():
 def test_lifelink_commander_opens_lifegain():
     # A lifelink commander (Liesa, Elenda) gains life in combat → it's a lifegain deck
     # (lifelink + Sanguine Bond / Archangel of Thune is the payoff). The keyword carries
-    # the gain (no "gain life" oracle text), so open lifegain via the keyword.
+    # the gain (no "gain life" oracle text), so open lifegain via the keyword. ADR-0027
+    # β: lifelink→lifegain_matters MOVED to the IR-only _IR_KEYWORD_MAP, so it serves
+    # from the hybrid via the IR's Lifelink keyword (the IR Face carries keywords[]).
     card = {
         "name": "Elenda, Saint of Dusk",
         "type_line": "Legendary Creature — Vampire Knight",
         "keywords": ["Lifelink", "Deathtouch"],
         "oracle_text": "Lifelink, hexproof from instants\nAs long as your life total is greater than your starting life total, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total.",
     }
+    ir = Card(
+        oracle_id="x",
+        name="Elenda, Saint of Dusk",
+        faces=(Face(name="Elenda", keywords=("Lifelink", "Deathtouch")),),
+    )
     assert ("lifegain_matters", "you") in {
-        (s.key, s.scope) for s in extract_signals(card)
+        (s.key, s.scope) for s in extract_signals_hybrid(card, ir)
     }
 
 

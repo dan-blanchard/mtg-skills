@@ -65,6 +65,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
+    LIFEGAIN_MATTERS_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
@@ -416,6 +417,15 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # lifeloss_matters migration so the keyword route stays on the IR path (extort /
     # afflict already fire lifeloss STRUCTURALLY and need no keyword entry).
     "spectacle": (("lifeloss_matters", "opponents"),),
+    # Lifelink (CR 702.15) — a creature with lifelink gains life in combat, so it is a
+    # lifegain SOURCE that wants lifegain payoffs (Archangel of Thune, Heliod). MOVED
+    # here from _DIRECT_KEYWORD_SIGNALS for the ADR-0027 β lifegain_matters migration so
+    # the keyword route stays on the IR path (extract_signals must no longer emit the
+    # migrated key). The structural gain_life Effect / life_gained trigger covers
+    # explicit "gain N life" / "whenever you gain life" cards; this keyword opens the
+    # lane for a vanilla-lifelink creature whose only gain is the combat keyword (no
+    # gain_life Effect node). CR 702.15.
+    "lifelink": (("lifegain_matters", "you"),),
     "soulbond": (("soulbond_matters", "you"),),
     "specialize": (("specialize_matters", "you"),),
     "suspend": (("suspend_matters", "you"),),
@@ -2228,6 +2238,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 702.95 / 707.
             "token_copy_matters",
+            # NB: lifegain_matters is ALREADY in this set (the original 5-key vertical
+            # slice, above) — the ADR-0027 β migration adds no new IR_SLICE_KEYS
+            # member, only flips it into MIGRATED_KEYS and deletes the regex producers.
+            # Its recall-GAINING structural arm (a `gain_life` Effect + `life_gained`
+            # trigger + the lifelink keyword, now in _IR_KEYWORD_MAP) plus the byte-
+            # identical _LIFEGAIN_MATTERS_MIRROR (the exact deleted producers) restore
+            # the 247 regex-only cards with 0 over-fire while gaining +77. CR 119 / 118.
             # ADR-0027 β — entered_attacker: the "entered (the battlefield) this
             # turn" predicate is NOT projected (it survives only in raw), so phase
             # emits NO structural shape for the freshly-entered-attacker payoff
@@ -3258,6 +3275,24 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
 # is precise — it never fired on the reminder-text self-copies because they live inside
 # parens). CR 702.95.
 _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# lifegain_matters BYTE-IDENTICAL kept mirror (ADR-0027 β): the structural arm above
+# (a `gain_life` Effect scope you/any + a `life_gained` trigger + the shared lifelink
+# keyword map) is a recall-GAINING addition (+77 commander-legal: the directed "target
+# player gains N life" / "each opponent gains 1 life" gains phase structures that the
+# bare "you gain" regex MISSED), but phase has NO structural form for the two deleted
+# regex producers' broader intent: (A) the "whenever you gain life" payoff / "gained
+# life this turn" gate / "gain X life" variable source / "if you would gain life"
+# amplifier, and (B) the SIGNIFICANT self-life-LOSS sustain engine ("cares-about":
+# upkeep lose >=2, cumulative upkeep, "lose life equal to", Necropotence draw-and-bleed,
+# symmetric "each player loses [2-9]") that WANTS lifegain to stay alive. So recover the
+# lane with the EXACT deleted producers (pinned as LIFEGAIN_MATTERS_REGEX) over the
+# reminder-stripped kept_oracle, byte-identical to the deleted Detectors. Full-text (NOT
+# per-clause): the registry-280 arms are `[^.]`-bounded (clause-local) and the deleted
+# sustain block was itself an inline full-`text` `re.search`, so over the same reminder-
+# stripped input full-text == the union of both deleted producers (commander-legal
+# corpus: 247 regex-only fixed, 0 still-regex-only, 0 NEW over-fire). No veto needed (a
+# byte-identical re-home introduces no over-fire). CR 119 / 118.
+_LIFEGAIN_MATTERS_MIRROR = re.compile(LIFEGAIN_MATTERS_REGEX, re.IGNORECASE)
 # entered_attacker BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
 # EXACT deleted _HAND_FLOOR regex (pinned as ENTERED_ATTACKER_REGEX) run PER-CLAUSE
 # over the reminder-stripped oracle — a creature that ENTERED this turn paired with
@@ -6654,6 +6689,18 @@ def extract_signals_ir(
     # add() dedups. CR 603.6.
     for _etb_key, _etb_scope in _creature_etb_clauses(kept_oracle):
         add(_etb_key, _etb_scope, "", "")
+    # ADR-0027 β — lifegain_matters BYTE-IDENTICAL kept mirror. The structural arms
+    # above (a `gain_life` Effect scope you/any + a `life_gained` trigger + the shared
+    # lifelink keyword map) gain +77 commander-legal cards over the deleted regex, but
+    # phase has no structural form for the deleted producers' broader intent — the
+    # "whenever you gain life" payoff / "gained life this turn" gate / variable "gain X
+    # life" source / "if you would gain life" amplifier (arm A), and the SIGNIFICANT
+    # repeated self-life-LOSS sustain engine that wants lifegain (arm B). Recover them
+    # with the EXACT deleted producers (pinned as LIFEGAIN_MATTERS_REGEX) over the
+    # reminder-stripped kept_oracle (scope 'you', the deleted producers' forced scope).
+    # add() dedups vs the structural arms. CR 119 / 118.
+    if _LIFEGAIN_MATTERS_MIRROR.search(kept_oracle):
+        add("lifegain_matters", "you", "", "")
     # ADR-0027 β — color_change BYTE-IDENTICAL kept mirror. phase parses the "becomes
     # the color of your choice / all colors" clause INCONSISTENTLY (20 cards as a nested
     # AddChosenColor modification, 4 as a bare Unimplemented "become"), and the only IR

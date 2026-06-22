@@ -536,6 +536,46 @@ DEATH_MATTERS_REGEX = (
     r"|creatures? (?:that )?died this turn"
     r"|creature[^.]*\bdied\b[^.]*this turn"
 )
+# ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
+# mirror (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). The deleted regex producers — the
+# `_DETECTORS` registry row (the "whenever you gain life" payoff / "gain N life" source
+# detector) AND the inline `extract_signals` self-bleed-wants-sustain block — are pinned
+# here byte-identically so the IR kept mirror, the _LIFEGAIN_MATTERS_PLAN_MIRROR voltron
+# gate (_signals_regex), and the hand-registered serve spec (signal_specs) all share ONE
+# source. lifegain_matters was NEVER a SWEEP key, so no SWEEP row is touched (len stays
+# 36). The structural IR arm (a `gain_life` Effect scope you/any + a `life_gained`
+# trigger + the shared lifelink keyword map) is a recall-GAINING addition that already
+# fires on +77 commander-legal cards the bare "you gain" regex MISSED (the directed
+# "target player gains N life" / "each opponent gains 1 life" gains phase structures);
+# this mirror restores the 247 regex-only cards (153 reg280 payoffs / 93 self-bleed-
+# sustain / 1 both) byte-identically with 0 new over-fires. ARM (A) is the payoff /
+# source detector; ARM (B) credits a SIGNIFICANT repeated self-life-LOSS engine (upkeep
+# lose >=2, cumulative upkeep, "lose life equal to", Necropotence-style draw-and-bleed,
+# symmetric "each player loses [2-9]") that WANTS lifegain to sustain. CR 119 / 118.
+LIFEGAIN_MATTERS_REGEX = (
+    # ARM (A) — lifegain payoff ("whenever you gain life") / the act of gaining life /
+    # a payoff that gates on HAVING gained life ("if you gained life this turn", "the
+    # amount of life you gained" — Aerith / Celestine / Lathiel) / variable self-gain
+    # ("gain X life", "gain life equal to", "you gain that much life") / amplifiers
+    # ("if you would gain life" — Bilbo, Boon Reflection, Rhox Faithmender).
+    r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
+    r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
+    r"|gains? x life|gains? life equal to|you gain that much life"
+    r"|if you would gain life"
+    # ARM (B) — significant, repeated, unavoidable self-life-loss that wants lifegain
+    # sustain: MEANINGFUL fixed/scaling bleed (upkeep lose >=2 — Deadpool; cumulative
+    # upkeep — Gallowbraid/Morinfen; "you lose life equal to" sac engines — Greven),
+    # the Necropotence-style "draw X / lose X" engines (Be'lakor, Imskir, Corpse Augur)
+    # and "you lose that much life" (Asmodeus), and the symmetric significant drain
+    # ("each player loses [2-9] life" hits YOU too). The negligible controlled "lose 1
+    # life" rider and the optional "may pay X life" stay OUT (the over-broad trap).
+    r"|at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
+    r"life|cumulative upkeep[^.]*life|you lose life equal to"
+    r"|you lose x life|you lose that much life"
+    r"|whenever[^.]*(?:put into (?:a|their|your) graveyard|dies"
+    r"|leaves the battlefield)[^.]*you draw[^.]*you lose \d+ life"
+    r"|each player loses (?:[2-9]|\d\d) life"
+)
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-

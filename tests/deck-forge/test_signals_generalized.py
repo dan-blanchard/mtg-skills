@@ -6162,14 +6162,16 @@ def test_lifegain_payoff_matches_your_team_and_contraction():
             "create two 1/1 white Warrior creature tokens."
         ),
     }
-    assert "lifegain_matters" in _keys(regna)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR (byte-identical kept-mirror),
+    # so it serves from the hybrid path.
+    assert "lifegain_matters" in _keys_hybrid(regna)
     # Over-fire guard: a non-lifegain payoff doesn't open the lane.
     plain = {
         "name": "Generic Beater",
         "type_line": "Creature — Bear",
         "oracle_text": "Trample",
     }
-    assert "lifegain_matters" not in _keys(plain)
+    assert "lifegain_matters" not in _keys_hybrid(plain)
 
 
 def test_lifegain_matches_variable_that_much_life():
@@ -6187,7 +6189,9 @@ def test_lifegain_matches_variable_that_much_life():
             "Zombie creature token."
         ),
     }
-    assert "lifegain_matters" in _keys(varina)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR (byte-identical kept-mirror),
+    # so it serves from the hybrid path.
+    assert "lifegain_matters" in _keys_hybrid(varina)
     # Over-fire guard: the new clause is self-scoped. A third-person "<opponent>
     # gains that much life" (no "whenever … gain … life" trigger sentence) must not
     # open the lane — only "you gain that much life" does.
@@ -6198,7 +6202,7 @@ def test_lifegain_matches_variable_that_much_life():
             "At the beginning of your end step, target opponent gains that much life."
         ),
     }
-    assert "lifegain_matters" not in _keys(opp)
+    assert "lifegain_matters" not in _keys_hybrid(opp)
 
 
 def test_debuff_serves_opponent_mass_shrink():
@@ -6277,7 +6281,9 @@ def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
             "{3}, Sacrifice this creature: Each other player draws a card."
         ),
     }
-    assert "lifegain_matters" in _keys(deadpool)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — the self-bleed-wants-
+    # sustain block (ARM B) rides the byte-identical kept-mirror, served from the hybrid.
+    assert "lifegain_matters" in _keys_hybrid(deadpool)
     # A passive, frequent, unavoidable death-triggered draw-and-bleed engine (Kothophed
     # loses 1 life per opponent permanent dying — fast with board wipes) also bleeds you
     # out, so it wants lifegain even though each event is only 1 life.
@@ -6290,7 +6296,7 @@ def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
             "from the battlefield, you draw a card and you lose 1 life."
         ),
     }
-    assert "lifegain_matters" in _keys(kothophed)
+    assert "lifegain_matters" in _keys_hybrid(kothophed)
     # Over-fire guard: losing 1 life per attack is a negligible rider, not a bleed engine.
     azula = {
         "name": "Azula, On the Hunt",
@@ -6300,7 +6306,7 @@ def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
             "Whenever Azula attacks, you lose 1 life and create a Clue token."
         ),
     }
-    assert "lifegain_matters" not in _keys(azula)
+    assert "lifegain_matters" not in _keys_hybrid(azula)
 
 
 def test_variable_self_bleed_opens_lifegain_sustain():
@@ -6331,8 +6337,10 @@ def test_variable_self_bleed_opens_lifegain_sustain():
             "damage equal to its power to any target."
         ),
     }
-    assert "lifegain_matters" in _keys(asmodeus)
-    assert "lifegain_matters" in _keys(belakor)
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — the variable self-bleed
+    # sustain (ARM B) rides the byte-identical kept-mirror, served from the hybrid.
+    assert "lifegain_matters" in _keys_hybrid(asmodeus)
+    assert "lifegain_matters" in _keys_hybrid(belakor)
     # Boundary guard: OPTIONAL "you may pay life equal to" (Madame Null) is controlled,
     # affordable life payment, not an unavoidable bleed — it stays out (the over-broad
     # lifeloss trap). Forced "you lose …" opens; optional "you may pay …" does not.
@@ -6345,7 +6353,7 @@ def test_variable_self_bleed_opens_lifegain_sustain():
             "its power. If you do, put that many +1/+1 counters on it."
         ),
     }
-    assert "lifegain_matters" not in _keys(madame_null)
+    assert "lifegain_matters" not in _keys_hybrid(madame_null)
 
 
 def test_variable_self_lifeloss_opens_life_as_resource_lane():
@@ -6632,8 +6640,15 @@ def test_acererak_folds_ventured_tomb_of_annihilation():
             },
         ],
     }
-    without = _keys(acererak)
-    withfold = {s.key for s in extract_signals(acererak, resolve_object=resolver)}
+    # ADR-0027 β: lifegain_matters migrated to the Card IR — it serves from the hybrid,
+    # and extract_signals_hybrid folds referenced objects (the ventured ToA) into the
+    # record the IR kept-mirror reads, so the "each player loses N life" bleed still
+    # opens the lane.
+    without = _keys_hybrid(acererak)
+    withfold = {
+        s.key
+        for s in extract_signals_hybrid(acererak, _bare_ir(), resolve_object=resolver)
+    }
     # The folded ToA bleed opens lifegain (sustain for Demon's Horn).
     assert "lifegain_matters" in withfold
     assert "lifegain_matters" not in without
@@ -6662,7 +6677,8 @@ def test_acererak_folds_ventured_tomb_of_annihilation():
         ],
     }
     assert "lifegain_matters" not in {
-        s.key for s in extract_signals(nadaar, resolve_object=resolver)
+        s.key
+        for s in extract_signals_hybrid(nadaar, _bare_ir(), resolve_object=resolver)
     }
 
 

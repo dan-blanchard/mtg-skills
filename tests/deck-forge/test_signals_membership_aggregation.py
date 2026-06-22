@@ -101,7 +101,7 @@ def test_deckcard_races_do_not_flood_avenues():
     assert "Ally" not in labels
 
 
-def test_avenues_capped_for_many_themes():
+def test_avenues_capped_for_many_themes(monkeypatch):
     cmd = {
         "name": "Cmdr",
         "type_line": "Legendary Creature — Human",
@@ -110,6 +110,7 @@ def test_avenues_capped_for_many_themes():
         "oracle_text": "",
         "power": "3",
         "toughness": "3",
+        "oracle_id": "cmdr-oid",
     }
     themes = [
         "Create a Treasure token.",
@@ -134,9 +135,26 @@ def test_avenues_capped_for_many_themes():
             "cmc": 2.0,
             "color_identity": ["B"],
             "oracle_text": t,
+            "oracle_id": f"c{i}-oid",
         }
         for i, t in enumerate(themes)
     ]
+    # ADR-0027 β: lifegain_matters migrated to the Card IR (a kept-mirror that reads the
+    # record's reminder-stripped oracle), so "Whenever you gain 3 life" serves only from
+    # the IR path. Wire a bare Card per synthetic oracle_id so that theme keeps minting
+    # its avenue (the mirror reads the oracle off the record), matching production where
+    # real cards carry real IR. Without it the lane silently drops and the cap math
+    # surfaces more trailing sub-avenues.
+    from mtg_utils._deck_forge import engine as _engine
+    from mtg_utils.card_ir import Card, Face
+
+    bare_ir = {
+        c["oracle_id"]: Card(
+            oracle_id=c["oracle_id"], name=c["name"], faces=(Face(name=c["name"]),)
+        )
+        for c in (cmd, *deck)
+    }
+    monkeypatch.setattr(_engine, "_ir_index", lambda: bare_ir)
     avenues = _client(cmd, deck).get("/api/snapshot").json()["avenues"]
     engine = [a for a in avenues if a["source"] == "engine"]
     # capped to the dominant themes (+ at most the trailing parent's sub-avenues).

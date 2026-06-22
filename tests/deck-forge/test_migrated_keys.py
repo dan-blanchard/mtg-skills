@@ -216,6 +216,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # lifegain_matters ← a `life_gained` Trigger (Archangel of Thune's "Whenever you
+    # gain life, put a +1/+1 counter on each creature you control" projects a triggered
+    # ability with event=="life_gained"). The STRUCTURAL arm in extract_signals_ir fires
+    # lifegain_matters scope "you" off that trigger (the gain PAYOFF), proving the real
+    # IR arm — not just the byte-identical kept mirror that recovers the broader "if you
+    # gained life" / self-bleed-sustain intent. ADR-0027 β.
+    "lifegain_matters": (
+        {
+            "name": "Archangel of Thune",
+            "type_line": "Creature — Angel",
+            "oracle_text": (
+                "Flying\nLifelink (Damage dealt by this creature also causes "
+                "you to gain that much life.)\nWhenever you gain life, put a "
+                "+1/+1 counter on each creature you control."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="life_gained", scope="you"),
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="you",
+                        raw="put a +1/+1 counter on each creature you control",
+                    ),
+                ),
+            )
+        ),
+    ),
     # conjure_matters ← a BYTE-IDENTICAL `\bconjure\b` kept word mirror
     # (signals._IR_KEPT_DETECTORS, scope "you", over the reminder-stripped oracle).
     # CONJURE is digital-only (Arena/Alchemy, CR 701.66a): phase carries a structural

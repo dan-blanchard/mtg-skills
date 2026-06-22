@@ -306,27 +306,23 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Jyoti) + a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the self-animate
     # manlands phase drops. This _DETECTORS producer is deleted; the serve spec stays
     # hand-registered in signal_specs.py.
-    (
-        # Lifegain payoff ("whenever you gain life") OR the act of gaining life OR a
-        # payoff that gates on HAVING gained life this turn ("if you gained life this
-        # turn", "the amount of life you gained" — Aerith / Celestine / Lathiel).
-        "lifegain_matters",
-        _re(
-            r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
-            # "you gained" plus the contraction ("you've") and the partner "your team
-            # gained life this turn" form (Regna / Krav).
-            r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
-            # Variable lifegain: "gain X life" (Atalya), "gain life equal to …" (Ayli),
-            # "you gain that much life" (Varina, Black Panther) — count-scaled self
-            # lifegain. Self-scoped form only; "<opponent> gains that much life" stays
-            # out (lifelink reminder text on granted auras already opens via lifelink).
-            r"|gains? x life|gains? life equal to|you gain that much life"
-            # Lifegain amplifiers: "if you would gain life, you gain … instead"
-            # (Bilbo, Boon Reflection, Rhox Faithmender, Alhammarret's Archive).
-            r"|if you would gain life"
-        ),
-        "you",
-    ),
+    # ADR-0027 β: lifegain_matters migrated to the Card IR. This _DETECTORS producer
+    # (the lifegain payoff / source detector — "whenever you gain life", "you gain N
+    # life", "gained life this turn", "gain life equal to", "if you would gain life",
+    # pinned now as ARM (A) of LIFEGAIN_MATTERS_REGEX in _sweep_detectors) AND the
+    # inline self-bleed-wants-sustain block in extract_signals (ARM (B); deleted below)
+    # are deleted. The lane fires from a RECALL-GAINING structural arm in
+    # extract_signals_ir (a `gain_life` Effect scope you/any + a `life_gained` trigger +
+    # the shared lifelink keyword map — +77 commander-legal cards the bare "you gain"
+    # regex MISSED: directed "target player gains N life" / "each opponent gains 1
+    # life") PLUS the byte-identical _LIFEGAIN_MATTERS_MIRROR (the EXACT deleted
+    # producers over reminder-stripped kept_oracle — 247 regex-only cards restored, 0
+    # new over-fire). This _DETECTORS row fired HIGH-confidence (forced scope 'you') and
+    # counted toward has_other_plan, so the _LIFEGAIN_MATTERS_PLAN_MIRROR (below) re-
+    # supplies the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, matching the
+    # token_copy_matters / conjure_matters byte-identical-mirror pattern. The serve spec
+    # (signal_specs) survives — it was always hand-registered and independent of this
+    # regex. CR 119 / 118 / 903.10a.
     # Whose graveyard a card cares about decides the scope. A self-graveyard engine
     # that merely MENTIONS opponents elsewhere (Araumi's encore tokens "attack that
     # opponent"; Tasigur, Toshiro, Syr Konrad, Glissa) was mis-scoped opponents by the
@@ -2345,7 +2341,10 @@ _DIRECT_KEYWORD_SIGNALS = {
     # block trigger is reminder text, so a Rampage commander (Marhault) reads as
     # blocked-matters via the keyword (wants rampage payoffs / lure to force blocks).
     "rampage": ("blocked_matters", "you"),
-    "lifelink": ("lifegain_matters", "you"),  # gains life in combat → lifegain payoffs
+    # ADR-0027 β: lifelink (→ lifegain_matters) MOVED to _IR_KEYWORD_MAP (the IR-only
+    # keyword path) for the lifegain_matters migration — keeping it here would let the
+    # regex `extract_signals` keep emitting a migrated key. A vanilla-lifelink creature
+    # now opens lifegain_matters from the IR keyword route (saddle/spectacle-style).
     "exploit": ("sacrifice_matters", "you"),  # enters → sacrifice a creature
     "devour": ("sacrifice_matters", "you"),  # enters → sacrifice creatures for counters
     # afflict / spectacle (→ lifeloss_matters) removed for the ADR-0027 migration —
@@ -2811,6 +2810,31 @@ _CONJURE_MATTERS_PLAN_MIRROR = re.compile(r"\bconjure\b", re.IGNORECASE)
 # span crossing a sentence, so full-text == per-clause. CR 903.10a / 120.1.
 _DRAW_MATTERS_PLAN_MIRROR = re.compile(
     r"whenever you draw|(?:you've|you have) drawn (?:this turn|your|\d|two|three)",
+    re.IGNORECASE,
+)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated lifegain_matters key. ONLY the
+# deleted registry-280 _DETECTORS producer (ARM (A) — "whenever you gain life" payoff /
+# "gain N life" source / "gained life this turn" gate / "gain X life" / "if you would
+# gain life") fired HIGH-confidence (forced scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a lifegain
+# ENGINE (a sustain / drain payoff IS its plan, not a vanilla beater — Aetherflux
+# Reservoir, Sanguine Bond, a lifelink-payoff commander). The deleted self-bleed sustain
+# block (ARM (B) of LIFEGAIN_MATTERS_REGEX) fired LOW confidence, so it NEVER fed
+# has_other_plan and must NOT be re-supplied here — a sustain-only body carried no high-
+# confidence plan pre-migration and silencing it now would CHANGE behavior (a NEW
+# voltron silence). So this PLAN mirror is ARM (A) ONLY, byte-identical to the deleted
+# high-confidence _DETECTORS regex — NOT the (A|B) union and NOT
+# _VOLTRON_SILENCING_PLAN_KEYS (matching the token_copy_matters / conjure_matters
+# byte-identical-mirror pattern: a *_PLAN_MIRROR reproduces has_other_plan in the regex-
+# path computation regardless of IR/regex mode). Matched against the reminder-STRIPPED
+# `text` (the deleted _DETECTORS producer ran per-clause over `re.sub(r"\([^)]*\)", "
+# ", …)`-stripped clauses); the `[^.]`-bounded arms never cross a sentence, so full-text
+# == per-clause. CR 903.10a / 119.
+_LIFEGAIN_MATTERS_PLAN_MIRROR = re.compile(
+    r"whenever[^.]*gain[^.]*life|you gain \d+ life|gain \d+ life"
+    r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
+    r"|gains? x life|gains? life equal to|you gain that much life"
+    r"|if you would gain life",
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated color_change key. The deleted
@@ -4132,34 +4156,14 @@ def extract_signals(
         # lure deck, so blocked_matters does NOT cross-open lure.
         if "lure_matters" in keys_now and "blocked_matters" not in keys_now:
             add("blocked_matters", "you", "", text[:160], "low")
-        # SIGNIFICANT, repeated, unavoidable self-life-loss bleeds you out without
-        # sustain, so the engine wants lifegain to stay alive: (1) MEANINGFUL fixed/
-        # scaling bleed — upkeep lose >=2 (Deadpool), cumulative upkeep (Gallowbraid/
-        # Morinfen), "you lose life equal to" sac engines (Greven); (2) a PASSIVE death/
-        # LTB-triggered draw-AND-bleed engine (Kothophed loses 1 per opponent permanent
-        # dying — fast with wipes; Nikara, Tegwyll) — frequent and unavoidable, so the
-        # per-event 1 life still decks you. The negligible "lose 1 life" rider on a
-        # CONTROLLED attack/sac/value trigger stays out (the over-broad lifeloss trap).
-        if re.search(
-            r"at the beginning of (?:your|each)[^.]*upkeep[^.]*you lose (?:[2-9]|\d\d) "
-            r"life|cumulative upkeep[^.]*life|you lose life equal to"
-            # Variable siblings of "you lose life equal to": the Necropotence-style
-            # "draw X / lose X" engines (Be'lakor, Imskir, Corpse Augur, Graveborn Muse)
-            # and "you lose that much life" (Asmodeus draws its library). Forced, X-/
-            # damage-scaled self-bleed — always significant, never a 1-life rider — so
-            # it wants lifegain sustain. Optional "you may PAY X life" is NOT "lose" and
-            # stays out (the controlled-payment half of the over-broad lifeloss trap).
-            r"|you lose x life|you lose that much life"
-            r"|whenever[^.]*(?:put into (?:a|their|your) graveyard|dies"
-            r"|leaves the battlefield)[^.]*you draw[^.]*you lose \d+ life"
-            # Symmetric significant drain — "each player loses [2-9] life" hits YOU too,
-            # so a repeated source (a folded Tomb of Annihilation's rooms; a symmetric
-            # bleed engine) decks the controller and wants lifegain sustain.
-            r"|each player loses (?:[2-9]|\d\d) life",
-            text,
-            re.IGNORECASE,
-        ):
-            add("lifegain_matters", "you", "", text[:160], "low")
+        # ADR-0027 β: the lifegain_matters self-bleed-wants-sustain block (ARM (B) — a
+        # SIGNIFICANT repeated self-life-LOSS engine that wants lifegain to stay alive:
+        # upkeep lose >=2 / cumulative upkeep / "lose life equal to" / Necropotence
+        # draw-and-bleed / symmetric "each player loses [2-9]") migrated to the Card IR.
+        # This inline producer (fired LOW confidence, so it never fed has_other_plan) is
+        # deleted; it survives byte-identically as ARM (B) of LIFEGAIN_MATTERS_REGEX
+        # (_sweep_detectors), run by the _LIFEGAIN_MATTERS_MIRROR in extract_signals_ir
+        # over the same reminder-stripped oracle. CR 119 / 118.
         # ADR-0027 β — combat_damage_to_opp migrated to the Card IR. Its narrow
         # double-strike-grant producer (Raphael, Blade Historian, Berserkers' Onslaught:
         # "attacking creatures you control have double strike" → attackers connect with
@@ -4534,6 +4538,28 @@ def extract_signals(
         # over stripped, lowercased text); neither arm spans a sentence, so
         # full-text == per-clause. CR 903.10a.
         or _DRAW_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
+        # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
+        # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the
+        # deleted self-bleed sustain block (ARM (B)) fired LOW confidence and never fed
+        # has_other_plan, so this mirror is the ARM-(A)-only regex — NOT the (A|B) union
+        # (which would over-silence sustain-only bodies that carried no high-confidence
+        # plan pre-migration) and NOT _VOLTRON_SILENCING_PLAN_KEYS. Matched against the
+        # reminder-STRIPPED `text` (the deleted _DETECTORS producer ran per-clause over
+        # stripped clauses); the `[^.]`-bounded arms never cross a sentence. CR 903.10a.
+        or _LIFEGAIN_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted lifelink→lifegain_matters keyword map
+        # entry. It was moved from _DIRECT_KEYWORD_SIGNALS to _IR_KEYWORD_MAP (the IR-
+        # only path), but in the regex path it fired HIGH-confidence (the default
+        # `add()` confidence) and counted toward has_other_plan, silencing the spurious
+        # commander-damage voltron tell on a lifelink BEATER (a lifelink creature's gain
+        # lives only in its keyword reminder, stripped from `text`, so the PLAN-mirror
+        # above can't see it). Reproduce that silence on the lifelink KEYWORD itself —
+        # byte-identical to the deleted keyword map (any lifelink card was silenced).
+        # Without this, 69 vanilla-lifelink commander-legal creatures power>=2 (Divinity
+        # of Pride, Blood Baron, Knight of Meadowgrain) flip to a spurious voltron tell.
+        # CR 702.15 / 903.10a.
+        or "lifelink" in {k.lower() for k in (card.get("keywords") or [])}
         # ADR-0027 β: re-silence the deleted color_change SWEEP producer (it fired
         # HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
         # a byte-identical kept mirror, so this byte-identical gate mirror — NOT
