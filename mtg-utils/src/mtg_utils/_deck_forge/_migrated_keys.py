@@ -895,13 +895,11 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         #     phase drops counter_kind on ("your choice of a flying OR hexproof").
         #     Floor-mirror-dep == 0; IR is a strict superset of the regex (regex_only 0,
         #     +6 recall). SWEEP row deleted; serve reuses the shared regex constant.
-        # NOT migrated (deferred, needs-projection): keyword_grant_target (phase
-        # collapses the single-target "target creature gains menace" spell grant to
-        # subject=None with a TRUNCATED raw, erasing the anchor — indistinguishable from
-        # self/go-wide grants; firing on subject=None floods +2236). See the deferral
-        # comment at the producer. (gain_control was deferred for the cross-open shape;
-        # NOW MIGRATED below via the IR arm + a narrowed kept-mirror + a facade
-        # cross-open reconciliation — see the gain_control entry near the end.)
+        # (keyword_grant_target — formerly DEFERRED here — is now migrated via the
+        # SIDECAR v14 single_target_grant marker projection; see its block below.)
+        # (gain_control was deferred for the cross-open shape; NOW MIGRATED below via
+        # the IR arm + a narrowed kept-mirror + a facade cross-open reconciliation — see
+        # the gain_control entry near the end.)
         "extra_land_drop",
         "free_creature_payoff",
         "keyword_counter",
@@ -1469,6 +1467,84 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # the serve spec is hand-registered in signal_specs.py reusing the EXACT deleted
         # regex (pinned as GLOBAL_ABILITY_GRANT_REGEX). CR 113.3 / 604.3.
         "global_ability_grant",
+        # ADR-0027 β — keyword_grant_target (formerly DEFERRED, needs-projection): a
+        # SPELL/ability that grants a keyword to a SINGLE TARGET creature ("target
+        # creature gains menace until end of turn" — Accelerate, Adamant Will, Run Amok;
+        # the combat-trick / evasion enablers). phase collapsed the single-target grant
+        # to grant_keyword(subject=None) with a TRUNCATED raw (affected==ParentTarget →
+        # _filter is None), erasing the "target creature" anchor — INDISTINGUISHABLE
+        # from a self-grant ("~ gains haste") and a subject-dropped team/anthem grant —
+        # firing on subject=None FLOODED +2236. The BOUNDARY: this lane is the
+        # SINGLE-TARGET grant, distinct from (a) TEAM grants over your whole creature
+        # board (the grant_keyword team_evasion_grant / protection_grant / team_buff
+        # lanes + global_ability_grant for QUOTED-ability board grants) and (b) the
+        # aura/equipment suit-up grant (aura_equip_kw_grant — EnchantedBy/EquippedBy).
+        #
+        # PROJECTION (SIDECAR v13→v14). phase keeps the real target — a Typed creature —
+        # on the GenericEffect's `target` (or an EARLIER effect's target for the "It
+        # gains X" idiom: "Untap target creature. It gains reach" — Aim High) but
+        # _project_static_mods reads only `affected` (==ParentTarget) for the
+        # grant_keyword subject. project._single_target_keyword_grant_markers walks the
+        # effect+sub_ability chain, tracks the resolved Typed-creature target, and emits
+        # a dedicated `single_target_grant` Effect whose subject is that target Filter
+        # PLUS a "SingleTarget" predicate (the predicate guards it out of EVERY team
+        # /anthem grant_keyword gate, all of which require controller=="you" with
+        # no/limited predicates). BEHAVIOR-NEUTRAL until wired: two-sidecar global
+        # no-flood (v13 vs v14, same UNWIRED signals.py, 30969 commander-legal):
+        # drift_cards == 0. parse_confidence unchanged (98.7% full both sides:
+        # 34118/34562).
+        # STRUCTURAL ARM. The single_target_grant marker fires keyword_grant_target
+        # scope "you" (the deleted SWEEP detector's firing identity — it hard-fired
+        # scope "you" for ALL matches). +recall over the deleted word-order regex: the
+        # "It gains X" idiom (Aim High, Act of Treason) and PARAMETERIZED protection
+        # /ward grants ("target creature gains protection from the color of your choice"
+        # — Benevolent Bodyguard, Blessed Breath, Eldritch Immunity) the regex's
+        # enumerated keyword list included but the word-order/pronoun anchor missed.
+        # BYTE-IDENTICAL KEPT MIRROR (_IR_KEPT_DETECTORS row reusing the pinned
+        # KEYWORD_GRANT_TARGET_REGEX). The structural arm only sees a grant phase
+        # structured as a spell/ability GenericEffect static; phase can't structure the
+        # grant when it's QUOTED inside a GrantAbility on an Aura/land/planeswalker
+        # ("Enchanted land has '{T}: Target creature gains haste'" — Racecourse Fury,
+        # Skygames, Footfall Crater; Rowan's Talent), a MODAL/choose grant ("• Target
+        # creature gains flying" — Balloon Stand, Adaptive Sporesinger, Retreat to
+        # Hagra, Ferocification, Appa), or a compound grant carrying a quoted ability
+        # (Infuse with Vitality). The deleted regex is clause-local (no `[^.]` spans a
+        # sentence), so the flat mirror over reminder-stripped kept_oracle reproduces
+        # the per-clause regex firing set exactly. add() dedups vs the arm.
+        # GATES. Floor-disabled residual (commander-legal, _IR_FLOOR_LANES=frozenset(),
+        # arm + mirror vs the deleted regex): both == 532, ir_only == 488 (pure recall
+        # gain, verified real vs Scryfall — the "It gains X" idiom; color/power-
+        # qualified targets — Might Weaver "target red or white creature gains trample",
+        # Mosstodon "power 5 or greater"; subtype-creature targets — Lowland Oaf "target
+        # Goblin creature"; named-mechanic keyword grants the regex's evergreen list
+        # omitted — Shadow Rift's shadow, Unseen Walker's forestwalk, Amoeboid
+        # Changeling's all creature types; Backup's keyword-grant-to-the-counter-target
+        # — Doomskar Warrior, Death-Greeter's Champion; protection/ward grants — Alseid,
+        # Eldritch Immunity), regex_only == 0 (the kept mirror reproduces every regex
+        # firing).
+        # 0 over-fire: every marker carries the SingleTarget guard + a Creature target
+        # (1006 marker cards, 0 missing-guard, 0 team-grant-only firing the lane — the
+        # +2236 flood is structurally impossible). floor-mirror-dep == 0 (NOT an
+        # _IR_FLOOR_LANE — it was a SWEEP detector, firing identical floor ON/OFF). The
+        # SUBTYPE-ONLY single-target grant ("target Dinosaur gains haste" — Otepec) is
+        # deliberately EXCLUDED (the regex never matched a tribal grant either — a
+        # separate tribal care; the marker pass gates on the Creature card type — a
+        # subtype-creature target like Lowland Oaf's "target Goblin creature" still has
+        # the Creature card_type, so it stays IN). FILE-SWAP
+        # NO-FLOOD (base 7582a15 v13 vs edits v14, commander-legal): ONLY kgt
+        # moves (488 gained / 0 lost); global_ability_grant + the keyword anthem lanes
+        # (team_evasion_grant / protection_grant / team_buff / all_creatures_kw_grant /
+        # aura_equip_kw_grant) + keyword_soup + exert_matters UNCHANGED (0/0);
+        # voltron_matters delta 0; the +2236 flood is AVOIDED.
+        # The deleted SWEEP producer fired HIGH-confidence (scope "you") and counted
+        # toward has_other_plan, so a byte-identical _KEYWORD_GRANT_TARGET_PLAN_MIRROR
+        # re-supplies the voltron silence in the regex path — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (the "It gains X" /
+        # protection ir_only gains) and would over-silence those bodies. The
+        # SWEEP_DETECTORS row is deleted (SWEEP_LABELS kept); the serve spec is hand-
+        # registered in signal_specs.py reusing the EXACT deleted regex (pinned as
+        # KEYWORD_GRANT_TARGET_REGEX). CR 700.2 / 903.10a (voltron).
+        "keyword_grant_target",
         # ADR-0027 β — debuff_matters (a -1/-1 / toughness-shrink removal-and-payoff
         # lane). The v9 projection carries the debuff structure directly: a -N/-N giver
         # is a `pump` Effect with amount.factor < 0 (Dead Weight / Weakness → factor=-2;

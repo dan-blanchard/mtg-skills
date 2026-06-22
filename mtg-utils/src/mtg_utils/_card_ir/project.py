@@ -1550,6 +1550,17 @@ def _project_face(record: dict) -> Face:
     gag_markers = _global_ability_grant_markers(record)
     if gag_markers:
         abilities.append(Ability(kind="static", effects=tuple(gag_markers)))
+    # Single-target keyword grant (ADR-0027 β — keyword_grant_target): a SPELL/ability
+    # that grants a keyword to ONE TARGET creature ("target creature gains menace until
+    # end of turn"). phase carries the target on the GenericEffect's `target` (or an
+    # earlier effect's target for the "It gains X" idiom) but drops it from the
+    # grant_keyword Effect (affected==ParentTarget → subject=None — the +2236-flood the
+    # lane was DEFERRED on). The marker re-surfaces the single-target creature so the
+    # lane fires distinctly from team/anthem grants (subject=None) and aura/equipment
+    # grants (EnchantedBy/EquippedBy). A FACE-level pass like the gag markers. CR 700.2.
+    stkg_markers = _single_target_keyword_grant_markers(record)
+    if stkg_markers:
+        abilities.append(Ability(kind="static", effects=tuple(stkg_markers)))
     # Face-level +1/+1 fallback (ADR-0027 counters_matter pass 2): a +1/+1 placement
     # or "has/with a +1/+1 counter" reference phase dropped ENTIRELY (a trimmed grant
     # clause, a devour/enters-with-copy/cast-from-GY placement, a dropped damage-
@@ -3629,6 +3640,133 @@ def _global_ability_grant_markers(record: dict) -> list[Effect]:
                 counter_kind="grant_ability",
             )
         )
+    return out
+
+
+# ADR-0027 β — the single-target marker predicate for a keyword grant to ONE creature
+# ("target creature gains menace until end of turn" — the combat-trick / evasion
+# enabler). phase parses such a grant as a GenericEffect static whose ``affected`` is a
+# ``ParentTarget`` (it points back at the spell/ability's target) carrying an AddKeyword
+# modification; the real target Filter lives on the GenericEffect's own ``target`` (a
+# Typed creature) — or, for the "It gains X" idiom ("Untap target creature. It gains
+# reach", "Gain control of target creature … It gains haste"), on an EARLIER effect in
+# the same ability whose target the grant's own ``target`` then re-references as
+# ParentTarget. ``_filter`` returns None on a bare ParentTarget, so the grant_keyword
+# Effect that ``_project_static_mods`` emits collapses to subject=None — BYTE-IDENTICAL
+# to a self-grant ("~ gains haste") and a subject-dropped team/anthem grant (the
+# +2236-flood the keyword_grant_target lane was DEFERRED on). We re-surface the
+# single-target creature as a dedicated ``single_target_grant`` Effect whose subject is
+# that target Filter PLUS this predicate; the predicate guards it out of EVERY team
+# /anthem grant_keyword gate (each requires controller=="you" with no/limited predicates
+# — a SingleTarget-marked target fails them all). CR 700.2 (a single target).
+_SINGLE_TARGET_GRANT_PRED = "SingleTarget"
+
+
+def _is_parent_target(node: object) -> bool:
+    """True for phase's ``{type: ParentTarget}`` affected/target — a reference back to
+    the parent spell/ability's already-chosen target (CR 608.2g), NOT a fresh filter."""
+    return isinstance(node, dict) and _norm(node.get("type")) == "parenttarget"
+
+
+def _single_target_keyword_grant_markers(record: dict) -> list[Effect]:
+    """`single_target_grant` markers for a SPELL/ability that grants a keyword to a
+    SINGLE TARGET creature (ADR-0027 β — keyword_grant_target). phase parses "target
+    creature gains <kw> until end of turn" as a GenericEffect static with
+    ``affected={type:ParentTarget}`` + an AddKeyword modification; the real target — a
+    Typed creature — rides the GenericEffect's own ``target`` (Accelerate, Adamant Will,
+    Run Amok) or, for the "It gains X" idiom, an EARLIER effect's ``target`` in the same
+    ability that the grant's own ParentTarget re-references ("Untap target creature. It
+    gains reach" — Aim High; "Gain control of target creature … It gains haste" — Act of
+    Treason). Walking the effect+sub_ability chain and tracking the most recent Typed
+    target resolves both shapes.
+
+    Fires for BOTH a BARE-STRING keyword (AddKeyword "Menace"/"Trample"/… — the
+    lane's bulk) AND a PARAMETERIZED protection/ward keyword ({"Protection":
+    {"Color": "Red"}}, {"Ward": …} — "target creature gains protection from the
+    color of your choice", Benevolent Bodyguard, Blessed Breath, Eldritch
+    Immunity): the deleted regex's enumerated keyword set INCLUDED protection /
+    ward, and ``_project_static_mods`` emits NOTHING structural for a dict keyword
+    on a single target (it isn't a board grant), so the marker is the only way
+    those land. The subject is the resolved target Filter PLUS the SingleTarget
+    predicate (faithful type + controller, guarded out of every team/anthem
+    grant_keyword gate). ONE marker per qualifying ability (deduped), so a
+    multi-keyword single-target grant ("gains vigilance, trample, lifelink" —
+    Angelfire Ignition) fires the lane ONCE.
+
+    EXCLUDES a TEAM/anthem grant ("creatures you control gain flying" — affected is a
+    Typed creature filter, NOT ParentTarget — grant_keyword's team lanes) and a
+    single-permanent Aura/Equipment grant (affected carries EnchantedBy/EquippedBy, not
+    ParentTarget — the suit-up aura_equip_kw_grant lane). The ParentTarget affected on a
+    spell/ability GenericEffect is the exclusive single-target tell. CR 700.2."""
+    out: list[Effect] = []
+
+    def walk_effect(eff: object, tracked: Filter | None) -> Filter | None:
+        """Walk one effect (+ its sub_ability), threading the most recent Typed target.
+        Append a marker for each ParentTarget AddKeyword static over a creature target.
+        Returns the updated tracked target."""
+        if not isinstance(eff, dict):
+            return tracked
+        tgt = eff.get("target")
+        own = None if _is_parent_target(tgt) else _filter(tgt)
+        if own is not None:
+            tracked = own
+        resolved = own if own is not None else tracked
+        if _norm(eff.get("type")) != "genericeffect":
+            return tracked
+        # The resolved target must be a CREATURE by core type — the literal "target
+        # creature" the deleted regex matched (controller you or any). A SUBTYPE-only
+        # target ("target Dinosaur" — Otepec) has no Creature card_type and stays out
+        # (the regex never matched a tribal grant either — a separate tribal care), as
+        # do Land / Permanent / Artifact targets (the regex was creature-only). The
+        # isinstance check also narrows `resolved` to a definite Filter for the emit.
+        if isinstance(resolved, Filter) and "Creature" in resolved.card_types:
+            statics = eff.get("static_abilities")
+            for st in statics if isinstance(statics, list) else []:
+                if not isinstance(st, dict) or not _is_parent_target(
+                    st.get("affected")
+                ):
+                    continue
+                mods = st.get("modifications")
+                if not any(
+                    _norm(m.get("type")) == "addkeyword" and m.get("keyword")
+                    for m in (mods if isinstance(mods, list) else [])
+                    if isinstance(m, dict)
+                ):
+                    continue
+                subject = replace(
+                    resolved,
+                    predicates=(*resolved.predicates, _SINGLE_TARGET_GRANT_PRED),
+                )
+                desc = st.get("description") or eff.get("description")
+                out.append(
+                    Effect(
+                        category="single_target_grant",
+                        scope=resolved.controller,
+                        subject=subject,
+                        raw=desc if isinstance(desc, str) else "",
+                    )
+                )
+                break  # one marker per ability (a multi-keyword grant fires once)
+        sub = eff.get("sub_ability")
+        if isinstance(sub, dict):
+            tracked = walk_effect(sub, tracked)
+        return tracked
+
+    def walk_ability(ab: object) -> None:
+        if not isinstance(ab, dict):
+            return
+        tracked = walk_effect(ab.get("effect"), None)
+        sub = ab.get("sub_ability")
+        while isinstance(sub, dict):
+            tracked = walk_effect(sub.get("effect"), tracked)
+            sub = sub.get("sub_ability")
+
+    for ab in record.get("abilities") or []:
+        walk_ability(ab)
+    for tr in record.get("triggers") or []:
+        ex = tr.get("execute")
+        if isinstance(ex, dict):
+            walk_ability(ex)
     return out
 
 

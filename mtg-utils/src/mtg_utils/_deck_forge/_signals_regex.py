@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
+    KEYWORD_GRANT_TARGET_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
@@ -2594,6 +2595,22 @@ _COST_REDUCTION_PLAN_MIRROR = re.compile(
 _GLOBAL_ABILITY_GRANT_PLAN_MIRROR = re.compile(
     GLOBAL_ABILITY_GRANT_REGEX, re.IGNORECASE
 )
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated keyword_grant_target key. Its
+# deleted SWEEP producer (KEYWORD_GRANT_TARGET_REGEX) fired HIGH-confidence scope 'you'
+# and counted toward `has_other_plan`, silencing the spurious commander-damage voltron
+# tell on a single-target combat-trick / evasion granter that is NOT a vanilla beater
+# (a spell whose plan IS pumping/protecting one creature, not the commander connecting).
+# The migrated IR arm is BROADER (+recall: the "It gains X" idiom — Aim High, Act of
+# Treason — and the protection/ward single-target grants — Benevolent Bodyguard,
+# Eldritch Immunity — the word-order regex missed), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those ir_only recall-gain bodies. This
+# is the byte-identical deleted regex; it feeds ONLY the gate (emits no signal — the
+# lane is served from the IR), reproducing the pre-migration `has_other_plan` for ALL
+# cards. FILE-SWAP NO-FLOOD: with this mirror, voltron membership is byte-identical
+# (0 gained / 0 lost). CR 903.10a.
+_KEYWORD_GRANT_TARGET_PLAN_MIRROR = re.compile(
+    KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE
+)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated debuff_matters key. Its two
 # deleted regex producers (the SWEEP DEBUFF_SWEEP_REGEX, scope 'any' + the Maha
 # DEBUFF_MAHA_REGEX opponent-shrink _DETECTORS row, scope 'you') both fired HIGH-
@@ -4166,6 +4183,13 @@ def extract_signals(
         # identical mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's
         # full silence set. CR 903.10a.
         or _GLOBAL_ABILITY_GRANT_PLAN_MIRROR.search(_oracle)
+        # ADR-0027 β: re-silence the deleted keyword_grant_target SWEEP producer (it
+        # fired high-confidence scope 'you', feeding has_other_plan). The migrated IR
+        # arm is BROADER (+recall: the "It gains X" idiom + protection/ward single-
+        # target grants the word-order regex missed), so this byte-identical mirror —
+        # not _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's full silence set
+        # without over-silencing the ir_only gains. CR 903.10a.
+        or _KEYWORD_GRANT_TARGET_PLAN_MIRROR.search(_oracle)
         # ADR-0027 β: re-silence the deleted debuff_matters SWEEP + Maha producers (both
         # fired high-confidence, feeding has_other_plan). The migrated IR arm is BROADER
         # (+94 ir_only), so this byte-identical mirror — NOT the silencing-keys set —

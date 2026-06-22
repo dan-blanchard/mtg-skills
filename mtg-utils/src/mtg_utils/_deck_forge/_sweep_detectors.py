@@ -105,6 +105,14 @@ COST_REDUCTION_REGEX = "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{
 # grant-EXPLOITING search anchor; the lane's firing now comes from the IR arm (the
 # board_grant + counter_kind="grant_ability" marker in _signals_ir), not this regex.
 GLOBAL_ABILITY_GRANT_REGEX = 'all (?:artifacts|creatures|lands|permanents) have \\"|creatures? you (?:own|control) have \\"'
+# ADR-0027 β — keyword_grant_target migrated to the Card IR; its SWEEP_DETECTORS row is
+# deleted but the EXACT mined regex survives here so signal_specs hand-registers the
+# serve pool reusing it (SWEEP_LABELS keeps the human label) and the voltron PLAN mirror
+# in _signals_regex reuses it. The serve only needs a grant-EXPLOITING search anchor (the
+# creatures worth granting evasion/protection to); the lane's firing now comes from the
+# IR arm (the single_target_grant marker in _signals_ir — project._single_target_keyword_
+# grant_markers), not this regex.
+KEYWORD_GRANT_TARGET_REGEX = "target creature (?:you control )?(?:gains?|gets [+\\-][0-9x]/[+\\-][0-9x] and gains?) (?:deathtouch|trample|flying|menace|vigilance|double strike|first strike|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)"
 # ADR-0027 β — debuff_matters migrated to the Card IR; both deleted regex producers
 # (the SWEEP row + the Maha opponent-shrink _DETECTORS row) survive here as shared
 # constants. The structural arm fires from the projection's negative-pump (factor<0) /
@@ -611,12 +619,18 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Ability with a condition granting a protective keyword to ITSELF (grant_keyword,
     # subject None, counter_kind in _SELF_PROTECTION_GRANT_KW). Its SWEEP row is deleted;
     # the serve spec is hand-registered in signal_specs.py reusing the deleted regex.
-    {
-        "key": "keyword_grant_target",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "target creature (?:you control )?(?:gains?|gets [+\\-][0-9x]/[+\\-][0-9x] and gains?) (?:deathtouch|trample|flying|menace|vigilance|double strike|first strike|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)",
-    },
+    # ADR-0027 β: keyword_grant_target migrated to the Card IR — the structural arm in
+    # _signals_ir.extract_signals_ir reads the v14 single_target_grant marker (a keyword
+    # grant whose resolved target is a SingleTarget-marked creature — project._single_
+    # target_keyword_grant_markers; the ParentTarget affected on a spell/ability
+    # GenericEffect is the single-target tell). Its SWEEP_DETECTORS row is deleted;
+    # SWEEP_LABELS keeps the human label; the serve spec is hand-registered in
+    # signal_specs.py reusing the EXACT deleted regex (pinned above as
+    # KEYWORD_GRANT_TARGET_REGEX). The deleted high-confidence scope-"you" producer fed
+    # has_other_plan, so a byte-identical _KEYWORD_GRANT_TARGET_PLAN_MIRROR re-supplies
+    # the voltron silence in the regex path (the IR arm is BROADER — it gains the "It
+    # gains X" idiom + protection/ward grants the word-order regex missed — so
+    # _VOLTRON_SILENCING_PLAN_KEYS would over-silence those ir_only gains).
     # ADR-0027 tranche2-B-3: spell_keyword_grant migrated to the Card IR — detected
     # from the whole `cast_with_keyword` effect category (the umbrella over
     # flash_grant / convoke_matters) in signals.extract_signals_ir. Its SWEEP_DETECTORS

@@ -55,6 +55,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
+    KEYWORD_GRANT_TARGET_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
@@ -698,6 +699,30 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "damage_to_opp_matters",
         re.compile(DAMAGE_TO_OPP_MATTERS_REGEX, re.IGNORECASE),
         "opponents",
+    ),
+    # ADR-0027 β — keyword_grant_target: a keyword grant to a SINGLE TARGET creature
+    # ("target creature gains menace until end of turn"). The STRUCTURAL arm in
+    # extract_signals_ir fires the single-target spell/ability grants via the SIDECAR
+    # v14 single_target_grant marker (project._single_target_keyword_grant_markers).
+    # This
+    # BYTE-IDENTICAL kept mirror of the deleted SWEEP regex recovers the textual tail
+    # phase can't structure as a spell/ability GenericEffect grant: the grant QUOTED
+    # inside a GrantAbility on an Aura / land / planeswalker ("Enchanted land has '{T}:
+    # Target creature gains haste'" — Racecourse Fury, Skygames, Footfall Crater;
+    # Rowan's Talent's quoted loyalty grant), a MODAL/choose grant ("• Target creature
+    # gains flying" — Balloon Stand, Adaptive Sporesinger, Retreat to Hagra, Feroc
+    # ification, Appa), and a compound grant carrying a quoted ability (Infuse with
+    # Vitality "gains deathtouch and '<dies trigger>'"). The deleted regex is clause-
+    # local (no `[^.]` spans a sentence), so the flat mirror over reminder-stripped
+    # kept_oracle reproduces the per-clause regex firing set exactly. add() dedups vs
+    # the structural arm; the union is +recall over the deleted regex (the "It gains X"
+    # idiom + protection/ward single-target grants the structural arm adds, which the
+    # regex missed). Same HIGH confidence + scope "you" the deleted SWEEP producer
+    # fired. CR 700.2.
+    (
+        "keyword_grant_target",
+        re.compile(KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE),
+        "you",
     ),
     # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
     # (rules-lawyer-verified: no card-property reference shape in the parse), moved
@@ -1831,6 +1856,10 @@ IR_SLICE_KEYS: frozenset[str] = (
             "team_evasion_grant",
             "protection_grant",
             "all_creatures_kw_grant",
+            # ADR-0027 β — keyword_grant_target: a keyword grant to a SINGLE TARGET
+            # creature (the v14 single_target_grant marker — project._single_target_
+            # keyword_grant_markers). Distinct from the team/anthem grant lanes above.
+            "keyword_grant_target",
             # Batch 2 (per-lane) — discard OUTLET cost (self-discard split out):
             "discard_outlet",
             # Batch 2 (per-lane) — top-of-library stacking (position-gated):
@@ -4548,18 +4577,27 @@ def extract_signals_ir(
                     and e.counter_kind in _SELF_PROTECTION_GRANT_KW
                 ):
                     add("conditional_self_protection", "you", "", e.raw)
-            # ADR-0027 tranche2-C — keyword_grant_target DEFERRED (needs-projection):
-            # the lane's bulk is the single-target SPELL grant ("target creature gains
-            # menace" — Accelerate, Adamant Will, Madcap Skills, ~531 cards). phase
-            # collapses that to grant_keyword(subject=None) with the raw TRUNCATED to
-            # just "gain menace", erasing the "target creature" anchor the deleted regex
-            # keyed on — making it INDISTINGUISHABLE from a self-grant ("~ gains haste")
-            # and a subject-dropped go-wide grant (Otepec Huntmaster "Dinosaurs you
-            # control have haste", also subject=None). The Aura/Equipment grants
-            # (EnchantedBy/EquippedBy) parse cleanly (~458), but firing on subject=None
-            # floods +2236 self/go-wide grants. No structural discriminator survives, so
-            # this stays on the regex pending a phase projection that keeps the
-            # single-target subject/raw. See the keyword_grant_target SWEEP row.
+            # ADR-0027 β — keyword_grant_target (formerly DEFERRED): a SPELL/ability
+            # that grants a keyword to a SINGLE TARGET creature ("target creature gains
+            # menace until end of turn" — Accelerate, Adamant Will, Madcap Skills's
+            # spell siblings, the combat-trick / evasion enablers). phase collapsed
+            # that to grant_keyword(subject=None) — indistinguishable from a self-grant
+            # ("~ gains haste") and a subject-dropped team/anthem grant (subject=None
+            # FLOODS +2236). The v14 projection re-surfaces the target as a dedicated
+            # single_target_grant Effect whose subject is the resolved creature target +
+            # a "SingleTarget" predicate (project._single_target_keyword_grant_markers —
+            # the ParentTarget affected on a spell/ability GenericEffect is the
+            # single-target tell; the predicate guards it out of every team/anthem
+            # grant_keyword gate). Fire scope "you" — the deleted SWEEP detector hard-
+            # fired scope "you" for ALL matches (its firing identity), so the migrated
+            # arm matches it exactly. Distinct from TEAM grants (grant_keyword team
+            # lanes / anthem keyword lanes) and aura/equipment grants (aura_equip_kw_
+            # grant). +recall over the word-order regex: the "It gains X" idiom ("Untap
+            # target creature. It gains reach" — Aim High; "Gain control of target
+            # creature … It gains haste" — Act of Treason) and protection/ward grants
+            # (Benevolent Bodyguard, Eldritch Immunity) the regex missed. CR 700.2.
+            if cat == "single_target_grant":
+                add("keyword_grant_target", "you", "", e.raw)
             # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
             if cat == "cheat_play" and "Creature" in ftypes:
                 add("cheat_into_play", "you", "", e.raw)

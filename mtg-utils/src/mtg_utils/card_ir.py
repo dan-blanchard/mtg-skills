@@ -322,6 +322,14 @@ CATEGORIES: frozenset[str] = frozenset(
         # project._board_count_markers recovers it. Its amount.subject is the generic
         # own-board Filter the count lane reads (CR 604.3).
         "board_count",
+        # ADR-0027 β single-target keyword grant marker — a SPELL/ability that grants a
+        # keyword to ONE TARGET creature ("target creature gains menace until end of
+        # turn"). phase drops the target off the grant_keyword Effect (affected=
+        # ParentTarget → subject=None); project._single_target_keyword_grant_markers
+        # re-surfaces it as this dedicated category whose subject is the target Filter +
+        # a "SingleTarget" predicate, so ONLY the keyword_grant_target arm reads it (it
+        # never leaks into the team/anthem grant_keyword lanes). CR 700.2.
+        "single_target_grant",
         "other",
     }
 )

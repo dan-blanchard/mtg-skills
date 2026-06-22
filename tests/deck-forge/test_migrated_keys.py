@@ -4668,6 +4668,41 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 β projection — keyword_grant_target: a keyword grant to a SINGLE TARGET
+    # creature. Aim High is the STRUCTURAL-ONLY case that proves the projection is
+    # load-bearing: its "Untap target creature. It gains reach" uses the "It gains X"
+    # idiom, which the deleted word-order regex never matched (so the byte-identical kept
+    # mirror does NOT fire it), yet phase keeps the real Typed-creature target on the
+    # untap effect — which project re-surfaces as the single_target_grant marker (subject
+    # = the creature target + a "SingleTarget" predicate, SIDECAR v14). The structural
+    # arm fires the lane on the marker; the SingleTarget predicate guards it out of every
+    # team/anthem grant_keyword gate, so the +2236 flood is structurally impossible.
+    "keyword_grant_target": (
+        {
+            "name": "Aim High",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Untap target creature. It gets +2/+2 and gains reach until "
+                "end of turn."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="single_target_grant",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            predicates=("SingleTarget",),
+                        ),
+                        raw="get +2/+2 and gains reach",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

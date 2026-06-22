@@ -26,6 +26,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     KEYWORD_COUNTER_REGEX,
+    KEYWORD_GRANT_TARGET_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
@@ -2395,6 +2396,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["global_ability_grant"],
         {"oracle": GLOBAL_ABILITY_GRANT_REGEX},
         GLOBAL_ABILITY_GRANT_REGEX,
+    ),
+    # ADR-0027 β: keyword_grant_target's SWEEP_DETECTORS row is deleted (detection moved
+    # to the Card IR — the single_target_grant marker read by the extract_signals_ir
+    # arm). The SERVE pool stays oracle-defined (the creatures worth granting evasion
+    # /protection to), so hand-register the spec the sweep loop built (scope
+    # "you", the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
+    # KEYWORD_GRANT_TARGET_REGEX) so the serve never drifts. SWEEP_LABELS keeps label.
+    ("keyword_grant_target", "you"): _spec(
+        *SWEEP_LABELS["keyword_grant_target"],
+        {"oracle": KEYWORD_GRANT_TARGET_REGEX},
+        KEYWORD_GRANT_TARGET_REGEX,
     ),
     # ADR-0027 β: debuff_matters's SWEEP_DETECTORS row is deleted (detection moved to
     # the Card IR — the negative-pump (factor<0) / non-self m1m1 structural arm + a

@@ -71,7 +71,19 @@ from mtg_utils.card_ir import Card
 #     recipient TYPE (Hypnotic Specter, Curiosity, Goblin Lackey, Fungal Shambler), not
 #     the lossy scope. combat-ONLY recipients are EXCLUDED — combat_damage_to_opp
 #     (already migrated 42f6d81). ADR-0027 β. CR 119.3.
-SIDECAR_VERSION = 13
+# v14: a SPELL/ability that grants a keyword to a SINGLE TARGET creature ("target
+#     creature gains menace until end of turn") carries a `single_target_grant` Effect
+#     whose subject is the resolved target Filter PLUS a "SingleTarget" predicate. phase
+#     parses the grant as a GenericEffect static with affected=={type:ParentTarget} + an
+#     AddKeyword modification, keeping the real Typed-creature target on the
+#     GenericEffect's `target` (or an earlier effect's target for the "It gains X"
+#     idiom) — but _project_static_mods reads only `affected` for the grant_keyword
+#     subject, and _filter(ParentTarget) is None, so the grant collapsed to subject=None
+#     — indistinguishable from a self/team/anthem grant (the +2236-flood the
+#     keyword_grant_target lane was DEFERRED on). project._single_target_keyword_grant_
+#     markers re-surfaces the target so the lane fires ONLY on single-target creature
+#     grants. ADR-0027 β. CR 700.2.
+SIDECAR_VERSION = 14
 
 
 def card_ir_dir() -> Path:
