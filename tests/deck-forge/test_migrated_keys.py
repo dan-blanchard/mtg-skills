@@ -2452,6 +2452,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # power_matters ← the GE/GT twin of low_power_matters. Colossal Majesty is a
+    # Ferocious upkeep payoff: phase carries the power threshold on the ability's
+    # Condition.subject (a you-controlled Creature Filter with PtComparison:Power:GE:4),
+    # read by the dedicated _condition_power_matters arm (CR 208 / 207.2c).
+    "power_matters": (
+        {
+            "name": "Colossal Majesty",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "At the beginning of your upkeep, if you control a creature with "
+                "power 4 or greater, draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="upkeep"),
+                condition=Condition(
+                    kind="controlstype",
+                    subject=Filter(
+                        card_types=("Creature",),
+                        controller="you",
+                        predicates=("PtComparison:Power:GE:4", "InZone"),
+                    ),
+                ),
+                effects=(Effect(category="draw", scope="you"),),
+            )
+        ),
+    ),
     # Conferred pay-life cost (Underworld Connections) — the "Pay 1 life:" inside a
     # granted quoted ability phase drops is recovered as a `life_payment` marker.
     "life_payment_insurance": (

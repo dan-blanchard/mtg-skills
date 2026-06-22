@@ -347,6 +347,49 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # team-anthem read). REMOVED from _IR_FLOOR_LANES; floor-mirror-dep == 0
         # (with_floor 33 == without_floor 33). NO-FLOOD held. See ADR-0027.
         "low_power_matters",
+        # power_matters ← the GE/GT twin of low_power_matters. STRUCTURAL: a
+        # non-dynamic PtComparison:Power:GE/GT predicate on a you-controller Filter
+        # (CR 208), read by _predicate_build_around_lanes off the board_count Effect
+        # subject + the amount.subject + the trigger.subject (the v23 projection now
+        # fills the operand), plus _condition_power_matters off the Condition.subject.
+        # The board_count/amount sites carry the Ferocious "for each / draw a card for
+        # each creature you control with power N+" (Become the Avalanche, Crater's
+        # Claws); the trigger.subject carries "a creature you control with power N+
+        # enters" (Elemental Bond, Kiora, Where Ancients Tread — the regex missed
+        # these: it required the literal "enters the battlefield UNDER YOUR CONTROL");
+        # the Condition.subject carries the upkeep/etb/attacks gate "if/while you
+        # control a creature with power N+" (Colossal Majesty, Heir of the Wilds + the
+        # WHILE-phrased Courageous Goblin / Ruby / Picnic Ruiner + the "can't attack
+        # unless" Rhonas / Tiger-Dillo the regex's "if you control" anchor dropped).
+        # The Condition read is POWER-ONLY (NOT the general
+        # _predicate_build_around_lanes, which would drift the colorless / multicolor /
+        # legends / low_power siblings off a Condition.subject). MIRROR: the
+        # byte-identical _POWER_MATTERS_MIRROR (the EXACT deleted _HAND_FLOOR regex)
+        # over the reminder-stripped kept_oracle recovers the under-structured tail
+        # phase can't bind — the "total/greatest/combined power of creatures you
+        # control" AGGREGATES phase emits as a board_count with an EMPTY-predicate
+        # Filter (Ghalta, Rishkar's Expertise, The Great Henge; the Goreclaw-style
+        # threshold-dropped cost reducer is the same EMPTY-board_count tail), the
+        # "(total|greatest) power AMONG creatures you control" value refs, the "creature
+        # spells you cast with power N+" reducer, and the Formidable ability word (CR
+        # 207.2c). REMOVED from _IR_FLOOR_LANES; floor-mirror-dep == 0 (arm + mirror
+        # read no floor detector).
+        # RESIDUAL (commander-legal, floor-disabled, by oracle_id; NEW IR path vs the
+        # deleted regex set): both == 102, regex_only == 0 (the mirror recovers every
+        # regex firing byte-identically: mirror == regex == 102, 0 miss / 0 over-fire),
+        # ir_only == 34 (ALL genuine power-threshold build-arounds the narrow regex
+        # missed per "no dismissal without the hook" — "power N+ enters" triggers, "for
+        # each power N+" count operands, "power N+ gain", WHILE-phrased + "can't attack
+        # unless" Ferocious gates). HYBRID power_matters == 136 (102 + 34). SCOPE
+        # PARITY: the deleted producer, the structural arm, and the mirror all fire
+        # scope 'you'. VOLTRON: the deleted producer fired HIGH scope 'you' and fed
+        # has_other_plan (a power/Ferocious engine is no vanilla beater; not
+        # _GENERIC/_VOLTRON_COMPAT); the migrated IR is BROADER (+34), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence — instead the byte-identical
+        # _POWER_MATTERS_PLAN_MIRROR re-supplies has_other_plan over the kept oracle,
+        # reproducing the exact pre-migration silence set (voltron delta 0). CR 208.1 /
+        # 207.2c. See ADR-0027.
+        "power_matters",
         # life_payment_insurance ← a repeatable "Pay N life:" ACTIVATION COST
         # ("paylife" in Ability.cost — Selenia, Beledros, the fetchlands; genuine recall
         # the narrow "pay N life:" regex missed) + a `life_payment` marker for the

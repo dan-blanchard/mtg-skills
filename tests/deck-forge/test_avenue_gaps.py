@@ -14,11 +14,22 @@ Patterns implemented here:
 """
 
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
 
 
 def _sig(key, scope="you", subject=""):
     return Signal(key=key, scope=scope, subject=subject, text="", source="cmd")
+
+
+def _bare_ir() -> Card:
+    """A minimal non-None Card IR — routes extract_signals_hybrid through the IR path
+    so a migrated key whose IR source scans the record (a kept word mirror) fires."""
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def _extra(spec, label):
@@ -353,14 +364,20 @@ class TestPowerMatters:
                 "Creature spells you cast with power 4 or greater cost {2} less to cast.",
             ),
         ]:
+            # ADR-0027: power_matters migrated to the Card IR — the aggregate "total
+            # power of creatures you control" (Ghalta) and "creature spells you cast with
+            # power N+" (Goreclaw) forms phase folds into an empty-predicate board_count,
+            # recovered by the byte-identical _POWER_MATTERS_MIRROR. The regex path no
+            # longer emits it, so assert via the hybrid (IR) path.
             keys = {
                 s.key
-                for s in extract_signals(
+                for s in extract_signals_hybrid(
                     {
                         "name": n,
                         "type_line": "Legendary Creature — Dinosaur",
                         "oracle_text": ot,
-                    }
+                    },
+                    _bare_ir(),
                 )
             }
             assert "power_matters" in keys, n

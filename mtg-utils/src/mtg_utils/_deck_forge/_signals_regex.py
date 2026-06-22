@@ -2104,26 +2104,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
     # reduction by total/greatest power (Ghalta), a power-N-or-greater spell threshold
     # (Goreclaw), or a Ferocious-style "if you control a creature with power N or
-    # greater" payoff (Colossal Majesty, Crater's Claws). Every branch is anchored on a
-    # "you control" / "you cast" / "under your control" context so that removal and
-    # combat tricks that merely reference a target "creature with power N or greater"
-    # (Bring to Trial, Bolt Bend) — which are NOT a power-matters theme — never fire.
-    (
-        "power_matters",
-        re.compile(
-            r"(?:total|greatest|combined) power of creatures you control"
-            r"|creature spells? you cast with power \d+ or (?:greater|more)"
-            r"|if you control [^.]*?with power \d+ or (?:greater|more)"
-            r"|creature with power \d+ or (?:greater|more) enters"
-            r" the battlefield under your control"
-            r"|(?:total|greatest) power among (?:other )?creatures you control"
-            # Formidable (CR 207.2c ability word: "creatures you control have total
-            # power 8 or greater") is a big-creatures/power deck; match the italic word.
-            r"|\bformidable\b",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # greater" payoff (Colossal Majesty, Crater's Claws).
+    # ADR-0027: power_matters migrated to the Card IR — served from the structural
+    # PtComparison:Power:GE/GT predicate read off the board_count / trigger / Condition
+    # / amount subject (_predicate_build_around_lanes + _condition_power_matters; the
+    # v23 projection fills the operand) PLUS the byte-identical _POWER_MATTERS_MIRROR
+    # (the exact deleted regex) over the reminder-stripped kept_oracle for the aggregate
+    # "total/greatest power of creatures you control" tail phase folds into an empty-
+    # predicate board_count. REMOVED from _IR_FLOOR_LANES; serve stays hand-registered
+    # in signal_specs. The deleted producer fed has_other_plan (HIGH, scope 'you'), so
+    # the byte-identical _POWER_MATTERS_PLAN_MIRROR (below) re-supplies the voltron
+    # silence — the migrated IR is BROADER (+34), so _VOLTRON_SILENCING_PLAN_KEYS would
+    # over-silence.
 )
 
 # One registration path: the curated hand-written detectors plus the exhaustively-
@@ -2909,6 +2901,28 @@ _BIG_HAND_MATTERS_PLAN_MIRROR = re.compile(
     r"no maximum hand size|maximum hand size"
     r"|(?:five|six|seven|eight) or more cards in (?:your )?hand"
     r"|(?:equal to|number of) [^.]*cards in your hand",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated power_matters key. The deleted
+# _HAND_FLOOR producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a power /
+# Ferocious ENGINE (Ghalta, Colossal Majesty, Surrak the Hunt Caller — a big-power /
+# Formidable build-around is no vanilla beater). The migrated IR is BROADER (+34
+# ir_only — the "power N+ enters" triggers + WHILE-phrased Ferocious gates the narrow
+# regex missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence
+# those ir_only bodies. This byte-identical mirror (the EXACT deleted regex) — NOT
+# _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's exact silence set. Matched
+# against the reminder-STRIPPED joined-face `text` (the deleted floor Detector ran
+# per-clause over stripped clauses); the lone `[^.]*?` arm never crosses a sentence, so
+# full-text == per-clause. CR 208.1 / 207.2c / 903.10a.
+_POWER_MATTERS_PLAN_MIRROR = re.compile(
+    r"(?:total|greatest|combined) power of creatures you control"
+    r"|creature spells? you cast with power \d+ or (?:greater|more)"
+    r"|if you control [^.]*?with power \d+ or (?:greater|more)"
+    r"|creature with power \d+ or (?:greater|more) enters"
+    r" the battlefield under your control"
+    r"|(?:total|greatest) power among (?:other )?creatures you control"
+    r"|\bformidable\b",
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated variable_pt key. The deleted
@@ -4944,6 +4958,17 @@ def extract_signals(
         # stripped clauses); `[^.]*?` never crosses a sentence, so full-text ==
         # per-clause. CR 120.1 / 115.4 / 903.10a.
         or _DIRECT_DAMAGE_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted power_matters _HAND_FLOOR producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a power / Ferocious /
+        # Formidable engine is no vanilla beater: Ghalta, Colossal Majesty, Surrak).
+        # The migrated IR is BROADER (+34 ir_only — "power N+ enters" triggers +
+        # WHILE-phrased Ferocious gates the narrow regex missed), so this byte-identical
+        # mirror (the EXACT deleted regex) — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores
+        # the old regex's exact silence set without over-silencing the ir_only bodies.
+        # Matched against the reminder-STRIPPED joined-face `text`; the lone `[^.]*?`
+        # arm never crosses a sentence, so full-text == per-clause. CR 208.1 / 207.2c /
+        # 903.10a.
+        or _POWER_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted symmetric_damage_each SWEEP producer (it
         # fired HIGH-confidence scope 'each', feeding has_other_plan — a Pestilence /
         # symmetric-board engine is no vanilla beater). The migrated IR is NOT byte-

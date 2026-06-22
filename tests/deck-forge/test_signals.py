@@ -1455,12 +1455,16 @@ def test_aura_equipment_cost_reducer_opens_voltron():
 def test_greatest_power_among_other_opens_power():
     # Arni Brokenbrow: "greatest power among OTHER creatures you control" — the power
     # detector required 'among creatures you control' (no 'other').
+    # ADR-0027: power_matters migrated to the Card IR — the aggregate "greatest power
+    # among creatures you control" form phase folds into an empty-predicate board_count,
+    # recovered by the byte-identical _POWER_MATTERS_MIRROR. The regex path no longer
+    # emits it, so assert via the hybrid (IR) path.
     arni = {
         "name": "Arni Brokenbrow",
         "type_line": "Legendary Creature — Human Berserker",
         "oracle_text": "Haste\nBoast — {1}: You may change Arni's base power to 1 plus the greatest power among other creatures you control until end of turn. (Activate only if this creature attacked this turn and only once each turn.)",
     }
-    assert ("power_matters", "you") in _keys(arni)
+    assert ("power_matters", "you") in _keys_hybrid(arni)
 
 
 def test_plural_death_trigger_opens_death_matters():

@@ -1054,6 +1054,54 @@ def test_dynamic_power_comparison_does_not_fire():
     assert ("low_power_matters", "you", "") not in sigs
 
 
+def _ferocious_gate(*predicates: str, controller: str = "you") -> Card:
+    """A Ferocious-style gated payoff — the power threshold rides the ability's
+    Condition.subject ('if/while you control a creature with power N or greater' —
+    Colossal Majesty, Heir of the Wilds). The shape the v23 projection emits and
+    _condition_power_matters reads (ADR-0027)."""
+    return _ir(
+        Ability(
+            kind="triggered",
+            trigger=Trigger(event="upkeep"),
+            condition=Condition(
+                kind="controlstype",
+                subject=Filter(
+                    card_types=("Creature",),
+                    controller=controller,
+                    predicates=tuple(predicates),
+                ),
+            ),
+            effects=(Effect(category="draw", scope="you"),),
+        )
+    )
+
+
+def test_power_matters_from_ferocious_condition_subject():
+    """ADR-0027 — a Ferocious gate carrying PtComparison:Power:GE on its
+    Condition.subject (Colossal Majesty) opens power_matters via the dedicated
+    condition arm the v23 projection enables."""
+    assert ("power_matters", "you", "") in _sigs(
+        _ferocious_gate("PtComparison:Power:GE:4", "InZone")
+    )
+
+
+def test_condition_power_gate_for_defending_player_does_not_fire():
+    """A gate keyed on the DEFENDING player's creature power (Mogg Jailer — controller
+    'any') is anti-aggro hate, not a you-side power build-around. The you-gated lane
+    stays off."""
+    sigs = _sigs(_ferocious_gate("PtComparison:Power:LE:2", controller="any"))
+    assert ("power_matters", "you", "") not in sigs
+    assert ("low_power_matters", "you", "") not in sigs
+
+
+def test_condition_subject_does_not_leak_legends_sibling():
+    """ADR-0027 sibling guard — the Condition.subject power read is POWER-ONLY. A
+    Legendary predicate on a Condition.subject must NOT open legends_matter (only
+    e/amt/trigger subjects feed that lane), so the non-migrated sibling can't drift."""
+    sigs = _sigs(_ferocious_gate("HasSupertype:Legendary"))
+    assert ("legends_matter", "you", "") not in sigs
+
+
 # ── color_hoser (removal keyed on a specific color) ───────────────────────────
 
 

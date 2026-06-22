@@ -2038,7 +2038,12 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # low_power_matters removed — ADR-0027 migrated it to the Card IR (the
         # Power:LE/LT predicate read + a `_LOW_POWER_REF` marker rebuilding the dropped
         # subject from "creatures you control with power N or less").
-        "power_matters",
+        # power_matters removed — ADR-0027 migrated it to the Card IR (the GE/GT twin:
+        # the non-dynamic PtComparison:Power:GE/GT predicate read off the board_count /
+        # trigger / Condition subject + the amount.subject, plus a byte-identical
+        # _POWER_MATTERS_MIRROR for the aggregate "total/greatest power of creatures you
+        # control" tail phase emits as an empty-predicate board_count). REMOVED from
+        # _IR_FLOOR_LANES; floor-mirror-dep == 0 (arm + mirror read no floor).
         # historic_matters removed — ADR-0027 migrated it to the Card IR (the
         # "Historic" subject-Filter predicate + a "\bhistoric\b" kept word mirror for
         # the cost-reduction / "play a historic" / type-group refs phase leaves
@@ -3591,6 +3596,31 @@ _SYMMETRIC_DAMAGE_EACH_MIRROR = re.compile(
     r"|deals \d+ damage to each player",
     re.IGNORECASE,
 )
+# _POWER_MATTERS_MIRROR — the BYTE-IDENTICAL deleted _HAND_FLOOR power_matters regex
+# (signals scope 'you'). The structural _predicate_build_around_lanes + Condition arm
+# binds the Ferocious threshold cards phase structures (a PtComparison:Power:GE/GT on a
+# board_count / trigger / condition / amount subject); this mirror recovers the
+# AGGREGATE tail phase folds into an EMPTY-predicate carrier (CR 208) — the "total/
+# greatest/combined power of creatures you control" cost reducers (Ghalta, Volcanic
+# Salvo, The Great Henge) and value refs (Rishkar's Expertise, Overwhelming Stampede),
+# which phase emits as a board_count with no operand (the Goreclaw-style "power N+ cost
+# reducer" drops the threshold the same way), the "(total|greatest) power AMONG
+# creatures you control" forms, the "creature spells you cast with power N+" reducer,
+# and the Formidable ability word (CR 207.2c). Run FLAT over the reminder-stripped
+# joined-face kept_oracle: the lone `[^.]*?` arm ("if you control … with power N+")
+# never crosses a sentence, so flat == the deleted per-clause regex byte-identically
+# (commander-legal: mirror == regex == 102, 0 miss / 0 over-fire). add() dedups vs the
+# structural arms.
+_POWER_MATTERS_MIRROR = re.compile(
+    r"(?:total|greatest|combined) power of creatures you control"
+    r"|creature spells? you cast with power \d+ or (?:greater|more)"
+    r"|if you control [^.]*?with power \d+ or (?:greater|more)"
+    r"|creature with power \d+ or (?:greater|more) enters"
+    r" the battlefield under your control"
+    r"|(?:total|greatest) power among (?:other )?creatures you control"
+    r"|\bformidable\b",
+    re.IGNORECASE,
+)
 
 # _BIG_HAND_MATTERS_MIRROR (ADR-0027) — the byte-identical OR of the two deleted
 # big_hand_matters producers: the _HAND_FLOOR row (no/maximum hand size + "N or more
@@ -4570,6 +4600,27 @@ def _predicate_build_around_lanes(f: object) -> list[str]:
         elif p == "HasNoAbilities" and f.controller in ("you", "any"):
             out.append("vanilla_matters")
     return out
+
+
+def _condition_power_matters(cond: object) -> bool:
+    """True when an ability's gate (its ``Condition``, recursively through nested
+    conditions) checks a you-controlled creature for a fixed Ferocious-style power
+    threshold (a non-dynamic ``PtComparison:Power:GE/GT`` on its subject Filter, CR
+    208). The POWER-ONLY counterpart of ``_predicate_build_around_lanes`` for the gate
+    site: a Condition.subject also carries Legendary / Historic / colorless / low-power
+    predicates whose sibling lanes must not drift this batch, so only the GE/GT power
+    threshold is read here. Controller-gated to 'you' (Mogg Jailer's
+    defending-player 'any' gate is not a build-around)."""
+    if not isinstance(cond, Condition):
+        return False
+    f = cond.subject
+    if isinstance(f, Filter) and f.controller == "you":
+        for p in f.predicates:
+            if not p.endswith(":*") and p.startswith(
+                ("PtComparison:Power:GE:", "PtComparison:Power:GT:")
+            ):
+                return True
+    return any(_condition_power_matters(n) for n in (cond.nested or ()))
 
 
 def _reanimates_creature(e: object) -> bool:
@@ -7317,6 +7368,18 @@ def extract_signals_ir(
                 # Batch 5 — color/power build-around lanes (controller-gated).
                 for key in _predicate_build_around_lanes(f):
                     add(key, "you", "", "")
+        # power_matters (ADR-0027) — the v23 projection carries the Ferocious power
+        # threshold on a gate's Condition.subject ("if/while you control a creature with
+        # power N or greater" — Colossal Majesty, Heir of the Wilds, plus the WHILE-
+        # phrased Courageous Goblin / Ruby / Picnic Ruiner the regex's "if you control"
+        # anchor dropped). Read it POWER-ONLY here (NOT through the general
+        # _predicate_build_around_lanes / ir_predicates above): a Condition.subject also
+        # carries Legendary / Historic / colorless / low-power predicates, and folding
+        # those in would drift the sibling lanes — only power_matters migrates this
+        # batch. Gated to controller 'you' (an anti-aggro gate keyed on the DEFENDING
+        # player's power — Mogg Jailer — is controller 'any', dropped). CR 208.
+        if _condition_power_matters(ab.condition):
+            add("power_matters", "you", "", "")
     if "HasSupertype:Legendary" in ir_predicates:
         add("legends_matter", "you", "", "")
     if "Historic" in ir_predicates:
@@ -7795,6 +7858,19 @@ def extract_signals_ir(
     # add() dedups vs the structural arms. CR 119 / 118.
     if _LIFEGAIN_MATTERS_MIRROR.search(kept_oracle):
         add("lifegain_matters", "you", "", "")
+    # ADR-0027 — power_matters BYTE-IDENTICAL kept mirror. The structural arm
+    # (_predicate_build_around_lanes + the Condition.subject read) binds the Ferocious
+    # threshold cards phase structures (a PtComparison:Power:GE/GT subject), but phase
+    # FOLDS the "total/greatest/combined power of creatures you control" AGGREGATE into
+    # an empty-predicate board_count carrier (the threshold dropped — Ghalta, Rishkar's
+    # Expertise, The Great Henge; the Goreclaw-style "power N+ cost reducer" drops it
+    # the same way). Recover that tail with the EXACT deleted _HAND_FLOOR regex over the
+    # reminder-stripped kept_oracle (scope 'you', the deleted producer's forced scope) —
+    # flat == per-clause (the one `[^.]*?` arm never crosses a sentence), so mirror ==
+    # regex == 102 byte-identically (0 miss / 0 over-fire). add() dedups vs the
+    # structural arm. CR 208.1 / 207.2c.
+    if _POWER_MATTERS_MIRROR.search(kept_oracle):
+        add("power_matters", "you", "", "")
     # ADR-0027 β — color_change BYTE-IDENTICAL kept mirror. phase parses the "becomes
     # the color of your choice / all colors" clause INCONSISTENTLY (20 cards as a nested
     # AddChosenColor modification, 4 as a bare Unimplemented "become"), and the only IR
