@@ -3166,6 +3166,37 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 — creature_recursion (return a CREATURE card from a graveyard — the
+    # broad GY→hand OR battlefield "loop a creature" build-around, DISTINCT from the
+    # GY→BATTLEFIELD-only reanimator lane). Reanimate reads the STRUCTURAL arm
+    # (cat=="reanimate" + a Creature-typed subject Filter → extract_signals_ir fires
+    # creature_recursion scope "you"). Its oracle says "from A graveyard" (not "your
+    # graveyard"), so the kept _CREATURE_RECURSION_MIRROR does NOT fire — this case
+    # proves the recall-GAINING structural half (the GY→hand / GY→library tail rides
+    # the byte-identical mirror instead). Real card, full oracle. CR 700.4.
+    "creature_recursion": (
+        {
+            "name": "Reanimate",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Put target creature card from a graveyard onto the battlefield "
+                "under your control. You lose life equal to that card's mana value."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="reanimate",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",)),
+                        raw="Put target creature card from a graveyard onto the battlefield under your control.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # SWEEP-floor->kept batch (ADR-0027). legends/lands read STRUCTURED IR (a
     # HasSupertype:Legendary subject predicate / an amount.subject=Land count operand);
     # poison/suspend fire from the kept word mirror over the oracle text (empty IR — a

@@ -57,6 +57,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
+    CREATURE_RECURSION_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
@@ -3967,6 +3968,24 @@ _ENCHANTMENTS_MATTER_MIRROR = re.compile(
     ENCHANTMENTS_MATTER_REGEX,
     re.IGNORECASE,
 )
+# creature_recursion BYTE-IDENTICAL kept mirror (ADR-0027): the structural arm
+# (`cat=='reanimate' and 'Creature' in ftypes` in extract_signals_ir) catches phase's
+# GY->battlefield creature reanimation (+160 ir_only recall — the "from A graveyard" /
+# "that player's graveyard" reanimation spells Reanimate / Beacon of Unrest / Exhume /
+# Sepulchral Primordial / Living Death / Twilight's Call the brittle "your graveyard"
+# regex missed, plus the empty-top-level split/DFC reanimation halves Push // Pull,
+# Crime // Punishment, Breaking // Entering), but phase carries NO clean structural
+# shape for GY->HAND / GY->LIBRARY creature recursion (graveyard_recursion /
+# topdeck_stack, NOT reanimate), so a structural-only migration would LOSE 132 genuine
+# cards (Raise Dead, Gravedigger, Disentomb, Hua Tuo's GY->library, Meren, Kolaghan's
+# Command's GY->hand mode, Liliana the Last Hope's -2). Recover them with the EXACT
+# deleted `_DETECTORS` producer run PER-CLAUSE over the reminder-stripped kept_oracle
+# (CREATURE_RECURSION_REGEX). The lone `[^.]*?` never crosses a clause, so
+# flat==per-clause; commander-legal (floor-disabled by oracle_id): mirror==regex==304,
+# 0 miss, 0 extra. scope 'you' (the deleted producer's forced scope, the structural
+# arm's scope, and the serve spec's). add() dedups vs the structural arm. DISTINCT from
+# reanimator (GY->BATTLEFIELD only) and graveyard_matters (any self-GY care). CR 700.4.
+_CREATURE_RECURSION_MIRROR = re.compile(CREATURE_RECURSION_REGEX, re.IGNORECASE)
 # attack_matters BYTE-IDENTICAL kept mirror (ADR-0027): the structural `attacks`-trigger
 # arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm above catch phase's
 # combat payoffs (+135 ir_only recall — the reminder-only
@@ -6260,6 +6279,17 @@ def extract_signals_ir(
                 add("devour_matters", "you", "", e.raw)
                 add("sacrifice_matters", "you", "", e.raw)
                 add("counters_matter", "any", "", e.raw)
+            # ADR-0027 — creature_recursion STRUCTURAL ARM (the recall-GAINING half of
+            # the migration). A `reanimate` Effect whose subject is Creature-typed is a
+            # GY->battlefield creature reanimator (Reanimate, Beacon of Unrest, Exhume,
+            # Living Death, Marshal's Anthem, the empty-top-level split/DFC halves) — it
+            # opens the "loop a creature" build-around, scope 'you' (yours even when
+            # reanimating an opponent's graveyard: you control the returned creature).
+            # +160 ir_only vs the deleted regex. The GY->hand / GY->library tail (Raise
+            # Dead, Gravedigger, Hua Tuo, Meren) phase doesn't structure as `reanimate`,
+            # so it rides _CREATURE_RECURSION_MIRROR (the byte-identical kept regex).
+            # add() dedups. DISTINCT from reanimator (also GY->battlefield, a separate
+            # lane) and graveyard_matters (self-GY care). CR 700.4.
             if cat == "reanimate" and "Creature" in ftypes:
                 add("creature_recursion", "you", "", e.raw)
             # ADR-0027 β — animate_artifact migrated to the Card IR via a
@@ -7150,6 +7180,18 @@ def extract_signals_ir(
     # EMPTY after the mirror). CR 205.2 / 303 / 303.7.
     if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
         add("enchantments_matter", "you", "", "")
+    # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
+    # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
+    # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean
+    # shape for GY→HAND / GY→LIBRARY creature recursion — recover the 132-card tail
+    # (Raise Dead, Gravedigger, Hua Tuo's GY→library, Meren, Kolaghan's Command's
+    # GY→hand mode) with CREATURE_RECURSION_REGEX run PER-CLAUSE over the reminder-
+    # stripped kept_oracle (the `[^.]*?` never crosses a clause, so flat==per-clause==
+    # 304). scope 'you' (the deleted producer's forced scope). add() dedups vs the
+    # structural arm. DISTINCT from reanimator (GY→battlefield) / graveyard_matters
+    # (self-GY care). CR 700.4.
+    if any(_CREATURE_RECURSION_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("creature_recursion", "you", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
     # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep

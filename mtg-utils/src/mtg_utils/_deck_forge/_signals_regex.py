@@ -36,6 +36,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COST_REDUCTION_REGEX,
     COUNTER_DISTRIBUTE_SWEEP_REGEX,
     CREATURE_PING_REGEX,
+    CREATURE_RECURSION_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
@@ -292,19 +293,21 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # subtype/color lords, single targets, attack/combat triggers, and cost taps; the
     # IR over-fire boundary (generic-set, no subtype) keeps those out. serve spec stays
     # in signal_specs.
-    # Creature RECURSION engine (Hua Tuo, Adun, Othelm): a repeatable "return/put/choose
-    # a creature card (in|from) your graveyard" ability. Distinct from broad
-    # graveyard_matters — it loops a single creature, so it wants SELF-SACRIFICING
-    # creatures (the sac is the value AND refuels the graveyard — Spore Frog) plus
-    # ETB-value bodies. Served accordingly.
-    (
-        "creature_recursion",
-        _re(
-            r"(?:return|put|choose) (?:target |a |another )?creature card"
-            r"[^.]*?\b(?:in|from) your graveyard"
-        ),
-        "you",
-    ),
+    # ADR-0027: creature_recursion (the "loop a single creature" build-around — return
+    # a CREATURE card from a graveyard, to HAND or BATTLEFIELD: Raise Dead, Gravedigger,
+    # Reanimate, Hua Tuo, Meren) migrated to the Card IR. This _DETECTORS producer (the
+    # "(?:return|put|choose) … creature card … (in|from) your graveyard" detector,
+    # forced scope 'you' HIGH) is DELETED; its pattern is pinned as
+    # CREATURE_RECURSION_REGEX in _sweep_detectors. The lane now fires from a STRUCTURAL
+    # `reanimate`+Creature arm (recall GAIN, +160 GY->battlefield reanimators the
+    # brittle "your graveyard" regex missed) PLUS the byte-identical
+    # _CREATURE_RECURSION_MIRROR in _signals_ir over the reminder-stripped kept_oracle
+    # (the 132 GY->hand / GY->library cards phase doesn't structure as `reanimate`).
+    # DISTINCT from reanimator (GY->BATTLEFIELD only) and graveyard_matters (any self-GY
+    # care). The producer fired HIGH-confidence scope 'you' and fed has_other_plan, so
+    # the _CREATURE_RECURSION_PLAN_MIRROR below re-supplies the commander-damage voltron
+    # silence (the IR path is BROADER, so NOT _VOLTRON_SILENCING_PLAN_KEYS). The serve
+    # spec stays hand-registered in signal_specs.py. CR 700.4 / 903.10a.
     # ADR-0027: land_creatures_matter migrated to the Card IR — fired from the shared
     # land-animator predicate (animate/base_pt_set/type_set over a Land subject) +
     # Land+Creature dual-type anthem/maker subjects (Sylvan Advocate, Timber Protector,
@@ -2701,6 +2704,23 @@ _ENCHANTMENTS_MATTER_PLAN_MIRROR = re.compile(
     ENCHANTMENTS_MATTER_REGEX,
     re.IGNORECASE,
 )
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated creature_recursion key. Its one
+# deleted `_DETECTORS` producer (CREATURE_RECURSION_REGEX, forced scope 'you', HIGH
+# confidence) counted toward `has_other_plan` — a recursion ENGINE is a plan, not a
+# vanilla beater (Meren, Hua Tuo, Othelm, Adun). The migrated IR path is BROADER (464 =
+# 172 both + 132 mirror + 160 GY->battlefield structural recall gain), so re-supplying
+# via _VOLTRON_SILENCING_PLAN_KEYS would OVER-SILENCE the +160 recall-gain bodies. This
+# mirror is BYTE-IDENTICAL to the EXACT deleted producer (same CREATURE_RECURSION_REGEX)
+# and feeds ONLY the gate (no signal — the lane is served from the IR), reproducing
+# pre-migration `has_other_plan` for ALL cards. Matched against the reminder-STRIPPED
+# `text` (NOT `_oracle`): the deleted producer was a `_DETECTORS` row over reminder-
+# stripped clauses. (Empirically 0 commander-legal cards have creature_recursion as
+# their SOLE high-conf plan key, so voltron delta is 0 either way; this is the
+# defensive faithful re-supply.) CR 700.4 / 903.10a.
+_CREATURE_RECURSION_PLAN_MIRROR = re.compile(
+    CREATURE_RECURSION_REGEX,
+    re.IGNORECASE,
+)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated global_ability_grant key. Its
 # deleted SWEEP producer (GLOBAL_ABILITY_GRANT_REGEX) fired HIGH-confidence scope 'any'
 # and counted toward `has_other_plan`, silencing the spurious commander-damage voltron
@@ -4735,6 +4755,16 @@ def extract_signals(
         # (the deleted producer was a floor Detector over stripped clauses).
         # CR 205.2 / 303 / 903.10a.
         or _ENCHANTMENTS_MATTER_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted creature_recursion producer (the _DETECTORS
+        # row CREATURE_RECURSION_REGEX, HIGH-confidence scope 'you', feeding
+        # has_other_plan — a recursion engine IS a plan, not a vanilla beater: Meren,
+        # Hua Tuo, Othelm, Adun). The migrated IR path is BROADER (464 vs 304), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence the +160 GY->battlefield
+        # recall-gain bodies; this BYTE-IDENTICAL mirror (the same CREATURE_RECURSION_
+        # REGEX) restores the old regex's exact silence set, so the file-swap shows
+        # voltron delta 0. Matched against the reminder-STRIPPED `text` (the deleted
+        # producer was a _DETECTORS row over stripped clauses). CR 700.4 / 903.10a.
+        or _CREATURE_RECURSION_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
         # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
         # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-

@@ -756,6 +756,33 @@ LANDFALL_REGEX = (
 LAND_DESTRUCTION_REGEX = (
     r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b"
 )
+# ADR-0027 — creature_recursion (return a CREATURE card from a graveyard, to HAND or
+# BATTLEFIELD: Raise Dead, Gravedigger, Reanimate, Hua Tuo, Meren — the "loop a single
+# creature" build-around) migrated to the Card IR via a STRUCTURAL `reanimate` arm
+# (recall GAIN) PLUS this BYTE-IDENTICAL kept regex. The deleted `_DETECTORS` producer
+# fired forced scope 'you', HIGH conf, run PER-CLAUSE over the reminder-stripped oracle
+# (304 commander-legal cards). The structural arm (`cat=='reanimate' and 'Creature' in
+# ftypes` in extract_signals_ir) GAINS +160 cards the brittle "your graveyard" regex
+# missed — the "from A graveyard" / "that player's graveyard" reanimation spells
+# (Reanimate, Beacon of Unrest, Exhume) and the empty-top-level split/DFC halves — but
+# phase carries NO clean structural shape for GY→HAND / GY→LIBRARY creature recursion
+# (graveyard_recursion / topdeck_stack, NOT reanimate), so a structural-only migration
+# would LOSE 132 genuine cards (Raise Dead, Gravedigger, Hua Tuo's GY→library, Meren,
+# Kolaghan's Command's GY→hand mode). This constant, run PER-CLAUSE over the reminder-
+# stripped `kept_oracle` in extract_signals_ir, recovers all 132 BYTE-IDENTICALLY
+# (commander-legal, floor-disabled: mirror==regex==304, flat==per-clause, 0 miss, 0
+# extra; the lone `[^.]*?` never crosses a clause). add() dedups vs the structural arm.
+# DISTINCT from reanimator (GY→BATTLEFIELD only) and graveyard_matters (any self-GY
+# care). creature_recursion was NEVER a SWEEP key, so no SWEEP row is touched (len stays
+# 36). NO sidecar bump. The deleted producer fired HIGH conf scope 'you' and counted
+# toward has_other_plan; because the migrated IR path is BROADER (464), the regex path
+# keeps a byte-identical _CREATURE_RECURSION_PLAN_MIRROR over the reminder-stripped
+# `text` (NOT _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence the +160 recall-
+# gain bodies) — voltron delta 0. CR 700.4 / 903.10a.
+CREATURE_RECURSION_REGEX = (
+    r"(?:return|put|choose) (?:target |a |another )?creature card"
+    r"[^.]*?\b(?:in|from) your graveyard"
+)
 # ADR-0027 — land_sacrifice_matters (the land-SACRIFICE archetype axis: a card that
 # pays an ongoing land-sac cost, draws/grows when lands hit the graveyard, or offers a
 # repeatable "Sacrifice a land:" OUTLET — Gitrog, Titania, Slogurk, Zuran Orb, Sylvan

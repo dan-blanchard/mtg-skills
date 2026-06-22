@@ -3861,6 +3861,70 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # pre-migration behavior (matching the kicked_spell / second_spell precedent).
         # FILE-SWAP voltron delta 0. CR 726 (Day/Night) / 903.10a (voltron).
         "daynight_matters",
+        # ADR-0027 — creature_recursion (return a CREATURE card from a graveyard, to
+        # HAND or BATTLEFIELD: Raise Dead, Gravedigger, Reanimate, Hua Tuo, Meren). The
+        # build-around axis for "loop a single creature" engines — they want self-
+        # sacrificing creatures (Spore Frog) and ETB-value bodies. MIGRATED VIA A
+        # STRUCTURAL ARM (recall GAIN) + A BYTE-IDENTICAL KEPT-MIRROR (the regex tail
+        # phase doesn't structure); signals-only, NO sidecar bump.
+        #
+        # THE BOUNDARY vs reanimator / graveyard_matters. creature_recursion is the
+        # BROAD "return a creature card from a graveyard" (GY→hand OR GY→library OR
+        # GY→battlefield). It is DISTINCT from the already-migrated reanimator
+        # (GY→BATTLEFIELD specifically) and from graveyard_matters (any self-graveyard
+        # care). The deleted regex producer was a `_DETECTORS` row,
+        # `(?:return|put|choose) (?:target|a|another)? creature card [^.]*? (in|from)
+        # your graveyard`, forced scope 'you', HIGH confidence, run PER-CLAUSE over the
+        # reminder-stripped oracle — 304 commander-legal cards.
+        #
+        # STRUCTURAL ARM (the recall GAIN). phase structures reanimation as a
+        # `reanimate` Effect; the existing `cat=='reanimate' and 'Creature' in ftypes`
+        # arm in extract_signals_ir fires creature_recursion scope 'you' on every
+        # GY->battlefield creature reanimator. This ADDS +160 ir_only cards the brittle
+        # "your graveyard" regex MISSED — the reanimation spells that say "from A
+        # graveyard" / "that player's graveyard" (Reanimate, Beacon of Unrest, Exhume,
+        # Sepulchral Primordial, Living Death, Twilight's Call, Storm of Souls,
+        # Patriarch's Bidding) and the split/DFC reanimation halves whose top-level
+        # oracle is empty (Push // Pull, Crime // Punishment, Breaking // Entering). ALL
+        # +160 verified genuine creature recursion (return a creature card from a
+        # graveyard to the battlefield), 0 over-fire.
+        #
+        # WHY ALSO A BYTE-IDENTICAL MIRROR. phase carries NO clean structural shape for
+        # GY->HAND / GY->LIBRARY creature recursion (graveyard_recursion /
+        # topdeck_stack, NOT reanimate) — so a structural-only migration would LOSE 132
+        # genuine cards (Raise Dead, Gravedigger, Disentomb, Hua Tuo's GY->library,
+        # Meren, Kolaghan's Command's GY->hand mode, Liliana the Last Hope's -2).
+        # _CREATURE_RECURSION_MIRROR (the EXACT deleted regex run PER-CLAUSE over the
+        # reminder-stripped kept_oracle in extract_signals_ir) recovers all 132 byte-
+        # identically (commander-legal, floor-disabled by oracle_id: mirror == regex ==
+        # 304, flat == per-clause, 0 miss, 0 extra). add() dedups vs the structural arm.
+        #
+        # SCOPE PARITY. The deleted producer forced scope 'you'; the structural arm
+        # fires scope 'you'; the mirror fires scope 'you' — uniform. Reanimating from an
+        # opponent's graveyard is still YOUR creature_recursion plan (you control the
+        # returned creature), so 'you' is correct — 0 scope mismatches over the 172
+        # both-fire cards (no _gy_scope regression, unlike graveyard_matters).
+        #
+        # VOLTRON. The deleted producer fired HIGH-confidence scope 'you' and so counted
+        # toward has_other_plan (creature_recursion ∉ _GENERIC_KEYS / _VOLTRON_COMPAT_
+        # KEYS) — a recursion ENGINE is a plan, not a vanilla beater. Because the
+        # migrated IR path is BROADER (464 = 172 both + 132 mirror + 160 structural),
+        # _VOLTRON_SILENCING_PLAN_KEYS would OVER-SILENCE the +160 recall-gain bodies —
+        # so the regex path keeps a BYTE-IDENTICAL _CREATURE_RECURSION_PLAN_MIRROR over
+        # the reminder-stripped `text` (matching the enchantments_matter / extra_turns
+        # broader-IR precedent), reproducing the deleted producer's exact silence set.
+        # (Empirically 0 commander-legal cards have creature_recursion as their SOLE
+        # high-conf plan key, so voltron delta is 0 either way; the mirror is the
+        # defensive faithful re-supply.)
+        #
+        # FILE-SWAP no-flood (base 59b8e79 vs edits, baked sidecar over commander-legal,
+        # hybrid path): ONLY creature_recursion moves (304 → 464, +160 recall gain; the
+        # 132 GY→hand/library tail was already regex-served in base, now mirror-served);
+        # voltron_matters delta 0 (3010 → 3010); siblings reanimator / graveyard_matters
+        # / dies_recursion / self_death_payoff drift 0; 0 other-key drift across all 298
+        # keys. The serve spec stays hand-registered (("creature_recursion","you") in
+        # signal_specs, independent of the producer). CR 700.4 / 903.10a.
+        "creature_recursion",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

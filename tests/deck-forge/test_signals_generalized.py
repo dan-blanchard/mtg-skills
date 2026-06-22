@@ -4664,6 +4664,9 @@ def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
     # Hua Tuo, Adun, Othelm) loop SELF-SACRIFICING creatures — the sac is the
     # activation (repeatable value) AND fuels the graveyard for re-recursion, no
     # separate outlet needed (Spore Frog). Real cards, full oracle.
+    # ADR-0027: creature_recursion is IR-served (MIGRATED_KEYS); Hua Tuo's GY→library
+    # recursion rides the byte-identical _CREATURE_RECURSION_MIRROR (which scans the
+    # oracle text), so it surfaces on the hybrid path with any non-None IR.
     hua_tuo = {
         "name": "Hua Tuo, Honored Physician",
         "type_line": "Legendary Creature — Human Advisor",
@@ -4672,7 +4675,7 @@ def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
             "library. Activate only during your turn, before attackers are declared."
         ),
     }
-    assert "creature_recursion" in _keys(hua_tuo)
+    assert "creature_recursion" in _keys_hybrid(hua_tuo)
     # Serve: self-sacrificing creatures are the loop fuel.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal
