@@ -4194,6 +4194,37 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # land_destruction precedent, no _PLAN_MIRROR needed. The serve spec stays
         # hand-registered in signal_specs.py. CR 106.4.
         "big_mana",
+        # ADR-0027 cheat_from_top — a COMMANDER that REVEALS the top card of a library
+        # and CHEATS the SAME revealed card onto the battlefield (Vaevictis, Hans
+        # Eriksson, Lurking Predators) wants to STACK its top with a bomb (graveyard-
+        # to-top recursion, put-on-top effects). DISTINCT from the sibling top-of-
+        # library lanes: cheat_into_play (cheat creatures from library/HAND — Collected
+        # Company, Polymorph, See the Unwritten), topdeck_selection (surveil/scry/look-
+        # at-top SELECTION — Mayael), impulse_top_play / play_from_top (CAST from top).
+        # MIRROR-ONLY migration (the land_destruction / big_mana precedent): the v24
+        # from:top/to:battlefield zone projection is too COARSE to carry this lane's
+        # narrow scope — a structural `from:top` + `to:battlefield` arm over-fires +156
+        # commander-legal (177 vs the regex's 24), 87 of which already fire
+        # cheat_into_play and 100 topdeck_selection: it MERGES three deliberately-
+        # separate lanes (it cannot distinguish "reveal THE TOP CARD, put IT onto bf"
+        # from "look at top N, put A creature card onto bf"). And Vaevictis's reveal
+        # folds into a scope-'opp' `choose` clause carrying NO from:top, so the
+        # structural arm both over-fires AND misses the canonical card. So the WHOLE
+        # lane is under-structured relative to the regex's phrasing precision: the
+        # migrated lane is the BYTE-IDENTICAL _CHEAT_FROM_TOP_MIRROR in
+        # extract_signals_ir (include_membership-gated; the OR of the EXACT deleted
+        # _CHEAT_TOP_REVEAL_RE + _CHEAT_TOP_ONTO_RE over the reminder-stripped
+        # kept_oracle == the regex path's `text`). Commander-legal, floor-disabled, by
+        # oracle_id: both==24, regex_only==0, ir_only==0 (perfect parity, incl. the
+        # DFCs Esper Origins / Jadzi / Nissa — get_oracle_text joins faces on both
+        # sides). SCOPE PARITY: deleted producer + mirror both fire scope 'you', LOW
+        # conf. NO VOLTRON entry: cheat_from_top fired LOW confidence and so never fed
+        # has_other_plan (the silence gate is confidence=='high') — matching the
+        # land_destruction / big_mana precedent, no _PLAN_MIRROR needed. NOT a
+        # SWEEP_DETECTORS row (a hand-written add() / _LITERAL_ADD_KEYS key), so the
+        # detector floor stays at 33. The serve spec stays hand-registered in
+        # signal_specs.py. CR 401 / 701.20a.
+        "cheat_from_top",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

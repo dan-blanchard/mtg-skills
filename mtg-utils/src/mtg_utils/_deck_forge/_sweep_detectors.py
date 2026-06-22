@@ -19,6 +19,13 @@ from __future__ import annotations
 # deleted _BIG_MANA_RE producer survives as the _BIG_MANA_REGEX kept mirror in
 # _signals_ir, paired with the v23 structural `ramp`-amount arm (_is_big_mana_ir).
 #
+# ADR-0027 cheat_from_top migrated to the Card IR (the byte-identical _CHEAT_FROM_TOP_
+# MIRROR — the v24 from:top zone is too coarse for a structural arm). cheat_from_top was
+# also a hand-written include_membership add() in extract_signals (a _LITERAL_ADD_KEYS
+# key), NOT a SWEEP_DETECTORS row, so this floor is UNTOUCHED — SWEEP_DETECTORS stays at
+# 33. The deleted producer's _CHEAT_TOP_REVEAL_RE + _CHEAT_TOP_ONTO_RE survive in
+# _signals_regex and are reused byte-identically by the membership-gated mirror arm.
+#
 # ADR-0027 tranche2-C — keyword_counter migrated to the Card IR. Its SWEEP_DETECTORS
 # row is deleted (the structural read is place_counter/remove_counter with a CR-122.1b
 # keyword counter_kind, in signals.extract_signals_ir). This mined regex survives as a

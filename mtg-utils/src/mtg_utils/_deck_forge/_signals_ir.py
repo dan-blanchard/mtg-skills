@@ -19,6 +19,8 @@ import re
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
+    _CHEAT_TOP_ONTO_RE,
+    _CHEAT_TOP_REVEAL_RE,
     _DIRECT_KEYWORD_SIGNALS,
     _EVERGREEN_CK,
     _FLOOR_DETECTORS,
@@ -2802,6 +2804,18 @@ IR_SLICE_KEYS: frozenset[str] = (
             # voltron mirror is needed). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
             # CR 106.4.
             "big_mana",
+            # ADR-0027 — cheat_from_top (a COMMANDER that REVEALS the top card and
+            # cheats the SAME card onto the battlefield — Vaevictis, Hans, Lurking
+            # Predators — wants to STACK its top with a bomb). MIRROR-ONLY: the v24
+            # from:top/to:battlefield zone projection is too COARSE (a structural arm
+            # over-fires +156, merging the cheat_into_play / topdeck_selection lanes,
+            # AND misses Vaevictis whose reveal folds into a scope-'opp' choose with no
+            # from:top), so the whole lane rides the byte-identical _CHEAT_TOP_REVEAL_RE
+            # + _CHEAT_TOP_ONTO_RE mirror over kept_oracle (include_membership-gated).
+            # scope 'you', LOW conf (the deleted producer's identity — never fed
+            # has_other_plan, so no voltron mirror is needed). NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 401 / 701.20a.
+            "cheat_from_top",
             # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
             # payoff): a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
             # regex. phase carries a `StepEndUnspentMana` static for the 11 pure statics
@@ -8029,6 +8043,28 @@ def extract_signals_ir(
         # and never fed has_other_plan, so no voltron mirror is needed). CR 106.4.
         if _is_big_mana_ir(ir) or _BIG_MANA_REGEX.search(kept_oracle):
             add("big_mana", "you", "", "big-mana generator", "low")
+        # ADR-0027 — cheat_from_top BYTE-IDENTICAL membership-gated kept mirror. A
+        # COMMANDER that REVEALS the top card of a library AND cheats the SAME revealed
+        # card onto the battlefield (Vaevictis, Hans Eriksson, Lurking Predators) wants
+        # to STACK its top with a bomb (graveyard-to-top recursion, put-on-top effects).
+        # MIRROR-ONLY: the v24 from:top/to:battlefield zone projection is too COARSE to
+        # carry this lane's narrow scope — a structural `from:top` + `to:battlefield`
+        # arm over-fires +156 commander-legal (177 vs 24), MERGING the deliberately-
+        # separate sibling lanes (87 of the flood already fire cheat_into_play — cheat
+        # from library/HAND; 100 fire topdeck_selection — look-at-top SELECTION), AND it
+        # MISSES Vaevictis (his reveal folds into a scope-'opp' `choose` carrying no
+        # from:top). The whole lane is under-structured relative to the regex phrasing,
+        # so it rides the OR-AND of the EXACT deleted _CHEAT_TOP_REVEAL_RE +
+        # _CHEAT_TOP_ONTO_RE over the reminder-stripped kept_oracle — same input as the
+        # deleted producer's `text` (commander-legal: regex==mirror, 24->24, 0 miss/
+        # extra, incl. the DFCs Esper Origins / Jadzi / Nissa — get_oracle_text joins
+        # faces). scope 'you', LOW conf (the deleted producer's scope/conf — it never
+        # fed has_other_plan, so no voltron mirror is needed, matching the
+        # land_destruction / big_mana precedent). CR 401 / 701.20a.
+        if _CHEAT_TOP_REVEAL_RE.search(kept_oracle) and _CHEAT_TOP_ONTO_RE.search(
+            kept_oracle
+        ):
+            add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

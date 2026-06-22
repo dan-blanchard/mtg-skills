@@ -2209,6 +2209,10 @@ _MANA_TAP_RE = re.compile(r"\{t\}: add\b", re.IGNORECASE)
 # battlefield (Vaevictis, Hans Eriksson, Thrasios) curates its top: it wants to stack a
 # bomb there (graveyard-to-top). BOTH tells are required so a plain reanimation spell
 # ("put ... onto the battlefield" with no reveal) isn't mistaken for a top-cheater.
+# ADR-0027: the cheat_from_top producer migrated to the Card IR — these two regexes are
+# KEPT (the producer's add() is deleted in extract_signals) and reused byte-identically
+# by the _CHEAT_FROM_TOP_MIRROR arm in _signals_ir (the v24 from:top zone projection is
+# too coarse to carry this lane's narrow scope; see _migrated_keys). CR 401 / 701.20a.
 _CHEAT_TOP_REVEAL_RE = re.compile(r"reveals? the top card", re.IGNORECASE)
 _CHEAT_TOP_ONTO_RE = re.compile(
     r"puts? (?:it|that card|them) onto the battlefield", re.IGNORECASE
@@ -4617,15 +4621,20 @@ def extract_signals(
     # The serve spec stays hand-registered. NO has_other_plan mirror: this producer
     # fired LOW confidence and never fed the voltron silence (which requires
     # confidence=='high'), so its deletion leaks no commander-damage tell. CR 305.6.
-    # A commander that reveals its top card and cheats a permanent into play (Vaevictis,
-    # Hans Eriksson) wants to STACK its top with a bomb. Membership-only: the lane opens
-    # because the COMMANDER is the top-cheater, not because the 99 hold one.
-    if (
-        include_membership
-        and _CHEAT_TOP_REVEAL_RE.search(text)
-        and _CHEAT_TOP_ONTO_RE.search(text)
-    ):
-        add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
+    # ADR-0027: cheat_from_top migrated to the Card IR. A commander that REVEALS its top
+    # card and cheats the SAME revealed card onto the battlefield (Vaevictis, Hans
+    # Eriksson, Lurking Predators) wants to STACK its top with a bomb. This membership-
+    # gated producer is DELETED; it survives BYTE-IDENTICALLY as the _CHEAT_FROM_TOP_
+    # MIRROR arm in extract_signals_ir (include_membership-gated — the OR-AND of the
+    # EXACT deleted _CHEAT_TOP_REVEAL_RE + _CHEAT_TOP_ONTO_RE over the reminder-stripped
+    # kept_oracle == this path's `text`; commander-legal: regex==mirror, 24→24, 0 miss/
+    # extra). The v24 from:top/to:battlefield zone projection is too COARSE for a
+    # structural arm (it over-fires +156 across the cheat_into_play / topdeck_selection
+    # lane boundaries and still MISSES Vaevictis, whose reveal folds into a scope-'opp'
+    # `choose` with no from:top). scope 'you', LOW confidence — it never fed
+    # has_other_plan (the silence gate is confidence=='high'), so deleting it leaks no
+    # voltron tell; NO _PLAN_MIRROR needed (the land_destruction / big_mana precedent).
+    # The serve spec stays hand-registered in signal_specs.py. CR 401 / 701.20a.
     # A creature commander that repeatedly destroys creatures (Diaochan, Visara) is a
     # death-engine WITHOUT a sac outlet: each kill fires on-death payoffs. Membership +
     # creature gated so a one-shot removal spell in the 99 isn't read as the plan.

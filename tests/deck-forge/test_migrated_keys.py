@@ -5843,6 +5843,48 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 — cheat_from_top: a COMMANDER that REVEALS the top card and cheats the
+    # SAME card onto the battlefield (Hans Eriksson). MIRROR-ONLY migration — the v24
+    # from:top zone projection is too coarse to carry this lane's narrow scope (a
+    # structural arm over-fires +156, merging the cheat_into_play / topdeck_selection
+    # lanes), so the include_membership-gated byte-identical _CHEAT_FROM_TOP_MIRROR (the
+    # exact deleted _CHEAT_TOP_REVEAL_RE + _CHEAT_TOP_ONTO_RE over kept_oracle) serves
+    # it. The IR's structure is irrelevant — the mirror reads oracle_text — but the
+    # paired IR is Hans's REAL reveal/put-onto-battlefield triggered ability (faithful,
+    # not fabricated). scope 'you', LOW conf. CR 401 / 701.20a.
+    "cheat_from_top": (
+        {
+            "name": "Hans Eriksson",
+            "type_line": "Legendary Creature — Human Scout",
+            "oracle_text": (
+                "Whenever Hans Eriksson attacks, reveal the top card of your "
+                "library. If it's a creature card, put it onto the battlefield "
+                "tapped and attacking defending player or a planeswalker they "
+                "control. Otherwise, put that card into your hand. When you put a "
+                "creature card onto the battlefield this way, it fights Hans "
+                "Eriksson."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                effects=(
+                    Effect(
+                        category="reveal",
+                        scope="any",
+                        zones=("from:top",),
+                        raw="reveal the top card of your library",
+                    ),
+                    Effect(
+                        category="reveal",
+                        scope="any",
+                        zones=("to:battlefield",),
+                        raw="put it onto the battlefield",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

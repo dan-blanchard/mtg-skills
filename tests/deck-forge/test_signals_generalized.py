@@ -1609,6 +1609,10 @@ def test_cheat_from_top_commander_opens_lane():
     # reveal-top tell AND the puts-onto-battlefield tell: a plain reanimation spell
     # (Reanimate) puts a creature onto the battlefield but never reveals the top, so it
     # is not a top-cheater and stays out.
+    # ADR-0027: cheat_from_top migrated to the Card IR (the membership-gated byte-
+    # identical _CHEAT_FROM_TOP_MIRROR arm — the v24 from:top zone is too coarse for a
+    # structural arm), so this asserts on the HYBRID path. A bare non-None IR routes the
+    # hybrid to the IR path; the mirror reads oracle_text off the record.
     vaevictis = {
         "name": "Vaevictis Asmadi, the Dire",
         "type_line": "Legendary Creature — Elder Dragon",
@@ -1634,9 +1638,11 @@ def test_cheat_from_top_commander_opens_lane():
         "keywords": [],
         "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
     }
-    assert any(k == "cheat_from_top" for k, _, _ in _ksub(vaevictis))
-    assert any(k == "cheat_from_top" for k, _, _ in _ksub(hans))
-    assert not any(k == "cheat_from_top" for k, _, _ in _ksub(reanimate))
+    assert any(k == "cheat_from_top" for k, _, _ in _ksub_hybrid(vaevictis, _bare_ir()))
+    assert any(k == "cheat_from_top" for k, _, _ in _ksub_hybrid(hans, _bare_ir()))
+    assert not any(
+        k == "cheat_from_top" for k, _, _ in _ksub_hybrid(reanimate, _bare_ir())
+    )
 
 
 def test_repeatable_creature_kill_opens_kill_engine():
