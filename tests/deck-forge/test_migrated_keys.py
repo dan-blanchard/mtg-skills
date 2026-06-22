@@ -95,6 +95,27 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # unspent_mana ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
+    # regex ("you don't lose unspent <color> mana as steps and phases end"). phase
+    # carries a StepEndUnspentMana static for the pure statics but the v17 projection
+    # drops it, AND all such cards already match the regex — so a structural arm gains
+    # ZERO recall; the burst riders have no structural form at all. So the lane fires
+    # from the kept mirror over the card's oracle_text (Leyline Tyrant's "You don't lose
+    # unspent red mana as steps and phases end"); the paired IR is vanilla — the mirror
+    # reads the record, not the IR structure. ADR-0027 β.
+    "unspent_mana": (
+        {
+            "name": "Leyline Tyrant",
+            "type_line": "Creature — Dragon",
+            "oracle_text": (
+                "Flying\n"
+                "You don't lose unspent red mana as steps and phases end.\n"
+                "When this creature dies, you may pay any amount of {R}. When you "
+                "do, it deals that much damage to any target."
+            ),
+        },
+        _ir(),
+    ),
     # untap_engine ← an `untap` Effect whose raw matches the engine anchor "untap
     # target/all/each/two/up to" (Seedborn Muse's "Untap all permanents you control"
     # projects cat="untap", subject=None — phase drops the broad subject — so the raw

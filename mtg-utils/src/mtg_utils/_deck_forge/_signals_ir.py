@@ -69,6 +69,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOKEN_COPY_MATTERS_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
+    UNSPENT_MANA_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text, is_creature
 from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
@@ -729,6 +730,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "keyword_grant_target",
         re.compile(KEYWORD_GRANT_TARGET_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 β — unspent_mana: the "you KEEP unspent mana across steps/phases"
+    # payoff (Kruphix, Leyline Tyrant, Horizon Stone, Omnath Locus of Mana / All; the
+    # mana-burst riders Savage Ventmaw, Avatar Roku, Birgi, Sakiko). phase carries a
+    # structured `StepEndUnspentMana` static mode for the 11 pure statics (action
+    # Retain / Transform), but the v17 projection DROPS it (no Effect category), AND all
+    # 11 already match this regex's "don't lose unspent" / "\bunspent mana\b" arms — so
+    # a structural arm gains ZERO recall. The burst riders have NO structural form at
+    # all (phase buries "you don't lose this mana as steps end" in an
+    # Unimplemented(name="lose") sub-ability of a `ramp` trigger). So the lane rides
+    # this BYTE-IDENTICAL mirror of the deleted SWEEP regex. No regex arm spans a
+    # sentence (`.;\n`), so this flat .search over the reminder-stripped kept_oracle
+    # reproduces the deleted per-clause SWEEP firing set exactly (0 drift both
+    # directions). Same HIGH confidence + scope "you" the deleted SWEEP producer fired.
+    # NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 500.4 / 106.4.
+    (
+        "unspent_mana",
+        re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 — cares-about lanes phase v0.1.19 doesn't structure as a payoff
@@ -2278,6 +2298,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             # phase can't structure (Raggadragga). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 106.4 / 605.
             "mana_amplifier",
+            # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
+            # payoff): a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
+            # regex. phase carries a `StepEndUnspentMana` static for the 11 pure statics
+            # but the v17 projection drops it, AND all 11 already match the regex — so a
+            # structural arm gains ZERO recall; the burst riders (Ventmaw, Roku) have no
+            # structural form at all. The mirror is the cheapest correct path (no
+            # sidecar bump). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+            # CR 500.4 / 106.4.
+            "unspent_mana",
         }
     )
     # Batch 2a (keyword-array signals — same source as regex, full parity):

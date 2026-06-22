@@ -167,6 +167,34 @@ PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x
 # with). CR 604.3.
 VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total )?number of)?|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?the (?:total )?number of|equal to (?:twice )?the (?:total )?number of cards in (?:your|their|the|all) [^.]*hand|change [^.]*base power and toughness"
 
+# ADR-0027 β — unspent_mana migrated to the Card IR via a kept-mirror; its
+# SWEEP_DETECTORS row is deleted but the EXACT mined regex survives here as a shared
+# constant. The lane is the "you KEEP unspent mana across steps/phases" payoff — a
+# continuous mana-RULE static (CR 500.4 / 106.4). phase DOES carry a structured form
+# for the pure statics (a `StepEndUnspentMana` static-ability mode, action `Retain`
+# for the "you don't lose unspent <color> mana" cards — Leyline Tyrant, Omnath Locus
+# of Mana, Ashling, Electro, Fangorn, Upwelling — or `Transform: <color>` for the
+# convert-instead-of-lose cards — Kruphix, Horizon Stone, Omnath Locus of All, Ozai),
+# BUT the v17 projection DROPS that static mode entirely (no Effect category exists for
+# it), AND every one of those 11 structural cards already matches this regex's "don't
+# lose unspent" / "\bunspent mana\b" arms — so a structural arm (a new category + a
+# SIDECAR bump) would gain ZERO recall over this mirror. The mana-BURST riders ("Until
+# end of turn, you don't lose this mana as steps and phases end" — Savage Ventmaw,
+# Avatar Roku, Birgi, Brazen Collector, Sakiko, Rousing Refrain, …) have NO structural
+# form: phase buries the retention clause in an Unimplemented(name="lose") sub-ability
+# of a `ramp` trigger, so they MUST ride a regex mirror regardless. The regex IS the
+# cheapest correct path. The mirror, the voltron PLAN mirror, and the hand-registered
+# serve / _MANA_AMP_EXTRA-bearing spec in signal_specs all reuse this one constant, so
+# serve / detector / silence never drift. SWEEP_LABELS keeps the human label. No arm
+# spans a sentence (`.;\n`), so a flat full-text scan over the reminder-stripped oracle
+# (the _IR_KEPT_DETECTORS path) reproduces the deleted per-clause SWEEP firing set
+# byte-identically. CR 500.4 / 106.4.
+UNSPENT_MANA_REGEX = (
+    "\\bunspent mana\\b|don't lose unspent|lose unspent mana|\\bmana burn\\b"
+    "|loses? (?:one or more )?unspent mana|don't lose (?:this |unspent )?"
+    "(?:\\w+ )?mana as (?:steps|phases|those steps)"
+)
+
 # ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
 # deleted _HAND_FLOOR producer is pinned here byte-identically so the serve spec, the
 # _TOKEN_COPY_MATTERS_MIRROR kept detector (_signals_ir), and the
@@ -947,12 +975,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # hand-registered in signal_specs. The structural pump-only gate excludes Paladin
     # Danse (a one-shot keyword GRANT via grant_keyword, not a +X/+X anthem), the
     # regex's lone over-fire.
-    {
-        "key": "unspent_mana",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bunspent mana\\b|don't lose unspent|lose unspent mana|\\bmana burn\\b|loses? (?:one or more )?unspent mana|don't lose (?:this |unspent )?(?:\\w+ )?mana as (?:steps|phases|those steps)",
-    },
+    # ADR-0027 β: unspent_mana migrated to the Card IR via a kept-mirror — this
+    # SWEEP_DETECTORS row is deleted. The EXACT regex is pinned above as
+    # UNSPENT_MANA_REGEX; the lane fires from the byte-identical _UNSPENT_MANA_MIRROR
+    # in signals._IR_KEPT_DETECTORS, the voltron _UNSPENT_MANA_PLAN_MIRROR
+    # (_signals_regex) re-supplies the deleted producer's has_other_plan silence, and
+    # the serve spec in signal_specs reuses the pinned regex. SWEEP_LABELS still
+    # carries the human label.
     # ADR-0027: keyword_soup migrated to the Card IR — fired structurally from >=5
     # distinct evergreen grant_keyword counter_kinds in one ability (Odric class) plus
     # a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the "the same is true for …"

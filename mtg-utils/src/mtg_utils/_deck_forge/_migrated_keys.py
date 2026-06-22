@@ -2403,6 +2403,46 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _VOLTRON_SILENCING_PLAN_KEYS, because the IR arm is BROADER (+503). CR 122.1 /
         # 614.12 / 701.43 / 701.13 / 702.111.
         "self_counter_grow",
+        # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
+        # payoff: the pure statics Kruphix / Leyline Tyrant / Horizon Stone / Omnath
+        # Locus of Mana+All / Ashling / Electro / Fangorn / Upwelling / Ozai, AND the
+        # mana-burst riders Savage Ventmaw / Avatar Roku / Birgi / Brazen Collector /
+        # Sakiko / Rousing Refrain / Shizuko / …). MIGRATED VIA A KEPT-MIRROR, NO
+        # SIDECAR BUMP.
+        #
+        # PATH (kept-mirror, no structural arm). phase DOES carry a structured
+        # `StepEndUnspentMana` static-ability mode for the 11 pure statics (action
+        # Retain — "you don't lose unspent <color> mana"; or Transform:<color> —
+        # "becomes colorless/black/red instead"), but the v17 projection DROPS that mode
+        # entirely (no Effect category models it), AND every one of those 11 cards
+        # already matches the deleted regex's "don't lose unspent" / "\bunspent mana\b"
+        # arms — so a NEW retain_mana category + a structural arm would gain ZERO
+        # recall. The mana-burst riders have NO structural form: phase buries "you don't
+        # lose this mana as steps end" in an Unimplemented(name="lose") sub-ability of a
+        # `ramp` trigger, so they MUST ride a regex mirror regardless. The cheapest
+        # correct path is therefore a byte-identical _IR_KEPT_DETECTORS mirror of the
+        # EXACT deleted SWEEP regex (pinned as UNSPENT_MANA_REGEX) — no category, no
+        # sidecar bump, drift-free by construction.
+        #
+        # GATES. floor-mirror-dep == 0 (unspent_mana is NOT an _IR_FLOOR_LANE — it was a
+        # SWEEP_DETECTORS key). Floor-disabled IR-vs-regex residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), the kept mirror vs the EXACT deleted SWEEP
+        # regex): both == 43, ir_only == 0, regex_only == 0 — the mirror is byte-
+        # identical (no
+        # arm spans a sentence, so the flat .search over reminder-stripped kept_oracle
+        # reproduces the deleted per-clause SWEEP firing set exactly; 0 drift both
+        # directions). FILE-SWAP no-flood (base 40e7ddf vs edits, commander-legal): ONLY
+        # unspent_mana moves (0 cards — byte-identical), voltron gain 0 / lose 0. The
+        # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
+        # has_other_plan, so a byte-identical _UNSPENT_MANA_PLAN_MIRROR re-supplies the
+        # voltron silence on a mana-retention engine (Leyline Tyrant, Savage Ventmaw — a
+        # mana-banking body is NOT a vanilla beater) — NOT _VOLTRON_SILENCING_PLAN_KEYS
+        # (which would equal it here since the IR set == the regex set, but the gate
+        # mirror also covers the ir-is-None regex-path computation). The serve spec in
+        # signal_specs.py reuses UNSPENT_MANA_REGEX via the ``regex=`` arg (the sweep
+        # auto-register loop no longer builds it; SWEEP_LABELS keeps the human label).
+        # CR 500.4 / 106.4 / 903.10a.
+        "unspent_mana",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

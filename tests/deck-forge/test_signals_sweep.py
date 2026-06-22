@@ -32,11 +32,11 @@ def test_sweep_detectors_loaded():
     # + tranche2-C self_pump/tapper_engine/count_anthem + tranche2-batch-4's
     # damage_to_you_punish/excess_damage/self_blink + t2b4a-A's tribal_etb_multi/
     # typed_enters_punish + t2b4a-B's win_lose_game/xspell_matters + tranche2-batch-5's
-    # kept-detector sweep deletions + play_from_top (ADR-0027 β) + earlier batches
-    # migrated to the Card IR); it still guards "a non-empty set loads", not an exact
-    # count. This floor is removed at A4 when the strangler empties SWEEP_DETECTORS
-    # entirely.
-    assert len(SWEEP_DETECTORS) >= 39
+    # kept-detector sweep deletions + play_from_top (ADR-0027 β) + unspent_mana
+    # (ADR-0027 β, kept-mirror) + earlier batches migrated to the Card IR); it still
+    # guards "a non-empty set loads", not an exact count. This floor is removed at A4
+    # when the strangler empties SWEEP_DETECTORS entirely.
+    assert len(SWEEP_DETECTORS) >= 38
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -133,6 +133,12 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
     # mana as steps and phases end"). The regex matched only the literal "unspent mana" /
     # "don't lose unspent", so a commander that GENERATES persistent mana never opened
     # the lane and thus saw no mana sinks (Leyline Tyrant, big X-spells). Real oracle.
+    # ADR-0027 β: unspent_mana migrated to the Card IR via a byte-identical kept-mirror
+    # of the deleted SWEEP regex; the lane now fires from extract_signals_ir, so this
+    # exercises the hybrid path (a bare IR is enough — the kept-detector loop scans the
+    # card's own oracle text). The mana-burst riders have no structural form (phase
+    # buries the retention clause in an Unimplemented sub-ability), so the mirror is the
+    # producer here.
     roku = {
         "name": "Avatar Roku, Firebender",
         "type_line": "Legendary Creature — Human Avatar",
@@ -156,8 +162,10 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
             "end of turn, you don't lose this mana as steps and phases end."
         ),
     }
-    assert "unspent_mana" in {s.key for s in extract_signals(roku)}
-    assert "unspent_mana" in {s.key for s in extract_signals(ventmaw)}
+    assert "unspent_mana" in {s.key for s in extract_signals_hybrid(roku, _bare_ir())}
+    assert "unspent_mana" in {
+        s.key for s in extract_signals_hybrid(ventmaw, _bare_ir())
+    }
     # A plain dork whose mana empties normally must NOT open the lane.
     llanowar_elves = {
         "name": "Llanowar Elves",
@@ -167,7 +175,9 @@ def test_unspent_mana_opens_on_mana_retained_across_steps():
         "toughness": "1",
         "oracle_text": "{T}: Add {G}.",
     }
-    assert "unspent_mana" not in {s.key for s in extract_signals(llanowar_elves)}
+    assert "unspent_mana" not in {
+        s.key for s in extract_signals_hybrid(llanowar_elves, _bare_ir())
+    }
 
 
 def test_lifeloss_matters_opens_on_opponents_lose_n_life():

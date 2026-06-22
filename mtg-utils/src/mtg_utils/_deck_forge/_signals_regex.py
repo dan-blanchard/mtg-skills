@@ -52,6 +52,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TARGET_PLAYER_DRAWS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOUGHNESS_COMBAT_REGEX,
+    UNSPENT_MANA_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text
@@ -2841,6 +2842,20 @@ _ABILITY_COPY_PLAN_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
 # regex arms are all clause-local, so full-text == per-clause. FILE-SWAP NO-FLOOD:
 # voltron delta 0. CR 903.10a / 122.1b.
 _PUMP_MATTERS_PLAN_MIRROR = re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated unspent_mana key. The deleted
+# SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
+# plan IS keeping unspent mana to dump into an X-spell / mana sink (Leyline Tyrant 4/4
+# flying, Savage Ventmaw 4/4 flying, Omnath Locus of Mana — a mana-retention engine is
+# NOT a vanilla beater). The migrated lane rides a BYTE-IDENTICAL kept mirror of the
+# EXACT deleted regex (no structural arm — the IR set == the regex set exactly), so this
+# byte-identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores the old
+# silence for ALL cards (also covering the ir-is-None regex-path computation). Matched
+# against the reminder-STRIPPED joined-face `text` (the deleted SWEEP Detector ran
+# per-clause over stripped clauses); every regex arm is clause-local (no `[^.]` spans a
+# sentence), so full-text == per-clause. FILE-SWAP NO-FLOOD: voltron delta 0.
+# CR 903.10a / 500.4.
+_UNSPENT_MANA_PLAN_MIRROR = re.compile(UNSPENT_MANA_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated gain_control key. The deleted
 # _DETECTORS producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a theft
@@ -4443,6 +4458,16 @@ def extract_signals(
         # per-clause over stripped text; the regex arms are clause-local, so full-text
         # == per-clause). CR 903.10a / 122.1b.
         or _PUMP_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted unspent_mana SWEEP producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a mana-retention engine
+        # is NOT a vanilla beater; banking unspent mana for an X-spell / mana sink IS a
+        # plan). The migrated lane rides a byte-identical kept mirror of the EXACT
+        # deleted regex (no structural arm; the IR set == the regex set exactly), so
+        # this byte-identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS — restores
+        # the old silence for ALL cards. Matched against the reminder-STRIPPED `text`
+        # (the deleted SWEEP Detector ran per-clause over stripped text; the regex
+        # arms are clause-local, so full-text == per-clause). CR 903.10a / 500.4.
+        or _UNSPENT_MANA_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted gain_control _DETECTORS producer (HIGH-
         # confidence scope 'you', feeding has_other_plan). The migrated lane rides a
         # BROADER structural arm (+85 ir_only), so this byte-identical gate mirror — NOT

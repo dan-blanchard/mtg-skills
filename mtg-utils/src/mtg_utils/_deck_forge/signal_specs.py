@@ -39,6 +39,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TARGET_PLAYER_DRAWS_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
+    UNSPENT_MANA_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
 )
 from mtg_utils.card_classify import (
@@ -2912,9 +2913,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # Unspent-mana commander (Omnath, Kruphix) keeps mana between steps -> wants mana
     # amplification (untap-all-lands + doublers) to bank more. The sweep's bare "unspent
     # mana" serve credited none; promote it to a hand-spec with the amp extra.
+    # ADR-0027 β: unspent_mana migrated to the Card IR via a kept-mirror — its
+    # SWEEP_DETECTORS row is deleted, so pass the EXACT deleted regex via ``regex=``
+    # (pinned as UNSPENT_MANA_REGEX) so the serve search/serve pool never drifts.
     ("unspent_mana", "you"): _sweep_spec_with_extras(
         "unspent_mana",
         (_MANA_AMP_EXTRA,),
+        regex=UNSPENT_MANA_REGEX,
     ),
     # ADR-0027: group_mana migrated to the Card IR — its SWEEP_DETECTORS row is deleted
     # (detection moved to a non-controller-recipient discriminator on phase's ramp
