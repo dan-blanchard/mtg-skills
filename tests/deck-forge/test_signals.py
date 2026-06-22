@@ -1715,11 +1715,6 @@ def test_past_tense_count_payoffs_open_their_lane():
             "attack_matters",
             "Draw a card for each creature you control that attacked this turn.",
         ),
-        # Proft / Kydele: "for each card you've drawn this turn"
-        (
-            "draw_matters",
-            "This creature gets +1/+1 for each card you've drawn this turn.",
-        ),
         # Gnostro / Rionya: "for each spell you've cast this turn"
         (
             "spellcast_matters",
@@ -1746,6 +1741,19 @@ def test_past_tense_count_payoffs_open_their_lane():
     assert "lifeloss_matters" in {
         s.key for s in extract_signals_hybrid(neheb, neheb_ir)
     }
+    # ADR-0027 β: draw_matters is migrated — Proft / Kydele "for each card you've
+    # drawn this turn" is a count-operand payoff with NO `drawn` trigger, so it fires
+    # from the byte-identical draw_matters kept-mirror in the IR path (which scans the
+    # reminder-stripped oracle), NOT the deleted regex producer.
+    proft = {
+        "name": "Proft",
+        "type_line": "Legendary Creature — Test",
+        "oracle_text": (
+            "This creature gets +1/+1 for each card you've drawn this turn."
+        ),
+    }
+    proft_ir = project_card([{**proft, "card_type": {"core_types": ["Creature"]}}])
+    assert "draw_matters" in {s.key for s in extract_signals_hybrid(proft, proft_ir)}
 
 
 def test_past_tense_death_count_opens_death_matters():

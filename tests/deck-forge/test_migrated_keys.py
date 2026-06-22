@@ -998,6 +998,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # draw_matters ← a `drawn` trigger with scope != "opp" (Chasm Skulker's "Whenever
+    # you draw a card, put a +1/+1 counter on this creature" — phase parses a literal
+    # "Whenever you draw a card" as scope 'any', NOT 'you', which the scope-gated
+    # structural arm keeps; an OPP-scoped drawn trigger is the separate
+    # opponent_draw_matters punisher lane, excluded). The past-tense draw-COUNT payoff
+    # has no `drawn` trigger and rides the byte-identical _IR_KEPT_DETECTORS mirror
+    # instead. ADR-0027 β.
+    "draw_matters": (
+        {
+            "name": "Chasm Skulker",
+            "type_line": "Creature — Squid Horror",
+            "oracle_text": (
+                "Whenever you draw a card, put a +1/+1 counter on this creature.\n"
+                "When this creature dies, create X 1/1 blue Squid creature tokens "
+                "with islandwalk, where X is the number of +1/+1 counters on this "
+                "creature. (They can't be blocked as long as defending player "
+                "controls an Island.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="drawn", scope="any"),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

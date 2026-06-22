@@ -589,6 +589,31 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
     ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
     ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # ADR-0027 β — draw_matters (the YOU-draw payoff: "whenever you draw" engines +
+    # the past-tense draw-COUNT payoff "for each card you've drawn this turn"). The
+    # structural arm (a `drawn` trigger, scope != "opp") covers the "whenever you
+    # draw a card" triggers, but the COUNT payoff (Proft's Eidetic Memory, Kydele,
+    # Thundering Djinn, Niko Aris, Duelist of the Mind, Fists of Flame — "for each
+    # card you've drawn this turn") is a static / CDA / count-operand reference phase
+    # carries NO `drawn` trigger for, and the granted/quoted "whenever you draw"
+    # (Diviner's Wand grants it, Teferi's emblem, Lady Octopus "first or second card
+    # each turn") nests below a top-level trigger phase doesn't surface. So this
+    # byte-identical mirror of the deleted _DETECTORS producer (both arms — "whenever
+    # you draw" OR the count regex) recovers the 28 commander-legal cards the
+    # structural arm alone misses. Combined (struct + mirror) reproduces the
+    # deleted regex with regex_only==0 + 8 genuine you/any-scoped recall gains and
+    # 0 opp over-fire (the mirror's "whenever you draw" never matches an opp-draw
+    # punisher).
+    # CR 120.1.
+    (
+        "draw_matters",
+        re.compile(
+            r"whenever you draw"
+            r"|(?:you've|you have) drawn (?:this turn|your|\d|two|three)",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real CARD,
     # not a token" mechanic, CR 701.66a). phase carries a structural `Conjure` effect
     # type but the projection folds it to make_token AND that structural set is
@@ -6065,7 +6090,24 @@ def extract_signals_ir(
                         tk, ts = _TOKEN_SUBTYPE_KEYS[st]
                         add(tk, ts, "", "")
             if ev == "drawn":
-                add("draw_matters", "you", "", "")
+                # ADR-0027 β — draw_matters (a "whenever YOU draw" payoff — Niv-Mizzet,
+                # Chasm Skulker, The Locust God). SCOPE-GATED to scope != "opp": phase
+                # parses a literal "Whenever you draw a card" as scope 'any' (not
+                # 'you'), so 'any' is kept; an OPP-scoped drawn trigger is the
+                # SEPARATE
+                # opponent_draw_matters punisher lane (Underworld Dreams, Smothering
+                # Tithe) the deleted regex deliberately excluded ("whenever you draw"
+                # never matched "whenever an opponent draws"). Gating drops the 20
+                # commander-legal opp-draw over-fires the un-gated arm produced while
+                # keeping the 8 genuine you/any-scoped recall gains the regex missed
+                # (Sneaky Snacker "your third card", Tamiyo "your second card", the
+                # symmetric "whenever a player draws" payoffs — Phyrexian Tyranny,
+                # Spiteful Visions, Ian Malcolm, The Council of Four, Krang, Fasting).
+                # The past-tense draw-COUNT payoff ("for each card you've drawn this
+                # turn" — Proft, Kydele, Thundering Djinn) has NO drawn trigger, so it
+                # rides the _IR_KEPT_DETECTORS draw_matters mirror below.
+                if trig.scope != "opp":
+                    add("draw_matters", "you", "", "")
                 # Batch 11 — "whenever an OPPONENT draws" (Nekusar / Notion Thief).
                 if trig.scope == "opp":
                     add("opponent_draw_matters", "opponents", "", "")

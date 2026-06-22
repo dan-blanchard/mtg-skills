@@ -2648,6 +2648,69 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # plan (Cosmic Sovereign, Darigaaz Shivan Champion, Roalesk, …), so without the
         # mirror they would flip to a spurious voltron tell. CR 701.66a / 903.10a.
         "conjure_matters",
+        # ADR-0027 β — draw_matters (the YOU-draw payoff: a "whenever you draw" engine
+        # — Niv-Mizzet Parun, Chasm Skulker, The Locust God, Psychosis Crawler — and
+        # the past-tense draw-COUNT payoff "for each card you've drawn this turn" —
+        # Proft's Eidetic Memory, Kydele, Thundering Djinn). MIGRATED VIA A
+        # SCOPE-GATED STRUCTURAL ARM + a byte-identical kept-mirror + a voltron
+        # _PLAN_MIRROR. NO sidecar bump (the v20 projection already emits the `drawn`
+        # trigger event the structural arm reads).
+        #
+        # STRUCTURAL ARM (scope-gated). extract_signals_ir fires draw_matters scope
+        # "you" on a `drawn` trigger with trig.scope != "opp". The gate is the
+        # discriminator: phase parses a literal "Whenever you draw a card" as scope
+        # 'any' (NOT 'you'), so 'any' is the YOU-draw payoff (Niv-Mizzet et al.) and
+        # is KEPT; an OPP-scoped drawn trigger is the SEPARATE opponent_draw_matters
+        # punisher lane (Underworld Dreams, Smothering Tithe, Nekusar, Orcish
+        # Bowmasters) the deleted regex deliberately excluded — "whenever you draw"
+        # never matched "whenever an opponent draws". The un-gated arm (the
+        # pre-migration code, which fired draw_matters on EVERY drawn trigger) OVER-
+        # fired on 20 commander-legal opp-draw punishers; the gate drops all 20 while
+        # KEEPING 8 genuine you/any-scoped recall gains the regex missed (Sneaky
+        # Snacker "your third card", Tamiyo "your second card", and the symmetric
+        # "whenever a player draws" payoffs — Phyrexian Tyranny, Spiteful Visions,
+        # Ian Malcolm, The Council of Four, Krang, Fasting).
+        #
+        # KEPT-MIRROR (recall recovery, NO sidecar bump). The past-tense draw-COUNT
+        # payoff ("for each card you've drawn this turn") is a static / CDA /
+        # count-operand reference with NO `drawn` trigger, and a granted/quoted
+        # "whenever you draw" (Diviner's Wand, Teferi's emblem, Lady Octopus) nests
+        # below a top-level trigger phase doesn't surface — 28 commander-legal cards
+        # the structural arm alone misses. A byte-identical draw_matters row in
+        # signals._IR_KEPT_DETECTORS reproduces the EXACT deleted _DETECTORS producer
+        # (both arms: "whenever you draw" OR "(?:you've|you have) drawn (?:this turn|
+        # your|\d|two|three)"), run over the reminder-STRIPPED kept_oracle — byte-
+        # identical to the deleted Detector (which ran per-clause over the same
+        # `re.sub(r"\([^)]*\)", " ", …)`-stripped lowercased text; neither arm has a
+        # `[^.]` cross-sentence span, so full-text == per-clause). The mirror's
+        # "whenever you draw" never matches an opp-draw punisher, so it re-introduces
+        # ZERO over-fire. The serve spec stays hand-registered in signal_specs.py
+        # (line 1891, ("draw_matters","you")).
+        #
+        # GATES. floor-mirror-dep == 0 (draw_matters is NOT an _IR_FLOOR_LANE — it
+        # was a _DETECTORS producer, like the sibling opponent_draw_matters). FLOOR-
+        # DISABLED residual vs the deleted regex (commander-legal, dedupe oracle_id,
+        # _IR_FLOOR_LANES=frozenset()): COMBINED struct + mirror gives both ==
+        # 105,
+        # regex_only == 0 (NO recall lost), ir_only == 8 (all genuine you/any draw
+        # payoffs the "whenever you draw" literal-regex missed). The three sibling
+        # draw lanes (draw_for_each = a draw that SCALES with a board count;
+        # card_draw_engine = a recurring bulk-advantage engine; group_hug_draw = a
+        # symmetric "each player draws" gift) key on `Effect`/scaling, NOT the `drawn`
+        # trigger, so they are DISJOINT and DO NOT drift (a card with both a draw
+        # payoff and a draw engine legitimately carries draw_matters + the sibling —
+        # that is co-occurrence, not over-fire).
+        #
+        # VOLTRON. The deleted _DETECTORS producer fired HIGH-confidence (scope 'you')
+        # and fed has_other_plan (draw_matters is not in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS; a draw-engine commander is no vanilla beater), so a
+        # byte-identical _DRAW_MATTERS_PLAN_MIRROR in _signals_regex re-supplies the
+        # commander-damage voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (the
+        # combined IR arm is BROADER (+8 ir_only); the silencing-keys path would
+        # over-silence those recall-gain bodies). Restores has_other_plan for ALL
+        # cards regardless of IR/regex mode (FILE-SWAP voltron delta 0). CR 120.1 /
+        # 903.10a.
+        "draw_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

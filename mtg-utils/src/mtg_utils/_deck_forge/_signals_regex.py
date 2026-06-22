@@ -469,16 +469,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         None,
     ),
-    # Present "whenever you draw" OR the past-tense draw-COUNT payoff ("for each card
-    # you've drawn this turn" — Proft's Eidetic Memory, Kydele, Thundering Djinn).
-    (
-        "draw_matters",
-        lambda c: (
-            "whenever you draw" in c
-            or _re(r"(?:you've|you have) drawn (?:this turn|your|\d|two|three)")(c)
-        ),
-        "you",
-    ),
+    # ADR-0027 β: draw_matters migrated to the Card IR — a scope-gated `drawn`-trigger
+    # structural arm (scope != "opp", excluding the opponent_draw_matters punisher lane)
+    # PLUS a byte-identical draw_matters row in signals._IR_KEPT_DETECTORS for the
+    # past-tense draw-COUNT payoff ("for each card you've drawn this turn" — Proft's
+    # Eidetic Memory, Kydele, Thundering Djinn) that has no `drawn` trigger. This
+    # _DETECTORS producer is deleted; the serve spec stays hand-registered in
+    # signal_specs.py. The deleted producer fed has_other_plan (HIGH-confidence, scope
+    # 'you'), so its voltron silence is restored by _DRAW_MATTERS_PLAN_MIRROR below.
+    # CR 120.1 / 903.10a.
     (
         # Landfall / lands-matter: the ability word, a land-enter trigger, extra land
         # drops, OR land RECURSION from the graveyard (Lord Windgrace, Crucible) — a
@@ -2764,6 +2763,23 @@ _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORE
 # per-clause over `re.sub(r"\([^)]*\)", " ", …)`-stripped text; `\bconjure\b` has no
 # `[^.]` span, so full-text == per-clause). CR 903.10a / 701.66a.
 _CONJURE_MATTERS_PLAN_MIRROR = re.compile(r"\bconjure\b", re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated draw_matters key. The deleted
+# _DETECTORS producer fired HIGH-confidence (scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a draw-
+# engine body (Niv-Mizzet Parun, The Locust God, a Proft-style draw-count payoff — a
+# value engine, not a vanilla beater). The migrated lane rides a scope-gated structural
+# arm + a byte-identical kept mirror that together are BROADER than the deleted regex
+# (+8 ir_only), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence the
+# 8 recall-gain bodies; this byte-identical gate mirror restores the deleted regex's
+# EXACT silence set for ALL cards regardless of IR/regex mode (matching the
+# token_copy_matters / damage_to_opp_matters mirror pattern). Matched against the
+# reminder-STRIPPED `text` (the deleted _DETECTORS producer ran per-clause over
+# `re.sub(r"\([^)]*\)", " ", …)`-stripped, lowercased text); neither arm has a `[^.]`
+# span crossing a sentence, so full-text == per-clause. CR 903.10a / 120.1.
+_DRAW_MATTERS_PLAN_MIRROR = re.compile(
+    r"whenever you draw|(?:you've|you have) drawn (?:this turn|your|\d|two|three)",
+    re.IGNORECASE,
+)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated color_change key. The deleted
 # SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a body whose
@@ -4446,6 +4462,17 @@ def extract_signals(
         # the old silence for ALL cards. Matched against the reminder-STRIPPED `text`
         # (the deleted SWEEP Detector ran per-clause over stripped text). CR 903.10a.
         or _CONJURE_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted draw_matters _DETECTORS producer (it fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a draw engine /
+        # draw-count payoff is a value plan, not a vanilla beater). The migrated lane
+        # rides a scope-gated structural arm + a byte-identical kept mirror that are
+        # BROADER (+8 ir_only), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the deleted regex's exact silence
+        # set without over-silencing the ir_only gains. Matched against the
+        # reminder-STRIPPED `text` (the deleted _DETECTORS producer ran per-clause
+        # over stripped, lowercased text); neither arm spans a sentence, so
+        # full-text == per-clause. CR 903.10a.
+        or _DRAW_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted color_change SWEEP producer (it fired
         # HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
         # a byte-identical kept mirror, so this byte-identical gate mirror — NOT
