@@ -54,6 +54,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ANIMATE_ARTIFACT_REGEX,
     ARTIFACTS_MATTER_REGEX,
     ATTACK_MATTERS_REGEX,
+    CAST_FROM_EXILE_REGEX,
     COLOR_CHANGE_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
@@ -789,6 +790,36 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "land_sacrifice_matters",
         re.compile(LAND_SACRIFICE_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 — cast_from_exile BYTE-IDENTICAL kept WORD MIRROR (the CAST/PLAY-FROM-
+    # EXILE build-around: payoffs and enablers that cast or play cards FROM EXILE —
+    # "whenever you cast a spell from exile" / "from anywhere other than your hand"
+    # Paradox triggers (Vega, Iraxxa, Quintorius Kand, Nalfeshnee, Keeper of Secrets),
+    # self-cast-from-exile creatures (Eternal Scourge, Misthollow Griffin, Squee),
+    # exile-and-cast engines (Court of Locthwain, Tinybones, Norin), the "exile this
+    # card from your hand … cast it for as long as it remains exiled" cycle (Masked
+    # Bandits, Rakish Revelers, Spara's Adjudicators), Plot from the top (Fblthp); CR
+    # 207.2c / 601.3b / 702.143 / 702.170). phase carries NO usable structural form: it
+    # DROPS the "from exile" zone off both the `cast_spell` trigger AND the self-cast
+    # `cast_from_zone` Effect (zones=() on Eternal Scourge / Misthollow), and the only
+    # exile cast-zone it DOES project — `castable_zones=('exile',)` — is the 51-card
+    # FORETELL-SPELL serve pool, DISJOINT from the 77 detector firings (overlap 0), so
+    # reading it as a detector would over-fire 51 keyword-having spells. Over the
+    # commander-legal corpus (floor-disabled, by oracle_id) the structural IR emits this
+    # lane on ZERO cards — it fired ONLY from the deleted regex (77 commander-legal, all
+    # scope 'you' HIGH). This CAST_FROM_EXILE_REGEX (the EXACT deleted _HAND_FLOOR
+    # pattern) run FLAT over the reminder-stripped kept_oracle reproduces the deleted
+    # per-clause producer BYTE-IDENTICALLY (every `[^.]*?` arm anchors within a single
+    # clause; flat==per-clause==77). Distinct from impulse_top_play (exile the TOP of
+    # YOUR library then temporary-play) and play_from_top (the ONGOING permission to
+    # play off the top of the LIBRARY — a different zone, not exile). The deleted
+    # producer fed has_other_plan (HIGH, scope 'you', not generic/voltron-compat), so
+    # the hybrid re-silences voltron via _VOLTRON_SILENCING_PLAN_KEYS — byte-identical
+    # re-supply, no over-silence (signals.py). CR 207.2c / 601.3b / 903.10a.
+    (
+        "cast_from_exile",
+        re.compile(CAST_FROM_EXILE_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 — extra_combats SUPPLEMENT kept WORD MIRROR (the ADDITIONAL-COMBAT-PHASE
@@ -2213,7 +2244,15 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # textual — a characteristic_pt Effect carries no in:hand zone). Moved
         # floor->kept (floor-mirror-dep -> 0); both _HAND_FLOOR + SWEEP producers are
         # deleted; the hand-written serve spec (signal_specs.py) survives. CR 402.2.
-        "cast_from_exile",
+        # cast_from_exile removed — ADR-0027 migrated it to the Card IR via a
+        # BYTE-IDENTICAL kept WORD MIRROR (the CAST_FROM_EXILE_REGEX row in
+        # _IR_KEPT_DETECTORS, scope 'you', HIGH conf). phase carries NO structural form
+        # (it drops the "from exile" zone off the cast_spell trigger AND the self-cast
+        # cast_from_zone Effect; the only exile cast-zone it projects —
+        # castable_zones=('exile',) — is the foretell-spell serve pool, disjoint from
+        # the detector firings), so the lane fires SOLELY from the kept mirror — it no
+        # longer needs the regex floor. Its _HAND_FLOOR detector is deleted; the hand-
+        # written serve spec (signal_specs.py) is independent and survives. CR 207.2c.
         "exile_matters",
         # starting_life_matters removed — ADR-0027 migrated it to the Card IR (a
         # `_STARTING_LIFE_REF` "starting life total" compare marker, CR 103.4). The

@@ -687,7 +687,12 @@ class TestParadoxPayoffs:
     }
 
     def test_paradox_commander_emits_cast_from_exile(self):
-        assert "cast_from_exile" in _keys(self.VEGA)
+        # ADR-0027: cast_from_exile migrated to the Card IR via a byte-identical kept
+        # WORD MIRROR (the CAST_FROM_EXILE_REGEX row in _IR_KEPT_DETECTORS); the regex
+        # path no longer emits it, so assert via the hybrid path. The mirror reads the
+        # record's reminder-stripped oracle, so a bare non-None IR routes to it.
+        assert "cast_from_exile" in _keys_hybrid(self.VEGA)
+        assert "cast_from_exile" not in _keys(self.VEGA)
 
     def test_paradox_subavenue_serves_vega(self):
         spec = spec_for(_sig("cast_from_exile", "you"))

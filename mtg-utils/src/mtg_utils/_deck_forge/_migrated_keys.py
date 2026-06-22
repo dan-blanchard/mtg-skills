@@ -1379,6 +1379,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # floor-mirror-dep == 0 (play_from_top is not an _IR_FLOOR_LANE). CR 116 /
         # 601.3b.
         "play_from_top",
+        # ADR-0027 — cast_from_exile: the CAST/PLAY-FROM-EXILE build-around axis —
+        # payoffs and enablers that cast or play cards FROM EXILE. The "whenever you
+        # cast a spell from exile" / "from anywhere other than your hand" Paradox
+        # triggers (Vega, Iraxxa, Quintorius Kand, Nalfeshnee, Keeper of Secrets),
+        # self-cast-from-exile creatures (Eternal Scourge, Misthollow Griffin, Squee),
+        # exile-and-cast engines (Court of Locthwain, Tinybones, Norin), the "exile this
+        # card from your hand … cast it for as long as it remains exiled" cycle (Masked
+        # Bandits, Rakish Revelers, Spara's Adjudicators), and Plot from the top
+        # (Fblthp). Served by a BYTE-IDENTICAL kept WORD MIRROR (the CAST_FROM_EXILE_
+        # REGEX row in _IR_KEPT_DETECTORS, scope 'you', HIGH conf — its EXACT pattern
+        # pinned in _sweep_detectors), NOT a structural arm: phase carries NO usable
+        # structural form (it drops the "from exile" zone off the cast_spell trigger AND
+        # the self-cast cast_from_zone Effect; the only exile cast-zone it projects —
+        # castable_zones=('exile',) — is the 51-card foretell-spell SERVE pool, DISJOINT
+        # from the 77 detector firings, overlap 0). Over the commander-legal corpus
+        # (floor-disabled) the structural IR emits this lane on ZERO cards, so the
+        # mirror run FLAT over the reminder-stripped kept_oracle is the whole lane
+        # (flat==per-clause==77, 0 gain/loss). The _HAND_FLOOR producer is deleted; the
+        # hand-written serve spec (signal_specs.py) is independent and survives. The
+        # deleted producer fed has_other_plan (HIGH, scope 'you'), so the hybrid re-
+        # silences voltron via _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply,
+        # no over-silence.
+        # Distinct from impulse_top_play / play_from_top (the top-of-LIBRARY lanes — a
+        # different zone). cast_from_exile was NEVER a SWEEP key (floor count stays 33).
+        # CR 207.2c / 601.3b / 903.10a.
+        "cast_from_exile",
         # ADR-0027 β — free_spell_storm: a per-spell SCALING self-discount whose
         # cost drops for each spell CAST THIS TURN, so the deck wants FREE (0-cost)
         # spells to chain and keep cutting it (Thrasta, Tempest's Roar; Demilich;

@@ -878,6 +878,52 @@ LAND_SACRIFICE_REGEX = (
     r"|whenever you sacrifice (?:a|one or more|another) lands?"
     r"|unless you sacrifice a land"
 )
+# ADR-0027 — cast_from_exile (the CAST/PLAY-FROM-EXILE build-around axis: payoffs and
+# enablers that cast or play cards FROM EXILE — "whenever you cast a spell from exile"
+# / "from anywhere other than your hand" Paradox triggers (Vega, Iraxxa, Quintorius
+# Kand, Nalfeshnee, Keeper of Secrets), self-cast-from-exile creatures (Eternal Scourge,
+# Misthollow Griffin, Squee), exile-and-cast engines (Court of Locthwain, Tinybones,
+# Norin), the Adventure-style "exile this card from your hand … cast it for as long as
+# it remains exiled" cycle (Masked Bandits, Rakish Revelers, Spara's Adjudicators), Plot
+# from the top of the library (Fblthp); CR 207.2c / 601.3b / 702.143 / 702.170)
+# migrated to the Card IR. phase carries NO usable STRUCTURAL form for this lane: it
+# DROPS the "from exile" zone qualifier off both the `cast_spell` trigger (no zone) AND
+# the self-cast `cast_from_zone` Effect (zones=() on Eternal Scourge / Misthollow), and
+# the only exile cast-zone phase DOES project — `castable_zones=('exile',)` — is the
+# 51-card FORETELL-SPELL serve pool, DISJOINT from the 77 detector firings (overlap 0),
+# so reading it as a detector would over-fire 51 keyword-having spells. Over the
+# commander-legal corpus (floor-disabled, by oracle_id) the structural IR emits this
+# lane on ZERO cards — the lane fired ONLY from the deleted regex (77 commander-legal,
+# all scope 'you' HIGH). This CAST_FROM_EXILE_REGEX (the EXACT deleted _HAND_FLOOR
+# pattern) run FLAT over the reminder-stripped kept_oracle in extract_signals_ir's
+# _IR_KEPT_DETECTORS loop reproduces the deleted per-clause producer BYTE-IDENTICALLY:
+# every `[^.]*?` arm anchors within a single clause and no card's match is split by a
+# `;`/`\n` only (commander-legal: flat==per-clause==77, 0 gain, 0 loss). Distinct from
+# impulse_top_play (exile the TOP of YOUR library then temporary-play — its own avenue)
+# and play_from_top (the ONGOING permission to play off the top of the LIBRARY — a
+# different zone, not exile). cast_from_exile was NEVER a SWEEP key, so no SWEEP row is
+# touched (len stays 33); only this CONSTANT is pinned here. NO sidecar bump. The
+# deleted producer fired HIGH conf scope 'you' and so counted toward has_other_plan (it
+# is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-
+# damage voltron tell on a cast-from-exile creature commander that is NOT a vanilla
+# beater (Vega, Iraxxa, Quintorius Kand, Norin, Tinybones). Because the IR re-supply IS
+# this byte-identical mirror (IR==regex==77), the hybrid re-silences via
+# _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no broadening, no over-silence — matching
+# the land_sacrifice / extra_combats kept-mirror precedent; NO _CAST_FROM_EXILE_PLAN_
+# MIRROR is needed. CR 207.2c / 601.3b / 903.10a.
+CAST_FROM_EXILE_REGEX = (
+    r"top card of your library has plot"
+    r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
+    r"|play a land or cast a spell)[^.]*?from exile"
+    r"|spells? you cast from exile"
+    r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
+    r"[^.]*?(?:for as long as it remains exiled|from exile)"
+    r"|you may play (?:a |that )?card[^.]*?from exile"
+    # Paradox (CR 207.2c): zone-agnostic "from anywhere other than your hand"
+    # payoffs (Vega, Iraxxa) — the literal-"from exile" branches miss 16/17.
+    r"|(?:cast a spell|play a land|play a card)[^.]*?"
+    r"from anywhere other than your hand"
+)
 # ADR-0027 — extra_combats (the ADDITIONAL-COMBAT-PHASE archetype axis: a card that
 # grants "after this [main] phase, there is an additional combat phase" — Aggravated
 # Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia, Scourge of the Throne,

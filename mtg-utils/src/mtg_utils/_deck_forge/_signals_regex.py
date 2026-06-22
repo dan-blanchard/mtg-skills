@@ -1454,29 +1454,26 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _COST_REDUCER_MIRROR in _signals_ir; the deleted regex's voltron silence is
     # restored by _COST_REDUCTION_PLAN_MIRROR above (its high-confidence producer fed
     # has_other_plan). The serve survives via the pinned COST_REDUCTION_REGEX constant.
-    # Cast-from-exile MATTERS: payoffs and enablers that cast/play cards FROM EXILE
-    # (plot, suspend, "whenever you cast a spell from exile", paradox). Two neighbours
-    # are deliberately NOT here: impulse draw (exile-top + temporary play) is its own
-    # avenue (the impulse_top_play sweep), and playing off the top of your LIBRARY
-    # (Future Sight) is `play_from_top` below — a different zone, not exile.
-    (
-        "cast_from_exile",
-        re.compile(
-            r"top card of your library has plot"
-            r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
-            r"|play a land or cast a spell)[^.]*?from exile"
-            r"|spells? you cast from exile"
-            r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
-            r"[^.]*?(?:for as long as it remains exiled|from exile)"
-            r"|you may play (?:a |that )?card[^.]*?from exile"
-            # Paradox (CR 207.2c): zone-agnostic "from anywhere other than your hand"
-            # payoffs (Vega, Iraxxa) — the literal-"from exile" branches miss 16/17.
-            r"|(?:cast a spell|play a land|play a card)[^.]*?"
-            r"from anywhere other than your hand",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: cast_from_exile migrated to the Card IR — this _HAND_FLOOR producer
+    # (the CAST/PLAY-FROM-EXILE build-around: payoffs/enablers that cast or play cards
+    # FROM EXILE — plot, the "from exile" / "from anywhere other than your hand" Paradox
+    # triggers, self-cast-from-exile creatures, exile-and-cast engines, the Adventure-
+    # style exile-from-hand cycle) is DELETED. phase carries NO usable structural form
+    # (it drops the "from exile" zone off the cast_spell trigger AND the self-cast
+    # cast_from_zone Effect; the only exile cast-zone it projects — castable_zones=
+    # ('exile',) — is the 51-card foretell-spell SERVE pool, DISJOINT from these 77
+    # detector firings), so the lane fires SOLELY from the byte-identical kept word
+    # mirror — CAST_FROM_EXILE_REGEX (pinned in _sweep_detectors) run FLAT over the
+    # reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS loop
+    # (commander-legal: flat==per-clause==77, 0 gain/loss). Distinct from impulse_top_
+    # play (exile the TOP of YOUR library then temporary-play — its own avenue) and
+    # play_from_top below (the ONGOING permission to play off the top of the LIBRARY — a
+    # different zone, not exile). The deleted producer fired HIGH (scope 'you') and fed
+    # has_other_plan, so the hybrid re-silences the spurious commander-damage voltron
+    # tell via _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — byte-identical re-supply, no
+    # over-silence. The serve survives via the standalone _spec in signal_specs.py
+    # (never reads this regex). cast_from_exile was NEVER a SWEEP key, so no SWEEP row /
+    # floor count moves (len stays 33). CR 207.2c / 601.3b / 903.10a.
     # ADR-0027 β: play_from_top migrated to the Card IR — this _HAND_FLOOR producer
     # (and the SWEEP_DETECTORS row) are deleted. The lane fires from the IR structural
     # arm (a STATIC cast_from_zone+from:library Effect over phase's

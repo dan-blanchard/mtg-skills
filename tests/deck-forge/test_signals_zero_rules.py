@@ -115,13 +115,23 @@ def test_play_from_top_of_library_is_its_own_signal():
 
 
 def test_cast_from_exile_play_from_exile_trigger():
+    # ADR-0027: cast_from_exile migrated to the Card IR via a byte-identical kept WORD
+    # MIRROR (the CAST_FROM_EXILE_REGEX row in _IR_KEPT_DETECTORS, scope "you"); phase
+    # carries no usable structural form, so the lane fires SOLELY from the mirror over
+    # the record's reminder-stripped oracle. The regex path no longer emits it — assert
+    # via the hybrid path (a bare non-None IR routes to the IR/mirror path). Prosper's
+    # "Whenever you play a card from exile, create a Treasure token" Pact Boon is the
+    # canonical exile-cast PAYOFF.
     c = {
         "name": "Prosper, Tome-Bound",
         "oracle_text": (
             "Deathtouch\nMystic Arcanum — At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.\nPact Boon — Whenever you play a card from exile, create a Treasure token."
         ),
     }
-    assert ("cast_from_exile", "you") in _ks(c)
+    ir = Card(oracle_id="x", name="Prosper, Tome-Bound")
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("cast_from_exile", "you") in keys
+    assert ("cast_from_exile", "you") not in _ks(c)
 
 
 def test_discard_matters():

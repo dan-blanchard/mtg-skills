@@ -534,6 +534,17 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # broadening, no over-silence), matching the land_sacrifice / draw_matters kept-
         # mirror precedent. A NO-FLOOD voltron entry.
         "extra_combats",
+        # ADR-0027: cast_from_exile fired high-confidence (scope 'you') in the regex
+        # path via the _HAND_FLOOR producer and so counted toward has_other_plan (it is
+        # NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
+        # commander-damage voltron tell on a cast-from-exile creature commander that is
+        # NOT a vanilla beater (Vega, Iraxxa, Quintorius Kand, Norin, Tinybones). Its
+        # regex producer is deleted, so the hybrid re-silences from the IR re-supply —
+        # a kept WORD MIRROR (CAST_FROM_EXILE_REGEX) reading the SAME reminder-stripped
+        # joined oracle as the deleted regex, so it is BYTE-IDENTICAL (IR==regex==77, no
+        # broadening, no over-silence), matching the land_sacrifice / extra_combats
+        # kept-mirror precedent. A NO-FLOOD voltron entry.
+        "cast_from_exile",
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an

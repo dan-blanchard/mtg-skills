@@ -4994,6 +4994,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027. cast_from_exile ← the byte-identical kept WORD MIRROR (the
+    # CAST_FROM_EXILE_REGEX row in _IR_KEPT_DETECTORS, scope "you", HIGH conf; CR 207.2c
+    # / 601.3b). Vega, the Watcher is the canonical Paradox PAYOFF — "Whenever you cast a
+    # spell from anywhere other than your hand, draw a card". The mirror reads the
+    # reminder-stripped oracle_text off the record dict (not the IR structure — phase
+    # carries NO usable structural form: it drops the "from exile" zone off both the
+    # cast_spell trigger AND the self-cast cast_from_zone Effect, and the only exile
+    # cast-zone it projects — castable_zones=('exile',) — is the foretell-spell serve
+    # pool, disjoint from the detector firings), so a bare non-None IR routes the hybrid
+    # to the IR path. The regex path no longer emits the key (the _HAND_FLOOR producer is
+    # deleted). scope "you". ADR-0027.
+    "cast_from_exile": (
+        {
+            "name": "Vega, the Watcher",
+            "type_line": "Legendary Creature — Bird Spirit",
+            "oracle_text": (
+                "Flying\n"
+                "Whenever you cast a spell from anywhere other than your hand, "
+                "draw a card."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 β. free_spell_storm ← the structural arm: a dedicated `free_spell_storm`
     # STATIC marker Effect (project._free_spell_storm_marker over phase's SelfRef
     # ModifyCost{Reduce} static, SIDECAR v20). Thrasta's cost drops {3} per other spell
