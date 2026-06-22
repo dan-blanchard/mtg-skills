@@ -2147,10 +2147,14 @@ _FLOOR_DETECTORS: tuple[Detector, ...] = tuple(
 )
 
 # (preset_name → (signal_key, scope)). KEYWORD-ARRAY presets only — these read
-# Scryfall's authoritative `keywords` array, the low-false-positive path. mill is
-# scoped "any" (it can target self or opponents; Phase-B nested-scope refines it).
+# Scryfall's authoritative `keywords` array, the low-false-positive path.
 _PRESET_KEYWORD_SIGNALS = {
-    "mill": ("mill_matters", "any"),
+    # ADR-0027: the `mill` preset keyword moved to _IR_KEYWORD_MAP (the IR-only
+    # keyword path) because mill_matters is migrated — keeping it here would let the
+    # regex `extract_signals` path keep emitting a migrated key. The IR path reads the
+    # same Scryfall `Mill` keyword array (byte-identical), and the has_other_plan
+    # voltron silence is re-supplied by a `"mill" in card.keywords` gate term below
+    # (the preset fired HIGH and fed has_other_plan — a mill engine is a real plan).
     "goad": ("goad_matters", "opponents"),
     # ADR-0027: the `proliferate` preset keyword moved to _IR_KEYWORD_MAP (the
     # IR-only keyword path) because proliferate_matters is migrated — keeping it
@@ -4710,6 +4714,18 @@ def extract_signals(
         # of Pride, Blood Baron, Knight of Meadowgrain) flip to a spurious voltron tell.
         # CR 702.15 / 903.10a.
         or "lifelink" in {k.lower() for k in (card.get("keywords") or [])}
+        # ADR-0027: re-silence the deleted mill→mill_matters keyword preset entry. It
+        # was moved from _PRESET_KEYWORD_SIGNALS to _IR_KEYWORD_MAP (the IR-only path),
+        # but in the regex path it fired HIGH-confidence (the default `add()`
+        # confidence, scope "any") and counted toward has_other_plan, silencing the
+        # spurious commander-damage voltron tell on a mill BODY (a mill creature's
+        # library→graveyard action lives only in its keyword reminder, stripped from
+        # `text`, so no PLAN-mirror above can see it). Reproduce that silence on the
+        # `Mill` KEYWORD itself — byte-identical to the deleted keyword preset (any
+        # Mill-keyword card was silenced). The lane rides a byte-identical keyword route
+        # (no recall change), so this gate term — not _VOLTRON_SILENCING_PLAN_KEYS —
+        # restores the old silence for ALL cards. CR 701.13 / 903.10a.
+        or "mill" in {k.lower() for k in (card.get("keywords") or [])}
         # ADR-0027: re-silence the deleted proliferate_matters HIGH producers. Two
         # were oracle-text floor Detectors (divinity/indestructible-enter +
         # charge/experience counter) → byte-identical _PROLIFERATE_MATTERS_PLAN_

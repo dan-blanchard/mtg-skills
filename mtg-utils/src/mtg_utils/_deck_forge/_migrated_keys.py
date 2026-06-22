@@ -3194,6 +3194,63 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # would over-silence the recall-gain bodies. FILE-SWAP voltron delta == 0,
         # verified over the full commander-legal corpus. CR 207.2c / 305 / 903.10a.
         "landfall",
+        # ADR-0027 — mill_matters (the self-mill / mill-payoff axis: a card with the
+        # Mill keyword action — CR 701.13, "put the top N cards of a library into its
+        # owner's graveyard". scope "any": SELF-mill — you mill yourself to fuel a
+        # graveyard-value engine — OR an OPPONENT mill — a wincon / disruption).
+        # MIGRATED VIA THE KEYWORD ROUTE ONLY (signals-only, NO sidecar bump) — NOT a
+        # structural arm, NOT a kept-mirror.
+        #
+        # THE REGEX PRODUCER WAS THE Mill-KEYWORD PRESET ALONE. mill_matters was
+        # produced regex-side SOLELY by _PRESET_KEYWORD_SIGNALS['mill'] — the Scryfall
+        # `Mill`-keyword preset (get_preset("mill").keywords == ("Mill",)). Verified
+        # over the commander-legal corpus: ALL 555 regex fires carry the `Mill` keyword,
+        # 0 keyword-less. So the producer is a pure keyword-array lookup, with no oracle
+        # regex.
+        #
+        # WHY KEYWORD-ROUTE, NOT THE EFFECT-CATEGORY DOER. mill_matters was ALSO emitted
+        # IR-side by the _DOER_EFFECT_KEYS['mill'] doer arm (phase's `mill` effect
+        # category). But that arm OVER-FIRES: floor-disabled residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), the DOER arm vs the deleted regex) is both==555,
+        # regex_only==0, ir_only==3 — and ALL 3 ir_only are phase MISLABELS, not mill:
+        # Bone Dancer ("put the top creature card of defending player's graveyard onto
+        # the battlefield" — opp-GY→battlefield reanimation, no library→graveyard),
+        # Scroll Rack ("Exile … from your hand … Put that many cards from the top of
+        # your library into your hand …" — library↔hand swap + reorder), and Soldevi
+        # Digger ("Put the top card of your graveyard on the bottom of your library" —
+        # GY→library, the INVERSE of mill). None carries the `Mill` keyword; none is a
+        # CR-701.13 mill. And there is NO keyword-LESS GENUINE mill in the corpus
+        # (Scryfall tags every real mill with the keyword — 0 keyword-less mill-text
+        # cards). So the doer arm adds ONLY over-fires and zero genuine recall. The
+        # _DOER_EFFECT_KEYS['mill'] entry is therefore DELETED (the `mill` effect
+        # category STILL opens graveyard_matters via the separate broader arm), and the
+        # lane rides _IR_KEYWORD_MAP['mill'] — the SAME Scryfall `Mill` keyword array
+        # the deleted preset read. The IR keyword route is BYTE-IDENTICAL to the deleted
+        # regex producer (commander-legal: both==555, ir_only==0, regex_only==0), so NO
+        # mirror is needed.
+        #
+        # SCOPE PARITY. The deleted preset forced scope "any"; the keyword route fires
+        # scope "any"; the doer fired scope "any" — 0 scope mismatches over the 555
+        # both-fire cards (self vs opponent mill both ride the single "any" scope, as
+        # the regex producer did).
+        #
+        # VOLTRON. The deleted preset fired HIGH-confidence (the default add()
+        # confidence) and counted toward has_other_plan — a mill engine is a plan, not a
+        # vanilla beater, and a mill creature's library→graveyard action lives only in
+        # its `Mill` keyword reminder (stripped from `text`, so no PLAN-mirror can see
+        # it). A byte-identical `"mill" in card.keywords` gate term in _signals_regex
+        # re-supplies the regex-path commander-damage voltron silence directly (the
+        # lifelink/proliferate keyword-array precedent) — NOT _VOLTRON_SILENCING_PLAN_
+        # KEYS. FILE-SWAP no-flood (base 333f2a6 vs edits, baked sidecar over 30969
+        # commander-legal, hybrid path): mill_matters is BYTE-IDENTICAL (555 → 555 —
+        # the keyword route reproduces the regex preset exactly; the pre-migration
+        # hybrid already took mill_matters from the regex path, so leaving the doer arm
+        # in would have ADDED the 3 over-fires — dropping it prevents that);
+        # graveyard_matters
+        # (4063), reanimator (135), creature_recursion (304) drift 0; voltron_matters
+        # delta 0 (3010 → 3010); 0 other-key drift across all 298 keys. CR 701.13 /
+        # 903.10a.
+        "mill_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

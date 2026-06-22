@@ -5268,6 +5268,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # mill_matters ← the Scryfall `Mill` keyword array via _IR_KEYWORD_MAP['mill']
+    # (CR 701.13). Stitcher's Supplier is the canonical self-mill body ("mill three
+    # cards"); the keyword is read off the record dict, not the IR structure, so a bare
+    # non-None IR routes the hybrid to the IR path. The effect-category doer arm was
+    # DELETED (it mislabeled 3 non-mill effects); the regex path no longer emits the key
+    # (the _PRESET_KEYWORD_SIGNALS preset is deleted). scope "any". ADR-0027.
+    "mill_matters": (
+        {
+            "name": "Stitcher's Supplier",
+            "type_line": "Creature — Zombie",
+            "oracle_text": (
+                "When this creature enters or dies, mill three cards. (Put the "
+                "top three cards of your library into your graveyard.)"
+            ),
+            "keywords": ["Mill"],
+        },
+        _ir(),
+    ),
 }
 
 

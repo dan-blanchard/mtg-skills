@@ -105,7 +105,16 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # resets (Brooding Saurian) as theft. gain_control now fires from a GATED arm
     # (cat=="gain_control", excluding donate + Owned-subject return) in
     # extract_signals_ir.
-    "mill": ("mill_matters", "any"),
+    # ADR-0027: mill is NOT a blanket doer — phase mislabels 3 commander-legal
+    # non-mill effects as the `mill` category (Bone Dancer's opp-GY→battlefield
+    # reanimation, Scroll Rack's library↔hand swap + reorder, Soldevi Digger's
+    # GY→library-bottom — none a CR 701.13 mill, none carrying the Scryfall `Mill`
+    # keyword). The regex producer was the `Mill`-KEYWORD preset alone (all 555
+    # commander-legal regex fires carry the keyword; 0 keyword-less). So mill_matters
+    # now fires from the Scryfall keyword array via _IR_KEYWORD_MAP['mill'] (byte-
+    # identical to the deleted _PRESET_KEYWORD_SIGNALS preset — saddle/lifelink-style),
+    # dropping this over-broad doer entry and its 3 phase over-fires. The `mill` effect
+    # category STILL opens graveyard_matters below (a separate, broader arm). CR 701.13.
     "tutor": ("tutor_matters", "you"),
     # Batch P — phase-native mechanic effects.
     "monarch": ("monarch_matters", "you"),
@@ -387,6 +396,20 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Plunderer) via _DOER_EFFECT_KEYS.
     "proliferate": (("proliferate_matters", "you"),),
     "station": (("proliferate_matters", "you"),),
+    # ADR-0027 mill_matters migration: the Mill keyword action (CR 701.13 — "put the
+    # top N cards of a library into its owner's graveyard"; self-mill OR targeted)
+    # MOVED here from _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path).
+    # mill_matters is migrated, so it must leave the regex-readable preset map. The
+    # Scryfall `Mill` keyword array is the structured anchor and is byte-identical to
+    # the deleted preset (get_preset("mill").keywords == ("Mill",); all 555 commander-
+    # legal regex fires carry the keyword, 0 keyword-less). UNLIKE the proliferate /
+    # saddle / lifelink moves, there is NO retained effect-category doer entry: phase's
+    # `mill` effect category mislabels 3 commander-legal non-mill effects (Bone Dancer,
+    # Scroll Rack, Soldevi Digger), and every genuine mill card already carries the
+    # keyword, so the keyword route alone reproduces the deleted regex producer exactly
+    # (ir_only==0, regex_only==0 — no mirror needed). scope "any" (it can self-mill or
+    # mill an opponent — the deleted preset's scope). CR 701.13.
+    "mill": (("mill_matters", "any"),),
     # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
     # and reminder-only phasers (Sandbar Crocodile) whose only "phases out" sits in
     # the stripped reminder text the regex floor misses. The phasing EFFECT category

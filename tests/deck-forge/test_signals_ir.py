@@ -136,8 +136,13 @@ def test_graveyard_from_reanimate_scoped_opp():
 
 def test_graveyard_from_self_mill():
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
-    # A mill effect feeds a graveyard AND is a mill payoff (mill_matters).
-    assert _sigs(ir) == [("graveyard_matters", "you", ""), ("mill_matters", "any", "")]
+    # A mill effect feeds a graveyard (graveyard_matters). ADR-0027: mill_matters
+    # migrated to the Scryfall `Mill` keyword route (_IR_KEYWORD_MAP), NOT the `mill`
+    # effect category — phase mislabels 3 non-mill effects (Bone Dancer, Scroll Rack,
+    # Soldevi Digger) as `mill`, and every genuine mill carries the keyword. So the
+    # blanket effect-category doer was dropped; a bare `mill` effect on a keyword-LESS
+    # record now opens graveyard_matters only. CR 701.13.
+    assert _sigs(ir) == [("graveyard_matters", "you", "")]
 
 
 def test_graveyard_from_castable_zone():
@@ -740,9 +745,23 @@ def test_destroy_land_subtype_only_not_removal():
     assert "removal_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
-def test_mill_effect_fires_mill_matters():
+def test_mill_keyword_fires_mill_matters():
+    # ADR-0027: mill_matters fires from the Scryfall `Mill` keyword array
+    # (_IR_KEYWORD_MAP['mill'], read off the record dict), NOT the `mill` effect
+    # category — phase mislabels non-mill effects as `mill`, and every genuine mill
+    # carries the keyword. scope "any" (self-mill or opponent-mill). CR 701.13.
     ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="opp"),)))
-    assert ("mill_matters", "any", "") in _sigs(ir)
+    record = {"name": "Test", "keywords": ["Mill"]}
+    keys = {(s.key, s.scope, s.subject) for s in extract_signals_ir(record, ir)}
+    assert ("mill_matters", "any", "") in keys
+
+
+def test_mill_effect_without_keyword_does_not_fire_mill_matters():
+    # The bare `mill` effect category no longer opens mill_matters (the over-broad doer
+    # arm was dropped — it mislabeled Bone Dancer / Scroll Rack / Soldevi Digger). A
+    # keyword-LESS record carrying a `mill` effect opens graveyard_matters only.
+    ir = _ir(Ability(kind="spell", effects=(Effect(category="mill", scope="you"),)))
+    assert "mill_matters" not in {s.key for s in extract_signals_ir(CARD, ir)}
 
 
 def test_cast_spell_trigger_fires_spellcast_matters():
