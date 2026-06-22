@@ -2975,6 +2975,51 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # otherwise flip to a spurious voltron tell). FILE-SWAP voltron delta == 0.
         # CR 119 / 118 / 702.15 / 903.10a.
         "lifegain_matters",
+        # ADR-0027 proliferate_matters — the counter-SYNERGY hub (cards that want
+        # MORE counters of an existing kind): proliferate itself (CR 701.27 — "add
+        # another counter of each kind already there"), station (CR 702.184 —
+        # charge accrual), the divinity/indestructible enters-with cycle (Myojin,
+        # Arwen), beneficial charge/experience-counter references (Ezuri, Mizzix,
+        # Meren), and the "remove a counter as a cost" counter-spend engines (Tayam,
+        # Fain). FIVE producers, re-homed by source:
+        #   • proliferate KEYWORD + station KEYWORD → _IR_KEYWORD_MAP (IR-only
+        #     keyword path, byte-identical to the deleted preset; the native
+        #     `proliferate` EFFECT category in _DOER_EFFECT_KEYS additionally opens
+        #     the lane for keyword-LESS proliferators — Maulfist Revolutionary,
+        #     Skyship Plunderer — recall the keyword regex MISSED).
+        #   • divinity/indestructible-counter + charge/experience-counter
+        #     _HAND_FLOOR producers → HIGH-confidence _IR_KEPT_DETECTORS mirrors
+        #     (phase carries no structural form: an enters-replacement /
+        #     charge-counter reference projects with a blank counter_kind the
+        #     structural edge routes to counters_matter, not proliferate_matters).
+        #   • the "remove a counter from X:" inline producer (fired LOW) →
+        #     _PROLIFERATE_REMOVE_COST_RE LOW-confidence mirror arm in
+        #     extract_signals_ir (kept LOW so the 55 commander-legal
+        #     countdown-resource cards with no other plan — Gemstone Mine, Serrated
+        #     Arrows — keep their voltron tell; a HIGH firing would wrongly silence
+        #     it).
+        #
+        # FLOOR-DISABLED RESIDUAL vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), IR-arm-only vs regex base): both == 404,
+        # ir_only == 2 (genuine recall GAIN — Maulfist Revolutionary, Skyship
+        # Plunderer, the keyword-LESS "give another counter of each kind"
+        # proliferators), regex_only == 0 (the four oracle-text producers are
+        # reproduced byte-identically by the kept mirrors). floor-mirror-dep == 0
+        # (proliferate_matters is NOT an _IR_FLOOR_LANE — it was a _HAND_FLOOR /
+        # keyword / inline set, never floored).
+        #
+        # VOLTRON. The deleted HIGH-confidence producers (proliferate keyword +
+        # station keyword + divinity-enter + charge/experience floors) fed
+        # has_other_plan; a byte-identical _PROLIFERATE_MATTERS_PLAN_MIRROR in
+        # _signals_regex re-supplies the commander-damage voltron silence — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER (+2 ir_only) and
+        # that would over-silence the two recall-gain bodies. The LOW remove-cost
+        # producer never fed has_other_plan, so its term is intentionally absent.
+        # FILE-SWAP no-flood (base ee50c00 vs edits, commander-legal hybrid): ONLY
+        # proliferate_matters moves (404 → 406, +2 recall gain), counters_matter /
+        # counter_distribute / counter_manipulation / minus_counters_matter drift 0,
+        # voltron_matters delta 0 (gained 0 / lost 0). CR 701.27 / 702.184 / 903.10a.
+        "proliferate_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

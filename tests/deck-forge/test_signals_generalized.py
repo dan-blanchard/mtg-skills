@@ -2596,12 +2596,15 @@ def test_goad_via_keyword_array_scoped_opponents():
 
 
 def test_proliferate_via_keyword_array():
+    # ADR-0027: proliferate_matters migrated to the Card IR; the proliferate
+    # keyword now opens the lane via _IR_KEYWORD_MAP (the IR-only keyword path,
+    # reading the record's Scryfall keyword array), so this asserts the hybrid.
     c = {
         "name": "Atraxa, Praetors' Voice",
         "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
         "keywords": ["Proliferate"],
     }
-    assert ("proliferate_matters", "you") in _ks(c)
+    assert ("proliferate_matters", "you") in _ks_hybrid(c)
 
 
 # --- narrow Tinybones scope fix (ADR-0009) ------------------------------------
@@ -3781,8 +3784,11 @@ def test_charge_and_experience_counters_open_proliferate():
             "experience counters you have."
         ),
     }
-    assert ("proliferate_matters", "you") in _ks(immard)
-    assert ("proliferate_matters", "you") in _ks(ezuri)
+    # ADR-0027: proliferate_matters migrated to the Card IR; the charge/experience
+    # counter sources now fire from the _IR_KEPT_DETECTORS mirror, so assert the
+    # hybrid path.
+    assert ("proliferate_matters", "you") in _ks_hybrid(immard)
+    assert ("proliferate_matters", "you") in _ks_hybrid(ezuri)
     # Over-fire guard: a PENALTY-counter commander (slumber) must NOT open proliferate —
     # proliferate would keep Arixmethes asleep (anti-synergy).
     arixmethes = {
@@ -3794,7 +3800,7 @@ def test_charge_and_experience_counters_open_proliferate():
             "Whenever you cast a spell, you may remove a slumber counter from Arixmethes."
         ),
     }
-    assert ("proliferate_matters", "you") not in _ks(arixmethes)
+    assert ("proliferate_matters", "you") not in _ks_hybrid(arixmethes)
 
 
 def test_polymorph_cheat_opens_cheat_into_play():
@@ -5843,7 +5849,10 @@ def test_divinity_indestructible_counter_wants_proliferate():
             "other creatures."
         ),
     }
-    assert "proliferate_matters" in _keys(myojin)
+    # ADR-0027: proliferate_matters migrated to the Card IR; the divinity /
+    # indestructible enters-with cycle now fires from the _IR_KEPT_DETECTORS
+    # mirror, so assert the hybrid path.
+    assert "proliferate_matters" in _keys_hybrid(myojin)
     # Over-fire guard: a COUNTDOWN counter you remove to wake a creature (slumber) is
     # anti-proliferate — you want fewer, not more.
     arixmethes = {
@@ -5857,7 +5866,7 @@ def test_divinity_indestructible_counter_wants_proliferate():
             "Arixmethes."
         ),
     }
-    assert "proliferate_matters" not in _keys(arixmethes)
+    assert "proliferate_matters" not in _keys_hybrid(arixmethes)
 
 
 def test_ox_tribe_resolves_despite_two_letters_and_irregular_plural():
@@ -6480,7 +6489,10 @@ def test_remove_counter_to_activate_opens_proliferate():
             "graveyard to the battlefield."
         ),
     }
-    assert "proliferate_matters" in _keys(tayam)
+    # ADR-0027: proliferate_matters migrated to the Card IR; the remove-a-counter-
+    # as-cost producer now fires from the LOW-confidence _PROLIFERATE_REMOVE_COST_RE
+    # mirror arm, so assert the hybrid path.
+    assert "proliferate_matters" in _keys_hybrid(tayam)
     # Over-fire guard: a COUNTDOWN counter removed in upkeep (no colon-activation) — you
     # want FEWER, so it must NOT open proliferate.
     arixmethes = {
@@ -6494,7 +6506,7 @@ def test_remove_counter_to_activate_opens_proliferate():
             "Arixmethes."
         ),
     }
-    assert "proliferate_matters" not in _keys(arixmethes)
+    assert "proliferate_matters" not in _keys_hybrid(arixmethes)
 
 
 def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():

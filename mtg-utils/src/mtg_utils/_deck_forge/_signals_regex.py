@@ -1073,20 +1073,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Divinity / indestructible counter → proliferate (Myojin cycle, Arwen). These
-    # permanents enter with exactly ONE beneficial counter that gates indestructibility
-    # or fuels a "Remove a counter: [big effect]" ability — proliferate multiplies it
-    # into more activations / longer protection. Keyed on the counter TYPE because that
-    # is the discriminator: divinity/indestructible are always good to multiply, unlike
-    # COUNTDOWN counters (slumber, egg) you race to remove, where proliferate is anti-
-    # synergy. 11 cards carry the phrase (all Myojins + Arwen); zero false positives.
-    (
-        "proliferate_matters",
-        re.compile(
-            r"enters with a(?:n)? (?:divinity|indestructible) counter", re.IGNORECASE
-        ),
-        "you",
-    ),
+    # ADR-0027: proliferate_matters migrated to the Card IR. This divinity /
+    # indestructible-counter _HAND_FLOOR producer (Myojin cycle, Arwen — enter
+    # with one beneficial counter that proliferate multiplies) is DELETED; it
+    # survives byte-identically as a HIGH-confidence _IR_KEPT_DETECTORS mirror in
+    # _signals_ir (phase carries no structural form — the enters-replacement
+    # place_counter projects with a blank kind the structural edge routes to
+    # counters_matter, not proliferate_matters). The keyword/charge/remove-cost
+    # producers are likewise re-homed; the serve spec stays hand-registered.
     # ADR-0027: tapped_matters migrated to the Card IR — the Tapped(controller='you')
     # Filter predicate read in three slots: the effect subject (Saryth's grant), the
     # amount.subject COUNT (Throne of the God-Pharaoh / Dragonscale General), and the
@@ -1372,16 +1366,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # The has_other_plan voltron silence is re-supplied by _RAMP_MATTERS_PLAN_MIRROR
     # (the migrated IR arm is BROADER, so _VOLTRON_SILENCING_PLAN_KEYS would over-
     # silence). The serve spec stays hand-registered in signal_specs.py.
-    # Beneficial RESOURCE counters — charge (Immard) and experience (Ezuri, Mizzix,
-    # Meren) — accumulate for upside, so the commander wants PROLIFERATE (more charge to
-    # spend, more experience). Gated to charge/experience only: a PENALTY counter
-    # (Arixmethes' slumber, stun, -1/-1 on your own) makes proliferate anti-synergy, so
-    # those never open this lane.
-    (
-        "proliferate_matters",
-        re.compile(r"\bcharge counter|\bexperience counter", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: proliferate_matters migrated to the Card IR. This beneficial-
+    # resource-counter _HAND_FLOOR producer (charge — Immard; experience — Ezuri,
+    # Mizzix, Meren — counters that accumulate for upside, so the commander wants
+    # PROLIFERATE) is DELETED; it survives byte-identically as a HIGH-confidence
+    # _IR_KEPT_DETECTORS mirror in _signals_ir (phase carries no structural form
+    # for a charge/experience-counter reference). The serve spec stays hand-
+    # registered in signal_specs.py.
     # ADR-0027: treasure_matters migrated to the Card IR — detected structurally like
     # blood_matters: a Treasure-subtype make_token maker (incl. the die-roll/vote/choice
     # branch + Aftermath-DFC recovery), a "Sacrifice a Treasure" SAC PAYOFF, and a
@@ -2208,7 +2199,10 @@ _FLOOR_DETECTORS: tuple[Detector, ...] = tuple(
 _PRESET_KEYWORD_SIGNALS = {
     "mill": ("mill_matters", "any"),
     "goad": ("goad_matters", "opponents"),
-    "proliferate": ("proliferate_matters", "you"),
+    # ADR-0027: the `proliferate` preset keyword moved to _IR_KEYWORD_MAP (the
+    # IR-only keyword path) because proliferate_matters is migrated — keeping it
+    # here would let the regex `extract_signals` path keep emitting a migrated
+    # key. The IR path reads the same Scryfall keyword array.
     "magecraft": ("magecraft_matters", "you"),
     # Prowess is a spellslinger payoff (cast noncreature spells) → same avenue.
     "prowess": ("spellcast_matters", "you"),
@@ -2316,10 +2310,10 @@ _DIRECT_KEYWORD_SIGNALS = {
     # regex `extract_signals` must no longer emit the migrated key.
     "amass": ("tokens_matter", "you"),
     "mobilize": ("tokens_matter", "you"),
-    # Station (702.184) accrues charge counters → route to the proliferate avenue (which
-    # already serves charge-counter cards); station commanders fire no +1/+1 counter
-    # signal otherwise.
-    "station": ("proliferate_matters", "you"),
+    # ADR-0027: the `station` keyword (CR 702.184 — accrues charge counters →
+    # the proliferate avenue) moved to _IR_KEYWORD_MAP (the IR-only keyword path)
+    # because proliferate_matters is migrated — keeping it here would let the
+    # regex `extract_signals` path keep emitting a migrated key.
     # ADR-0027: the `saddle` keyword (CR 702.171) moved to _IR_KEYWORD_MAP (the
     # IR-only keyword path) because saddle_matters is migrated — keeping it here
     # would let the regex `extract_signals` path keep emitting a migrated key.
@@ -2891,6 +2885,27 @@ _LIFEGAIN_MATTERS_PLAN_MIRROR = re.compile(
     r"|(?:you|your team)(?:'ve| have)? gained[^.]*life|life you gained"
     r"|gains? x life|gains? life equal to|you gain that much life"
     r"|if you would gain life",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated proliferate_matters key.
+# Two of the deleted producers fired HIGH-confidence (scope 'you') and counted
+# toward `has_other_plan`, silencing the spurious commander-damage voltron tell on
+# a counter-synergy ENGINE (a divinity-counter Myojin / charge-experience commander
+# IS its plan, not a vanilla beater): the divinity/indestructible enters-with
+# _HAND_FLOOR producer and the charge/experience _HAND_FLOOR producer. This
+# byte-identical OR of those two deleted regexes re-supplies their silence — NOT
+# _VOLTRON_SILENCING_PLAN_KEYS, since the migrated IR arm is BROADER (+2 ir_only)
+# and the silencing-keys route would over-silence the two recall-gain bodies
+# (Maulfist Revolutionary, Skyship Plunderer). The keyword producers (proliferate /
+# station) ride a separate keyword-array term in `has_other_plan` (their mechanic
+# lives in the stripped keyword reminder the mirror can't see). The LOW remove-cost
+# producer never fed has_other_plan, so it is intentionally absent here. Matched
+# against the reminder-STRIPPED `text` (the deleted floor Detectors ran per-clause
+# over stripped clauses); neither arm spans a sentence, so full-text == per-clause.
+# CR 701.27 / 702.184 / 903.10a.
+_PROLIFERATE_MATTERS_PLAN_MIRROR = re.compile(
+    r"enters with a(?:n)? (?:divinity|indestructible) counter"
+    r"|\bcharge counter|\bexperience counter",
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated color_change key. The deleted
@@ -4263,21 +4278,14 @@ def extract_signals(
         # _IR_KEPT_DETECTORS mirror of COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX (same low
         # confidence). It fired LOW confidence, so it never fed has_other_plan — no
         # voltron PLAN mirror is needed for it.
-        # SPENDING a counter as an activation cost ("remove a counter from <permanent>:
-        # <effect>") means the deck wants MORE counters — i.e. proliferate (Migloz/oil,
-        # Rasputin/dream, Tayam/Fain/O'aka/Duchess/The Duke counter-spend engines, plus
-        # Myojin/Arwen already opened by the enters-with rule). Keyed on the MECHANIC
-        # (the colon = activation cost), not a counter-name list, so it future-proofs
-        # for new counter types. COUNTDOWN counters you race to remove (slumber, egg)
-        # use "may remove" / upkeep-remove with NO colon-activation, so the colon anchor
-        # (bounded by [^:.] so it can't cross a period into a later clause) drops them.
-        if re.search(
-            r"remove (?:a|an|one|two|three|x|\d+) (?:\w+ )?counters? from "
-            r"[^:.\n]{0,40}:",
-            text,
-            re.IGNORECASE,
-        ):
-            add("proliferate_matters", "you", "", text[:160], "low")
+        # ADR-0027: proliferate_matters migrated to the Card IR. This inline
+        # "remove a counter as an ACTIVATION COST" producer (the colon = the cost;
+        # Migloz/oil, Tayam/Fain/Duchess counter-spend engines want MORE counters,
+        # i.e. proliferate fuel) is DELETED; it survives byte-identically as the
+        # LOW-confidence _PROLIFERATE_REMOVE_COST_RE mirror arm in
+        # extract_signals_ir. It fired LOW confidence, so it never fed
+        # has_other_plan — no voltron PLAN mirror term is needed for it (the 55
+        # countdown-resource cards with no other plan keep their voltron tell).
         # Keyword-soup commander (Odric Lunarch Marshal, Akroma Vision): grants/shares
         # MANY evergreen keywords across the team ("creatures you control gain … if it
         # has …"; Akroma's "+1/+1 if it has <keyword>" enumeration), so it wants
@@ -4666,6 +4674,23 @@ def extract_signals(
         # of Pride, Blood Baron, Knight of Meadowgrain) flip to a spurious voltron tell.
         # CR 702.15 / 903.10a.
         or "lifelink" in {k.lower() for k in (card.get("keywords") or [])}
+        # ADR-0027: re-silence the deleted proliferate_matters HIGH producers. Two
+        # were oracle-text floor Detectors (divinity/indestructible-enter +
+        # charge/experience counter) → byte-identical _PROLIFERATE_MATTERS_PLAN_
+        # MIRROR over the reminder-STRIPPED `text`. Two were keyword-array map
+        # entries (proliferate / station, fired at the default HIGH add()
+        # confidence) → a `{proliferate, station} & card.keywords` term, since a
+        # vanilla-keyword body's mechanic lives only in the stripped keyword
+        # reminder the mirror can't see. The IR arm is BROADER (+2 ir_only), so
+        # these byte-identical gate terms — NOT _VOLTRON_SILENCING_PLAN_KEYS —
+        # restore the deleted regex's exact silence set without over-silencing the
+        # two recall-gain bodies. The LOW remove-cost producer never fed
+        # has_other_plan, so it has no term. CR 701.27 / 702.184 / 903.10a.
+        or _PROLIFERATE_MATTERS_PLAN_MIRROR.search(text)
+        or bool(
+            {"proliferate", "station"}
+            & {k.lower() for k in (card.get("keywords") or [])}
+        )
         # ADR-0027 β: re-silence the deleted color_change SWEEP producer (it fired
         # HIGH-confidence scope 'you', feeding has_other_plan). The migrated lane rides
         # a byte-identical kept mirror, so this byte-identical gate mirror — NOT

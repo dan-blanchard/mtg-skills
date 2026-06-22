@@ -356,6 +356,23 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "unleash": (("counters_matter", "any"),),
     "ravenous": (("counters_matter", "any"),),
     "reinforce": (("counters_matter", "any"),),
+    # ADR-0027 proliferate_matters migration: proliferate (CR 701.27 — "add
+    # another counter of each kind already there") and station (CR 702.184 —
+    # accrues CHARGE counters the deck wants to proliferate) MOVED here from the
+    # shared regex/IR keyword maps (_PRESET_KEYWORD_SIGNALS / _DIRECT_KEYWORD_
+    # SIGNALS). proliferate_matters is migrated, so it must leave the regex-
+    # readable maps (the regex extract_signals must no longer emit a migrated
+    # key); but the IR path STILL needs the keyword because proliferate's "add
+    # another counter" lives in stripped reminder text and station's charge-
+    # counter accrual lives in reminder/level text, so a vanilla-keyword body
+    # fires no proliferate / place_counter Effect. The Scryfall keyword array is
+    # the structured anchor (the saddle/lifelink-style move) and is byte-
+    # identical to the deleted preset (get_preset("proliferate").keywords ==
+    # ("Proliferate",)). The native `proliferate` EFFECT category already opens
+    # the lane for keyword-LESS proliferators (Maulfist Revolutionary, Skyship
+    # Plunderer) via _DOER_EFFECT_KEYS.
+    "proliferate": (("proliferate_matters", "you"),),
+    "station": (("proliferate_matters", "you"),),
     # Phasing (CR 702.26) as the printed KEYWORD — Teferi's Imp, Ertai's Familiar,
     # and reminder-only phasers (Sandbar Crocodile) whose only "phases out" sits in
     # the stripped reminder text the regex floor misses. The phasing EFFECT category
@@ -1610,6 +1627,35 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "pump_matters",
         re.compile(PUMP_MATTERS_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 proliferate_matters — two byte-identical HIGH-confidence kept
+    # mirrors of the deleted _HAND_FLOOR producers (phase carries no structural
+    # form: a "divinity/indestructible counter" enters-replacement and a
+    # "charge/experience counter" reference are both dropped to a blank-kind /
+    # raw-only place_counter the structural counters edge routes to counters_
+    # matter, not proliferate_matters).
+    #   (1) Divinity / indestructible counter (Myojin cycle, Arwen): permanents
+    #   that enter with exactly ONE beneficial counter gating indestructibility /
+    #   fueling a "Remove a counter: [big effect]" ability — proliferate
+    #   multiplies it into more activations / longer protection. Keyed on the
+    #   counter TYPE (divinity/indestructible are always good to multiply, unlike
+    #   COUNTDOWN counters you race to remove). 11 cards, zero false positives.
+    (
+        "proliferate_matters",
+        re.compile(
+            r"enters with a(?:n)? (?:divinity|indestructible) counter", re.IGNORECASE
+        ),
+        "you",
+    ),
+    #   (2) Beneficial RESOURCE counters — charge (Immard) and experience (Ezuri,
+    #   Mizzix, Meren) — accumulate for upside, so the commander wants PROLIFERATE
+    #   (more charge to spend, more experience). Gated to charge/experience only:
+    #   a PENALTY counter (slumber, stun, -1/-1 on your own) makes proliferate
+    #   anti-synergy, so those never open this lane.
+    (
+        "proliferate_matters",
+        re.compile(r"\bcharge counter|\bexperience counter", re.IGNORECASE),
         "you",
     ),
 )
@@ -3116,6 +3162,25 @@ _CREATURE_SPELL_RAW = re.compile(
 # producer fired LOW (never feeding has_other_plan), so the inline mirror keeps it LOW.
 _COMBAT_DAMAGE_TO_OPP_DS_GRANT = re.compile(
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX, re.IGNORECASE
+)
+
+# ADR-0027 proliferate_matters — the LOW-confidence "remove a counter as an
+# ACTIVATION COST" mirror (the deleted inline producer). SPENDING a counter as a
+# cost ("remove a counter from <permanent>: <effect>") means the deck wants MORE
+# counters — i.e. proliferate fuel (Migloz/oil, Rasputin/dream, Tayam / Fain /
+# O'aka / Duchess / The Duke counter-spend engines). Keyed on the MECHANIC (the
+# colon = activation cost), not a counter-name list, so it future-proofs for new
+# counter types. COUNTDOWN counters you race to remove (slumber, egg) use "may
+# remove" / upkeep-remove with NO colon-activation, so the colon anchor (bounded
+# by [^:.] so it can't cross a period into a later clause) drops them. Fired
+# separately from the HIGH-confidence _IR_KEPT_DETECTORS loop because the deleted
+# producer fired LOW (never feeding has_other_plan) — 55 commander-legal
+# countdown-resource cards (Gemstone Mine, Serrated Arrows, Saprazzan Skerry)
+# carry NO other plan, so a HIGH firing would wrongly silence their voltron tell.
+_PROLIFERATE_REMOVE_COST_RE = re.compile(
+    r"remove (?:a|an|one|two|three|x|\d+) (?:\w+ )?counters? from "
+    r"[^:.\n]{0,40}:",
+    re.IGNORECASE,
 )
 
 # fight_matters (ADR-0027): a face-level fallback for an Aftermath DFC whose "Fight"
@@ -6567,6 +6632,14 @@ def extract_signals_ir(
     # their commander-damage voltron tell). add() dedups vs the main opp mirror.
     if _COMBAT_DAMAGE_TO_OPP_DS_GRANT.search(kept_oracle):
         add("combat_damage_to_opp", "opponents", "", "", "low")
+    # ADR-0027 proliferate_matters — the LOW-confidence "remove a counter as an
+    # activation cost" mirror (the deleted inline producer; see
+    # _PROLIFERATE_REMOVE_COST_RE). Kept out of the HIGH-confidence
+    # _IR_KEPT_DETECTORS loop so the 55 commander-legal countdown-resource cards
+    # with no other plan (Gemstone Mine, Serrated Arrows) keep their voltron tell.
+    # add() dedups vs the structural / keyword / divinity / charge arms.
+    if _PROLIFERATE_REMOVE_COST_RE.search(kept_oracle):
+        add("proliferate_matters", "you", "", "", "low")
     # ADR-0027 t2b4-C — self_blink kept detector. No clean structural IR form (the
     # `~`-substituted exile raw can't be told from cost-exile / other-target exile), so
     # reproduce BOTH regex-path producers byte-identically: the name-aware cross-

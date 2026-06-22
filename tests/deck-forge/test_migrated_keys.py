@@ -5175,6 +5175,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # proliferate_matters ← the Scryfall "Proliferate" keyword (CR 701.27), read by
+    # the IR path via _IR_KEYWORD_MAP (the keyword's "add another counter of each
+    # kind" lives in stripped reminder text, so a vanilla-keyword body fires no
+    # proliferate Effect — the keyword array is the structured anchor). Evolution
+    # Sage is the canonical proliferate ENGINE (every landfall proliferates every
+    # counter on the board). The regex path no longer emits it (the preset keyword
+    # entry moved to _IR_KEYWORD_MAP). ADR-0027.
+    "proliferate_matters": (
+        {
+            "name": "Evolution Sage",
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": (
+                "Landfall — Whenever a land you control enters, proliferate. "
+                "(Choose any number of permanents and/or players, then give each "
+                "another counter of each kind already there.)"
+            ),
+            "keywords": ["Proliferate", "Landfall"],
+        },
+        _ir(keywords=("Proliferate",)),
+    ),
 }
 
 

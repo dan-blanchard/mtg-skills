@@ -779,13 +779,16 @@ class TestStationDetection:
     counters_matter (+1/+1-gated) nor proliferate_matters — route them to proliferate."""
 
     def test_station_keyword_emits_proliferate(self):
+        # ADR-0027: proliferate_matters migrated to the Card IR; the station
+        # keyword now opens the lane via _IR_KEYWORD_MAP (the IR-only keyword
+        # path), so assert the hybrid path.
         ship = {
             "name": "Hearthhull, the Worldseed",
             "type_line": "Legendary Artifact — Spacecraft",
             "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)\n2+ | {1}, {T}, Sacrifice a land: Draw two cards. You may play an additional land this turn.\n8+ | Flying, vigilance, haste\nWhenever you sacrifice a land, each opponent loses 2 life.",
             "keywords": ["Station"],
         }
-        assert "proliferate_matters" in _keys(ship)
+        assert "proliferate_matters" in _keys_hybrid(ship)
 
 
 class TestSaddleMatters:
