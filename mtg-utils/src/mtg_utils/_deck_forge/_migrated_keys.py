@@ -13,6 +13,33 @@ from __future__ import annotations
 
 MIGRATED_KEYS: frozenset[str] = frozenset(
     {
+        # ADR-0027 big_hand_matters — migrated to the Card IR. STRUCTURAL ARM: the
+        # v23 `no_max_handsize` Effect category (project._project_static_mods emits
+        # it for phase's `NoMaximumHandSize` static mode — Reliquary Tower / Thought
+        # Vessel / Spellbook / Folio of Fancies, the 25 commander-legal "no maximum
+        # hand size" enablers, all scope you, CR 402.2). MIRROR: the byte-identical
+        # _BIG_HAND_MATTERS_MIRROR (the OR of the two deleted producers — the
+        # _HAND_FLOOR row + the SWEEP row) in _signals_ir._IR_KEPT_DETECTORS recovers
+        # the under-structured tail phase leaves textual — the "X = the number of
+        # cards in your hand" P/T-scaling payoffs (Maro, Psychosis Crawler, Sturmgeist:
+        # phase encodes these as a `characteristic_pt` Effect carrying NO in:hand zone)
+        # and the "N or more cards in hand" conditions. The DELETED IR `in:hand`-zone
+        # arm was UNUSABLE: phase's _zone_tags surfaces `in:hand` on every discard
+        # ("discards their hand" — 116 cards) and hand-scaling draw (16), structurally
+        # indistinguishable from a genuine HandSize count operand, so the arm over-fired
+        # on hand-as-zone DISCARD/REVEAL references (the distinct lane boundary). The
+        # structural arm adds 0 over the mirror (all 25 enablers carry "no maximum hand
+        # size" text). VOLTRON: both deleted producers fired HIGH-confidence scope 'you'
+        # and fed has_other_plan, so deleting them un-silences the Site-2 commander-
+        # damage voltron tell on 9 bodies where big_hand is the sole plan (Akki
+        # Underling, Thought Eater/Devourer, …); the byte-identical
+        # _BIG_HAND_MATTERS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS — the IR
+        # is the SAME breadth, so the keys set would not broaden but the mirror is
+        # the precise idiom) re-supplies has_other_plan. Commander-legal, floor-
+        # disabled, by oracle_id: both == 140, ir_only == 0, regex_only == 0; scope
+        # parity (all 'you', HIGH). The hand-written serve spec in signal_specs.py is
+        # independent of the deleted regexes and survives. CR 402.2.
+        "big_hand_matters",
         # Batch 1 — keys whose IR production is genuinely STRUCTURAL (not a
         # re-run of the deleted oracle regex), so deleting the regex cannot
         # regress the IR path. seek (phase `seek` effect category),

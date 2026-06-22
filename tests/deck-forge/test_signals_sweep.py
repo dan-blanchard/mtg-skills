@@ -44,8 +44,11 @@ def test_sweep_detectors_loaded():
     # scope=='each' structural arm + a byte-identical GROUP_HUG_DRAW_REGEX kept word
     # mirror in signals._IR_KEPT_DETECTORS), then 35→34 as symmetric_damage_each's row
     # was deleted (ADR-0027 — migrated to the v22 damage Effect scope=='each'
-    # structural arm + each-player kept mirror in _signals_ir).
-    assert len(SWEEP_DETECTORS) >= 34
+    # structural arm + each-player kept mirror in _signals_ir), then 34→33 as
+    # big_hand_matters's row was deleted (ADR-0027 — migrated to the v23
+    # `no_max_handsize` Effect structural arm + a byte-identical _BIG_HAND_MATTERS_MIRROR
+    # kept word mirror in _signals_ir for the "X = cards in your hand" P/T payoffs).
+    assert len(SWEEP_DETECTORS) >= 33
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

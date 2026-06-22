@@ -61,7 +61,10 @@ CASES = [
     # ADR-0027: legends_matter migrated to the Card IR (the HasSupertype:Legendary
     # subject predicate + a kept word mirror), so it is asserted via the hybrid path
     # below, not this regex CASES loop.
-    ("big_hand_matters", "you", "You have no maximum hand size."),
+    # ADR-0027: big_hand_matters migrated to the Card IR (the v23 `no_max_handsize`
+    # Effect structural arm + a byte-identical _BIG_HAND_MATTERS_MIRROR kept word mirror
+    # for the "X = cards in your hand" P/T payoffs), so it is asserted via the hybrid
+    # path below, not this regex CASES loop.
     (
         "exile_matters",
         "you",
@@ -221,6 +224,53 @@ def test_legends_lands_suspend_are_ir_served():
         c = {"name": "X", "oracle_text": oracle}
         assert (key, "you") in _ks_hybrid(c), f"{key} not IR-served"
         assert (key, "you") not in _ks(c), f"{key} still regex-served"
+
+
+def test_big_hand_matters_is_ir_served():
+    # ADR-0027: big_hand_matters migrated to the Card IR. The "X = cards in your hand"
+    # P/T-scaling payoff (Maro) rides the byte-identical _BIG_HAND_MATTERS_MIRROR kept
+    # word mirror (phase encodes it as a `characteristic_pt` Effect with NO in:hand
+    # zone), so it is IR-served, not regex-served — proven over a bare IR.
+    maro = {
+        "name": "Maro",
+        "type_line": "Creature — Spirit",
+        "oracle_text": (
+            "Maro's power and toughness are each equal to the number of cards "
+            "in your hand."
+        ),
+    }
+    assert ("big_hand_matters", "you") in _ks_hybrid(maro)
+    assert ("big_hand_matters", "you") not in _ks(maro)
+    # The "no maximum hand size" ENABLER fires from the v23 `no_max_handsize` Effect
+    # STRUCTURAL arm — proven on an IR carrying that Effect (Spellbook's whole text is
+    # the cap-remover, but here we isolate the structural arm with a bare-text card so
+    # the mirror can't supply it).
+    enabler = {"name": "X", "type_line": "Artifact", "oracle_text": "Caps removed."}
+    ir = Card(
+        oracle_id="x",
+        name="X",
+        faces=(
+            Face(
+                name="X",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="no_max_handsize",
+                                scope="you",
+                                raw="You have no maximum hand size.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("big_hand_matters", "you") in {
+        (s.key, s.scope) for s in extract_signals_hybrid(enabler, ir)
+    }
+    assert ("big_hand_matters", "you") not in _ks(enabler)
 
 
 def test_token_doubling_is_ir_served():

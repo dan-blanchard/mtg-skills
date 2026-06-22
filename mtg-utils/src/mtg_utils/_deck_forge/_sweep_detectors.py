@@ -1980,12 +1980,12 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # (dungeon / room-abilities oracle text) is deleted; the hand-registered serve spec
     # in signal_specs carries the lane (the structural IR — venture effect + condition
     # kind + trigger_doubling-over-dungeons + dropped-clause marker — does detection).
-    {
-        "key": "big_hand_matters",
-        "scope": "you",
-        "is_widen_of": "big_hand_matters",
-        "regex": "(?:five|six|seven|eight) or more cards in (?:your )?hand|maximum hand size|(?:equal to|number of) [^.]*cards in your hand",
-    },
+    # ADR-0027: big_hand_matters migrated to the Card IR — served from the v23
+    # `no_max_handsize` Effect structural arm + the byte-identical _BIG_HAND_MATTERS_MIRROR
+    # _IR_KEPT_DETECTORS word mirror (the OR of this SWEEP regex + the deleted _HAND_FLOOR
+    # row) for the "X = cards in your hand" P/T-scaling payoffs + "N or more cards in
+    # hand" conditions. This SWEEP_DETECTORS widen row is deleted; the hand-registered
+    # serve spec in signal_specs carries the lane. CR 402.2.
     # ADR-0027: lifeloss_matters migrated to the Card IR — served from the structural
     # `lose_life` Effect (the drain / self-loss split), a `life_payment` marker + a
     # paylife engine cost, a `life_lost` trigger payoff, and the project

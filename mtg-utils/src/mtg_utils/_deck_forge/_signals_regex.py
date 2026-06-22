@@ -1618,15 +1618,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # deleted; the serve spec stays hand-registered in signal_specs.py.
     # ADR-0027: legends_matter migrated to the Card IR (see the merged
     # _IR_KEPT_DETECTORS mirror). This second _HAND_FLOOR producer is deleted too.
-    (
-        "big_hand_matters",
-        re.compile(
-            r"no maximum hand size|maximum hand size"
-            r"|(?:five|six|seven|eight) or more cards in your hand",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: big_hand_matters migrated to the Card IR — served from the v23
+    # `no_max_handsize` Effect structural arm + the byte-identical
+    # _BIG_HAND_MATTERS_MIRROR _IR_KEPT_DETECTORS word mirror for the "X = cards in your
+    # hand" P/T-scaling payoffs (Maro, Psychosis Crawler — a `characteristic_pt` Effect
+    # with NO in:hand zone) and the "N or more cards in hand" conditions. BOTH its
+    # oracle-regex producers (this _HAND_FLOOR row + the SWEEP row) are deleted; the
+    # _BIG_HAND_MATTERS_PLAN_MIRROR re-supplies the has_other_plan voltron silence (the
+    # producers fired HIGH-confidence scope 'you'). The hand-written serve spec
+    # (signal_specs.py) is independent of these regexes and survives. CR 402.2.
     # ADR-0027: party_matters migrated to the Card IR — served from the
     # amount.op=="party" count operand + a _IR_KEPT_DETECTORS word mirror for the
     # "full party" CONDITION + "creatures in your party" non-count refs. This
@@ -2888,6 +2888,27 @@ _DIRECT_DAMAGE_PLAN_MIRROR = re.compile(
 _SYMMETRIC_DAMAGE_EACH_PLAN_MIRROR = re.compile(
     r"deals \d+ damage to each (?:player|opponent and|creature and each player)"
     r"|deals \d+ damage to each opponent|deals \d+ damage to each player",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated big_hand_matters key. Both
+# deleted producers (the _HAND_FLOOR row + the SWEEP row) fired HIGH-confidence (scope
+# 'you') and counted toward `has_other_plan`, silencing the spurious commander-damage
+# voltron tell on a no-max-hand / hand-scaling ENGINE (a card whose full-grip payoff IS
+# its plan, not a vanilla beater: Kefnet, Kruphix, Sturmgeist, Thought Eater). Without
+# this re-supply, deleting the producers un-silences the Site-2 voltron membership tell
+# on 9 commander-legal bodies where big_hand is the SOLE high-conf plan (Akki Underling,
+# Thought Eater/Devourer, Locust Miser, …). The migrated IR is the SAME breadth (mirror
+# == regex == 140), so this byte-identical OR of the two deleted producers — NOT
+# _VOLTRON_SILENCING_PLAN_KEYS — is the precise re-supply; it feeds ONLY the gate (the
+# lane is served from the IR), reproducing the pre-migration `has_other_plan` for ALL
+# cards EXACTLY (file-swap voltron delta 0). Matched against the reminder-STRIPPED
+# joined-face `text` (the deleted floor/SWEEP Detectors ran per-clause over stripped
+# clauses); the `[^.]*` arm never crosses a sentence, so full-text == per-clause.
+# CR 402.2 / 903.10a.
+_BIG_HAND_MATTERS_PLAN_MIRROR = re.compile(
+    r"no maximum hand size|maximum hand size"
+    r"|(?:five|six|seven|eight) or more cards in (?:your )?hand"
+    r"|(?:equal to|number of) [^.]*cards in your hand",
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated variable_pt key. The deleted
@@ -4933,6 +4954,17 @@ def extract_signals(
         # deleted SWEEP Detector ran per-clause over stripped clauses). CR 102.2 /
         # 903.10a.
         or _SYMMETRIC_DAMAGE_EACH_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted big_hand_matters _HAND_FLOOR + SWEEP
+        # producers (both fired HIGH-confidence scope 'you', feeding has_other_plan — a
+        # no-max-hand / hand-scaling engine is no vanilla beater: Kefnet, Kruphix,
+        # Sturmgeist). The migrated IR is the SAME breadth (mirror == regex == 140), so
+        # this byte-identical OR of the two deleted producers — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old regex's exact silence set,
+        # keeping the 9 sole-plan bodies' Site-2 voltron tell silenced (file-swap delta
+        # 0). Matched against the reminder-STRIPPED joined-face `text` (the deleted
+        # floor/SWEEP Detectors ran per-clause over stripped clauses); the `[^.]*` arm
+        # never crosses a sentence, so full-text == per-clause. CR 402.2 / 903.10a.
+        or _BIG_HAND_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted variable_pt SWEEP producer (it fired
         # HIGH-confidence scope 'any', feeding has_other_plan). The migrated IR arm +
         # narrowed mirror are BROADER (+22 ir_only), so this byte-identical mirror —

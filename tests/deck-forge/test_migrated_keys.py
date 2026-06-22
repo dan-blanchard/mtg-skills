@@ -5787,6 +5787,33 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 — big_hand_matters: a "no maximum hand size" ENABLER (CR 402.2 — it
+    # removes the normal seven-card cap, so a full grip survives the cleanup step).
+    # Reliquary Tower projects a v23 `no_max_handsize` Effect (scope you) from phase's
+    # bare `NoMaximumHandSize` static mode, which the structural arm in
+    # extract_signals_ir reads directly. The "X = cards in your hand" P/T-scaling
+    # payoffs (Maro, Psychosis Crawler) instead ride the byte-identical
+    # _BIG_HAND_MATTERS_MIRROR kept word mirror — phase encodes those as a
+    # `characteristic_pt` Effect with NO in:hand zone, so they are not structural.
+    "big_hand_matters": (
+        {
+            "name": "Reliquary Tower",
+            "type_line": "Land",
+            "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="no_max_handsize",
+                        scope="you",
+                        raw="You have no maximum hand size.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
