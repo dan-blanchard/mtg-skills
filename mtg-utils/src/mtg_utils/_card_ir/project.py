@@ -5835,6 +5835,21 @@ def _effect_scope(eff: dict) -> str:
             return "you"
         if "opponent" in on or "target" in on:
             return "opp"
+    # ADR-0027 scope='each' symmetric pass. A player_filter (DamageEachPlayer /
+    # DamageAll — "deals N to each player / each opponent") or player_scope (Draw —
+    # "each player draws") of All / Opponent names WHOM a symmetric effect
+    # distributes across. phase carries it where the target / owner fields don't
+    # reflect it — for "each player draws" the target is Controller (each player draws
+    # to their OWN hand), which would otherwise short-circuit to "you" below — so read
+    # it with priority. All → each, Opponent → opp.
+    for _pf_field in ("player_filter", "player_scope"):
+        _pf = eff.get(_pf_field)
+        if isinstance(_pf, dict):
+            _pft = _norm(_pf.get("type"))
+            if _pft in ("all", "allplayers"):
+                return "each"
+            if "opponent" in _pft:
+                return "opp"
     tgt = eff.get("target")
     if isinstance(tgt, dict):
         tt = _norm(tgt.get("type"))

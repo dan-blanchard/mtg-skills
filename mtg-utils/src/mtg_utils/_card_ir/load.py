@@ -147,7 +147,15 @@ from mtg_utils.card_ir import Card
 #     property (Thrasta). Additive + a NEW category read by no other lane (so
 #     cost_reduction and every other lane are byte-identical), 3 marker cards
 #     corpus-wide. ADR-0027 β. CR 601.2f / 118.7.
-SIDECAR_VERSION = 20
+# v21: scope='each' SYMMETRIC PASS — _effect_scope now reads the player_filter
+#     (DamageEachPlayer / DamageAll) and player_scope (Draw "each player draws") of
+#     All → 'each' / Opponent → 'opp' with priority over the target=Controller "you"
+#     short-circuit. Recovers the symmetric/player recipient phase dropped (Sizzle's
+#     each-opponent burn → 'opp'; Prosperity's "each player draws" → 'each'; Sulfurous
+#     Blast's each-player damage half). Behavior-neutral for migrated keys (drift 0);
+#     the payoff is the 5 symmetric lanes (direct_damage / symmetric_damage_each /
+#     group_hug_draw / stax_taxes / symmetric_stax) that read scope='each'/'opp'.
+SIDECAR_VERSION = 21
 
 
 def card_ir_dir() -> Path:
