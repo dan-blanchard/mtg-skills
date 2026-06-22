@@ -6507,7 +6507,10 @@ def test_lure_commander_cross_opens_blocked_matters():
     # a commander that MUST be blocked / lures (Madame Vastra) wants the punish-when-
     # blocked payoffs (Engulfing Slagwurm, Tolarian Entrancer). Cross-open lure ->
     # blocked (one-directional — a bare "when blocked" trigger isn't a lure deck). Real
-    # card, full oracle.
+    # card, full oracle. ADR-0027: lure_matters migrated to the IR, so route through the
+    # hybrid with the structural `lure` Effect; the regex path re-supplies the
+    # blocked_matters cross-open from the byte-identical _LURE_MATTERS_PLAN_MIRROR
+    # matching Vastra's "must be blocked if able".
     vastra = {
         "name": "Madame Vastra",
         "type_line": "Legendary Creature — Lizard Detective",
@@ -6517,7 +6520,19 @@ def test_lure_commander_cross_opens_blocked_matters():
             "a Clue token and a Food token."
         ),
     }
-    keys = _keys(vastra)
+    ir = _ir_with(
+        Ability(
+            kind="static",
+            effects=(
+                Effect(
+                    category="lure",
+                    scope="you",
+                    raw="Madame Vastra must be blocked if able.",
+                ),
+            ),
+        )
+    )
+    keys = _keys_hybrid_ir(vastra, ir)
     assert "lure_matters" in keys
     assert "blocked_matters" in keys
 

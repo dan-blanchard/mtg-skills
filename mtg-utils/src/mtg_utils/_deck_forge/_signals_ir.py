@@ -93,6 +93,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LANDFALL_REGEX,
     LIFEGAIN_MATTERS_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
+    LURE_MATTERS_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
@@ -4648,6 +4649,19 @@ _TOUGHNESS_COMBAT_MIRROR = re.compile(TOUGHNESS_COMBAT_REGEX, re.IGNORECASE)
 # deleted per-clause SWEEP union (commander-legal: regex==mirror, 51==51, 0 lost, 0
 # over-fire). CR 706.10 / 113.2 / 706.2.
 _ABILITY_COPY_MIRROR = re.compile(ABILITY_COPY_REGEX, re.IGNORECASE)
+# lure_matters BYTE-IDENTICAL kept mirror (ADR-0027): the force-a-block lane (CR 509.1c)
+# fires structurally from the `lure` arm below (extract_signals_ir), which catches the
+# 68 commander-legal cards phase projects + 3 the deleted SWEEP missed (typed/restricted
+# blockers — Marble Priest, Talruum Piper, You Look Upon the Tarrasque). This mirror —
+# the EXACT deleted SWEEP regex (pinned LURE_MATTERS_REGEX) over the reminder-stripped
+# kept_oracle, gated to faces with no structural lure — recovers the ONE card the
+# structural arm misses: the Aftermath DFC "Destined // Lead", whose "Lead" back face
+# ("All creatures able to block target creature this turn do so") phase never projects
+# into the IR (the baked sidecar carries only the "Destined" front face). Every arm is
+# clause-local (the only span "all creatures able to block [^.]*do so" can't cross a
+# period), so this full-text scan == the deleted per-clause SWEEP firing (commander-
+# legal: 69==69, no divergence). add() dedups vs the structural arm. CR 509.1c.
+_LURE_MATTERS_MIRROR = re.compile(LURE_MATTERS_REGEX, re.IGNORECASE)
 # gain_control NARROWED kept mirror (ADR-0027 β): the structural arm below
 # (cat=='gain_control', excl donate / Owned-return / give-away) is broad and correct,
 # but phase emits NO gain_control category for 9 genuine theft cards — Seize the
@@ -8699,6 +8713,20 @@ def extract_signals_ir(
         kept_oracle
     ):
         add("fight_matters", "you", "", "")
+
+    # ADR-0027 lure_matters BYTE-IDENTICAL kept mirror (face-level fallback): the
+    # force-a-block lane (CR 509.1c) fires structurally from the `lure` arm above; this
+    # mirror — the EXACT deleted SWEEP regex over the reminder-stripped kept_oracle —
+    # recovers the ONE card the structural arm misses, the Aftermath DFC "Destined //
+    # Lead" whose "Lead" back face ("All creatures able to block target creature this
+    # turn do so") phase never projects into the IR (the baked sidecar carries only the
+    # "Destined" front face). Gated to faces with no structural lure (scope 'you',
+    # matching the deleted producer). Flat over kept_oracle == the deleted per-clause
+    # SWEEP firing (69==69). add() dedups vs the structural arm. CR 509.1c.
+    if not any(s.key == "lure_matters" for s in out) and _LURE_MATTERS_MIRROR.search(
+        kept_oracle
+    ):
+        add("lure_matters", "you", "", "")
 
     # ADR-0027 token-subtype (face-level fallback): an Aftermath DFC whose "<Subtype>
     # token" back face phase never projects into the IR (Indulge // Excess) keeps the

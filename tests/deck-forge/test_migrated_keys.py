@@ -2166,6 +2166,34 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # lure_matters (force-a-block, combat-forcing sibling of cant_block_grant) — phase's
+    # `lure` Effect (the CR 509.1c "must block" requirement). Lure is the canonical Aura:
+    # "All creatures able to block enchanted creature do so." The structural arm fires
+    # scope "you" (the lure wields the engine); the deleted SWEEP regex no longer emits
+    # it, and the byte-identical kept mirror recovers the Aftermath-DFC back face phase
+    # drops (Destined // Lead), not exercised here. ADR-0027.
+    "lure_matters": (
+        {
+            "name": "Lure",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": (
+                "Enchant creature\nAll creatures able to block enchanted "
+                "creature do so."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="lure",
+                        scope="you",
+                        raw="All creatures able to block enchanted creature do so.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # forced_attack (combat-forcing sibling of cant_block_grant / goad_matters) —
     # phase's `force_attack` Effect (the CR 508.1d "attacks if able" compulsion). Public
     # Enemy is a pure TEAM-force ("All creatures attack … each combat if able"), so it

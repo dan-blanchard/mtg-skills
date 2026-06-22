@@ -267,6 +267,42 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "extra_upkeep",
         "counter_control",
         "cant_block_grant",
+        # ADR-0027 — lure_matters migrated to the Card IR. SHAPE: UNION of (a) the
+        # STRUCTURAL `lure` arm (extract_signals_ir: a combat-FORCING static whose
+        # affected creatures must block — phase's mustbeblocked/mustbeblockedbyall
+        # keyword, the _COMBAT_FORCE_MODES static modes, and the project/supplement
+        # `_LURE_ABLE`/`_LURE_MUST`/`_FORCE_BLOCK` dropped-static markers; scope 'you',
+        # the lure wields the engine, CR 509.1c) and (b) a BYTE-IDENTICAL kept WORD
+        # MIRROR (_LURE_MATTERS_MIRROR in _signals_ir, the EXACT deleted SWEEP regex run
+        # over the reminder-stripped kept_oracle, gated to faces with no structural
+        # lure) for the Aftermath-DFC back face phase never projects into the IR
+        # (Destined // Lead's "Lead" face: "All creatures able to block target creature
+        # this turn do so" — the IR carries only the "Destined" front face). The
+        # structural arm is broader-and-correct recall (+3 ir_only: Marble Priest "All
+        # Walls able to block this creature do so", Talruum Piper "All creatures with
+        # flying able to block this creature do so", You Look Upon the Tarrasque "All
+        # creatures your opponents control able to block that creature this turn do so"
+        # — the deleted SWEEP's arm-1 "all creatures able to block …" demanded adjacency
+        # and missed every typed/restricted blocker phrasing). FLOOR-DISABLED RESIDUAL
+        # (commander-legal, _IR_FLOOR_LANES=frozenset(), by oracle_id): both==69,
+        # ir_only==3 (all genuine, listed above), regex_only==0 (the kept mirror
+        # recovers Destined // Lead). The mirror is byte-identical: flat-over-
+        # kept_oracle == per-clause SWEEP firing (69==69, no divergence — every arm's
+        # only span, "all creatures able to block [^.]*do so", can't cross a period).
+        # VOLTRON: the deleted SWEEP producer fired HIGH-confidence scope 'you' and fed
+        # has_other_plan (lure_matters is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) —
+        # a lure creature is not a vanilla commander-damage beater. The IR re-supply is
+        # BROADER (+3), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 3
+        # bodies; instead a
+        # byte-identical _LURE_MATTERS_PLAN_MIRROR (the EXACT deleted regex over the
+        # reminder-STRIPPED `text`) OR'd into has_other_plan restores ONLY the old
+        # regex's silence set. CROSS-OPEN: the regex `lure_matters → blocked_matters`
+        # archetype cross-open (a lure deck wants punish-when-blocked payoffs) reads the
+        # regex `keys_now`, which now lacks the migrated key; re-supplied in the hybrid
+        # (signals.py) keyed off the IR-supplied lure_matters. Serve stays hand-
+        # registered in signal_specs.py (the sweep auto-register loop no longer reaches
+        # the deleted row). CR 509.1c.
+        "lure_matters",
         "land_exchange",
         # Group "tail-supplement 3" (ADR-0027 projection deepening) — five more
         # synthesis-tail keys. Three (myriad_grant, convoke_matters, tapped_matters)

@@ -86,8 +86,11 @@ def test_sweep_detectors_loaded():
     # then 23→22 as topdeck_stack's row was deleted (ADR-0027 — migrated to a STRUCTURAL
     # arm over phase's `topdeck_stack` Effect, counter_kind in {top, topbottom}, UNION a
     # byte-identical TOPDECK_STACK_SWEEP_REGEX kept word mirror in
-    # signals._IR_KEPT_DETECTORS for the look-then-stack / put-from-hand forms; CR 401.4).
-    assert len(SWEEP_DETECTORS) >= 22
+    # signals._IR_KEPT_DETECTORS for the look-then-stack / put-from-hand forms; CR 401.4),
+    # then 22→21 as lure_matters's row was deleted (ADR-0027 — migrated to a structural
+    # `lure` arm UNION a byte-identical LURE_MATTERS_REGEX kept word mirror in _signals_ir
+    # for the Aftermath-DFC back face phase drops; CR 509.1c).
+    assert len(SWEEP_DETECTORS) >= 21
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

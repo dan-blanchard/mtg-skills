@@ -56,6 +56,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_GRANT_TARGET_REGEX,
     LANDFALL_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
+    LURE_MATTERS_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
@@ -2745,6 +2746,21 @@ _RAMP_MATTERS_PLAN_MIRROR = re.compile(
     r"|creatures?[^.]*\bwith (?:a )?mana abilit",
     re.IGNORECASE,
 )
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated lure_matters key. Its deleted
+# SWEEP producer fired HIGH-confidence scope 'you' and counted toward `has_other_plan`
+# (lure_matters is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
+# commander-damage voltron tell on a lure body that is NOT a vanilla beater — a lure /
+# must-be-blocked engine (Lure, Nemesis Mask, Bramblecrush-style) is the card's whole
+# plan (CR 509.1c). The migrated IR re-supply is BROADER (+3 ir_only: Marble Priest,
+# Talruum Piper, You Look Upon the Tarrasque — typed/restricted blockers the SWEEP arm-1
+# adjacency missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence
+# those 3 bodies' voltron tells. This BYTE-IDENTICAL mirror (== LURE_MATTERS_REGEX)
+# reproduces the OLD regex's exact silence set, so the file-swap shows voltron delta 0.
+# It feeds ONLY the gate (emits no signal — the lane is served from the IR), matched
+# against the reminder-STRIPPED `text` (the deleted producer was a SWEEP detector over
+# reminder-stripped clauses; flat over `text` == per-clause: 69==69 on the commander-
+# legal corpus). CR 509.1c / 903.10a.
+_LURE_MATTERS_PLAN_MIRROR = re.compile(LURE_MATTERS_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated counter_doubling key. Its deleted
 # HIGH-confidence producers — the _HAND_FLOOR oracle regex (scope 'you') and the SWEEP
 # row (scope 'you', UNION'd into COUNTER_DOUBLING_REGEX) — counted toward
@@ -4770,7 +4786,16 @@ def extract_signals(
         # wants the punish-when-blocked payoffs (Engulfing Slagwurm, Tolarian
         # Entrancer). One-directional — a bare "when blocked" trigger creature isn't a
         # lure deck, so blocked_matters does NOT cross-open lure.
-        if "lure_matters" in keys_now and "blocked_matters" not in keys_now:
+        # ADR-0027: lure_matters is migrated to the IR, so it no longer rides this regex
+        # path's keys_now; key the cross-open off the byte-identical
+        # _LURE_MATTERS_PLAN_MIRROR (the EXACT deleted SWEEP regex over the reminder-
+        # stripped `text`) so the sibling membership stays byte-identical to base
+        # (blocked_matters drifts 0). The mirror matches the 69 commander-legal cards
+        # the deleted producer fired on — NOT the 3 ir_only cards the IR broadened to,
+        # so no NEW blocked_matters firing leaks. CR 509.1c.
+        if (
+            "lure_matters" in keys_now or _LURE_MATTERS_PLAN_MIRROR.search(text)
+        ) and "blocked_matters" not in keys_now:
             add("blocked_matters", "you", "", text[:160], "low")
         # ADR-0027 β: the lifegain_matters self-bleed-wants-sustain block (ARM (B) — a
         # SIGNIFICANT repeated self-life-LOSS engine that wants lifegain to stay alive:
@@ -5716,6 +5741,18 @@ def extract_signals(
         # keeping reminders here would over-silence those 55 goad bodies (already
         # silenced via goad_matters). CR 508.1d / 701.15 / 903.10a.
         or _FORCED_ATTACK_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted lure_matters SWEEP producer (it fired HIGH-
+        # confidence scope 'you' and counted toward has_other_plan — a lure / must-be-
+        # blocked engine is the card's whole plan, no vanilla beater: Lure, Nemesis
+        # Mask, Madame Vastra). The migrated IR re-supply is BROADER (+3 ir_only: Marble
+        # Priest, Talruum Piper, You Look Upon the Tarrasque — typed/restricted blockers
+        # the SWEEP arm-1 adjacency missed), so _VOLTRON_SILENCING_PLAN_KEYS would over-
+        # silence those 3 bodies' voltron tells; this byte-identical mirror (the EXACT
+        # deleted LURE_MATTERS_REGEX) restores only the old regex's silence set. Matched
+        # against the reminder-STRIPPED `text` (the deleted producer was a SWEEP
+        # detector over reminder-stripped clauses; flat over `text` == per-clause:
+        # 69==69 on the commander-legal corpus). CR 509.1c / 903.10a.
+        or _LURE_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted untap_engine _HAND_FLOOR producers. Both
         # fired high-confidence scope 'you' and counted toward has_other_plan, silencing
         # the spurious commander-damage voltron tell on an untap engine (Seedborn Muse,

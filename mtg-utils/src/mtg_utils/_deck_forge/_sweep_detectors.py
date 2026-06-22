@@ -1273,6 +1273,19 @@ COUNTER_DOUBLING_REGEX = (
 # label. CR 207.2c (Void ability word) / 702.185 (Warp).
 VOID_WARP_MATTERS_REGEX = "void —|warp \\{|warp cost|warp—|for its warp cost|using its warp ability|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp"
 
+# ADR-0027 — lure_matters (force-a-block, CR 509.1c). Pinned as a shared constant so the
+# kept WORD MIRROR (_LURE_MATTERS_MIRROR, _signals_ir — recovers the Aftermath-DFC back
+# face phase never projects, Destined // Lead), the voltron _LURE_MATTERS_PLAN_MIRROR
+# (_signals_regex), and the hand-registered serve (signal_specs) all reuse ONE source so
+# they never drift from the deleted SWEEP detector. Every arm is clause-local — the only
+# span "all creatures able to block [^.]*do so" can't cross a period — so a flat scan
+# over the reminder-stripped kept_oracle == the deleted per-clause SWEEP firing
+# (commander-legal: 69==69, no divergence). CR 509.1c.
+LURE_MATTERS_REGEX = (
+    "all creatures able to block [^.]*do so|must be blocked if able"
+    "|all creatures (?:that could|able to) block|must be blocked(?: (?:by|if))?"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-
     # Filter predicate + a kept word mirror (signals._IR_KEPT_DETECTORS) for the
@@ -1593,12 +1606,19 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # lookup). Its oracle-regex sweep row is deleted; SWEEP_LABELS keeps the human
     # label, and the serve spec is hand-registered in signal_specs.py (the sweep
     # auto-register loop no longer reaches it).
-    {
-        "key": "lure_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "all creatures able to block [^.]*do so|must be blocked if able|all creatures (?:that could|able to) block|must be blocked(?: (?:by|if))?",
-    },
+    # ADR-0027: lure_matters migrated to the Card IR. Its SWEEP_DETECTORS row is
+    # deleted; detection moved to a STRUCTURAL `lure` arm (extract_signals_ir — phase's
+    # mustbeblocked keyword + _COMBAT_FORCE_MODES static + the project/supplement
+    # force-a-block dropped-static markers, scope 'you', CR 509.1c) UNION a BYTE-
+    # IDENTICAL kept WORD MIRROR (_LURE_MATTERS_MIRROR in _signals_ir over the
+    # reminder-stripped kept_oracle, the EXACT deleted regex pinned below as
+    # LURE_MATTERS_REGEX) for the Aftermath-DFC back face phase never projects (Destined
+    # // Lead). The structural arm is broader-and-correct (+3 ir_only — typed/restricted
+    # "All Walls/creatures with flying/creatures your opponents control able to block …
+    # do so" that the SWEEP arm-1's "all creatures able to block" adjacency missed). The
+    # serve is hand-registered in signal_specs.py reusing LURE_MATTERS_REGEX (the sweep
+    # auto-register loop no longer reaches the deleted row); SWEEP_LABELS keeps the human
+    # label. CR 509.1c.
     # ADR-0027: the four bending lanes (airbend CR 701.65, earthbend CR 701.66,
     # waterbend CR 701.67, firebending CR 702.189) migrated to the Card IR — they
     # are detected from the kept word-detector mirror in signals._IR_KEPT_DETECTORS

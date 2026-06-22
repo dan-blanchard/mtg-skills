@@ -35,6 +35,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GROUP_HUG_DRAW_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
+    LURE_MATTERS_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
@@ -4301,6 +4302,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["evasion_denial"],
         {"oracle": r"can be blocked as though (?:it|they) didn't have"},
         r"can be blocked as though (?:it|they) didn't have",
+    ),
+    # ADR-0027: lure_matters had its oracle-regex SWEEP_DETECTORS row deleted (detection
+    # moved to the Card IR — a structural `lure` arm + a byte-identical kept mirror for
+    # the Aftermath-DFC back face phase drops). The SERVE pool stays oracle-defined, so
+    # hand-register the spec the sweep auto-register loop used to build (scope 'you'),
+    # reusing the pinned LURE_MATTERS_REGEX so the serve never drifts from the deleted
+    # detector. CR 509.1c.
+    ("lure_matters", "you"): _spec(
+        *SWEEP_LABELS["lure_matters"],
+        {"oracle": LURE_MATTERS_REGEX},
+        LURE_MATTERS_REGEX,
     ),
     # ADR-0027: damage_doubling had its SWEEP_DETECTORS row deleted (detection moved
     # to the Card IR — the damage_doubling DamageDone-replacement category, now
