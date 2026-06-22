@@ -2266,6 +2266,33 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ramp_matters ← a cat=="ramp" Effect on a NON-LAND card (the structural arm,
+    # gated `not card_is_land`). Karametra's Acolyte's "{T}: Add an amount of {G}
+    # equal to your devotion to green" is real recall the brittle "add {" regex
+    # missed; phase types it as a `ramp` Mana effect.
+    "ramp_matters": (
+        {
+            "name": "Karametra's Acolyte",
+            "type_line": "Creature — Human Druid",
+            "oracle_text": (
+                "{T}: Add an amount of {G} equal to your devotion to green. "
+                "(Each {G} in the mana costs of permanents you control counts "
+                "toward your devotion to green.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="ramp",
+                        scope="any",
+                        raw="{T}: Add an amount of {G} equal to your devotion",
+                    ),
+                ),
+            )
+        ),
+    ),
     # Low-power payoff (Subira) — a Power:LE predicate on a you-controller Creature
     # Filter (the buff/etb shape's predicate phase drops, rebuilt by _LOW_POWER_REF),
     # read by _predicate_build_around_lanes.

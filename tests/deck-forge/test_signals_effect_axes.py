@@ -12,7 +12,10 @@ def _ks(card):
 
 
 CASES = [
-    ("ramp_matters", "you", "{T}: Add {G}{G}."),
+    # ADR-0027: ramp_matters migrated to the Card IR (the structural `ramp` category
+    # for NON-LAND cards + a byte-identical kept mirror), so a bare mana rock
+    # "{T}: Add {G}{G}." no longer fires on the regex path tested here — its IR path is
+    # proven in test_migrated_keys.
     # ADR-0027: removal_matters migrated to the Card IR (phase's single-target
     # destroy/damage SUBJECT), so it no longer fires on the regex path tested here —
     # its IR path is proven in test_migrated_keys.

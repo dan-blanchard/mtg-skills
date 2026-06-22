@@ -1358,17 +1358,16 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # deleted. The hand-written serve spec (signal_specs.py, redirect spells) is
     # independent of this regex and survives — the redirect SERVE pool is itself
     # structural via category=='redirect' should anyone tighten it later.
-    # Mana-dork payoff (Raggadragga: "Each creature you control with a mana ability gets
-    # +2/+2 ... untap it when it attacks") — a mana-dork deck that wants mana-producing
-    # creatures (ramp_matters). The dork-support mana_amplifier arm is migrated to
-    # the Card IR (ADR-0027 β): phase drops the "with a mana ability" subject, so it
-    # rides a byte-identical _MANA_DORK_SUPPORT_MIRROR in _signals_ir; this
-    # ramp_matters producer (a separate unmigrated key) stays.
-    (
-        "ramp_matters",
-        re.compile(r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: ramp_matters migrated to the Card IR. Its TWO _HAND_FLOOR producers are
+    # deleted — this dork-support arm (Raggadragga: "Each creature you control with a
+    # mana ability gets +2/+2 … untap it when it attacks") and the main mana-production
+    # arm below. The dork-support arm has no structural form (phase drops the "with a
+    # mana ability" subject), so it rides _MANA_DORK_SUPPORT_MIRROR in
+    # _signals_ir (already present for the mana_amplifier dork arm — same regex); the
+    # main arm rides _RAMP_MATTERS_REGEX + the structural `not card_is_land` ramp arm.
+    # The has_other_plan voltron silence is re-supplied by _RAMP_MATTERS_PLAN_MIRROR
+    # (the migrated IR arm is BROADER, so _VOLTRON_SILENCING_PLAN_KEYS would over-
+    # silence). The serve spec stays hand-registered in signal_specs.py.
     # Beneficial RESOURCE counters — charge (Immard) and experience (Ezuri, Mizzix,
     # Meren) — accumulate for upside, so the commander wants PROLIFERATE (more charge to
     # spend, more experience). Gated to charge/experience only: a PENALTY counter
@@ -1863,15 +1862,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # regex producers (this _HAND_FLOOR + the SWEEP row) are deleted; the serve spec
     # stays hand-registered.
     # ── Effect-axis detectors: every ability is a direction to build around ──────
-    (
-        "ramp_matters",
-        re.compile(
-            r"\{t\}[^.]*:\s*add \{|add (?:one|two|three|four|five|x|\d+) mana"
-            r"|add \{[wubrgc]\}",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: ramp_matters main mana-production arm migrated to the Card IR. The
+    # deleted regex ("{T}: add {" / "add N mana" / "add {WUBRGC}") is now the
+    # byte-identical _RAMP_MATTERS_REGEX kept mirror in _signals_ir, paired with a
+    # structural `ramp`-category arm gated `not card_is_land` (the recall-GAINING half:
+    # +96 nonland ramp doers the brittle anchor missed). See the dork-support note above
+    # and _migrated_keys.py for the full residual.
     # ADR-0027: removal_matters migrated to the Card IR — phase's `destroy` / `damage`
     # effect categories with a single-target permanent SUBJECT (CR 115.1), plus the
     # quoted-grant-ability recursion (an Aura/Equipment granting "{T}: Destroy/deal
@@ -2619,6 +2615,25 @@ _MANA_AMPLIFIER_PLAN_MIRROR = re.compile(
     r"tap(?:ped)? (?:a |an |another |each |any )?[^.]*?for mana[^.]*?"
     r"(?:add (?:an additional|one mana of any|that much|twice)"
     r"|produces? (?:twice|an additional))"
+    r"|creatures?[^.]*\bwith (?:a )?mana abilit",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated ramp_matters key. Its two deleted
+# _HAND_FLOOR producers (the main mana-production arm "{T}: add {" / "add N mana" / "add
+# {WUBRGC}" and the dork-support arm "creatures with a mana ability") fired HIGH-
+# confidence scope 'you' and counted toward `has_other_plan`, silencing the spurious
+# commander-damage voltron tell on a ramp body that is NOT a vanilla beater (Selvala,
+# Kinnan, Marwyn, Karametra's Acolyte — a mana engine IS a plan). The migrated IR arm is
+# BROADER (+96 ir_only nonland ramp doers), so re-supplying via _VOLTRON_SILENCING_PLAN_
+# KEYS would OVER-silence those 96 bodies. This mirror is the byte-identical OR of the
+# EXACT two deleted regexes; it feeds ONLY the gate (no signal — the lane is served
+# from the IR), reproducing the pre-migration `has_other_plan` for ALL cards. Matched
+# against the reminder-STRIPPED `text` (NOT `_oracle`): the deleted producers were floor
+# Detectors over reminder-stripped clauses, so a basic land's "({T}: Add {G}.)" reminder
+# never fired them (and never silenced anything). CR 106.4 / 605 / 903.10a.
+_RAMP_MATTERS_PLAN_MIRROR = re.compile(
+    r"\{t\}[^.]*:\s*add \{|add (?:one|two|three|four|five|x|\d+) mana"
+    r"|add \{[wubrgc]\}"
     r"|creatures?[^.]*\bwith (?:a )?mana abilit",
     re.IGNORECASE,
 )
@@ -4438,6 +4453,15 @@ def extract_signals(
         # regex's exact silence set without over-silencing the 2 ir_only bodies. A mana-
         # doubler engine IS a plan. CR 106.4 / 903.10a.
         or _MANA_AMPLIFIER_PLAN_MIRROR.search(_oracle)
+        # ADR-0027: re-silence the deleted ramp_matters _HAND_FLOOR producers (the main
+        # mana-production arm + the dork-support arm). Both fired high-confidence scope
+        # 'you', feeding has_other_plan; the IR arm is BROADER (+96 ir_only), so
+        # this mirror — not _VOLTRON_SILENCING_PLAN_KEYS — restores the old
+        # regex's exact silence set without over-silencing the 96 ir_only bodies. A mana
+        # engine IS a plan. Matched against the reminder-STRIPPED `text` (the deleted
+        # producers were floor Detectors over stripped clauses — a basic land's reminder
+        # "({T}: Add {G}.)" never fired them). CR 106.4 / 605 / 903.10a.
+        or _RAMP_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
         # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
         # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-

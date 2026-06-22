@@ -1561,6 +1561,58 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # signal_specs.py is a standalone _spec (never read a SWEEP regex), so no serve
         # re-home. CR 106.4 / 605 / 903.10a.
         "mana_amplifier",
+        # ADR-0027 - ramp_matters (the ACCELERATION doer lane: a mana rock / dork /
+        # ritual / "tap-a-land-add-more" engine / land-aura that produces mana to
+        # accelerate into your payoffs - Sol Ring, Llanowar Elves, Crypt Ghast, Mirari's
+        # Wake, Wild Growth, Magus of the Vineyard). The lane reads phase's `ramp` Mana
+        # effect, the SAME category mana_amplifier / group_mana / activated_ability read
+        # (NO sidecar bump - the projection already emits `ramp`).
+        #
+        # THE OVER-FIRE GATE (card_is_land). A naive `cat=='ramp'` arm fires on EVERY
+        # land that taps for mana - but a basic Forest / dual / shock / triome is the
+        # deck's MANA BASE, not ramp (acceleration). The deleted regex deliberately
+        # excluded those: a basic's mana ability is REMINDER text "({T}: Add {G}.)",
+        # stripped before matching, so the regex never fired on it. The IR arm is gated
+        # `not card_is_land` to reproduce that exclusion (drops 106 reminder-formatted
+        # mana-base lands - basics, Taiga/Underground Sea duals, Temple Garden/Steam
+        # Vents shocks, Raugrin Triome, the bicycle/battle lands). The 1005 NONBASIC
+        # lands the regex DID fire on (Orzhov Guildgate, Eldrazi Temple - a non-reminder
+        # "{T}: Add {W} or {B}." on its own line) are KEPT byte-identically via the
+        # _RAMP_MATTERS_REGEX mirror, so no land recall is lost.
+        #
+        # STRUCTURAL ARM + BYTE-IDENTICAL KEPT-MIRROR. extract_signals_ir fires
+        # ramp_matters on (a) the structural `ramp` category for NON-LAND cards (the
+        # recall-GAINING arm) and (b) a byte-identical _RAMP_MATTERS_REGEX mirror of the
+        # deleted _HAND_FLOOR producer (the "{T}: add {" / "add N mana" / "add {WUBRGC}"
+        # anchors) PLUS a _MANA_DORK_SUPPORT_RAMP_MIRROR of the deleted dork-support
+        # producer ("creatures with a mana ability" - Raggadragga, Tazri, Katilda, which
+        # phase drops the subject of). The mirror reproduces
+        # the regex's 2003 firings EXACTLY (incl. the token-embedded "create a token
+        # with '{T}: Add'" makers phase attributes to the TOKEN, not the maker); the
+        # structural arm ADDS the 96 nonland ramp doers the brittle "add {" anchor
+        # missed ("add an amount of {R} equal to..." - Karametra's Acolyte, Vhal; the
+        # "whenever a player taps a land, add an additional" doublers - Wild Growth,
+        # Caged Sun, Mana Flare; Magus of the Vineyard's "adds {G}{G}").
+        #
+        # Floor-disabled IR-vs-regex residual (commander-legal, _IR_FLOOR_LANES=
+        # frozenset()): migrated 2099, regex 2003, regex_only == 0 (clean superset - no
+        # regex firing lost, 0 land recall lost), ir_only == 96 genuine recall GAIN
+        # verified vs Scryfall oracle (all 96 carry a real mana-production clause; 41
+        # dorks, 28 land-auras, 15 rocks, 10 ritual spells, 2 DFC mana-lands). The 106
+        # reminder-formatted mana-base lands do NOT fire (over-fire dropped). NO over-
+        # fire added. floor-mirror-dep == 0 (ramp_matters is NOT an _IR_FLOOR_LANE).
+        #
+        # VOLTRON. The deleted _HAND_FLOOR producer fired high-confidence scope 'you'
+        # and counted toward has_other_plan (a ramp engine is a plan, silencing the
+        # spurious commander-damage voltron tell on a non-vanilla-beater). The migrated
+        # IR arm is BROADER (+96 ir_only), so re-supplying via _VOLTRON_SILENCING_PLAN_
+        # KEYS would OVER-silence those 96 bodies; instead a byte-identical
+        # _RAMP_MATTERS_PLAN_MIRROR (the EXACT deleted regex, run on the joined-face
+        # oracle) restores the old regex's silence set without over-silencing. FILE-SWAP
+        # no-flood: ONLY ramp_matters moves (+96); mana_amplifier / group_mana drift 0;
+        # voltron delta 0. The two _HAND_FLOOR producers are deleted; the serve spec in
+        # signal_specs.py stays hand-registered. CR 106.4 / 605 / 903.10a.
+        "ramp_matters",
         # ADR-0027 β — global_ability_grant (a card that grants a QUOTED activated /
         # triggered / static ability to YOUR whole creature board OR to an
         # ALL-permanents set: "Creatures you control have '{T}: …'" — Cryptolith Rite,

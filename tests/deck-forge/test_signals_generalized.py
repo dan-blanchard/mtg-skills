@@ -3734,7 +3734,8 @@ def test_mana_ability_payoff_opens_ramp():
     # ramp_matters) and dork support (mana_amplifier). Niche (one commander) but precise.
     # ADR-0027 β: the dork-support mana_amplifier arm is migrated to the Card IR — phase
     # drops the "with a mana ability" subject, so it rides a byte-identical kept word
-    # mirror (_MANA_DORK_SUPPORT_MIRROR); ramp_matters stays on the regex path.
+    # mirror (_MANA_DORK_SUPPORT_MIRROR). ADR-0027: ramp_matters ALSO migrated — its
+    # dork-support producer rode the SAME mirror, so both now fire from the hybrid path.
     raggadragga = {
         "name": "Raggadragga, Goreguts Boss",
         "type_line": "Legendary Creature — Frog Warrior",
@@ -3745,12 +3746,14 @@ def test_mana_ability_payoff_opens_ramp():
             "untap target creature. It gets +7/+7 and gains trample until end of turn."
         ),
     }
-    assert ("ramp_matters", "you") in _ks(raggadragga)
+    assert ("ramp_matters", "you") not in _ks(raggadragga)
+    assert ("ramp_matters", "you") in _ks_hybrid(raggadragga)
     assert "mana_amplifier" not in _keys(raggadragga)
     assert ("mana_amplifier", "you") in _ks_hybrid(raggadragga)
     # Over-fire guard: a vanilla beater is not a mana-dork payoff.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert ("ramp_matters", "you") not in _ks(bear)
+    assert ("ramp_matters", "you") not in _ks_hybrid(bear)
 
 
 def test_charge_and_experience_counters_open_proliferate():

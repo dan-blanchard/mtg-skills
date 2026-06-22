@@ -3161,6 +3161,25 @@ _MANA_DORK_SUPPORT_MIRROR = re.compile(
     r"creatures?[^.]*\bwith (?:a )?mana abilit", re.IGNORECASE
 )
 
+# ADR-0027 — ramp_matters KEPT MIRROR. The byte-identical deleted _HAND_FLOOR producer
+# (the "{T}: add {" / "add N mana" / "add {WUBRGC}" mana-production anchors). The
+# structural `ramp` arm (gated `not card_is_land`) is broader-and-correct for NON-LAND
+# ramp doers, but phase attributes a TOKEN's embedded "{T}: Add" to the token (so an
+# Eldrazi-Spawn / Etherium-Cell maker has no `ramp` effect on the MAKER) and excludes
+# nothing for the 1005 nonbasic lands the regex fired on (their `ramp` effect is on the
+# land — gated out). So this mirror re-supplies the regex's exact 2003 firings (incl.
+# the nonbasic-land mana sources + the token-embedded makers), run on the reminder-
+# stripped kept oracle like the deleted floor Detector. Combined with the structural
+# arm: regex_only == 0, +96 nonland recall, 106 reminder-formatted mana-base lands
+# correctly dropped. The dork-support arm rides _MANA_DORK_SUPPORT_MIRROR (the EXACT
+# deleted 1368 ramp_matters producer — same pattern as the mana_amplifier dork arm).
+# CR 106.4 / 605.
+_RAMP_MATTERS_REGEX = re.compile(
+    r"\{t\}[^.]*:\s*add \{|add (?:one|two|three|four|five|x|\d+) mana"
+    r"|add \{[wubrgc]\}",
+    re.IGNORECASE,
+)
+
 # venture_matters (ADR-0027): a dungeon-DOUBLING payoff phase keeps as a
 # trigger_doubling effect whose raw names rooms/dungeons ("Room abilities of dungeons
 # you own trigger an additional time" — Hama Pashar, Dungeon Delver). The dungeon
@@ -4909,7 +4928,17 @@ def extract_signals_ir(
             if cat == "fight":
                 add("fight_matters", "you", "", e.raw)
             if cat == "ramp":
-                add("ramp_matters", "you", "", e.raw)
+                # ADR-0027 — ramp_matters (the recall-GAINING structural arm). Gated
+                # `not card_is_land`: a basic / dual / shock / triome's own tap-for-mana
+                # is the deck's MANA BASE, not ramp, and the deleted regex
+                # excluded it (reminder text, stripped pre-match). So
+                # the IR fires ramp_matters only for NON-LAND doers (rocks / dorks /
+                # rituals / land-auras / "tap-a-land-add-more" engines); the byte-
+                # identical _RAMP_MATTERS_REGEX kept mirror below re-adds the 1005
+                # nonbasic lands the regex DID fire on (non-reminder "{T}: Add" — Orzhov
+                # Guildgate, Eldrazi Temple) so no land recall is lost. CR 106.4 / 605.
+                if not card_is_land:
+                    add("ramp_matters", "you", "", e.raw)
                 # ADR-0027 — group_mana: a non-controller mana RECIPIENT in the ramp
                 # raw (phase emits scope='each' for ZERO ramp effects; the recipient
                 # survives only in raw — _GROUP_MANA_RAW is the discriminator).
@@ -6474,6 +6503,20 @@ def extract_signals_ir(
     # add() dedups vs the structural doubler arm. CR 605.1a.
     if _MANA_DORK_SUPPORT_MIRROR.search(kept_oracle):
         add("mana_amplifier", "you", "", "")
+    # ADR-0027 — ramp_matters kept mirror (byte-identical to the deleted _HAND_FLOOR
+    # producer). Re-supplies the regex's exact firings the structural `not card_is_land`
+    # arm intentionally excludes: the 1005 nonbasic lands (their `ramp`
+    # effect is on the LAND, gated out) and the token-embedded "{T}: Add" makers (phase
+    # attributes the mana ability to the TOKEN). The dork-support arm ("creatures with a
+    # mana ability" — Raggadragga, Tazri, Katilda) rides _MANA_DORK_SUPPORT_MIRROR (the
+    # EXACT deleted 1368 producer). add() dedups vs the structural arm; high-confidence
+    # scope "you" — the deleted regex's firing identity. The reminder-stripped flat
+    # kept_oracle is equivalent to the deleted floor Detector's per-clause scan (the
+    # anchors use `[^.]*`, which never crosses a clause). CR 106.4 / 605.
+    if _RAMP_MATTERS_REGEX.search(kept_oracle) or _MANA_DORK_SUPPORT_MIRROR.search(
+        kept_oracle
+    ):
+        add("ramp_matters", "you", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
     # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep
