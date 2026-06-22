@@ -734,6 +734,12 @@ _COST_REDUCER_MIRROR = re.compile(
     re.IGNORECASE,
 )
 
+# ADR-0027 shield_counter_matters — the EXACT deleted SWEEP_DETECTORS regex
+# (`\bshield counters?\b`), pinned for the byte-identical kept mirror below. No
+# `[^.]*` span, so a flat .search over the reminder-stripped joined-face
+# kept_oracle is trivially == the deleted per-clause SWEEP firing. CR 122.1c.
+_SHIELD_COUNTER_MATTERS_MIRROR = re.compile(r"\bshield counters?\b", re.IGNORECASE)
+
 # Kept narrow mechanic-word detectors: REAL mechanics (rules-lawyer-verified —
 # voting CR 701.38, firebending CR 702.189, …) that phase v0.1.19 doesn't yet
 # STRUCTURE (too recent/niche → Unimplemented). These are narrow keyword-WORD
@@ -2306,6 +2312,25 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the SEPARATE _IR_KEYWORD_MAP['shadow'] route, not this mirror — genuine hard
     # evasion the regex deliberately excluded (name-collision risk). CR 509.1b / 702.14.
     ("evasion_self", _EVASION_SELF_REGEX, "you"),
+    # ADR-0027 shield_counter_matters — byte-identical kept WORD MIRROR (the EXACT
+    # deleted SWEEP regex `\bshield counters?\b`, scope 'you' matching the deleted
+    # row). The lane's PRIMARY home is the STRUCTURAL arm (place_counter /
+    # hascounters counter_kind=='shield' via _COUNTER_KIND_KEYS — 24 of the 27
+    # commander-legal regex fires). This mirror recovers the 3 where phase folds the
+    # shield placement into a parent effect (Elspeth Resplendent's "with a shield
+    # counter on it" rider on a -3 topdeck_select dig, Summon: Magus Sisters'
+    # choose-one-at-random "Defense!" shield mode collapsing to gain_life, Undercover
+    # Operative's "enters with a shield counter if you control that creature" rider on
+    # a clone). `\bshield counters?\b` has no `[^.]*` span, so a flat .search over the
+    # reminder-stripped joined-face kept_oracle == the deleted per-clause SWEEP firing
+    # byte-identically — UNION(struct | mirror) over the commander-legal corpus,
+    # floor-disabled, by oracle_id: both==27, ir_only==0, regex_only==0. add() dedups
+    # the 24 the structural arm already supplies. CR 122.1c.
+    (
+        "shield_counter_matters",
+        _SHIELD_COUNTER_MATTERS_MIRROR,
+        "you",
+    ),
 )
 
 # Cares-about floor lanes the IR path also runs. A `<mechanic>_matters` lane means

@@ -4146,6 +4146,17 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"\boil counters?\b"},
         r"\boil counters?\b",
     ),
+    # ADR-0027: shield_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
+    # (detection moved to the Card IR — phase's place_counter / hascounters
+    # counter_kind='shield' structural arm + a byte-identical kept word mirror). The
+    # SERVE pool (the cards that ARE the thing — shield-counter sources and payoffs) is
+    # still oracle-defined, so hand-register the spec the sweep auto-register loop used
+    # to build, reusing the deleted regex as the serve pattern. CR 122.1c.
+    ("shield_counter_matters", "you"): _spec(
+        *SWEEP_LABELS["shield_counter_matters"],
+        {"oracle": r"\bshield counters?\b"},
+        r"\bshield counters?\b",
+    ),
     # ADR-0027: fight_matters had its oracle-regex SWEEP_DETECTORS row deleted (moved to
     # the Card IR — phase's fight effect + a granted/quoted/modal fight marker). Serve
     # hand-registered reusing the deleted regex (the lane wants big creatures to fight

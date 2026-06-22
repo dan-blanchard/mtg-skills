@@ -401,12 +401,40 @@ def test_named_counters_are_separate_lanes():
     )
     assert "oil_counter_matters" not in _keys(oil)  # regex path no longer produces it
     assert "oil_counter_matters" in {s.key for s in extract_signals_hybrid(oil, oil_ir)}
-    assert "shield_counter_matters" in _keys(
-        {
-            "name": "Z",
-            "oracle_text": "This creature enters with a shield counter on it.",
-        }
+    # ADR-0027: shield_counter_matters also migrated to the Card IR — the regex path no
+    # longer produces it; the hybrid serves it from a place_counter(counter_kind=
+    # 'shield'). CR 122.1c shield counters are a replacement+prevention effect, so they
+    # get their own lane (excluded from the CR-122.1b keyword_counter set).
+    shield = {
+        "name": "Z",
+        "oracle_text": "This creature enters with a shield counter on it.",
+    }
+    shield_ir = Card(
+        oracle_id="z",
+        name="Z",
+        faces=(
+            Face(
+                name="Z",
+                abilities=(
+                    Ability(
+                        kind="static",
+                        effects=(
+                            Effect(
+                                category="place_counter",
+                                scope="you",
+                                counter_kind="shield",
+                                raw="~ enters with a shield counter on it.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     )
+    assert "shield_counter_matters" not in _keys(shield)  # regex path drops it
+    assert "shield_counter_matters" in {
+        s.key for s in extract_signals_hybrid(shield, shield_ir)
+    }
     # fade is not a payoff axis — it must not open any named-counter lane
     fade = _keys({"name": "W", "oracle_text": "Remove a fade counter from it."})
     assert not any(k2.endswith("_counter_matters") for k2 in fade)

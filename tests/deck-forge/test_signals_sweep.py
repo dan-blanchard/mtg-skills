@@ -74,8 +74,13 @@ def test_sweep_detectors_loaded():
     # sticker / CR 122 ticket-counter mechanic), then 26→25 as station_matters's row was
     # deleted (ADR-0027 — migrated to a byte-identical STATION_MATTERS_REGEX kept word
     # mirror in _signals_ir; the EOE Station keyword action, CR 702.184, which phase
-    # v0.1.19 doesn't structure for the Spacecraft/Planet carriers).
-    assert len(SWEEP_DETECTORS) >= 25
+    # v0.1.19 doesn't structure for the Spacecraft/Planet carriers), then 25→24 as
+    # shield_counter_matters's row was deleted (ADR-0027 — migrated to the
+    # place_counter/hascounters counter_kind=='shield' structural arm via
+    # _COUNTER_KIND_KEYS UNION a byte-identical _SHIELD_COUNTER_MATTERS_MIRROR kept word
+    # mirror in _signals_ir for the 3 cards phase folds the shield placement into a
+    # parent effect; CR 122.1c).
+    assert len(SWEEP_DETECTORS) >= 24
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

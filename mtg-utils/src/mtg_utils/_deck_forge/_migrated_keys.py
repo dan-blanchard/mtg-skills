@@ -480,6 +480,34 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "starting_life_matters",
         "cycling_matters",
         "dice_matters",
+        # ADR-0027 shield_counter_matters — migrated to the Card IR. UNION shape.
+        # STRUCTURAL ARM: phase tags counter_kind='shield' on a place_counter (a real
+        # CR-122.1c shield counter — a replacement+prevention effect that absorbs the
+        # next destroy/damage), dispatched via _COUNTER_KIND_KEYS['shield'] (scope you)
+        # plus the matching `hascounters` condition gate — the same arm that serves
+        # oil/ki/m1m1. That arm covers 24 of the 27 commander-legal regex fires (the
+        # clean place-a-shield-counter sources: Boon of Safety, Falco Spara, Perrie,
+        # Kros, Brokers Veteran, Sanctuary Warden, …). MIRROR: the 3 phase folds the
+        # shield placement into a parent effect — Elspeth Resplendent (the "with a
+        # shield counter on it" rider on a -3 topdeck_select dig is dropped), Summon:
+        # Magus Sisters (the "Defense!" shield mode of a choose-one-at-random Saga
+        # collapses to gain_life + the +1/+1 mode), Undercover Operative (the "enters
+        # with a shield counter if you control that creature" rider on a clone is
+        # dropped) — are recovered by the byte-identical _SHIELD_COUNTER_MATTERS_MIRROR
+        # (the EXACT deleted SWEEP regex `\bshield counters?\b`, no `[^.]*` span so
+        # flat-over-kept_oracle == per-clause trivially) in _signals_ir._IR_KEPT_
+        # DETECTORS, scope 'you', HIGH. UNION(struct | mirror) over the commander-legal
+        # corpus, floor-disabled, by oracle_id: both==27, ir_only==0, regex_only==0 —
+        # the mirror IS the deleted regex over the same reminder-stripped face-joined
+        # text, so it reproduces all 27 byte-identically and add() dedups the 24 the
+        # structural arm already supplies. VOLTRON: the deleted SWEEP producer fired
+        # HIGH scope 'you' and fed has_other_plan (NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS); the IR re-supply is BYTE-IDENTICAL (struct ⊆ mirror ==
+        # deleted regex), so shield_counter_matters is added to
+        # _VOLTRON_SILENCING_PLAN_KEYS — voltron 3010→3010. Its SWEEP_DETECTORS row is
+        # deleted; the serve spec is hand-registered in signal_specs.py reusing the
+        # deleted regex. CR 122.1c.
+        "shield_counter_matters",
         # Group "sweep 2" (ADR-0027 small-residual close) — five more low-residual keys
         # closed by the conferred/dropped-static markers (prior commit). Four left
         # _IR_FLOOR_LANES; floor-mirror-dep == 0 for cascade/changeling/regenerate

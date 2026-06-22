@@ -2059,14 +2059,18 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # from phase's counter-kind projection — _COUNTER_KIND_KEYS['ki'] in
     # signals.py); its oracle-regex detector row is deleted. The SWEEP_LABELS
     # entry survives to feed the serve spec (signal_specs.py hand-registers it).
-    {
-        # Shield counters (CR 122.1c) — a real UW/Brokers archetype (Falco Spara,
-        # Perrie, Kros) deliberately excluded from keyword_counter; this is its home.
-        "key": "shield_counter_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "\\bshield counters?\\b",
-    },
+    # ADR-0027: shield_counter_matters migrated to the Card IR — UNION of the
+    # STRUCTURAL arm (phase's place_counter / hascounters counter_kind=='shield'
+    # via _COUNTER_KIND_KEYS['shield'] in _signals_ir, scope you — 24 of 27 cards)
+    # and the byte-identical _SHIELD_COUNTER_MATTERS_MIRROR in
+    # signals._IR_KEPT_DETECTORS (the EXACT deleted `\bshield counters?\b` regex,
+    # recovering the 3 where phase folds the shield placement into a parent effect —
+    # Elspeth Resplendent / Summon: Magus Sisters / Undercover Operative). A real
+    # UW/Brokers archetype (Falco Spara, Perrie, Kros) deliberately excluded from
+    # keyword_counter — CR 122.1c shield counters are a replacement+prevention effect,
+    # not a CR-122.1b keyword grant. Its oracle-regex detector row is deleted; the
+    # SWEEP_LABELS entry survives to feed the serve spec (signal_specs.py
+    # hand-registers it reusing the deleted regex).
     # ADR-0027 t2b5-C: named_counter_misc migrated to the Card IR — detected from the
     # kept word-detector mirror in signals._IR_KEPT_DETECTORS (the exact deleted regex).
     # phase's structured counter_kind field covers 32 of 34 cards, but a place/remove-as-

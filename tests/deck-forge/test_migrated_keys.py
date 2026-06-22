@@ -2685,6 +2685,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # Shield counters (Boon of Safety) — phase tags counter_kind='shield' on a
+    # place_counter (CR 122.1c shield counter — a replacement+prevention effect),
+    # served via _COUNTER_KIND_KEYS['shield'] (scope you). The structural arm covers
+    # the clean place-a-shield-counter sources; a byte-identical kept mirror recovers
+    # the 3 phase folds into a parent effect.
+    "shield_counter_matters": (
+        {
+            "name": "Boon of Safety",
+            "type_line": "Instant",
+            "oracle_text": (
+                "Put a shield counter on target creature. (If it would be dealt "
+                "damage or destroyed, remove a shield counter from it instead.)\n"
+                "Scry 1."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="place_counter",
+                        scope="any",
+                        counter_kind="shield",
+                        raw="Put a shield counter on target creature.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # Mass-death payoff (Khabál Ghoul) — the aggregate "for each creature that died this
     # turn" count operand is recovered as a `mass_death` dropped-static marker.
     "mass_death_payoff": (

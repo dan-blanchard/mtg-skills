@@ -694,6 +694,20 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # ir_only), matching the daynight_matters / dies_recursion kept-mirror
         # precedent. A NO-FLOOD voltron entry. CR 702.184 (Station) / 903.10a (voltron).
         "station_matters",
+        # ADR-0027: shield_counter_matters fired high-confidence (scope 'you') in the
+        # regex path via the SWEEP_DETECTORS producer and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron tell on a shield-counter engine creature
+        # commander that is NOT a vanilla beater (Falco Spara, Perrie, Kros — the
+        # UW/Brokers shield-counter build-arounds, CR 122.1c). Its regex producer is
+        # deleted, so the hybrid re-silences from the IR re-supply — the place_counter /
+        # hascounters counter_kind=='shield' STRUCTURAL arm UNION the byte-identical
+        # _SHIELD_COUNTER_MATTERS_MIRROR kept word reading the SAME reminder-stripped
+        # joined oracle as the deleted SWEEP regex, so it is BYTE-IDENTICAL
+        # (commander-legal, floor-disabled: IR == regex == 27, 0 broadening, 0 ir_only),
+        # matching the oil/ki counter / named_counter_misc kept-mirror precedent. A
+        # NO-FLOOD voltron entry (voltron 3010→3010). CR 122.1c / 903.10a.
+        "shield_counter_matters",
     }
 )
 
