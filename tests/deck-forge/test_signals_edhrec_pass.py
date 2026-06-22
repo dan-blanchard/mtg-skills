@@ -88,15 +88,18 @@ def test_landwalk_is_evasion():
 
 
 # ── Xantcha / Haktos: forced-attack "attacks each combat if able" ──
+# ADR-0027: forced_attack migrated to the Card IR (phase's `force_attack` Effect
+# STRUCTURAL arm), so the "attacks each combat if able" compulsion serves from the
+# hybrid path, not pure regex.
 def test_xantcha_forced_attack():
-    assert "forced_attack" in _keys(
+    assert "forced_attack" in _hybrid_keys(
         "Xantcha attacks each combat if able and can't attack its owner.",
         name="Xantcha, Sleeper Agent",
     )
 
 
 def test_haktos_forced_attack():
-    assert "forced_attack" in _keys(
+    assert "forced_attack" in _hybrid_keys(
         "Haktos attacks each combat if able.", name="Haktos the Unscarred"
     )
 

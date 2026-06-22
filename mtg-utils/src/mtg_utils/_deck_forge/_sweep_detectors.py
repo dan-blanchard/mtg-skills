@@ -160,6 +160,14 @@ DAMAGE_EQUAL_POWER_REGEX = "deals? damage[^.]*equal to (?:its|that creature.s|[^
 # discount-EXPLOITING search anchor; the lane's firing now comes from the IR arm +
 # _COST_REDUCER_MIRROR (in _signals_ir), not this regex.
 COST_REDUCTION_REGEX = "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{w\\}, \\{u\\}, \\{b\\}, \\{r\\}, or \\{g\\} less|cost \\{[wubrgc\\d]\\}+ less to cast|cost \\{?\\d+\\}? less to activate|(?:cards you drew this turn|abilities you activate)[^.]{0,40}?cost \\{?\\d|costs? \\{?\\d+\\}? less to cast for each|cost \\{?\\d+\\}? less for each"
+# ADR-0027 — forced_attack migrated to the Card IR. Its SWEEP_DETECTORS row is deleted:
+# the real CR 508.1d "attacks if able" compulsion rides phase's `force_attack` Effect
+# STRUCTURAL arm in extract_signals_ir (the SWEEP regex's reminder-stripped firings are
+# ALL in that arm — SWEEP regex_only == 0). This EXACT mined SWEEP regex survives here so
+# signal_specs hand-registers the serve pool reusing it (the serve only needs an oracle
+# search anchor) and the voltron PLAN mirror in _signals_regex reuses it OR'd with the
+# deleted DET punisher arm. SWEEP_LABELS keeps the human label. CR 508.1d.
+FORCED_ATTACK_SWEEP_REGEX = "may attack only the nearest opponent|attacks? that player this combat if able|attacks? (?:each|every) combat if able"
 # ADR-0027 β — global_ability_grant migrated to the Card IR; its SWEEP_DETECTORS row
 # is deleted but the EXACT mined regex survives here so signal_specs hand-registers the
 # serve pool reusing it (SWEEP_LABELS keeps the human label). The serve only needs a
@@ -1838,12 +1846,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # while sacself/discardself/paylife-cost draws (Forgotten Cave, Erebos) lack 'tap'
     # and stay out. This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the label
     # and the serve spec stays hand-registered in signal_specs.py.
-    {
-        "key": "forced_attack",
-        "scope": "any",
-        "is_widen_of": "",
-        "regex": "may attack only the nearest opponent|attacks? that player this combat if able|attacks? (?:each|every) combat if able",
-    },
+    # ADR-0027: forced_attack migrated to the Card IR — phase's `force_attack` Effect
+    # STRUCTURAL arm (extract_signals_ir, scope "any") covers every real CR 508.1d
+    # "attacks if able" compulsion (the SWEEP regex's reminder-stripped firings are ALL
+    # in that arm — SWEEP regex_only == 0), plus +41 ir_only recall. The "didn't attack
+    # this turn" PUNISHER tail rides a byte-identical DET kept mirror in
+    # signals._IR_KEPT_DETECTORS. This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps
+    # the label, the serve spec is hand-registered reusing FORCED_ATTACK_SWEEP_REGEX, and
+    # the voltron silence rides _FORCED_ATTACK_PLAN_MIRROR in _signals_regex.
     # ADR-0027: tribal_etb_multi + typed_enters_punish migrated to the Card IR (their
     # SWEEP_DETECTORS rows deleted). tribal_etb_multi detects an `etb` trigger whose
     # subject Filter names a creature subtype (vocab-gated _kindred_subjects); the

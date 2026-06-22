@@ -2097,6 +2097,36 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # forced_attack (combat-forcing sibling of cant_block_grant / goad_matters) —
+    # phase's `force_attack` Effect (the CR 508.1d "attacks if able" compulsion). Public
+    # Enemy is a pure TEAM-force ("All creatures attack … each combat if able"), so it
+    # stays forced_attack-only (no "target creature", so it does NOT co-open goad). The
+    # structural arm fires scope "any"; the "didn't attack this turn" PUNISHER tail rides
+    # a byte-identical DET kept mirror, not exercised here. ADR-0027.
+    "forced_attack": (
+        {
+            "name": "Public Enemy",
+            "type_line": "Enchantment — Aura",
+            "oracle_text": (
+                "Enchant creature\nAll creatures attack enchanted creature's "
+                "controller each combat if able.\nWhen enchanted creature dies, "
+                "draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="force_attack",
+                        scope="any",
+                        raw="All creatures attack enchanted creature's "
+                        "controller each combat if able.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # Land exchange (Political Trickery) — phase's `gain_control` effect with
     # subject=None whose raw carries the "exchange control of … land" phrase, read by
     # the _LAND_EXCHANGE_RAW fallback (phase never binds the land-typed object).

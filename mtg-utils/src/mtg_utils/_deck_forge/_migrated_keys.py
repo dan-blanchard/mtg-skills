@@ -701,14 +701,55 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # static stays on forced_attack (its own lane); the single-target / redirect-
         # reward forms open goad. regex-only residual 45 -> 2 (Boros Battleshaper's
         # attack-OR-block manipulation → cant_block, Tower Above's "blocks if able" →
-        # force_block/lure — both correct IR exclusions). forced_attack ITSELF stays on
-        # regex — its 23 "didn't attack this turn" PUNISHER-incentive gaps (Erg
-        # Raiders, Kratos, Angel's Trumpet) are a distinct sub-concept the IR doesn't
-        # bind, not a clean over-fire migration; the coupling's over-fire direction
-        # (regex goad over-firing on self-force / blocks) is resolved structurally. The
-        # two goad _DETECTORS / _HAND_FLOOR producers are deleted; the serve spec is
+        # force_block/lure — both correct IR exclusions). forced_attack ITSELF now
+        # migrates too (the sibling below); the coupling's over-fire direction (regex
+        # goad over-firing on self-force / blocks) is resolved structurally. The two
+        # goad _DETECTORS / _HAND_FLOOR producers are deleted; the serve spec is
         # registered. See ADR-0027.
         "goad_matters",
+        # Group "combat-forcing" (ADR-0027) — forced_attack, the sibling of
+        # goad_matters above (CR 508.1d "attacks if able" REQUIREMENT vs CR 701.15
+        # goad's redirect-payoff). UNION migration shape:
+        #   (a) STRUCTURAL arm — phase's `force_attack` Effect category, already wired
+        #       in extract_signals_ir (scope "any"). This covers EVERY real 508.1d
+        #       force-attack compulsion — the self/team "attacks each combat if able"
+        #       static (Public Enemy, Seeker of Slaanesh), the single-target political
+        #       force (Boiling Blood, Alluring Siren, Basandra — which ALSO co-open
+        #       goad via _GOAD_STYLE_FORCE), and the "creatures that player controls
+        #       attack X if able" table-force (Gideon Jura, Rowan Kenrith, War's Toll).
+        #       +41 ir_only RECALL the narrow deleted SWEEP regex missed (it only knew
+        #       "each/every combat if able" / "that player this combat if able"), all
+        #       100% genuine forced-attack effects (verified vs Scryfall). The deleted
+        #       SWEEP regex's REAL (reminder-stripped) firings are ALL in this arm —
+        #       SWEEP regex_only == 0 over the reminder-stripped corpus.
+        #   (b) BYTE-IDENTICAL KEPT MIRROR — the deleted _DETECTORS "didn't attack this
+        #       turn|that attacked this turn" PUNISHER-incentive arm (scope "you"),
+        #       pinned as _FORCED_ATTACK_DET_MIRROR in _signals_ir._IR_KEPT_DETECTORS.
+        #       phase carries NO structural form for the "didn't attack" penalty
+        #       subject (Erg Raiders, Kratos, Angel's Trumpet, Season of the Witch) nor
+        #       the "untap creatures that attacked" extra-combat rider; the mirror
+        #       reproduces all 23 DET regex_only cards byte-identically. The mirror has
+        #       no `[^.]*` cross-clause arm and the patterns never appear inside
+        #       reminder text (DET full-text == reminder-stripped == 26), so flat over
+        #       kept_oracle == per-clause. A few extra-combat-untap over-fires it
+        #       reproduces (Relentless Assault, World at War) are KEPT for byte-parity
+        #       (the regex matched them pre-migration; not a behavior change). CR
+        #       508.1d / 701.15.
+        # The 55 goad-reminder SWEEP over-fires the FULL-text SWEEP regex would catch
+        # are NOT a residual: the production regex path strips reminder text first, so
+        # those goad cards never fired forced_attack pre-migration (they fire
+        # goad_matters, the correct lane) — base hybrid forced_attack == 128. LOSE == 0:
+        # gained 41 (genuine recall), lost 0; post-mig commander-legal == 169. Voltron:
+        # the deleted DET + SWEEP producers fed has_other_plan (HIGH, scope you/any, not
+        # generic/voltron-compat). The IR re-supply is BROADER (169 vs 128), so a
+        # _VOLTRON_SILENCING_PLAN_KEYS entry would OVER-silence the +41 recall bodies;
+        # instead a byte-identical _FORCED_ATTACK_PLAN_MIRROR (the EXACT DET-or-SWEEP
+        # over reminder-stripped oracle) is OR'd into has_other_plan in _signals_regex —
+        # re-silencing ONLY the old regex's 128-card set (94 load-bearing, all
+        # re-silenced; 0 leak). The _DETECTORS / SWEEP producers are deleted; the serve
+        # spec is hand-registered with the pinned SWEEP regex. CR 508.1d / 701.15 /
+        # 903.10a.
+        "forced_attack",
         # Group "spell-copy" (ADR-0027 projection deepening) — spell_copy_matters fires
         # from the STRUCTURAL IR alone (NOT in _IR_FLOOR_LANES; floor-mirror-dep == 0):
         # phase's `spell_copy` effect (CopySpell + CastCopyOfCard) + the storm/replicate

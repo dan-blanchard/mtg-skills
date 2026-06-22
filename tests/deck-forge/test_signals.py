@@ -1324,7 +1324,10 @@ def test_fling_target_power_does_not_open_self_counters():
 
 def test_punish_non_attackers_opens_forced_attack():
     # Kratos: "deals damage = creatures that didn't attack this turn" — a force-attack
-    # incentive (attack or take damage), a goad/aggro commander.
+    # incentive (attack or take damage), a goad/aggro commander. ADR-0027: forced_attack
+    # migrated to the Card IR; the "didn't attack this turn" PUNISHER tail rides a byte-
+    # identical DET kept mirror in signals._IR_KEPT_DETECTORS, so it serves from the
+    # hybrid path, not pure regex.
     kratos = {
         "name": "Kratos, God of War",
         "type_line": "Legendary Creature — God Warrior",
@@ -1332,7 +1335,7 @@ def test_punish_non_attackers_opens_forced_attack():
         "each player's end step, Kratos deals damage to that player equal to the number "
         "of creatures that player controls that didn't attack this turn.",
     }
-    assert any(k == "forced_attack" for k, _ in _keys(kratos))
+    assert any(k == "forced_attack" for k, _ in _keys_hybrid(kratos))
 
 
 # ── Outlaw tribal (Outlaws of Thunder Junction): Assassin/Mercenary/Pirate/Rogue/

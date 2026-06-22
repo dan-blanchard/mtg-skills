@@ -29,6 +29,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     DIES_RECURSION_REGEX,
     FLASH_GRANT_REGEX,
+    FORCED_ATTACK_SWEEP_REGEX,
     FREE_CAST_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
     GROUP_HUG_DRAW_REGEX,
@@ -2764,8 +2765,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         _TYPED_ENTERS_PUNISH_SWEEP_REGEX,
     ),
     # Force-attack / goad commander (Kratos) wants extra combats to swing again.
+    # ADR-0027: forced_attack migrated to the Card IR (its SWEEP_DETECTORS row is
+    # deleted), so pass the deleted SWEEP regex explicitly — the serve pool stays
+    # oracle-defined (the IR arm + DET kept mirror drive the firing).
     ("forced_attack", "you"): _sweep_spec_with_extras(
-        "forced_attack", (_EXTRA_COMBAT_EXTRA, _COMBAT_SUPPORT_EXTRA)
+        "forced_attack",
+        (_EXTRA_COMBAT_EXTRA, _COMBAT_SUPPORT_EXTRA),
+        regex=FORCED_ATTACK_SWEEP_REGEX,
     ),
     # Donate commander (Jon Irenicus, Harmless Offering) wants drawback creatures to
     # hand to opponents for the downside.

@@ -381,9 +381,15 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # "Creatures you control with no abilities" anthem the contiguous regex missed
     # (Jasmine Boreal). This _DETECTORS producer is deleted; the serve spec
     # (serve_vanilla=True) stays hand-registered in signal_specs.
-    # Force-attack incentive (Kratos): "creatures that didn't attack this turn" punishes
-    # not attacking — a goad/aggro commander that wants everyone swinging.
-    ("forced_attack", _re(r"didn't attack this turn|that attacked this turn"), "you"),
+    # ADR-0027: forced_attack migrated to the Card IR — the real CR 508.1d
+    # "attacks if able" compulsion rides phase's `force_attack` Effect STRUCTURAL arm
+    # (extract_signals_ir), and this _DETECTORS "didn't attack this turn|that attacked
+    # this turn" PUNISHER-incentive producer (scope "you", Erg Raiders / Kratos /
+    # Angel's Trumpet — phase has no structural form for the penalty subject) is DELETED
+    # and re-supplied byte-identically by the forced_attack row in
+    # _signals_ir._IR_KEPT_DETECTORS. The has_other_plan voltron silence is re-supplied
+    # by _FORCED_ATTACK_PLAN_MIRROR below (the IR re-supply is broader, so a byte-
+    # identical regex mirror — not _VOLTRON_SILENCING_PLAN_KEYS). CR 508.1d / 903.10a.
     # ADR-0027: goad_matters migrated to the Card IR — detected structurally from the
     # Scryfall `goad` keyword + phase's `goad_all` effect + a `_GOAD_REWARD_REF` face
     # marker (the "attacks one of your opponents" / "a player other than you" /
@@ -2654,6 +2660,29 @@ _MANA_AMPLIFIER_PLAN_MIRROR = re.compile(
     r"(?:add (?:an additional|one mana of any|that much|twice)"
     r"|produces? (?:twice|an additional))"
     r"|creatures?[^.]*\bwith (?:a )?mana abilit",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated forced_attack key. Both deleted
+# producers — the SWEEP "attacks each combat if able" / "attacks that player this
+# combat if able" / "may attack only the nearest opponent" arm (scope "any") and the
+# _DETECTORS "didn't attack this turn|that attacked this turn" PUNISHER arm (scope
+# "you") — fired HIGH-confidence and counted toward `has_other_plan`, silencing the
+# spurious commander-damage voltron tell on a goad/force / punisher body that is NOT a
+# vanilla beater (Basandra, Disrupt Decorum, Erg Raiders, Kratos). The migrated IR
+# re-supply is BROADER (+41 ir_only recall: 169 vs the deleted regex's 128), so
+# re-silencing via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 41 recall
+# bodies. This mirror is the byte-identical OR of the EXACT two deleted regexes; it
+# feeds ONLY the gate (emits no signal — the lane is served from the IR), reproducing
+# the pre-migration `has_other_plan` for the old regex's 128-card set EXACTLY (94
+# load-bearing, all re-silenced, 0 leak). It is run over the reminder-STRIPPED joined
+# oracle (see has_other_plan) — the deleted producers' exact input — so the 55
+# goad-reminder cards (silenced pre-migration via goad_matters, not forced_attack) are
+# correctly NOT matched here. CR 508.1d / 701.15 / 903.10a.
+_FORCED_ATTACK_PLAN_MIRROR = re.compile(
+    r"may attack only the nearest opponent"
+    r"|attacks? that player this combat if able"
+    r"|attacks? (?:each|every) combat if able"
+    r"|didn't attack this turn|that attacked this turn",
     re.IGNORECASE,
 )
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated ramp_matters key. Its two deleted
@@ -5552,6 +5581,22 @@ def extract_signals(
         # bounded arms). CR 119.3 / 120.6.
         or _CREATURE_PING_PLAN_MIRROR.search(_oracle)
         or _DAMAGE_EQUAL_POWER_PLAN_MIRROR.search(_oracle)
+        # ADR-0027: re-silence the deleted forced_attack producers (the SWEEP "attacks
+        # each combat if able" arm scope 'any' + the _DETECTORS "didn't attack this
+        # turn|that attacked this turn" PUNISHER arm scope 'you'). Both fired
+        # high-confidence and counted toward has_other_plan, silencing the spurious
+        # commander-damage voltron tell on a goad/force / punisher body that is NOT a
+        # vanilla beater (Basandra, Disrupt Decorum, Erg Raiders, Kratos). The migrated
+        # IR arm is BROADER (+41 ir_only recall: 169 vs 128), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence those 41 recall bodies; this
+        # byte-identical mirror (the OR of both deleted regexes) restores only the old
+        # regex's 128-card silence set (94 load-bearing, all re-silenced, 0 leak).
+        # Matched against the reminder-STRIPPED `text` (NOT `_oracle`): the deleted
+        # producers were floor Detectors over reminder-stripped clauses, so a goaded
+        # creature's "(It attacks each combat if able…)" reminder never fired them —
+        # keeping reminders here would over-silence those 55 goad bodies (already
+        # silenced via goad_matters). CR 508.1d / 701.15 / 903.10a.
+        or _FORCED_ATTACK_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted untap_engine _HAND_FLOOR producers. Both
         # fired high-confidence scope 'you' and counted toward has_other_plan, silencing
         # the spurious commander-damage voltron tell on an untap engine (Seedborn Muse,

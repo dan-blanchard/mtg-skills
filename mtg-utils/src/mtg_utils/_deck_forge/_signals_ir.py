@@ -1142,6 +1142,20 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the deleted SWEEP scope). Digital-only: the served set is empty on commander, ~158
     # HB-legal. CR 701.66a.
     ("conjure_matters", re.compile(r"\bconjure\b", re.IGNORECASE), "you"),
+    # forced_attack (ADR-0027) DET PUNISHER-incentive arm — the byte-identical kept
+    # mirror of the deleted _DETECTORS producer (scope "you"). The real 508.1d force
+    # compulsion rides the STRUCTURAL `force_attack` arm (extract_signals_ir); this row
+    # only adds the "didn't attack this turn" penalty + "untap creatures that attacked"
+    # tail phase carries no structural form for (Erg Raiders, Kratos, Angel's Trumpet,
+    # Season of the Witch). Neither phrase ever appears inside reminder text (DET
+    # full-text == reminder-stripped == 26), and there is no `[^.]*` cross-clause arm,
+    # so the flat .search over kept_oracle == the deleted per-clause producer. add()
+    # dedups cards already in the structural set. CR 508.1d.
+    (
+        "forced_attack",
+        re.compile(r"didn't attack this turn|that attacked this turn", re.IGNORECASE),
+        "you",
+    ),
     # snow is a real supertype (CR 205.4), NOT a skip — the analysis workflow
     # wrongly listed it. A snow-matters payoff cares about snow permanents/mana.
     ("snow_matters", re.compile(r"\bsnow\b", re.IGNORECASE), "you"),

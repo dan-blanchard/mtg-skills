@@ -64,8 +64,12 @@ def test_sweep_detectors_loaded():
     # wards phase's effect category doesn't structure), then 29→28 as dies_recursion's
     # row was deleted (ADR-0027 — migrated to a byte-identical DIES_RECURSION_REGEX kept
     # word mirror in signals._IR_KEPT_DETECTORS; the undying/persist keyword bearers
-    # already ride _IR_KEYWORD_MAP).
-    assert len(SWEEP_DETECTORS) >= 28
+    # already ride _IR_KEYWORD_MAP), then 28→27 as forced_attack's row was deleted
+    # (ADR-0027 — migrated to phase's `force_attack` Effect STRUCTURAL arm + a byte-
+    # identical DET kept word mirror in signals._IR_KEPT_DETECTORS for the "didn't attack
+    # this turn" punisher tail; the SWEEP regex's reminder-stripped firings are all in
+    # the structural arm).
+    assert len(SWEEP_DETECTORS) >= 27
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
