@@ -4559,6 +4559,22 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (3010 → 3010); siblings gain_control / donate_matters / clone_matters /
         # removal_matters drift 0. CR DD9 (heist) / 613.1b (control-changing) / 903.10a.
         "theft_matters",
+        # ADR-0027 — evasion_self. The self-evasion lane ("This creature can't be
+        # blocked" / unblockable / landwalk / the menace-family keyword words) rides a
+        # BYTE-IDENTICAL kept WORD MIRROR (_EVASION_SELF_REGEX, the EXACT deleted
+        # _HAND_FLOOR producer) in _signals_ir._IR_KEPT_DETECTORS, flat over the
+        # reminder-stripped kept_oracle (no `[^.]*` arm → flat == per-clause). phase
+        # only carries the self "can't be blocked" as a generic `restriction` Effect
+        # (too broad) or a mass CantBeBlockedBy as `grant_keyword`(unblockable), so a
+        # structural arm would be unclean. The IR is BROADER (+36):
+        # _IR_KEYWORD_MAP['shadow'] credits the Shadow tribes (Dauthi/Soltari/Thalakos)
+        # the regex excluded for name-collision safety — genuine hard evasion (CR
+        # 702.28), recall not over-fire. Commander-legal, floor-disabled, by oracle_id:
+        # both==1426, ir_only==36, regex_only==0. The deleted producer fired HIGH scope
+        # 'you' and fed has_other_plan; the IR re-supply is BROADER, so a byte-identical
+        # _EVASION_SELF_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS) restores the
+        # voltron silence. Serve spec survives. CR 509.1b / 702.14 / 702.28.
+        "evasion_self",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

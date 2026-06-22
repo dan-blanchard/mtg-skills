@@ -1950,26 +1950,30 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # "a/another permanent you control enters" variants the narrow word-order regex
     # missed (Cloudstone Curio, Kodama, Yoshimaru, Builder's Talent). NOT in
     # _IR_FLOOR_LANES; this _HAND_FLOOR producer is deleted; the serve spec stays.
-    (
-        # Evasion = a blocking RESTRICTION (CR 509.1b). "attacks if able" is a
-        # forced-attack REQUIREMENT (CR 508.1d) — that belongs to forced_attack/goad.
-        # Landwalk (CR 702.14) is conditional unblockable-by-that-land-type evasion.
-        # The keyword-only evasion words (horsemanship 702.31, menace 702.111, fear
-        # 702.36, intimidate 702.13, skulk 702.118) carry their "can't be blocked …"
-        # only in reminder text, which is stripped above — so the bare keyword is all
-        # that survives (Guan Yu's horsemanship). "shadow" (702.28) is deliberately
-        # EXCLUDED here: it collides with card-name self-references in oracle text
-        # ("Whenever Shadow the Hedgehog…", Rasaad Shadow Monk) — the serve still
-        # credits real Shadow-keyword cards via the exact keyword[] match.
-        "evasion_self",
-        re.compile(
-            r"can't be blocked|\bunblockable\b"
-            r"|\b(?:forest|island|mountain|plains|swamp)walk\b"
-            r"|\b(?:horsemanship|menace|fear|intimidate|skulk)\b",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: evasion_self migrated to the Card IR. Evasion is a blocking RESTRICTION
+    # (CR 509.1b); landwalk (CR 702.14) is conditional unblockable-by-that-land-type
+    # evasion, and the keyword-only evasion words (horsemanship 702.31, menace 702.111,
+    # fear 702.36, intimidate 702.13, skulk 702.118) carry their "can't be blocked …"
+    # only in reminder text (stripped here), so the bare keyword survived (Guan Yu's
+    # horsemanship). phase v0.1.19 structures "This creature can't be blocked" only as a
+    # GENERIC `restriction` Effect (Slither Blade — shared with stax/"can't block"/tax,
+    # too broad to key the lane off), and a true mass CantBeBlockedBy grant becomes a
+    # `grant_keyword`(counter_kind "unblockable") — neither is a clean SELF-evasion arm.
+    # So the lane rides a BYTE-IDENTICAL kept WORD MIRROR of this EXACT deleted producer
+    # (_EVASION_SELF_REGEX, pinned below) run FLAT over the reminder-stripped
+    # kept_oracle in _signals_ir._IR_KEPT_DETECTORS — no `[^.]*` arm, so flat ==
+    # per-clause. The IR
+    # re-supply is BROADER (+36): _IR_KEYWORD_MAP['shadow'] (CR 702.28) credits the
+    # Shadow tribes (Dauthi/Soltari/Thalakos) via the precise Scryfall keyword[] array,
+    # which the regex deliberately EXCLUDED (shadow collides with card-name self-refs:
+    # "Whenever Shadow the Hedgehog…"). Shadow is genuine hard evasion — recall, not
+    # over-fire. Commander-legal, floor-disabled, by oracle_id: both==1426, ir_only==36
+    # (all genuine Shadow keyword carriers), regex_only==0. Because the deleted producer
+    # fired HIGH-confidence scope 'you' and fed has_other_plan, and the IR re-supply is
+    # BROADER, a byte-identical _EVASION_SELF_PLAN_MIRROR (the EXACT deleted regex)
+    # restores the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, which would
+    # over-silence the 36 Shadow bodies. The hand-written serve spec (signal_specs.py)
+    # survives. CR 509.1b / 702.14 / 702.28.
     (
         # Clone = a permanent that itself becomes/enters as a copy (CR 707). Drop the
         # bare "copy of target creature" branch — it bleeds into the token-copy phrase
@@ -4000,6 +4004,30 @@ _PLAY_FROM_TOP_FLOOR_MIRROR = re.compile(
     re.IGNORECASE,
 )
 
+# evasion_self (ADR-0027) — the EXACT deleted _HAND_FLOOR producer, pinned once and
+# shared by the _signals_ir kept WORD MIRROR (the IR re-supply) and the voltron plan
+# mirror below. No `[^.]*` arm, so a flat search over reminder-stripped text == the
+# per-clause floor-Detector firing byte-identically. CR 509.1b / 702.14.
+_EVASION_SELF_REGEX = re.compile(
+    r"can't be blocked|\bunblockable\b"
+    r"|\b(?:forest|island|mountain|plains|swamp)walk\b"
+    r"|\b(?:horsemanship|menace|fear|intimidate|skulk)\b",
+    re.IGNORECASE,
+)
+# evasion_self voltron plan mirror — the EXACT deleted _HAND_FLOOR producer. It fired
+# HIGH-confidence scope 'you' (key not in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), so it
+# counted toward has_other_plan, silencing the spurious commander-damage voltron tell on
+# a body whose plan is "connect unblockably" (Slither Blade, Invisible Stalker). The
+# migrated IR re-supply is BROADER (+36 Shadow keyword carriers the regex excluded), so
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those new bodies; this byte-identical
+# mirror restores ONLY the old regex's silence set. Matched against the
+# reminder-STRIPPED ``text`` (NOT ``_oracle``): the deleted producer was a floor
+# Detector over reminder-stripped clauses, so a menace/flying creature's "(can't be
+# blocked except by …)" reminder never fired it — keeping reminders here would
+# over-silence those bodies. Its
+# arms never cross a clause (`[^.]`-free), so flat over ``text`` == per-clause. CR
+# 903.10a / 509.1b.
+_EVASION_SELF_PLAN_MIRROR = _EVASION_SELF_REGEX
 # edict_matters (ADR-0027 β) voltron plan mirror — the EXACT deleted SWEEP regex. The
 # regex producer fired high-confidence (forced scope 'each'), counting toward
 # has_other_plan: an edict commander (Plaguecrafter, Butcher of Malakir, Dictate of
@@ -4891,6 +4919,19 @@ def extract_signals(
         )
         or _SACRIFICE_PLAN_MIRROR.search(_oracle)
         or _LIFELOSS_PLAN_MIRROR.search(_oracle)
+        # ADR-0027: re-silence the deleted evasion_self _HAND_FLOOR producer. It fired
+        # HIGH-confidence scope 'you' and counted toward has_other_plan, silencing the
+        # spurious commander-damage voltron tell on a body whose plan is to connect
+        # unblockably (Slither Blade, Invisible Stalker — an evasion beater is not a
+        # vanilla commander-damage tell to re-open). The migrated IR re-supply is
+        # BROADER (+36 Shadow keyword carriers the regex excluded), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence those new bodies; this
+        # byte-identical mirror restores only the old regex's silence set. Matched
+        # against ``text`` (reminder-STRIPPED): the deleted producer was a floor
+        # Detector over reminder-stripped clauses, so a menace/flying creature's "(can't
+        # be blocked except by …)" reminder never fired it. Flat over ``text`` ==
+        # per-clause (`[^.]`-free arms). CR 903.10a / 509.1b.
+        or _EVASION_SELF_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted self_death_payoff producer (it fired HIGH-
         # confidence scope 'you', feeding has_other_plan — a SELF-death Aristocrats
         # engine is no vanilla beater: Kokusho, Lord Xander, Wurmcoil). The migrated

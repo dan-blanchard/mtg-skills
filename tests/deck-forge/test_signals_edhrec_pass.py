@@ -77,12 +77,14 @@ def test_sensei_samurai_tribal():
 
 
 # ── Veldrane / landwalk = conditional evasion ──
+# ADR-0027: evasion_self migrated to the Card IR — assert via the hybrid path. The
+# landwalk arm of the byte-identical kept WORD MIRROR reads the oracle off the record.
 def test_landwalk_is_evasion():
-    assert "evasion_self" in _keys(
+    assert "evasion_self" in _hybrid_keys(
         "{1}{B}{B}: Veldrane gets -3/-0 and gains forestwalk until end of turn.",
         name="Veldrane of Sengir",
     )
-    assert "evasion_self" in _keys("This creature has islandwalk.")
+    assert "evasion_self" in _hybrid_keys("This creature has islandwalk.")
 
 
 # ── Xantcha / Haktos: forced-attack "attacks each combat if able" ──

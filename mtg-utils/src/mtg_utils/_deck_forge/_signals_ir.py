@@ -23,6 +23,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_TOP_REVEAL_RE,
     _COLOR_HOSER_RE,
     _DIRECT_KEYWORD_SIGNALS,
+    _EVASION_SELF_REGEX,
     _EVERGREEN_CK,
     _FLOOR_DETECTORS,
     _IMPULSE_TOP_PLAY_SWEEP_RE,
@@ -2165,6 +2166,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bcharge counter|\bexperience counter", re.IGNORECASE),
         "you",
     ),
+    # ADR-0027 — evasion_self BYTE-IDENTICAL kept WORD MIRROR (the SELF-evasion lane:
+    # "This creature can't be blocked" / unblockable / landwalk / the menace-family
+    # keyword words). phase v0.1.19 structures the self "can't be blocked" only as a
+    # generic `restriction` Effect (shared with stax/"can't block"/tax — too broad to
+    # key the lane off) and a mass CantBeBlockedBy as a `grant_keyword`(unblockable),
+    # neither a clean SELF-evasion arm, so the lane rides the EXACT deleted _HAND_FLOOR
+    # producer (_EVASION_SELF_REGEX) run FLAT over the reminder-stripped kept_oracle. No
+    # `[^.]*` arm, so flat == per-clause and the mirror set == the deleted regex's
+    # firing set EXACTLY (commander-legal, floor-disabled, by oracle_id: regex_only==0;
+    # scope 'you', HIGH). The +36 ir_only Shadow keyword carriers (CR 702.28) come from
+    # the SEPARATE _IR_KEYWORD_MAP['shadow'] route, not this mirror — genuine hard
+    # evasion the regex deliberately excluded (name-collision risk). CR 509.1b / 702.14.
+    ("evasion_self", _EVASION_SELF_REGEX, "you"),
 )
 
 # Cares-about floor lanes the IR path also runs. A `<mechanic>_matters` lane means

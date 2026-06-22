@@ -6141,6 +6141,23 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # evasion_self ← the byte-identical _IR_KEPT_DETECTORS WORD MIRROR of the deleted
+    # _HAND_FLOOR producer ("This creature can't be blocked" / unblockable / landwalk /
+    # the menace-family keyword words). phase v0.1.19 carries the self "can't be blocked"
+    # only as a generic `restriction` Effect (shared with stax/"can't block"/tax — too
+    # broad to key the lane off), so there's no clean structural arm — the mirror reads
+    # the reminder-stripped oracle_text off the record dict. Slither Blade is the
+    # canonical unconditional self-unblockable creature ("This creature can't be
+    # blocked."). A bare non-None IR routes the hybrid to the IR path; the regex path no
+    # longer emits the key (the _HAND_FLOOR producer is deleted). scope "you". ADR-0027.
+    "evasion_self": (
+        {
+            "name": "Slither Blade",
+            "type_line": "Creature — Snake Rogue",
+            "oracle_text": "This creature can't be blocked.",
+        },
+        _ir(),
+    ),
 }
 
 

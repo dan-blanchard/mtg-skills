@@ -124,14 +124,15 @@ def test_clone_still_fires():
 
 
 # #6 "attacks each combat if able" is a forced-attack requirement, not evasion.
+# ADR-0027: evasion_self migrated to the Card IR — assert via the hybrid path.
 def test_attacks_if_able_is_not_evasion():
     c = {"name": "X", "oracle_text": "This creature attacks each combat if able."}
-    assert "evasion_self" not in _keys(c)
+    assert "evasion_self" not in _keys_hybrid(c)
 
 
 def test_cant_be_blocked_is_evasion():
     c = {"name": "X", "oracle_text": "This creature can't be blocked."}
-    assert "evasion_self" in _keys(c)
+    assert "evasion_self" in _keys_hybrid(c)
 
 
 # #7 combat damage to a creature must be COMBAT damage (CR 510 / 120.2a).

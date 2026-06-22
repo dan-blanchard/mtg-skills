@@ -485,7 +485,10 @@ def test_horsemanship_opens_evasion_lane():
             "battlefield, you may shuffle Guan Yu into your library."
         ),
     }
-    assert ("evasion_self", "you") in _keys(guan_yu)
+    # ADR-0027: evasion_self migrated to the Card IR — assert via the hybrid path. The
+    # keyword word survives the reminder strip (parens removed), so the byte-identical
+    # kept WORD MIRROR (_EVASION_SELF_REGEX's "\bhorsemanship\b" arm) fires it.
+    assert ("evasion_self", "you") in _keys_hybrid(guan_yu)
 
 
 def test_menace_opens_evasion_lane():
@@ -493,13 +496,14 @@ def test_menace_opens_evasion_lane():
         "name": "Menacer",
         "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)",
     }
-    assert ("evasion_self", "you") in _keys(card)
+    # ADR-0027: hybrid path — the kept WORD MIRROR's "\bmenace\b" arm fires it.
+    assert ("evasion_self", "you") in _keys_hybrid(card)
 
 
 def test_plain_vigilance_creature_no_evasion_lane():
-    # Precision: a non-evasion keyword must not open the evasion lane.
+    # Precision: a non-evasion keyword must not open the evasion lane (hybrid path).
     card = {"name": "Watcher", "oracle_text": "Vigilance"}
-    assert ("evasion_self", "you") not in _keys(card)
+    assert ("evasion_self", "you") not in _keys_hybrid(card)
 
 
 # ── Zero-avenue commander recovery: themeless beaters, variable counters, global lords

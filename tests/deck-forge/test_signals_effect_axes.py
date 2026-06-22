@@ -38,7 +38,10 @@ CASES = [
     # structural arm + a byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror), so it no
     # longer fires on the regex path tested here — its IR path is asserted by
     # test_opponent_discard_migrated_off_regex_onto_ir below.
-    ("evasion_self", "you", "This creature can't be blocked."),
+    # ADR-0027: evasion_self migrated to the Card IR (a byte-identical kept WORD MIRROR
+    # of the deleted _HAND_FLOOR producer + the _IR_KEYWORD_MAP['shadow'] recall arm), so
+    # it no longer fires on the regex path tested here — its IR path is proven in
+    # test_migrated_keys and test_cant_be_blocked_is_evasion (hybrid).
     (
         "clone_matters",
         "you",
