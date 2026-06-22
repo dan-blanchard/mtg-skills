@@ -5885,6 +5885,28 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # arcane_matters ← the byte-identical `\barcane\b` kept WORD MIRROR in
+    # _IR_KEPT_DETECTORS for the Kamigawa Arcane / Splice-onto-Arcane / Spiritcraft
+    # archetype (CR 205.3k spell type, CR 702.47 Splice). phase v0.1.19 doesn't structure
+    # Arcane (a SPELL TYPE on Instants/Sorceries, not a creature subtype or keyword; the
+    # "Spirit or Arcane spell" trigger drops the Arcane qualifier), so there's no
+    # structural arm — the mirror reads the reminder-stripped oracle_text off the record
+    # dict. Tallowisp is the canonical Spiritcraft payoff ("Whenever you cast a Spirit or
+    # Arcane spell …"). A bare non-None IR routes the hybrid to the IR path; the regex
+    # path no longer emits the key (the _HAND_FLOOR producer is deleted). scope "you".
+    # ADR-0027.
+    "arcane_matters": (
+        {
+            "name": "Tallowisp",
+            "type_line": "Creature — Spirit",
+            "oracle_text": (
+                "Whenever you cast a Spirit or Arcane spell, you may search your "
+                "library for an Aura card with enchant creature, reveal it, put it "
+                "into your hand, then shuffle."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

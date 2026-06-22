@@ -1164,10 +1164,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # it from a byte-identical _IR_KEPT_DETECTORS word mirror; this _HAND_FLOOR producer
     # is deleted; the hand-written serve spec (signal_specs.py, X-/multi-target spells)
     # is independent of this regex and survives.
-    # Arcane tribal (The Unspeakable, the Kirins, Kodama — Kamigawa Spiritcraft): a
-    # commander that cares about ARCANE spells ("cast a Spirit or Arcane spell", "return
-    # target Arcane card") wants Arcane-subtype spells (CR 205.3k) + splice-onto-Arcane.
-    ("arcane_matters", re.compile(r"\barcane\b", re.IGNORECASE), "you"),
+    # ADR-0027: arcane_matters migrated to the Card IR via a BYTE-IDENTICAL kept WORD
+    # MIRROR (the `\barcane\b` row in _signals_ir._IR_KEPT_DETECTORS, scope 'you'). The
+    # Kamigawa Arcane / Splice-onto-Arcane / Spiritcraft archetype — "cast a Spirit or
+    # Arcane spell" (Tallowisp), "Splice onto Arcane" (the Kamigawa I/S spells); CR
+    # 205.3k spell type, CR 702.47 Splice. phase v0.1.19 doesn't structure Arcane (a
+    # SPELL TYPE on Instants/Sorceries, not a creature subtype or keyword), so the IR
+    # rides the EXACT deleted pattern over the reminder-stripped kept_oracle (no `[^.]*`
+    # span → flat == per-clause → byte-identical, both==92, regex_only==0, ir_only==0).
+    # This _HAND_FLOOR producer is deleted; the hand-written serve spec (signal_specs.py
+    # — splice-onto-arcane + serve_types ('arcane',)) is independent and survives. The
+    # deleted producer fed has_other_plan (HIGH, scope 'you'), but is NOT added to
+    # _VOLTRON_SILENCING_PLAN_KEYS — the file-swap leaked 0 voltron (all 92 Arcane
+    # bodies already carry another plan), so an entry would be dead over-silencing.
     # ADR-0027: enlist_matters migrated to the Card IR — detected from the Scryfall
     # `enlist` keyword (signals._IR_KEYWORD_MAP, a structured-field lookup). This
     # _HAND_FLOOR producer is deleted; the hand-written serve spec (signal_specs.py,

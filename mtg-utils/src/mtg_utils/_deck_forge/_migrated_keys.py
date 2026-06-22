@@ -4225,6 +4225,33 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # detector floor stays at 33. The serve spec stays hand-registered in
         # signal_specs.py. CR 401 / 701.20a.
         "cheat_from_top",
+        # ADR-0027 arcane_matters — the Kamigawa Arcane / Splice-onto-Arcane /
+        # Spiritcraft archetype (a commander caring about ARCANE spells: "cast a Spirit
+        # or Arcane spell" — Tallowisp; "Splice onto Arcane" — the Kamigawa I/S spells;
+        # CR 205.3k spell type, CR 702.47 Splice). phase v0.1.19 does NOT structure
+        # Arcane as a synergy subject — Arcane is a SPELL TYPE on Instants/Sorceries (CR
+        # 304.3 / 307.3), not a creature subtype or a structured keyword, and a "cast a
+        # Spirit or Arcane spell" trigger folds to a bare cast_spell event with the
+        # Arcane qualifier dropped. So the WHOLE lane is under-structured relative to
+        # the regex's word match: the migrated lane is the BYTE-IDENTICAL `\barcane\b`
+        # kept WORD MIRROR in _IR_KEPT_DETECTORS (scope 'you', run FLAT over the
+        # reminder-stripped kept_oracle — same input as the deleted _HAND_FLOOR
+        # producer). The producer's `\barcane\b` has no `[^.]*` cross-clause span, so
+        # flat-over-full-text == per-clause and the mirror set == the deleted regex's
+        # firing set EXACTLY. Commander-legal, floor-disabled, by oracle_id: both==92,
+        # regex_only==0, ir_only==0 (perfect parity); SCOPE PARITY (all 'you', '' HIGH).
+        # VOLTRON: the deleted producer fired HIGH-confidence scope 'you' and is NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS, so it fed has_other_plan. But it is NOT
+        # added to _VOLTRON_SILENCING_PLAN_KEYS: the FILE-SWAP showed 0 voltron leaked
+        # without an entry (every one of the 92 Arcane bodies — Spiritcraft Spirits with
+        # abilities, the Splice I/S spells, the Baku/Kami/Onna — already carries another
+        # high-confidence plan signal; none is a vanilla beater whose ONLY plan is the
+        # Arcane engine). Adding it would be dead over-silencing, so it stays out —
+        # matching the legend_rule_off / timing_control / keyword_soup precedent. NOT a
+        # SWEEP_DETECTORS row (a _HAND_FLOOR producer), so the detector floor stays at
+        # 33. The serve spec (signal_specs.py — splice-onto-arcane + serve_types
+        # ('arcane',)) is independent of this regex and survives. CR 205.3k / 702.47.
+        "arcane_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

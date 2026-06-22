@@ -529,7 +529,9 @@ def test_ability_strip_payoff_opens_on_strip_and_buff():
 def test_arcane_matters_opens_on_arcane_payoff():
     # The Unspeakable returns Arcane cards; the Kamigawa Kirins reward casting Arcane
     # spells. Either way the commander wants Arcane-subtype spells (CR 205.3k). Real
-    # oracle.
+    # oracle. ADR-0027: arcane_matters migrated to the Card IR via a byte-identical
+    # `\barcane\b` kept word mirror (phase doesn't structure Arcane — a SPELL TYPE on
+    # Instants/Sorceries), so it comes through the hybrid path, not pure regex.
     unspeakable = {
         "name": "The Unspeakable",
         "type_line": "Legendary Creature — Spirit",
@@ -541,7 +543,8 @@ def test_arcane_matters_opens_on_arcane_payoff():
             "you may return target Arcane card from your graveyard to your hand."
         ),
     }
-    assert ("arcane_matters", "you") in _ks(unspeakable)
+    assert ("arcane_matters", "you") in _ks_hybrid(unspeakable)
+    assert ("arcane_matters", "you") not in _ks(unspeakable)
     # A commander with no Arcane care does not open it.
     krenko = {
         "name": "Krenko, Mob Boss",
@@ -554,7 +557,7 @@ def test_arcane_matters_opens_on_arcane_payoff():
             "Goblins you control."
         ),
     }
-    assert "arcane_matters" not in _keys(krenko)
+    assert "arcane_matters" not in _keys_hybrid(krenko)
 
 
 def test_enlist_matters_opens_on_enlist():

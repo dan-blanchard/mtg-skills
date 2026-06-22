@@ -756,6 +756,19 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("coven_matters", re.compile(r"\bcoven\b", re.IGNORECASE), "you"),
     ("outlaw_matters", re.compile(r"\boutlaws?\b", re.IGNORECASE), "you"),
     ("lessons_matter", re.compile(r"\blessons?\b", re.IGNORECASE), "you"),
+    # ADR-0027 — arcane_matters BYTE-IDENTICAL kept WORD MIRROR (the Kamigawa Arcane /
+    # Splice-onto-Arcane / Spiritcraft archetype: a commander caring about ARCANE spells
+    # — "cast a Spirit or Arcane spell" / "Splice onto Arcane"; CR 205.3k spell type, CR
+    # 702.47 Splice). phase v0.1.19 doesn't structure Arcane as a synergy subject (it's
+    # a SPELL TYPE on Instants/Sorceries, CR 304.3/307.3 — not a creature subtype or
+    # structured keyword; a "Spirit or Arcane spell" trigger drops the Arcane
+    # qualifier), so the lane rides this EXACT deleted _HAND_FLOOR `\barcane\b` pattern
+    # run FLAT over the reminder-stripped kept_oracle. No `[^.]*` cross-clause span, so
+    # flat == per-clause and the mirror set == the deleted regex's firing set EXACTLY
+    # (commander-legal, floor-disabled, by oracle_id: both==92, regex_only==0,
+    # ir_only==0; all scope 'you', HIGH). FLOOR→KEPT: removed from _IR_FLOOR_LANES
+    # (floor-mirror-dep -> 0). CR 205.3k / 702.47.
+    ("arcane_matters", re.compile(r"\barcane\b", re.IGNORECASE), "you"),
     # ADR-0027 — land_sacrifice_matters BYTE-IDENTICAL kept WORD MIRROR (the land-
     # SACRIFICE archetype: a card paying an ongoing land-sac cost / drawing-growing when
     # lands hit the graveyard / offering a repeatable "Sacrifice a land:" outlet —
@@ -2063,7 +2076,14 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # grants / "commander damage" / "your commander costs less" refs phase leaves
         # textual). Moved floor->kept (floor-mirror-dep -> 0); SWEEP row deleted.
         # mechanic / keyword synergy
-        "arcane_matters",
+        # arcane_matters removed — ADR-0027 migrated it to the Card IR via a BYTE-
+        # IDENTICAL kept WORD MIRROR (the `\barcane\b` row in _IR_KEPT_DETECTORS, scope
+        # 'you', HIGH conf). phase v0.1.19 doesn't structure Arcane (a SPELL TYPE on
+        # Instants/Sorceries — CR 205.3k/304.3/307.3 — not a creature subtype or
+        # keyword; the "Spirit or Arcane spell" trigger drops the Arcane qualifier), so
+        # the lane rides the EXACT deleted _HAND_FLOOR pattern over the reminder-
+        # stripped kept_oracle. Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR
+        # row deleted. CR 205.3k / 702.47.
         # daynight_matters removed — ADR-0027 migrated it to the Card IR (TWO structural
         # arms: the daybound/nightbound Scryfall KEYWORD via _IR_KEYWORD_MAP for the 35
         # transforming creatures, plus the `day_night` EFFECT-category doer via
