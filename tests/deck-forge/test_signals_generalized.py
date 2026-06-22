@@ -3300,8 +3300,15 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
             "to their owners' hands."
         ),
     }
-    assert any(s.key == "color_hoser" for s in extract_signals(llawan))
-    assert any(s.key == "color_hoser" for s in extract_signals(dromar))
+    # ADR-0027: color_hoser is MIGRATED — served from the hybrid IR path (its
+    # bounce/restriction forms ride the byte-identical _COLOR_HOSER_RE kept mirror over
+    # kept_oracle, which an empty bare IR still runs), no longer from the regex path.
+    assert any(
+        s.key == "color_hoser" for s in extract_signals_hybrid(llawan, _bare_ir())
+    )
+    assert any(
+        s.key == "color_hoser" for s in extract_signals_hybrid(dromar, _bare_ir())
+    )
     # Over-fire guard: a plain color anthem (Bad Moon, "Black creatures get +1/+1") is
     # NOT a hoser — it doesn't punish/restrict/bounce a color.
     bad_moon = {
@@ -3309,11 +3316,15 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
         "type_line": "Enchantment",
         "oracle_text": "Black creatures get +1/+1.",
     }
-    assert not any(s.key == "color_hoser" for s in extract_signals(bad_moon))
+    assert not any(
+        s.key == "color_hoser" for s in extract_signals_hybrid(bad_moon, _bare_ir())
+    )
 
     # Serve = the color-change toolbox (Painter's Servant, Sleight of Mind), not a
     # protection-from-color trick or a mana fixer.
-    sig = next(s for s in extract_signals(llawan) if s.key == "color_hoser")
+    sig = next(
+        s for s in extract_signals_hybrid(llawan, _bare_ir()) if s.key == "color_hoser"
+    )
     sp = spec_for(sig)
     painters = {
         "name": "Painter's Servant",

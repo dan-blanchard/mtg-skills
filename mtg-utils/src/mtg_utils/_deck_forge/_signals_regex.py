@@ -264,7 +264,18 @@ _XSPELL_VETO_RE = re.compile(r"can'?t be cast|can'?t cast", re.IGNORECASE)
 
 
 _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
-    ("color_hoser", lambda c: _COLOR_HOSER_RE.search(c) is not None, "you"),
+    # ADR-0027: color_hoser (a color-HATE card — destroy/exile/counter/restrict/bounce
+    # keyed on a NAMED color, or a "non<color> creatures get -X/-X" anthem-debuff)
+    # migrated to the Card IR. The structural arm (destroy/exile/counter_spell + a
+    # HasColor subject) carries the +1 ir_only recall (Reign of Chaos — non-contiguous
+    # "destroy … target white creature"); the byte-identical _COLOR_HOSER_RE kept mirror
+    # over kept_oracle in extract_signals_ir covers the predicate-DROPPED / scattered-
+    # category tail phase can't structure (color-less counterspell subjects, NotColor
+    # pump-debuffs typed cat='pump', the bounce/restriction forms). This _DETECTORS row
+    # is deleted; the regex is BROADER than the byte-mirror (+1 ir_only), so the
+    # has_other_plan voltron silence is re-supplied by a byte-identical
+    # _COLOR_HOSER_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS, which would over-
+    # silence Reign of Chaos). The serve spec stays hand-registered. CR 105.2 / 613.1e.
     # ADR-0027 t2b4-C: type_change ("protection from <subtype>" — Gor Muldrak) migrated
     # to the Card IR (kept_detector). phase DROPS the protection ARGUMENT (the subtype),
     # and Gor Muldrak's own static is dropped entirely, so there is no structural form.
@@ -4887,6 +4898,16 @@ def extract_signals(
         # producers were floor Detectors over stripped clauses — a basic land's reminder
         # "({T}: Add {G}.)" never fired them). CR 106.4 / 605 / 903.10a.
         or _RAMP_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted color_hoser _DETECTORS producer (it fired
+        # HIGH-confidence forced scope 'you', feeding has_other_plan — a color-hate
+        # commander is a control/hatebears plan, no vanilla beater: Ascendant Evincar,
+        # Dromar, Llawan). The migrated IR arm is BROADER (+1 ir_only — Reign of Chaos),
+        # so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence that body's voltron tell;
+        # the EXACT _COLOR_HOSER_RE over the reminder-STRIPPED `text` (the deleted
+        # producer's per-clause input — flat==per-clause==66 on the commander-legal
+        # corpus, reminder-KEPT would over-fire on Balduvian Shaman) restores the old
+        # regex's exact silence set, so the file-swap shows voltron delta 0. CR 903.10a.
+        or _COLOR_HOSER_RE.search(text)
         # ADR-0027: re-silence the deleted artifacts_matter producers (the _HAND_FLOOR
         # oracle regex + the kept "if you control an artifact" SWEEP row, both HIGH-
         # confidence scope 'you', feeding has_other_plan — an artifact engine IS a plan,

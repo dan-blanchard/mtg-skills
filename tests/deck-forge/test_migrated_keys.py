@@ -3056,6 +3056,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
     # (a gain_control raw-recipient discriminator / a reanimate effect / a graveyard-
     # hate raw); the rest fire from the kept word mirror over the oracle text (empty
     # IR). Each card is real, full oracle_text + type_line.
+    "color_hoser": (
+        {
+            "name": "Dark Betrayal",
+            "type_line": "Instant",
+            "oracle_text": "Destroy target black creature.",
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="destroy",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            predicates=("HasColor:Black",),
+                        ),
+                        raw="Destroy target black creature.",
+                    ),
+                ),
+            )
+        ),
+    ),
     "donate_matters": (
         {
             "name": "Harmless Offering",

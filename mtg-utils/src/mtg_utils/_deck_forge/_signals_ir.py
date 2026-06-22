@@ -21,6 +21,7 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_TOP_ONTO_RE,
     _CHEAT_TOP_REVEAL_RE,
+    _COLOR_HOSER_RE,
     _DIRECT_KEYWORD_SIGNALS,
     _EVERGREEN_CK,
     _FLOOR_DETECTORS,
@@ -6568,12 +6569,20 @@ def extract_signals_ir(
             # cat='cheat_play'; Umbris's "cards opponents own in exile" → cat='pump').
             # The old permanent-exile arm here mis-fired the lane on Path-to-Exile-style
             # removal (scope='opp', permanent subject) and is removed.
-            # Batch 5 — color_hoser: destroy/exile/counter keyed on a SPECIFIC color
-            # ("destroy target blue permanent", "counter target red spell") — the
-            # Painter toolbox's payoff. Gate on a removal EFFECT context (not any color
-            # mention), so a color-tribal anthem ("red creatures get +1/+0") stays out.
-            # bounce is excluded: it also covers graveyard→hand recursion of YOUR own
-            # colored cards (Revive, Xiahou Dun), which is not hosing.
+            # color_hoser (ADR-0027 MIGRATED): destroy/exile/counter keyed on a
+            # SPECIFIC color ("destroy target blue permanent", "counter target red
+            # spell") — the Painter toolbox's payoff. Gate on a removal EFFECT context
+            # (not any color mention), so a color-tribal anthem ("red creatures get
+            # +1/+0") stays out. bounce is excluded: it also covers graveyard→hand
+            # recursion of YOUR own colored cards (Revive, Xiahou Dun), which is not
+            # hosing. This structural arm fires the genuine +1 ir_only recall (Reign of
+            # Chaos — "Destroy target Plains and target white creature", whose color
+            # word is non-contiguous to "destroy", so the regex's `destroy …{color}
+            # creature` never matched it). The predicate-DROPPED / scattered-category
+            # tail (phase loses the color on "counter target blue spell" →
+            # subject=None, types a NotColor anthem-debuff as cat='pump', and excludes
+            # bounce/restrict) rides the byte-identical _COLOR_HOSER_RE kept mirror over
+            # kept_oracle below. CR 105.2 / 613.1e.
             if cat in ("destroy", "exile", "counter_spell") and _hoses_a_color(
                 e.subject
             ):
@@ -7649,6 +7658,21 @@ def extract_signals_ir(
     # CR 120.1 / 115.4.
     if _DIRECT_DAMAGE_MIRROR.search(kept_oracle):
         add("direct_damage", "you", "", "")
+    # ADR-0027 — color_hoser byte-identical mirror (the EXACT deleted _DETECTORS
+    # producer `_COLOR_HOSER_RE`, scope 'you'). Recovers the predicate-DROPPED /
+    # scattered-category tail the structural arm (destroy/exile/counter + HasColor
+    # subject) above can't read: phase loses the color on "counter target blue spell"
+    # (subject=None), types the NotColor anthem-debuff ("nonblack creatures get -1/-1")
+    # as cat='pump', drops Liliana's-Defeat's HasColor:Black off the destroy subject,
+    # and the lane deliberately excludes the bounce/restriction forms (Hibernation
+    # "return all green permanents", Llawan "can't cast blue creature spells", Dromar's
+    # chosen-color mass bounce) that the regex DID cover. add() dedups vs the structural
+    # arm. The deleted producer ran per-clause over the reminder-stripped `text`;
+    # kept_oracle is byte-identical to that `text`, and flat-over-kept_oracle == the
+    # per-clause firing set byte-identically on the commander-legal corpus (regex_only
+    # == 0). CR 105.2 / 613.1e.
+    if _COLOR_HOSER_RE.search(kept_oracle):
+        add("color_hoser", "you", "", "")
     # ADR-0027 — symmetric_damage_each byte-identical mirror (the each-PLAYER subset
     # of the deleted SWEEP regex, scope 'each'). Recovers the genuine each-player tail
     # phase drops inside a coin-flip branch (Volatile Rig, Winter Sky); the deleted

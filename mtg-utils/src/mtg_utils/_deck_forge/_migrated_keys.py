@@ -622,11 +622,23 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # non-target key firing counts (the removed opponent_exile permanent-exile arm
         # only dropped
         # that lane's mis-fires; exile_removal — the sibling on the same arm — is
-        # unchanged). color_hoser was the 12th batch key — SKIPPED: 18 genuine gaps
-        # (colored counterspells with subject=None, NotColor anthems on cat='pump',
-        # destroy-target-color with dropped predicates, mass-bounce/restriction
-        # categories the bind doesn't cover) need a deeper IR-bind widening, not a clean
-        # over-fire migration. See ADR-0027.
+        # unchanged).
+        # color_hoser (ADR-0027 MIGRATED) ← the destroy/exile/counter_spell + HasColor-
+        # subject structural arm (which carries the +1 ir_only recall, Reign of Chaos —
+        # a non-contiguous "destroy … target white creature" the regex's `destroy …
+        # {color} creature` could never match) PLUS the byte-identical _COLOR_HOSER_RE
+        # kept mirror over kept_oracle. The earlier batch SKIPPED it for a PURE-
+        # structural migration (the 18 gaps — color-less counterspell subjects, NotColor
+        # pump-debuffs typed cat='pump', destroy-target-color with phase-dropped
+        # HasColor, the bounce/restriction forms — would need a _card_ir widening). The
+        # SIGNALS-ONLY kept-mirror (the established predicate-DROPPED tail pattern)
+        # recovers all 66 regex hits with regex_only==0: byte-mirror parity over the
+        # commander-legal corpus (both=66, ir_only=1 genuine, regex_only=0). The regex
+        # is BROADER than the byte-mirror (+1 ir_only), so has_other_plan is re-supplied
+        # by a byte-identical mirror (the EXACT _COLOR_HOSER_RE over the reminder-
+        # stripped `text`), NOT _VOLTRON_SILENCING_PLAN_KEYS (which would over-silence
+        # Reign of Chaos). CR 105.2 (colors) / 613.1e (layer 5). See ADR-0027.
+        "color_hoser",
         "donate_matters",
         "minus_counters_matter",
         "team_evasion_grant",
