@@ -70,6 +70,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    DIES_RECURSION_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
     EXILE_MATTERS_REGEX,
@@ -742,6 +743,30 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the extra_combats precedent. add() dedups the 42 the structural arm already
     # supplies. CR 120.2.
     ("group_hug_draw", re.compile(GROUP_HUG_DRAW_REGEX, re.IGNORECASE), "each"),
+    # ADR-0027 — dies_recursion BYTE-IDENTICAL kept WORD MIRROR. SELF-recursion-on-
+    # death ("when this dies, return it to the battlefield/your hand" — Bloodghast /
+    # Reassembling Skeleton / Gravecrawler / Feign Death style; CR 700.4 dies = put into
+    # a graveyard from the battlefield, CR 603.6c leaves-the-battlefield trigger). The
+    # BROAD superset of undying_persist_matters: undying (CR 702.93a, +1/+1) and persist
+    # (CR 702.79a, -1/-1) ARE dies-recursion that also place a counter. phase v0.1.19
+    # carries NO structural "returns itself on death" form — the dies trigger flattens
+    # to event='other' with the return buried in the effect raw — so the lane stays a
+    # word mirror, NOT a structural arm. The undying/persist keyword BEARERS already
+    # open the lane via _IR_KEYWORD_MAP (they're the floor-disabled "both" set); this
+    # DIES_RECURSION_REGEX (the EXACT deleted SWEEP regex) run FLAT over the reminder-
+    # stripped kept_oracle recovers the bare dies-return GRANTS (Feign Death /
+    # Supernatural Stamina) and the keyword-LESS GRANTERS (Mikaeus / Cauldron of Souls /
+    # Endling, whose "have undying" / "gains persist" survives reminder-stripping as the
+    # bare word). The `[^.]*` arms never cross a clause boundary (the clause splitter
+    # cuts on [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n` lands inside a span on the
+    # corpus), so flat == per-clause: floor-disabled IR-vs-regex residual, commander-
+    # legal, by oracle_id, is both==98 / ir_only==0 / regex_only==0. add() dedups the
+    # keyword bearers the _IR_KEYWORD_MAP path already supplies. PRESERVED over-fire
+    # (byte-identical, not introduced): "Undying Flames" (keywords=['Epic'], no undying
+    # mechanic) self-matches `\bundying\b` on its CARD NAME embedded in its oracle
+    # text — the exact artifact the deleted producer carried, mirrored unchanged for
+    # no-flood parity. CR 700.4 / 603.6c.
+    ("dies_recursion", re.compile(DIES_RECURSION_REGEX, re.IGNORECASE), "you"),
     # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
     # no unifying "bending ability" rule exists, no card references the set), so
     # each gets its own lane rather than one conflated bending_matters: airbend

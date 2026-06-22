@@ -27,6 +27,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_PREVENTION_REGEX,
     DEBUFF_SWEEP_REGEX,
+    DIES_RECURSION_REGEX,
     FLASH_GRANT_REGEX,
     FREE_CAST_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
@@ -735,9 +736,10 @@ _FLICKER_EXTRA = SubAvenue(
 # re-fire an ETB by making the creature leave and return, so an ETB-reuse / LTB
 # commander wants BOTH — but as SEPARATE avenues, never lumped into the flicker serve.
 # Mirrors the dies_recursion lane (bare dies-return grants + undying/persist).
-_DIES_RECURSION_ORACLE = next(
-    d["regex"] for d in SWEEP_DETECTORS if d["key"] == "dies_recursion"
-)
+# ADR-0027: dies_recursion migrated to the Card IR; its SWEEP_DETECTORS row is deleted,
+# so reuse the shared DIES_RECURSION_REGEX constant (the serve keeps the old regex,
+# kept in lockstep with the IR kept-mirror so serve and detection never drift).
+_DIES_RECURSION_ORACLE = DIES_RECURSION_REGEX
 _DIES_RECURSION_EXTRA = SubAvenue(
     "Dies-recursion",
     "creatures that come back when they die — re-fire enter triggers via death "
@@ -2440,6 +2442,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["group_hug_draw"],
         {"oracle": GROUP_HUG_DRAW_REGEX},
         GROUP_HUG_DRAW_REGEX,
+    ),
+    # ADR-0027: dies_recursion's SWEEP_DETECTORS row is deleted (detection moved to the
+    # Card IR — the undying/persist keyword bearers via _IR_KEYWORD_MAP plus a
+    # byte-identical DIES_RECURSION_REGEX kept word mirror for the bare dies-return
+    # grants / keyword-less granters). The SERVE pool stays oracle-defined, so
+    # hand-register the spec the sweep auto-register loop used to build, reusing the
+    # deleted regex (now the shared DIES_RECURSION_REGEX constant) so the served
+    # dies-recursion pool never drifts. CR 700.4 / 603.6c.
+    ("dies_recursion", "you"): _spec(
+        *SWEEP_LABELS["dies_recursion"],
+        {"oracle": DIES_RECURSION_REGEX},
+        DIES_RECURSION_REGEX,
     ),
     # ADR-0027 (q2-D3): noncreature_cast_punish's SWEEP_DETECTORS row is deleted
     # (detection moved to the Card IR — a cast_spell trigger scope=='opp' over a

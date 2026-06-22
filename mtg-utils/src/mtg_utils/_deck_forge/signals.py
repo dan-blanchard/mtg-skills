@@ -624,6 +624,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # another plan signal, e.g. legends_matter / self-copy). Adding them would be
         # dead over-silencing, so they stay out (matching the keyword_soup /
         # land_creatures_matter precedent above).
+        # ADR-0027: dies_recursion fired high-confidence (scope 'you') in the regex path
+        # via the SWEEP_DETECTORS producer and so counted toward has_other_plan (it is
+        # NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
+        # commander-damage voltron tell on a self-recurring-on-death creature commander
+        # that is NOT a vanilla beater (a Bloodghast/Gravecrawler-style recurring body).
+        # Its regex producer is deleted, so the hybrid re-silences from the IR re-supply
+        # — the undying/persist keyword bearers (via _IR_KEYWORD_MAP) UNION a kept WORD
+        # MIRROR (DIES_RECURSION_REGEX) reading the SAME reminder-stripped joined oracle
+        # as the deleted regex, so it is BYTE-IDENTICAL (commander-legal: IR == regex ==
+        # 98, 0 broadening, 0 ir_only), matching the land_sacrifice_matters / extra_
+        # combats kept-mirror precedent. A NO-FLOOD voltron entry. CR 700.4 / 903.10a.
+        "dies_recursion",
     }
 )
 

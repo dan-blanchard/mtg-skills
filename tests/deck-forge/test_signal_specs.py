@@ -7218,23 +7218,26 @@ def test_dies_recursion_is_superset_of_undying_persist():
     assert _lane_covers(kitchen_finks, up) is True
     assert _lane_covers(supernatural_stamina, up) is False
     # And undying/persist cards OPEN both lanes (they are members of the superset).
-    # ADR-0027: dies_recursion stays on regex; undying_persist_matters migrated to the
-    # Card IR (the intrinsic Undying bearer fires from the Scryfall keyword array), so
-    # the regex emits only dies_recursion now and the hybrid adds undying_persist.
+    # ADR-0027: BOTH dies_recursion and undying_persist_matters migrated to the Card IR,
+    # so the pure regex path emits NEITHER (the SWEEP_DETECTORS dies_recursion row and
+    # the undying/persist keyword route are deleted); the hybrid re-supplies both — the
+    # intrinsic Undying bearer fires undying_persist_matters from the Scryfall keyword
+    # array, and dies_recursion fires from _IR_KEYWORD_MAP['undying'] PLUS the
+    # DIES_RECURSION_REGEX kept word mirror.
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
     from mtg_utils.card_ir import Card, Face
 
     gk = {s.key for s in extract_signals(geralfs)}
-    assert "dies_recursion" in gk
+    assert "dies_recursion" not in gk
     assert "undying_persist_matters" not in gk
     geralfs_ir = Card(
         oracle_id="x",
         name="Geralf's Messenger",
         faces=(Face(name="Geralf's Messenger", keywords=("Undying",)),),
     )
-    assert "undying_persist_matters" in {
-        s.key for s in extract_signals_hybrid(geralfs, geralfs_ir)
-    }
+    hybrid_keys = {s.key for s in extract_signals_hybrid(geralfs, geralfs_ir)}
+    assert "dies_recursion" in hybrid_keys
+    assert "undying_persist_matters" in hybrid_keys
 
 
 def test_creature_cast_and_etb_serve_self_bounce_recast_engines():

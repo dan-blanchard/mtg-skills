@@ -4980,6 +4980,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027. dies_recursion ← a byte-identical _IR_KEPT_DETECTORS mirror of the
+    # deleted SWEEP regex ("when this dies, return it to the battlefield" + the
+    # undying/persist words). phase v0.1.19 carries no structural "returns itself on
+    # death" form (the dies trigger flattens to event='other' with the return buried in
+    # the effect raw), so the bare dies-return cards ride the kept mirror over the
+    # card's oracle_text; the paired IR is vanilla — the mirror reads the record, not
+    # the IR structure (the undying/persist keyword BEARERS take the separate
+    # _IR_KEYWORD_MAP path). Bronzehide Lion's intrinsic "When this creature dies,
+    # return it to the battlefield" is the bare dies-return form. CR 700.4 / 603.6c.
+    "dies_recursion": (
+        {
+            "name": "Bronzehide Lion",
+            "type_line": "Legendary Creature — Cat",
+            "oracle_text": (
+                "{G}{W}: This creature gains indestructible until end of turn.\n"
+                "When this creature dies, return it to the battlefield. It's an "
+                'Aura enchantment with enchant creature you control and "{G}{W}: '
+                'Enchanted creature gains indestructible until end of turn," and '
+                "it loses all other abilities."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 (q2-D3). noncreature_cast_punish ← the OPPONENT-punisher half is a
     # cast_spell trigger scope=='opp' over a NotType:Creature subject. Kambal.
     "noncreature_cast_punish": (

@@ -61,8 +61,11 @@ def test_sweep_detectors_loaded():
     # then 30→29 as damage_prevention's row was deleted (ADR-0027 — migrated to the broad
     # `damage_prevention` effect-category arm + a byte-identical DAMAGE_PREVENTION_REGEX
     # kept mirror in _signals_ir for the 88 fogs / Circle-of-Protection / Aura-Equipment
-    # wards phase's effect category doesn't structure).
-    assert len(SWEEP_DETECTORS) >= 29
+    # wards phase's effect category doesn't structure), then 29→28 as dies_recursion's
+    # row was deleted (ADR-0027 — migrated to a byte-identical DIES_RECURSION_REGEX kept
+    # word mirror in signals._IR_KEPT_DETECTORS; the undying/persist keyword bearers
+    # already ride _IR_KEYWORD_MAP).
+    assert len(SWEEP_DETECTORS) >= 28
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

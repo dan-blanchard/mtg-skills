@@ -1378,6 +1378,34 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # voltron tell EXACTLY (NO-FLOOD: voltron delta 0). SWEEP_DETECTORS row deleted;
         # serve hand-registered. CR 702.8.
         "flash_grant",
+        # ADR-0027 — dies_recursion: the SELF-recursion-on-death lane ("when this dies,
+        # return it to the battlefield/your hand" — Bloodghast / Reassembling Skeleton /
+        # Gravecrawler / Feign Death style; undying/persist-adjacent; CR 700.4 dies =
+        # put into a graveyard from the battlefield, CR 603.6c leaves-the-battlefield
+        # trigger). The BROAD superset of undying_persist_matters: undying (CR 702.93a,
+        # +1/+1) and persist (CR 702.79a, -1/-1) ARE dies-recursion that also place a
+        # counter. The undying/persist keyword BEARERS already open the lane via the IR
+        # keyword map (_IR_KEYWORD_MAP['undying'/'persist'] — the floor-disabled "both"
+        # set, 49 cards). phase v0.1.19 carries NO structural "returns itself on death"
+        # form (the dies trigger flattens to event='other' with the return buried in the
+        # effect raw), so the bare dies-return GRANTS (Feign Death / Supernatural
+        # Stamina) and keyword-LESS GRANTERS (Mikaeus / Cauldron of Souls / Endling)
+        # ride the FULL deleted SWEEP regex kept BYTE-IDENTICALLY as an _IR_KEPT mirror
+        # (DIES_RECURSION_REGEX, scope 'you'). The `[^.]*` arms never cross a clause
+        # boundary, so flat-over-kept_oracle == per-clause: floor-disabled IR-vs-regex
+        # residual, commander-legal, by oracle_id, is both==98 / ir_only==0 / regex_only
+        # ==0. NOT an _IR_FLOOR_LANE (floor-mirror-dep == 0). The producer fired HIGH-
+        # confidence scope 'you' and fed has_other_plan (a SELF-recurring beater is a
+        # real plan — Bloodghast, a recurring aristocrats sac body, is no vanilla
+        # voltron body), so dies_recursion is added to _VOLTRON_SILENCING_PLAN_KEYS —
+        # the IR re-supply is byte-identical, so the hybrid re-silences the commander-
+        # damage voltron tell EXACTLY (NO-FLOOD: voltron delta 0). PRESERVED over-fire
+        # (byte-identical, not introduced): "Undying Flames" (keywords=['Epic'], no
+        # undying mechanic) self-matches `\bundying\b` on its CARD NAME embedded in its
+        # oracle text — the exact regex artifact the deleted producer carried, mirrored
+        # unchanged for parity. SWEEP_DETECTORS row deleted; serve reuses the pinned
+        # constant. CR 700.4 / 603.6c.
+        "dies_recursion",
         # ADR-0027 β — impulse_top_play: the structural arm (a NON-static cast_from_zone
         # Effect carrying the recovered 'from:library' zone) plus a per-clause
         # _IMPULSE_TOP_PLAY_SWEEP_RE mirror (the EXACT deleted SWEEP regex). The

@@ -50,6 +50,18 @@ TARGET_PLAYER_DRAWS_REGEX = "target player draws a card|target opponent draws"
 # so signal_specs hand-registers the serve pool reusing it — keeping serve and the
 # (now-deleted) detector from drifting.
 GROUP_HUG_DRAW_REGEX = "each player (?:may )?draws?\\b|each player who drew"
+# ADR-0027 — dies_recursion migrated to the Card IR (SELF-recursion-on-death; CR 700.4
+# / 603.6c). Its SWEEP_DETECTORS row is deleted; detection moved to a BYTE-IDENTICAL
+# kept WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope 'you') — phase
+# v0.1.19 carries no structural "returns itself on death" form (the dies trigger
+# flattens to event='other' with the return buried in the effect raw). The undying /
+# persist keyword BEARERS already open the lane via _IR_KEYWORD_MAP; this mirror recovers
+# the bare dies-return grants (Feign Death / Supernatural Stamina) and the keyword-LESS
+# GRANTERS (Mikaeus / Cauldron of Souls / Endling). This mined regex survives as a shared
+# constant so signal_specs hand-registers the serve pool reusing it — keeping serve and
+# the (now-deleted) detector from drifting. See the deleted-row comment below for the
+# full residual / over-fire adjudication.
+DIES_RECURSION_REGEX = "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield|\\b(?:undying|persist)\\b"
 # ADR-0027 — flash_grant migrated to the Card IR. The GRANT-to-OTHERS structural form
 # binds in extract_signals_ir (a cast_with_keyword{flash} static — "cast <a class of>
 # spells as though they had flash"; Vedalken Orrery, Leyline of Anticipation, Teferi,
@@ -1878,18 +1890,31 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "discard_matters",
         "regex": "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard",
     },
-    {
-        # dies_recursion is the BROAD "creatures recur when they die" category — with
-        # OR without counters. It is the SUPERSET of undying_persist_matters: undying
-        # (CR 702.93a, +1/+1) and persist (CR 702.79a, -1/-1) ARE dies-recursion that
-        # also place a counter, so the keywords are members here too; bare dies-return
-        # grants (Feign Death / Supernatural Stamina) are dies_recursion only. The
-        # keyword word survives reminder-text stripping (same as undying_persist_matters).
-        "key": "dies_recursion",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield|\\b(?:undying|persist)\\b",
-    },
+    # ADR-0027 — dies_recursion migrated to the Card IR. Its SWEEP_DETECTORS row is
+    # deleted; detection moves to a BYTE-IDENTICAL kept WORD MIRROR (this exact regex
+    # in signals._IR_KEPT_DETECTORS, scope 'you'). dies_recursion is the BROAD
+    # "creatures recur when they die" SELF-recursion-on-death category (CR 700.4 dies
+    # = put into a graveyard from the battlefield; CR 603.6c leaves-the-battlefield
+    # trigger) — the SUPERSET of undying_persist_matters: undying (CR 702.93a, +1/+1)
+    # and persist (CR 702.79a, -1/-1) ARE dies-recursion that also place a counter, so
+    # the keyword bearers are members too (the IR keyword map already opens them via
+    # `undying`/`persist` in _IR_KEYWORD_MAP); bare dies-return grants (Feign Death /
+    # Supernatural Stamina) and the keyword-LESS GRANTERS (Mikaeus / Cauldron of Souls
+    # / Endling, whose "have undying" / "gains persist" survives reminder-stripping as
+    # the bare word) are dies_recursion only and ride this regex. phase v0.1.19 doesn't
+    # carry a structural "returns itself on death" form (the dies trigger flattens to
+    # event='other' with the return buried in the effect raw), so the lane stays a
+    # word mirror, NOT a structural arm. Floor-disabled IR-vs-regex residual
+    # (commander-legal, by oracle_id): both==98, ir_only==0, regex_only==0 once the
+    # mirror is added (flat-over-kept_oracle == per-clause: the `[^.]*` arms never
+    # cross a clause boundary — 0 over-fire, 0 miss, verified on the corpus). This
+    # mined regex survives as the shared constant DIES_RECURSION_REGEX (pinned with the
+    # other migrated-key regexes near the top of this module) so signal_specs hand-
+    # registers the serve pool reusing it — keeping serve and the (now-deleted) detector
+    # from drifting. PRESERVED over-fire (byte-identical, not introduced): "Undying
+    # Flames" (keywords=['Epic'], no undying mechanic) self-matches `\bundying\b` on its
+    # CARD NAME embedded in its oracle text — the exact regex artifact the deleted
+    # producer carried, mirrored unchanged for no-flood parity.
     # ADR-0027: devour_matters' oracle-regex SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the Scryfall `devour` keyword via
     # _IR_KEYWORD_MAP + phase's `devour` effect category, fanned via the
