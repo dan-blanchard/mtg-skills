@@ -1227,6 +1227,19 @@ COUNTER_DOUBLING_REGEX = (
     r"|one or more counters? would be put on"
     r"|(?:put|placed?) (?:twice that many|that many plus (?:one|\d+))[^.]*counters?"
 )
+# ADR-0027 — void_warp_matters migrated to the Card IR. Its SWEEP_DETECTORS row is
+# deleted; detection moves to a BYTE-IDENTICAL kept WORD MIRROR (this exact regex in
+# signals._IR_KEPT_DETECTORS, scope 'you'). Void (CR 207.2c ability word) and Warp (the
+# Edge of Eternities alt-cast keyword) are recent mechanics phase v0.1.19 carries NO
+# usable structural form for: the baked sidecar surfaces `Void` as a keyword on ZERO
+# cards (it's an ability word) and DROPS the `Warp` keyword on 2 genuine warp cards
+# (Timeline Culler folds it into a `cast_from_zone` Effect keeping only Haste; Tannuk —
+# a warp GRANTER — has empty keywords), so a structural keyword arm would under-fire by
+# 14+2 of the 49. This mined regex survives as a shared constant so signal_specs
+# hand-registers the serve pool reusing it AND the kept mirror reuses it — serve /
+# mirror / (now-deleted) detector never drift. SWEEP_LABELS still carries the human
+# label. CR 207.2c (Void ability word) / 702.185 (Warp).
+VOID_WARP_MATTERS_REGEX = "void —|warp \\{|warp cost|warp—|for its warp cost|using its warp ability|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp"
 
 SWEEP_DETECTORS: tuple[dict, ...] = (
     # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-
@@ -2033,12 +2046,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # registered in signal_specs reusing the deleted regex (pinned STATION_MATTERS_REGEX
     # above). The 44 producers are genuine Spacecraft/Planet bodies + Spacecraft-payoffs
     # (Focus Fire, Embrace Oblivion, Loading Zone, Drill Too Deep) — no over-fire.
-    {
-        "key": "void_warp_matters",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "void —|warp \\{|warp cost|warp—|for its warp cost|using its warp ability|cast (?:a |this )?(?:spell|card)[^.]*for its warp|target exiled card with warp",
-    },
+    # void_warp_matters removed — ADR-0027 migrated it to the Card IR via a BYTE-
+    # IDENTICAL kept WORD MIRROR (VOID_WARP_MATTERS_REGEX, pinned above, in
+    # signals._IR_KEPT_DETECTORS, scope 'you'). phase v0.1.19 carries no usable
+    # structural form for Void (CR 207.2c ability word — no rules meaning, 0 sidecar
+    # keywords) or Warp (CR 702.185 — the baked sidecar drops the Warp keyword on 2
+    # genuine warp cards), so a keyword arm would under-fire. The mirror reproduces the
+    # deleted producer EXACTLY (commander-legal, floor-disabled, by oracle_id: both==49,
+    # ir_only==0, regex_only==0; flat-over-kept == per-clause, 0 mismatch). SWEEP_LABELS
+    # keeps the human label; serve is hand-registered in signal_specs reusing the regex.
     # Named counters are NOT interchangeable (CR 122.1: only same-name counters are),
     # so a rad payoff wants nothing from an oil/ki/shield deck. The old single lane
     # served every branch together — split into the populous, mechanically-distinct

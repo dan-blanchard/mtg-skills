@@ -79,8 +79,11 @@ def test_sweep_detectors_loaded():
     # place_counter/hascounters counter_kind=='shield' structural arm via
     # _COUNTER_KIND_KEYS UNION a byte-identical _SHIELD_COUNTER_MATTERS_MIRROR kept word
     # mirror in _signals_ir for the 3 cards phase folds the shield placement into a
-    # parent effect; CR 122.1c).
-    assert len(SWEEP_DETECTORS) >= 24
+    # parent effect; CR 122.1c), then 24→23 as void_warp_matters's row was deleted
+    # (ADR-0027 — migrated to a byte-identical VOID_WARP_MATTERS_REGEX kept word mirror in
+    # signals._IR_KEPT_DETECTORS; Void is a CR 207.2c ability word and the sidecar drops
+    # the CR 702.185 Warp keyword on 2 genuine warp cards, so no clean structural arm).
+    assert len(SWEEP_DETECTORS) >= 23
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

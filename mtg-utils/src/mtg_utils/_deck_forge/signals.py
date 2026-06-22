@@ -708,6 +708,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # matching the oil/ki counter / named_counter_misc kept-mirror precedent. A
         # NO-FLOOD voltron entry (voltron 3010→3010). CR 122.1c / 903.10a.
         "shield_counter_matters",
+        # ADR-0027: void_warp_matters fired high-confidence (forced scope 'you') in the
+        # regex path via the SWEEP producer and so counted toward has_other_plan (it is
+        # NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious
+        # commander-damage voltron tell on a Void/Warp creature commander that is NOT a
+        # vanilla beater (Alpharael, Stonechosen — a Void attack-trigger life-drainer).
+        # Its regex producer is deleted, so the hybrid re-silences from the IR re-supply
+        # — a kept WORD MIRROR (VOID_WARP_MATTERS_REGEX) reading the SAME reminder-
+        # stripped joined oracle as the deleted regex, so it is BYTE-IDENTICAL
+        # (commander-legal: IR == regex == 49, 0 broadening, 0 ir_only), matching the
+        # theft_matters / land_sacrifice_matters kept-mirror precedent. A NO-FLOOD
+        # voltron entry. CR 207.2c / 702.185 / 903.10a.
+        "void_warp_matters",
     }
 )
 

@@ -50,6 +50,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
+    VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import (
     card_pt_int,
@@ -3111,6 +3112,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         + _OPP_LIBRARY_THEFT_ORACLE
         + r"|"
         + _STEAL_CAST_ORACLE,
+    ),
+    # ADR-0027: void_warp_matters migrated to the Card IR (its SWEEP_DETECTORS row is
+    # deleted, so the sweep auto-register loop no longer builds this spec). The serve
+    # pool stays oracle-defined, so it reuses the shared VOID_WARP_MATTERS_REGEX
+    # constant (the EXACT deleted detector regex) — serve / kept mirror never drift.
+    ("void_warp_matters", "you"): _spec(
+        *SWEEP_LABELS["void_warp_matters"],
+        {"oracle": VOID_WARP_MATTERS_REGEX},
+        VOID_WARP_MATTERS_REGEX,
     ),
     # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
     # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct

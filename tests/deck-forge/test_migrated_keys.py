@@ -6320,6 +6320,32 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # void_warp_matters ← the byte-identical VOID_WARP_MATTERS_REGEX kept WORD MIRROR in
+    # _IR_KEPT_DETECTORS for the Edge of Eternities Void/Warp build-around (the Void
+    # ability-word payoffs keying off "a spell was warped this turn", the Warp keyword
+    # alt-cast bearers, the warp granters/payoffs; CR 207.2c / 702.185). phase v0.1.19
+    # carries no usable structural form — Void is an ability word (0 sidecar keywords)
+    # and the sidecar drops the Warp keyword on some bearers — so there's no structural
+    # arm; the mirror reads the reminder-stripped oracle_text off the record dict.
+    # Starfield Vocalist's "Warp {1}{U}" line survives reminder-stripping as the bare
+    # "Warp {" the regex anchors on. A bare non-None IR routes the hybrid to the IR path;
+    # the regex path no longer emits the key (the SWEEP_DETECTORS row is deleted). scope
+    # "you". ADR-0027.
+    "void_warp_matters": (
+        {
+            "name": "Starfield Vocalist",
+            "type_line": "Creature — Human Bard",
+            "oracle_text": (
+                "If a permanent entering the battlefield causes a triggered ability "
+                "of a permanent you control to trigger, that ability triggers an "
+                "additional time.\n"
+                "Warp {1}{U} (You may cast this card from your hand for its warp cost. "
+                "Exile this creature at the beginning of the next end step, then you "
+                "may cast it from exile on a later turn.)"
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

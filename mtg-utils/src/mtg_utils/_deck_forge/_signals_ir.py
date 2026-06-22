@@ -102,6 +102,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
+    VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import get_oracle_text, is_creature
 from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
@@ -965,6 +966,34 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "theft_matters",
         re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE),
         "opponents",
+    ),
+    # ADR-0027 — void_warp_matters BYTE-IDENTICAL kept WORD MIRROR (the Edge of
+    # Eternities Void/Warp build-around: the Void ability-word payoffs that check "a
+    # nonland permanent left the battlefield this turn or a spell was warped this turn"
+    # (Alpharael, Susurian Voidborn, Starbreach Whale — CR 207.2c), the Warp keyword
+    # alt-cast bearers ("Warp {1}{U}" — Starfield Vocalist; CR 702.185a), the warp-from-
+    # graveyard variant (Timeline Culler — "using its warp ability"), the warp GRANTERS
+    # (Tannuk — "have warp {2}{R}"), and the warp payoffs ("cast for its warp cost" Full
+    # Bore, "target exiled card with warp" Blade of the Swarm; CR 702.185b/c). phase
+    # v0.1.19 carries NO usable structural form: the baked sidecar surfaces `Void` as a
+    # keyword on ZERO commander-legal cards (it's an ability word, no rules meaning) and
+    # DROPS the `Warp` keyword on 2 of the 33 warp-text cards (Timeline Culler keeps
+    # only Haste; Tannuk — a warp granter — has empty keywords), so a keyword arm would
+    # under-fire by the 14 Void + 2 dropped Warp cards. This VOID_WARP_MATTERS_REGEX
+    # (the EXACT deleted SWEEP pattern) run FLAT over the reminder-stripped kept_oracle
+    # reproduces the deleted per-clause producer BYTE-IDENTICALLY (the one `[^.]*` arm —
+    # "cast a/this spell/card [^.]* for its warp" — never crosses a clause boundary:
+    # flat == per-clause == 49, floor-disabled residual both==49 / regex_only==0 /
+    # ir_only==0; all scope 'you', HIGH). The deleted producer fired HIGH (scope 'you',
+    # not generic/voltron-compat), so it fed has_other_plan; because the IR re-supply IS
+    # this byte-identical mirror, the hybrid re-silences voltron via
+    # _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no broadening, no over-silence —
+    # matching the theft_matters / land_sacrifice_matters kept-mirror precedent.
+    # CR 207.2c (Void) / 702.185 (Warp).
+    (
+        "void_warp_matters",
+        re.compile(VOID_WARP_MATTERS_REGEX, re.IGNORECASE),
+        "you",
     ),
     # ADR-0027 — cast_from_exile BYTE-IDENTICAL kept WORD MIRROR (the CAST/PLAY-FROM-
     # EXILE build-around: payoffs and enablers that cast or play cards FROM EXILE —
@@ -2492,7 +2521,12 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # stripped kept_oracle (both==44, regex_only==0, ir_only==0). Moved floor->kept
         # (floor-mirror-dep -> 0); its SWEEP_DETECTORS row is deleted (serve hand-
         # registered).
-        "void_warp_matters",
+        # void_warp_matters removed — ADR-0027 migrated it to the Card IR via a
+        # byte-identical VOID_WARP_MATTERS_REGEX kept word mirror in _IR_KEPT_DETECTORS
+        # (scope 'you'); Void is a CR 207.2c ability word (0 sidecar keywords) and the
+        # baked sidecar drops the CR 702.185 Warp keyword on 2 genuine warp cards, so no
+        # clean structural arm exists. Moved floor->kept (floor-mirror-dep -> 0); its
+        # SWEEP_DETECTORS row is deleted.
         # speed_matters removed — ADR-0027 migrated it to the Card IR (phase's `speed`
         # doer + a "start your engines|max speed|your speed" kept word mirror; phase
         # v0.1.19 doesn't structure the CR 702.178/702.179 Speed designation). Moved

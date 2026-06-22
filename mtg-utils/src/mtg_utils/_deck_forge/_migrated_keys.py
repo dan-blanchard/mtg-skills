@@ -4835,6 +4835,51 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _EVASION_SELF_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS) restores the
         # voltron silence. Serve spec survives. CR 509.1b / 702.14 / 702.28.
         "evasion_self",
+        # ADR-0027 — void_warp_matters (the Edge of Eternities Void/Warp build-around:
+        # the Void ability-word payoffs keying off "a spell was warped this turn" / "a
+        # nonland permanent left the battlefield this turn" — Alpharael, Susurian
+        # Voidborn; the Warp keyword alt-cast bearers — "Warp {1}{U}", Starfield
+        # Vocalist; the warp-from-graveyard variant — Timeline Culler; the GRANTERS —
+        # Tannuk;
+        # and the warp payoffs — "cast for its warp cost" Full Bore, "target exiled card
+        # with warp" Blade of the Swarm). MIGRATED VIA A BYTE-IDENTICAL kept WORD MIRROR
+        # (signals-only, NO sidecar bump) — NOT a structural arm.
+        #
+        # phase v0.1.19 carries NO usable structural form. Void is a CR 207.2c ability
+        # word (no rules meaning, no Comprehensive Rules entry — the baked sidecar
+        # surfaces `Void` as a keyword on ZERO commander-legal cards). Warp is a CR
+        # 702.185 keyword, but the baked sidecar DROPS it on 2 of the 33 warp-text cards
+        # (Timeline Culler folds Warp into a `cast_from_zone` Effect keeping only Haste;
+        # Tannuk — a warp GRANTER, Scryfall keywords empty — has empty face keywords),
+        # so a keyword arm would under-fire by the 14 Void + 2 dropped-Warp cards. The
+        # lane was an _IR_FLOOR_LANE (the production floor re-ran the SWEEP regex flat
+        # over kept_oracle); both the floor membership and the SWEEP row are removed.
+        #
+        # BYTE-IDENTICAL KEPT WORD MIRROR. The deleted producer was a per-card Detector
+        # run PER-CLAUSE over the reminder-stripped oracle (forced scope 'you', HIGH).
+        # The EXACT pattern (VOID_WARP_MATTERS_REGEX, pinned in _sweep_detectors) run
+        # FLAT over the same reminder-stripped kept_oracle in _IR_KEPT_DETECTORS (scope
+        # 'you', HIGH) reproduces the deleted producer BYTE-IDENTICALLY: the single
+        # `[^.]*` arm ("cast a/this spell/card [^.]* for its warp") never crosses a
+        # clause boundary (flat == per-clause == 49, 0 mismatch). FLOOR-DISABLED
+        # residual (commander-legal, by oracle_id, _IR_FLOOR_LANES=frozenset()): both ==
+        # 49, ir_only == 0, regex_only == 0 — all scope 'you', HIGH. The SWEEP row is
+        # deleted (detector floor 28→27); SWEEP_LABELS["void_warp_matters"] survives and
+        # the serve spec is hand-registered in signal_specs reusing VOID_WARP_MATTERS_
+        # REGEX.
+        #
+        # VOLTRON. The deleted producer fired HIGH (scope 'you', NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), so it fed has_other_plan, silencing the spurious
+        # commander-damage voltron tell on a Void/Warp creature commander that is no
+        # vanilla beater (Alpharael, Stonechosen — a Void attack-trigger life-drainer).
+        # Because the IR re-supply IS this byte-identical mirror (IR==regex==49), the
+        # hybrid re-silences via _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no
+        # broadening, no over-silence — matching the theft_matters / land_sacrifice_
+        # matters kept-mirror precedent. NO-FLOOD (base fe9a5fd vs edits, baked sidecar,
+        # commander-legal, hybrid path): only void_warp_matters changed (49 → 49, byte-
+        # identical); voltron_matters 3010 → 3010 identical set; all siblings drift 0.
+        # CR 207.2c (Void ability word) / 702.185 (Warp).
+        "void_warp_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
