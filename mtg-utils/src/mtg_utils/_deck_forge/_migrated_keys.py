@@ -4324,6 +4324,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # 33. The serve spec (signal_specs.py — splice-onto-arcane + serve_types
         # ('arcane',)) is independent of this regex and survives. CR 205.3k / 702.47.
         "arcane_matters",
+        # modified_matters ← the UNION kept WORD MIRROR (the `\bmodified\b` direct word
+        # OR "power greater than its base power" indirect anchor, _signals_ir.
+        # _IR_KEPT_DETECTORS, scope 'you', HIGH conf) for the Kamigawa Neon Dynasty
+        # "modified" creature archetype (CR 700.9 — a permanent is modified if it has a
+        # counter, is equipped, or is enchanted by an Aura its controller controls;
+        # payoffs reference "modified" — Kappa Tech-Wrecker, Mirror-Style Master, Ondu
+        # Knotmaster). phase v0.1.19 doesn't structure "modified" (a DERIVED
+        # counter/Equipment/Aura union per CR 700.9, not a parsed predicate/effect), so
+        # there's no structural arm — the mirror reads the reminder-stripped joined-
+        # face kept_oracle (get_oracle_text sentence-terminates each face; neither
+        # pattern has a `[^.]*` cross-clause span, so flat == per-clause == per-face).
+        # FLOOR→KEPT: removed from _IR_FLOOR_LANES; floor-mirror-dep -> 0. RESIDUAL
+        # (commander-legal, floor-disabled, by oracle_id): both == 47, regex_only == 0
+        # (the mirror recovers every regex firing byte-identically incl. the 2 DFCs —
+        # Jugan Defends the Temple, Ondu Knotmaster — whose face text get_oracle_text
+        # joins), ir_only == 0; all scope 'you', HIGH. SCOPE PARITY: both deleted
+        # producers and the mirror all fire scope 'you'. VOLTRON: both producers fired
+        # HIGH scope 'you' and fed has_other_plan (a "modified" counters/Aura/Equip
+        # engine is no vanilla beater); the IR re-supply is the SAME breadth (residual
+        # 0), so modified_matters is added to _VOLTRON_SILENCING_PLAN_KEYS — re-supplies
+        # the exact pre-migration commander-damage voltron silence (file-swap voltron
+        # delta 0). Both _HAND_FLOOR producers are deleted; NOT a SWEEP_DETECTORS row,
+        # so the detector floor stays at 32. The serve spec (signal_specs.py) is
+        # independent of these regexes and survives. CR 700.9 / 122 / 301.5 / 303.4 /
+        # 613.4c / 903.10a.
+        "modified_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

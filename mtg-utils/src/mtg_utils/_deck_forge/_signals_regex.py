@@ -999,19 +999,24 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # effect; the reward conditions via the _GOAD_REWARD_REF face marker
     # (project._dropped_static_markers). Floor-mirror-dep == 0 (goad_matters is NOT in
     # _IR_FLOOR_LANES). The hand-written serve spec (signal_specs.py) survives.
-    # A commander that rewards a creature whose "power [is] greater than its base power"
-    # (Kutzil, Baird) is a pump / +1/+1-counters payoff — the only way a creature's
-    # power exceeds its BASE power is a counter or a pump (CR 613.4c puts BOTH in
-    # layer 7c). modified_matters fires for the pump/Aura/Equipment side; the
-    # counters_matter twin is migrated to the Card IR (the "power greater than its
-    # base power" anchor in project._P1P1_HAVE_FACE / signals._P1P1_HAVE_REF →
-    # counters_have_ref, ADR-0027). That counters_matter _HAND_FLOOR producer is
-    # deleted; modified_matters stays hand-floored.
-    (
-        "modified_matters",
-        re.compile(r"power greater than its base power", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027: modified_matters migrated to the Card IR — this FIRST of the two
+    # _HAND_FLOOR producers (the indirect "power greater than its base power" anchor:
+    # Kutzil, Baird — the only way a creature's power exceeds its BASE power is a
+    # counter or a pump, CR 613.4c layer 7c, the modified-via-counter/Aura/Equip side)
+    # is deleted. phase v0.1.19 doesn't structure "modified" (CR 700.9 — a derived
+    # counter/Equipment/Aura union, not a parsed predicate), so the IR recovers it via
+    # the UNION kept WORD MIRROR (`\bmodified\b` OR "power greater than its base power")
+    # in _signals_ir._IR_KEPT_DETECTORS, run flat over the reminder-stripped joined-face
+    # kept_oracle (byte-identical: both==47, regex_only==0, ir_only==0; scope 'you',
+    # HIGH). The deleted producers fired HIGH-confidence scope 'you' and fed
+    # has_other_plan; since the IR re-supply is the SAME breadth (residual 0),
+    # modified_matters is added to _VOLTRON_SILENCING_PLAN_KEYS (signals.py) to
+    # re-supply the pre-migration commander-damage voltron silence (file-swap voltron
+    # delta 0). The SECOND producer (the `\bmodified\b` word) is deleted below. The
+    # hand-written serve spec (signal_specs.py) survives. CR 700.9 / 301.5 / 303.4.
+    # (counters_matter — formerly the "power greater than its base power" twin of this
+    # producer — is independently migrated to the Card IR via project._P1P1_HAVE_FACE /
+    # signals._P1P1_HAVE_REF → counters_have_ref; that producer is deleted too.)
     # ADR-0027: low_power_matters migrated to the Card IR — a non-dynamic
     # PtComparison:Power:LE/LT predicate on a you-controller Creature Filter, read by
     # _predicate_build_around_lanes (the recursion cards — Alesha, Reveillark — carry it
@@ -1667,7 +1672,12 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # word mirror (_IR_KEPT_DETECTORS) for the GRANTERS ("gains infect", "has
     # poisonous 1") and "poison counter" / "has toxic" references phase folds into a
     # grant carrier's raw. Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
-    ("modified_matters", re.compile(r"\bmodified\b", re.IGNORECASE), "you"),
+    # ADR-0027: modified_matters migrated to the Card IR — this SECOND _HAND_FLOOR
+    # producer (the direct `\bmodified\b` word: the Kamigawa Neon Dynasty "modified"
+    # archetype, CR 700.9) is deleted. The IR recovers it (and the indirect "power
+    # greater than its base power" anchor deleted above) via the UNION kept WORD MIRROR
+    # in _signals_ir._IR_KEPT_DETECTORS (byte-identical, residual 0). The voltron
+    # silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS. See the FIRST producer.
     # ADR-0027: mutate_matters migrated to the Card IR — the Scryfall `mutate`
     # keyword (_IR_KEYWORD_MAP, the 34 mutate creatures) plus a `mutate` payoff
     # marker for the keyword-less cast-payoff ("if it has mutate" —

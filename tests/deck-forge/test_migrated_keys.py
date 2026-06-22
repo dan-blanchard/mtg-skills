@@ -5980,6 +5980,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # modified_matters ← the UNION kept WORD MIRROR (`\bmodified\b` OR "power greater
+    # than its base power") in _IR_KEPT_DETECTORS for the Kamigawa Neon Dynasty
+    # "modified" creature archetype (CR 700.9 — a permanent is modified if it has a
+    # counter, is equipped, or is enchanted by an Aura its controller controls). phase
+    # v0.1.19 doesn't structure "modified" (a DERIVED counter/Equipment/Aura union per
+    # CR 700.9, not a parsed predicate/effect), so there's no structural arm — the mirror
+    # reads the reminder-stripped oracle_text off the record dict. Chishiro, the
+    # Shattered Blade is the canonical NEO "modified" commander ("put a +1/+1 counter on
+    # each modified creature you control"). A bare non-None IR routes the hybrid to the
+    # IR path; the regex path no longer emits the key (both _HAND_FLOOR producers are
+    # deleted). scope "you". ADR-0027.
+    "modified_matters": (
+        {
+            "name": "Chishiro, the Shattered Blade",
+            "type_line": "Legendary Creature — Snake Samurai",
+            "oracle_text": (
+                "Whenever an Aura or Equipment you control enters, create a 2/2 "
+                "red Spirit creature token with menace.\nAt the beginning of your "
+                "end step, put a +1/+1 counter on each modified creature you "
+                "control. (Equipment, Auras you control, and counters are "
+                "modifications.)"
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

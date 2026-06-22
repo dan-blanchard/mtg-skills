@@ -572,6 +572,19 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # extra_combats byte-identical kept-mirror precedent. A NO-FLOOD voltron entry.
         # CR 702.8 / 903.10a.
         "flash_grant",
+        # ADR-0027: modified_matters fired high-confidence (scope 'you') in the regex
+        # path via TWO _HAND_FLOOR producers (the direct `\bmodified\b` word + the
+        # indirect "power greater than its base power" anchor) and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron tell on a "modified" creature commander
+        # that is NOT a vanilla beater (Kutzil, Chishiro, Goro-Goro, Kodama of the West
+        # Tree — the Neon Dynasty counters/Aura/Equipment build-around, CR 700.9). Both
+        # regex producers are deleted, so the hybrid re-silences from the IR re-supply —
+        # the UNION kept WORD MIRROR reading the SAME reminder-stripped joined oracle as
+        # the deleted regexes, so it is BYTE-IDENTICAL (commander-legal: IR == regex ==
+        # 47, 0 broadening, 0 ir_only), matching the arcane_matters / land_sacrifice_
+        # matters kept-mirror precedent. A NO-FLOOD voltron entry. CR 700.9 / 903.10a.
+        "modified_matters",
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an

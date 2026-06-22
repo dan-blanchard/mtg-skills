@@ -772,6 +772,28 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ir_only==0; all scope 'you', HIGH). FLOOR→KEPT: removed from _IR_FLOOR_LANES
     # (floor-mirror-dep -> 0). CR 205.3k / 702.47.
     ("arcane_matters", re.compile(r"\barcane\b", re.IGNORECASE), "you"),
+    # ADR-0027 — modified_matters BYTE-IDENTICAL kept WORD MIRROR (the Kamigawa Neon
+    # Dynasty "modified" creature archetype — CR 700.9: a permanent is modified if it
+    # has a counter, is equipped, or is enchanted by an Aura its controller controls;
+    # payoffs reference "modified" — Kappa Tech-Wrecker, Mirror-Style Master, Ondu
+    # Knotmaster). "modified" is a DERIVED property phase v0.1.19 doesn't structure as a
+    # synergy subject (no Modified predicate/effect in the parse; it would have to
+    # synthesize the counter/Equipment/Aura union, which it doesn't), so the lane rides
+    # the UNION of the two deleted _HAND_FLOOR producers run FLAT over the reminder-
+    # stripped, joined-face kept_oracle: `\bmodified\b` (the direct word) OR "power
+    # greater than its base power" (the indirect Kutzil/Baird anchor — the ONLY way a
+    # creature's power exceeds its BASE power is a counter or a pump, CR 613.4c layer
+    # 7c, i.e. the modified-via-counter/Aura/Equip side). Neither pattern has a `[^.]*`
+    # cross-clause span and get_oracle_text sentence-terminates each face, so flat ==
+    # per-clause == per-face and the mirror set == the deleted regex's firing set
+    # EXACTLY (commander-legal, floor-disabled, by oracle_id: both==47, regex_only==0,
+    # ir_only==0; all scope 'you', HIGH). FLOOR→KEPT: removed from _IR_FLOOR_LANES
+    # (floor-mirror-dep -> 0). CR 700.9 / 122 / 301.5 / 303.4 / 613.4c.
+    (
+        "modified_matters",
+        re.compile(r"\bmodified\b|power greater than its base power", re.IGNORECASE),
+        "you",
+    ),
     # ADR-0027 — land_sacrifice_matters BYTE-IDENTICAL kept WORD MIRROR (the land-
     # SACRIFICE archetype: a card paying an ongoing land-sac cost / drawing-growing when
     # lands hit the graveyard / offering a repeatable "Sacrifice a land:" outlet —
@@ -2127,7 +2149,15 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # emits as characteristic_pt/pump_target but DROPS the count operand). Moved
         # floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR row deleted.
         "superfriends_matters",
-        "modified_matters",
+        # modified_matters removed — ADR-0027 migrated it to the Card IR via the UNION
+        # kept WORD MIRROR (the `\bmodified\b` direct word OR the "power greater than
+        # its base power" indirect anchor in _IR_KEPT_DETECTORS, scope 'you', HIGH).
+        # phase v0.1.19 doesn't structure "modified" (CR 700.9 — a derived
+        # counter/Equipment/Aura union, not a parsed predicate), so the lane rides the
+        # EXACT union of the two deleted _HAND_FLOOR producers run FLAT over the
+        # reminder-stripped, joined-face kept_oracle. Moved floor->kept (floor-mirror-
+        # dep -> 0; floor-disabled IR-vs-regex residual: both==47, regex_only==0,
+        # ir_only==0). Both _HAND_FLOOR producers deleted.
         # low_power_matters removed — ADR-0027 migrated it to the Card IR (the
         # Power:LE/LT predicate read + a `_LOW_POWER_REF` marker rebuilding the dropped
         # subject from "creatures you control with power N or less").

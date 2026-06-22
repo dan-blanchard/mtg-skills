@@ -77,7 +77,10 @@ CASES = [
     # ADR-0027: poison_matters migrated to the Card IR (the infect/toxic/poisonous
     # Scryfall keywords + a kept word mirror for the granters/references), so it is
     # asserted via the hybrid path below, not this regex CASES loop.
-    ("modified_matters", "you", "Modified creatures you control get +1/+1."),
+    # ADR-0027: modified_matters migrated to the Card IR (the UNION kept WORD MIRROR —
+    # `\bmodified\b` OR "power greater than its base power" — for the Neon Dynasty
+    # "modified" archetype phase doesn't structure, CR 700.9), so it is asserted via the
+    # hybrid path below, not this regex CASES loop.
     # ADR-0027: food_matters / treasure_matters migrated to the Card IR (the token-
     # subtype synergy widening reads make_token / sacrifice subjects), so they are
     # asserted via the hybrid path in test_migrated_keys, not this regex CASES loop.
@@ -120,6 +123,34 @@ def test_coven_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
     assert ("coven_matters", "you") in _ks_hybrid(c)
     assert ("coven_matters", "you") not in _ks(c)
+
+
+def test_modified_matters_word_arm_is_ir_served():
+    # ADR-0027: modified_matters arm 1 — the direct `\bmodified\b` word of the UNION
+    # kept WORD MIRROR (the Neon Dynasty "modified" archetype, CR 700.9: a permanent is
+    # modified if it has a counter, is equipped, or is enchanted by an Aura its
+    # controller controls). phase doesn't structure "modified", so it comes through the
+    # hybrid path, not pure regex. scope "you".
+    c = {"name": "X", "oracle_text": "Modified creatures you control get +1/+1."}
+    assert ("modified_matters", "you") in _ks_hybrid(c)
+    assert ("modified_matters", "you") not in _ks(c)
+
+
+def test_modified_matters_base_power_arm_is_ir_served():
+    # ADR-0027: modified_matters arm 2 — the indirect "power greater than its base
+    # power" anchor of the UNION kept WORD MIRROR (Kutzil, Baird: the only way a
+    # creature's power exceeds its BASE power is a counter or a pump, CR 613.4c layer
+    # 7c — the modified-via-counter/Aura/Equip side). Comes through the hybrid path,
+    # not pure regex. scope "you".
+    c = {
+        "name": "X",
+        "oracle_text": (
+            "Whenever a creature you control with power greater than its base "
+            "power enters, draw a card."
+        ),
+    }
+    assert ("modified_matters", "you") in _ks_hybrid(c)
+    assert ("modified_matters", "you") not in _ks(c)
 
 
 def test_second_spell_matters_is_ir_served():
