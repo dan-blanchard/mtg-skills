@@ -2367,10 +2367,16 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
         and counter_kind == "p1p1"
     ):
         subject = _with_mass_marker(subject)
+    # ADR-0027 big_mana — a Mana effect (category `ramp`) nests its amount under
+    # `produced.count`, which `_amount`'s top-level scan never sees, so every mana
+    # producer collapsed to amount=None. `_mana_amount` recovers the magnitude (Sol
+    # Ring factor 2, Selvala's greatest-power scaler) so a big-mana producer is
+    # distinguishable from a 1-mana dork. CR 106.4.
+    amount = _mana_amount(eff) if etype == "mana" else _amount(eff)
     return [
         Effect(
             category=category,
-            amount=_amount(eff),
+            amount=amount,
             scope=scope,
             subject=subject,
             raw=raw,
@@ -2750,6 +2756,18 @@ def _project_static_mods(st: dict, raw: str) -> list[Effect]:
     # a themeable affected (a real creature SET or a targeted creature) — a self
     # "this can't block" / "this must attack" is a vanilla drawback, not a theme.
     mode_tok = _mode_token(st.get("mode"))
+    # ADR-0027 big_hand_matters — NoMaximumHandSize ("you/players have no maximum
+    # hand size", Reliquary Tower / Thought Vessel / Spellbook / Folio of Fancies):
+    # phase emits a bare-string `NoMaximumHandSize` static mode with no modifications,
+    # so the modifications loop above produces nothing and the static is otherwise
+    # DROPPED (the card surfaces only its sibling ramp / draw abilities). Emit a
+    # dedicated `no_max_handsize` Effect — the same category the supplement's
+    # oracle-text gap-filler makes for an abilityless card (Spellbook) — so the
+    # build-around survives structurally even when phase parsed the sibling. Read by
+    # no migrated lane (the big_hand_matters arm is regex-served + dormant). CR 402.2.
+    if mode_tok == "nomaximumhandsize":
+        out.append(Effect(category="no_max_handsize", scope="you", raw=desc))
+        return out
     # Batch 6 (flash_grant, unblocked) — CastWithKeyword{Flash} is "you may cast
     # [creature] spells as though they had flash" (Teferi, Yeva, Alchemist's Refuge):
     # the flash ENABLER the AddKeyword path couldn't express (flash is a cast-time
@@ -2844,6 +2862,51 @@ def _amount(eff: dict) -> Quantity | None:
             q = _quantity(eff[key])
             if q is not None:
                 return q
+    return None
+
+
+def _mana_amount(eff: dict) -> Quantity | None:
+    """The AMOUNT a ``Mana`` effect produces, from its ``produced`` spec (ADR-0027
+    big_mana). phase nests the multiplicity under ``produced.count`` (NOT the
+    top-level ``count`` ``_amount`` reads), so a ramp Effect collapsed to
+    ``amount=None`` — Sol Ring ({C}{C}) was indistinguishable from Llanowar Elves
+    ({G}). Recover it so a big-mana producer is structurally distinct from a 1-mana
+    dork (CR 106.4):
+
+      • a fixed ``count`` (Sol Ring/Worn Powerstone {C}{C} → ``count: Fixed 2``) →
+        ``Quantity(op="fixed", factor=N)`` (factor 1 for a single-mana producer);
+      • a DYNAMIC ``count`` (Selvala's "X = greatest power", Gaea's Cradle's "for each
+        creature", an X-mana ``Ref → Variable``) → ``Quantity(op="variable")`` — a
+        NEUTRAL X-scaling marker that distinguishes a big-mana producer from a fixed
+        1-mana dork WITHOUT carrying the count's typed subject or a named scaling op;
+      • the ``Fixed``-colors shape with NO ``count`` (Dark Ritual {B}{B}{B}, Llanowar
+        {G}) → ``Quantity(op="fixed", factor=len(colors))``.
+
+    The DYNAMIC case is normalized to ``op="variable"`` (subject None) on purpose:
+    the raw ``_quantity`` projection would carry the population (creatures / lands —
+    Gaea's Cradle) or a named scaler (devotion — Nykthos) that the generic count /
+    scaling lanes (creatures_matter / lands_matter / devotion_matters / …) read off
+    ``amount.subject`` / ``amount.op`` REGARDLESS of effect category, which would drift
+    those MIGRATED lanes (a tap-for-mana producer is not a go-wide creatures/lands
+    payoff). ``op="variable"`` is read by NO lane, keeping the big_mana magnitude
+    distinction while staying drift-0. ramp_matters / group_mana / mana_amplifier key
+    on category / scope / raw, never amount, so the fixed factor is drift-0 too."""
+    produced = eff.get("produced")
+    if not isinstance(produced, dict):
+        return None
+    if "count" in produced:
+        q = _quantity(produced["count"])
+        if q is None:
+            return None
+        # A fixed magnitude survives verbatim (Sol Ring factor 2); any dynamic scaler
+        # collapses to the neutral op="variable" marker (see docstring) so its typed
+        # population / named op never leaks into the count/scaling lanes.
+        if q.op == "fixed":
+            return q
+        return Quantity(op="variable")
+    colors = produced.get("colors")
+    if isinstance(colors, list) and colors:
+        return Quantity(op="fixed", factor=len(colors))
     return None
 
 
@@ -2983,6 +3046,14 @@ def _condition_zones(node: object) -> tuple[str, ...]:
             # misses it. CR 400.1: it counts cards in a graveyard → surface graveyard.
             if _norm(n.get("type")) == "graveyardsize":
                 found.add("graveyard")
+            # HandSize ("the number of cards in your/their hand" — Folio of Fancies'
+            # "X = cards in your hand", Reckless Fireweaver-style hand-scalers) carries
+            # its zone in the NODE TYPE too, so the `zone`-key scan misses it. CR 402.2:
+            # it counts cards in a hand → surface hand (the dormant big_hand_matters arm
+            # reads in:hand; previously the count operand collapsed and the zone was
+            # dropped, leaving the hand-SIZE signal unstructured).
+            if _norm(n.get("type")) == "handsize":
+                found.add("hand")
             for child in n.values():
                 walk(child)
         elif isinstance(n, list):
@@ -3221,6 +3292,25 @@ def _is_generic_board_filter(node: object, card_type: str) -> bool:
     return controller in ("", "you", "none", "null")
 
 
+def _power_threshold_predicates(node: object) -> tuple[str, ...]:
+    """The ``PtComparison:Power:<cmp>:<N>`` predicate(s) on a phase Typed filter's
+    ``properties`` (ADR-0027 power_matters). A Ferocious-style board count ("for each
+    creature you control WITH POWER 4 OR GREATER" — Become the Avalanche) keeps the
+    threshold as a PtComparison property phase carries but ``_board_count_filter``'s
+    synthetic generic Filter drops. Carry it forward so the (not-yet-wired)
+    power_matters arm reads the GE/GT threshold; mirrors ``_predicate``'s
+    PtComparison rendering. Power only — a toughness threshold is not a power care.
+    CR 208."""
+    if not isinstance(node, dict):
+        return ()
+    out: list[str] = []
+    for prop in _as_list(node.get("properties")):
+        p = _predicate(prop)
+        if p.startswith("PtComparison:Power:"):
+            out.append(p)
+    return tuple(out)
+
+
 def _board_count_filter(node: object, card_type: str) -> Filter | None:
     """The Filter of the FIRST own-board count operand (ObjectCount / Aggregate over a
     generic ``card_type``-you-control set) anywhere in ``node``, or None. Recursive —
@@ -3243,7 +3333,13 @@ def _board_count_filter(node: object, card_type: str) -> Filter | None:
             if t == "aggregate" and _norm(n.get("function")) not in _AGG_FUNCTIONS:
                 pass  # only a summing aggregate is a population total (not min/max)
             elif _is_generic_board_filter(n.get("filter"), card_type):
-                found.append(Filter(card_types=(card_type,), controller="you"))
+                # Carry a Ferocious-style power threshold (PtComparison:Power:GE/GT)
+                # the source filter has, which the synthetic generic Filter would
+                # otherwise drop (ADR-0027 power_matters; read by no migrated lane).
+                preds = _power_threshold_predicates(n.get("filter"))
+                found.append(
+                    Filter(card_types=(card_type,), controller="you", predicates=preds)
+                )
                 return
         # Formidable (CR 207.2c): phase's named "creatures you control total power at
         # least N" activation/trigger gate — a total-power aggregate over your WHOLE

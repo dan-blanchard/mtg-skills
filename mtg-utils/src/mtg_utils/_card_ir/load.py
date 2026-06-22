@@ -169,7 +169,26 @@ from mtg_utils.card_ir import Card
 #     the supplement re-categorizer promotes "your/each opponent can't …" (Drannith,
 #     Lavinia) to 'opp'. DORMANT — restriction scope is read only by the not-yet-wired
 #     stax_taxes/symmetric_stax lanes, so migrated keys are byte-identical (drift 0).
-SIDECAR_VERSION = 22
+# v22→v23: ADR-0027 count_predicate PROJECTION cluster — the COUNT operand phase
+#   drops on three sub-sites is now CARRIED (additive fills; no signal arm wired):
+#   SUB-SITE 1 power_matters — _board_count_filter / _board_count_markers carry the
+#     source filter's PtComparison:Power:GE/GT predicate onto the board_count marker
+#     subject (Become the Avalanche's "for each creature you control with power 4 or
+#     greater"). Predicate is read by no migrated lane (creatures/artifacts/
+#     enchantments_matter ignore predicates; low_power_matters reads LE/LT only). The
+#     Goreclaw-style cost reducer whose power threshold phase drops ENTIRELY is NOT
+#     recoverable structurally (left as-is). CR 208.
+#   SUB-SITE 2 big_hand_matters — (a) _project_static_mods emits a `no_max_handsize`
+#     Effect for phase's `NoMaximumHandSize` static mode (Reliquary Tower / Thought
+#     Vessel / Spellbook), no longer dropped to bare ramp/other; (b) _zone_tags +
+#     _condition_zones surface the `in:hand` zone for a phase `HandSize` count operand
+#     (Folio of Fancies' "X = cards in your hand"). no_max_handsize is read by no lane;
+#     in:hand fires only the dormant regex-served big_hand_matters. CR 402.2.
+#   SUB-SITE 3 big_mana — `_mana_amount` reads the Mana effect's `produced` field so a
+#     ramp Effect carries amount: a fixed factor>1 (Sol Ring {C}{C}=2, Dark Ritual
+#     {B}{B}{B}=3), a count/Variable scaler (Selvala's greatest-power). ramp_matters /
+#     group_mana / mana_amplifier read scope/raw, never amount, so drift 0. CR 106.4.
+SIDECAR_VERSION = 23
 
 
 def card_ir_dir() -> Path:
