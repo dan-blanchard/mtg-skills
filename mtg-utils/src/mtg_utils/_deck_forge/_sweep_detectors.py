@@ -13,6 +13,12 @@ originals keep clause scope.
 # ruff: noqa: E501 — generated data module of long, bulk-validated regex literals
 from __future__ import annotations
 
+# ADR-0027 big_mana migrated to the Card IR (v23 mana-amount projection). big_mana was a
+# hand-written include_membership add() in extract_signals (a _LITERAL_ADD_KEYS key), NOT
+# a SWEEP_DETECTORS row, so this floor is UNTOUCHED — SWEEP_DETECTORS stays at 34. The
+# deleted _BIG_MANA_RE producer survives as the _BIG_MANA_REGEX kept mirror in
+# _signals_ir, paired with the v23 structural `ramp`-amount arm (_is_big_mana_ir).
+#
 # ADR-0027 tranche2-C — keyword_counter migrated to the Card IR. Its SWEEP_DETECTORS
 # row is deleted (the structural read is place_counter/remove_counter with a CR-122.1b
 # keyword counter_kind, in signals.extract_signals_ir). This mined regex survives as a

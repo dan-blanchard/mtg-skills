@@ -5756,6 +5756,37 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 — big_mana (a COMMANDER that makes a LOT of mana wants X-spell sinks). The
+    # STRUCTURAL arm in extract_signals_ir (include_membership-gated) reads the v23
+    # mana-amount projection — a `ramp` Effect whose amount is amount.factor>1 (Gilded
+    # Lotus "Add three mana of any one color" → factor=3) OR op=="variable" (a dynamic
+    # scaler). A factor==1 dork (Llanowar — "Add {G}") is one mana and is EXCLUDED. Gilded
+    # Lotus is GENUINE ir_only recall: its oracle has no `{X}{Y}` / "for each" / "an
+    # additional" tell, so the deleted _BIG_MANA_RE never matched it — the regex path drops
+    # it, the v23 structural arm serves it. (The "add … for each" under-structured tail —
+    # Neheb → amount==None — rides the byte-identical _BIG_MANA_REGEX kept mirror instead.)
+    # scope 'you', LOW conf. CR 106.4.
+    "big_mana": (
+        {
+            "name": "Gilded Lotus",
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add three mana of any one color.",
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="tap",
+                effects=(
+                    Effect(
+                        category="ramp",
+                        scope="you",
+                        amount=Quantity(op="fixed", factor=3),
+                        raw="{T}: Add three mana of any one color.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

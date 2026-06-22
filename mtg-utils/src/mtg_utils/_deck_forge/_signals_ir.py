@@ -2779,6 +2779,18 @@ IR_SLICE_KEYS: frozenset[str] = (
             # phase can't structure (Raggadragga). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 106.4 / 605.
             "mana_amplifier",
+            # ADR-0027 — big_mana (a COMMANDER that makes a LOT of mana wants X-spell
+            # sinks): a STRUCTURAL arm reads the v23 mana-amount projection — a `ramp`
+            # Effect whose amount is amount.factor>1 (Sol Ring 2, Gilded Lotus 3) OR
+            # op=="variable" (Selvala, Gaea's Cradle, Nykthos devotion, Cabal Coffers
+            # count) — gated on include_membership so a rock in the 99 doesn't open it.
+            # A factor==1 dork (Llanowar) is one mana and is EXCLUDED. A byte-identical
+            # _BIG_MANA_RE kept mirror over kept_oracle re-supplies the under-structured
+            # tail (Neheb's "add {R} for each …" → amount==None). scope 'you', LOW conf
+            # (the deleted producer's identity — it never fed has_other_plan, so no
+            # voltron mirror is needed). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+            # CR 106.4.
+            "big_mana",
             # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
             # payoff): a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
             # regex. phase carries a `StepEndUnspentMana` static for the 11 pure statics
@@ -3702,6 +3714,38 @@ _RAMP_MATTERS_REGEX = re.compile(
     r"|add \{[wubrgc]\}",
     re.IGNORECASE,
 )
+
+# big_mana (ADR-0027) — the BYTE-IDENTICAL kept mirror of the deleted _BIG_MANA_RE
+# (_signals_regex). The v23 structural arm (a `ramp` Effect with amount.factor>1 OR
+# op=="variable") is broader-and-correct, but a handful of "add … for each" producers
+# (Neheb, the Eternal) project amount==None, so this mirror over kept_oracle re-supplies
+# the under-structured tail. kept_oracle == the regex path's reminder-stripped `text`,
+# so the mirror reproduces the deleted regex EXACTLY (commander-legal: regex_only == 0).
+_BIG_MANA_REGEX = re.compile(
+    r"add \{[^}]*\}\{[^}]*\}|add [^.]*for each|add an additional", re.IGNORECASE
+)
+
+
+def _is_big_mana_ir(ir: Card) -> bool:
+    """True if the card structurally makes MORE than one mana — a `ramp` Effect whose
+    v23 amount is amount.factor>1 (Sol Ring {C}{C}=2, Gilded Lotus "three mana"=3) OR
+    op=="variable" (a dynamic scaler — Selvala / Gaea's Cradle / Nykthos / Cabal
+    Coffers). Gated to category=="ramp" (the only mana-PRODUCTION category that carries
+    a quantity — `mana_amplifier` doublers are amount==None and ride their own lane;
+    every other category's amount is an unrelated quantity — damage/draw/counters). A
+    factor==1 producer (Llanowar Elves — "Add {G}") is exactly ONE mana and is NOT big
+    mana. CR 106.4."""
+    for ab in ir.all_abilities():
+        for e in ab.effects:
+            if e.category != "ramp":
+                continue
+            amt = e.amount
+            if amt is None:
+                continue
+            if amt.op == "variable" or (amt.op == "fixed" and amt.factor > 1):
+                return True
+    return False
+
 
 # venture_matters (ADR-0027): a dungeon-DOUBLING payoff phase keeps as a
 # trigger_doubling effect whose raw names rooms/dungeons ("Room abilities of dungeons
@@ -7846,6 +7890,19 @@ def extract_signals_ir(
         # mirror is needed). CR 305.6.
         if "creature" in type_line and _LAND_DESTRUCTION_MIRROR.search(kept_oracle):
             add("land_destruction", "you", "", "repeatable land destruction", "low")
+        # ADR-0027 — big_mana (a COMMANDER that makes a LOT of mana wants X-spell
+        # sinks). STRUCTURAL arm: a `ramp` Effect whose v23 amount is amount.factor>1
+        # (Sol Ring {C}{C}, Gilded Lotus "three mana", Dark Ritual {B}{B}{B}) OR
+        # op=="variable" (a dynamic scaler — Selvala / Gaea's Cradle / Nykthos devotion
+        # / Cabal Coffers count). A factor==1 dork (Llanowar — "Add {G}") is exactly ONE
+        # mana and is NOT big mana (the v23 magnitude makes them distinguishable; the
+        # pre-v23 projection had amount==None). Plus a BYTE-IDENTICAL _BIG_MANA_REGEX
+        # kept mirror over kept_oracle for the under-structured "add … for each" tail
+        # (Neheb, the Eternal → amount==None). include_membership-gated, scope 'you',
+        # LOW conf — reproducing the deleted extract_signals cross-open (which fired LOW
+        # and never fed has_other_plan, so no voltron mirror is needed). CR 106.4.
+        if _is_big_mana_ir(ir) or _BIG_MANA_REGEX.search(kept_oracle):
+            add("big_mana", "you", "", "big-mana generator", "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

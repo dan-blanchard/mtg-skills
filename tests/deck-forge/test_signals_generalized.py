@@ -26,6 +26,7 @@ from mtg_utils.card_ir import (
     Effect,
     Face,
     Filter,
+    Quantity,
     Trigger,
 )
 
@@ -1966,9 +1967,42 @@ def test_big_mana_generator_opens_x_spell_sink():
         "keywords": [],
         "oracle_text": "{T}: Add {G}.",
     }
-    assert any(k == "big_mana" for k, _, _ in _ksub(neheb))
-    assert any(k == "big_mana" for k, _, _ in _ksub(sunastian))
-    assert not any(k == "big_mana" for k, _, _ in _ksub(elf))  # single mana, not big
+    # ADR-0027: big_mana migrated to the Card IR — assert via the hybrid path.
+    # Sunastian ("{T}: Add {C}{C}") fires the STRUCTURAL `ramp` factor=2 arm; Neheb
+    # ("add {R} for each …" → amount==None) rides the byte-identical _BIG_MANA_REGEX
+    # kept mirror over its oracle (bare IR suffices — the mirror reads the dict oracle).
+    sunastian_ir = _ir_with(
+        Ability(
+            kind="activated",
+            cost="tap",
+            effects=(
+                Effect(
+                    category="ramp",
+                    scope="you",
+                    amount=Quantity(op="fixed", factor=2),
+                    raw="{T}: Add {C}{C}.",
+                ),
+            ),
+        )
+    )
+    assert any(k == "big_mana" for k, _, _ in _ksub_hybrid(neheb, _bare_ir()))
+    assert any(k == "big_mana" for k, _, _ in _ksub_hybrid(sunastian, sunastian_ir))
+    # A single-mana dork (Llanowar — `ramp` factor=1) is NOT big mana.
+    elf_ir = _ir_with(
+        Ability(
+            kind="activated",
+            cost="tap",
+            effects=(
+                Effect(
+                    category="ramp",
+                    scope="you",
+                    amount=Quantity(op="fixed", factor=1),
+                    raw="{T}: Add {G}.",
+                ),
+            ),
+        )
+    )
+    assert not any(k == "big_mana" for k, _, _ in _ksub_hybrid(elf, elf_ir))
 
 
 def test_opp_top_exile_opens_for_library_predators():

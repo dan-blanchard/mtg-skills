@@ -4098,6 +4098,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # regex=) since its SWEEP row was deleted). CR 120.1 / 115.4 / 102.2 / 903.10a.
         "direct_damage",
         "symmetric_damage_each",
+        # ADR-0027 big-mana (v23 mana-amount projection). big_mana opens the
+        # X-spell-sink avenue for a COMMANDER that makes a LOT of mana (Sol Ring,
+        # rituals, big rocks, scaling dorks/lands — Selvala, Gaea's Cradle, Nykthos).
+        # The deleted regex (`add {X}{Y}` | `add … for each` | `add an additional`) was
+        # an include_membership, scope-'you', LOW-conf cross-open; the migrated lane
+        # reads the v23 structural tell directly — a `ramp` Effect whose amount is
+        # amount.factor>1 (Sol Ring 2, Dark Ritual 3, Gilded Lotus 3) OR op=="variable"
+        # (Selvala / Gaea's Cradle / Nykthos devotion / Cabal Coffers count). A
+        # factor==1 dork (Llanowar — "Add {G}") is one mana and is correctly EXCLUDED
+        # (the v23 magnitude makes them distinguishable; the pre-v23 projection
+        # collapsed every producer to amount==None). The structural arm runs in the
+        # include_membership block; a byte-identical _BIG_MANA_REGEX kept mirror over
+        # kept_oracle re-supplies the under-structured tail (Neheb, the Eternal's "add
+        # {R} for each …" projects amount==None). Floor-disabled residual
+        # (commander-legal, _IR_FLOOR_LANES=frozenset(), by oracle_id): both==362,
+        # regex_only==0 (the byte-mirror reproduces the deleted regex EXACTLY —
+        # kept_oracle == the regex `text`), ir_only==169 (broader-and-correct: every
+        # card produces >1 mana — filter rocks/lands "add two", rituals,
+        # power/devotion/count scalers — that the `{X}{Y}`/"for each"/"an additional"
+        # regex never matched; all 169 verified vs Scryfall oracle, 0 over-fire). SCOPE
+        # PARITY: deleted producer + structural arm + mirror all fire scope 'you', LOW
+        # conf. NO VOLTRON entry: big_mana fired LOW confidence and so never fed
+        # has_other_plan (the silence gate is confidence=='high') — matching the
+        # land_destruction precedent, no _PLAN_MIRROR needed. The serve spec stays
+        # hand-registered in signal_specs.py. CR 106.4.
+        "big_mana",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
