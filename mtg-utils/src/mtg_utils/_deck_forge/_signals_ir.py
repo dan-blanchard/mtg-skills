@@ -53,6 +53,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    ENTERED_ATTACKER_REGEX,
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
@@ -2141,6 +2142,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 702.95 / 707.
             "token_copy_matters",
+            # ADR-0027 β — entered_attacker: the "entered (the battlefield) this
+            # turn" predicate is NOT projected (it survives only in raw), so phase
+            # emits NO structural shape for the freshly-entered-attacker payoff
+            # (Samut, Redoubled Stormsinger, Hixus). For ~3 commander-legal cards
+            # the lane rides a byte-identical _ENTERED_ATTACKER_MIRROR of the exact
+            # deleted _HAND_FLOOR regex, run per-clause (commander-legal corpus:
+            # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 603.10a / 506.4.
+            "entered_attacker",
             # ADR-0027 β — color_change: phase parses the "becomes the color of your
             # choice / all colors" clause INCONSISTENTLY (20 AddChosenColor mods + 4
             # Unimplemented "become"s) and the only shared IR category (animate)
@@ -3068,6 +3078,17 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
 # is precise — it never fired on the reminder-text self-copies because they live inside
 # parens). CR 702.95.
 _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# entered_attacker BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
+# EXACT deleted _HAND_FLOOR regex (pinned as ENTERED_ATTACKER_REGEX) run PER-CLAUSE
+# over the reminder-stripped oracle — a creature that ENTERED this turn paired with
+# attack / combat damage (Samut, Redoubled Stormsinger, Hixus). The "entered (the
+# battlefield) this turn" predicate is NOT projected (it survives only in raw), so
+# there is no structural arm to read. Run per-clause (NOT flat) because the deleted
+# floor Detector ran per-clause over reminder-stripped clauses (split on .;\n) and the
+# `[^.]*` arms could otherwise span a `;`/`\n` between unrelated clauses; per-clause is
+# byte-identical (commander-legal corpus: regex==mirror, 0 lost, 0 over-fire).
+# CR 603.10a / 506.4.
+_ENTERED_ATTACKER_MIRROR = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
 # color_change BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the EXACT
 # deleted SWEEP regex (pinned as COLOR_CHANGE_REGEX) over the reminder-stripped
 # kept_oracle — a card that CHANGES a permanent's/spell's COLOR ("becomes the color of
@@ -6009,6 +6030,18 @@ def extract_signals_ir(
     # lower(), so A-B==0). The add() dedup unions this with the structural arm.
     if any(_IMPULSE_TOP_PLAY_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("impulse_top_play", "you", "", "")
+    # ADR-0027 β — entered_attacker BYTE-IDENTICAL kept mirror. The freshly-
+    # entered-attacker payoff ("entered this turn" + attacks / deals combat damage —
+    # Samut, Redoubled Stormsinger, Hixus). phase does NOT project the "entered (the
+    # battlefield) this turn" predicate (it survives only in raw), so there is no
+    # structural shape to read. Run the EXACT deleted _HAND_FLOOR regex PER-CLAUSE
+    # over the reminder-stripped oracle (scope 'you', matching the deleted producer's
+    # forced scope) — the deleted floor Detector ran per-clause over reminder-stripped
+    # clauses (split on .;\n), and the `[^.]*` arms could otherwise span a `;`/`\n`
+    # between unrelated clauses, so per-clause is byte-identical (commander-legal
+    # corpus: regex==mirror, 0 lost, 0 over-fire). add() dedups. CR 603.10a / 506.4.
+    if any(_ENTERED_ATTACKER_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("entered_attacker", "you", "", "")
     # ADR-0027 β — gain_control NARROWED kept mirror. The gated structural arm above
     # (cat=='gain_control', excl donate / Owned-return / give-away) is a recall-gaining
     # superset of the deleted `gain control of` regex, but phase emits NO gain_control

@@ -1213,20 +1213,22 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # Newly-entered attacker payoff (Samut: rewards a creature that entered this turn
-    # dealing combat damage). It wants HASTE + ETB-pump anthems (Ogre Battledriver,
-    # Primal Forcemage) that let a freshly-entered creature swing for value at once.
-    (
-        "entered_attacker",
-        re.compile(
-            r"(?:deals combat damage|attacks)[^.]*"
-            r"entered (?:the battlefield )?this turn"
-            r"|entered (?:the battlefield )?this turn"
-            r"[^.]*(?:attacks|deals combat damage)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 β: entered_attacker (the freshly-entered-attacker payoff — Samut
+    # "if that creature entered this turn, draw a card" on combat damage;
+    # Redoubled Stormsinger forks tokens that entered this turn on attack; Hixus
+    # rewards itself having entered this turn) migrated to the Card IR via a
+    # BYTE-IDENTICAL kept mirror. The "entered (the battlefield) this turn"
+    # predicate is NOT projected (it survives only in raw), so there is no
+    # structural IR shape to read — for ~3 commander-legal cards the clean
+    # SIGNALS-ONLY path is a byte-identical _ENTERED_ATTACKER_MIRROR of the exact
+    # deleted regex (pinned as ENTERED_ATTACKER_REGEX in _sweep_detectors), run
+    # per-clause over the reminder-stripped oracle in _signals_ir, byte-identical
+    # to this deleted floor Detector. NO voltron PLAN mirror is needed: each of
+    # the 3 cards keeps has_other_plan via OTHER high-confidence non-generic
+    # signals (combat_damage_matters / creature_etb / attack_matters /
+    # tokens_matter), so deleting this producer leaks no voltron tell (voltron
+    # delta 0, verified). The serve spec (signal_specs.py, "Haste + ETB pump") is
+    # independent of this regex and survives. This _HAND_FLOOR producer is deleted.
     # ADR-0027: land_protection migrated to the Card IR — fired from the shared
     # land-animator predicate (animate/base_pt_set/type_set over a you/any Land subject)
     # + a kept oracle mirror (signals._IR_KEPT_DETECTORS) for the self-animate manlands

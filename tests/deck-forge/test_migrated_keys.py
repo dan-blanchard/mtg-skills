@@ -177,6 +177,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # entered_attacker ← a BYTE-IDENTICAL kept mirror (_ENTERED_ATTACKER_MIRROR run
+    # per-clause over the reminder-stripped oracle: "...deals combat damage to a player,
+    # if that creature entered this turn..."). phase does NOT project the "entered this
+    # turn" temporal predicate (it survives only in raw), so there is no structural shape
+    # to read; the lane rides the exact deleted _HAND_FLOOR regex (empty IR — the mirror
+    # reads the dict oracle). Samut's real oracle. ADR-0027 β.
+    "entered_attacker": (
+        {
+            "name": "Samut, Vizier of Naktamun",
+            "type_line": "Legendary Creature — Human Warrior Cleric",
+            "oracle_text": (
+                "First strike, vigilance, haste\n"
+                "Whenever a creature you control deals combat damage to a "
+                "player, if that creature entered this turn, draw a card."
+            ),
+        },
+        _ir(),
+    ),
     # color_change ← a BYTE-IDENTICAL kept mirror (_COLOR_CHANGE_MIRROR over the reminder-
     # stripped oracle: "Target permanent becomes the color or colors of your choice").
     # phase parses the clause inconsistently (AddChosenColor mods / Unimplemented

@@ -1738,6 +1738,41 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # identical-mirror pattern (restores has_other_plan for ALL cards regardless of
         # IR/regex mode). CR 702.95 (populate) / 707 (copies).
         "token_copy_matters",
+        # ADR-0027 β — entered_attacker (the freshly-entered-attacker payoff: a
+        # creature that ENTERED this turn paired with attacks / deals combat damage —
+        # Samut "if that creature entered this turn, draw a card" on combat damage;
+        # Redoubled Stormsinger forks creature TOKENS that entered this turn on attack;
+        # Hixus rewards ITSELF having entered this turn when it blocks). Only ~3
+        # commander-legal cards. MIGRATED VIA A BYTE-IDENTICAL KEPT-MIRROR (signals-
+        # only, NO sidecar bump), NOT a structural arm.
+        #
+        # NO STRUCTURAL FORM: phase does NOT project the "entered (the battlefield)
+        # this turn" temporal predicate — it survives only in raw — so there is nothing
+        # structural to read for the lane (no etb-this-turn marker, no attack-
+        # conditioned-on-entry shape). For ~3 cards a projection change would not be
+        # worth it, and is FORBIDDEN in this parallel batch; the clean SIGNALS-ONLY
+        # path is a byte-identical mirror of the exact deleted regex.
+        #
+        # CHOSEN PATH (kept-mirror). The lane fires from _ENTERED_ATTACKER_MIRROR in
+        # _signals_ir — the EXACT deleted _HAND_FLOOR regex (pinned as
+        # ENTERED_ATTACKER_REGEX in _sweep_detectors) run PER-CLAUSE over the reminder-
+        # stripped oracle, byte-identical to the deleted floor Detector (which ran
+        # per-clause over reminder-stripped clauses). The serve spec ("Haste + ETB
+        # pump") stays hand-registered in signal_specs.py with its OWN curated search
+        # regex, independent of the deleted producer.
+        #
+        # Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 3 (Hixus, Redoubled Stormsinger,
+        # Samut), ir_only == 0, regex_only == 0 — a true behavior-neutral re-home.
+        # floor-mirror-dep == 0 (entered_attacker is NOT an _IR_FLOOR_LANE). The
+        # deleted producer fired HIGH-confidence (forced scope 'you') and fed
+        # has_other_plan, BUT each of the 3
+        # cards keeps has_other_plan via OTHER high-confidence non-generic signals
+        # (combat_damage_matters / creature_etb / attack_matters / tokens_matter), so
+        # deleting it leaks NO voltron tell (voltron delta 0, verified over the full
+        # commander-legal corpus) — hence NO _ENTERED_ATTACKER_PLAN_MIRROR and NOT in
+        # _VOLTRON_SILENCING_PLAN_KEYS. CR 603.10a (entered this turn) / 506.4 / 509.
+        "entered_attacker",
         # ADR-0027 β — color_change (a card that CHANGES a permanent's/spell's COLOR:
         # "becomes the color of your choice" — Prismatic Lace, Tidal Visionary, Blind
         # Seer; "becomes the color" / "becomes all colors" — Scrapbasket, Tam; the

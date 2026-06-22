@@ -810,7 +810,9 @@ def test_entered_attacker_opens_on_entered_this_turn_combat():
             "combat damage to a player, if that creature entered this turn, draw a card."
         ),
     }
-    assert ("entered_attacker", "you") in _ks(samut)
+    # ADR-0027 β: entered_attacker migrated to the Card IR (a byte-identical kept-mirror
+    # over the reminder-stripped oracle), so it serves from the hybrid path.
+    assert ("entered_attacker", "you") in _ks_hybrid(samut)
 
 
 def test_land_protection_opens_on_land_animation():

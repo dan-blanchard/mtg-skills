@@ -180,6 +180,19 @@ VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total
 # CR 702.95 / 707.
 TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
 
+# ADR-0027 β: entered_attacker migrated to the Card IR via a byte-identical kept-mirror.
+# The deleted _HAND_FLOOR producer is pinned here so the _ENTERED_ATTACKER_MIRROR kept
+# detector (_signals_ir) shares ONE source. The lane is the freshly-entered-attacker
+# payoff (Samut "if that creature entered this turn, draw a card" on combat damage;
+# Redoubled Stormsinger forks tokens that entered this turn on attack; Hixus rewards
+# itself having entered this turn when it blocks). The "entered (the battlefield) this
+# turn" predicate is NOT projected — it survives only in raw — so there is no structural
+# IR shape to read; for ~3 commander-legal cards a byte-identical mirror is the clean
+# SIGNALS-ONLY path (regex==mirror, 0 lost, 0 over-fire). The serve spec stays hand-
+# registered in signal_specs.py with its own (independent) curated search regex.
+# CR 603.10a (entered this turn) / 506.4 / 509 (attacking creatures).
+ENTERED_ATTACKER_REGEX = "(?:deals combat damage|attacks)[^.]*entered (?:the battlefield )?this turn|entered (?:the battlefield )?this turn[^.]*(?:attacks|deals combat damage)"
+
 # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror —
 # the deleted SWEEP producer is pinned here so the _COLOR_CHANGE_MIRROR kept detector
 # (_signals_ir) and the _COLOR_CHANGE_PLAN_MIRROR voltron gate (_signals_regex) share
