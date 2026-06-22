@@ -2792,9 +2792,28 @@ def test_enchantment_token_maker_opens_enchantments():
             "controls."
         ),
     }
-    assert ("enchantments_matter", "you") in _ks(scriv)
+    # ADR-0027: enchantments_matter migrated to the Card IR — the make_token DOER fires
+    # off the Enchantment-typed token subject (the Aura token), so this serves from the
+    # hybrid path against the structured make_token Effect.
+    scriv_ir = _ir_with(
+        Ability(
+            kind="triggered",
+            effects=(
+                Effect(
+                    category="make_token",
+                    scope="you",
+                    subject=Filter(
+                        card_types=("Enchantment",),
+                        subtypes=("Aura",),
+                        controller="any",
+                    ),
+                ),
+            ),
+        )
+    )
+    assert ("enchantments_matter", "you") in _ks_hybrid_ir(scriv, scriv_ir)
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert ("enchantments_matter", "you") not in _ks(bear)
+    assert ("enchantments_matter", "you") not in _ks_hybrid(bear)
 
 
 def test_legendary_permanent_trigger_opens_legends():
@@ -5555,14 +5574,17 @@ def test_role_token_makers_open_enchantments_matter():
             "• Create a Monster Role token attached to that creature."
         ),
     }
-    assert "enchantments_matter" in _keys(gylwain)
+    # ADR-0027: enchantments_matter migrated to the Card IR — Role tokens are Aura
+    # enchantments (CR 303.7 / 111.10j), and the "create … Role token" maker rides the
+    # kept oracle mirror on the hybrid path.
+    assert "enchantments_matter" in _keys_hybrid(gylwain)
     # Over-fire guard: a plain creature-token maker is not an enchantment deck.
     krenko = {
         "name": "Token Maker",
         "type_line": "Legendary Creature — Goblin",
         "oracle_text": "{T}: Create a 1/1 red Goblin creature token.",
     }
-    assert "enchantments_matter" not in _keys(krenko)
+    assert "enchantments_matter" not in _keys_hybrid(krenko)
 
 
 def test_celebration_archetype_opens_and_serves():

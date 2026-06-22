@@ -613,6 +613,52 @@ ARTIFACTS_MATTER_REGEX = (
     r"|if an artifact entered the battlefield under your control"
     r"|artifact,? instant,? and sorcery spells"
 )
+# ADR-0027 — enchantments_matter (the ENCHANTMENTS go-wide / matters axis: a card that
+# cares about your enchantment population — "enchantments you control" anthems, "for each
+# enchantment you control" count payoffs, constellation ("whenever an enchantment you
+# control enters"), enchantress cast triggers, enchantment tutors / recursion-from-
+# graveyard / hand-matters, and Role-token makers — Roles ARE Aura enchantments per
+# CR 303.7 / 111.10j, Auras are enchantments per CR 205.2 / 303). MIGRATED to the Card IR
+# via the STRUCTURAL arms (the `_TYPE_MATTERS_LANE` Enchantment count/grant/trigger DOERs,
+# the Enchantment make_token / sac-payoff DOER, the type-gate condition arm, the becomes-
+# Enchantment / type-recursion / type-tutor arms, the Aura-subtype "loose enchantments
+# member" arm, and the type_line membership arm — all already present in
+# extract_signals_ir, shared with artifacts_matter) PLUS a BYTE-IDENTICAL kept-mirror of
+# the deleted oracle-regex producer. NO sidecar bump (the v20 projection already structures
+# the enchantment filters / triggers / token subtypes these arms read).
+#
+# The structural arms ADD +95 ir_only recall the brittle oracle regex MISSED — the Licids
+# that "become an Aura enchantment" (Gliding/Nurturing/Calming Licid …), the enchantment-
+# creature / Aura / Glimmer token makers (Aerie Worshippers, Fated Intervention, Tunnel
+# Surveyor), Aura recursion (Nomad Mythmaker, Retether, Storm Herald), enchantment tutors
+# / recursion (Plea for Guidance, Triumphant Reckoning, Crystal Dragon // Rob the Hoard),
+# affinity-for-enchantments (Brine Giant), single-type "sacrifice an enchantment" outlets
+# (Faith Healer, Auratog, Phantatog), and "if you control an enchantment" conditions
+# (Flutterfox, Blood-Cursed Knight, Lagonna-Band Elder) — every one a real enchantment-
+# population care. The Bargain symmetric-sac gate (CR 702.166a, the shared arm landed by
+# the artifacts pass) keeps the lane shut for the ~20 "sacrifice an artifact, ENCHANTMENT,
+# or token" alt-cost cards (Torch the Tower, Beseech the Mirror) — those are GONE on this
+# base, not over-fires. phase carries NO clean shape for the oracle-idiom family the
+# deleted regex read (enchantment tutors / recursion-from-graveyard / "enchantment card in
+# your hand" miracle-grant / Role-token makers), so the kept-mirror runs PER-CLAUSE over
+# the reminder-stripped oracle, recovering all 15 byte-identically (Role-token makers
+# Royal Treatment / Become Brutes — Roles ARE Aura enchantments; Yenna, Rite of Harmony's
+# constellation, Aminatou's "enchantment card in your hand"). add() dedups vs the
+# structural arm. There is NO dedicated enchantment SWEEP_DETECTORS row (unlike artifacts'
+# "if you control an artifact" row), so the mirror is the deleted producer alone and
+# SWEEP_DETECTORS stays at 36. enchantments_matter is NOT in _IR_FLOOR_LANES
+# (floor-mirror-dep == 0 — a structural type-matters lane).
+ENCHANTMENTS_MATTER_REGEX = (
+    r"\benchantments? you control\b"
+    r"|for each enchantment you control"
+    r"|whenever an? enchantment (?:you control )?enters"
+    r"|cast (?:an?|your (?:first|second)) enchantment"
+    r"|search (?:your library )?for an?[^.]*enchantment card"
+    r"|return [^.]*enchantment cards?[^.]*(?:graveyard|hand)"
+    r"|enchantment cards? in your hand"
+    r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards"
+    r"|create [^.]*\bRole token"
+)
 # ADR-0027 — attack_matters (the COMBAT-trigger / attacked-this-turn payoff axis: a
 # card that CARES when a creature attacks — "whenever ~ attacks" triggers, the Raid /
 # "attacked this turn" combat-count condition, the "attacking causes" Isshin form, and

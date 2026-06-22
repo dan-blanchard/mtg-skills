@@ -369,7 +369,9 @@ def test_enchantment_cast_opens_enchantments_not_spellslinger():
         "type_line": "Legendary Enchantment Creature — Nymph",
         "oracle_text": "Whenever you cast an enchantment spell, you gain 1 life and draw a card.",
     }
-    keys = _keys(sythis)
+    # ADR-0027: enchantments_matter migrated to the Card IR — the enchantress
+    # "cast an enchantment spell" trigger rides the kept oracle mirror on the hybrid path.
+    keys = _keys_hybrid(sythis)
     assert ("enchantments_matter", "you") in keys
     assert not any(k == "spellcast_matters" for k, _ in keys)
 
@@ -1495,13 +1497,17 @@ def test_artifact_type_commander_opens_artifacts():
         (s.key, s.scope) for s in extract_signals_hybrid(human, _bare_ir())
     }
     # Same for enchantment-type commanders (Anikthea, Arasta) → enchantments_matter.
+    # ADR-0027: enchantments_matter migrated to the Card IR — the type_line membership arm
+    # ("if 'enchantment' in type_line") is reproduced byte-identically in
+    # extract_signals_ir, so this serves from the hybrid path now (the regex membership
+    # producer is deleted).
     anikthea = {
         "name": "Anikthea, Hand of Erebos",
         "type_line": "Legendary Enchantment Creature — Demigod",
         "oracle_text": "Menace\nOther enchantment creatures you control have menace.\nWhenever Anikthea enters or attacks, exile up to one target non-Aura enchantment card from your graveyard. Create a token that's a copy of that card, except it's a 3/3 black Zombie creature in addition to its other types.",
     }
     assert ("enchantments_matter", "you") in {
-        (s.key, s.scope) for s in extract_signals(anikthea)
+        (s.key, s.scope) for s in extract_signals_hybrid(anikthea, _bare_ir())
     }
 
 
@@ -1564,7 +1570,12 @@ def test_enchantress_first_spell_opens_enchantments():
         "type_line": "Legendary Creature — Human Bard",
         "oracle_text": "Whenever you cast your first enchantment spell each turn, create a 2/2 white Nymph enchantment creature token.\nAt the beginning of each combat, if you control five or more enchantments, Psemilla gets +4/+4 and gains lifelink until end of turn. (Damage dealt by this creature also causes you to gain that much life.)",
     }
-    assert "enchantments_matter" in {s.key for s in extract_signals(card)}
+    # ADR-0027: enchantments_matter migrated to the Card IR — the "cast your first
+    # enchantment spell" enchantress trigger rides the kept oracle mirror on the hybrid
+    # path.
+    assert "enchantments_matter" in {
+        s.key for s in extract_signals_hybrid(card, _bare_ir())
+    }
 
 
 def test_for_each_creature_opens_creatures_matter():
@@ -2219,7 +2230,9 @@ def test_enchantment_card_tutor_opens_enchantments():
             "battlefield, then shuffle."
         ),
     }
-    assert ("enchantments_matter", "you") in _keys(card)
+    # ADR-0027: enchantments_matter migrated to the Card IR — the "search … for an
+    # enchantment card" tutor rides the kept oracle mirror on the hybrid path.
+    assert ("enchantments_matter", "you") in _keys_hybrid(card)
 
 
 def test_instant_sorcery_cost_reducer_opens_spellslinger():

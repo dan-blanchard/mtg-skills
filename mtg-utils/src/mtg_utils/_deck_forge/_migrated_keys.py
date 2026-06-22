@@ -3141,6 +3141,82 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # membership, the latter reproduced by the IR membership arm); the serve spec
         # stays hand-registered. CR 702.41 / 207.2c / 205.3g / 903.10a.
         "artifacts_matter",
+        # ADR-0027 — enchantments_matter (the ENCHANTMENTS go-wide / matters axis: a
+        # card that cares about your enchantment population — "enchantments you control"
+        # anthems, "for each enchantment you control" count payoffs, constellation
+        # ("whenever an enchantment you control enters" — CR 207.2c), enchantress cast
+        # triggers, enchantment tutors / recursion / sac-outlets / token-makers, and
+        # Role-token makers — Roles ARE Aura enchantments per CR 303.7 / 111.10j, Auras
+        # are enchantments per CR 205.2 / 303). MIGRATED VIA the STRUCTURAL IR arms
+        # (shared with artifacts_matter) + a BYTE-IDENTICAL kept-mirror (NO sidecar bump
+        # — the v20 projection already structures the enchantment filters / triggers /
+        # token subtypes the arms read).
+        #
+        # STRUCTURAL ARMS (already present in extract_signals_ir, the recall-GAINING
+        # half): the `_TYPE_MATTERS_LANE` Enchantment count/grant/trigger DOERs ("for
+        # each enchantment you control" / "enchantments you control have …" / "whenever
+        # an enchantment enters"), the Enchantment make_token / sac-payoff DOER
+        # (Bargain- gated by `'Permanent' not in card_types` — the shared sac arm, CR
+        # 702.166a), the type-gate condition arm ("if you control an enchantment"), the
+        # becomes- Enchantment / type-recursion / type-tutor arms, the Aura-subtype
+        # "loose enchantments member" arm (Auras are enchantments), and the type_line
+        # membership arm ("if 'enchantment' in type_line" — byte-identical to the
+        # deleted membership producer). These ADD +95 ir_only recall the brittle oracle
+        # regex MISSED — the Licids that "become an Aura enchantment"
+        # (Gliding/Nurturing/Calming Licid), the enchantment-creature / Aura / Glimmer
+        # token makers (Aerie Worshippers, Fated Intervention, Tunnel Surveyor), Aura
+        # recursion (Nomad Mythmaker, Retether, Storm Herald), enchantment tutors /
+        # recursion (Plea for Guidance, Triumphant Reckoning), affinity-for-enchantments
+        # (Brine Giant), single-type "sacrifice an enchantment" outlets (Faith Healer,
+        # Auratog, Phantatog), and "if you control an enchantment" conditions
+        # (Flutterfox, Blood-Cursed Knight, Lagonna-Band Elder) — every one a real
+        # enchantment-population care. The Bargain symmetric-sac gate keeps the lane
+        # shut for the ~20 "sacrifice an artifact, ENCHANTMENT, or token" alt-cost cards
+        # (Torch the Tower, Beseech the Mirror) — GONE on this base, not over-fires.
+        #
+        # BYTE-IDENTICAL KEPT-MIRROR. phase carries NO clean shape for the oracle-idiom
+        # family the deleted _HAND_FLOOR regex read (enchantment tutors /
+        # recursion-from- graveyard / "enchantment card in your hand" miracle-grant /
+        # Role-token makers), so a structural-only migration would LOSE 15 genuine
+        # enchantment-deck cards (the Role-token makers Royal Treatment / Become Brutes
+        # — Roles ARE Aura enchantments; Yenna; Rite of Harmony's constellation;
+        # Aminatou's "enchantment card in your hand"; enchantment recursion Relive the
+        # Past / Reconstruct History). _ENCHANTMENTS_MATTER_MIRROR (the deleted
+        # _HAND_FLOOR producer ALONE — there is NO dedicated enchantment SWEEP_DETECTORS
+        # row, unlike artifacts' "if you control an artifact" row, so
+        # len(SWEEP_DETECTORS) stays 36) runs PER-CLAUSE over the reminder-stripped
+        # kept_oracle, recovering all 15 byte-identically. add() dedups vs the
+        # structural arm.
+        #
+        # FLOOR-DISABLED RESIDUAL (commander-legal, _IR_FLOOR_LANES=frozenset(), the new
+        # IR arms + the byte-identical mirror vs the deleted-regex base — floor +
+        # type_line membership): both==3718, ir_only==105 (pure recall GAIN, all genuine
+        # — the +95 payoff recall plus the membership-arm overlap), regex_only==0 (the
+        # 15-card tail recovered byte-identically). SCOPE PARITY holds — IR and regex
+        # both fire scope 'you' ONLY (no scope regression). floor-mirror-dep == 0
+        # (enchantments_matter is NOT an _IR_FLOOR_LANE — a structural type-matters
+        # lane).
+        #
+        # VOLTRON. The deleted HIGH-confidence _HAND_FLOOR producer (scope 'you')
+        # counted toward `has_other_plan`, silencing the spurious commander-damage
+        # voltron tell on an enchantments body that is NOT a vanilla beater (Yenna,
+        # Sythis, Calix). The migrated IR arm is BROADER (+95), so a BYTE-IDENTICAL
+        # _ENCHANTMENTS_MATTER_PLAN_MIRROR in _signals_regex (the same
+        # ENCHANTMENTS_MATTER_REGEX — the lane mirror was NOT narrowed, unlike
+        # artifacts' affinity branch) re-supplies the regex-path voltron silence
+        # EXACTLY. FILE-SWAP voltron delta == 0.
+        #
+        # FILE-SWAP no-flood (base 333f2a6 vs edits, commander-legal hybrid): ONLY
+        # enchantments_matter moves (3728 → 3823, +95 net = the ir_only recall GAIN; the
+        # 15-card tail was already regex-served in base, now mirror-served), 0
+        # artifacts_matter / type_matters / clue_matters / vehicles_matter / treasure /
+        # food / constellation drift, voltron 2342 → 2342 (delta 0). SWEEP_DETECTORS
+        # stays at 36 (no enchantment row existed to keep or delete).
+        # enchantments_matter added to MIGRATED_KEYS; both regex producers deleted (the
+        # _HAND_FLOOR oracle regex + the type_line membership, the latter reproduced by
+        # the IR membership arm); the serve spec stays hand-registered. CR 205.2 / 303 /
+        # 303.7 / 207.2c.
+        "enchantments_matter",
         # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
         # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS
         # "whenever a land you control enters" trigger, the extra-land STATIC ("play N

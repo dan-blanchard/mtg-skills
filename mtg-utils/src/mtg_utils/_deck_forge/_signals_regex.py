@@ -42,6 +42,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    ENCHANTMENTS_MATTER_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
@@ -1397,33 +1398,28 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # SWEEP row stays (len(SWEEP_DETECTORS) >=36). The serve spec stays hand-registered;
     # _ARTIFACTS_MATTER_PLAN_MIRROR re-supplies the has_other_plan voltron silence.
     # (CR 702.41 / 207.2c / 205.3g.)
-    (
-        "enchantments_matter",
-        re.compile(
-            r"\benchantments? you control\b"
-            r"|for each enchantment you control"
-            r"|whenever an? enchantment (?:you control )?enters"
-            # Enchantress: "whenever you cast an enchantment spell" (Sythis) — also the
-            # "your first enchantment spell each turn" wording (Psemilla). The bare
-            # "cast an enchantment" missed the "first/second … enchantment spell" forms.
-            r"|cast (?:an?|your (?:first|second)) enchantment"
-            # Tutors / recursion / hand-matters that reference enchantment CARDS (Zur:
-            # "search … for an enchantment card"; Estrid: "return … enchantment cards
-            # from your graveyard"; Marina: "put all enchantment cards … into your
-            # hand"; Aminatou: "enchantment card in your hand") — the lane keyed only on
-            # "enchantments you control" / casting and missed card references.
-            r"|search (?:your library )?for an?[^.]*enchantment card"
-            r"|return [^.]*enchantment cards?[^.]*(?:graveyard|hand)"
-            r"|enchantment cards? in your hand"
-            r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards"
-            # Role tokens are Aura ENCHANTMENTS (CR), so a Role-token maker (Gylwain,
-            # Ellivere, Syr Armont) is an enchantment commander — floods Auras and wants
-            # enchantment-count payoffs (Sanctum Weaver) and Aura support.
-            r"|create [^.]*\bRole token",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: enchantments_matter migrated to the Card IR — the ENCHANTMENTS go-wide
+    # / matters axis (enchantment-population anthems / counts, constellation,
+    # enchantress cast triggers, enchantment tutors / recursion / sac-outlets /
+    # token-makers, Role-token makers — Roles ARE Aura enchantments per CR 303.7 /
+    # 111.10j). The lane fires from the STRUCTURAL arms in extract_signals_ir (the
+    # `_TYPE_MATTERS_LANE` Enchantment count/grant/trigger DOERs, the Enchantment
+    # make_token / Bargain-gated sac-payoff DOER, the type-gate condition arm, the
+    # becomes-Enchantment / type-recursion / type-tutor arms, the Aura-subtype "loose
+    # enchantments member" arm, and the type_line membership arm — shared with
+    # artifacts_matter; +95 ir_only recall the brittle oracle regex missed: Licids that
+    # become Auras, Aura / Glimmer / enchantment-creature token makers, Aura recursion,
+    # single-type sac-an-enchantment outlets, "if you control an enchantment"
+    # conditions) PLUS the BYTE-IDENTICAL _ENCHANTMENTS_MATTER_MIRROR (the deleted
+    # _HAND_FLOOR producer ALONE — there is NO dedicated enchantment SWEEP row, unlike
+    # artifacts' "if you control an artifact" row, so SWEEP_DETECTORS stays 36) run
+    # per-clause for the oracle-idiom family no structural shape covers (enchantment
+    # tutors / recursion-from-graveyard /
+    # "enchantment card in your hand" miracle-grant / Role-token makers). BOTH this
+    # clause-scoped _HAND_FLOOR producer AND the type_line membership producer below are
+    # deleted (the IR membership arm reproduces the latter byte-identically). The serve
+    # spec stays hand-registered; _ENCHANTMENTS_MATTER_PLAN_MIRROR re-supplies the
+    # has_other_plan voltron silence. (CR 205.2 / 303 / 303.7.)
     # ADR-0027: tokens_matter migrated to the Card IR via a kept-mirror — this broad
     # token PAYOFF producer ("tokens you control" anthems/refs — Intangible Virtue,
     # Mirror Box, Brudiclad; a "whenever a/one or more/another … token … enters" trigger
@@ -2651,6 +2647,22 @@ _ARTIFACTS_MATTER_PLAN_MIRROR = re.compile(
     + r")|\baffinity\b"
     + r"|if you control an artifact"
     + r"|if you control (?:a|an|one or more) artifacts?",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated enchantments_matter key. Its one
+# deleted HIGH-confidence producer — the _HAND_FLOOR oracle regex (scope 'you') —
+# counted toward `has_other_plan`, silencing the spurious commander-damage voltron tell
+# on an enchantments body that is NOT a vanilla beater (a constellation / enchantress /
+# Aura engine IS a plan: Yenna, Sythis, Calix). The migrated IR arm is BROADER (+95
+# ir_only), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would mis-silence. This
+# mirror is BYTE-IDENTICAL to the EXACT deleted regex (the lane mirror was NOT
+# narrowed — unlike artifacts' affinity branch — so the plan mirror is the same
+# ENCHANTMENTS_MATTER_REGEX). It feeds ONLY the gate (no signal — the lane is served
+# from the IR), reproducing pre-migration `has_other_plan` for ALL cards. Matched
+# against the reminder-STRIPPED `text` (NOT `_oracle`): the deleted producer was a floor
+# Detector over reminder-stripped clauses. CR 205.2 / 303 / 903.10a.
+_ENCHANTMENTS_MATTER_PLAN_MIRROR = re.compile(
+    ENCHANTMENTS_MATTER_REGEX,
     re.IGNORECASE,
 )
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated global_ability_grant key. Its
@@ -4378,12 +4390,10 @@ def extract_signals(
     # is an artifact / enchantment deck — it wants that type's support (affinity & cost
     # reducers; constellation & cheap enchantments), just as a creature is a member of
     # its own tribe. Membership-only, low confidence.
-    # ADR-0027: the artifacts_matter membership producer is deleted — it survives byte-
-    # identically as the type_line membership arm in extract_signals_ir ("if 'artifact'
-    # in type_line: add artifacts_matter you low"). enchantments_matter is NOT migrated,
-    # so its membership producer stays here.
-    if include_membership and "enchantment" in type_line.lower():
-        add("enchantments_matter", "you", "", type_line, "low")
+    # ADR-0027: BOTH the artifacts_matter AND enchantments_matter membership producers
+    # are deleted — each survives byte-identically as the type_line membership arm in
+    # extract_signals_ir ("if 'artifact' in type_line: add artifacts_matter you low" /
+    # "if 'enchantment' in type_line: add enchantments_matter you low").
     # A creature commander whose own ability destroys lands (Numot) is a land-
     # destruction engine — open the LD support lane. Membership + creature gated so a
     # one-shot LD spell among the 99 (Stone Rain) isn't mistaken for the deck's plan.
@@ -4592,6 +4602,17 @@ def extract_signals(
         # deleted producers were floor Detectors over stripped clauses).
         # CR 702.41 / 207.2c / 903.10a.
         or _ARTIFACTS_MATTER_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted enchantments_matter producer (the _HAND_FLOOR
+        # oracle regex, HIGH-confidence scope 'you', feeding has_other_plan — a
+        # constellation / enchantress / Aura engine IS a plan, not a vanilla beater:
+        # Yenna, Sythis, Calix). The migrated IR arm is BROADER (+95 ir_only), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would mis-silence; this BYTE-IDENTICAL mirror
+        # (the lane mirror was NOT narrowed, so the plan mirror is the same
+        # ENCHANTMENTS_MATTER_REGEX) restores the old regex's exact silence set, so the
+        # file-swap shows voltron delta 0. Matched against the reminder-STRIPPED `text`
+        # (the deleted producer was a floor Detector over stripped clauses).
+        # CR 205.2 / 303 / 903.10a.
+        or _ENCHANTMENTS_MATTER_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted global_ability_grant SWEEP producer (it
         # fired high-confidence scope 'any', feeding has_other_plan). The migrated IR
         # arm is narrower (it drops the 6 bands/Ward keyword over-fires), so this byte-

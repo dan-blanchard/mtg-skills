@@ -62,6 +62,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
@@ -3665,6 +3666,31 @@ _ARTIFACTS_MATTER_MIRROR = re.compile(
     + r"|if you control (?:a|an|one or more) artifacts?)",
     re.IGNORECASE,
 )
+# enchantments_matter BYTE-IDENTICAL kept mirror (ADR-0027): the structural arms above
+# (the `_TYPE_MATTERS_LANE` Enchantment count/grant/trigger DOERs, the Enchantment
+# make_token / sac-payoff DOER — Bargain-gated by `'Permanent' not in card_types`, the
+# type-gate condition arm, the becomes-Enchantment / type-recursion / type-tutor arms,
+# the Aura-subtype "loose enchantments member" arm, the type_line membership arm) catch
+# phase's structured enchantment payoffs (+95 ir_only recall — the Licids that become
+# Auras, the enchantment-creature / Aura / Glimmer token makers, Aura recursion,
+# enchantment tutors / recursion, affinity-for-enchantments, single-type "sacrifice an
+# enchantment" outlets, "if you control an enchantment" conditions — all the brittle
+# oracle regex missed), but phase carries NO clean shape for the oracle-idiom family the
+# regex read (enchantment tutors / recursion-from-graveyard / "enchantment card in your
+# hand" miracle-grant / Role-token makers — Roles ARE Aura enchantments per CR 303.7 /
+# 111.10j). Recover them with the deleted _HAND_FLOOR producer (there is NO dedicated
+# enchantment SWEEP row — unlike artifacts' "if you control an artifact" row — so the
+# mirror is the deleted producer ALONE, and SWEEP_DETECTORS stays at 36), run PER-CLAUSE
+# over reminder-stripped kept_oracle, matching the deleted floor Detector's clause loop.
+# The 15 recovered are all GENUINE (Role-token makers Royal Treatment / Become Brutes,
+# Yenna, Rite of Harmony's constellation, Aminatou's "enchantment card in your hand",
+# enchantment recursion). scope 'you' (the deleted producer's scope, and the serve
+# spec's). The structural arm add()-dedups its recall gain; 0 genuine recall lost
+# (regex_only EMPTY after the mirror). CR 205.2 / 303 / 303.7.
+_ENCHANTMENTS_MATTER_MIRROR = re.compile(
+    ENCHANTMENTS_MATTER_REGEX,
+    re.IGNORECASE,
+)
 # attack_matters BYTE-IDENTICAL kept mirror (ADR-0027): the structural `attacks`-trigger
 # arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm above catch phase's
 # combat payoffs (+135 ir_only recall — the reminder-only
@@ -6770,6 +6796,26 @@ def extract_signals_ir(
     # arm. 0 genuine recall lost (regex_only==22, all over-fire). CR 702.41 / 207.2c.
     if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
         add("artifacts_matter", "you", "", "")
+    # ADR-0027 — enchantments_matter BYTE-IDENTICAL kept mirror. The structural arms
+    # above (the `_TYPE_MATTERS_LANE` Enchantment count/grant/trigger DOERs, the
+    # Enchantment make_token / Bargain-gated sac-payoff DOER, the type-gate condition
+    # arm, the becomes-Enchantment / type-recursion / type-tutor arms, the Aura-subtype
+    # "loose enchantments member" arm, the type_line membership arm) ADD +95 ir_only
+    # recall (the Licids that become Auras, the enchantment-creature / Aura / Glimmer
+    # token makers, Aura recursion, enchantment tutors / recursion,
+    # affinity-for-enchantments, single-type sac-an-enchantment outlets, "if you control
+    # an enchantment" conditions the brittle oracle regex missed), but phase carries NO
+    # clean shape for the oracle-idiom family the deleted regex read (enchantment tutors
+    # / recursion-from-graveyard / "enchantment card in your hand" miracle-grant /
+    # Role-token makers — Roles ARE Aura enchantments per CR 303.7). Recover them with
+    # _ENCHANTMENTS_MATTER_MIRROR (the deleted _HAND_FLOOR producer ALONE — there is NO
+    # dedicated enchantment SWEEP row to union, so SWEEP_DETECTORS stays 36), run
+    # PER-CLAUSE over the reminder-stripped kept_oracle to match the deleted floor
+    # Detector's clause loop. scope 'you' (the deleted producer's scope, and the serve
+    # spec's). add() dedups vs the structural arm. 0 genuine recall lost (regex_only
+    # EMPTY after the mirror). CR 205.2 / 303 / 303.7.
+    if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("enchantments_matter", "you", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
     # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep

@@ -5249,6 +5249,45 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 — enchantments_matter: a COUNT operand over YOUR enchantments (the
+    # `_TYPE_MATTERS_LANE` go-wide DOER, shared with artifacts_matter; Auras / Sagas / Roles
+    # are all enchantments per CR 205.2 / 303 / 303.7). Tuvasa the Sunlit's static "Tuvasa
+    # gets +1/+1 for each enchantment you control" projects a `pump` Effect whose
+    # amount.subject IS the Enchantment-typed own-board filter; the structural arm in
+    # extract_signals_ir reads that subject through _typed_matters_lanes and fires
+    # enchantments_matter scope "you" — NO oracle regex needed (the mirror is the fallback,
+    # not this case's proof). The regex path no longer fires the lane (the _HAND_FLOOR
+    # producer + the type_line membership producer are deleted). CR 205.2 / 303 / 604.3.
+    "enchantments_matter": (
+        {
+            "name": "Tuvasa the Sunlit",
+            "type_line": "Legendary Creature — Merfolk Shaman",
+            "oracle_text": (
+                "Tuvasa gets +1/+1 for each enchantment you control.\n"
+                "Whenever you cast your first enchantment spell each turn, "
+                "draw a card."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="any",
+                        amount=Quantity(
+                            op="count",
+                            factor=1,
+                            subject=Filter(
+                                card_types=("Enchantment",), controller="you"
+                            ),
+                        ),
+                        raw="~ gets +1/+1 for each enchantment you control.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # landfall ← the BYTE-IDENTICAL kept mirror (_LANDFALL_MIRROR + the inline
     # "whenever a land" & "enter" substring-AND). Lotus Cobra is the canonical landfall
     # payoff — the "Landfall —" ability word (CR 207.2c) over the dict oracle fires the
