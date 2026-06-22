@@ -3914,6 +3914,23 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # counter_doubling ← the kept-mirror recovery path (COUNTER_DOUBLING_REGEX). Vorel's
+    # one-shot "Double the number of each kind of counter …" is what phase v0.1.19
+    # MANGLES to a generic `double` effect with no counter_doubling category, so a bare
+    # IR proves the lane fires from the oracle mirror, not a structural arm. (The
+    # structural `cat == "counter_doubling"` replacement arm covers the Doubling Season /
+    # Hardened Scales family — the 6 the regex missed — separately.) CR 122 / 614.
+    "counter_doubling": (
+        {
+            "name": "Vorel of the Hull Clade",
+            "type_line": "Legendary Creature — Human Merfolk",
+            "oracle_text": (
+                "{G}{U}, {T}: Double the number of each kind of counter on target "
+                "artifact, creature, or land."
+            ),
+        },
+        _ir(),
+    ),
     # exile_until_leaves ← the TWO-ABILITY O-Ring shape: an exile Effect sending
     # to:exile + a SECOND ability whose dies/leaves trigger reanimates to:battlefield
     # (the linked return). Oblivion Ring is the canonical card.

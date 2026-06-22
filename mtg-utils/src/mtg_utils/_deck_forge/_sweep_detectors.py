@@ -1096,6 +1096,27 @@ LIFEGAIN_MATTERS_REGEX = (
     r"|each player loses (?:[2-9]|\d\d) life"
 )
 
+# ADR-0027: counter_doubling migrated to the Card IR. This is the byte-identical UNION
+# of the two deleted oracle regexes — the _HAND_FLOOR producer (the first three arms)
+# and this SWEEP_DETECTORS row (the last four arms) — pinned here so the
+# _COUNTER_DOUBLING_MIRROR kept detector (_signals_ir), the _COUNTER_DOUBLING_PLAN_MIRROR
+# voltron gate (_signals_regex), and the serve spec (signal_specs) all share ONE source.
+# phase v0.1.19 MANGLES the one-shot / activated / triggered "double the number of …
+# counters" forms (Vorel, Gilder Bairn, Kalonian Hydra, Primordial Hydra, Voracious
+# Hydra, …) — to a generic `double` effect or a plain `place_counter`/`counter_distribute`
+# that loses the doubling semantics — so no clean structural arm reaches the 46; the
+# mirror recovers them. The structural `cat == "counter_doubling"` replacement arm adds
+# the 6 canonical replacement doublers the regex MISSED (Doubling Season, Branching
+# Evolution, Primal Vigor, Corpsejack Menace, The Earth Crystal, Struggle for Project
+# Purity). Commander-legal: mirror == old regex == 69 exactly, 0 over-fire. CR 122 / 614.
+COUNTER_DOUBLING_REGEX = (
+    r"double the number of [^.]*counters?"
+    r"|would put[^.]*counters?[^.]*\binstead\b[^.]*(?:twice|double|that many plus)"
+    r"|that many plus one[^.]*counters?"
+    r"|one or more counters? would be put on"
+    r"|(?:put|placed?) (?:twice that many|that many plus (?:one|\d+))[^.]*counters?"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-
     # Filter predicate + a kept word mirror (signals._IR_KEPT_DETECTORS) for the
@@ -2115,12 +2136,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # serve spec in signal_specs.py is independent of these regexes and survives.
     # (Token-doubling and counter-doubling stay separate lanes — a token doubler
     # wants token MAKERS, a counter doubler wants counter SOURCES.)
-    {
-        "key": "counter_doubling",
-        "scope": "you",
-        "is_widen_of": "counter_doubling",
-        "regex": "that many plus one[^.]*counters?|one or more counters? would be put on|(?:put|placed?) (?:twice that many|that many plus (?:one|\\d+))[^.]*counters?|double the number of [^.]*counters?",
-    },
+    # ADR-0027: counter_doubling migrated to the Card IR — a structural
+    # `cat == "counter_doubling"` replacement-effect arm (Doubling Season, Branching
+    # Evolution, Primal Vigor, Corpsejack Menace, The Earth Crystal, Struggle for
+    # Project Purity — the 6 the regex MISSED) + a byte-identical COUNTER_DOUBLING_REGEX
+    # kept mirror in _signals_ir (the 46 one-shot/activated/triggered doublers phase
+    # mangles to `double`/`place_counter`/`counter_distribute`). Both this sweep row and
+    # the _HAND_FLOOR row are deleted; the hand-written serve spec in signal_specs.py is
+    # independent of these regexes and survives. (Sweep floor 32→31.)
     # ADR-0027: dice_matters migrated to the Card IR — phase's native roll_die effect
     # + a `roll_die` marker (project._narrow_trigger_other_refs for the "whenever you
     # roll" payoff trigger + _dropped_static_markers for the spell/cost/reroll forms).

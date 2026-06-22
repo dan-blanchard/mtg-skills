@@ -955,6 +955,40 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "counter_place_trigger",
         "counter_replace_bonus",
         "exile_until_leaves",
+        # ADR-0027 — counter_doubling (CR 122 counters / 614 replacement effects)
+        # migrated to the Card IR via a STRUCTURAL arm + a BYTE-IDENTICAL kept mirror
+        # (the lane is BROADER than phase's one `counter_doubling` replacement
+        # category, so neither source alone suffices):
+        #   • structural arm — the `cat == "counter_doubling"` replacement-effect
+        #     category (event=='addcounter', qmod in _INCREASE_MODS) fires the static
+        #     "if one or more counters would be put … put twice that many instead"
+        #     doublers (Doubling Season, Branching Evolution, Primal Vigor, Corpsejack
+        #     Menace, The Earth Crystal, Struggle for Project Purity's rad-counter
+        #     Enclave mode). These 6 are the CANONICAL replacement doublers the deleted
+        #     regex MISSED — "twice that many … counters are put" never matched its
+        #     "double the number of …" / "would put … instead … twice" pattern. The
+        #     structural arm recovers them (a strict, all-genuine recall WIN).
+        #   • _COUNTER_DOUBLING_MIRROR — the OR of the two deleted oracle regexes (the
+        #     _HAND_FLOOR producer + the SWEEP_DETECTORS row), pinned as
+        #     COUNTER_DOUBLING_REGEX, run FLAT over the reminder-stripped joined-face
+        #     kept_oracle. phase v0.1.19 MANGLES the ONE-SHOT / activated / triggered
+        #     doublers — "double the number of +1/+1 counters on it" — into a generic
+        #     `double` effect (8: Vorel, Gilder Bairn, Deepglow Skate, …) or, worse,
+        #     loses the doubling semantics entirely to a plain `place_counter` /
+        #     `counter_distribute` (38: Kalonian Hydra, Primordial Hydra, Voracious
+        #     Hydra, Growth Curve, Study the Classics, Fractal Harness, …). No clean
+        #     structural arm reaches all 46, so the byte-mirror recovers them. It is
+        #     byte-identical to the deleted regex (commander-legal: mirror == regex ==
+        #     69 exactly, 0 over-fire, 0 miss). add() dedups the 23 the structural arm
+        #     already supplies.
+        # Floor-mirror-dep == 0 (NOT in _IR_FLOOR_LANES). Hybrid fires 75 (the regex's
+        # 69 via mirror + the 6 replacement doublers via the structural arm) — the
+        # ONLY no-flood move, all 6 genuine (verified vs Scryfall). Token- and
+        # counter-doubling stay SEPARATE lanes (a token doubler wants token MAKERS, a
+        # counter doubler wants counter SOURCES — feedback_split_too_broad_lanes). The
+        # _HAND_FLOOR producer + the SWEEP row are deleted; the serve spec
+        # (signal_specs.py) is hand-registered and survives. See ADR-0027.
+        "counter_doubling",
         # ADR-0027 tranche2-C (batch C) — three structural migrations:
         #   extra_land_drop ← cheat_play / topdeck_select with a Land subject (put a
         #     land from hand/library onto the battlefield) + a YOUR-anchored kept word

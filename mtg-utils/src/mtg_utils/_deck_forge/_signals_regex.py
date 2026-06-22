@@ -35,6 +35,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_OPP_REGEX,
     COST_REDUCTION_REGEX,
     COUNTER_DISTRIBUTE_SWEEP_REGEX,
+    COUNTER_DOUBLING_REGEX,
     CREATURE_PING_REGEX,
     CREATURE_RECURSION_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
@@ -1727,17 +1728,20 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # extract_signals_ir). This _HAND_FLOOR producer is deleted; the hand-written
     # serve spec (signal_specs.py) survives. Token- and counter-doubling stay
     # separate lanes (a token doubler wants token makers; a counter doubler wants
-    # counter sources) — counter_doubling keeps its own regex below.
-    (
-        "counter_doubling",
-        re.compile(
-            r"double the number of [^.]*counters?"
-            r"|would put[^.]*counters?[^.]*\binstead\b"
-            r"[^.]*(?:twice|double|that many plus)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # counter sources).
+    # ADR-0027: counter_doubling migrated to the Card IR — a structural
+    # `cat == "counter_doubling"` replacement-effect arm (recovering the 6 canonical
+    # replacement doublers this regex MISSED — Doubling Season, Branching Evolution,
+    # Primal Vigor, Corpsejack Menace, The Earth Crystal, Struggle for Project Purity)
+    # + a byte-identical COUNTER_DOUBLING_REGEX kept word mirror in _signals_ir (the 46
+    # one-shot/activated/triggered "double the number of … counters" doublers phase
+    # v0.1.19 mangles to a generic `double` effect or a plain
+    # `place_counter`/`counter_distribute`). This _HAND_FLOOR producer (the UNION'd into
+    # COUNTER_DOUBLING_REGEX) is deleted; the hand-written serve spec (signal_specs.py)
+    # survives. The producer fired HIGH-confidence scope 'you' and fed has_other_plan,
+    # so a byte-identical _COUNTER_DOUBLING_PLAN_MIRROR (below) re-supplies the
+    # commander-damage voltron silence (the IR re-supply is BROADER — +6 — so NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS). CR 122 / 614 / 903.10a.
     # ADR-0027: second_spell_matters migrated to the Card IR — detected from a
     # byte-identical _SECOND_SPELL_MIRROR in signals._IR_KEPT_DETECTORS (the "second
     # spell each turn" / Dualcast-discount / Erayo-count payoff phase
@@ -2666,6 +2670,21 @@ _RAMP_MATTERS_PLAN_MIRROR = re.compile(
     r"|creatures?[^.]*\bwith (?:a )?mana abilit",
     re.IGNORECASE,
 )
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated counter_doubling key. Its deleted
+# HIGH-confidence producers — the _HAND_FLOOR oracle regex (scope 'you') and the SWEEP
+# row (scope 'you', UNION'd into COUNTER_DOUBLING_REGEX) — counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+# counter-doubling body that is NOT a vanilla beater (a counter doubler IS a plan). The
+# migrated IR arm is BROADER (+6 — the structural replacement arm adds Doubling Season,
+# Branching Evolution, Primal Vigor, Corpsejack Menace, The Earth Crystal, Struggle for
+# Project Purity, which this regex MISSED), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 6. This BYTE-IDENTICAL mirror
+# (== COUNTER_DOUBLING_REGEX) reproduces the OLD regex's exact silence set (69 cards, 6
+# new ones excluded), so the file-swap shows voltron delta 0. It feeds ONLY the gate (no
+# signal — the lane is served from the IR), matched against the reminder-STRIPPED `text`
+# (the deleted producers were detectors over reminder-stripped clauses). CR 122 / 614 /
+# 903.10a.
+_COUNTER_DOUBLING_PLAN_MIRROR = re.compile(COUNTER_DOUBLING_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated artifacts_matter key. Its two
 # deleted HIGH-confidence producers — the _HAND_FLOOR oracle regex (scope 'you') and the
 # kept "if you control an artifact" SWEEP row (scope 'you') — counted toward
@@ -4899,6 +4918,18 @@ def extract_signals(
         # corpus, reminder-KEPT would over-fire on Balduvian Shaman) restores the old
         # regex's exact silence set, so the file-swap shows voltron delta 0. CR 903.10a.
         or _COLOR_HOSER_RE.search(text)
+        # ADR-0027: re-silence the deleted counter_doubling producers (the _HAND_FLOOR
+        # oracle regex + the SWEEP row, both HIGH-confidence scope 'you', feeding
+        # has_other_plan — a counter doubler IS a plan, not a vanilla beater). The
+        # migrated IR arm is BROADER (+6 — the structural replacement arm adds Doubling
+        # Season, Branching Evolution, Primal Vigor, Corpsejack Menace, The Earth
+        # Crystal, Struggle for Project Purity, which this regex MISSED), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 6. This BYTE-IDENTICAL
+        # mirror (== COUNTER_DOUBLING_REGEX) restores the old regex's exact 69-card
+        # silence set, so the file-swap shows voltron delta 0. Matched against the
+        # reminder-STRIPPED `text` (the deleted producers were detectors over stripped
+        # clauses). CR 122 / 614 / 903.10a.
+        or _COUNTER_DOUBLING_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted artifacts_matter producers (the _HAND_FLOOR
         # oracle regex + the kept "if you control an artifact" SWEEP row, both HIGH-
         # confidence scope 'you', feeding has_other_plan — an artifact engine IS a plan,

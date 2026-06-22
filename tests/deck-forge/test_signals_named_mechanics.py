@@ -93,14 +93,11 @@ CASES = [
     # effect-category doer via _DOER_EFFECT_KEYS for the "it becomes day/night"
     # transition payoff), so it is asserted via the hybrid path below, not this regex
     # CASES loop.
-    # ADR-0027: coven_matters / voting_matters / token_doubling / blood_matters
-    # migrated to the Card IR, so they are asserted via the hybrid path below, not
-    # this regex CASES loop.
-    (
-        "counter_doubling",
-        "you",
-        "Double the number of each kind of counter on target creature.",
-    ),
+    # ADR-0027: coven_matters / voting_matters / token_doubling / blood_matters /
+    # counter_doubling migrated to the Card IR, so they are asserted via the hybrid path
+    # below, not this regex CASES loop. (counter_doubling rides the byte-identical
+    # COUNTER_DOUBLING_REGEX kept mirror in _signals_ir for the one-shot doublers phase
+    # mangles — see test_counter_doubling_is_ir_served.)
     # ADR-0027: second_spell_matters migrated to the Card IR (a byte-identical
     # _SECOND_SPELL_MIRROR in _IR_KEPT_DETECTORS for the "second spell each turn"
     # payoff phase under-structures — a bare cast_spell trigger drops the qualifier),
@@ -123,6 +120,20 @@ def test_coven_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
     assert ("coven_matters", "you") in _ks_hybrid(c)
     assert ("coven_matters", "you") not in _ks(c)
+
+
+def test_counter_doubling_is_ir_served():
+    # ADR-0027: counter_doubling is IR-served. The one-shot "Double the number of …
+    # counters" form (Vorel, Gilder Bairn, Kalonian Hydra) is what phase v0.1.19
+    # mangles to a generic `double`/`place_counter`, so it rides the byte-identical
+    # COUNTER_DOUBLING_REGEX kept word mirror in _signals_ir — through the hybrid path,
+    # not pure regex.
+    c = {
+        "name": "X",
+        "oracle_text": "Double the number of each kind of counter on target creature.",
+    }
+    assert ("counter_doubling", "you") in _ks_hybrid(c)
+    assert ("counter_doubling", "you") not in _ks(c)
 
 
 def test_modified_matters_word_arm_is_ir_served():

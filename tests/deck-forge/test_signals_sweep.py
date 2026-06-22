@@ -54,8 +54,11 @@ def test_sweep_detectors_loaded():
     # then 32→31 as theft_matters's row was deleted (ADR-0027 — migrated to a byte-
     # identical THEFT_MATTERS_REGEX kept word mirror in _signals_ir for the steal-and-
     # cast / heist / name-strip-three-zone steal payoffs phase carries no structural
-    # form for).
-    assert len(SWEEP_DETECTORS) >= 31
+    # form for), then 31→30 as counter_doubling's row was deleted (ADR-0027 — migrated
+    # to the `cat == "counter_doubling"` replacement-effect structural arm + a byte-
+    # identical COUNTER_DOUBLING_REGEX kept word mirror in _signals_ir for the 46
+    # one-shot doublers phase mangles to `double`/`place_counter`/`counter_distribute`).
+    assert len(SWEEP_DETECTORS) >= 30
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

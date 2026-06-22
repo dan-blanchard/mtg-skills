@@ -60,6 +60,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
+    COUNTER_DOUBLING_REGEX,
     CREATURE_PING_REGEX,
     CREATURE_RECURSION_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
@@ -4141,6 +4142,22 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
 # is precise — it never fired on the reminder-text self-copies because they live inside
 # parens). CR 702.95.
 _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# counter_doubling BYTE-IDENTICAL kept mirror (ADR-0027): the lane is BROADER than
+# phase's one `counter_doubling` REPLACEMENT category. The structural `cat ==
+# "counter_doubling"` arm (in extract_signals_ir) fires the 29 static replacement
+# doublers — including the 6 the deleted regex MISSED (Doubling Season, Branching
+# Evolution, Primal Vigor, Corpsejack Menace, The Earth Crystal, Struggle for Project
+# Purity, whose "twice that many … counters are put" never matched the regex's "double
+# the number of …" pattern). But phase v0.1.19 MANGLES the ONE-SHOT / activated /
+# triggered "double the number of … counters on it" forms — to a generic `double` effect
+# (Vorel, Gilder Bairn, Deepglow Skate, …) or, worse, loses the doubling entirely to a
+# plain `place_counter`/`counter_distribute` (Kalonian Hydra, Primordial Hydra,
+# Voracious Hydra, Growth Curve, Study the Classics, Fractal Harness, …) — no structural
+# arm reaches those 46. This mirror (== COUNTER_DOUBLING_REGEX, the UNION of the two
+# deleted oracle regexes) run FLAT over the reminder-stripped kept_oracle recovers them
+# byte-identically (commander-legal: mirror == old regex == 69 exactly, 0 over-fire).
+# add() dedups vs the structural arm. CR 122 / 614.
+_COUNTER_DOUBLING_MIRROR = re.compile(COUNTER_DOUBLING_REGEX, re.IGNORECASE)
 # tokens_matter BYTE-IDENTICAL kept mirror (ADR-0027): the lane fires from the UNION of
 # the two EXACT deleted _HAND_FLOOR regexes (pinned as TOKENS_MATTER_REGEX) over the
 # reminder-stripped kept_oracle — a GO-WIDE count-scaler ("gets +N/+N for each creature
@@ -8086,6 +8103,22 @@ def extract_signals_ir(
     # the deleted producer). add() dedups. CR 702.95 / 707.
     if _TOKEN_COPY_MATTERS_MIRROR.search(kept_oracle):
         add("token_copy_matters", "you", "", "")
+    # ADR-0027 — counter_doubling BYTE-IDENTICAL kept mirror. The structural
+    # `cat == "counter_doubling"` arm (above) is the REPLACEMENT-effect lane (Doubling
+    # Season, Branching Evolution, Hardened Scales family — including the 6 the regex
+    # missed). phase v0.1.19 MANGLES the one-shot/activated/triggered "double the number
+    # of … counters" doublers — to a generic `double` effect (Vorel, Gilder Bairn,
+    # Deepglow Skate) or loses the doubling to a plain
+    # `place_counter`/`counter_distribute` (Kalonian Hydra, Primordial Hydra, Voracious
+    # Hydra, Growth Curve, …), so no clean structural arm reaches those 46. Recover them
+    # with the UNION of the two EXACT deleted oracle regexes (COUNTER_DOUBLING_REGEX)
+    # over the reminder-stripped kept_oracle (scope 'you', matching the deleted
+    # producers).
+    # add() dedups vs the structural arm; mirror OR structural == the full regex firing
+    # PLUS the 6 replacement doublers the regex missed (commander-legal: mirror ==
+    # regex == 69, struct adds 6, union 75, 0 over-fire). CR 122 / 614.
+    if _COUNTER_DOUBLING_MIRROR.search(kept_oracle):
+        add("counter_doubling", "you", "", "")
     # ADR-0027 — tokens_matter BYTE-IDENTICAL kept mirror. phase carries NO structural
     # shape for the "tokens you control" / "for each creature you control" payoffs (they
     # survive only in raw), so recover the lane with the UNION of the two EXACT deleted
