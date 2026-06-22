@@ -323,16 +323,19 @@ def test_death_trigger_doubler_opens_aristocrats_lane():
             "Creature tokens you control have vigilance and lifelink."
         ),
     }
-    assert any(k == "death_matters" for k, _ in _keys(teysa))
+    # ADR-0027: death_matters migrated to the Card IR; the "dying"+"trigger" death-
+    # doubler branch now rides the byte-identical _DEATH_MATTERS_MIRROR on the IR path.
+    assert any(k == "death_matters" for k, _ in _keys_hybrid(teysa))
 
 
 def test_dies_in_passing_does_not_open_aristocrats():
     # A one-off non-death clause must NOT mint the aristocrats lane (no over-general).
+    # ADR-0027: assert against the hybrid (IR) path the migrated lane now lives on.
     card = {
         "name": "Exiler",
         "oracle_text": "When this creature deals combat damage to a player, exile it.",
     }
-    assert not any(k == "death_matters" for k, _ in _keys(card))
+    assert not any(k == "death_matters" for k, _ in _keys_hybrid(card))
 
 
 # ── Cast-an-X-spell routes to the X lane, not Spellslinger (Sythis / Emry) ──────
@@ -1417,7 +1420,11 @@ def test_plural_death_trigger_opens_death_matters():
             "type_line": "Legendary Creature — Test",
             "oracle_text": oracle,
         }
-        assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
+        # ADR-0027: the plural "creatures you control die" branch rides the byte-
+        # identical _DEATH_MATTERS_MIRROR on the IR path.
+        assert "death_matters" in {
+            s.key for s in extract_signals_hybrid(card, _bare_ir())
+        }, oracle
 
 
 def test_artifact_type_commander_opens_artifacts():
@@ -1771,17 +1778,26 @@ def test_past_tense_death_count_opens_death_matters():
             "type_line": "Legendary Creature — Test",
             "oracle_text": oracle,
         }
-        assert "death_matters" in {s.key for s in extract_signals(card)}, oracle
+        # ADR-0027: the morbid "died this turn" count payoff rides the byte-identical
+        # _DEATH_MATTERS_MIRROR on the IR path.
+        assert "death_matters" in {
+            s.key for s in extract_signals_hybrid(card, _bare_ir())
+        }, oracle
 
 
 def test_plural_death_does_not_open_on_dice():
     # Precision: a dice "die" ("roll a six-sided die") must NOT read as a death trigger.
+    # ADR-0027: the precision boundary now lives in the IR-path _DEATH_MATTERS_MIRROR
+    # (its "creatures? … die" arm requires a creature/permanent/token subject, never the
+    # bare dice "die"), so assert against the hybrid path.
     card = {
         "name": "Velukan Dragon",
         "type_line": "Creature — Dragon",
         "oracle_text": "Flying\nWhenever this creature attacks or blocks, roll a six-sided die. This creature gets +X/+0 until end of turn, where X is the result minus 1.",
     }
-    assert "death_matters" not in {s.key for s in extract_signals(card)}
+    assert "death_matters" not in {
+        s.key for s in extract_signals_hybrid(card, _bare_ir())
+    }
 
 
 def test_plural_combat_damage_opens_combat_damage_matters():

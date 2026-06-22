@@ -56,6 +56,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
+    DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
     ENTERED_ATTACKER_REGEX,
@@ -3403,6 +3404,25 @@ _LTB_MATTERS_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
 _LTB_MATTERS_MIRROR_VETO = re.compile(
     r"exile [^.]*until [^.]*leaves the battlefield", re.IGNORECASE
 )
+# death_matters BYTE-IDENTICAL kept mirror (ADR-0027): the lane fires from the EXACT
+# union of the two deleted producers (the clause-scoped _DETECTORS lambda + the "died
+# this turn" _HAND_FLOOR regex, pinned DEATH_MATTERS_REGEX) run PER-CLAUSE over the
+# reminder-stripped kept_oracle — the aristocrats payoff (OTHER creatures dying, CR
+# 700.4: "dies" = battlefield→graveyard, disjoint from ltb_matters' broader `leaves`).
+# NOT a structural-only arm: phase's `dies` TRIGGER (the structural arm below) covers
+# only the literal "whenever a creature dies" form, but the dominant family is the
+# MORBID "if a creature died this turn" CONDITION (no trigger at all — Bone Picker,
+# Reaper from the Abyss, Bontu), the conferred/quoted dies triggers phase leaves textual
+# (Necrosynthesis, Relic Vial, Massacre Girl), and the "dying"+"trigger" death-doublers
+# (Teysa Karlov, Drivnod). The regex-expressible branches ride DEATH_MATTERS_REGEX; the
+# two SUBSTRING-AND branches the lambda ran ("whenever"&"dies", "dying"&"trigger" on the
+# SAME clause) are checked inline in extract_signals_ir (no single regex expresses a
+# substring-AND). Run per-clause to match the deleted producers' clause loop (split on
+# .;\n). The STRUCTURAL arm below add()-dedups its +90 ir_only recall gain (the verbose
+# "is put into a graveyard from the battlefield" payoffs). No veto needed (byte-
+# identical: commander-legal corpus regex==mirror, 0 lost, 0 over-fire). CR 700.4 /
+# 603.6e.
+_DEATH_MATTERS_MIRROR = re.compile(DEATH_MATTERS_REGEX, re.IGNORECASE)
 # self_counter_grow NARROWED kept mirror (ADR-0027 β): the structural arm above fires on
 # a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR v12), a
 # +503
@@ -6513,6 +6533,27 @@ def extract_signals_ir(
         for cl in _clauses(kept_oracle)
     ):
         add("ltb_matters", "you", "", "")
+    # ADR-0027 — death_matters BYTE-IDENTICAL kept mirror. The structural `dies`-trigger
+    # arm above (trig.event=='dies' and trig.subject is not None) catches phase's
+    # battlefield→graveyard payoffs (+90 ir_only recall — the verbose "is put into a
+    # graveyard from the battlefield" forms the literal-"dies" regex missed), but phase
+    # carries NO structural shape for the morbid "if a creature died this turn"
+    # CONDITION (the dominant family), the conferred / "until end of turn" / quoted dies
+    # or the "dying"+"trigger" death-doublers. Recover them with the EXACT union of the
+    # two deleted producers, run PER-CLAUSE over the reminder-stripped kept_oracle: the
+    # regex-expressible branches via _DEATH_MATTERS_MIRROR, plus the two SUBSTRING-AND
+    # branches the deleted lambda ran on the lower-cased clause ("whenever"&"dies",
+    # "dying"&"trigger" — no single regex expresses a substring-AND). scope 'any' (the
+    # deleted _HAND_FLOOR producer's forced scope, and the serve spec's scope). add()
+    # dedups vs the structural arm. Byte-identical (commander-legal: regex==mirror, 0
+    # lost, 0 over-fire). CR 700.4 / 603.6e.
+    if any(
+        _DEATH_MATTERS_MIRROR.search(cl)
+        or ("whenever" in (lc := cl.lower()) and "dies" in lc)
+        or ("dying" in lc and "trigger" in lc)
+        for cl in _clauses(kept_oracle)
+    ):
+        add("death_matters", "any", "", "")
     # ADR-0027 β — self_counter_grow NARROWED kept mirror. The structural arm above
     # fires
     # on a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR

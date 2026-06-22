@@ -366,6 +366,38 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # death_matters ← a STRUCTURAL `dies`-trigger with a real subject (trig.event=="dies"
+    # and trig.subject is not None — phase's battlefield→graveyard trigger, CR 700.4, the
+    # disjoint complement of ltb_matters' broader `leaves` event). Blood Artist's
+    # "Whenever this creature or another creature dies …" is the canonical aristocrats
+    # payoff: the structural arm in extract_signals_ir fires death_matters scope "any".
+    # The morbid "if a creature died this turn" CONDITION family rides the byte-identical
+    # _DEATH_MATTERS_MIRROR instead (no trigger to read). ADR-0027. CR 700.4 / 603.6e.
+    "death_matters": (
+        {
+            "name": "Blood Artist",
+            "type_line": "Creature — Vampire",
+            "oracle_text": (
+                "Whenever this creature or another creature dies, target player "
+                "loses 1 life and you gain 1 life."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="dies",
+                    scope="any",
+                    subject=Filter(card_types=("Creature",), controller="any"),
+                    zones=("from:battlefield", "to:graveyard"),
+                ),
+                effects=(
+                    Effect(category="lose_life", scope="opp", raw="loses 1 life"),
+                    Effect(category="gain_life", scope="you", raw="you gain 1 life"),
+                ),
+            )
+        ),
+    ),
     # self_counter_grow ← a STRUCTURAL place_counter carrying the SelfRef self-anchor
     # marker (project @ SIDECAR v12 — phase's PutCounter target=={type:SelfRef}, dropped
     # by _effect_subject, re-surfaced as Filter(predicates=("SelfRef",))). Adaptive

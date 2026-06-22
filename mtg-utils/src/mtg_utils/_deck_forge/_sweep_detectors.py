@@ -509,6 +509,34 @@ DAMAGE_REDIRECT_REGEX = (
 # hand-registered serve spec (signal_specs). SWEEP_LABELS keeps the label.
 FREE_CAST_REGEX = "rather than pay (?:its|their|the) mana cost|without paying (?:its|their) mana cost|may cast (?:it|that (?:card|spell)|those cards)[^.]*without paying"
 
+# ADR-0027: death_matters (the ARISTOCRATS payoff — OTHER creatures dying as a
+# resource, CR 700.4: "dies" = battlefield→graveyard) migrated to the Card IR via a
+# BYTE-IDENTICAL kept-mirror (_DEATH_MATTERS_MIRROR + the two substring-AND branches in
+# _signals_ir). The two deleted producers (the clause-scoped _DETECTORS lambda and the
+# "died this turn" _HAND_FLOOR regex) had no single structural shape: phase's `dies`
+# TRIGGER (project @ SIDECAR v11 — battlefield→graveyard, the disjoint complement of the
+# broader `leaves` event ltb_matters reads) covers only the "whenever a creature dies"
+# TRIGGER form, but the dominant family is the MORBID "if a creature died this turn"
+# CONDITION (104 cards — Bone Picker, Reaper from the Abyss, Bontu), which is NO trigger
+# at all, plus conferred / "until end of turn" / quoted dies triggers phase leaves
+# textual (Necrosynthesis, Relic Vial, Massacre Girl) and the death-trigger DOUBLERS
+# (Teysa Karlov, Drivnod). So the lane rides this byte-identical regex (commander-legal
+# corpus: regex==mirror, 0 lost, 0 over-fire) run PER-CLAUSE. The STRUCTURAL `dies`-
+# trigger arm in extract_signals_ir adds +90 ir_only recall (the verbose "is put into a
+# graveyard from the battlefield" payoffs — Field of Souls, Dingus Egg, Sarulf — the
+# literal-"dies" regex MISSED), add()-deduped with the mirror. The regex-expressible
+# branches are pinned here (reused by the IR mirror, the has_other_plan
+# _DEATH_MATTERS_PLAN_MIRROR, and the hand-registered serve spec); the mirror ALSO runs
+# the two substring-AND branches ("whenever"&"dies", "dying"&"trigger") the deleted
+# lambda did, which no single regex expresses. NO SWEEP row (death_matters was a clause-
+# scoped baseline widen, never swept). NO sidecar bump (the v11 projection already emits
+# the `dies` trigger event). CR 700.4 / 603.6e (dies ⊂ leaves the battlefield).
+DEATH_MATTERS_REGEX = (
+    r"whenever [^.]*(?:creatures?|permanents?|tokens?|they|control) die\b"
+    r"|creatures? (?:that )?died this turn"
+    r"|creature[^.]*\bdied\b[^.]*this turn"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     # ADR-0027: commander_matters migrated to the Card IR — the IsCommander subject-
     # Filter predicate + a kept word mirror (signals._IR_KEPT_DETECTORS) for the

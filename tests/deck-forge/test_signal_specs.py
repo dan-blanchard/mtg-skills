@@ -1966,14 +1966,20 @@ def test_etb_lane_surfaces_value_creatures_and_doublers():
 
 def test_aristocrats_credits_plural_creatures_die():
     # "Whenever one or more creatures die" (Morbid Opportunist) is the same payoff as
-    # "dies" — plural phrasing must not be missed.
+    # "dies" — plural phrasing must not be missed. ADR-0027: death_matters migrated to
+    # the Card IR; the plural "creatures die" branch rides the byte-identical
+    # _DEATH_MATTERS_MIRROR (scope "any") on the IR path.
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils.card_ir import Card, Face
+
     morbid = {
         "name": "Morbid Opportunist",
         "type_line": "Creature — Human Rogue",
         "oracle_text": "Whenever one or more other creatures die, draw a card. This "
         "ability triggers only once each turn.",
     }
-    keys = {(s.key, s.scope) for s in extract_signals(morbid)}
+    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    keys = {(s.key, s.scope) for s in extract_signals_hybrid(morbid, bare_ir)}
     assert any(k == "death_matters" for k, _ in keys)
     assert serves(morbid, _sig("death_matters", "any")) is True
 

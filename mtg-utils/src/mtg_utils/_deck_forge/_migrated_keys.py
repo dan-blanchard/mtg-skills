@@ -2371,6 +2371,49 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # other lane drift, 0 death_matters change. CR 603.6e / 700.4 (leaves ⊃ dies) /
         # 903.10a (voltron).
         "ltb_matters",
+        # ADR-0027 — death_matters (the ARISTOCRATS payoff: OTHER creatures dying as a
+        # resource, CR 700.4 "dies" = battlefield→GRAVEYARD, the DISJOINT complement of
+        # the broader `leaves` event ltb_matters reads — dies = to-graveyard, leaves =
+        # any zone). MIGRATED VIA A STRUCTURAL IR ARM + a BYTE-IDENTICAL kept-mirror (NO
+        # sidecar bump — the v11 projection already emits the `dies` trigger event).
+        #
+        # STRUCTURAL ARM. extract_signals_ir fires on a `dies`-trigger with a real
+        # subject (trig.event=='dies' and trig.subject is not None) — phase's
+        # battlefield→graveyard trigger, the precise complement of the `leaves` event.
+        #
+        # WHY NOT STRUCTURAL-ONLY. The `dies`-TRIGGER arm covers only the literal
+        # "whenever a creature dies" form. The dominant family is the MORBID "if a
+        # creature died this turn" CONDITION (104 cards — Bone Picker, Reaper from the
+        # Abyss, Bontu the Glorified), which is NO trigger at all; plus the conferred /
+        # "until end of turn" / quoted dies triggers phase leaves textual
+        # (Necrosynthesis, Relic Vial, Massacre Girl) and the death-trigger DOUBLERS
+        # (Teysa Karlov, Drivnod). Phase carries no structural shape for these, so a
+        # structural-only migration would LOSE 223 cards (208 genuine). Hence a kept-
+        # mirror, NOT structural-only.
+        #
+        # BYTE-IDENTICAL KEPT-MIRROR. _DEATH_MATTERS_MIRROR (pinned DEATH_MATTERS_REGEX)
+        # plus the two substring-AND branches ("whenever"&"dies", "dying"&"trigger") the
+        # deleted lambda ran, over the reminder-stripped clauses — the EXACT union of
+        # the two deleted producers (the clause-scoped _DETECTORS lambda + the "died
+        # this turn" _HAND_FLOOR regex). Floor-disabled residual (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), structural arm + mirror vs the deleted regex):
+        # both==558, ir_only==0, regex_only==0 — the mirror is byte-identical (verified
+        # 558==558, 0 miss, 0 over). The STRUCTURAL arm ALONE adds +90 ir_only recall
+        # (the verbose "is put into a graveyard from the battlefield" payoffs — Field of
+        # Souls, Dingus Egg, Sarulf, Shirei — the literal-"dies" regex MISSED), add()-
+        # deduped with the mirror. floor-mirror-dep == 0 (death_matters is NOT an
+        # _IR_FLOOR_LANE — it was a clause-scoped baseline widen, never floored).
+        #
+        # VOLTRON. The deleted _HAND_FLOOR producer fired HIGH-confidence (scope 'any')
+        # and the _DETECTORS lambda fired at the _resolve_scope confidence, both feeding
+        # has_other_plan; a byte-identical _DEATH_MATTERS_PLAN_MIRROR in _signals_regex
+        # re-supplies the regex-path voltron silence directly (the mirror is byte-
+        # identical, so _VOLTRON_SILENCING_PLAN_KEYS would also work, but the pure-regex
+        # has_other_plan needs the direct restore). FILE-SWAP no-flood (base 1611621 vs
+        # edits, 30969 commander-legal): ONLY death_matters moves (+90 recall gain), 0
+        # ltb_matters / dies_recursion / self_death_payoff drift, voltron delta 0, 0
+        # other lane drift. CR 700.4 / 603.6e (dies ⊂ leaves) / 903.10a (voltron).
+        "death_matters",
         # ADR-0027 β — self_counter_grow (a creature that puts +1/+1 counters on ITSELF
         # to GROW: adapt CR 701.43 / monstrosity 701.13 / renown 702.111, Saga chapter
         # "put N +1/+1 on ~", "enters with / put a +1/+1 counter on this creature",

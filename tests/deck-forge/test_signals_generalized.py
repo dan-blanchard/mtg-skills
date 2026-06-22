@@ -3610,11 +3610,13 @@ def test_creature_died_this_turn_payoff_opens_death():
             "died this turn, create a 2/2 black Zombie creature token."
         ),
     }
-    assert ("death_matters", "any") in _ks(faramir)
-    assert ("death_matters", "any") in _ks(tobias)
+    # ADR-0027: death_matters migrated to the Card IR; the morbid "died this turn"
+    # family rides the byte-identical _DEATH_MATTERS_MIRROR (scope "any") on the IR path.
+    assert ("death_matters", "any") in _ks_hybrid(faramir)
+    assert ("death_matters", "any") in _ks_hybrid(tobias)
     # Over-fire guard: a vanilla creature has no death payoff.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert ("death_matters", "any") not in _ks(bear)
+    assert ("death_matters", "any") not in _ks_hybrid(bear)
 
 
 def test_self_dies_recursion_opens_self_death_payoff():
@@ -4371,14 +4373,19 @@ def test_self_reference_resolves_any_scope_to_you_high_confidence():
 
 
 def test_self_reference_skips_leading_article():
-    # "The" must not be treated as the card's self-reference name.
+    # "The" must not be treated as the card's self-reference name. ADR-0027: death_matters
+    # migrated to the Card IR — its mirror emits scope "any" (the deleted _HAND_FLOOR
+    # producer's forced scope, and the serve spec's scope), so "The Scorpion God"'s
+    # "Whenever a creature … dies" never spuriously flips to a self-ref "you". Assert via
+    # the hybrid path the migrated lane now lives on.
     c = {
         "name": "The Scorpion God",
         "oracle_text": "Whenever a creature with a -1/-1 counter on it dies, draw a card.\n{1}{B}{R}: Put a -1/-1 counter on another target creature.\nWhen The Scorpion God dies, return it to its owner's hand at the beginning of the next end step.",
     }
-    # death_matters here is scope "any" (no self-ref to "Scorpion"); not forced to you.
-    s = _by_key(c, "death_matters")
-    assert s.scope != "you" or s.confidence == "high"  # not a spurious self-ref flip
+    s = next(
+        s for s in extract_signals_hybrid(c, _bare_ir()) if s.key == "death_matters"
+    )
+    assert s.scope == "any"  # not a spurious self-ref flip to "you"
 
 
 def test_broad_possessive_scope_is_opponents_low_confidence():

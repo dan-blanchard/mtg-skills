@@ -37,6 +37,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_EQUAL_POWER_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
+    DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
     FREE_CAST_REGEX,
@@ -423,33 +424,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "you",
     ),
-    # Aristocrats: a "whenever … dies" trigger (CR 700.4: "dies" = put into a graveyard
-    # from the battlefield), OR a death-trigger DOUBLER ("if a creature dying causes a
-    # triggered ability … that ability triggers an additional time" — Teysa, Drivnod),
-    # an aristocrats commander even without a literal "whenever … dies". Verified vs
-    # bulk: the "dying"+"trigger" branch adds only ~5 cards, all death-doublers.
-    (
-        "death_matters",
-        lambda c: (
-            ("whenever" in c and "dies" in c)
-            # Plural "creatures die" (Morbid Opportunist, Grave Pact-style) — the CR
-            # term is "dies", but cards phrase mass death as "one or more creatures
-            # die". Scoped to creature/permanent/token to avoid "roll a die" dice cards.
-            # The "control" alternative handles the conjugation where "you control" sits
-            # between the noun and the verb ("creatures you control die" — Vraan, Éomer,
-            # G'raha Tia); the dice noun "die" follows an article ("a die", "sided
-            # die"), never "control", so this stays off the dice cards.
-            or _re(
-                r"whenever [^.]*(?:creatures?|permanents?|tokens?|they|control) die\b"
-            )(c)
-            # Past-tense death COUNT payoff ("create a Treasure for each creature that
-            # died this turn" / "if a creature died this turn") — a morbid/aristocrats
-            # commander (Mahadi, Gadrak, Shessra) the present-tense "dies" branch lost.
-            or _re(r"creatures? (?:that )?died this turn")(c)
-            or ("dying" in c and "trigger" in c)
-        ),
-        None,
-    ),
+    # ADR-0027: death_matters migrated to the Card IR — the aristocrats payoff (OTHER
+    # creatures dying, CR 700.4: "dies" = battlefield→graveyard, disjoint from the
+    # broader `leaves` event ltb_matters reads). The lane fires from the STRUCTURAL
+    # `dies`-trigger arm in extract_signals_ir (+90 ir_only recall — the verbose "is put
+    # into a graveyard from the battlefield" payoffs the literal-"dies" regex missed)
+    # PLUS the byte-identical _DEATH_MATTERS_MIRROR (the deleted producers' EXACT union,
+    # pinned as DEATH_MATTERS_REGEX) run per-clause for the morbid "if a creature died
+    # this turn" CONDITION family + the conferred/quoted dies triggers + the "dying"+
+    # "trigger" death-doublers no single structural shape covers. Both this clause-
+    # scoped _DETECTORS producer and the "died this turn" _HAND_FLOOR producer are
+    # deleted; the serve spec stays hand-registered. The _DEATH_MATTERS_PLAN_MIRROR
+    # re-supplies the has_other_plan voltron silence. (CR 700.4 / 603.6e.)
     # ADR-0027: sacrifice_matters migrated to the Card IR — a you-sacrifice EFFECT
     # (scope not opp/each, a non-land subject, not a forced-opponent edict raw) + a
     # "sacrificed" trigger payoff + the Casualty keyword + the additional-cost /
@@ -1098,18 +1084,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\bhave warp\b|gains? warp\b", re.IGNORECASE),
         "you",
     ),
-    # "Creature DIED this turn" payoff (Faramir draws, Sméagol tempts, Tobias makes
-    # Zombies, Ebondeath recasts) — an aristocrats payoff wanting sac fodder + outlets.
-    # death-specific ("died ... this turn"), so the broader "put into a graveyard from
-    # anywhere this turn" (mill/discard, → graveyard) stays out.
-    (
-        "death_matters",
-        re.compile(
-            r"creature[^.]*\bdied\b[^.]*this turn|creatures? that died this turn",
-            re.IGNORECASE,
-        ),
-        "any",
-    ),
+    # ADR-0027: death_matters migrated to the Card IR. This "creature DIED this turn"
+    # _HAND_FLOOR producer (scope "any", high-confidence — it fed has_other_plan) is
+    # deleted along with the clause-scoped _DETECTORS producer above; both survive
+    # byte-identically as the _DEATH_MATTERS_MIRROR in _signals_ir (the union pinned as
+    # DEATH_MATTERS_REGEX), and the morbid-condition family feeds the regex-path
+    # has_other_plan via _DEATH_MATTERS_PLAN_MIRROR below. The serve spec stays hand-
+    # registered in signal_specs.py. CR 700.4.
     # ADR-0027 β: debuff_matters migrated to the Card IR. This Maha opponent-SHRINK
     # _DETECTORS row (scope "you") is deleted; it survives byte-identically as the
     # _DEBUFF_MAHA_REGEX _IR_KEPT_DETECTORS mirror, and feeds the regex-path
@@ -2925,6 +2906,24 @@ _GAIN_CONTROL_PLAN_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
 # per-clause over reminder-stripped clauses; the regex arms are clause-local, so
 # full-text == per-clause). CR 903.10a / 603.6e.
 _LTB_MATTERS_PLAN_MIRROR = re.compile(LTB_MATTERS_SWEEP_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated death_matters key. The deleted
+# producers fired HIGH-confidence (the _HAND_FLOOR "died this turn" row at scope 'any';
+# the _DETECTORS "whenever … dies" lambda at the scope _resolve_scope assigned) and
+# counted toward `has_other_plan`, silencing the spurious commander-damage voltron tell
+# on an aristocrats body that is NOT a vanilla beater (Massacre Girl, Bontu the
+# Glorified, Reaper from the Abyss). The migrated IR arm + _DEATH_MATTERS_MIRROR are
+# byte-identical to the deleted regex (no over-fire dropped), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would also work — but the regex-path `has_other_plan`
+# (in extract_signals, for pure-regex callers) needs the silence restored directly, so
+# this byte-identical OR of the deleted producers feeds ONLY the gate. The bare
+# "whenever … dies" and "dying … trigger" substring-AND branches the lambda ran are
+# expressed here as flat [^.]*-bounded patterns; pinned DEATH_MATTERS_REGEX supplies the
+# regex-expressible branches. Matched against the reminder-STRIPPED `text`. CR 903.10a /
+# 700.4.
+_DEATH_MATTERS_PLAN_MIRROR = re.compile(
+    DEATH_MATTERS_REGEX + r"|whenever [^.]*\bdies\b" + r"|\bdying\b[^.]*\btrigger",
+    re.IGNORECASE,
+)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated self_counter_grow key. The
 # deleted SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted
 # toward `has_other_plan`, silencing the spurious commander-damage voltron tell on a
@@ -4560,6 +4559,13 @@ def extract_signals(
         # clauses; the regex arms are clause-local, so full-text == per-clause). CR
         # 903.10a / 603.6e.
         or _LTB_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted death_matters producers (the _HAND_FLOOR
+        # "died this turn" row at scope 'any' + the _DETECTORS "whenever … dies"
+        # lambda), both HIGH-confidence and feeding has_other_plan — an aristocrats body
+        # is no vanilla beater. The migrated lane rides a byte-identical mirror, so this
+        # mirror is the byte-identical OR of the deleted producers; matched against the
+        # reminder-STRIPPED `text`. CR 903.10a / 700.4.
+        or _DEATH_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted self_counter_grow SWEEP producer (HIGH-
         # confidence scope 'you', feeding has_other_plan — a self-growth engine is no
         # vanilla beater). The migrated lane rides a BROADER structural arm (+503
