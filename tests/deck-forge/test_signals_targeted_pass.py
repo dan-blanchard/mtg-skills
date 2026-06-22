@@ -154,7 +154,17 @@ def test_noncombat_damage_does_not_fire_combat_axis():
 
 def test_combat_damage_audit_preserved():
     # inverse: literal combat damage fires the combat axis, NOT the any-damage key.
-    k = _keys("Whenever Foo deals combat damage to an opponent, draw a card.")
+    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror),
+    # so the combat axis serves from the hybrid path. The any-damage key needs the
+    # structural DamageToPlayer marker (a bare deals_damage IR), absent here, so it stays
+    # silent — and the literal "combat damage" never carries the marker anyway.
+    card = {
+        "name": "Foo",
+        "oracle_text": "Whenever Foo deals combat damage to an opponent, draw a card.",
+        "type_line": "Legendary Creature",
+    }
+    bare = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    k = {s.key for s in extract_signals_hybrid(card, bare)}
     assert "combat_damage_matters" in k
     assert "damage_to_opp_matters" not in k
 

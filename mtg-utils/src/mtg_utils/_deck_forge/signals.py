@@ -464,6 +464,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # joined oracle as the deleted regex, so it is BYTE-IDENTICAL (no broadening, no
         # over-silence). File-swap: 1 voltron leaked without this, 0 with it; A-B==0.
         "tribe_damage_trigger",
+        # ADR-0027: combat_damage_matters (the BASE CR-510 combat-damage payoff, parent
+        # of the combat_* siblings) fired high-confidence (forced scope 'opponents') in
+        # the regex path and so counted toward has_other_plan, silencing the spurious
+        # commander-damage voltron tell on a connect-payoff engine that is NOT a vanilla
+        # beater (Edric, Dragonlord Ojutai — evasive card-advantage / connect engines
+        # whose plan IS the combat trigger). Its _DETECTORS regex producer is deleted,
+        # so the hybrid re-silences from the IR re-supply. This is a byte-identical kept
+        # WORD MIRROR — the IR re-supply reads the SAME reminder-stripped joined oracle
+        # as the deleted regex (commander-legal, floor-disabled: both==763,
+        # regex_only==0, ir_only==0), so it is BYTE-IDENTICAL (no over-silence).
+        # File-swap: voltron 3010→3010, A-B==0.
+        "combat_damage_matters",
         # ADR-0027: tokens_matter fired high-confidence (forced scope 'you') in the
         # regex path — via TWO _HAND_FLOOR producers AND the amass / mobilize keyword
         # map — and so counted toward has_other_plan, silencing the spurious

@@ -779,22 +779,43 @@ def test_attacks_trigger_fires_attack_matters():
     assert ("attack_matters", "you", "") in _sigs(ir)
 
 
-def test_combat_damage_trigger_fires_combat_damage_matters_not_opp():
-    """ADR-0027 β: a bare combat_damage trigger fires the base combat_damage_matters
-    lane (and damage_to_opp_matters for scope opp), but NOT the recipient-specific
-    combat_damage_to_opp widen lane. phase drops the recipient TYPE off the trigger
-    (valid_target Typed[Creature] vs Player both project to subject=None), so firing
-    combat_damage_to_opp from the bare trigger would over-fire on creature-recipients
-    (Ohran Viper's destroy-at-end-of-combat trigger). The widen lanes are recipient-
-    discriminated by the joined-face oracle via the _IR_KEPT_DETECTORS mirrors, so a
-    structureless IR with no oracle correctly opens neither widen lane."""
+def test_bare_combat_damage_trigger_opens_no_combat_lane():
+    """ADR-0027: a STRUCTURELESS combat_damage trigger (no oracle) fires NONE of the
+    combat lanes. The unconditional structural `add(combat_damage_matters)` arm was
+    DELETED — it over-fired the recipient (every combat_damage AND deals_damage trigger,
+    regardless of player/creature/you recipient), because phase drops the recipient TYPE
+    off the trigger (valid_target Typed[Creature] vs Player both project to subject=None).
+    The base combat_damage_matters lane AND the recipient-specific combat_damage_to_opp /
+    combat_damage_to_creature widen lanes are ALL recipient-discriminated by the joined-
+    face oracle via the _IR_KEPT_DETECTORS mirrors, so a structureless IR with no oracle
+    correctly opens NONE of them."""
     ir = _ir(
         Ability(kind="triggered", trigger=Trigger(event="combat_damage", scope="opp"))
     )
     sigs = _sigs(ir)
-    assert ("combat_damage_matters", "opponents", "") in sigs
+    assert ("combat_damage_matters", "opponents", "") not in sigs
     assert ("combat_damage_to_opp", "opponents", "") not in sigs
     assert ("combat_damage_to_creature", "any", "") not in sigs
+
+
+def test_combat_damage_matters_fires_from_kept_mirror_on_oracle():
+    """ADR-0027: the base CR-510 combat_damage_matters lane rides the byte-identical
+    _IR_KEPT_DETECTORS mirror — anchored on the player/opponent recipient in the oracle
+    ("deals combat damage to a player/an opponent"), which the structural arm could not
+    discriminate. So with a real oracle the mirror fires the base lane (scope opponents),
+    while a non-combat or creature-recipient oracle does not."""
+    card = {
+        "name": "Edric",
+        "oracle_text": (
+            "Whenever a creature deals combat damage to one of your opponents, "
+            "its controller may draw a card."
+        ),
+    }
+    ir = _ir(
+        Ability(kind="triggered", trigger=Trigger(event="combat_damage", scope="opp"))
+    )
+    sigs = sorted((s.key, s.scope, s.subject) for s in extract_signals_ir(card, ir))
+    assert ("combat_damage_matters", "opponents", "") in sigs
 
 
 # ── Batch 3: tribal type_matters from Filter subtypes ─────────────────────────

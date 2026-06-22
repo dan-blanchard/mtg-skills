@@ -1005,7 +1005,9 @@ def test_passive_combat_damage_opens_combat_lane():
         "target player who was dealt combat damage by Hope of Ghirapur this turn can't "
         "cast noncreature spells.",
     }
-    assert any(k == "combat_damage_matters" for k, _ in _keys(hope))
+    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror
+    # over the reminder-stripped oracle), so it serves from the hybrid path, not pure regex.
+    assert any(k == "combat_damage_matters" for k, _ in _keys_hybrid(hope))
 
 
 def test_multi_counter_placement_opens_counters_lane():
@@ -1919,9 +1921,9 @@ def test_plural_combat_damage_opens_combat_damage_matters():
         "type_line": "Creature — Sphinx Detective",
         "oracle_text": "Flying\nWhenever one or more creatures you control deal combat damage to a player, investigate.\n{1}, Sacrifice a Clue: Seek an instant or sorcery card.",
     }
-    assert ("combat_damage_matters", "opponents") in {
-        (s.key, s.scope) for s in extract_signals(card)
-    }
+    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror),
+    # so the plural-verb form serves from the hybrid path, not pure regex.
+    assert ("combat_damage_matters", "opponents") in _keys_hybrid(card)
 
 
 def test_keyword_grant_lord_gain_opens_type_matters():

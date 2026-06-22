@@ -15,12 +15,28 @@ def _keys(card):
     return {s.key for s in extract_signals(card)}
 
 
+# A minimal non-None IR routes the hybrid to the IR path for ADR-0027-migrated keys
+# whose IR source is a kept word-detector mirror over the record's oracle_text.
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
+
+def _ks_hybrid(card):
+    return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
+
+
+def _keys_hybrid(card):
+    return {s.key for s in extract_signals_hybrid(card, _bare_ir())}
+
+
 def test_combat_damage_matters_scoped_opponents():
+    # ADR-0027: combat_damage_matters migrated to the Card IR (byte-identical kept-mirror),
+    # so it serves from the hybrid path, not pure regex.
     c = {
         "name": "Edric, Spymaster of Trest",
         "oracle_text": "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
     }
-    assert ("combat_damage_matters", "opponents") in _ks(c)
+    assert ("combat_damage_matters", "opponents") in _ks_hybrid(c)
 
 
 def test_combat_damage_does_not_fire_on_plain_attack():
@@ -28,7 +44,7 @@ def test_combat_damage_does_not_fire_on_plain_attack():
         "name": "Attacker",
         "oracle_text": "Whenever this creature attacks, draw a card.",
     }
-    assert "combat_damage_matters" not in _keys(c)
+    assert "combat_damage_matters" not in _keys_hybrid(c)
 
 
 def test_cost_reduction():

@@ -547,25 +547,16 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # scavenge/undying/dethrone/devour — all structurally produce a place_counter or
     # carry the keyword). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0; floor-ON ==
     # floor-OFF). This _DETECTORS producer is deleted; the serve spec stays.
-    # Combat-damage triggers (distinct from attack_matters, which keys on "attack").
-    # Forced opponents — the damaged party is a player/opponent. The single biggest
-    # zero-signal recovery (Edric, Dragonlord Ojutai, Wrexial, …).
-    (
-        "combat_damage_matters",
-        _re(
-            # "deals?" — singular subject ("a creature … deals") AND plural ("one or
-            # more creatures you control deal combat damage", 200+ cards: Yarus, Gonti
-            # Canny Acquisitor, Neheb the Eternal).
-            r"\bwhen(?:ever)?\b[^.]*?\bdeals? combat damage to "
-            r"(?:a player|an opponent|one of your opponents|each opponent"
-            r"|a player or planeswalker|a player or battle)\b"
-            # Passive form: a commander that cares about HAVING dealt combat damage
-            # (Hope of Ghirapur: "player who was dealt combat damage by Hope") wants to
-            # connect — it's a voltron/combat deck.
-            r"|(?:was|were) dealt combat damage by"
-        ),
-        "opponents",
-    ),
+    # ADR-0027: combat_damage_matters (the BASE CR-510 combat-damage payoff: "whenever
+    # ~ deals combat damage to a player/an opponent/each opponent" + the passive "player
+    # who was dealt combat damage by ~" — Edric, Dragonlord Ojutai, Wrexial, Hope of
+    # Ghirapur) migrated to the Card IR. This _DETECTORS producer is DELETED; the lane
+    # rides a byte-identical _IR_KEPT_DETECTORS mirror of THIS regex (the structural
+    # combat_damage/deals_damage arm over-fired the recipient — see the IR mirror's
+    # rationale). The serve spec stays hand-registered. The deleted producer fired HIGH
+    # (forced scope 'opponents') and fed has_other_plan, so combat_damage_matters is
+    # added to signals._VOLTRON_SILENCING_PLAN_KEYS (byte-identical IR re-supply).
+    # CR 510 / 903.10a.
     # ADR-0027: discard_matters migrated to the Card IR — this _DETECTORS producer (the
     # "whenever you discard" payoff OR the same-clause loot outlet "draw a card, then
     # discard") is DELETED. Both halves are reproduced from the IR: the "whenever you

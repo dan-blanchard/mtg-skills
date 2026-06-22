@@ -5253,6 +5253,25 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 kept-mirror — combat_damage_matters: the BASE CR-510 combat-damage payoff
+    # (parent of the combat_* siblings above). The unconditional structural arm over-fired
+    # the recipient (every combat_damage AND deals_damage trigger regardless of recipient),
+    # so the lane rides a byte-identical _IR_KEPT_DETECTORS mirror of the deleted _DETECTORS
+    # regex, anchored on the player/opponent recipient. Edric is a CLEAN player-recipient
+    # ("deals combat damage to one of your opponents"); its oracle never says "to a
+    # creature", so the structural arm's would-be creature/noncombat over-fire is absent.
+    # Bare IR (the mirror scans the record's oracle_text directly).
+    "combat_damage_matters": (
+        {
+            "name": "Edric, Spymaster of Trest",
+            "type_line": "Legendary Creature — Elf Rogue",
+            "oracle_text": (
+                "Whenever a creature deals combat damage to one of your "
+                "opponents, its controller may draw a card."
+            ),
+        },
+        _ir(),
+    ),
     # ADR-0027 β kept-mirror: phase's legend_exempt drops the BOUNDED variant
     # ("doesn't apply to permanents you control"), so Mirror Box has no structural
     # form — the byte-identical _IR_KEPT_DETECTORS mirror is what recovers it. Bare IR.

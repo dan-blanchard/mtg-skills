@@ -1176,6 +1176,33 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(NONCREATURE_CAST_PUNISH_REGEX, re.IGNORECASE),
         "any",
     ),
+    # ADR-0027 — combat_damage_matters (the BASE CR-510 lane the combat_* siblings
+    # below are is_widen_of): a payoff for dealing COMBAT damage TO A PLAYER/OPPONENT
+    # ("whenever ~ deals combat damage to a player/an opponent/each opponent" — Edric,
+    # Dragonlord Ojutai, Wrexial; or the passive "player who was dealt combat damage by
+    # ~" — Hope of Ghirapur). BYTE-IDENTICAL KEPT MIRROR of the EXACT deleted _DETECTORS
+    # regex, NOT the structural arm: phase structures the combat_damage event but DROPS
+    # the recipient TYPE onto a lossy scope (same loss documented on the siblings
+    # below), so the unconditional structural arm fired on every combat_damage AND
+    # deals_damage trigger — over-firing 3 ways the narrow regex never did (NON-combat
+    # deals_damage = damage_to_opp_matters; combat-damage-to-a-CREATURE =
+    # combat_damage_to_creature; "deals combat damage TO YOU" defensive punishers). The
+    # deleted regex only matched single clauses (the `[^.]*?` connect phrase never
+    # crosses `.`/`;`/`\n`), so this flat .search over the reminder-stripped joined-face
+    # kept_oracle reproduces the per-clause regex firing set EXACTLY (commander-legal,
+    # floor-disabled, by oracle_id: both==763, regex_only==0, ir_only==0). Forced scope
+    # 'opponents' (the deleted producer's scope). CR 510.
+    (
+        "combat_damage_matters",
+        re.compile(
+            r"\bwhen(?:ever)?\b[^.]*?\bdeals? combat damage to "
+            r"(?:a player|an opponent|one of your opponents|each opponent"
+            r"|a player or planeswalker|a player or battle)\b"
+            r"|(?:was|were) dealt combat damage by",
+            re.IGNORECASE,
+        ),
+        "opponents",
+    ),
     # ADR-0027 β — tribe_damage_trigger: phase leaves the combat_damage trigger subject
     # = None (no structure to read — the `tsub_kinds` arm in extract_signals_ir was DEAD
     # CODE, never firing on a combat-damage trigger), so this is a byte-identical KEPT
@@ -7467,32 +7494,46 @@ def extract_signals_ir(
             if ev == "other" and trig.scope != "opp":
                 for abil_lane in _typed_matters_lanes(trig.subject):
                     add(abil_lane, "you", "", "")
-            if ev in ("combat_damage", "deals_damage"):
-                add("combat_damage_matters", "opponents", "", "")
-                # ADR-0027 β damage_to_opp_matters — a NON-COMBAT "deals damage to a
-                # PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity,
-                # Goblin Lackey, Fungal Shambler). project._project_trigger stamps the
-                # DamageToPlayer recipient marker on the trigger subject (the player
-                # recipient phase keeps on valid_target but the Trigger otherwise drops
-                # — scope reads only the controller, collapsing a {type:Player,
-                # controller:null} recipient to scope='any'). Fire on the marker, not on
-                # the lossy scope, so the player-typed recipients the old scope=='opp'
-                # arm missed (Hypnotic Specter's {type:Player,null}) now fire. combat-
-                # ONLY recipients never carry the marker (combat_damage_to_opp, already
-                # migrated 42f6d81). +recall over the deleted regex: structural
-                # placement catches "deals 6 or more damage to an opponent" (Deus of
-                # Calamity), "deal damage to a player" plural (Francisco / Dragonborn
-                # Champion), "another player" (Night Dealings) — the word-order/pronoun
-                # regex missed. The granted-ability / ETB-burst tail phase can't
-                # structure rides the narrowed _DAMAGE_TO_OPP_MATTERS_MIRROR. CR 119.3.
-                if trig.subject is not None and (
-                    "DamageToPlayer" in trig.subject.predicates
-                ):
-                    add("damage_to_opp_matters", "opponents", "", "")
-                # ADR-0027 β — tribe_damage_trigger's dead `if tsub_kinds:` arm is
-                # removed: phase leaves a combat_damage trigger's subject = None, so
-                # tsub_kinds is always empty here and the arm never fired. The lane is
-                # now served by the byte-identical _IR_KEPT_DETECTORS mirror.
+            # ADR-0027 — combat_damage_matters (the BASE CR-510 lane) is NOT fired
+            # from this combat_damage/deals_damage trigger arm. The unconditional
+            # `add("combat_damage_matters", "opponents")` was DELETED: phase drops the
+            # damage RECIPIENT TYPE onto a lossy scope (project.py reads valid_target
+            # only for its controller), so firing on every combat_damage AND
+            # deals_damage trigger over-fired 3 ways the narrow "deals combat damage to
+            # a player/an opponent" regex never did — 131 NON-combat deals_damage bodies
+            # (Hypnotic Specter, Chandra's Incinerator — really damage_to_opp_matters /
+            # noncombat), 29 combat-damage-to-a-CREATURE bodies (Serpentine Basilisk —
+            # combat_damage_to_creature, already migrated), and the "deals combat damage
+            # TO YOU" defensive punishers (Witch-king, Norn's Decree). The base lane now
+            # rides the byte-identical _IR_KEPT_DETECTORS mirror (anchored on the
+            # player/opponent recipient the regex required). The damage_to_opp_matters
+            # add on this SAME trigger event is unaffected (collapsed into one `if`).
+            # ADR-0027 β damage_to_opp_matters — a NON-COMBAT "deals damage to a
+            # PLAYER / opponent" connect-payoff (Hypnotic Specter, Curiosity,
+            # Goblin Lackey, Fungal Shambler). project._project_trigger stamps the
+            # DamageToPlayer recipient marker on the trigger subject (the player
+            # recipient phase keeps on valid_target but the Trigger otherwise drops
+            # — scope reads only the controller, collapsing a {type:Player,
+            # controller:null} recipient to scope='any'). Fire on the marker, not on
+            # the lossy scope, so the player-typed recipients the old scope=='opp'
+            # arm missed (Hypnotic Specter's {type:Player,null}) now fire. combat-
+            # ONLY recipients never carry the marker (combat_damage_to_opp, already
+            # migrated 42f6d81). +recall over the deleted regex: structural
+            # placement catches "deals 6 or more damage to an opponent" (Deus of
+            # Calamity), "deal damage to a player" plural (Francisco / Dragonborn
+            # Champion), "another player" (Night Dealings) — the word-order/pronoun
+            # regex missed. The granted-ability / ETB-burst tail phase can't
+            # structure rides the narrowed _DAMAGE_TO_OPP_MATTERS_MIRROR. CR 119.3.
+            if (
+                ev in ("combat_damage", "deals_damage")
+                and trig.subject is not None
+                and "DamageToPlayer" in trig.subject.predicates
+            ):
+                add("damage_to_opp_matters", "opponents", "", "")
+            # ADR-0027 β — tribe_damage_trigger's dead `if tsub_kinds:` arm is removed:
+            # phase leaves a combat_damage trigger's subject = None, so tsub_kinds is
+            # always empty and the arm never fired. The lane is now served by the
+            # byte-identical _IR_KEPT_DETECTORS mirror.
             if ev == "cast_spell":
                 # ADR-0027 opponent_cast_matters — the explicit scope=opp half
                 # ("whenever an opponent casts a spell" — Lavinia, Nekusar). The

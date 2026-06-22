@@ -1611,6 +1611,42 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR re-supplies the voltron silence — NOT
         # _VOLTRON_SILENCING_PLAN_KEYS, since the IR arm is BROADER. CR 119.3 / 903.10a.
         "damage_to_opp_matters",
+        # ADR-0027 — combat_damage_matters (the BASE lane all the combat_* siblings
+        # above are is_widen_of): a payoff for dealing COMBAT damage TO A PLAYER/OPP
+        # ("whenever ~ deals combat damage to a player/an opponent/each opponent" —
+        # Edric, Dragonlord Ojutai, Wrexial; or the passive "player who was dealt combat
+        # damage by ~"). CR 510. BYTE-IDENTICAL KEPT MIRROR — NOT the structural arm.
+        # phase structures the combat_damage trigger EVENT but drops the RECIPIENT TYPE
+        # onto a lossy scope (project.py reads valid_target only for its controller —
+        # same loss documented on the combat_* siblings above), so the unconditional
+        # `add("combat_damage_matters", "opponents")` arm fired on EVERY combat_damage
+        # AND deals_damage trigger regardless of recipient — a 3-way OVER-FIRE the
+        # regex never had: (1) 131 NON-combat `deals_damage` bodies (Hypnotic Specter,
+        # Curiosity, Chandra's Incinerator — these are damage_to_opp_matters /
+        # noncombat_damage_payoff, NOT CR-510 combat damage); (2) 29 combat-damage-to-a-
+        # CREATURE bodies (Serpentine Basilisk — that recipient is the already-migrated
+        # combat_damage_to_creature); (3) "deals combat damage TO YOU" defensive
+        # punishers (Witch-king, Teysa Envoy, Norn's Decree — the regex scoped to "to a
+        # player/an opponent" excluded them). So the unconditional structural
+        # `add(combat_damage_matters)` line is DELETED from extract_signals_ir (the
+        # nested damage_to_opp_matters add on the SAME trigger event is kept), and the
+        # lane rides a byte-identical _IR_KEPT_DETECTORS mirror of the EXACT deleted
+        # _DETECTORS regex (anchored on "deals combat damage to a player/an opponent/…",
+        # scope 'opponents', re.IGNORECASE over the reminder-stripped joined-face
+        # kept_oracle). The deleted
+        # regex's `[^.]*?` arm never crosses a sentence, so flat-over-kept_oracle ==
+        # per-clause: the mirror reproduces the regex producer EXACTLY. Floor-disabled
+        # residual (commander-legal, _IR_FLOOR_LANES=frozenset(), the byte-mirror vs the
+        # deleted regex producer, by oracle_id): both==763, regex_only==0, ir_only==0 —
+        # a perfectly clean byte-mirror. floor-mirror-dep == 0 (the mirror reads no
+        # _IR_FLOOR_LANES; NOT a floor lane). The deleted _DETECTORS producer fired
+        # HIGH-confidence (forced scope 'opponents') and counted toward has_other_plan,
+        # so it is added to signals._VOLTRON_SILENCING_PLAN_KEYS — the byte-identical IR
+        # re-supply re-silences the spurious commander-damage voltron tell on a connect-
+        # payoff engine that is no vanilla beater (Edric, Dragonlord Ojutai). NO-FLOOD:
+        # only combat_damage_matters moves, voltron 3010→3010, siblings 0. CR 510 /
+        # 903.10a.
+        "combat_damage_matters",
         # ADR-0027 β kept-mirror — legend_rule_off + timing_control: phase emits
         # NOTHING structural for either (legend_exempt covers only 2 of 8; the
         # cast-timing statics are dropped wholesale), so each rides a byte-identical
