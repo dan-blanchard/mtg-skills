@@ -5689,20 +5689,14 @@ def extract_signals(
         and (kws & _VOLTRON_KEYWORDS or power >= 2)
     ):
         add("voltron_matters", "you", "", "commander damage (CR 903.10a)", "low")
-    # An extreme power-for-cost beater (power >= 8 AND power >= 2x its mana value: Lord
-    # of Tresserhorn 10/4, Yargle 18/6, The Ancient One 8/8 for 2) wins by connecting
-    # ONCE for lethal, so it wants damage amplification — grant infect (power -> poison)
-    # or double strike (2x). The ratio gate excludes expensive fatties (Emrakul 15/15
-    # for 15) that win by size, not amplification. Fires alongside any other plan: the
-    # huge body is the threat regardless of incidental text (Lord's drawback ETB).
-    cmc = card.get("cmc") or 0
-    if (
-        include_membership
-        and "creature" in type_line.lower()
-        and power >= 8
-        and power >= 2 * cmc
-    ):
-        add("one_punch", "you", "", "extreme power-for-cost beater", "low")
+    # ADR-0027: one_punch migrated to the Card IR (extract_signals_ir membership
+    # block). It was a pure numeric gate over card_pt_int + card['cmc'] + type_line —
+    # the SAME Scryfall fields the IR path reads — so the IR structural arm reproduces
+    # it byte-identically (commander-legal, floor-disabled, by oracle_id: both==23,
+    # ir_only==0, regex_only==0; all 23 genuine extreme power-for-cost beaters). It
+    # fired AFTER has_other_plan and LOW-confidence, never feeding that gate, so
+    # deleting it leaves voltron_matters untouched (3010 -> 3010) — no _PLAN_MIRROR /
+    # _VOLTRON_SILENCING_PLAN_KEYS entry needed. CR 903.10a.
 
     return out
 

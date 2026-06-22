@@ -4880,6 +4880,24 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # identical); voltron_matters 3010 → 3010 identical set; all siblings drift 0.
         # CR 207.2c (Void ability word) / 702.185 (Warp).
         "void_warp_matters",
+        # ADR-0027 one_punch — migrated to the Card IR (membership audit). STRUCTURAL
+        # ARM in extract_signals_ir's include_membership block: an extreme power-for-
+        # cost beater (power >= 8 AND power >= 2x its mana value — Lord of Tresserhorn
+        # 10/4, Yargle 18/6, The Ancient One 8/8 for 2, Death's Shadow 13/13, Phyrexian
+        # Dreadnought 12/12) wins by connecting ONCE for lethal and wants damage
+        # amplification (infect / double strike). The deleted producer was NOT a regex
+        # at all — a pure numeric gate over card_pt_int(card) + card['cmc'] + type_line,
+        # the SAME Scryfall fields the IR path already reads — so the structural arm
+        # reproduces it BYTE-IDENTICALLY (commander-legal, floor-disabled, by oracle_id:
+        # both==23, ir_only==0, regex_only==0; all 23 genuine extreme beaters). scope
+        # 'you', LOW conf. VOLTRON: the producer fired AFTER has_other_plan and LOW-
+        # confidence, so it NEVER fed that gate — deleting it leaves voltron_matters
+        # untouched (3010 -> 3010 identical set); no _PLAN_MIRROR /
+        # _VOLTRON_SILENCING_PLAN_KEYS entry needed. The hand-written serve spec in
+        # signal_specs.py is independent of the deleted producer and survives. NOT in
+        # _IR_FLOOR_LANES (floor-mirror-dep == 0: a structural numeric gate, not an
+        # oracle floor). CR 903.10a / 702.90 (infect) / 702.4 (double strike).
+        "one_punch",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

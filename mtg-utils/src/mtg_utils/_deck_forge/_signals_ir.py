@@ -104,7 +104,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     UNSPENT_MANA_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
-from mtg_utils.card_classify import get_oracle_text, is_creature
+from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
 from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity
 
 # ── IR-backed signal extraction (Milestone A2 — 5-key vertical slice) ──────────
@@ -3291,6 +3291,17 @@ IR_SLICE_KEYS: frozenset[str] = (
             # has_other_plan, so no voltron mirror is needed). NOT in _IR_FLOOR_LANES
             # (floor-mirror-dep == 0). CR 401 / 701.20a.
             "cheat_from_top",
+            # ADR-0027 — one_punch (an extreme power-for-cost beater — power >= 8 AND
+            # power >= 2x mana value — wants damage amplification: infect / double
+            # strike). STRUCTURAL ARM (not a regex): a pure numeric gate over the SAME
+            # Scryfall fields (card_pt_int(card) + card['cmc'] + type_line) the deleted
+            # extract_signals producer read, reproduced byte-identically (commander-
+            # legal, floor-disabled, by oracle_id: both==23, ir_only==0, regex_only==0).
+            # include_membership-gated, scope 'you', LOW conf — the deleted producer's
+            # identity. It fired AFTER has_other_plan and never fed it, so voltron needs
+            # no mirror (3010 -> 3010). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+            # CR 903.10a.
+            "one_punch",
             # ADR-0027 β — unspent_mana (the "you KEEP unspent mana across steps/phases"
             # payoff): a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
             # regex. phase carries a `StepEndUnspentMana` static for the 11 pure statics
@@ -8637,6 +8648,29 @@ def extract_signals_ir(
             kept_oracle
         ):
             add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
+        # ADR-0027 — one_punch (STRUCTURAL ARM, membership audit). An extreme power-
+        # for-cost beater (power >= 8 AND power >= 2x its mana value: Lord of
+        # Tresserhorn 10/4, Yargle 18/6, The Ancient One 8/8 for 2, Death's Shadow
+        # 13/13, Phyrexian Dreadnought 12/12) wins by connecting ONCE for lethal, so it
+        # wants damage amplification — grant infect (power -> poison) or double strike
+        # (2x). The ratio gate excludes expensive fatties (Emrakul 15/15 for 15) that
+        # win by size, not amplification. NOT a regex at all in the deleted producer —
+        # a pure numeric gate over the SAME Scryfall fields the IR path already reads
+        # (card_pt_int(card) + card['cmc'] + type_line), so this arm reproduces the
+        # deleted extract_signals producer BYTE-IDENTICALLY (commander-legal, floor-
+        # disabled, by oracle_id: both==23, ir_only==0, regex_only==0; all 23 genuine
+        # extreme beaters). include_membership-gated (the huge body is the COMMANDER's
+        # plan, not every fatty in the 99). scope 'you', LOW confidence — the deleted
+        # producer's identity. It fired AFTER has_other_plan and never fed it (LOW conf,
+        # added post-gate), so voltron needs NO mirror / NO _VOLTRON_SILENCING_PLAN_KEYS
+        # entry (voltron_matters set unchanged, 3010 -> 3010). NOT in _IR_FLOOR_LANES
+        # (floor-mirror-dep == 0: a structural numeric gate, not an oracle floor). CR
+        # 903.10a / 702.90 (infect) / 702.4 (double strike).
+        if "creature" in type_line:
+            power = card_pt_int(card)
+            cmc = card.get("cmc") or 0
+            if power >= 8 and power >= 2 * cmc:
+                add("one_punch", "you", "", "extreme power-for-cost beater", "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

@@ -1690,6 +1690,9 @@ def test_one_punch_efficient_beater_opens_lane():
     # for lethal, so it wants damage amplification (grant infect / double strike). Gated
     # power >= 8 AND power >= 2*cmc: an EXPENSIVE fatty (Emrakul 15/15 for 15) wins by
     # being huge rather than by amplification, and a small creature never qualifies.
+    # ADR-0027: one_punch migrated to the Card IR (a pure numeric gate over card_pt_int
+    # + cmc + type_line), so the lane is now served from the hybrid path — a bare
+    # non-None IR routes the structural arm, which reads the same record fields.
     lord = {
         "name": "Lord of Tresserhorn",
         "type_line": "Legendary Creature — Zombie",
@@ -1730,10 +1733,12 @@ def test_one_punch_efficient_beater_opens_lane():
         "keywords": [],
         "oracle_text": "{T}: Add {G}.",
     }
-    assert any(k == "one_punch" for k, _, _ in _ksub(lord))
-    assert any(k == "one_punch" for k, _, _ in _ksub(yargle))
-    assert not any(k == "one_punch" for k, _, _ in _ksub(emrakul))  # expensive fatty
-    assert not any(k == "one_punch" for k, _, _ in _ksub(llanowar))  # low power
+    assert any(k == "one_punch" for k, _, _ in _ksub_hybrid(lord, _bare_ir()))
+    assert any(k == "one_punch" for k, _, _ in _ksub_hybrid(yargle, _bare_ir()))
+    # expensive fatty
+    assert not any(k == "one_punch" for k, _, _ in _ksub_hybrid(emrakul, _bare_ir()))
+    # low power
+    assert not any(k == "one_punch" for k, _, _ in _ksub_hybrid(llanowar, _bare_ir()))
 
 
 def test_nonhuman_attack_engine_opens_evasive_attackers():

@@ -6346,6 +6346,25 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # one_punch ← a pure structural NUMERIC gate (not a regex): power >= 8 AND
+    # power >= 2x mana value, gated on type_line carrying "creature". The IR arm
+    # reads the SAME Scryfall fields off the record dict (card_pt_int(card) +
+    # card["cmc"] + type_line) the deleted regex producer read, so a bare non-None
+    # IR routes the hybrid to the IR path and the arm fires. Yargle and Multani is
+    # the canonical extreme beater (18/6 for 6, a VANILLA body with empty oracle —
+    # so ONLY the power/cmc gate could open the lane). scope "you", LOW conf. The
+    # regex path no longer emits the key (producer deleted). ADR-0027.
+    "one_punch": (
+        {
+            "name": "Yargle and Multani",
+            "type_line": "Legendary Creature — Frog Spirit Elemental",
+            "oracle_text": "",
+            "power": "18",
+            "toughness": "6",
+            "cmc": 6.0,
+        },
+        _ir(),
+    ),
 }
 
 
