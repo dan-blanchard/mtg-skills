@@ -2188,7 +2188,13 @@ _PRESET_KEYWORD_SIGNALS = {
     # IR-only keyword path) because proliferate_matters is migrated — keeping it
     # here would let the regex `extract_signals` path keep emitting a migrated
     # key. The IR path reads the same Scryfall keyword array.
-    "magecraft": ("magecraft_matters", "you"),
+    # ADR-0027: the `magecraft` preset keyword likewise moved to _IR_KEYWORD_MAP (the
+    # IR-only keyword path) because magecraft_matters is migrated — keeping it here
+    # would let the regex `extract_signals` path keep emitting a migrated key. The IR
+    # path reads the SAME Scryfall `Magecraft` keyword array (byte-identical), and the
+    # has_other_plan voltron silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS
+    # (verified inert — every magecraft creature already carries another high-confidence
+    # plan, notably co-firing spellcast_matters, so 0 voltron tells leak). CR 207.2c.
     # Prowess is a spellslinger payoff (cast noncreature spells) → same avenue.
     "prowess": ("spellcast_matters", "you"),
     # Storm/Casualty/Replicate/etc. are spell-copy keywords.

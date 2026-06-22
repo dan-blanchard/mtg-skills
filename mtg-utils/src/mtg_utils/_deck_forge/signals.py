@@ -601,6 +601,22 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # 47, 0 broadening, 0 ir_only), matching the arcane_matters / land_sacrifice_
         # matters kept-mirror precedent. A NO-FLOOD voltron entry. CR 700.9 / 903.10a.
         "modified_matters",
+        # ADR-0027: magecraft_matters fired high-confidence (the default add()
+        # confidence, scope 'you') in the regex path via the _PRESET_KEYWORD_SIGNALS
+        # `magecraft` preset and so counted toward has_other_plan (it is NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS). The preset is deleted, so the hybrid
+        # re-silences from the IR re-supply — _IR_KEYWORD_MAP['magecraft'] reading the
+        # SAME Scryfall `Magecraft` keyword array, so it is BYTE-IDENTICAL (commander-
+        # legal: IR == regex == 29, 0 broadening, 0 ir_only), matching the mill /
+        # lifelink / proliferate keyword-array precedent. This entry is INERT in
+        # practice (verified: removing magecraft_matters flips has_other_plan for 0 of
+        # the 29
+        # cards — every magecraft creature already carries another high-confidence plan,
+        # notably co-firing spellcast_matters, since magecraft IS "whenever you cast a
+        # spell"), so it leaks no voltron either way; it is here for byte-identical
+        # convention and to future-proof a hypothetical plan-less vanilla magecraft
+        # creature. A NO-FLOOD voltron entry. CR 207.2c / 903.10a.
+        "magecraft_matters",
         # NB (ADR-0027): theft_matters is NOT added here. Its HIGH SWEEP producer fed
         # has_other_plan pre-migration, BUT this silencing set is too COARSE for it: the
         # hybrid carries LOW-confidence theft_matters cross-opens (the gain_control /

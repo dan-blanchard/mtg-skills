@@ -460,6 +460,18 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # (ir_only==0, regex_only==0 — no mirror needed). scope "any" (it can self-mill or
     # mill an opponent — the deleted preset's scope). CR 701.13.
     "mill": (("mill_matters", "any"),),
+    # ADR-0027 magecraft_matters migration: Magecraft (CR 207.2c — an ability word
+    # meaning "whenever you cast or copy an instant or sorcery spell") MOVED here from
+    # _PRESET_KEYWORD_SIGNALS (the shared regex/IR keyword path). magecraft_matters is
+    # migrated, so it must leave the regex-readable preset map. The Scryfall `Magecraft`
+    # keyword array is the structured anchor and is byte-identical to the deleted preset
+    # (get_preset("magecraft").keywords == ("Magecraft",); all 29 commander-legal regex
+    # fires carry the keyword, 0 keyword-less). Like the mill / proliferate moves, the
+    # magecraft trigger lives in stripped reminder text so a vanilla-keyword body fires
+    # NO structural cast Effect — the keyword route alone reproduces the deleted preset
+    # exactly (ir_only==0, regex_only==0 — no mirror, no doer arm needed). scope "you"
+    # (the deleted preset's scope — the controller's own spell casts). CR 207.2c.
+    "magecraft": (("magecraft_matters", "you"),),
     # ADR-0027 daynight_matters migration: daybound / nightbound (CR 726, Innistrad:
     # Midnight Hunt) as the printed Scryfall KEYWORD — the 35 day/night transforming
     # creatures (Tovolar, the werewolf cycles, Arlinn). The keyword is the KEYWORD-only

@@ -5719,6 +5719,25 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # magecraft_matters ← the Scryfall `Magecraft` keyword array via
+    # _IR_KEYWORD_MAP['magecraft'] (byte-identical to the deleted _PRESET_KEYWORD_
+    # SIGNALS['magecraft'] preset; mill/proliferate/lifelink precedent). Archmage
+    # Emeritus is the canonical magecraft payoff — its trigger lives in stripped
+    # reminder text, so the IR path reads the keyword array, not the IR structure
+    # (a bare non-None IR routes the hybrid to the IR path). scope "you". ADR-0027,
+    # CR 207.2c.
+    "magecraft_matters": (
+        {
+            "name": "Archmage Emeritus",
+            "type_line": "Creature — Human Wizard",
+            "oracle_text": (
+                "Magecraft — Whenever you cast or copy an instant or sorcery "
+                "spell, draw a card."
+            ),
+            "keywords": ["Magecraft"],
+        },
+        _ir(),
+    ),
     # land_destruction ← the membership-gated _LAND_DESTRUCTION_MIRROR arm (CR 305.6).
     # Numot is the canonical LD COMMANDER — a CREATURE whose own ability says "destroy
     # up to two target lands" (a repeatable LD engine). The mirror reads type_line +

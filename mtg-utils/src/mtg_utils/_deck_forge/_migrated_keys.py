@@ -3762,6 +3762,40 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # delta 0 (3010 → 3010); 0 other-key drift across all 298 keys. CR 701.13 /
         # 903.10a.
         "mill_matters",
+        # ADR-0027 magecraft_matters — migrated to the Card IR via a BYTE-IDENTICAL
+        # keyword-array route (the saddle / lifelink / mill / proliferate precedent),
+        # signals-only, NO sidecar bump. STRUCTURAL ANCHOR: the Scryfall `Magecraft`
+        # keyword array via _IR_KEYWORD_MAP['magecraft'] — the SAME field the deleted
+        # _PRESET_KEYWORD_SIGNALS['magecraft'] preset read (get_preset("magecraft").
+        # keywords == ("Magecraft",), so the IR keyword predicate `"magecraft" in
+        # card.keywords` is byte-identical to the preset's `card_kws & {"magecraft"}`).
+        # Magecraft is an ability word (CR 207.2c — "whenever you cast or copy an
+        # instant or sorcery spell"); its trigger lives in stripped reminder text, so a
+        # vanilla-keyword body fires NO structural cast Effect — the keyword array is
+        # the only clean anchor (no mirror, no doer arm needed). NO RESIDUAL: commander-
+        # legal, floor-disabled, by oracle_id — both == 29, ir_only == 0, regex_only ==
+        # 0 (every magecraft card carries the keyword; 0 keyword-less). All 29 are
+        # genuine Strixhaven spellslinger payoffs (Archmage Emeritus, Storm-Kiln Artist,
+        # Veyran, the Apprentice/Pledgemage cycles, the two MDFC commanders Extus and
+        # Jadzi whose front face carries the keyword). SCOPE PARITY: deleted preset
+        # forced scope "you"; the keyword route fires scope "you" — 0 mismatches.
+        #
+        # VOLTRON. The deleted preset fired HIGH-confidence (the default add()
+        # confidence) and so counted toward has_other_plan. But the commander-damage
+        # voltron membership tell already stays silenced WITHOUT compensation: every
+        # magecraft creature carries another high-confidence plan (notably the
+        # co-firing spellcast_matters — magecraft IS "whenever you cast a spell", so the
+        # spellcast detector matches the same bodies). Verified: removing magecraft_
+        # matters from the regex set flips has_other_plan for 0 of the 29 cards, and 0
+        # magecraft creatures have magecraft_matters as their sole plan. Added to
+        # signals._VOLTRON_SILENCING_PLAN_KEYS for the byte-identical keyword-move
+        # convention (inert here — 0 leaks — but future-proofs a hypothetical
+        # plan-less vanilla magecraft creature). File-swap: voltron_matters 3010 → 3010,
+        # only magecraft_matters moves (29 → 29), all 297 sibling keys drift 0. The
+        # spellslinger serve spec in signal_specs.py (the _SPELLSLINGER_SPEC bound to
+        # ("magecraft_matters","you")) is independent of the deleted preset and
+        # survives. CR 207.2c / 903.10a.
+        "magecraft_matters",
         # ADR-0027 — land_destruction (the LD-support build-around axis: the Armageddon/
         # Numot stax-LD plan — own-land recursion to survive symmetric LD, land-loss
         # punishers; CR 305.6). MIGRATED VIA A BYTE-IDENTICAL MEMBERSHIP-GATED KEPT-
