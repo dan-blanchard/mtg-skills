@@ -1005,23 +1005,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # `_LOW_POWER_REF` marker that rebuilds the Power:LE subject from "creatures you
     # control with power N or less" — Subira, Underfoot Underdogs). Removed from
     # _IR_FLOOR_LANES; serve stays hand-registered.
-    # Creature-count-scaling = a GO-WIDE commander: its own power scales with "for each
-    # (other) creature you control" / "equal to the number of creatures you control"
-    # (Leonardo, Adeline, Suki). It wants to flood the board, so open tokens_matter —
-    # whose creature-scoped go-wide package (mass creature-token makers + protection)
-    # is exactly what a count-scaler runs. Kind-agnostic on purpose: it counts ANY
-    # creature, so any creature-token maker pumps it (the serve already excludes
-    # non-creature Treasure/Clue makers).
-    (
-        "tokens_matter",
-        re.compile(
-            r"(?:gets? \+\d+/\+\d+|power (?:and toughness )?(?:is|are) equal to)"
-            r"[^.]*(?:for each (?:other )?creature you control"
-            r"|number of creatures you control)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: tokens_matter migrated to the Card IR via a kept-mirror. Both deleted
+    # _HAND_FLOOR producers (this GO-WIDE count-scaler — "gets +N/+N for each creature
+    # you control" / "power … equal to the number of creatures you control": Leonardo,
+    # Adeline, Suki, Bravado — and the broad token PAYOFF producer below) are unioned
+    # into TOKENS_MATTER_REGEX (_sweep_detectors) and re-fired byte-identically by
+    # _TOKENS_MATTER_MIRROR in _signals_ir. Both fired HIGH-confidence (forced scope
+    # 'you') and fed has_other_plan (a go-wide token engine is a real plan, not a
+    # vanilla beater), so the voltron silence is re-supplied via
+    # _VOLTRON_SILENCING_PLAN_KEYS (signals.py). The serve spec stays hand-registered in
+    # signal_specs.py (its curated search regex was always independent of these
+    # producers). CR 111.1 / 701.47.
     # Spellslinger recaster/copier (Mavinda recasts from the yard, Velomachus casts off
     # the top, Naru Meha copies) — a commander that casts or copies instants/sorceries
     # wants prowess/magecraft payoffs. The base spellcast detector keys on the "whenever
@@ -1467,19 +1461,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "tokens_matter",
-        re.compile(
-            r"\btokens? you control\b"
-            r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters?\b"
-            # A token DOUBLER (Adrix, Parallel Lives) wants token-MAKERS to double, so
-            # it is a tokens commander — open the lane that surfaces them.
-            r"|tokens? would be (?:created|put)|create twice that many[^.]*token"
-            r"|twice that many[^.]*tokens?",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: tokens_matter migrated to the Card IR via a kept-mirror — this broad
+    # token PAYOFF producer ("tokens you control" anthems/refs — Intangible Virtue,
+    # Mirror Box, Brudiclad; a "whenever a/one or more/another … token … enters" trigger
+    # — Woodland Champion, Junk Winder; and the token DOUBLER replacement "tokens would
+    # be created/put" / "create twice that many … token" / "twice that many … tokens" —
+    # Doubling Season, Parallel Lives, Mondrak, Divine Visitation) is deleted, unioned
+    # with the GO-WIDE count-scaler above into TOKENS_MATTER_REGEX and re-fired by
+    # _TOKENS_MATTER_MIRROR in _signals_ir. Voltron silence re-supplied via
+    # _VOLTRON_SILENCING_PLAN_KEYS (signals.py). CR 111.1 / 701.47.
     (
         "stax_taxes",
         re.compile(
@@ -2308,12 +2298,13 @@ _DIRECT_KEYWORD_SIGNALS = {
     # already fire lifeloss_matters STRUCTURALLY from the IR (extort's lose_life
     # effect, afflict's "player loses life", spectacle's "opponent lost life"), so the
     # regex `extract_signals` must no longer emit the migrated key.
-    "amass": ("tokens_matter", "you"),
-    "mobilize": ("tokens_matter", "you"),
-    # ADR-0027: the `station` keyword (CR 702.184 — accrues charge counters →
-    # the proliferate avenue) moved to _IR_KEYWORD_MAP (the IR-only keyword path)
-    # because proliferate_matters is migrated — keeping it here would let the
-    # regex `extract_signals` path keep emitting a migrated key.
+    # ADR-0027: amass (CR 701.47) / mobilize / station (CR 702.184) ALL moved to
+    # _IR_KEYWORD_MAP (the IR-only keyword path) with the tokens_matter +
+    # proliferate_matters migrations — keeping any here would let the regex
+    # `extract_signals` path keep emitting a now-migrated key. amass/mobilize →
+    # tokens_matter (Army/Warrior token-making lives in stripped reminder text; amass
+    # also fires from the structural amass effect-category arm in extract_signals_ir);
+    # station (charge counters) → proliferate_matters (the proliferate avenue).
     # ADR-0027: the `saddle` keyword (CR 702.171) moved to _IR_KEYWORD_MAP (the
     # IR-only keyword path) because saddle_matters is migrated — keeping it here
     # would let the regex `extract_signals` path keep emitting a migrated key.
@@ -2810,6 +2801,17 @@ _VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
 # "twice that many … tokens" arm never crosses a sentence, so full-text == per-clause.
 # FILE-SWAP NO-FLOOD: voltron byte-identical (0 gained / 0 lost). CR 903.10a / 702.95.
 _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027: tokens_matter's voltron silence is re-supplied via
+# _VOLTRON_SILENCING_PLAN_KEYS (signals.py), NOT a byte-identical PLAN mirror here. A
+# pure oracle mirror would go BLIND on the 3 vanilla mobilize-KEYWORD bodies (Dragonback
+# Lancer, Dalkovan Packbeasts, Nightblade Brigade): their tokens_matter plan rode the
+# deleted regex KEYWORD map (now _IR_KEYWORD_MAP['mobilize']), whose token-making lives
+# in stripped reminder text, so no oracle mirror over `text` can see it. Because the IR
+# re-supply is byte-identical to the deleted regex firing (commander-legal: regex ==
+# hybrid == 230, 0 broadening), _VOLTRON_SILENCING_PLAN_KEYS re-silences the spurious
+# commander-damage tell for ALL 230 — oracle-payoff AND keyword-only — without
+# over-silencing, matching the keyword-bearing counters_matter / suspend_matters /
+# poison_matters precedent. CR 903.10a / 111.1.
 
 
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated creature_etb key. Both deleted

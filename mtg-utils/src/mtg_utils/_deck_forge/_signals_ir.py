@@ -71,6 +71,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
+    TOKENS_MATTER_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
@@ -294,6 +295,17 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     "flanking": (("attack_matters", "you"),),
     "frenzy": (("attack_matters", "you"),),
     "boast": (("boast_matters", "you"), ("attack_matters", "you")),
+    # ADR-0027 tokens_matter migration: amass (CR 701.47) / mobilize MOVED here from
+    # _DIRECT_KEYWORD_SIGNALS (the shared regex/IR keyword path). tokens_matter is
+    # migrated, so it must leave the regex-readable _DIRECT_KEYWORD_SIGNALS; but the IR
+    # path STILL needs the keyword because both make Army / Warrior CREATURE tokens
+    # whose making lives in stripped reminder text (so neither the kept-mirror nor a
+    # structural arm fires for a vanilla mobilize body — Voice of Victory, Shock
+    # Brigade). amass cards ALSO fire tokens_matter from the structural `amass`
+    # effect-category arm below; this keyword route is what covers the 9 vanilla
+    # mobilize-keyword bodies the mirror can't reach (the saddle/lifelink-style move).
+    "amass": (("tokens_matter", "you"),),
+    "mobilize": (("tokens_matter", "you"),),
     "cascade": (("cascade_matters", "you"),),
     # Casualty (CR 702.153) sacrifices a creature as a cost to copy the spell — the
     # printed KEYWORD is the structural anchor for the sac cost phase folds into the
@@ -2308,6 +2320,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             # regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-
             # dep == 0). CR 702.95 / 707.
             "token_copy_matters",
+            # ADR-0027 — tokens_matter: phase carries NO structural shape for the
+            # "tokens you control" / "for each creature you control" payoffs (raw-only),
+            # so a structural-only migration would LOSE 161 commander-legal cards. The
+            # lane rides the byte-identical _TOKENS_MATTER_MIRROR (the UNION of the two
+            # exact deleted _HAND_FLOOR regexes) PLUS the existing structural amass /
+            # fabricate effect-category arm (mirror OR IR-structural == full regex
+            # firing: regex==hybrid==230, 0 miss, 0 over-fire). NOT in _IR_FLOOR_LANES
+            # (floor-mirror-dep == 0). CR 111.1 / 701.47.
+            "tokens_matter",
             # NB: lifegain_matters is ALREADY in this set (the original 5-key vertical
             # slice, above) — the ADR-0027 β migration adds no new IR_SLICE_KEYS
             # member, only flips it into MIGRATED_KEYS and deletes the regex producers.
@@ -3383,6 +3404,21 @@ _VARIABLE_PT_MIRROR_VETO = re.compile(
 # is precise — it never fired on the reminder-text self-copies because they live inside
 # parens). CR 702.95.
 _TOKEN_COPY_MATTERS_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+# tokens_matter BYTE-IDENTICAL kept mirror (ADR-0027): the lane fires from the UNION of
+# the two EXACT deleted _HAND_FLOOR regexes (pinned as TOKENS_MATTER_REGEX) over the
+# reminder-stripped kept_oracle — a GO-WIDE count-scaler ("gets +N/+N for each creature
+# you control" / "power … equal to the number of creatures you control" — Adeline,
+# Leonardo, Bravado) OR a broad token PAYOFF ("tokens you control" anthems/refs, a
+# "whenever a … token … enters" trigger, the token DOUBLER replacement — Doubling
+# Season, Parallel Lives, Mondrak). NOT a structural arm: phase carries NO shape for
+# "tokens you control" / "for each creature you control" payoffs (they survive only in
+# raw), so a structural-only migration would LOSE 161 commander-legal cards. The amass
+# / fabricate keyword cards already fire tokens_matter STRUCTURALLY (the amass /
+# fabricate effect-category fan-out below + the moved _IR_KEYWORD_MAP keyword route), so
+# the mirror covers ONLY the two _HAND_FLOOR producers; mirror OR IR-structural == the
+# full regex firing (commander-legal: regex==hybrid==230, 0 miss, 0 over-fire).
+# CR 111.1 / 701.47.
+_TOKENS_MATTER_MIRROR = re.compile(TOKENS_MATTER_REGEX, re.IGNORECASE)
 # lifegain_matters BYTE-IDENTICAL kept mirror (ADR-0027 β): the structural arm above
 # (a `gain_life` Effect scope you/any + a `life_gained` trigger + the shared lifelink
 # keyword map) is a recall-GAINING addition (+77 commander-legal: the directed "target
@@ -6854,6 +6890,17 @@ def extract_signals_ir(
     # the deleted producer). add() dedups. CR 702.95 / 707.
     if _TOKEN_COPY_MATTERS_MIRROR.search(kept_oracle):
         add("token_copy_matters", "you", "", "")
+    # ADR-0027 — tokens_matter BYTE-IDENTICAL kept mirror. phase carries NO structural
+    # shape for the "tokens you control" / "for each creature you control" payoffs (they
+    # survive only in raw), so recover the lane with the UNION of the two EXACT deleted
+    # _HAND_FLOOR regexes (the go-wide count-scaler + the broad token payoff) over the
+    # reminder-stripped kept_oracle (scope 'you', matching the deleted producers). add()
+    # dedups against the amass / fabricate effect-category arm above (those keyword
+    # cards already fire tokens_matter structurally). mirror OR IR-structural == full
+    # regex firing (commander-legal: regex==hybrid==230, 0 miss, 0 over-fire).
+    # CR 111.1 / 701.47.
+    if _TOKENS_MATTER_MIRROR.search(kept_oracle):
+        add("tokens_matter", "you", "", "")
     # ADR-0027 β — creature_etb BYTE-IDENTICAL kept mirror. The structural etb-trigger
     # arm (above) gains 39 Graft/Soulbond bodies but MISSES the ETB-trigger DOUBLERS
     # (Panharmonicon/Yarok/Elesh Norn — phase models "entering … triggers an additional

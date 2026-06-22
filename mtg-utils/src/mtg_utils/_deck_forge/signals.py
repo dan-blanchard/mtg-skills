@@ -460,6 +460,22 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # joined oracle as the deleted regex, so it is BYTE-IDENTICAL (no broadening, no
         # over-silence). File-swap: 1 voltron leaked without this, 0 with it; A-B==0.
         "tribe_damage_trigger",
+        # ADR-0027: tokens_matter fired high-confidence (forced scope 'you') in the
+        # regex path — via TWO _HAND_FLOOR producers AND the amass / mobilize keyword
+        # map — and so counted toward has_other_plan, silencing the spurious
+        # commander-damage voltron tell on a go-wide token engine that is NOT a vanilla
+        # beater. All three regex producers are deleted, so the hybrid re-silences from
+        # the IR re-supply. The IR firing is BYTE-IDENTICAL to the deleted regex
+        # (commander-legal: regex == hybrid == 230, 0 broadening), so this set entry
+        # re-silences ALL 230 — the oracle-payoff bodies (covered by
+        # _TOKENS_MATTER_MIRROR) AND the 3 vanilla mobilize-KEYWORD bodies whose
+        # token-making lives in stripped reminder text (Dragonback Lancer, Dalkovan
+        # Packbeasts, Nightblade Brigade), which a regex-path oracle PLAN mirror cannot
+        # see (a byte-identical mirror would leak those 3 — verified). File-swap: 3
+        # voltron leaked without this, 0 with it; A-B == 0. Matches the keyword-bearing
+        # counters_matter / suspend_matters / poison_matters precedent. CR 903.10a /
+        # 111.1.
+        "tokens_matter",
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an

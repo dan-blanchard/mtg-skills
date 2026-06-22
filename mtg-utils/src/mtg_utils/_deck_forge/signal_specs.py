@@ -2213,6 +2213,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|(?:white|blue|black|red|green) creatures? can't (?:attack|block|be)"
         r"|can't cast (?:white|blue|black|red|green)",
     ),
+    # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror
+    # (the lane fires from _TOKENS_MATTER_MIRROR in _signals_ir). This serve spec was
+    # always hand-registered and independent of the two deleted _HAND_FLOOR producers,
+    # so it survives unchanged — its curated SEARCH regex below differs from the
+    # detector (the detector's go-wide count-scaler + token-doubler arms are supplied
+    # here as the _GOWIDE_*/_TOKEN_DOUBLER_EXTRA avenues instead).
     # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
     # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
     # object to a token in the SAME clause.

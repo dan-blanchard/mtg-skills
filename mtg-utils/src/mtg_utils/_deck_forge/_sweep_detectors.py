@@ -208,6 +208,31 @@ UNSPENT_MANA_REGEX = (
 # CR 702.95 / 707.
 TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
 
+# ADR-0027: tokens_matter migrated to the Card IR via a kept-mirror — the UNION of the
+# two deleted _HAND_FLOOR producers is pinned here byte-identically so the
+# _TOKENS_MATTER_MIRROR kept detector (_signals_ir), the _TOKENS_MATTER_PLAN_MIRROR
+# voltron gate (_signals_regex), and the serve spec (signal_specs) all share ONE source.
+# Matched reminder-STRIPPED, PER-CLAUSE. Two deleted producers, unioned:
+#   (1) the GO-WIDE count-scaler — a creature whose own/granted P/T scales with the
+#       creature board ("gets +N/+N for each creature you control"; "power … equal to
+#       the number of creatures you control" — Adeline, Leonardo, Bravado, Might of the
+#       Masses). Kind-agnostic on purpose (it counts ANY creature, so any creature-token
+#       maker pumps it).
+#   (2) the broad token PAYOFF — "tokens you control" anthems/refs (Intangible Virtue,
+#       Mirror Box, Brudiclad), a "whenever a/one or more/another … token … enters"
+#       trigger (Woodland Champion, Junk Winder), and the token DOUBLER replacement
+#       ("tokens would be created/put", "create twice that many … token", "twice that
+#       many … tokens" — Doubling Season, Parallel Lives, Mondrak, Divine Visitation).
+# NOT a structural arm: phase carries NO shape for "tokens you control" / "for each
+# creature you control" payoffs (they survive only in raw), and a structural-only
+# migration would LOSE 161 commander-legal cards. The amass / fabricate keyword cards
+# (59) already fire tokens_matter STRUCTURALLY from the IR (the amass / fabricate
+# effect-category fan-out + the moved _IR_KEYWORD_MAP keyword route), so the mirror
+# covers ONLY the two _HAND_FLOOR producers; mirror OR IR-structural reproduces the full
+# regex firing EXACTLY (commander-legal: regex==hybrid==230, 0 miss, 0 over-fire).
+# CR 111.1 / 701.47 (amass) / 702.123 (fabricate).
+TOKENS_MATTER_REGEX = "(?:gets? \\+\\d+/\\+\\d+|power (?:and toughness )?(?:is|are) equal to)[^.]*(?:for each (?:other )?creature you control|number of creatures you control)|\\btokens? you control\\b|whenever (?:a|one or more|another)[^.]*?\\btokens?\\b[^.]*?\\benters?\\b|tokens? would be (?:created|put)|create twice that many[^.]*token|twice that many[^.]*tokens?"
+
 # ADR-0027 β: entered_attacker migrated to the Card IR via a byte-identical kept-mirror.
 # The deleted _HAND_FLOOR producer is pinned here so the _ENTERED_ATTACKER_MIRROR kept
 # detector (_signals_ir) shares ONE source. The lane is the freshly-entered-attacker

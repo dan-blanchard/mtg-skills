@@ -141,7 +141,21 @@ def test_extort_is_drain():
 
 
 def test_amass_is_tokens():
-    assert "tokens_matter" in _keys(keywords=["Amass"])
+    # ADR-0027: tokens_matter is migrated. Amass (CR 701.47) carries its Army-token
+    # making in stripped reminder text, so the lane fires from the Amass keyword in
+    # _IR_KEYWORD_MAP via the hybrid — not the regex keyword path (which was deleted).
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils.card_ir import Card, Face
+
+    card = {
+        "name": "X",
+        "oracle_text": "",
+        "type_line": "Legendary Creature — Test",
+        "keywords": ["Amass"],
+    }
+    ir = Card(oracle_id="x", name="X", faces=(Face(name="X", keywords=("Amass",)),))
+    assert "tokens_matter" not in {s.key for s in extract_signals(card)}
+    assert "tokens_matter" in {s.key for s in extract_signals_hybrid(card, ir)}
 
 
 def test_plain_flying_keyword_is_not_a_buildaround_signal():

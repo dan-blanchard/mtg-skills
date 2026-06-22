@@ -1926,6 +1926,55 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # identical-mirror pattern (restores has_other_plan for ALL cards regardless of
         # IR/regex mode). CR 702.95 (populate) / 707 (copies).
         "token_copy_matters",
+        # ADR-0027 — tokens_matter (the GO-WIDE token lane: a payoff/reference that
+        # CARES about tokens — token DOUBLERS (Doubling Season, Parallel Lives,
+        # Mondrak, Divine Visitation), "tokens you control" anthems/refs (Intangible
+        # Virtue, Mirror Box, Brudiclad), token-enters triggers (Woodland Champion,
+        # Junk Winder), and the GO-WIDE creature-count-scaler whose own/granted P/T
+        # scales with the board (Adeline, Leonardo, Bravado, Might of the Masses).
+        # DISTINCT from token_maker (the subject-bearing MAKER lane, NOT migrated) and
+        # token_copy_matters (the token-COPY/populate lane, migrated). MIGRATED VIA A
+        # KEPT-MIRROR (signals-only, NO sidecar bump), NOT a structural arm.
+        #
+        # WHY KEPT-MIRROR, NOT STRUCTURAL: phase carries NO structural shape for the
+        # "tokens you control" / "for each creature you control" payoffs — they survive
+        # only in raw oracle text, never as an Effect/Trigger/predicate the projection
+        # exposes. A structural-only migration would LOSE 161 commander-legal cards
+        # (regex_only == 161, ir_only == 0 over the floor-disabled corpus) — a massive
+        # recall loss, the polar opposite of a 100%-over-fire. So the clean
+        # signals-only path is a byte-identical kept-mirror of the deleted regex ("no
+        # dismissal without the hook": each of the 161 is a genuine token/go-wide
+        # payoff with a detectable oracle hook the regex already matched).
+        #
+        # CHOSEN PATH 2 (kept-mirror). The lane fires from _TOKENS_MATTER_MIRROR in
+        # _signals_ir — the UNION of the two EXACT deleted _HAND_FLOOR regexes (the
+        # go-wide count-scaler + the broad token payoff, pinned as TOKENS_MATTER_REGEX)
+        # over the reminder-STRIPPED kept_oracle, byte-identical to the deleted floor
+        # Detectors. PLUS the existing structural amass / fabricate effect-category arm
+        # (extract_signals_ir's cat=='amass'/'fabricate' fan-out) already fires
+        # tokens_matter for those keyword cards; the regex amass / mobilize entries
+        # MOVED from _DIRECT_KEYWORD_SIGNALS to _IR_KEYWORD_MAP (the IR-only keyword
+        # path), so mobilize-keyword bodies whose token-making lives in stripped
+        # reminder text keep firing from the keyword array (the saddle-style move).
+        # The serve spec stays hand-registered in signal_specs.py (its curated search
+        # regex was always independent of the producers).
+        #
+        # Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): the structural IR path (amass/fabricate only)
+        # gives both == 69, ir_only == 0, regex_only == 161 — the 161 regex-only cards
+        # are exactly the broad-payoff bodies phase can't structure. The mirror OR the
+        # IR-structural arm reproduces the full regex firing EXACTLY: regex == hybrid
+        # == 230, 0 miss, 0 over-fire (a true behavior-neutral re-home). floor-mirror-
+        # dep == 0 (tokens_matter is NOT an _IR_FLOOR_LANE). The three deleted
+        # producers (2 _HAND_FLOOR + the amass/mobilize keyword map) fired HIGH-
+        # confidence (forced scope 'you') and counted toward has_other_plan (a go-wide
+        # token ENGINE is a real plan, not a vanilla voltron beater), so the voltron
+        # silence is re-supplied via _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — NOT a
+        # byte-identical oracle PLAN mirror, which would go blind on the 3 vanilla
+        # mobilize-KEYWORD bodies (token-making in stripped reminder text). The IR
+        # re-supply is byte-identical (230 == 230), so no over-silence. CR 111.1 /
+        # 701.47 (amass) / 702.123 (fabricate).
+        "tokens_matter",
         # ADR-0027 β — creature_etb (the ETB-VALUE lane: a payoff that triggers
         # "whenever a creature you control enters" — Cathars' Crusade, Impact Tremors,
         # Soul Warden; the ETB-trigger DOUBLERS — Panharmonicon, Yarok, Elesh Norn,

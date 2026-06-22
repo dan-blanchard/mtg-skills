@@ -198,6 +198,22 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # tokens_matter ← a BYTE-IDENTICAL kept mirror (_TOKENS_MATTER_MIRROR over the
+    # reminder-stripped oracle: "Creature tokens you control get +1/+1 …" is the broad
+    # "tokens you control" payoff phase carries NO structural shape for — it survives only
+    # in raw, so a structural-only migration would lose 161 cards). The lane rides the
+    # exact deleted _HAND_FLOOR regex union (empty IR — the mirror reads the dict oracle).
+    # ADR-0027.
+    "tokens_matter": (
+        {
+            "name": "Intangible Virtue",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Creature tokens you control get +1/+1 and have vigilance."
+            ),
+        },
+        _ir(),
+    ),
     # creature_etb ← a BYTE-IDENTICAL kept mirror (_creature_etb_clauses over the
     # reminder-stripped oracle: "Whenever a creature you control enters, put a +1/+1
     # counter on each creature you control"). The structural etb-trigger arm gains

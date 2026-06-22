@@ -2060,8 +2060,10 @@ def test_artifacts_matter():
 
 
 def test_tokens_matter_payoff():
+    # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror,
+    # so assert against the hybrid path (the mirror reads the oracle).
     c = {"name": "Token Payoff", "oracle_text": "Tokens you control have haste."}
-    assert ("tokens_matter", "you") in _ks(c)
+    assert ("tokens_matter", "you") in _ks_hybrid(c)
 
 
 def test_stax_taxes_scoped_to_opponents():
@@ -5271,7 +5273,9 @@ def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
             "Sneak {W}\nLeonardo gets +1/+0 for each other creature you control."
         ),
     }
-    assert "tokens_matter" in _keys(leonardo)
+    # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror
+    # (the go-wide count-scaler arm), so assert against the hybrid path.
+    assert "tokens_matter" in _keys_hybrid(leonardo)
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
     from mtg_utils._deck_forge.signals import Signal

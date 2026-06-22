@@ -393,13 +393,15 @@ def test_affinity_and_artifact_cast_open_artifacts_lane():
 
 def test_token_doubler_opens_tokens_lane():
     # A token DOUBLER (Adrix) wants token-MAKERS to double — it must open the tokens
-    # lane, not only "Doubling".
+    # lane, not only "Doubling". ADR-0027: tokens_matter migrated to the Card IR via a
+    # byte-identical kept-mirror, so assert against the hybrid path (the mirror reads
+    # the oracle, so a bare IR routes the hybrid to the IR path).
     adrix = {
         "name": "Adrix and Nev, Twincasters",
         "type_line": "Legendary Creature — Merfolk Wizard",
         "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nIf one or more tokens would be created under your control, twice that many of those tokens are created instead.",
     }
-    assert ("tokens_matter", "you") in _keys(adrix)
+    assert ("tokens_matter", "you") in _keys_hybrid(adrix)
 
 
 # ── Landfall: a land-recursion commander opens the lands lane (the Windgrace case) ─
