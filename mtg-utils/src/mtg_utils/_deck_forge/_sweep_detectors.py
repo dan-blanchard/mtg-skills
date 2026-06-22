@@ -818,6 +818,41 @@ LAND_SACRIFICE_REGEX = (
 # — no broadening, no over-silence — matching the land_sacrifice / draw_matters kept-
 # mirror precedent; NO _EXTRA_COMBATS_PLAN_MIRROR is needed. CR 505.1a / 903.10a.
 EXTRA_COMBATS_REGEX = r"additional combat phase"
+# ADR-0027 — extra_turns (the TIME-WALK build-around axis: take-another-turn payoffs
+# and enablers — Time Warp, Temporal Manipulation, Nexus of Fate, Magosi, Obeka, plus
+# the per-extra-turn payoffs Wanderwine Prophets / Sage of Hours / Medomai; CR 500.7)
+# migrated to the Card IR. The lane fires from the STRUCTURAL `extra_turn` effect-
+# category arm (_DOER_EFFECT_KEYS, scope 'you', HIGH conf — already wired) PLUS this
+# BYTE-IDENTICAL kept WORD MIRROR for the under-structured tail phase folds into another
+# category. The deleted regex producer was the `extra-turns` theme PRESET
+# (_PRESET_REGEX_SIGNALS) — a per-clause `re.search` of "take an (?:extra|additional)
+# turn" over the reminder-stripped oracle, scope 'you', HIGH conf. The structural arm is
+# BROADER (+8 ir_only: the buggy preset matches only the IMPERATIVE "Take an extra turn"
+# and MISSES the 3rd-person "takes an extra turn" — Time Warp / Walk the Aeons / Beacon
+# of Tomorrows / Karn's Temporal Sundering — and the "take TWO extra turns" form — Time
+# Stretch / Teferi; all 8 ir_only are genuine extra-turn cards phase structures as an
+# `extra_turn` effect, a recall GAIN). It is also NARROWER for 6 under-structured cards
+# (regex_only) where phase folds "take an extra turn" into a SIBLING category and emits
+# no `extra_turn` effect: Chance for Glory (grant_keyword carrier), Expropriate (vote),
+# Ichormoon Gauntlet (a CONFERRED planeswalker ability), Ral Zarek / Stitch in Time
+# (coin_flip), Ugin's Nexus (an exile replacement). This constant, run FLAT over the
+# reminder-stripped `kept_oracle` in extract_signals_ir's _IR_KEPT_DETECTORS loop (scope
+# 'you', HIGH conf), recovers those 6 BYTE-IDENTICALLY — the pattern has no `[^.]*`, so
+# flat==per-clause, and reminder-stripping matches the producer (Perch Protection, whose
+# "take an extra turn" lives ONLY in Gift reminder text, is correctly EXCLUDED). add()
+# dedups the mirror vs the structural arm; the hybrid serves the UNION (50 = 36 both + 8
+# structural recall-gain + 6 under-structured mirror). extra_turns was NEVER a SWEEP key,
+# so no SWEEP row is touched (len stays 36); only this CONSTANT is pinned here. NO sidecar
+# bump. VOLTRON: the deleted preset fired HIGH conf scope 'you' and so counted toward
+# has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the
+# spurious commander-damage voltron tell on a time-walk CREATURE commander whose ONLY
+# high plan tell is extra_turns (Timestream Navigator, Lighthouse Chronologist, Wormfang
+# Manta). Because the structural arm is BROADER (+8), _VOLTRON_SILENCING_PLAN_KEYS would
+# OVER-SILENCE the recall-gain bodies (e.g. Eon Frolicker), so the regex path keeps a
+# BYTE-IDENTICAL _EXTRA_TURNS_PLAN_MIRROR over the reminder-stripped `text` (NOT
+# _VOLTRON_SILENCING_PLAN_KEYS) — matching the landfall / ramp_matters broader-IR
+# precedent. CR 500.7 / 903.10a.
+EXTRA_TURNS_REGEX = r"take an (?:extra|additional) turn"
 # ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
 # mirror (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). The deleted regex producers — the
 # `_DETECTORS` registry row (the "whenever you gain life" payoff / "gain N life" source

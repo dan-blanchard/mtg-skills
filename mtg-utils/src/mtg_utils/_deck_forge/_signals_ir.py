@@ -65,6 +65,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
     EXTRA_COMBATS_REGEX,
+    EXTRA_TURNS_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
@@ -133,6 +134,12 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # Batch 0 — v0.1.60 effect types newly projected (see project.py _EFFECT_CATEGORY).
     "coin_flip": ("coin_flip", "you"),
     "end_the_turn": ("end_the_turn", "you"),
+    # ADR-0027: extra_turns migrated to the Card IR — THIS structural `extra_turn`
+    # effect-category arm (scope 'you', HIGH) is its PRIMARY producer; it is broader
+    # than the deleted `extra-turns` theme preset (catches the 3rd-person "takes an
+    # extra turn" + "take TWO extra turns" the buggy preset missed). The 6 cards where
+    # phase folds "take an extra turn" into a sibling category ride the byte-identical
+    # EXTRA_TURNS_REGEX _IR_KEPT_DETECTORS mirror. CR 500.7.
     "extra_turn": ("extra_turns", "you"),
     "set_life": ("life_total_set", "any"),  # scope-agnostic build-around marker
     # reveal_hand → hand_disruption is scope-GATED below (only an opponent-reveal is
@@ -738,6 +745,35 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "extra_combats",
         re.compile(EXTRA_COMBATS_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 — extra_turns BYTE-IDENTICAL kept WORD MIRROR for the UNDER-STRUCTURED
+    # tail (the time-walk axis: take-another-turn payoffs/enablers — Time Warp, Nexus of
+    # Fate, Magosi, Obeka; CR 500.7). The STRUCTURAL arm
+    # (_DOER_EFFECT_KEYS["extra_turn"]
+    # → add("extra_turns","you") on phase's `extra_turn` effect category) is the primary
+    # producer and is BROADER than the deleted `extra-turns` theme PRESET (+8 ir_only:
+    # the buggy preset matched only the IMPERATIVE "Take an extra turn" and missed the
+    # 3rd-person "takes an extra turn" — Time Warp, Walk the Aeons, Beacon of Tomorrows,
+    # Karn's Temporal Sundering — and "take TWO extra turns" — Time Stretch, Teferi).
+    # But
+    # phase FOLDS "take an extra turn" into a SIBLING category (emitting no `extra_turn`
+    # effect) for 6 cards: Chance for Glory (grant_keyword carrier), Expropriate (vote),
+    # Ichormoon Gauntlet (a CONFERRED planeswalker ability), Ral Zarek / Stitch in Time
+    # (coin_flip), Ugin's Nexus (an exile replacement). This EXTRA_TURNS_REGEX (the
+    # EXACT
+    # deleted preset pattern) run FLAT over the reminder-stripped kept_oracle recovers
+    # those 6 BYTE-IDENTICALLY — the pattern has no `[^.]*`, so flat==per-clause, and
+    # reminder-stripping matches the producer (Perch Protection, whose "take an extra
+    # turn" lives ONLY in Gift reminder text, is correctly EXCLUDED). add() dedups vs
+    # the
+    # structural arm; the hybrid serves the UNION (50). scope 'you', HIGH conf. The
+    # deleted preset fed has_other_plan; the regex path keeps a byte-identical
+    # _EXTRA_TURNS_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS — the structural arm is
+    # broader, so the keys route would over-silence the recall-gain bodies). CR 500.7.
+    (
+        "extra_turns",
+        re.compile(EXTRA_TURNS_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 β — draw_matters (the YOU-draw payoff: "whenever you draw" engines +

@@ -3708,6 +3708,65 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # untap_engine drift 0; 0 other-key drift across all 298 keys. CR 505.1a /
         # 903.10a.
         "extra_combats",
+        # ADR-0027 — extra_turns (the TIME-WALK build-around axis: take-another-turn
+        # payoffs and enablers — Time Warp, Temporal Manipulation, Nexus of Fate,
+        # Magosi, Obeka, plus the per-extra-turn payoffs Wanderwine Prophets / Sage of
+        # Hours / Medomai; CR 500.7) now fires from the Card IR instead of its oracle-
+        # regex producer. NO sidecar bump (signals-only; the structural arm + kept word
+        # mirror read the reminder-stripped, DFC-joined oracle the record already
+        # carries). MIGRATED VIA THE STRUCTURAL `extra_turn` EFFECT ARM (already
+        # wired: _DOER_EFFECT_KEYS["extra_turn"] → add("extra_turns","you") in
+        # extract_signals_ir, scope 'you', HIGH conf) PLUS a byte-identical kept WORD
+        # MIRROR (EXTRA_TURNS_REGEX in _IR_KEPT_DETECTORS) for the under-structured
+        # tail.
+        #
+        # THE DELETED PRODUCER was the `extra-turns` theme PRESET (_PRESET_REGEX_SIGNALS
+        # in _signals_regex) — a per-clause re.search of "take an (?:extra|additional)
+        # turn" over the reminder-stripped oracle, scope 'you', HIGH conf, on 42
+        # commander-legal cards.
+        #
+        # SCOPE PARITY. The deleted preset forced scope 'you' / HIGH; both IR producers
+        # fire scope 'you' / HIGH — 0 scope/confidence mismatches over the 36 both-fire
+        # cards (floor-disabled, by oracle_id).
+        #
+        # MIGRATE-WHEN-CLEAN. Floor-disabled residual over the commander-legal corpus
+        # (by oracle_id, pure-regex vs pure-IR): both=36, ir_only=8, regex_only=6.
+        #   ir_only (8, a RECALL GAIN — all genuine extra-turn cards the buggy preset
+        #   MISSED): the 3rd-person "takes an extra turn" — Time Warp, Walk the Aeons,
+        #   Beacon of Tomorrows, Karn's Temporal Sundering, Eon Frolicker, Timesifter —
+        #   and "take TWO extra turns" — Time Stretch, Teferi Master of Time. phase
+        #   structures every one as an `extra_turn` effect; the preset pattern only
+        #   matched the IMPERATIVE "Take an extra turn".
+        #   regex_only (6, recovered BYTE-IDENTICALLY by the EXTRA_TURNS_REGEX
+        #   _IR_KEPT_DETECTORS mirror): the 6 cards where phase FOLDS "take an extra
+        #   turn" into a SIBLING category, emitting no `extra_turn` effect — Chance for
+        #   Glory (grant_keyword carrier), Expropriate (vote), Ichormoon Gauntlet (a
+        #   CONFERRED planeswalker ability), Ral Zarek / Stitch in Time (coin_flip),
+        #   Ugin's Nexus (an exile replacement). The mirror's pattern has no `[^.]*`, so
+        #   flat==per-clause, and reminder-stripping keeps Perch Protection's Gift-
+        #   reminder "take an extra turn" OUT. So the hybrid serves the UNION (50 = 36
+        #   both + 8 structural recall-gain + 6 under-structured mirror).
+        #
+        # VOLTRON. The deleted preset fired HIGH conf scope 'you' and so counted toward
+        # has_other_plan (extra_turns is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS),
+        # silencing the spurious commander-damage voltron tell on a time-walk CREATURE
+        # commander whose ONLY high plan tell is extra_turns (Timestream Navigator,
+        # Lighthouse Chronologist, Wormfang Manta). Because the structural arm is
+        # BROADER
+        # (+8 ir_only, incl. the creature Eon Frolicker), _VOLTRON_SILENCING_PLAN_KEYS
+        # would OVER-SILENCE the recall-gain bodies — so the regex path keeps a BYTE-
+        # IDENTICAL _EXTRA_TURNS_PLAN_MIRROR over the reminder-stripped `text` (NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS), matching the landfall / ramp_matters broader-IR
+        # precedent (42-card silence set, 0 Perch over-fire; FILE-SWAP voltron delta 0).
+        #
+        # FILE-SWAP no-flood (base fc02a23 vs edits, baked sidecar over commander-legal,
+        # hybrid path): ONLY extra_turns moves (42 → 50, +8 recall gain);
+        # voltron_matters delta 0; siblings extra_combats / untap_engine / time_matters
+        # drift 0; 0 other-key drift across all 298 keys. The serve spec stays
+        # hand-registered
+        # (("extra_turns","you") in signal_specs, independent of the producer). CR 500.7
+        # / 903.10a.
+        "extra_turns",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

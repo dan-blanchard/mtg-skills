@@ -43,6 +43,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
+    EXTRA_TURNS_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GLOBAL_ABILITY_GRANT_REGEX,
@@ -2190,7 +2191,17 @@ _PRESET_KEYWORD_SIGNALS = {
 # 505.1a / 903.10a.
 _PRESET_REGEX_SIGNALS = {
     "blink": ("blink_flicker", "you"),
-    "extra-turns": ("extra_turns", "you"),
+    # ADR-0027: the `extra-turns` AND `extra-combats` presets are both DELETED — both
+    # migrated to the Card IR (the STRUCTURAL `extra_turn` / `extra_combat` effect-
+    # category arms in extract_signals_ir, scope 'you', HIGH, broader than the presets;
+    # the under-structured tails ride the byte-identical EXTRA_TURNS_REGEX /
+    # EXTRA_COMBATS_REGEX _IR_KEPT_DETECTORS mirrors). Keeping them here would let the
+    # regex `extract_signals` path keep emitting a migrated key. Each fed has_other_plan
+    # (HIGH, scope 'you', not generic/voltron-compat); extra_turns' voltron silence is
+    # restored by the byte-identical _EXTRA_TURNS_PLAN_MIRROR below (NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS — its IR arm is broader, which would over-silence the
+    # recall-gain bodies), and extra_combats' via _VOLTRON_SILENCING_PLAN_KEYS (its IR
+    # re-supply is byte-identical). CR 500.7 / 505.1a / 903.10a.
 }
 
 # A recurring-value ENGINE on a legendary: a per-turn triggered ability (upkeep / end
@@ -3147,6 +3158,22 @@ def _attack_matters_is_plan(text: str, name: str) -> bool:
 # lambda ran ("whenever a land" & "enter" on the lower-cased clause — no single regex
 # expresses a substring-AND). CR 207.2c / 305 / 903.10a.
 _LANDFALL_PLAN_MIRROR = re.compile(LANDFALL_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN reproduction for the migrated extra_turns key. The
+# deleted
+# `extra-turns` theme PRESET (_PRESET_REGEX_SIGNALS) fired HIGH-confidence scope 'you',
+# counting toward `has_other_plan` — a time-walk ENGINE (Time Warp / Magosi / Obeka, and
+# a CREATURE commander whose only high plan tell is extra_turns: Timestream Navigator,
+# Lighthouse Chronologist, Wormfang Manta) IS a plan, not a vanilla equip-up beater, so
+# it silenced the spurious commander-damage voltron tell. The migrated IR is BROADER
+# (the structural `extra_turn` effect arm catches +8 ir_only — the 3rd-person "takes an
+# extra turn" / "take TWO extra turns" the buggy preset missed, e.g. the creature Eon
+# Frolicker), so this byte-identical mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS —
+# restores the deleted preset's EXACT silence set WITHOUT over-silencing the recall-gain
+# bodies. Matched over the reminder-STRIPPED joined `text` (the deleted preset ran
+# per-clause over stripped clauses; the pattern has no `[^.]*`, so a flat .search is
+# byte-identical, and reminder-stripping keeps Perch Protection's Gift-reminder "take an
+# extra turn" OUT). CR 500.7 / 903.10a.
+_EXTRA_TURNS_PLAN_MIRROR = re.compile(EXTRA_TURNS_REGEX, re.IGNORECASE)
 
 
 def _landfall_is_plan(text: str) -> bool:
@@ -4974,6 +5001,19 @@ def extract_signals(
         # BROADER +5, which would over-silence the recall-gain bodies). CR 207.2c /
         # 305 / 903.10a.
         or _landfall_is_plan(text)
+        # ADR-0027: re-silence the deleted `extra-turns` theme PRESET (HIGH-confidence
+        # scope 'you', feeding has_other_plan — a time-walk ENGINE is no vanilla beater;
+        # it silenced the spurious commander-damage voltron tell on a creature commander
+        # whose ONLY high plan tell is extra_turns: Timestream Navigator, Lighthouse
+        # Chronologist, Wormfang Manta). The migrated lane rides a BROADER structural
+        # arm (+8 ir_only), so this byte-identical mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old preset's EXACT silence set
+        # without over-silencing the recall-gain bodies (e.g. the creature Eon
+        # Frolicker). Matched against the reminder-STRIPPED `text` (the deleted preset
+        # ran per-clause over stripped clauses; the pattern has no `[^.]*`, so full-text
+        # == per-clause, and Perch Protection's Gift-reminder match stays OUT). CR
+        # 500.7 / 903.10a.
+        or _EXTRA_TURNS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted self_counter_grow SWEEP producer (HIGH-
         # confidence scope 'you', feeding has_other_plan — a self-growth engine is no
         # vanilla beater). The migrated lane rides a BROADER structural arm (+503
