@@ -36,7 +36,10 @@ CASES = [
         "you",
         "Whenever you attach an Equipment to a creature, draw a card.",
     ),
-    ("vehicles_matter", "you", "Vehicles you control get +1/+1."),
+    # ADR-0027: vehicles_matter migrated to the Card IR (the byte-identical
+    # VEHICLES_MATTER_MIRROR kept word mirror — the "Vehicles you control" anthem / crew
+    # payoff / Vehicle-GRANTER lane — plus the per-clause Greasefang typed-gy Vehicle
+    # arm), so it is asserted via the hybrid path below, not this regex CASES loop.
     # ADR-0027: scry_surveil_matters migrated to the Card IR (the scried/surveiled
     # trigger events + the event='other' scry/surveil payoff marker), so it is
     # asserted via the hybrid path below, not this regex CASES loop.
@@ -126,6 +129,32 @@ def test_coven_matters_is_ir_served():
     c = {"name": "X", "oracle_text": "Coven — At the beginning of combat, scry 2."}
     assert ("coven_matters", "you") in _ks_hybrid(c)
     assert ("coven_matters", "you") not in _ks(c)
+
+
+def test_vehicles_matter_is_ir_served():
+    # ADR-0027: vehicles_matter is IR-served from the byte-identical
+    # VEHICLES_MATTER_MIRROR kept word mirror (the "Vehicles you control" anthem
+    # branch), so it comes through the hybrid path, not pure regex.
+    c = {"name": "X", "oracle_text": "Vehicles you control get +1/+1."}
+    assert ("vehicles_matter", "you") in _ks_hybrid(c)
+    assert ("vehicles_matter", "you") not in _ks(c)
+
+
+def test_vehicles_matter_greasefang_arm_is_ir_served():
+    # ADR-0027: the typed-graveyard-recursion Vehicle arm (Greasefang) — which the broad
+    # kept mirror never anchored — is re-supplied PER-CLAUSE in extract_signals_ir, so it
+    # too comes through the hybrid path, not pure regex.
+    c = {
+        "name": "Greasefang, Okiba Boss",
+        "type_line": "Legendary Creature — Rat Pilot",
+        "oracle_text": (
+            "At the beginning of combat on your turn, return target Vehicle card "
+            "from your graveyard to the battlefield. It gains haste. Return it to "
+            "its owner's hand at the beginning of your next end step."
+        ),
+    }
+    assert ("vehicles_matter", "you") in _ks_hybrid(c)
+    assert ("vehicles_matter", "you") not in _ks(c)
 
 
 def test_superfriends_matters_is_ir_served():
@@ -672,12 +701,16 @@ def test_ring_matters_is_ir_served():
 
 def test_vehicles_does_not_fire_on_incidental_or_vehicle_target():
     # "creature or Vehicle you control" (singular) is a counters/combat-trick target,
-    # not a vehicles build-around — must NOT fire vehicles_matter.
+    # not a vehicles build-around — must NOT fire vehicles_matter. ADR-0027: the lane
+    # now rides the IR kept mirror, so assert the (no-)fire on the HYBRID path too.
     c = {
         "name": "Counter Trick",
         "oracle_text": "Put a +1/+1 counter on target creature or Vehicle you control.",
     }
     assert "vehicles_matter" not in _keys(c)
+    assert "vehicles_matter" not in {
+        s.key for s in extract_signals_hybrid(c, _bare_ir())
+    }
 
 
 def test_voltron_does_not_fire_on_equipment_payload():

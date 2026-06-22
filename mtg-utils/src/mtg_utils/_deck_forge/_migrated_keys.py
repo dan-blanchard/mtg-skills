@@ -2503,6 +2503,35 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # player controls at least one land with the specified land type") / 702.14b
         # (landwalk is an evasion ability) / 903.10a (commander damage).
         "island_matters",
+        # ADR-0027 — vehicles_matter migrated to the Card IR. SHAPE: UNION of two
+        # byte-identical kept producers. (1) The broad "Vehicles you control" anthem /
+        # crew payoff / Vehicle-GRANTER ("becomes a Vehicle … gains crew") _HAND_FLOOR
+        # producer rides the VEHICLES_MATTER_MIRROR kept WORD MIRROR (the EXACT deleted
+        # regex pinned as VEHICLES_MATTER_REGEX in _sweep_detectors, flat over the
+        # reminder-stripped kept_oracle == the floor Detector's per-clause scan, 41
+        # cards). (2) The SEPARATE typed-graveyard-recursion Vehicle arm
+        # (_detect_typed_gy_recursion's "vehicle" row — Greasefang's "return target
+        # Vehicle card from your graveyard to the battlefield", which the broad floor
+        # regex never anchored) is re-supplied PER-CLAUSE in extract_signals_ir (the
+        # keyword_tribe precedent), filtered to the vehicles_matter row so the
+        # un-migrated type_matters rows stay on the regex path (1 card). phase v0.1.19
+        # carries NO structural form for Crew (CR 702.122) or the Vehicle artifact
+        # subtype (CR 301.7) — neither is a parsed predicate — so the lane rides the
+        # deleted regexes, not a Scryfall keyword/IR structure. Floor-disabled residual
+        # vs the deleted producers (commander-legal, _IR_FLOOR_LANES=frozenset(), by
+        # oracle_id): both == 42, ir_only == 0, regex_only == 0 — byte-identical
+        # re-home, no recall gain, no over-fire. floor-mirror-dep -> 0 (vehicles_matter
+        # REMOVED from _IR_FLOOR_LANES). The deleted floor producer fired
+        # HIGH-confidence (scope 'you') and counted toward has_other_plan (it is NOT in
+        # _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage voltron
+        # membership tell on a Vehicles-only commander. The IR re-supply is byte-
+        # identical (42 == 42), so the voltron silence is re-supplied via
+        # _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — the island_matters precedent
+        # (byte-identical → no over-silence, voltron 3010 -> 3010). The hand-written
+        # serve spec in signal_specs.py is independent of these regexes and survives.
+        # CR 301.7 / 702.122 / 903.10a.
+        "vehicles_matter",
         # ADR-0027 β — creature_etb (the ETB-VALUE lane: a payoff that triggers
         # "whenever a creature you control enters" — Cathars' Crusade, Impact Tremors,
         # Soul Warden; the ETB-trigger DOUBLERS — Panharmonicon, Yarok, Elesh Norn,

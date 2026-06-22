@@ -14,11 +14,22 @@ from mtg_utils._deck_forge.signal_specs import (
     serves,
     spec_for,
 )
-from mtg_utils._deck_forge.signals import Signal, extract_signals
+from mtg_utils._deck_forge.signals import (
+    Signal,
+    extract_signals,
+    extract_signals_hybrid,
+)
+from mtg_utils.card_ir import Card, Face
 
 
 def _sig(key, scope="you"):
     return Signal(key=key, scope=scope, subject="", text="", source="cmd")
+
+
+def _bare_ir() -> Card:
+    """A minimal non-None Card IR — routes extract_signals_hybrid through the IR path
+    so a migrated key whose IR source scans the record (a kept word mirror) fires."""
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def test_serve_all_of_requires_every_subserve():
@@ -1995,9 +2006,12 @@ def test_vehicles_lane_opens_for_granter_and_credits_support():
             'At the beginning of combat on your turn, choose target nonland permanent you control. Until end of turn, it becomes a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and "Crash Land — Whenever this Vehicle deals damage, roll a six-sided die. If the result is equal to this Vehicle\'s mana value, sacrifice this Vehicle, then it deals that much damage to any target."'
         ),
     }
+    # ADR-0027: vehicles_matter migrated to the Card IR — the Vehicle-GRANTER
+    # ("becomes a Vehicle … gains crew") lane fires through the hybrid path (the
+    # byte-identical VEHICLES_MATTER_MIRROR kept word mirror), not the pure regex path.
     assert any(
         k == "vehicles_matter"
-        for k, _ in {(s.key, s.scope) for s in extract_signals(rex)}
+        for k, _ in {(s.key, s.scope) for s in extract_signals_hybrid(rex, _bare_ir())}
     )
     oviya = {
         "name": "Oviya, Automech Artisan",

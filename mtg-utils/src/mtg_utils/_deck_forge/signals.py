@@ -533,6 +533,21 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # `islandwalk` word, so there is no keyword-only body a mirror would miss).
         # File-swap: voltron 3010→3010, A-B==0.
         "island_matters",
+        # ADR-0027: vehicles_matter fired high-confidence (forced scope 'you') in the
+        # regex path — via the broad _HAND_FLOOR producer (it was an _IR_FLOOR_LANE) and
+        # the SEPARATE typed-graveyard-recursion Vehicle arm (Greasefang) — and so
+        # counted toward has_other_plan (it is NOT in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage voltron tell on
+        # a Vehicles-matters commander whose plan is to crew/recur Vehicles rather than
+        # connect for commander damage. Both regex producers are deleted, so the hybrid
+        # re-silences from the IR re-supply. That re-supply is BYTE-IDENTICAL — the
+        # VEHICLES_MATTER_MIRROR kept WORD MIRROR (the broad lane, 41) UNIONed with the
+        # PER-CLAUSE _detect_typed_gy_recursion Vehicle arm (Greasefang, 1) reads the
+        # SAME reminder-stripped oracle as the deleted producers (commander-legal,
+        # floor-disabled, by oracle_id: both==42, regex_only==0, ir_only==0) — so a set
+        # entry, not an oracle PLAN mirror, is correct (no over-silence). File-swap:
+        # voltron 3010→3010, A-B==0. CR 301.7 / 702.122 / 903.10a.
+        "vehicles_matter",
         # ADR-0027: second_spell_matters fired high-confidence (forced scope 'you')
         # in the regex path — via the _HAND_FLOOR floor producer (it was an
         # _IR_FLOOR_LANE) — and so counted toward has_other_plan, silencing the

@@ -413,7 +413,11 @@ class TestTypedGraveyardRecursion:
             "type_line": "Legendary Creature — Rat Pilot",
             "oracle_text": "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
         }
-        assert "vehicles_matter" in {s.key for s in extract_signals(greasefang)}
+        # ADR-0027: vehicles_matter migrated to the Card IR; the typed-graveyard-
+        # recursion Vehicle arm is re-supplied per-clause in extract_signals_ir, so it
+        # fires through the hybrid path (not the pure regex path).
+        keys = {s.key for s in extract_signals_hybrid(greasefang, _bare_ir())}
+        assert "vehicles_matter" in keys
 
     def test_typed_recursion_resolves_creature_subtype(self):
         dragon_recur = {

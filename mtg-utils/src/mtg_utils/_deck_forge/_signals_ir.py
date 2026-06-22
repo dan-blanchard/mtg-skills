@@ -44,6 +44,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_self_blink_fulltext,
     _detect_self_damage_prevention,
     _detect_self_death_payoff,
+    _detect_typed_gy_recursion,
     _detect_voltron_payoff_ir,
     _resolve_subject,
     _type_hoser_clause,
@@ -108,6 +109,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
+    VEHICLES_MATTER_REGEX,
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
@@ -861,6 +863,23 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # per-clause mismatches). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep
     # -> 0). CR 702.14c (islandwalk evasion) / 702.14b (landwalk).
     ("island_matters", re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 — vehicles_matter BYTE-IDENTICAL kept WORD MIRROR (the broad "Vehicles
+    # you control" anthem / crew payoff / Vehicle-GRANTER lane; pinned as
+    # VEHICLES_MATTER_REGEX in _sweep_detectors). phase v0.1.19 carries NO structural
+    # form for Crew (CR 702.122) or the Vehicle artifact subtype (CR 301.7) — neither is
+    # a parsed predicate — so the lane rides the deleted _HAND_FLOOR regex, NOT a
+    # Scryfall keyword array (there is none for "cares about Vehicles"). The Greasefang
+    # typed-graveyard-recursion arm ("return target Vehicle card from your graveyard")
+    # is SEPARATE — this broad regex never anchored a GY-recursion form — and is
+    # re-supplied PER-CLAUSE via _detect_typed_gy_recursion in extract_signals_ir. The
+    # `whenever[^.]*crews?` / `create [^.]*vehicle artifact token` arms are `[^.]`-
+    # bounded inside a clause, so a flat scan over the reminder-stripped kept_oracle ==
+    # the deleted floor Detector's per-clause scan (commander-legal, floor-disabled, by
+    # oracle_id: this mirror==41, +1 from the Greasefang arm == 42 == the deleted
+    # producers; both==42, ir_only==0, regex_only==0; scope 'you', HIGH; 0 flat /
+    # per-clause mismatches). FLOOR->KEPT: removed from _IR_FLOOR_LANES
+    # (floor-mirror-dep -> 0). CR 301.7 (Vehicle artifact subtype) / 702.122 (Crew).
+    ("vehicles_matter", re.compile(VEHICLES_MATTER_REGEX, re.IGNORECASE), "you"),
     # ADR-0027 — clue_matters kept WORD MIRROR (pinned as CLUE_MATTERS_REGEX in
     # _sweep_detectors). The STRUCTURAL artifact-token-subtype arm (the make_token /
     # sacrifice subject scan + the token_subtype_ref marker shared with food/treasure/
@@ -2484,7 +2503,15 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # mirror for the cost-reduction / counterspell-tax forms phase doesn't make a
         # count operand). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
         # type / tribe / permanent-shape synergy
-        "vehicles_matter",
+        # vehicles_matter removed — ADR-0027 migrated it to the Card IR. The broad
+        # "Vehicles you control" anthem / crew payoff / Vehicle-GRANTER _HAND_FLOOR
+        # producer rides the byte-identical VEHICLES_MATTER_MIRROR kept WORD MIRROR
+        # (_IR_KEPT_DETECTORS, the EXACT deleted regex pinned as VEHICLES_MATTER_REGEX
+        # in _sweep_detectors); the SEPARATE typed-graveyard-recursion Vehicle arm
+        # (Greasefang) is re-supplied PER-CLAUSE via _detect_typed_gy_recursion below.
+        # Moved floor->kept (floor-mirror-dep -> 0); voltron re-silenced via
+        # _VOLTRON_SILENCING_PLAN_KEYS (byte-identical IR re-supply).
+        # CR 301.7 / 702.122.
         # island_matters removed — ADR-0027 migrated it to the Card IR via a byte-
         # identical kept WORD MIRROR (_ISLAND_MATTERS_MIRROR in _IR_KEPT_DETECTORS, the
         # exact deleted `\bislandwalk\b` OR Zhou Yu attack-restriction regex). NOT the
@@ -8266,6 +8293,20 @@ def extract_signals_ir(
     for clause in _clauses(kept_oracle):
         for key, scope, subject in _detect_keyword_tribe(clause):
             add(key, scope, subject, clause)
+        # ADR-0027 vehicles_matter — typed-graveyard-recursion Vehicle arm. The broad
+        # VEHICLES_MATTER_MIRROR kept WORD MIRROR (above) recovers 41/42 commander-legal
+        # firings byte-identically, but it has NO graveyard-recursion anchor, so it
+        # MISSES the dedicated Vehicle reanimator (Greasefang: "return target Vehicle
+        # card from your graveyard to the battlefield"). Re-run the EXACT deleted
+        # producer (_detect_typed_gy_recursion) PER-CLAUSE — the keyword_tribe
+        # precedent — and keep ONLY its vehicles_matter row (its un-migrated
+        # type_matters rows stay on the regex path). The pattern is `[^.]`-bounded
+        # inside a clause, so flat-over-kept_oracle == per-clause. After this, IR ==
+        # the deleted regex producers EXACTLY (both==42, ir_only==0, regex_only==0).
+        # CR 305.7.
+        for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
+            if key == "vehicles_matter":
+                add(key, scope, subject, clause)
     # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
     # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
     # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean

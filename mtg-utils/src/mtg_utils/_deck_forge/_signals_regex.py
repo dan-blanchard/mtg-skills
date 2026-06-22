@@ -1580,22 +1580,22 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "vehicles_matter",
-        re.compile(
-            r"\bvehicles you control\b|\bmounts? and vehicles?\b"
-            r"|\bvehicle you control enters\b|\bcrews a vehicle\b"
-            r"|\bwhenever[^.]*\bcrews?\b"
-            r"|\b(?:mount|equipment) or vehicle (?:card|spell)\b"
-            r"|\bvehicle or artifact (?:creature )?(?:card|spell)\b"
-            r"|create [^.]*\bvehicle artifact (?:creature )?token\b"
-            # Vehicle GRANTERS (Captain Rex Nebula: "becomes a Vehicle … gains crew")
-            # care about Vehicles too, even without "Vehicles you control".
-            r"|\bbecomes? a vehicle\b|\bgains? crew\b",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: vehicles_matter migrated to the Card IR. This broad _HAND_FLOOR
+    # producer (the "Vehicles you control" anthem / crew payoff / Vehicle GRANTER form)
+    # is deleted; its EXACT regex is pinned as VEHICLES_MATTER_REGEX in _sweep_detectors
+    # and rides the byte-identical VEHICLES_MATTER_MIRROR kept WORD MIRROR in
+    # _signals_ir._IR_KEPT_DETECTORS (scope 'you', flat over the reminder-stripped
+    # kept_oracle == this floor Detector's per-clause scan, both==41). The SEPARATE
+    # typed-graveyard-recursion Vehicle arm (_detect_typed_gy_recursion's "vehicle" row
+    # — Greasefang: "return target Vehicle card from your graveyard to the battlefield",
+    # which this floor regex never anchored) is re-supplied PER-CLAUSE in the IR path
+    # too. After both, IR == the deleted regex producers EXACTLY (both==42, ir_only==0,
+    # regex_only==0). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep -> 0).
+    # The deleted producer fired HIGH-confidence scope 'you' and fed has_other_plan, and
+    # the IR re-supply is the SAME breadth (residual 0), so vehicles_matter is added to
+    # signals._VOLTRON_SILENCING_PLAN_KEYS (byte-identical re-silence). The hand-written
+    # serve spec in signal_specs.py is independent of this regex and survives. CR 301.7
+    # (Vehicle artifact subtype) / 702.122 (Crew) / 305.7.
     # ADR-0027: scry_surveil_matters migrated to the Card IR — the scried/surveiled
     # trigger events (_PAYOFF_TRIGGER_KEYS) + phase's `scry_surveil` effect category
     # (the event='other' "whenever you scry/surveil" payoff trigger,
@@ -4708,6 +4708,14 @@ def extract_signals(
         for key, subject in _detect_token_maker(clause, vocab):
             add(key, "you", subject, stripped)
         for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
+            # ADR-0027: vehicles_matter migrated to the Card IR — the regex path must
+            # not emit it (the migration invariant). Its typed-gy Vehicle row
+            # (Greasefang) is re-supplied PER-CLAUSE in extract_signals_ir. The
+            # producer's OTHER rows (type_matters for a creature-subtype recursion —
+            # e.g. Dragon — which is NOT migrated) still flow through. So skip only the
+            # vehicles_matter row here.
+            if key == "vehicles_matter":
+                continue
             add(key, scope, subject, stripped)
         for key, subject in _detect_keyword_implied_tribe(clause):
             add(key, "you", subject, stripped)

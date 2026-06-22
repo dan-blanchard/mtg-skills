@@ -283,6 +283,25 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # vehicles_matter ← a BYTE-IDENTICAL kept WORD MIRROR (VEHICLES_MATTER_MIRROR over
+    # the reminder-stripped oracle: "Mounts and Vehicles you control get +1/+1"). phase
+    # v0.1.19 carries no structural form for Crew / the Vehicle artifact subtype, so the
+    # broad "Vehicles you control" anthem / crew-payoff / Vehicle-GRANTER lane rides the
+    # exact deleted _HAND_FLOOR regex (empty IR — the mirror reads the dict oracle). A
+    # Vehicle ANTHEM (not a graveyard-recursion form), so it exercises the kept mirror,
+    # not the separate per-clause Greasefang typed-gy arm. ADR-0027.
+    "vehicles_matter": (
+        {
+            "name": "Cloudspire Captain",
+            "type_line": "Creature — Human Pilot",
+            "oracle_text": (
+                "Mounts and Vehicles you control get +1/+1.\n"
+                "This creature saddles Mounts and crews Vehicles as though its "
+                "power were 2 greater."
+            ),
+        },
+        _ir(),
+    ),
     # creature_etb ← a BYTE-IDENTICAL kept mirror (_creature_etb_clauses over the
     # reminder-stripped oracle: "Whenever a creature you control enters, put a +1/+1
     # counter on each creature you control"). The structural etb-trigger arm gains

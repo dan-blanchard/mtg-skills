@@ -412,6 +412,29 @@ ISLAND_MATTERS_REGEX = (
     "\\bislandwalk\\b|can'?t attack unless defending player controls an island"
 )
 
+# ADR-0027: vehicles_matter migrated to the Card IR via a byte-identical kept WORD
+# MIRROR (the EXACT deleted _HAND_FLOOR producer, scope 'you', pinned here so the
+# VEHICLES_MATTER_MIRROR kept detector in _signals_ir and the
+# _VEHICLES_MATTER_PLAN_MIRROR voltron gate share ONE source). phase v0.1.19 carries
+# NO clean structural shape for "Vehicles you control" anthems / crew payoffs / the
+# Vehicle GRANTER ("becomes a Vehicle … gains crew") — Crew (CR 702.122) and the
+# Vehicle artifact subtype (CR 301.7) are not parsed predicates — so the lane rides
+# the deleted regex. The `whenever[^.]*crews?` and `create [^.]*vehicle artifact
+# token` arms are `[^.]`-bounded inside a clause, so a flat scan over the reminder-
+# stripped joined-face kept_oracle == the deleted floor Detector's per-clause scan
+# (verified: both==41, ir_only==0, regex_only==0 over the commander-legal corpus).
+# The serve spec stays hand-registered in signal_specs.py with its own (independent)
+# crew/Vehicle search regex.
+VEHICLES_MATTER_REGEX = (
+    r"\bvehicles you control\b|\bmounts? and vehicles?\b"
+    r"|\bvehicle you control enters\b|\bcrews a vehicle\b"
+    r"|\bwhenever[^.]*\bcrews?\b"
+    r"|\b(?:mount|equipment) or vehicle (?:card|spell)\b"
+    r"|\bvehicle or artifact (?:creature )?(?:card|spell)\b"
+    r"|create [^.]*\bvehicle artifact (?:creature )?token\b"
+    r"|\bbecomes? a vehicle\b|\bgains? crew\b"
+)
+
 # ADR-0027: clue_matters migrated to the Card IR via a STRUCTURAL ARM (the artifact-
 # token-subtype maker / sac payoff / token_subtype_ref marker shared with food/
 # treasure/blood) UNIONed with a byte-identical kept WORD MIRROR. The deleted
