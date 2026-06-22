@@ -5021,6 +5021,85 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # (2 → 1, the over-fire dropped); voltron_matters 3010 → 3010 identical set; all
         # siblings drift 0.
         "ability_strip_payoff",
+        # ADR-0027 — topdeck_stack migrated regex→Card IR. The lane is the top-of-YOUR-
+        # library STACKING archetype (curate your top to control draws: Brainstorm,
+        # graveyard-/hand-to-top recursion, look-then-stack). The deleted producer was a
+        # SWEEP_DETECTORS row (scope 'you', HIGH, run PER-CLAUSE over reminder-stripped
+        # oracle): TOPDECK_STACK_SWEEP_REGEX = "put N cards from your hand on top of
+        # your library | on top of your library in any order" (23 commander-legal). A
+        # separate LOW play-from-top MEMBERSHIP cross-open (66 cards) is independent of
+        # this producer and reconciled in signals.py (see below).
+        #
+        # SHAPE = UNION (STRUCTURAL ARM + BYTE-IDENTICAL KEPT MIRROR). phase structures
+        # a put-into-library effect as a `topdeck_stack` Effect tagging the position in
+        # counter_kind. The STRUCTURAL arm (extract_signals_ir) fires on counter_kind in
+        # {top, topbottom} + subject controller == 'you' — the genuine top-stacking
+        # positions over YOUR library (60 cards: graveyard→top recursion — Reclaim, Hua
+        # Tuo, Volrath's Stronghold, Academy Ruins; self-bounce-to-top — Nightscape
+        # Apprentice, Nulltread Gargantuan; top-or-bottom choice — Dream Cache; DFC /
+        # Adventure halves whose top-level oracle is empty — Runo Stromkirk, Boseiju
+        # Reaches Skyward, Woodland Acolyte // Mend the Wilds). The KEPT MIRROR
+        # (TOPDECK_STACK_SWEEP_REGEX in _signals_ir._IR_KEPT_DETECTORS, flat over
+        # reminder- stripped kept_oracle, scope 'you') recovers the 10 look-then-stack /
+        # put-from- hand forms phase leaves UNSTRUCTURED (Diabolic Vision, Orcish
+        # Librarian, Scroll Rack, Munda, Ancestral Knowledge, Doomsday; Leashling,
+        # Penance, Hidden Retreat; Rowan's Grim Search) — the deleted producer's 23 = 13
+        # both (IR-covered) + 10 mirror-covered, EXACTLY. add() dedups the two arms.
+        #
+        # GATE TIGHTENING (counter_kind in {top, topbottom}, NOT just != 'bottom'). The
+        # `nthfromtop` position is the removal-TUCK position ("put target X into its
+        # owner's library Nth from the top" — Teferi Hero, Oust, Commit, Chronostutter;
+        # CR 401.4), not self-library curation. The genuine Nth-from-top SELF recursions
+        # (Enigma Sphinx, Long-Term Plans, Bookwurm) project subject controller 'any'
+        # and so never reach the YOUR-only gate, so requiring 'top'/'topbottom' loses 0
+        # firing genuine cards. It EXCLUDES the lone corpus
+        # `nthfromtop`+controller='you' firing — Riptide Gearhulk ("for each opponent,
+        # put up to one target nonland permanent that player controls into its owner's
+        # library third from the top"), which phase MISLABELS controller='You' (the
+        # iterated opponent). That is a projection mislabel (a tuck of OPPONENTS'
+        # permanents, not a self-stack); the signals-layer gate guards against it
+        # without a projection edit. The clean projection fix would be: in
+        # project._library_position_effect / _effect_subject, when a
+        # PutAtLibraryPosition carries `repeat_for` a PlayerCount over opponents (or the
+        # destination is "its owner's library" with an opponent owner), do NOT pin the
+        # Typed target's controller to 'you'. With that fix the gate could relax to `!=
+        # 'bottom'` and admit genuine Nth-from-top self-stacks.
+        #
+        # RESIDUAL (commander-legal, floor-disabled, by oracle_id, deleted SWEEP
+        # producer vs tightened IR arm, membership OFF): both 13, ir_only 47 (ALL
+        # genuine — 0 over- fire after the gate tighten; Riptide excluded), regex_only
+        # 10 (ALL byte-mirrored by the kept mirror; mirror == regex == 23 over
+        # kept_oracle, 0 miss). The lane BROADENS by +47 genuine recall — graveyard→top
+        # recursion / self-bounce / DFC halves the brittle "from your hand on top" / "in
+        # any order" regex missed.
+        #
+        # MEMBERSHIP CROSS-OPEN. The regex include_membership path cross-opens LOW
+        # topdeck_selection AND LOW topdeck_stack from a play-from-top body (gated on
+        # _PLAY_FROM_TOP_MIRROR). topdeck_selection stays on regex; the migrated
+        # topdeck_stack arm of that cross-open is re-supplied in extract_signals_hybrid
+        # (signals.py) by re-running the EXACT play-from-top gate — byte-identical to
+        # the regex producer (66 cards preserved).
+        #
+        # VOLTRON. The deleted SWEEP producer fired HIGH scope 'you' (NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), so it fed has_other_plan — a
+        # top-stacking ENGINE is no vanilla beater. Because the IR re-supply is BROADER
+        # (+47), a _VOLTRON_SILENCING_PLAN_KEYS entry would over-silence the recall
+        # bodies, so the regex path keeps a BYTE-IDENTICAL _TOPDECK_STACK_PLAN_MIRROR
+        # OR'd into has_other_plan (matched over reminder-stripped `text`), reproducing
+        # the deleted producer's exact silence set. The LOW membership cross-open never
+        # fed has_other_plan (LOW isn't counted), so the mirror is correct. Empirically
+        # 0 commander-legal legendary creatures have topdeck_stack as their SOLE
+        # high-conf plan, so the file-swap voltron delta is 0 either way; the mirror is
+        # the defensive faithful re-supply. voltron_matters 3010 → 3010 identical set.
+        #
+        # NO-FLOOD (base 5d638e4 vs edits, baked sidecar, commander-legal, hybrid path):
+        # ONLY topdeck_stack changes count (89 → broadened by the +47 IR recall, net of
+        # the membership/IR overlap); all siblings (topdeck_selection / play_from_top /
+        # cheat_from_top / impulse_top_play / graveyard_matters) drift 0; voltron 3010 →
+        # 3010 identical set. The serve spec stays hand-registered in signal_specs.py
+        # reusing TOPDECK_STACK_SWEEP_REGEX (the auto-sweep loop no longer builds it).
+        # CR 401.4 (library ordering).
+        "topdeck_stack",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

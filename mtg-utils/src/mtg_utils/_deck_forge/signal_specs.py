@@ -46,6 +46,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     SWEEP_LABELS,
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
+    TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
@@ -2458,6 +2459,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["dies_recursion"],
         {"oracle": DIES_RECURSION_REGEX},
         DIES_RECURSION_REGEX,
+    ),
+    # ADR-0027: topdeck_stack's SWEEP_DETECTORS row is deleted (detection moved to the
+    # Card IR — a STRUCTURAL arm over phase's `topdeck_stack` Effect + a byte-identical
+    # TOPDECK_STACK_SWEEP_REGEX kept word mirror). The SERVE pool stays oracle-defined,
+    # so hand-register the spec the sweep auto-register loop used to build (scope "you",
+    # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
+    # TOPDECK_STACK_SWEEP_REGEX) so the served put-on-top pool never drifts.
+    # SWEEP_LABELS keeps the human label. CR 401.4.
+    ("topdeck_stack", "you"): _spec(
+        *SWEEP_LABELS["topdeck_stack"],
+        {"oracle": TOPDECK_STACK_SWEEP_REGEX},
+        TOPDECK_STACK_SWEEP_REGEX,
     ),
     # ADR-0027 (q2-D3): noncreature_cast_punish's SWEEP_DETECTORS row is deleted
     # (detection moved to the Card IR — a cast_spell trigger scope=='opp' over a

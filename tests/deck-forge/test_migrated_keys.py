@@ -78,6 +78,40 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # topdeck_stack ← a `topdeck_stack` put-into-library Effect with counter_kind "top"
+    # and a YOUR-controller subject (Reclaim's "put target card from your graveyard on
+    # top of your library" projects this — graveyard→top recursion). The structural arm
+    # in extract_signals_ir fires scope "you" on counter_kind in {top, topbottom} (the
+    # genuine top-stacking positions; the `nthfromtop` removal-tuck and `bottom` cleanup
+    # positions are gated out). ADR-0027 / CR 401.4.
+    "topdeck_stack": (
+        {
+            "name": "Reclaim",
+            "type_line": "Instant",
+            "oracle_text": "Put target card from your graveyard on top of your library.",
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="topdeck_stack",
+                        scope="any",
+                        subject=Filter(
+                            card_types=("Card",),
+                            controller="you",
+                        ),
+                        counter_kind="top",
+                        zones=("in:graveyard",),
+                        raw=(
+                            "Put target card from your graveyard on top of your "
+                            "library."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # pump_matters ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted regex
     # ("target creature gets +N/+N"). UNLIKE debuff_matters there is NO structural arm:
     # the projection drops the +N/+N value to amount==None and carries no temporal

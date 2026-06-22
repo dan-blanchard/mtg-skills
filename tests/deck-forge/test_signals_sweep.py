@@ -82,8 +82,12 @@ def test_sweep_detectors_loaded():
     # parent effect; CR 122.1c), then 24→23 as void_warp_matters's row was deleted
     # (ADR-0027 — migrated to a byte-identical VOID_WARP_MATTERS_REGEX kept word mirror in
     # signals._IR_KEPT_DETECTORS; Void is a CR 207.2c ability word and the sidecar drops
-    # the CR 702.185 Warp keyword on 2 genuine warp cards, so no clean structural arm).
-    assert len(SWEEP_DETECTORS) >= 23
+    # the CR 702.185 Warp keyword on 2 genuine warp cards, so no clean structural arm),
+    # then 23→22 as topdeck_stack's row was deleted (ADR-0027 — migrated to a STRUCTURAL
+    # arm over phase's `topdeck_stack` Effect, counter_kind in {top, topbottom}, UNION a
+    # byte-identical TOPDECK_STACK_SWEEP_REGEX kept word mirror in
+    # signals._IR_KEPT_DETECTORS for the look-then-stack / put-from-hand forms; CR 401.4).
+    assert len(SWEEP_DETECTORS) >= 22
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

@@ -991,8 +991,21 @@ def test_topdeck_stack_fires_for_top_put_of_your_cards():
     assert ("topdeck_stack", "you", "") in _sigs(_topdeck("top"))
 
 
-def test_topdeck_stack_fires_for_nth_from_top():
-    assert ("topdeck_stack", "you", "") in _sigs(_topdeck("nthfromtop"))
+def test_topdeck_stack_fires_for_top_or_bottom_choice():
+    """A player-choice 'both on top OR both on the bottom' put (Dream Cache) is a
+    genuine top-stacking option → counter_kind 'topbottom' fires. ADR-0027."""
+    assert ("topdeck_stack", "you", "") in _sigs(_topdeck("topbottom"))
+
+
+def test_nth_from_top_is_not_topdeck_stack():
+    """ADR-0027 gate tighten: 'Nth from the top' is the removal-TUCK position ("put
+    target X into its owner's library third from the top" — Teferi, Oust, Chronostutter;
+    CR 401.4), NOT self-library curation. It is excluded even when phase mislabels the
+    subject controller as 'you' (Riptide Gearhulk — a per-opponent tuck phase parses
+    controller=You). The arm fires only on counter_kind in {top, topbottom}."""
+    assert "topdeck_stack" not in {
+        s.key for s in extract_signals_ir(CARD, _topdeck("nthfromtop"))
+    }
 
 
 def test_bottom_put_is_not_topdeck_stack():

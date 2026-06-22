@@ -66,6 +66,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     TARGET_PLAYER_DRAWS_REGEX,
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
+    TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     UNSPENT_MANA_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
@@ -3385,6 +3386,24 @@ _GAIN_CONTROL_PLAN_MIRROR = re.compile(GAIN_CONTROL_REGEX, re.IGNORECASE)
 # over reminder-stripped clauses); the seven arms' `[^.]*` never cross a clause, so
 # full-text == per-clause == 33. CR 903.10a / DD9 (heist) / 613.1b (control-changing).
 _THEFT_MATTERS_PLAN_MIRROR = re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated topdeck_stack key. The deleted
+# SWEEP_DETECTORS producer fired HIGH-confidence (forced scope 'you') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+# top-stacking ENGINE body (a Brainstorm / graveyard-recursion / look-then-stack
+# commander is no vanilla beater — curating your library top IS a plan). The migrated
+# lane rides a BROADER structural arm (+47 ir_only: graveyard→top recursion,
+# self-bounce-to-top, DFC/adventure halves), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would over-silence the bodies whose plan now lives only
+# in the IR. So this BYTE-IDENTICAL gate mirror (the EXACT deleted SWEEP regex, pinned
+# TOPDECK_STACK_SWEEP_REGEX) restores the OLD producer's exact silence set. The LOW
+# play-from-top membership cross-open NEVER fed has_other_plan (LOW isn't counted), so
+# the mirror correctly reproduces only the HIGH SWEEP silence. Empirically 0
+# commander-legal legendary creatures have topdeck_stack as their SOLE high- conf plan,
+# so the file-swap voltron delta is 0 either way; the mirror is the defensive faithful
+# re-supply. Matched against the reminder-STRIPPED `text` (the deleted SWEEP Detector
+# ran per-clause over reminder-stripped clauses); the two arms are clause-local, so
+# full-text == per-clause. CR 903.10a / 401.4.
+_TOPDECK_STACK_PLAN_MIRROR = re.compile(TOPDECK_STACK_SWEEP_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated ltb_matters key. The deleted
 # SWEEP_DETECTORS producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a leaves-
@@ -5740,6 +5759,18 @@ def extract_signals(
         # deleted _HAND_FLOOR Detector ran per-clause over stripped clauses; the regex
         # has no `[^.]*`, so full-text == per-clause). CR 701.16 / 111.10f / 903.10a.
         or _CLUE_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted topdeck_stack SWEEP producer (HIGH-confidence
+        # scope 'you', feeding has_other_plan — a top-stacking ENGINE is no vanilla
+        # beater). The migrated IR path is BROADER (+47 ir_only — graveyard→top
+        # recursion, self-bounce-to-top, DFC/adventure halves), so
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence those recall bodies; this
+        # byte-identical mirror (the EXACT deleted TOPDECK_STACK_SWEEP_REGEX) restores
+        # only the old regex's silence set. The LOW play-from-top membership cross-open
+        # never fed this gate (LOW isn't counted), so the mirror reproduces only the
+        # HIGH SWEEP silence. Matched against the reminder- STRIPPED `text` (the deleted
+        # SWEEP Detector ran per-clause over stripped clauses; the two arms are
+        # clause-local, so full-text == per-clause). CR 401.4 / 903.10a.
+        or _TOPDECK_STACK_PLAN_MIRROR.search(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

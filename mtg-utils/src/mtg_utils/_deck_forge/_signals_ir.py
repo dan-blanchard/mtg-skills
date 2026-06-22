@@ -103,6 +103,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     THEFT_MATTERS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
+    TOPDECK_STACK_SWEEP_REGEX,
     TOUGHNESS_COMBAT_REGEX,
     TRIBE_DAMAGE_TRIGGER_REGEX,
     UNSPENT_MANA_REGEX,
@@ -990,6 +991,28 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "theft_matters",
         re.compile(THEFT_MATTERS_REGEX, re.IGNORECASE),
         "opponents",
+    ),
+    # ADR-0027 — topdeck_stack BYTE-IDENTICAL kept WORD MIRROR. The migrated lane's
+    # STRUCTURAL arm (extract_signals_ir — phase's `topdeck_stack` Effect, counter_kind
+    # in {top, topbottom}, subject controller == you) covers the structured
+    # put-into-library forms (graveyard→top recursion, self-bounce-to-top, top-or-bottom
+    # choice) but phase leaves UNSTRUCTURED the look-then-stack / put-from-hand forms
+    # the deleted SWEEP regex caught — "put the rest back on top of your library in any
+    # order" (Diabolic Vision, Orcish Librarian, Scroll Rack, Munda, Ancestral
+    # Knowledge, Doomsday) and "put a card from your hand on top of your library" as a
+    # cost (Leashling, Penance, Hidden Retreat). This TOPDECK_STACK_SWEEP_REGEX (the
+    # EXACT deleted SWEEP pattern) run FLAT over the reminder-stripped kept_oracle
+    # recovers all 10 byte-identically (the two arms never share a `[^.]*` span crossing
+    # a clause; flat==per-clause; floor-disabled residual mirror==regex==23,
+    # regex_only==0). add() dedups vs the structural arm. The deleted producer fired
+    # HIGH scope 'you' (not generic/voltron-compat), feeding has_other_plan; the broader
+    # IR re-supply means voltron rides the byte-identical _TOPDECK_STACK_PLAN_MIRROR
+    # (signals_regex), NOT a _VOLTRON_SILENCING_PLAN_KEYS entry (which would
+    # over-silence the +47 recall bodies). CR 401.4.
+    (
+        "topdeck_stack",
+        re.compile(TOPDECK_STACK_SWEEP_REGEX, re.IGNORECASE),
+        "you",
     ),
     # ADR-0027 — void_warp_matters BYTE-IDENTICAL kept WORD MIRROR (the Edge of
     # Eternities Void/Warp build-around: the Void ability-word payoffs that check "a
@@ -6624,13 +6647,25 @@ def extract_signals_ir(
                 and "to:battlefield" in (e.zones or ())
             ):
                 add("extra_land_drop", "you", "", e.raw)
-            # Batch 2 (per-lane) — topdeck_stack: stack the TOP of YOUR library to
-            # control draws (Brainstorm; graveyard-/hand-to-top recursion). Gate out
-            # Bottom puts (cleanup) AND bounce-to-top removal (a targeted permanent,
-            # controller "any") by requiring a top-ish position + YOUR moved cards.
+            # ADR-0027 (migrated) — topdeck_stack: stack the TOP of YOUR library to
+            # control draws (Brainstorm; graveyard-/hand-to-top recursion). Gate to a
+            # genuine top-stacking position — counter_kind in {top, topbottom} (an "on
+            # top" put or a player-choice top-or-bottom). This EXCLUDES the cleanup
+            # `bottom` put AND the `nthfromtop` removal-tuck position: "put target X
+            # into its owner's library Nth from the top" is precise-insertion REMOVAL
+            # (Teferi, Oust, Commit, Chronostutter — CR 401.4), not self-library
+            # curation. The genuine Nth-from-top SELF recursions (Enigma Sphinx,
+            # Long-Term Plans) project controller "any" and so never reach this
+            # YOUR-only gate anyway, so requiring 'top'/'topbottom' loses 0 firing
+            # genuine cards while dropping the lone corpus `nthfromtop`+controller=you
+            # firing — Riptide Gearhulk, a "for each opponent, put ... that player
+            # controls ... third from the top" tuck phase MISLABELS as controller=you (a
+            # projection mislabel the signals layer guards against here, not a
+            # self-stack). The subject controller == you keeps the opponent-owned
+            # bounce-to-top removal out (controller "any"). CR 401.4.
             if (
                 cat == "topdeck_stack"
-                and e.counter_kind != "bottom"
+                and e.counter_kind in ("top", "topbottom")
                 and _filter_controller(e.subject) == "you"
             ):
                 add("topdeck_stack", "you", "", e.raw)

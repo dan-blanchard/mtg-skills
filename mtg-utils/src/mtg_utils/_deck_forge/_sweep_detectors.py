@@ -112,6 +112,21 @@ STICKERS_MATTER_REGEX = "\\{tk\\}|\\bstickers?\\b"
 # never drift. SWEEP_LABELS still carries the human label. CR DD9 (heist) / 613.1b
 # (control-changing effects).
 THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|search (?:that player|target opponent|an opponent|each opponent)'?s? graveyard, hand,? and library|\\bheist\\b"
+# ADR-0027: topdeck_stack migrated to the Card IR. Its SWEEP_DETECTORS row is deleted;
+# detection moves to a STRUCTURAL arm (extract_signals_ir — phase's `topdeck_stack`
+# put-into-library Effect, gated counter_kind in {top, topbottom} so the removal-tuck
+# `nthfromtop` position and the cleanup `bottom` position both stay out, subject
+# controller == "you" so it's YOUR library) PLUS a BYTE-IDENTICAL kept WORD MIRROR (this
+# exact regex in signals._IR_KEPT_DETECTORS, scope 'you') for the look-then-stack /
+# put-from-hand forms phase doesn't structure (Brainstorm-style "on top in any order",
+# Scroll Rack, Diabolic Vision, Munda, Leashling). The two arms never share a `[^.]*`
+# span that crosses a clause, so flat-over-kept_oracle == the deleted per-clause SWEEP
+# firing EXACTLY (commander-legal, floor-disabled, by oracle_id: mirror == regex == 23).
+# This mined regex survives as a shared constant so signal_specs hand-registers the serve
+# pool reusing it AND the kept mirror AND the has_other_plan voltron mirror reuse it —
+# serve / mirror / plan-mirror / (now-deleted) detector never drift. SWEEP_LABELS still
+# carries the human label. CR 401.4 (library ordering).
+TOPDECK_STACK_SWEEP_REGEX = "put (?:two|three|\\w+) cards? from your hand on top of your library|on top of your library in any order"
 # ADR-0027 tranche2-B (t2b3-B) — opponent_counter_grant migrated to the Card IR. Its
 # SWEEP_DETECTORS row is deleted (structural read: a detrimental bounty/stun counter on
 # an opponent's permanent). This mined regex survives as a shared constant so
@@ -1973,12 +1988,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # Their serve pools stay oracle-defined — the deleted regexes are pinned in
     # signal_specs.py and the specs hand-registered (the auto-sweep loop no longer
     # builds them). SWEEP_LABELS keeps each human label.
-    {
-        "key": "topdeck_stack",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "put (?:two|three|\\w+) cards? from your hand on top of your library|on top of your library in any order",
-    },
+    # ADR-0027: topdeck_stack migrated to the Card IR (its SWEEP_DETECTORS row deleted).
+    # Detection moves to a STRUCTURAL arm (extract_signals_ir — phase's `topdeck_stack`
+    # put-into-library Effect, gated counter_kind in {top, topbottom} + subject controller
+    # == you) PLUS a BYTE-IDENTICAL kept WORD MIRROR (TOPDECK_STACK_SWEEP_REGEX above, in
+    # signals._IR_KEPT_DETECTORS, scope 'you') for the look-then-stack / put-from-hand
+    # forms phase doesn't structure. SWEEP_LABELS keeps the human label; the serve spec is
+    # hand-registered in signal_specs.py reusing TOPDECK_STACK_SWEEP_REGEX; the
+    # has_other_plan voltron silence rides a byte-identical _TOPDECK_STACK_PLAN_MIRROR in
+    # _signals_regex.py (the IR re-supply is BROADER, so a _VOLTRON_SILENCING_PLAN_KEYS
+    # entry would over-silence the +47 recall bodies). CR 401.4.
     # ADR-0027: theft_matters migrated to the Card IR (its SWEEP_DETECTORS row deleted).
     # The lane fires from a BYTE-IDENTICAL kept WORD MIRROR (THEFT_MATTERS_REGEX above,
     # in signals._IR_KEPT_DETECTORS, scope 'opponents', HIGH) — phase carries no
