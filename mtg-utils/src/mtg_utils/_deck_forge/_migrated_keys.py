@@ -3968,6 +3968,72 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # keys. The serve spec stays hand-registered (("creature_recursion","you") in
         # signal_specs, independent of the producer). CR 700.4 / 903.10a.
         "creature_recursion",
+        # ADR-0027 (stax pair) — stax_taxes + symmetric_stax migrated regex→Card IR.
+        # Both lanes read the SAME `restriction` Effect scope (the v22 projection,
+        # SIDECAR_VERSION 22): a static restriction/tax with scope=='opp' (an OPPONENT
+        # static — Drannith Magistrate, Lavinia, Ghostly Prison) opens stax_taxes; one
+        # with scope=='each' (a controller-NEUTRAL permanent-CLASS lock — Back to
+        # Basics, Static Orb, Sphere of Resistance) opens symmetric_stax.
+        # extract_signals_ir already gates the restriction arm on e.scope, so the lanes
+        # never cross. The force_attack/cant_block arms also feed the pair on their
+        # opp/each scope (a symmetric "all creatures attack each combat" / "creatures
+        # can't block" is a table-warp lock).
+        #
+        # WHY A BYTE-MIRROR, NOT PURE STRUCTURAL. The structural restriction-scope arm
+        # is ADJUDICATED-CORRECT but BROADER than the deleted regex (commander-legal,
+        # floor-disabled by oracle_id): symmetric_stax +145 ir_only (Collector Ouphe /
+        # Cursed Totem / Stony Silence ability-shutoffs; Defense Grid / Chill / Gloom /
+        # Feroz's Ban symmetric cost taxes; Bedlam / Falter / Awe for the Guilds can't-
+        # block table effects; Blazing Archon / Ensnaring Bridge / Moat can't-attack
+        # locks; Arrest / Faith's Fetters / Ice Cage Aura lockdowns — all GENUINE
+        # each-scope symmetric locks rules-lawyer-verified); stax_taxes +10 ir_only
+        # (Angelic Arbiter "each opponent who cast can't attack"; Gnat Miser / Locust
+        # Miser / Jin-Gitaxias hand-size taxes; Ashiok search-denial — all GENUINE
+        # opponent restrictions). It also DROPS the regex over-fire: the _HAND_FLOOR
+        # `creatures your opponents control` branch matched every -X/-X DEBUFF anthem
+        # (Elesh Norn, Massacre Wurm, Cower in Fear), which is removal, not a
+        # restriction static. CR 604.1: a static ability is "simply true", so an
+        # UNQUALIFIED "Spells cost {1} more to cast" (Sphere of Resistance, Thalia)
+        # taxes ALL players including the controller — phase's scope=='each' correctly
+        # re-buckets these symmetric taxes the old regex wrongly forced into
+        # stax_taxes(opponents). rules-lawyer-confirmed vs the actual Scryfall oracle
+        # (no "your opponents").
+        #
+        # Because the arm is BROADER, the deleted regex is reproduced BYTE-IDENTICALLY
+        # by a per-clause kept-mirror (_signals_ir, over the reminder-stripped
+        # kept_oracle, the same input the deleted detectors scanned):
+        # _STAX_TAXES_MIRROR from STAX_TAXES_REGEX (the union of the deleted
+        # _signals_regex _DETECTORS pacify row + _HAND_FLOOR `opponents can't` /
+        # `creatures your opponents control` row + the kept SWEEP row) and
+        # _SYMMETRIC_STAX_MIRROR from SYMMETRIC_STAX_REGEX (the kept SWEEP row;
+        # symmetric_stax had no _signals_regex producer). Both SWEEP rows stay in
+        # SWEEP_DETECTORS (len 36) as the pinned source — the artifacts_matter /
+        # edict_matters kept-row precedent.
+        #
+        # SCOPE PARITY. The deleted producers forced scope 'opponents' (stax_taxes) /
+        # 'each' (symmetric_stax); the structural arm fires the same scopes off
+        # e.scope=='opp'/'each'; the mirrors fire 'opponents'/'each'. 0 cross-lane scope
+        # mismatches over the both-fire cards. The 53 symmetric-tax cards the old regex
+        # forced into stax_taxes now ALSO carry symmetric_stax from the structural arm
+        # (the serve specs treat the two lanes as one stax-piece pool, so the
+        # recommendation is unchanged); the byte-mirror keeps their old stax_taxes
+        # firing too (no recall lost).
+        #
+        # VOLTRON. Both deleted stax_taxes producers fired HIGH (forced scope
+        # 'opponents') and counted toward has_other_plan (stax_taxes ∉ _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS). The IR is BROADER, so re-supplying via
+        # _VOLTRON_SILENCING_PLAN_KEYS would over-silence the +10 recall bodies; instead
+        # a byte-identical _STAX_TAXES_PLAN_MIRROR (STAX_TAXES_REGEX over reminder-
+        # stripped `text`) restores the exact silence set. symmetric_stax needs NO plan
+        # entry: its sole producer is the kept SWEEP row, which extract_signals still
+        # fires, so its regex-path has_other_plan is intact. Neither key is added to
+        # _VOLTRON_SILENCING_PLAN_KEYS. FILE-SWAP no-flood (base 77f1cc3, baked sidecar
+        # v22 over commander-legal, hybrid path): ONLY stax_taxes (339 → 349) and
+        # symmetric_stax (292 → 437) move; voltron_matters delta 0 (3010 → 3010);
+        # siblings tapper_engine / cant_block_grant / group_hug_draw / mana_denial drift
+        # 0; 0 other-key drift across all 298 keys. CR 604.1 / 118.9 / 903.10a.
+        "stax_taxes",
+        "symmetric_stax",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

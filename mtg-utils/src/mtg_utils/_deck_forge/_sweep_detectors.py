@@ -205,6 +205,46 @@ UNSPENT_MANA_REGEX = (
     "(?:\\w+ )?mana as (?:steps|phases|those steps)"
 )
 
+# ADR-0027 — stax_taxes + symmetric_stax pinned regexes (see the SWEEP_DETECTORS
+# stax rows below for the full rationale). STAX_TAXES_REGEX is the byte-exact UNION of
+# the three deleted/kept stax_taxes producers — the _signals_regex _DETECTORS pacify
+# row (`creatures … can't attack` / `can't attack you`), the _HAND_FLOOR row
+# (`opponents can't` / `spells your opponents cast cost` / `creatures your opponents
+# control`), and the kept SWEEP row (the long opponent-tax / restriction pattern) —
+# so the _STAX_TAXES_MIRROR kept detector (_signals_ir) and the _STAX_TAXES_PLAN_MIRROR
+# voltron gate (_signals_regex) share ONE source. SYMMETRIC_STAX_REGEX is the kept
+# SWEEP row alone (symmetric_stax had no _signals_regex producer). Run per-clause over
+# the reminder-stripped kept_oracle, these reproduce the deleted regex BYTE-IDENTICALLY
+# (commander-legal, floor-disabled: stax_taxes mirror==regex==339, symmetric mirror==
+# regex==292); the broader structural restriction arm then ADDS the genuine ir_only
+# recall. CR 604.1 / 118.9.
+STAX_TAXES_REGEX = (
+    # _DETECTORS pacify row
+    r"creatures? (?:with|you don't control|an opponent controls)[^.]*can't attack"
+    r"|can't attack you\b"
+    # _HAND_FLOOR row
+    r"|\bopponents? can't\b|spells your opponents cast cost"
+    r"|creatures your opponents control"
+    # kept SWEEP row
+    r"|(?:target player|that player|each player|a player|that opponent)"
+    r"[^.]{0,90}?can't (?:cast|activate|attack|block|search|untap|draw)"
+    r"|must pay \{?\d?\}?[^.]*additional"
+    r"|spells?[^.]*cost \{?\d+\}? more to (?:cast|activate)"
+    r"|noncreature spells?[^.]*cost(?:s)? \{?\d"
+    r"|noncreature spells?[^.]*can't be cast"
+    r"|spells? with mana value \d[^.]*can't be cast"
+    r"|players? can't cast|that player can't cast spells|spells can't be cast"
+    r"|can cast spells only|your opponents control enter(?:s)? tapped"
+    r"|nonbasic lands enter(?:s)? tapped|costs? players \{?\d+\}? more"
+    r"|doing the chosen action costs"
+    r"|players? can't pay life or sacrifice nonland permanents"
+)
+SYMMETRIC_STAX_REGEX = (
+    r"players? can't (?:cast|untap|attack|gain|search their|draw|play|activate)"
+    r"|other permanents enter (?:the battlefield )?tapped"
+    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
+)
+
 # ADR-0027 β: token_copy_matters migrated to the Card IR via a kept-mirror — the
 # deleted _HAND_FLOOR producer is pinned here byte-identically so the serve spec, the
 # _TOKEN_COPY_MATTERS_MIRROR kept detector (_signals_ir), and the
@@ -1797,6 +1837,35 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # sacrifice") are the only full-coverage tell, so the IR path detects it from a
     # byte-identical _IR_KEPT_DETECTORS word mirror (CR 701.16). SWEEP_LABELS keeps the
     # human label; the serve is hand-registered in signal_specs.py reusing the regex.
+    # ADR-0027 — stax_taxes + symmetric_stax migrated regex→Card IR. Both lanes now
+    # fire from the structural `restriction` Effect arm in extract_signals_ir, scope-
+    # discriminated by the v22 projection (SIDECAR_VERSION 22): a restriction with
+    # scope=='opp' (an OPPONENT static — Drannith Magistrate, Lavinia, Ghostly Prison)
+    # opens stax_taxes; scope=='each' (a controller-NEUTRAL permanent-CLASS lock — Back
+    # to Basics, Static Orb, Sphere of Resistance, Thalia's symmetric noncreature tax)
+    # opens symmetric_stax. The arm is BROADER than the deleted regex on the each-scope
+    # side (+145 ir_only symmetric locks the brittle regex missed — Collector Ouphe /
+    # Cursed Totem ability-shutoffs, Defense Grid / Chill / Gloom symmetric cost taxes,
+    # Bedlam / Falter can't-block table effects, Arrest / Faith's Fetters Aura
+    # lockdowns) and on the opp side (+10: Angelic Arbiter, Gnat Miser / Jin-Gitaxias
+    # hand-size taxes, Ashiok search-denial — all genuine opponent restrictions); it
+    # also DROPS the regex over-fire (every "creatures your opponents control get -X/-X"
+    # debuff anthem the HAND_FLOOR `creatures your opponents control` branch matched).
+    # Because the arm is broader, the deleted regex is reproduced BYTE-IDENTICALLY by a
+    # per-clause kept-mirror (signals._signals_ir, run over the reminder-stripped
+    # kept_oracle, the same input the deleted detectors scanned) of these EXACT pinned
+    # regexes: STAX_TAXES_REGEX (the union of the THREE deleted producers — the
+    # _signals_regex _DETECTORS pacify row + the _HAND_FLOOR `opponents can't` /
+    # `creatures your opponents control` row + this SWEEP row) and SYMMETRIC_STAX_REGEX
+    # (this SWEEP row — symmetric_stax had no _signals_regex producer). The two SWEEP
+    # rows are KEPT in this list (len stays 36; they ARE the pinned regex source and,
+    # since extract_signals still runs them, they re-supply the regex-path has_other_plan
+    # voltron silence for the cards they cover — symmetric_stax is fully SWEEP-covered, so
+    # it needs no plan mirror; stax_taxes' DETECTORS+HAND_FLOOR-only cards are re-silenced
+    # by a byte-identical _STAX_TAXES_PLAN_MIRROR in _signals_regex). Mirrors the
+    # artifacts_matter / edict_matters kept-row precedent. CR 604.1 (static abilities are
+    # simply true → an unqualified "Spells cost {1} more" taxes all players symmetrically)
+    # / 118.9. The serve specs stay hand-registered in signal_specs.py.
     {
         "key": "stax_taxes",
         "scope": "opponents",

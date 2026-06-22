@@ -80,6 +80,8 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LTB_MATTERS_SWEEP_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
+    STAX_TAXES_REGEX,
+    SYMMETRIC_STAX_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
     TOKENS_MATTER_REGEX,
     TOUGHNESS_COMBAT_REGEX,
@@ -4007,6 +4009,21 @@ _ENCHANTMENTS_MATTER_MIRROR = re.compile(
 # arm's scope, and the serve spec's). add() dedups vs the structural arm. DISTINCT from
 # reanimator (GY->BATTLEFIELD only) and graveyard_matters (any self-GY care). CR 700.4.
 _CREATURE_RECURSION_MIRROR = re.compile(CREATURE_RECURSION_REGEX, re.IGNORECASE)
+# stax_taxes + symmetric_stax BYTE-IDENTICAL kept mirrors (ADR-0027). The structural
+# `restriction` Effect arm (extract_signals_ir, scope-discriminated by the v22
+# projection: scope=='opp' → stax_taxes, scope=='each' → symmetric_stax) adds the
+# genuine ir_only recall (the symmetric ability-shutoffs / cost taxes / can't-block
+# locks + the opponent hand-size taxes / search-denial the brittle oracle regex missed)
+# but DROPS the regex's -X/-X-debuff over-fire. Because the arm is BROADER, the deleted
+# regex is reproduced byte-identically by these mirrors (run PER-CLAUSE over the
+# reminder-stripped kept_oracle in extract_signals_ir, matching the deleted detectors'
+# per-clause scan): STAX_TAXES_REGEX (the union of the deleted _signals_regex _DETECTORS
+# + _HAND_FLOOR producers and the kept SWEEP row) and SYMMETRIC_STAX_REGEX (the kept
+# SWEEP row alone). add() dedups vs the structural arm. Commander-legal, floor-disabled
+# by oracle_id: stax_taxes mirror==regex==339; symmetric_stax mirror==regex==292. CR
+# 604.1 / 118.9.
+_STAX_TAXES_MIRROR = re.compile(STAX_TAXES_REGEX, re.IGNORECASE)
+_SYMMETRIC_STAX_MIRROR = re.compile(SYMMETRIC_STAX_REGEX, re.IGNORECASE)
 # attack_matters BYTE-IDENTICAL kept mirror (ADR-0027): the structural `attacks`-trigger
 # arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm above catch phase's
 # combat payoffs (+135 ir_only recall — the reminder-only
@@ -7213,6 +7230,20 @@ def extract_signals_ir(
     # (self-GY care). CR 700.4.
     if any(_CREATURE_RECURSION_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
         add("creature_recursion", "you", "", "")
+    # ADR-0027 — stax_taxes + symmetric_stax kept mirrors (byte-identical to the deleted
+    # regex producers). The structural `restriction` scope arm above ADDS the genuine
+    # ir_only recall; these mirrors reproduce the deleted regex tail the broader arm
+    # doesn't structurally cover — the opponent enter-tapped statics ("creatures your
+    # opponents control enter tapped"), the "your opponents can't cast during your turn"
+    # statics phase drops, the can't-cast-from-graveyard restrictions, and (for
+    # symmetric_stax) the full SWEEP firing. Run PER-CLAUSE over the reminder-stripped
+    # kept_oracle (== the deleted detectors' per-clause input). scope 'opponents' /
+    # 'each' (the deleted producers' forced scopes). add() dedups vs the structural arm.
+    # Commander-legal, floor-disabled: stax_taxes mirror==regex==339, symmetric==292.
+    if any(_STAX_TAXES_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("stax_taxes", "opponents", "", "")
+    if any(_SYMMETRIC_STAX_MIRROR.search(cl) for cl in _clauses(kept_oracle)):
+        add("symmetric_stax", "each", "", "")
     # ADR-0027 β — combat_damage_to_opp double-strike-grant tail: a LOW-confidence
     # mirror of the deleted narrow regex producer (kept out of the HIGH-confidence
     # _IR_KEPT_DETECTORS loop so Raphael / Blade Historian / Berserkers' Onslaught keep

@@ -57,6 +57,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     PUMP_MATTERS_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
+    STAX_TAXES_REGEX,
     SWEEP_DETECTORS,
     TARGET_PLAYER_DRAWS_REGEX,
     TOKEN_COPY_MATTERS_REGEX,
@@ -382,18 +383,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # creature-type GROUP phase doesn't model as one tag). Its broad _DETECTORS
     # producer is deleted; the hand-written serve spec (signal_specs.py) is
     # independent of this regex and survives.
-    # Pacify/control commander (Gwafa Hazid): neutralizing OTHER creatures so they
-    # "can't attack or block" is a pillowfort/control identity wanting Propaganda.
-    # Scoped to others (with/you-don't-control) so a Wall's self-restriction
-    # ("this creature can't attack") doesn't qualify.
-    (
-        "stax_taxes",
-        _re(
-            r"creatures? (?:with|you don't control|an opponent controls)"
-            r"[^.]*can't attack|can't attack you\b"
-        ),
-        "opponents",
-    ),
+    # ADR-0027: stax_taxes migrated regex→Card IR. This _DETECTORS pacify producer
+    # (Gwafa Hazid: neutralizing OTHER creatures so they "can't attack" — a
+    # pillowfort/control identity) is DELETED. Its firing is folded into the
+    # byte-identical _STAX_TAXES_MIRROR (_signals_ir) over the reminder-stripped
+    # kept_oracle, sourced from STAX_TAXES_REGEX (_sweep_detectors) — the union of this
+    # row + the deleted _HAND_FLOOR row + the kept SWEEP row. The lane fires from the
+    # structural `restriction` scope=='opp' arm (extract_signals_ir) UNION that mirror;
+    # the broader arm adds +10 genuine opponent restrictions the regex missed. The
+    # deleted producer fired HIGH (forced scope 'opponents') and fed has_other_plan, so
+    # a byte-identical _STAX_TAXES_PLAN_MIRROR (below) re-supplies the voltron silence
+    # (the IR is BROADER, so NOT _VOLTRON_SILENCING_PLAN_KEYS). The serve spec stays
+    # hand-registered in signal_specs. CR 604.1 / 903.10a.
     # ADR-0027 β: toughness_combat migrated to the Card IR via a byte-identical kept-
     # mirror. This inline _DETECTORS producer (the toughness-as-VALUE payoff half —
     # a token/damage/value keyed on a creature's TOUGHNESS, Geralf "X is the sacrificed
@@ -1440,16 +1441,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # with the GO-WIDE count-scaler above into TOKENS_MATTER_REGEX and re-fired by
     # _TOKENS_MATTER_MIRROR in _signals_ir. Voltron silence re-supplied via
     # _VOLTRON_SILENCING_PLAN_KEYS (signals.py). CR 111.1 / 701.47.
-    (
-        "stax_taxes",
-        re.compile(
-            r"\bopponents? can't\b"
-            r"|spells your opponents cast cost"
-            r"|creatures your opponents control",
-            re.IGNORECASE,
-        ),
-        "opponents",
-    ),
+    # ADR-0027: stax_taxes migrated regex→Card IR. This _HAND_FLOOR producer
+    # (`opponents can't` / `spells your opponents cast cost` / `creatures your opponents
+    # control`) is DELETED with the _DETECTORS pacify row above. Its broad `creatures
+    # your opponents control` branch over-fired on every -X/-X debuff anthem (Elesh
+    # Norn, Massacre Wurm, Cower in Fear — NOT restriction/tax statics), which the
+    # structural `restriction` IR arm correctly drops. The genuine firings are
+    # reproduced byte-identically by _STAX_TAXES_MIRROR (_signals_ir) from
+    # STAX_TAXES_REGEX (the union of this row + the deleted _DETECTORS row + the kept
+    # SWEEP row). The deleted producer fired HIGH (forced scope 'opponents') and fed
+    # has_other_plan, so the byte-identical _STAX_TAXES_PLAN_MIRROR (below) re-supplies
+    # the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (the IR is broader). The
+    # serve spec stays hand-registered. CR 604.1 / 903.10a.
     # ADR-0027 β: cost_reduction migrated to the Card IR — this _HAND_FLOOR producer
     # (and the SWEEP_DETECTORS row) are deleted. The lane fires from the IR arm +
     # _COST_REDUCER_MIRROR in _signals_ir; the deleted regex's voltron silence is
@@ -2723,6 +2726,25 @@ _ENCHANTMENTS_MATTER_PLAN_MIRROR = re.compile(
     ENCHANTMENTS_MATTER_REGEX,
     re.IGNORECASE,
 )
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated stax_taxes key. The two deleted
+# _signals_regex producers (the _DETECTORS pacify row + the _HAND_FLOOR row) fired HIGH
+# (forced scope 'opponents') and counted toward `has_other_plan`, silencing the
+# spurious commander-damage voltron tell on an opponent-taxing body that is NOT a
+# vanilla beater (a hatebear / pillowfort static IS a plan: Thalia, Drannith Magistrate,
+# Glowrider). The migrated `restriction` scope=='opp' IR arm is BROADER (+10 ir_only —
+# Angelic Arbiter, hand-size taxes, search-denial), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-SILENCE those bodies. This mirror is
+# BYTE-IDENTICAL to STAX_TAXES_REGEX (the union of the two deleted producers + the kept
+# SWEEP row), feeding ONLY the gate (no signal — the lane is served from the IR), so it
+# reproduces the deleted producers' exact silence set. The kept SWEEP row still fires
+# stax_taxes inside extract_signals and so already re-silences its own 116 cards; this
+# superset mirror additionally covers the 223 DETECTORS+HAND_FLOOR-only cards (an OR
+# over a superset doesn't change the boolean for the SWEEP-covered cards). Matched
+# against the reminder-STRIPPED `text` (the deleted producers were detectors over
+# reminder-stripped clauses). CR 604.1 / 903.10a. symmetric_stax needs NO plan mirror:
+# its sole producer is the kept SWEEP row, which extract_signals still fires, so its
+# has_other_plan is intact.
+_STAX_TAXES_PLAN_MIRROR = re.compile(STAX_TAXES_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated creature_recursion key. Its one
 # deleted `_DETECTORS` producer (CREATURE_RECURSION_REGEX, forced scope 'you', HIGH
 # confidence) counted toward `has_other_plan` — a recursion ENGINE is a plan, not a
@@ -4786,6 +4808,21 @@ def extract_signals(
         # (the deleted producer was a floor Detector over stripped clauses).
         # CR 205.2 / 303 / 903.10a.
         or _ENCHANTMENTS_MATTER_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted stax_taxes producers (the _DETECTORS pacify
+        # row + the _HAND_FLOOR `opponents can't` / `creatures your opponents control`
+        # row, both HIGH-confidence forced scope 'opponents', feeding has_other_plan —
+        # a hatebear / pillowfort static IS a plan, not a vanilla beater: Thalia,
+        # Drannith Magistrate, Glowrider). The migrated `restriction` scope=='opp' IR
+        # arm is BROADER (+10 ir_only), so _VOLTRON_SILENCING_PLAN_KEYS would
+        # over-silence those bodies; this BYTE-IDENTICAL mirror (STAX_TAXES_REGEX — the
+        # union of the deleted producers + the kept SWEEP row) restores the old regex's
+        # exact silence set. The kept SWEEP row still fires stax_taxes in
+        # extract_signals (already silencing its 116 cards); the mirror additionally
+        # covers the 223 DETECTORS+HAND_FLOOR-only cards. Matched against the reminder-
+        # STRIPPED `text` (the deleted producers were detectors over stripped clauses).
+        # symmetric_stax needs no mirror — its sole producer is the kept SWEEP row. CR
+        # 604.1 / 903.10a.
+        or _STAX_TAXES_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted creature_recursion producer (the _DETECTORS
         # row CREATURE_RECURSION_REGEX, HIGH-confidence scope 'you', feeding
         # has_other_plan — a recursion engine IS a plan, not a vanilla beater: Meren,

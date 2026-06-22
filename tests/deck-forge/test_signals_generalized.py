@@ -6912,8 +6912,15 @@ def test_meld_commander_folds_its_meld_result():
             },
         ],
     }
+    # ADR-0027: stax_taxes migrated to the Card IR, so the folded meld-result lock now
+    # surfaces through the HYBRID path (the byte-identical _STAX_TAXES_MIRROR reads the
+    # pre-folded record — _fold_referenced_objects runs before extract_signals_ir), not
+    # the pure regex path. The ADR-0025 fold contract is unchanged; only the producer is.
     without = _keys(bruna)
-    withfold = {s.key for s in extract_signals(bruna, resolve_object=resolver)}
+    withfold = {
+        s.key
+        for s in extract_signals_hybrid(bruna, _bare_ir(), resolve_object=resolver)
+    }
     assert "stax_taxes" in withfold  # Brisela's "can't cast MV<=3" lock
     assert "stax_taxes" not in without
     # Over-fire guard: a non-meld commander folds nothing.
@@ -6923,5 +6930,6 @@ def test_meld_commander_folds_its_meld_result():
         "oracle_text": "Vigilance",
     }
     assert "stax_taxes" not in {
-        s.key for s in extract_signals(plain, resolve_object=resolver)
+        s.key
+        for s in extract_signals_hybrid(plain, _bare_ir(), resolve_object=resolver)
     }

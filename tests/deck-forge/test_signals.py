@@ -1340,6 +1340,9 @@ def test_outlaw_commander_opens_outlaw_lane():
 def test_pacify_control_commander_opens_pillowfort():
     # Gwafa Hazid neutralizes opponents' creatures ("can't attack or block") — a
     # control/pillowfort identity that wants Propaganda / Ghostly Prison / Windborn Muse.
+    # ADR-0027: stax_taxes migrated to the Card IR, so the deleted _DETECTORS pacify
+    # producer no longer fires in the pure regex path — the lane comes through the hybrid
+    # (the byte-identical _STAX_TAXES_MIRROR over the "creatures … can't attack" clause).
     gwafa = {
         "name": "Gwafa Hazid, Profiteer",
         "type_line": "Legendary Creature — Human Rogue",
@@ -1347,7 +1350,8 @@ def test_pacify_control_commander_opens_pillowfort():
         "control. Its controller draws a card.\nCreatures with bribery counters on them "
         "can't attack or block.",
     }
-    assert ("stax_taxes", "opponents") in _keys(gwafa)
+    assert ("stax_taxes", "opponents") in _keys_hybrid(gwafa)
+    assert ("stax_taxes", "opponents") not in _keys(gwafa)
 
 
 def test_banding_commander_opens_banding_lane():
@@ -2200,7 +2204,10 @@ def test_flying_from_top_opens_keyword_tribe():
 
 def test_yasharn_opens_stax_taxes():
     # Yasharn's cost-lock is a tax piece; the lane must OPEN so its hatebear
-    # synergy package (Thalia, Archon of Emeria, …) is surfaced.
+    # synergy package (Thalia, Archon of Emeria, …) is surfaced. ADR-0027: stax_taxes
+    # migrated to the Card IR, so the lane is asserted through the hybrid path (the
+    # byte-identical _STAX_TAXES_MIRROR reproduces the "players can't pay life or
+    # sacrifice nonland permanents" firing the kept SWEEP row also carries).
     card = {
         "name": "Yasharn, Implacable Earth",
         "type_line": "Legendary Creature — Elemental Boar",
@@ -2212,7 +2219,7 @@ def test_yasharn_opens_stax_taxes():
             "spells or activate abilities."
         ),
     }
-    assert ("stax_taxes", "opponents") in _keys(card)
+    assert ("stax_taxes", "opponents") in _keys_hybrid(card)
 
 
 # ── Long-tail batch 2 (salvaged workflow proposals: detector-open gaps) ────────

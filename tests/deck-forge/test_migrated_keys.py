@@ -5647,6 +5647,56 @@ _CASES: dict[str, tuple[dict, Card]] = {
             keywords=("Daybound",),
         ),
     ),
+    # ADR-0027 — stax_taxes: a static RESTRICTION/TAX on OPPONENTS. The structural arm
+    # fires on a `restriction` Effect whose v22 scope=='opp'. Gnat Miser's hand-size tax
+    # is GENUINE ir_only recall (the deleted regex carried no "maximum hand size" branch,
+    # so the regex path drops it; the IR `restriction` scope=='opp' arm serves it). The
+    # kept SWEEP row never matches "maximum hand size is reduced", so the regex path is
+    # clean. CR 604.1.
+    "stax_taxes": (
+        {
+            "name": "Gnat Miser",
+            "type_line": "Creature — Spirit",
+            "oracle_text": "Each opponent's maximum hand size is reduced by one.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="restriction",
+                        scope="opp",
+                        raw="Each opponent's maximum hand size is reduced by one.",
+                    ),
+                ),
+            )
+        ),
+    ),
+    # ADR-0027 — symmetric_stax: a controller-NEUTRAL lock affecting EVERYONE. The
+    # structural arm fires on a `restriction` Effect whose v22 scope=='each'. Cursed
+    # Totem's symmetric ability-shutoff is GENUINE ir_only recall (the SYMMETRIC_STAX
+    # SWEEP regex matches only "players can't …" / "enter tapped" / "untap during …", not
+    # "Activated abilities of creatures can't be activated", so the regex path drops it;
+    # the IR scope=='each' arm serves it). CR 604.1.
+    "symmetric_stax": (
+        {
+            "name": "Cursed Totem",
+            "type_line": "Artifact",
+            "oracle_text": "Activated abilities of creatures can't be activated.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="restriction",
+                        scope="each",
+                        raw="Activated abilities of creatures can't be activated.",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 
