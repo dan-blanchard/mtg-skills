@@ -728,8 +728,11 @@ def test_destroy_subtype_only_fires_removal_matters():
 
 
 def test_destroy_land_subtype_only_not_removal():
-    """'Destroy target Island' (land subtype only) routes to land_destruction, NOT
-    removal_matters (CR 305.6)."""
+    """'Destroy target Island' (land subtype only) is NOT removal_matters (CR 305.6 —
+    a bare land-subtype subject lacks _PERMANENT_TYPES and is not a non-land permanent
+    subtype). ADR-0027: land_destruction is now a membership-gated cross-open (a
+    creature commander's own repeatable LD), so a synthetic non-creature IR like this
+    opens NEITHER lane — only the removal_matters exclusion is asserted here."""
     ir = _ir(
         Ability(
             kind="spell",

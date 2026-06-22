@@ -68,6 +68,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
+    LAND_DESTRUCTION_REGEX,
     LANDFALL_REGEX,
     LIFEGAIN_MATTERS_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
@@ -3731,6 +3732,25 @@ _ATTACK_MATTERS_MIRROR = re.compile(ATTACK_MATTERS_REGEX, re.IGNORECASE)
 # dedups vs the structural arm. Byte-faithful (commander-legal corpus: post-IR ⊇
 # original-regex, 0 lost, +5 gained). CR 207.2c / 305.
 _LANDFALL_MIRROR = re.compile(LANDFALL_REGEX, re.IGNORECASE)
+# land_destruction BYTE-IDENTICAL membership-gated kept mirror (ADR-0027). The deleted
+# regex producer was NOT a per-card detector — it was a CREATURE-COMMANDER cross-open
+# (extract_signals' include_membership block): a creature whose own oracle says "destroy
+# [up to N] target land(s)" (Numot, Goblin Settler, Demonic Hordes — a repeatable LD
+# ENGINE) opens the LD support lane, scope 'you', LOW confidence, gated creature +
+# include_membership so a one-shot LD SPELL among the 99 (Stone Rain, Armageddon) isn't
+# read as the deck's plan. phase DOES carry a structural shape (a `destroy` Effect whose
+# target Filter is Land-typed — the `if "Land" in ftypes` arm below), but that broad
+# per-card arm fires HIGH on every Stone Rain / Wasteland / Strip Mine (+143 over
+# commander-legal) — flooding the deck-plan lane with one-shot spells and utility lands
+# the cross-open intentionally excluded, and flipping LOW→HIGH. So the lane rides THIS
+# byte-identical regex (LAND_DESTRUCTION_REGEX, the deleted _LAND_DESTRUCTION_RE
+# pattern) run over the reminder-stripped kept_oracle in the membership block below,
+# creature + include_membership gated, LOW confidence — reproducing the deleted cross-
+# open EXACTLY (commander-legal: regex==mirror, 23→23, 0 miss/extra), NOT the broad
+# structural arm (whose land_destruction add is removed below, since it was DEAD — the
+# hybrid dropped the unmigrated IR land_destruction, so it never reached production).
+# NOT a voltron plan (the cross-open fired LOW and never fed has_other_plan). CR 305.6.
+_LAND_DESTRUCTION_MIRROR = re.compile(LAND_DESTRUCTION_REGEX, re.IGNORECASE)
 # self_counter_grow NARROWED kept mirror (ADR-0027 β): the structural arm above fires on
 # a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR v12), a
 # +503
@@ -5551,17 +5571,29 @@ def extract_signals_ir(
                 if not is_donate and not returns_own and not gives_away:
                     add("gain_control", "you", "", e.raw)
             if cat == "destroy":
-                if "Land" in ftypes:
-                    add("land_destruction", "you", "", e.raw)
+                # ADR-0027: the broad `destroy`/Land structural land_destruction add
+                # is REMOVED. land_destruction is a DECK-PLAN cross-open (the
+                # Armageddon/Numot stax-LD plan), NOT a per-card label — the deleted
+                # regex producer opened it ONLY for a CREATURE COMMANDER whose own
+                # ability destroys lands (membership + creature + LOW conf),
+                # deliberately excluding a one-shot LD SPELL among the 99 (Stone Rain,
+                # Armageddon). This broad arm fired HIGH on every destroy-Land card
+                # (+143 over commander-legal), so it would flood the lane; it was also
+                # DEAD pre-migration (the hybrid dropped the unmigrated IR
+                # land_destruction). The lane now rides the membership-gated
+                # _LAND_DESTRUCTION_MIRROR arm below, reproducing the cross-open byte-
+                # identically. CR 305.6.
                 if "Creature" in ftypes and ab.kind in ("activated", "triggered"):
                     add("kill_engine", "you", "", e.raw)
                 # removal_matters: a SINGLE-TARGET destroy whose subject is a
                 # permanent TYPE, or (ADR-0027) a subtype-ONLY subject that names a
                 # permanent — "destroy target Wall/Equipment/Aura" (card_types=(),
                 # subtypes set) is removal of a creature / artifact / enchantment.
-                # Land-subtype-only destroys ("destroy target Island") route to
-                # land_destruction above and are excluded here (CR 305.6 — the lane's
-                # discriminator). The MASS form ("destroy ALL creatures" — DestroyAll,
+                # Land-subtype-only destroys ("destroy target Island") are excluded here
+                # — a bare Land card-type / land-subtype subject lacks _PERMANENT_TYPES
+                # and is not a non-land permanent subtype (CR 305.6 — the lane's
+                # discriminator; Land ∉ _PERMANENT_TYPES). The MASS form ("destroy ALL
+                # creatures" — DestroyAll,
                 # counter_kind=="all") is a BOARD WIPE, not single-target removal (CR
                 # 115.10 vs 115.1) — it is a distinct build axis and the regex lane
                 # (anchored on "destroy target …") excludes it, so the IR must too.
@@ -7229,6 +7261,21 @@ def extract_signals_ir(
             add("artifacts_matter", "you", "", "", "low")
         if "enchantment" in type_line:
             add("enchantments_matter", "you", "", "", "low")
+        # ADR-0027 — land_destruction BYTE-IDENTICAL membership-gated kept mirror. A
+        # CREATURE COMMANDER whose own oracle says "destroy [up to N] target land(s)"
+        # (Numot, Goblin Settler, Demonic Hordes — a repeatable LD ENGINE) opens the LD
+        # support lane (more LD, own-land recursion to survive symmetric LD, land-loss
+        # punishers). Creature + include_membership gated so a one-shot LD SPELL among
+        # the 99 (Stone Rain, Armageddon) is NOT read as the deck's plan. This
+        # reproduces the deleted extract_signals cross-open EXACTLY (LAND_DESTRUCTION_
+        # REGEX over the reminder-stripped kept_oracle — same input as the regex path's
+        # reminder-stripped `text`; commander-legal: regex==mirror, 23→23, 0 miss/
+        # extra), NOT the broad `destroy`/Land structural arm (removed above — it floods
+        # +143 one-shot spells / utility lands HIGH). scope 'you', LOW confidence (the
+        # deleted producer's scope/conf — it never fed has_other_plan, so no voltron
+        # mirror is needed). CR 305.6.
+        if "creature" in type_line and _LAND_DESTRUCTION_MIRROR.search(kept_oracle):
+            add("land_destruction", "you", "", "repeatable land destruction", "low")
         # Own-subtype tribal membership (a creature's own race) + named-token
         # tribes — a clean type_line / all_parts field-lookup. Class tribes
         # (Soldier/Cleric) open only behind a go-wide signal; race tribes open

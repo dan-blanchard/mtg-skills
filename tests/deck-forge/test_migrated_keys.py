@@ -5325,6 +5325,26 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # land_destruction ← the membership-gated _LAND_DESTRUCTION_MIRROR arm (CR 305.6).
+    # Numot is the canonical LD COMMANDER — a CREATURE whose own ability says "destroy
+    # up to two target lands" (a repeatable LD engine). The mirror reads type_line +
+    # oracle_text off the record dict (creature + include_membership gated, LOW conf),
+    # not the IR structure, so a bare non-None IR routes the hybrid to the IR path. The
+    # broad `destroy`/Land structural arm was REMOVED (it floods one-shot LD spells);
+    # the regex path no longer emits the key (the include_membership cross-open is
+    # deleted). scope "you". ADR-0027.
+    "land_destruction": (
+        {
+            "name": "Numot, the Devastator",
+            "type_line": "Legendary Creature — Dragon",
+            "oracle_text": (
+                "Flying\nWhenever Numot deals combat damage to a player, you may "
+                "pay {2}{R}. If you do, destroy up to two target lands."
+            ),
+            "keywords": ["Flying"],
+        },
+        _ir(),
+    ),
 }
 
 

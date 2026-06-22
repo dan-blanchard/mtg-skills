@@ -3327,6 +3327,57 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # delta 0 (3010 → 3010); 0 other-key drift across all 298 keys. CR 701.13 /
         # 903.10a.
         "mill_matters",
+        # ADR-0027 — land_destruction (the LD-support build-around axis: the Armageddon/
+        # Numot stax-LD plan — own-land recursion to survive symmetric LD, land-loss
+        # punishers; CR 305.6). MIGRATED VIA A BYTE-IDENTICAL MEMBERSHIP-GATED KEPT-
+        # MIRROR (signals-only, NO sidecar bump) — NOT the broad `destroy`/Land
+        # structural arm.
+        #
+        # THE REGEX PRODUCER WAS A CREATURE-COMMANDER CROSS-OPEN, NOT A PER-CARD
+        # DETECTOR. land_destruction was produced regex-side SOLELY by the
+        # `extract_signals` include_membership block: a creature whose own oracle says
+        # "destroy [up to N] target land(s)" (Numot, Goblin Settler, Demonic Hordes — a
+        # repeatable LD ENGINE) opens the LD support lane, scope 'you', LOW confidence.
+        # It was gated creature + include_membership SO A ONE-SHOT LD SPELL among the 99
+        # (Stone Rain, Armageddon) is NOT mistaken for the deck's plan (the canonical
+        # test_numot_repeatable_land_destruction_opens_lane: Numot opens it, Stone Rain
+        # does NOT). 23 commander-legal cards, all creatures.
+        #
+        # WHY THE MEMBERSHIP MIRROR, NOT THE STRUCTURAL ARM. phase DOES carry a
+        # structural shape — a `destroy` Effect whose target Filter is Land-typed (the
+        # `if "Land" in ftypes` arm in extract_signals_ir). But that broad per-card arm
+        # fires HIGH on EVERY destroy-Land card — every Stone Rain / Wasteland / Strip
+        # Mine / Armageddon (+143 over commander-legal, floor-disabled by oracle_id) —
+        # flooding the DECK-PLAN lane with one-shot LD spells and utility lands the
+        # cross-open intentionally excluded, AND flipping LOW→HIGH confidence. All 143
+        # are GENUINE land destruction, but the lane's ROLE is the LD-support
+        # build-around cross-open (open the lane when the COMMANDER is an LD engine),
+        # not a per-card "this destroys a land" label — so the broad arm is the WRONG
+        # producer for this lane. The broad structural `land_destruction` add is REMOVED
+        # (it was DEAD pre-migration — the hybrid dropped the unmigrated IR
+        # land_destruction, so it never reached production; nothing else reads it, and
+        # removal_matters' own land-subtype exclusion — Land ∉ _PERMANENT_TYPES — is
+        # independent of it). The lane rides the membership-gated _LAND_DESTRUCTION_
+        # MIRROR arm (LAND_DESTRUCTION_REGEX over the reminder-stripped kept_oracle,
+        # creature + include_membership gated, LOW conf — the deleted _LAND_DESTRUCTION_
+        # RE pattern, pinned in _sweep_detectors), reproducing the deleted cross-open
+        # BYTE-IDENTICALLY (commander-legal, floor-disabled by oracle_id: regex==mirror,
+        # both==23, regex_only==0, ir_only==0). NO mirror is needed beyond it.
+        #
+        # SCOPE PARITY. The deleted cross-open forced scope 'you' / LOW conf; the mirror
+        # fires scope 'you' / LOW conf — 0 scope/confidence mismatches over the 23
+        # both-fire cards.
+        #
+        # VOLTRON. The deleted cross-open fired LOW confidence and NEVER fed
+        # has_other_plan (which requires confidence=='high'), so it silenced NO
+        # commander-damage voltron tell. Dropping it leaks nothing — NO
+        # _LAND_DESTRUCTION_PLAN_MIRROR, NOT _VOLTRON_SILENCING_PLAN_KEYS. FILE-SWAP
+        # no-flood (base b723a76 vs edits, baked sidecar over commander-legal, hybrid
+        # path): land_destruction is BYTE-IDENTICAL (23 → 23 — the membership mirror
+        # reproduces the cross-open exactly); voltron_matters delta 0 (3010 → 3010);
+        # siblings land_sacrifice_matters / land_exchange / removal_matters / stax_taxes
+        # drift 0; 0 other-key drift across all 298 keys. CR 305.6 / 903.10a.
+        "land_destruction",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

@@ -729,6 +729,33 @@ LANDFALL_REGEX = (
     r"|play lands? from your graveyard"
     r"|return [^.]*\blands?\b[^.]*from your graveyard to the battlefield"
 )
+# ADR-0027 — land_destruction (the LD-support build-around axis: a card whose OWN
+# ability repeatedly destroys lands — the Armageddon/Numot stax-LD plan, CR 305.6)
+# migrated to the Card IR via a BYTE-IDENTICAL membership-gated kept-mirror. The
+# deleted regex producer (the `extract_signals` include_membership block) was NOT a
+# per-card detector: it was a CREATURE-COMMANDER cross-open — a creature whose own
+# oracle says "destroy [up to N] target land(s)" (Numot, Goblin Settler, Demonic
+# Hordes — a repeatable LD ENGINE) opens the LD support lane, scope 'you', LOW
+# confidence. It was deliberately membership + creature gated so a one-shot LD SPELL
+# among the 99 (Stone Rain, Armageddon) is NOT mistaken for the deck's plan. phase
+# DOES carry a structural shape (a `destroy` Effect whose target Filter is Land-typed)
+# — but that broad per-card arm fires HIGH on every Stone Rain / Wasteland / Strip Mine
+# (+143 over commander-legal), flooding the deck-plan lane with one-shot spells and
+# utility lands the cross-open producer intentionally excluded. So the lane rides a
+# BYTE-IDENTICAL regex mirror (this pattern, run over the reminder-stripped kept_oracle
+# in extract_signals_ir's membership block, creature + include_membership gated, LOW
+# confidence) — reproducing the deleted cross-open's firing set EXACTLY (commander-
+# legal: regex==mirror, 23→23, 0 miss, 0 extra), NOT the broad structural arm. The
+# broad `destroy`/Land structural `add` is removed (it was DEAD — the hybrid dropped
+# the unmigrated IR land_destruction, so it never reached production; removal_matters'
+# own land-subtype exclusion is independent of it). land_destruction was NEVER a SWEEP
+# key, so no SWEEP row is touched (len stays >=36). NO sidecar bump. NOT a voltron plan
+# key: the deleted cross-open fired LOW confidence and NEVER fed has_other_plan (which
+# requires confidence=='high'), so dropping it leaks no commander-damage voltron tell
+# (voltron delta 0) and NO _LAND_DESTRUCTION_PLAN_MIRROR is needed. CR 305.6 / 903.10a.
+LAND_DESTRUCTION_REGEX = (
+    r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b"
+)
 # ADR-0027 β: lifegain_matters migrated to the Card IR via a byte-identical kept-
 # mirror (_LIFEGAIN_MATTERS_MIRROR in _signals_ir). The deleted regex producers — the
 # `_DETECTORS` registry row (the "whenever you gain life" payoff / "gain N life" source

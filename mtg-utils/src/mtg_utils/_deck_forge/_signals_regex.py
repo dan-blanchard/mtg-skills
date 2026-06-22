@@ -2189,13 +2189,10 @@ _PER_TURN_ENGINE_RE = re.compile(
 # dork ("{T}: Add …" as its only ability) is not a clone-worthy VALUE engine.
 _TAP_ABILITY_RE = re.compile(r"\{t\}[^:]*:", re.IGNORECASE)
 _MANA_TAP_RE = re.compile(r"\{t\}: add\b", re.IGNORECASE)
-# A commander whose OWN ability destroys lands (Numot) is a land-destruction engine:
-# it wants the LD support package (own-land recursion to survive symmetric LD, plus
-# land-loss punishers). "[up to N] target land(s)" is the destroy-lands tell; gated to
-# the commander (membership) so a one-shot LD spell in the 99 isn't read as the plan.
-_LAND_DESTRUCTION_RE = re.compile(
-    r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b", re.IGNORECASE
-)
+# ADR-0027: _LAND_DESTRUCTION_RE deleted — the land_destruction creature-commander
+# cross-open migrated to the Card IR. Its pattern is pinned as LAND_DESTRUCTION_REGEX
+# in _sweep_detectors and reused byte-identically by the _LAND_DESTRUCTION_MIRROR arm
+# in extract_signals_ir (creature + include_membership gated, LOW confidence). CR 305.6.
 # A commander that reveals the top card of a library and CHEATS a permanent onto the
 # battlefield (Vaevictis, Hans Eriksson, Thrasios) curates its top: it wants to stack a
 # bomb there (graveyard-to-top). BOTH tells are required so a plain reanimation spell
@@ -4394,15 +4391,18 @@ def extract_signals(
     # are deleted — each survives byte-identically as the type_line membership arm in
     # extract_signals_ir ("if 'artifact' in type_line: add artifacts_matter you low" /
     # "if 'enchantment' in type_line: add enchantments_matter you low").
-    # A creature commander whose own ability destroys lands (Numot) is a land-
-    # destruction engine — open the LD support lane. Membership + creature gated so a
-    # one-shot LD spell among the 99 (Stone Rain) isn't mistaken for the deck's plan.
-    if (
-        include_membership
-        and "creature" in type_line.lower()
-        and _LAND_DESTRUCTION_RE.search(text)
-    ):
-        add("land_destruction", "you", "", "repeatable land destruction", "low")
+    # ADR-0027: the land_destruction creature-commander cross-open is migrated to the
+    # Card IR — a creature whose own ability destroys lands (Numot) is an LD ENGINE
+    # that opens the LD support lane, scope 'you', LOW confidence, membership + creature
+    # gated so a one-shot LD SPELL among the 99 (Stone Rain) isn't mistaken for the
+    # deck's plan. This producer is deleted; it survives BYTE-IDENTICALLY as the
+    # membership-gated _LAND_DESTRUCTION_MIRROR arm in extract_signals_ir (creature +
+    # include_membership + LAND_DESTRUCTION_REGEX over kept_oracle, low conf —
+    # commander-legal: regex==mirror, 23→23, 0 miss/extra), NOT the broad `destroy`/Land
+    # structural arm (which would flood +143 one-shot LD spells / utility lands HIGH).
+    # The serve spec stays hand-registered. NO has_other_plan mirror: this producer
+    # fired LOW confidence and never fed the voltron silence (which requires
+    # confidence=='high'), so its deletion leaks no commander-damage tell. CR 305.6.
     # A commander that reveals its top card and cheats a permanent into play (Vaevictis,
     # Hans Eriksson) wants to STACK its top with a bomb. Membership-only: the lane opens
     # because the COMMANDER is the top-cheater, not because the 99 hold one.

@@ -1568,6 +1568,10 @@ def test_numot_repeatable_land_destruction_opens_lane():
     # ENGINE (the commander herself), so she wants the LD support package (land
     # recursion to survive symmetric LD, land-loss punishers). Membership + creature
     # gated: a one-shot LD SPELL (Stone Rain) is not an LD commander, so it stays out.
+    # ADR-0027: land_destruction migrated to the Card IR (the membership-gated
+    # _LAND_DESTRUCTION_MIRROR arm, reproducing the deleted regex cross-open byte-
+    # identically), so this asserts on the HYBRID path. A bare non-None IR routes the
+    # hybrid to the IR path; the mirror reads type_line + oracle_text off the record.
     numot = {
         "name": "Numot, the Devastator",
         "type_line": "Legendary Creature — Dragon",
@@ -1584,8 +1588,10 @@ def test_numot_repeatable_land_destruction_opens_lane():
         "keywords": [],
         "oracle_text": "Destroy target land.",
     }
-    assert any(k == "land_destruction" for k, _, _ in _ksub(numot))
-    assert not any(k == "land_destruction" for k, _, _ in _ksub(stone_rain))
+    assert any(k == "land_destruction" for k, _, _ in _ksub_hybrid(numot, _bare_ir()))
+    assert not any(
+        k == "land_destruction" for k, _, _ in _ksub_hybrid(stone_rain, _bare_ir())
+    )
 
 
 def test_cheat_from_top_commander_opens_lane():
