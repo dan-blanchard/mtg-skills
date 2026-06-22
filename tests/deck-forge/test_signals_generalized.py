@@ -4338,11 +4338,13 @@ def test_dont_own_payoff_opens_theft_and_gain_control():
 
 
 def test_baseline_creature_etb_unchanged():
+    # ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror),
+    # so it serves from the hybrid path, not pure regex.
     c = {
         "name": "ETB",
         "oracle_text": "Whenever a creature you control enters, draw a card.",
     }
-    assert ("creature_etb", "you") in _ks(c)
+    assert ("creature_etb", "you") in _ks_hybrid(c)
 
 
 # --- Phase B: confidence flag + nested-scope / self-reference resolvers ---------
@@ -4510,6 +4512,9 @@ def test_creature_etb_opens_on_delayed_had_enter_payoff():
     # upkeep, if you had a creature enter ... last turn, draw") — no "when/whenever"
     # trigger word, so the ETB detector's trigger-word gate missed it. It's an
     # ETB-payoff commander (wants ETB creatures / blink / token makers).
+    # ADR-0027 β: this delayed "if you had a creature enter" payoff is exactly why
+    # creature_etb rides a kept-mirror, not the structural etb-trigger arm — phase
+    # models it as an upkeep trigger (no `etb` event), so it serves from the hybrid.
     ephara = {
         "name": "Ephara, God of the Polis",
         "type_line": "Legendary Enchantment Creature — God",
@@ -4521,7 +4526,7 @@ def test_creature_etb_opens_on_delayed_had_enter_payoff():
             "battlefield under your control last turn, draw a card."
         ),
     }
-    assert "creature_etb" in _keys(ephara)
+    assert "creature_etb" in _keys_hybrid(ephara)
 
 
 def test_artifacts_matter_opens_for_artifact_tutor():

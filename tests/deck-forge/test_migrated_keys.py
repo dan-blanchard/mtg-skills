@@ -198,6 +198,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # creature_etb ← a BYTE-IDENTICAL kept mirror (_creature_etb_clauses over the
+    # reminder-stripped oracle: "Whenever a creature you control enters, put a +1/+1
+    # counter on each creature you control"). The structural etb-trigger arm gains
+    # Graft/Soulbond but MISSES the ETB-trigger doublers (Panharmonicon — phase models
+    # "triggers an additional time" as a static replacement) and Ephara's upkeep-gated
+    # delayed payoff, so it's neutralized and the lane rides the exact per-clause
+    # deleted regex (empty IR — the mirror reads the dict oracle). ADR-0027 β.
+    "creature_etb": (
+        {
+            "name": "Cathars' Crusade",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Whenever a creature enters the battlefield under your control, put "
+                "a +1/+1 counter on each creature you control."
+            ),
+        },
+        _ir(),
+    ),
     # conjure_matters ← a BYTE-IDENTICAL `\bconjure\b` kept word mirror
     # (signals._IR_KEPT_DETECTORS, scope "you", over the reminder-stripped oracle).
     # CONJURE is digital-only (Arena/Alchemy, CR 701.66a): phase carries a structural

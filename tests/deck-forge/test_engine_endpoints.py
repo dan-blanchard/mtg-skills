@@ -22,7 +22,13 @@ CMD = {
     "color_identity": ["G", "W"],
     "oracle_text": "Whenever a creature you control enters, draw a card.",
     "prices": {"usd": "5.00"},
+    "oracle_id": "etb-boss-oid",
 }
+# ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror that
+# reads the record's reminder-stripped oracle), so the hybrid serves it ONLY from the
+# IR path. A bare Card joined by oracle_id routes the engine to the IR (the mirror then
+# reads the oracle off the record), matching the land_creatures_matter precedent.
+CMD_IR = Card(oracle_id="etb-boss-oid", name="ETB Boss", faces=(Face(name="ETB Boss"),))
 TOK = {
     "name": "Token Maker",
     "type_line": "Sorcery",
@@ -56,7 +62,8 @@ def _client(*, search_results=None, combos_fn=None, bulk=True):
     return TestClient(build_app(state))
 
 
-def test_signals_endpoint_surfaces_scoped_actionable_signal():
+def test_signals_endpoint_surfaces_scoped_actionable_signal(monkeypatch):
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR})
     sigs = _client().get("/api/signals").json()["signals"]
     etb = next(s for s in sigs if s["key"] == "creature_etb")
     assert etb["scope"] == "you"
@@ -116,13 +123,15 @@ def test_snapshot_includes_bracket_estimate():
     assert snap["bracket"]["name"] == "Core"
 
 
-def test_snapshot_includes_live_budgets_and_signals():
+def test_snapshot_includes_live_budgets_and_signals(monkeypatch):
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR})
     snap = _client().get("/api/snapshot").json()
     assert snap["budgets"]["ramp"]["max"] == 12
     assert any(s["key"] == "creature_etb" for s in snap["signals"])
 
 
-def test_snapshot_avenues_include_engine_avenue_with_search_spec():
+def test_snapshot_avenues_include_engine_avenue_with_search_spec(monkeypatch):
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR})
     snap = _client().get("/api/snapshot").json()
     etb = next(a for a in snap["avenues"] if a["id"] == "engine:creature_etb:you")
     assert etb["source"] == "engine"

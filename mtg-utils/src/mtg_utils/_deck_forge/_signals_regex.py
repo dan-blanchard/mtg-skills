@@ -142,6 +142,50 @@ _ETB_HAD_RE = re.compile(
 )
 
 
+# ADR-0027 β: creature_etb migrated to the Card IR via a BYTE-IDENTICAL kept mirror.
+# This per-clause helper is the EXACT logic of the two deleted _DETECTORS rows below
+# (the "you" ETB-value / doubler / delayed-payoff row and the "opponents" punisher
+# row), pinned as the SINGLE source the _signals_ir mirror (_creature_etb_clauses)
+# and the _CREATURE_ETB_PLAN_MIRROR voltron gate both reuse. A structural IR arm was
+# REJECTED: phase models the doublers (Panharmonicon/Yarok — "entering … triggers an
+# additional time") as static replacement effects and Ephara's delayed payoff as an
+# upkeep trigger, neither an `etb` event, so the structural arm (etb-trigger w/
+# Creature subject) MISSES 62 genuine creature-ETB cards (8 doublers, 4 had-payoffs,
+# 3 opp-punishers, plus the broad ETB-value/over-fire tail) while GAINING only 39
+# Graft/Soulbond bodies — a non-byte-identical mix, not a clean structural win. So
+# the lane rides this exact regex (per-clause, reminder-stripped) instead — a true
+# behavior-neutral re-home (commander-legal corpus: regex == mirror, 0 lost /
+# 0 over-fire). CR 603.6.
+def _creature_etb_clause(cl: str) -> str | None:
+    """Scope ("you"|"opponents") the deleted creature_etb _DETECTORS rows would emit
+    for one lowercased, reminder-stripped clause, or ``None``. The "you" row vetoes
+    on an opponent-controlled entering creature; the "opponents" row is the punisher.
+    """
+    has_when = "whenever" in cl or "when " in cl
+    opp = _ETB_OPP_RE.search(cl) is not None
+    if opp and has_when:
+        return "opponents"
+    if (
+        (_ETB_ANY_RE.search(cl) is not None and has_when)
+        or _ETB_DOUBLER_RE.search(cl) is not None
+        or _ETB_HAD_RE.search(cl) is not None
+    ) and not opp:
+        return "you"
+    return None
+
+
+def _creature_etb_clauses(text: str) -> set[tuple[str, str]]:
+    """All (``"creature_etb"``, scope) pairs the deleted producer would emit over the
+    reminder-stripped joined oracle, applied PER-CLAUSE (the deleted _DETECTORS ran
+    per-clause, and the component regexes' ``[^.]`` spans never cross a sentence)."""
+    out: set[tuple[str, str]] = set()
+    for clause in _clauses(text):
+        scope = _creature_etb_clause(clause.lower())
+        if scope is not None:
+            out.add(("creature_etb", scope))
+    return out
+
+
 # color_hoser: a commander whose payoff is keyed on a specific COLOR it punishes,
 # restricts, or bounces (Llawan "opponents can't cast blue creature spells" / "return
 # all blue creatures", Dromar "choose a color, then return all of it", Jaya "destroy
@@ -224,28 +268,16 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
     # Zimone …) + a kept effect-raw word mirror (_XSPELL_HOOK_RE minus _XSPELL_VETO_RE)
     # for the predicate-dropped tail (Unbound Flourishing, Rosheen Meanderer). This
     # _DETECTORS row is deleted; the serve spec stays hand-registered. CR 202.1/107.3.
-    (
-        "creature_etb",
-        lambda c: (
-            (
-                (
-                    _ETB_ANY_RE.search(c) is not None
-                    and ("whenever" in c or "when " in c)
-                )
-                or _ETB_DOUBLER_RE.search(c) is not None
-                or _ETB_HAD_RE.search(c) is not None
-            )
-            and _ETB_OPP_RE.search(c) is None
-        ),
-        "you",
-    ),
-    (
-        "creature_etb",
-        lambda c: (
-            _ETB_OPP_RE.search(c) is not None and ("whenever" in c or "when " in c)
-        ),
-        "opponents",
-    ),
+    # ADR-0027 β: creature_etb (the ETB-VALUE / ETB-doubler / delayed-ETB-payoff lane,
+    # both the "you" value scope and the "opponents" punisher scope) migrated to the
+    # Card IR via a BYTE-IDENTICAL kept mirror. Both _DETECTORS rows are deleted; the
+    # lane now fires from _creature_etb_clauses (the EXACT per-clause logic, pinned
+    # above) via _CREATURE_ETB_MIRROR in _signals_ir over the reminder-stripped
+    # kept_oracle — a structural etb-trigger arm MISSES the static-replacement doublers
+    # (Panharmonicon/Yarok) and Ephara's upkeep-gated delayed payoff. Both rows fired
+    # HIGH-confidence and fed has_other_plan, so the _CREATURE_ETB_PLAN_MIRROR below
+    # re-supplies the commander-damage voltron silence. The serve specs (both scopes)
+    # stay hand-registered in signal_specs.py. CR 603.6.
     # creatures_matter (the go-wide scaling lane) MIGRATED to the Card IR (ADR-0027):
     # its over-broad "creatures you control"/"for each creature you control" substring
     # producer is DELETED. The lane now fires from the structural IR — count/aggregate
@@ -2729,6 +2761,26 @@ _VARIABLE_PT_PLAN_MIRROR = re.compile(VARIABLE_PT_SWEEP_REGEX, re.IGNORECASE)
 # "twice that many … tokens" arm never crosses a sentence, so full-text == per-clause.
 # FILE-SWAP NO-FLOOD: voltron byte-identical (0 gained / 0 lost). CR 903.10a / 702.95.
 _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORECASE)
+
+
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated creature_etb key. Both deleted
+# _DETECTORS rows fired HIGH-confidence (scope 'you' / 'opponents') and counted toward
+# `has_other_plan`, silencing the spurious commander-damage voltron tell on an ETB-value
+# ENGINE (Panharmonicon, Yarok, Ephara, Purphoros — a repeatable-ETB-payoff plan IS its
+# plan, not a vanilla beater). The migrated lane rides a BYTE-IDENTICAL kept mirror (no
+# recall change vs the deleted regex), so this byte-identical gate mirror — NOT
+# _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards (matching the
+# token_copy_matters / variable_pt byte-identical-mirror pattern: a *_PLAN_MIRROR
+# reproduces has_other_plan in the regex-path computation regardless of IR/regex mode).
+# Reuses _creature_etb_clauses (the pinned per-clause helper) over the reminder-STRIPPED
+# joined-face `text` — the deleted _DETECTORS ran per-clause over stripped clauses, so a
+# "when a creature enters" inside a token's printed reminder is already excluded. A
+# non-empty set means at least one clause would have emitted creature_etb. CR 903.10a /
+# 603.6.
+def _creature_etb_has_plan(text: str) -> bool:
+    return bool(_creature_etb_clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4453,6 +4505,16 @@ def extract_signals(
         # inside an Embalm/Offspring keyword reminder never silenced and still doesn't.
         # CR 903.10a.
         or _TOKEN_COPY_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted creature_etb _DETECTORS producers (both
+        # fired HIGH-confidence scope 'you'/'opponents', feeding has_other_plan — an
+        # ETB-value/doubler/punisher engine is no vanilla beater). The migrated lane
+        # rides a byte-identical kept mirror, so this byte-identical gate term — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the old silence for ALL cards. Reuses
+        # the pinned per-clause helper over the reminder-STRIPPED `text` (the deleted
+        # _DETECTORS ran per-clause over stripped clauses), so a "when a creature
+        # enters" inside a token's printed reminder never silenced and still doesn't.
+        # CR 903.10a.
+        or _creature_etb_has_plan(text)
         # ADR-0027 β: re-silence the deleted conjure_matters SWEEP producer (it fired
         # HIGH-confidence scope 'you', feeding has_other_plan — a conjure engine is no
         # vanilla beater; 23 HB-legal conjure creatures power>=2 had it as their only

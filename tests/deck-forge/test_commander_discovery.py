@@ -2,11 +2,17 @@
 Collection slot — Support depth (breadth-down-weighted owned support) or Novelty (signal
 rarity, hard-gated by support). Never EDHREC popularity."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.card_ir import Card, Face
+
+
+def _oid(name):
+    return name.lower().replace(" ", "-").replace(",", "")
 
 
 def _cmd(name, ci, oracle, subtype="Human"):
@@ -22,6 +28,7 @@ def _cmd(name, ci, oracle, subtype="Human"):
         "keywords": [],
         "power": "3",
         "toughness": "3",
+        "oracle_id": _oid(name),
     }
 
 
@@ -38,6 +45,7 @@ def _sup(name, ci, oracle):
         "keywords": [],
         "power": "1",
         "toughness": "1",
+        "oracle_id": _oid(name),
     }
 
 
@@ -62,6 +70,23 @@ G_FILLER = [_sup(f"Forest Friend {i}", ["G"], "") for i in range(3)]
 ALL = [LIFELORD, TOKENLORD, VANILLA, *LIFE_SUP, *TOK_SUP, *W_FILLER, *G_FILLER]
 BY_NAME = {c["name"]: c for c in ALL}
 PILE = {"cards": [{"name": c["name"], "quantity": 1} for c in ALL]}
+# ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror that
+# reads the record's reminder-stripped oracle), so the hybrid serves it ONLY from the IR
+# path. Tokenlord's "creature token enters" lane (and the token makers its creature_etb
+# serve credits as support) depend on it, so wire a bare Card per synthetic oracle_id —
+# the mirror reads the oracle off the record, so the IR need carry no abilities. This
+# mirrors production (real commanders carry real IR).
+_BARE_IR_INDEX = {
+    c["oracle_id"]: Card(
+        oracle_id=c["oracle_id"], name=c["name"], faces=(Face(name=c["name"]),)
+    )
+    for c in ALL
+}
+
+
+@pytest.fixture(autouse=True)
+def _wire_bare_ir(monkeypatch):
+    monkeypatch.setattr(engine, "_ir_index", lambda: _BARE_IR_INDEX)
 
 
 def _state(fmt="commander"):

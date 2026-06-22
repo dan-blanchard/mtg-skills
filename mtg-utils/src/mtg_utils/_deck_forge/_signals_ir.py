@@ -31,6 +31,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _XSPELL_VETO_RE,
     Signal,
     _clauses,
+    _creature_etb_clauses,
     _detect_direct_keywords,
     _detect_keyword_presets,
     _detect_self_blink_fulltext,
@@ -6144,17 +6145,17 @@ def extract_signals_ir(
             # subject the deleted regex required. CR 701.19 / 701.23.
             if ev == "lib_search" and trig.scope == "opp":
                 add("opponent_search_matters", "opponents", "", "")
-            # creature_etb (ETB-VALUE) — cares when OTHER creatures enter (a Typed
-            # subject; a self-ETB SelfRef→None is a one-shot, not this lane). Scope
-            # tracks WHOSE entering creature triggers it (yours = value, an
-            # opponent's = punisher), as the regex forces.
-            if ev == "etb" and "Creature" in tsubs:
-                add(
-                    "creature_etb",
-                    "opponents" if _filter_controller(trig.subject) == "opp" else "you",
-                    "",
-                    "",
-                )
+            # creature_etb (ETB-VALUE) — MIGRATED via a BYTE-IDENTICAL kept mirror, NOT
+            # this structural etb-trigger arm. The structural read (an `etb` trigger w/
+            # a Creature subject) gains 39 Graft/Soulbond bodies but MISSES 62 genuine
+            # creature-ETB cards the regex caught: phase models the ETB-trigger DOUBLERS
+            # (Panharmonicon, Yarok, Elesh Norn, Naban — "entering … triggers an
+            # additional time") as static replacement effects (no `etb` event) and
+            # Ephara's delayed payoff as an upkeep trigger gated on a prior ETB. So the
+            # structural arm is NEUTRALIZED here; the lane rides _CREATURE_ETB_MIRROR
+            # (the EXACT per-clause regex over reminder-stripped kept_oracle) in the
+            # kept-detector pass below — a behavior-neutral re-home (commander-legal:
+            # regex == mirror, 0 lost / 0 over-fire). CR 603.6.
             # tribal_etb_multi (ADR-0027): a tribal ETB-chain payoff — an `etb`
             # trigger whose subject Filter names a CREATURE SUBTYPE ("whenever this or
             # another Zombie you control enters" — Noxious Ghoul, Goblin Assassin,
@@ -6641,6 +6642,18 @@ def extract_signals_ir(
     # the deleted producer). add() dedups. CR 702.95 / 707.
     if _TOKEN_COPY_MATTERS_MIRROR.search(kept_oracle):
         add("token_copy_matters", "you", "", "")
+    # ADR-0027 β — creature_etb BYTE-IDENTICAL kept mirror. The structural etb-trigger
+    # arm (above) gains 39 Graft/Soulbond bodies but MISSES the ETB-trigger DOUBLERS
+    # (Panharmonicon/Yarok/Elesh Norn — phase models "entering … triggers an additional
+    # time" as a static REPLACEMENT effect, no `etb` event) and Ephara's upkeep-gated
+    # delayed payoff (no `etb` event either). So the structural arm is neutralized and
+    # the lane rides the EXACT deleted _DETECTORS logic (_creature_etb_clauses — the
+    # per-clause two-scope regex) over the reminder-stripped kept_oracle. Both scopes
+    # ('you' value/doubler/delayed-payoff, 'opponents' punisher) emit here, matching the
+    # deleted producers (commander-legal corpus: regex == mirror, 0 lost / 0 over-fire).
+    # add() dedups. CR 603.6.
+    for _etb_key, _etb_scope in _creature_etb_clauses(kept_oracle):
+        add(_etb_key, _etb_scope, "", "")
     # ADR-0027 β — color_change BYTE-IDENTICAL kept mirror. phase parses the "becomes
     # the color of your choice / all colors" clause INCONSISTENTLY (20 cards as a nested
     # AddChosenColor modification, 4 as a bare Unimplemented "become"), and the only IR

@@ -1874,6 +1874,55 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # identical-mirror pattern (restores has_other_plan for ALL cards regardless of
         # IR/regex mode). CR 702.95 (populate) / 707 (copies).
         "token_copy_matters",
+        # ADR-0027 β — creature_etb (the ETB-VALUE lane: a payoff that triggers
+        # "whenever a creature you control enters" — Cathars' Crusade, Impact Tremors,
+        # Soul Warden; the ETB-trigger DOUBLERS — Panharmonicon, Yarok, Elesh Norn,
+        # Naban; the delayed ETB payoff — Ephara, Saddled Rimestag; plus the
+        # 'opponents' PUNISHER scope — "a creature an opponent controls enters" —
+        # Lictor, Theoretical Duplication). MIGRATED VIA A BYTE-IDENTICAL KEPT-MIRROR
+        # (signals-only, NO sidecar bump), NOT the pre-existing structural etb-trigger
+        # arm.
+        #
+        # STRUCTURAL ARM EXISTS but is a NON-byte-identical MIX (so NEUTRALIZED). The IR
+        # arm (an `etb` trigger w/ a Creature subject, scoped by the trigger-subject
+        # controller) fires 344 commander-legal vs the deleted regex's 367: it GAINS 39
+        # Graft/Soulbond bodies ("Whenever another creature enters" from the Graft
+        # reminder / Soulbond "when either enters") — genuine ETB triggers — but MISSES
+        # 62 the regex caught. The recall gap is GENUINE, not over-fire: 8 ETB-trigger
+        # DOUBLERS (Panharmonicon, Yarok, Elesh Norn, Ancient Greenwarden, Naban,
+        # Starfield Vocalist — phase models "entering … triggers an additional time" as
+        # a static REPLACEMENT effect, no `etb` event), 4 delayed payoffs (Ephara,
+        # Saddled Rimestag, Zhalfirin Decoy, Bellowing Elk — phase models "if you had a
+        # creature enter … this/last turn" as an upkeep/static trigger, no `etb` event),
+        # 3 opp-punishers (Lictor, Theoretical Duplication, Crafty Cutpurse), plus the
+        # broad "whenever a creature you control enters → reward" tail (First Day of
+        # Class, Kindred Discovery, Thunder of Unity, the Huatli/Kiora/Mila emblems).
+        # Because the structural set is a MIX (recall gain on one axis, recall gap on
+        # another), a structural migration is NOT behavior-neutral — it would re-home
+        # creature_etb with a ±non-zero drift, NOT a clean re-home.
+        #
+        # CHOSEN PATH 2 (byte-identical kept-mirror). The structural etb-trigger arm is
+        # NEUTRALIZED; the lane fires from _creature_etb_clauses in _signals_regex (the
+        # EXACT per-clause logic of the two deleted _DETECTORS rows) invoked in the
+        # extract_signals_ir kept-detector pass over the reminder-STRIPPED kept_oracle.
+        # Both scopes emit. The serve specs (both ("creature_etb","you") and
+        # ("creature_etb","opponents")) were always hand-registered in signal_specs.py,
+        # independent of the deleted producer (creature_etb is intentionally EXCLUDED
+        # from SWEEP_DETECTORS), so they survive unchanged.
+        #
+        # Floor-disabled residual vs the deleted regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): both == 367 (key,scope), ir_only == 0,
+        # regex_only == 0 — the mirror is byte-identical to the deleted regex over the
+        # same reminder-stripped per-clause input, so the served set is UNCHANGED (a
+        # true behavior-neutral re-home, no recall gain, no over-fire). floor-mirror-dep
+        # == 0 (creature_etb is NOT an _IR_FLOOR_LANE). Both deleted producers fired
+        # HIGH-confidence (scope 'you'/'opponents') and counted toward has_other_plan
+        # (an ETB-value/doubler/punisher engine is a real plan, not a vanilla beater),
+        # so _creature_etb_has_plan in _signals_regex re-supplies that voltron silence —
+        # NOT _VOLTRON_SILENCING_PLAN_KEYS, matching the token_copy_matters/variable_pt
+        # byte-identical-mirror pattern (restores has_other_plan for ALL cards
+        # regardless of IR/regex mode). CR 603.6.
+        "creature_etb",
         # ADR-0027 β — entered_attacker (the freshly-entered-attacker payoff: a
         # creature that ENTERED this turn paired with attacks / deals combat damage —
         # Samut "if that creature entered this turn, draw a card" on combat damage;

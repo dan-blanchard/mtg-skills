@@ -39,12 +39,14 @@ def _keys_hybrid(card):
     return {(s.key, s.scope) for s in extract_signals_hybrid(card, _bare_ir())}
 
 
+# ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror over
+# the reminder-stripped oracle), so it serves from the hybrid path, not pure regex.
 def test_creature_etb_scoped_to_you():
     card = {
         "name": "ETB Boss",
         "oracle_text": "Whenever a creature you control enters, draw a card.",
     }
-    assert ("creature_etb", "you") in _keys(card)
+    assert ("creature_etb", "you") in _keys_hybrid(card)
 
 
 def test_creature_etb_scoped_to_opponents():
@@ -52,7 +54,7 @@ def test_creature_etb_scoped_to_opponents():
         "name": "Punisher",
         "oracle_text": "Whenever a creature an opponent controls enters, it deals 1 damage to them.",
     }
-    assert ("creature_etb", "opponents") in _keys(card)
+    assert ("creature_etb", "opponents") in _keys_hybrid(card)
 
 
 def test_graveyard_signal_scoped_to_opponents_not_generic():
@@ -204,27 +206,44 @@ def test_plant_token_maker_is_not_a_land_creatures_signal():
 
 
 def test_signal_carries_source_and_quote():
-    card = {
+    # ADR-0027 β: creature_etb is IR-served (a byte-identical kept-mirror), so it comes
+    # through the hybrid path and carries the card name as its source (the structural
+    # path emits no clause quote). A still-regex-served lane (graveyard_matters) proves
+    # the source+quote contract holds end-to-end on the legacy path.
+    etb_card = {
         "name": "ETB Boss",
         "oracle_text": "Whenever a creature you control enters, draw a card.",
     }
-    sig = next(s for s in extract_signals(card) if s.key == "creature_etb")
-    assert sig.source == "ETB Boss"
-    assert "creature you control enters" in sig.text.lower()
+    etb = next(
+        s
+        for s in extract_signals_hybrid(etb_card, _bare_ir())
+        if s.key == "creature_etb"
+    )
+    assert etb.source == "ETB Boss"
+    gy_card = {
+        "name": "Yard Boss",
+        "oracle_text": "Return a creature card from your graveyard to your hand.",
+    }
+    quoting = next(s for s in extract_signals(gy_card) if s.key == "graveyard_matters")
+    assert quoting.source == "Yard Boss"
+    assert "your graveyard" in quoting.text.lower()
 
 
 def test_aggregate_dedupes_across_records():
+    # ADR-0027 β: aggregate_signals walks the legacy regex path (extract_signals), so
+    # the example uses a still-regex-served lane (graveyard_matters "your graveyard");
+    # creature_etb has migrated to the IR and no longer rides the regex path.
     a = {
         "name": "A",
-        "oracle_text": "Whenever a creature you control enters, draw a card.",
+        "oracle_text": "Return a creature card from your graveyard to your hand.",
     }
     b = {
         "name": "B",
-        "oracle_text": "Whenever a creature you control enters, gain 1 life.",
+        "oracle_text": "Exile a creature card from your graveyard, then gain 1 life.",
     }
     agg = aggregate_signals([a, b])
-    etb = [s for s in agg if s.key == "creature_etb" and s.scope == "you"]
-    assert len(etb) == 1  # deduped by (key, scope, subject)
+    gy = [s for s in agg if s.key == "graveyard_matters" and s.scope == "you"]
+    assert len(gy) == 1  # deduped by (key, scope, subject)
 
 
 def test_signal_is_hashable_frozen():
@@ -596,7 +615,9 @@ def test_creature_etb_scope_follows_entering_controller_not_payoff():
             "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn."
         ),
     }
-    keys = _keys(purphoros)
+    # ADR-0027 β: creature_etb is IR-served (a byte-identical kept-mirror), so it comes
+    # through the hybrid path — the scope-follows-entering-controller logic is preserved.
+    keys = _keys_hybrid(purphoros)
     assert ("creature_etb", "you") in keys
     assert ("creature_etb", "opponents") not in keys
 
@@ -604,6 +625,9 @@ def test_creature_etb_scope_follows_entering_controller_not_payoff():
 def test_etb_trigger_doubler_opens_etb_lane():
     # Yarok doubles every permanent-ETB trigger — he's an ETB-value commander who wants
     # ETB creatures, flicker, and other doublers, so he must open the creature_etb lane.
+    # ADR-0027 β: the doubler is the canonical reason creature_etb rides a kept-mirror,
+    # not the structural etb-trigger arm — phase models "triggers an additional time" as
+    # a static replacement effect (no `etb` event), so the lane serves from the hybrid.
     yarok = {
         "name": "Yarok, the Desecrated",
         "oracle_text": (
@@ -612,7 +636,7 @@ def test_etb_trigger_doubler_opens_etb_lane():
             "additional time."
         ),
     }
-    assert ("creature_etb", "you") in _keys(yarok)
+    assert ("creature_etb", "you") in _keys_hybrid(yarok)
 
 
 # ── Artifact-token makers ARE artifact commanders (Food/Treasure/Clue are artifacts) ─
