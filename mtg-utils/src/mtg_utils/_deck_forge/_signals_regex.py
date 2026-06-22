@@ -548,12 +548,18 @@ _DETECTORS: tuple[tuple[str, Callable[..., bool], str | None], ...] = (
         ),
         "opponents",
     ),
-    # "whenever you discard" payoff OR a loot outlet ("draw a card, then discard").
-    (
-        "discard_matters",
-        _re(r"whenever you discard|draw (?:a|two|three|x|\d+) cards?, then discard"),
-        "you",
-    ),
+    # ADR-0027: discard_matters migrated to the Card IR — this _DETECTORS producer (the
+    # "whenever you discard" payoff OR the same-clause loot outlet "draw a card, then
+    # discard") is DELETED. Both halves are reproduced from the IR: the "whenever you
+    # discard" payoff (Hashaton, "whenever a player discards") fires from the scope-
+    # gated `discarded`-trigger structural arm (scope != "opp", excluding the
+    # opponent_discard punisher lane), and the loot outlet from the byte-identical
+    # _LOOT_FULLTEXT_RE kept-mirror in signals._IR_KEPT_DETECTORS (whose broader pattern
+    # is a strict superset of this entry's "draw N cards, then discard" arm). The serve
+    # spec stays hand-registered in signal_specs.py; the deleted producer fed
+    # has_other_plan (HIGH-confidence, scope 'you'), so its voltron silence is restored
+    # by _DISCARD_MATTERS_PLAN_MIRROR (== _LOOT_FULLTEXT_RE) below. CR 702.35 / 120.1 /
+    # 903.10a.
     # ADR-0027: lifeloss_matters migrated to the Card IR — a structured `lose_life`
     # Effect (scope you→you else opponents; the drain / self-loss split), a
     # `life_payment` marker + a paylife ACTIVATION COST buying a non-ramp engine (the
@@ -3851,8 +3857,32 @@ _COMBAT_BUFF_PUMP_RE = re.compile(
 # Loot/rummage across a sentence boundary (Alpharael): "draw N cards. Then discard".
 # Require the discard to be the ADJACENT clause (one period/comma + optional "then")
 # so an unrelated later sentence ("draw two cards. You gain 3 life.") never matches.
+# ADR-0027: the discard_matters _DETECTORS producer that read this is DELETED (the lane
+# is migrated to the Card IR — a byte-identical _LOOT_FULLTEXT_RE kept-mirror in
+# signals._IR_KEPT_DETECTORS + a scope-gated `discarded`-trigger structural arm). This
+# regex SURVIVES (referenced by the voltron mirror below).
 _LOOT_FULLTEXT_RE = re.compile(
     r"\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s*"
+    r"(?:then )?(?:you )?(?:may )?discard",
+    re.IGNORECASE,
+)
+# ADR-0027: the HAS-OTHER-PLAN voltron mirror for the migrated discard_matters key. TWO
+# regex producers fed has_other_plan HIGH-confidence (scope 'you'): the _DETECTORS entry
+# ("whenever you discard" payoff OR the same-clause "draw N cards, then discard" loot)
+# AND the cross-sentence _LOOT_FULLTEXT_RE loot. A loot/discard ENGINE is a real plan
+# (Anje Falkenrath, Rielle, Containment Construct, Hashaton), not a vanilla beater. The
+# union pattern = "whenever you discard" OR _LOOT_FULLTEXT_RE (whose broader loot arm is
+# a strict superset of the _DETECTORS entry's "draw N cards, then discard" arm). The
+# migrated lane rides the scope-gated structural arm + the loot kept-mirror that
+# together are BROADER than the deleted regex (+74 ir_only), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 74 payoff bodies; this mirror
+# restores the deleted producers' EXACT silence set for ALL cards regardless of IR/regex
+# mode, so the file-swap shows voltron delta 0. Matched against the reminder-STRIPPED
+# `text` (both deleted producers ran over `re.sub(r"\([^)]*\)", " ", …)`-stripped text).
+# CR 702.35 / 120.1 / 903.10a.
+_DISCARD_MATTERS_PLAN_MIRROR = re.compile(
+    r"whenever you discard"
+    r"|\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s*"
     r"(?:then )?(?:you )?(?:may )?discard",
     re.IGNORECASE,
 )
@@ -4479,8 +4509,15 @@ def extract_signals(
     # correctly drops. The legacy active-reanimation oracle-regex producer is deleted.
     if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
         add("combat_buff_engine", "you", "", text[:160])
-    if _LOOT_FULLTEXT_RE.search(text):
-        add("discard_matters", "you", "", text[:160])
+    # ADR-0027: discard_matters migrated to the Card IR — a scope-gated `discarded`-
+    # trigger structural arm (scope != "opp", excluding the opponent_discard punisher
+    # lane) PLUS a byte-identical _LOOT_FULLTEXT_RE kept-mirror in
+    # signals._IR_KEPT_DETECTORS for the loot/rummage OUTLET ("draw N cards, then
+    # discard" — Careful Study, Merfolk Looter) that has no `discarded` trigger. This
+    # _LOOT_FULLTEXT_RE producer is deleted; the serve spec stays hand-registered in
+    # signal_specs.py. The deleted producer fed has_other_plan (HIGH-confidence, scope
+    # 'you'), so its voltron silence is restored by _DISCARD_MATTERS_PLAN_MIRROR below.
+    # CR 702.35 / 120.1 / 903.10a.
     # Ability-strip payoff (Abigale): a commander that STRIPS a creature's abilities and
     # KEEPS it as a beater (keyword counters buff it) wants big cheap creatures whose
     # crippling DRAWBACK it neutralizes (Rotting Regisaur's upkeep-discard → keep the
@@ -4713,6 +4750,17 @@ def extract_signals(
         # over stripped, lowercased text); neither arm spans a sentence, so
         # full-text == per-clause. CR 903.10a.
         or _DRAW_MATTERS_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted discard_matters _LOOT_FULLTEXT_RE producer
+        # (it fired HIGH-confidence scope 'you', feeding has_other_plan — a loot/
+        # discard ENGINE is a value plan, not a vanilla beater: Anje Falkenrath,
+        # Rielle, Containment Construct). The migrated lane rides a scope-gated
+        # `discarded`-trigger arm + a byte-identical loot kept-mirror that are BROADER
+        # (+74 ir_only), so this byte-identical gate mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS — restores the deleted regex's exact silence set
+        # without over-silencing the ir_only gains. Matched against the reminder-
+        # STRIPPED `text` (the deleted producer ran over `re.sub(r"\([^)]*\)", " ",
+        # …)`-stripped text). CR 702.35 / 903.10a.
+        or _DISCARD_MATTERS_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

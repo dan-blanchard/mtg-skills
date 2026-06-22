@@ -21,12 +21,16 @@ def _keys(oracle, **kw):
 
 
 def _hybrid_sigs(oracle, name="X", **extra):
-    # ADR-0027: migrated keys (lifeloss_matters) are served from the IR; build the IR
-    # from the same oracle so the hybrid reads it like production.
+    # ADR-0027: migrated keys (lifeloss_matters, discard_matters) are served from the
+    # IR; build the IR from the same oracle so the hybrid reads it like production.
     card = {"name": name, "oracle_text": oracle, "type_line": "Legendary Creature"}
     card.update(extra)
     ir = project_card([{**card, "card_type": {"core_types": ["Creature"]}}])
     return extract_signals_hybrid(card, ir)
+
+
+def _hybrid_keys(oracle, name="X", **extra):
+    return {s.key for s in _hybrid_sigs(oracle, name=name, **extra)}
 
 
 # ── Gogo: clone via bare infinitive "become a copy of" ──
@@ -160,9 +164,16 @@ ALPHARAEL = (
 
 
 def test_alpharael_loot_is_discard():
-    assert "discard_matters" in _keys(ALPHARAEL, name="Alpharael, Dreaming Acolyte")
+    # ADR-0027: discard_matters migrated to the Card IR — the cross-sentence loot
+    # ("draw two cards. Then discard") fires from the byte-identical _LOOT_FULLTEXT_RE
+    # kept-mirror in the IR path, not the deleted regex producer.
+    assert "discard_matters" in _hybrid_keys(
+        ALPHARAEL, name="Alpharael, Dreaming Acolyte"
+    )
+    assert "discard_matters" not in _keys(ALPHARAEL, name="Alpharael, Dreaming Acolyte")
 
 
 def test_draw_then_unrelated_not_loot():
-    # draw followed by an unrelated sentence must not read as a loot outlet.
-    assert "discard_matters" not in _keys("Draw two cards. You gain 3 life.")
+    # draw followed by an unrelated sentence must not read as a loot outlet (the loot
+    # mirror's adjacency requirement keeps it out). ADR-0027: checked via the hybrid.
+    assert "discard_matters" not in _hybrid_keys("Draw two cards. You gain 3 life.")

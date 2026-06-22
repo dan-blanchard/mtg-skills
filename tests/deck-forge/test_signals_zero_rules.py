@@ -4,7 +4,7 @@ workflow surfaced as clean, measured wins). Each recovers a real archetype the
 """
 
 from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
+from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 
 
 def _ks(card):
@@ -125,11 +125,32 @@ def test_cast_from_exile_play_from_exile_trigger():
 
 
 def test_discard_matters():
+    # ADR-0027: discard_matters migrated to the Card IR — Hashaton's "whenever you
+    # discard a creature card" payoff fires from the scope-gated `discarded`-trigger
+    # structural arm (scope != "opp"), NOT the deleted regex producer. Check the
+    # hybrid path with a real `discarded`-trigger IR.
     c = {
         "name": "Hashaton, Scarab's Fist",
         "oracle_text": "Whenever you discard a creature card, you may pay {2}{U}. If you do, create a tapped token that's a copy of that card, except it's a 4/4 black Zombie.",
     }
-    assert ("discard_matters", "you") in _ks(c)
+    ir = Card(
+        oracle_id="x",
+        name="Hashaton, Scarab's Fist",
+        faces=(
+            Face(
+                name="Hashaton, Scarab's Fist",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(event="discarded", scope="you"),
+                    ),
+                ),
+            ),
+        ),
+    )
+    hybrid = {(s.key, s.scope) for s in extract_signals_hybrid(c, ir)}
+    assert ("discard_matters", "you") in hybrid
+    assert ("discard_matters", "you") not in _ks(c)
 
 
 def test_lifeloss_drain_scoped_opponents():

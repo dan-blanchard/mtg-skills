@@ -3378,6 +3378,66 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # siblings land_sacrifice_matters / land_exchange / removal_matters / stax_taxes
         # drift 0; 0 other-key drift across all 298 keys. CR 305.6 / 903.10a.
         "land_destruction",
+        # ADR-0027 — discard_matters (the SELF-discard payoff / discard-as-enabler
+        # avenue: a loot/rummage outlet — "draw N cards, then discard" (Careful
+        # Study, Merfolk Looter, Faithless Looting, Alpharael) — PLUS the discard
+        # PAYOFF — Madness (CR 702.35 discard-to-cast: Basking Rootwalla, Fiery
+        # Temper), "whenever YOU / a player discards" (Asylum Visitor, Confessor,
+        # Spirit Cairn), and "when an opponent causes YOU to discard this card"
+        # (Sand Golem, Psychic Purge, Orvar). scope "you"). MIGRATED VIA A
+        # SCOPE-GATED STRUCTURAL ARM + a byte-identical LOOT kept-mirror + a voltron
+        # _PLAN_MIRROR. NO sidecar bump (the v20 projection already emits the
+        # `discarded` trigger event the structural arm reads).
+        #
+        # STRUCTURAL ARM (scope-gated). extract_signals_ir fires discard_matters
+        # scope "you" on a `discarded` trigger with trig.scope != "opp". The gate is
+        # the discriminator: phase parses a self-discard payoff ("whenever you
+        # discard", Madness's discard-this-card-into-exile, "when an opponent causes
+        # you to discard this card") as scope 'you' and a symmetric "whenever a
+        # player discards" as scope 'any' — both KEPT; a "whenever an OPPONENT
+        # discards" punisher is scope 'opp' and is the SEPARATE opponent_discard lane
+        # (Megrim, Liliana's Caress, Waste Not, Tinybones Bauble Burglar, Nath,
+        # Sangromancer) the deleted regex deliberately excluded — the loot regex never
+        # matched "whenever an opponent discards". The PRE-migration un-gated arm
+        # (fired discard_matters on EVERY discarded trigger) OVER-fired on those opp-
+        # discard punishers; the gate drops them while KEEPING the 74 genuine
+        # you/any-scoped self-discard payoffs the loot-only regex missed.
+        #
+        # LOOT KEPT-MIRROR (recall recovery, NO sidecar bump). The deleted regex
+        # producer was the _LOOT_FULLTEXT_RE full-text loot/rummage detector ("draw N
+        # cards[.,] then/you/may discard" — Careful Study, Merfolk Looter), a
+        # draw-Effect-then-discard-Effect co-occurrence with NO `discarded` trigger.
+        # A byte-identical discard_matters row in signals._IR_KEPT_DETECTORS
+        # reproduces the EXACT deleted producer (the same _LOOT_FULLTEXT_RE) over the
+        # reminder-STRIPPED kept_oracle — byte-identical to the deleted producer's
+        # `re.sub(r"\([^)]*\)", " ", …)`-stripped input (and joining DFC faces via
+        # get_oracle_text, so the back-face loot lives — Careful Study on Spellbook
+        # Seeker's back). The loot regex never matches an opp-discard punisher, so it
+        # re-introduces ZERO over-fire. The serve spec stays hand-registered in
+        # signal_specs.py (("discard_matters","you")).
+        #
+        # GATES. floor-mirror-dep == 0 (discard_matters is NOT an _IR_FLOOR_LANE — it
+        # was a hand-written _LITERAL_ADD producer, like the sibling draw_matters /
+        # opponent_discard). FLOOR-DISABLED residual vs the deleted regex (commander-
+        # legal, dedupe oracle_id, _IR_FLOOR_LANES=frozenset()): COMBINED struct +
+        # loot mirror gives both == 277, regex_only == 0 (NO recall lost), ir_only ==
+        # 74 (all genuine you/any-scoped self-discard payoffs the loot-only literal-
+        # regex missed: 59 Madness, 4 symmetric "whenever a player discards", 9 "opp
+        # causes you to discard this card", 2 "when you discard"). SCOPE PARITY: 0
+        # mismatch on the 277 both-fire (both "you"). opponent_discard (the forced-
+        # OPPONENT-discard EFFECT lane) is DISJOINT — it keys on the `discard` EFFECT
+        # scope 'opp', not the `discarded` TRIGGER — so it does NOT drift.
+        #
+        # VOLTRON. The deleted regex producer fired HIGH-confidence (scope 'you') and
+        # fed has_other_plan (discard_matters is not in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS; a loot/discard engine is no vanilla beater), so a
+        # byte-identical _DISCARD_MATTERS_PLAN_MIRROR in _signals_regex re-supplies the
+        # commander-damage voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS, since
+        # the combined IR arm is BROADER (+74 ir_only) and the silencing-keys path
+        # would over-silence those payoff bodies. Restores has_other_plan for ALL
+        # cards regardless of IR/regex mode (FILE-SWAP voltron delta 0). CR 702.35
+        # (madness) / 120.1 (draw) / 903.10a (voltron).
+        "discard_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

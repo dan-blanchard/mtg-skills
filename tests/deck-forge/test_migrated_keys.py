@@ -1138,6 +1138,31 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # discard_matters ← a `discarded` trigger with scope != "opp" (Basking Rootwalla's
+    # Madness — phase parses "If you discard this card, …" as a `discarded` trigger
+    # scope 'you', which the scope-gated structural arm keeps; an OPP-scoped discarded
+    # trigger is the separate opponent_discard punisher lane, excluded). The loot/
+    # rummage OUTLET ("draw N cards, then discard") has no `discarded` trigger and
+    # rides the byte-identical _LOOT_FULLTEXT_RE _IR_KEPT_DETECTORS mirror instead.
+    # ADR-0027.
+    "discard_matters": (
+        {
+            "name": "Basking Rootwalla",
+            "type_line": "Creature — Lizard",
+            "oracle_text": (
+                "{1}{G}: This creature gets +2/+2 until end of turn. Activate only "
+                "once each turn.\n"
+                "Madness {0} (If you discard this card, discard it into exile. When "
+                "you do, cast it for its madness cost or put it into your graveyard.)"
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="discarded", scope="you"),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

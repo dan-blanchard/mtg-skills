@@ -706,6 +706,32 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 — discard_matters (the loot/rummage discard-as-enabler outlet). The
+    # structural arm (a `discarded` trigger, scope != "opp") covers the Madness /
+    # "whenever you discard" / "opp causes you to discard this card" PAYOFFS, but the
+    # loot/rummage OUTLET ("draw N cards[.,] then/you/may discard" — Careful Study,
+    # Merfolk Looter, Faithless Looting, Alpharael) is a draw-Effect-then-discard-
+    # Effect co-occurrence phase carries NO `discarded` trigger for. So this byte-
+    # identical mirror of the deleted _LOOT_FULLTEXT_RE producer recovers the loot
+    # outlets the structural arm alone misses. Run as a flat .search over the reminder-
+    # STRIPPED kept_oracle — byte-identical to the deleted producer's
+    # `re.sub(r"\([^)]*\)", " ", …)`-stripped input (and joining DFC faces via
+    # get_oracle_text, so a back-face loot — Careful Study on Spellbook Seeker's back —
+    # still fires). Combined (struct + loot mirror) reproduces the deleted regex with
+    # regex_only==0 + 74 genuine you/any-scoped self-discard recall gains and 0 opp
+    # over-fire (the loot regex never matches an opp-discard punisher). The
+    # _LOOT_FULLTEXT_RE adjacency (the discard ADJACENT to the draw, one period/comma)
+    # keeps an unrelated later "discard" out, exactly as the deleted producer did.
+    # CR 702.35 / 120.1.
+    (
+        "discard_matters",
+        re.compile(
+            r"\bdraw (?:a|an|two|three|four|five|x|\d+) cards?[.,]?\s*"
+            r"(?:then )?(?:you )?(?:may )?discard",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # ADR-0027 β — conjure_matters (CONJURE: the Arena/Alchemy "create a real CARD,
     # not a token" mechanic, CR 701.66a). phase carries a structural `Conjure` effect
     # type but the projection folds it to make_token AND that structural set is
@@ -6457,7 +6483,23 @@ def extract_signals_ir(
                 add("damage_reflect", "you", "", "")
             if ev == "taps":
                 add("tap_untap_matters", "you", "", "")
-            if ev == "discarded":
+            # ADR-0027 — discard_matters (a SELF-discard payoff — Madness's
+            # discard-this-card-into-exile, "whenever you discard", "when an opponent
+            # causes YOU to discard this card"). SCOPE-GATED to scope != "opp": phase
+            # parses a self-discard payoff as scope 'you' and a symmetric "whenever a
+            # player discards" as scope 'any' (both kept); a "whenever an OPPONENT
+            # discards" punisher is scope 'opp' — the SEPARATE opponent_discard lane
+            # (Megrim, Liliana's Caress, Waste Not, Tinybones Bauble Burglar, Nath,
+            # Sangromancer) the deleted loot regex deliberately excluded ("draw N
+            # cards, then discard" never matched "whenever an opponent discards").
+            # Gating drops those opp-discard over-fires the un-gated arm produced while
+            # keeping the 74 genuine you/any-scoped self-discard payoffs the loot-only
+            # regex missed (59 Madness, 4 symmetric "whenever a player discards", 9
+            # "opp causes you to discard this card", 2 "when you discard"). The
+            # loot/rummage outlet ("draw N cards, then discard" — Careful Study,
+            # Merfolk Looter) has NO `discarded` trigger, so it rides the
+            # _IR_KEPT_DETECTORS discard_matters mirror below. CR 702.35 / 120.1.
+            if ev == "discarded" and trig.scope != "opp":
                 add("discard_matters", "you", "", "")
             # Token-subtype sacrifice PAYOFF (trigger side): "whenever you sacrifice
             # one or more <Subtype> tokens, ..." (Blood Hypnotist). The token subtype
