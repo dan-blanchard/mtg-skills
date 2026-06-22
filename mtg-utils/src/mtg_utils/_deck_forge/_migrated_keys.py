@@ -2345,6 +2345,58 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # re-supply is byte-identical (230 == 230), so no over-silence. CR 111.1 /
         # 701.47 (amass) / 702.123 (fabricate).
         "tokens_matter",
+        # ADR-0027 — island_matters (the islandwalk / island-attack-restriction lane:
+        # islandwalk BEARERS — Thada Adel, Wrexial; islandwalk GRANTERS / token-makers /
+        # references — Lord of Atlantis & Master of the Pearl Trident (Merfolk anthem),
+        # Fishliver Oil (Aura grant), Chasm Skulker / Coral Barrier / The Sea Devils
+        # (make islandwalk tokens), Shore Snapper / Deeptread Merrow / Piracy Charm /
+        # War Barge / Part Water / Sandals of Abdallah / Streambed Aquitects (grant
+        # islandwalk), Island Sanctuary (cares about islandwalk), Mystic Decree / Gosta
+        # Dirk / Undertow (neutralize islandwalk), Merfolk Assassin (destroys islandwalk
+        # creatures); plus the Zhou Yu "can't attack unless defending player controls an
+        # Island" attack restriction). MIGRATED VIA A BYTE-IDENTICAL KEPT-MIRROR
+        # (signals-only, NO sidecar bump), NOT the Scryfall `islandwalk` keyword-array
+        # path.
+        #
+        # WHY KEPT-MIRROR, NOT THE KEYWORD ARM: the IR keyword route
+        # (_IR_KEYWORD_MAP['islandwalk'], a card['keywords'] lookup) covers only the
+        # islandwalk BEARERS (the keyword the card itself HAS). It MISSES every
+        # islandwalk GRANTER / token-maker / reference — Scryfall's keyword array lists
+        # conferred keywords nowhere (the conferred-keyword gap), so Lord of Atlantis
+        # ("Other Merfolk … have islandwalk"), Fishliver Oil, Chasm Skulker's tokens,
+        # and the neutralizers / destroyers all carry keywords=[]. The deleted regex
+        # `\bislandwalk\b` over the oracle catches all of them; the keyword route can't.
+        # So the keyword entry is REMOVED (it is a strict subset — every
+        # islandwalk-keyword bearer also has the bare word in its reminder-stripped
+        # oracle, verified 0 keyword-only cards) and the lane fires from a
+        # byte-identical kept mirror of the EXACT deleted producer.
+        #
+        # CHOSEN PATH (kept-mirror). The lane fires from _ISLAND_MATTERS_MIRROR in
+        # _signals_ir (pinned as ISLAND_MATTERS_REGEX in _sweep_detectors): the EXACT
+        # deleted _HAND_FLOOR regex (`\bislandwalk\b` OR the Zhou Yu attack restriction)
+        # run FLAT over the reminder-STRIPPED kept_oracle. The regex has NO `[^.]*`
+        # span, so it cannot cross a clause boundary → flat == per-clause (verified: 0
+        # mismatches over the commander-legal corpus). The serve spec stays
+        # hand-registered in signal_specs.py (its curated "lands become Islands" search
+        # regex was always independent of this producer).
+        #
+        # Floor-disabled residual vs the deleted _HAND_FLOOR regex (commander-legal,
+        # _IR_FLOOR_LANES=frozenset(), by oracle_id): both == 79, ir_only == 0,
+        # regex_only == 0 — the mirror is byte-identical to the deleted regex over the
+        # same reminder-stripped input, so the served set is UNCHANGED (a true behavior-
+        # neutral re-home, no recall gain, no over-fire). floor-mirror-dep -> 0
+        # (island_matters REMOVED from _IR_FLOOR_LANES). The deleted producer fired
+        # HIGH-confidence (forced scope 'you') and counted toward has_other_plan (24
+        # commander-legal island creatures — Sea Serpent, Marjhan, Zhou Yu, Island Fish
+        # Jasconius … — carry island_matters as their SOLE high-confidence plan, so the
+        # floor silenced the spurious commander-damage voltron membership tell). The IR
+        # re-supply is byte-identical (79 == 79), so the voltron silence is re-supplied
+        # via _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — the tokens_matter / t2b4-t2b5
+        # kept-mirror precedent (byte-identical → no over-silence, voltron 3010 ->
+        # 3010). CR 702.14c (islandwalk = "can't be blocked as long as the defending
+        # player controls at least one land with the specified land type") / 702.14b
+        # (landwalk is an evasion ability) / 903.10a (commander damage).
+        "island_matters",
         # ADR-0027 β — creature_etb (the ETB-VALUE lane: a payoff that triggers
         # "whenever a creature you control enters" — Cathars' Crusade, Impact Tremors,
         # Soul Warden; the ETB-trigger DOUBLERS — Panharmonicon, Yarok, Elesh Norn,

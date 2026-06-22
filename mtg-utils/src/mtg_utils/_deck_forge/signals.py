@@ -492,6 +492,22 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # counters_matter / suspend_matters / poison_matters precedent. CR 903.10a /
         # 111.1.
         "tokens_matter",
+        # ADR-0027: island_matters fired high-confidence (forced scope 'you') in the
+        # regex path (the _HAND_FLOOR producer, now deleted) and so counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on the 24
+        # commander-legal island creatures that carry island_matters as their SOLE plan
+        # (Sea Serpent, Marjhan, Zhou Yu, Island Fish Jasconius — islandwalk serpents
+        # that are NOT vanilla beaters in the regex-path's pre-migration view). Its
+        # regex producer is deleted, so the hybrid re-silences from the IR re-supply.
+        # This is a byte-identical kept WORD MIRROR (_ISLAND_MATTERS_MIRROR) — the IR
+        # re-supply reads the SAME reminder-stripped oracle as the deleted regex
+        # (commander-legal, floor-disabled, by oracle_id: both==79, regex_only==0,
+        # ir_only==0), so it is BYTE-IDENTICAL (no over-silence). The keyword-array
+        # route is removed (it would miss the GRANTERS), so a set entry — not an oracle
+        # PLAN mirror — is correct here (every island_matters card carries the bare
+        # `islandwalk` word, so there is no keyword-only body a mirror would miss).
+        # File-swap: voltron 3010→3010, A-B==0.
+        "island_matters",
         # ADR-0027: second_spell_matters fired high-confidence (forced scope 'you')
         # in the regex path — via the _HAND_FLOOR floor producer (it was an
         # _IR_FLOOR_LANE) — and so counted toward has_other_plan, silencing the

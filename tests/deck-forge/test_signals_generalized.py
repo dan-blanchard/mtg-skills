@@ -797,7 +797,9 @@ def test_tap_down_blockers_opens_on_unblockable_unless_all():
 
 def test_island_matters_opens_on_island_attack_restriction():
     # Zhou Yu can only attack if the defender controls an Island, so he wants to turn
-    # opponents' lands into Islands. Real oracle.
+    # opponents' lands into Islands. Real oracle. ADR-0027: island_matters migrated to
+    # the Card IR (a byte-identical kept word mirror of the Zhou Yu attack-restriction
+    # phrase), so it is served from the hybrid (IR) path, not the legacy regex path.
     zhou_yu = {
         "name": "Zhou Yu, Chief Commander",
         "type_line": "Legendary Creature — Human Soldier",
@@ -806,7 +808,7 @@ def test_island_matters_opens_on_island_attack_restriction():
         "toughness": "8",
         "oracle_text": "Zhou Yu can't attack unless defending player controls an Island.",
     }
-    assert ("island_matters", "you") in _ks(zhou_yu)
+    assert ("island_matters", "you") in _ks_hybrid(zhou_yu)
 
 
 def test_entered_attacker_opens_on_entered_this_turn_combat():

@@ -81,6 +81,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     GROUP_HUG_DRAW_REGEX,
+    ISLAND_MATTERS_REGEX,
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     LAND_DESTRUCTION_REGEX,
@@ -604,7 +605,14 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # Academy Manufactor). The dedicated clue_matters lane reads investigate off its own
     # regex floor; this opens artifacts_matter, which has no other tell for these.
     "investigate": (("artifacts_matter", "you"),),
-    "islandwalk": (("island_matters", "you"),),
+    # NB: `islandwalk` is NOT mapped here. ADR-0027 migrated island_matters to a byte-
+    # identical kept WORD MIRROR (_IR_KEPT_DETECTORS) of the deleted regex, NOT the
+    # keyword array: the array lists only the keyword a card HAS, missing every
+    # islandwalk GRANTER / token-maker / reference (Lord of Atlantis, Fishliver Oil,
+    # Chasm Skulker — the conferred-keyword gap, 18 commander-legal cards). The bare
+    # `\bislandwalk\b` word in the mirror catches both bearers AND granters (every
+    # bearer also has the word in its reminder-stripped oracle, so the mirror is a
+    # strict superset of the keyword arm).
     "enlist": (("enlist_matters", "you"),),
     "exalted": (("exalted_lone_attacker", "you"),),
     "exhaust": (("exhaust_matters", "you"),),
@@ -781,6 +789,26 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # text — the exact artifact the deleted producer carried, mirrored unchanged for
     # no-flood parity. CR 700.4 / 603.6c.
     ("dies_recursion", re.compile(DIES_RECURSION_REGEX, re.IGNORECASE), "you"),
+    # ADR-0027 — island_matters BYTE-IDENTICAL kept WORD MIRROR (the islandwalk /
+    # island-attack-restriction lane; pinned as ISLAND_MATTERS_REGEX in
+    # _sweep_detectors). The deleted _HAND_FLOOR producer rides here, NOT the Scryfall
+    # `islandwalk` keyword array (_IR_KEYWORD_MAP entry REMOVED): the keyword array
+    # carries only the keyword a card HAS, so it covers islandwalk BEARERS (Thada Adel,
+    # Wrexial) but MISSES every GRANTER / token-maker / reference (the conferred-keyword
+    # gap) — Lord of Atlantis & Master of the Pearl Trident (Merfolk anthems "have
+    # islandwalk"), Fishliver Oil (Aura grant), Chasm Skulker / Coral Barrier / The Sea
+    # Devils (make islandwalk tokens), Shore Snapper / Deeptread Merrow / Piracy Charm /
+    # War Barge / Part Water / Sandals of Abdallah / Streambed Aquitects (grant
+    # islandwalk), Island Sanctuary (cares about islandwalk attackers), Mystic Decree /
+    # Gosta Dirk / Undertow (neutralize islandwalk), Merfolk Assassin (destroys
+    # islandwalk creatures) — all carry keywords=[]. The bare `\bislandwalk\b` word plus
+    # the Zhou Yu "can't attack unless defending player controls an Island" phrase catch
+    # all of them. No `[^.]*` span, so flat over the reminder-stripped kept_oracle ==
+    # the deleted floor Detector's per-clause scan (commander-legal, floor-disabled, by
+    # oracle_id: both==79, regex_only==0, ir_only==0; scope 'you', HIGH; 0 flat /
+    # per-clause mismatches). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep
+    # -> 0). CR 702.14c (islandwalk evasion) / 702.14b (landwalk).
+    ("island_matters", re.compile(ISLAND_MATTERS_REGEX, re.IGNORECASE), "you"),
     # The four bending keywords are SEPARATE mechanics (rules-lawyer-verified;
     # no unifying "bending ability" rule exists, no card references the set), so
     # each gets its own lane rather than one conflated bending_matters: airbend
@@ -2279,7 +2307,13 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # count operand). Moved floor->kept (floor-mirror-dep -> 0); _HAND_FLOOR gone.
         # type / tribe / permanent-shape synergy
         "vehicles_matter",
-        "island_matters",
+        # island_matters removed — ADR-0027 migrated it to the Card IR via a byte-
+        # identical kept WORD MIRROR (_ISLAND_MATTERS_MIRROR in _IR_KEPT_DETECTORS, the
+        # exact deleted `\bislandwalk\b` OR Zhou Yu attack-restriction regex). NOT the
+        # Scryfall keyword array: that misses every islandwalk GRANTER / token-maker /
+        # reference (the conferred-keyword gap). Moved floor->kept (floor-mirror-dep ->
+        # 0); the _HAND_FLOOR producer + the _IR_KEYWORD_MAP['islandwalk'] entry both
+        # deleted.
         # legends_matter removed — ADR-0027 migrated it to the Card IR (the
         # HasSupertype:Legendary subject-Filter predicate + a kept word mirror merging
         # both _HAND_FLOOR rows for the cost-reduction / target-legendary / cast-
@@ -2636,6 +2670,13 @@ IR_SLICE_KEYS: frozenset[str] = (
             # Batch 2 — cost-based + Filter-predicate lanes:
             "life_payment_insurance",
             "legends_matter",
+            # ADR-0027 — island_matters (islandwalk / island-attack-restriction lane).
+            # Byte-identical _ISLAND_MATTERS_MIRROR kept WORD MIRROR (the bare
+            # `\bislandwalk\b` word + the Zhou Yu restriction); the keyword-array route
+            # is removed (it misses the conferred-keyword GRANTERS). Listed explicitly
+            # now it no longer rides _IR_FLOOR_LANES or _IR_KEYWORD_KEYS into
+            # IR_SLICE_KEYS.
+            "island_matters",
             "historic_matters",
             "commander_matters",  # Batch 15
             # Digital mechanic that was mis-skipped — phase parses Seek (Alchemy

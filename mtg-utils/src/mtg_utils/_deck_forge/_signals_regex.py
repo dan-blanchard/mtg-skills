@@ -1233,18 +1233,19 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # structural shape to read — the literal phrase is the only signal. It fires from an
     # _IR_KEPT_DETECTORS word mirror (the exact regex). This _HAND_FLOOR producer is
     # deleted; the serve spec stays hand-registered in signal_specs.py.
-    # Island matters (Zhou Yu "can't attack unless defending player controls an Island";
-    # islandwalk commanders Thada Adel, Wrexial): wants effects that turn opponents'
-    # lands into Islands (Quicksilver Fountain, Stormtide Leviathan) so the attack
-    # restriction is met / islandwalk connects, plus more islandwalk and island-count.
-    (
-        "island_matters",
-        re.compile(
-            r"\bislandwalk\b|can'?t attack unless defending player controls an island",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: island_matters migrated to the Card IR (the islandwalk / island-
+    # attack-restriction lane: islandwalk bearers Thada Adel / Wrexial; GRANTERS /
+    # token-makers / references Lord of Atlantis / Fishliver Oil / Chasm Skulker /
+    # Mystic Decree; the Zhou Yu "can't attack unless defending player controls an
+    # Island" restriction). The lane fires from a BYTE-IDENTICAL kept WORD MIRROR
+    # (_ISLAND_MATTERS_MIRROR in _signals_ir, pinned as ISLAND_MATTERS_REGEX) — NOT the
+    # Scryfall keyword array, which misses every GRANTER (the conferred-keyword gap).
+    # This _HAND_FLOOR producer is deleted; the serve spec (signal_specs.py, "lands
+    # become Islands") survives. The deleted producer fired HIGH-confidence (forced
+    # scope 'you') and fed has_other_plan (24 island creatures — Sea Serpent, Marjhan,
+    # Zhou Yu — carry island_matters as their SOLE plan), so island_matters is added to
+    # _VOLTRON_SILENCING_PLAN_KEYS (signals.py) for the byte-identical re-supply
+    # (79 == 79, voltron 3010 -> 3010).
     # ADR-0027 β: entered_attacker (the freshly-entered-attacker payoff — Samut
     # "if that creature entered this turn, draw a card" on combat damage;
     # Redoubled Stormsinger forks tokens that entered this turn on attack; Hixus

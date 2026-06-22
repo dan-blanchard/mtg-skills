@@ -214,6 +214,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # island_matters ← a BYTE-IDENTICAL kept mirror (_ISLAND_MATTERS_MIRROR /
+    # ISLAND_MATTERS_REGEX over the reminder-stripped oracle: `\bislandwalk\b` OR the
+    # Zhou Yu attack restriction). NO keyword arm — Lord of Atlantis is an islandwalk
+    # GRANTER with keywords=[] (the conferred-keyword gap), so the Scryfall keyword
+    # array can't see it; the bare word in its oracle drives the mirror. The IR is
+    # vanilla (the mirror reads the dict oracle, not the IR structure). ADR-0027.
+    "island_matters": (
+        {
+            "name": "Lord of Atlantis",
+            "type_line": "Creature — Merfolk",
+            "oracle_text": (
+                "Other Merfolk get +1/+1 and have islandwalk. (They can't be "
+                "blocked as long as defending player controls an Island.)"
+            ),
+            "keywords": [],
+        },
+        _ir(),
+    ),
     # creature_etb ← a BYTE-IDENTICAL kept mirror (_creature_etb_clauses over the
     # reminder-stripped oracle: "Whenever a creature you control enters, put a +1/+1
     # counter on each creature you control"). The structural etb-trigger arm gains
