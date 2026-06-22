@@ -487,6 +487,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # matching the byte-identical kept-mirror precedent (counters_matter /
         # tokens_matter). CR 601 / 903.10a.
         "second_spell_matters",
+        # ADR-0027: kicked_spell_matters fired high-confidence (forced scope 'you') in
+        # the regex path — via the _HAND_FLOOR floor producer (it was an
+        # _IR_FLOOR_LANE) — and so counted toward has_other_plan, silencing the
+        # spurious commander-damage voltron tell on a kicker build-around (Verazol,
+        # Hallar, Verix Bladewing) that is NOT a vanilla beater. The floor producer is
+        # deleted, so the hybrid
+        # re-silences from the IR re-supply. The IR firing is BYTE-IDENTICAL to the
+        # deleted floor regex (commander-legal: regex == hybrid == 85, 0 broadening,
+        # 0 ir_only), so this set entry re-silences exactly without over-silence —
+        # matching the second_spell_matters byte-identical kept-mirror precedent. CR
+        # 702.33 / 903.10a.
+        "kicked_spell_matters",
         # ADR-0027: land_sacrifice_matters fired high-confidence (scope 'you') in the
         # regex path via the _HAND_FLOOR producer and so counted toward has_other_plan
         # (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious

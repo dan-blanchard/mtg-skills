@@ -785,6 +785,35 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
+    # ADR-0027 — kicked_spell_matters (the Kicker build-around: the "whenever you cast
+    # a kicked spell" PAYOFF — Verazol, Hallar, Rumbling Aftershocks, Roost of Drakes —
+    # plus the "if (that|it) (spell) was kicked" CONDITION on kicker spells whose ETB
+    # effect depends on the kicked state — Goblin Bushwhacker, Gatekeeper of Malakir,
+    # Verix Bladewing, Bubble Snare; CR 702.33). This is a KEPT WORD MIRROR, NOT the
+    # bare `\bkicker\b/\bkicked\b` keyword route: that route over-fires +171 (it matches
+    # EVERY card that merely HAS kicker, not the cards that care about a spell being
+    # PAID-kicked — see the DEFERRED note in extract_signals_ir). Kicker is a KEYWORD
+    # (CR 702.33) but the "was kicked" payoff/condition lives in oracle text phase
+    # v0.1.19 under-structures: the "if it was kicked" trigger condition has no
+    # structured tag, and the "whenever you cast a kicked spell" trigger does not carry
+    # a "kicked" qualifier in the IR. So this _KICKED_SPELL_MIRROR is a byte-identical
+    # mirror of the deleted _HAND_FLOOR producer, run as a flat .search over the
+    # reminder-STRIPPED kept_oracle (the floor producer's exact per-clause
+    # reminder-stripped input — no `[^.]` cross-sentence span, so full-text ==
+    # per-clause). FLOOR→KEPT: removed from _IR_FLOOR_LANES (floor-mirror-dep -> 0).
+    # Floor-disabled residual vs the deleted floor regex (commander-legal, dedupe
+    # oracle_id): both == 85, regex_only == 0, ir_only == 0 (byte-identical, all 85
+    # genuine kicker payoffs/conditions). Scope "you" matches the floor producer's
+    # forced scope. The siblings (spellcast_matters / typed_spellcast / storm_matters)
+    # key on different producers and do NOT drift. CR 702.33.
+    (
+        "kicked_spell_matters",
+        re.compile(
+            r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
+            re.IGNORECASE,
+        ),
+        "you",
+    ),
     # ADR-0027 — opponent_discard (the forced-OPPONENT-discard / hand-attack avenue).
     # The structural arm (a `discard` EFFECT scope == "opp") covers the 7 genuine
     # forced-opp-discards phase structures as a scope-'opp' discard effect (Leshrac's
@@ -1672,9 +1701,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "each",
     ),
-    # DEFERRED: kicked_spell_matters (\bkicked\b matches every "if kicked" card,
-    # +171 — the lane is the PAYOFF "whenever you cast a kicked spell", not having
-    # kicker). Needs a narrower payoff/keyword source.
+    # ADR-0027: kicked_spell_matters is now MIGRATED via the byte-identical
+    # _KICKED_SPELL_MIRROR in _IR_KEPT_DETECTORS (the narrow "whenever you cast a kicked
+    # spell" payoff / "if (that|it) (spell) was kicked" condition — NOT the bare
+    # `\bkicked\b` keyword route this note warned over-fires +171 by matching every card
+    # that merely HAS kicker rather than the cards that care about a spell being
+    # PAID-kicked). Moved floor->kept (floor-mirror-dep -> 0); the _HAND_FLOOR producer
+    # is deleted. CR 702.33.
     # ADR-0027 β — legend_rule_off: phase's `legend_exempt` Effect is a strict SUBSET
     # of the regex (2 of 8: only the unbounded "the legend rule doesn't apply" —
     # Mirror Gallery, Brothers Yamazaki). The bounded-scope variant ("doesn't apply
@@ -2000,7 +2033,14 @@ _IR_FLOOR_LANES: frozenset[str] = frozenset(
         # qualifier). Moved floor->kept (floor-mirror-dep -> 0); the _FLOOR_DETECTORS
         # source row is deleted. The hand-written serve spec (signal_specs.py)
         # survives.
-        "kicked_spell_matters",
+        # kicked_spell_matters removed — ADR-0027 migrated it to the Card IR (a
+        # byte-identical _KICKED_SPELL_MIRROR in _IR_KEPT_DETECTORS for the "whenever
+        # you cast a kicked spell" payoff / "if (that|it) (spell) was kicked"
+        # condition, CR 702.33 Kicker). NOT the bare `\bkicked\b` keyword route — that
+        # over-fires +171 on every "if kicked" card (the DEFERRED note below); the lane
+        # is the PAYOFF/CONDITION, not Kicker presence. Moved floor->kept (floor-mirror-
+        # dep -> 0); the _HAND_FLOOR source row is deleted. The hand-written serve spec
+        # (signal_specs.py) survives.
         "big_hand_matters",
         "cast_from_exile",
         "exile_matters",

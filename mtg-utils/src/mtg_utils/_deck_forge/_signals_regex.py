@@ -2046,15 +2046,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the cards phase truncates the trigger phrase off entirely). The `cycling_payoff`
     # category is DISTINCT from phase's native `cycling` landcycling doer, so the lane
     # stays payoff-only. This _HAND_FLOOR producer is deleted; the serve spec stays.
-    # Kicker (CR 702.33): "cast a kicked spell" payoffs; spellcast_matters serves 0/10.
-    (
-        "kicked_spell_matters",
-        re.compile(
-            r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027: kicked_spell_matters migrated to the Card IR — detected from a
+    # byte-identical _KICKED_SPELL_MIRROR in signals._IR_KEPT_DETECTORS (the narrow
+    # "whenever you cast a kicked spell" payoff / "if (that|it) (spell) was kicked"
+    # condition, CR 702.33 Kicker). NOT the bare `\bkicked\b` keyword route — that
+    # over-fires +171 on every "if kicked" card; the lane is the PAYOFF/CONDITION, not
+    # Kicker presence. This _HAND_FLOOR producer (formerly an _IR_FLOOR_LANE; moved
+    # floor->kept, floor-mirror-dep -> 0) is deleted; the hand-written serve spec
+    # (signal_specs.py) survives. The producer fired high-confidence scope 'you' and fed
+    # has_other_plan, so kicked_spell_matters is added to _VOLTRON_SILENCING_PLAN_KEYS
+    # (the IR re-supply is byte-identical, IR == regex == 85, so the silencing-keys path
+    # re-silences exactly without over-silence).
     # ADR-0027: colorless_matters migrated to the Card IR — served from the
     # ColorCount:EQ:0 subject-Filter predicate (the "colorless <permanent> you
     # control" / "colorless card" build-arounds — Ancient Stirrings, Vile Aggregate) + a

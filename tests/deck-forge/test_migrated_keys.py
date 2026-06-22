@@ -5443,6 +5443,28 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # kicked_spell_matters ← the byte-identical _KICKED_SPELL_MIRROR in
+    # _IR_KEPT_DETECTORS for the Kicker build-around (CR 702.33): the "whenever you cast
+    # a kicked spell" PAYOFF (distinct from the bare `\bkicked\b` keyword route, which
+    # over-fires +171 — the lane is the PAYOFF/CONDITION, not Kicker presence). Verazol
+    # is the canonical kicked-spell payoff commander. The mirror reads the record's
+    # oracle_text, so a bare non-None IR routes the hybrid to the IR path. The regex
+    # path no longer emits the key (the _HAND_FLOOR producer is deleted). scope "you".
+    # ADR-0027.
+    "kicked_spell_matters": (
+        {
+            "name": "Verazol, the Split Current",
+            "type_line": "Legendary Creature — Hydra",
+            "oracle_text": (
+                "Verazol, the Split Current enters with a +1/+1 counter on it for "
+                "each mana spent to cast it.\n"
+                "Whenever you cast a kicked spell, you may remove two +1/+1 "
+                "counters from Verazol, the Split Current. If you do, copy that "
+                "spell. You may choose new targets for the copy."
+            ),
+        },
+        _ir(),
+    ),
 }
 
 

@@ -408,7 +408,12 @@ class TestKickedSpellMatters:
     }
 
     def test_kicked_payoff_commander_emits(self):
-        assert "kicked_spell_matters" in _keys(self.VERAZOL)
+        # ADR-0027: kicked_spell_matters migrated to the Card IR (a byte-identical
+        # _KICKED_SPELL_MIRROR in _IR_KEPT_DETECTORS — the "whenever you cast a kicked
+        # spell" payoff phase under-structures; NOT the bare `\bkicked\b` keyword route,
+        # which over-fires +171), so it fires via the hybrid path, not pure regex.
+        assert "kicked_spell_matters" in _keys_hybrid(self.VERAZOL)
+        assert "kicked_spell_matters" not in _keys(self.VERAZOL)
 
     def test_kicked_payoff_served_not_spellcast(self):
         sig = _sig("kicked_spell_matters", "you")

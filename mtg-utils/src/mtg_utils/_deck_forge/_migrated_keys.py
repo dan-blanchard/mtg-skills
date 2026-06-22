@@ -3601,6 +3601,55 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # IR/regex mode (FILE-SWAP voltron delta 0). CR 701.8a (discard) / 903.10a
         # (voltron).
         "opponent_discard",
+        # ADR-0027 — kicked_spell_matters (the Kicker build-around — CR 702.33: the
+        # "whenever you cast a kicked spell" PAYOFF that rewards casting a paid-kicker
+        # spell — Verazol, Hallar, Rumbling Aftershocks, Roost of Drakes — PLUS the
+        # "if (that|it) (spell) was kicked" CONDITION on kicker spells whose ETB effect
+        # depends on the kicked state — Goblin Bushwhacker, Gatekeeper of Malakir,
+        # Verix Bladewing, Bubble Snare). Now fires from the Card IR instead of its
+        # oracle-regex producer. NO sidecar bump (the kept-mirror reads the Scryfall
+        # oracle the sidecar already carries; no new projection field).
+        #
+        # KEPT-MIRROR, NOT A STRUCTURAL ARM, NOT THE KEYWORD ROUTE. Kicker is a KEYWORD
+        # (CR 702.33), but this lane is the PAYOFF/CONDITION, not Kicker presence. The
+        # bare `\bkicker\b`/`\bkicked\b` keyword route OVER-FIRES +171: it matches EVERY
+        # card that merely HAS kicker, not the cards that care about a spell being
+        # PAID-kicked (the DEFERRED note in extract_signals_ir warned exactly this). And
+        # phase v0.1.19 under-structures the payoff: the "if it was kicked" trigger
+        # condition has no structured tag, and the "whenever you cast a kicked spell"
+        # trigger does not carry a "kicked" qualifier in the IR — so there is NO
+        # structural arm that can discriminate the kicker-payoff from a plain
+        # spell-cast. The qualifier survives ONLY in the oracle text, so the lane fires
+        # from a byte-identical _KICKED_SPELL_MIRROR in _IR_KEPT_DETECTORS reproducing
+        # the EXACT deleted _HAND_FLOOR regex ("whenever you cast a kicked spell" | "if
+        # (that|it) (spell) was kicked") over the reminder-STRIPPED kept_oracle (no
+        # `[^.]` cross-sentence span, so full-text == per-clause). The serve spec stays
+        # hand-registered in signal_specs.py (("kicked_spell_matters","you")).
+        #
+        # FLOOR→KEPT. kicked_spell_matters WAS an _IR_FLOOR_LANE (the IR path reused the
+        # production floor Detector); it is REMOVED from _IR_FLOOR_LANES and the
+        # _HAND_FLOOR source row is deleted — floor-mirror-dep -> 0. FLOOR-DISABLED
+        # residual vs the deleted regex (commander-legal, dedupe oracle_id,
+        # _IR_FLOOR_LANES=frozenset()): both == 85, regex_only == 0, ir_only == 0 —
+        # BYTE-IDENTICAL, no recall lost, no over-fire. All 85 fires are genuine kicker
+        # payoffs/conditions (verified vs ACTUAL Scryfall oracle: 14 "whenever you cast
+        # a kicked spell" payoffs incl. Verazol/Hallar/Rumbling Aftershocks/Roost of
+        # Drakes; the rest "if (it|that spell) was kicked" ETB conditions on kicker
+        # spells incl. the full Battlemage / Emissary / Gatekeeper cycles). SCOPE
+        # PARITY: all 85 fire scope "you" (the floor producer's forced scope), 0
+        # mismatch. The sibling lanes (spellcast_matters / typed_spellcast /
+        # storm_matters) key on different producers and do NOT drift.
+        #
+        # VOLTRON. The deleted floor producer fired HIGH-confidence (scope 'you') and
+        # fed has_other_plan (kicked_spell_matters is not in _GENERIC_KEYS /
+        # _VOLTRON_COMPAT_KEYS; a kicker build-around is no vanilla beater). Because the
+        # kept-mirror is BYTE-IDENTICAL (IR == regex == 85, no broadening),
+        # kicked_spell_matters is added to _VOLTRON_SILENCING_PLAN_KEYS so the hybrid
+        # re-silences the spurious commander-damage membership tell from the IR
+        # re-supply — restoring pre-migration behavior (matching the
+        # second_spell_matters byte-identical kept-mirror precedent). FILE-SWAP voltron
+        # delta 0. CR 702.33 (kicker) / 903.10a (voltron).
+        "kicked_spell_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027
