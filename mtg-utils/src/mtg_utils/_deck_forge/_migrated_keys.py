@@ -1815,6 +1815,50 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # / 613 (color is a continuously-checked layer-5 characteristic, verified via
         # rules-lawyer).
         "color_change",
+        # ADR-0027 β — damage_redirect (a card that PROTECTS by preventing/redirecting
+        # damage: the Pariah/Cho-Manno unkillable carrier + the en-Kor/Reflect-Damage
+        # redirectors). MIGRATED VIA TWO BYTE-IDENTICAL KEPT MIRRORS (signals-only, NO
+        # sidecar bump), NOT a structural arm. The lane has two DISJOINT arms (corpus
+        # overlap == 0 over commander-legal):
+        #
+        # ARM A — name-aware self-PREVENTION/self-redirect ("prevent all damage that
+        #   would be dealt to <self>", "if damage would be dealt to <self>": Cho-Manno,
+        #   Phyrexian Vindicator, the Phantom +1/+1-shield cycle, Gideon Blackblade — 44
+        #   commander-legal, 44/44 genuine). phase's cat=='damage_prevention' fires on
+        #   396 commander-legal cards (every fog / Circle of Protection / Samite Healer)
+        #   vs the 44 self-prevent tells — a ~90% OVER-FIRE with no recipient/self
+        #   filter; a structural arm was REJECTED. ARM A is NAME-AWARE (self-only — it's
+        #   the unkillable equipment carrier), so it rides the EXACT production helper
+        #   signals._detect_self_damage_prevention inline in extract_signals_ir (the
+        #   self_blink name-aware precedent), NOT a static SWEEP regex.
+        # ARM B — the REDIRECT clause ("the next N damage … would be dealt … dealt to
+        #   <X> instead", "that damage is dealt to ~ instead", "deal that damage to ~
+        #   instead": Pariah/en-Kor redirectors, Reflect Damage, Nova Pentacle,
+        #   Captain's Maneuver — 25 commander-legal, 25/25 genuine). phase types these
+        #   INCONSISTENTLY (redirect / damage_replace / damage_replacement) and the
+        #   union of those three categories fires on 224 commander-legal cards vs the 25
+        #   genuine redirectors — a ~90% OVER-FIRE (every burn spell loosely typed
+        #   damage_replacement: Lava Coil, Anger of the Gods); a structural arm was
+        #   REJECTED. ARM B rides _DAMAGE_REDIRECT_MIRROR (_signals_ir) — the EXACT
+        #   deleted SWEEP regex (pinned as DAMAGE_REDIRECT_REGEX in _sweep_detectors)
+        #   over the reminder-stripped kept_oracle, byte-identical to the deleted
+        #   Detector.
+        #
+        # Floor-disabled residual vs the deleted producers (commander-legal,
+        # _IR_FLOOR_LANES=frozenset()): ir_only == 0, regex_only == 0 — both arms are
+        # byte-identical to their deleted regexes over the same reminder-stripped input,
+        # so the served set is UNCHANGED (a behavior-neutral re-home, no recall gain, no
+        # over-fire). All 69 (44 ARM A + 25 ARM B) are genuine (no over-fire to drop).
+        # floor-mirror-dep == 0 (damage_redirect is NOT an _IR_FLOOR_LANE). The deleted
+        # ARM A producer ALSO added voltron_matters (membership, low conf — the
+        # unkillable body is the ideal Equipment/Aura carrier); that add is re-homed to
+        # extract_signals_ir alongside ARM A. The deleted producers fired HIGH-
+        # confidence (scope 'you') and counted toward has_other_plan, so a
+        # _DAMAGE_REDIRECT_PLAN_MIRROR (ARM B regex) + the self-prevent helper in
+        # _signals_regex re-supply the voltron silence — NOT the SILENCING_PLAN_KEYS set
+        # (FILE-SWAP voltron delta == 0). CR 614.9 (redirection replacement) / 615
+        # (prevention).
+        "damage_redirect",
         # ADR-0027 β — untap_engine (a DELIBERATE repeatable/mass untap engine —
         # Seedborn Muse, Murkfiend Liege, Kiora, Candelabra). The IR arm in
         # extract_signals_ir reads `cat=='untap'` Effects on three engine shapes: a mass

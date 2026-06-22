@@ -888,7 +888,9 @@ def test_set_base_pt_does_not_open_toughness_lane():
 
 # ── Pariah combo: a commander that prevents/redirects damage to ITSELF (Cho-Manno,
 # Anti-Venom) is the unkillable redirect target — it wants Pariah-style redirect + the
-# indestructible grants that keep the target alive.
+# indestructible grants that keep the target alive. ADR-0027 β migrated damage_redirect
+# to the Card IR (ARM A — name-aware self-prevention), so the lane now fires from the
+# HYBRID (IR) path; the regex path drops it (the migration invariant).
 def test_self_damage_prevention_opens_redirect_lane():
     cho = {
         "name": "Cho-Manno, Revolutionary",
@@ -900,18 +902,41 @@ def test_self_damage_prevention_opens_redirect_lane():
         "type_line": "Legendary Creature — Symbiote Hero",
         "oracle_text": "When Anti-Venom enters, if he was cast, return target creature card from your graveyard to the battlefield.\nIf damage would be dealt to Anti-Venom, prevent that damage and put that many +1/+1 counters on him.",
     }
-    assert ("damage_redirect", "you") in _keys(cho)
-    assert ("damage_redirect", "you") in _keys(anti)
+    # Hybrid (IR) path serves it; the regex path no longer does (migration invariant).
+    assert ("damage_redirect", "you") in _keys_hybrid(cho)
+    assert ("damage_redirect", "you") in _keys_hybrid(anti)
+    assert ("damage_redirect", "you") not in _keys(cho)
+    assert ("damage_redirect", "you") not in _keys(anti)
+
+
+# ── ARM B (the redirect clause): "the next N damage … dealt to ~ instead" — en-Kor,
+# Reflect Damage, Captain's Maneuver. Disjoint from ARM A (name-aware self-prevention);
+# rides _DAMAGE_REDIRECT_MIRROR (the exact deleted SWEEP regex) over the IR path.
+def test_redirect_clause_opens_redirect_lane():
+    capt = {
+        "name": "Captain's Maneuver",
+        "type_line": "Instant",
+        "oracle_text": (
+            "The next X damage that would be dealt to target creature, planeswalker, "
+            "or player this turn is dealt to another target creature, planeswalker, "
+            "or player instead."
+        ),
+    }
+    assert ("damage_redirect", "you") in _keys_hybrid(capt)
+    assert ("damage_redirect", "you") not in _keys(capt)
 
 
 def test_fog_does_not_open_redirect_lane():
     # Precision: a fog ("prevent all combat damage this turn") is not self-redirect.
+    # Holds on BOTH the regex path (it never fired) and the hybrid path (neither IR arm
+    # matches — the name-aware ARM A wants "to <self>", ARM B wants "dealt to … instead").
     card = {
         "name": "Fog",
         "type_line": "Instant",
         "oracle_text": "Prevent all combat damage that would be dealt this turn.",
     }
     assert ("damage_redirect", "you") not in _keys(card)
+    assert ("damage_redirect", "you") not in _keys_hybrid(card)
 
 
 def test_aura_recursion_opens_voltron_lane():

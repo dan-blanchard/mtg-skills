@@ -377,6 +377,37 @@ DAMAGE_TO_OPP_MATTERS_REGEX = (
     r"|target opponent|that player|a player or planeswalker)\b"
 )
 
+# ADR-0027 β — damage_redirect migrated to the Card IR via two byte-identical kept
+# mirrors (signals-only, NO sidecar bump). The lane has two DISJOINT arms (corpus
+# overlap == 0):
+#   ARM B (this regex) — a REDIRECT clause ("the next N damage … would be dealt …
+#     dealt to <X> instead", "that damage is dealt to ~ instead", "deal that damage to
+#     ~ instead": Pariah/en-Kor redirectors, Reflect Damage, Nova Pentacle, Captain's
+#     Maneuver — 25 commander-legal, 25/25 genuine). phase DOES carry a category, but
+#     INCONSISTENTLY (redirect / damage_replace / damage_replacement), and the union of
+#     those three categories fires on 224 commander-legal cards vs the 25 genuine
+#     redirectors — a ~90% OVER-FIRE (every burn spell phase loosely types as
+#     damage_replacement: Lava Coil, Anger of the Gods). So the lane rides this exact
+#     deleted SWEEP regex byte-identically (_DAMAGE_REDIRECT_MIRROR in _signals_ir).
+#   ARM A (signals._detect_self_damage_prevention, NAME-AWARE) — a self-PREVENTION /
+#     self-redirect tell ("prevent all damage that would be dealt to <self>", "if
+#     damage would be dealt to <self>": Cho-Manno, Phyrexian Vindicator, Phantom cycle,
+#     Gideon Blackblade — 44 commander-legal, 44/44 genuine). phase's
+#     cat=='damage_prevention' fires on 396 cards (every fog / Circle of Protection /
+#     Samite Healer) vs the 44 self-prevent tells — a ~90% OVER-FIRE with no recipient
+#     / self filter. ARM A is name-aware (self-only, the unkillable Pariah carrier), so
+#     it rides the EXACT production helper inline in extract_signals_ir (the self_blink
+#     name-aware precedent), NOT a static SWEEP regex.
+# This SWEEP_DETECTORS row is deleted; the EXACT ARM B regex is pinned here so the
+# _DAMAGE_REDIRECT_MIRROR kept detector (_signals_ir) and the _DAMAGE_REDIRECT_PLAN_
+# MIRROR voltron gate (_signals_regex) share ONE source; SWEEP_LABELS keeps the human
+# label; the serve stays hand-registered in signal_specs.py (its own curated search
+# regex). CR 614.9 (redirection replacement) / 615 (prevention).
+DAMAGE_REDIRECT_REGEX = (
+    "the next (?:\\d+|x) damage [^.]*would be dealt[^.]*(?:is )?dealt to [^.]*instead"
+    "|that damage is dealt to [^.]*instead|deal that damage to [^.]*instead"
+)
+
 SWEEP_DETECTORS: tuple[dict, ...] = (
     {
         "key": "free_cast",
@@ -789,12 +820,16 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "",
         "regex": "prevent the next (?:\\d+|x) damage|prevent (?:all|the next \\d+|x|all combat|all but \\d+|that) [^.]*damage|prevent that damage|prevent all damage|prevent [^.]*damage that would be dealt",
     },
-    {
-        "key": "damage_redirect",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "the next (?:\\d+|x) damage [^.]*would be dealt[^.]*(?:is )?dealt to [^.]*instead|that damage is dealt to [^.]*instead|deal that damage to [^.]*instead",
-    },
+    # ADR-0027 β: damage_redirect migrated to the Card IR via two byte-identical kept
+    # mirrors. phase types both arms INCONSISTENTLY and ~90%-over-fires either structural
+    # category (redirect/damage_replace(ment) = 224 vs 25; damage_prevention = 396 vs
+    # 44), so the lane rides the deleted regexes byte-identically: ARM B (the redirect
+    # clause) via _DAMAGE_REDIRECT_MIRROR over the reminder-stripped oracle, ARM A (the
+    # name-aware self-prevention) via the EXACT _detect_self_damage_prevention helper
+    # inline in extract_signals_ir. This SWEEP_DETECTORS row is deleted; the EXACT ARM B
+    # regex is pinned as DAMAGE_REDIRECT_REGEX above, SWEEP_LABELS keeps the human
+    # label, and the serve stays hand-registered in signal_specs.py (its own curated
+    # search regex). CR 614.9 / 615.
     # ADR-0027: damage_doubling migrated to the Card IR — detected structurally from
     # phase's `damage_doubling` DamageDone-replacement category (now covering Double,
     # Triple, Plus, and the nested AddTargetReplacement / CreateDamageReplacement

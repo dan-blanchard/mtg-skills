@@ -33,6 +33,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COST_REDUCTION_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
@@ -2740,6 +2741,20 @@ _TOKEN_COPY_MATTERS_PLAN_MIRROR = re.compile(TOKEN_COPY_MATTERS_REGEX, re.IGNORE
 # plan, so this leaks nothing in practice — FILE-SWAP NO-FLOOD: voltron delta 0.)
 # CR 903.10a / 105.
 _COLOR_CHANGE_PLAN_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
+# ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated damage_redirect key, ARM B
+# (the redirect clause). The deleted SWEEP producer fired HIGH-confidence (scope 'you')
+# and counted toward `has_other_plan`, silencing the spurious commander-damage voltron
+# tell on a redirect engine (en-Kor, Reflect Damage, Nova Pentacle — not a vanilla
+# beater). The migrated lane rides a BYTE-IDENTICAL kept mirror (no recall change vs the
+# deleted regex), so this byte-identical gate mirror — NOT _VOLTRON_SILENCING_PLAN_KEYS
+# — restores the old silence for ALL cards (matching the color_change / token_copy_
+# matters byte-identical-mirror pattern). Matched against reminder-STRIPPED joined-face
+# `text`, byte-identical to the deleted SWEEP detector's per-clause reminder-stripped
+# input. The arms have no `[^.]` spanning a sentence, so full-text == per-clause.
+# ARM A (name-aware self-prevention) re-supplies its OWN has_other_plan term via the
+# _detect_self_damage_prevention helper in the gate chain below (it can't be a static
+# regex — it's name-aware). FILE-SWAP NO-FLOOD: voltron delta 0. CR 903.10a / 614.9.
+_DAMAGE_REDIRECT_PLAN_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated toughness_combat key. BOTH
 # deleted producers (the SWEEP combat-redirect, scope 'you', + the inline _DETECTORS
 # value-payoff, scope 'you') fired HIGH-confidence and counted toward `has_other_plan`,
@@ -4131,13 +4146,18 @@ def extract_signals(
         and not _BASE_PT_SET_RE.search(text)
     ):
         add("ability_strip_payoff", "you", "", text[:160])
-    if _detect_self_damage_prevention(text, name):
-        add("damage_redirect", "you", "", text[:160])
-        # An unkillable body (prevents all damage to itself: Cho-Manno) is the ideal
-        # Equipment/Aura carrier — it's a voltron commander too (membership-only, since
-        # the commander-damage plan is a suggestion for the commander itself).
-        if include_membership:
-            add("voltron_matters", "you", "", text[:160], "low")
+    # ADR-0027 β: damage_redirect migrated to the Card IR (ARM A — name-aware self-
+    # prevention). The regex `add("damage_redirect", ...)` is DELETED here; the lane now
+    # fires from extract_signals_ir, which reuses this EXACT _detect_self_damage_
+    # prevention helper (the self_blink name-aware precedent). The membership
+    # voltron_matters add STAYS in the regex path: an unkillable body (prevents all
+    # damage to itself — Cho-Manno) is the ideal Equipment/Aura carrier, and
+    # voltron_matters is NOT a migrated key (the hybrid dispatcher keeps it from the
+    # regex path), so re-homing it would silently drop it. The has_other_plan voltron
+    # gate is re-supplied by the same helper below (it counted toward has_other_plan
+    # high-confidence pre-migration). CR 614.9 / 615 / 903.10a.
+    if include_membership and _detect_self_damage_prevention(text, name):
+        add("voltron_matters", "you", "", text[:160], "low")
     # ADR-0027 β: self_counter_grow migrated to the Card IR. The self-power-scaling
     # commander cross-open ("X is ~'s power" → a self-power-scaler wants +1/+1 sources
     # to
@@ -4283,6 +4303,18 @@ def extract_signals(
         # against the reminder-STRIPPED `text` (the deleted SWEEP Detector ran
         # per-clause over stripped text). CR 903.10a.
         or _COLOR_CHANGE_PLAN_MIRROR.search(text)
+        # ADR-0027 β: re-silence the deleted damage_redirect producers (BOTH arms fired
+        # HIGH-confidence scope 'you', feeding has_other_plan — a damage prevention /
+        # redirect engine is no vanilla beater). The migrated lane rides byte-identical
+        # kept mirrors, so these byte-identical gate terms — NOT the SILENCING_PLAN_KEYS
+        # set — restore the old silence for ALL cards. ARM A (name-aware self-
+        # prevention) reuses the EXACT _detect_self_damage_prevention helper; ARM B (the
+        # redirect clause) rides _DAMAGE_REDIRECT_PLAN_MIRROR. Both matched against the
+        # reminder-STRIPPED `text` (the deleted producers ran per-clause over stripped
+        # text). NB: an ARM A body ALSO opens voltron_matters above, so its commander-
+        # damage tell survives regardless of this silence. CR 903.10a / 614.9 / 615.
+        or _detect_self_damage_prevention(text, name)
+        or _DAMAGE_REDIRECT_PLAN_MIRROR.search(text)
         # ADR-0027 β: re-silence the deleted toughness_combat producers (the SWEEP
         # combat-redirect + the inline _DETECTORS value-payoff, both HIGH-confidence
         # scope 'you', feeding has_other_plan). The migrated lane rides a byte-identical

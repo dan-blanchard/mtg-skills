@@ -212,6 +212,22 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # damage_redirect ← TWO byte-identical kept mirrors (phase ~90%-over-fires either
+    # structural category: damage_prevention 396 vs 44, redirect/damage_replace(ment)
+    # 224 vs 25). ARM A (the case here) is the NAME-AWARE self-prevention tell: the IR
+    # path reuses _detect_self_damage_prevention over the dict oracle, which keys on the
+    # card's own short name ("Cho-Manno") — Cho-Manno, Revolutionary is the canonical
+    # unkillable Pariah carrier. ARM B (the redirect clause, _DAMAGE_REDIRECT_MIRROR) is
+    # exercised separately in test_signals.py. Empty IR (the helper reads the dict
+    # oracle, not the IR structure). ADR-0027 β.
+    "damage_redirect": (
+        {
+            "name": "Cho-Manno, Revolutionary",
+            "type_line": "Legendary Creature — Human Rebel",
+            "oracle_text": "Prevent all damage that would be dealt to Cho-Manno.",
+        },
+        _ir(),
+    ),
     # gain_control ← a `gain_control` Effect (Control Magic's ChangeController static
     # projects cat="gain_control", subject=the enchanted creature, scope="you"). The
     # GATED structural arm in extract_signals_ir fires scope "you" (excl donate /

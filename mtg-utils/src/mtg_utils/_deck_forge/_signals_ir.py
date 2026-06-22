@@ -32,6 +32,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_direct_keywords,
     _detect_keyword_presets,
     _detect_self_blink_fulltext,
+    _detect_self_damage_prevention,
     _detect_voltron_payoff_ir,
     _resolve_subject,
     _type_hoser_clause,
@@ -50,6 +51,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     COMBAT_DAMAGE_TO_OPP_REGEX,
     CREATURE_PING_REGEX,
     DAMAGE_EQUAL_POWER_REGEX,
+    DAMAGE_REDIRECT_REGEX,
     DAMAGE_TO_OPP_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
@@ -2159,6 +2161,15 @@ IR_SLICE_KEYS: frozenset[str] = (
             # corpus: regex==mirror, 0 lost, 0 over-fire). NOT in _IR_FLOOR_LANES
             # (floor-mirror-dep == 0). CR 105 / 613.
             "color_change",
+            # ADR-0027 β — damage_redirect: a damage-prevention/redirect PROTECTOR. Two
+            # DISJOINT arms ride byte-identical kept mirrors (phase ~90%-over-fires
+            # either structural category): ARM A (name-aware self-prevention) via the
+            # _detect_self_damage_prevention helper inline below, ARM B (the redirect
+            # clause) via _DAMAGE_REDIRECT_MIRROR of the exact deleted SWEEP regex over
+            # the reminder-stripped kept_oracle (commander-legal: regex==mirror, 0 lost,
+            # 0 over-fire). NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0). CR 614.9 /
+            # 615.
+            "damage_redirect",
             # ADR-0027 β — toughness_combat: TOUGHNESS matters for combat (the Doran
             # combat-redirect) + as a value (the broader payoff half). phase parses the
             # Doran clause as an AssignDamageFromToughness modification but project
@@ -3100,6 +3111,21 @@ _ENTERED_ATTACKER_MIRROR = re.compile(ENTERED_ATTACKER_REGEX, re.IGNORECASE)
 # precise (24/24 genuine), so the lane rides it byte-identically. No veto needed (the
 # phrase "becomes the color/all colors" is unambiguous). CR 105 / 613.
 _COLOR_CHANGE_MIRROR = re.compile(COLOR_CHANGE_REGEX, re.IGNORECASE)
+# damage_redirect ARM B BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from
+# the EXACT deleted SWEEP regex (pinned as DAMAGE_REDIRECT_REGEX) over the reminder-
+# stripped kept_oracle — a REDIRECT clause ("the next N damage … would be dealt …
+# dealt to <X> instead", "that damage is dealt to ~ instead", "deal that damage to ~
+# instead": Pariah/en-Kor redirectors, Reflect Damage, Nova Pentacle, Captain's
+# Maneuver). NOT a structural arm: phase types these 25 INCONSISTENTLY (redirect /
+# damage_replace / damage_replacement), and the union of those three categories fires
+# on 224 commander-legal cards (every burn spell phase loosely types as
+# damage_replacement — Lava Coil, Anger of the Gods) vs the 25 genuine redirectors, a
+# ~90% over-fire. The deleted oracle regex is precise (25/25 genuine), so the lane
+# rides it byte-identically. No veto needed (the "dealt to … instead" redirect phrase
+# is unambiguous). ARM A (name-aware self-prevention) rides the
+# _detect_self_damage_prevention helper inline in extract_signals_ir, not this mirror.
+# CR 614.9 (redirection replacement).
+_DAMAGE_REDIRECT_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
 # toughness_combat BYTE-IDENTICAL kept mirror (ADR-0027 β): the lane fires from the
 # EXACT OR of two deleted producers (pinned TOUGHNESS_COMBAT_REGEX) over the reminder-
 # stripped kept_oracle — the Doran / Assault Formation / High Alert combat
@@ -6156,6 +6182,29 @@ def extract_signals_ir(
     # deleted producer). add() dedups. CR 105 / 613.
     if _COLOR_CHANGE_MIRROR.search(kept_oracle):
         add("color_change", "you", "", "")
+    # ADR-0027 β — damage_redirect TWO byte-identical kept mirrors. The lane has two
+    # DISJOINT arms (commander-legal corpus overlap == 0); phase ~90%-over-fires either
+    # structural category (damage_prevention = 396 vs 44; redirect/damage_replace(ment)
+    # = 224 vs 25), so both arms ride their EXACT deleted regexes.
+    #   ARM A — NAME-AWARE self-prevention/self-redirect, recovered with the EXACT
+    #     production helper (_detect_self_damage_prevention, the self_blink name-aware
+    #     precedent) over the reminder-stripped kept_oracle. Cho-Manno / Phyrexian
+    #     Vindicator / the Phantom +1/+1-shield cycle / Gideon Blackblade — an
+    #     unkillable body that prevents damage TO ITSELF (the ideal Equipment/Aura
+    #     carrier).
+    #   ARM B — the REDIRECT clause, recovered via _DAMAGE_REDIRECT_MIRROR (the EXACT
+    #     deleted SWEEP regex) over the reminder-stripped kept_oracle. en-Kor / Reflect
+    #     Damage / Nova Pentacle / Captain's Maneuver.
+    # add() dedups (both scope 'you', matching the deleted producers). The deleted ARM A
+    # regex producer ALSO opened voltron_matters (membership, low conf — a Pariah
+    # carrier is a voltron commander), but voltron_matters is NOT a migrated key, so the
+    # hybrid
+    # dispatcher would DROP it from this IR path; it therefore STAYS in the regex path
+    # (extract_signals), re-gated on this same helper. CR 614.9 / 615.
+    if _detect_self_damage_prevention(kept_oracle, name):
+        add("damage_redirect", "you", "", "")
+    if _DAMAGE_REDIRECT_MIRROR.search(kept_oracle):
+        add("damage_redirect", "you", "", "")
     # ADR-0027 β — toughness_combat BYTE-IDENTICAL kept mirror. TWO deleted producers
     # feed the key — the SWEEP combat-redirect ("assigns combat damage equal to its
     # toughness rather than its power" — Doran / Assault Formation / High Alert) and
