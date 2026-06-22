@@ -64,6 +64,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEBUFF_SWEEP_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     ENTERED_ATTACKER_REGEX,
+    EXTRA_COMBATS_REGEX,
     FREE_CAST_REGEX,
     GAIN_CONTROL_REGEX,
     KEYWORD_COUNTER_REGEX,
@@ -234,6 +235,14 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # build-around; a vanilla Saga's own reminder-only lore mention doesn't fire).
     "saga": ("saga_matters", "you"),
     # Batch 14 — extra-phase / type-change / mass-goad effect categories.
+    # ADR-0027 — extra_combats MIGRATED to the Card IR. This structural arm (phase's
+    # `extra_combat` effect category — Aggravated Assault, Aurelia, Moraug, Najeela) IS
+    # the accurate IR-native producer for 42 of the 43 commander-legal cards (ZERO over-
+    # fire). The ONE under-structured gap (Illusionist's Gambit — phase folds it into a
+    # lone `restriction` effect) is recovered by the byte-identical EXTRA_COMBATS_REGEX
+    # word mirror in _IR_KEPT_DETECTORS; the union == 43 == the deleted regex producer.
+    # The regex producer (the `extra-combats` entry in _PRESET_REGEX_SIGNALS) is
+    # deleted; the hand-registered serve spec (signal_specs) survives. CR 505.1a / 720.
     "extra_combat": ("extra_combats", "you"),
     "extra_upkeep": ("extra_upkeep", "you"),
     "extra_draw": ("extra_draw_step", "you"),
@@ -702,6 +711,33 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "land_sacrifice_matters",
         re.compile(LAND_SACRIFICE_REGEX, re.IGNORECASE),
+        "you",
+    ),
+    # ADR-0027 — extra_combats SUPPLEMENT kept WORD MIRROR (the ADDITIONAL-COMBAT-PHASE
+    # archetype: a card granting "after this [main] phase, there is an additional combat
+    # phase" — Aggravated Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia,
+    # Scourge of the Throne, World at War, Najeela, Illusionist's Gambit; CR 505.1a /
+    # 720). phase DOES carry an accurate structural form — the `extra_combat` effect
+    # category fires this lane through the _DOER_EFFECT_KEYS doer loop (scope 'you',
+    # HIGH conf), covering 42 of the 43 commander-legal regex fires with ZERO over-fire
+    # (floor-disabled residual by oracle_id: both==42, ir_only==0). The ONE under-
+    # structured gap is Illusionist's Gambit ("After this phase, there is an additional
+    # combat phase"), which phase folds into a single `restriction` effect and never
+    # emits the `extra_combat` category. This EXTRA_COMBATS_REGEX (the EXACT deleted
+    # `extra-combats` theme PRESET pattern, `additional combat phase`) run FLAT over the
+    # reminder-stripped kept_oracle recovers that gap byte-identically — the substring
+    # carries no parens and crosses no clause boundary, so flat==per-clause. The
+    # structural arm union this mirror == 43 == the deleted regex producer EXACTLY (the
+    # mirror's 43 is a strict SUPERSET of the structural 42). Distinct from extra_turns
+    # (CR 716) and extra_upkeep / extra_draw_step (CR 501.1 "additional beginning phase"
+    # — Shadow/Sphinx of the Second Sun say "beginning phase", NOT "combat phase", so
+    # this substring correctly skips them). The deleted producer fed has_other_plan
+    # (HIGH, scope 'you', not generic/voltron-compat), so the hybrid re-silences voltron
+    # via _VOLTRON_SILENCING_PLAN_KEYS — byte-identical re-supply (IR==regex==43), no
+    # over-silence (signals.py). CR 505.1a / 903.10a.
+    (
+        "extra_combats",
+        re.compile(EXTRA_COMBATS_REGEX, re.IGNORECASE),
         "you",
     ),
     # ADR-0027 β — draw_matters (the YOU-draw payoff: "whenever you draw" engines +

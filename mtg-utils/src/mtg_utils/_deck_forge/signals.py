@@ -510,6 +510,18 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # over-silence), matching the lands_matter / draw_matters kept-mirror
         # precedent. A NO-FLOOD voltron entry.
         "land_sacrifice_matters",
+        # ADR-0027: extra_combats fired high-confidence (scope 'you') in the regex path
+        # via the `extra-combats` _PRESET_REGEX_SIGNALS producer and so counted toward
+        # has_other_plan (it is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing
+        # the spurious commander-damage voltron tell on an extra-combat creature
+        # commander that is NOT a vanilla beater (Aurelia, Moraug, Najeela, Anzrag,
+        # Karlach). Its regex producer is deleted, so the hybrid re-silences from the IR
+        # re-supply — phase's accurate `extra_combat` STRUCTURAL arm (42 cards) union a
+        # byte-identical EXTRA_COMBATS_REGEX word mirror recovering the 1 under-
+        # structured gap (Illusionist's Gambit) == 43 == the deleted regex EXACTLY (no
+        # broadening, no over-silence), matching the land_sacrifice / draw_matters kept-
+        # mirror precedent. A NO-FLOOD voltron entry.
+        "extra_combats",
         # NB (ADR-0027 β): legend_rule_off + timing_control are NOT added here. Both
         # fired high-confidence pre-migration (scope 'you' / 'any') and so counted
         # toward has_other_plan, but the FILE-SWAP showed 0 voltron leaked without an

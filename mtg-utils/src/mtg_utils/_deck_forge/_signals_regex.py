@@ -2170,11 +2170,26 @@ _PRESET_KEYWORD_SIGNALS = {
     "spell-copy": ("spell_copy_matters", "you"),
 }
 # REGEX presets reused clause-scoped via the preset's own compiled patterns — these
-# close documented pure-reuse gaps (blink/Brago, extra-combats/Aurelia) where the
-# tested theme exists but the extractor never called it.
+# close documented pure-reuse gaps (blink/Brago) where the tested theme exists but the
+# extractor never called it.
+# ADR-0027: the `extra-combats` preset entry is DELETED — extra_combats migrated to
+# the Card IR. phase carries an accurate STRUCTURAL form (the `extra_combat` effect
+# category → extra_combats via _DOER_EFFECT_KEYS, 42 of 43 commander-legal cards, ZERO
+# over-fire) and the ONE under-structured gap (Illusionist's Gambit — phase folds it
+# into a lone `restriction` effect) rides the byte-identical EXTRA_COMBATS_REGEX word
+# mirror in _IR_KEPT_DETECTORS (the EXACT deleted preset pattern, `additional combat
+# phase`, run flat over the reminder-stripped kept_oracle — flat==per-clause; the
+# structural arm union the mirror == 43 == this deleted producer EXACTLY). The
+# `extra-combats` PRESET itself survives in theme_presets (deck-wizard / cube-wizard
+# archetype detection still use it); only this _PRESET_REGEX_SIGNALS producer entry is
+# removed. The deleted producer fed has_other_plan (HIGH, scope 'you', not
+# generic/voltron-compat); the hybrid re-silences voltron via
+# _VOLTRON_SILENCING_PLAN_KEYS — the IR re-supply IS this byte-identical union
+# (IR==regex==43), so no over-silence and NO _EXTRA_COMBATS_PLAN_MIRROR.
+# The hand-registered serve spec (signal_specs) is independent and survives. CR
+# 505.1a / 903.10a.
 _PRESET_REGEX_SIGNALS = {
     "blink": ("blink_flicker", "you"),
-    "extra-combats": ("extra_combats", "you"),
     "extra-turns": ("extra_turns", "you"),
 }
 

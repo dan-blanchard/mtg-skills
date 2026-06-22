@@ -3650,6 +3650,64 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # second_spell_matters byte-identical kept-mirror precedent). FILE-SWAP voltron
         # delta 0. CR 702.33 (kicker) / 903.10a (voltron).
         "kicked_spell_matters",
+        # ADR-0027 — extra_combats (the ADDITIONAL-COMBAT-PHASE archetype axis: a card
+        # granting "after this [main] phase, there is an additional combat phase" —
+        # Aggravated Assault, Combat Celebrant, Seize the Day, Moraug, Aurelia, Scourge
+        # of the Throne, World at War, Najeela, Illusionist's Gambit; CR 505.1a / 720)
+        # now fires from the Card IR instead of its oracle-regex producer. NO sidecar
+        # bump (signals-only; the supplement word mirror reads the reminder-stripped,
+        # DFC-joined oracle the record already carries).
+        #
+        # STRUCTURAL ARM + a SUPPLEMENT BYTE-IDENTICAL kept WORD MIRROR. phase carries
+        # an ACCURATE structural form: the `extra_combat` effect category fires
+        # extra_combats through the _DOER_EFFECT_KEYS doer loop (scope 'you', HIGH).
+        # FLOOR-DISABLED residual over the commander-legal corpus (by oracle_id,
+        # _IR_FLOOR_LANES=frozenset()): the structural arm emits extra_combats on 42 of
+        # the 43 commander-legal regex fires with ZERO over-fire (both==42, ir_only==0,
+        # 0 scope/conf mismatch). The ONE under-structured gap is Illusionist's Gambit
+        # ("After this phase, there is an additional combat phase") — phase folds the
+        # whole card into a single `restriction` effect and never emits the
+        # `extra_combat` category (regex_only==1). Unlike land_destruction's broad
+        # structural arm (which FLOODED with one-shot LD spells), this structural arm
+        # over-fires on NOTHING, so it is KEPT as the IR-native producer where phase has
+        # it; the gap is recovered by a SUPPLEMENT word mirror.
+        #
+        # BYTE-IDENTICAL SUPPLEMENT MIRROR. The deleted producer was the `extra-combats`
+        # theme PRESET (pattern `additional combat phase`) run per-clause via
+        # _PRESET_REGEX_SIGNALS. The EXACT pattern (EXTRA_COMBATS_REGEX, pinned in
+        # _sweep_detectors) run FLAT over the reminder-stripped kept_oracle in
+        # extract_signals_ir's _IR_KEPT_DETECTORS loop (scope 'you', HIGH conf)
+        # reproduces the deleted producer BYTE-IDENTICALLY: the substring carries no
+        # parens and crosses no clause boundary, so flat==per-clause (commander-legal:
+        # flat-mirror==per-clause-regex==43, 0 gain, 0 loss). The structural arm (42)
+        # union the word mirror (43, a strict SUPERSET) == 43 == the deleted regex
+        # producer EXACTLY. The `extra-combats` PRESET ITSELF survives (deck-wizard /
+        # cube-wizard archetype detection use it); only the _PRESET_REGEX_SIGNALS
+        # producer entry is removed. Distinct from extra_turns (CR 716), extra_upkeep /
+        # extra_draw_step (CR 501.1 "additional beginning phase" — Shadow/Sphinx of the
+        # Second Sun say "beginning phase", NOT "combat phase", so the substring
+        # correctly skips them). extra_combats was NEVER a SWEEP key, so no SWEEP row
+        # is touched (len stays 36); only the CONSTANT is pinned there. The serve spec
+        # stays hand-registered (("extra_combats","you") in signal_specs) and is
+        # independent of the producer.
+        #
+        # SCOPE PARITY. The deleted producer forced scope 'you' / HIGH conf; the
+        # structural arm and the mirror BOTH fire scope 'you' / HIGH — 0 scope/conf
+        # mismatches over the 43 both-fire cards.
+        #
+        # VOLTRON. The deleted producer fed has_other_plan (HIGH, scope 'you', NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-damage
+        # voltron tell on an extra-combat creature commander that is NOT a vanilla
+        # beater (Aurelia, Moraug, Najeela, Anzrag, Karlach). Because the IR re-supply
+        # IS this byte-identical union (IR==regex==43), the hybrid re-silences via
+        # _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no broadening, no over-silence —
+        # matching the land_sacrifice / draw_matters kept-mirror precedent; NO
+        # _EXTRA_COMBATS_PLAN_MIRROR. FILE-SWAP no-flood (base fc02a23 vs edits, baked
+        # sidecar over commander-legal, hybrid path): extra_combats is BYTE-IDENTICAL
+        # (43 → 43); voltron_matters delta 0; siblings extra_turns / attack_matters /
+        # untap_engine drift 0; 0 other-key drift across all 298 keys. CR 505.1a /
+        # 903.10a.
+        "extra_combats",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

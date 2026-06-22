@@ -5465,6 +5465,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # extra_combats ← phase's ACCURATE structural form: the `extra_combat` effect
+    # category fires the lane through the _DOER_EFFECT_KEYS doer loop (scope "you",
+    # HIGH conf; CR 505.1a / 720). Aggravated Assault is the canonical extra-combat
+    # ENABLER — "After this main phase, there is an additional combat phase". The IR
+    # carries an Effect(category="extra_combat"), so the structural arm serves it; the
+    # regex path no longer emits the key (the `extra-combats` _PRESET_REGEX_SIGNALS
+    # producer is deleted). The under-structured tail (Illusionist's Gambit, which phase
+    # folds into a lone `restriction` effect) rides the byte-identical EXTRA_COMBATS_REGEX
+    # word mirror in _IR_KEPT_DETECTORS; structural union mirror == the deleted regex's 43.
+    # scope "you". ADR-0027.
+    "extra_combats": (
+        {
+            "name": "Aggravated Assault",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "{3}{R}{R}: Untap all creatures you control. After this main "
+                "phase, there is an additional combat phase followed by an "
+                "additional main phase. Activate only as a sorcery."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="extra_combat",
+                        scope="you",
+                        raw="there is an additional combat phase",
+                    ),
+                ),
+            ),
+        ),
+    ),
 }
 
 
