@@ -1039,6 +1039,8 @@ def test_multicolor_matters_opens_on_color_pair_payoff():
 def test_target_own_payoff_opens_on_targeted_your_creature():
     # Monk Gyatso airbends a creature you control whenever it becomes the target, so he
     # wants free ways to target your own creatures. Real oracle.
+    # ADR-0027 SIDECAR v40: target_own_payoff reads STRUCTURE — a becomes_target trigger
+    # with scope in (you,any) and NO src:opp tag (you can self-target it on demand).
     gyatso = {
         "name": "Monk Gyatso",
         "type_line": "Legendary Creature — Human Monk",
@@ -1051,8 +1053,27 @@ def test_target_own_payoff_opens_on_targeted_your_creature():
             "owner may cast it for {2} rather than its mana cost.)"
         ),
     }
-    # ADR-0027 t2b5-B: migrated to the Card IR (kept_detector) — assert on hybrid.
-    assert ("target_own_payoff", "you") in _ks_hybrid(gyatso)
+    gyatso_ir = Card(
+        oracle_id="x",
+        name="Monk Gyatso",
+        faces=(
+            Face(
+                name="Monk Gyatso",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="becomes_target",
+                            scope="you",
+                            subject=Filter(card_types=("Creature",), controller="you"),
+                        ),
+                        effects=(Effect(category="other", scope="you", raw="airbend"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("target_own_payoff", "you") in _ks_hybrid_ir(gyatso, gyatso_ir)
 
 
 def test_life_payment_insurance_opens_on_repeatable_pay_life():
@@ -1245,6 +1266,8 @@ def test_free_spell_storm_opens_on_cost_less_per_spell():
 def test_target_redirect_opens_on_draw_when_targeted():
     # Rayne draws when an opponent targets your stuff, so it wants target-redirect to
     # shunt the spell onto a cheap permanent. Real oracle.
+    # ADR-0027 SIDECAR v40: target_redirect reads STRUCTURE — a becomes_target trigger
+    # whose targeting source is an opponent (the src:opp zone tag).
     rayne = {
         "name": "Rayne, Academy Chancellor",
         "type_line": "Legendary Creature — Human Wizard",
@@ -1257,8 +1280,30 @@ def test_target_redirect_opens_on_draw_when_targeted():
             "additional card if Rayne is enchanted."
         ),
     }
-    # ADR-0027 t2b5-B: migrated to the Card IR (kept_detector) — assert on hybrid.
-    assert ("target_redirect", "you") in _ks_hybrid(rayne)
+    rayne_ir = Card(
+        oracle_id="x",
+        name="Rayne, Academy Chancellor",
+        faces=(
+            Face(
+                name="Rayne, Academy Chancellor",
+                abilities=(
+                    Ability(
+                        kind="triggered",
+                        trigger=Trigger(
+                            event="becomes_target",
+                            scope="you",
+                            subject=Filter(controller="you"),
+                            zones=("src:opp",),
+                        ),
+                        effects=(
+                            Effect(category="draw", scope="you", raw="draw a card"),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
+    assert ("target_redirect", "you") in _ks_hybrid_ir(rayne, rayne_ir)
 
 
 def test_artifacts_matter_opens_on_investigate():

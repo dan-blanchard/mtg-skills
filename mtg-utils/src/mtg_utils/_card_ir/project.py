@@ -2017,11 +2017,19 @@ def _project_trigger(tr: dict) -> Ability:
     # have valid_card=null, so this never clobbers a real source filter). CR 119.3.
     if event == "deals_damage" and subject is None and _damage_recipient_is_player(tr):
         subject = _DAMAGE_TO_PLAYER_MARKER
+    zones = _zone_tags(tr)
+    # ADR-0027 (SIDECAR v40) — a BecomesTarget trigger carries the targeting spell's
+    # controller (the you-vs-opp discriminant the own-payoff/redirect lanes split on)
+    # on `valid_source`, which `scope` (reads valid_card — the targeted creature's
+    # owner) otherwise drops. Surface it as a `src:` zone tag (the same free-form
+    # string-tuple shape zones already use for from:/to: refs). CR 702.21a / 108.3.
+    if event == "becomes_target":
+        zones = zones + _becomes_target_src_zones(tr)
     trigger = Trigger(
         event=event,
         subject=subject,
         scope=_trigger_scope(tr),
-        zones=_zone_tags(tr),
+        zones=zones,
     )
     effects = _collect_effects(tr.get("execute"), tr.get("description") or "")
     return _recover_clone_subjects(
@@ -7343,6 +7351,29 @@ def _trigger_event(tr: dict) -> str:
         return "lib_search"
     if mode == "playerperformedaction" and _player_actions_are_lib_search(tr):
         return "lib_search"
+    # ADR-0027 (SIDECAR v40) — split four distinct phase trigger MODES out of the
+    # generic `other` fold so the lanes read structure instead of regex-mirroring it.
+    # `BecomesTarget` (CR 702.21a Ward / CR 702.83 heroic / valiant — "becomes the
+    # target of a spell or ability"): the whose-spell discriminant lives on
+    # `valid_source`, surfaced as the `src:` zone tag below (target_own_payoff vs
+    # target_redirect). `Transformed` (CR 712 DFC transform) / `TurnFaceUp` (CR 702.36
+    # morph turned face up): one-shot self-state-change events the kill_engine arm reads
+    # structurally instead of grepping "transforms into" / "turned face up".
+    # `Attached`/`Unattach` (CR 701.3, opposite halves of the equip/aura attach-state
+    # change). `Exploited` (CR 702.139 — "whenever a creature you control exploits a
+    # creature"): exploit IS a sacrifice mechanic, so sacrifice_matters reads the event.
+    if mode == "becomestarget":
+        return "becomes_target"
+    if mode == "transformed":
+        return "transformed"
+    if mode == "turnfaceup":
+        return "turn_face_up"
+    if mode == "attached":
+        return "becomes_attached"
+    if mode == "unattach":
+        return "becomes_unattached"
+    if mode == "exploited":
+        return "exploited"
     return "other"
 
 
@@ -7370,6 +7401,55 @@ def _player_actions_are_lib_search(tr: dict) -> bool:
         return False
     norm = {_norm(a) for a in actions if isinstance(a, str)}
     return "searchedlibrary" in norm and norm <= _LIB_SEARCH_PLAYER_ACTIONS
+
+
+# ADR-0027 (SIDECAR v40) — the whose-spell parse gap on a BecomesTarget trigger. phase
+# usually carries the targeting source's controller on ``valid_source`` (an Or of
+# StackSpell/StackAbility filters, each with a ``controller``), but for 3 cards (Reality
+# Smasher, Swarm Shambler, Tectonic Giant) it emits a BARE StackSpell with no
+# controller, dropping the "an opponent controls" restriction the text states. Recover
+# it from the trigger's own description, anchored on the SOURCE phrase ("of a spell /
+# ability … an opponent controls") so a SUBJECT-side "a creature an opponent controls
+# becomes the target" (Shay Cormac / Willbreaker — those are read structurally from
+# valid_card) is NOT swept. CR 702.21a.
+_BECOMES_TARGET_SRC_OPP = re.compile(
+    r"of (?:a |an )?(?:spell|ability)[^.]*?an opponent controls?", re.IGNORECASE
+)
+
+
+def _becomes_target_src_zones(tr: dict) -> tuple[str, ...]:
+    """The whose-spell zone tag for a ``BecomesTarget`` trigger: ``("src:opp",)`` when
+    the targeting spell/ability is controlled by an opponent (the redirect / punisher
+    half — Shapers' Sanctuary, Rayne, Diffusion Sliver), else ``("src:you",)`` when it
+    is your own (the on-demand own-target payoff — Mouse Trapper, Heartfire Hero's
+    valiant), else ``()`` (an unrestricted "a spell or ability" source — Heartfire Hero,
+    Brine Comber, Nadu — which you CAN target yourself, so the own-payoff lane reads the
+    absence of ``src:opp``). The controller lives on ``valid_source``'s nested
+    StackSpell/StackAbility filters; a structural gap falls back to the description
+    phrase. CR 702.21a (becomes the target) / 108.3 (controller)."""
+    ctrls: set[str] = set()
+
+    def walk(o: object) -> None:
+        if isinstance(o, dict):
+            c = o.get("controller")
+            if isinstance(c, str) and c:
+                ctrls.add(_norm(c))
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    walk(tr.get("valid_source"))
+    if ctrls and ctrls <= {"opponent"}:
+        return ("src:opp",)
+    if ctrls and ctrls <= {"you"}:
+        return ("src:you",)
+    # Structural gap: a bare StackSpell carrying no controller, but the text states the
+    # opponent restriction (Reality Smasher, Swarm Shambler, Tectonic Giant).
+    if not ctrls and _BECOMES_TARGET_SRC_OPP.search(tr.get("description") or ""):
+        return ("src:opp",)
+    return ()
 
 
 def _trigger_scope(tr: dict) -> str:

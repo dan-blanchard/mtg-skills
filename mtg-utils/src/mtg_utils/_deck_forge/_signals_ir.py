@@ -482,6 +482,14 @@ _IR_KEYWORD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
     # spell_copy_matters too (ADR-0027). The GRANTER (Anhelo — "has casualty 2") is
     # keyword-less and is recovered by a cast_with_keyword raw marker below.
     "casualty": (("sacrifice_matters", "you"), ("spell_copy_matters", "you")),
+    # Exploit (CR 702.139) — "when this enters, you may sacrifice a creature" — IS a
+    # sacrifice mechanic, so the printed Scryfall KEYWORD opens sacrifice_matters
+    # (mirrors casualty). Covers the keyword-only tail (Silumgar Scavenger, which has no
+    # `Exploited` trigger); the 24 native exploiters that DO carry the Exploited trigger
+    # ALSO open it from the structural event arm in extract_signals_ir, and the
+    # keyword-LESS granter Henry Wu opens it from his own Exploited trigger (he has no
+    # exploit keyword — the grant lives in oracle text). CR 702.139.
+    "exploit": (("sacrifice_matters", "you"),),
     "changeling": (("changeling_matters", "you"),),
     "companion": (("companion_keyword", "you"),),
     # Connive (CR 701.50) as the printed KEYWORD — covers the keyword-LESS GRANTER
@@ -2365,16 +2373,15 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    # ADR-0027 tranche2-batch-5 (t2b5-B) — five kept_detector lanes phase v0.1.60
+    # ADR-0027 tranche2-batch-5 (t2b5-B) — three kept_detector lanes phase v0.1.60
     # CANNOT structure (spec / rules-lawyer verified: the discriminant is DROPPED in
     # the parse — a cost-reduction-per-target operand, a protective-vs-stax restriction
-    # split, the out-of-game zone, or a becomes-target trigger flattened to
-    # event='other'). Each fires from a dedicated IR-path word mirror reproducing the
-    # deleted _HAND_FLOOR / SWEEP regex (the secret_writedown mirror INTENTIONALLY
-    # drops the deleted regex's "|your sideboard" arm — companion reminder text owned
-    # by companion_keyword, not a wishboard build-around — so it is a NARROWER, correct
-    # A-B, not a regression). floor-mirror-dep == 0 by construction (none is a floor
-    # detector). All scope 'you'.
+    # split, or the out-of-game zone). Each fires from a dedicated IR-path word mirror
+    # reproducing the deleted _HAND_FLOOR / SWEEP regex (the secret_writedown mirror
+    # INTENTIONALLY drops the deleted regex's "|your sideboard" arm — companion reminder
+    # text owned by companion_keyword, not a wishboard build-around — so it is a
+    # NARROWER, correct A-B, not a regression). floor-mirror-dep == 0 by construction
+    # (none is a floor detector). All scope 'you'.
     #   • per_target_payoff   ← Hinata's YOUR-arm cost reduction scaling with target
     #     count; the IR has no mana_cost / cost-reduction model and no per-spell
     #     target-count operand, so the arm is dropped entirely (CR 601 / 118).
@@ -2384,12 +2391,13 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     #     the only full-coverage tell (CR 701.16).
     #   • secret_writedown    ← the out-of-game zone (CR 408.1 Wish) + pre-game secret
     #     name/choose; phase's in-game battlefield IR models neither.
-    #   • target_own_payoff   ← Monk Gyatso's becomes-target may-reaction on YOUR
-    #     creatures; the becomes-target event flattens to event='other' (no
-    #     becomestarget trigger mode), so the may-clause survives only in raw.
-    #   • target_redirect     ← Rayne's becomes-target-of-opponent → draw payoff;
-    #     same event='other' flattening (the redirect SERVE pool is structural via
-    #     category=='redirect' but the DETECTION payoff is not). CR 603.
+    # target_own_payoff / target_redirect MOVED to a STRUCTURAL trigger read (SIDECAR
+    # v40): phase HAS a `BecomesTarget` mode, so the lanes read event=='becomes_target'
+    # + the project `src:` zone tag in extract_signals_ir (the becomes-target trigger
+    # walk). The regex mirror rows here are DELETED — the narrow "creature you control …
+    # you may" / "an opponent controls … draw" regexes caught only 2 / 11 cards and
+    # double-fired Shapers' Sanctuary; the structural event reaches all 111 with a clean
+    # own-vs-redirect split. CR 702.21a.
     (
         "per_target_payoff",
         re.compile(r"less (?:to cast )?for each (?:of those )?target", re.IGNORECASE),
@@ -2410,33 +2418,23 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "you",
     ),
-    (
-        "target_own_payoff",
-        re.compile(
-            r"creature you control becomes the target[^.]*you may", re.IGNORECASE
-        ),
-        "you",
-    ),
-    (
-        "target_redirect",
-        re.compile(
-            r"becomes? the target of a spell or ability an opponent controls[^.]*draw",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
     # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector lanes phase v0.1.19
     # CANNOT structure (spec / rules-lawyer verified: the discriminant is DROPPED or
     # only partially structured), so each fires from a dedicated IR-path word mirror
     # reproducing the deleted regex EXACTLY (full-text == per-clause over the commander-
     # legal corpus — each regex is clause-safe, A-B==0). floor-mirror-dep == 0 by
     # construction (the kept mirror is not a floor detector).
-    #   • targeting_matters ← phase structures the HEROIC / cast-that-targets half as a
-    #     Targets predicate on the cast_spell trigger subject, but the BECOMES-TARGET
-    #     trigger flattens to event='other' (no becomestarget mode). Mirroring the whole
-    #     deleted SWEEP regex (heroic + becomes-target + cast-that-targets) is byte-
-    #     identical (A-B==0) and simplest; the becomes-target half is the irreducible
-    #     part. CR 702.83 (heroic) / 115.6 (targeting). Serve hand-registered.
+    #   • targeting_matters ← the BECOMES-TARGET half now reads STRUCTURE (phase HAS a
+    #     `BecomesTarget` mode → event=='becomes_target', read in extract_signals_ir).
+    #     This mirror is now RESIDUE-ONLY: it recovers the GRANTED / QUOTED / player-
+    #     targeted becomes-target forms phase emits NO BecomesTarget node for (Kira /
+    #     Opaline Sliver / Dismiss into Dream quote "Whenever this … becomes the
+    #     target" to OTHER creatures; Dormant Gomazoa / Leyline of Combustion fire on
+    #     YOU being targeted; Agrus Kos's "ability that targets only it"; Livewire
+    #     Lash's Equipment grant) PLUS the heroic / cast-that-targets half (no trigger
+    #     event — heroic is reminder-only, cast-that-targets is a cast_spell Targets
+    #     predicate). add() dedups the 101 cards both reach. CR 702.83 (heroic) /
+    #     115.6 (targeting). Serve hand-registered.
     #   • theft_protection ← Kira's granted "for the first time each turn, counter" ride
     #     phase parses as a grant carrier + a counter_spell effect, but the once-per-
     #     turn becomes-target gate is NOT structured. The exact phrasing survives only
@@ -3472,22 +3470,24 @@ IR_SLICE_KEYS: frozenset[str] = (
             "flip_self",
             "free_plot",
             "miracle_grant",
-            # ADR-0027 tranche2-batch-5 (t2b5-B) — kept_detector lanes phase v0.1.60
-            # cannot structure; each fires from a dedicated _IR_KEPT_DETECTORS word
-            # mirror (the exact deleted regex; secret_writedown drops the companion
-            # "your sideboard" arm):
-            #   per_target_payoff / sacrifice_protection / secret_writedown /
-            #   target_own_payoff / target_redirect.
+            # ADR-0027 tranche2-batch-5 (t2b5-B): per_target_payoff /
+            # sacrifice_protection / secret_writedown ride a dedicated
+            # _IR_KEPT_DETECTORS word mirror (phase cannot structure them;
+            # secret_writedown drops the companion "your sideboard" arm).
+            # target_own_payoff / target_redirect MOVED to a STRUCTURAL trigger read
+            # (SIDECAR v40 — event=='becomes_target' + the project `src:` zone tag);
+            # their regex mirrors are DELETED. All five stay IR-owned here.
             "per_target_payoff",
             "sacrifice_protection",
             "secret_writedown",
             "target_own_payoff",
             "target_redirect",
-            # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector lanes phase
-            # v0.1.19 cannot structure, each fired from a dedicated IR-path word mirror
-            # (the exact deleted regex; clause-safe full-text mirrors, A-B==0):
-            #   targeting_matters / theft_protection / villainous_choice ← flat
-            #     _IR_KEPT_DETECTORS rows.
+            # ADR-0027 tranche2-batch-5 (t2b5-C):
+            #   targeting_matters ← STRUCTURAL becomes_target event (SIDECAR v40) + a
+            #     RESIDUE _IR_KEPT_DETECTORS row for the granted/quoted/player-targeted
+            #     forms phase emits no BecomesTarget node for, plus heroic / cast-that-
+            #     targets (no trigger event).
+            #   theft_protection / villainous_choice ← flat _IR_KEPT_DETECTORS rows.
             #   named_counter_misc ← a flat _IR_KEPT_DETECTORS row (the structural
             #     counter_kind field has a 2-card place/remove-as-cost recall gap, so
             #     the byte-identical word mirror is the migratable home).
@@ -5543,14 +5543,20 @@ _LAND_DESTRUCTION_MIRROR = re.compile(LAND_DESTRUCTION_REGEX, re.IGNORECASE)
 # cheat_from_top precedent). CR 305.6 / 701.37 / 701.27 / 707.
 _REPEATABLE_KILL_MIRROR = _REPEATABLE_KILL_RE
 # A trigger event that fires AT MOST ONCE per object (the object leaves the battlefield
-# or its state changes irreversibly) — NOT a repeatable per-turn kill frame.
-_KILL_ENGINE_ONESHOT_EVENTS = frozenset({"etb", "ltb", "dies", "death", "leaves"})
-# event='other' triggers whose RAW names a one-shot self-state change (CR 701.37 / 707 /
-# 701.27) — these phase cannot distinguish from genuine recurring 'other' triggers
-# (mutate, exploit) by event alone, so the raw is the discriminator.
-_KILL_ENGINE_ONESHOT_RAW = re.compile(
-    r"turned face up|becomes? monstrous|transforms? into", re.IGNORECASE
+# or its state changes irreversibly) — NOT a repeatable per-turn kill frame. ADR-0027
+# (SIDECAR v40): `transformed` (CR 712 DFC) and `turn_face_up` (CR 702.36 morph) are now
+# distinct STRUCTURAL events, so the morph-flip / transform one-shots read here instead
+# of via the raw discriminator below.
+_KILL_ENGINE_ONESHOT_EVENTS = frozenset(
+    {"etb", "ltb", "dies", "death", "leaves", "transformed", "turn_face_up"}
 )
+# event='other' triggers whose RAW names a one-shot self-state change phase cannot
+# distinguish from genuine recurring 'other' triggers by event alone, so the raw is the
+# discriminator. Only `becomes monstrous` remains — Monstrosity (CR 701.37) is an EFFECT
+# category (no trigger event); the morph-flip ("turned face up", CR 707) and DFC
+# transform ("transforms into", CR 701.27) arms are DROPPED — they are read structurally
+# via the transformed / turn_face_up events above (SIDECAR v40).
+_KILL_ENGINE_ONESHOT_RAW = re.compile(r"becomes? monstrous", re.IGNORECASE)
 
 
 def _is_kill_engine_ir(ir: Card) -> bool:
@@ -5575,9 +5581,10 @@ def _is_kill_engine_ir(ir: Card) -> bool:
             subj = e.subject
             if not (isinstance(subj, Filter) and "Creature" in subj.card_types):
                 continue
-            # event='other' folds genuine recurring triggers (mutate, exploit) WITH
-            # one-shot self-state changes (monstrosity / morph flip / transform), so the
-            # raw is the discriminator (CR 701.37 / 707 / 701.27).
+            # The morph-flip / DFC-transform one-shots are excluded STRUCTURALLY (their
+            # events are in _KILL_ENGINE_ONESHOT_EVENTS, so `repeatable` is already
+            # False). Monstrosity (CR 701.37) is an EFFECT with no trigger event, so its
+            # event='other' one-shot still needs the raw discriminator.
             if event == "other" and _KILL_ENGINE_ONESHOT_RAW.search(e.raw or ""):
                 continue
             return True
@@ -8935,6 +8942,50 @@ def extract_signals_ir(
             # payoff, so no discriminator is needed. CR 701.16.
             if trig.event == "sacrificed":
                 add("sacrifice_matters", "you", "", "")
+            # ADR-0027 (SIDECAR v40) — exploit IS a sacrifice (CR 702.139a: "when this
+            # enters, you may sacrifice a creature"). phase carries the payoff as a
+            # distinct `Exploited` trigger ("whenever a creature you control exploits a
+            # creature"), now event=='exploited'. Reading it opens sacrifice_matters
+            # for the exploit-GRANTER Henry Wu (keyword-less — his exploit lives only
+            # in the grant text, so the keyword route below can't reach him; his own
+            # Exploited trigger does) and the 24 native exploiters that carry the
+            # trigger. The Scryfall `exploit` keyword route (_IR_KEYWORD_MAP) covers
+            # the keyword-only tail (Silumgar Scavenger). CR 702.139.
+            if trig.event == "exploited":
+                add("sacrifice_matters", "you", "", "")
+            # ADR-0027 (SIDECAR v40, MISS#1) — the BECOMES-TARGET payoff split. phase
+            # carries a `BecomesTarget` trigger (CR 702.21a) whose targeted creature's
+            # owner rides `scope` (valid_card) and whose TARGETING-spell controller
+            # rides the `src:` zone tag (project `_becomes_target_src_zones`). The two
+            # lanes split on the targeting source, NOT the creature owner:
+            #   • target_own_payoff — you can trigger it by targeting YOUR OWN creature
+            #     (heroic/valiant + the "you may" reactions — Heartfire Hero, Nadu,
+            #     Brine Comber, Monk Gyatso). Fires when the creature is yours/any
+            #     (scope in you/any, so Willbreaker/Shay Cormac's opponent-creature
+            #     subject — scope 'opp' — is excluded) and the source is NOT
+            #     opponent-restricted.
+            #   • target_redirect — an OPPONENT targets your stuff and you punish/draw
+            #     (Shapers' Sanctuary, Rayne, Diffusion Sliver, Tectonic Giant). Fires
+            #     on the same creature-owner gate + `src:opp`. This is the half that
+            #     wants redirect spells. The src:opp gate fixes the Shapers' Sanctuary
+            #     double-fire (the deleted own-payoff regex also matched its "creature
+            #     you control … you may", so it fired BOTH lanes; structurally it is
+            #     redirect-only). CR 702.21a / 702.83 / 108.3.
+            if trig.event == "becomes_target" and trig.scope in ("you", "any"):
+                if "src:opp" in trig.zones:
+                    add("target_redirect", "you", "", "")
+                else:
+                    add("target_own_payoff", "you", "", "")
+            # targeting_matters (the BROAD scope-'any' targeting lane) reads the same
+            # structural becomes_target event — every becomes-target trigger is a
+            # targeting payoff regardless of creature-owner or source (Willbreaker /
+            # Shay Cormac's opponent-creature triggers count here too). add() dedups,
+            # and the kept residue mirror (_IR_KEPT_DETECTORS) recovers the granted/
+            # quoted/player-targeted forms phase emits NO BecomesTarget node for (Kira
+            # / Opaline Sliver quote the ability to other creatures, Dormant Gomazoa
+            # fires on YOU being targeted). CR 702.83 / 115.6.
+            if trig.event == "becomes_target":
+                add("targeting_matters", "any", "", "")
             # Batch 2c — trigger-event "payoff" lanes.
             payoff = _PAYOFF_TRIGGER_KEYS.get(trig.event)
             if payoff is not None:

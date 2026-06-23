@@ -5540,6 +5540,8 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # target_own_payoff ← a becomes_target Trigger, scope (you,any), NO src:opp tag (the
+    # own-target half phase reads structurally @ SIDECAR v40).
     "target_own_payoff": (
         {
             "name": "Monk Gyatso",
@@ -5551,8 +5553,20 @@ _CASES: dict[str, tuple[dict, Card]] = {
                 "cost.)"
             ),
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="becomes_target",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",), controller="you"),
+                ),
+                effects=(Effect(category="other", scope="you", raw="airbend"),),
+            )
+        ),
     ),
+    # target_redirect ← a becomes_target Trigger carrying the src:opp tag (the targeting
+    # source is an opponent — the redirect/punisher half).
     "target_redirect": (
         {
             "name": "Rayne, Academy Chancellor",
@@ -5563,7 +5577,18 @@ _CASES: dict[str, tuple[dict, Card]] = {
                 "may draw an additional card if Rayne is enchanted."
             ),
         },
-        _ir(),
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(
+                    event="becomes_target",
+                    scope="you",
+                    subject=Filter(controller="you"),
+                    zones=("src:opp",),
+                ),
+                effects=(Effect(category="draw", scope="you", raw="draw a card"),),
+            )
+        ),
     ),
     # ADR-0027 tranche2-batch-5 (t2b5-C) — four kept_detector keys read by the
     # _IR_KEPT_DETECTORS word mirror (which scans the oracle text directly), so a bare

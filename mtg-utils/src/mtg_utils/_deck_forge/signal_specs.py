@@ -1408,9 +1408,12 @@ _EDICT_SWEEP_REGEX = (
 _BASIC_LAND_FETCH = (
     r"search your library for [^.]*\b(?:forest|plains|island|swamp|mountain)s?\b"
 )
-# ADR-0027 t2b5-C: targeting_matters migrated to the Card IR — its SWEEP_DETECTORS row
-# is deleted (detection moved to the kept word mirror). The SERVE pool stays oracle-
-# defined, so the deleted regex is inlined here (byte-identical to the old sweep row).
+# ADR-0027 t2b5-C → SIDECAR v40: targeting_matters DETECTION reads structure (phase's
+# `BecomesTarget` mode → event=='becomes_target') plus a residue mirror for the
+# granted/quoted/player-targeted forms (see _IR_KEPT_DETECTORS). The SERVE pool (which
+# candidate cards FIT the lane — heroic enablers, becomes-target payoffs, cast-that-
+# targets spells) stays oracle-defined, so the becomes-target + heroic + cast phrasing
+# is inlined here (this is the serve regex, not the detection path). CR 702.83 / 115.6.
 _TARGETING_SWEEP_REGEX = (
     "becomes the target of a spell or ability"
     "|whenever [^.]{0,60}?becomes? the target of|\\bheroic\\b"

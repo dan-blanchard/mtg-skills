@@ -453,7 +453,37 @@ from mtg_utils.card_ir import Card
 #   exile a GY card as crafting fuel), routing the ~14 graveyard-Craft cards to
 #   graveyard_matters via the existing exilegrave consumer. CR 108.3 / 110.2 /
 #   110.2a / 202.3 / 700.10 / 702.171 (craft) / 406.
-SIDECAR_VERSION = 39
+# v40 (ADR-0027 trigger-mode splits — project.py `_trigger_event` + `_project_trigger`):
+#   six distinct phase trigger MODES were FOLDED into the terminal `other` event, so the
+#   lanes could only regex-mirror them. New arms read STRUCTURE and the mirrors are
+#   deleted:
+#     - BecomesTarget (MISS#1, 111 firings): the becomes-the-target event (CR 702.21a
+#       ward / 702.83 heroic / valiant). `_project_trigger` surfaces the targeting
+#       spell's controller (the you-vs-opp discriminant phase keeps on `valid_source`,
+#       dropped by `scope` which reads valid_card) as a `src:opp` / `src:you` zone tag,
+#       recovering the 3 bare-StackSpell parse gaps (Reality Smasher, Swarm Shambler,
+#       Tectonic Giant) from the trigger description. target_own_payoff now reads
+#       event=='becomes_target' + scope in (you,any) + NOT src:opp (you can self-target
+#       it — Heartfire Hero, Nadu, Brine Comber, Monk Gyatso: 2→79); target_redirect
+#       reads + src:opp (the opponent-targets-your-stuff punisher — Shapers' Sanctuary,
+#       Rayne, Diffusion Sliver: 11→32, and the Shapers' Sanctuary double-fire is fixed
+#       — it is redirect-only now). The 3 deleted regex mirrors (target_own_payoff /
+#       target_redirect / targeting_matters becomes-target arm) and 2 false projection
+#       comments ("phase has no becomestarget mode") are removed.
+#     - Transformed (CR 712 DFC) / TurnFaceUp (CR 702.36 morph): one-shot self-state
+#       events the kill_engine arm read via the `turned face up|transforms into` raw
+#       discriminator. Now read structurally (the events join _KILL_ENGINE_ONESHOT_
+#       EVENTS) and those two raw arms are dropped (becomes monstrous stays — it is a
+#       Monstrosity EFFECT, no trigger event).
+#     - Attached / Unattach (CR 701.3, opposite halves): split to becomes_attached /
+#       becomes_unattached. No lane reads them yet — preservation enabling future
+#       equip/aura-attach lanes.
+#     - Exploited (CR 702.139 — exploit IS a sacrifice): split to `exploited`, read by
+#       the sacrifice_matters trigger arm (Henry Wu's grant + the 24 native
+#       exploiters with the trigger). The Scryfall `exploit` keyword also maps to
+#       sacrifice_matters in _IR_KEYWORD_MAP (covers Silumgar Scavenger, keyword-
+#       only). CR 702.21a / 702.83 / 712 / 702.36 / 701.3 / 702.139 / 108.3.
+SIDECAR_VERSION = 40
 
 
 def card_ir_dir() -> Path:

@@ -1411,13 +1411,14 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _IR_KEPT_DETECTORS word mirror for the "cast a multicolored spell" trigger / "for
     # each color pair" refs that aren't a structured subject. This _HAND_FLOOR producer
     # is deleted; the serve spec stays hand-registered.
-    # ADR-0027 (t2b5-B): target_own_payoff migrated to the Card IR (kept_detector).
-    # Monk Gyatso's becomes-target may-reaction on YOUR creatures: phase parses the
-    # becomes-target trigger as event='other' (no becomestarget trigger mode), so the
-    # may-clause + own-creature restriction survive only in raw. The IR path detects it
-    # from a byte-identical _IR_KEPT_DETECTORS word mirror; this _HAND_FLOOR producer is
-    # deleted; the hand-written serve spec (signal_specs.py, en-Kor / {0}-equip
-    # enablers) is independent of this regex and survives.
+    # ADR-0027 (t2b5-B → SIDECAR v40): target_own_payoff migrated to the Card IR via a
+    # STRUCTURAL trigger read. phase HAS a `BecomesTarget` mode (CR 702.21a), so the
+    # lane reads event=='becomes_target' + scope in (you,any) + NOT the project
+    # `src:opp` zone tag (the you-can-self-target half — Heartfire Hero / Nadu / Brine
+    # Comber / Monk Gyatso). The narrow "creature you control … you may" regex caught
+    # only 2 cards; the structural event reaches all the own-target payoffs. This
+    # _HAND_FLOOR producer is deleted; the hand-written serve spec (signal_specs.py,
+    # en-Kor / {0}-equip enablers) is independent of this regex and survives.
     # ADR-0027: life_payment_insurance migrated to the Card IR — a repeatable "Pay N
     # life:" ACTIVATION COST ("paylife" in Ability.cost; Selenia, Beledros, the
     # fetchlands — genuine recall the narrow regex missed) + a `life_payment` marker for
@@ -1455,14 +1456,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # drops its lone over-fire and adds recall). This _HAND_FLOOR producer is
     # deleted; the serve spec stays hand-registered in signal_specs.py. NOT in
     # _IR_FLOOR_LANES (floor-mirror-dep == 0).
-    # ADR-0027 (t2b5-B): target_redirect migrated to the Card IR (kept_detector).
-    # Rayne's becomes-target-of-opponent → draw payoff: phase flattens the becomes-
-    # target trigger to event='other' (no becomestarget mode), so DETECTION (which
-    # commanders open the lane) survives only in raw. The IR path detects it from a
-    # byte-identical _IR_KEPT_DETECTORS word mirror; this _HAND_FLOOR producer is
-    # deleted. The hand-written serve spec (signal_specs.py, redirect spells) is
-    # independent of this regex and survives — the redirect SERVE pool is itself
-    # structural via category=='redirect' should anyone tighten it later.
+    # ADR-0027 (t2b5-B → SIDECAR v40): target_redirect migrated to the Card IR via a
+    # STRUCTURAL trigger read. phase HAS a `BecomesTarget` mode (CR 702.21a), and
+    # `_project_trigger` surfaces the targeting spell's controller as the `src:opp` zone
+    # tag, so the lane reads event=='becomes_target' + scope in (you,any) + src:opp (the
+    # opponent-targets-your-stuff punisher — Rayne / Shapers' Sanctuary / Diffusion
+    # Sliver / Tectonic Giant). The narrow "an opponent controls … draw" regex caught
+    # only 11 cards and double-fired Shapers' Sanctuary into target_own_payoff too; the
+    # structural src:opp split is clean. This _HAND_FLOOR producer is deleted. The
+    # hand-written serve spec (signal_specs.py, redirect spells) is independent of this
+    # regex and survives — the redirect SERVE pool is itself structural via
+    # category=='redirect' should anyone tighten it later.
     # ADR-0027: ramp_matters migrated to the Card IR. Its TWO _HAND_FLOOR producers are
     # deleted — this dork-support arm (Raggadragga: "Each creature you control with a
     # mana ability gets +2/+2 … untap it when it attacks") and the main mana-production

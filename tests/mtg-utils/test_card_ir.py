@@ -5560,3 +5560,329 @@ def test_vedalken_ghoul_carries_becomes_blocked_trigger():
     assert triggered
     assert triggered[0].trigger is not None
     assert triggered[0].trigger.event == "becomes_blocked"
+
+
+# ── ADR-0027 (SIDECAR v40) trigger-mode splits out of the `other` fold ─────────
+
+
+def test_trigger_mode_splits_project_distinct_events():
+    """The six phase trigger MODES that used to fold into the generic `other` event now
+    project to distinct events: BecomesTarget (CR 702.21a), Transformed (CR 712),
+    TurnFaceUp (CR 702.36), Attached / Unattach (CR 701.3), Exploited (CR 702.139)."""
+    assert _trigger_event({"mode": "BecomesTarget"}) == "becomes_target"
+    assert _trigger_event({"mode": "Transformed"}) == "transformed"
+    assert _trigger_event({"mode": "TurnFaceUp"}) == "turn_face_up"
+    assert _trigger_event({"mode": "Attached"}) == "becomes_attached"
+    assert _trigger_event({"mode": "Unattach"}) == "becomes_unattached"
+    assert _trigger_event({"mode": "Exploited"}) == "exploited"
+
+
+# Heartfire Hero — valiant: "Whenever this creature becomes the target of a spell or
+# ability you control …, put a +1/+1 counter on it." The targeting source is YOUR OWN
+# spell (valid_source carries controller You), so the own-payoff lane reads it.
+HEARTFIRE_HERO = {
+    "name": "Heartfire Hero",
+    "scryfall_oracle_id": "heartfire-hero",
+    "card_type": {"supertypes": [], "core_types": ["Creature"], "subtypes": ["Mouse"]},
+    "oracle_text": (
+        "Valiant — Whenever this creature becomes the target of a spell or ability "
+        "you control for the first time each turn, put a +1/+1 counter on it."
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "BecomesTarget",
+            "valid_card": {"type": "SelfRef"},
+            "valid_source": {
+                "type": "Or",
+                "filters": [
+                    {"type": "StackSpell", "controller": "You"},
+                    {"type": "StackAbility", "controller": "You"},
+                ],
+            },
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "PutCounter",
+                    "counter_type": "P1P1",
+                    "count": {"type": "Fixed", "value": 1},
+                    "target": {"type": "SelfRef"},
+                },
+            },
+            "description": (
+                "Whenever ~ becomes the target of a spell or ability you control for the "
+                "first time each turn, put a +1/+1 counter on it."
+            ),
+        }
+    ],
+}
+
+
+def test_becomes_target_you_source_carries_src_you_zone():
+    """A becomes-target trigger whose targeting source is YOUR OWN spell carries the
+    `src:you` zone tag (and scope 'you' from the SelfRef subject) — the own-payoff half
+    (you can self-target it on demand)."""
+    card = project_card([HEARTFIRE_HERO])
+    triggered = [a for a in card.all_abilities() if a.kind == "triggered"]
+    assert triggered
+    trig = triggered[0].trigger
+    assert trig is not None
+    assert trig.event == "becomes_target"
+    assert trig.scope == "you"
+    assert "src:you" in trig.zones
+    assert "src:opp" not in trig.zones
+
+
+# Shapers' Sanctuary — "Whenever a creature you control becomes the target of a spell or
+# ability an opponent controls, you may draw a card." The targeting source is an
+# OPPONENT's spell (valid_source carries controller Opponent), so the redirect lane
+# reads it — NOT the own-payoff lane (fixing the prior regex double-fire).
+SHAPERS_SANCTUARY = {
+    "name": "Shapers' Sanctuary",
+    "scryfall_oracle_id": "shapers-sanctuary",
+    "card_type": {"supertypes": [], "core_types": ["Enchantment"], "subtypes": []},
+    "oracle_text": (
+        "Whenever a creature you control becomes the target of a spell or ability an "
+        "opponent controls, you may draw a card."
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "BecomesTarget",
+            "valid_card": {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": "You",
+                "properties": [],
+            },
+            "valid_source": {
+                "type": "Or",
+                "filters": [
+                    {
+                        "type": "And",
+                        "filters": [
+                            {"type": "StackSpell"},
+                            {
+                                "type": "Typed",
+                                "type_filters": [],
+                                "controller": "Opponent",
+                                "properties": [],
+                            },
+                        ],
+                    },
+                    {"type": "StackAbility", "controller": "Opponent"},
+                ],
+            },
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Draw",
+                    "count": {"type": "Fixed", "value": 1},
+                    "target": {"type": "Controller"},
+                },
+                "optional": True,
+            },
+            "description": (
+                "Whenever a creature you control becomes the target of a spell or ability "
+                "an opponent controls, you may draw a card."
+            ),
+        }
+    ],
+}
+
+
+def test_becomes_target_opp_source_carries_src_opp_zone():
+    """A becomes-target trigger whose targeting source is an OPPONENT's spell carries the
+    `src:opp` zone tag — the redirect half. The creature owner (scope) is still 'you'
+    (your creature got targeted), so the own-vs-redirect split rides the source tag."""
+    card = project_card([SHAPERS_SANCTUARY])
+    triggered = [a for a in card.all_abilities() if a.kind == "triggered"]
+    assert triggered
+    trig = triggered[0].trigger
+    assert trig is not None
+    assert trig.event == "becomes_target"
+    assert trig.scope == "you"
+    assert "src:opp" in trig.zones
+
+
+# Tectonic Giant — "Whenever this creature … becomes the target of a spell an opponent
+# controls …". phase emits a BARE StackSpell here (no controller), so the source-opp
+# restriction the text states must be recovered from the description.
+TECTONIC_GIANT = {
+    "name": "Tectonic Giant",
+    "scryfall_oracle_id": "tectonic-giant",
+    "card_type": {"supertypes": [], "core_types": ["Creature"], "subtypes": ["Giant"]},
+    "oracle_text": (
+        "Whenever Tectonic Giant attacks or becomes the target of a spell an opponent "
+        "controls, choose one —"
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "BecomesTarget",
+            "valid_card": {"type": "SelfRef"},
+            "valid_source": {"type": "StackSpell"},
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "DealDamage",
+                    "amount": {"type": "Fixed", "value": 3},
+                    "target": {"type": "EachOpponent"},
+                },
+            },
+            "description": (
+                "Whenever ~ becomes the target of a spell an opponent controls, "
+                "choose one."
+            ),
+        }
+    ],
+}
+
+
+def test_becomes_target_src_opp_recovered_from_description_on_parse_gap():
+    """When phase emits a bare StackSpell source (no controller) but the trigger text
+    states the opponent restriction, `src:opp` is recovered from the description so the
+    redirect lane still fires (the structural-source parse gap — Tectonic Giant, Reality
+    Smasher, Swarm Shambler)."""
+    card = project_card([TECTONIC_GIANT])
+    triggered = [a for a in card.all_abilities() if a.kind == "triggered"]
+    assert triggered
+    trig = triggered[0].trigger
+    assert trig is not None
+    assert trig.event == "becomes_target"
+    assert "src:opp" in trig.zones
+
+
+# Mouse Trapper — "Whenever ~ becomes the target of a spell or ability YOU CONTROL …,
+# tap target creature an opponent controls." The "an opponent" rides the EFFECT target
+# (the tap recipient), NOT the source — so the description-fallback must NOT mis-fire
+# src:opp (the source is structurally You).
+MOUSE_TRAPPER = {
+    "name": "Mouse Trapper",
+    "scryfall_oracle_id": "mouse-trapper",
+    "card_type": {"supertypes": [], "core_types": ["Creature"], "subtypes": ["Mouse"]},
+    "oracle_text": (
+        "Whenever Mouse Trapper becomes the target of a spell or ability you control "
+        "for the first time each turn, tap target creature an opponent controls."
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "BecomesTarget",
+            "valid_card": {"type": "SelfRef"},
+            "valid_source": {
+                "type": "Or",
+                "filters": [
+                    {"type": "StackSpell", "controller": "You"},
+                    {"type": "StackAbility", "controller": "You"},
+                ],
+            },
+            "execute": {
+                "kind": "Spell",
+                "effect": {"type": "Tap", "target": {"type": "TargetCreature"}},
+            },
+            "description": (
+                "Whenever ~ becomes the target of a spell or ability you control for the "
+                "first time each turn, tap target creature an opponent controls."
+            ),
+        }
+    ],
+}
+
+
+def test_becomes_target_you_source_not_misfired_by_effect_opponent():
+    """The src-opp description fallback is anchored on the SOURCE phrase ("of a spell /
+    ability … an opponent controls"), so a card whose source is structurally YOURS but
+    whose EFFECT targets an opponent (Mouse Trapper) stays `src:you`, NOT `src:opp`."""
+    card = project_card([MOUSE_TRAPPER])
+    trig = next(a.trigger for a in card.all_abilities() if a.kind == "triggered")
+    assert trig is not None
+    assert trig.event == "becomes_target"
+    assert "src:you" in trig.zones
+    assert "src:opp" not in trig.zones
+
+
+# A morph creature — "When ~ is turned face up, …": the TurnFaceUp mode now projects to
+# the distinct turn_face_up event (one-shot, CR 702.36).
+TURNED_FACE_UP_CARD = {
+    "name": "Aphetto Exterminator",
+    "scryfall_oracle_id": "aphetto-exterminator",
+    "card_type": {"supertypes": [], "core_types": ["Creature"], "subtypes": ["Zombie"]},
+    "oracle_text": (
+        "Morph {2}{B}{B}\nWhen Aphetto Exterminator is turned face up, target creature "
+        "gets -3/-3 until end of turn."
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "TurnFaceUp",
+            "valid_card": {"type": "SelfRef"},
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Pump",
+                    "power": {"type": "Fixed", "value": -3},
+                    "toughness": {"type": "Fixed", "value": -3},
+                    "target": {"type": "TargetCreature"},
+                },
+            },
+            "description": "When ~ is turned face up, target creature gets -3/-3.",
+        }
+    ],
+}
+
+
+def test_turn_face_up_mode_projects_to_distinct_event():
+    """The TurnFaceUp mode projects to the `turn_face_up` event (split out of `other`),
+    a one-shot read structurally by the kill_engine arm."""
+    card = project_card([TURNED_FACE_UP_CARD])
+    trig = next(a.trigger for a in card.all_abilities() if a.kind == "triggered")
+    assert trig is not None
+    assert trig.event == "turn_face_up"
+
+
+# Henry Wu, InGen Geneticist — GRANTS exploit (keyword-less) and carries the Exploited
+# payoff trigger ("Whenever a creature you control exploits …, draw a card").
+HENRY_WU = {
+    "name": "Henry Wu, InGen Geneticist",
+    "scryfall_oracle_id": "henry-wu",
+    "card_type": {"supertypes": [], "core_types": ["Creature"], "subtypes": ["Human"]},
+    "oracle_text": (
+        "Henry Wu and other Human creatures you control have exploit.\n"
+        "Whenever a creature you control exploits a non-Human creature, draw a card."
+    ),
+    "keywords": [],
+    "triggers": [
+        {
+            "mode": "Exploited",
+            "valid_card": {
+                "type": "Typed",
+                "type_filters": ["Creature"],
+                "controller": "You",
+                "properties": [],
+            },
+            "execute": {
+                "kind": "Spell",
+                "effect": {
+                    "type": "Draw",
+                    "count": {"type": "Fixed", "value": 1},
+                    "target": {"type": "Controller"},
+                },
+            },
+            "description": (
+                "Whenever a creature you control exploits a non-Human creature, "
+                "draw a card."
+            ),
+        }
+    ],
+}
+
+
+def test_exploited_mode_projects_to_exploited_event():
+    """The Exploited mode (CR 702.139 — exploit is a sacrifice mechanic) projects to the
+    `exploited` event, read by the sacrifice_matters arm — so the keyword-less exploit
+    GRANTER Henry Wu opens the sac lane from his own trigger."""
+    card = project_card([HENRY_WU])
+    trig = next(a.trigger for a in card.all_abilities() if a.kind == "triggered")
+    assert trig is not None
+    assert trig.event == "exploited"

@@ -396,6 +396,13 @@ EVENTS: frozenset[str] = frozenset(
         "sacrificed",
         "discarded",
         "leaves",
+        # ADR-0027 (SIDECAR v40) — trigger MODES split out of the `other` fold.
+        "becomes_target",  # CR 702.21a / 702.83 (ward / heroic / valiant)
+        "transformed",  # CR 712 (DFC transform)
+        "turn_face_up",  # CR 702.36 (morph turned face up)
+        "becomes_attached",  # CR 701.3 (equip / aura attach)
+        "becomes_unattached",  # CR 701.3 (the opposite half)
+        "exploited",  # CR 702.139 (exploit — a sacrifice mechanic)
         "other",
     }
 )
