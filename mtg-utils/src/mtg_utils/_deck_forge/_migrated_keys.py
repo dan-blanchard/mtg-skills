@@ -5959,6 +5959,33 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # row (a direct add() producer), so the detector floor is UNCHANGED. CR 701.42 /
         # 903.10a.
         "meld_pair",
+        # ADR-0027 Cluster D (LAST) — named_permanent (the NAMED-CARD SYNERGY lane: a
+        # card whose oracle text references a specific OTHER card BY NAME — Festering
+        # Newt → Bogbrew Witch, Pious Kitsune → Eight-and-a-Half-Tails, Urborg Panther →
+        # Spirit of the Night, Bonder's Ornament → itself). DIAGNOSIS (signals-only, NO
+        # projection, SIDECAR stays v36): phase v0.1.60 DROPS the referenced name — the
+        # actual card name survives only inside an effect's `raw` byte-fragment (a bare
+        # `Named` predicate FLAG on Urborg Panther's tutor, never the string); the
+        # only name-ish strings phase emits structurally are the card's OWN name /
+        # type_line. project.py CANNOT recover the referenced name, so this is a
+        # KEPT-MIRROR (meld_pair precedent), not a projection. WIRE: a byte-identical
+        # kept word mirror in extract_signals_ir runs the EXACT deleted
+        # NAMED_PERMANENT_REGEX (_NAMED_PERMANENT_SWEEP_RE) FLAT over the reminder-
+        # stripped joined-face kept_oracle, scope 'you', HIGH confidence — the two arms
+        # never cross a clause boundary so flat == the deleted per-clause SWEEP firing
+        # (commander-legal: both==26, regex_only==0, ir_only==0). VOLTRON: the deleted
+        # SWEEP fired HIGH scope 'you' and fed has_other_plan, silencing the spurious
+        # commander-damage tell on 8 LEGENDARY synergy bodies whose only high plan was
+        # named_permanent (Gisela, Venser, Vanille, Brothers Yamazaki, Gollum, Rufus
+        # Shinra, Mishra, Liu Bei); the IR re-supply is the SAME 26 byte-identically, so
+        # named_permanent joins _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010 by set
+        # equality. This is a SWEEP row (DELETED), so the SWEEP floor drops 8→7. The CR
+        # 100.2a COPY-LIMIT population (ir.many_copies) is a DIFFERENT signal
+        # (run-many-copies) and is NOT folded into this key — the dead `many_copies` arm
+        # is removed (behavior-neutral: the SAME 26 synergy cards as the deleted regex).
+        # CR 712.1 (named references) vs CR 100.2a (copy limit) — likely SEPARATE keys;
+        # see the ADR recommendation in the migration record. CR 712.1 / 903.10a.
+        "named_permanent",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

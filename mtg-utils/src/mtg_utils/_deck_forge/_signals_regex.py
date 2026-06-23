@@ -65,6 +65,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LANDFALL_REGEX,
     LTB_MATTERS_SWEEP_REGEX,
     LURE_MATTERS_REGEX,
+    NAMED_PERMANENT_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PROTECTION_GRANT_REGEX,
     PUMP_MATTERS_REGEX,
@@ -4484,6 +4485,19 @@ _IMPULSE_TOP_PLAY_SWEEP_RE = re.compile(
 # PER-CLAUSE via _clauses (matching the deleted SWEEP path), NOT as a flat
 # _IR_KEPT_DETECTORS full-text row. CR 701.8a.
 _DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
+
+# ADR-0027 Cluster D (SIGNALS-ONLY) — the EXACT deleted named_permanent SWEEP regex,
+# kept for the byte-identical kept-mirror (_IR_KEPT_DETECTORS in _signals_ir, scope
+# 'you', run FLAT over the reminder-stripped joined-face kept_oracle). The named-card
+# synergy lane: a card referencing a specific OTHER card by name. phase drops the
+# referenced name (only a bare `Named` flag survives, never the string), so the lane is
+# signals-only — no projection, no sidecar bump (the meld_pair precedent). The two arms
+# never cross a clause boundary (`[A-Z]`-anchored / `[^.]*`-bounded), so flat-over-
+# kept_oracle == the deleted per-clause SWEEP firing byte-identically (commander-legal:
+# both==26, regex_only==0, ir_only==0). It fired HIGH scope 'you' and fed
+# has_other_plan, so named_permanent joins signals._VOLTRON_SILENCING_PLAN_KEYS (the IR
+# re-supply is the SAME 26 byte-identically). CR 712.1 (named references) / 903.10a.
+_NAMED_PERMANENT_SWEEP_RE = re.compile(NAMED_PERMANENT_REGEX, re.IGNORECASE)
 
 # ADR-0027 dig library-owner scope (SIDECAR v27) — the EXACT deleted dig_until SWEEP
 # regex, kept for the byte-identical mirror. The structural `dig_until` EFFECT

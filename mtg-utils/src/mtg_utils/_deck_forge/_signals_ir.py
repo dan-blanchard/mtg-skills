@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _KEYWORD_SOUP_CONTEXT_RE,
     _MANA_TAP_RE,
     _MELD_FULLTEXT_RE,
+    _NAMED_PERMANENT_SWEEP_RE,
     _PER_TURN_ENGINE_RE,
     _PLAY_FROM_TOP_FLOOR_MIRROR,
     _PLAY_FROM_TOP_MIRROR,
@@ -878,6 +879,29 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "base_pt_set",
         re.compile(BASE_PT_SET_REGEX, re.IGNORECASE),
         "any",
+    ),
+    # ADR-0027 Cluster D — named_permanent SIGNALS-ONLY kept WORD MIRROR. The named-
+    # card SYNERGY lane: a card whose oracle text references a specific OTHER card by
+    # name (Festering Newt → Bogbrew Witch, Pious Kitsune → Eight-and-a-Half-Tails,
+    # Urborg Panther → Spirit of the Night, Bonder's Ornament → itself). phase v0.1.60
+    # DROPS the referenced name — it survives only inside an effect's `raw` byte-
+    # fragment (one bare `Named` predicate flag on Urborg Panther's tutor, never the
+    # string), so project.py cannot recover it; the lane stays a regex mirror (the
+    # meld_pair precedent — phase loses the named-card data). The
+    # _NAMED_PERMANENT_SWEEP_RE arms never cross a clause boundary (`[A-Z]`-anchored /
+    # `[^.]*`-bounded), so a FLAT .search over the reminder-stripped joined-face
+    # kept_oracle == the deleted per-clause SWEEP firing byte-identically (commander-
+    # legal: both==26, regex_only==0, ir_only==0). Scope 'you', HIGH confidence (the
+    # loop's add() default) — the exact scope/confidence the deleted SWEEP row forced.
+    # It fed has_other_plan, so named_permanent joins
+    # signals._VOLTRON_SILENCING_PLAN_KEYS for the byte-identical voltron re-supply.
+    # DISTINCT from the IR `many_copies` field (CR 100.2a copy-limit — Relentless Rats,
+    # Shadowborn Apostle): a different deck-building signal (run-many-copies), NOT this
+    # key (the dead `many_copies` arm is removed). CR 712.1 / 903.10a.
+    (
+        "named_permanent",
+        _NAMED_PERMANENT_SWEEP_RE,
+        "you",
     ),
     # Voting (CR 701.38). The supplement structures the vote clause into an
     # accurate Effect(category="vote") node where phase emits one, but the LANE
@@ -3215,7 +3239,11 @@ IR_SLICE_KEYS: frozenset[str] = (
             "trigger_doubling",
             # Batch 6 (unblocked) — flash_grant via CastWithKeyword{Flash}:
             "flash_grant",
-            # Batch 5 (unblocked) — named-permanent via deck_copy_limit:
+            # ADR-0027 Cluster D — named_permanent SIGNALS-ONLY kept word mirror
+            # (_NAMED_PERMANENT_SWEEP_RE in _IR_KEPT_DETECTORS): the named-card SYNERGY
+            # lane (a card referencing a specific OTHER card by name). phase drops the
+            # referenced name, so it's a kept mirror, NOT the copy-limit `many_copies`
+            # field (CR 100.2a — that population is intentionally excluded here).
             "named_permanent",
             # Deferred-sweep: evasion-denial (IgnoreLandwalk); clone_matters still
             # deferred (regex 1611 vs IR 70 — needs the 1541 audited first):
@@ -9030,13 +9058,19 @@ def extract_signals_ir(
         add("historic_matters", "you", "", "")
     if "IsCommander" in ir_predicates:  # Batch 15 — cares about your commander
         add("commander_matters", "you", "", "")
-    # named_permanent: the CR 100.2a copy-limit exception (a deck runs many copies of
-    # one name — Relentless Rats, Hare Apparent, Seven Dwarves). The authoritative
-    # signal is the deck_copy_limit field, NOT an oracle regex or a fuzzy named-count
-    # heuristic (which would wrongly catch a 4-of graveyard-spell-count like
-    # Accumulated Knowledge). These cards want every other copy of their name.
-    if ir.many_copies:
-        add("named_permanent", "you", "", "")
+    # ADR-0027 Cluster D — named_permanent is the NAMED-CARD SYNERGY lane (a card
+    # referencing a specific OTHER card by name), served BYTE-IDENTICALLY by the
+    # _NAMED_PERMANENT_SWEEP_RE kept mirror in _IR_KEPT_DETECTORS (scope 'you'). It is
+    # MIGRATED behavior-neutrally: the SAME 26 commander-legal cards the deleted SWEEP
+    # row captured. The CR 100.2a copy-limit population (ir.many_copies — Relentless
+    # Rats, Shadowborn Apostle, Dragon's Approach) is a DIFFERENT deck-building signal
+    # (run-many-copies, not include-a-partner) and is intentionally NOT folded into this
+    # key here — doing so would flip the lane's meaning and break behavior-neutrality
+    # (the two populations are almost disjoint: 25 synergy-only vs 11 copy-limit-only).
+    # The `many_copies` IR field stays projected (it is real, CR 100.2a) but feeds no
+    # signal until a follow-up ADR decides whether copy-limit is its own lane (e.g.
+    # `copy_limit` / `deck_singleton_break`). CR 712.1 (named refs) vs CR 100.2a (copy
+    # limit) — likely SEPARATE keys; see the migration record's ADR recommendation.
 
     # Voltron PAYOFF (ADR-0027) — the structural Aura/Equipment build-around, read
     # from phase's IR (attach action / cast-an-Aura trigger / Aura-Equipment tutor /

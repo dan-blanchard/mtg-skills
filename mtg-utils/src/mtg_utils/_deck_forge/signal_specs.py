@@ -42,6 +42,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     KEYWORD_COUNTER_REGEX,
     KEYWORD_GRANT_TARGET_REGEX,
     LURE_MATTERS_REGEX,
+    NAMED_PERMANENT_REGEX,
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     OPPONENT_COUNTER_GRANT_REGEX,
@@ -2490,6 +2491,20 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["dies_recursion"],
         {"oracle": DIES_RECURSION_REGEX},
         DIES_RECURSION_REGEX,
+    ),
+    # ADR-0027 Cluster D (SIGNALS-ONLY): named_permanent's SWEEP_DETECTORS row is
+    # deleted (detection moved to the Card IR — a byte-identical NAMED_PERMANENT_REGEX
+    # kept word mirror in signals._IR_KEPT_DETECTORS for the named-card SYNERGY lane,
+    # which phase drops the referenced name for). The SERVE pool stays oracle-defined,
+    # so hand-register the spec the sweep auto-register loop used to build (scope "you",
+    # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
+    # NAMED_PERMANENT_REGEX) so the served named-card pool never drifts. SWEEP_LABELS
+    # keeps the human label. DISTINCT from the CR 100.2a copy-limit `many_copies` field.
+    # CR 712.1.
+    ("named_permanent", "you"): _spec(
+        *SWEEP_LABELS["named_permanent"],
+        {"oracle": NAMED_PERMANENT_REGEX},
+        NAMED_PERMANENT_REGEX,
     ),
     # ADR-0027: topdeck_stack's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a STRUCTURAL arm over phase's `topdeck_stack` Effect + a byte-identical

@@ -179,8 +179,18 @@ def test_sweep_detectors_loaded():
     # BLOCKED_MATTERS_REGEX kept word mirror (_IR_KEPT_DETECTORS over the reminder-
     # stripped kept_oracle) recovering the blocker-side "whenever <creature> blocks" half;
     # the deleted `rampage` keyword entry rides the structural arm; CR 509.3a/c/d /
-    # 702.45a / 702.25a / 702.131 / 702.23).
-    assert len(SWEEP_DETECTORS) >= 8
+    # 702.45a / 702.25a / 702.131 / 702.23),
+    # then 8→7 as named_permanent's row was deleted (ADR-0027 Cluster D, SIGNALS-ONLY —
+    # the named-card SYNERGY lane, a card referencing a specific OTHER card by name.
+    # phase v0.1.60 DROPS the referenced name — it survives only in an effect `raw`
+    # byte-fragment, never as a structured field project.py can promote — so the lane
+    # stays a BYTE-IDENTICAL kept word mirror (NAMED_PERMANENT_REGEX in
+    # signals._IR_KEPT_DETECTORS, scope 'you', FLAT over the reminder-stripped
+    # kept_oracle; the two arms never cross a clause so flat == the deleted per-clause
+    # SWEEP firing, commander-legal both==26/regex_only==0/ir_only==0). DISTINCT from the
+    # IR `many_copies` copy-limit field (CR 100.2a — Relentless Rats), which is a
+    # different signal and is NOT this key; CR 712.1).
+    assert len(SWEEP_DETECTORS) >= 7
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

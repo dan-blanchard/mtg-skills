@@ -1818,6 +1818,24 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # ADR-0027 Cluster D — named_permanent (the named-card SYNERGY lane). phase drops
+    # the referenced name ("Bogbrew Witch" survives only in an effect `raw` byte-
+    # fragment, never a structured field), so the lane rides a byte-identical
+    # _NAMED_PERMANENT_SWEEP_RE scan over the reminder-stripped joined oracle, scope
+    # 'you'. A non-None IR routes the hybrid to the IR path, where the kept mirror
+    # serves it. DISTINCT from the CR 100.2a copy-limit `many_copies` field. CR 712.1.
+    "named_permanent": (
+        {
+            "name": "Festering Newt",
+            "type_line": "Creature — Salamander",
+            "oracle_text": (
+                "When this creature dies, target creature an opponent controls "
+                "gets -1/-1 until end of turn. That creature gets -4/-4 instead "
+                "if you control a creature named Bogbrew Witch."
+            ),
+        },
+        _ir(),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

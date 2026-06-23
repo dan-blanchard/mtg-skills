@@ -120,6 +120,27 @@ THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you
 # Its `[^.]*\.?\s*` arms span a sentence over the WHOLE oracle, so the mirror MUST run
 # per-clause (matching the deleted SWEEP path), NOT flat. CR 701.8a.
 DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard"
+# ADR-0027 Cluster D (SIGNALS-ONLY, no SIDECAR bump): named_permanent migrated to the
+# Card IR. This is the NAMED-CARD SYNERGY lane — a card whose oracle text references a
+# specific OTHER card BY NAME (Festering Newt → Bogbrew Witch, Pious Kitsune →
+# Eight-and-a-Half-Tails, Urborg Panther → Spirit of the Night, Bonder's Ornament →
+# itself). phase v0.1.60 DROPS the referenced name: it carries only a bare `Named`
+# predicate FLAG on one tutor (Urborg Panther) and otherwise leaves the name solely in
+# an effect's `raw` byte-fragment — the actual card name is never a structured field
+# project.py can promote (verified: the only name-ish strings phase emits are the
+# card's OWN name / type_line). So this is a SIGNALS-ONLY KEPT-MIRROR (the meld_pair
+# precedent): no projection, no sidecar bump. Its SWEEP_DETECTORS row is DELETED;
+# detection moves to a BYTE-IDENTICAL kept word mirror (NAMED_PERMANENT_REGEX in
+# signals._IR_KEPT_DETECTORS, scope 'you', run FLAT over the reminder-stripped joined-
+# face kept_oracle). The two `[^.]*`-free / `[^.]*`-bounded arms never cross a clause
+# boundary, so flat-over-kept_oracle == the deleted per-clause SWEEP firing byte-
+# identically (commander-legal: both==26, regex_only==0, ir_only==0). The serve spec
+# stays hand-registered. NB: this lane is DISTINCT from the IR `many_copies` field (CR
+# 100.2a copy-limit relaxation — Relentless Rats, Shadowborn Apostle), which is a
+# different deck-building signal (run-many-copies, not include-a-partner) and is NOT
+# this key — see the ADR recommendation in the migration record. CR 712.1 (named
+# references) vs CR 100.2a (copy limit).
+NAMED_PERMANENT_REGEX = "(?:permanent|creature|another permanent) named [A-Z]|a permanent you control named|control a (?:permanent|creature)[^.]*named"
 # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR (a
 # `dig_until` EFFECT scope=='you' structural arm — the own-library digs project.py now
 # scopes from the digger's `player` — UNION a byte-identical PER-CLAUSE mirror of this
@@ -2309,12 +2330,13 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # abilities can be blocked as though they didn't have those abilities" — Staff of
     # the Ages), appended by project._narrow_conferred_keyword_refs. Its oracle-regex
     # SWEEP_DETECTORS row is deleted; the serve spec stays hand-registered.
-    {
-        "key": "named_permanent",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "(?:permanent|creature|another permanent) named [A-Z]|a permanent you control named|control a (?:permanent|creature)[^.]*named",
-    },
+    # ADR-0027 Cluster D (SIGNALS-ONLY): named_permanent migrated to the Card IR — the
+    # NAMED-CARD SYNERGY lane (a card referencing a specific OTHER card by name). phase
+    # drops the referenced name, so the lane stays a BYTE-IDENTICAL kept word mirror
+    # (NAMED_PERMANENT_REGEX in signals._IR_KEPT_DETECTORS, scope 'you'). This
+    # SWEEP_DETECTORS row is DELETED so the regex `extract_signals` path no longer emits
+    # the migrated key; the serve spec stays hand-registered. DISTINCT from the IR
+    # `many_copies` copy-limit field (CR 100.2a) — see NAMED_PERMANENT_REGEX above.
     # ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card
     # IR (cost arm + scope in ('you','each') structural arm + a byte-identical PER-CLAUSE
     # mirror of THIS regex, pinned as _DISCARD_OUTLET_SWEEP_RE in _signals_regex). This
