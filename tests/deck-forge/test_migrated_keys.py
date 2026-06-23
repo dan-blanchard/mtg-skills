@@ -6871,6 +6871,35 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # kill_engine ← the include_membership-gated STRUCTURAL repeatable-frame arm in
+    # extract_signals_ir (_is_kill_engine_ir): a creature COMMANDER with an activated
+    # destroy-creature ability (Visara {T}: destroy) — or a recurring-trigger one — is a
+    # death-engine. phase already structures the frame (ab.kind / Trigger.event /
+    # counter_kind), so the lane is READ, not projected. The regex path no longer emits
+    # the key (the membership-block producer is deleted). scope "you", LOW conf. CR 305.6.
+    "kill_engine": (
+        {
+            "name": "Visara the Dreadful",
+            "type_line": "Legendary Creature — Gorgon",
+            "oracle_text": (
+                "Flying\n{T}: Destroy target creature. It can't be regenerated."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="tap",
+                effects=(
+                    Effect(
+                        category="destroy",
+                        scope="any",
+                        subject=Filter(card_types=("Creature",), controller="any"),
+                        raw="{T}: Destroy target creature. It can't be regenerated.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # keyword_soup_matters ← the include_membership-gated byte-identical mirror in
     # extract_signals_ir (the team-grant _KEYWORD_SOUP_CONTEXT_RE AND >=5 distinct
     # evergreen keyword WORDS over the reminder-stripped kept_oracle). A structural

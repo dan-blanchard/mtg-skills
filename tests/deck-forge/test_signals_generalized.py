@@ -1728,7 +1728,18 @@ def test_repeatable_creature_kill_opens_kill_engine():
     # A commander that destroys creatures EVERY turn (Diaochan's {T}, Visara's {T})
     # is a reliable death-engine: each kill triggers death payoffs (Blood Artist,
     # Vicious Shadows). Requires a REPEATABLE frame (activated/triggered): a one-shot
-    # removal spell (Murder) is not an engine and stays out.
+    # removal spell (Murder) is not an engine and stays out. ADR-0027: kill_engine
+    # migrated to the Card IR (signals-only — _is_kill_engine_ir reads ab.kind /
+    # Trigger.event), so the lane fires from the hybrid IR path, not the regex.
+    destroy_creature = Effect(
+        category="destroy",
+        scope="any",
+        subject=Filter(card_types=("Creature",), controller="any"),
+        raw="{T}: Destroy target creature.",
+    )
+    activated_kill = _ir_with(
+        Ability(kind="activated", cost="tap", effects=(destroy_creature,))
+    )
     diaochan = {
         "name": "Diaochan, Artful Beauty",
         "type_line": "Legendary Creature — Human Advisor",
@@ -1747,6 +1758,9 @@ def test_repeatable_creature_kill_opens_kill_engine():
         "keywords": ["Flying"],
         "oracle_text": "Flying\n{T}: Destroy target creature. It can't be regenerated.",
     }
+    # A one-shot removal SPELL (Murder, an Instant) — not a creature, not a repeatable
+    # frame: the kill_engine arm is creature-membership-gated and reads a `spell`-kind
+    # destroy as non-repeatable, so it stays out.
     murder = {
         "name": "Murder",
         "type_line": "Instant",
@@ -1754,9 +1768,10 @@ def test_repeatable_creature_kill_opens_kill_engine():
         "keywords": [],
         "oracle_text": "Destroy target creature.",
     }
-    assert any(k == "kill_engine" for k, _, _ in _ksub(diaochan))
-    assert any(k == "kill_engine" for k, _, _ in _ksub(visara))
-    assert not any(k == "kill_engine" for k, _, _ in _ksub(murder))
+    murder_ir = _ir_with(Ability(kind="spell", effects=(destroy_creature,)))
+    assert any(k == "kill_engine" for k, _, _ in _ksub_hybrid(diaochan, activated_kill))
+    assert any(k == "kill_engine" for k, _, _ in _ksub_hybrid(visara, activated_kill))
+    assert not any(k == "kill_engine" for k, _, _ in _ksub_hybrid(murder, murder_ir))
 
 
 def test_one_punch_efficient_beater_opens_lane():

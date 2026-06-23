@@ -5030,6 +5030,44 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # detector floor stays at 33. The serve spec stays hand-registered in
         # signal_specs.py. CR 401 / 701.20a.
         "cheat_from_top",
+        # ADR-0027 kill_engine — migrated to the Card IR (SIGNALS-ONLY, no projection /
+        # no sidecar bump). The deleted regex producer was a CREATURE-COMMANDER cross-
+        # open (extract_signals' include_membership block): a creature whose own ability
+        # REPEATABLY destroys creatures (Visara {T}: destroy, Diaochan upkeep destroy)
+        # is a death-engine — each kill fires on-death payoffs (Blood Artist, Vicious
+        # Shadows). DIAGNOSIS: phase ALREADY structures the discriminating "repeatable
+        # frame" — ab.kind ('activated' carries a cost; 'triggered' carries a Trigger),
+        # Trigger.event ('etb'=one-shot ETB removal Nekrataal/Shriekmaw; 'attacks'/
+        # 'cast_spell'/'upkeep'/'end_step'/'combat_damage'=recurring), and
+        # e.counter_kind=='all' (the board-wipe MASS form). So the lane is READ from the
+        # IR (_is_kill_engine_ir), NOT projected — no new IR field. The pre-existing
+        # broad per-effect arm ("Creature" in ftypes AND ab.kind in activated/triggered)
+        # was WRONG and DEAD (un-membership-gated, fired on every ETB removal /
+        # planeswalker / non-commander — +217 over commander-legal — and the hybrid
+        # dropped the unmigrated key); it is removed in favor of the membership-gated
+        # arm in the include_membership block. The arm RECOVERS +48 qualified-
+        # creature kills the narrow regex missed (its literal "destroy target creature"
+        # skipped "destroy target TAPPED/WHITE/non-Demon creature" — Royal Assassin,
+        # Western Paladin, Reaper from the Abyss, Plaguebearer, Tetsuo Umezawa — all
+        # genuine repeatable engines, adjudicated vs oracle text). Three one-shot-per-
+        # object SELF-state-change triggers phase types as event='other' are EXCLUDED
+        # (rules-lawyer/CR-confirmed one-shot): "becomes monstrous" (CR 701.37a/b —
+        # Keepsake Gorgon, Arbor Colossus), "turned face up" (CR 707/208.2b morph —
+        # Skinthinner, Hidden Dragonslayer, Silumgar Assassin), "transforms into" (CR
+        # 701.27 — Kindly Stranger). Evil Twin rides the byte-identical
+        # _REPEATABLE_KILL_MIRROR only (its destroy is a QUOTED granted ability phase
+        # folds into a `clone` Effect with no destroy ability of its own). Commander-
+        # legal, floor-disabled, by oracle_id (HYBRID arm+mirror vs the deleted regex):
+        # both==38, regex_only==0 (Evil Twin recovered by the mirror), ir_only==48 (all
+        # genuine repeatable creature kills the narrow regex literal missed). SCOPE
+        # PARITY: deleted producer + arm both fire scope 'you', LOW conf. NO VOLTRON
+        # entry: kill_engine fired LOW confidence and so never fed has_other_plan (the
+        # silence gate is confidence=='high') — matching the
+        # land_destruction / cheat_from_top precedent, no _PLAN_MIRROR needed (voltron
+        # stays 3010 by set equality). NOT a SWEEP_DETECTORS row (a _LITERAL_ADD_KEYS
+        # hand-written add()), so the detector floor is unchanged. The serve spec stays
+        # hand-registered in signal_specs.py. CR 305.6 / 701.37 / 701.27 / 707.
+        "kill_engine",
         # ADR-0027 keyword_soup_matters — a commander that GRANTS/SHARES many evergreen
         # keywords across the team (Odric Lunarch Marshal, Akroma Vision, Akroma's
         # Memorial/Will, Concerted Effort, Bleeding Effect) wants creatures STACKED with

@@ -2387,6 +2387,13 @@ _CHEAT_TOP_ONTO_RE = re.compile(
 # recurring trigger) is a reliable death-engine: every kill fires on-death payoffs
 # (Blood Artist, Vicious Shadows). The repeatable frame is the precision gate -- a
 # one-shot removal spell (Murder: "Destroy target creature.") never registers.
+# ADR-0027: the kill_engine producer migrated to the Card IR (SIGNALS-ONLY — phase
+# already structures ab.kind / ab.cost / Trigger.event, so the repeatable frame is
+# READ, not projected). This regex is KEPT (the producer's add() is deleted in
+# extract_signals) and reused byte-identically by the _REPEATABLE_KILL_MIRROR arm in
+# _signals_ir for Evil Twin — the one card phase can't structure (its destroy lives
+# inside a QUOTED granted ability ["{U}{B}, {T}: Destroy …"], folded into a `clone`
+# Effect with no destroy ability of its own). CR 305.6 / 707.2.
 _REPEATABLE_KILL_RE = re.compile(
     r"\{[^}]*\}[^.]*:[^.]*destroy target creature"
     r"|(?:whenever|at the beginning of)[^.]*destroy target creature",
@@ -5336,15 +5343,21 @@ def extract_signals(
     # has_other_plan (the silence gate is confidence=='high'), so deleting it leaks no
     # voltron tell; NO _PLAN_MIRROR needed (the land_destruction / big_mana precedent).
     # The serve spec stays hand-registered in signal_specs.py. CR 401 / 701.20a.
-    # A creature commander that repeatedly destroys creatures (Diaochan, Visara) is a
-    # death-engine WITHOUT a sac outlet: each kill fires on-death payoffs. Membership +
-    # creature gated so a one-shot removal spell in the 99 isn't read as the plan.
-    if (
-        include_membership
-        and "creature" in type_line.lower()
-        and _REPEATABLE_KILL_RE.search(text)
-    ):
-        add("kill_engine", "you", "", "repeatable creature destruction", "low")
+    # ADR-0027: the kill_engine producer migrated to the Card IR (SIGNALS-ONLY). A
+    # creature commander that repeatedly destroys creatures (Diaochan, Visara, Royal
+    # Assassin, Western Paladin) is a death-engine: each kill fires on-death payoffs.
+    # This membership cross-open is DELETED; it survives in extract_signals_ir as a
+    # STRUCTURAL repeatable-frame arm (an activated destroy-creature ability, or a
+    # RECURRING-trigger one — excluding one-shot ETB / morph-flip / monstrosity /
+    # transform triggers per CR 701.37 / 707 / 701.27) UNION a byte-identical
+    # _REPEATABLE_KILL_MIRROR for Evil Twin (its destroy is a quoted granted ability
+    # phase folds into a `clone` Effect). The structural arm RECOVERS the +48 qualified-
+    # creature kills the narrow regex missed ("destroy target TAPPED/WHITE/non-Demon
+    # creature" — Royal Assassin, Western Paladin, Reaper from the Abyss). scope 'you',
+    # LOW confidence — it never fed has_other_plan (the silence gate is
+    # confidence=='high'), so deleting it leaks no voltron tell; NO _PLAN_MIRROR needed
+    # (the land_destruction / cheat_from_top precedent). The serve spec stays hand-
+    # registered in signal_specs.py. CR 305.6.
     # ADR-0027: big_mana migrated to the Card IR. A commander that generates big mana
     # wants X-spell sinks (Neheb, Sunastian). The include_membership cross-open is
     # deleted; it survives in extract_signals_ir as the membership-gated STRUCTURAL arm

@@ -38,6 +38,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _PLAY_FROM_TOP_FLOOR_MIRROR,
     _PLAY_FROM_TOP_MIRROR,
     _PRESET_KEYWORD_SIGNALS,
+    _REPEATABLE_KILL_RE,
     _SELF_BLINK_SWEEP_RE,
     _TAP_ABILITY_RE,
     _TOPDECK_SELECTION_SWEEP_RE,
@@ -5242,6 +5243,77 @@ _LANDFALL_MIRROR = re.compile(LANDFALL_REGEX, re.IGNORECASE)
 # hybrid dropped the unmigrated IR land_destruction, so it never reached production).
 # NOT a voltron plan (the cross-open fired LOW and never fed has_other_plan). CR 305.6.
 _LAND_DESTRUCTION_MIRROR = re.compile(LAND_DESTRUCTION_REGEX, re.IGNORECASE)
+# kill_engine membership-gated arm (ADR-0027, SIGNALS-ONLY). The deleted regex producer
+# was a CREATURE-COMMANDER cross-open (extract_signals' include_membership block): a
+# creature whose own ability REPEATABLY destroys creatures (Visara {T}: destroy;
+# Diaochan upkeep destroy) is a death-engine — each kill fires on-death payoffs (Blood
+# Artist, Vicious Shadows). phase ALREADY structures everything the "repeatable frame"
+# needs: ab.kind ('activated' carries a cost; 'triggered' carries a Trigger with an
+# event), Trigger.event ('etb' = one-shot ETB removal Nekrataal/Shriekmaw; 'attacks'/
+# 'cast_spell'/'upkeep'/'end_step'/'combat_damage' = recurring), and counter_kind=='all'
+# (the board-wipe MASS form, not a single-target engine). So the lane is READ from the
+# IR, NOT projected. _is_kill_engine_ir below applies that read; it RECOVERS the +48
+# qualified-creature kills the narrow regex missed (its `destroy target creature`
+# literal skipped "destroy target TAPPED/WHITE/non-Demon creature" — Royal Assassin,
+# Western Paladin, Reaper from the Abyss, Plaguebearer, Tetsuo Umezawa — genuine
+# repeatable engines). Three one-shot-per-object SELF-state-change triggers phase types
+# as event='other' are EXCLUDED (rules-lawyer/CR-confirmed they fire at most once):
+# "becomes monstrous" (CR 701.37a "if this permanent isn't monstrous … it becomes
+# monstrous";
+# 701.37b "stays monstrous until it leaves the battlefield" — Keepsake Gorgon, Arbor
+# Colossus), "turned face up" (CR 707 / 208.2b morph — a creature is turned face up once
+# — Skinthinner, Hidden Dragonslayer, Silumgar Assassin), and "transforms into" (CR
+# 701.27 DFC transform — Kindly Stranger). Evil Twin rides the byte mirror only: its
+# destroy is a QUOTED
+# granted ability ("{U}{B}, {T}: Destroy target creature with the same name as this
+# creature") phase folds into a `clone` Effect with no destroy ability of its own. scope
+# 'you', LOW confidence — it never fed has_other_plan (the silence gate is
+# confidence=='high'), so NO _PLAN_MIRROR / NO _VOLTRON_SILENCING_PLAN_KEYS entry is
+# needed (voltron_matters stays 3010 by set equality — the land_destruction /
+# cheat_from_top precedent). CR 305.6 / 701.37 / 701.27 / 707.
+_REPEATABLE_KILL_MIRROR = _REPEATABLE_KILL_RE
+# A trigger event that fires AT MOST ONCE per object (the object leaves the battlefield
+# or its state changes irreversibly) — NOT a repeatable per-turn kill frame.
+_KILL_ENGINE_ONESHOT_EVENTS = frozenset({"etb", "ltb", "dies", "death", "leaves"})
+# event='other' triggers whose RAW names a one-shot self-state change (CR 701.37 / 707 /
+# 701.27) — these phase cannot distinguish from genuine recurring 'other' triggers
+# (mutate, exploit) by event alone, so the raw is the discriminator.
+_KILL_ENGINE_ONESHOT_RAW = re.compile(
+    r"turned face up|becomes? monstrous|transforms? into", re.IGNORECASE
+)
+
+
+def _is_kill_engine_ir(ir: Card) -> bool:
+    """True when ``ir`` has a REPEATABLE-FRAME single-target creature-destroy ability —
+    an activated destroy (any cost is repeatable while the source is around) or a
+    recurring-trigger destroy (event not one-shot). Excludes board wipes
+    (counter_kind=='all') and one-shot self-state-change triggers (monstrosity / morph
+    flip / transform). ADR-0027 kill_engine."""
+    for ab in ir.all_abilities():
+        trig = getattr(ab, "trigger", None)
+        event = trig.event if trig is not None else None
+        # An activated destroy is repeatable while the source is around; a triggered one
+        # is repeatable only if its event recurs (a one-shot ETB/dies trigger is out).
+        repeatable = ab.kind == "activated" or (
+            ab.kind == "triggered" and event not in _KILL_ENGINE_ONESHOT_EVENTS
+        )
+        if not repeatable:
+            continue
+        for e in ab.effects:
+            if e.category != "destroy" or e.counter_kind == "all":
+                continue
+            subj = e.subject
+            if not (isinstance(subj, Filter) and "Creature" in subj.card_types):
+                continue
+            # event='other' folds genuine recurring triggers (mutate, exploit) WITH
+            # one-shot self-state changes (monstrosity / morph flip / transform), so the
+            # raw is the discriminator (CR 701.37 / 707 / 701.27).
+            if event == "other" and _KILL_ENGINE_ONESHOT_RAW.search(e.raw or ""):
+                continue
+            return True
+    return False
+
+
 # self_counter_grow NARROWED kept mirror (ADR-0027 β): the structural arm above fires on
 # a place_counter carrying the SelfRef self-anchor marker (project @ SIDECAR v12), a
 # +503
@@ -7514,8 +7586,13 @@ def extract_signals_ir(
                 # land_destruction). The lane now rides the membership-gated
                 # _LAND_DESTRUCTION_MIRROR arm below, reproducing the cross-open byte-
                 # identically. CR 305.6.
-                if "Creature" in ftypes and ab.kind in ("activated", "triggered"):
-                    add("kill_engine", "you", "", e.raw)
+                # ADR-0027: kill_engine is ALSO a membership cross-open (a creature
+                # COMMANDER that repeatably destroys creatures), NOT a per-card label —
+                # this broad per-effect add (no membership gate, ab.kind including
+                # one-shot ETB triggers) over-fired +217 commander-legal (ETB removal
+                # Nekrataal/Shriekmaw, planeswalkers, non-commanders). It rides the
+                # membership-gated structural arm in the include_membership block below
+                # (_is_kill_engine_ir + _REPEATABLE_KILL_MIRROR). REMOVED here.
                 # removal_matters: a SINGLE-TARGET destroy whose subject is a
                 # permanent TYPE, or (ADR-0027) a subtype-ONLY subject that names a
                 # permanent — "destroy target Wall/Equipment/Aura" (card_types=(),
@@ -9785,6 +9862,28 @@ def extract_signals_ir(
             kept_oracle
         ):
             add("cheat_from_top", "you", "", "reveal-top cheat into play", "low")
+        # ADR-0027 — kill_engine (STRUCTURAL repeatable-frame arm + Evil-Twin mirror,
+        # membership cross-open). A creature COMMANDER that REPEATABLY destroys a
+        # creature (Visara, Diaochan, Royal Assassin, Western Paladin) is a death-
+        # engine: each kill fires on-death payoffs. _is_kill_engine_ir READS the frame
+        # phase already structures (an activated destroy-creature ability, or a
+        # recurring-trigger one — excluding board wipes [counter_kind=='all'] and a one-
+        # shot ETB / morph-flip / monstrosity / transform trigger per CR 701.37 / 707 /
+        # 701.27), RECOVERING the +48 qualified-creature kills the narrow regex missed
+        # (its literal "destroy target creature" skipped "destroy target TAPPED/WHITE/
+        # non-Demon creature"). Evil Twin rides the byte-identical
+        # _REPEATABLE_KILL_MIRROR over kept_oracle — phase folds its quoted granted
+        # ability ("{U}{B}, {T}: Destroy …") into a `clone` Effect with no destroy
+        # ability for the arm to read.
+        # creature + include_membership gated so a one-shot removal spell in the 99
+        # isn't read as the deck's plan. scope 'you', LOW confidence (the deleted
+        # producer's identity — it fired LOW and never fed has_other_plan, so NO voltron
+        # mirror is needed, matching the land_destruction / cheat_from_top precedent).
+        # CR 305.6.
+        if "creature" in type_line and (
+            _is_kill_engine_ir(ir) or _REPEATABLE_KILL_MIRROR.search(kept_oracle)
+        ):
+            add("kill_engine", "you", "", "repeatable creature destruction", "low")
         # ADR-0027 — one_punch (STRUCTURAL ARM, membership audit). An extreme power-
         # for-cost beater (power >= 8 AND power >= 2x its mana value: Lord of
         # Tresserhorn 10/4, Yargle 18/6, The Ancient One 8/8 for 2, Death's Shadow
