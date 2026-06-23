@@ -66,8 +66,16 @@ class TestNinjaTribal:
 
     def test_ninjutsu_commander_emits_ninja_subject(self):
         # Today: emits ninjutsu_matters but no Ninja subject. After: type_matters:Ninja.
-        assert "Ninja" in _subjects(self.YURIKO, "type_matters")
-        assert "Ninja" in _subjects(self.SATORU, "type_matters")
+        # ADR-0027: type_matters migrated → hybrid path.
+        def _ninja_subjects(card):
+            return {
+                s.subject
+                for s in extract_signals_hybrid(card, _bare_ir())
+                if s.key == "type_matters"
+            }
+
+        assert "Ninja" in _ninja_subjects(self.YURIKO)
+        assert "Ninja" in _ninja_subjects(self.SATORU)
 
     def test_ninja_subject_resolves_to_tribal_avenue(self):
         spec = spec_for(_sig("type_matters", "you", "Ninja"))

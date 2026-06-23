@@ -55,12 +55,15 @@ from mtg_utils._deck_forge._signals_regex import (
     _detect_blink_flicker_kept,
     _detect_card_draw,
     _detect_direct_keywords,
+    _detect_keyword_implied_tribe,
     _detect_keyword_presets,
     _detect_keyword_tribe,
+    _detect_multi_tribe_anthem,
     _detect_self_blink_fulltext,
     _detect_self_damage_prevention,
     _detect_self_death_payoff,
     _detect_token_maker,
+    _detect_type_matters,
     _detect_typed_gy_recursion,
     _detect_typed_spellcast,
     _detect_voltron_payoff_ir,
@@ -9303,6 +9306,59 @@ def extract_signals_ir(
     for clause in _clauses(kept_oracle):
         for key, subject in _detect_typed_spellcast(clause, vocab):
             add(key, "you", subject, clause)
+    # ADR-0027 — type_matters SUBJECT-CARRYING UNION migration. The BIGGEST lane
+    # (14751 commander-legal): a card that cares about a permanent TYPE / creature
+    # SUBTYPE — tribal/kindred lords, typed counts, typed tutors/recursion, typed
+    # combat triggers, tribal hosers ("destroy all Goblins" — CR 205.3, a hate deck
+    # cares about the type too). The captured creature-SUBTYPE noun (Goblin / Wizard /
+    # Dragon, singularized + validated against the CREATURE_SUBTYPES vocab and the
+    # NON_CREATURE_TOKEN denylist) is the LOAD-BEARING Signal SUBJECT the per-subject
+    # tribal serve spec interpolates. A UNION migration:
+    #   (a) the STRUCTURAL IR arm above — _kindred_subjects over every typed Effect /
+    #       Trigger subject (anthems, counts, grants, recursion, tutors, ETB/dies/cast
+    #       triggers, regenerate/tap tribal lands, modal hosers) PLUS the own-subtype +
+    #       named-token membership arms — supplies +262 genuine cards the anchored
+    #       regex MISSED (a "Cleric creatures have vigilance" lord with no "you control"
+    #       anchor — Akroma's Devoted; "number of Wizards on the battlefield" counts;
+    #       "Return target Dinosaur card from your graveyard"; "Tap all Spirits" /
+    #       "Destroy all Goblins" tribal hosers). Every ir_only card carries a real
+    #       type/subtype hook (adjudicated vs actual oracle text; BREADTH is the lane,
+    #       not over-fire — the combat_buff_engine / self_death_payoff precedent), and
+    #       the NON_CREATURE_TOKEN denylist (CR 111.10 / 205.3g) drops the 44 Treasure /
+    #       Clue / Food artifact-token false positives that polluted CREATURE_SUBTYPES;
+    #   (b) this byte-identical kept mirror — the EXACT deleted producers
+    #       (_detect_type_matters + _detect_multi_tribe_anthem + the type_matters row of
+    #       _detect_typed_gy_recursion + _detect_keyword_implied_tribe, kept pinned in
+    #       _signals_regex) re-run PER-CLAUSE over the reminder-stripped kept_oracle,
+    #       forced scope 'you' — reproduces the deleted regex's firing set EXACTLY (the
+    #       deleted path ran the same per-clause loop over the same reminder-stripped
+    #       joined-face text; the patterns' `[^.]`/`(.{0,80}?)` spans are bounded INSIDE
+    #       a clause — `_clauses` splits on `.;\n` — so per-clause == the deleted path,
+    #       0 divergences on the corpus). add() dedups the arm/mirror overlap by
+    #       (key, scope, subject). Commander-legal residual (full IR path UNION vs the
+    #       deleted producers, joined by oracle_id): both==14511, regex_only==0 (the
+    #       kept mirror fully reproduces the deleted producers), ir_only==262 (all
+    #       genuine recall). The deleted parametric producers fired HIGH-confidence
+    #       (scope 'you') and fed has_other_plan (type_matters ∉ _GENERIC_KEYS /
+    #       _VOLTRON_COMPAT_KEYS); the IR re-supply is BROADER (+262), so signals
+    #       re-silences voltron via a byte _TYPE_MATTERS_PLAN_MIRROR (the EXACT
+    #       deleted producers, per-clause) OR'd into has_other_plan — NOT
+    #       _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence the +262
+    #       (voltron_matters stays 3010 by set equality). Mirrors the keyword_tribe /
+    #       typed_spellcast / token_maker SUBJECT-CARRYING precedent. CR 205.3 / 109.3.
+    for clause in _clauses(kept_oracle):
+        for key, subject in _detect_type_matters(clause, vocab):
+            add(key, "you", subject, clause)
+        for key, subject in _detect_multi_tribe_anthem(clause, vocab):
+            add(key, "you", subject, clause)
+        for key, subject in _detect_keyword_implied_tribe(clause):
+            add(key, "you", subject, clause)
+        # typed-graveyard recursion: keep ONLY the type_matters rows here (the
+        # vehicles_matter row already rides the vehicles_matter mirror above; the
+        # regex path still emits both — un-migrated vehicles is dropped there).
+        for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
+            if key == signal_keys.TYPE_MATTERS:
+                add(key, scope, subject, clause)
     # ADR-0027 — token_maker SUBJECT-CARRYING byte-identical kept mirror. The lane is a
     # MAKER of creature tokens, emitting the captured creature-SUBTYPE noun (Goblin /
     # Soldier / Cat — the LAST subtype before "creature token", validated vs vocab)
@@ -10241,4 +10297,31 @@ def extract_signals_ir(
                 sub = tok.strip().lower()
                 if sub in CREATURE_SUBTYPES and sub != "human":
                     add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
+        # ADR-0027 — token_maker → type_matters cross-open (the regex
+        # `for _sub in _token_maker_subjects: add(TYPE_MATTERS, …)` at
+        # _signals_regex.py, now migrated). A commander that MAKES tribe-X creature
+        # tokens (a captured make_token kindred subject — Krenko makes Goblins, Darien
+        # Soldiers, a "create a 1/1 Human creature token" engine) wants tribe-X
+        # lords/support: its token board IS that kindred. UNION: (a) the IR make_token
+        # effects via _token_kindred_subject (the per-effect read the token_maker arm
+        # uses); (b) a BYTE-IDENTICAL kept mirror — the deleted _detect_token_maker
+        # producer per-clause over kept_oracle (the same derivation the regex
+        # `_token_maker_subjects` used) — recovers the makers phase folds into a
+        # coin_flip / transform / place_counter Effect with no token subject (Bottle
+        # of Suleiman → Djinn, Wirefly Hive → Insect, Wedding Announcement → Human).
+        # scope 'you', LOW conf. Non-creature token makers (Treasure/Clue) yield no
+        # subject and stay out. CR 111.2 / 205.3.
+        token_subjects: set[str] = set()
+        for ab in ir.all_abilities():
+            for e in ab.effects:
+                if e.category == "make_token":
+                    sub = _token_kindred_subject(e.subject, vocab)
+                    if sub:
+                        token_subjects.add(sub)
+        for clause in _clauses(kept_oracle):
+            for _key, sub in _detect_token_maker(clause, vocab):
+                if sub:
+                    token_subjects.add(sub)
+        for sub in token_subjects:
+            add(signal_keys.TYPE_MATTERS, "you", sub, "", "low")
     return out

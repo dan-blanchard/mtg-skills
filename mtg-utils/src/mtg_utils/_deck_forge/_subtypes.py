@@ -79,6 +79,34 @@ CARD_TYPE_SUBJECTS: frozenset[str] = frozenset(
     }
 )
 
+# Predefined ARTIFACT-token subtypes (CR 111.10 / 205.3g): Treasure / Clue / Food /
+# Powerstone / Gold / Map / Junk / Incubator / Blood / Lander / Mutagen. These are
+# ARTIFACT subtypes, not creature kindred (CR 111.10a/b/f confirm Treasure/Food/Clue
+# tokens are artifact tokens), so a "Treasures you control" / "for each Clue" / "Food
+# sacrifice" reference is a tokens/artifacts deck (artifacts_matter + the dedicated
+# clue/food/treasure lanes), NOT a creature-tribal kindred. A few leak into
+# CREATURE_SUBTYPES from the bulk harvest — a DFC creature//Treasure face, a creature
+# literally subtyped Food (Gingerbrute) or named "Lander Rizzi" — so deny them here,
+# checked in _resolve_subject BEFORE the CREATURE_SUBTYPES vocab. No real tribal lord
+# exists for any of them, so this drops only false-positive kindred captures (the
+# artifact-token reference still feeds its own dedicated lane). Defense-in-depth: the
+# full CR set, so a future vocab regen can't re-pollute type_matters with a token type.
+NON_CREATURE_TOKEN: frozenset[str] = frozenset(
+    {
+        "treasure",
+        "clue",
+        "food",
+        "powerstone",
+        "gold",
+        "map",
+        "junk",
+        "incubator",
+        "blood",
+        "lander",
+        "mutagen",
+    }
+)
+
 # Irregular / partial-plural singularization. The (\w+?)s? capture can emit a partial
 # plural ("Elve", "Dwarve") because the s? swallows the trailing s; map those to the
 # real singular so flagship tribes (Magda->dwarf) don't silently drop.

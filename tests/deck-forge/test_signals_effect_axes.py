@@ -167,12 +167,15 @@ def test_type_matters_other_x_creatures():
 
 def test_type_matters_activated_tribal():
     # Azami: tribal subtype named in an activated cost.
+    # ADR-0027: type_matters migrated → hybrid path.
     c = {
         "name": "Azami",
         "oracle_text": "Tap an untapped Wizard you control: Draw a card.",
     }
+    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
     assert any(
-        s.key == "type_matters" and s.subject == "Wizard" for s in extract_signals(c)
+        s.key == "type_matters" and s.subject == "Wizard"
+        for s in extract_signals_hybrid(c, bare_ir)
     )
 
 

@@ -60,7 +60,8 @@ GROND = "Trample\nAs long as it's your turn and you control an Army, Grond is an
 
 
 def test_grond_army_tribal():
-    sigs = _sigs(GROND, name="Grond, the Gatebreaker")
+    # ADR-0027: type_matters migrated → hybrid path.
+    sigs = _hybrid_sigs(GROND, name="Grond, the Gatebreaker")
     assert any(s.key == "type_matters" and s.subject == "Army" for s in sigs)
 
 
@@ -77,7 +78,8 @@ SENSEI = (
 
 
 def test_sensei_samurai_tribal():
-    sigs = _sigs(SENSEI, name="Sensei Golden-Tail")
+    # ADR-0027: type_matters migrated → hybrid path.
+    sigs = _hybrid_sigs(SENSEI, name="Sensei Golden-Tail")
     assert any(s.key == "type_matters" and s.subject == "Samurai" for s in sigs)
 
 

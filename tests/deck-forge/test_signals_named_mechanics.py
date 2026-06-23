@@ -1039,5 +1039,6 @@ def test_type_matters_catches_another_singular_tribal():
         "name": "Marwyn-like",
         "oracle_text": "Whenever another Elf you control enters, put a +1/+1 counter on this creature.",
     }
-    got = {(s.key, s.scope, s.subject) for s in extract_signals(c)}
+    # ADR-0027: type_matters migrated → hybrid path.
+    got = {(s.key, s.scope, s.subject) for s in extract_signals_hybrid(c, _bare_ir())}
     assert ("type_matters", "you", "Elf") in got

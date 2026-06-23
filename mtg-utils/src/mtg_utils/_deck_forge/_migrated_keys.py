@@ -4024,6 +4024,45 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # voltron_matters stays 3010 by set equality. Mirrors keyword_tribe /
         # typed_spellcast SUBJECT-CARRYING precedent. CR 111.2 / 701.6 / 903.10a.
         "token_maker",
+        # ADR-0027 — type_matters (the BIGGEST lane, 14751 commander-legal): a card
+        # that cares about a permanent TYPE / creature SUBTYPE (tribal/kindred lords,
+        # typed counts, typed tutors/recursion, typed combat triggers, tribal hosers).
+        # SIGNALS-ONLY (NO sidecar bump). The captured creature-SUBTYPE noun is the
+        # LOAD-BEARING Signal SUBJECT the per-subject tribal serve spec interpolates.
+        # Three gates the migration adds (ledger): (a) a NON_CREATURE_TOKEN denylist on
+        # _subtypes (CR 111.10 / 205.3g — Treasure / Clue / Food are ARTIFACT-token
+        # subtypes, not creature kindred; they leaked into CREATURE_SUBTYPES from the
+        # bulk harvest, polluting 44 ir_only + 9 regex_only firings → now dropped in
+        # _resolve_subject before the vocab check, feeding the dedicated clue/food/
+        # treasure + artifacts_matter lanes instead); (b) the _kindred_subjects
+        # creature-gate (already present — only YOUR-controlled real creature subtypes
+        # count); (c) tribal hosers ARE type_matters (CR 205.3 — "Destroy all Goblins" /
+        # "Tap all Spirits" reference the type, so a hate deck cares; the IR arm fires
+        # them, genuine BREADTH). UNION migration: (i) the pre-existing STRUCTURAL IR
+        # arm (_kindred_subjects over every typed Effect/Trigger subject + own-subtype
+        # and named-token membership) supplies +262 genuine cards the anchored regex
+        # MISSED; (ii) a BYTE-IDENTICAL kept mirror — the EXACT deleted producers
+        # (_detect_type_matters + _detect_multi_tribe_anthem + the type_matters row of
+        # _detect_typed_gy_recursion + _detect_keyword_implied_tribe, pinned in
+        # _signals_regex) re-run PER-CLAUSE over the reminder-stripped kept_oracle,
+        # forced scope 'you'. Commander-legal residual (full IR UNION vs deleted
+        # producers, joined by oracle_id): both==14511, regex_only==0 (mirror fully
+        # reproduces the producers), ir_only==262 (every card a real type/subtype hook,
+        # adjudicated vs actual oracle text — Akroma's Devoted "Cleric creatures have
+        # vigilance" lord, "number of Wizards" counts, Dinosaur/Knight graveyard
+        # recursion, tribal manlands, multi-tribe ETB triggers, hosers). NO-FLOOD:
+        # only type_matters's hybrid count changes, siblings drift 0 (the token_maker /
+        # creature_etb / clue / vehicles cross-reads are unaffected; the regex
+        # type_matters cross-open off _token_maker_subjects is dropped in the hybrid and
+        # re-supplied by the IR arm's make_token kindred read). VOLTRON: the deleted
+        # parametric producers fired HIGH-confidence (scope 'you') and fed
+        # has_other_plan (type_matters ∉ _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS); the IR
+        # re-supply is BROADER (+262), so a byte-identical _TYPE_MATTERS_PLAN_MIRROR
+        # (the EXACT deleted producers, per-clause) is OR'd into has_other_plan — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS (would over-silence the +262). voltron_matters
+        # stays 3010 by set equality. Mirrors keyword_tribe / typed_spellcast /
+        # token_maker SUBJECT-CARRYING precedent. CR 205.3 / 109.3 / 111.10 / 903.10a.
+        "type_matters",
         # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
         # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS
         # "whenever a land you control enters" trigger, the extra-land STATIC ("play N

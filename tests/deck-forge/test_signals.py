@@ -594,7 +594,8 @@ def test_global_tribal_anthem_opens_tribe():
         "type_line": "Legendary Creature — Human",
         "oracle_text": "Bird creatures get +1/+1.\n{1}{W}: Target Bird creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding a player controls are blocking or being blocked by a creature, that player divides that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
     }
-    sigs = extract_signals(soraya)
+    # ADR-0027: type_matters migrated → hybrid path.
+    sigs = extract_signals_hybrid(soraya, _bare_ir())
     assert any(s.key == "type_matters" and s.subject == "Bird" for s in sigs)
 
 
@@ -764,7 +765,12 @@ def test_multi_tribe_anthem_emits_each_type():
         "oracle_text": "Each creature that's a Barbarian, a Warrior, or a Berserker "
         "gets +2/+2 and has haste.",
     }
-    subjects = {s.subject for s in extract_signals(lovisa) if s.key == "type_matters"}
+    # ADR-0027: type_matters migrated → hybrid path.
+    subjects = {
+        s.subject
+        for s in extract_signals_hybrid(lovisa, _bare_ir())
+        if s.key == "type_matters"
+    }
     assert {"Barbarian", "Warrior", "Berserker"} <= subjects
 
 
@@ -1201,8 +1207,11 @@ def test_offering_keyword_opens_tribe():
         "type_line": "Legendary Creature — Spirit",
         "oracle_text": "Rat offering (You may cast this spell any time you could cast an instant by sacrificing a Rat and paying the difference in mana costs between this and the sacrificed Rat. Mana cost includes color.)\nWhenever a permanent is put into an opponent's graveyard, that player loses 1 life.",
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     assert any(
-        s.subject == "Rat" for s in extract_signals(patron) if s.key == "type_matters"
+        s.subject == "Rat"
+        for s in extract_signals_hybrid(patron, _bare_ir())
+        if s.key == "type_matters"
     )
 
 
@@ -1214,9 +1223,10 @@ def test_your_team_controls_opens_tribe():
         "type_line": "Legendary Creature — Human Knight",
         "oracle_text": "Partner with Khorvath Brightflame (When this creature enters, target player may put Khorvath into their hand from their library, then shuffle.)\nDouble strike\nDragons your team controls have double strike.",
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     assert any(
         s.subject == "Dragon"
-        for s in extract_signals(sylvia)
+        for s in extract_signals_hybrid(sylvia, _bare_ir())
         if s.key == "type_matters"
     )
 
@@ -1978,7 +1988,8 @@ def test_keyword_grant_lord_gain_opens_type_matters():
         "type_line": "Legendary Creature — Test",
         "oracle_text": "Spirits you control gain flying and hexproof.",
     }
-    subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    # ADR-0027: type_matters migrated → hybrid path.
+    subs = _subjects_hybrid(card, "type_matters")
     assert "Spirit" in subs
 
 
@@ -2004,7 +2015,8 @@ def test_tribe_creatures_you_control_lord_opens_type_matters():
         "type_line": "Legendary Creature — Human Advisor",
         "oracle_text": "Goblin creatures you control get +1/+1.",
     }
-    subs = {s.subject for s in extract_signals(card) if s.key == "type_matters"}
+    # ADR-0027: type_matters migrated → hybrid path.
+    subs = _subjects_hybrid(card, "type_matters")
     assert "Goblin" in subs
 
 
@@ -2017,8 +2029,9 @@ def test_singular_tribal_lord_gets_opens_type_matters():
         "type_line": "Legendary Creature — Elf Druid",
         "oracle_text": "Each Fungus creature gets +1/+1 for each spore counter on it.\n{B}{G}, Exile a Fungus card from a graveyard: Put a spore counter on each Fungus on the battlefield.",
     }
-    assert ("type_matters", "you") in _keys(thelon)
-    subs = {s.subject for s in extract_signals(thelon) if s.key == "type_matters"}
+    # ADR-0027: type_matters migrated → hybrid path.
+    assert ("type_matters", "you") in _keys_hybrid(thelon)
+    subs = _subjects_hybrid(thelon, "type_matters")
     assert "Fungus" in subs
 
 
@@ -2080,7 +2093,8 @@ def test_tribal_capture_cant_be_blocked():
             "Forest card, reveal it, put it into your hand, then shuffle.)"
         ),
     }
-    subs = _subjects(card, "type_matters")
+    # ADR-0027: type_matters migrated → hybrid path.
+    subs = _subjects_hybrid(card, "type_matters")
     assert "Boar" in subs  # the buffed tribe, captured from the clause not the type
 
 
@@ -2114,7 +2128,8 @@ def test_two_tribe_trigger_emits_both_subjects():
             'this token: Add one mana of any color.")'
         ),
     }
-    subs = _subjects(card, "type_matters")
+    # ADR-0027: type_matters migrated → hybrid path.
+    subs = _subjects_hybrid(card, "type_matters")
     assert {"Goblin", "Orc"} <= subs
 
 
@@ -2446,7 +2461,8 @@ def test_type_you_control_entering_gerund_opens_tribe():
             "additional time."
         ),
     }
-    assert "Wizard" in _subjects(card, "type_matters")
+    # ADR-0027: type_matters migrated → hybrid path.
+    assert "Wizard" in _subjects_hybrid(card, "type_matters")
 
 
 def test_art_sticker_opens_stickers():

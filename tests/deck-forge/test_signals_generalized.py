@@ -88,8 +88,11 @@ def _ks_hybrid_ir(card, ir):
 
 
 def test_type_matters_captures_kindred_subject():
+    # ADR-0027: type_matters migrated to the Card IR (a SUBJECT-CARRYING UNION — the
+    # structural _kindred_subjects arm + a byte-identical kept mirror of the deleted
+    # parametric producers), so assert against the HYBRID path.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    assert ("type_matters", "you", "Goblin") in _ksub(c)
+    assert ("type_matters", "you", "Goblin") in _ksub_hybrid(c, _bare_ir())
 
 
 def test_type_matters_from_count_clause_and_token_maker_together():
@@ -144,8 +147,9 @@ def test_type_matters_rejects_generic_creatures_word():
 
 
 def test_type_matters_irregular_plural_resolves():
+    # ADR-0027: type_matters migrated → hybrid path.
     c = {"name": "Magda-like", "oracle_text": "Other Dwarves you control get +1/+0."}
-    assert ("type_matters", "you", "Dwarf") in _ksub(c)
+    assert ("type_matters", "you", "Dwarf") in _ksub_hybrid(c, _bare_ir())
 
 
 def test_type_matters_count_clause_tolerates_state_adjective():
@@ -168,7 +172,8 @@ def test_type_matters_count_clause_tolerates_state_adjective():
             "your library in any order.)"
         ),
     }
-    assert ("type_matters", "you", "Assassin") in _ksub(lydia)
+    # ADR-0027: type_matters migrated → hybrid path.
+    assert ("type_matters", "you", "Assassin") in _ksub_hybrid(lydia, _bare_ir())
     # The vocab gate still drops the generic card-type word in the same adjective form:
     # Foul-Tongue Shriek's "for each attacking creature you control" captures "creature"
     # (dropped). A noncreature, so no own-subtype membership tribal confounds the guard.
@@ -181,7 +186,7 @@ def test_type_matters_count_clause_tolerates_state_adjective():
             "You gain that much life."
         ),
     }
-    assert "type_matters" not in _keys(foul_tongue_shriek)
+    assert "type_matters" not in _keys_hybrid(foul_tongue_shriek)
 
 
 def test_keyword_tribe_opens_on_flier_tutor():
@@ -2897,8 +2902,9 @@ def test_self_graveyard_recursion_stays_you():
 
 
 def test_subject_field_is_actually_populated():
+    # ADR-0027: type_matters migrated → hybrid path.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    assert any(s.subject == "Goblin" for s in extract_signals(c))
+    assert any(s.subject == "Goblin" for s in extract_signals_hybrid(c, _bare_ir()))
 
 
 # --- coverage gate (the agent-augmentation hook) -------------------------------
@@ -2912,8 +2918,9 @@ def test_coverage_gate_flags_zero_signal():
 
 
 def test_coverage_gate_passes_when_subject_present():
+    # ADR-0027: type_matters migrated → hybrid path supplies the subject signal.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    needs, _reason = coverage_gate(c, extract_signals(c))
+    needs, _reason = coverage_gate(c, extract_signals_hybrid(c, _bare_ir()))
     assert needs is False
 
 
@@ -3109,9 +3116,10 @@ def test_two_tribe_tutor():
             "and Lesson spells you control have lifelink."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Noble") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals(lo_and_li, include_membership=True)
+        for s in extract_signals_hybrid(lo_and_li, _bare_ir(), include_membership=True)
     }
 
 
@@ -3127,8 +3135,10 @@ def test_two_tribe_creature_spell():
             "the copy is an artifact in addition to its other types."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     trips = {
-        (s.key, s.subject) for s in extract_signals(tawnos, include_membership=True)
+        (s.key, s.subject)
+        for s in extract_signals_hybrid(tawnos, _bare_ir(), include_membership=True)
     }
     assert ("type_matters", "Beast") in trips
     assert ("type_matters", "Bird") in trips
@@ -3147,8 +3157,10 @@ def test_tribe_comma_list_refs():
             "X is that spell's mana value."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     trips = {
-        (s.key, s.subject) for s in extract_signals(kiora, include_membership=True)
+        (s.key, s.subject)
+        for s in extract_signals_hybrid(kiora, _bare_ir(), include_membership=True)
     }
     for t in ("Kraken", "Leviathan", "Serpent"):
         assert ("type_matters", t) in trips, t
@@ -3167,8 +3179,10 @@ def test_tribal_card_spell_list_refs():
             "from among them and put them into your hand. Put the rest on the bottom."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     trips = {
-        (s.key, s.subject) for s in extract_signals(kaalia, include_membership=True)
+        (s.key, s.subject)
+        for s in extract_signals_hybrid(kaalia, _bare_ir(), include_membership=True)
     }
     for tribe in ("Angel", "Demon", "Dragon"):
         assert ("type_matters", tribe) in trips, tribe
@@ -3181,7 +3195,8 @@ def test_tribal_card_spell_list_refs():
         ),
     }
     assert ("type_matters", "Lhurgoyf") in {
-        (s.key, s.subject) for s in extract_signals(disa, include_membership=True)
+        (s.key, s.subject)
+        for s in extract_signals_hybrid(disa, _bare_ir(), include_membership=True)
     }
 
 
@@ -3197,9 +3212,10 @@ def test_tribal_creature_spell_and_target_tribe():
             "turns, you may cast a Zombie creature spell from your graveyard."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Zombie") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals(gisa, include_membership=True)
+        for s in extract_signals_hybrid(gisa, _bare_ir(), include_membership=True)
     }
     splinter = {
         "name": "Splinter, Radical Rat",
@@ -3212,7 +3228,7 @@ def test_tribal_creature_spell_and_target_tribe():
     }
     assert ("type_matters", "you", "Ninja") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals(splinter, include_membership=True)
+        for s in extract_signals_hybrid(splinter, _bare_ir(), include_membership=True)
     }
     # Over-fire guard: a generic "creature spell" / "target creature can't be blocked"
     # captures no tribe (vocab gate drops the card-type word).
@@ -3226,7 +3242,7 @@ def test_tribal_creature_spell_and_target_tribe():
     }
     assert not any(
         s.key == "type_matters" and s.subject == "Creature"
-        for s in extract_signals(generic, include_membership=True)
+        for s in extract_signals_hybrid(generic, _bare_ir(), include_membership=True)
     )
 
 
@@ -3244,9 +3260,10 @@ def test_tribal_tutor_with_intervening_type_word():
             "of turn. Sacrifice it at the beginning of the next end step."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Dragon") in {
         (s.key, s.scope, s.subject)
-        for s in extract_signals(zirilan, include_membership=True)
+        for s in extract_signals_hybrid(zirilan, _bare_ir(), include_membership=True)
     }
     # Over-fire guard: "search for a basic land card" captures no tribe (vocab gate).
     fetch = {
@@ -3256,7 +3273,7 @@ def test_tribal_tutor_with_intervening_type_word():
     }
     assert not any(
         s.key == "type_matters" and s.subject in ("Basic", "Land")
-        for s in extract_signals(fetch, include_membership=True)
+        for s in extract_signals_hybrid(fetch, _bare_ir(), include_membership=True)
     )
 
 
@@ -3275,13 +3292,15 @@ def test_type_grant_opens_tribal():
             "{1}{B}: Regenerate target Zombie."
         ),
     }
+    # ADR-0027: type_matters migrated → hybrid path.
     assert ("type_matters", "you", "Zombie") in {
-        (s.key, s.scope, s.subject) for s in extract_signals(lim_dul)
+        (s.key, s.scope, s.subject) for s in extract_signals_hybrid(lim_dul, _bare_ir())
     }
     # Over-fire guard: a vanilla creature grants no type.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
     assert not any(
-        s.key == "type_matters" and s.subject == "Zombie" for s in extract_signals(bear)
+        s.key == "type_matters" and s.subject == "Zombie"
+        for s in extract_signals_hybrid(bear, _bare_ir())
     )
 
 
@@ -5555,10 +5574,11 @@ def test_tribal_support_without_you_control_opens_type_matters():
     # A tribal-SUPPORT commander whose tribe reference isn't "Xs you control" — it buffs
     # "target <Type>", tutors "a <Type> card", wraths "destroy all non-<Type>", or
     # cost-reduces "<Type> spells" — is still that tribe's commander. Real oracle.
+    # ADR-0027: type_matters migrated → hybrid path.
     def subs(card):
         return {
             s.subject
-            for s in extract_signals(card, include_membership=True)
+            for s in extract_signals_hybrid(card, _bare_ir(), include_membership=True)
             if s.key == "type_matters"
         }
 
@@ -6202,7 +6222,12 @@ def test_multi_tribe_list_anthem_captures_every_named_type():
             "Squirrels, Turtles, and Wolves you control get +1/+1."
         ),
     }
-    subs = {subj for (key, scope, subj) in _ksub(spider_ham) if key == "type_matters"}
+    # ADR-0027: type_matters migrated → hybrid path.
+    subs = {
+        subj
+        for (key, scope, subj) in _ksub_hybrid(spider_ham, _bare_ir())
+        if key == "type_matters"
+    }
     for t in ("Frog", "Squirrel", "Rabbit", "Raccoon", "Cat", "Bird"):
         assert t in subs, t
     # Over-fire guard: a plain anthem names no subtype, so no spurious tribe.
@@ -6212,7 +6237,9 @@ def test_multi_tribe_list_anthem_captures_every_named_type():
         "oracle_text": "Creatures you control get +1/+1.",
     }
     glory_subs = {
-        subj for (key, scope, subj) in _ksub(glorious) if key == "type_matters"
+        subj
+        for (key, scope, subj) in _ksub_hybrid(glorious, _bare_ir())
+        if key == "type_matters"
     }
     assert glory_subs == set()
 

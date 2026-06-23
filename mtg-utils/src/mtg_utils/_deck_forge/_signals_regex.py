@@ -21,6 +21,7 @@ from mtg_utils._deck_forge._subtypes import (
     CLASS_TRIBES,
     CREATURE_SUBTYPES,
     IRREGULAR_SINGULAR,
+    NON_CREATURE_TOKEN,
     NON_SUBJECT_WORDS,
     TRIBAL_SUBTYPES,
 )
@@ -741,6 +742,13 @@ def _resolve_subject(raw: str, vocab: frozenset[str]) -> str:
     """
     w = _singularize(raw)
     if w in NON_SUBJECT_WORDS or w in CARD_TYPE_SUBJECTS:
+        return ""
+    # NON_CREATURE_TOKEN denylist (CR 111.10 / 205.3g): Treasure / Clue / Food / … are
+    # ARTIFACT-token subtypes, not creature kindred — a few leak into CREATURE_SUBTYPES
+    # from the bulk harvest. Deny BEFORE the vocab so "Treasures you control" / "each
+    # Clue" never mints a false-positive tribal subject (they feed the dedicated
+    # clue/food/treasure + artifacts_matter lanes instead).
+    if w in NON_CREATURE_TOKEN:
         return ""
     if w in vocab:
         return w.capitalize()
@@ -3485,6 +3493,59 @@ def _protection_grant_has_plan(text: str) -> bool:
     return any(_PROTECTION_GRANT_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
+def _type_matters_has_plan(text: str) -> bool:
+    """ADR-0027: the HAS-OTHER-PLAN mirror for the migrated type_matters key. The
+    deleted PARAMETRIC producers (_detect_type_matters, _detect_multi_tribe_anthem,
+    the type_matters row of _detect_typed_gy_recursion, _detect_keyword_implied_tribe)
+    fired HIGH-confidence (scope 'you', NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and
+    counted toward `has_other_plan`, silencing the spurious commander-damage voltron
+    tell on a tribal/kindred build-around (a Goblin lord / typed-recursion engine plays
+    its tribal plan, not a vanilla beater). The migrated lane rides the structural IR
+    arm UNION a byte-identical kept mirror, but the IR re-supply is BROADER (+262
+    ir_only — "Cleric creatures have vigilance" lords, typed counts/recursion/hosers
+    the anchored regex missed), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence. This
+    byte-identical mirror (the EXACT deleted parametric producers, run PER-CLAUSE over
+    the reminder-STRIPPED `text`) restores ONLY the deleted regex's silence set
+    (voltron_matters stays 3010 by set equality). The deleted producers ran the same
+    per-clause loop over the same reminder-stripped joined-face text; their `[^.]` /
+    `(.{0,80}?)` spans are clause-local, so per-clause == the deleted path. The
+    own-subtype + named-token + token_maker-cross-open type_matters arms fired LOW and
+    never fed has_other_plan, so they are excluded here. CR 205.3 / 109.3 / 903.10a.
+
+    BASELINE TOKEN-POLLUTION PARITY: the NON_CREATURE_TOKEN denylist (new this batch)
+    drops a few "other Clues/Treasures you control …" captures the EMITTED type_matters
+    signal correctly no longer carries — but the BASELINE fired those HIGH (clue /
+    treasure / food were in CREATURE_SUBTYPES) and they FED has_other_plan, silencing
+    voltron on a
+    real artifact/token engine (Tangletrove Kelp: "other Clues you control become 6/6
+    creatures"). Those cards stay non-vanilla plans, so for voltron parity (3010 by set
+    equality) re-include the baseline silence: a type_matters pattern that captures a
+    NON_CREATURE_TOKEN word which is ALSO in CREATURE_SUBTYPES (the exact pre-denylist
+    pollution set) — a denylist-bypassed resolve. This is silence-only; the lane never
+    emits these subjects."""
+    for clause in _clauses(text):
+        if (
+            _detect_type_matters(clause, CREATURE_SUBTYPES)
+            or _detect_multi_tribe_anthem(clause, CREATURE_SUBTYPES)
+            or _detect_keyword_implied_tribe(clause)
+            or any(
+                key == signal_keys.TYPE_MATTERS
+                for key, _scope, _subject in _detect_typed_gy_recursion(
+                    clause, CREATURE_SUBTYPES
+                )
+            )
+        ):
+            return True
+        # baseline token-pollution silence (denylist-bypassed): a single-subject
+        # type_matters pattern capturing a token subtype the baseline fired HIGH on.
+        for pat in _TYPE_MATTERS_PATTERNS:
+            for m in pat.finditer(clause):
+                w = _singularize(m.group(1)).lower()
+                if w in NON_CREATURE_TOKEN and w in CREATURE_SUBTYPES:
+                    return True
+    return False
+
+
 _BLOCKED_MATTERS_SWEEP_RE = re.compile(BLOCKED_MATTERS_REGEX, re.IGNORECASE)
 
 
@@ -5155,10 +5216,18 @@ def extract_signals(
                 scope, conf = resolved_scope, resolved_conf
             add(key, scope, "", stripped, conf)
         # Tier 2 — parametric subject detectors (forced scope=you: "you control")
-        for key, subject in _detect_type_matters(clause, vocab):
-            add(key, "you", subject, stripped)
-        for key, subject in _detect_multi_tribe_anthem(clause, vocab):
-            add(key, "you", subject, stripped)
+        # ADR-0027: type_matters migrated to the Card IR. Its producers
+        # (_detect_type_matters, _detect_multi_tribe_anthem, the type_matters row of
+        # _detect_typed_gy_recursion, _detect_keyword_implied_tribe) are no longer
+        # invoked here — the regex path must not emit the migrated key. The producers +
+        # their patterns stay pinned (the IR path imports them for a byte-identical KEPT
+        # MIRROR re-run PER-CLAUSE over the reminder-stripped kept_oracle, keeping the
+        # creature-subtype subject the per-subject tribal serve spec interpolates +
+        # the forced 'you' scope). The token_maker-driven type_matters cross-open below
+        # likewise dropped in the hybrid (re-supplied by the IR make_token kindred);
+        # the own-subtype + named-token membership type_matters arms are reproduced in
+        # extract_signals_ir. Mirrors the keyword_tribe / typed_spellcast / token_maker
+        # SUBJECT-CARRYING precedent. CR 205.3 / 109.3.
         # ADR-0027: keyword_tribe migrated to the Card IR. Its producer
         # (_detect_keyword_tribe) is no longer invoked here — the regex path must
         # not emit the migrated key. The producer + its constants stay pinned (the
@@ -5182,18 +5251,14 @@ def extract_signals(
         # type_matters) re-key off the byte-identical _TOKEN_MAKER_PATTERN mirror so the
         # sibling membership stays byte-identical to base. Mirrors the keyword_tribe /
         # typed_spellcast SUBJECT-CARRYING precedent. CR 111.2.
-        for key, scope, subject in _detect_typed_gy_recursion(clause, vocab):
-            # ADR-0027: vehicles_matter migrated to the Card IR — the regex path must
-            # not emit it (the migration invariant). Its typed-gy Vehicle row
-            # (Greasefang) is re-supplied PER-CLAUSE in extract_signals_ir. The
-            # producer's OTHER rows (type_matters for a creature-subtype recursion —
-            # e.g. Dragon — which is NOT migrated) still flow through. So skip only the
-            # vehicles_matter row here.
-            if key == "vehicles_matter":
-                continue
-            add(key, scope, subject, stripped)
-        for key, subject in _detect_keyword_implied_tribe(clause):
-            add(key, "you", subject, stripped)
+        # ADR-0027: _detect_typed_gy_recursion is no longer invoked here — BOTH its
+        # rows are migrated to the Card IR (vehicles_matter earlier; type_matters this
+        # batch), so the regex path must not emit either. The producer stays pinned;
+        # extract_signals_ir re-runs it PER-CLAUSE (vehicles_matter via the dedicated
+        # mirror, type_matters via the type_matters kept mirror). CR 305.7 / 205.3.
+        # ADR-0027: _detect_keyword_implied_tribe (ninjutsu → Ninja) is no longer
+        # invoked here — its only row is type_matters, now migrated. The producer stays
+        # pinned; extract_signals_ir re-runs it in the type_matters kept mirror.
         # ADR-0027: card_draw_engine migrated to the Card IR. Its producer
         # (_detect_card_draw) is no longer invoked here — the regex path must not emit
         # the migrated key. The producer + its _CARD_DRAW_RE stay pinned (the IR path
@@ -6481,6 +6546,16 @@ def extract_signals(
         # `;`/newline that _clauses splits on, so flat != per-clause; the deleted
         # producer ran per-clause over the same stripped text). CR 111.2 / 701.6.
         or any(_TOKEN_MAKER_PLAN_MIRROR.search(cl) for cl in _clauses(text))
+        # ADR-0027 type_matters: re-silence the deleted parametric type_matters
+        # producers (they fired HIGH-confidence scope 'you', feeding has_other_plan — a
+        # tribal/kindred build-around is a real plan, not a vanilla commander-damage
+        # beater). The migrated IR arm is BROADER (+262 ir_only the anchored regex
+        # missed), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those bodies; this
+        # byte-identical mirror (the EXACT deleted producers, per-clause) restores ONLY
+        # the old regex's silence set (voltron_matters stays 3010 by set equality). The
+        # LOW membership / token_maker cross-open type_matters arms never fed this gate.
+        # See _type_matters_has_plan. CR 205.3 / 109.3 / 903.10a.
+        or _type_matters_has_plan(text)
         # ADR-0027 clone copied-type subject (SIDECAR v30): re-silence the deleted
         # clone_matters _DETECTORS producer (it fired HIGH-confidence scope 'you',
         # feeding has_other_plan — a clone commander, Lazav / Vesuvan Doppelganger, is

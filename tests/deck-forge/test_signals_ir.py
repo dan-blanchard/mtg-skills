@@ -296,7 +296,13 @@ def test_token_maker_with_kindred_subject():
     )
     # A creature-token-maker with a captured subject cross-opens creatures_matter
     # (the go-wide mass-token DOER), mirroring the regex SWEEP cross-open.
-    assert _sigs(ir) == [
+    # ADR-0027: type_matters migrated → hybrid path. Its token→tribe cross-open is
+    # membership-gated, so assert the token_maker lane in isolation (membership off).
+    sigs = sorted(
+        (s.key, s.scope, s.subject)
+        for s in extract_signals_ir(CARD, ir, include_membership=False)
+    )
+    assert sigs == [
         ("creatures_matter", "you", ""),
         ("token_maker", "you", "Goblin"),
     ]
@@ -318,7 +324,13 @@ def test_token_maker_picks_last_creature_subtype():
         )
     )
     # Subject-bearing creature-token-maker → cross-opens creatures_matter (go-wide).
-    assert _sigs(ir) == [
+    # ADR-0027: type_matters migrated → hybrid path. Its token→tribe cross-open is
+    # membership-gated, so assert the token_maker lane in isolation (membership off).
+    sigs = sorted(
+        (s.key, s.scope, s.subject)
+        for s in extract_signals_ir(CARD, ir, include_membership=False)
+    )
+    assert sigs == [
         ("creatures_matter", "you", ""),
         ("token_maker", "you", "Soldier"),
     ]

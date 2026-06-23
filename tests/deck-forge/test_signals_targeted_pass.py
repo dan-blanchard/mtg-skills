@@ -188,9 +188,13 @@ def test_combat_damage_audit_preserved():
 
 # ── 3. Tribal ETB: "a <subtype> you control enters" ──
 def test_tribal_etb_captures_subject():
-    sigs = _sigs(
-        "Whenever a Spider you control enters, draw a card.", name="Mary Jane Watson"
-    )
+    # ADR-0027: type_matters migrated → hybrid path.
+    card = {
+        "name": "Mary Jane Watson",
+        "oracle_text": "Whenever a Spider you control enters, draw a card.",
+        "type_line": "Legendary Creature",
+    }
+    sigs = extract_signals_hybrid(card, _bare_ir())
     assert any(s.key == "type_matters" and s.subject == "Spider" for s in sigs)
 
 

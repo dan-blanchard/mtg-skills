@@ -225,6 +225,41 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # type_matters ← a SUBJECT-CARRYING UNION (ADR-0027, the biggest lane). The STRUCTURAL
+    # IR arm (_kindred_subjects over a typed Effect/Trigger subject) fires on a keyword
+    # GRANT over a Cleric-subtyped creature filter ("Cleric creatures have vigilance" — a
+    # tribal lord with NO "you control" anchor the anchored regex misses, so this is a
+    # genuine IR-only recall), emitting Cleric as the LOAD-BEARING Signal SUBJECT the
+    # per-subject tribal serve spec interpolates. A NON-creature enchantment card, so no
+    # own-subtype membership confounds the regex side (it emits 0 type_matters). The
+    # byte-identical kept mirror (the deleted _detect_type_matters et al re-run per-clause
+    # over the record's oracle_text) separately reproduces the v36 anchored-regex recall.
+    # ADR-0027 / CR 205.3 / 109.3.
+    "type_matters": (
+        {
+            "name": "Akroma's Devoted-like",
+            "type_line": "Enchantment",
+            "oracle_text": "Cleric creatures have vigilance.",
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="grant_keyword",
+                        scope="you",
+                        subject=Filter(
+                            card_types=("Creature",),
+                            subtypes=("Cleric",),
+                            controller="you",
+                        ),
+                        counter_kind="vigilance",
+                        raw="Cleric creatures have vigilance.",
+                    ),
+                ),
+            )
+        ),
+    ),
     # scaling_pump ← a STRUCTURAL `pump` Effect whose amount SCALES with a board count.
     # Sliver Legion's "All Sliver creatures get +1/+1 for each other Sliver on the
     # battlefield" projects a static pump, amount=Quantity(op="count", factor=1), with the

@@ -8,8 +8,16 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import _AVENUE_CAP
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.signals import extract_signals, extract_signals_hybrid
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.card_ir import Card, Face
+
+
+# A minimal non-None IR routes the hybrid to the IR path for ADR-0027 migrated
+# keys (e.g. type_matters) whose source reads the record's oracle via a kept mirror.
+def _bare_ir() -> Card:
+    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+
 
 VANILLA_ELF = {
     "name": "Plain Elf",
@@ -39,7 +47,11 @@ def test_membership_flag_does_not_touch_oracle_signals():
         "type_line": "Legendary Creature — Elf",
         "oracle_text": "Other Goblins you control get +1/+1.",
     }
-    off = {(s.key, s.subject) for s in extract_signals(card, include_membership=False)}
+    # ADR-0027: type_matters migrated → hybrid path.
+    off = {
+        (s.key, s.subject)
+        for s in extract_signals_hybrid(card, _bare_ir(), include_membership=False)
+    }
     assert ("type_matters", "Goblin") in off  # oracle Goblin payoff survives
     assert ("type_matters", "Elf") not in off  # own-subtype membership suppressed
 

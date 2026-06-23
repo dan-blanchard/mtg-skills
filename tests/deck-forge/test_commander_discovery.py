@@ -151,7 +151,7 @@ def test_novelty_hard_gates_out_unsupported_commanders():
     assert all("novelty" in r for r in res["results"])
 
 
-def test_support_is_collection_specific_not_lane_width():
+def test_support_is_collection_specific_not_lane_width(monkeypatch):
     """B3 / Q9: a commander you own deeply in a DISTINCTIVE lane (a niche tribe) outranks
     one whose lane is merely BROAD (artifacts — nearly every artifact 'supports' it). Both
     are owned to the same depth, so the old within-collection IDF tied them; the new
@@ -171,6 +171,7 @@ def test_support_is_collection_specific_not_lane_width():
             "keywords": [],
             "power": "3",
             "toughness": "3",
+            "oracle_id": _oid(name),
         }
 
     art_cmd = _cmd("Artificer Prime", ["W"], "Artifacts you control get +1/+1.")
@@ -196,6 +197,17 @@ def test_support_is_collection_specific_not_lane_width():
 
     owned = [art_cmd, scare_cmd, *art_owned, *scare_owned, *w_fill, *u_fill]
     by_name = {c["name"]: c for c in [*owned, *pad]}
+    # ADR-0027: type_matters / artifacts_matter migrated → hybrid path. The discovery
+    # endpoint resolves each card's IR via engine._ir_index(); these locally-built cards
+    # aren't in the module _BARE_IR_INDEX, so wire a bare Card per oracle_id (the
+    # kept-mirror reads the oracle off the record) so their tribal/artifact lanes fire.
+    local_ir = {
+        c["oracle_id"]: Card(
+            oracle_id=c["oracle_id"], name=c["name"], faces=(Face(name=c["name"]),)
+        )
+        for c in by_name.values()
+    }
+    monkeypatch.setattr(engine, "_ir_index", lambda: local_ir)
     state = ForgeState(
         by_name=by_name,
         search_fn=lambda **_: [],

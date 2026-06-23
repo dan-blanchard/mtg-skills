@@ -84,12 +84,16 @@ def test_own_subtype_tribal_is_low_confidence():
 
 def test_oracle_payoff_stays_high_confidence():
     # a Goblin that also REWARDS Goblins: the oracle signal (high) must win the dedup.
+    # ADR-0027: type_matters migrated → hybrid path.
     sig = next(
         s
-        for s in _sigs(
-            "Goblin Lord",
-            "Legendary Creature — Goblin",
-            "Other Goblins you control get +1/+1.",
+        for s in extract_signals_hybrid(
+            _card(
+                "Goblin Lord",
+                "Legendary Creature — Goblin",
+                "Other Goblins you control get +1/+1.",
+            ),
+            _bare_ir(),
         )
         if s.key == "type_matters" and s.subject == "Goblin"
     )
