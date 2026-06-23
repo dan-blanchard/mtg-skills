@@ -2123,23 +2123,6 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # counter" — Wingfold Pteron, T-45 Power Armor, Vivien). scope 'any' (these counter
     # sources appear on either side). CR 122.1b.
     ("keyword_counter", re.compile(KEYWORD_COUNTER_REGEX, re.IGNORECASE), "any"),
-    # ADR-0027 keyword_soup tail. The structural arm (>=5 distinct evergreen
-    # grant_keyword counter_kinds in one ability) catches the genuine granters
-    # (Odric, Akroma's Memorial, Cairn Wanderer). phase parses the "the same is true
-    # for X, Y, …" keyword-absorb idiom INCONSISTENTLY — it expands some cards
-    # (Cairn Wanderer -> 9 grants) but collapses others to a single flying grant
-    # (Indominus Rex, Urborg Scavengers), so this mirror (byte-identical to the
-    # deleted SWEEP row) recovers that under-parse tail. A-B==0. CR 702.
-    (
-        "keyword_soup",
-        re.compile(
-            r"if it has flying[^.]*first strike"
-            r"|the same is true for first strike, double strike"
-            r"|has flying[^.]*\+1/\+1",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
     # ADR-0027 land_creatures_matter tail. The structural arms (Land+Creature
     # subject anthems/makers + the animate/base_pt_set/type_set animator) catch the
     # bulk (174 cards, +127 manlands the regex missed), but phase drops some
@@ -3313,7 +3296,9 @@ IR_SLICE_KEYS: frozenset[str] = (
             # ADR-0027 tranche2-batch-3-A — land-animation + keyword-soup lanes:
             #   land_denial          ← phasing Effect, Land/you subject (Taniwha).
             #   keyword_soup         ← >=5 distinct evergreen grant_keyword cks/ability
-            #                          + a kept oracle mirror for the under-parse tail.
+            #                          OR a keyword-grant effect (grant_keyword /
+            #                          place_counter) carrying the "the same is true
+            #                          for …" absorb idiom phase under-parses to one ck.
             #   land_creatures_matter / land_protection ← the shared land-animator
             #                          predicate + Land+Creature anthem/maker subjects
             #                          + a kept oracle mirror for the dropped manlands.
@@ -6261,6 +6246,17 @@ def _condition_has_zone(cond: object, zone: str) -> bool:
     return any(_condition_has_zone(n, zone) for n in cond.nested)
 
 
+# keyword_soup absorb-idiom anchor (ADR-0027). phase under-parses the
+# "<card> has flying as long as … has flying. The same is true for first strike,
+# double strike, …" keyword-COPY idiom: it emits a SINGLE grant_keyword (or, on
+# Indominus Rex, a place_counter) effect carrying counter_kind=<the lead keyword>
+# but PRESERVES the full "the same is true for …" expansion in the effect raw —
+# the conferred keyword list has no structured field. So the structural arm reads
+# the effect phase DID emit (its category + counter_kind) plus this raw anchor,
+# rather than the >=5-distinct-ck count that the under-parse defeats. CR 702.
+_SAME_TRUE_KW_RE = re.compile(r"the same is true for", re.IGNORECASE)
+
+
 def extract_signals_ir(
     card: dict,
     ir: Card | None,
@@ -6394,15 +6390,34 @@ def extract_signals_ir(
         # ONE ability isolates the genuine team-share/absorb soup (Odric, Concerted
         # Effort, Cairn Wanderer) from a single-creature 3-4-keyword bundle (Sword of
         # Vengeance). Per-ability (not per-card) so two separate 3-keyword grants don't
-        # falsely sum to 6. The "the same is true for X, Y, …" idiom phase under-parses
-        # to a single grant on a few cards (Indominus Rex, Urborg Scavengers) rides the
-        # kept oracle mirror below. CR 702 evergreen keywords.
+        # falsely sum to 6. CR 702 evergreen keywords.
         _soup_cks = {
             (e.counter_kind or "").replace(" ", "").lower()
             for e in ab.effects
             if e.category == "grant_keyword"
         }
         if len(_soup_cks & _EVERGREEN_CK) >= 5:
+            add("keyword_soup", "you", "", "")
+        # keyword_soup absorb-idiom arm (ADR-0027 — drops the regex mirror). The
+        # "<card> has flying as long as … has flying. The same is true for first
+        # strike, double strike, …" keyword-COPY idiom (Indominus Rex, Urborg
+        # Scavengers, Wretched Bonemass, Escaped Shapeshifter) confers a whole
+        # evergreen-keyword list, but phase collapses it to ONE grant_keyword (or, on
+        # Indominus Rex, ONE place_counter) effect with counter_kind=<lead keyword>,
+        # defeating the >=5-distinct-ck count above. The conferred list survives only
+        # in that effect's raw, so read the structure phase DID emit (the keyword-grant
+        # effect carrying an evergreen counter_kind) plus the "the same is true for …"
+        # raw anchor. Strictly cleaner than the deleted regex, which over-fired
+        # Lightwalker (a SINGLE conditional flying grant — one keyword, not a soup) on
+        # its `has flying … +1/+1` branch and MISSED Escaped Shapeshifter (whose
+        # "first strike, trample, and protection" list the regex's hard-coded
+        # "first strike, double strike" branch never matched). CR 702.
+        if any(
+            e.category in ("grant_keyword", "place_counter")
+            and (e.counter_kind or "").replace(" ", "").lower() in _EVERGREEN_CK
+            and _SAME_TRUE_KW_RE.search(e.raw or "")
+            for e in ab.effects
+        ):
             add("keyword_soup", "you", "", "")
         # ability_strip_payoff (ADR-0027) — STRUCTURAL ARM. The Abigale archetype: ONE
         # ability STRIPS a target creature's abilities ("loses all abilities") AND keeps
