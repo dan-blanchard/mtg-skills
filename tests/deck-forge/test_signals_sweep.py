@@ -98,8 +98,12 @@ def test_sweep_detectors_loaded():
     # (ADR-0027 — migrated to a byte-identical NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word
     # mirror in signals._IR_KEPT_DETECTORS; it was an _IR_FLOOR_LANES floor reuse with no
     # structural arm because phase carries no CR-702.19a noncombat/combat damage
-    # distinction; CR 120.1 / 510 / 702.19a).
-    assert len(SWEEP_DETECTORS) >= 19
+    # distinction; CR 120.1 / 510 / 702.19a), then 19→18 as scaling_pump's row was deleted
+    # (ADR-0027 — migrated to the structural _is_scaling_count `pump` arm UNION a byte-
+    # identical SCALING_PUMP_SWEEP_REGEX kept word mirror in signals._IR_KEPT_DETECTORS
+    # for the token-/equipment-granted + pump_target-amount-dropped scaling pumps phase
+    # can't structure; CR 613 / 107.3).
+    assert len(SWEEP_DETECTORS) >= 18
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 
@@ -116,12 +120,13 @@ def test_representative_sweep_keys_fire_from_oracle():
     cases = [
         ("topdeck_selection", "Look at the top three cards of your library."),
         # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
-        # (tranche2-A) / debuff_matters / variable_pt / free_cast (β) migrated to the IR
-        # (their SWEEP_DETECTORS rows are deleted), so they no longer fire from the regex
-        # path — swapped for still-regex sweep keys to keep this check. ("All creatures
-        # get -1/-1 until end of turn." now routes through the IR debuff_matters arm; a
-        # "*/* power and toughness are each equal to …" CDA routes through the IR
-        # variable_pt arm — both asserted in test_migrated_keys.)
+        # (tranche2-A) / debuff_matters / variable_pt / free_cast (β) / scaling_pump
+        # migrated to the IR (their SWEEP_DETECTORS rows are deleted), so they no longer
+        # fire from the regex path — swapped for still-regex sweep keys to keep this check.
+        # ("All creatures get -1/-1 until end of turn." now routes through the IR
+        # debuff_matters arm; a "*/* power and toughness are each equal to …" CDA routes
+        # through the IR variable_pt arm; a "gets +X/+X for each …" scaling pump routes
+        # through the IR scaling_pump arm — all asserted in test_migrated_keys.)
         (
             "protection_grant",
             "Target creature gains protection from red until end of turn.",
@@ -129,10 +134,6 @@ def test_representative_sweep_keys_fire_from_oracle():
         (
             "voltron_matters",
             "Whenever you attach an Equipment to a creature, draw a card.",
-        ),
-        (
-            "scaling_pump",
-            "Tarmogoyf gets +1/+1 for each creature card in your graveyard.",
         ),
     ]
     for key, oracle in cases:

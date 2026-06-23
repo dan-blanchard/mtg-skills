@@ -59,6 +59,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     LURE_MATTERS_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
+    SCALING_PUMP_SWEEP_REGEX,
     SELF_COUNTER_GROW_SWEEP_REGEX,
     SPELL_KEYWORD_GRANT_REGEX,
     STAX_TAXES_REGEX,
@@ -2792,6 +2793,21 @@ _LURE_MATTERS_PLAN_MIRROR = re.compile(LURE_MATTERS_REGEX, re.IGNORECASE)
 # (the deleted producers were detectors over reminder-stripped clauses). CR 122 / 614 /
 # 903.10a.
 _COUNTER_DOUBLING_PLAN_MIRROR = re.compile(COUNTER_DOUBLING_REGEX, re.IGNORECASE)
+# ADR-0027: the HAS-OTHER-PLAN mirror for the migrated scaling_pump key. Its
+# deleted SWEEP_DETECTORS producer fired HIGH-confidence scope 'you' and counted
+# toward has_other_plan — a board-count-scaling +X/+X engine (firebreathing-for-
+# each / "for each artifact"-token grant) IS a plan, not a vanilla commander-damage
+# beater (Urza, Yavimaya Enchantress, High Sentinels of Arashin). The migrated IR
+# re-supply is BROADER (279 vs 223 — the structural _is_scaling_count arm adds 56
+# "+X/+X where X is the number of" / counter-op / two-digit pumps the narrow regex
+# missed), so re-supplying via _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those
+# 56 broader bodies and remove their voltron tells. This BYTE-IDENTICAL mirror (==
+# SCALING_PUMP_SWEEP_REGEX) restores ONLY the old regex's exact 223-card silence
+# set, so the file-swap shows voltron delta 0. It feeds ONLY the gate (no signal —
+# the lane is served from the IR), matched against the reminder-STRIPPED `text` (the
+# deleted producer was a floor Detector over reminder-stripped clauses); no `[^.]*`
+# span, so flat == per-clause == 223. CR 613 / 903.10a.
+_SCALING_PUMP_PLAN_MIRROR = re.compile(SCALING_PUMP_SWEEP_REGEX, re.IGNORECASE)
 # ADR-0027: the HAS-OTHER-PLAN mirror for the migrated artifacts_matter key. Its two
 # deleted HIGH-confidence producers — the _HAND_FLOOR oracle regex (scope 'you') and the
 # kept "if you control an artifact" SWEEP row (scope 'you') — counted toward
@@ -5194,6 +5210,16 @@ def extract_signals(
         # reminder-STRIPPED `text` (the deleted producers were detectors over stripped
         # clauses). CR 122 / 614 / 903.10a.
         or _COUNTER_DOUBLING_PLAN_MIRROR.search(text)
+        # ADR-0027: re-silence the deleted scaling_pump SWEEP producer (HIGH-
+        # confidence scope 'you', feeding has_other_plan — a board-count-scaling
+        # +X/+X engine IS a plan, not a vanilla beater: Urza, Yavimaya Enchantress,
+        # High Sentinels of Arashin). The migrated IR arm is BROADER (279 vs 223),
+        # so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence the 56 broader bodies;
+        # this BYTE-IDENTICAL mirror (== SCALING_PUMP_SWEEP_REGEX) restores ONLY the
+        # old regex's exact 223-card silence set, so the file-swap shows voltron
+        # delta 0. Matched against the reminder-STRIPPED `text` (no `[^.]*` span,
+        # flat == per-clause == 223). CR 613 / 903.10a.
+        or _SCALING_PUMP_PLAN_MIRROR.search(text)
         # ADR-0027: re-silence the deleted artifacts_matter producers (the _HAND_FLOOR
         # oracle regex + the kept "if you control an artifact" SWEEP row, both HIGH-
         # confidence scope 'you', feeding has_other_plan — an artifact engine IS a plan,

@@ -313,6 +313,19 @@ PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x
 # with). CR 604.3.
 VARIABLE_PT_SWEEP_REGEX = "power and toughness are each equal to(?: the (?:total )?number of)?|power(?: and toughness)? (?:is|are)(?: each)? equal to (?:twice )?the (?:total )?number of|equal to (?:twice )?the (?:total )?number of cards in (?:your|their|the|all) [^.]*hand|change [^.]*base power and toughness"
 
+# ADR-0027 — scaling_pump migrated to the Card IR. The EXACT deleted SWEEP_DETECTORS
+# regex, pinned as a shared constant so the byte-identical kept WORD MIRROR
+# (_SCALING_PUMP_SWEEP_MIRROR in signals._IR_KEPT_DETECTORS, scope 'you'), the voltron
+# _SCALING_PUMP_PLAN_MIRROR (_signals_regex), and the hand-registered serve
+# (signal_specs) all reuse ONE source so they never drift from the deleted detector. The
+# single arm has no `[^.]*` span, so a flat .search over the reminder-stripped joined-
+# face kept_oracle == the deleted per-clause SWEEP firing (commander-legal: flat ==
+# per-clause == 223, identical sets). The structural _is_scaling_count arm supplies the
+# broader "+X/+X where X is the number/greatest of" + counter-op set the narrow regex
+# missed; this mirror recovers the token-/equipment-granted + pump_target-amount-dropped
+# tail. CR 613 / 107.3.
+SCALING_PUMP_SWEEP_REGEX = "gets [+\\-][0-9x]/[+\\-][0-9x] for (?:each|every)"
+
 # ADR-0027 β — unspent_mana migrated to the Card IR via a kept-mirror; its
 # SWEEP_DETECTORS row is deleted but the EXACT mined regex survives here as a shared
 # constant. The lane is the "you KEEP unspent mana across steps/phases" payoff — a
@@ -1362,12 +1375,24 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # SWEEP_DETECTORS row is deleted; the EXACT regex is pinned as VARIABLE_PT_SWEEP_REGEX
     # above and the serve is hand-registered in signal_specs.py reusing it (SWEEP_LABELS
     # keeps the human label). CR 604.3.
-    {
-        "key": "scaling_pump",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "gets [+\\-][0-9x]/[+\\-][0-9x] for (?:each|every)",
-    },
+    # ADR-0027: scaling_pump migrated to the Card IR — a single-/team-target +X/+X whose
+    # value SCALES with a board count fires from the structural `cat=='pump'` arm gated by
+    # _is_scaling_count (the named count ops counters/domain/devotion/party/experience +
+    # the generic count/multiply op carrying a counted subject or a "for each"/"number of"
+    # raw) UNION the byte-identical SCALING_PUMP_SWEEP_REGEX kept word mirror in
+    # signals._IR_KEPT_DETECTORS. The mirror recovers the 17 under-structured tail phase
+    # leaves textual: the token-borne pump granted inside a created token's quotes ("This
+    # token gets +1/+1 for each artifact you control" — Urza, Karn Scion of Urza, Digsite
+    # Engineer, Minn, Vren, Sound the Call, Dollhouse of Horrors, Simulacrum Synthesizer),
+    # the equipment-granted scaler (Moira Brown), and the single-target/self for-each pump
+    # phase routes to a `pump_target` Effect with amount=None (Gold Rush, Embiggen, Gran
+    # Pulse Ochu, Sunbathing Rootwalla, Ral's Staticaster). The structural arm adds 56 the
+    # narrow regex MISSED (the "+X/+X, where X is the number/greatest of" phrasing the
+    # `for each|every` regex can't see — Craterhoof, Overwhelming Stampede, Jodah, the
+    # counter-op anthems Door of Destinies / Joraga Warcaller, the two-digit +10/+10
+    # Rampant Frogantua the single-digit `[0-9x]` class drops). EXACT regex pinned as
+    # SCALING_PUMP_SWEEP_REGEX above; the serve is hand-registered in signal_specs.py
+    # reusing it (SWEEP_LABELS keeps the human label). CR 613 / 107.3.
     # ADR-0027: count_anthem migrated to the Card IR — served from a team +N/+N pump
     # whose amount SCALES with a board count (_is_scaling_count) over a generic
     # creature Filter you control (Hold the Gates, Commander's Insignia, Boon of the

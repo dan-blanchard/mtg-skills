@@ -189,6 +189,42 @@ _CASES: dict[str, tuple[dict, Card]] = {
         },
         _ir(),
     ),
+    # scaling_pump ← a STRUCTURAL `pump` Effect whose amount SCALES with a board count.
+    # Sliver Legion's "All Sliver creatures get +1/+1 for each other Sliver on the
+    # battlefield" projects a static pump, amount=Quantity(op="count", factor=1), with the
+    # "for each" raw — _is_scaling_count admits it (the generic count/multiply op carrying a
+    # counted subject OR a "for each"/"number of" raw qualifies; a bare X-pump fails). The
+    # structural arm in extract_signals_ir fires scope "you", subject "". The UNION'd
+    # SCALING_PUMP_SWEEP_REGEX kept mirror separately recovers the token-/equipment-granted
+    # + pump_target-amount-dropped tail phase can't structure (Urza token grants, Gold Rush)
+    # — exercised here via the structural arm. ADR-0027 / CR 613 / 107.3.
+    "scaling_pump": (
+        {
+            "name": "Sliver Legion",
+            "type_line": "Legendary Creature — Sliver",
+            "oracle_text": (
+                "All Sliver creatures get +1/+1 for each other Sliver on the "
+                "battlefield."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="static",
+                effects=(
+                    Effect(
+                        category="pump",
+                        scope="any",
+                        subject=Filter(card_types=("Creature",), subtypes=("Sliver",)),
+                        amount=Quantity(op="count", factor=1),
+                        raw=(
+                            "All Sliver creatures get +1/+1 for each other Sliver "
+                            "on the battlefield."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # unspent_mana ← a byte-identical _IR_KEPT_DETECTORS mirror of the deleted SWEEP
     # regex ("you don't lose unspent <color> mana as steps and phases end"). phase
     # carries a StepEndUnspentMana static for the pure statics but the v17 projection

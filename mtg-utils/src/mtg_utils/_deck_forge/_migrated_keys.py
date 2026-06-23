@@ -1025,6 +1025,28 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         "tapper_engine",
         "recast_etb",
         "count_anthem",
+        # ADR-0027 scaling_pump ← a +X/+X (single-target, self, or team) whose
+        # value SCALES with a board count fires from the STRUCTURAL `cat=='pump'`
+        # arm gated by _is_scaling_count (the named ops counters/domain/devotion/
+        # party/experience + the generic count/multiply op carrying a counted
+        # subject or a "for each"/"number of" raw) UNION a byte-identical
+        # SCALING_PUMP_SWEEP_REGEX kept WORD MIRROR (_IR_KEPT_DETECTORS, scope
+        # 'you'). The structural arm catches 56 the narrow regex MISSED ("+X/+X,
+        # where X is the number/greatest of" phrasing, plural team scalers,
+        # counter-op anthems, two-digit +10/+10); the mirror recovers the 17 phase
+        # routes through a `pump_target`/amount=None carrier or buries inside a
+        # created token's quotes (Urza/Karn token grants, Moira Brown equipment
+        # grant, Gold Rush/Embiggen/Gran Pulse Ochu/Sunbathing Rootwalla/Ral's
+        # Staticaster single-target for-each). UNION over the commander-legal
+        # corpus, floor-disabled, by oracle_id: both==206, ir_only==56 (all
+        # genuine), regex_only==17 (all mirrored). count_anthem is the team-subject
+        # subset (both may open — add() dedups). The deleted SWEEP producer fired
+        # HIGH scope 'you' feeding has_other_plan; the IR re-supply is BROADER
+        # (279 vs 223), so voltron is re-silenced via the byte-identical
+        # _SCALING_PUMP_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS, which would
+        # over-silence the 56). Its SWEEP row is deleted; serve hand-spec'd reusing
+        # SCALING_PUMP_SWEEP_REGEX. CR 613 / 107.3.
+        "scaling_pump",
         # Group "tranche2 (t2b2-A)" — structural grant / bounce / exile IR arms whose
         # original `needs_projection` mappings were STALE (grant_keyword now carries the
         # granted keyword in counter_kind; Ability.condition carries the gate; the

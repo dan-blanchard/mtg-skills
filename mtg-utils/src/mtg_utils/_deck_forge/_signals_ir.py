@@ -100,6 +100,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     NONCOMBAT_DAMAGE_PAYOFF_REGEX,
     NONCREATURE_CAST_PUNISH_REGEX,
     PUMP_MATTERS_REGEX,
+    SCALING_PUMP_SWEEP_REGEX,
     STATION_MATTERS_REGEX,
     STAX_TAXES_REGEX,
     STICKERS_MATTER_REGEX,
@@ -2501,6 +2502,39 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "shield_counter_matters",
         _SHIELD_COUNTER_MATTERS_MIRROR,
+        "you",
+    ),
+    # ADR-0027 scaling_pump — byte-identical kept WORD MIRROR (the EXACT deleted
+    # SWEEP regex SCALING_PUMP_SWEEP_REGEX `gets [+\-][0-9x]/[+\-][0-9x] for
+    # (?:each|every)`, scope 'you' matching the deleted row). The lane's PRIMARY
+    # home is the STRUCTURAL `cat=='pump'` arm gated by _is_scaling_count (in
+    # extract_signals_ir) — a +X/+X whose value SCALES with a board count (the
+    # named ops counters/domain/devotion/party/experience + the generic count/
+    # multiply op carrying a counted subject or a "for each"/"number of" raw). The
+    # structural arm fires 262 (56 the narrow regex MISSED: the "+X/+X, where X is
+    # the number/greatest of" phrasing, the plural "creatures … get" team scalers,
+    # the counter-op anthems Door of Destinies / Joraga Warcaller, and the two-
+    # digit +10/+10 Rampant Frogantua the single-digit `[0-9x]` class drops). This
+    # mirror recovers the 17 the structural arm MISSES because phase routes them
+    # through a non-`pump`/amount=None carrier: the token-borne pump granted inside
+    # a created token's quotes ("This token gets +1/+1 for each artifact you
+    # control" — Urza Lord High Artificer/Chief Artificer, Karn Scion of Urza,
+    # Urza's Saga/Command, Digsite Engineer, Minn, Vren, Sound the Call, Dollhouse
+    # of Horrors, Simulacrum Synthesizer), the equipment-granted scaler (Moira
+    # Brown), and the single-target/self for-each pump phase routes to a
+    # `pump_target` Effect with amount=None (Gold Rush, Embiggen, Gran Pulse Ochu,
+    # Sunbathing Rootwalla, Ral's Staticaster). `gets …/… for each` has no `[^.]*`
+    # span, so a flat .search over the reminder-stripped joined-face kept_oracle ==
+    # the deleted per-clause SWEEP firing byte-identically (commander-legal: flat
+    # == per-clause == 223, identical sets). UNION(struct | mirror), floor-
+    # disabled, by oracle_id: both==206, ir_only==56 (all genuine scaling pumps the
+    # regex's narrow phrasing missed), regex_only==17 (all recovered by this
+    # mirror). add() dedups the 206 overlap. The token-grant quotes use single/
+    # double quotes, NOT parens, so they survive reminder-stripping just as they
+    # did for the deleted floor Detector. CR 613 / 107.3.
+    (
+        "scaling_pump",
+        re.compile(SCALING_PUMP_SWEEP_REGEX, re.IGNORECASE),
         "you",
     ),
 )
