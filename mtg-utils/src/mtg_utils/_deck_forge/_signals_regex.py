@@ -34,6 +34,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     CLONE_MATTERS_REGEX,
     CLUE_MATTERS_REGEX,
     COLOR_CHANGE_REGEX,
+    COMBAT_BUFF_ENGINE_SWEEP_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     COST_REDUCTION_REGEX,
@@ -4663,6 +4664,26 @@ _COMBAT_BUFF_PUMP_RE = re.compile(
     r"(?:that creature|target creature you control|creatures? you control)[^.]*gets \+",
     re.IGNORECASE,
 )
+# ADR-0027 Cluster D — combat_buff_engine migrated to the Card IR (SIGNALS-ONLY,
+# no projection: phase already structures the lane via Trigger.event in
+# {attacks, blocks, begin_combat} + a pump/pump_target/place_counter effect). The
+# deleted SWEEP_DETECTORS regex is pinned as COMBAT_BUFF_ENGINE_SWEEP_REGEX in
+# _sweep_detectors (imported above); the _signals_ir kept mirror reuses it, and the
+# helper below restores the voltron silence the two deleted producers fed.
+_COMBAT_BUFF_ENGINE_SWEEP_RE = re.compile(COMBAT_BUFF_ENGINE_SWEEP_REGEX, re.IGNORECASE)
+
+
+def _combat_buff_engine_has_plan(text: str) -> bool:
+    """Byte-identical re-run of the two deleted combat_buff_engine producers over
+    the reminder-stripped ``text`` (the SAME input the deleted add()s ran on): the
+    full-text begin-combat single-target pump (Aurelia — trigger + payoff span a
+    sentence boundary) OR the per-clause SWEEP regex (attacks/blocks/begin-combat
+    "gets +/-"). Fed has_other_plan HIGH-confidence; restores the voltron silence
+    set exactly. ADR-0027 combat_buff_engine."""
+    if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
+        return True
+    return any(_COMBAT_BUFF_ENGINE_SWEEP_RE.search(clause) for clause in _clauses(text))
+
 
 # Loot/rummage across a sentence boundary (Alpharael): "draw N cards. Then discard".
 # Require the discard to be the ADJACENT clause (one period/comma + optional "then")
@@ -5441,8 +5462,18 @@ def extract_signals(
     # legacy regex conflated this with "cast a spell FROM a graveyard" (flashback /
     # escape / disturb — CR 702.34 casting ≠ reanimation), which the structural IR
     # correctly drops. The legacy active-reanimation oracle-regex producer is deleted.
-    if _COMBAT_BUFF_TRIGGER_RE.search(text) and _COMBAT_BUFF_PUMP_RE.search(text):
-        add("combat_buff_engine", "you", "", text[:160])
+    # ADR-0027 Cluster D: combat_buff_engine migrated to the Card IR (SIGNALS-ONLY).
+    # This full-text begin-combat single-target pump producer (Aurelia — the trigger
+    # and the "gets +" payoff span a sentence boundary) is deleted; extract_signals_ir
+    # fires the lane from a STRUCTURAL arm (a triggered ability with Trigger.event in
+    # {attacks, blocks, begin_combat} + a pump/pump_target/place_counter effect, +588
+    # recall the literal "gets +" regex missed — keyword combat-pumps Battle cry /
+    # Mentor / Exalted / Bushido / Rampage / Melee, and "attacks → put a +1/+1 counter"
+    # engines) UNION a byte-identical mirror of THIS producer + the deleted SWEEP regex
+    # over kept_oracle. _COMBAT_BUFF_TRIGGER_RE / _COMBAT_BUFF_PUMP_RE STAY (the IR
+    # mirror + the _combat_buff_engine_has_plan voltron re-supply reuse them). The
+    # deleted producer fired HIGH and fed has_other_plan, so its voltron silence is
+    # restored by _combat_buff_engine_has_plan() below. CR 508.
     # ADR-0027: discard_matters migrated to the Card IR — a scope-gated `discarded`-
     # trigger structural arm (scope != "opp", excluding the opponent_discard punisher
     # lane) PLUS a byte-identical _LOOT_FULLTEXT_RE kept-mirror in
@@ -5556,6 +5587,17 @@ def extract_signals(
         # inputs the deleted add() ran), restoring ONLY the old regex's silence set. So
         # the file-swap shows voltron delta 0. CR 700.4 / 903.10a.
         or _detect_self_death_payoff(text, name) is not None
+        # ADR-0027 Cluster D: re-silence the deleted combat_buff_engine producers (the
+        # full-text begin-combat single-target pump + the per-clause SWEEP regex). Both
+        # fired HIGH scope 'you', feeding has_other_plan — a repeatable combat-pump
+        # engine is no vanilla commander-damage beater (Aurelia, Goblin Rabblemaster,
+        # Cathars' Crusade), so it silenced the spurious commander-damage voltron tell.
+        # The migrated IR arm is BROADER (+588 ir_only — keyword combat-pumps +
+        # attacks-counter engines), so _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence
+        # those new bodies; this byte-identical re-run of the deleted producers (over
+        # the reminder-stripped `text` the producers ran on) restores ONLY the old
+        # regex's silence set, so the migration shows voltron delta 0. CR 508 / 903.10a.
+        or _combat_buff_engine_has_plan(text)
         # ADR-0027 β: re-silence the deleted cost_reduction SWEEP + _HAND_FLOOR
         # producers. Both fired high-confidence scope 'you', feeding has_other_plan; the
         # migrated IR arm is narrower (drops the 92 self-discounts), so this byte-

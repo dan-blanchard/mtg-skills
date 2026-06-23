@@ -21,6 +21,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     ABILITY_COPY_REGEX,
     ANIMATE_ARTIFACT_REGEX,
     BASE_PT_SET_REGEX,
+    COMBAT_BUFF_ENGINE_SWEEP_REGEX,
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
     COUNTER_DISTRIBUTE_SERVE_REGEX,
@@ -2689,9 +2690,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         extras=_COUNTERS_PACKAGE,
     ),
     # Beginning-of-combat / attack-buff commanders are combat decks — surface the gear
-    # and keyword-anthems that grow their attackers.
+    # and keyword-anthems that grow their attackers. ADR-0027 Cluster D: combat_buff_
+    # engine migrated to the IR (its SWEEP_DETECTORS row is deleted), so the serve keeps
+    # the pinned COMBAT_BUFF_ENGINE_SWEEP_REGEX.
     ("combat_buff_engine", "you"): _sweep_spec_with_extras(
-        "combat_buff_engine", (_COMBAT_SUPPORT_EXTRA,)
+        "combat_buff_engine",
+        (_COMBAT_SUPPORT_EXTRA,),
+        regex=COMBAT_BUFF_ENGINE_SWEEP_REGEX,
     ),
     # A "becomes blocked" payoff (General Marhault: +3/+3 for each creature blocking it)
     # wants Lure effects — forcing every able creature to block maxes the per-blocker

@@ -414,6 +414,28 @@ BASE_PT_SET_REGEX = "base power (?:and toughness )?\\d|has base power|base tough
 # re-supplies the voltron silence (see signals). CR 702.11/16/12/18/21.
 PROTECTION_GRANT_REGEX = "gains? protection from|gains? (?:hexproof|shroud)\\b|target [^.]*gains? protection|can't be the target of (?:spells?|abilities)[^.]*your opponents control"
 
+# ADR-0027 Cluster D — combat_buff_engine migrated to the Card IR (SIGNALS-ONLY). The
+# EXACT deleted SWEEP_DETECTORS regex (the per-clause attacks/blocks/begin-combat
+# "gets +/-" arms), pinned so the byte-identical kept mirror (run per-clause over
+# kept_oracle in extract_signals_ir), the _combat_buff_engine_has_plan voltron
+# re-supply (_signals_regex), and the hand-registered serve spec (signal_specs.py)
+# all reuse it. The SWEEP ran PER-CLAUSE over the reminder-stripped oracle; the
+# `[^.]*` arms never cross a sentence boundary, so the mirror runs per-clause to match
+# byte-identically. The structural arm (a triggered ability with Trigger.event in
+# {attacks, blocks, begin_combat} + a pump/pump_target/place_counter effect) is BROADER
+# — it adds the keyword combat-pumps (Battle cry / Mentor / Exalted / Bushido / Rampage
+# / Melee) and "attacks → +1/+1 counter" engines the literal "gets +" regex missed
+# (+588 ir_only) — so the mirror is NOT _VOLTRON_SILENCING_PLAN_KEYS; the byte
+# _combat_buff_engine_has_plan re-supplies the voltron silence (see signals). CR 508.
+COMBAT_BUFF_ENGINE_SWEEP_REGEX = (
+    r"at the beginning of combat on your turn[^.]*creature[^.]*\.?\s*"
+    r"(?:until end of turn,? )?that creature gets \+"
+    r"|whenever (?:this creature|[A-Z][a-z]+) attacks[^.]*(?:creature|it) gets "
+    r"\+\d/"
+    r"|whenever [\w ]+ blocks(?: or becomes blocked)?[^.]*gets [+\-]"
+    r"|whenever [\w ]+ attacks[^.]*,? (?:it|[\w ]+?) gets [+\-]"
+)
+
 # ADR-0027 — scaling_pump migrated to the Card IR. The EXACT deleted SWEEP_DETECTORS
 # regex, pinned as a shared constant so the byte-identical kept WORD MIRROR
 # (_SCALING_PUMP_SWEEP_MIRROR in signals._IR_KEPT_DETECTORS, scope 'you'), the voltron
@@ -1688,12 +1710,17 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # phase v0.1.19), so it rides an _IR_KEPT_DETECTORS word mirror anchored on "a
     # player"/"an opponent". This SWEEP_DETECTORS row is deleted; SWEEP_LABELS keeps the
     # label and the serve spec stays hand-registered in signal_specs.py.
-    {
-        "key": "combat_buff_engine",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "at the beginning of combat on your turn[^.]*creature[^.]*\\.?\\s*(?:until end of turn,? )?that creature gets \\+|whenever (?:this creature|[A-Z][a-z]+) attacks[^.]*(?:creature|it) gets \\+\\d/|whenever [\\w ]+ blocks(?: or becomes blocked)?[^.]*gets [+\\-]|whenever [\\w ]+ attacks[^.]*,? (?:it|[\\w ]+?) gets [+\\-]",
-    },
+    # ADR-0027 Cluster D: combat_buff_engine migrated to the Card IR (SIGNALS-ONLY,
+    # no projection). phase already structures the lane via Trigger.event in
+    # {attacks, blocks, begin_combat} + a pump/pump_target/place_counter effect, so it
+    # fires from a STRUCTURAL arm in extract_signals_ir UNION a byte-identical mirror
+    # of this SWEEP regex (pinned as COMBAT_BUFF_ENGINE_SWEEP_REGEX in _signals_regex)
+    # plus the deleted full-text begin-combat producer. This SWEEP_DETECTORS row is
+    # deleted; SWEEP_LABELS keeps the human label and the serve spec stays hand-
+    # registered in signal_specs.py reusing the pinned regex. (combat_damage is NOT in
+    # the arm's event set — the deleted regex had no combat_damage arm, so Renown /
+    # combat-damage→counter self-growth — a SEPARATE self_counter_grow lane — does not
+    # over-fire here.)
     # ADR-0027: opponent_exile_matters migrated to the Card IR — GRAVEYARD HATE (CR
     # 406), served from a kept word mirror (signals._IR_KEPT_DETECTORS) because phase
     # scatters its forms across categories it doesn't unify (graveyard-zone exile →

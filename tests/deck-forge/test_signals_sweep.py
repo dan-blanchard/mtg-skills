@@ -160,8 +160,17 @@ def test_sweep_detectors_loaded():
     # reminder-stripped kept_oracle); the structural arm adds the single-target
     # indestructible/ward grants + suit-up auras the word-order regex missed and the
     # mirror preserves the cost-folded self-grants + intrinsic-hexproof reminder matches;
-    # CR 702.11/16/12/18/21 / 700.2).
-    assert len(SWEEP_DETECTORS) >= 10
+    # CR 702.11/16/12/18/21 / 700.2),
+    # then 10→9 as combat_buff_engine's row was deleted (ADR-0027 Cluster D, SIGNALS-
+    # ONLY — phase already structures the lane via Trigger.event in {attacks, blocks,
+    # begin_combat} + a pump/pump_target/place_counter effect; migrated to a WIDENED
+    # structural arm UNION a byte-identical mirror of the deleted full-text begin-combat
+    # producer + the per-clause COMBAT_BUFF_ENGINE_SWEEP_REGEX over kept_oracle; the
+    # structural arm adds +588 keyword combat-pumps Battle cry/Mentor/Exalted/Bushido/
+    # Rampage/Melee + "attacks → +1/+1 counter" engines the literal "gets +" regex
+    # missed; combat_damage is excluded so Renown self-growth — the self_counter_grow
+    # lane — doesn't over-fire; CR 508 / 702.91/121).
+    assert len(SWEEP_DETECTORS) >= 9
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

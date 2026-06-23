@@ -158,12 +158,20 @@ AURELIA = (
 
 
 def test_aurelia_combat_buff_engine():
-    assert "combat_buff_engine" in _keys(AURELIA, name="Aurelia, Exemplar of Justice")
+    # ADR-0027 Cluster D: combat_buff_engine migrated to the Card IR, so the lane is
+    # served from the HYBRID (IR) path — Aurelia's begin-combat single-target pump
+    # fires the widened structural arm (begin_combat trigger + pump effect) and the
+    # byte mirror, not the deleted regex producer.
+    assert "combat_buff_engine" in _hybrid_keys(
+        AURELIA, name="Aurelia, Exemplar of Justice"
+    )
 
 
 def test_static_anthem_not_combat_buff():
-    # no beginning-of-combat trigger → not a combat-buff engine.
-    assert "combat_buff_engine" not in _keys("Creatures you control get +1/+1.")
+    # No combat trigger → not a combat-buff engine (the lane requires a triggered
+    # ability with event in {attacks, blocks, begin_combat} + a pump effect). Checked
+    # on the hybrid path where the migrated lane is now produced.
+    assert "combat_buff_engine" not in _hybrid_keys("Creatures you control get +1/+1.")
 
 
 # ── Alpharael: loot/rummage across a sentence boundary ──

@@ -5867,6 +5867,32 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010 by
         # set equality. CR 702.11/16/12/18/21 / 700.2.
         "protection_grant",
+        # ADR-0027 Cluster D — combat_buff_engine migrated to the Card IR (SIGNALS-
+        # ONLY, NO projection, SIDECAR unchanged at v35). DIAGNOSIS: phase ALREADY
+        # structures the lane — a repeatable combat-pump ENGINE is a triggered ability
+        # whose Trigger.event is in {attacks, blocks, begin_combat} and which carries a
+        # pump / pump_target / place_counter Effect in the SAME ability. So the lane is
+        # READ from the IR, not projected (same shape as kill_engine). WIRE: the
+        # original begin-combat-only IR arm (Additive Evolution) is WIDENED to the full
+        # attacks/blocks/begin-combat frame + pump_target, RECOVERING +588 the literal
+        # "gets +" regex missed — the keyword combat-pumps phase expands (Battle cry /
+        # Mentor / Exalted / Bushido / Rampage / Flanking / Melee / Training) and the
+        # "whenever ~ attacks, put a +1/+1 counter on it" engines (Alesha, Anafenza,
+        # Armory of Iroas). combat_damage is DELIBERATELY excluded (the deleted regex
+        # had no combat_damage arm, so Renown / combat-damage→counter self-growth — the
+        # SEPARATE self_counter_grow lane — doesn't over-fire). UNION a byte-identical
+        # mirror of the two DELETED producers (the full-text begin-combat single-target
+        # pump _COMBAT_BUFF_TRIGGER_RE AND _COMBAT_BUFF_PUMP_RE, run flat, OR the
+        # per-clause COMBAT_BUFF_ENGINE_SWEEP_REGEX) over kept_oracle, recovering the 23
+        # phase folds into a quoted granted ability / "attacks or blocks" event='other'
+        # / planeswalker emblem (regex_only -> 0). Commander-legal, by (key,scope,
+        # subject): both=244, regex_only=0 (byte mirror full recall), ir_only=588 (all
+        # genuine combat-pump engines, each with a hook). VOLTRON: the deleted full-text
+        # producer + SWEEP fired HIGH scope 'you' and fed has_other_plan; the IR
+        # re-supply is BROADER, so a byte-identical _combat_buff_engine_has_plan mirror
+        # is OR'd into has_other_plan — NOT _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010
+        # by set equality. CR 508 / 702.91/121 / 903.10a.
+        "combat_buff_engine",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

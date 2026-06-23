@@ -6244,6 +6244,29 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 Cluster D — combat_buff_engine: a REPEATABLE combat-pump engine. Alesha
+    # is the load-bearing IR-arm case: "Whenever Alesha attacks, put a +1/+1 counter on
+    # it" — an `attacks` trigger + a place_counter effect. The deleted "gets +" regex
+    # NEVER matched this (no literal "gets +" pump — it's a counter), so the lane is
+    # served PURELY by the widened structural arm (event in {attacks, blocks,
+    # begin_combat} + pump/pump_target/place_counter), proving the +588 recall is the IR
+    # path, not the byte mirror. The regex path emits nothing here. ADR-0027.
+    "combat_buff_engine": (
+        {
+            "name": "Alesha, Who Laughs at Fate",
+            "type_line": "Legendary Creature — Human Warrior",
+            "oracle_text": (
+                "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="triggered",
+                trigger=Trigger(event="attacks", scope="you"),
+                effects=(Effect(category="place_counter", counter_kind="p1p1"),),
+            )
+        ),
+    ),
     # ADR-0027 β — activated_ability: a card whose ENGINE is a MEANINGFUL activated
     # ability. The Scarab God is the load-bearing case for BOTH discriminators that kill
     # the deleted regex's land/mana flood: its {2}{U}{B} cost projects to

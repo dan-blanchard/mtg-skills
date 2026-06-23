@@ -22,6 +22,9 @@ from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_TOP_ONTO_RE,
     _CHEAT_TOP_REVEAL_RE,
     _COLOR_HOSER_RE,
+    _COMBAT_BUFF_ENGINE_SWEEP_RE,
+    _COMBAT_BUFF_PUMP_RE,
+    _COMBAT_BUFF_TRIGGER_RE,
     _DIG_UNTIL_SWEEP_RE,
     _DIRECT_KEYWORD_SIGNALS,
     _DISCARD_OUTLET_SWEEP_RE,
@@ -8628,12 +8631,25 @@ def extract_signals_ir(
             ev = trig.event
             tsubs = _ftypes(trig.subject)
             tsub_kinds = _fsubs_lower(trig.subject)
-            # combat_buff_engine: a begin-combat trigger that PUMPS (Additive
-            # Evolution — "at the beginning of combat on your turn, put a +1/+1
-            # counter ..."). A co-occurrence: the trigger event + a pump/counter
-            # effect in the SAME ability (the flat per-effect pass can't see this).
-            if ev == "begin_combat" and any(
-                e.category in ("pump", "place_counter") for e in ab.effects
+            # combat_buff_engine (ADR-0027 Cluster D, SIGNALS-ONLY): a COMBAT-keyed
+            # trigger that PUMPS. A co-occurrence the flat per-effect pass can't see —
+            # the trigger event (attacks / blocks / begin_combat) + a pump / pump_target
+            # / place_counter effect in the SAME ability. This widens the original
+            # begin-combat-only arm (Additive Evolution) to the full attacks/blocks/
+            # begin-combat frame, RECOVERING +588 the literal "gets +" regex missed: the
+            # keyword combat-pumps phase expands (Battle cry / Mentor / Exalted /
+            # Bushido / Rampage / Flanking / Melee / Training) and the "whenever ~
+            # attacks, put a +1/+1 counter on it" engines (Alesha, Anafenza, Armory of
+            # Iroas). NB:
+            # combat_damage is DELIBERATELY excluded — the deleted regex had no
+            # combat_damage arm, so Renown / combat-damage→counter self-growth (the
+            # SEPARATE self_counter_grow lane) does not over-fire. The deleted full-text
+            # producer + SWEEP regex are mirrored byte-identically below for the cases
+            # phase folds into a quoted granted ability / "attacks or blocks" event=
+            # 'other' / planeswalker emblem (regex_only -> 0). CR 508 / 702.91/121.
+            if ev in ("attacks", "blocks", "begin_combat") and any(
+                e.category in ("pump", "pump_target", "place_counter")
+                for e in ab.effects
             ):
                 add("combat_buff_engine", "you", "", "")
             # damage_reflect: a "when this is dealt damage" trigger that DEALS damage
@@ -9285,6 +9301,35 @@ def extract_signals_ir(
         draw = _detect_card_draw(clause)
         if draw is not None:
             add(draw[0], draw[1], "", clause)
+    # ADR-0027 Cluster D — combat_buff_engine BYTE-IDENTICAL kept mirror (SIGNALS-
+    # ONLY). The widened STRUCTURAL arm above (a triggered ability with Trigger.event
+    # in {attacks, blocks, begin_combat} + a pump/pump_target/place_counter effect)
+    # GAINS +588 keyword combat-pumps + attacks-counter engines, but phase folds a
+    # handful of combat pumps where the arm can't read them: a QUOTED granted ability
+    # the pump lives in (Idolized / Veteran's Armaments / Hardy Outlander — a
+    # `pump_target` on a categoryless static), an "attacks OR blocks" condition phase
+    # types as event=='other' (Burning Sun Cavalry, Freelance Muscle, Spider-Mobile,
+    # Wildwood Tracker), a planeswalker EMBLEM pump (Garruk, Apex Predator's -8), and
+    # the Saga / delayed-this-turn grants (Harald, Tamiyo, Song of Blood). Recover those
+    # 23 with a byte-identical re-run of the two DELETED producers over the reminder-
+    # stripped kept_oracle: the full-text begin-combat single-target pump
+    # (_COMBAT_BUFF_TRIGGER_RE AND _COMBAT_BUFF_PUMP_RE, run FLAT — the trigger and
+    # payoff span a sentence boundary on Aurelia) OR the per-clause SWEEP regex
+    # (_COMBAT_BUFF_ENGINE_SWEEP_RE). kept_oracle is byte-identical to the deleted
+    # producers' `text` (both `re.sub(r"\([^)]*\)", " ", get_oracle_text(...))`), and
+    # the SWEEP's `[^.]*` arms never cross a clause, so this reproduces the deleted
+    # firing EXACTLY (regex_only==0 verified over the commander-legal corpus). add()
+    # dedups the overlap with the structural arm. scope 'you' (the deleted producers'
+    # scope). The deleted producers fired HIGH and fed has_other_plan; the voltron
+    # silence is re-supplied by _combat_buff_engine_has_plan (signals), NOT
+    # _VOLTRON_SILENCING_PLAN_KEYS (the arm is +588 broader). CR 508 / 903.10a.
+    if (
+        _COMBAT_BUFF_TRIGGER_RE.search(kept_oracle)
+        and _COMBAT_BUFF_PUMP_RE.search(kept_oracle)
+    ) or any(
+        _COMBAT_BUFF_ENGINE_SWEEP_RE.search(clause) for clause in _clauses(kept_oracle)
+    ):
+        add("combat_buff_engine", "you", "", "")
     # ADR-0027 — creature_recursion BYTE-IDENTICAL kept mirror. The structural
     # `cat=='reanimate' and 'Creature' in ftypes` arm above GAINS +160 GY→battlefield
     # reanimators the brittle "your graveyard" regex missed, but phase carries NO clean
