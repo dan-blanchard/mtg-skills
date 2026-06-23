@@ -19,6 +19,7 @@ from __future__ import annotations
 from mtg_utils._card_ir.project import (
     _collect_effects,
     _copied_type_from_text,
+    _dig_player_scope,
     _discard_player_scope,
     _dropped_static_markers,
     _effect_scope,
@@ -3179,6 +3180,125 @@ def test_windfall_each_player_discard_scope_each():
         not (isinstance(e.subject, Filter) and "ForcedDiscard" in e.subject.predicates)
         for e in discs
     )
+
+
+# ── ADR-0027 dig library-owner scope (SIDECAR v27) ────────────────────────────
+
+
+def test_dig_player_scope_own_opp_each():
+    """A dig (RevealUntil / ExileFromTopUntil) effect's scope reads WHOSE library is dug
+    (the effect's ``player``). A ``Controller`` digger is an own-library search → 'you'
+    (UNLESS the raw names an opponent library — the each-opponent riders); a bare
+    ``Player`` / a ``Typed{controller:Opponent}`` / other-player digger is an
+    opponent-library mill → 'opp'; an unrecognized shape keeps the fallback. CR 701.23."""
+    own = {"player": {"type": "Controller"}}
+    bare_player = {"player": {"type": "Player"}}
+    typed_opp = {"player": {"type": "Typed", "controller": "Opponent"}}
+    parent_tgt = {"player": {"type": "ParentTargetController"}}
+    triggering = {"player": {"type": "TriggeringPlayer"}}
+    no_player = {}
+    assert _dig_player_scope(
+        own, "reveal cards from the top of your library", "any"
+    ) == ("you")
+    # an each-opponent rider phase keeps at player=Controller, raw names opp library →
+    # stays at fallback (the supplement promotes it to 'opp').
+    assert (
+        _dig_player_scope(own, "each opponent exiles from their library", "any")
+        == "any"
+    )
+    assert _dig_player_scope(bare_player, "target player reveals", "any") == "opp"
+    assert _dig_player_scope(typed_opp, "target opponent reveals", "any") == "opp"
+    assert _dig_player_scope(parent_tgt, "its controller reveals", "any") == "opp"
+    assert _dig_player_scope(triggering, "that player reveals", "any") == "opp"
+    assert _dig_player_scope(no_player, "reveal cards", "any") == "any"
+
+
+def test_hermit_druid_own_library_dig_scope_you():
+    """Hermit Druid's "reveal cards from the top of YOUR library until …" (RevealUntil,
+    player=Controller) projects the dig_until effect at scope 'you' — an own-deck digging
+    engine."""
+    rec = {
+        "name": "Hermit Druid",
+        "oracle_text": (
+            "{G}, {T}: Reveal cards from the top of your library until you reveal a "
+            "basic land card. Put that card into your hand and all other cards "
+            "revealed this way into your graveyard."
+        ),
+        "abilities": [
+            {
+                "kind": "Activated",
+                "effect": {
+                    "type": "RevealUntil",
+                    "player": {"type": "Controller"},
+                    "filter": {"type": "Typed", "type_filters": ["Land"]},
+                    "kept_destination": "Hand",
+                    "rest_destination": "Graveyard",
+                },
+            }
+        ],
+    }
+    digs = [e for e in _effects(project_card([rec])) if e.category == "dig_until"]
+    assert digs
+    assert all(e.scope == "you" for e in digs)
+
+
+def test_telemin_opponent_library_dig_scope_opp():
+    """Telemin Performance's "target opponent reveals … THEIR library" (RevealUntil,
+    player=Typed{controller:Opponent}) projects the dig_until effect at scope 'opp' — an
+    opponent-library mill, excluded from the controller's dig theme."""
+    rec = {
+        "name": "Telemin Performance",
+        "oracle_text": (
+            "Target opponent reveals cards from the top of their library until they "
+            "reveal a creature card."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "RevealUntil",
+                    "player": {"type": "Typed", "controller": "Opponent"},
+                    "filter": {"type": "Typed", "type_filters": ["Creature"]},
+                    "kept_destination": "Hand",
+                    "rest_destination": "Library",
+                },
+            }
+        ],
+    }
+    digs = [e for e in _effects(project_card([rec])) if e.category == "dig_until"]
+    assert digs
+    assert all(e.scope == "opp" for e in digs)
+
+
+def test_tasha_each_opponent_dig_scope_opp_via_supplement():
+    """Tasha's Hideous Laughter's "each opponent exiles … THEIR library" (ExileFromTopUntil,
+    player=Controller, ability-level player_scope=Opponent the effect never sees) is NOT
+    promoted to 'you' — the raw names an opponent library, so _dig_player_scope leaves it
+    'any' and the supplement's broad-third-party recovery makes it 'opp'."""
+    rec = {
+        "name": "Tasha's Hideous Laughter",
+        "oracle_text": (
+            "Each opponent exiles cards from the top of their library until that "
+            "player has exiled cards with total mana value 20 or greater."
+        ),
+        "abilities": [
+            {
+                "kind": "Spell",
+                "effect": {
+                    "type": "ExileFromTopUntil",
+                    "player": {"type": "Controller"},
+                },
+                "player_scope": {"type": "Opponent"},
+                "description": (
+                    "Each opponent exiles cards from the top of their library until "
+                    "that player has exiled cards with total mana value 20 or greater."
+                ),
+            }
+        ],
+    }
+    digs = [e for e in _effects(project_card([rec])) if e.category == "dig_until"]
+    assert digs
+    assert all(e.scope == "opp" for e in digs)
 
 
 def test_sacrifice_cost_marker_from_additional_cost():

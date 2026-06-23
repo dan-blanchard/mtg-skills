@@ -107,8 +107,14 @@ def test_sweep_detectors_loaded():
     # structural arm + a byte-identical DISCARD_OUTLET_REGEX per-clause kept mirror
     # (_DISCARD_OUTLET_SWEEP_RE in _signals_regex); the v26 projection makes the `discard`
     # Effect carry WHO discards so a self-loot 'you' / symmetric wheel 'each' is fuel and a
-    # forced-opponent 'opp' is excluded as hand attack; CR 701.8a).
-    assert len(SWEEP_DETECTORS) >= 17
+    # forced-opponent 'opp' is excluded as hand attack; CR 701.8a), then 17→16 as
+    # dig_until's row was deleted (ADR-0027 SIDECAR v27 dig library-owner scope — migrated
+    # to a `dig_until` Effect scope=='you' structural arm UNION a byte-identical
+    # DIG_UNTIL_REGEX per-clause kept mirror (_DIG_UNTIL_SWEEP_RE in _signals_regex); the
+    # v27 projection makes the dig Effect carry WHOSE library is dug so an own-library dig
+    # 'you' is the controller's engine and an opponent-library mill 'opp' is excluded; CR
+    # 701.23 / 401).
+    assert len(SWEEP_DETECTORS) >= 16
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

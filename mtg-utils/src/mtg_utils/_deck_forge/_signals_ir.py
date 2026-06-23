@@ -22,6 +22,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _CHEAT_TOP_ONTO_RE,
     _CHEAT_TOP_REVEAL_RE,
     _COLOR_HOSER_RE,
+    _DIG_UNTIL_SWEEP_RE,
     _DIRECT_KEYWORD_SIGNALS,
     _DISCARD_OUTLET_SWEEP_RE,
     _EVASION_SELF_REGEX,
@@ -283,12 +284,18 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # cost_parts below; this is the misparse/conferred-ability residual (CR 118).
     "life_payment": ("life_payment_insurance", "you"),
     "roll_die": ("dice_matters", "you"),
-    "dig_until": ("dig_until", "you"),
-    # ADR-0027 sweep markers (project._dropped_static_markers / _narrow_trigger_other
-    # _refs): a payoff/reference phase left only on the face oracle text or in an
-    # event='other' carrier raw is appended as a precise marker effect → its lane.
-    # starting_life ← "starting life total" compare (CR 103.4); mass_death ←
-    # "creatures that died this turn" count operand (CR 700.4); cycling ← a
+    # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until is NOT a fixed-scope
+    # doer here — the `dig_until` EFFECT category now carries the digger's library owner
+    # as its scope (project._dig_player_scope: own-library → 'you', opponent-library
+    # mill → 'opp'). A fixed-scope doer row would fire 'you' on the 30 opponent-library
+    # mills (Telemin, Tunnel Vision, Balustrade Spy) too. So dig_until is wired by a
+    # dedicated scope=='you' STRUCTURAL ARM in extract_signals_ir (+ a byte-identical
+    # kept mirror for the 44 phase-recategorized your-library digs), excluding the opp
+    # mills. CR 701.23. ADR-0027 sweep markers (project._dropped_static_markers /
+    # _narrow_trigger_other _refs): a payoff/reference phase left only on the face
+    # oracle text or in an event='other' carrier raw is appended as a precise marker
+    # effect → its lane. starting_life ← "starting life total" compare (CR 103.4);
+    # mass_death ← "creatures that died this turn" count operand (CR 700.4); cycling ← a
     # "cycle or discard" payoff trigger (CR 702.29). roll_die above already maps the
     # dice marker (same category as phase's native roll_die effect).
     "starting_life": ("starting_life_matters", "you"),
@@ -7026,6 +7033,21 @@ def extract_signals_ir(
                 and not _card_discard_is_onesided_opp(card)
             ):
                 add("discard_outlet", "you", "", e.raw)
+            # ADR-0027 dig library-owner scope (SIDECAR v27) — dig_until STRUCTURAL ARM.
+            # A `dig_until` EFFECT (RevealUntil / ExileFromTopUntil) scope=='you' is an
+            # OWN-library deep dig ("reveal cards from the top of YOUR library until …"
+            # — Hermit Druid, Demonic Consultation, Spoils of the Vault, Goblin
+            # Charbelcher), the controller's own card-advantage engine.
+            # project._dig_player_scope reads the digger off the effect's `player`, so
+            # scope=='opp' (an opponent-library mill / steal — Telemin Performance,
+            # Tunnel Vision, Balustrade Spy, Tasha's Hideous Laughter) is EXCLUDED here
+            # (it routes to its own mill/theft lanes, NOT the controller's dig theme).
+            # The byte-identical _DIG_UNTIL_SWEEP_RE kept mirror recovers the 44
+            # your-library digs phase re-categorizes to cheat_play / reveal /
+            # topdeck_stack (cascade / discover / polymorph bodies). Scope "you" (the
+            # lane convention). CR 701.23 / 401.
+            if cat == "dig_until" and e.scope == "you":
+                add("dig_until", "you", "", e.raw)
             # ADR-0027 lifeloss_matters — a structured life-LOSS effect. phase emits a
             # `lose_life` category distinct from gain_life / set_life, so the lane reads
             # it directly. scope splits the half: a drain ("each opponent / target
@@ -8761,6 +8783,21 @@ def extract_signals_ir(
     # dedups vs the structural arm. Subjectless, scope 'you' (deleted scope). CR 701.8a.
     if any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
         add("discard_outlet", "you", "", "")
+    # ADR-0027 dig library-owner scope (SIDECAR v27) — dig_until kept mirror. The
+    # structural `dig_until` EFFECT scope=='you' arm covers the 49 own-library digs
+    # phase models as a dig effect; but phase RE-CATEGORIZES 44 your-library digs to
+    # cheat_play / reveal / topdeck_stack (the cascade / discover / polymorph bodies —
+    # Apex Devastator, Mass Polymorph, Madcap Experiment, Maelstrom Wanderer), so their
+    # `dig_until` effect is gone. This is the EXACT deleted SWEEP regex
+    # (_DIG_UNTIL_SWEEP_RE) run PER-CLAUSE over the reminder-STRIPPED kept_oracle
+    # (matching the deleted SWEEP path byte-identically: cascade/discover restate the
+    # dig in PARENTHETICAL reminder text — stripped — so they never matched and still
+    # don't; union == 93 == the deleted producer, 0 over-fire). The regex is
+    # YOUR-library-anchored, so it never matches the opponent-library mills the
+    # structural arm also drops. add() dedups vs the structural arm. Scope 'you'
+    # (deleted scope). CR 701.23 / 401.
+    if any(_DIG_UNTIL_SWEEP_RE.search(cl) for cl in _clauses(kept_oracle)):
+        add("dig_until", "you", "", "")
     # ADR-0027 β — play_from_top kept mirror. The structural STATIC cast_from_zone+
     # from:library arm above is the clean 45-card spine, but phase does NOT model as a
     # cast-permission static the REVEAL-only ("Play with the top card revealed" — Goblin

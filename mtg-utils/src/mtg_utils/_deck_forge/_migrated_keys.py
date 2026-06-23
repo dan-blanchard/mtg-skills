@@ -5502,6 +5502,43 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # The serve spec (signal_specs, reusing DISCARD_OUTLET_REGEX) is independent of
         # the deleted regex and survives. CR 701.8a / 903.10a.
         "discard_outlet",
+        # ADR-0027 dig library-owner scope (SIDECAR v27) — dig_until (deep
+        # top-of-library digging: Hermit Druid, Demonic Consultation, Spoils of the
+        # Vault, Goblin Charbelcher, the cascade/discover/polymorph bodies). The
+        # PROJECTION makes phase's `dig_until` EFFECT carry WHOSE library is dug
+        # (project._dig_player_scope reads the digger off the effect's `player`): an
+        # own-library dig → scope 'you', an opponent-/each-library mill ("target
+        # opponent … their library" / "each opponent … their library" — Telemin
+        # Performance, Tunnel Vision, Balustrade Spy, Tasha's Hideous Laughter,
+        # Consuming Aberration) → 'opp'. phase's FIXED-scope dig_until doer row used to
+        # fire 'you' on ALL 81 dig effects — 30 of them OPPONENT-library mills
+        # (over-fire) — so the scope split is the prerequisite for a clean migration.
+        # WIRE (signals-only). The lane unions TWO IR sources: (1) a `dig_until` EFFECT
+        # scope=='you' STRUCTURAL arm (the 49 own-library digs phase models as a dig
+        # effect), and (2) a byte-identical PER-CLAUSE kept mirror of the deleted SWEEP
+        # regex (_DIG_UNTIL_SWEEP_RE == the shared DIG_UNTIL_REGEX) recovering the 44
+        # your-library digs phase RE-CATEGORIZES to cheat_play / reveal / topdeck_stack
+        # (cascade/discover restate the dig in parenthetical reminder text, so the
+        # mirror — like the deleted SWEEP — runs over the reminder-STRIPPED kept_oracle
+        # per-clause). UNION == 93 == the deleted regex producer (full v26 recall, 0
+        # over-fire). The SWEEP_DETECTORS row is deleted; the regex survives as
+        # DIG_UNTIL_REGEX (serve + mirror reuse); the fixed-scope doer row in
+        # _DOER_EFFECT_KEYS is removed.  RESIDUAL (commander-legal, floor-disabled,
+        # v27-HYBRID vs the deleted regex per- clause): both==49, regex_only==0 (the
+        # mirror IS the deleted regex — full recall), ir_only==0 (every structural-arm
+        # own-library dig also matches the regex), and the 30 opponent-library mills are
+        # correctly DROPPED (the scope split's payoff). Scope parity: all 'you'.
+        # VOLTRON. The deleted SWEEP producer fired HIGH-confidence 'you' (NOT in
+        # _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and fed has_other_plan (a Hermit-Druid /
+        # cascade deck-digging ENGINE is a card-advantage plan, not a vanilla beater).
+        # The IR re-supply DROPS the 30 opp mills, so a byte-identical
+        # _dig_until_has_plan mirror (the EXACT deleted regex, per-clause over
+        # reminder-stripped text) is OR'd into has_other_plan — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence those dropped opp
+        # mills. voltron_matters 3010 by set equality. The serve spec (signal_specs,
+        # reusing DIG_UNTIL_REGEX) is independent of the deleted regex and survives. CR
+        # 701.23 (search/dig) / 401 (library zone).
+        "dig_until",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

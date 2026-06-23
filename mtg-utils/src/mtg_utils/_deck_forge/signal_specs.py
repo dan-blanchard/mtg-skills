@@ -28,6 +28,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DAMAGE_PREVENTION_REGEX,
     DEBUFF_SWEEP_REGEX,
     DIES_RECURSION_REGEX,
+    DIG_UNTIL_REGEX,
     DISCARD_OUTLET_REGEX,
     FLASH_GRANT_REGEX,
     FORCED_ATTACK_SWEEP_REGEX,
@@ -1454,6 +1455,11 @@ _THEFT_SWEEP_REGEX = THEFT_MATTERS_REGEX
 # the shared DISCARD_OUTLET_REGEX constant (the EXACT deleted detector regex) — serve
 # and the kept-mirror detector never drift.
 _DISCARD_OUTLET_SWEEP_REGEX = DISCARD_OUTLET_REGEX
+# ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR (its
+# SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds the serve).
+# The serve pool stays oracle-defined, so it reuses the shared DIG_UNTIL_REGEX constant
+# (the EXACT deleted detector regex) — serve and the kept-mirror detector never drift.
+_DIG_UNTIL_SWEEP_REGEX = DIG_UNTIL_REGEX
 # ADR-0027 (tranche2-C): the SWEEP_DETECTORS rows for self_pump / tapper_engine /
 # count_anthem are deleted (detection moved to the Card IR). Their SERVE pools stay
 # oracle-defined, so the regexes are pinned here verbatim and the specs below reuse
@@ -3193,6 +3199,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["discard_outlet"],
         {"oracle": _DISCARD_OUTLET_SWEEP_REGEX},
         _DISCARD_OUTLET_SWEEP_REGEX + r"|whenever you discard",
+    ),
+    # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR
+    # (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds this
+    # serve). Hand-register the spec the sweep loop used to build — same label / avenue
+    # / oracle, reusing the shared DIG_UNTIL_REGEX constant so serve and the kept-mirror
+    # detector never drift.
+    ("dig_until", "you"): _spec(
+        *SWEEP_LABELS["dig_until"],
+        {"oracle": _DIG_UNTIL_SWEEP_REGEX},
+        _DIG_UNTIL_SWEEP_REGEX,
     ),
     # Drain. The serve required "opponent" adjacent to "loses", so it MISSED the
     # keystone aristocrats drains worded "target/that player loses N life" (Blood

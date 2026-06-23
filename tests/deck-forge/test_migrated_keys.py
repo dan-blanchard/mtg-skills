@@ -1494,6 +1494,39 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # dig_until ← a `dig_until` EFFECT scope=='you' — an OWN-library deep dig ("reveal
+    # cards from the top of YOUR library until …", Hermit Druid). The v27 dig
+    # library-owner projection scopes the dig from the digger's `player`: an own-library
+    # dig is 'you' (the controller's card-advantage engine), an opponent-library mill
+    # ("target opponent … their library") is 'opp' and EXCLUDED. The cascade/discover/
+    # polymorph your-library digs phase re-categorizes ride the byte-identical
+    # _DIG_UNTIL_SWEEP_RE per-clause kept mirror. ADR-0027 (SIDECAR v27).
+    "dig_until": (
+        {
+            "name": "Hermit Druid",
+            "type_line": "Creature — Human Druid",
+            "oracle_text": (
+                "{G}, {T}: Reveal cards from the top of your library until you "
+                "reveal a basic land card. Put that card into your hand and all "
+                "other cards revealed this way into your graveyard."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                effects=(
+                    Effect(
+                        category="dig_until",
+                        scope="you",
+                        raw=(
+                            "reveal cards from the top of your library until you "
+                            "reveal a basic land card"
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

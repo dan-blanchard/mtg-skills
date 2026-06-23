@@ -120,6 +120,18 @@ THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you
 # Its `[^.]*\.?\s*` arms span a sentence over the WHOLE oracle, so the mirror MUST run
 # per-clause (matching the deleted SWEEP path), NOT flat. CR 701.8a.
 DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard"
+# ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR (a
+# `dig_until` EFFECT scope=='you' structural arm — the own-library digs project.py now
+# scopes from the digger's `player` — UNION a byte-identical PER-CLAUSE mirror of this
+# regex for the 44 your-library digs phase re-categorizes to cheat_play/reveal/
+# topdeck_stack). The regex survives as a shared constant so signal_specs hand-registers
+# the serve pool reusing it AND the kept mirror (_DIG_UNTIL_SWEEP_RE in _signals_regex)
+# reuses it — serve / mirror / (now-deleted) detector never drift. Its `[^.]*` arm never
+# crosses a clause boundary, but the deleted SWEEP ran PER-CLAUSE over the reminder-
+# stripped oracle, so the mirror runs per-clause too. The regex is YOUR-library-anchored
+# ("your library" / "you exile"), so it never matched the opponent-library mills the
+# structural arm also excludes (scope!='you'). CR 701.23 (search/dig) / 401.
+DIG_UNTIL_REGEX = "exile cards? from the top of your library until|exile (?:the )?top[^.]*until you exile|reveal cards from the top of your library until"
 # ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
 # OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
 # 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
@@ -1505,12 +1517,15 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # signal_specs.py reusing the deleted regex (SWEEP_LABELS still carries the human
     # label). The ab.kind=='static' gate keeps it disjoint from the sibling
     # impulse_top_play arm (ab.kind!='static'). CR 116 / 601.3b.
-    {
-        "key": "dig_until",
-        "scope": "you",
-        "is_widen_of": "",
-        "regex": "exile cards? from the top of your library until|exile (?:the )?top[^.]*until you exile|reveal cards from the top of your library until",
-    },
+    # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR.
+    # Its SWEEP_DETECTORS row is deleted; detection moves to a `dig_until` EFFECT
+    # scope=='you' STRUCTURAL arm (project.py scopes the dig from the digger's `player` —
+    # own-library → 'you', opponent-library mill → 'opp', excluded) UNION a BYTE-IDENTICAL
+    # PER-CLAUSE kept mirror (_DIG_UNTIL_SWEEP_RE in _signals_regex, == DIG_UNTIL_REGEX
+    # above) recovering the 44 your-library digs phase re-categorizes to cheat_play /
+    # reveal / topdeck_stack. The serve is hand-registered in signal_specs.py reusing
+    # DIG_UNTIL_REGEX, so serve / mirror / (now-deleted) detector never drift. SWEEP_LABELS
+    # still carries the human label. CR 701.23 / 401.
     # ADR-0027: hand_disruption migrated to the Card IR — phase's opp-reveal trigger +
     # a kept word mirror (signals._IR_KEPT_DETECTORS) for the "look at … hand" / "play
     # with hands revealed" / modal reveal-and-discard forms phase leaves textual. Its

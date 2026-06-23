@@ -2382,6 +2382,21 @@ def _project_effect(eff: dict, raw: str) -> list[Effect]:
     forced_discard = False
     if category == "discard":
         scope, forced_discard = _discard_player_scope(eff, scope)
+    # ADR-0027 dig library-owner scope (SIDECAR v27): a top-of-library DIG effect's
+    # "whose library is dug" is the effect's `player`. `_effect_scope` never reads the
+    # `player` DICT (only a player STRING), so an own-library dig ("reveal cards from
+    # the top of YOUR library until …" — Hermit Druid, Demonic Consultation, Spoils of
+    # the Vault) collapsed to 'any', indistinguishable from an opponent-library mill
+    # ("target opponent … their library" — Telemin, Tunnel Vision). Promote the
+    # own-library dig (player Controller, raw not opponent-library) to 'you' and the
+    # other-player dig to 'opp' so a downstream dig_until lane keeps an opponent-library
+    # mill (scope!='you') out of the own-deck dig theme. The `player_scope:Opponent`
+    # "each opponent … their library" riders (Tasha's, Consuming Aberration — phase
+    # keeps player=Controller) stay 'any' here and ride the supplement's
+    # broad-third-party 'opp' recovery. See _dig_player_scope; the
+    # _search_self_library_scope tutor precedent. CR 701.23 / 401.
+    if category == "dig_until":
+        scope = _dig_player_scope(eff, raw, scope)
     subject = _effect_subject(eff)
     if forced_discard:
         subject = _add_predicate(subject, _FORCED_DISCARD_PRED)
@@ -6275,6 +6290,73 @@ def _discard_player_scope(eff: dict, fallback: str) -> tuple[str, bool]:
     if tt in _DISCARD_OTHER_PLAYER_TARGETS:
         return "opp", True
     return fallback, False
+
+
+# ADR-0027 dig library-owner scope (SIDECAR v27). A top-of-library DIG effect
+# (RevealUntil / ExileFromTopUntil) carries the DIGGER — whose library is dug — on the
+# effect's ``player`` field. ``Controller`` is an OWN-library dig ("reveal cards from
+# the top of YOUR library until …" — Hermit Druid, Demonic Consultation, Spoils of the
+# Vault, Goblin Charbelcher, Treasure Hunt), the controller's own deck-search engine →
+# 'you'. Any OTHER digger names a DIFFERENT player's library: a bare ``Player`` ("target
+# player reveals … their library" — Balustrade Spy, Tunnel Vision, Undercity Informer),
+# a ``Typed`` with ``controller:Opponent`` ("target opponent … their library" — Telemin
+# Performance, Chaos Wand, Sméagol, Stolen Goods), a ``ParentTargetController`` ("its
+# controller reveals …" — Destroy the Evidence, Indomitable Creativity, Spellshift), a
+# ``TriggeringPlayer`` (combat-damage "that player reveals …" — Gríma, Trepanation
+# Blade's defending player) → 'opp' (an opponent-library mill / steal, NOT your engine).
+_DIG_OWN_LIBRARY_PLAYER = "controller"
+_DIG_OTHER_LIBRARY_PLAYERS = frozenset(
+    {
+        "player",
+        "targetplayer",
+        "scopedplayer",
+        "parenttargetcontroller",
+        "triggeringplayer",
+        "defendingplayer",
+    }
+)
+# An opponent-/each-player-LIBRARY dig phase keeps at ``player:Controller`` but whose
+# RAW names the opponent's library — the "each opponent exiles cards from the top of
+# THEIR library" / "target opponent … their library" shape (Tasha's Hideous Laughter,
+# Consuming Aberration: phase rides an ABILITY-level ``player_scope:Opponent`` the
+# effect dict never sees, so ``player`` is the controller). The own-library 'you'
+# promotion is GATED on this regex NOT matching, so those stay 'any' and the
+# supplement's broad-third-party recovery (``_BROAD_THIRD_PARTY``, "their/each
+# opponent's/target opponent's library") still promotes them to 'opp'. Mirrors that
+# supplement zone helper, narrowed to LIBRARY.
+_OPP_DIG_LIBRARY_RE = re.compile(
+    r"(?:their|each opponent'?s?|target opponent'?s?|that player'?s?) library",
+    re.IGNORECASE,
+)
+
+
+def _dig_player_scope(eff: dict, raw: str, fallback: str) -> str:
+    """Scope for a top-of-library DIG effect (RevealUntil / ExileFromTopUntil), read
+    from WHOSE library is dug (the effect's ``player``). A ``Controller`` digger is an
+    own-library search → 'you' (UNLESS ``raw`` names an opponent library — the
+    ``player_scope:Opponent`` "each opponent … their library" riders phase keeps at
+    Controller; those stay at ``fallback`` for the supplement's broad-third-party 'opp'
+    recovery). A bare ``Player`` / ``Typed{controller:Opponent}`` / other-player digger
+    is an opponent-library mill/steal → 'opp'. Anything unrecognized keeps the
+    ``fallback``. The _own_library_search / _search_self_library_scope tutor precedent
+    extended to the dig surface. CR 701.23 (search/dig) / 401 (library zone)."""
+    player = eff.get("player")
+    if not isinstance(player, dict):
+        return fallback
+    pt = _norm(player.get("type"))
+    if pt == _DIG_OWN_LIBRARY_PLAYER:
+        if _OPP_DIG_LIBRARY_RE.search(raw or ""):
+            return fallback
+        return "you"
+    if pt in _DIG_OTHER_LIBRARY_PLAYERS:
+        return "opp"
+    # A ``Typed`` digger carries the library owner on ``controller`` ("target opponent's
+    # library" — Telemin, Chaos Wand): an Opponent controller → 'opp'; You → 'you'.
+    if pt == "typed":
+        owner = _controller(player.get("controller"))
+        if owner != "any":
+            return owner
+    return fallback
 
 
 def _trigger_event(tr: dict) -> str:

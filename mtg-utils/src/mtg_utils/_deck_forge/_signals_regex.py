@@ -46,6 +46,7 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DEATH_MATTERS_REGEX,
     DEBUFF_MAHA_REGEX,
     DEBUFF_SWEEP_REGEX,
+    DIG_UNTIL_REGEX,
     DISCARD_OUTLET_REGEX,
     ENCHANTMENTS_MATTER_REGEX,
     EXTRA_TURNS_REGEX,
@@ -3225,6 +3226,25 @@ def _discard_outlet_has_plan(text: str) -> bool:
     return any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(text))
 
 
+def _dig_until_has_plan(text: str) -> bool:
+    """ADR-0027 dig library-owner scope (SIDECAR v27): the HAS-OTHER-PLAN mirror for
+    the migrated dig_until key. The deleted SWEEP producer fired HIGH-confidence (scope
+    'you', NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS) and counted toward
+    `has_other_plan`, silencing the spurious commander-damage voltron tell on a
+    deck-digging ENGINE (a Hermit-Druid / Hidden-Library / cascade dig is a
+    card-advantage plan, not a vanilla beater). The migrated lane rides the `dig_until`
+    EFFECT scope=='you' structural arm UNION a byte-identical per-clause kept mirror
+    whose UNION == the deleted producer (93 == 93, 0 over-fire), so re-supplying via
+    _VOLTRON_SILENCING_PLAN_KEYS would also silence the 30 OPPONENT-library mills the
+    migration correctly drops from the lane (a Telemin / Tunnel Vision / Balustrade Spy
+    opponent-mill is NOT the controller's plan); this byte-identical mirror restores
+    ONLY the deleted regex's own silence set. The deleted SWEEP Detector ran PER-CLAUSE
+    over the reminder-STRIPPED oracle (cascade / discover restate the dig in
+    parenthetical reminder text — stripped — so they never silenced and still don't), so
+    this runs per-clause over `text`. CR 701.23 / 903.10a."""
+    return any(_DIG_UNTIL_SWEEP_RE.search(cl) for cl in _clauses(text))
+
+
 # ADR-0027 β: the HAS-OTHER-PLAN mirror for the migrated conjure_matters key. The
 # deleted SWEEP producer fired HIGH-confidence (scope 'you') and counted toward
 # `has_other_plan`, silencing the spurious commander-damage voltron tell on a conjure
@@ -4182,6 +4202,17 @@ _IMPULSE_TOP_PLAY_SWEEP_RE = re.compile(
 # PER-CLAUSE via _clauses (matching the deleted SWEEP path), NOT as a flat
 # _IR_KEPT_DETECTORS full-text row. CR 701.8a.
 _DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
+
+# ADR-0027 dig library-owner scope (SIDECAR v27) — the EXACT deleted dig_until SWEEP
+# regex, kept for the byte-identical mirror. The structural `dig_until` EFFECT
+# scope=='you' arm covers the 49 own-library digs phase models as a dig effect; this
+# mirror recovers the 44 your-library digs phase re-categorizes to
+# cheat_play/reveal/topdeck_stack (Apex Devastator, Mass Polymorph, Madcap Experiment,
+# the cascade/discover bodies). The deleted SWEEP Detector ran PER-CLAUSE over the
+# reminder-STRIPPED oracle, so the mirror MUST too (cascade/discover restate the dig in
+# PARENTHETICAL reminder text — stripped — so they never matched and still don't: union
+# == 93 == the deleted producer, 0 over-fire). CR 701.23 / 401.
+_DIG_UNTIL_SWEEP_RE = re.compile(DIG_UNTIL_REGEX, re.IGNORECASE)
 
 # play_from_top (ADR-0027 β) — the EXACT deleted SWEEP + _HAND_FLOOR regexes for the
 # ongoing top-of-library play permission, kept as a byte-identical PER-CLAUSE mirror.
@@ -5530,6 +5561,20 @@ def extract_signals(
         # over the reminder-STRIPPED `text` (the SWEEP's `draw [^.]*\.?\s* then discard`
         # arm spans a sentence). See _discard_outlet_has_plan. CR 701.8a / 903.10a.
         or _discard_outlet_has_plan(text)
+        # ADR-0027 dig library-owner scope (SIDECAR v27): re-silence the deleted
+        # dig_until SWEEP producer (it fired HIGH-confidence scope 'you', feeding
+        # has_other_plan — a Hermit-Druid / Hidden-Library / cascade deck-digging ENGINE
+        # is a card-advantage plan, not a vanilla beater). The migrated lane rides the
+        # `dig_until` EFFECT scope=='you' structural arm + a byte-identical per-clause
+        # kept mirror whose UNION == the deleted producer (93 == 93), but DROPS the 30
+        # opponent-library mills (a Telemin / Tunnel Vision opponent-mill is not the
+        # controller's plan), so this byte-identical mirror — NOT
+        # _VOLTRON_SILENCING_PLAN_KEYS, which would over-silence those dropped opp mills
+        # — restores the deleted regex's exact silence set. Per-clause over the
+        # reminder-STRIPPED `text` (cascade/discover restate the dig in a parenthetical
+        # reminder — stripped — so they never silenced). See _dig_until_has_plan. CR
+        # 701.23 / 903.10a.
+        or _dig_until_has_plan(text)
         # ADR-0027 β: re-silence the deleted lifegain_matters registry-280 _DETECTORS
         # producer (ARM (A) — it fired HIGH-confidence forced scope 'you', feeding
         # has_other_plan; a lifegain ENGINE is no vanilla beater). ONLY ARM (A): the

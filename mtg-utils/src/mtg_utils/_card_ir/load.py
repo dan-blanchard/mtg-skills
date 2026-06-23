@@ -237,7 +237,25 @@ from mtg_utils.card_ir import Card
 #   wires a structural arm on a `discard` effect with scope in ('you','each') (self-loot
 #   + symmetric wheels = genuine fuel), with scope=='opp' routed to opponent_discard /
 #   hand_disruption, NOT discard_outlet. CR 701.8a (discard, defined on the discarder).
-SIDECAR_VERSION = 26
+# v27: dig LIBRARY-OWNER scope — _dig_player_scope now reads WHOSE library a top-of-
+#   library DIG effect (RevealUntil / ExileFromTopUntil → category `dig_until`) digs,
+#   off the effect's `player`. `_effect_scope` never reads the `player` DICT, so an
+#   own-library dig ("reveal cards from the top of YOUR library until …" — Hermit Druid,
+#   Demonic Consultation, Spoils of the Vault, Goblin Charbelcher, Treasure Hunt;
+#   player=Controller) collapsed to 'any', indistinguishable from an opponent-library
+# mill. Promote the own-library dig to 'you' (gated: NOT when the raw names an opponent
+# library — the `player_scope:Opponent` "each opponent … their library" riders Tasha's
+# Hideous Laughter / Consuming Aberration keep player=Controller, so they stay 'any'
+# here and ride the supplement's broad-third-party 'opp' recovery), and the other-player
+# dig (bare `Player` / `Typed{controller:Opponent}` / ParentTargetController /
+# TriggeringPlayer / DefendingPlayer — Balustrade Spy, Telemin Performance, Chaos Wand,
+# Tunnel Vision, Destroy the Evidence, Gríma, Trepanation Blade) to 'opp'. Behavior-
+# neutral with dig_until not yet wired (drift 0): no migrated key reads the `dig_until`
+# effect scope (the regex SWEEP producer is still live). Payoff: the dig_until migration
+# reads scope=='you' for own-library digs and excludes the opp/each opponent-library
+# mills. The _search_self_library_scope tutor precedent extended to the dig surface. CR
+# 701.23 (search/dig) / 401 (library zone).
+SIDECAR_VERSION = 27
 
 
 def card_ir_dir() -> Path:
