@@ -29,6 +29,12 @@ def _signals(card):
     return list(extract_signals(card))
 
 
+def _signals_hybrid(card):
+    # Full Signal objects via the hybrid (IR) path. A bare non-None IR routes a card
+    # whose lane is a kept word mirror (meld_pair) through the IR re-emission.
+    return list(extract_signals_hybrid(card, _bare_ir()))
+
+
 # #1 Companion (CR 702.139) is a separate deck-construction rule from Partner (702.124).
 def test_companion_is_its_own_key_not_partner():
     # ADR-0027: companion_keyword is IR-served from the Scryfall `companion`
@@ -587,6 +593,9 @@ def test_donate_is_control_change_only():
 
 # #18 Meld (CR 701.42) is subject-bearing: a meld piece's lane serves ONLY its named
 # partner (which references this card by name), never every meld half.
+# ADR-0027 Cluster D: meld_pair migrated to the Card IR — it now fires from the hybrid
+# (IR) path via a byte-identical subject-bearing kept word mirror, NOT the deleted regex
+# producer. The subject is still THIS card's name; the serve spec is unchanged.
 def test_meld_pair_serves_only_its_partner():
     front = {
         "name": "Commander A",
@@ -602,7 +611,7 @@ def test_meld_pair_serves_only_its_partner():
     }
     unrelated = {"name": "Other Meld", "oracle_text": "(Melds with Someone Else.)"}
 
-    meld_sigs = [s for s in _signals(front) if s.key == "meld_pair"]
+    meld_sigs = [s for s in _signals_hybrid(front) if s.key == "meld_pair"]
     assert meld_sigs, "front meld piece should open meld_pair"
     sig = meld_sigs[0]
     assert sig.subject == "Commander A"  # subject is THIS card's name
@@ -610,7 +619,7 @@ def test_meld_pair_serves_only_its_partner():
     assert serves(unrelated, sig) is False  # not every meld half
 
     # The back piece (reminder-only) also opens, keyed to its own name.
-    back_sigs = [s for s in _signals(back) if s.key == "meld_pair"]
+    back_sigs = [s for s in _signals_hybrid(back) if s.key == "meld_pair"]
     assert back_sigs
     assert back_sigs[0].subject == "Partner B"
 

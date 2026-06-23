@@ -1799,6 +1799,25 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # ADR-0027 Cluster D — meld_pair: a SUBJECT-BEARING kept word mirror. phase drops the
+    # meld for 12 of 14 faces (and entirely for the reminder-only BACK pieces), so the
+    # lane rides a byte-identical _MELD_FULLTEXT_RE scan over the RAW (un-stripped) joined
+    # oracle. Bruna is a BACK piece — its meld info "(Melds with …)" lives ONLY in
+    # reminder text, which the structural arm + phase parse both lose — so an empty IR
+    # (routing to the hybrid path) plus the raw-oracle mirror serves it; subject = this
+    # card's own name. CR 701.42. ADR-0027.
+    "meld_pair": (
+        {
+            "name": "Bruna, the Fading Light",
+            "type_line": "Legendary Creature — Angel Horror",
+            "oracle_text": (
+                "When you cast this spell, you may return target Angel or Human "
+                "creature card from your graveyard to the battlefield.\n"
+                "Flying, vigilance\n(Melds with Gisela, the Broken Blade.)"
+            ),
+        },
+        _ir(),
+    ),
     # facedown + voting detect from the kept word-detector mirror, which scans the
     # oracle text directly, so any non-None IR routes the hybrid to the IR path.
     "facedown_matters": (

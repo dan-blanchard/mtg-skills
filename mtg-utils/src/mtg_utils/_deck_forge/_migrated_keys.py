@@ -5924,6 +5924,41 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # _VOLTRON_SILENCING_PLAN_KEYS. voltron 3010 by set equality. CR 509.3a/c/d /
         # 702.45a / 702.25a / 702.131 / 702.23.
         "blocked_matters",
+        # ADR-0027 Cluster D — meld_pair (the meld-pair build-around: a card that names
+        # its single fixed meld partner, CR 701.42). meld is a two-card pair where each
+        # face references its ONE partner — the FRONT piece "meld them into <result>" +
+        # "a creature/artifact/land named <partner>", the BACK piece "(Melds with
+        # <partner>.)". meld_pair is SUBJECT-BEARING (subject = THIS card's name; the
+        # partner names it back, so signal_specs serves exactly the one partner).
+        # DIAGNOSIS (signals-only, NO projection, SIDECAR stays v36): phase v0.1.60
+        # structures a `Meld` Effect (source/partner/result) for ONLY 2 of the 14
+        # commander-legal faces — the trigger-based FRONT pieces Gisela + Graf Rats —
+        # and DROPS the meld for the other 12: the activated / complex-trigger front
+        # pieces (Urza Lord Protector {7}: activated, Hanweir Battlements {3}{R}{R},{T}:
+        # activated, Mishra / Titania / Vanille conditional-clause triggers → folded to
+        # a bare ChangeZone/exile or left in an unparsed clause) AND the reminder-only
+        # BACK pieces (Bruna, Midnight Scavengers, Mightstone, Argoth, Hanweir Garrison,
+        # Phyrexian Dragon Engine, Fang — the "(Melds with X.)" reminder is not parsed
+        # into ANY field; verified phase carries no partner data for them). A structural
+        # Meld-effect arm would recover only 2/14 (both already caught), and project.py
+        # CANNOT recover the 12 (the data is gone from phase's parse) — so this is a
+        # KEPT-MIRROR, not a projection. WIRE: a BYTE-IDENTICAL subject-bearing kept
+        # mirror in extract_signals_ir runs the EXACT deleted _MELD_FULLTEXT_RE over the
+        # RAW (un-stripped) joined oracle — the back-piece meld info lives in REMINDER
+        # text, which the reminder-stripped kept_oracle would lose — emitting scope
+        # 'you', subject = this card's name. Commander-legal, by (key,scope,subject):
+        # regex == hybrid == 14, regex_only == 0, ir_only == 0 (byte-identical, all 14
+        # faces hook-verified vs Scryfall oracle — each names its partner). VOLTRON: the
+        # deleted producer fired HIGH scope 'you' and fed has_other_plan, silencing the
+        # spurious commander-damage tell on 6 meld faces whose ONLY high plan was
+        # meld_pair (Hanweir Garrison, Bruna, Phyrexian Dragon Engine, Midnight
+        # Scavengers, Urza Lord Protector, Titania — the other 7 carry named_permanent,
+        # still a regex key). The IR re-supply is the SAME 14 cards (byte-identical),
+        # so meld_pair is added to _VOLTRON_SILENCING_PLAN_KEYS (not a broader mirror) —
+        # the strict-subset facade is valid. voltron 3010 by set equality. NOT a SWEEP
+        # row (a direct add() producer), so the detector floor is UNCHANGED. CR 701.42 /
+        # 903.10a.
+        "meld_pair",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

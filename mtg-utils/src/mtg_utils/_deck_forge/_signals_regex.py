@@ -4769,6 +4769,22 @@ _OPPONENT_DISCARD_PLAN_MIRROR = re.compile(
 # front) or carries the reminder "(Melds with <front>.)" (back). Either side wants its
 # ONE specific partner, so meld_pair is subject-bearing (subject = this card's name);
 # the partner names this card, so signal_specs serves exactly it.
+# ADR-0027 Cluster D: meld_pair migrated to the Card IR (a subject-bearing kept word
+# mirror in _signals_ir). phase v0.1.60 structures a `Meld` Effect (source/partner/
+# result) for ONLY 2 of the 14 commander-legal faces — the trigger-based FRONT pieces
+# (Gisela, Graf Rats) — and DROPS the meld entirely for the other 12: the activated /
+# complex-trigger front pieces (Urza Lord Protector, Hanweir Battlements, Mishra,
+# Titania, Vanille — folded to a bare ChangeZone/exile or a conditional clause) AND the
+# `(Melds with X.)` reminder-only BACK pieces (Bruna, Midnight Scavengers, Mightstone,
+# Argoth, Hanweir Garrison, Phyrexian Dragon Engine, Fang — the reminder text is not
+# parsed into ANY field). So a structural `Meld`-effect arm would recover only 2/14
+# (both already caught), and project.py CANNOT recover the 12 (phase carries no meld
+# data for them). The lane therefore rides a BYTE-IDENTICAL kept mirror of this exact
+# regex over the RAW (un-stripped) joined oracle — the back-piece meld info lives in
+# reminder text, which the reminder-stripped kept_oracle would lose. This producer is
+# deleted; _MELD_FULLTEXT_RE survives as the mirror's pattern + the has_other_plan
+# voltron re-supply (via _VOLTRON_SILENCING_PLAN_KEYS — the IR re-supply is the SAME 14
+# cards, so the strict-subset facade is valid). SIDECAR UNCHANGED (signals-only, v36).
 _MELD_FULLTEXT_RE = re.compile(r"\bmeld them into\b|\bmelds with\b", re.IGNORECASE)
 # ADR-0027: ability_strip_payoff migrated to the Card IR (structural arm). These three
 # patterns no longer drive a signal producer — they survive ONLY as the building blocks
@@ -5472,12 +5488,11 @@ def extract_signals(
     # CONFERRED "When this creature dies" grants phase leaves as a quoted ability on the
     # target. This emission is deleted; _detect_self_death_payoff STAYS (reused by the
     # IR mirror AND the has_other_plan voltron silence below). CR 700.4 / 603.6e.
-    # Run against the RAW oracle (not the reminder-stripped `text`): a meld BACK piece
-    # (Bruna) carries its meld info only in the "(Melds with …)" reminder, which the
-    # per-clause path strips. subject = this card's name; the partner names it.
-    _meld_raw = get_oracle_text(card)
-    if name and _MELD_FULLTEXT_RE.search(_meld_raw):
-        add("meld_pair", "you", name, _meld_raw[:160])
+    # ADR-0027 Cluster D: meld_pair migrated to the Card IR. Its producer (a RAW-oracle
+    # _MELD_FULLTEXT_RE scan that emitted scope 'you', subject = this card's name) is
+    # deleted here; the IR path re-emits it as a byte-identical subject-bearing kept
+    # mirror over the same RAW joined oracle (the back-piece "(Melds with X.)" lives in
+    # reminder text). CR 701.42.
     # ADR-0027: counters_matter migrated to the Card IR — the self-counter-payoff and
     # counter-HAVE-payoff add() producers are deleted (the +1/+1 placement / "has a
     # +1/+1 counter" reference fires from place_counter(p1p1) + the counters_have_ref

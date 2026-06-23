@@ -37,6 +37,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _IMPULSE_TOP_PLAY_SWEEP_RE,
     _KEYWORD_SOUP_CONTEXT_RE,
     _MANA_TAP_RE,
+    _MELD_FULLTEXT_RE,
     _PER_TURN_ENGINE_RE,
     _PLAY_FROM_TOP_FLOOR_MIRROR,
     _PLAY_FROM_TOP_MIRROR,
@@ -9637,6 +9638,28 @@ def extract_signals_ir(
     # both==229, ir_only==591, regex_only==0 (0 lost). CR 700.4 / 603.6e.
     if _detect_self_death_payoff(kept_oracle, name) is not None:
         add("self_death_payoff", "you", "", "")
+    # ADR-0027 Cluster D — meld_pair SUBJECT-BEARING kept mirror (byte-identical to the
+    # deleted RAW-oracle producer, scope 'you'). meld is CR 701.42: a fixed two-card
+    # pair where each card names its single partner — the FRONT piece "meld(s) them
+    # into <result>" (naming "a creature/artifact/land named <partner>"), the BACK piece
+    # "(Melds with <partner>.)". phase v0.1.60 structures a `Meld` Effect (carrying the
+    # partner name) for ONLY 2 of the 14 commander-legal faces (the trigger-based front
+    # pieces Gisela + Graf Rats); it DROPS the meld for the 12 others — the activated /
+    # complex-trigger front pieces (Urza Lord Protector, Hanweir Battlements, Mishra,
+    # Titania, Vanille → bare ChangeZone/exile or an unparsed conditional clause) AND
+    # every reminder-only BACK piece (the "(Melds with X.)" text is not parsed into ANY
+    # field). So a structural Meld-effect arm recovers only 2/14 (both already here) and
+    # project.py CANNOT recover the 12 — the data is gone from phase's parse. The lane
+    # therefore rides this exact regex over the RAW (un-stripped) joined oracle: the
+    # back-piece meld info lives in REMINDER text, which the reminder-stripped
+    # kept_oracle would lose, so it must NOT use kept_oracle. subject = THIS card's name
+    # (the partner names it back, so signal_specs serves exactly the one partner). Gated
+    # on a non-empty name (the deleted producer's `if name and …` guard). Commander-
+    # legal, by (key,scope,subject): regex == hybrid == 14, regex_only == 0, ir_only ==
+    # 0 (byte-identical). CR 701.42.
+    _meld_raw = get_oracle_text(card) or ""
+    if name and _MELD_FULLTEXT_RE.search(_meld_raw):
+        add("meld_pair", "you", name, _meld_raw[:160])
     # ADR-0027 — attack_matters BYTE-IDENTICAL kept mirror. The structural `attacks`-
     # trigger arm (_PAYOFF_TRIGGER_KEYS) + the `Attacking` filter-predicate arm catch
     # phase's combat payoffs (+135 ir_only recall), but phase carries NO clean `attacks`

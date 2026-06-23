@@ -938,6 +938,20 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # precedent. A NO-FLOOD voltron entry (3010 -> 3010 identical set). CR 120.1 /
         # 510 / 702.19a / 903.10a.
         "noncombat_damage_payoff",
+        # ADR-0027 Cluster D: meld_pair fired high-confidence (scope 'you') in the regex
+        # path — a RAW-oracle _MELD_FULLTEXT_RE producer — and so counted toward
+        # has_other_plan, silencing the spurious commander-damage voltron tell on the 6
+        # meld faces whose ONLY high plan was meld_pair (Hanweir Garrison, Bruna,
+        # Phyrexian Dragon Engine, Midnight Scavengers, Urza Lord Protector, Titania —
+        # the other 7 also carry named_permanent, still a regex key, so they stay
+        # silenced regardless). Its regex producer is deleted, so the hybrid re-silences
+        # from the IR re-supply. The IR mirror reads the SAME RAW joined oracle as the
+        # deleted producer, so it is BYTE-IDENTICAL (commander-legal: regex == hybrid ==
+        # 14, regex_only == 0, ir_only == 0) — no broadening, no over-silence, so a set
+        # entry (not an oracle PLAN mirror) is correct. Without this, the 6 faces leak a
+        # vanilla commander-damage tell. File-swap: voltron 3010 -> 3010, A-B == 0.
+        # CR 701.42 / 903.10a.
+        "meld_pair",
     }
 )
 
