@@ -389,7 +389,23 @@ from mtg_utils.card_ir import Card
 #   No migrated key read the `blocks` event, so the split is behavior-neutral for the
 #   297 siblings; only blocked_matters reads the new event. CR 509.3c/d, 702.45a
 #   (Bushido), 702.25a (Flanking), 702.131 (Afflict).
-SIDECAR_VERSION = 36
+# v37 (ADR-0027 reveal/dig-v2 — cheat_into_play source recovery, project.py
+#   `_recover_cheat_into_play_source`): phase structures "put a card onto the
+#   battlefield from library/reveal/hand" INCONSISTENTLY — the put-onto-battlefield
+#   lands on `reveal`/`exile`/`mill`/`choose`/`blink`/`tutor` effects with the
+#   `to:battlefield` destination and the library/hand ORIGIN scattered across DIFFERENT
+#   sibling effects (Call of the Wild = two `reveal`s; Lord of the Void = two `exile`s;
+#   Mass Polymorph = exile+blink+exile) or dropped entirely (Impromptu Raid). This
+#   APPENDS one canonical `cheat_play`+`from:<top|library|hand>`+`to:battlefield` marker
+#   per ability that genuinely cheats a NON-LAND card onto the battlefield from a
+#   NON-graveyard source, so the cheat_into_play arm reads ONE shape. Append-only: the
+#   scattered originals are untouched, so every sibling lane (mill_matters,
+#   exile_removal, graveyard_matters, blink_flicker, extra_land_drop) is behavior-
+#   neutral (the marker carries no from:graveyard → never opens graveyard_matters, and
+#   a Land-only put is gated out → never opens extra_land_drop). The graveyard-ONLY put
+#   stays `reanimate` (reanimation, CR 110.2a/400.7 distinct ORIGIN), routed to the
+#   reanimator lane, NOT cheat_into_play. CR 110.2a / 400.7 / 701.23.
+SIDECAR_VERSION = 37
 
 
 def card_ir_dir() -> Path:

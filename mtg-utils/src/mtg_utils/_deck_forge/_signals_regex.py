@@ -1211,15 +1211,15 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ADR-0027: the "sac-and-return-this-turn engine" floor (Garna, Gerrard, Moira)
     # is DELETED with the sacrifice_matters migration — it over-fired on reanimation
     # engines that name no sacrifice at all (the IR path correctly drops them).
-    # Warp-GRANTING (Tannuk: "cards in your hand have warp") — warp casts a card from
-    # hand for its warp cost and exiles it at end of turn, a temporary cheat-into-play.
-    # A commander handing out warp is a cheat deck wanting fat creatures + cheat
-    # enablers (Ilharg, Maelstrom Colossus), which cheat_into_play serves.
-    (
-        "cheat_into_play",
-        re.compile(r"\bhave warp\b|gains? warp\b", re.IGNORECASE),
-        "you",
-    ),
+    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. The warp-GRANTING
+    # membership cross-open (Tannuk: "cards in your hand have warp" — warp casts a hand
+    # card for its warp cost and exiles it at end of turn, a temporary cheat-into-play;
+    # a
+    # commander handing out warp is a cheat deck wanting fat creatures + cheat enablers)
+    # is DELETED; it survives BYTE-IDENTICALLY in the narrow _CHEAT_INTO_PLAY_RESIDUE_RE
+    # mirror (the `have warp`/`gains warp` alt) in _signals_ir — phase emits no
+    # structural
+    # shape for a hand-wide warp grant. CR 702.184a.
     # ADR-0027: death_matters migrated to the Card IR. This "creature DIED this turn"
     # _HAND_FLOOR producer (scope "any", high-confidence — it fed has_other_plan) is
     # deleted along with the clause-scoped _DETECTORS producer above; both survive
@@ -1981,14 +1981,18 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # the real grant was tribal/color-scoped); 0 genuine generic anthems lost. NOT in
     # _IR_FLOOR_LANES; this _HAND_FLOOR producer + the SWEEP_DETECTORS team_buff row
     # are deleted; the serve spec stays hand-registered.
-    (
-        "tutor_matters",
-        re.compile(
-            r"search your library for (?:a|an|up to|one|two|three|x|that)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 reveal/dig-v2: tutor_matters migrated to the Card IR via a BYTE-IDENTICAL
+    # kept mirror (_TUTOR_MATTERS_MIRROR in _signals_ir._IR_KEPT_DETECTORS == the
+    # deleted
+    # TUTOR_MATTERS_REGEX, over reminder-stripped kept_oracle). This _HAND_FLOOR
+    # producer
+    # is DELETED; the pattern survives as TUTOR_MATTERS_REGEX (below) for the mirror +
+    # the
+    # has_other_plan voltron silence reuse. The producer fired HIGH-confidence scope
+    # 'you' and fed has_other_plan (a tutor engine is a card-advantage plan), so
+    # tutor_matters joins _VOLTRON_SILENCING_PLAN_KEYS (the IR re-supply is
+    # byte-identical
+    # — same 773 cards — so the strict-subset facade is valid). CR 701.23 / 401.
     # ADR-0027 β: untap_engine migrated to the Card IR — this _HAND_FLOOR producer (the
     # "untap target/all/each/two/up to" engine anchor) and the creatures-are-lands
     # producer below are deleted. The lane fires from a refined structural arm in
@@ -2096,16 +2100,17 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _VOLTRON_SILENCING_PLAN_KEYS — restores the voltron silence (the IR re-supply is
     # BROADER: +1 Metamorphic Alteration the regex's "card"/"becomes" arms missed). CR
     # 707.1 / 707.2.
-    (
-        "cheat_into_play",
-        re.compile(
-            r"put [^.]*creature card[^.]*onto the battlefield"
-            r"|put (?:a|that|those) [^.]*onto the battlefield from your "
-            r"(?:hand|library)",
-            re.IGNORECASE,
-        ),
-        "you",
-    ),
+    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. This _DETECTORS
+    # producer ("put … creature card … onto the battlefield" / "put … onto the
+    # battlefield from your hand/library") is DELETED — it OVER-fired on graveyard
+    # reanimation ("put target creature card from a graveyard onto the battlefield" —
+    # Reanimate, Beacon of Unrest: the source zone the structural arm routes OUT) and
+    # MISSED the reveal-until-creature Polymorph family the IR arm recovers. The lane
+    # now
+    # fires from the STRUCTURAL cat=='cheat_play'+to:battlefield+non-gy-source arm
+    # (reading the project._recover_cheat_into_play_source marker, SIDECAR v37) UNION
+    # the
+    # narrow _CHEAT_INTO_PLAY_RESIDUE_RE mirror in _signals_ir. CR 110.2a / 400.7.
     # ADR-0027 (t2b2-A): bounce_tempo migrated to the Card IR — a first-class `bounce`
     # Effect with no graveyard zone tag and a subject not controlled by you (excludes
     # GY-recursion and self-bounce blink). This _HAND_FLOOR producer is deleted; the
@@ -5006,6 +5011,79 @@ def _detect_polymorph_cheat(text: str) -> bool:
     return _POLYMORPH_CHEAT_RE.search(text) is not None
 
 
+# ADR-0027 reveal/dig-v2 — the HAS-OTHER-PLAN voltron mirror for migrated cheat_into_
+# play. The deleted producers (the _DETECTORS clause regex + the SWEEP widen + the
+# polymorph full-text detector + the `have warp` membership row) all fired HIGH-
+# confidence scope 'you' and fed has_other_plan (a cheat-into-play ENGINE — Sneak
+# Attack, Show and Tell, a Polymorph commander — is a plan, not a vanilla beater). The
+# migrated lane rides a BROADER structural arm (+215 ir_only — the reveal-until-creature
+# + search-into-play recall the narrow regex literal missed), so re-supplying via
+# _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those gains. So this byte-faithful
+# gate
+# reproduces ONLY the deleted producers' ORIGINAL silence set, per-clause over the
+# reminder-STRIPPED `text` (the _DETECTORS / SWEEP arms are clause-local), plus the
+# polymorph full-text detector and the warp membership row (both full-text). CR 903.10a.
+_CHEAT_INTO_PLAY_DETECTORS_RE = re.compile(
+    r"put [^.]*creature card[^.]*onto the battlefield"
+    r"|put (?:a|that|those) [^.]*onto the battlefield from your (?:hand|library)",
+    re.IGNORECASE,
+)
+_CHEAT_INTO_PLAY_SWEEP_RE = re.compile(
+    r"put (?:a|that|those|up to (?:two|one|\d+))[^.]*"
+    r"(?:permanent|creature|land|nonland)[^.]*cards?[^.]*onto the battlefield"
+    r"|put a permanent card[^.]*onto the battlefield"
+    r"|put [^.]*land cards?[^.]*onto the battlefield"
+    r"|put (?:an? )?artifact,? (?:creature,? )?(?:or land |and/or land )?"
+    r"card[^.]*from (?:your|their) hand onto the battlefield"
+    r"|put an? [^.]*card[^.]*(?:from your (?:hand|library)|from among them) "
+    r"onto the battlefield",
+    re.IGNORECASE,
+)
+_CHEAT_INTO_PLAY_WARP_RE = re.compile(r"\bhave warp\b|gains? warp\b", re.IGNORECASE)
+
+
+def _cheat_into_play_has_plan(text: str) -> bool:
+    """True iff any deleted cheat_into_play producer would have fired (all
+    HIGH-confidence scope 'you', feeding has_other_plan). Re-runs the _DETECTORS + SWEEP
+    clause regexes PER-CLAUSE over the reminder-STRIPPED `text`, plus the polymorph
+    full-text detector and the warp membership row, byte-faithful to the pre-migration
+    silence set."""
+    if _detect_polymorph_cheat(text) or _CHEAT_INTO_PLAY_WARP_RE.search(text):
+        return True
+    return any(
+        _CHEAT_INTO_PLAY_DETECTORS_RE.search(cl) or _CHEAT_INTO_PLAY_SWEEP_RE.search(cl)
+        for cl in _clauses(text)
+    )
+
+
+# ADR-0027 reveal/dig-v2 — tutor_matters BYTE-IDENTICAL kept-mirror pattern (== the
+# deleted _HAND_FLOOR producer). A "search your library for (a|an|up to|...)" over the
+# REMINDER-STRIPPED kept_oracle: the "your" word drops opponent-library searches, the
+# immediate "for" drops composite "search your library AND graveyard for", and reminder-
+# stripping drops landcycling/transmute/partner-with parentheticals. Reused by the IR
+# mirror (_signals_ir._IR_KEPT_DETECTORS) and the has_other_plan voltron silence.
+TUTOR_MATTERS_REGEX = re.compile(
+    r"search your library for (?:a|an|up to|one|two|three|x|that)", re.IGNORECASE
+)
+# ADR-0027 reveal/dig-v2 — cheat_into_play NARROW residue mirror for the two cards the
+# structural arm (cat=='cheat_play' + to:battlefield + non-gy source, SIDECAR v37) can't
+# reach: (1) the imprint-from-library cheat that spans TWO abilities (Clone Shell —
+# "Imprint … look at the top four … exile one face down" in the ETB, "put it onto the
+# battlefield" in the dies trigger; Summoner's Egg, already structurally covered, rides
+# here harmlessly), and (2) Tannuk's "cards in your hand have warp" cheat-enabler (a
+# membership cross-open phase emits no structural shape for — warp casts a hand card for
+# its warp cost, a temporary cheat-into-play). Graveyard-guarded so it never re-fires an
+# imprint that puts FROM a graveyard (none in the corpus, but kept honest). Commander-
+# legal hit set: exactly {Clone Shell, Summoner's Egg, Tannuk} — 0 reanimation / land
+# over-fire. CR 702.41 (imprint) / 702.184a (warp).
+_CHEAT_INTO_PLAY_RESIDUE_RE = re.compile(
+    r"\bhave warp\b|gains? warp\b"
+    r"|imprint\b[\s\S]*?put it onto the battlefield"
+    r"|imprint\b[\s\S]*?creature card[^.]*onto the battlefield",
+    re.IGNORECASE,
+)
+
+
 # Death-trigger payoffs worth re-firing via a clone (Kamigawa dragons: Keiga steals,
 # Kokusho drains, Yosei taps down). Mirrors _SELF_ETB_PAYOFF with the death-specific
 # verbs (gain control, opponents lose life, skip a step).
@@ -5577,8 +5655,16 @@ def extract_signals(
     # +1/+1 counter" reference fires from place_counter(p1p1) + the counters_have_ref
     # marker via the IR path). Their orphaned regex helpers were removed with this
     # cleanup.
-    if _detect_polymorph_cheat(text):
-        add("cheat_into_play", "you", "", text[:160])
+    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. This polymorph-
+    # cheat full-text detector add() (the reveal-until-creature "put it onto the
+    # battlefield" Polymorph family — Jalira, Atla Palani, See the Unwritten) is
+    # DELETED;
+    # the STRUCTURAL cat=='cheat_play'+to:battlefield+from:top arm (the dig-into-play
+    # retag + the SIDECAR-v37 source recovery) reproduces it and RECOVERS the +215
+    # genuine library/hand cheats the narrow regex literal missed.
+    # _detect_polymorph_cheat
+    # STAYS — the has_other_plan voltron silence (_CHEAT_INTO_PLAY_PLAN_MIRROR below)
+    # reuses it byte-identically. CR 110.2a / 400.7 / 701.23.
     # ADR-0027: reanimator migrated to the Card IR — a creature whose `reanimate`
     # effect returns CREATURE cards from a graveyard to the battlefield (the archetype),
     # via _reanimates_creature (incl. its raw fallback for the subject phase drops). The
@@ -6579,6 +6665,16 @@ def extract_signals(
         # regex's silence set. Per-clause over the reminder-STRIPPED `text`. See
         # _protection_grant_has_plan. CR 702.11/16/12/18/21 / 903.10a.
         or _protection_grant_has_plan(text)
+        # ADR-0027 reveal/dig-v2: re-silence the deleted cheat_into_play producers (the
+        # _DETECTORS clause regex + the SWEEP widen + the polymorph full-text detector +
+        # the `have warp` membership row), all HIGH-confidence scope 'you' feeding
+        # has_other_plan — a cheat-into-play ENGINE is no vanilla beater. The migrated
+        # lane rides a BROADER structural arm (+215 ir_only), so
+        # _VOLTRON_SILENCING_PLAN_
+        # KEYS would OVER-silence the recall-gain bodies; this byte mirror restores ONLY
+        # the deleted regex's silence set, per-clause over the reminder-STRIPPED `text`.
+        # CR 903.10a / 110.2a / 400.7.
+        or _cheat_into_play_has_plan(text)
         or (
             bool(_XSPELL_HOOK_RE.search(_oracle))
             and not _XSPELL_VETO_RE.search(_oracle)

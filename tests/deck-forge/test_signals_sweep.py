@@ -189,8 +189,19 @@ def test_sweep_detectors_loaded():
     # kept_oracle; the two arms never cross a clause so flat == the deleted per-clause
     # SWEEP firing, commander-legal both==26/regex_only==0/ir_only==0). DISTINCT from the
     # IR `many_copies` copy-limit field (CR 100.2a — Relentless Rats), which is a
-    # different signal and is NOT this key; CR 712.1).
-    assert len(SWEEP_DETECTORS) >= 7
+    # different signal and is NOT this key; CR 712.1),
+    # then 7→6 as cheat_into_play's widen row was deleted (ADR-0027 reveal/dig-v2 — put a
+    # non-land card onto the battlefield from a NON-graveyard source. project._recover_
+    # cheat_into_play_source (SIDECAR v37) APPENDS one canonical cheat_play+from:<top|
+    # library|hand>+to:battlefield marker per qualifying ability — phase scatters the
+    # put-onto-battlefield across reveal/exile/mill siblings; migrated to a STRUCTURAL arm
+    # reading the marker UNION a narrow _CHEAT_INTO_PLAY_RESIDUE_RE mirror for the two
+    # un-structurable cards (Clone Shell's imprint-from-library cheat spanning two
+    # abilities, Tannuk's "have warp" cheat-enabler). The deleted broad widen over-fired
+    # on reanimation [from a graveyard] + land-ramp; the structural arm routes both OUT
+    # via the source-zone tag + Land carve-out [+215 genuine library/hand cheats the
+    # narrow regex missed]; CR 110.2a / 400.7 / 701.23).
+    assert len(SWEEP_DETECTORS) >= 6
     keys = [d["key"] for d in SWEEP_DETECTORS]
     assert len(keys) == len(set(keys))  # no duplicate keys
 

@@ -7251,6 +7251,73 @@ _CASES: dict[str, tuple[dict, Card]] = {
             )
         ),
     ),
+    # cheat_into_play ← a `cheat_play` EFFECT carrying to:battlefield + a NON-graveyard
+    # source zone (from:hand here — Sneak Attack's "put a creature card from your hand
+    # onto the battlefield"). project._recover_cheat_into_play_source (SIDECAR v37)
+    # APPENDS this canonical marker when phase scatters the put-onto-battlefield across
+    # reveal/exile/mill siblings; phase's own clean from:hand/from:library cheat_play
+    # (Sneak Attack, Bribery) reads the same shape. The arm fires scope 'you', gating out
+    # a Land-only put (ramp) and a graveyard-ONLY source (reanimation). ADR-0027 reveal/
+    # dig-v2. CR 110.2a / 400.7 / 701.23.
+    "cheat_into_play": (
+        {
+            "name": "Sneak Attack",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "{R}: You may put a creature card from your hand onto the "
+                "battlefield. That creature gains haste. Sacrifice the creature "
+                "at the beginning of the next end step."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="activated",
+                cost="mana",
+                effects=(
+                    Effect(
+                        category="cheat_play",
+                        scope="you",
+                        subject=Filter(card_types=("Creature",), controller="you"),
+                        zones=("from:hand", "to:battlefield"),
+                        raw=(
+                            "{R}: You may put a creature card from your hand onto "
+                            "the battlefield."
+                        ),
+                    ),
+                ),
+            )
+        ),
+    ),
+    # tutor_matters ← the BYTE-IDENTICAL kept mirror (_TUTOR_MATTERS_MIRROR ==
+    # TUTOR_MATTERS_REGEX, "search your library for (a|an|...)") over the reminder-
+    # stripped oracle. phase keeps a `tutor` EFFECT for every search (opponent /
+    # symmetric / composite / reminder-cycle), so the lane is the regex mirror, not a
+    # structural arm; the IR is irrelevant to the mirror, but a clean own-library `tutor`
+    # effect mirrors what phase emits for a real your-library tutor. ADR-0027 reveal/
+    # dig-v2. CR 701.23 / 401.
+    "tutor_matters": (
+        {
+            "name": "Demonic Tutor",
+            "type_line": "Sorcery",
+            "oracle_text": (
+                "Search your library for a card, put that card into your hand, "
+                "then shuffle."
+            ),
+        },
+        _ir(
+            Ability(
+                kind="spell",
+                effects=(
+                    Effect(
+                        category="tutor",
+                        scope="you",
+                        subject=Filter(card_types=("Card",)),
+                        raw="Search your library for a card",
+                    ),
+                ),
+            )
+        ),
+    ),
 }
 
 

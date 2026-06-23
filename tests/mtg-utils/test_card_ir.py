@@ -40,6 +40,7 @@ from mtg_utils._card_ir.project import (
     _project_effect,
     _project_replacement,
     _quantity,
+    _recover_cheat_into_play_source,
     _recover_count_operand,
     _recover_graveyard_origin,
     _recover_graveyard_zones,
@@ -2656,6 +2657,151 @@ def test_recover_graveyard_zones_excludes_dies():
     out = _recover_graveyard_zones(ability)
     # already had to:graveyard; recovery is append-only and leaves from:battlefield
     assert "from:battlefield" in out.effects[0].zones
+
+
+# ── ADR-0027 reveal/dig-v2 — _recover_cheat_into_play_source ──────────────────
+def _cheat_marker(ability: Ability) -> Effect | None:
+    """The appended canonical cheat_play marker (to:battlefield + a non-gy source),
+    or None when the recovery did not append one."""
+    for e in _recover_cheat_into_play_source(ability).effects:
+        if (
+            e.category == "cheat_play"
+            and "to:battlefield" in e.zones
+            and any(z in e.zones for z in ("from:top", "from:library", "from:hand"))
+        ):
+            return e
+    return None
+
+
+def test_cheat_source_recovers_split_reveal_from_top():
+    """Call of the Wild's "reveal the top card … put it onto the battlefield" splits
+    across two `reveal` effects (from:top on one, to:battlefield on the other); the
+    recovery unifies them into ONE canonical cheat_play marker carrying from:top +
+    to:battlefield, which the cheat_into_play arm reads."""
+    ability = Ability(
+        kind="activated",
+        effects=(
+            Effect(
+                category="reveal",
+                scope="any",
+                zones=("from:top",),
+                raw=(
+                    "Reveal the top card of your library. If it's a creature card, "
+                    "put it onto the battlefield."
+                ),
+            ),
+            Effect(
+                category="reveal",
+                scope="any",
+                zones=("to:battlefield",),
+                raw=(
+                    "Reveal the top card of your library. If it's a creature card, "
+                    "put it onto the battlefield."
+                ),
+            ),
+        ),
+    )
+    marker = _cheat_marker(ability)
+    assert marker is not None
+    assert "from:top" in marker.zones
+    assert "to:battlefield" in marker.zones
+
+
+def test_cheat_source_routes_graveyard_only_out_as_reanimation():
+    """A graveyard-ONLY put (Reanimate's reanimate from:graveyard + to:battlefield) is
+    reanimation, NOT cheat_into_play (CR 110.2a/400.7 — the ORIGIN is the discriminator).
+    The recovery appends NO cheat_play marker (the marker never carries from:graveyard)."""
+    ability = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="reanimate",
+                scope="any",
+                subject=Filter(card_types=("Creature",)),
+                zones=("from:graveyard", "to:battlefield"),
+                raw="Put target creature card from a graveyard onto the battlefield.",
+            ),
+        ),
+    )
+    assert _cheat_marker(ability) is None
+
+
+def test_cheat_source_routes_land_only_out_as_ramp():
+    """A LAND-only put (Beneath the Sands' "search your library for a basic land card,
+    put it onto the battlefield") is ramp (extra_land_drop), not a cheat — no marker."""
+    ability = Ability(
+        kind="spell",
+        effects=(
+            Effect(
+                category="tutor",
+                scope="you",
+                subject=Filter(card_types=("Land",)),
+                raw="Search your library for a basic land card",
+            ),
+            Effect(
+                category="cheat_play",
+                scope="any",
+                zones=("from:library", "to:battlefield"),
+                raw=(
+                    "Search your library for a basic land card, put it onto the "
+                    "battlefield tapped."
+                ),
+            ),
+        ),
+    )
+    # phase already has a clean cheat_play, so no new marker; the land subject lives on
+    # the sibling tutor — the cheat_into_play arm's land carve-out drops it there.
+    appended = len(_recover_cheat_into_play_source(ability).effects)
+    assert appended == 2  # unchanged (no marker appended for a land-only put)
+
+
+def test_cheat_source_recovers_opponent_hand_peek():
+    """Zara/Treacherous Urge "look at defending player's hand … put a creature card from
+    it onto the battlefield" — a reveal_hand peek + a to:battlefield put. The cheated
+    card is from a HAND (owner orthogonal), so the marker carries from:hand."""
+    ability = Ability(
+        kind="triggered",
+        effects=(
+            Effect(
+                category="reveal_hand",
+                scope="opp",
+                raw="Target opponent reveals their hand.",
+            ),
+            Effect(
+                category="reveal",
+                scope="opp",
+                subject=Filter(card_types=("Creature",)),
+                zones=("to:battlefield",),
+                raw=(
+                    "You may put a creature card from it onto the battlefield "
+                    "under your control."
+                ),
+            ),
+        ),
+    )
+    marker = _cheat_marker(ability)
+    assert marker is not None
+    assert "from:hand" in marker.zones
+
+
+def test_cheat_source_idempotent_on_clean_cheat_play():
+    """When phase already emits a clean cheat_play with a non-gy source + battlefield
+    landing (Sneak Attack from:hand+to:battlefield), the recovery appends NO marker —
+    the arm reads the existing one (no double-fire)."""
+    ability = Ability(
+        kind="activated",
+        cost="mana",
+        effects=(
+            Effect(
+                category="cheat_play",
+                scope="any",
+                subject=Filter(card_types=("Creature",), controller="you"),
+                zones=("from:hand", "to:battlefield"),
+                raw="put a creature card from your hand onto the battlefield",
+            ),
+        ),
+    )
+    assert len(_recover_cheat_into_play_source(ability).effects) == 1
 
 
 def test_recover_count_operand_pump_for_each():

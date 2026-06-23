@@ -6025,6 +6025,96 @@ MIGRATED_KEYS: frozenset[str] = frozenset(
         # CR 712.1 (named references) vs CR 100.2a (copy limit) — likely SEPARATE keys;
         # see the ADR recommendation in the migration record. CR 712.1 / 903.10a.
         "named_permanent",
+        # ADR-0027 reveal/dig-v2 — cheat_into_play (put a non-land card onto the
+        # battlefield WITHOUT casting it, from a NON-graveyard source: hand — Sneak
+        # Attack, Show and Tell; library/top — Collected Company, See the Unwritten, the
+        # reveal-until-creature Polymorph family, Bribery/Lord of the Void from an
+        # opponent's library). PROJECTION (SIDECAR v37,
+        # project._recover_cheat_into_play_
+        # source): phase structures the put-onto-battlefield INCONSISTENTLY — the
+        # to:battlefield destination and the library/hand ORIGIN scatter across
+        # reveal/exile/mill/choose/tutor/blink sibling effects (Call of the Wild = two
+        # reveals; Lord of the Void = two exiles; Mass Polymorph = exile+blink+exile) or
+        # drop entirely (Impromptu Raid). The recovery APPENDS one canonical
+        # `cheat_play`
+        # +from:<top|library|hand>+to:battlefield marker per qualifying ability (a Land-
+        # only put is gated out = ramp; the OPPONENT's-hand peek "from it" — Zara,
+        # Treacherous Urge — is recovered via the reveal_hand sibling). WIRE: a
+        # STRUCTURAL
+        # arm (cat=='cheat_play' with to:battlefield + a non-gy from: zone, the Land /
+        # opening-hand-start carve-outs applied) reading the marker + phase's own clean
+        # cheat_play, UNION a NARROW _CHEAT_INTO_PLAY_MIRROR for the un-structurable
+        # residue (Clone Shell's imprint-from-library cheat spans TWO abilities;
+        # Tannuk's
+        # "cards in your hand have warp" cheat-enabler is a membership cross-open phase
+        # emits no shape for). The SOURCE-ZONE tag is the rules-recognized discriminator
+        # (CR 110.2a put-onto-bf is shared, CR 400.7 the ORIGIN is distinct): a
+        # graveyard-
+        # ONLY put is `reanimate` → routed to the reanimator lane, NEVER this lane (the
+        # marker never carries from:graveyard); a hybrid "from hand OR graveyard" still
+        # fires off its non-gy half. RESIDUAL (commander-legal, floor-disabled, by
+        # oracle_id, IR arm+mirror vs the deleted regex): both==196, ir_only==215
+        # (genuine
+        # library/hand cheats the narrow regex literal MISSED — the
+        # reveal-until-creature
+        # + search-into-play + opp-library cheat families — every one Scryfall-verified
+        # a
+        # non-gy put-onto-battlefield, NO dismissal without the hook), regex_only==2
+        # (Clone Shell + Tannuk, recovered by the narrow mirror → effective regex_only
+        # 0).
+        # The 75 reanimation + 79 land-ramp regex over-fires are DROPPED (the precision
+        # payoff — they route to reanimator / extra_land_drop). Scope 'you'. The
+        # _DETECTORS / SWEEP / _detect_polymorph_cheat / `have warp` regex producers are
+        # deleted; the SWEEP_DETECTORS row is removed (floor 7→6). VOLTRON: the deleted
+        # producers fired HIGH scope 'you' and fed has_other_plan (a cheat-into-play
+        # ENGINE is a real plan, not a vanilla beater); the IR re-supply is BROADER, so
+        # a
+        # byte-identical _CHEAT_INTO_PLAY_PLAN_MIRROR (NOT _VOLTRON_SILENCING_PLAN_KEYS)
+        # restores the exact deleted-regex silence set. voltron_matters 3010 by set
+        # equality. The serve spec stays hand-registered in signal_specs.py. CR 110.2a /
+        # 400.7 / 701.23.
+        "cheat_into_play",
+        # ADR-0027 reveal/dig-v2 — tutor_matters (a build-around lane for searching YOUR
+        # OWN library: Demonic/Mystical/Worldly/Vampiric Tutor, Eladamri's Call, the
+        # creature/artifact/enchantment toolbox fetches). KEPT-MIRROR migration (the
+        # conjure/mill/station precedent — phase under-structures the "your library"-vs-
+        # reminder distinction the lane keys on). phase's `tutor` EFFECT exists for
+        # EVERY
+        # search including the over-fires — an OPPONENT-library search (Bribery,
+        # Praetor's
+        # Grasp — scope 'opp'), a SYMMETRIC "each player searches their library", a
+        # COMPOSITE-ZONE "search your library AND graveyard" (Doomsday, Finale), and the
+        # reminder-text-embedded landcycling / transmute / partner-with searches — so
+        # the
+        # IR `tutor` doer arm (which HARDCODED scope 'you') fired on all of them. The
+        # deleted REGEX producer is already PRECISE: `search your library for (a|an|up
+        # to|
+        # one|two|three|x|that)` over the REMINDER-STRIPPED oracle — the "your" word
+        # drops
+        # opponent searches, the immediate "for" drops the composite "search your
+        # library
+        # AND graveyard for" form, and reminder-stripping drops the
+        # landcycling/transmute/
+        # partner-with parentheticals. A structural arm reading the `tutor` effect
+        # cannot
+        # reproduce the "immediate for" + reminder-stripping precision (phase keeps a
+        # bare scope='you' tutor for a reminder-cycle search too), so the lane is the
+        # BYTE-IDENTICAL _TUTOR_MATTERS_MIRROR (== the deleted TUTOR_MATTERS_REGEX over
+        # reminder-stripped kept_oracle) in _IR_KEPT_DETECTORS, and the over-firing
+        # `tutor` doer row in _DOER_EFFECT_KEYS is removed. RESIDUAL (commander-legal,
+        # floor-disabled, by oracle_id, mirror vs the deleted regex): both==773,
+        # regex_only==0, ir_only==0 (the mirror IS the deleted regex — full parity, 0
+        # over-fire). Scope 'you'. The `tutor` EFFECT category STILL opens graveyard_
+        # matters via a separate from:graveyard arm (untouched). VOLTRON: the deleted
+        # producer fired HIGH scope 'you' and fed has_other_plan (a tutor engine is a
+        # card-advantage plan); the mirror re-supply is byte-identical, so tutor_matters
+        # joins _VOLTRON_SILENCING_PLAN_KEYS (the strict-subset facade is valid — same
+        # 773
+        # cards). voltron_matters 3010 by set equality. NOT a SWEEP row (a _HAND_FLOOR
+        # producer), so the SWEEP floor is unchanged. The serve spec stays
+        # hand-registered
+        # in signal_specs.py. CR 701.23 (search) / 401 (library zone).
+        "tutor_matters",
     }
 )
 """Signal keys served from the IR path in production; grows as the ADR-0027

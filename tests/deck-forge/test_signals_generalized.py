@@ -3850,8 +3850,11 @@ def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
 def test_warp_granting_opens_cheat_into_play():
     # Tannuk grants WARP ("cards in your hand have warp" — cast from hand for the warp
     # cost, a temporary cheat-into-play). It's a cheat deck: it wants fat creatures and
-    # cheat enablers (Ilharg, Maelstrom Colossus), served by cheat_into_play. It opened
-    # void_warp/team_buff but not cheat. Real oracle.
+    # cheat enablers (Ilharg, Maelstrom Colossus), served by cheat_into_play. ADR-0027
+    # reveal/dig-v2: cheat_into_play migrated to the Card IR; the warp-grant is an
+    # un-structurable membership cross-open phase emits no shape for, so it rides the
+    # byte-identical _CHEAT_INTO_PLAY_RESIDUE_RE kept mirror (the `have warp` alt) — read
+    # over the oracle by the hybrid path. Real oracle.
     tannuk = {
         "name": "Tannuk, Steadfast Second",
         "type_line": "Legendary Creature — Phyrexian Warrior",
@@ -3863,10 +3866,10 @@ def test_warp_granting_opens_cheat_into_play():
             "later turn.)"
         ),
     }
-    assert "cheat_into_play" in _keys(tannuk)
+    assert "cheat_into_play" in _keys_hybrid(tannuk)
     # Over-fire guard: a vanilla creature is not a cheat deck.
     bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert "cheat_into_play" not in _keys(bear)
+    assert "cheat_into_play" not in _keys_hybrid(bear)
 
 
 def test_active_reanimation_opens_reanimator():
@@ -4142,9 +4145,24 @@ def test_charge_and_experience_counters_open_proliferate():
 def test_polymorph_cheat_opens_cheat_into_play():
     # Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE
     # BATTLEFIELD (Jalira, Atla Palani, Eladamri) — they want big fatties to cheat in.
-    # The per-clause cheat detector missed them: "reveal … a creature card." and "Put
-    # that card onto the battlefield" split across a period, and "that card" isn't
-    # "creature card". Full-text. Real oracle.
+    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. phase scatters the
+    # put-onto-battlefield across reveal/dig siblings; project._recover_cheat_into_play_
+    # source (SIDECAR v37) APPENDS one canonical cheat_play+from:<top|hand>+to:
+    # battlefield marker the structural arm reads. The IR below mirrors that marker.
+    cheat_top_ir = _ir_with(
+        Ability(
+            kind="activated",
+            effects=(
+                Effect(
+                    category="cheat_play",
+                    scope="you",
+                    subject=Filter(card_types=("Creature",)),
+                    zones=("from:top", "to:battlefield"),
+                    raw="reveal cards from the top … put that card onto the battlefield",
+                ),
+            ),
+        )
+    )
     jalira = {
         "name": "Jalira, Master Polymorphist",
         "type_line": "Legendary Creature — Human Wizard",
@@ -4176,10 +4194,12 @@ def test_polymorph_cheat_opens_cheat_into_play():
             "way, put it onto the battlefield. Activate only during your turn."
         ),
     }
-    assert "cheat_into_play" in _keys(jalira)
-    assert "cheat_into_play" in _keys(atla)
-    assert "cheat_into_play" in _keys(eladamri)
-    # Over-fire guard: a graveyard reanimator is not a library/hand cheat.
+    assert "cheat_into_play" in _keys_hybrid_ir(jalira, cheat_top_ir)
+    assert "cheat_into_play" in _keys_hybrid_ir(atla, cheat_top_ir)
+    assert "cheat_into_play" in _keys_hybrid_ir(eladamri, cheat_top_ir)
+    # Over-fire guard: a graveyard reanimator is NOT a library/hand cheat. Its IR is a
+    # `reanimate` from:graveyard effect — the recovery appends NO cheat_play marker (the
+    # source-zone tag routes it to the reanimator lane, CR 110.2a / 400.7).
     reanimator = {
         "name": "Reanimator",
         "type_line": "Sorcery",
@@ -4187,7 +4207,24 @@ def test_polymorph_cheat_opens_cheat_into_play():
             "Return target creature card from your graveyard to the battlefield."
         ),
     }
-    assert "cheat_into_play" not in _keys(reanimator)
+    reanimate_ir = _ir_with(
+        Ability(
+            kind="spell",
+            effects=(
+                Effect(
+                    category="reanimate",
+                    scope="any",
+                    subject=Filter(card_types=("Creature",)),
+                    zones=("from:graveyard", "to:battlefield"),
+                    raw=(
+                        "Return target creature card from your graveyard to the "
+                        "battlefield."
+                    ),
+                ),
+            ),
+        )
+    )
+    assert "cheat_into_play" not in _keys_hybrid_ir(reanimator, reanimate_ir)
 
 
 def test_counter_payoff_with_a_counter_on_it_opens_counters():

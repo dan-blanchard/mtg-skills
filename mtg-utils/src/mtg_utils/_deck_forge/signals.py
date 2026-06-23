@@ -966,6 +966,22 @@ _VOLTRON_SILENCING_PLAN_KEYS = frozenset(
         # vanilla commander-damage tell. File-swap: voltron 3010 -> 3010, A-B == 0.
         # CR 712.1 / 903.10a.
         "named_permanent",
+        # ADR-0027 reveal/dig-v2: tutor_matters fired HIGH confidence (scope 'you') in
+        # the regex path — a _HAND_FLOOR producer ("search your library for …") — and so
+        # counted toward has_other_plan, silencing the spurious commander-damage voltron
+        # tell on a tutor-engine commander that is NOT a vanilla beater (Captain Sisay,
+        # Varolz, Yisan, Arcum Dagsson — a toolbox/combo-assembly plan, not a
+        # connect-for-
+        # damage body). Its regex producer is deleted, so the hybrid re-silences from
+        # the
+        # IR re-supply — the byte-identical _TUTOR_MATTERS_MIRROR (==
+        # TUTOR_MATTERS_REGEX)
+        # in _IR_KEPT_DETECTORS reading the SAME reminder-stripped joined oracle as the
+        # deleted regex (commander-legal, floor-disabled, by oracle_id: both==773,
+        # regex_only==0, ir_only==0) — no broadening, so a set entry (not an oracle PLAN
+        # mirror) is correct, matching the named_permanent / island_matters kept-mirror
+        # precedent. File-swap: voltron 3010→3010, A-B==0. CR 701.23 / 903.10a.
+        "tutor_matters",
     }
 )
 

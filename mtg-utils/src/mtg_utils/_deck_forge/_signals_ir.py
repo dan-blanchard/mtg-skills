@@ -19,6 +19,7 @@ import re
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._signals_regex import (
+    _CHEAT_INTO_PLAY_RESIDUE_RE,
     _CHEAT_TOP_ONTO_RE,
     _CHEAT_TOP_REVEAL_RE,
     _COLOR_HOSER_RE,
@@ -49,6 +50,7 @@ from mtg_utils._deck_forge._signals_regex import (
     _TOPDECK_SELECTION_SWEEP_RE,
     _XSPELL_HOOK_RE,
     _XSPELL_VETO_RE,
+    TUTOR_MATTERS_REGEX,
     Signal,
     _clauses,
     _creature_etb_clauses,
@@ -144,7 +146,15 @@ from mtg_utils._deck_forge._sweep_detectors import (
     VOID_WARP_MATTERS_REGEX,
 )
 from mtg_utils.card_classify import card_pt_int, get_oracle_text, is_creature
-from mtg_utils.card_ir import Card, Condition, Effect, Filter, Quantity, Trigger
+from mtg_utils.card_ir import (
+    Ability,
+    Card,
+    Condition,
+    Effect,
+    Filter,
+    Quantity,
+    Trigger,
+)
 
 # ── IR-backed signal extraction (Milestone A2 — 5-key vertical slice) ──────────
 # extract_signals_ir derives the same Signal(key, scope, subject, …) from the
@@ -191,7 +201,18 @@ _DOER_EFFECT_KEYS: dict[str, tuple[str, str | None]] = {
     # identical to the deleted _PRESET_KEYWORD_SIGNALS preset — saddle/lifelink-style),
     # dropping this over-broad doer entry and its 3 phase over-fires. The `mill` effect
     # category STILL opens graveyard_matters below (a separate, broader arm). CR 701.13.
-    "tutor": ("tutor_matters", "you"),
+    # ADR-0027 reveal/dig-v2 — tutor_matters migrated to the Card IR via a
+    # BYTE-IDENTICAL kept mirror (_TUTOR_MATTERS_MIRROR in _IR_KEPT_DETECTORS). This
+    # fixed-scope 'you'
+    # doer row is REMOVED: phase keeps a `tutor` EFFECT for EVERY search, so the doer
+    # fired on opponent-library searches (Bribery — phase scope 'opp', but the hardcoded
+    # 'you' masked it), symmetric "each player searches", composite-zone "library AND
+    # graveyard" recursion (Doomsday, Finale), and the reminder-text landcycling /
+    # transmute / partner-with searches. The deleted regex is already PRECISE (your-
+    # library search over reminder-stripped text), and a structural arm can't reproduce
+    # its "immediate for" + reminder-stripping discrimination, so the lane is the kept
+    # mirror, not this doer. The `tutor` EFFECT still opens graveyard_matters via a
+    # separate from:graveyard arm. CR 701.23 / 401.
     # Batch P — phase-native mechanic effects.
     "monarch": ("monarch_matters", "you"),
     "suspect": ("suspect_matters", "you"),
@@ -882,6 +903,38 @@ _IR_KEPT_DETECTORS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "base_pt_set",
         re.compile(BASE_PT_SET_REGEX, re.IGNORECASE),
         "any",
+    ),
+    # ADR-0027 reveal/dig-v2 — tutor_matters BYTE-IDENTICAL kept mirror (== the deleted
+    # TUTOR_MATTERS_REGEX, "search your library for (a|an|up to|...)" over the reminder-
+    # STRIPPED kept_oracle). phase keeps a `tutor` EFFECT for EVERY search (opponent /
+    # symmetric / composite-zone / reminder-cycle included), so a structural arm can't
+    # reproduce the regex's your-library + immediate-for + reminder-stripping precision;
+    # the regex IS the spec. Flat .search over the reminder-stripped joined-face
+    # kept_oracle == the deleted _HAND_FLOOR producer's firing set byte-identically
+    # (commander-legal, floor-disabled, by oracle_id: both==773, regex_only==0,
+    # ir_only==0). Scope 'you', HIGH (feeds has_other_plan via _VOLTRON_SILENCING_PLAN_
+    # KEYS). The `tutor` EFFECT still opens graveyard_matters via a separate from:
+    # graveyard arm. CR 701.23 / 401.
+    (
+        "tutor_matters",
+        TUTOR_MATTERS_REGEX,
+        "you",
+    ),
+    # ADR-0027 reveal/dig-v2 — cheat_into_play NARROW residue mirror (the two cards the
+    # structural cat=='cheat_play'+to:battlefield+non-gy-source arm can't reach): Clone
+    # Shell's imprint-from-library cheat (spans the ETB imprint + the dies-trigger put —
+    # two abilities phase never unifies) and Tannuk's "cards in your hand have warp"
+    # cheat-enabler (a hand-wide warp grant phase emits no structural shape for).
+    # Summoner's Egg also matches but is already structurally covered (the union
+    # dedups).
+    # Graveyard-guarded so no reanimation re-fires; commander-legal hit set is exactly
+    # {Clone Shell, Summoner's Egg, Tannuk} — 0 reanimation / land over-fire. Scope
+    # 'you',
+    # HIGH. CR 702.41 (imprint) / 702.184a (warp).
+    (
+        "cheat_into_play",
+        _CHEAT_INTO_PLAY_RESIDUE_RE,
+        "you",
     ),
     # ADR-0027 Cluster D — named_permanent SIGNALS-ONLY kept WORD MIRROR. The named-
     # card SYNERGY lane: a card whose oracle text references a specific OTHER card by
@@ -5665,6 +5718,53 @@ def _ftypes(f: object) -> frozenset[str]:
     return frozenset(f.card_types) if isinstance(f, Filter) else frozenset()
 
 
+# ADR-0027 reveal/dig-v2 — a put-onto-battlefield whose card is a LAND is RAMP
+# (extra_land_drop), not a creature/permanent cheat (Beneath the Sands, Harrow,
+# Crop Rotation, the fetchlands: phase structures the search-put as a subjectless
+# `cheat_play`+from:library, the Land type living on the SIBLING `tutor`). The
+# cheat_into_play arm reads the effect's OWN subject, falling back to a sibling
+# tutor/reveal/topdeck subject in the same ability, and excludes a Land-ONLY put.
+_LAND_ONLY_CHEAT_RE = re.compile(r"\bland cards?\b", re.IGNORECASE)
+_NONLAND_CHEAT_RE = re.compile(
+    r"\b(?:creature|artifact|enchantment|planeswalker|permanent) cards?\b",
+    re.IGNORECASE,
+)
+
+
+def _is_land_cheat(e: Effect, ab: object) -> bool:
+    """True when a cheat_play's put-into-play card is a LAND (ramp, not a card cheat).
+    Reads the effect's subject, else the most specific sibling put-into-play subject in
+    the ability (a phase search-into-play splits the Land type onto the `tutor` half),
+    else the raw ("if it's a LAND card, put it onto the battlefield" — Into the Wilds,
+    Skyward Eye Prophets, Thrasios, Lantern of Revealing — where phase leaves the
+    cheat_play subjectless and there is no sibling tutor)."""
+    subj = e.subject
+    if subj is None and isinstance(ab, Ability):
+        for sib in ab.effects:
+            if (
+                isinstance(sib, Effect)
+                and sib.subject is not None
+                and sib.category
+                in ("tutor", "reveal", "topdeck_select", "dig_until", "choose")
+            ):
+                subj = sib.subject
+                break
+    if isinstance(subj, Filter):
+        return set(subj.card_types) == {"Land"}
+    # Subjectless: read the raw — a land-only put with no non-land put type is ramp.
+    raw = e.raw or ""
+    return bool(_LAND_ONLY_CHEAT_RE.search(raw)) and not _NONLAND_CHEAT_RE.search(raw)
+
+
+# ADR-0027 reveal/dig-v2 — phase tags the "begin the game with it on the battlefield"
+# opening-hand START mechanic (Leyline of Anticipation, Chancellor, Gemstone Caverns)
+# as a `cheat_play`+from:hand+to:battlefield. That is a one-time pre-game setup, NOT a
+# repeatable cheat-into-play ENGINE the lane serves, so the arm excludes it.
+_OPENING_HAND_START_RE = re.compile(
+    r"\bopening hand\b|\bbegin the game with\b", re.IGNORECASE
+)
+
+
 def _is_self_counter_marker(f: object) -> bool:
     """True for the ADR-0027 β self-anchor marker project.py stamps on a +1/+1 counter
     PLACEMENT a creature puts on ITSELF (adapt/monstrosity/renown + "put a +1/+1
@@ -7442,8 +7542,35 @@ def extract_signals_ir(
                 # CR 700.2 / 702.11/16/12/18/21.
                 if e.counter_kind in _PROTECTION_GRANT_KW:
                     add("protection_grant", "you", "", e.raw)
-            # Batch 9 — cheat a CREATURE into play (a land into play is ramp).
-            if cat == "cheat_play" and "Creature" in ftypes:
+            # Batch 9 / ADR-0027 reveal/dig-v2 — cheat a non-land card onto the
+            # battlefield from a NON-graveyard source (library/top/hand), bypassing the
+            # cast. phase scatters the put-onto-battlefield across reveal/exile/mill/
+            # choose/tutor/blink effects with the to:battlefield destination and the
+            # library/hand ORIGIN on different siblings; project._recover_cheat_into_
+            # play_source (SIDECAR v37) APPENDS one canonical `cheat_play`+from:<top|
+            # library|hand>+to:battlefield marker per qualifying ability (plus phase's
+            # own clean from:hand/from:library cheat_play — Sneak Attack, Show and Tell,
+            # Bribery). The SOURCE-ZONE tag is the discriminator: a graveyard-ONLY put
+            # is
+            # `reanimate` (reanimation, routed to the reanimator lane, CR 110.2a/400.7),
+            # NEVER this lane; the recovery never stamps from:graveyard on the marker,
+            # so
+            # gating on a non-gy source here is exact. The Land carve-out (a land into
+            # play is ramp — extra_land_drop) is applied in the recovery (Land-only
+            # subject dropped), so any cheat_play reaching here with a non-gy source is
+            # a
+            # genuine card cheat. control/owner is orthogonal (Lord of the Void /
+            # Bribery
+            # cheat from an OPPONENT's library into YOUR control — still
+            # cheat_into_play),
+            # so scope never gates it out. CR 110.2a / 400.7 / 701.23.
+            if (
+                cat == "cheat_play"
+                and "to:battlefield" in e.zones
+                and any(z in e.zones for z in ("from:top", "from:library", "from:hand"))
+                and not _is_land_cheat(e, ab)
+                and not _OPENING_HAND_START_RE.search(e.raw or "")
+            ):
                 add("cheat_into_play", "you", "", e.raw)
             # extra_land_drop (ADR-0027 tranche2-C) — "put a land card from your hand
             # onto the battlefield" (Burgeoning, Gretchen Titchwillow, Exploration-
@@ -7894,8 +8021,22 @@ def extract_signals_ir(
             #      HAUNT CARD onto a creature, not the targeted creature; not removal.
             # The byte-identical EXILE_REMOVAL kept mirror (below) re-supplies the
             # blink/GY over-fires the deleted regex matched, preserving v29 behavior.
+            # A blink RETURN is the EXILED object coming back to the battlefield (CR
+            # 603.6e) — the exile-and-return blink tell. A sibling `cheat_play`
+            # to:battlefield lands a DIFFERENT card (the cheated/polymorphed body —
+            # Divergent Transformations / Chaos Mutation exile the target, then the
+            # controller PUTS a NEW creature from their library), NOT the exiled object
+            # returning, so it must not mask the single-target exile removal. Exclude
+            # `cheat_play` from the return check (ADR-0027 reveal/dig-v2: project.
+            # _recover_cheat_into_play_source appends a cheat_play+to:battlefield
+            # marker;
+            # a genuine blink is categorized `blink`/`reanimate`, never `cheat_play`, so
+            # this loses no real blink-return exclusion).
             sib_returns = any(
-                "to:battlefield" in z for sib in ab.effects for z in sib.zones
+                "to:battlefield" in z
+                for sib in ab.effects
+                if sib.category != "cheat_play"
+                for z in sib.zones
             )
             # (5) CLONE-from-mill — a sibling `clone` effect in the same ability means
             # the exile SELECTS a card to copy ("exile a creature card from among the

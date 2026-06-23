@@ -2545,12 +2545,14 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
         "is_widen_of": "stax_taxes",
         "regex": "players? can't (?:cast|untap|attack|gain|search their|draw|play|activate)|other permanents enter (?:the battlefield )?tapped|(?:doesn't|don't|does not) untap during (?:its|their|the)",
     },
-    {
-        "key": "cheat_into_play",
-        "scope": "you",
-        "is_widen_of": "cheat_into_play",
-        "regex": "put (?:a|that|those|up to (?:two|one|\\d+))[^.]*(?:permanent|creature|land|nonland)[^.]*cards?[^.]*onto the battlefield|put a permanent card[^.]*onto the battlefield|put [^.]*land cards?[^.]*onto the battlefield|put (?:an? )?artifact,? (?:creature,? )?(?:or land |and/or land )?card[^.]*from (?:your|their) hand onto the battlefield|put an? [^.]*card[^.]*(?:from your (?:hand|library)|from among them) onto the battlefield",
-    },
+    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. Its SWEEP_DETECTORS
+    # widen row is DELETED (floor 7→6); detection moved to the STRUCTURAL cat=='cheat_
+    # play'+to:battlefield+non-gy-source arm (the SIDECAR-v37 project._recover_cheat_into_
+    # play_source marker) UNION the narrow _CHEAT_INTO_PLAY_RESIDUE_RE mirror. The deleted
+    # widen's broad "put … (permanent|creature|land|nonland) card … onto the battlefield"
+    # over-fired on reanimation (from a graveyard) and land-ramp (the structural arm
+    # routes both OUT via the source-zone tag + Land carve-out). SWEEP_LABELS keeps the
+    # human label. CR 110.2a / 400.7 / 701.23.
     # ADR-0027 per-clause draw raw (SIDECAR v32): draw_for_each migrated to the Card IR.
     # Its SWEEP_DETECTORS row is deleted; detection moves to a `draw` Effect scaling-
     # count STRUCTURAL arm gated by the draw's PER-CLAUSE raw (Effect.clause_raw — the

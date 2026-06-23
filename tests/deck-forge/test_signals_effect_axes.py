@@ -25,11 +25,11 @@ CASES = [
     # ADR-0027: team_buff migrated to the Card IR (phase's `grant_keyword` effect on a
     # generic "creatures you control" subject), so it no longer fires on the regex path
     # tested here — its IR path is proven in test_migrated_keys.
-    (
-        "tutor_matters",
-        "you",
-        "{T}: Search your library for a basic land card, then shuffle.",
-    ),
+    # ADR-0027 reveal/dig-v2: tutor_matters migrated to the Card IR (a BYTE-IDENTICAL
+    # kept mirror == the deleted TUTOR_MATTERS_REGEX over the reminder-stripped oracle —
+    # phase keeps a `tutor` EFFECT for every search incl. the opp/symmetric/composite/
+    # reminder over-fires, so the regex IS the precise spec), so it no longer fires on the
+    # regex path tested here — its IR path is proven in test_migrated_keys.
     # ADR-0027 β: gain_control migrated to the Card IR (a gated `cat=='gain_control'`
     # structural arm + a narrowed kept mirror + a facade cross-open reconciliation), so
     # it no longer fires on the regex path tested here — its IR path is proven in
@@ -46,11 +46,11 @@ CASES = [
     # on the supplement-populated copied-type subject + a byte-identical CLONE_MATTERS_
     # REGEX kept WORD MIRROR), so it no longer fires on the regex path tested here — its
     # IR path is proven in test_migrated_keys and test_clone_still_fires (hybrid).
-    (
-        "cheat_into_play",
-        "you",
-        "Look at the top five cards of your library. Put a creature card from among them onto the battlefield.",
-    ),
+    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR (a STRUCTURAL
+    # cat=='cheat_play'+to:battlefield+non-gy-source arm reading the project._recover_
+    # cheat_into_play_source marker + a narrow _CHEAT_INTO_PLAY_RESIDUE_RE mirror), so it
+    # no longer fires on the regex path tested here — its IR path is proven in
+    # test_migrated_keys and test_polymorph_cheat_opens_cheat_into_play (hybrid).
     # ADR-0027 (t2b2-A): bounce_tempo migrated to the Card IR (phase's first-class
     # `bounce` effect category, gated on no-graveyard-zone + subject not controller=you),
     # so it no longer fires on the regex path tested here — its IR path is proven in
